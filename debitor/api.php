@@ -62,6 +62,10 @@
 //                  0184. The key is omitted when no CVR is known; routing on the GLN and
 //                  the GLN exemptions in both missing-CVR guards are unchanged.
 // 20261023 CL/MMR SST-884 sendInvoice() falls back to the customer card's CVR when the order has none, like EAN.
+// 20261023 CL/MMR SD-774 sendInvoice() stops before sending when a Danish receiver is reached on a GLN and neither the
+//                 order nor the debitor card has a CVR, and the popup window says why (easyUblCvrMissing()).
+//                 Receivers reject such invoices (DK-R-017 / E-APS24003); EasyUBL requires the CVR since 2026-10-22.
+//                 An order EAN or CVR holding only spaces now counts as empty, so the card's value is used instead.
 
     @session_start();
     $s_id=session_id();
@@ -78,6 +82,7 @@
     include("../includes/forfaldsdag.php");
     include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");
     include_once(__DIR__ . "/../includes/stdFunc/countryCode.php");
+    include_once(__DIR__ . "/../includes/stdFunc/einvoiceCvr.php");
 
     /**
      * @param string $address The full street address to split
@@ -456,6 +461,36 @@
         exit;
     }
 
+    /**
+     * SD-774: the document would go to a GLN of a Danish receiver, and neither the order nor the
+     * debitor card has a CVR (einvoice_cvr_missing()). Receivers reject that, so nothing is sent:
+     * no payload log, no EasyUBL call, digital_status untouched. The popup window opened by
+     * window.open() shows why, with the NemHandel lookup link. Never returns.
+     *
+     * @param string $ean     The EAN the document would have been sent to
+     * @param int    $orderId ordrer.id
+     */
+    function easyUblCvrMissing($ean, $orderId) {
+        global $db, $db_encode, $sprog_id;
+
+        $charset = ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1';
+        file_put_contents("../temp/$db/cvr-missing-" . (int)$orderId . "-" . date("Y-m-d-H-i-s") . ".json",
+            json_encode(array('error' => 'CVR missing for a GLN receiver (SD-774)', 'order_id' => (int)$orderId, 'ean' => (string)$ean)));
+
+        $title = findtekst('5166|Fakturaen kan ikke sendes digitalt', $sprog_id);
+        $text = str_replace('%s', (string)$ean, findtekst('5167|Modtageren har EAN-nummer %s, men der er ikke angivet noget CVR-nummer. E-fakturaer til et EAN-nummer skal have modtagerens CVR-nummer, ellers bliver de afvist. Indtast CVR-nummeret på ordren eller debitorkortet, og send igen.', $sprog_id));
+        $link = findtekst('5163|Slå CVR op i NemHandelsregisteret', $sprog_id);
+        $close = findtekst('2172|Luk', $sprog_id);
+        $flags = ENT_QUOTES | ENT_SUBSTITUTE;
+        print "<div style='max-width:640px;margin:40px auto;padding:20px 24px;border:1px solid #c33;border-radius:6px;background:#fff6f6;font-family:Arial,Helvetica,sans-serif;'>";
+        print "<h2 style='margin-top:0;color:#a00;'>" . htmlspecialchars($title, $flags, $charset) . "</h2>";
+        print "<p>" . htmlspecialchars($text, $flags, $charset) . "</p>";
+        print "<p><a href='" . htmlspecialchars(einvoice_nemhandel_lookup_url(), $flags, $charset) . "' target='_blank' rel='noopener'>" . htmlspecialchars($link, $flags, $charset) . "</a></p>";
+        print "<p><button type='button' onclick='window.close();'>" . htmlspecialchars($close, $flags, $charset) . "</button></p>";
+        print "</div>";
+        exit;
+    }
+
     // Setting up the invoice data
     /**
      * @param int $id The Orders ID
@@ -473,13 +508,20 @@
 
         // Fall back to customer record (adresser) for EAN and CVR if the order row has none
         // (SST-884: CVR too, so a receiver validating DK-R-017 gets the card's CVR)
+        // SD-774: a field holding only spaces counts as empty, so the card's value is used for it too
+        if(trim((string)$r_faktura["ean"]) === ""){
+            $r_faktura["ean"] = "";
+        }
+        if(trim((string)$r_faktura["cvrnr"]) === ""){
+            $r_faktura["cvrnr"] = "";
+        }
         if((empty($r_faktura["ean"]) || empty($r_faktura["cvrnr"])) && !empty($r_faktura["konto_id"])){
             $q = db_select("SELECT ean, cvrnr FROM adresser WHERE id = " . intval($r_faktura["konto_id"]), __FILE__ . " linje " . __LINE__);
             $adresser_row = db_fetch_array($q);
-            if(empty($r_faktura["ean"]) && !empty($adresser_row["ean"])){
+            if(empty($r_faktura["ean"]) && trim((string)$adresser_row["ean"]) !== ""){
                 $r_faktura["ean"] = $adresser_row["ean"];
             }
-            if(empty($r_faktura["cvrnr"]) && !empty($adresser_row["cvrnr"])){
+            if(empty($r_faktura["cvrnr"]) && trim((string)$adresser_row["cvrnr"]) !== ""){
                 $r_faktura["cvrnr"] = $adresser_row["cvrnr"];
             }
         }
@@ -664,6 +706,11 @@
                 "addressLine" => "",
                 "countryCode" => ""
             ];
+        }
+        // SD-774: a Danish receiver reached on a GLN needs its CVR on the invoice. The order's EAN/CVR
+        // already fall back to the debitor card above (SST-884), so this is the value that would be sent.
+        if (einvoice_cvr_missing($r_faktura["ean"], $r_faktura["cvrnr"], $r_faktura["land"] ?? "")) {
+            easyUblCvrMissing(trim((string)$r_faktura["ean"]), $id);
         }
         $data = [
             "invoiceCreditnote" => $creditNote,

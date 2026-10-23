@@ -5,6 +5,8 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . '/../../../includes/stdFunc/countryCode.php';
+
 // 20261007 MJ SST-860 Pins what sendInvoice() puts in accountingCustomerParty.companyId.
 //                  Brøndby Kommune rejected Den-Tec's faktura 12034 on Schematron rule
 //                  DK-R-017: PartyLegalEntity/CompanyID must carry schemeID 0184 (CVR) for
@@ -22,6 +24,8 @@ use PHPUnit\Framework\TestCase;
 //                  NOTE: do not exercise the "neither EAN nor CVR" case through the lifted
 //                  resolution block. That branch emits a <script>alert() and calls exit,
 //                  which would end the PHPUnit process. It is asserted on the source only.
+// 20261023 CL/MMR SD-774 testSendingIsStillAllowedWithoutACvr no longer says that a customer with only a GLN is never blocked: sendInvoice() now stops a Danish GLN receiver without any CVR before the payload is built, so the two exemptions pinned there only let foreign GLN receivers through.
+//                 The file requires includes/stdFunc/countryCode.php itself, because the lifted resolution block calls countryCodeIso2() since SST-870 and five tests errored when this file ran alone.
 final class PeppolCustomerCompanyIdTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -192,19 +196,29 @@ final class PeppolCustomerCompanyIdTest extends TestCase
     }
 
     /**
-     * This ticket deliberately did NOT start refusing to send. Den-Tec holds only EAN
+     * SST-860 deliberately did NOT start refusing to send. Den-Tec holds only EAN
      * numbers for 43 municipal customers, and the standard permits routing on a GLN - what
      * it forbids is claiming a CVR scheme over a non-CVR value. So the GLN exemption in
      * both missing-CVR guards stays.
+     *
+     * 20261023 CL/MMR SD-774: the exemptions still stand, but they no longer mean that a
+     * customer with only a GLN is never blocked. sendInvoice() now stops a Danish receiver
+     * reached on a GLN when neither the order nor the debitor card has a CVR, before the
+     * payload is built, because receivers reject those invoices (DK-R-017 / E-APS24003).
+     * That block is pinned in EInvoiceCvrRequirementTest. Foreign GLN receivers without a
+     * CVR still pass, and they are what these exemptions let through now. The first guard
+     * runs before the SD-774 check, so without its exemption a Danish GLN receiver would
+     * get that guard's "neither CVR nor EAN" alert instead of the SD-774 explanation.
      */
     public function testSendingIsStillAllowedWithoutACvr(): void
     {
         $src = self::source();
 
         self::assertStringContainsString('}elseif($endpointType !== "GLN"){', $src,
-            'the first missing-CVR guard no longer exempts GLN, so GLN-only customers are blocked');
+            'the first missing-CVR guard no longer exempts GLN, so foreign GLN receivers without a CVR are blocked,'
+            . ' and Danish ones get its "neither CVR nor EAN" alert instead of the SD-774 explanation');
         self::assertStringContainsString('&& $endpointType !== "GLN"){', $src,
-            'the pre-transmission validation no longer exempts GLN, so GLN-only customers are blocked');
+            'the pre-transmission validation no longer exempts GLN, so foreign GLN receivers without a CVR are blocked');
     }
 
     /**

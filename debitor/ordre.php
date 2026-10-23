@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-19 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -161,6 +161,10 @@
 // 20261019 CL/LH MB-74: Reloading (resending) the POST that saved a new order line, or a double-click on Gem, no longer inserts the line again.
 //                The order form carries a per-render order_form_token, and the fingerprint of a POST whose new line was committed is kept in the session per order (orderIncludes/orderLineReplay.php).
 //                An identical POST for the same order skips only the new-line insert; failed saves are not remembered.
+// 20261023 CL/MMR SD-774 A popup asks for the receiver's CVR when an invoice is to be sent Digitalt to an EAN and neither the order nor the debitor card has a CVR.
+//                 It opens on load when Udskriv til is Digitalt, and on an open order also when Digitalt is chosen in the list.
+//                 Its Gem saves the CVR on the order and, when ticked, on the debitor card (orderIncludes/einvoiceCvr.php, javascript/einvoiceCvrPopup.js).
+//                 ordreside() gets that save's result as a third parameter, so a rejected CVR is shown again with the error.
 
 @session_start();
 $s_id = session_id();
@@ -199,6 +203,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
+include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -953,6 +958,20 @@ if ($b_submit == 'Credit') $b_submit = 'Krediter';
 // MB-74: fingerprint of a POST that adds a new order line, remembered once the line is committed.
 $orderLineReplayKey = orderLineReplayKey($_POST, (string)$db, (string)$brugernavn);
 $orderLineSaved = false;
+// SD-774: the CVR typed in the e-invoice popup is saved before the order's own POST handling below.
+// On an open order that handling saves cvrnr from the form again, so it gets the same value.
+$einvoiceCvrResult = array();
+if (ifset($_POST, 'einvoiceCvrSave') === '1') {
+	$einvoiceCvrResult = einvoiceCvrSaveFromOrder(
+		ifset($_POST, 'id', 0),
+		ifset($_POST, 'einvoiceCvr', ''),
+		ifset($_POST, 'einvoiceCvrToCard') === '1',
+		ifset($_POST, 'einvoiceCvrCardWas', '')
+	);
+	if ($einvoiceCvrResult['formCvr'] !== null) {
+		$_POST['cvrnr'] = $einvoiceCvrResult['formCvr'];
+	}
+}
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
 	$sum = if_isset($_POST, NULL, 'sum');
@@ -3377,8 +3396,8 @@ if ($status < 3 && isset($_GET['updateOrderCost']) && $_GET['updateOrderCost']) 
 
 ###########################################################################
 
-ordreside($id, $regnskab);
-function ordreside($id, $regnskab)
+ordreside($id, $regnskab, $einvoiceCvrResult);
+function ordreside($id, $regnskab, $einvoiceCvrResult = array())
 {
 	#  print "<!--Function ordreside start-->";
 	global $afd_lager, $art;
@@ -6560,6 +6579,25 @@ function ordreside($id, $regnskab)
 		print "</tbody></table></td></tr>\n"; # <- Tabel 4
 		print "</form>\n"; # 
 	} # end else for (if ($status>=3))
+
+	// SD-774: the popup asking for the receiver's CVR (orderIncludes/einvoiceCvr.php).
+	einvoiceCvrPopupView(
+		array(
+			'id'             => $id,
+			'art'            => $art,
+			'status'         => $status,
+			'udskriv_til'    => $udskriv_til,
+			'digital_status' => $digitalStatus ?? '',
+			'ean'            => $ean,
+			'cvrnr'          => $cvrnr,
+			'land'           => $land,
+			'konto_id'       => $konto_id,
+		),
+		einvoiceCvrRedirectPending($b_submit),
+		$einvoiceCvrResult,
+		$sprog_id,
+		$db_encode
+	);
 
 	# Malene, dette er enden
 
