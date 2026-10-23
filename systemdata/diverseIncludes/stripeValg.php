@@ -87,6 +87,18 @@ function stripeValgSave() {
 	# target_db - mirrored from the resolver, never from POST (contract 4.0.2)
 	update_settings_value('target_db', 'stripe', stripeConfigDb(), 'Spejl af stripeConfigDb() - informativ, laeses aldrig som sandhed');
 
+	# publishable_key (pk_test_/pk_live_) - the invoice & payment page's Payment Element (20261019 CL/ASR)
+	$publishable_key = trim((string)if_isset($_POST['stripe_publishable_key'], ''));
+	if ($publishable_key !== '') {
+		if (preg_match('/^pk_(test|live)_[A-Za-z0-9]+$/', $publishable_key)) update_settings_value('publishable_key', 'stripe', $publishable_key, 'Stripe publishable key (betalingssiden)');
+		else print "<BODY onLoad=\"javascript:alert('Publishable key skal starte med pk_test_ eller pk_live_')\">\n";
+	}
+	# charge_on: when the daily charge job collects Udskriv til = Stripe invoices
+	$charge_on = (string)if_isset($_POST['stripe_charge_on'], 'due');
+	update_settings_value('charge_on', 'stripe', $charge_on === 'invoice_date' ? 'invoice_date' : 'due', 'Automatisk traek: due | invoice_date');
+	# auto_post_journal: reserved (default off) - the Stripe journal is posted by the bookkeeper
+	update_settings_value('auto_post_journal', 'stripe', if_isset($_POST['stripe_auto_post_journal']) ? 'on' : 'off', 'Bogfoer Stripe-kladden automatisk (reserveret)');
+
 	# vat_rate_id
 	$vat_rate_id = trim((string)if_isset($_POST['stripe_vat_rate_id'], ''));
 	if ($vat_rate_id === '' || preg_match('/^txr_[A-Za-z0-9]+$/', $vat_rate_id)) {
@@ -156,6 +168,15 @@ function stripeValg() {
 
 	print "<tr><td title='HMAC-nøglen der signerer abonnementslinks i fakturamails. Genereres automatisk ved første gem.'>Link-nøgle:</td>";
 	print "<td colspan='3'>" . ($has_link ? "Genereret" : "Genereres ved første gem") . " &nbsp; <label><input type='checkbox' name='stripe_regen_link_secret' value='1'> Generér ny (ADVARSEL: alle links i allerede udsendte mails holder op med at virke)</label></td></tr>";
+
+	$publishable = htmlspecialchars(stripe_setting('publishable_key'), ENT_QUOTES, 'UTF-8');
+	print "<tr><td title='Stripe publishable key (pk_test_... / pk_live_...) - bruges af faktura- og betalingssiden til Stripes kortfelter. Må gerne være synlig.'>Publishable key:</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_publishable_key' value='$publishable' placeholder='pk_test_...'></td></tr>";
+	$charge_on = stripe_setting('charge_on', 'due');
+	print "<tr><td title='Hvornår det daglige trækjob (tools/stripe_charge_due.php) trækker kunder med Udskriv til = Stripe.'>Automatisk træk:</td>";
+	print "<td colspan='3'><select name='stripe_charge_on'><option value='due'" . ($charge_on != 'invoice_date' ? " selected" : "") . ">På forfaldsdatoen</option><option value='invoice_date'" . ($charge_on == 'invoice_date' ? " selected" : "") . ">På fakturadatoen</option></select></td></tr>";
+	print "<tr><td title='Reserveret: kladden Stripe-betalinger bogføres af bogholderen. Slås først til, når to måneders kørsler er afstemt.'>Bogfør Stripe-kladden automatisk:</td>";
+	print "<td colspan='3'><input type='checkbox' name='stripe_auto_post_journal' value='1'" . (stripe_setting('auto_post_journal', 'off') == 'on' ? " checked" : "") . "> (reserveret, ikke aktiv endnu)</td></tr>";
 
 	print "<tr><td title='Stripe tax rate (txr_...) for 25% dansk moms - oprettes i Stripe Dashboard og indsættes her. Uden den parkeres alle links.'>Tax rate id:</td>";
 	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_vat_rate_id' value='$vat_rate_id' placeholder='txr_...'></td></tr>";
