@@ -320,7 +320,7 @@ function brightenColor($color, $amount = 0.2) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/crmkalender.php")\'>CRM</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/crm.php")\'>CRM</a></li>';
         }
         ?>
       </ul>
@@ -1004,7 +1004,7 @@ function brightenColor($color, $amount = 0.2) {
   }
 
   // Notification center (spec §3): polled from the shell every 60 s, rendered client-side.
-  const topbarNotifIcons = { news: 'bx-news', warning: 'bx-error', suggestion: 'bx-bulb', system: 'bx-plug' };
+  const topbarNotifIcons = { news: 'bx-news', warning: 'bx-error', suggestion: 'bx-bulb', system: 'bx-plug', crm: 'bx-calendar-check' };
   function topbarNotifLoad() {
     fetch('notifications.php', { credentials: 'same-origin' })
       .then((r) => r.ok ? r.json() : null)

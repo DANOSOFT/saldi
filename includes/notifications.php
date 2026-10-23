@@ -32,6 +32,8 @@
 // 20261010 Sawaneh The Oversigt role keys dashboard.block.news / dashboard.block.expiry (front-page addendum 4) hide the
 //                  news and batch-expiry items in the bell, as those banners now live there (topbar spec §3).
 // 20261019 Sawaneh Review 2 (PR #803): the batch-expiry limit date is computed in PHP (no Postgres interval literal).
+// 20261021 ASR Type 'crm': the CRM's daily follow-up summary (crm_notif_refresh() in includes/crmFunctions.php); the
+//              CRM's event notifications (follow-up/deal assigned to you, deal won/lost) are written by crmFunctions.php.
 
 /**
  * @return array<string, string> type -> label text id
@@ -43,6 +45,7 @@ function notif_types(): array
 		'warning'    => '5641|Advarsler',
 		'suggestion' => '5642|Forslag',
 		'system'     => '5643|System',
+		'crm'        => '7512|CRM',
 	);
 }
 
@@ -130,6 +133,11 @@ function notif_refresh(int $brugerId, string $rettigheder, int $sprogId): void
 	if ($brugerId !== 0) {
 		notif_source_batches($brugerId, $rettigheder, $sprogId);
 		notif_source_bank($brugerId, $sprogId);
+		// CRM: today's follow-ups for the user's employee (debitor/crm.php).
+		include_once(__DIR__ . '/crmFunctions.php');
+		if ($brugerId > 0 && function_exists('crm_notif_refresh')) {
+			crm_notif_refresh($brugerId, $rettigheder, $sprogId);
+		}
 	}
 	// Prune what has expired (spec 3.4).
 	db_modify("delete from notification_read where notification_id in (select id from notifications where expires is not null and expires < current_date)", __FILE__ . " linje " . __LINE__);

@@ -387,6 +387,7 @@ html.topbar-tall { --topbar-h: 48px; }
 .topbar-notif-warning { background: #fdf1d8; color: #e8a013; }
 .topbar-notif-system { background: #fde5e0; color: var(--topbar-red); }
 .topbar-notif-news { background: #e2f5ea; color: var(--topbar-green); }
+.topbar-notif-crm { background: #e6f0fb; color: #1b68bd; }
 .topbar-notif-t { font-size: 0.8438rem; font-weight: 600; line-height: 1.35; color: var(--topbar-txt); }
 .topbar-notif-b { font-size: 0.7812rem; color: var(--topbar-mut); line-height: 1.4; margin-top: 2px; }
 .topbar-notif-time { font-size: 0.6875rem; color: var(--topbar-mut); margin-top: 4px; }

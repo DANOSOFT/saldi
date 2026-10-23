@@ -1549,4 +1549,8 @@ if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHE
 	}
 }
 
+// 20261020 ASR CRM redesign (debitor/crm.php): historik.type + historik.completed and the crm_deals table, see includes/crmFunctions.php.
+include_once(__DIR__ . "/crmFunctions.php");
+crm_ensure_schema();
+
 ?>

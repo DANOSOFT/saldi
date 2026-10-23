@@ -129,6 +129,7 @@ return array(
 		'debitor/postnr.php' => array('m' => 'debitor', 'l' => '|Top 100 Postnr', 'p' => '/debitor/rapport.php'),
 		'debitor/salg_postnr.php' => array('m' => 'debitor', 'l' => '3360|Salg pr. postnummer', 'p' => '/debitor/rapport.php'),
 		'debitor/multiroute.php' => array('m' => 'debitor', 'l' => '1654|Eksport til mulitroute', 'p' => '/debitor/rapport.php'),
+		'debitor/crm.php' => array('m' => 'debitor', 'l' => '|CRM', 'p' => ''),
 		'debitor/crmkalender.php' => array('m' => 'debitor', 'l' => '|CRM', 'p' => ''),
 		'debitor/crmvisning.php' => array('m' => 'debitor', 'l' => '813|Visning', 'p' => '/debitor/crmkalender.php'),
 		'debitor/crmopret.php' => array('m' => 'debitor', 'l' => '1232|Opret', 'p' => '/debitor/crmkalender.php'),

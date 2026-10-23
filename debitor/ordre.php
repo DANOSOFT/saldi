@@ -156,6 +156,9 @@
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
 // 20261008 Sawaneh The order heading has no dangling dash when there is nothing after the number (breadcrumb and page head).
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
+// 20261020 ASR ordrestatus=1 on a new order (from the CRM's Opret ordre) starts it as an order instead of an offer.
+// 20261020 ASR An order created from the CRM stores its crm.php returside, so Back still finds the customer after a save.
+// 20261020 ASR crm_deal=<id> on a new order links it to that CRM deal (crm_deals.ordre_id).
 // 20261008 MJ SST-833 The batch-selection control on a sales line no longer uses the
 //                  serial-number icon and alt text. It opens batch(), not serienummer(),
 //                  and appeared on items with no serial number at all.
@@ -855,6 +858,9 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$ordredate = date("Y-m-d");
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
+	// 20261020 ASR CRM "Opret ordre" (debitor/crm.php) opens ordre.php?konto_id=..&ordrestatus=1: the new order starts as an
+	//              order (status 1) instead of an offer (status 0). Without the flag nothing changes.
+	$newOrderStatus = (isset($_GET['ordrestatus']) && $_GET['ordrestatus'] === '1') ? '1' : '0';
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
 	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,performed_by,";
 	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
@@ -862,7 +868,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$qtxt .= " values ";
 	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
 	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "',";
-	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
+	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','$newOrderStatus','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
 	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -879,6 +885,15 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) $id = $row['id'];
+	// 20261020 ASR An order created from the CRM keeps its way back (the customer's drawer): the returside is only in
+	//              the first request, and after a save the page would otherwise fall back to the nav stack.
+	if ($id && $returside && strpos($returside, 'crm.php?') === 0) {
+		db_modify("update ordrer set returside = '" . db_escape_string($returside) . "' where id = '" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+	}
+	// 20261020 ASR An offer/order started from a CRM deal is linked to it (crm_deals.ordre_id).
+	if ($id && isset($_GET['crm_deal']) && ctype_digit((string) $_GET['crm_deal']) && tbl_exists('crm_deals')) {
+		db_modify("update crm_deals set ordre_id = '" . (int) $id . "' where id = '" . (int) $_GET['crm_deal'] . "' and konto_id = '" . (int) $konto_id . "'", __FILE__ . " linje " . __LINE__);
+	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
 	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
@@ -3418,6 +3433,11 @@ function ordreside($id, $regnskab)
 	$sag_id = if_isset($r, NULL, 'sag_id') * 1; #20210719
 	if ($sag_id) {
 		$returside = "../sager/sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id";
+	}
+	// 20261020 ASR A stored CRM returside (set when the order was created from crm.php) wins over the default below;
+	//              the general stored-returside read further down only runs after this default is set, so it never applies.
+	if (!$returside && !$isPopupRequest && strpos((string) if_isset($r, '', 'returside'), 'crm.php?') === 0) {
+		$returside = nav_sanitize_returside(html_entity_decode((string) $r['returside'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 	}
 	if (!$returside) {
 		if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
