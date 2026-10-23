@@ -187,11 +187,8 @@
 //                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
 // 20261004 CL/SZ SD-725 A VAT code field per side of each row (dvat/kvat + row number, as in the journal), so the lookup panel fills it when an account is chosen.
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
-<<<<<<< HEAD
 // 20261004 CL/SZ SD-726 The user's "Ctrl + pil op/ned" from the journal's gear box comes in window.saldiShortcuts.
 //                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
-=======
->>>>>>> refs/rewritten/onto
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
@@ -210,11 +207,8 @@
 //                box; attaching the document to it made a second line. "Gem" and "Gem alle" refuse a dot that is not a thousands separator
 //                ("12.50" was saved as 1250) and a space inside the amount.
 // 20261022 CL/SZ SD-725 (CodeRabbit) The VAT field gets the other side's saved code too, so a blank chosen next to it stays blank (poolVatShown()).
-<<<<<<< HEAD
-=======
 // 20261022 CL/SZ MB-91 The list's "Indsæt" refuses the attach while a "Fordeling" row isn't saved (5451), with the cursor in that row; nothing is saved or attached.
 //                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
->>>>>>> refs/rewritten/onto
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
