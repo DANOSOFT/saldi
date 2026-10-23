@@ -8,17 +8,38 @@
  // 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
  // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
  // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
+ // 20261022 CL/NTR findtekst() now accepts descriptive string keys (tekst_key) alongside numeric tekst_id, with key-first resolution, self-heal insert and a placeholder rule. See doc/ai/convention_findtekst_keys.md.
 if (!function_exists('findtekst')) {
+	/**
+	 * Look up a translated text for a language.
+	 *
+	 * The first argument may be:
+	 *   - a numeric legacy id   -> matched against tekster.tekst_id (unchanged behaviour), or
+	 *   - a descriptive string key (e.g. 'common.accept') -> matched against tekster.tekst_key, or
+	 *   - either of the above suffixed with '|fallback text' (the left side is the lookup token,
+	 *     the right side is fallback text used when nothing is translated yet).
+	 *
+	 * Key resolution order: tekst_key row -> legacy tekst-content match -> CSV seed files ->
+	 * self-heal (insert the key so it surfaces for translation in systemdata/tekster.php).
+	 * A row whose tekst equals its tekst_key is a not-yet-translated placeholder and is never
+	 * returned as an authoritative translation.
+	 *
+	 * @param string|int $textId    Numeric tekst_id, a tekst_key, or either with a '|fallback' suffix.
+	 * @param int        $languageID Language id ($sprog_id); 1=da, 2=en, 3=no. Out-of-range falls back to 1.
+	 * @return string The text in the database encoding (use findtekst_utf8() when UTF-8 is required).
+	 */
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
 		global $db, $db_encode;
 		global $sqdb;
 		global $webservice;
 		$id = 0;
+		$b = null;
 
 		if (strpos($textId,'|')) {
-			list($a,$b) = explode('|',$textId);
-			if (preg_match('/^[0-9]+$/', $a)) $textId = $a;
+			// Left of the pipe is the lookup token (numeric id or string key); right is fallback text.
+			list($a,$b) = explode('|',$textId,2);
+			$textId = $a;
 		}
 		
 		$sessionVar = 'text_'. $textId .'_'. $languageID;
@@ -41,11 +62,51 @@ if (!function_exists('findtekst')) {
 		}
 		######################
 
+		// Detect the new descriptive-key column once per request. During rollout a tenant that
+		// has not yet run betweenUpdates.php won't have it, so fall back to the legacy behaviour.
+		static $hasKeyColumn = null;
+		if ($hasKeyColumn === null) {
+			$colq = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster' AND column_name='tekst_key'";
+			$hasKeyColumn = (bool) db_fetch_array(db_select($colq, __FILE__ . " linje " . __LINE__));
+		}
+
 		if (!preg_match('/^[0-9]+$/', $textId)) {
-			$qtxt = "select tekst_id from tekster where tekst = '$textId'";
-			if ($r = db_fetch_array(db_select($qtxt, ''))) {
+			$lang = (!$languageID || $languageID > 3) ? 1 : $languageID;
+			$placeholderId = 0;
+
+			// 1. Resolve as a tekst_key. A row whose tekst equals its key (or is '-') is a
+			//    not-yet-translated placeholder and must not be returned as a real translation.
+			if ($hasKeyColumn) {
+				$keyEsc = db_escape_string($textId);
+				$qtxt = "select id,tekst from tekster where tekst_key='$keyEsc' and sprog_id='$lang'";
+				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					if ($r['tekst'] === '-') {
+						$_SESSION[$sessionVar] = '';
+						return '';
+					}
+					if ($r['tekst'] !== '' && $r['tekst'] !== null && $r['tekst'] !== $textId) {
+						$_SESSION[$sessionVar] = $r['tekst'];
+						return $r['tekst'];
+					}
+					$placeholderId = $r['id'];
+				}
+			}
+
+			// 2. Legacy fallback: the caller passed literal text content. Exclude placeholder rows
+			//    (tekst == tekst_key) so a self-healed key can't match itself here.
+			$matched = false;
+			$contentEsc = db_escape_string($textId);
+			$qtxt = "select tekst_id from tekster where tekst = '$contentEsc'";
+			if ($hasKeyColumn) {
+				$qtxt .= " and (tekst_key is null or tekst <> tekst_key)";
+			}
+			if (($r = db_fetch_array(db_select($qtxt, ''))) && $r['tekst_id'] !== null && $r['tekst_id'] !== '') {
 				$textId = $r['tekst_id'];
-			} else {
+				$matched = true;
+			}
+
+			// 3. Legacy fallback: look the token up in the CSV seed files.
+			if (!$matched) {
 				$txtlines = array();
 				if (file_exists("../importfiler/egnetekster.csv")) $fileName = "../importfiler/egnetekster.csv";
 				else $fileName = "../importfiler/tekster.csv";
@@ -59,6 +120,27 @@ if (!function_exists('findtekst')) {
 						}
 					}
 				}
+			}
+
+			// 4. Still an unresolved key: self-heal so it surfaces in the admin UI for translation.
+			//    Store the pipe fallback text when given, otherwise the key itself as a placeholder.
+			if ($hasKeyColumn && $db != $sqdb && !preg_match('/^[0-9]+$/', $textId)) {
+				$candidate = ($b !== null && $b !== '') ? $b : $textId;
+				if ($db_encode != "UTF8") {
+					$candidate = mb_convert_encoding($candidate, 'ISO-8859-1', 'UTF-8');
+				}
+				$keyEsc = db_escape_string($textId);
+				$candEsc = db_escape_string($candidate);
+				if ($placeholderId) {
+					// Only upgrade a placeholder once we have something better than the key itself.
+					if ($candidate !== $textId) {
+						db_modify("update tekster set tekst='$candEsc' where id='$placeholderId'", __FILE__ . " linje " . __LINE__);
+					}
+				} else {
+					db_modify("insert into tekster(sprog_id,tekst_key,tekst) values ('$lang','$keyEsc','$candEsc')", __FILE__ . " linje " . __LINE__);
+				}
+				$_SESSION[$sessionVar] = $candidate;
+				return $candidate;
 			}
 		}
 

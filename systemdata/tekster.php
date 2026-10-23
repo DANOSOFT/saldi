@@ -1,5 +1,5 @@
 <?php
-// ----------------------------- systemdata/tekster.php ----------------- ver 4.0.1 -- 2021-08-20 --
+// ----------------------------- systemdata/tekster.php ----------------- ver 5.0.0 -- 2026-10-22 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,6 +19,7 @@
 // ----------------------------------------------------------------------
 // 20210818 LOE Updated some line here
 // 20210819 Added some blocks of codes and added an option to download edited text as csv file
+// 20261022 CL/NTR Added an editable Key (tekst_key) column; key edits propagate across all language rows of the text.
 
 @session_start();
 $s_id=session_id();
@@ -98,10 +99,24 @@ if($_POST) {
 	$tekstantal=if_isset($_POST['tekstantal']); 
 	$id=if_isset($_POST['id']); 
 	$tekst=if_isset($_POST['tekst']); 
-	$ny_tekst=if_isset($_POST['ny_tekst']); 
+	$ny_tekst=if_isset($_POST['ny_tekst']);
+	$tekst_id_post=if_isset($_POST['tekst_id']);
+	$key=if_isset($_POST['key']);
+	$ny_key=if_isset($_POST['ny_key']);
 	for ($x=1;$x<=$tekstantal;$x++) {
 		$tmp=db_escape_string(trim($ny_tekst[$x]));
 		if ($id[$x] && $tmp && $tekst[$x]!=$ny_tekst[$x]) db_modify("update tekster set tekst='$tmp' where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
+		// 20261022 CL/NTR save tekst_key, propagating it across all language rows of the text.
+		$nyKey=trim(ifset($ny_key, $x, ''));
+		if ($id[$x] && $nyKey!=trim(ifset($key, $x, ''))) {
+			$keyEsc=db_escape_string($nyKey);
+			$tid=ifset($tekst_id_post, $x, '');
+			if (preg_match('/^[0-9]+$/', (string)$tid)) {
+				db_modify("update tekster set tekst_key='$keyEsc' where tekst_id='".intval($tid)."'",__FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("update tekster set tekst_key='$keyEsc' where id='".intval($id[$x])."'",__FILE__ . " linje " . __LINE__);
+			}
+		}
 	}
 }
 #if (!$sprog_id) $sprog_id=1;
@@ -133,6 +148,7 @@ while ($r = db_fetch_array($q)) {
 	$x++;
 	$id[$x]=$r['id'];
 	$tekst_id[$x]=$r['tekst_id'];
+	$tekst_key[$x]=ifset($r, 'tekst_key', '');
 	$tekst[$x]=$r['tekst'];
 }
 $tekstantal=$x;
@@ -146,14 +162,17 @@ print "<form name=\"tekster\" action=\"tekster.php?sprog_id=$sprog_id&sort=$sort
  print "<table class='dataTable2'><tbody>";
 #print "<tr><td><a href=tekster.php?sprog_id=$sprog&sort=tekst_id>Id</a></td>";
 print "<tr><td><a href=tekster.php?sprog_id=$sprog_id&sort=tekst_id>Id</a></td>"; #20210819
+print "<td><a href=tekster.php?sprog_id=$sprog_id&sort=tekst_key>Key</a></td>"; #20261022 CL/NTR
 #print "<td width=400><a href=tekster.php?sprog_id=$sprog&sort=tekst>".findtekst('31|Nuværende tekst', $sprog_id)."</a></td>";
 print "<td width=400><a href=tekster.php?sprog_id=$sprog_id&sort=tekst>".findtekst('31|Nuværende tekst', $sprog_id)."</a></td>"; 
 print "<td title=\"".findtekst('33|Skriv nyt tekstforslag', $sprog_id)."\">".findtekst('32|Ny tekst', $sprog_id)."</td>";
 for($x=1; $x<=$tekstantal; $x++){
 	print "<input type=hidden name=id[$x] value=\"$id[$x]\">";
+	print "<input type=hidden name=tekst_id[$x] value=\"$tekst_id[$x]\">"; #20261022 CL/NTR
+	print "<input type=hidden name=key[$x] value=\"".ifset($tekst_key, $x, '')."\">"; #20261022 CL/NTR
 	#print "<input type=hidden name=tekst[$x] value=\"$tekst[$x]\">";
 	print "<tr><td><input type=hidden name=tekst[$x] value=\"$tekst[$x]\"></td>"; #20210819 Without adding the td tags...it breaks the page
-	print "<tr><td>$tekst_id[$x]</td><td>$tekst[$x]</td>";
+	print "<tr><td>$tekst_id[$x]</td><td><input type=text class=\"inputbox\" name=\"ny_key[$x]\" size=\"20\" value=\"".ifset($tekst_key, $x, '')."\"></td><td>$tekst[$x]</td>";
 #	print "<td><textarea class=\"inputbox\" name=\"ny_tekst[$x]\" rows=\"3\" cols=\"85\">$tekst[$x]</textarea></td>";
 	print "<td><input type=text class=\"inputbox\" name=\"ny_tekst[$x]\" size=\"90\" value=\"$tekst[$x]\"></td>";
 	//fputcsv($csv, [$tekst_id[$x], $tekst[$x]]);
