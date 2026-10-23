@@ -175,10 +175,19 @@
 // 20261012 CL/SZ SD-730 The paper-clip on a journal that was never saved saves it first even with nothing typed; it opened the pool
 //                with kladde_id=0, where "Indsæt valgte" inserted nothing and came back to an empty journal.
 //                (Reported under SD-730; the fix is here because the save-first clip is SD-716's.)
+// 20261020 CL/SZ MB-81 Two users saving the same proposed voucher number no longer both get it. The blank line posts its proposal (bilfN),
+//                a save holds a per-journal lock (kkJournalLock()) from staging to cleanup, opdater() runs in one transaction, and a new
+//                line that kept a proposal another save took meanwhile is saved under the next free number with a notice.
+//                A typed number is kept as it is.
+// 20261020 CL/SZ MB-81 (CodeRabbit) The lock is held until the page has read and cleared tmpkassekl, and a page load takes it for
+//                that part too, so a render no longer deletes the lines another save is staging. A line saved without a number gets
+//                one past the numbers moved proposals got in the same save.
+// 20261021 CL/SZ MB-81 (CodeRabbit) The GET coming back from a lookup takes the journal lock before it updates the staged lines,
+//                and a lock that could not be taken stops the request.
 // 20261022 CL/NTR The kredit genvej alert built its text from $txt1/$txt2 (only set in the debet branch), so an undefined
 //                 genvej letter in Kredit printed just the account and the bilag number with a space. It now uses this
 //                 branch's own $alert1/$alert2, matching the debet alert.
-// 20261023 CL/LH Texts for the invoice-pick notice in accountAutocomplete.js (tekst_id 7600-7603, plus existing labels), written
+// 20261023 CL/LH Texts for the invoice-pick notice in accountAutocomplete.js (tekst_id 7640-7643, plus existing labels), written
 //                with json_encode() so a quote in a translation can't break the script; accountAutocomplete.js?v= and
 //                accountAutocomplete.css?v= bumped: a pick no longer overwrites what the line holds.
 
@@ -188,6 +197,7 @@ require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
+require_once __DIR__ . '/kassekladde_includes/journalSaveLock.php';
 require_once __DIR__ . '/kassekladde_includes/sorting.php';
 
 # A line created during this request is rendered last, whatever the list is sorted by, so the line the
@@ -572,10 +582,10 @@ print '<script>
     debit: ' . json_encode(findtekst('1000', $langId), $jsTextFlags) . ',
     credit: ' . json_encode(findtekst('1001', $langId), $jsTextFlags) . ',
     undo: ' . json_encode(findtekst('159', $langId), $jsTextFlags) . ',
-    autofillFilled: ' . json_encode(findtekst('7600|Udfyldt fra faktura', $langId), $jsTextFlags) . ',
-    autofillDiffers: ' . json_encode(findtekst('7601|Afviger fra fakturaen', $langId), $jsTextFlags) . ',
-    autofillUseInvoice: ' . json_encode(findtekst('7602|Brug fakturaens værdier', $langId), $jsTextFlags) . ',
-    autofillLine: ' . json_encode(findtekst('7603|linjen', $langId), $jsTextFlags) . '
+    autofillFilled: ' . json_encode(findtekst('7640|Udfyldt fra faktura', $langId), $jsTextFlags) . ',
+    autofillDiffers: ' . json_encode(findtekst('7641|Afviger fra fakturaen', $langId), $jsTextFlags) . ',
+    autofillUseInvoice: ' . json_encode(findtekst('7642|Brug fakturaens værdier', $langId), $jsTextFlags) . ',
+    autofillLine: ' . json_encode(findtekst('7643|linjen', $langId), $jsTextFlags) . '
 };
 </script>';
 print '<script src="../javascript/datepickerDa.js"></script>';
@@ -978,6 +988,9 @@ if ($_GET) {
 		$qtxt = "select bogfort from kladdeliste where id = $kladde_id"; #echo __line__." $qtxt<br>";
 		$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($r['bogfort'] == '-' && ($id[$x]) || ($lobenr[$x] || ($x))) {
+			// MB-81 Back from a lookup, this request updates the staged lines and may save them (opdater()), so it takes
+			// the journal lock first; the render below keeps using it
+			kkJournalLock($kladde_id);
 			if ($id[$x]) {
 				$qtxt = "update tmpkassekl set beskrivelse='" . db_escape_string($beskrivelse[$x]) . "',d_type='$d_type[$x]', ";
 				$qtxt.= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
@@ -1045,6 +1058,8 @@ if ($_POST) {
 	#			 $alerttekst= findtekst('1417|Annullerer simulering for denne kladde', $sprog_id);
 	#			 alert('a'.$alerttekst);
 	#		}
+		// MB-81 Another save of this journal finishes first: tmpkassekl is shared by the journal's saves
+		kkJournalLock($kladde_id);
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 		// This request stages the lines itself, so opdater() below may move them into the journal
 		$kkStaged = true;
@@ -1073,6 +1088,8 @@ if ($_POST) {
 		$bilag[$x] = trim(if_isset($_POST[$y], ''));
 		if (!$bilag[$x])
 			$bilag[$x] = '0'; # PHR 02.09.06
+		// MB-81 The number the page proposed on this line, so opdater() can tell a kept proposal from a typed number
+		$bilagForslag[$x] = (int)ifset($_POST, "bilf$x", 0);
 		$y = "dato" . $x;
 		$dato[$x] = trim(if_isset($_POST[$y], ''));
 		if (substr($dato[$x], 4, 1) == '-' && substr($dato[$x], 7, 1) == '-') {
@@ -1838,7 +1855,7 @@ if (!$fejl && $kladde_id) {
 	if (empty($kk_replay)) {
 		// Only lines this request staged and checked (kontroller()). What a refused save left in tmpkassekl must not
 		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
-		if (!empty($kkStaged)) opdater($kladde_id);
+		if (!empty($kkStaged)) opdater($kladde_id, $bilagForslag ?? array());
 		initializePositions($kladde_id);
 		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
 		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
@@ -3225,6 +3242,9 @@ if ($kladde_id) {
 
 		</script>";
 
+	// MB-81 The staged lines are read and cleared below, so no other save of the journal may stage meanwhile;
+	// a save that holds the lock since staging keeps it until here
+	kkJournalLock($kladde_id);
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($q)) {
@@ -3281,6 +3301,8 @@ if ($kladde_id) {
 		$bilag[$x] = $row['bilag'];
 		$forfaldsdato[$x] = NULL;
 		if ($fejl) {
+			// MB-81 A refused new line is shown again with the proposal it was posted with
+			$kkForslag[$x] = $bilagForslag[(int)$row['lobenr']] ?? 0;
 			$transdate[$x] = usdate($row['transdate']);
 			$dato[$x] = dkdato($transdate[$x]);
 			#echo __line__." $row[transdate] | transdate[$x] $transdate[$x] | dato[$x] $dato[$x]<br>";
@@ -3403,8 +3425,10 @@ if ($kladde_id) {
 		$betal_id[$x] = $row['betal_id'];
 		$pos[$x] = $row['pos'] ? $row['pos'] : 0;
 	}
-	if (!$fejl)
+	if (!$fejl) {
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+	}
+	kkJournalUnlock();
 }
 
 
@@ -3589,7 +3613,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!$kk_has_saved_lines && $y == 1) {
 			$bilag[$y] = $last_bilag;
 		}
-		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'></td>";
+		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'>";
+		if (!$id[$y] && !empty($kkForslag[$y])) print "<input type='hidden' name='bilf$y' value='" . (int)$kkForslag[$y] . "'>";
+		print "</td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$y' $de_fok value =\"$d_type[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -3829,8 +3855,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
+		// MB-81 bilf$x carries the proposal, so the save can tell it from a number the user typed
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
-		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
+		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'>";
+		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_next_bilag . "'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
 		name='dato$x' $de_fok value =\"$dato[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;'
@@ -4498,10 +4526,21 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	 * and a row whose bilag was set to "-" is deleted by kontroller() before this runs. Lines created
 	 * here are reported through kk_note_new_line() so the render can pin them last and move the focus
 	 * to the new blank line.
+	 *
+	 * Runs in one transaction, with kkJournalLock() held by the caller, so two saves of the same journal
+	 * take turns. A new line that kept the number the page proposed, and whose number another save has
+	 * taken since, is saved under the next free number instead and the user is told (MB-81).
+	 *
+	 * @param int             $kladde_id
+	 * @param array<int, int> $bilagForslag Line number => the voucher number the page proposed on that line.
 	 */
-	function opdater($kladde_id)
+	function opdater($kladde_id, $bilagForslag = array())
 	{
-		global $baseCurrency,$egen_kto_id;
+		global $baseCurrency,$egen_kto_id,$sprog_id;
+
+		$kladde_id = (int)$kladde_id;
+		transaktion('begin');
+		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag);
 
 		$forfaldsdate = NULL;
 		$valutakode = '0';
@@ -4574,7 +4613,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
 					# writing the 0 back; a positive number the user entered is kept as it is.
 					if ($bilag <= 0) {
-						$bilag = bilagNextNumberForJournal($kladde_id);
+						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
@@ -4604,8 +4643,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# next one instead of 0, so a balanced line advances the series and no number is
 						# reused while the journal is open.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberForJournal($kladde_id);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 						}
+						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
 						// Find the highest pos of entries that should come before the new entry.
 						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
@@ -4624,8 +4664,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberForJournal($kladde_id);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 						}
+						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
 						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
 						$ins_pos_r = db_fetch_array($ins_pos_q);
@@ -4664,6 +4705,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 				}
 			}
+		}
+		transaktion('commit');
+		foreach ($bilagErstat as $taget => $ny) {
+			alert(addslashes(sprintf(findtekst('5439|Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.', $sprog_id), $taget, $ny)));
 		}
 	}
 	######################################################################################################################################
