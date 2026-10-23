@@ -1669,6 +1669,18 @@
         delete field.dataset.autofillOriginal;
     }
 
+    /** The other half of a side (type <-> account), or null for a field that is not part of one. */
+    function pairPartner(field) {
+        const prefix = field.name.slice(0, 4);
+        const rowNum = field.name.slice(4);
+        for (let i = 0; i < AUTOFILL_PAIRS.length; i++) {
+            const pair = AUTOFILL_PAIRS[i];
+            if (pair[0] === prefix) return rowField(pair[1], rowNum);
+            if (pair[1] === prefix) return rowField(pair[0], rowNum);
+        }
+        return null;
+    }
+
     /** Write a value as the pick's own, remembering what the field held before. */
     function autofillField(field, value) {
         if (!field || field.value === value) return;
@@ -1676,6 +1688,13 @@
         setFieldValue(field, value);
         field.dataset.autofillOriginal = original;
         field.dataset.autofillValue = field.value;
+        // The other half of the side is claimed as it stands, so a later change to either half is seen
+        // and the side stays the user's (revertAutofill), and the side counts as changed by the pick
+        const partner = pairPartner(field);
+        if (partner && partner.dataset.autofillValue === undefined) {
+            partner.dataset.autofillOriginal = partner.value;
+            partner.dataset.autofillValue = partner.value;
+        }
     }
 
     /** Put back every field the line's picks wrote and nobody has changed since; forget the rest. */
@@ -1695,14 +1714,17 @@
         AUTOFILL_FIELDS.forEach(function (prefix) {
             const field = rowField(prefix, rowNum);
             if (!field || field.dataset.autofillValue === undefined) return;
-            if (isAutofilled(field)) {
+            if (isAutofilled(field) && field.value !== field.dataset.autofillOriginal) {
                 setFieldValue(field, field.dataset.autofillOriginal);
             }
             forgetAutofill(field);
         });
     }
 
-    /** Labels of the fields that still hold what a pick wrote, in the line's column order. */
+    /**
+     * Labels of the fields that still hold what a pick wrote, in the line's column order. A side counts
+     * by its account, which is claimed whenever the pick wrote its type (autofillField).
+     */
     function autofilledLabels(rowNum) {
         const labels = {
             besk: autofillText('description', 'Beskrivelse'),
@@ -1713,10 +1735,16 @@
         };
         return Object.keys(labels).filter(function (prefix) {
             const field = rowField(prefix, rowNum);
-            return field && isAutofilled(field);
+            return field && isAutofilled(field) && (field.value !== field.dataset.autofillOriginal || sideChanged(field));
         }).map(function (prefix) {
             return labels[prefix];
         });
+    }
+
+    /** True when the pick changed the other half of this field's side (its type, for an account). */
+    function sideChanged(field) {
+        const partner = pairPartner(field);
+        return !!partner && isAutofilled(partner) && partner.value !== partner.dataset.autofillOriginal;
     }
 
     /** Mark a field whose value disagrees with the invoice; the notice offers the invoice's value. */
