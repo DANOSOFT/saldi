@@ -200,6 +200,10 @@
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
+// 20261014 MJ SST-868 The insert response is read for the redirect insertDoc.php actually writes -
+//                  a window.location.replace(...) call, not an assignment - so leaving the pool after
+//                  an attach is no longer indistinguishable from reloading it after a silent failure.
+//                  A non-2xx answer carrying a message shows that message instead of the generic one.
 // 20261015 CL/SZ SD-719 (CodeRabbit) poolParams goes into the list script as a JSON string, so a poolFile with ' or </script> can't break out of it.
 // 20261015 CL/SZ SD-719 (CodeRabbit) poolSetLineContext() reloads as many rows as were loaded (200 per request) and keeps the scroll position, and returns its promise
 //                so the in-place switch shows the open document after the reload, not before it. It holds poolLoading meanwhile, so a scroll to the end
@@ -4370,9 +4374,12 @@ print <<<JS
 					// Leaving the pool for the kassekladde: keep the list position for the way back.
 					savePoolListView();
 
-					const redirectMatch = text.match(/window\.location\.(replace|href)\s*=\s*['"]([^'"]+)['"]/);
+					// SST-868: insertDoc.php writes a call - window.location.replace('url') - not an
+					// assignment. Matching only the assignment form meant this never fired, so the
+					// pool simply reloaded and a failed attach looked exactly like a successful one.
+					const redirectMatch = text.match(/window\.location\.(?:replace|href)\s*(?:=\s*|\(\s*)['"]([^'"]+)['"]/);
 					if (redirectMatch) {
-						window.location.replace(redirectMatch[2]);
+						window.location.replace(redirectMatch[1]);
 					} else {
 						const kladdeId = url.searchParams.get('kladde_id') || '';
 						const fokus = url.searchParams.get('fokus') || '';
@@ -4390,8 +4397,16 @@ print <<<JS
 			} else {
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
-					// 422: an account the journal would refuse; the server's message says which
-					alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text) || '{$txt34} (Status: ' + response.status + '). {$txt32}.'));
+					// SST-868: insertDoc.php answers a failed attach with
+					// {"success":false,"message":"..."} so the reason reaches the user. Anything
+					// else keeps the generic text.
+					let insertError = '';
+					try {
+						const payload = JSON.parse(text);
+						if (payload && payload.message) insertError = payload.message;
+					} catch (e) {}
+					if (insertError) alert(insertError);
+					else alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text) || '{$txt34} (Status: ' + response.status + '). {$txt32}.');
 					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');

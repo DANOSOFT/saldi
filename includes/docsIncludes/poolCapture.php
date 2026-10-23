@@ -31,6 +31,8 @@
 // 20261007 CL/SZ SD-722 Without the company's own SMTP server a saldi.dk server sends the report as <database>@<server>, with the company in Reply-To,
 //                as sendMail.php does: sent from the company's own domain it was dropped by the receiving server (SPF).
 // 20261021 CL/SZ SD-722 (CodeRabbit) poolCaptureReportId(): this user's latest report of a document, used by poolCaptureReported() and for a new report's id.
+// 20261023 CL/LH SST-868 poolCaptureRecordAttach() takes the pool file name separately ($poolFilename): an attach whose name was taken
+//                lands under a suffixed name, and the snapshot is still read from the pool row under the old one.
 
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
@@ -538,16 +540,17 @@ if (!function_exists('poolCaptureRecordAttach')) {
 	 * At attach time, before the pool row is deleted: one correction record per field that was saved differently from what was
 	 * captured, and the snapshot itself, so the document can still be reported from the journal line.
 	 *
-	 * @param string      $filename Pool file name.
+	 * @param string      $filename File name the document was attached under (documents.filename).
 	 * @param int         $sourceId kassekladde.id the document was attached to.
 	 * @param string      $filePath Where the file is now, for its content hash when the pool row has none.
 	 * @param int|null    $userId
 	 * @param string      $userName
+	 * @param string|null $poolFilename Pool file name, when the document landed under another name (SST-868); null when it is $filename.
 	 * @return int Correction records written.
 	 */
-	function poolCaptureRecordAttach($filename, $sourceId, $filePath, $userId, $userName) {
+	function poolCaptureRecordAttach($filename, $sourceId, $filePath, $userId, $userName, $poolFilename = null) {
 		if (!poolCaptureReady() || !(int)$sourceId) return 0;
-		$pool = db_fetch_array(db_select("SELECT capture_values, capture_raw, content_sha256 FROM pool_files WHERE filename = '" . db_escape_string($filename) . "'", __FILE__ . " linje " . __LINE__));
+		$pool = db_fetch_array(db_select("SELECT capture_values, capture_raw, content_sha256 FROM pool_files WHERE filename = '" . db_escape_string($poolFilename ?? $filename) . "'", __FILE__ . " linje " . __LINE__));
 		$snapshot = $pool ? json_decode((string)$pool['capture_values'], true) : null;
 		if (!is_array($snapshot) || !isset($snapshot['fields'])) return 0;
 		$final = poolCaptureFinalValues($sourceId, $filename);
