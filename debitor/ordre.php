@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-11 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -158,6 +158,8 @@
 //                  hurtigfakturering was on. They are shown on anything but a tilbud, so
 //                  nothing loses them, and the Send plukliste field in the button row
 //                  follows the same rule as the button beside it.
+// 20261023 CL/MMR SST-889 A samlet pris typed in "I alt" right after adding an item left the line without a price field, so the next save stored the price as 0 kr.
+//                  The hidden price is now only left out when an enabled visible price field carries it.
 
 @session_start();
 $s_id = session_id();
@@ -6850,7 +6852,9 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$hidden_inputs .= "<input type=\"hidden\" name=\"lager[$x]\" value=\"$lager\">\n";
 	#  if ($art=='OT' || $saetnr || ($rvnr && $rabat)) { // Når input fields er 'disabled' bliver de ikke opdateret, derfor tilføjes hidden fields
 	$hidden_inputs .= "<input type=\"hidden\" name=\"beskrivelse$x\" value=\"$beskrivelse\">\n";
-	if ($fokus != "pris$x") $hidden_inputs .= "<input type=\"hidden\" name=\"pris$x\" value=\"$dkpris\">\n";
+	// The hidden price may only give way to an enabled visible price field, or the price is saved as 0
+	$priceFieldShown = !$disabled && (($saet && $samlevare) || (!$saet && !$saetnr && !$rvnr));
+	if ($fokus != "pris$x" || !$priceFieldShown) $hidden_inputs .= "<input type=\"hidden\" name=\"pris$x\" value=\"$dkpris\">\n";
 	$hidden_inputs .= "<input type=\"hidden\" name=\"raba$x\" value=\"$dkrabat\">\n";
 	$hidden_inputs .= "<input type=\"hidden\" name=\"vare$x\" value=\"$varenr\">\n"; #Tilføjet 20161011 Hvis fjernes fungerer "samlet pris ikke"
 	$hidden_inputs .= "<input type=\"hidden\" name=\"posn$x\" value=\"$ny_pos\">\n";
