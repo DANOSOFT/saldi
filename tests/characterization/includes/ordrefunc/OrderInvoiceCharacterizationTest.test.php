@@ -18,6 +18,7 @@
 // History:
 // 20260723 CL/LH SD-601: created.
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
+// 20261019 CL/LH MB-73: fast invoicing now records leveret; assert it instead of noting it is not stamped.
 
 use PHPUnit\Framework\TestCase;
 
@@ -134,9 +135,11 @@ final class OrderInvoiceCharacterizationTest extends TestCase
         $this->assertNotEmpty($lines);
         foreach ($lines as $line) {
             // Observed: levering() consumes the pending quantity (leveres was
-            // set to antal before the call, and is 0 after); leveret is not
-            // stamped on this path.
+            // set to antal before the call, and is 0 after) and records it in
+            // leveret, even though the fixture inserts the line without one (MB-73).
             $this->assertEqualsWithDelta(0.0, (float)$line['leveres'], 0.001, 'pending delivery quantity consumed');
+            $this->assertNotNull($line['leveret'], 'delivered quantity recorded (MB-73)');
+            $this->assertEqualsWithDelta(2.0, (float)$line['leveret'], 0.001, 'delivered quantity equals the invoiced quantity');
             $this->assertEqualsWithDelta(2.0, (float)$line['antal'], 0.001, 'ordered quantity unchanged');
         }
     }
