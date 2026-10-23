@@ -138,6 +138,12 @@
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
 // 20260929 CL/SZ SD-698: The account lookup popup gets a card button on every line: a debtor opens the debitorkort, a creditor the kreditorkort, a finance account its kontospec.
 //                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
+// 20261019 ASR Delvis bogføring: kolonnen "Godkendt" (flueben pr. linje, gemmes straks via kassekladde_includes/approveLines.php)
+//              og knappen "Bogfør godkendte" (kassekladde_includes/postApproved.php): godkendte bilag flyttes til en ny kladde,
+//              som bogføres med den eksisterende motor; resten bliver stående her. Kolonnen kan slås fra under tandhjulet.
+// 20261023 ASR Review (#817): a 'Gem' that changes an approved line's content clears its approval (compared with the stored
+//              row, so an unchanged save keeps it); 'Bogfør godkendte' is disabled while an approval is still being saved;
+//              lines with bilag 0 are grouped per line in the confirm dialog, as the server does; texts moved to 5560-5570.
 //                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
 // 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
 // 20261012 CL/SZ SD-730 Regnskabsår select in the header (fiscalYearSwitch.php): switches the active year and comes back to
@@ -716,6 +722,7 @@ if (
 
 
 $kk_toggle_cols = array(
+    'godkendt' => 'Godkendt',
     'vat_d' => 'Moms (Debet)',
     'vat_k' => 'Moms (Kredit)',
     'afd'   => 'Afd.',
@@ -1003,6 +1010,7 @@ if ($_POST) {
 	elseif (isset($_POST['import']) && $_POST['import'])     $submit = 'import';
 	elseif (isset($_POST['lookup']) && $_POST['lookup'])     $submit = 'lookup';
 	elseif (isset($_POST['doPost']) && $_POST['doPost'])     $submit = 'doPost';
+	elseif (isset($_POST['postApproved']) && $_POST['postApproved']) $submit = 'postApproved';
 	elseif (isset($_POST['revert']) && $_POST['revert'])     $submit = 'revert';
 	elseif (isset($_POST['offset']) && $_POST['offset'])     $submit = 'offset';
 	elseif (isset($_POST['save']) && $_POST['save'])         $submit = 'save';
@@ -1837,6 +1845,19 @@ if (!$fejl && $kladde_id) {
 	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 	unset($_SESSION['kk_lookup_staged'][$kladde_id]);
+	// Delvis bogføring: runs after opdater() above, so lines typed before the click are saved first (as for 'doPost').
+	if ($submit == 'postApproved' && !$fejl) {
+		include_once(__DIR__ . '/kassekladde_includes/postApproved.php');
+		$kkPartial = kk_post_approved($kladde_id, $brugernavn, $sprog_id);
+		if ($kkPartial['new_kladde_id']) {
+			print "<meta http-equiv='refresh' content='0;URL=../finans/bogfor.php?kladde_id=" . (int)$kkPartial['new_kladde_id'] . "&funktion=bogfor'>";
+		} else {
+			if ($kkPartial['error'] == 'db') alert(findtekst('5570|Bogføringen af de godkendte linjer blev afbrudt. Intet er flyttet.', $sprog_id));
+			else alert(findtekst('5564|Ingen linjer er godkendt', $sprog_id));
+			print "<meta http-equiv='refresh' content='0;URL=../finans/kassekladde.php?kladde_id=$kladde_id'>";
+		}
+		exit;
+	}
 	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now
 	if ($submit == 'save' && $kkAfterSave !== '') {
 		$kkPoolLine = 0;
@@ -3080,6 +3101,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<tr>";
 		if ($vis_bilag && !$fejl && !$udskriv)
 			print "<td></td>";
+		// Delvis bogføring: 'Godkendt' per line - the header checkbox marks every line shown
+		$kk_godkendt_col = (!empty($kk_editable_view) && !$fejl && !$udskriv);
+		if ($kk_godkendt_col) {
+			print "<td align='center' class='kk-col-godkendt'><b><span title='" . htmlspecialchars(findtekst('5561|Godkend alle viste linjer', $sprog_id), ENT_QUOTES, $charset) . "'>" . findtekst('5560|Godkendt', $sprog_id) . "</span></b><br><input type='checkbox' id='kkGodkendtAlle' title='" . htmlspecialchars(findtekst('5561|Godkend alle viste linjer', $sprog_id), ENT_QUOTES, $charset) . "'></td>";
+		}
 		print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&kkdir=$_bilag_dir&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&kkdir=$_date_dir&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
 		print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
@@ -3265,6 +3291,7 @@ if ($kladde_id) {
 		$x++;
 		$id[$x] = $row['id'];
 		$bilag[$x] = $row['bilag'];
+		$godkendt[$x] = (isset($row['godkendt']) && ($row['godkendt'] === 't' || $row['godkendt'] === '1' || $row['godkendt'] === 1 || $row['godkendt'] === true)) ? 1 : 0;
 		$forfaldsdato[$x] = NULL;
 		if ($fejl) {
 			$transdate[$x] = usdate($row['transdate']);
@@ -3555,6 +3582,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
 		}
+		if (!empty($kk_godkendt_col)) {
+			if (isset($id[$y])) {
+				$kkChecked = !empty($godkendt[$y]) ? ' checked' : '';
+				print "<td align='center' class='kk-col-godkendt'><input type='checkbox' class='kk-godkendt' data-line-id='" . (int)$id[$y] . "' data-bilag='" . htmlspecialchars((string)$bilag[$y], ENT_QUOTES, $charset) . "'$kkChecked></td>";
+			} else {
+				print "<td class='kk-col-godkendt'></td>";
+			}
+		}
 		if (!isset($dub_bilag[$y]))
 			$dub_bilag[$y] = 0;
 		if (!isset($dub_kladde_id[$y]))
@@ -3811,6 +3846,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td></td>\n";
 			}
 		}
+		if (!empty($kk_godkendt_col)) print "<td class='kk-col-godkendt'></td>";
 		// 20260928 LOE SST-817 $next comes from the block above for this same line.
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
@@ -4037,6 +4073,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if (!$fejl) {
 				print "<td align='center'><span title='" . findtekst('1546|Simulering af bogføring viser bevægelser i kontoplanen', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='s' value='" . findtekst('1064|Simulér', $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1547|Bogfør - der foretages først en simulering, som du skal bekræfte', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='b' value='" . findtekst('1065|Bogfør', $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span></td>";
+				print "<td align='center'><span title='" . htmlspecialchars(findtekst('5563|Bogfør kun de linjer, der er markeret som godkendt. De flyttes til en ny kladde, som bogføres; resten bliver stående her.', $sprog_id), ENT_QUOTES, $charset) . "'><input type='submit' class='button gray medium' style='width:140px;' value='" . findtekst('5562|Bogfør godkendte', $sprog_id) . "' name='postApproved' id='kkPostApproved' onclick='return kkConfirmPostApproved();'></span></td>";
 				$qtxt = "select box5 from grupper where art = 'DIV' and kodenr = '3'";
 				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$qtxt = "select id from ordrer where status=3";
@@ -4562,7 +4599,33 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if ($bilag <= 0) {
 						$bilag = bilagNextNumberForJournal($kladde_id);
 					}
-					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
+					// Delvis bogføring: an approved line whose saved content changes loses its approval - the approval covered
+					// the old values. Compared with the stored row, so a save that changes nothing (also the one that runs
+					// right before 'Bogfør godkendte') keeps it. Values that are written escaped are compared with the stored
+					// value escaped the same way, so an apostrophe in a text is not a change.
+					$kkGodkReset = '';
+					$kkOld = db_fetch_array(db_select("select godkendt, bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, debetvat, kreditvat, momsfri, afd, projekt, ansat, valuta, forfaldsdate, betal_id from kassekladde where id = '$r[id]'", __FILE__ . " linje " . __LINE__));
+					if ($kkOld && ($kkOld['godkendt'] === 't' || $kkOld['godkendt'] === '1' || $kkOld['godkendt'] === 1 || $kkOld['godkendt'] === true)) {
+						$kkNew = array( // column => array(value that is written below, how to compare it)
+							'bilag' => array($bilag, 'int'), 'transdate' => array($transdate, 'txt'), 'beskrivelse' => array($beskrivelse, 'esc'),
+							'd_type' => array($d_type, 'txt'), 'debet' => array($debet, 'int'), 'k_type' => array($k_type, 'txt'), 'kredit' => array($kredit, 'int'),
+							'faktura' => array($faktura, 'esc'), 'amount' => array($amount, 'num'), 'debetvat' => array($debetvat, 'esc'), 'kreditvat' => array($kreditvat, 'esc'),
+							'momsfri' => array($momsfri, 'txt'), 'afd' => array($afd, 'int'), 'projekt' => array($projekt, 'txt'), 'ansat' => array($ansat_id, 'int'),
+							'valuta' => array($valutakode, 'int'), 'forfaldsdate' => array($forfaldsdate, 'txt'), 'betal_id' => array($forfaldsdate ? $betal_id : '', 'txt'),
+						);
+						foreach ($kkNew as $kkCol => $kkCmp) {
+							$kkWas = trim((string)($kkOld[$kkCol] ?? ''));
+							if ($kkCmp[1] == 'int') $kkSame = ((int)$kkWas === (int)$kkCmp[0]);
+							elseif ($kkCmp[1] == 'num') $kkSame = (abs((float)$kkWas - (float)$kkCmp[0]) < 0.0005);
+							elseif ($kkCmp[1] == 'esc') $kkSame = (db_escape_string($kkWas) === trim((string)$kkCmp[0]));
+							else $kkSame = ($kkWas === trim((string)$kkCmp[0]));
+							if (!$kkSame) {
+								$kkGodkReset = "godkendt = FALSE, godkendt_af = NULL, godkendt_tid = NULL, ";
+								break;
+							}
+						}
+					}
+					$qtxt = "update kassekladde set {$kkGodkReset}bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
 					$qtxt .= "amount = '$amount', debetvat = '$debetvat', kreditvat = '$kreditvat', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
 					$qtxt .= "valuta= '$valutakode' where id = '$r[id]'";
@@ -4867,6 +4930,41 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$balance_pill = "<span style='display:inline-block;white-space:nowrap;background:#fff;border:1px solid #ddd;border-radius:4px;padding:2px 10px;font-size:12px;'>$balance_txt</span>";
 		print "<style>@media print{#kk-balance-status{display:none;}}</style>";
 		print "<script>var kkBalEl=document.getElementById('kk-balance-status');if(kkBalEl){kkBalEl.innerHTML=" . json_encode($balance_pill) . ";}</script>";
+	}
+	if (!empty($kk_godkendt_col)) {
+		// Delvis bogføring: approve lines without a page reload, keep the counter, and confirm before 'Bogfør godkendte'
+		$kkGodkTxt = json_encode(array(
+			'label'   => findtekst('5560|Godkendt', $sprog_id),
+			'of'      => lcfirst(findtekst('2767|Af', $sprog_id)),
+			'none'    => findtekst('5564|Ingen linjer er godkendt', $sprog_id),
+			'mixed'   => findtekst('5565|Følgende bilag har både godkendte og ikke-godkendte linjer og bliver stående:', $sprog_id),
+			'linesIn' => findtekst('5566|linjer i', $sprog_id),
+			'confirm' => findtekst('5567|bilag flyttes til en ny kladde og bogføres. Resten bliver stående i denne kladde. Fortsæt?', $sprog_id),
+			'failed'  => findtekst('5569|Kunne ikke gemme godkendelsen', $sprog_id),
+			'kladde'  => (int)$kladde_id,
+		), JSON_UNESCAPED_UNICODE);
+		print "<script>
+		(function(){
+			var T=$kkGodkTxt,pending=0; // pending = approval saves still in flight; the server reads godkendt from the database, so 'Bogfør godkendte' waits for them
+			function boxes(){return Array.prototype.slice.call(document.querySelectorAll('input.kk-godkendt'));}
+			function postBtn(){var b=document.getElementById('kkPostApproved');if(b)b.disabled=pending>0;}
+			function count(){var all=boxes(),n=0;all.forEach(function(b){if(b.checked)n++;});var el=document.getElementById('kk-godkendt-status');if(!el){var bal=document.getElementById('kk-balance-status');if(!bal)return;el=document.createElement('span');el.id='kk-godkendt-status';el.style.cssText='display:inline-block;white-space:nowrap;background:#fff;border:1px solid #ddd;border-radius:4px;padding:2px 10px;font-size:12px;margin-left:4px;';bal.parentNode.insertBefore(el,bal.nextSibling);}el.textContent=T.label+': '+n+' '+T.of+' '+all.length;var m=document.getElementById('kkGodkendtAlle');if(m){m.checked=all.length>0&&n===all.length;m.indeterminate=n>0&&n<all.length;}}
+			function save(ids,on,revert){var fd=new FormData();fd.append('kladde_id',T.kladde);fd.append('ids',ids.join(','));fd.append('godkendt',on?'1':'0');pending++;postBtn();
+				fetch('kassekladde_includes/approveLines.php',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){if(!d||!d.ok){throw new Error(d&&d.error?d.error:'');}}).catch(function(){revert();count();alert(T.failed);}).then(function(){pending--;postBtn();});}
+			document.addEventListener('change',function(e){
+				var t=e.target;
+				if(t&&t.id==='kkGodkendtAlle'){var on=t.checked,ids=[],prev=[];boxes().forEach(function(b){prev.push([b,b.checked]);b.checked=on;ids.push(b.getAttribute('data-line-id'));});count();if(ids.length)save(ids,on,function(){prev.forEach(function(p){p[0].checked=p[1];});});return;}
+				if(t&&t.classList.contains('kk-godkendt')){var was=!t.checked;count();save([t.getAttribute('data-line-id')],t.checked,function(){t.checked=was;});}
+			});
+			window.kkConfirmPostApproved=function(){if(pending>0)return false;var all=boxes(),groups={},n=0;all.forEach(function(b){var bl=parseInt(b.getAttribute('data-bilag'),10);var k=bl>0?String(bl):('l'+b.getAttribute('data-line-id'));if(!groups[k])groups[k]={t:0,a:0};groups[k].t++;if(b.checked){groups[k].a++;n++;}}); // bilag 0 = one group per line, as kk_post_approved() does
+				if(!n){alert(T.none);return false;}
+				var mixed=[],bilag=0,lines=0;Object.keys(groups).forEach(function(k){var g=groups[k];if(g.a===g.t){bilag++;lines+=g.t;}else if(g.a>0){mixed.push(k);}});
+				if(!bilag){alert(T.mixed+' '+mixed.join(', '));return false;}
+				var msg=lines+' '+T.linesIn+' '+bilag+' '+T.confirm;if(mixed.length)msg+='\\n\\n'+T.mixed+' '+mixed.join(', ');
+				if(!confirm(msg))return false;docChange=false;return true;};
+			count();postBtn();
+		})();
+		</script>";
 	}
 	print "<script language=\"javascript\">";
 	print "var savedFocus = " . json_encode((string)$fokus) . ";";
