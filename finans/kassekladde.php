@@ -178,8 +178,9 @@
 // 20261022 CL/NTR The kredit genvej alert built its text from $txt1/$txt2 (only set in the debet branch), so an undefined
 //                 genvej letter in Kredit printed just the account and the bilag number with a space. It now uses this
 //                 branch's own $alert1/$alert2, matching the debet alert.
-// 20261023 CL/LH Texts for the invoice-pick notice in accountAutocomplete.js (tekst_id 7600-7603, plus existing labels);
-//                accountAutocomplete.js?v= and accountAutocomplete.css?v= bumped: a pick no longer overwrites what the line holds.
+// 20261023 CL/LH Texts for the invoice-pick notice in accountAutocomplete.js (tekst_id 7600-7603, plus existing labels), written
+//                with json_encode() so a quote in a translation can't break the script; accountAutocomplete.js?v= and
+//                accountAutocomplete.css?v= bumped: a pick no longer overwrites what the line holds.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -530,6 +531,8 @@ print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" 
 
 
 $langId = !empty($sprog_id) ? intval($sprog_id) : 1;
+// A text from the tekster table as a JavaScript string literal: a quote or </script> in a translation can't break the script
+$jsTextFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE;
 print '<script>
 	window.saldiLanguage = ' . $langId . ';
 	window.saldiTranslations = {
@@ -564,15 +567,15 @@ print '<script>
     next: "' . findtekst('1200', $langId) . '",
     today: "' . findtekst('2773', $langId) . '",
     week: "' . findtekst('2669', $langId) . '",
-    invoice: "' . findtekst('643', $langId) . '",
-    currency: "' . findtekst('776', $langId) . '",
-    debit: "' . findtekst('1000', $langId) . '",
-    credit: "' . findtekst('1001', $langId) . '",
-    undo: "' . findtekst('159', $langId) . '",
-    autofillFilled: "' . findtekst('7600|Udfyldt fra faktura', $langId) . '",
-    autofillDiffers: "' . findtekst('7601|Afviger fra fakturaen', $langId) . '",
-    autofillUseInvoice: "' . findtekst('7602|Brug fakturaens værdier', $langId) . '",
-    autofillLine: "' . findtekst('7603|linjen', $langId) . '"
+    invoice: ' . json_encode(findtekst('643', $langId), $jsTextFlags) . ',
+    currency: ' . json_encode(findtekst('776', $langId), $jsTextFlags) . ',
+    debit: ' . json_encode(findtekst('1000', $langId), $jsTextFlags) . ',
+    credit: ' . json_encode(findtekst('1001', $langId), $jsTextFlags) . ',
+    undo: ' . json_encode(findtekst('159', $langId), $jsTextFlags) . ',
+    autofillFilled: ' . json_encode(findtekst('7600|Udfyldt fra faktura', $langId), $jsTextFlags) . ',
+    autofillDiffers: ' . json_encode(findtekst('7601|Afviger fra fakturaen', $langId), $jsTextFlags) . ',
+    autofillUseInvoice: ' . json_encode(findtekst('7602|Brug fakturaens værdier', $langId), $jsTextFlags) . ',
+    autofillLine: ' . json_encode(findtekst('7603|linjen', $langId), $jsTextFlags) . '
 };
 </script>';
 print '<script src="../javascript/datepickerDa.js"></script>';
