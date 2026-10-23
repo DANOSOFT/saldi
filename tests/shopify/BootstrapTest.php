@@ -8,6 +8,7 @@
 //
 // History:
 // 20261022 Sawaneh SD-734: created.
+// 20261023 CDX/LH Cover configured/default currency and timestamp-deleted fiscal years.
 
 use PHPUnit\Framework\TestCase;
 
@@ -52,6 +53,7 @@ final class BootstrapTest extends TestCase
         }
         $conn = ShopifyEnv::connect(self::$db);
         ShopifyEnv::rows($conn, "DELETE FROM grupper WHERE art = 'RA'");
+        ShopifyEnv::rows($conn, "DELETE FROM settings WHERE var_name = 'baseCurrency'");
         $this->insertYear($conn, 1, (int)date('Y'), 'on');
         pg_close($conn);
     }
@@ -89,6 +91,31 @@ final class BootstrapTest extends TestCase
         $this->assertSame('cli', $r['remote_addr']);
         $this->assertSame(self::$db, $r['connected_to']);
         $this->assertTrue($r['legacy_select_works']);
+        $this->assertSame('DKK', $r['globals']['baseCurrency']);
+    }
+
+    public function testConfiguredBaseCurrencyReplacesAStaleGlobal(): void
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "INSERT INTO settings (var_name, var_value) VALUES ('baseCurrency', 'EUR')");
+        pg_close($conn);
+        $run = ShopifyEnv::runBootstrap('cli', self::$db);
+        $this->assertSame(0, $run['exit'], $run['stderr'] . $run['stdout']);
+        $this->assertSame('EUR', $run['result']['globals']['baseCurrency']);
+    }
+
+    public function testMissingOrEmptyBaseCurrencyFallsBackToDkkDespiteAStaleGlobal(): void
+    {
+        $missing = ShopifyEnv::runBootstrap('cli', self::$db);
+        $this->assertSame(0, $missing['exit'], $missing['stderr'] . $missing['stdout']);
+        $this->assertSame('DKK', $missing['result']['globals']['baseCurrency']);
+
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "INSERT INTO settings (var_name, var_value) VALUES ('baseCurrency', '')");
+        pg_close($conn);
+        $empty = ShopifyEnv::runBootstrap('cli', self::$db);
+        $this->assertSame(0, $empty['exit'], $empty['stderr'] . $empty['stdout']);
+        $this->assertSame('DKK', $empty['result']['globals']['baseCurrency']);
     }
 
     public function testWebBootstrapTakesTheTenantFromTheEnvironment(): void
@@ -168,6 +195,42 @@ final class BootstrapTest extends TestCase
         $this->assertSame(1, $run['exit'], $run['stderr']);
         $this->assertStringContainsString('several fiscal years', $run['result']['error']);
         $this->assertStringContainsString('1, 2', $run['result']['error']);
+    }
+
+    public function testATimestampDeletedCurrentFiscalYearIsIgnored(): void
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        $this->insertYear($conn, 2, (int)date('Y'), 'on');
+        ShopifyEnv::rows($conn, "UPDATE grupper SET box10 = $1 WHERE art = 'RA' AND kodenr = 2", [date('U')]);
+        pg_close($conn);
+        $run = ShopifyEnv::runBootstrap('cli', self::$db);
+        $this->assertSame(0, $run['exit'], $run['stderr'] . $run['stdout']);
+        $this->assertSame(1, $run['result']['context']['regnaar']);
+    }
+
+    public function testATimestampDeletedYearCannotBeTheFallback(): void
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "DELETE FROM grupper WHERE art = 'RA'");
+        $this->insertYear($conn, 1, (int)date('Y') - 2, 'on');
+        $this->insertYear($conn, 2, (int)date('Y') - 1, 'on');
+        ShopifyEnv::rows($conn, "UPDATE grupper SET box10 = $1 WHERE art = 'RA' AND kodenr = 2", [date('U')]);
+        pg_close($conn);
+        $run = ShopifyEnv::runBootstrap('cli', self::$db);
+        $this->assertSame(0, $run['exit'], $run['stderr'] . $run['stdout']);
+        $this->assertSame(1, $run['result']['context']['regnaar']);
+    }
+
+    public function testOnlyTimestampDeletedFiscalYearsFailClosed(): void
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        $this->insertYear($conn, 2, (int)date('Y') - 1, 'on');
+        ShopifyEnv::rows($conn, "UPDATE grupper SET box10 = $1 WHERE art = 'RA'", [date('U')]);
+        pg_close($conn);
+        $run = ShopifyEnv::runBootstrap('cli', self::$db);
+        $this->assertSame(1, $run['exit'], $run['stderr']);
+        $this->assertSame('ShopifyBootstrapError', $run['result']['class']);
+        $this->assertStringContainsString('no open fiscal year', $run['result']['error']);
     }
 
     public function testNewestOpenYearIsUsedWhenNoneContainsToday(): void

@@ -8,6 +8,8 @@
 //
 // History:
 // 20261022 Sawaneh SD-734: created.
+// 20261023 CDX/LH Cover commit-before-throw, replacement transactions and paired time zones.
+// 20261023 CL/LH Cover aborted replacement transactions.
 
 use PHPUnit\Framework\TestCase;
 
@@ -70,7 +72,7 @@ final class DbAdapterTest extends TestCase
         $this->assertSame($r['values']['quote'], $r['returning'][0]['navn']);
         $this->assertSame('7', $r['returning'][0]['afd']);
         $this->assertSame('t', $r['returning'][0]['is_primary']);
-        $this->assertSame('2026-01-02 03:04:05', $r['returning'][0]['go_live_at']);
+        $this->assertSame($r['expected_datetime'], $r['returning'][0]['go_live_at']);
         $this->assertSame(['e', 'q', 'u'], array_column($r['back'], 'shop_key'));
         $this->assertSame($r['values']['quote'], $r['back'][1]['navn']);
         $this->assertSame($r['values']['unicode'], $r['back'][2]['navn']);
@@ -140,6 +142,75 @@ final class DbAdapterTest extends TestCase
         $r = $this->runMode('datetime');
         $this->assertSame($r['expected'], $r['rows'][1]['go_live_at'], 'a UTC instant is stored in the PHP zone, like now()');
         $this->assertSame($r['rows'][1]['go_live_at'], $r['rows'][0]['go_live_at'], 'the same instant given in another zone stores the same value');
+    }
+
+    public function testCommitThenThrowIsMisuseWithTheOriginalExceptionPreserved(): void
+    {
+        $r = $this->runMode('tx_commit_throw');
+        foreach (['own', 'caller', 'nested'] as $scope) {
+            $this->assertSame('ShopifyDbMisuse', $r[$scope]['class'], $scope);
+            $this->assertTrue($r[$scope]['original_preserved'], $scope);
+            $this->assertSame('ShopifyDbError', $r[$scope]['previous_class'], $scope);
+            $this->assertStringContainsString('do not retry', $r[$scope]['message']);
+            $this->assertSame($scope === 'own' ? ['before'] : ['before', 'callers'], $r[$scope]['committed_keys'], $scope);
+            $this->assertTrue($r[$scope]['status_idle'], $scope);
+        }
+        $this->assertTrue($r['usable_after']);
+    }
+
+    public function testCommitThenBeginIsMisuseAndLeavesTheReplacementTransactionAlone(): void
+    {
+        foreach (['tx_commit_begin', 'tx_commit_begin_throw'] as $mode) {
+            $r = $this->runMode($mode);
+            foreach (['own', 'caller', 'nested'] as $scope) {
+                $this->assertSame('ShopifyDbMisuse', $r[$scope]['class'], "$mode $scope");
+                $this->assertStringContainsString('do not retry', $r[$scope]['message']);
+                $this->assertTrue($r[$scope]['status_intrans'], "$mode $scope");
+                $this->assertSame($scope === 'own' ? ['before'] : ['before', 'callers'], $r[$scope]['committed_keys'], "$mode $scope");
+                $this->assertSame(1, $r[$scope]['pending_after'], 'the replacement transaction was neither committed nor rolled back');
+                if ($mode === 'tx_commit_begin_throw') {
+                    $this->assertTrue($r[$scope]['original_preserved'], $scope);
+                }
+            }
+            $this->assertTrue($r['usable_after']);
+        }
+    }
+
+    public function testCommitThenBeginThenAFailedStatementIsMisuseAndLeavesTheAbortedReplacementAlone(): void
+    {
+        foreach (['tx_commit_begin_fail', 'tx_commit_begin_swallow'] as $mode) {
+            $r = $this->runMode($mode);
+            foreach (['own', 'caller', 'nested'] as $scope) {
+                $this->assertSame('ShopifyDbMisuse', $r[$scope]['class'], "$mode $scope");
+                $this->assertStringContainsString('do not retry', $r[$scope]['message']);
+                $this->assertTrue($r[$scope]['status_inerror'], "$mode $scope: the aborted replacement was neither rolled back nor touched");
+                $this->assertSame($scope === 'own' ? ['before'] : ['before', 'callers'], $r[$scope]['committed_keys'], "$mode $scope");
+                if ($mode === 'tx_commit_begin_fail') {
+                    $this->assertTrue($r[$scope]['original_preserved'], "$mode $scope");
+                }
+            }
+            $this->assertTrue($r['usable_after']);
+        }
+    }
+
+    public function testBootstrapPairsPhpAndPostgresTimeZonesBeforeBindingDates(): void
+    {
+        foreach (['missing', '', 'Europe/Copenhagen', 'America/New_York'] as $setting) {
+            $run = ShopifyEnv::runBootstrap('timezone', self::$db, ['SALDI_SHOPIFY_TEST_TIMEZONE' => $setting]);
+            $this->assertSame(0, $run['exit'], $run['stderr'] . $run['stdout']);
+            $r = $run['result'];
+            $expectedZone = $setting === 'missing' || $setting === '' ? 'Europe/Copenhagen' : $setting;
+            $this->assertSame('Pacific/Honolulu', $r['initial_php_tz']);
+            $this->assertSame('Asia/Tokyo', $r['initial_pg_tz']);
+            $this->assertSame($expectedZone, $r['php_tz']);
+            $this->assertSame($expectedZone, $r['pg_tz']);
+            $this->assertLessThan(5.0, (float)$r['difference'], 'a bound instant agrees with now() in the same statement');
+            $zone = new DateTimeZone($expectedZone);
+            foreach (['winter' => '2026-01-02 03:04:05', 'summer' => '2026-07-02 03:04:05'] as $season => $utc) {
+                $expected = (new DateTimeImmutable($utc, new DateTimeZone('UTC')))->setTimezone($zone)->format('Y-m-d H:i:s');
+                $this->assertSame($expected, $r[$season], $season);
+            }
+        }
     }
 
     public function testAFailedStatementNeverExposesBoundValues(): void

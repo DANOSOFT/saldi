@@ -12,7 +12,10 @@
 //   tx_aborted  work inside an aborted transaction is refused
 //   tx_unhandled  an op that swallows a failed statement cannot be committed
 //   tx_early_commit  an op that ends the transaction itself cannot be committed
+//   tx_commit_throw / tx_commit_begin / tx_commit_begin_throw  transaction identity misuse
+//   tx_commit_begin_fail / tx_commit_begin_swallow  the same with the replacement transaction aborted
 //   datetime    DateTime parameters land as wall-clock time in PHP's zone
+//   timezone    master time zone settings pair PHP and the tenant session, despite initial zones
 //   errors      a failed statement reports the primary message and SQLSTATE, not the bound values
 //   nul         a NUL byte in a parameter or in the statement is refused
 //   stacked     two statements in one string are refused, also without parameters
@@ -20,6 +23,8 @@
 //
 // History:
 // 20261022 Sawaneh SD-734: created.
+// 20261023 CDX/LH Report currency and exercise transaction identity misuse and business time zones.
+// 20261023 CL/LH Aborted replacement transactions (thrown and swallowed failures).
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_bootstrap.php <cli|web|rows|badparam|tx|tx_fail|tx_aborted|tx_unhandled|tx_early_commit|datetime|errors|nul|stacked> <test_db>\n");
@@ -54,6 +59,7 @@ $db = $sqdb;
 $db_skriv_id = null;
 $brugernavn = '';
 $webservice = false;
+$baseCurrency = 'STALE';
 
 if ($mode === 'web') {
     // What Apache gives api/shopify/webhook.php: a depth-4 URI with the script's own directory as cwd,
@@ -69,6 +75,21 @@ require_once ShopifyEnv::repoRoot() . '/includes/shopify/bootstrap.php';
 require_once ShopifyEnv::repoRoot() . '/includes/shopify/db.php';
 
 try {
+    if ($mode === 'timezone') {
+        date_default_timezone_set('Pacific/Honolulu');
+        $initialPhpZone = date_default_timezone_get();
+        // Shadow settings on this master session only; the shared master data stays untouched.
+        ShopifyEnv::rows($connection, 'CREATE TEMP TABLE settings (var_name text, var_value text)');
+        $zoneSetting = (string)getenv('SALDI_SHOPIFY_TEST_TIMEZONE');
+        if ($zoneSetting !== 'missing') {
+            ShopifyEnv::rows($connection, "INSERT INTO settings (var_name, var_value) VALUES ('timezone', $1)", [$zoneSetting]);
+        }
+        $tenantConnection = db_connect($sqhost, $squser, $sqpass, $testDb);
+        ShopifyEnv::rows($tenantConnection, "SET TIME ZONE 'Asia/Tokyo'");
+        $initialPgZone = ShopifyEnv::rows($tenantConnection, "SELECT current_setting('TimeZone') AS tz")[0]['tz'];
+        // db_connect() reuses these connections, including the deliberately wrong tenant zone.
+        $connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
+    }
     switch ($mode) {
         case 'cli':
         case 'web':
@@ -78,7 +99,7 @@ try {
                 'globals' => [
                     'db' => $db, 'db_id' => $db_id, 'db_skriv_id' => $db_skriv_id, 'regnskab' => $regnskab,
                     'regnaar' => $regnaar, 'brugernavn' => $brugernavn, 'bruger_id' => $bruger_id, 'sprog_id' => $sprog_id,
-                    'webservice' => $webservice,
+                    'webservice' => $webservice, 'baseCurrency' => $baseCurrency,
                 ],
                 'cwd' => basename(getcwd()),
                 'request_uri' => $_SERVER['REQUEST_URI'] ?? null,
@@ -104,7 +125,8 @@ try {
             $none = shopify_db_rows('SELECT id FROM shopify_shops WHERE shop_key = $1', ['missing']);
             $literal = shopify_db_rows('SELECT $1::text AS v', ['$2']);
             $count = shopify_db_rows('SELECT count(*) AS n FROM shopify_shops');
-            out(['returning' => $rows, 'back' => $back, 'none' => $none, 'literal' => $literal[0]['v'], 'count' => (int)$count[0]['n'], 'values' => $values]);
+            $expectedDateTime = (new DateTimeImmutable('2026-01-02 03:04:05', new DateTimeZone('UTC')))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
+            out(['returning' => $rows, 'back' => $back, 'none' => $none, 'literal' => $literal[0]['v'], 'count' => (int)$count[0]['n'], 'values' => $values, 'expected_datetime' => $expectedDateTime]);
             // no break: out() exits
         case 'badparam':
             shopify_bootstrap($testDb);
@@ -202,6 +224,91 @@ try {
             shopify_db_transaction(fn() => shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('later', 'later.myshopify.com')"));
             $out['later_count'] = (int)shopify_db_rows("SELECT count(*) AS n FROM shopify_shops WHERE shop_key = 'later'")[0]['n'];
             out($out);
+            // no break: out() exits
+        case 'tx_commit_throw':
+        case 'tx_commit_begin':
+        case 'tx_commit_begin_throw':
+        case 'tx_commit_begin_fail':
+        case 'tx_commit_begin_swallow':
+            shopify_bootstrap($testDb);
+            $observer = ShopifyEnv::connect($testDb);
+            $out = [];
+            foreach (['own', 'caller', 'nested'] as $scope) {
+                shopify_db_rows('DELETE FROM shopify_shops');
+                $original = new ShopifyDbError('operation failed after commit');
+                $operation = function () use ($mode, $original) {
+                    shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('before', 'before.myshopify.com')");
+                    transaktion('commit');
+                    if ($mode !== 'tx_commit_throw') {
+                        transaktion('begin');
+                        shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('after', 'after.myshopify.com')");
+                    }
+                    if ($mode === 'tx_commit_begin_fail' || $mode === 'tx_commit_begin_swallow') {
+                        // A failed statement aborts the replacement transaction: no query can identify it.
+                        try {
+                            shopify_db_rows('SELECT 1 / 0 AS boom');
+                        } catch (ShopifyDbError $failed) {
+                            if ($mode === 'tx_commit_begin_fail') {
+                                throw $original;
+                            }
+                        }
+                        return 'operation swallowed the failure';
+                    }
+                    if ($mode !== 'tx_commit_begin') {
+                        throw $original;
+                    }
+                    return 'operation returned normally';
+                };
+                try {
+                    if ($scope === 'own') {
+                        shopify_db_transaction($operation);
+                    } elseif ($scope === 'caller') {
+                        transaktion('begin');
+                        shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('callers', 'callers.myshopify.com')");
+                        shopify_db_transaction($operation);
+                    } else {
+                        shopify_db_transaction(function () use ($operation) {
+                            shopify_db_rows("INSERT INTO shopify_shops (shop_key, domain) VALUES ('callers', 'callers.myshopify.com')");
+                            shopify_db_transaction($operation);
+                        });
+                    }
+                    $out[$scope] = ['class' => 'no exception'];
+                } catch (Throwable $e) {
+                    // A nested wrapper may chain another misuse; the original error must remain in the chain.
+                    $previous = $e->getPrevious();
+                    $cause = $previous;
+                    while ($cause !== null && $cause !== $original) {
+                        $cause = $cause->getPrevious();
+                    }
+                    $out[$scope] = [
+                        'class' => get_class($e), 'message' => $e->getMessage(),
+                        'previous_class' => $previous === null ? null : get_class($previous),
+                        'original_preserved' => $cause === $original,
+                        'status_idle' => pg_transaction_status($connection) === PGSQL_TRANSACTION_IDLE,
+                        'status_intrans' => pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS,
+                        'status_inerror' => pg_transaction_status($connection) === PGSQL_TRANSACTION_INERROR,
+                        'committed_keys' => array_column(ShopifyEnv::rows($observer, 'SELECT shop_key FROM shopify_shops ORDER BY shop_key'), 'shop_key'),
+                        'pending_after' => pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS
+                            ? (int)shopify_db_rows("SELECT count(*) AS n FROM shopify_shops WHERE shop_key = 'after'")[0]['n'] : null,
+                    ];
+                } finally {
+                    if (pg_transaction_status($connection) !== PGSQL_TRANSACTION_IDLE) {
+                        // Test cleanup only, after observing that the wrapper left the replacement open.
+                        shopify_db_rows('ROLLBACK');
+                    }
+                }
+            }
+            pg_close($observer);
+            $out['usable_after'] = shopify_db_transaction(fn() => shopify_db_rows('SELECT 1 AS ok'))[0]['ok'] === '1';
+            out($out);
+            // no break: out() exits
+        case 'timezone':
+            shopify_bootstrap($testDb);
+            $row = shopify_db_rows(
+                "SELECT current_setting('TimeZone') AS pg_tz, abs(extract(epoch FROM ($1::timestamp - now()::timestamp))) AS difference, $2::timestamp AS winter, $3::timestamp AS summer",
+                [new DateTimeImmutable('now'), new DateTimeImmutable('2026-01-02 03:04:05', new DateTimeZone('UTC')), new DateTimeImmutable('2026-07-02 03:04:05', new DateTimeZone('UTC'))]
+            )[0];
+            out(array_merge($row, ['php_tz' => date_default_timezone_get(), 'initial_php_tz' => $initialPhpZone, 'initial_pg_tz' => $initialPgZone]));
             // no break: out() exits
         case 'datetime':
             shopify_bootstrap($testDb);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/bootstrap.php --- ver 5.0.0 --- 2026.10.22
+// --- includes/shopify/bootstrap.php --- ver 5.0.0 --- 2026.10.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20261022 Sawaneh SD-734: created (WP02-1).
 // 20261022 Sawaneh SD-734 review: cli shims follow the SAPI, closure date lukkes honoured, deleted RA rows
 //                 ignored, newest open year chosen chronologically; kodenr as the last sort key (review).
+// 20261023 CDX/LH Initialize base currency and paired business time zones; reject timestamp-deleted fiscal years.
 
 /**
  * Injected by includes/connect.php (master connection and credentials):
@@ -56,7 +57,12 @@ final class ShopifyBootstrapError extends RuntimeException
  *
  * Globals set: $db, $db_id, $db_skriv_id, $regnskab, $regnaar, $brugernavn ('shopify'),
  * $bruger_id (0), $sprog_id (1), $rettigheder (''), $s_id (''), $webservice (true) and the
- * tenant $connection.
+ * tenant $connection, $baseCurrency (settings, default 'DKK') and $timezone (master settings,
+ * default 'Europe/Copenhagen'). PHP and the tenant PostgreSQL session use that same zone.
+ * Entry scripts still supply $version via connect.php/version.php. Per-document posting and
+ * delivery state ($fakturadate, $mail_fakt, $momssats, $pbs, $retur, $valutakurs, $afd_lager,
+ * $levdate, $lev_nr, $ref, $art, $fp, $sn_id and $db_modify_fejl) belongs to the caller or the
+ * legacy functions; this bootstrap does not initialize or reset it.
  *
  * @param string|null $cliDb tenant database name given on the command line
  * @return array{db: string, regnskab_id: int, regnskab: string, regnaar: int, brugernavn: string, sapi: string}
@@ -65,6 +71,7 @@ final class ShopifyBootstrapError extends RuntimeException
 function shopify_bootstrap(?string $cliDb = null): array {
 	global $db_type, $sqhost, $squser, $sqpass, $sqdb, $connection;
 	global $db, $db_id, $db_skriv_id, $regnskab, $regnaar, $brugernavn, $bruger_id, $sprog_id, $rettigheder, $s_id, $webservice;
+	global $baseCurrency, $timezone;
 
 	if (!function_exists('db_connect') || !isset($sqhost, $sqdb)) {
 		throw new ShopifyBootstrapError('include includes/db_query.php and includes/connect.php before shopify_bootstrap()');
@@ -85,6 +92,11 @@ function shopify_bootstrap(?string $cliDb = null): array {
 			$_SERVER['REMOTE_ADDR'] = 'cli';
 		}
 	}
+	$r = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'timezone'", __FILE__ . " linje " . __LINE__, true));
+	$timezone = $r && $r['var_value'] ? $r['var_value'] : 'Europe/Copenhagen';
+	if (!date_default_timezone_set($timezone)) {
+		throw new ShopifyBootstrapError('invalid business time zone in settings');
+	}
 	$candidate = $cliDb ?? shopify_bootstrap_configured_db();
 	$tenant = shopify_bootstrap_tenant($candidate);
 
@@ -103,6 +115,9 @@ function shopify_bootstrap(?string $cliDb = null): array {
 	$rettigheder = '';
 	$s_id = '';
 	$webservice = true;
+	db_select("SELECT set_config('TimeZone', '" . db_escape_string($timezone) . "', false)", __FILE__ . " linje " . __LINE__);
+	$r = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'baseCurrency'", __FILE__ . " linje " . __LINE__));
+	$baseCurrency = $r && $r['var_value'] ? $r['var_value'] : 'DKK';
 	$regnaar = shopify_bootstrap_fiscal_year();
 
 	return array(
@@ -165,7 +180,7 @@ function shopify_bootstrap_fiscal_year(): int {
 	$del1 = "(box1 <= '$month' AND box2 <= '$year' AND box3 >= '$month' AND box4 >= '$year')";
 	$del2 = "(box1 <= '$month' AND box2 <= '$year' AND box3 < '$month' AND box4 > '$year')";
 	$del3 = "(box1 > '$month' AND box2 < '$year' AND box3 >= '$month' AND box4 >= '$year')";
-	$notDeleted = "(box10 IS NULL OR box10 <> 'on')";
+	$notDeleted = "(box10 IS NULL OR box10 = '')";
 	$qtxt = "SELECT kodenr FROM grupper WHERE art = 'RA' AND $notDeleted AND ($del1 OR $del2 OR $del3) ORDER BY box2, box1, kodenr";
 	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$years = array();

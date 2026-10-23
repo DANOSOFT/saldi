@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/db.php --- ver 5.0.0 --- 2026.10.22
+// --- includes/shopify/db.php --- ver 5.0.0 --- 2026.10.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,8 @@
 //                 (work already final, never retried); error messages are built from SQLSTATE and identifier
 //                 fields only, never the server text, which quotes values in many classes; COMMIT failures
 //                 (deferred constraints) are read as fields too; depth counted after BEGIN succeeds.
+// 20261023 CDX/LH Detect transaction replacement and commit-before-throw as non-retryable misuse.
+// 20261023 CL/LH Also detect a replacement transaction that is already aborted (savepoint marker probe).
 
 /**
  * Injected by includes/connect.php and the bootstrap:
@@ -132,13 +134,19 @@ function shopify_db_transaction(callable $op) {
 	$own = ($status === PGSQL_TRANSACTION_IDLE);
 	$savepoint = 'shopify_tx_' . ($depth + 1);
 	shopify_db_exec($connection, $own ? 'BEGIN' : "SAVEPOINT $savepoint");
+	if ($own) {
+		// Marker inside the own transaction: in an aborted state only ROLLBACK TO SAVEPOINT can
+		// tell the original transaction from a replacement (see shopify_db_transaction_ended()).
+		shopify_db_exec($connection, "SAVEPOINT $savepoint");
+	}
+	$transactionId = shopify_db_rows('SELECT txid_current() AS id')[0]['id'];
 	$depth++;
 	try {
 		$value = $op();
 		$after = pg_transaction_status($connection);
-		if ($after === PGSQL_TRANSACTION_IDLE) {
-			// $op ended the transaction itself (legacy transaktion('commit') or 'rollback'): everything
-			// up to that point, the caller's uncommitted work included, is already final. Nothing to undo.
+		if (shopify_db_transaction_ended($connection, $transactionId, $savepoint)) {
+			// $op ended or replaced the original transaction. Its work, including the caller's
+			// earlier uncommitted work, is final; a replacement transaction must be left alone.
 			$depth--;
 			throw new ShopifyDbMisuse('the operation ended the transaction itself; its work is already committed or rolled back, fix the operation and do not retry');
 		}
@@ -150,6 +158,9 @@ function shopify_db_transaction(callable $op) {
 		throw $e;
 	} catch (Throwable $e) {
 		$depth--;
+		if (shopify_db_transaction_ended($connection, $transactionId, $savepoint)) {
+			throw new ShopifyDbMisuse('the operation ended the transaction itself; its work is already committed or rolled back, fix the operation and do not retry', 0, $e);
+		}
 		@pg_query($connection, $own ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT $savepoint");
 		if (!$own) {
 			@pg_query($connection, "RELEASE SAVEPOINT $savepoint");
@@ -159,6 +170,36 @@ function shopify_db_transaction(callable $op) {
 	$depth--;
 	shopify_db_exec($connection, $own ? 'COMMIT' : "RELEASE SAVEPOINT $savepoint");
 	return $value;
+}
+
+/**
+ * Detects an operation that ended or replaced the transaction, before any cleanup is sent.
+ * An open transaction is compared by txid. An aborted one cannot run that query, so it is
+ * probed with ROLLBACK TO SAVEPOINT on the wrapper's marker: that only succeeds inside the
+ * original transaction (which it leaves rolled back to the marker, ready for the normal
+ * cleanup); in a replacement the savepoint does not exist (3B001) and nothing is changed.
+ *
+ * @param resource|\PgSql\Connection $connection
+ * @param string $transactionId transaction identity recorded after BEGIN or SAVEPOINT
+ * @param string $savepoint the marker savepoint created by shopify_db_transaction()
+ * @return bool whether the original transaction has ended
+ */
+function shopify_db_transaction_ended($connection, string $transactionId, string $savepoint): bool {
+	$status = pg_transaction_status($connection);
+	if ($status === PGSQL_TRANSACTION_IDLE) {
+		return true;
+	}
+	if ($status === PGSQL_TRANSACTION_INTRANS) {
+		return shopify_db_rows('SELECT txid_current() AS id')[0]['id'] !== $transactionId;
+	}
+	if ($status === PGSQL_TRANSACTION_INERROR) {
+		try {
+			shopify_db_exec($connection, "ROLLBACK TO SAVEPOINT $savepoint");
+		} catch (ShopifyDbError $probe) {
+			return $probe->sqlstate === '3B001';
+		}
+	}
+	return false;
 }
 
 /**
@@ -180,7 +221,7 @@ function shopify_db_connection() {
 /**
  * One bound value as libpq expects it: text, with booleans as t/f and dates as wall-clock text in
  * PHP's default time zone, which is what the manifest's timestamp columns (no time zone) and
- * now() hold.
+ * now() hold. shopify_bootstrap() pairs PHP's zone with the tenant PostgreSQL session zone.
  *
  * @param mixed $value
  * @return string|null
