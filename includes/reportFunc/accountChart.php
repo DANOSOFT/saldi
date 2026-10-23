@@ -44,6 +44,8 @@
 //                Tilbage button JSON-encodes it inside its onclick attribute.
 // 20261015 CL/LH PR #697 review: the unAlign/unAlignAccount/oppId GET values are int-cast before the openpost update,
 //                and accountchart() has a PHPDoc block.
+// 20261023 CL/LH PR #697 review: returside from GET goes through nav_sanitize_returside() instead of a rapport.php-only
+//                check, so the kreditorkort, ordre, debitorkort and luk.php back links from udlign_openpost.php are kept.
 
 if (!function_exists('accountchart')) {
 /**
@@ -102,13 +104,12 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	($kontoart=='D')?$tekst='DRV':$tekst='KRV';
 	$qtxt = "select * from grupper where art = '$tekst' and kodenr = '$bruger_id'";
 	if (isset($_GET['returside'])) {
-		// Only a relative rapport.php return target is kept - anything else (a javascript: or
-		// off-site URL) falls back to the default below, so neither the Luk link nor the menu T
-		// Tilbage button can be pointed at it.
-		$getReturside = is_string($_GET['returside']) ? $_GET['returside'] : '';
-		if (preg_match('/^rapport\.php(\?|$)/D', $getReturside)) {
-			$returside = $getReturside;
-		}
+		// The account chart is also reached through udlign_openpost.php's Tilbage link, which passes on
+		// the ledger's returside (../kreditor/kreditorkort.php?id=..., ../debitor/ordre.php?id=...,
+		// debitorkort.php?kontonr=..., ../includes/luk.php). nav_sanitize_returside() keeps those and
+		// returns '' for a javascript:, off-site or quoted URL, which falls back to the default below,
+		// so neither the Luk link nor the menu T Tilbage button can be pointed at it.
+		$returside = nav_sanitize_returside($_GET['returside']);
 	} elseif ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
 		$dato_fra=$r['box2'];
 		$dato_til=$r['box3'];
