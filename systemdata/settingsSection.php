@@ -346,7 +346,7 @@ function settings_section_save(string $sectionId, array $defs, array $post): arr
 	$errors = array();
 	$toSave = array();
 	foreach ($defs as $key => $def) {
-		if (in_array($def['type'], array('action', 'info', 'link', 'mini'), true) || !isset($posted[$key]) || st_locked($def) || !st_visible($def, $posted) || st_field_access($def) !== 'write') {
+		if (in_array($def['type'], array('action', 'info', 'link', 'mini'), true) || !isset($posted[$key]) || st_locked($def, null, trim((string) $posted[$key])) || !st_visible($def, $posted) || st_field_access($def) !== 'write') {
 			continue;
 		}
 		if ($def['type'] === 'secret' && trim($posted[$key]) === '') {
@@ -629,7 +629,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 					'original' => isset($originals[$key]) ? $originals[$key] : '',
 					'error'    => isset($state['errors'][$key]) ? $state['errors'][$key] : null,
 					'readonly' => !$canWrite,
-					'locked'   => st_locked($def),
+					'locked'   => st_locked($def, isset($values[$key]) ? (string) $values[$key] : null),
 					'visible'  => st_visible($def, $values),
 					'mine'     => ($state['conflict'] && isset($state['conflict']['mine'][$key])),
 				));
@@ -692,7 +692,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
         <div class="st-h">
           <a class="st-h-field" href="#<?= st_h($key) ?>"><?= st_t($def['label']) ?></a>
           <span class="st-h-ch"><?php if ($secret) { ?><?= st_t(5713) ?><?php } else { ?><s><?= st_h($oldText) ?></s> → <?= st_h(st_display_value($def, (string) $row['new_value'])) ?><?php } ?></span>
-          <span class="st-h-m"><span><?= st_h($row['brugernavn']) ?> · <?= st_h(st_local_time((string) $row['tidspunkt'], 'j/n H:i')) ?></span><?php if (!$secret && $canWrite && st_field_access($def) === 'write' && !st_locked($def)) { ?><button type="button" class="st-tl" data-restore="<?= (int) $row['id'] ?>" data-value="<?= st_h($oldText) ?>"><?= st_t(5711) ?></button><?php } ?></span>
+          <span class="st-h-m"><span><?= st_h($row['brugernavn']) ?> · <?= st_h(st_local_time((string) $row['tidspunkt'], 'j/n H:i')) ?></span><?php if (!$secret && $canWrite && st_field_access($def) === 'write' && !st_locked($def, null, st_form_value($def, (string) $row['old_value']))) { ?><button type="button" class="st-tl" data-restore="<?= (int) $row['id'] ?>" data-value="<?= st_h($oldText) ?>"><?= st_t(5711) ?></button><?php } ?></span>
         </div>
 			<?php } ?>
 			<?php if (!$shown) { ?>

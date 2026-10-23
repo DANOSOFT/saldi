@@ -27,7 +27,7 @@
 .kl-tabs{display:flex;gap:24px;align-self:stretch}
 .kl-tab{position:relative;display:flex;align-items:center;gap:7px;padding:0;border:0;background:none;font-family:var(--font-display,inherit);font-weight:500;font-size:0.875rem;color:var(--text-2);cursor:pointer;white-space:nowrap}
 .kl-tab:hover{color:var(--text)}
-.kl-tab .n{font-size:0.7812rem;font-weight:500;color:var(--text-3);font-variant-numeric:tabular-nums}
+.kl-tab .n{font-size:0.7812rem;font-weight:500;color:var(--text-2);font-variant-numeric:tabular-nums}
 .kl-tab[aria-selected="true"]{color:var(--text);font-weight:600}
 .kl-tab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px 2px 0 0;background:var(--btn)}
 .kl-tab.zero .n{opacity:.6}
@@ -65,11 +65,11 @@
 .kl-panel.open{display:block}
 .kl-ph{padding:10px 10px 4px;font-weight:700;font-size:0.875rem}
 .kl-pi{padding:0 10px 8px;font-size:0.75rem;color:var(--text-2)}
-.kl-panel h4{margin:4px 0 0;font-size:0.6562rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);padding:12px 10px 4px;border-top:1px solid var(--border)}
+.kl-panel h4{margin:4px 0 0;font-size:0.6562rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-2);padding:12px 10px 4px;border-top:1px solid var(--border)}
 .kl-sw{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:6px 10px;border:0;background:none;border-radius:8px;cursor:pointer;font-size:0.8125rem;text-align:left;color:var(--text)}
 .kl-sw:hover{background:var(--surface-2)}
 .kl-sw:disabled{cursor:default;color:var(--text-3)} .kl-sw:disabled:hover{background:none} .kl-sw:disabled i{opacity:.5}
-.kl-swn{display:block;color:var(--text-3);font-size:0.7188rem;line-height:1.35;margin-top:1px}
+.kl-swn{display:block;color:var(--text-2);font-size:0.7188rem;line-height:1.35;margin-top:1px}
 .kl-sw i{flex:none;width:32px;height:18px;border-radius:99px;background:var(--border-field);position:relative;transition:background .2s}
 .kl-sw i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s var(--e)}
 .kl-sw[aria-checked="true"] i{background:var(--focus)}
@@ -81,7 +81,7 @@
 .kl-tbl{flex:1;min-height:0;overflow:auto;position:relative;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--border-field) transparent}
 .kl-row{display:grid;grid-template-columns:var(--cols);column-gap:24px;align-items:center;height:40px;padding:0 24px;border-bottom:1px solid var(--grid);background:var(--row-bg,var(--surface))}
 .kl-row > *{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kl-thead{position:sticky;top:0;z-index:5;height:36px;border-bottom-color:var(--border);font-weight:500;font-size:0.7812rem;color:var(--text-3)}
+.kl-thead{position:sticky;top:0;z-index:5;height:36px;border-bottom-color:var(--border);font-weight:500;font-size:0.7812rem;color:var(--text-2)}
 .kl-thead .s{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px;max-width:100%}
 .kl-thead .s:hover,.kl-thead .s.on{color:var(--text)}
 .kl-thead .s i{font-style:normal;font-size:0.625rem;opacity:0}
@@ -94,14 +94,14 @@
 #klBody .kl-row{cursor:pointer}
 #klBody .kl-row:hover{--row-bg:var(--surface-2)}
 #klBody .kl-row:focus-visible{outline:none;box-shadow:inset 2px 0 0 var(--focus);--row-bg:var(--surface-2)}
-.c-nr{color:var(--text-3);font-size:0.8125rem}
+.c-nr{color:var(--text-2);font-size:0.8125rem}
 .c-note{color:var(--text);font-weight:500}
 .c-2{color:var(--text-2)}
 .c-3{color:var(--text-3)}
 .kl-state{display:inline-flex;align-items:center;gap:6px;color:var(--warn)}
 .kl-state svg{width:13px;height:13px;flex:none}
 .kl-page mark{background:rgba(217,130,43,.3);color:inherit;border-radius:2px;padding:0 1px}
-.kl-trash{width:28px;height:28px;margin-left:auto;border:0;border-radius:6px;background:none;color:var(--text-3);display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .12s}
+.kl-trash{width:28px;height:28px;margin-left:auto;border:0;border-radius:6px;background:none;color:var(--text-2);display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .12s}
 .kl-trash svg{width:16px;height:16px}
 #klBody .kl-row:hover .kl-trash,#klBody .kl-row:focus .kl-trash,.kl-trash:focus-visible{opacity:1}
 .kl-trash:hover{color:var(--bad);background:var(--bad-bg)}
@@ -113,7 +113,7 @@
 .kl-empty button:hover{text-decoration:underline}
 
 /* foot */
-.kl-foot{flex:none;display:flex;align-items:center;gap:16px;height:44px;padding:0 24px;border-top:1px solid var(--border);font-size:0.8125rem;color:var(--text-3)}
+.kl-foot{flex:none;display:flex;align-items:center;gap:16px;height:44px;padding:0 24px;border-top:1px solid var(--border);font-size:0.8125rem;color:var(--text-2)}
 .kl-foot .kl-grow{flex:1}
 .kl-foot .kl-scopenote{color:var(--text-2)}
 .kl-foot select{height:28px;padding:0 4px;border:0;background:none;color:var(--text-2);font-size:0.8125rem;cursor:pointer}

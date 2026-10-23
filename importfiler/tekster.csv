@@ -5183,6 +5183,38 @@
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
+5327	Kontokort med u-bogført	General ledger with unposted entries	Kontokort med ikke-bokførte
+5328	Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu	General ledger that also shows the entries from all journals that are not posted yet	Kontokort som også viser posteringene fra alle bilagsjournaler som ikke er bokført ennå
+5329	Poster i kursiv er ikke bogført endnu. De ligger i en kladde og påvirker kontoen, når kladden bogføres.	Entries in italics are not posted yet. They are in a journal and will affect the account when the journal is posted.	Poster i kursiv er ikke bokført ennå. De ligger i en bilagsjournal og påvirker kontoen når journalen bokføres.
+5330	Ikke bogført	Not posted	Ikke bokført
+5331	Kladdelinjer, der ikke er medtaget, fordi kontoopsætningen mangler:	Journal lines left out because the account setup is missing:	Bilagslinjer som ikke er tatt med fordi kontooppsettet mangler:
+5332	Gem og næste	Save and next	Lagre og neste
+5333	Spring over	Skip	Hopp over
+5334	Obligatorisk	Required	Obligatorisk
+5335	Ingen flere bilag i puljen	No more documents in the pool	Ingen flere bilag i puljen
+5336	Tilbage til kassekladden	Back to the cash journal	Tilbake til kassakladden
+5337	Arkivér	Archive	Arkiver
+5338	Vis arkiverede	Show archived	Vis arkiverte
+5339	Gendan	Restore	Gjenopprett
+5340	Arkivet er ikke klar. Log ud og ind igen.	The archive is not ready. Log out and in again.	Arkivet er ikke klart. Logg ut og inn igjen.
+5341	Arkivér valgte	Archive selected	Arkiver valgte
+5342	Gendan valgte	Restore selected	Gjenopprett valgte
+5343	Arkiveret	Archived	Arkivert
+5344	Ingen arkiverede bilag	No archived documents	Ingen arkiverte bilag
+5345	Ingen bilag valgt.	No documents selected.	Ingen bilag valgt.
+5346	af	of	av
+5347	Vis flere	Show more	Vis flere
+5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
+5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
+5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
+5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
+5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
+5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
+5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
+5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5500	Personlige indstillinger	Personal settings	Personlige innstillinger
 5501	Hvem er online	Who is online	Hvem er pålogget
 5502	Notifikationer	Notifications	Varsler
@@ -6590,12 +6622,27 @@
 6927	Se angivelse	See the return	Se melding
 6928	Omsætning pr. måned	Revenue per month	Omsetning per måned
 6929	ekskl. moms	excl. VAT	ekskl. mva
+6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
+6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
+6932	Adgang nægtet	Access denied	Ingen tilgang
+6933	Regnskabets database findes ikke. Opret regnskabet, før en sikkerhedskopi indlæses.	The ledger's database does not exist. Create the ledger before loading a backup.	Regnskapets database finnes ikke. Opprett regnskapet før en sikkerhetskopi lastes inn.
+6934	Filen er en MySQL-sikkerhedskopi. Den kan kun indlæses som flytning fra MySQL i adminpanelet på et tomt regnskab.	The file is a MySQL backup. It can only be loaded as a move from MySQL in the admin panel, on an empty ledger.	Filen er en MySQL-sikkerhetskopi. Den kan bare lastes inn som flytting fra MySQL i adminpanelet på et tomt regnskap.
+6935	Flyt fra MySQL	Move from MySQL	Flytt fra MySQL
+6936	Til kunder, der flytter fra deres egen installation: MySQL-sikkerhedskopien indlæses, og dette tomme regnskab erstattes. Tag først en sikkerhedskopi af regnskabet.	For customers moving from their own installation: the MySQL backup is loaded and this empty ledger is replaced. Take a backup of the ledger first.	For kunder som flytter fra sin egen installasjon: MySQL-sikkerhetskopien lastes inn, og dette tomme regnskapet erstattes. Ta en sikkerhetskopi av regnskapet først.
+6937	Din adgangskode	Your password	Ditt passord
+6938	Forkert adgangskode - intet er ændret.	Wrong password - nothing has been changed.	Feil passord - ingenting er endret.
+6939	Flytning fra MySQL kan kun ske fra adminpanelet på et tomt regnskab (uden posteringer, ordrer og kassekladdelinjer).	A move from MySQL can only be done from the admin panel on an empty ledger (no postings, orders or journal lines).	Flytting fra MySQL kan bare gjøres fra adminpanelet på et tomt regnskap (uten posteringer, ordrer og bilagslinjer).
+6940	Formularen er udløbet. Hent siden igen, og prøv igen.	The form has expired. Reload the page and try again.	Skjemaet er utløpt. Last inn siden på nytt og prøv igjen.
+6941	Udfyld MySQL-database (kun bogstaver, tal og _) og MySQL-bruger.	Fill in the MySQL database (letters, digits and _ only) and the MySQL user.	Fyll ut MySQL-database (bare bokstaver, tall og _) og MySQL-bruker.
+6942	Filen er ikke en MySQL-sikkerhedskopi.	The file is not a MySQL backup.	Filen er ikke en MySQL-sikkerhetskopi.
+6943	Start flytning	Start the move	Start flytting
 6944	Vis som tabel	Show as table	Vis som tabell
 6945	Vis som graf	Show as chart	Vis som graf
 6946	%s mod %s	%s vs %s	%s mot %s
 6947	Kun %s	Only %s	Bare %s
 6948	(sidste år)	(last year)	(i fjor)
 6949	Bedste måned	Best month	Beste måned
+6950	Kunden har ingen jobkort. Vil du oprette et?	The customer has no job cards. Do you want to create one?	Kunden har ingen jobbkort. Vil du opprette et?
 6951	Kunder pr. time	Customers per hour	Kunder per time
 6952	%s dage	%s days	%s dager
 6953	Få	Few	Få
@@ -6740,55 +6787,12 @@
 7097	Leverede ordrer, der ikke er faktureret	Delivered orders not yet invoiced	Leverte ordrer som ikke er fakturert
 7098	Laver testfaktura …	Making the test invoice …	Lager testfaktura …
 7099	Læseadgang håndhæves kun i "Afvis": i "Log kun" kan en bruger med læseadgang stadig ændre på de sider, der endnu bruger den gamle rettighedskontrol.	Read access is enforced only in "Deny": in "Log only" a user with read access can still change data on pages that still use the old rights check.	Lesetilgang håndheves bare i "Avvis": i "Bare logg" kan en bruker med lesetilgang fortsatt endre på sider som ennå bruker den gamle rettighetskontrollen.
-6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
-6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
-6932	Adgang nægtet	Access denied	Ingen tilgang
-6933	Regnskabets database findes ikke. Opret regnskabet, før en sikkerhedskopi indlæses.	The ledger's database does not exist. Create the ledger before loading a backup.	Regnskapets database finnes ikke. Opprett regnskapet før en sikkerhetskopi lastes inn.
-6934	Filen er en MySQL-sikkerhedskopi. Den kan kun indlæses som flytning fra MySQL i adminpanelet på et tomt regnskab.	The file is a MySQL backup. It can only be loaded as a move from MySQL in the admin panel, on an empty ledger.	Filen er en MySQL-sikkerhetskopi. Den kan bare lastes inn som flytting fra MySQL i adminpanelet på et tomt regnskap.
-6935	Flyt fra MySQL	Move from MySQL	Flytt fra MySQL
-6936	Til kunder, der flytter fra deres egen installation: MySQL-sikkerhedskopien indlæses, og dette tomme regnskab erstattes. Tag først en sikkerhedskopi af regnskabet.	For customers moving from their own installation: the MySQL backup is loaded and this empty ledger is replaced. Take a backup of the ledger first.	For kunder som flytter fra sin egen installasjon: MySQL-sikkerhetskopien lastes inn, og dette tomme regnskapet erstattes. Ta en sikkerhetskopi av regnskapet først.
-6937	Din adgangskode	Your password	Ditt passord
-6938	Forkert adgangskode - intet er ændret.	Wrong password - nothing has been changed.	Feil passord - ingenting er endret.
-6939	Flytning fra MySQL kan kun ske fra adminpanelet på et tomt regnskab (uden posteringer, ordrer og kassekladdelinjer).	A move from MySQL can only be done from the admin panel on an empty ledger (no postings, orders or journal lines).	Flytting fra MySQL kan bare gjøres fra adminpanelet på et tomt regnskap (uten posteringer, ordrer og bilagslinjer).
-6940	Formularen er udløbet. Hent siden igen, og prøv igen.	The form has expired. Reload the page and try again.	Skjemaet er utløpt. Last inn siden på nytt og prøv igjen.
-6941	Udfyld MySQL-database (kun bogstaver, tal og _) og MySQL-bruger.	Fill in the MySQL database (letters, digits and _ only) and the MySQL user.	Fyll ut MySQL-database (bare bokstaver, tall og _) og MySQL-bruker.
-6942	Filen er ikke en MySQL-sikkerhedskopi.	The file is not a MySQL backup.	Filen er ikke en MySQL-sikkerhetskopi.
-6943	Start flytning	Start the move	Start flytting
-6950	Kunden har ingen jobkort. Vil du oprette et?	The customer has no job cards. Do you want to create one?	Kunden har ingen jobbkort. Vil du opprette et?
-5327	Kontokort med u-bogført	General ledger with unposted entries	Kontokort med ikke-bokførte
-5328	Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu	General ledger that also shows the entries from all journals that are not posted yet	Kontokort som også viser posteringene fra alle bilagsjournaler som ikke er bokført ennå
-5329	Poster i kursiv er ikke bogført endnu. De ligger i en kladde og påvirker kontoen, når kladden bogføres.	Entries in italics are not posted yet. They are in a journal and will affect the account when the journal is posted.	Poster i kursiv er ikke bokført ennå. De ligger i en bilagsjournal og påvirker kontoen når journalen bokføres.
-5330	Ikke bogført	Not posted	Ikke bokført
-5331	Kladdelinjer, der ikke er medtaget, fordi kontoopsætningen mangler:	Journal lines left out because the account setup is missing:	Bilagslinjer som ikke er tatt med fordi kontooppsettet mangler:
-5332	Gem og næste	Save and next	Lagre og neste
-5333	Spring over	Skip	Hopp over
-5334	Obligatorisk	Required	Obligatorisk
-5335	Ingen flere bilag i puljen	No more documents in the pool	Ingen flere bilag i puljen
-5336	Tilbage til kassekladden	Back to the cash journal	Tilbake til kassakladden
-5337	Arkivér	Archive	Arkiver
-5338	Vis arkiverede	Show archived	Vis arkiverte
-5339	Gendan	Restore	Gjenopprett
-5340	Arkivet er ikke klar. Log ud og ind igen.	The archive is not ready. Log out and in again.	Arkivet er ikke klart. Logg ut og inn igjen.
-5341	Arkivér valgte	Archive selected	Arkiver valgte
-5342	Gendan valgte	Restore selected	Gjenopprett valgte
-5343	Arkiveret	Archived	Arkivert
-5344	Ingen arkiverede bilag	No archived documents	Ingen arkiverte bilag
-5345	Ingen bilag valgt.	No documents selected.	Ingen bilag valgt.
-5346	af	of	av
-5347	Vis flere	Show more	Vis flere
-5348	Fordeling	Split	Fordeling
-5349	Bilagsbalance	Voucher balance	Bilagsbalanse
-5350	Bilaget går ikke op: rest	The voucher does not balance: remaining	Bilaget går ikke opp: rest
-5351	Fjern linjen	Remove the line	Fjern linjen
-5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
-5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
-5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
-5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
-5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
-5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
-5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
-5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
-5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
-5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
-5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+7100	Fakturaformat	Invoice format	Fakturaformat
+7101	Sådan sendes fakturaer	How invoices are sent	Slik sendes fakturaer
+7102	Gælder kunder med Udskriv til e-mail. Link kræver, at Stripe er sat op. PBS, NemHandel og print berøres ikke.	Applies to customers with Print to e-mail. Link requires Stripe to be set up. PBS, NemHandel and print are not affected.	Gjelder kunder med Skriv ut til e-post. Lenke krever at Stripe er satt opp. PBS, EHF og utskrift berøres ikke.
+7103	Klassisk (PDF vedhæftet)	Classic (PDF attached)	Klassisk (PDF vedlagt)
+7104	Link til faktura og betaling	Link to invoice and payment	Lenke til faktura og betaling
+7105	Tekst i link-mailen	Text in the link e-mail	Tekst i lenke-e-posten
+7106	Resten af mailen er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.	The rest of the e-mail is fixed. [Fornavn] is replaced by the contact person's first name. Empty = the default text.	Resten av e-posten er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.
+7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 

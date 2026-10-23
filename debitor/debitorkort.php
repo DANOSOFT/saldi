@@ -737,6 +737,12 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				// 20261019 CL/ASR Afmeld Stripe (kort på fil)
+				if (!empty($_POST['stripe_afmeld']) && (int)$id > 0) {
+					include_once(__DIR__ . '/../includes/stripeIncludes/stripeEnrol.php');
+					if (file_exists(__DIR__ . '/../includes/auditLog.php')) include_once(__DIR__ . '/../includes/auditLog.php');
+					stripe_unenrol_debtor((int)$id, 'debitorkort');
+				}
 
 				// Only rewrite kontakt_emails and adresser.email when the form actually posted
 				// the email fields; a POST without them (stale tab, partial form) must leave
@@ -1148,6 +1154,8 @@ if ($id > 0) {
 	$bank_konto = trim($r['bank_konto']);
 	$bank_reg = trim($r['bank_reg']);
 	$swift = trim($r['swift']);
+	$stripe_status = isset($r['stripe']) ? trim((string)$r['stripe']) : '';
+	$stripe_date = isset($r['stripe_date']) ? trim((string)$r['stripe_date']) : '';
 	$kontakt = htmlentities(trim($r['kontakt']), ENT_COMPAT, $charset);
 	if ($r['pbs'] == 'on') $pbs = "checked";
 	$pbs_nr = trim($r['pbs_nr']);
@@ -1912,6 +1920,16 @@ if ($new_status) {
 	if ($status) print "<option></option>\n";
 	print "<option value=\"new_status\">" . findtekst('495|Ny status', $sprog_id) . "<!--tekst 495--></option>\n";
 	print "</SELECT></td></tr>\n";
+}
+##################### STRIPE (kort på fil, 20261019 CL/ASR) #####################
+if (isset($r['stripe']) || isset($stripe_status)) {
+	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+	$stripeOn = (isset($stripe_status) && $stripe_status === 'on');
+	$stripeTxt = $stripeOn ? 'Tilmeldt automatisk kortbetaling' . ($stripe_date ? ' ' . dkdato($stripe_date) : '') : 'Ikke tilmeldt';
+	print "<tr bgcolor=$bg><td title=\"Kort på fil hos Stripe. Kunden tilmelder sig på faktura- og betalingssiden; kortoplysninger ligger kun hos Stripe.\">Stripe</td><td>"
+		. "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:" . ($stripeOn ? '#15803d' : '#aab6cc') . "'></span>" . htmlspecialchars($stripeTxt, ENT_QUOTES, 'UTF-8')
+		. ($stripeOn ? " &nbsp; <label title=\"Stopper automatisk træk. Udskriv til sættes tilbage til e-mail, og næste faktura sendes som link-mail.\"><input class='inputbox' type=checkbox name=stripe_afmeld> Afmeld</label>" : '')
+		. "</td></tr>\n";
 }
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;

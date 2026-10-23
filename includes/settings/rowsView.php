@@ -184,7 +184,7 @@ function settings_rows_render(array $c): void
 						'original' => isset($c['originals'][$key]) ? $c['originals'][$key] : '',
 						'error'    => isset($errors[$key]) ? $errors[$key] : null,
 						'readonly' => !$canWrite,
-						'locked'   => st_locked($def),
+						'locked'   => st_locked($def, isset($c['values'][$key]) ? (string) $c['values'][$key] : null),
 						'visible'  => st_visible($def, $c['values']),
 						'mine'     => false,
 						'set_at'   => '',
