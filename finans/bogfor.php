@@ -69,6 +69,8 @@
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
 // 20261019 CL/LH MB-72: openpost() treats an empty, '0' and NULL project as the same, so a journal payment settles an invoice without a project.
 //                The settlement date is the later of invoice and payment date, not the invoice date.
+// 20261023 CL/LH MB-72: openpost() trims the project before matching and storing it, and a payment settling
+//                several invoices gives every row of the group the group's latest date.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -1141,8 +1143,10 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	$udlign_date=$transdate;
 	$dato=date("Y-m-d");
 	// No project is stored as '' on journal lines but as '0' (or NULL) on invoices; all three mean no project.
-	$projektSql = db_escape_string((string)$projekt);
-	if (in_array(trim((string)$projekt), array('', '0'), true)) {
+	// Trimmed once, so the stored value is the one matched here.
+	$projekt = trim((string)$projekt);
+	$projektSql = db_escape_string($projekt);
+	if (in_array($projekt, array('', '0'), true)) {
 		$projektMatch = "(projekt is null or projekt = '' or projekt = '0')";
 	} else {
 		$projektMatch = "projekt = '$projektSql'";
@@ -1164,6 +1168,8 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		
 # 20121122 >>and projekt='$projekt'<< indsat herunder.
 		if ($udlign_date<$transdate) $udlign_date=$transdate;
+		$groupMatches = 0;
+		$groupDate = $transdate;
 		for ($x=0;$x<count($invoices);$x++) {
 			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and $projektMatch and udlignet!='1' and ";
 			$qtxt.= " faktnr='$invoices[$x]'";
@@ -1187,7 +1193,14 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$udlignet=1;
 				// <-- 20230626
+				$groupMatches++;
+				$groupDate = max($groupDate, $udlign_date);
 			}
+		}
+		// A payment settling several invoices gives them one udlign_id; the whole group gets its latest date.
+		if ($groupMatches > 1) {
+			$qtxt = "update openpost set udlign_date = '" . db_escape_string($groupDate) . "' where udlign_id = '" . (int)$udlign_id . "'";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
 	if ($udlignet<1) {
