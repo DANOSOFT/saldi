@@ -26,12 +26,14 @@
 //                Also hosted here: needs the arrow keys' open() helper (SD-719).
 // 20261006 CL/SZ SD-719 Before saving, the document must still be in the pool (window.poolStillListed()): a document attached in another tab,
 //                or one not in the loaded list, left a journal line without its document when the attach was then refused.
+// 20261004 CL/SZ Pool account check: window.poolMarkFields() marks the Debet / Kredit the server refused ("eksisterer ikke"), as "Obligatorisk" is, and focuses the first.
 // 20261006 CL/SZ SD-716 A new document puts the cursor in Debet without opening the lookup panel over the list (window.focusAccountQuietly()),
 //                or on "Brug forslag" when Debet has a suggestion; window.poolFocusNewLine() does the same after "Overfør data".
 // 20261009 CL/SZ SD-716 transfer=1 leaves the address while the script loads, before the page's load event, so the main menu (index/main.php) never
 //                takes an address with it (F5 would transfer again, and two quick address writes made the menu reload the page over and over).
 // 20261015 CL/SZ SD-720 (CodeRabbit) A split bilag ticks only the rows this save created; a line that was already there keeps the box as the user left it.
 // 20261020 CL/SZ SD-720 (CodeRabbit) An amount with a dot that is not a thousands separator ("12.50", saved as 1250) or a space inside it is not an amount.
+// 20261023 CL/LH Re-cut of #732 onto master. window.poolMarkFields() follows the window.pool* exports, since SD-726's window.fieldNavigationSave() (#730) is not on master.
 (function () {
     'use strict';
 
@@ -320,6 +322,23 @@
     window.poolSaveAndNext = saveAndNext;
     window.poolSkipDocument = skipDocument;
     window.poolFocusNewLine = focusNewLine;
+
+    /** Marks the fields a save was refused for (insertDoc.php's account check): [{field: 'Debet', text: 'eksisterer ikke'}]. */
+    window.poolMarkFields = function (rowId, fields) {
+        var prefix = 'row_' + rowId + '_';
+        var first = null;
+        fields.forEach(function (item) {
+            var field = document.getElementById(prefix + item.field);
+            if (!field) return;
+            clearMandatory(field);
+            markMandatory(field, item.text);
+            if (!first) first = field;
+        });
+        if (first) {
+            first.focus();
+            if (typeof first.select === 'function') first.select();
+        }
+    };
 
     /**
      * Pool URL for a document clicked in the list: a new line with its own data when nothing was typed in the new line, as
