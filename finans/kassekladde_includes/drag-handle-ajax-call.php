@@ -16,8 +16,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (tbody) {
+        // 20261021 ASR Redesign: the whole saved line is the handle (the Position column is gone). Fields, buttons, links
+        // and the paper-clip are filtered out, so text can be selected and the clip keeps its own drag (sharing a document);
+        // window.kkRowDrag tells the clip's document-level handlers that a line, not a document, is being dragged.
         new Sortable(tbody, {
-            handle: '.drag-handle',
+            draggable: 'tr.kk-line',
+            filter: 'input, select, textarea, button, a, label, img, .clip-cell',
+            preventOnFilter: false,
             animation: 150,
             onStart: evt => {
                 if (unsavedChanges) {
@@ -41,19 +46,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
                 } else {
+                    window.kkRowDrag = true;
                     evt.item.classList.add('dragging');
                 }
             },
             onEnd: evt => {
+                window.kkRowDrag = false;
                 evt.item.classList.remove('dragging');
                 [...tbody.rows].forEach(row => row.classList.remove('drop-target'));
-
-                [...tbody.rows].forEach((row, idx) => {
-                    const posCell = row.querySelector('.drag-handle');
-                    if (posCell) {
-                        posCell.innerHTML = '&#x2630; ' + (idx + 1);
-                    }
-                });
 
                 const ids = [...tbody.querySelectorAll('tr')]
                     .map(row => row.querySelector('input[name^="id"]'))
@@ -109,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (document.documentElement.classList.contains('kk-redesign')) return; // css/kassekladde.css styles the drag
     const style = document.createElement('style');
     style.textContent = `
         tr.dragging {
