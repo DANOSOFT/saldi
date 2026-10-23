@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.0.0 --- 2026-10-19 ---
+// --- debitor/api.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,7 @@
 //                  PartyLegalEntity/CompanyID under schemeID 0088 instead of a CVR under
 //                  0184. The key is omitted when no CVR is known; routing on the GLN and
 //                  the GLN exemptions in both missing-CVR guards are unchanged.
+// 20261023 CL/MMR SST-884 sendInvoice() falls back to the customer card's CVR when the order has none, like EAN.
 
     @session_start();
     $s_id=session_id();
@@ -471,12 +472,16 @@
         // get momssats of the order so that the moms can get reduced to that number.
         $ordre_moms = $r_faktura['momssats'];
 
-        // Fall back to customer record (adresser) for EAN if the order row has none
-        if(empty($r_faktura["ean"]) && !empty($r_faktura["konto_id"])){
-            $q = db_select("SELECT ean FROM adresser WHERE id = " . intval($r_faktura["konto_id"]), __FILE__ . " linje " . __LINE__);
+        // Fall back to customer record (adresser) for EAN and CVR if the order row has none
+        // (SST-884: CVR too, so a receiver validating DK-R-017 gets the card's CVR)
+        if((empty($r_faktura["ean"]) || empty($r_faktura["cvrnr"])) && !empty($r_faktura["konto_id"])){
+            $q = db_select("SELECT ean, cvrnr FROM adresser WHERE id = " . intval($r_faktura["konto_id"]), __FILE__ . " linje " . __LINE__);
             $adresser_row = db_fetch_array($q);
-            if(!empty($adresser_row["ean"])){
+            if(empty($r_faktura["ean"]) && !empty($adresser_row["ean"])){
                 $r_faktura["ean"] = $adresser_row["ean"];
+            }
+            if(empty($r_faktura["cvrnr"]) && !empty($adresser_row["cvrnr"])){
+                $r_faktura["cvrnr"] = $adresser_row["cvrnr"];
             }
         }
 
