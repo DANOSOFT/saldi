@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------patch 5.0.0-------2026-09-23------
+// ------------------lager/lagerflyt.php-----------ver 5.0.0-------2026-10-23------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@ $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$modulnr = 9;
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
