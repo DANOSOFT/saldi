@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/stripe_invoice_pdf.php --- 2026.10.19
+// --- tools/stripe_invoice_pdf.php --- 2026.10.22
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261019 CL/ASR Created: renders ONE invoice (or credit note) to PDF without a
 //                 browser session, for the public invoice & payment page
@@ -33,12 +33,17 @@
 //
 //   php tools/stripe_invoice_pdf.php --db=<ledger db> --id=<ordrer.id> [--out=<file>]
 //
-// Writes <docroot>/temp/<db>/stripe_pdf/<ordre_id>.pdf (or --out) and prints the
+// Writes the protected HMAC-named cache entry (--out may only name that same entry) and prints the
 // path on success. Exit code 0 = ok, 1 = usage, 2 = render failed.
+// 20261022 CDX/LH Use Europe/Copenhagen consistently for invoice and rendering dates.
+// 20261022 CDX/LH Render under one invoice lock in a private disposable workspace and publish the opaque PDF atomically.
+
+date_default_timezone_set('Europe/Copenhagen');
 
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 
-$options = getopt('', array('db:', 'id:', 'out::'));
+$options = getopt('', array('db:', 'id:', 'out::', 'document-root:'));
+if (!empty($options['document-root'])) $_SERVER['DOCUMENT_ROOT'] = (string)$options['document-root'];
 $targetDb = isset($options['db']) ? trim((string)$options['db']) : '';
 $ordreId  = isset($options['id']) ? (int)$options['id'] : 0;
 $outFile  = isset($options['out']) ? (string)$options['out'] : '';
@@ -48,16 +53,17 @@ if ($targetDb === '' || !preg_match('/^[a-z0-9_]{1,40}$/', $targetDb) || $ordreI
 }
 
 // The form engine uses paths relative to debitor/ (../includes, ../temp, ../logolib).
-// Web (www-data), cron and shell users all render here: make everything we create group/world writable.
-umask(0);
+// Generated files inherit 0640 and directories 0750. Web and cron must use the same artifact owner.
+umask(0027);
 chdir(__DIR__ . '/../debitor');
-if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/tools/stripe_invoice_pdf.php';
+if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/cli/tools/stripe_invoice_pdf.php';
 if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
 $_GET = array(); $_POST = array(); $_SESSION = array();
 
-include('../includes/db_query.php');
-include('../includes/connect.php');          // master connection + $sqhost/$squser/$sqpass
-include('../includes/std_func.php');
+include(__DIR__ . '/../includes/db_query.php');
+include(__DIR__ . '/../includes/connect.php');          // master connection + $sqhost/$squser/$sqpass
+include(__DIR__ . '/../includes/std_func.php');
+include_once(__DIR__ . '/../includes/stripeIncludes/stripePdf.php');
 
 // Resolve the ledger through the master locator, exactly like stripeConfigDb().
 $r = db_fetch_array(db_select("select id, db from regnskab where db = '" . db_escape_string($targetDb) . "'", __FILE__ . " linje " . __LINE__, true));
@@ -70,7 +76,7 @@ $db_id = (int)$r['id'];
 // Globals the engine normally inherits from online.php.
 if (!isset($charset) || !$charset) $charset = 'UTF-8';
 $sprog_id = 1;
-$bruger_id = 99999;                          // engine writes to ../temp/<db>/<abs(bruger_id)>; keep it off real users' folders
+$bruger_id = 0;                              // Private workspace overrides the engine's normal user directory.
 $brugernavn = 'stripe_pdf';
 $s_id = 'cli';
 $exec_path = '';
@@ -94,8 +100,8 @@ if (!$o) { fwrite(STDERR, "order $ordreId not found in $db\n"); exit(2); }
 if (!(int)$o['fakturanr']) { fwrite(STDERR, "order $ordreId is not invoiced\n"); exit(2); }
 $formular = ($o['art'] === 'DK') ? 5 : 4;    // 4 = faktura, 5 = kreditnota
 
-include('../includes/formfunk.php');
-include('../includes/var2str.php');
+include(__DIR__ . '/../includes/formfunk.php');
+include(__DIR__ . '/../includes/var2str.php');
 
 // Same lookup as debitor/formularprint.php find_background_file() (not includable: it starts a session).
 function stripe_pdf_background($background, $file_type, $department) {
@@ -115,24 +121,36 @@ function stripe_pdf_background($background, $file_type, $department) {
 }
 $background_file = stripe_pdf_background(isset($o['sprog']) ? $o['sprog'] : 'Dansk', 'faktura_bg', (int)$o['afd']);
 
-foreach (array("../temp/$db", "../temp/$db/" . abs($bruger_id), "../temp/$db/stripe_pdf") as $d) {
-	if (!is_dir($d)) @mkdir($d, 0777, true);
-	@chmod($d, 0777);                       // no-op when another user owns it
-}
-$cacheDir = "../temp/$db/stripe_pdf";
 
-ob_start();                                  // the engine prints HTML fragments; keep stdout clean
-$svar = formularprint($ordreId, $formular, 0, $charset, 'inkasso', $background_file);
-$noise = ob_get_clean();
-// In inkasso mode the engine returns the PDF path ("<mappe>/<file>.pdf") instead of mailing it.
-if (!is_string($svar) || substr($svar, -4) !== '.pdf' || !is_file($svar)) {
-	fwrite(STDERR, "formularprint did not produce a PDF: " . var_export($svar, true) . "\n" . substr(strip_tags($noise), 0, 400) . "\n");
+$pdf = stripe_invoice_pdf_target($ordreId);
+if ($pdf === '' || ($outFile !== '' && $outFile !== $pdf)) {
+	fwrite(STDERR, "no private cache destination (or --out is outside that destination)\n");
 	exit(2);
 }
-if (strncmp((string)file_get_contents($svar, false, null, 0, 4), '%PDF', 4) !== 0) { fwrite(STDERR, "not a PDF: $svar\n"); exit(2); }
+$lock = stripe_invoice_pdf_lock($ordreId);
+if (!$lock) { fwrite(STDERR, "could not lock invoice PDF\n"); exit(2); }
+$saldi_pdf_work_dir = '';
+// Shutdown also covers a fatal error or an exit from legacy engine code.
+register_shutdown_function(function () use (&$saldi_pdf_work_dir, $lock) {
+	if ($saldi_pdf_work_dir !== '') stripe_invoice_pdf_cleanup($saldi_pdf_work_dir);
+	flock($lock, LOCK_UN);
+	fclose($lock);
+});
+if (stripe_invoice_pdf_valid($pdf)) { print $pdf . "\n"; exit(0); }
+$saldi_pdf_work_dir = stripe_invoice_pdf_work_dir();
+if ($saldi_pdf_work_dir === '') { fwrite(STDERR, "could not create private render directory\n"); exit(2); }
 
-$pdf = $outFile !== '' ? $outFile : "$cacheDir/$ordreId.pdf";
-if (!copy($svar, $pdf)) { fwrite(STDERR, "could not write $pdf\n"); exit(2); }
-@chmod($pdf, 0666);
-print realpath($pdf) . "\n";
+ob_start();                                  // the engine prints HTML fragments; keep stdout clean
+try {
+	$svar = formularprint($ordreId, $formular, 0, $charset, 'inkasso', $background_file);
+} finally {
+	$noise = ob_get_clean();
+}
+// In inkasso mode the engine returns the PDF path instead of mailing it.
+if (!is_string($svar) || !stripe_pdf_inside($svar, $saldi_pdf_work_dir) || !stripe_invoice_pdf_valid($svar)) {
+	fwrite(STDERR, "formularprint did not produce a private PDF: " . var_export($svar, true) . "\n" . substr(strip_tags($noise), 0, 400) . "\n");
+	exit(2);
+}
+if (!stripe_invoice_pdf_publish($ordreId, $svar)) { fwrite(STDERR, "could not publish invoice PDF\n"); exit(2); }
+print $pdf . "\n";
 exit(0);

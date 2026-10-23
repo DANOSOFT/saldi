@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/webhook.php --- 2026.08.07
+// --- api/stripe/webhook.php --- 2026.10.22
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,11 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: Stripe webhook receiver. Contract:
 //                doc/stripe/INTERFACE_CONTRACT.md.
 // 20260818 CL/LH Hardened claims, DB failures, and invoice identity.
+// 20261022 CDX/LH Route invoice events through retryable booking and manual refund/dispute handling.
 //
 // PILOT MODE OF RECORD = record-only: verify + dedupe + record + PDF + alert;
 // nothing is booked. The import path is gated behind the import_enabled
@@ -386,6 +387,17 @@ if ($eventType === 'customer.subscription.deleted') {
 	stripe_wh_finish($rowId, 'processed', 200, 'ok', $orderId);
 }
 
+// Invoice intents/adjustments share a testable dispatcher; pilot handlers above stay intact.
+if (strpos($eventType, 'payment_intent.') === 0 || in_array($eventType, array('charge.refunded', 'charge.dispute.created'), true)) {
+	// Keep an abrupt DB-layer exit retryable too: never acknowledge unfinished invoice work.
+	http_response_code(500);
+	include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoiceWebhook.php');
+	if (file_exists(__DIR__ . '/../../includes/auditLog.php')) include_once(__DIR__ . '/../../includes/auditLog.php');
+	$response = stripe_invoice_webhook_dispatch($rowId, $eventType, $obj, $eventId);
+	if ($response !== null) stripe_wh_respond($response['code'], $response['message']);
+	http_response_code(200);
+}
+
 if ($eventType === 'charge.refunded') {
 	$kontonr = '';
 	$cEsc = db_escape_string((string)(isset($obj['customer']) ? $obj['customer'] : ''));
@@ -398,25 +410,6 @@ if ($eventType === 'charge.refunded') {
 		"Charge: " . (isset($obj['id']) ? $obj['id'] : '?') . "\nRefunderet: $refKr kr\nKonto: $kontonr\n\nManuel handling: kreditnota/ompostering efter den faste procedure.",
 		'', 0);
 	stripe_wh_finish($rowId, 'processed', 200, 'ok');
-}
-
-// 20261019 CL/ASR "Saldi invoices, Stripe collects": one PaymentIntent per Saldi invoice
-// (includes/stripeIncludes/stripeInvoice.php). Idempotent on the stripe_payments row.
-if (strpos($eventType, 'payment_intent.') === 0) {
-	include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php');
-	include_once(__DIR__ . '/../../includes/stripeIncludes/stripeEnrol.php');
-	if (file_exists(__DIR__ . '/../../includes/auditLog.php')) include_once(__DIR__ . '/../../includes/auditLog.php');
-	$piOrder = isset($obj['metadata']['saldi_ordre_id']) ? (int)$obj['metadata']['saldi_ordre_id'] : 0;
-	$piNr = isset($obj['metadata']['saldi_fakturanr']) ? (string)$obj['metadata']['saldi_fakturanr'] : '';
-	// Intents created by Stripe for a Stripe invoice (the subscription customers) are handled by
-	// invoice.paid above - not ours, no alarm.
-	if (!$piOrder && !empty($obj['invoice'])) stripe_wh_finish($rowId, 'ignored', 200, 'ignored_subscription_intent');
-	$res = stripe_webhook_payment_intent($eventType, $obj, $eventId);
-	if ($res === 'unknown') {
-		stripeAlertMail('Stripe-betaling uden Saldi-faktura', "PaymentIntent " . (isset($obj['id']) ? $obj['id'] : '?') . " (" . $eventType . ") kunne ikke knyttes til en faktura.\nMetadata: " . json_encode(isset($obj['metadata']) ? $obj['metadata'] : array()), 'unmapped_pi_' . (string)(isset($obj['id']) ? $obj['id'] : ''), 3600);
-		stripe_wh_finish($rowId, 'unmapped', 200, 'unmapped_payment', $piOrder, $piNr);
-	}
-	stripe_wh_finish($rowId, $res === 'duplicate' ? 'duplicate' : 'processed', 200, $res, $piOrder, $piNr);
 }
 
 // Unknown/unhandled events: stored (audit + replay) and ignored.

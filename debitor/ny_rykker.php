@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ny_rykker.php --- lap 4.1.1 --- 2025.07.31 ---
+// --- debitor/ny_rykker.php --- ver 5.0.0 --- 2026.10.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2025 Saldi.dk ApS
+// Copyright (c) 2003 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20121105 Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
 // 20140628 Valuta og valutakurs indsættes nu ved oprettelse af ny rykker. Søg 20140628 
@@ -37,6 +37,8 @@
 // 20260828 Sawaneh Review: the three cutoffs use calendar-day arithmetic (dunning_cutoff_date) instead of
 //                  date('U') - days*86400, which shifted eligibility by a day around the DST switches.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261022 CDX/LH Exclude captured/in-flight Stripe invoices from new reminders and existing reminder escalation.
+// 20261023 CDX/LH Retain the redesign permission key with the fixed Stripe reminder exclusions.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -58,6 +60,9 @@ include_once("../includes/stdFunc/dunningCutoff.php");
 include("../includes/formfunk.php");
 include("../includes/forfaldsdag.php");
 include("../includes/openpost.php");
+include_once(__DIR__ . '/../includes/stripeIncludes/stripeDunning.php');
+$stripeDunningOpen = stripe_dunning_openpost_sql();
+$stripeDunningReminder = stripe_dunning_reminder_sql();
 
 $konto_antal=$_GET['kontoantal'];
 if (isset($_GET['rykker_id'])) $rykker_id=explode(";", $_GET['rykker_id']);
@@ -125,7 +130,7 @@ if ($konto_id[0]=="alle") {
 	}
 	$konto_id=array();
 	$x=0;
-	$q=db_select("select openpost.* from openpost,adresser where openpost.udlignet = '0' and openpost.forfaldsdate<='$rykkerfrist1' and openpost.amount>'0' and adresser.id=openpost.konto_id and adresser.art = 'D' order by openpost.konto_id",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select openpost.* from openpost,adresser where openpost.udlignet = '0' and openpost.forfaldsdate<='$rykkerfrist1' and openpost.amount>'0' and adresser.id=openpost.konto_id and adresser.art = 'D' and $stripeDunningOpen order by openpost.konto_id",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker på ordren.
 			if (!in_array($r['konto_id'],$konto_id)) {
@@ -138,7 +143,7 @@ if ($konto_id[0]=="alle") {
 	$rykker_id=array();
 	$rykkerfrist2=dunning_cutoff_date($ffdage2);
 	#finder aabne level_1 rykkere som har overskredet rykkerdato med ffdage2.og bogforer disse
-	$q=db_select("select id,konto_id from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2'",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select id,konto_id from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2' and $stripeDunningReminder",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$x++;
 		db_modify("update ordrer set betalt = 'on' where id = '$r[id]'",__FILE__ . " linje " . __LINE__); 
@@ -147,7 +152,7 @@ if ($konto_id[0]=="alle") {
 	}
 	$rykkerfrist3=dunning_cutoff_date($ffdage3);
 	#finder aabne level_2 rykkere som har overskredet rykkerdato med ffdage3.og bogforer disse
-	$q=db_select("select id,konto_id from ordrer where art = 'R2' and status < '3' and ordredate < '$rykkerfrist3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select id,konto_id from ordrer where art = 'R2' and status < '3' and ordredate < '$rykkerfrist3' and betalt != 'on' and $stripeDunningReminder",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$x++;
 		db_modify("update ordrer set betalt = 'on' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
@@ -160,6 +165,10 @@ if ($konto_id[0]=="alle") {
 	$rykkerfrist1=$rykkerdate;
 }
 for ($i=0; $i<=$konto_antal; $i++) {
+	if (!empty($rykker_id[$i])) {
+		$heldReminder = db_fetch_array(db_select("select id from ordrer where id = " . (int)$rykker_id[$i] . " and not ($stripeDunningReminder)", __FILE__ . ' linje ' . __LINE__));
+		if ($heldReminder) continue;
+	}
 	$forfalden=0;
 	if (($konto_id[$i])||($rykker_id[$i])) {
 		if (!$rykker_id[$i]) {
@@ -211,7 +220,7 @@ for ($i=0; $i<=$konto_antal; $i++) {
 			}	
 			$op_id=NULL;
 			$x=0;
-			$q=db_select("select * from openpost where udlignet = '0' and ((forfaldsdate<'$rykkerfrist1' and amount>'0') or amount < '0') and konto_id='$konto_id[$i]'",__FILE__ . " linje " . __LINE__);
+			$q=db_select("select * from openpost where udlignet = '0' and ((forfaldsdate<'$rykkerfrist1' and amount>'0') or amount < '0') and konto_id='" . (int)$konto_id[$i] . "' and $stripeDunningOpen",__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) {
 #				Finder tidligere rykkere på samme ordre.
 				if (!db_fetch_array(db_select("select ordrer.id from ordrer,ordrelinjer where ordrelinjer.enhed = '$r[id]' and ordrer.id = ordrelinjer.ordre_id and ordrer.betalt != 'on'",__FILE__ . " linje " . __LINE__)) && !db_fetch_array(db_select("select id from ordrer where id = '$r[refnr]' and art LIKE 'R%' and betalt != 'on'",__FILE__ . " linje " . __LINE__))) {
@@ -234,7 +243,7 @@ for ($i=0; $i<=$konto_antal; $i++) {
 				$id=$konto_id[$i];
 				$x=0;
 				$pos=0;
-				$q2 = db_select("select * from openpost where $op_id ",__FILE__ . " linje " . __LINE__);
+				$q2 = db_select("select * from openpost where ($op_id) and $stripeDunningOpen ",__FILE__ . " linje " . __LINE__);
 				while ($r2 = db_fetch_array($q2)) {
 					$x++;				
 					if ($r2['valuta']) $opp_valuta=$r2['valuta'];

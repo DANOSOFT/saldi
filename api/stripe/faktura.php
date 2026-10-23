@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura.php --- 2026.10.19
+// --- api/stripe/faktura.php --- 2026.10.22
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261019 CL/ASR Created: the public invoice & payment page (Requirements par. 5; design
 //                 design_betalingsside_desktop.png; prototype prototype_betalingsside.html).
@@ -30,6 +30,14 @@
 //                 overdue / failed / nocard / credited) with Stripe's Payment Element
 //                 (deferred intent: the PaymentIntent is created on submit by faktura_pay.php).
 //                 No card data touches Saldi. Public, signed link, no session.
+// 20261022 CDX/LH Gate save-card controls and defaults with the enrolment switch.
+// 20261022 CDX/LH Render manual amount, bank and contact panel without card controls.
+// 20261022 CDX/LH Resume authentication on the existing PaymentIntent and keep replacement-card usage in sync with Elements.
+// 20261022 CDX/LH Offer enrolled saved-card payment only on or after the due date.
+// 20261022 CL/LH S5 Danish decline sentences, accurate consent text (removal via contact), charge date, Saldi hint only for Danosoft's ledger.
+// 20261022 CDX/LH Wait for Payment Element readiness and usage updates; prevent concurrent submits and keep consent date accurate.
+// 20261022 CDX/LH Enforce card payment methods in Elements and remove the unavailable Saldi menu hint.
+// 20261022 CDX/LH Place whole-row, keyboard-accessible consent above the resizing Payment Element.
 
 include(__DIR__ . '/faktura_common.php');
 
@@ -38,13 +46,13 @@ $o = $inv['o']; $f = $inv['firma']; $d = $inv['debtor'];
 $brand = $inv['brand'];
 $pk = (string)stripe_setting('publishable_key');
 $returned = isset($_GET['redirect_status']) || isset($_GET['payment_intent']);
-if ($returned && in_array($state, array('open', 'open_recurring', 'overdue', 'failed', 'enrolled')) && !empty($_GET['payment_intent'])) {
+if ($returned && in_array($state, array('open', 'open_recurring', 'overdue', 'failed', 'enrolled', 'requires_action', 'pending')) && !empty($_GET['payment_intent'])) {
 	// browser came back from Stripe before the webhook: sync once (only an intent of THIS invoice), then render
 	$piq = db_fetch_array(db_select("select payment_intent_id from stripe_payments where ordre_id = " . (int)$faktura_o . " and payment_intent_id = '" . db_escape_string(substr((string)$_GET['payment_intent'], 0, 255)) . "'", __FILE__ . " linje " . __LINE__));
 	if ($piq) stripe_payment_sync((string)$piq['payment_intent_id']);
 	$inv = stripe_invoice_load($faktura_o); $state = $inv['state'];
 }
-$totalKr = stripe_fmt_kr($inv['total_ore']) . ' kr.';
+$totalKr = stripe_fmt_kr($inv['total_ore']) . ($inv['currency'] === 'DKK' ? ' kr.' : ' ' . $inv['currency']);
 $dueFmt = stripe_fmt_date($inv['due']);
 $nr = $inv['nr'];
 $docName = $inv['is_credit'] ? stripe_txt('creditnote') : stripe_txt('invoice');
@@ -55,6 +63,7 @@ $bankReg = trim((string)($f['bank_reg'] ?? '')); $bankKonto = trim((string)($f['
 $hasBank = ($bankReg !== '' && $bankKonto !== '');
 $vatPct = rtrim(rtrim(number_format((float)$o['momssats'], 2, ',', ''), '0'), ',');
 $h = 'stripe_h';
+$contact = stripe_contact_phrase($inv);
 
 function fak_pill($inv, $state) {
 	if (in_array($state, array('paid', 'paidbank'))) { $when = $inv['paid'] ? substr((string)$inv['paid']['succeeded_at'], 0, 10) : ''; return '<span class="pill good">' . stripe_h(stripe_txt('paid_pill', array('date' => $when ? stripe_fmt_date($when) : ''))) . '</span>'; }
@@ -83,28 +92,37 @@ switch ($state) {
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt($state === 'overdue' ? 'h_overdue' : 'h_open')) . '</h2><p class="lead">' . $h($state === 'overdue' ? stripe_txt('lead_overdue', array('date' => $dueFmt)) : stripe_txt('lead_open')) . '</p>';
 		if ($state === 'overdue') $panel .= fak_status('bad', 'clock', stripe_txt('overdue_pill', array('date' => $dueFmt)), stripe_txt('amount_lbl') . ' ' . $totalKr);
 		else $panel .= $amountBox;
-		$panel .= '<form id="pay-form">' . $elementBlock . '<button class="btn primary" id="pay" type="submit">' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		$panel .= '<form id="pay-form">' . $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
 		break;
 	case 'open_recurring':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_recurring')) . '</h2><p class="lead">' . $h(stripe_txt('lead_recurring', array('brand' => $brand))) . '</p>' . $amountBox;
-		$panel .= '<form id="pay-form">' . $elementBlock . '<div class="check"><div class="box" role="checkbox" aria-checked="false" tabindex="0" id="chk"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b>' . $h(stripe_txt('chk_title')) . '</b><span>' . $h(stripe_txt('chk_sub')) . '</span></div></div><button class="btn primary" id="pay" type="submit">' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		$panel .= '<form id="pay-form"><div class="check" role="checkbox" aria-checked="false" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h(stripe_txt('chk_title')) . '</b><span id="consent-text">' . $h(stripe_invoice_consent($inv)) . '</span></div></div>' . $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
 		break;
 	case 'failed':
 		$fp = $inv['failed']; $card = stripe_card_label($fp['pm_brand'], $fp['pm_last4']);
-		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_failed')) . '</h2><p class="lead">' . $h(stripe_txt('lead_failed')) . '</p>';
-		$panel .= fak_status('bad', 'x', stripe_txt('failed_box', array('card' => $card, 'date' => stripe_fmt_date(substr((string)$fp['created_at'], 0, 10)))), $fp['last_error'] ? 'Banken oplyser: ' . $fp['last_error'] : '');
-		$panel .= $amountBox . '<form id="pay-form">' . $elementBlock;
-		if ($inv['enrolled'] || $inv['recurring']) $panel .= '<div class="check"><div class="box" role="checkbox" aria-checked="true" tabindex="0" id="chk"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b>' . $h($inv['enrolled'] ? stripe_txt('chk_replace_title') : stripe_txt('chk_title')) . '</b><span>' . $h($inv['enrolled'] ? stripe_txt('chk_replace_sub', array('card' => $card)) : stripe_txt('chk_sub')) . '</span></div></div>';
-		$panel .= '<button class="btn primary" id="pay" type="submit">' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . $foot;
+		$savedCardFailed = in_array($fp['source'], array('auto', 'backup', 'manual'), true);
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_failed')) . '</h2><p class="lead">' . $h(stripe_txt($savedCardFailed ? 'lead_failed' : 'lead_failed_page')) . '</p>';
+		// Never show Stripe's raw code to the customer; stripe_decline_text() maps it to a Danish sentence.
+		$panel .= fak_status('bad', 'x', stripe_txt('failed_box', array('card' => $card, 'date' => stripe_fmt_date(stripe_attempt_date($fp)))), stripe_decline_text($fp['last_error']));
+		$panel .= $amountBox . '<form id="pay-form">';
+		if (stripe_feature_on('enrolment') && ($inv['enrolled'] || $inv['recurring'])) $panel .= '<div class="check" role="checkbox" aria-checked="true" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h($inv['enrolled'] ? stripe_txt('chk_replace_title') : stripe_txt('chk_title')) . '</b><span id="consent-text">' . $h($inv['enrolled'] ? stripe_txt('chk_replace_sub', array('card' => $card)) : stripe_invoice_consent($inv)) . '</span></div></div>';
+		$panel .= $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . $foot;
 		break;
 	case 'enrolled':
 		$card = stripe_card_label('', '');
 		if (!empty($d['stripe_pm_id'])) { $r = stripeHttpRequest('GET', '/v1/payment_methods/' . rawurlencode($d['stripe_pm_id'])); if ($r['ok'] && !empty($r['body']['card'])) $card = stripe_card_label($r['body']['card']['brand'], $r['body']['card']['last4']) . ' <span class="grow"></span><span style="color:var(--ink-3)">Udløber ' . (int)$r['body']['card']['exp_month'] . '/' . (int)$r['body']['card']['exp_year'] . '</span>'; }
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_enrolled')) . '</h2><p class="lead">' . $h(stripe_txt('lead_enrolled')) . '</p>';
-		$panel .= fak_status('grey', 'clock', stripe_txt('enrolled_on', array('date' => $dueFmt)), stripe_txt('amount_lbl') . ' ' . $totalKr);
+		$chargeDate = stripe_invoice_charge_date($inv);
+		$panel .= fak_status('grey', 'clock', stripe_txt('enrolled_on', array('date' => stripe_fmt_date($chargeDate !== '' ? $chargeDate : $inv['due']))), stripe_txt('amount_lbl') . ' ' . $totalKr);
 		$panel .= '<div class="card-row"><span class="brand">' . $h(strtoupper(substr((string)($r['body']['card']['brand'] ?? 'kort'), 0, 4))) . '</span><span>' . $card . '</span></div>';
-		$panel .= '<button class="btn primary" id="paynow" type="button">' . $h(stripe_txt('pay_now_btn', array('amount' => $totalKr))) . '</button><div id="pay-error" class="perr" role="alert"></div>';
-		$panel .= '<p style="margin-top:14px;color:var(--ink-2);font-size:14px">' . $h(stripe_txt('manage_hint')) . '</p>' . $trust . $foot;
+		if (stripe_invoice_pay_now_allowed($inv)) {
+			$panel .= '<button class="btn primary" id="paynow" type="button">' . $h(stripe_txt('pay_now_btn', array('amount' => $totalKr))) . '</button><div id="pay-error" class="perr" role="alert"></div>';
+		}
+		$panel .= '<p style="margin-top:14px;color:var(--ink-2);font-size:14px">' . $h(stripe_txt('manage_hint', array('kontakt' => $contact))) . '</p>' . $trust . $foot;
+		break;
+	case 'requires_action':
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_action')) . '</h2><p class="lead">' . $h(stripe_txt('lead_action')) . '</p>' . $amountBox;
+		$panel .= '<button class="btn primary" id="resume" type="button">' . $h(stripe_txt('action_btn')) . '</button><div id="pay-error" class="perr" role="alert"></div>' . $foot;
 		break;
 	case 'pending':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_pending')) . '</h2><p class="lead">' . $h(stripe_txt('lead_pending')) . '</p>';
@@ -116,18 +134,21 @@ switch ($state) {
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_paid')) . '</h2><p class="lead">' . $h(stripe_txt('lead_paid', array('email' => $inv['email']))) . '</p>';
 		$panel .= fak_status('good', 'ok', stripe_txt('paid_box', array('date' => stripe_fmt_date_long(substr((string)$p['succeeded_at'], 0, 10)))), $totalKr . ' · ' . $card);
 		if (stripe_bool($p['save_card'])) $panel .= '<div class="card-row"><span class="brand">' . $h(strtoupper(substr((string)$p['pm_brand'], 0, 4))) . '</span><span>' . $h(stripe_txt('card_saved_row')) . '</span></div>';
-		$panel .= '<p style="color:var(--ink-2);font-size:14px">' . $h(stripe_txt('find_in_saldi')) . '</p>' . $foot;
+		$panel .= $foot;
 		break;
 	case 'paidbank':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_paidbank')) . '</h2><p class="lead">' . $h(stripe_txt('lead_paidbank')) . '</p>';
 		$panel .= fak_status('good', 'ok', stripe_txt('paid_pill', array('date' => '')), $totalKr . ' · ' . stripe_txt('bank_transfer')) . $foot;
+		break;
+	case 'manual':
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_manual')) . '</h2><p class="lead">' . $h(stripe_txt('lead_manual')) . '</p>' . $amountBox . $bankBox . $foot;
 		break;
 	case 'nocard':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_nocard')) . '</h2><p class="lead">' . $h(stripe_txt('lead_nocard')) . '</p>' . $amountBox . $bankBox . $foot;
 		break;
 	case 'credited':
 		$panel .= '<div class="lab">' . $h(stripe_txt('creditnote')) . '</div><h2>' . $h(stripe_txt('h_credited')) . '</h2><p class="lead">' . $h(stripe_txt('lead_credited')) . '</p>';
-		$panel .= fak_status('grey', 'ok', stripe_txt('credited_pill', array('date' => stripe_fmt_date_long(substr((string)$o['fakturadate'], 0, 10)))), $totalKr) . '<p style="color:var(--ink-2);font-size:14px">' . $h(stripe_txt('find_in_saldi')) . '</p>' . $foot;
+		$panel .= fak_status('grey', 'ok', stripe_txt('credited_pill', array('date' => stripe_fmt_date_long(substr((string)$o['fakturadate'], 0, 10)))), $totalKr) . $foot;
 		break;
 }
 
@@ -140,7 +161,8 @@ foreach ($inv['lines'] as $l) {
 }
 $cfg = array('pk' => $pk, 'o' => $inv['id'], 's' => $faktura_s, 'state' => $state, 'amount' => $inv['total_ore'], 'currency' => strtolower($inv['currency']),
 	'payUrl' => str_replace('/faktura.php?', '/faktura_pay.php?', $self), 'stateUrl' => str_replace('/faktura.php?', '/faktura_state.php?', $self), 'returnUrl' => $self,
-	'btn' => stripe_txt('pay_btn', array('amount' => $totalKr)), 'btnSave' => stripe_txt('pay_save_btn', array('amount' => $totalKr)), 'saveDefault' => ($state === 'failed'));
+	'actionError' => stripe_txt('action_unavailable'), 'payError' => stripe_txt('pay_failed'), 'startError' => stripe_txt('pay_start_failed'), 'netError' => stripe_txt('network_error'),
+	'btn' => stripe_txt('pay_btn', array('amount' => $totalKr)), 'btnSave' => stripe_txt('pay_save_btn', array('amount' => $totalKr)), 'saveDefault' => ($state === 'failed' && stripe_invoice_save_allowed($inv)));
 
 while (ob_get_level()) ob_end_clean();
 header('Content-Type: text/html; charset=utf-8');
@@ -172,7 +194,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 .right .lab{color:var(--label);margin-bottom:14px}.right h2{font-size:30px;line-height:1.15;font-weight:700;margin-bottom:12px}.right .lead{color:var(--ink-2);font-size:15px;margin-bottom:24px}
 .amt{display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--soft);border-radius:12px;padding:20px 22px;margin-bottom:22px}.amt .l span{display:block;color:var(--ink-2);font-size:14px}.amt .l span+span{margin-top:6px}.amt b{font-size:34px;font-weight:700;white-space:nowrap}
 .pe{margin:4px 0 8px;min-height:40px}.perr{color:var(--bad);font-size:14px;min-height:0;margin:6px 0}
-.check{display:flex;gap:14px;background:var(--tint);border:1px solid var(--tint-line);border-radius:12px;padding:16px 18px;margin:12px 0 20px}.check .box{width:24px;height:24px;border-radius:6px;border:2px solid var(--purple);display:grid;place-items:center;flex:none;background:var(--surface);cursor:pointer;margin-top:1px}.check .box[aria-checked="true"]{background:var(--purple);border-color:var(--purple)}.check .box svg{display:none;color:#fff}.check .box[aria-checked="true"] svg{display:block}.check b{display:block;font-weight:600;margin-bottom:4px}.check span{display:block;color:var(--ink-2);font-size:14px}
+.check{display:flex;gap:14px;background:var(--tint);border:1px solid var(--tint-line);border-radius:12px;padding:16px 18px;margin:12px 0 20px;cursor:pointer}.check:focus-visible{outline:3px solid var(--purple);outline-offset:3px}.check .box{width:24px;height:24px;border-radius:6px;border:2px solid var(--purple);display:grid;place-items:center;flex:none;background:var(--surface);cursor:pointer;margin-top:1px}.check[aria-checked="true"] .box{background:var(--purple);border-color:var(--purple)}.check .box svg{display:none;color:#fff}.check[aria-checked="true"] .box svg{display:block}.check b{display:block;font-weight:600;margin-bottom:4px}.check span{display:block;color:var(--ink-2);font-size:14px}
 .trust{display:flex;gap:12px;margin-top:18px;color:var(--ink-2);font-size:14px;line-height:1.5}.trust svg{flex:none;margin-top:3px;color:var(--ink-3)}
 .foot{margin-top:40px;padding-top:24px;border-top:1px solid var(--line);color:var(--ink-2);font-size:14px}
 .status{display:flex;gap:14px;border-radius:12px;padding:18px 20px;margin-bottom:22px;align-items:flex-start}.status.good{background:var(--good-bg)}.status.bad{background:var(--bad-bg)}.status.warn{background:var(--warn-bg)}.status.grey{background:var(--soft)}.status .ic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--surface)}.status.good .ic{color:var(--good)}.status.bad .ic{color:var(--bad)}.status.warn .ic{color:var(--warn)}.status.grey .ic{color:var(--ink-3)}.status b{display:block;font-weight:600;margin-bottom:3px}.status span{display:block;color:var(--ink-2);font-size:14px}
@@ -180,7 +202,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 .bank{background:var(--soft);border-radius:12px;padding:18px 20px;font-size:14.5px;line-height:1.6}.bank b{display:block;font-weight:600;margin-bottom:6px}
 .spin{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--ink-3);border-radius:50%;animation:sp 1s linear infinite;display:inline-block}@keyframes sp{to{transform:rotate(360deg)}}
 </style>
-<?php if ($pk !== '' && in_array($state, array('open', 'open_recurring', 'overdue', 'failed', 'enrolled'))): ?><script src="https://js.stripe.com/v3/"></script><?php endif; ?>
+<?php if ($pk !== '' && in_array($state, array('open', 'open_recurring', 'overdue', 'failed', 'enrolled', 'requires_action'))): ?><script src="https://js.stripe.com/v3/"></script><?php endif; ?>
 </head>
 <body>
 <header class="top">
@@ -235,39 +257,89 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
     }).catch(function(){ if (times > 0) setTimeout(function(){ poll(times-1) }, 3000); });
   }
   if (cfg.state === 'pending') { poll(15); return; }
+  function authenticate(j, button){
+    if (j.status !== 'requires_action') { location.replace(cfg.returnUrl + '&payment_intent=' + encodeURIComponent(j.pi)); return; }
+    if (!cfg.pk || !window.Stripe || !j.client_secret) { showErr(cfg.actionError); button.disabled = false; return; }
+    Stripe(cfg.pk, {locale:'da'}).handleNextAction({clientSecret:j.client_secret}).then(function(result){
+      if (result.error) { showErr(result.error.message); button.disabled = false; return; }
+      location.replace(cfg.returnUrl + '&payment_intent=' + encodeURIComponent(j.pi));
+    }).catch(function(){ showErr(cfg.actionError); button.disabled = false; });
+  }
+  var resume = document.getElementById('resume');
+  if (resume) {
+    resume.addEventListener('click', function(){
+      resume.disabled = true; showErr('');
+      fetch(cfg.payUrl, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({resume:1})})
+        .then(function(r){ return r.json(); }).then(function(j){
+          if (!j.ok) { showErr(j.message || cfg.actionError); resume.disabled = false; return; }
+          authenticate(j, resume);
+        }).catch(function(){ showErr(cfg.actionError); resume.disabled = false; });
+    });
+    return;
+  }
   var form = document.getElementById('pay-form'), payBtn = document.getElementById('pay'), chk = document.getElementById('chk'), payNow = document.getElementById('paynow');
   if (payNow) {
     payNow.addEventListener('click', function(){
       payNow.disabled = true; showErr('');
       fetch(cfg.payUrl, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({pay_now:1})}).then(function(r){return r.json()}).then(function(j){
-        if (!j.ok) { showErr(j.message || 'Betalingen kunne ikke gennemføres.'); payNow.disabled = false; return; }
-        location.replace(cfg.returnUrl + '&payment_intent=' + encodeURIComponent(j.pi));
-      }).catch(function(){ showErr('Netværksfejl. Prøv igen.'); payNow.disabled = false; });
+        if (j.error === 'declined') { location.replace(cfg.returnUrl); return; }
+        if (!j.ok) { showErr(j.message || cfg.payError); payNow.disabled = false; return; }
+        authenticate(j, payNow);
+      }).catch(function(){ showErr(cfg.netError); payNow.disabled = false; });
     });
     return;
   }
-  if (!form || !cfg.pk || !window.Stripe) return;
-  var saveCard = !!cfg.saveDefault;
+  if (!form) return;
+  if (!cfg.pk || !window.Stripe) { showErr(cfg.startError); return; }
+  var saveCard = !!cfg.saveDefault, elementReady = false, submitting = false;
+  var usageReady = Promise.resolve(), usageResolve = null;
   function updBtn(){ if (payBtn) payBtn.textContent = saveCard ? cfg.btnSave : cfg.btn; }
+  function release(){ submitting = false; payBtn.disabled = !elementReady; }
+  function updateUsage(usage){
+    return new Promise(function(resolve){
+      usageResolve = resolve;
+      elements.update({setupFutureUsage:usage});
+    });
+  }
   if (chk) { chk.setAttribute('aria-checked', saveCard ? 'true' : 'false'); chk.addEventListener('click', toggle); chk.addEventListener('keydown', function(e){ if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); } }); }
-  function toggle(){ saveCard = !saveCard; chk.setAttribute('aria-checked', saveCard ? 'true' : 'false'); updBtn(); if (elements) elements.update({setupFutureUsage: saveCard ? 'off_session' : null}); }
+  function toggle(){
+    if (submitting) return;
+    saveCard = !saveCard;
+    chk.setAttribute('aria-checked', saveCard ? 'true' : 'false');
+    updBtn();
+    var usage = saveCard ? 'off_session' : null;
+    usageReady = usageReady.then(function(){ return updateUsage(usage); });
+  }
   updBtn();
   var stripe = Stripe(cfg.pk, {locale:'da'});
-  var elements = stripe.elements({mode:'payment', amount: cfg.amount, currency: cfg.currency, setupFutureUsage: saveCard ? 'off_session' : null, paymentMethodCreation:'manual',
+  var elements = stripe.elements({mode:'payment', amount: cfg.amount, currency: cfg.currency, paymentMethodTypes:['card'], setupFutureUsage: saveCard ? 'off_session' : null, paymentMethodCreation:'manual',
     appearance:{theme:'stripe', variables:{colorPrimary:'#1b68bd', colorText:'#111318', colorDanger:'#c2410c', fontFamily:'Inter, "Segoe UI", system-ui, sans-serif', borderRadius:'10px', fontSizeBase:'16px'}}});
+  elements.on('update-end', function(){
+    if (usageResolve) { var resolve = usageResolve; usageResolve = null; resolve(); }
+  });
   var pe = elements.create('payment', {layout:'tabs'});
+  pe.on('ready', function(){ elementReady = true; payBtn.disabled = submitting; });
+  pe.on('loaderror', function(){ elementReady = false; payBtn.disabled = true; showErr(cfg.startError); });
   pe.mount('#payment-element');
   form.addEventListener('submit', function(e){
-    e.preventDefault(); showErr(''); payBtn.disabled = true;
-    elements.submit().then(function(res){
-      if (res.error) { showErr(res.error.message); payBtn.disabled = false; return; }
+    e.preventDefault();
+    if (!elementReady || submitting) return;
+    submitting = true; showErr(''); payBtn.disabled = true;
+    usageReady.then(function(){ return elements.submit(); }).then(function(res){
+      if (res.error) { showErr(res.error.message); release(); return; }
       return fetch(cfg.payUrl, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({save_card: saveCard})}).then(function(r){return r.json()}).then(function(j){
-        if (!j.ok) { showErr(j.message || 'Betalingen kunne ikke startes.'); payBtn.disabled = false; return; }
-        return stripe.confirmPayment({elements: elements, clientSecret: j.client_secret, confirmParams:{return_url: cfg.returnUrl}}).then(function(r2){
-          if (r2 && r2.error) { showErr(r2.error.message); payBtn.disabled = false; }
+        if (!j.ok) { showErr(j.message || cfg.startError); release(); return; }
+        var effectiveUsageReady = Promise.resolve();
+        if ((saveCard ? 'off_session' : null) !== j.setup_future_usage) {
+          effectiveUsageReady = updateUsage(j.setup_future_usage);
+        }
+        return effectiveUsageReady.then(function(){
+          return stripe.confirmPayment({elements: elements, clientSecret: j.client_secret, confirmParams:{return_url: cfg.returnUrl}});
+        }).then(function(r2){
+          if (r2 && r2.error) { showErr(r2.error.message); release(); }
         });
       });
-    }).catch(function(){ showErr('Netværksfejl. Prøv igen.'); payBtn.disabled = false; });
+    }).catch(function(){ showErr(cfg.netError); release(); });
   });
 })();
 </script>

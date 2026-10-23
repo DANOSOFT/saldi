@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-11 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -164,6 +164,8 @@
 //                  hurtigfakturering was on. They are shown on anything but a tilbud, so
 //                  nothing loses them, and the Send plukliste field in the button row
 //                  follows the same rule as the button beside it.
+// 20261022 CDX/LH Keep Stripe selected despite legacy mail/local-print flags and preserve it on partial saves.
+// 20261023 CDX/LH Preserve Stripe delivery on partial saves alongside the redesign per-user local-print preference.
 
 @session_start();
 $s_id = session_id();
@@ -201,6 +203,7 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
+include_once(__DIR__ . '/orderIncludes/orderDelivery.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -982,7 +985,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		alert("" . findtekst('1825|telefonummer må maks være på 15 cifre', $sprog_id) . "");
 		$phone = substr($phone, 0, 15);
 	}
-	$udskriv_til = db_escape_string($_POST['udskriv_til']); // SD-639: reaches an UPDATE ordrer statement below unescaped
+	$udskriv_til = db_escape_string(orderDeliveryPostedValue($_POST, $id)); // SD-639: reaches an UPDATE ordrer statement below unescaped
 	// Remembered per user (settings redesign G6.4), no longer a cookie bound to saldi.dk.
 	if ($udskriv_til == 'localPrint') {
 		update_settings_value('localPrint', 'print', 'on', 'Print to local printer', (int) $bruger_id);
@@ -4080,13 +4083,7 @@ function ordreside($id, $regnskab)
 		#		if ($email)
 		#if(isset($levered)){$leveret = (int)$leveret;}else{$leveret=0;}print "<tr class='tableTexting2'><td title='".findtekst('1447|Vælg på hvilken måde dokumentet skal udskrives, gemmes eller sendes.', $sprog_id)."'><b>".findtekst('880|Udskriv', $sprog_id)." ".findtekst('904|til', $sprog_id)."</b></td>\n";
 
-		if ($mail_fakt) $udskriv_til = "email";
-		#    if ($oioxml) $udskriv_til="oioxml";
-		if ($oioubl) $udskriv_til = "oioubl";
-		if ($lev_pbs_nr) {
-			if ($pbs) $udskriv_til = "PBS";
-		}
-		if (!$udskriv_til) $udskriv_til = "PDF";
+		$udskriv_til = orderDeliveryValue($udskriv_til, $mail_fakt, $oioubl, $lev_pbs_nr && $pbs);
 		print "<td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='this.form.submit()'>\n";
 		/*
 		print "<option>$udskriv_til</option>\n";
@@ -4095,7 +4092,9 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til!="oioxml" && strlen($ean)==13) print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n";
 		print "</SELECT></td></tr>\n";
 		*/
-		if ($showLocalPrint && $localPrint == 'on') {
+		if ($udskriv_til === 'Stripe') {
+			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		} elseif ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		} else print "<option>$udskriv_til</option>\n";
@@ -4105,10 +4104,8 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
-		// 20261019 CL/ASR Stripe: debtor with card on file (automatic charge on the due date, no invoice mail)
-		if ($udskriv_til != "Stripe" && !empty($konto_id)) {
-			$stripeChk = db_fetch_array(db_select("select column_name from information_schema.columns where table_name='adresser' and column_name='stripe'", __FILE__ . " linje " . __LINE__));
-			if ($stripeChk && ($stripeR = db_fetch_array(db_select("select stripe from adresser where id = '" . (int)$konto_id . "'", __FILE__ . " linje " . __LINE__))) && $stripeR['stripe'] === 'on') print "<option value='Stripe' title='Trækkes automatisk på kundens kort på forfaldsdatoen. Ingen fakturamail.'>Stripe</option>\n";
+		if ($udskriv_til !== 'Stripe') {
+			print orderStripeDeliveryOption($udskriv_til, $konto_id);
 		}
 		#		if ($udskriv_til!="ingen") print "<option>ingen</option>\n"; #PHR 20170501
 		if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803
@@ -5012,7 +5009,9 @@ function ordreside($id, $regnskab)
 		}
 		print "<td><select class = 'inputbox' style=\"width:130px\" name=\"udskriv_til\">\n";
 		if (!$udskriv_til) $udskriv_til = "PDF";
-		if ($showLocalPrint && $localPrint == 'on') {
+		if ($udskriv_til === 'Stripe') {
+			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		} elseif ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		} elseif ($udskriv_til == "PBS" && $lev_pbs != 'B') print "<option value=\"PBS\">PBS</option>\n";
@@ -5021,6 +5020,9 @@ function ordreside($id, $regnskab)
 		if ($showLocalPrint && $localPrint != 'on') print "<option value='localPrint'>" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
+		if ($udskriv_til !== 'Stripe') {
+			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		}
 		if ($udskriv_til != "ingen") print "<option value='ingen'>" . findtekst('2541|Ingen', $sprog_id) . "</option>\n"; #PHR 20170501
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		#if ($udskriv_til!="oioubl") print "<option value='oioubl' title=\"".findtekst('1451|Kun ved fakturering/kreditering.', $sprog_id)."\">oioubl</option>\n"; #PHR 20090803

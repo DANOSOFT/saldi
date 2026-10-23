@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
+// 20261022 CDX/LH Register the PostgreSQL Stripe regression suite for the master port.
   Factory-seeded PHPUnit config (PROVE slice).
 
   scripts/gates/run-gates.mjs runPhpTestsGate invokes the PHP runner with NO
@@ -20,6 +21,9 @@
     </testsuite>
     <testsuite name="includes">
       <directory suffix=".test.php">tests/includes</directory>
+    </testsuite>
+    <testsuite name="stripe">
+      <directory suffix="Test.php">tests/stripe</directory>
     </testsuite>
     <testsuite name="restapi">
       <directory suffix="Test.php">tests/restapi</directory>

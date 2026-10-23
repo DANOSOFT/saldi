@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.20
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -116,6 +116,9 @@
 // 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
 //                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
 //                  so the one-time build no longer blocks writes to adresser during a login.
+// 20261022 CDX/LH Add durable Stripe collection and delivery schema at the end of pending updates.
+// 20261022 CDX/LH Repair individual missing Stripe invoice indexes on tenant login.
+// 20261023 CDX/LH Retain redesign migrations and append the fixed Stripe schema repairs in chronological order.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1447,7 +1450,7 @@ initializeFormHtmlLayoutVersion($db_type);
 if ($db_type != 'mysql' && $db_type != 'mysqli') {
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_payments' AND column_name='payment_intent_id'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("CREATE TABLE stripe_payments (id SERIAL PRIMARY KEY, ordre_id integer NOT NULL, fakturanr varchar(30),
+		db_modify("CREATE TABLE IF NOT EXISTS stripe_payments (id SERIAL PRIMARY KEY, ordre_id integer NOT NULL, fakturanr varchar(30),
 			stripe_customer_id varchar(255), payment_intent_id varchar(255) NOT NULL,
 			amount_ore integer NOT NULL, currency varchar(3) NOT NULL DEFAULT 'DKK',
 			status varchar(20) NOT NULL, source varchar(10) NOT NULL DEFAULT 'page',
@@ -1455,9 +1458,6 @@ if ($db_type != 'mysql' && $db_type != 'mysqli') {
 			attempt smallint NOT NULL DEFAULT 1, last_error text,
 			created_at timestamp DEFAULT CURRENT_TIMESTAMP, succeeded_at timestamp,
 			journal_line_id integer, confirmation_sent_at timestamp, last_event_id varchar(255))", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE UNIQUE INDEX stripe_payments_pi_uidx ON stripe_payments (payment_intent_id)", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE UNIQUE INDEX stripe_payments_succeeded_uidx ON stripe_payments (ordre_id) WHERE status = 'succeeded'", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE INDEX stripe_payments_ordre_idx ON stripe_payments (ordre_id)", __FILE__ . " linje " . __LINE__);
 	}
 	foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date') as $stripeCol => $stripeType) {
 		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='$stripeCol'";
@@ -1547,6 +1547,17 @@ if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHE
 		}
 		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
 	}
+}
+
+// 20261022 CDX/LH Stripe durable request identities, technical errors and enrolment delivery outbox.
+require_once __DIR__ . '/stripeIncludes/stripePaymentBooking.php';
+require_once __DIR__ . '/stripeIncludes/stripeChargeSchema.php';
+stripe_charge_schema_ensure();
+
+// 20261022 CDX/LH Repair each missing invoice payment index even when its table already exists.
+if ($db_type != 'mysql' && $db_type != 'mysqli') {
+	require_once __DIR__ . '/stripeIncludes/stripeInvoiceSchema.php';
+	stripe_payment_indexes_ensure();
 }
 
 ?>

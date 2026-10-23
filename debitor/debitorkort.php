@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,8 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20250911 LOE Create a contact employee if none exists for erhverv accounts 
@@ -121,7 +120,24 @@
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The card on the new page head (page_bar): title, Ny debitor as the primary button, tour kept for Assist.
 // 20261009 Sawaneh The record (kontonr + name, or Nyt debitorkort) as the last breadcrumb level (decision 22).
+// 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
+//                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
+// 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
+//                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
+// 20261022 CDX/LH Protect Afmeld with a session CSRF token before writes; display the saved card from payment rows.
+// 20261023 CDX/LH Merge fixed Stripe staff controls while retaining the redesign page header and navigation.
 @session_start();
+include_once(__DIR__ . '/../includes/stripeIncludes/stripeStaff.php');
+$stripeStaffInput = $_POST;
+$stripeStaffMethod = $_SERVER['REQUEST_METHOD'] ?? '';
+if (empty($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$stripeStaffToken = $_SESSION['csrf_token'];
+if (!empty($stripeStaffInput['stripe_afmeld']) && !stripe_staff_afmeld_allowed($stripeStaffMethod, $stripeStaffInput, $stripeStaffToken)) {
+	http_response_code(403);
+	exit('Ugyldig eller udløbet formular - genindlæs siden og prøv igen');
+}
 $s_id = session_id();
 
 $fokus = $katString = NULL;
@@ -737,11 +753,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				// 20261019 CL/ASR Afmeld Stripe (kort på fil)
-				if (!empty($_POST['stripe_afmeld']) && (int)$id > 0) {
-					include_once(__DIR__ . '/../includes/stripeIncludes/stripeEnrol.php');
-					if (file_exists(__DIR__ . '/../includes/auditLog.php')) include_once(__DIR__ . '/../includes/auditLog.php');
-					stripe_unenrol_debtor((int)$id, 'debitorkort');
+				if (!empty($stripeStaffInput['stripe_afmeld']) && (int)$id > 0) {
+					stripe_staff_unenrol((int)$id, $stripeStaffMethod, $stripeStaffInput, $stripeStaffToken);
 				}
 
 				// Only rewrite kontakt_emails and adresser.email when the form actually posted
@@ -1156,6 +1169,7 @@ if ($id > 0) {
 	$swift = trim($r['swift']);
 	$stripe_status = isset($r['stripe']) ? trim((string)$r['stripe']) : '';
 	$stripe_date = isset($r['stripe_date']) ? trim((string)$r['stripe_date']) : '';
+	$stripe_saved_card = stripe_staff_saved_card($r);
 	$kontakt = htmlentities(trim($r['kontakt']), ENT_COMPAT, $charset);
 	if ($r['pbs'] == 'on') $pbs = "checked";
 	$pbs_nr = trim($r['pbs_nr']);
@@ -1416,6 +1430,7 @@ function validateDebitorkort(form) {
 </script>\n";
 
 print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
+print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($stripeStaffToken, ENT_QUOTES, 'UTF-8') . "'>\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
@@ -1926,6 +1941,9 @@ if (isset($r['stripe']) || isset($stripe_status)) {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	$stripeOn = (isset($stripe_status) && $stripe_status === 'on');
 	$stripeTxt = $stripeOn ? 'Tilmeldt automatisk kortbetaling' . ($stripe_date ? ' ' . dkdato($stripe_date) : '') : 'Ikke tilmeldt';
+	if ($stripeOn && !empty($stripe_saved_card)) {
+		$stripeTxt .= ' · ' . $stripe_saved_card;
+	}
 	print "<tr bgcolor=$bg><td title=\"Kort på fil hos Stripe. Kunden tilmelder sig på faktura- og betalingssiden; kortoplysninger ligger kun hos Stripe.\">Stripe</td><td>"
 		. "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:" . ($stripeOn ? '#15803d' : '#aab6cc') . "'></span>" . htmlspecialchars($stripeTxt, ENT_QUOTES, 'UTF-8')
 		. ($stripeOn ? " &nbsp; <label title=\"Stopper automatisk træk. Udskriv til sættes tilbage til e-mail, og næste faktura sendes som link-mail.\"><input class='inputbox' type=checkbox name=stripe_afmeld> Afmeld</label>" : '')
