@@ -12,16 +12,21 @@
 //
 // Env: SALDI_SHOPIFY_PGHOST (default postgres), SALDI_SHOPIFY_PGUSER,
 // SALDI_SHOPIFY_PGPASS, SALDI_SHOPIFY_MASTER_DB (default saldi),
-// SALDI_SHOPIFY_TEMPLATE_DB, SALDI_SHOPIFY_TEST_DB.
+// SALDI_SHOPIFY_TEMPLATE_DB, SALDI_SHOPIFY_TEST_DB (keep it short: tenants registered in
+// master regnskab are limited to 25 characters including the per-test suffix).
 //
 // History:
 // 20261021 Sawaneh SD-733: created.
+// 20261022 Sawaneh SD-734: generic child runner, tenant registration in master regnskab.
 
 final class ShopifyEnv
 {
     public const TEST_DB_PATTERN = '/^saldi_shopify_test_[a-z0-9_]+$/';
 
     private const FORBIDDEN = ['pos_50', 'test_12'];
+
+    /** Master `regnskab.db` is varchar(25); a tenant the bootstrap must find cannot be longer. */
+    public const MAX_REGISTERED_DB_LENGTH = 25;
 
     /** @var array<string, bool> Databases this process created, keyed by name. */
     private static array $owned = [];
@@ -183,6 +188,44 @@ final class ShopifyEnv
         }
     }
 
+    /** @var array<string, int> Master regnskab ids this process inserted, keyed by tenant db. */
+    private static array $registered = [];
+
+    /** Registers a throwaway tenant in master regnskab, the way online.php and the bootstrap look it up. */
+    public static function registerTenant(string $db, string $lukket = ''): int
+    {
+        self::assertSafeTestDb($db);
+        if (strlen($db) > self::MAX_REGISTERED_DB_LENGTH) {
+            throw new RuntimeException("tenant \"$db\" is longer than " . self::MAX_REGISTERED_DB_LENGTH . ' characters; master regnskab.db is varchar(25), so SALDI_SHOPIFY_TEST_DB must leave room for the suffix');
+        }
+        $master = self::connect(self::masterDb());
+        try {
+            self::rows($master, 'DELETE FROM regnskab WHERE db = $1', [$db]);
+            $row = self::one($master, "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
+                VALUES ($1, $2, $3, $1, '5.0.0', '', 5, 1000000, $4, '') RETURNING id", [$db, self::pgHost(), self::pgUser(), $lukket]);
+            self::$registered[$db] = (int)$row['id'];
+            return (int)$row['id'];
+        } finally {
+            pg_close($master);
+        }
+    }
+
+    public static function unregisterTenants(): void
+    {
+        if (self::$registered === []) {
+            return;
+        }
+        $master = self::connect(self::masterDb());
+        try {
+            foreach (self::$registered as $db => $id) {
+                self::rows($master, 'DELETE FROM regnskab WHERE id = $1 AND db = $2', [$id, $db]);
+                unset(self::$registered[$db]);
+            }
+        } finally {
+            pg_close($master);
+        }
+    }
+
     public static function dropOwnedTenants(): void
     {
         if (self::$owned === [] || getenv('SALDI_SHOPIFY_KEEP_TENANT')) {
@@ -217,27 +260,41 @@ final class ShopifyEnv
     }
 
     /**
-     * Starts tests/shopify/support/run_schema.php against $db without waiting for it, so
-     * several runs can overlap. Finish with waitChild().
+     * Starts a support script under tests/shopify/support/ with the connection settings in its
+     * environment, without waiting for it, so several runs can overlap. Finish with waitChild().
      *
+     * @param list<string> $args
+     * @param array<string, string> $extraEnv
      * @return array{proc: resource, pipes: array<int, resource>}
      */
-    public static function startSchemaRun(string $db, string $mode)
+    public static function startChild(string $script, array $args, array $extraEnv = [])
     {
-        self::assertSafeTestDb($db);
-        $cmd = [PHP_BINARY, __DIR__ . '/run_schema.php', $mode, $db];
+        $cmd = array_merge([PHP_BINARY, __DIR__ . '/' . $script], array_map('strval', $args));
         $env = array_merge($_ENV, [
             'SALDI_SHOPIFY_PGHOST' => self::pgHost(),
             'SALDI_SHOPIFY_PGUSER' => self::pgUser(),
             'SALDI_SHOPIFY_PGPASS' => self::pgPass(),
+            'SALDI_SHOPIFY_MASTER_DB' => self::masterDb(),
             'PATH' => (string)getenv('PATH'),
-        ]);
+        ], $extraEnv);
         $proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, self::repoRoot(), $env);
         if (!is_resource($proc)) {
             throw new RuntimeException('could not start child php');
         }
         fclose($pipes[0]);
         return ['proc' => $proc, 'pipes' => $pipes];
+    }
+
+    /** Starts tests/shopify/support/run_schema.php against $db. */
+    public static function startSchemaRun(string $db, string $mode)
+    {
+        return self::startChild('run_schema.php', [$mode, self::assertSafeTestDb($db)]);
+    }
+
+    /** Runs tests/shopify/support/run_bootstrap.php to completion. */
+    public static function runBootstrap(string $mode, string $db, array $extraEnv = []): array
+    {
+        return self::waitChild(self::startChild('run_bootstrap.php', [$mode, self::assertSafeTestDb($db)], $extraEnv));
     }
 
     /** @return array{exit: int, stdout: string, stderr: string, result: ?array} */
