@@ -205,6 +205,8 @@
 //                box; attaching the document to it made a second line. "Gem" and "Gem alle" refuse a dot that is not a thousands separator
 //                ("12.50" was saved as 1250) and a space inside the amount.
 // 20261022 CL/SZ SD-725 (CodeRabbit) The VAT field gets the other side's saved code too, so a blank chosen next to it stays blank (poolVatShown()).
+// 20261022 CL/SZ MB-91 The list's "Indsæt" refuses the attach while a "Fordeling" row isn't saved (5451), with the cursor in that row; nothing is saved or attached.
+//                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2677,6 +2679,8 @@ $txt71  = $txt31.". ".$txt32.".";                                               
 $txt72  = $txt1 ." ".lcfirst($txt15);                                                           #Gem alle
 $txt73  = $txt15." ".lcfirst($txt50)."!";                                                       #Alle gemt!
 $txt74  = $txt16." ".lcfirst($txt14);                                                           #Duplikér linje
+$txt75  = findtekst('5451|Rækkerne i fordelingen er ikke gemt. Gem dem først med', $sprog_id)." \"".$txt72."\".";
+$txt75Js = json_encode($txt75, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 $poolSuggestedText = findtekst('5255|Forslag', $sprog_id);
 $poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
 $txtPoolOf   = findtekst('5346|af', $sprog_id);        // SD-719: "50 af 497"
@@ -4100,6 +4104,19 @@ print <<<JS
 			return;
 		}
 		
+		// The list's "Indsæt" saves no rows first, so a "Fordeling" row that isn't saved yet was left out without a word (MB-91).
+		// "Gem og næste" (afterAttach) has saved every row before it gets here.
+		if (typeof afterAttach !== 'function') {
+			const unsavedSplit = Array.from(document.querySelectorAll('.kassebilag-entry[data-split="1"]')).find(entry => !entry.dataset.savedLineId);
+			if (unsavedSplit) {
+				alert({$txt75Js});
+				const rowId = unsavedSplit.id.replace('bilagEntry_', '');
+				const field = document.getElementById('row_' + rowId + '_Debet') || unsavedSplit.querySelector('input[type="text"]');
+				if (field) field.focus();
+				return;
+			}
+		}
+
 		// Debug: log selected files
 		console.log('Selected files to insert:', selectedFiles);
 		
