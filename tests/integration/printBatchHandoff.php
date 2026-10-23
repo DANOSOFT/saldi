@@ -1,6 +1,6 @@
 <?php
 // 20260914 CDX/LH SST-789: Characterize generator-to-converter session handoff without a database.
-// 20261015 CL/LH MB-58: Define $bulkPrint, which formularprint() sets before the excerpted output branch.
+// 20261023 CL/LH MB-58: Define $bulkPrint, which formularprint() sets before the excerpted output branch.
 // Run: php tests/integration/printBatchHandoff.php
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {

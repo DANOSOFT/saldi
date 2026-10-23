@@ -49,10 +49,10 @@
 // 20260914 CDX/LH SST-789: Render session-owned invoice batches before publishing a PDF.
 // 20260925 CL/LH SST-823 + SST-780: PostScript prints use only the .ps (it has every page; appending the _N.htm pages
 //             printed pages 2..N twice) and keep the document name instead of "udskrift". HTML pages merge in numeric order.
-// 20260917 CL/LH MB-58: Tilbage after printing from an order returns to that order again, not the order list
-//             (Havemoebelland). The route now follows where the print started (bulk/list/order) instead of
-//             the area file, which only records the list tab the last order was opened from.
 // 20261006 CL/LH SST-851: Tilbage/Luk on the print page acts once; a repeated click while the order loads is ignored.
+// 20261023 CL/LH MB-58: Tilbage after printing from an order returns to that order again, not the order list.
+//                The route now follows where the print started (bulk/list/order) instead of the area file,
+//                which only records the list tab the last order was opened from.
 
 @session_start();
 $s_id=session_id();
