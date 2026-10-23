@@ -66,6 +66,7 @@
 //                 forklaring i popup'en, restordrer vises også, Vis lagerstatus/Tilbage
 //                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
+// 20260917 CL/LH Menu entry restores the last used tab instead of forcing Ordrer (Havemoebelland).
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
 // 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
@@ -339,10 +340,9 @@ if (!$returside && $konto_id && !$popup) {
 }
 
 // View selection - stored in database settings for persistence
-// Priority: 1) forced plain entry, 2) URL parameter, 3) Database setting, 4) Default
-if ($is_plain_entry) {
-    $valg = 'ordrer';
-} elseif (isset($_GET['valg']) && $_GET['valg']) {
+// Priority: 1) URL parameter, 2) Database setting (last used tab), 3) Default
+// 20260917 CL/LH A plain menu entry only clears the account context; it no longer forces the Ordrer tab.
+if (isset($_GET['valg']) && $_GET['valg']) {
     // User explicitly clicked a tab - use this value
     $valg = strtolower($_GET['valg']);
 } else {
