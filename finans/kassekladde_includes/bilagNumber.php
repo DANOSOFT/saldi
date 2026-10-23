@@ -164,3 +164,48 @@ function bilagFiscalYearBounds() {
 	}
 	return array($bounds[0], $bounds[1]);
 }
+
+/**
+ * Whether a value can be stored as kassekladde.bilag, which is an integer.
+ *
+ * Empty and "0" are not numbers to offer - the caller keeps its own rule for those - so they do not
+ * fit. Otherwise the value has to be all digits once trimmed, no longer than ten characters, and not
+ * above 2147483647. The comparison stays on the string: casting first would wrap values above
+ * PHP_INT_MAX and silently accept signs or decimals, which is how SST-888 reached the database.
+ *
+ * @param mixed $raw The value as it arrived.
+ * @return bool True when it can be stored unchanged.
+ */
+function bilagNumberFits($raw) {
+	if (!is_scalar($raw)) return false;
+	$value = trim((string)$raw);
+	if ($value === '' || $value === '0') return false;
+	if (!ctype_digit($value)) return false;
+	if (strlen($value) > 10) return false;
+	if (strlen($value) === 10 && strcmp($value, '2147483647') > 0) return false;
+	return true;
+}
+
+/**
+ * A voucher number the caller can store, replacing one that does not fit with the journal's next.
+ *
+ * `replaced` tells the caller the value was not the user's, so it can alert; `original` keeps what
+ * arrived, for that message and for logging.
+ *
+ * @param mixed       $raw       The value as it arrived (form input, or tmpkassekl.bilag, which is text).
+ * @param int         $kladde_id Journal (kladdeliste.id); 0 or less means the journal does not exist yet.
+ * @param string|null $regnstart Fiscal year start (Y-m-d); derived from $regnaar when not given.
+ * @param string|null $regnslut  Fiscal year end (Y-m-d); derived from $regnaar when not given.
+ * @return array{bilag: int, replaced: bool, original: string}
+ */
+function bilagSafeNumber($raw, $kladde_id, $regnstart = null, $regnslut = null) {
+	$result = array('bilag' => 0, 'replaced' => false, 'original' => is_scalar($raw) ? trim((string)$raw) : '');
+	if ($result['original'] === '' || $result['original'] === '0') return $result;
+	if (bilagNumberFits($result['original'])) {
+		$result['bilag'] = (int)$result['original'];
+		return $result;
+	}
+	$result['bilag'] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+	$result['replaced'] = true;
+	return $result;
+}

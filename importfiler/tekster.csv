@@ -5283,3 +5283,4 @@
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
+5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med
