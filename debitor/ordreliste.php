@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-05--------------
+// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-23--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,8 @@
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
 // 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
 // 20261005 LOE SD-687 Department names are escaped where the filter options are built.
+// 20261023 CL/MMR SST-874 "Ryd" now only empties the grid's search fields and filter selections.
+//                 It used to delete the user's whole datatables row, so added columns, own headers and rows per page were lost.
 
 @session_start();
 $s_id = session_id();
@@ -469,11 +471,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $kontoid = NULL;
         $firma = NULL;
         $firmanavn_ant = NULL;
-        $datagrid_id = if_isset($_POST, NULL, 'datagrid_id');
+        $datagrid_id = ifset($_POST, 'datagrid_id', NULL);
 
         if ($datagrid_id) {
-            // Clear datagrid filters
-            db_modify("delete from datatables where tabel_id = '$datagrid_id' and user_id = '$bruger_id'", __FILE__ . " linje " . __LINE__);
+            // Clear the grid's search and filter selections with the same empty values a new grid row gets
+            // (fetch_grid_setup() in includes/grid.php). Column setup, headers, rowcount and sort are kept.
+            $qtxt = "update datatables set search_setup = '[]', filter_setup = '{}', \"offset\" = 0 ";
+            $qtxt.= "where tabel_id = '" . db_escape_string($datagrid_id) . "' and user_id = '" . (int)$bruger_id . "'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
         }
 
         // Clear the stored search criteria in the database
