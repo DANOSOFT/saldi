@@ -113,25 +113,32 @@ function getAvailable($itemId, $stockNo)
 
 // ---------------------------------------------------------------- the stubbed transport
 $GLOBALS['shopRounds'] = array();   // one entry per curl_multi round, each the urls it carried
+$GLOBALS['shopLatency'] = 0.0;
+$GLOBALS['shopRefusal'] = false;
 $GLOBALS['shopDead']   = '';        // url substring that answers nothing
 
-function shopApiCurlMultiCall(array $urls, $timeout, $connect, $userAgent)
-{
-	$GLOBALS['shopRounds'][] = array_values($urls);
-	$out = array();
-	foreach ($urls as $slot => $url) {
-		$dead = ($GLOBALS['shopDead'] !== '' && strpos($url, $GLOBALS['shopDead']) !== false);
-		$out[$slot] = array(
-			'httpCode'    => $dead ? 0 : 200,
-			'body'        => $dead ? '' : '67',
-			'error'       => $dead ? 'curl error 7: stubbed' : '',
-			'transient'   => $dead,
-			'unreachable' => $dead,
-		);
+if (!getenv('SALDI_SHOP_REAL_TRANSPORT')) {
+	function shopApiCurlMultiCall(array $urls, $timeout, $connect, $userAgent)
+	{
+		$GLOBALS['shopRounds'][] = array_values($urls);
+		if ($GLOBALS['shopLatency'] > 0) {
+			usleep((int)($GLOBALS['shopLatency'] * 1000000));
+		}
+		$out = array();
+		foreach ($urls as $slot => $url) {
+			$dead = ($GLOBALS['shopDead'] !== '' && strpos($url, $GLOBALS['shopDead']) !== false);
+			$out[$slot] = array(
+				'httpCode'    => $dead ? 0 : 200,
+				'body'        => $dead ? '' : ($GLOBALS['shopRefusal'] ? '{"success":false}' : '67'),
+				'error'       => $dead ? 'curl error 7: stubbed' : '',
+				'transient'   => $dead,
+				'unreachable' => $dead,
+			);
+		}
+		return $out;
 	}
-	return $out;
-}
 
+}
 require_once(__DIR__ . '/../includes/std_func.php');
 
 ini_set('error_log', tempnam(sys_get_temp_dir(), 'sst876fanout'));
@@ -158,6 +165,8 @@ function reset_fanout()
 {
 	$GLOBALS['shopRounds'] = array();
 	$GLOBALS['shopDead']   = '';
+	$GLOBALS['shopLatency'] = 0.0;
+	$GLOBALS['shopRefusal'] = false;
 	$GLOBALS['shopRs']     = array(0 => null);
 	$state = &shopApiSyncState();
 	$state['degraded']  = array();
@@ -172,6 +181,12 @@ function reset_fanout()
 	// The set guard inside sync_shop_vare() is a static for the length of a request, and a test
 	// process is one request, so it is cleared the way a new request would get it.
 	shopSyncResetSentSets();
+}
+
+// 20261023 CDX/MJ SST-876 Cover the full six-line order with disjoint sets and controlled quarter-second rounds.
+
+if (getenv('SALDI_SHOP_FIXTURE_ONLY')) {
+	return;
 }
 
 // ---------------------------------------------------------------- an ordinary item
@@ -213,7 +228,7 @@ check(shopSyncFlush(0) === 'OK', 'The document syncs');
 $rounds = count($GLOBALS['shopRounds']);
 // 123 and 4711 belong to the same 33 sets. Those sets are sent once for the document, not once
 // per line: 3 items + 33 sets.
-check($rounds === 36, 'Sets shared by two lines are sent once for the document: ' . $rounds);
+check($rounds === 4, 'Three document lines and 33 shared sets take four batches: ' . $rounds);
 check(calls_in_rounds() === 108, 'The whole document is 108 calls: ' . calls_in_rounds());
 
 // Before any of this, those three lines were 8 + 6*33 + 8 + 6*33 + 8 = 420 serial calls, which at
@@ -271,8 +286,108 @@ shopSyncMark(123, 0, 4, 'stock');
 shopSyncFlush(0);
 $afterFlush = count($GLOBALS['shopRounds']);
 sync_shop_vare(123, 0, 4, 'stock');
-check(count($GLOBALS['shopRounds']) === $afterFlush * 2,
+check(count($GLOBALS['shopRounds']) === $afterFlush + 34,
 	'A direct sync after a flush sends the sets rather than thinking it already did');
+
+// Full acceptance shape: six document lines, with disjoint sets rather than one shared fixture.
+reset_fanout();
+$document = array(123, 2518, 2519, 526, 5787, 3580);
+foreach ($document as $i => $id) {
+	$parents = array();
+	for ($n = 0; $n < ($i === 0 ? 33 : ($i === 5 ? 2 : 25)); $n++) {
+		$parent = 20000 + $i * 100 + $n;
+		$parents[] = $parent;
+		$ITEMS[$parent] = array('varenr' => 'SET' . $parent, 'delvare' => '', 'gruppe' => 1, 'parents' => array());
+	}
+	$ITEMS[$id] = array('varenr' => 'ITEM' . $id, 'delvare' => 'on', 'gruppe' => 1, 'parents' => $parents);
+	shopSyncMark($id, 0, 4);
+}
+$GLOBALS['shopLatency'] = 0.25;
+$start = microtime(true);
+check(shopSyncFlush(0) === 'OK', 'The full six-line order completes with 0.25 second shop rounds');
+$elapsed = microtime(true) - $start;
+$urls = array_merge(...$GLOBALS['shopRounds']);
+foreach ($document as $id) {
+	$matches = array_filter($urls, function ($url) use ($id) {
+		parse_str(parse_url($url, PHP_URL_QUERY), $query);
+		return ($query['itemNo'] ?? '') === 'ITEM' . $id;
+	});
+	check(count($matches) === 3, 'Document item ' . $id . ' reaches all three shops in the same request');
+}
+$first = $GLOBALS['shopRounds'][0];
+check(count(array_filter($first, function ($url) { return strpos($url, 'itemNo=ITEM') !== false; })) === 18,
+	'All six document lines precede the parent sets');
+check(count($GLOBALS['shopRounds']) === 15, '141 distinct items and sets use fifteen rounds instead of 141');
+check(max(array_map('count', $GLOBALS['shopRounds'])) <= 30, 'Each round is bounded to ten payloads across three shops');
+check($elapsed < 8, 'The delayed order finishes well inside the budget: ' . round($elapsed, 2) . ' seconds');
+check(shopSyncFailedItems() === array(), 'The successful six-line order has no warning');
+check(shopSyncQueueCount() === 0, 'Successful document lines and sets leave no backlog');
+
+// Budget skips retain work without consuming an actual delivery attempt.
+reset_fanout();
+$state = &shopApiSyncState();
+$state['spent'] = 29.5;
+shopSyncMark(123, 0, 4);
+shopSyncMark(3580, 0, 4);
+shopSyncFlush(0);
+foreach (shopSyncQueuePending() as $entry) {
+	if ($entry['attempts'] !== 0) {
+		throw new RuntimeException('A budget skip consumed an attempt for ' . $entry['vare_id']);
+	}
+}
+check(shopSyncFailedItems() === array('ITEM123', 'ITEM3580'), 'Warnings name only document lines, never their sets');
+
+// An answered refusal is surfaced and removed instead of being retried indefinitely.
+reset_fanout();
+$GLOBALS['shopRefusal'] = true;
+shopSyncMark(3580, 0, 4);
+check(shopSyncFailed(shopSyncFlush(0)), 'An answered refusal fails the document sync');
+check(shopSyncQueueCount() === 0, 'An answered refusal does not stay queued');
+check(shopSyncFailedItems() === array('ITEM3580'), 'A refused set never pollutes the document warning');
+
+// A healthy backlog cannot hold an ordinary receipt for the old thirty-second budget.
+reset_fanout();
+for ($n = 0; $n < 240; $n++) {
+	$id = 30000 + $n;
+	$ITEMS[$id] = array('varenr' => 'BACKLOG' . $id, 'delvare' => '', 'gruppe' => 1, 'parents' => array());
+	shopSyncQueueAdd($id, 0, 4);
+}
+$GLOBALS['shopLatency'] = 0.25;
+$start = microtime(true);
+shopSyncDrainQueue(240);
+$elapsed = microtime(true) - $start;
+check($elapsed < 6, 'Backlog work stops within five seconds plus scheduling tolerance: ' . round($elapsed, 2));
+check(shopSyncQueueCount() > 0, 'Work beyond the queue deadline remains pending');
+foreach (shopSyncQueuePending() as $entry) {
+	if ($entry['attempts'] !== 0) {
+		throw new RuntimeException('The backlog deadline consumed an attempt');
+	}
+}
+check(shopSyncFailedItems() === array(), 'Backlog failures do not become document warnings');
+
+// Render the actual alert helper, including translated retry wording and escaping.
+function findtekst($text, $language) {
+	$parts = explode('|', $text, 2);
+	return $parts[1] ?? $parts[0];
+}
+$db_encode = 'UTF8';
+reset_fanout();
+$state = &shopApiSyncState();
+$state['spent'] = 29.5;
+shopSyncMark(3580, 0, 4);
+shopSyncFlush(0);
+ob_start();
+check(shopSyncAlertFailedItems(1), 'A deferred document produces one alert');
+$alert = ob_get_clean();
+check(strpos($alert, 'automatisk igen') !== false, 'The deferred warning explains automatic retry');
+check(strpos($alert, 'ITEM3580') !== false && strpos($alert, 'SET') === false,
+	'The rendered warning names the document item without its parent sets');
+check(shopSyncFailedItems() === array(), 'Rendering the warning clears the document report');
+shopSyncNoteFailedItem('item"</script>');
+ob_start();
+shopSyncAlertFailedItems(1);
+$alert = ob_get_clean();
+check(strpos($alert, '</script>') === false, 'An item number cannot inject markup into the alert');
 
 foreach (glob(shopSyncQueueDir() . '*') as $leftover) {
 	unlink($leftover);

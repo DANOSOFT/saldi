@@ -1,5 +1,5 @@
 <?php
-// --- includes/stdFunc/shopApiRequest.php --- ver 5.0.0 --- 2026-10-16 ---
+// --- includes/stdFunc/shopApiRequest.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 //                  all three. The degradation map, the failure counts and the budget moved
 //                  into shopApiSyncState() so both senders share one copy, and the judgement
 //                  of a shop's answer moved into shopApiOutcome() so they cannot drift apart.
+// 20261023 CDX/MJ SST-876 Preserve each payload context when batching multiple items across shops.
 
 if (!function_exists('shopApiUrl')) {
 	/**
@@ -631,7 +632,7 @@ if (!function_exists('shopApiRequestParallel')) {
 	 * @param array<string|int,string> $endpoints  Slot => endpoint, as box4/box5/box6.
 	 * @param array                    $params     Query parameters as name => value.
 	 * @param resource|null            $log        Open handle to the account rest_api.log, or null.
-	 * @param array                    $options    As shopApiRequest().
+	 * @param array                    $options    As shopApiRequest(); optional contexts maps each slot to its log context.
 	 * @return array<string|int,array>  Slot => result array shaped exactly like shopApiRequest()'s.
 	 */
 	function shopApiRequestParallel(array $endpoints, array $params = array(), $log = null, array $options = array()) {
@@ -651,7 +652,7 @@ if (!function_exists('shopApiRequestParallel')) {
 		if (!function_exists('curl_multi_init')) {
 			$results = array();
 			foreach ($endpoints as $slot => $endpoint) {
-				$results[$slot] = shopApiRequest($endpoint, $params, $log, $options);
+				$results[$slot] = shopApiRequest($endpoint, $params, $log, array('context' => ($options['contexts'][$slot] ?? $options['context'])) + $options);
 			}
 			return $results;
 		}
@@ -664,7 +665,7 @@ if (!function_exists('shopApiRequestParallel')) {
 			$url = shopApiUrl($endpoint, $params);
 			if ($url === '') {
 				$result['error'] = 'invalid api endpoint';
-				shopApiLogFailure($log, $options['context'], (string)$endpoint, $result);
+				shopApiLogFailure($log, ($options['contexts'][$slot] ?? $options['context']), (string)$endpoint, $result);
 				$results[$slot] = $result;
 				continue;
 			}
@@ -673,7 +674,7 @@ if (!function_exists('shopApiRequestParallel')) {
 			if (isset($state['degraded'][$key])) {
 				$result['skipped'] = true;
 				$result['error']   = 'endpoint degraded earlier in this request: ' . $state['degraded'][$key];
-				shopApiLogFailure($log, $options['context'], $url, $result);
+				shopApiLogFailure($log, ($options['contexts'][$slot] ?? $options['context']), $url, $result);
 				$results[$slot] = $result;
 				continue;
 			}
@@ -690,7 +691,7 @@ if (!function_exists('shopApiRequestParallel')) {
 			foreach ($pending as $slot => $url) {
 				$results[$slot]['skipped'] = true;
 				$results[$slot]['error']   = 'shop sync time budget of ' . (int)$budget . 's used up in this request';
-				shopApiLogFailure($log, $options['context'], $url, $results[$slot]);
+				shopApiLogFailure($log, ($options['contexts'][$slot] ?? $options['context']), $url, $results[$slot]);
 			}
 			return $results;
 		}
@@ -723,13 +724,13 @@ if (!function_exists('shopApiRequestParallel')) {
 					$results[$slot]['error'] = '';
 					$state['failCount'][shopApiEndpointKey($url)] = 0;
 					if (is_resource($log)) {
-						fwrite($log, date('Y-m-d H:i:s') . ' shop sync ok ' . $options['context'] . ' http ' . (int)$call['httpCode'] . ' ' . $url . "\n");
+						fwrite($log, date('Y-m-d H:i:s') . ' shop sync ok ' . ($options['contexts'][$slot] ?? $options['context']) . ' http ' . (int)$call['httpCode'] . ' ' . $url . "\n");
 					}
 					continue;
 				}
 				$results[$slot]['error'] = $outcome['error'];
 				if ($outcome['state'] === 'refused') {
-					shopApiLogFailure($log, $options['context'], $url, $results[$slot], $options['maxBodyLog']);
+					shopApiLogFailure($log, ($options['contexts'][$slot] ?? $options['context']), $url, $results[$slot], $options['maxBodyLog']);
 					continue;
 				}
 				if (!empty($call['transient']) && $attempt < $attempts) {
@@ -737,7 +738,7 @@ if (!function_exists('shopApiRequestParallel')) {
 					continue;
 				}
 				shopApiNoteTransportFailure($call, shopApiEndpointKey($url), $outcome['error'], (int)$options['failThreshold']);
-				shopApiLogFailure($log, $options['context'], $url, $results[$slot], $options['maxBodyLog']);
+				shopApiLogFailure($log, ($options['contexts'][$slot] ?? $options['context']), $url, $results[$slot], $options['maxBodyLog']);
 			}
 
 			$pending = $retry;
@@ -751,7 +752,7 @@ if (!function_exists('shopApiRequestParallel')) {
 				foreach ($pending as $slot => $url) {
 					$call = isset($calls[$slot]) ? $calls[$slot] : array('transient' => true, 'unreachable' => true);
 					shopApiNoteTransportFailure($call, shopApiEndpointKey($url), $results[$slot]['error'], (int)$options['failThreshold']);
-					shopApiLogFailure($log, $options['context'], $url, $results[$slot], $options['maxBodyLog']);
+					shopApiLogFailure($log, ($options['contexts'][$slot] ?? $options['context']), $url, $results[$slot], $options['maxBodyLog']);
 				}
 				break;
 			}

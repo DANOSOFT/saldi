@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-16 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -117,6 +117,7 @@
 //                  request could not, reading the figures again rather than trusting a queued
 //                  one; shopSyncFailedItems() and shopSyncAlertFailedItems() carry the item
 //                  numbers to whichever page has a user to tell after it has committed.
+// 20261023 CDX/MJ SST-876 Batch document lines before sets, bound backlog work, and report only the document items.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -127,6 +128,7 @@ include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/shopSyncQueue.php');
+require_once(__DIR__ . '/stdFunc/shopSyncDocument.php');
 include(__DIR__ . '/stdFunc/jsString.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
@@ -2043,6 +2045,9 @@ if (!function_exists('sync_shop_vare')) {
 	 * @return string  'no api', 'no stock', 'OK' or 'sync errors: n'.
 	 */
 	function sync_shop_vare($vare_id, $variant_id, $lager, $mode = 'all') {
+		$vare_id = (int)$vare_id;
+		$variant_id = (int)$variant_id;
+		$lager = (int)$lager;
 		global $bruger_id,$db,$regnaar;
 		// Which parent sets have already been pushed for the document being posted. Shared
 		// rather than static, because shopSyncFlush() clears it per document: mass invoicing
@@ -2104,6 +2109,9 @@ if (!function_exists('sync_shop_vare')) {
 		$send = function (array $targets, array $params, $context, $queueId, $queueVariant, $itemLabel)
 			use ($log, $userAgent, $lager, $mode, &$failed) {
 			if (!$targets) {
+				return;
+			}
+			if (shopSyncCollect($targets, $params, $context, $queueId, $queueVariant, $lager, $mode, $itemLabel, $userAgent)) {
 				return;
 			}
 			$results = shopApiRequestParallel($targets, $params, $log, array('context' => $context, 'userAgent' => $userAgent));
@@ -2439,7 +2447,7 @@ if (!function_exists('shopSyncMarkedCount')) {
 
 if (!function_exists('shopSyncFlush')) {
 	/**
-	 * Sends every marked item once, then works on the backlog with whatever budget is left.
+	 * Sends document lines before sets in bounded batches, then allows at most five seconds for old backlog.
 	 *
 	 * The document's own items go first, because those are the figures somebody is waiting to
 	 * see in the shop. The queue is drained afterwards: if the budget runs out in the middle of
@@ -2450,95 +2458,26 @@ if (!function_exists('shopSyncFlush')) {
 	 * @return string  'no api', 'OK' or 'sync errors: n', as sync_shop_vare() answers.
 	 */
 	function shopSyncFlush($drain = 50) {
-		// A new document, so the sets sent for the last one say nothing about this one.
-		shopSyncResetSentSets();
-		shopSyncFlushRunning(1);
-		$state  = &shopSyncMarkState();
+		$state = &shopSyncMarkState();
 		$marked = $state['items'];
 		$state['items'] = array();
-
-		$failed = 0;
-		$noApi  = false;
-		$dir    = shopSyncQueueDir(false);
+		// Snapshot the old backlog: this document's newly deferred items wait for another request.
+		$backlog = $drain > 0 ? shopSyncQueuePending($drain) : array();
+		$keys = array();
 		foreach ($marked as $item) {
-			// shopSyncMark() wrote a marker for every one of these, so the delivery goes through
-			// it: claimed, sent, and the marker dropped only once the shops have the figure.
-			$entry = ($dir === '')
-				? null
-				: shopSyncQueueRead($dir . shopSyncQueueKey($item['vare_id'], $item['variant_id'], $item['lager']));
-			if (!$entry) {
-				// No usable temp directory, so there is nothing durable to claim. Send anyway:
-				// not being able to queue is a reason to lose the retry, not the update.
-				$entry = $item + array('attempts' => 0, 'first' => time(), 'path' => '');
-			}
-			$outcome = shopSyncDeliverOne($entry);
-			if ($outcome === 'no api') {
-				$noApi = true;
-				break;
-			}
-			if ($outcome === 'failed' || $outcome === 'final') {
-				$failed++;
-			}
+			$keys[shopSyncQueueKey($item['vare_id'], $item['variant_id'], $item['lager'])] = true;
 		}
-		shopSyncFlushRunning(-1);
-		if ($noApi) {
+		$backlog = array_values(array_filter($backlog, function ($entry) use ($keys) {
+			return !isset($keys[shopSyncQueueKey($entry['vare_id'], $entry['variant_id'], $entry['lager'])]);
+		}));
+		$result = shopSyncRunDocument($marked);
+		if ($result['noApi']) {
 			return 'no api';
 		}
-		// The backlog is other documents' work, so each queued item is its own document and
-		// the drain runs with the flush already closed.
-		if ($drain > 0) {
-			shopSyncDrainQueue($drain);
+		if ($backlog) {
+			shopSyncRunDocument($backlog, false, 5);
 		}
-		return $failed ? "sync errors: $failed" : 'OK';
-	}
-}
-
-if (!function_exists('shopSyncDeliverOne')) {
-	/**
-	 * Delivers one queued item and resolves its marker.
-	 *
-	 * The marker is claimed first, so a change to the same item arriving while this delivery
-	 * is running queues itself afresh and is not swept away when this one finishes. Exactly
-	 * one request can hold a claim, so two requests cannot deliver the same item at once.
-	 *
-	 * @param array $entry        Entry from shopSyncQueuePending() or shopSyncQueueRead(). An
-	 *                            entry with no path is delivered without a claim, which is
-	 *                            what happens when the account has no usable temp directory.
-	 * @param int   $maxAttempts  Attempts after which the item is reported as a final failure.
-	 * @return string  'delivered', 'failed', 'final', 'busy' or 'no api'.
-	 */
-	function shopSyncDeliverOne(array $entry, $maxAttempts = 5) {
-		$claim = empty($entry['path']) ? null : shopSyncQueueClaim($entry);
-		if ($claim === null && !empty($entry['path'])) {
-			return 'busy';
-		}
-		$subject = $claim ? $claim : $entry;
-		$result  = sync_shop_vare($subject['vare_id'], $subject['variant_id'], $subject['lager'], $subject['mode']);
-
-		if ($result === 'no api') {
-			// Nothing configured any more, which is not this item's fault, so the attempt is
-			// not counted against it.
-			if ($claim) {
-				shopSyncQueueRelease($claim, $maxAttempts, false);
-			}
-			return 'no api';
-		}
-		if (shopSyncFailed($result)) {
-			$final = $claim ? shopSyncQueueRelease($claim, $maxAttempts) : false;
-			if ($final) {
-				error_log('saldi: shop stock sync gave up on vare_id ' . (int)$subject['vare_id']
-					. ' warehouse ' . (int)$subject['lager'] . ' after ' . (int)$maxAttempts
-					. ' attempts - the figure in the webshops is older than the one in Saldi');
-				return 'final';
-			}
-			return 'failed';
-		}
-		// 'no stock' counts as delivered: the item is no longer stock managed, so there is
-		// nothing left to send and keeping the marker would retry it for ever.
-		if ($claim) {
-			shopSyncQueueDone($claim);
-		}
-		return 'delivered';
+		return $result['failed'] ? 'sync errors: ' . $result['failed'] : 'OK';
 	}
 }
 
@@ -2558,32 +2497,16 @@ if (!function_exists('shopSyncDrainQueue')) {
 	 */
 	function shopSyncDrainQueue($limit = 50, $maxAttempts = 5) {
 		static $draining = false;
-		// sync_shop_vare() is what delivers a queued item, and a failure there queues it again,
-		// so without this a drain could call itself.
 		if ($draining) {
 			return 0;
 		}
-		$pending = shopSyncQueuePending($limit);
-		if (!$pending) {
-			return 0;
-		}
-		$draining  = true;
-		$delivered = 0;
+		$draining = true;
 		try {
-			foreach ($pending as $entry) {
-				$outcome = shopSyncDeliverOne($entry, $maxAttempts);
-				if ($outcome === 'no api') {
-					// Nothing configured any more. Keep the backlog rather than discarding it.
-					break;
-				}
-				if ($outcome === 'delivered') {
-					$delivered++;
-				}
-			}
+			$result = shopSyncRunDocument(shopSyncQueuePending($limit), false, 5, $maxAttempts);
+			return $result['delivered'];
 		} finally {
 			$draining = false;
 		}
-		return $delivered;
 	}
 }
 
@@ -2597,7 +2520,7 @@ if (!function_exists('shopSyncReportState')) {
 	 * @return array{failed: array<string, string>}
 	 */
 	function &shopSyncReportState() {
-		static $state = array('failed' => array());
+		static $state = array('failed' => array(), 'queued' => array());
 		return $state;
 	}
 }
@@ -2643,6 +2566,7 @@ if (!function_exists('shopSyncClearFailedItems')) {
 	function shopSyncClearFailedItems() {
 		$state = &shopSyncReportState();
 		$state['failed'] = array();
+		$state['queued'] = array();
 	}
 }
 
@@ -2665,11 +2589,21 @@ if (!function_exists('shopSyncAlertFailedItems')) {
 		if (!$items) {
 			return false;
 		}
+		$state = &shopSyncReportState();
+		$queued = $state['queued'];
 		shopSyncClearFailedItems();
 		if ($sprogId === null) {
 			$sprogId = isset($GLOBALS['sprog_id']) ? $GLOBALS['sprog_id'] : 0;
 		}
-		shopSyncAlert(implode(', ', $items), $sprogId, $handler);
+		$refused = array_values(array_diff($items, array_values($queued)));
+		$text = array();
+		if ($refused) {
+			$text[] = findtekst('5442|Lagertallet blev ikke opdateret i webshoppen for', $sprogId) . ': ' . implode(', ', $refused);
+		}
+		if ($queued) {
+			$text[] = findtekst('5443|Webshopopdateringen afventer og forsøges automatisk igen ved næste lageropdatering for', $sprogId) . ': ' . implode(', ', $queued);
+		}
+		print '<BODY onLoad="' . $handler . '(' . htmlspecialchars(jsString(array(implode("\n", $text))), ENT_QUOTES, 'UTF-8') . ')">' . "\n";
 		return true;
 	}
 }

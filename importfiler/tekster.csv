@@ -5246,3 +5246,4 @@
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5442	Lagertallet blev ikke opdateret i webshoppen for	The stock level was not updated in the webshop for	Lagernivået ble ikke oppdatert i nettbutikken for
 
+5443	Webshopopdateringen afventer og forsøges automatisk igen ved næste lageropdatering for	The webshop update is pending and will be retried automatically on the next stock update for	Nettbutikkoppdateringen venter og forsøkes automatisk igjen ved neste lageroppdatering for
