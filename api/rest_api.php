@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-10-01 ---
+// --- api/rest_api.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -73,6 +73,8 @@
 //                     sends for empty address fields via strip_placeholder_value(); if_isset
 //                     calls in that block converted to ifset (JOB-115)
 // 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
+// 20261023 CL/MMR SST-884 insert_shop_order: an existing customer's CVR/EAN from the card is used when the shop sends none.
+//                 The shop's value still wins when it is filled in. cvrnr/ean are escaped in the order insert.
 
 
 // ----------------------------------------------------------------------
@@ -132,6 +134,30 @@ function fetch_from_table($select, $from, $where, $order_by, $limit) {
 	fclose($log);
 	return $result;
 } #endfunc fetch_from_table
+
+/**
+ * SST-884: CVR and EAN for a shop order. The shop's own values win; when the shop sends an empty
+ * value and the customer already has a card, the card's value is used, so e-invoices to existing
+ * business customers carry the CVR the card has (DK-R-017 otherwise).
+ *
+ * @param int|string $saldi_addr_id adresser.id of the customer, empty for none
+ * @param string     $cvrnr         CVR sent by the shop
+ * @param string|int $ean           EAN sent by the shop
+ * @return array{0: string, 1: string} [cvrnr, ean]
+ */
+function shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean) {
+	$cvrnr = trim((string)$cvrnr);
+	$ean = trim((string)$ean);
+	$saldi_addr_id = (int)$saldi_addr_id;
+	if ($saldi_addr_id && ($cvrnr === '' || $ean === '')) {
+		$qtxt = "select cvrnr, ean from adresser where id = '$saldi_addr_id'";
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			if ($cvrnr === '') $cvrnr = trim((string)$r['cvrnr']);
+			if ($ean === '') $ean = trim((string)$r['ean']);
+		}
+	}
+	return array($cvrnr, $ean);
+}
 
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
@@ -344,6 +370,8 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		$kontonr=$r['kontonr'];
 		fwrite($log,__line__." kontonr $kontonr\n");
 	}
+	list($cvrnr, $ean) = shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean); # SST-884
+	fwrite($log,__line__." cvrnr '$cvrnr' ean '$ean'\n");
 	$ordrenr = get_next_order_number("DO");
 	$projektnr=0;
 	$qtxt = "select box1 from grupper where art='DG' and kodenr = '$gruppe' ";
@@ -385,7 +413,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$initial_status = ($art == 'DK') ? '1' : '0';
 	$qtxt.= "'$udskriv_til','$art','$projektnr','$momssats','$betalingsbet','$betalingsdage','$betalings_id','$initial_status',";
 	$qtxt.= "'$ordredate','$valuta','$valutakurs','$afd','$ref','','$ekstra1','$ekstra2','$ekstra3',";
-	$qtxt.= "'$ekstra4','$ekstra5','$shop_fakturanr','$cvrnr','$ean','$nettosum','$momssum',";
+	$qtxt.= "'$ekstra4','$ekstra5','$shop_fakturanr','".db_escape_string($cvrnr)."','".db_escape_string($ean)."','$nettosum','$momssum',";
 	$qtxt.= "'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
 	$qtxt.= "'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_kontakt)."',";
 	$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','$shop_status',";
