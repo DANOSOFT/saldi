@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------patch 5.0.0-------2026-09-23------
+// ------------------lager/lagerflyt.php-----------ver 5.0.0-------2026-10-23------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,8 +41,15 @@ $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$modulnr = 9;
 include("../includes/online.php");
 include("../includes/std_func.php");
+# MB-65 read-only (2) may look at the move page, but posting a move is a write
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+	error_log('MB-65: stock move refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+	print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
+	exit;
+}
 include("../includes/db_query.php");
 
 $input=if_isset($_GET['input']);

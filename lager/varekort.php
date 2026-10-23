@@ -293,6 +293,13 @@ $show_subcat = if_isset($_GET, NULL, 'show_subcat');
 
 $deleteItem = if_isset($_POST, NULL, 'deleteItem');
 $saveItem = if_isset($_POST, NULL, 'saveItem');
+	# MB-65 the button is disabled for a read-only user, but a hand-crafted POST must be refused here too
+	$bilag_handling = $saveItem || $deleteItem || $acceptStockChange || if_isset($_POST, NULL, 'acceptStockChange');
+	if ($bilag_handling && $rettigheder !== "" && ($rettigheder[9] === "2" || $rettigheder[9] < "1")) {
+		error_log("MB-65: item save refused for user " . $brugernavn . " (Items right " . $rettigheder[9] . ")");
+		print tekstboks("Du har ikke nogen rettigheder her - din aktivitet er blevet logget");
+		exit;
+	}
 $submit = if_isset($_POST, NULL, 'submit');
 
 if ($deleteItem == 'Slet') {
