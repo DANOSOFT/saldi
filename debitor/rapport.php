@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------ver 5.0.0 ----2026-10-01--------------
+// -------debitor/rapport.php------ver 5.0.0 ----2026-10-15--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,8 @@
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
 // 20261001 CDX/LAH Validate settlement lists and show skipped reminders and blocked-popup links.
 // 20261001 CDX/LAH Encode sales-statistics redirects and use ifset for the reminder count lookup.
+// 20261015 CL/LH PR #697 review: "Slet" deletes each reminder's lines and order inside one transaction,
+//                and autoudlign_liste() has a PHPDoc block.
 
 @session_start();
 $s_id = session_id();
@@ -119,6 +121,11 @@ function rapport_udlign_list($udlign)
 }
 
 if (!function_exists('autoudlign_liste')) {
+	/**
+	 * Runs autoudlign() for each account id in a validated comma-separated list.
+	 *
+	 * @return void
+	 */
 	function autoudlign_liste($udlign) {
 		$udlign = rapport_udlign_list($udlign);
 		if ($udlign === '') return;
@@ -258,8 +265,11 @@ function rapport_reminder_action($submit, $rykker_id, $rykkerbox, $rykkerantal, 
 	}
 	if ($submit == 'slet') {
 		foreach ($reminders as $id) {
+			// One transaction per reminder: a failed order delete must not leave the order without its lines.
+			transaktion('begin');
 			db_modify("delete from ordrelinjer where ordre_id=$id", __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
+			transaktion('commit');
 		}
 	} elseif (strstr($submit, 'bogf')) {
 		foreach ($reminders as $id) {

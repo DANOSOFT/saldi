@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-10-14 ---
+// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-10-15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -108,6 +108,9 @@
 //                  transdate, so an invoice settled by a later payment looked closed on a date
 //                  it was still open and dropped out of the report. Only the historical path
 //                  joins the group dates; the everyday report issues no extra SQL.
+// 20261015 CL/LH PR #697 rebase on SST-863: the SQL visibility mirror reads the group close date on a past
+//                 report date like openpost_account_aging(). Review: the menu T layout prints its paging line
+//                 once, above the rows.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -1326,7 +1329,6 @@ function opConfirmRykAlle() {
 	}
 	if ($menu=='T') {
 		if ($actionsHtml) print "<tr><td colspan='$headerColspan' align='center' class='border-hr-top'>$actionsHtml</td></tr>\n";
-		if ($showPagingBar) print "<tr><td colspan='$headerColspan' align='center' class='border-hr-top'>$pagingHtml</td></tr>\n";
 	} elseif ($actionsHtml || $pagingHtml) {
 		// Sticky at the bottom of #opGridWrapper, so the actions and paging stay reachable while scrolling.
 		print "<tr class='op-actionbar'><td colspan='$headerColspan'><div class='op-actionbar-inner'><div>$actionsHtml</div><div>$pagingHtml</div></div></td></tr>\n";

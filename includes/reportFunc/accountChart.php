@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/accountchart.php --- lap 5.0.0 --- 2026.10.06 ---
+// --- includes/reportFunc/accountchart.php --- lap 5.0.0 --- 2026.10.15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,8 +40,18 @@
 //                survives the round trip, and HTML-escaped in the Luk link.
 // 20261006 CL/LH PR #677 review: skip settled entries in the top-menu (menu T) row loop too when showing open posts,
 //                and compute the Primosaldo title when every entry was skipped.
+// 20261015 CL/LH PR #697 review: returside from GET is kept only as a relative rapport.php path, and the menu T
+//                Tilbage button JSON-encodes it inside its onclick attribute.
+// 20261015 CL/LH PR #697 review: the unAlign/unAlignAccount/oppId GET values are int-cast before the openpost update,
+//                and accountchart() has a PHPDoc block.
 
 if (!function_exists('accountchart')) {
+/**
+ * Renders the account chart (kontokort) reached from Åbne poster: open posts only (kilde=openpost)
+ * or every post (kilde=show_all), with udlign/ophæv-udligning links that return to the same view.
+ *
+ * @return void
+ */
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
 
 //	global $connection;
@@ -59,9 +69,9 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 
 	$email=$forfaldsum=$fromdate=$kto_fra=$kto_til=$returside=$todate=NULL;
 
-		$unAlign = if_isset($_GET['unAlign'],NULL);
-		$unAlignAccount = if_isset($_GET['unAlignAccount'],0);
-		$unAlignId = if_isset($_GET['oppId'],0);
+		$unAlign = (int)if_isset($_GET['unAlign'],0);
+		$unAlignAccount = (int)if_isset($_GET['unAlignAccount'],0);
+		$unAlignId = (int)if_isset($_GET['oppId'],0);
 	if ($unAlign || $unAlignId) {
 		$qtxt = "update openpost set udlignet='0',udlign_id='0' where konto_id = '$unAlignAccount'";
 		if ($unAlign) $qtxt .= " and udlign_id='$unAlign'";
@@ -91,8 +101,15 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	$tmpDatoTil=$dato_til;
 	($kontoart=='D')?$tekst='DRV':$tekst='KRV';
 	$qtxt = "select * from grupper where art = '$tekst' and kodenr = '$bruger_id'";
-	if(isset($_GET['returside'])) $returside= $_GET['returside'];
-	elseif ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
+	if (isset($_GET['returside'])) {
+		// Only a relative rapport.php return target is kept - anything else (a javascript: or
+		// off-site URL) falls back to the default below, so neither the Luk link nor the menu T
+		// Tilbage button can be pointed at it.
+		$getReturside = is_string($_GET['returside']) ? $_GET['returside'] : '';
+		if (preg_match('/^rapport\.php(\?|$)/D', $getReturside)) {
+			$returside = $getReturside;
+		}
+	} elseif ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
 		$dato_fra=$r['box2'];
 		$dato_til=$r['box3'];
 		$konto_fra=$r['box4'];
@@ -703,7 +720,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	print "</tbody></table>";
 	
 	if ($menu=='T') {
-		print "<center><input type='button' onclick=\"location.href='$returside'\" accesskey='L' value='".findtekst('30|Tilbage', $sprog_id)."'></center>";
+		$backClick = htmlspecialchars("location.href=".json_encode((string)$returside, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP).";", ENT_QUOTES);
+		print "<center><input type='button' onclick=\"$backClick\" accesskey='L' value='".findtekst('30|Tilbage', $sprog_id)."'></center>";
 		include_once '../includes/topmenu/footerDebRapporter.php';
 	} else {
 		include_once '../includes/oldDesign/footer.php';

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- includes/rapportfunc.php --- ver 5.0.0 --- 2026-10-15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -95,6 +95,7 @@
 //                 Creditor open posts keep "Skjul åbne poster" (no rykker overview); the refresh and rykker links keep the page.
 //                 Rykker sections are closed tables with their rows in tbody, and the layout and footer are closed once at the end.
 //                 The rykker forms post the account filter, mode, paging, PBS and aging state, so an action re-renders the same view.
+// 20261015 CL/LH PR #697 review: PHPDoc blocks on openpost(), bogfor_rykker(), kontokort() and kontosaldo().
 include_once(__DIR__ . '/reportFunc/showOpenPosts.php');
 
 /**
@@ -113,6 +114,12 @@ function rapport_reminder_account_filter($konto_fra, $konto_til)
 	return $filter;
 }
 
+/**
+ * Renders the Åbne poster report: header and filter bar, the open-posts grid (vis_aabne_poster())
+ * and, for debtors, the rykker overview with its action forms.
+ *
+ * @return void
+ */
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
 {
 ?>
@@ -529,6 +536,13 @@ a:link{text-decoration:none;}</style>\n";
 }
 
 //--------------------------------------------------------------------------------------
+/**
+ * Books reminder order $id: sets the order sum and the fee lines' ledger accounts, then posts it
+ * through bogfor_nu() in one transaction. Stops with an alert when the reminder date is outside the
+ * active fiscal year, and skips posting when a stock-tracked item is used as the fee.
+ *
+ * @return void
+ */
 function bogfor_rykker($id)
 {
 	global $bgcolor, $bgcolor5;
@@ -937,6 +951,12 @@ $backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 
 
 //------------------------------------------------------------------------------------------------------------
+/**
+ * Renders the classic Kontokort report (account statement per account in the range), including
+ * the udlign/ophæv-udligning links on open and settled posts.
+ *
+ * @return void
+ */
 function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
 {
 
@@ -2075,6 +2095,11 @@ function proceedKontoprint() {
 	}
 }
 
+/**
+ * Renders the Konto Saldo report: the balance per account in the range for the selected period.
+ *
+ * @return void
+ */
 function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
 {
 	global $bgcolor, $bgcolor5;
