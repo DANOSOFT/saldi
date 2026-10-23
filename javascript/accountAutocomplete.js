@@ -6,19 +6,41 @@
 //                  finance -> kontospec. Unsaved journal edits ask for confirmation before leaving.
 // 20261001 CL/SZ SD-698: Ctrl/Cmd+Enter on the selected popup line opens its card, while plain Enter still selects it.
 //                  Added JSDoc to the functions this change touches.
+// 20261002 MJ SST-814 Don't ask accountSearch.php for a debitor/kreditor term shorter than
+//                  three characters: the endpoint now refuses it, because a trigram index
+//                  cannot match below three characters. finance is not gated - kontoplan is
+//                  small and its account numbers are legitimately short.
+// 20261002 MJ SST-814 Review: drop a search response that comes back for a value the field
+//                  no longer holds. The race predates this ticket, but the new minimum made
+//                  it persistent - a value falling below it sends no further request, so
+//                  nothing arrived afterwards to replace a stale dropdown.
 // 20261003 CL/SZ SD-698: The card opens in a separate, reused tab (saldiKort) instead of leaving the journal, so unsaved
 //                  journal edits are kept; the card's Tilbage closes the tab. A blocked popup falls back to the old ask-and-leave.
 // 20261003 CL/SZ SD-716 window.closeAccountAutocomplete closes the panel, so Ctrl + arrow navigation (fieldNavigation.js) can move on from an open panel.
+// 20261003 CL/SZ SD-720 A search answer that arrives after the user left the field no longer opens the panel and takes the focus back.
+// 20261003 CL/SZ SD-721 A kreditor search that finds nothing offers "Opret kreditor", which opens kreditorFromCvr.js's dialog and puts the new kreditor in the field.
 // 20261005 CL/SZ SD-714 A Tab or Ctrl + arrow only keeps the panel closed for the focus change it makes. Before, a Tab that landed on a field without
 //                  the panel (Beløb, the type field) kept it closed for the next click into Debet or Kredit too.
+// 20261006 CL/SZ SD-720 The same for the invoice-number (Åbne Poster) and amount searches: a late answer put the cursor back in Fakturanr.
+//                while the user typed the amount, so the rest of the amount landed in the invoice number.
+// 20261006 CL/SZ SD-720 The same for the invoice-number (Åbne Poster) and amount searches: a late answer put the cursor back in Fakturanr.
+//                while the user typed the amount, so the rest of the amount landed in the invoice number.
 // 20261006 CL/SZ SD-714 window.focusAccountQuietly(input) puts the cursor in a field without opening the panel (the pool's new document), and a
 //                  click into a field that already has the cursor opens the panel, as the first click would.
 // 20261005 CL/SZ SD-714 A click in a document viewer (the pool's PDF) closes the panel; the click never reached the page, so the panel stayed open.
+// 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
+// 20261019 CL/SZ SD-721 A kreditor made with "Opret kreditor" advances the search token like any other selection (SST-814).
+// 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
 (function () {
     'use strict'; 
 
     const CONFIG = {
-        minSearchLength: 0, 
+        minSearchLength: 0,
+        // SST-814 review: accountSearch.php refuses a one- or two-character
+        // debitor/kreditor search, because a trigram index cannot match below three
+        // characters and adresser is large. Only those two types are gated - a finance
+        // search of kontoplan is small and its account numbers are legitimately short.
+        minAccountSearchLength: 3,
         debounceDelay: 200,
         maxResults: 50
     };
@@ -41,6 +63,10 @@
     let activeDropdown = null;
     let activeInput = null;
     let debounceTimer = null;
+    // Bumped on every keystroke, including one that the length gate refuses. A response
+    // that comes back carrying an older number is for a value the field no longer holds,
+    // so it is dropped rather than painted over the current state.
+    let searchSeq = 0;
     let dropdownContainer = null;
     let selectionMade = false;
     let currentPage = 1;
@@ -184,6 +210,9 @@
                 e.preventDefault();
                 e.stopPropagation();
                 selectionMade = true;
+                // Supersede any request already in flight: the dropdown is closing, and a
+                // response that lands afterwards must not reopen it.
+                searchSeq++;
                 closeDropdown();
                 if (input) {
                     input.focus();
@@ -203,6 +232,30 @@
                     // Use the current input value for pagination
                     performSearchWithValue(input, input.value, page);
                 }
+                return;
+            }
+
+            const createBtn = e.target.closest('.account-autocomplete-create-kreditor');
+            if (createBtn) {
+                // SD-721: the dialog; the new kreditor goes into the field the search came from
+                e.preventDefault();
+                e.stopPropagation();
+                const search = createBtn.dataset.search || '';
+                const digits = search.replace(/\D/g, '');
+                closeDropdown();
+                window.kreditorFromCvr.openDialog({
+                    company: /^\d{8}$/.test(digits) && digits.length === search.replace(/\s/g, '').length ? { cvrnr: digits } : { firmanavn: search },
+                    returnFocus: input,
+                    onCreated: function (kreditor) {
+                        selectionMade = true;
+                        // Supersede any request already in flight, as a selection does (SST-814)
+                        searchSeq++;
+                        input.value = kreditor.kontonr;
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.focus();
+                        setTimeout(function () { selectionMade = false; }, 100);
+                    }
+                });
                 return;
             }
 
@@ -518,6 +571,7 @@
         }
 
         clearTimeout(debounceTimer);
+        searchSeq++;
         debounceTimer = setTimeout(function () {
             performSearch(input);
         }, CONFIG.debounceDelay);
@@ -532,6 +586,7 @@
         }
 
         clearTimeout(debounceTimer);
+        searchSeq++;
         debounceTimer = setTimeout(function () {
             performSearchWithValue(input, searchValue || '', 1);
         }, CONFIG.debounceDelay);
@@ -607,6 +662,14 @@
             return;
         }
 
+        // Matches the endpoint's own minimum, so no request is sent that it would refuse.
+        if ((searchType === 'debitor' || searchType === 'kreditor')
+                && searchValue.length > 0
+                && searchValue.length < CONFIG.minAccountSearchLength) {
+            renderDropdown(input, [], searchType, searchValue, null);
+            return;
+        }
+
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/accountSearch.php';
@@ -615,11 +678,16 @@
         } else {
             basePath = 'finans/kassekladde_includes/accountSearch.php';
         }
+        // SST-814 This dropdown shows "viser 1-50 af N" and page buttons, so it is the one
+        // caller that needs the total. accountSearch.php only runs the extra COUNT(*) when
+        // asked, because it costs as much again as the search itself.
         const url = basePath + '?search=' +
             encodeURIComponent(searchValue) +
             '&type=' + searchType +
+            '&count=1' +
             '&page=' + page;
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -628,16 +696,21 @@
                 return response.text();
             })
             .then(function (text) {
+                if (seq !== searchSeq) return;
                 try {
                     const data = JSON.parse(text);
                     const results = data.results || data;
                     const pagination = data.pagination || { page: 1, total: results.length, hasMore: false };
+                    // A late answer for a field the user has left must not open the panel and take the focus back (SD-720)
+                    if (document.activeElement !== input) return;
                     renderDropdown(input, results, searchType, searchValue, pagination);
                 } catch (e) {
                     console.error('JSON parse error:', e);
                 }
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
+                if (document.activeElement !== input) return;
                 console.error('Account search error:', error);
                 closeDropdown();
             });
@@ -803,6 +876,7 @@
             '&currentAmount=' + encodeURIComponent(currentAmount) +
             '&page=' + page;
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -811,16 +885,21 @@
                 return response.text();
             })
             .then(function (text) {
+                if (seq !== searchSeq) return;
                 try {
                     const data = JSON.parse(text);
                     const results = data.results || data;
                     const pagination = data.pagination || { page: 1, total: results.length, hasMore: false };
+                    // The same rule as the account search (SD-720): an answer for a field the user has left takes nothing back
+                    if (document.activeElement !== input) return;
                     renderInvoiceDropdown(input, results, searchValue, pagination);
                 } catch (e) {
                     console.error('JSON parse error:', e);
                 }
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
+                if (document.activeElement !== input) return;
                 console.error('Invoice search error:', error);
                 closeDropdown();
             });
@@ -842,6 +921,7 @@
 
         const url = basePath + '?search=' + encodeURIComponent(searchValue);
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -850,10 +930,12 @@
                 return response.json();
             })
             .then(function (data) {
+                if (seq !== searchSeq) return;
                 const results = data.results || [];
                 renderSimpleDropdown(input, results, 'department', searchValue);
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Department search error:', error);
                 closeDropdown();
             });
@@ -877,6 +959,7 @@
 
         const url = basePath + '?search=' + encodeURIComponent(searchValue);
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -885,10 +968,12 @@
                 return response.json();
             })
             .then(function (data) {
+                if (seq !== searchSeq) return;
                 const results = data.results || [];
                 renderSimpleDropdown(input, results, 'employee', searchValue);
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Employee search error:', error);
                 closeDropdown();
             });
@@ -910,6 +995,7 @@
 
         const url = basePath + '?search=' + encodeURIComponent(searchValue);
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -918,10 +1004,12 @@
                 return response.json();
             })
             .then(function (data) {
+                if (seq !== searchSeq) return;
                 const results = data.results || [];
                 renderSimpleDropdown(input, results, 'currency', searchValue);
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
                 console.error('Currency search error:', error);
                 closeDropdown();
             });
@@ -990,6 +1078,7 @@
 
 
 
+        const seq = searchSeq;
         fetch(url)
             .then(function (response) {
                 if (!response.ok) {
@@ -998,10 +1087,14 @@
                 return response.json();
             })
             .then(function (data) {
+                if (seq !== searchSeq) return;
                 const results = data.results || [];
+                if (document.activeElement !== input) return;
                 renderAmountDropdown(input, results, searchValue);
             })
             .catch(function (error) {
+                if (seq !== searchSeq) return;
+                if (document.activeElement !== input) return;
                 console.error('Amount search error:', error);
                 closeDropdown();
             });
@@ -1095,6 +1188,19 @@
 
 
     /**
+     * "Opret kreditor" under "no results" when a kreditor search finds nothing (SD-721), on pages that load kreditorFromCvr.js.
+     * @param {string} searchType  'finance', 'debitor' or 'kreditor'.
+     * @param {string} searchValue The text that found nothing.
+     * @returns {string} The button's HTML, or '' when it doesn't apply.
+     */
+    function createKreditorButton(searchType, searchValue) {
+        if (searchType !== 'kreditor' || searchValue === '' || !window.kreditorFromCvr || !window.saldiKreditorCvr) return '';
+        const label = (window.saldiKreditorCvr.texts && window.saldiKreditorCvr.texts.create) || 'Opret kreditor';
+        return ' <button type="button" class="account-autocomplete-create-kreditor" data-search="' + escapeHtml(searchValue) + '">' + escapeHtml(label) + '</button>';
+    }
+
+
+    /**
      * Fill and show the account popup (Vælg Konto / Debitor / Kreditor) for a field.
      * @param {HTMLInputElement} input                    The journal field the popup belongs to.
      * @param {Array<Object>}    results                  Accounts from accountSearch.php.
@@ -1116,7 +1222,7 @@
 
         if (!results || results.length === 0) {
             if ((currentSearchValueParam !== '' && panelOptions.showAccountLookup) || hasLastPostings) {
-                let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+                let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + createKreditorButton(searchType, currentSearchValueParam) + '</div>';
                 if (hasLastPostings) {
                     noResultHtml = '<div class="account-autocomplete-results">' +
                         '<table class="account-autocomplete-table">' +
@@ -1426,6 +1532,9 @@
         clearTimeout(debounceTimer);
 
         selectionMade = true;
+        // Supersede any request already in flight: the dropdown is closing, and a
+        // response that lands afterwards must not reopen it.
+        searchSeq++;
 
         closeDropdown();
 
@@ -1509,6 +1618,9 @@
         clearTimeout(debounceTimer);
 
         selectionMade = true;
+        // Supersede any request already in flight: the dropdown is closing, and a
+        // response that lands afterwards must not reopen it.
+        searchSeq++;
 
         closeDropdown();
 

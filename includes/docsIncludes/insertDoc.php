@@ -37,6 +37,9 @@
 //                     Removed the unbounded print_r($_REQUEST) dump to /tmp/debug_insert.log.
 //                     $_POST reads in the edited blocks go through ifset(). A posted amount of "0"
 //                     is stored instead of being skipped as empty.
+// 20261004 CL/SZ SD-725 The line's VAT codes (debetvat, kreditvat) are saved when posted, by the journal's rules (poolVatChoose()).
+//                "u/m" (momsfri) is stored as 'on' or '', as the journal stores it, instead of 1 or 0.
+// 20261003 CL/SZ SD-722 Before the pool row is deleted, a document attached from the pool writes its correction records and keeps its snapshot (poolCaptureRecordAttach()).
 // 20261007 CL/SZ SD-716 A company without a globalId setting (e.g. one just created) no longer gets alert('Missing global ID') printed in front
 //                of the pool's JSON answer: the save went through, but the pool showed "not valid JSON" and left the document unattached in the pool.
 //                globalId stays 1 as before; the missing setting is written to the error log.
@@ -45,6 +48,8 @@
 //                  skipped and the request still answered with the success redirect, so the
 //                  user saw the pool reload with the file still in it and no message. A
 //                  failure now answers non-2xx with a reason the pool can show.
+// 20261023 CL/LH SST-868 Merged master: the SD-722 capture records read the pool row by $poolFileName and are kept under
+//                the landed name. Text 5441 renumbered to 5452 (5441 is taken by MB-71).
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -150,7 +155,7 @@ if (!function_exists('insertDocAttachFailed')) {
 	function insertDocAttachFailed($reservation = NULL) {
 		global $sprog_id;
 		if ($reservation) $reservation->discard();
-		$message = findtekst('5441|Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.', $sprog_id);
+		$message = findtekst('5452|Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.', $sprog_id);
 		while (ob_get_level()) {
 			ob_end_clean();
 		}
@@ -164,6 +169,8 @@ if (!function_exists('insertDocAttachFailed')) {
 		exit;
 	}
 }
+
+include_once(__DIR__ . '/poolAccountInfo.php'); // SD-725: the VAT code rules
 
 if (!function_exists('insertDocUpdateKassekladdeLine')) {
 	/**
@@ -262,9 +269,31 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 		}
 		$momsfri = ifset($_POST, 'momsfri');
 		if ($momsfri !== null) {
-			$momsfriVal = $momsfri ? 1 : 0;
+			// SD-725: 'on' or '' as the journal stores it; the journal shows only 'on' as ticked, so a saved 1 was lost on its next save
+			$momsfriVal = $momsfri ? 'on' : '';
 			$qtxt = "update kassekladde set momsfri = '$momsfriVal' where id = '$sourceId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		// SD-725: the VAT code per side. Sent by the pool's rows; a request without them leaves the codes alone.
+		$debetVat = ifset($_POST, 'debetvat');
+		$kreditVat = ifset($_POST, 'kreditvat');
+		if (($debetVat !== null || $kreditVat !== null) && poolVatColumnsReady()) {
+			global $regnaar;
+			$codes = poolVatCodes();
+			$line = db_fetch_array(db_select("select d_type, debet, k_type, kredit, momsfri from kassekladde where id = '$sourceId'", __FILE__ . " linje " . __LINE__));
+			if ($line) {
+				$momsfriLine = !empty($line['momsfri']);
+				$set = array();
+				if ($debetVat !== null) {
+					$accountCode = poolVatAccountCode(strtoupper(trim((string)$line['d_type'])) ?: 'F', (int)$line['debet'] ? (string)(int)$line['debet'] : '', $regnaar, $codes);
+					$set[] = "debetvat = '" . db_escape_string(poolVatChoose($debetVat, $accountCode, $momsfriLine, (string)$kreditVat, $codes)) . "'";
+				}
+				if ($kreditVat !== null) {
+					$accountCode = poolVatAccountCode(strtoupper(trim((string)$line['k_type'])) ?: 'F', (int)$line['kredit'] ? (string)(int)$line['kredit'] : '', $regnaar, $codes);
+					$set[] = "kreditvat = '" . db_escape_string(poolVatChoose($kreditVat, $accountCode, $momsfriLine, (string)$debetVat, $codes)) . "'";
+				}
+				db_modify("update kassekladde set " . implode(', ', $set) . " where id = '$sourceId'", __FILE__ . " linje " . __LINE__);
+			}
 		}
 		$forfald = ifset($_POST, 'forfald');
 		if ($forfald) {
@@ -533,6 +562,19 @@ if ($insertFile || isset($_FILES['uploadedFile']['tmp_name'])) {
 
 		// Clean up pool_files database entry after successful move from pulje
 		if ($insertFile && $poolFileName) {
+			// SD-722: what was captured against what was saved, before the snapshot goes with the pool row. Never fails the attach.
+			if ($source == 'kassekladde' && $sourceId) {
+				try {
+					include_once(__DIR__ . '/poolCapture.php');
+					// Included inside docPool() too, where only some of online.php's globals are in scope
+					$captureUserId = $bruger_id ?? ($GLOBALS['bruger_id'] ?? null);
+					// SST-868: the snapshot is read from the pool row ($poolFileName); the records are kept under
+					// the name the document landed under, which is what documents.filename and the report look up.
+					poolCaptureRecordAttach($fileName, (int)$sourceId, $showDoc, $captureUserId === null ? null : (int)$captureUserId, (string)($brugernavn ?? ($GLOBALS['brugernavn'] ?? '')), $poolFileName);
+				} catch (Throwable $e) {
+					error_log("insertDoc capture records for $poolFileName failed: " . $e->getMessage());
+				}
+			}
 			$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($poolFileName) ."'";
 			@db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			/* docPoolLog("deleted from pool_files: $fileName"); */

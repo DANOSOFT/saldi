@@ -266,6 +266,14 @@ abstract class BaseEndpoint
                 $this->sendResponse(false, null, 'Database connection failed', 500);
                 return false;
             }
+
+            // 20261008 CL/LH: the models read the fiscal year from global $regnaar, which nothing
+            // set on the JWT path - see api_current_fiscal_year() in auth.php.
+            global $regnaar;
+            $regnaar = api_current_fiscal_year();
+            if (!$regnaar) {
+                write_log("No fiscal year found (grupper art RA) in {$this->db}", $this->db, 'WARNING');
+            }
             
             write_log("JWT auth successful for user: {$this->username}, db: {$this->db}", $this->db, 'INFO');
             return true;

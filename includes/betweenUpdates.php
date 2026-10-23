@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.13
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.14
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -80,13 +80,22 @@
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261001 MJ SST-814 Trigram indexes on adresser(firmanavn) and adresser(kontonr) so the
+//                  account lookup during invoice creation stops scanning the whole table on
+//                  every keystroke. Only created where pg_trgm exists.
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
 // 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
+// 20261003 CL/SZ SD-721: adresser.auto_created, auto_created_by and bank_unconfirmed for the kreditor created from the CVR register, Postgres and MySQL.
+// 20261003 CL/SZ SD-722: pool_files.capture_raw, capture_values and captured, the pool_capture_log table and the settings rows for "Rapportér fejl i aflæsning", Postgres and MySQL.
 // 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261002 CL/SZ SST-808: index ordrer (konto_id, fakturanr) and the open openpost rows so the
 //                  auto-udlign open-post search stops scanning ordrer once per open post.
 // 20261002 CL/SZ SST-808 (CodeRabbit): build those indexes CONCURRENTLY so login does not block
 //                  writes while they build, and rebuild one left INVALID by an interrupted build.
+// 20261002 MJ SST-814 Review: corrected the stated reason for not using CONCURRENTLY. There
+//                  is no enclosing transaction; the reason is that an interrupted
+//                  CONCURRENTLY build leaves an invalid index that IF NOT EXISTS would then
+//                  skip forever. The statements themselves are unchanged.
 // 20261003 CL/SZ SST-818: the kassekladde/documents/adresser indexes are built CONCURRENTLY (PostgreSQL) or with
 //                  LOCK=NONE (MySQL), so the one-time build at login does not block writes; an INVALID one is rebuilt.
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
@@ -101,7 +110,13 @@
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
 // 20261007 CL/SZ SST-818: a login that finds an index lock taken skips the build instead of waiting for it.
 //                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
+// 20261012 CL/LH Add the stripe_events lease columns (claim_token, claimed_at, attempts, event_created)
+//                  ahead of the invoice-payment webhook, which needs them from its first request.
+// 20261013 CL/LH stripe_events columns: schema-scoped check, concurrent-login safe (CodeRabbit on #795).
 // 20261013 CL/SZ SST-808 (CodeRabbit): skip the auto-udlign index block on MySQL tenants.
+// 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
+//                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
+//                  so the one-time build no longer blocks writes to adresser during a login.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -654,6 +669,44 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		processed_at timestamp)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+// 20261012 CL/LH Event leases for the Stripe webhook: who holds an event (claim_token/claimed_at),
+//                  how often it was retried (attempts) and Stripe's own event time (event_created).
+//                  Shipped before the webhook change, because a merge to master deploys /master at once.
+// 20261013 CL/LH (CodeRabbit) Scoped to the current schema/database and safe for concurrent logins, like
+//                  the lock_token migration: ADD COLUMN IF NOT EXISTS on PostgreSQL, GET_LOCK + recheck on MySQL.
+$stripeEventMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$stripeEventColumns = array('claim_token' => 'varchar(64)', 'claimed_at' => 'timestamp', 'attempts' => 'integer NOT NULL DEFAULT 0', 'event_created' => 'bigint');
+$stripeEventMissing = array();
+foreach ($stripeEventColumns as $stripeEventColumn => $stripeEventType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn'";
+	$qtxt .= $stripeEventMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$stripeEventMissing[] = $stripeEventColumn;
+	}
+}
+if ($stripeEventMissing) {
+	if ($stripeEventMysql) {
+		$stripeEventLock = "CONCAT('saldi:stripe_events:', MD5(DATABASE()))";
+		$stripeEventLockResult = db_fetch_array(db_select("SELECT GET_LOCK($stripeEventLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($stripeEventLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the stripe_events migration lock.');
+		}
+		try {
+			foreach ($stripeEventMissing as $stripeEventColumn) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE stripe_events ADD COLUMN $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($stripeEventLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($stripeEventMissing as $stripeEventColumn) {
+			db_modify("ALTER TABLE stripe_events ADD COLUMN IF NOT EXISTS $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "CREATE TABLE stripe_customers (
@@ -1168,6 +1221,160 @@ if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables W
 	}
 }
 
+// 20261003 CL/SZ SD-721: kreditor from the CVR register.
+// adresser.auto_created (when) and auto_created_by (brugere.id, -1 for a revisor session): the kreditor was created automatically from the CVR register.
+// adresser.bank_unconfirmed (when): the bank details were read from an invoice and are not used for a payment before "Bekræft"; NULL means confirmed.
+// bank_unconfirmed last: includes/kreditorFromCvr.php probes for it, so once it exists all three do.
+$kredCvrMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$kredCvrSchema = $kredCvrMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$kredCvrColumns = array(
+	'auto_created' => $kredCvrMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+	'auto_created_by' => 'INTEGER NULL',
+	'bank_unconfirmed' => $kredCvrMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+);
+$kredCvrMissing = array();
+foreach ($kredCvrColumns as $kredCvrColumn => $kredCvrType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'adresser' AND column_name = '$kredCvrColumn'$kredCvrSchema";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$kredCvrMissing[$kredCvrColumn] = $qtxt;
+	}
+}
+if ($kredCvrMissing) {
+	if ($kredCvrMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the pool_files columns)
+		$kredCvrLock = "CONCAT('saldi:adresser_cvr:', MD5(DATABASE()))";
+		$kredCvrLockResult = db_fetch_array(db_select("SELECT GET_LOCK($kredCvrLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($kredCvrLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the adresser CVR migration lock.');
+		}
+		try {
+			foreach ($kredCvrMissing as $kredCvrColumn => $kredCvrProbe) {
+				if (!db_fetch_array(db_select($kredCvrProbe, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE adresser ADD COLUMN $kredCvrColumn " . $kredCvrColumns[$kredCvrColumn], __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($kredCvrLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($kredCvrMissing as $kredCvrColumn => $kredCvrProbe) {
+			db_modify("ALTER TABLE adresser ADD COLUMN IF NOT EXISTS $kredCvrColumn " . $kredCvrColumns[$kredCvrColumn], __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+
+// 20261003 CL/SZ SD-722: data capture in the document pool.
+// pool_files.capture_raw (the extraction service's answer), capture_values (the values after Saldi's normalisation) and captured (when): the snapshot, written once.
+// captured last: includes/docsIncludes/poolCapture.php probes for it, so once it exists all three do.
+// pool_capture_log: correction records, rejected suggestions, the snapshot of an attached document and the reports to support, which carry a sent status.
+// It is the company's own record; rows are not deleted.
+$poolCaptureMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$poolCaptureSchema = $poolCaptureMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$poolCaptureColumns = array(
+	'capture_raw' => $poolCaptureMysql ? 'MEDIUMTEXT NULL' : 'TEXT NULL',
+	'capture_values' => 'TEXT NULL',
+	'captured' => $poolCaptureMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+);
+if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'$poolCaptureSchema", __FILE__ . " linje " . __LINE__))) {
+	$poolCaptureMissing = array();
+	foreach ($poolCaptureColumns as $poolCaptureColumn => $poolCaptureType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolCaptureColumn'$poolCaptureSchema";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$poolCaptureMissing[$poolCaptureColumn] = $qtxt;
+		}
+	}
+	if ($poolCaptureMissing) {
+		if ($poolCaptureMysql) {
+			// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the archive columns)
+			$poolCaptureLock = "CONCAT('saldi:pool_files_capture:', MD5(DATABASE()))";
+			$poolCaptureLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolCaptureLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int) ($poolCaptureLockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the pool_files capture migration lock.');
+			}
+			try {
+				foreach ($poolCaptureMissing as $poolCaptureColumn => $poolCaptureProbe) {
+					if (!db_fetch_array(db_select($poolCaptureProbe, __FILE__ . " linje " . __LINE__))) {
+						db_modify("ALTER TABLE pool_files ADD COLUMN $poolCaptureColumn " . $poolCaptureColumns[$poolCaptureColumn], __FILE__ . " linje " . __LINE__);
+					}
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($poolCaptureLock)", __FILE__ . " linje " . __LINE__);
+			}
+		} else {
+			foreach ($poolCaptureMissing as $poolCaptureColumn => $poolCaptureProbe) {
+				db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolCaptureColumn " . $poolCaptureColumns[$poolCaptureColumn], __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+}
+if (!db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_capture_log'$poolCaptureSchema", __FILE__ . " linje " . __LINE__))) {
+	if ($poolCaptureMysql) {
+		db_modify("CREATE TABLE IF NOT EXISTS pool_capture_log (
+			id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			kind VARCHAR(12) NOT NULL,
+			filename VARCHAR(255),
+			content_hash VARCHAR(64),
+			source_id INTEGER,
+			field VARCHAR(20),
+			raw_value TEXT,
+			norm_value TEXT,
+			final_value TEXT,
+			kreditor_cvr VARCHAR(20),
+			data MEDIUMTEXT,
+			comment TEXT,
+			user_id INTEGER,
+			user_name VARCHAR(80),
+			created DATETIME NOT NULL,
+			sent DATETIME NULL,
+			attempts INTEGER NOT NULL DEFAULT 0,
+			next_attempt DATETIME NULL,
+			claim VARCHAR(32),
+			claimed DATETIME NULL,
+			last_error TEXT,
+			INDEX pool_capture_log_kind_idx (kind, sent),
+			INDEX pool_capture_log_file_idx (filename),
+			INDEX pool_capture_log_hash_idx (content_hash)
+		)", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("CREATE TABLE IF NOT EXISTS pool_capture_log (
+			id SERIAL PRIMARY KEY,
+			kind VARCHAR(12) NOT NULL,
+			filename VARCHAR(255),
+			content_hash VARCHAR(64),
+			source_id INTEGER,
+			field VARCHAR(20),
+			raw_value TEXT,
+			norm_value TEXT,
+			final_value TEXT,
+			kreditor_cvr VARCHAR(20),
+			data TEXT,
+			comment TEXT,
+			user_id INTEGER,
+			user_name VARCHAR(80),
+			created TIMESTAMP NOT NULL,
+			sent TIMESTAMP NULL,
+			attempts INTEGER NOT NULL DEFAULT 0,
+			next_attempt TIMESTAMP NULL,
+			claim VARCHAR(32),
+			claimed TIMESTAMP NULL,
+			last_error TEXT
+		)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_kind_idx ON pool_capture_log (kind, sent)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_file_idx ON pool_capture_log (filename)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_hash_idx ON pool_capture_log (content_hash)", __FILE__ . " linje " . __LINE__);
+	}
+}
+// The support address and the switch for the report button, so both can be changed without a code change.
+// The button stays off ('off') until the customer terms for sending documents to support are approved; 'on' shows it.
+foreach (array(
+	'capture_report_email' => array('support@danosoft.dk', 'Aflæsningsfejl fra dokumentpuljen sendes hertil'),
+	'capture_report' => array('off', 'Knappen Rapportér fejl i aflæsning (on/off)'),
+) as $poolCaptureVar => $poolCaptureDefault) {
+	if (!db_fetch_array(db_select("SELECT id FROM settings WHERE var_grp = 'pool' AND var_name = '$poolCaptureVar'", __FILE__ . " linje " . __LINE__))) {
+		db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('$poolCaptureVar', 'pool', '" . db_escape_string($poolCaptureDefault[0]) . "', '" . db_escape_string($poolCaptureDefault[1]) . "')", __FILE__ . " linje " . __LINE__);
+	}
+}
+
 // Preserve HTML users before the renderer changes; explicit choices survive later updates.
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);
@@ -1180,6 +1387,65 @@ if (db_fetch_array(db_select("select 1 from information_schema.tables where tabl
 	if ($rentalPass && (string)$rentalPass['pass'] !== '' && password_get_info((string)$rentalPass['pass'])['algoName'] === 'unknown') {
 		$rentalHash = db_escape_string(password_hash((string)$rentalPass['pass'], PASSWORD_DEFAULT));
 		db_modify("update rentalsettings set pass = '$rentalHash'", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+# 20261001 MJ SST-814 - the account field on debitor/ordre.php (javascript/ordreAutocomplete.js
+# -> finans/kassekladde_includes/accountSearch.php) searches adresser with ILIKE '%term%' on both
+# kontonr and firmanavn. A leading wildcard cannot use a B-tree index, and adresser had no index
+# at all beyond its primary key, so every keystroke scanned the whole table - twice, until the
+# redundant COUNT(*) was made opt-in in the same ticket. At Klunserkongen every rented stand is
+# another art='D' row, so the table grows steadily and the lookup slowed with it, which is why the
+# customer reported it as having "become" slow rather than always having been.
+# Measured on a synthetic 200,000-row adresser: a four-character stand number went from 177 ms to
+# 1.9 ms, and a six-character name from 184 ms to 35 ms.
+# pg_trgm is bootstrapped further up this file, but a tenant on managed hosting without superuser
+# may not have been permitted to create it - and that attempt is only made once, so it may never
+# be retried. Index only where the extension actually exists; everyone else keeps the unindexed
+# but still correct ILIKE path.
+# Built CONCURRENTLY, with the invalid-index recovery that makes it safe here. The first
+# version of this block used a plain CREATE INDEX IF NOT EXISTS and argued against
+# CONCURRENTLY, on the grounds that an interrupted concurrent build leaves an *invalid*
+# index behind which IF NOT EXISTS then matches on every later login, skipping the rebuild
+# forever and leaving an index the planner ignores while writes still maintain it. That trap
+# is real, but avoiding CONCURRENTLY is not how this repo answers it any more: SST-808 and
+# SST-818 both hit the same objection in review and solved it by checking pg_index.indisvalid
+# and dropping and rebuilding an invalid index, rather than by taking the write lock. SST-818
+# builds adresser_kontonr_art_idx on this very table that way. So the same shape is used here,
+# for the reason it was adopted there: a plain build locks out inserts, updates and deletes on
+# adresser for as long as it takes, and on a tenant large enough to need these indexes that is
+# a stall on order and account writes during someone else's login.
+# The advisory lock keeps two simultaneous logins from building the same index; the login that
+# would have to wait skips instead, because waiting deadlocks with CREATE INDEX CONCURRENTLY
+# (it waits in turn for the waiting login's open snapshot) - the failure SST-808 and SST-818
+# each had to fix after the fact.
+# Postgres only, and checked before the probe runs: pg_extension does not exist on MySQL, so
+# querying it there fails on every login. gin_trgm_ops, pg_index and CONCURRENTLY are Postgres
+# syntax regardless, so a MySQL tenant keeps the unindexed but correct ILIKE path, the same as
+# a tenant without the extension. Reported by ZaynSaul on PR #691; the pg_trgm bootstrap further
+# up this file has the same gap and is left alone here because it is not this ticket's code.
+$trgmIndexMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", __FILE__ . " linje " . __LINE__))) {
+	$trgmIndexes = array(
+		'adresser_firmanavn_trgm_idx' => "ON adresser USING gin (firmanavn gin_trgm_ops)",
+		'adresser_kontonr_trgm_idx'   => "ON adresser USING gin (kontonr gin_trgm_ops)",
+	);
+	foreach ($trgmIndexes as $trgmIndexName => $trgmIndexDefinition) {
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$trgmLock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$trgmIndexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$trgmLock || $trgmLock['locked'] !== 't') continue;
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$trgmIndexName' AND pg_namespace.nspname = current_schema()";
+		$trgmExisting = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($trgmExisting && $trgmExisting['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $trgmIndexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$trgmExisting || $trgmExisting['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $trgmIndexName $trgmIndexDefinition", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
 	}
 }
 
