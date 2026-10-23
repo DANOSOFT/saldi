@@ -5268,6 +5268,8 @@
 5400	er lukket og kan ikke bruges	is closed and cannot be used	er lukket og kan ikke brukes
 5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
 5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5440	Kladden kan ikke bogføres. Følgende bilag har tekst eller beløb, men hverken debet- eller kreditkonto	The journal cannot be posted. The following vouchers have a text or an amount but neither a debit nor a credit account	Kladden kan ikke bokføres. Følgende bilag har tekst eller beløp, men verken debet- eller kreditkonto
+5441	Udfyld kontoen, eller slet linjen ved at skrive - i bilagsfeltet.	Fill in the account, or delete the line by entering - in the voucher field.	Fyll ut kontoen, eller slett linjen ved å skrive - i bilagsfeltet.
 5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
 5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
 5439	Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.	Voucher number %s was used by another user while you were typing. The line was saved as voucher %s.	Bilagsnummer %s ble brukt av en annen bruker mens du skrev. Linjen er lagret som bilag %s.
