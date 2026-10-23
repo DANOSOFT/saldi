@@ -194,5 +194,4 @@ logs to the PR; the old gate is baseline evidence only.
    settlement; then run all-customer, single-customer and prepared reminders.
    Afmeld a real outstanding invoice with valid CSRF and inspect its delivered mail.
 
-Production activation and rollback are in
-[GO-LIVE-821.md](../../doc/stripe/GO-LIVE-821.md).
+Production activation and rollback are in Danosoft's internal operations runbook.

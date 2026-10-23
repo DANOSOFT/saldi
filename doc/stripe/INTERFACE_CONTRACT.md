@@ -349,9 +349,10 @@ exercise installed PostScript/HTML/PDF executables.
 
 ## 9. Acceptance and operations
 
-[GO-LIVE-821.md](GO-LIVE-821.md) supplies the saldi_1091 settings, 06:00 charge and
-06:30 repair-only cron entries, immediate read-only SQL, first controlled live payment,
-the four pilot recurrence stops before 15 November, and rollback. The complete test
+The production go-live runbook (billing-ledger settings, the 06:00 charge and 06:30
+repair-only cron entries, read-only checks, the first controlled live payment, the pilot
+recurrence stops and rollback) is kept with Danosoft's internal operations notes, not in
+this public repository. The complete test
 matrix and its HTTP/browser/SMTP/server boundaries are in
 [tests/stripe/README.md](../../tests/stripe/README.md). PHPUnit executes real PostgreSQL
 fixture queries and production payment/delivery/panel/dispatch logic with fake
