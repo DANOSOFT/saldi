@@ -69,6 +69,7 @@
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
 // 20261019 CL/LH MB-71: Simulation and posting are refused, naming the vouchers, while a saved row has text, amount or invoice number but no debit or credit account (unfinishedJournalVouchers()).
 //                Such rows are no longer deleted silently; only rows without any content are still dropped.
+// 20261023 CL/LH MB-71: The refusal alert text goes through jsString(), so it is no longer empty when $db_encode isn't UTF8.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -128,7 +129,7 @@ if ($kladde_id) {
 	// user; neither the preview (Simuler/confirm) nor posting may start, and nothing is deleted.
 	$unfinishedVouchers = unfinishedJournalVouchers($kladde_id);
 	if ($unfinishedVouchers) {
-		print "<script>alert(" . json_encode(unfinishedJournalMessage($unfinishedVouchers)) . ");</script>";
+		print "<script>alert(" . jsString(array(unfinishedJournalMessage($unfinishedVouchers))) . ");</script>";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 		exit;
 	}
@@ -1260,8 +1261,10 @@ function unfinishedJournalVouchers($kladde_id) {
 }
 ######################################################################################################################################
 /**
- * Message refusing simulation/posting because of unfinished rows. It is shown in a JavaScript alert, so it
- * holds no double quotes or line breaks.
+ * Message refusing simulation/posting because of unfinished rows, in the database encoding like findtekst().
+ * Inside a <script> block print it through jsString(), which also converts it from a non-UTF8 database.
+ * bogfor() returns it as well and the posting branch prints that inside onLoad="...", so it holds no
+ * double quotes or line breaks.
  *
  * @param int[] $vouchers Voucher numbers from unfinishedJournalVouchers().
  * @return string
