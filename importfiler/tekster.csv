@@ -5216,13 +5216,14 @@
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 
-5440	Godkendt	Approved	Godkjent
-5441	Godkend alle viste linjer	Approve all lines shown	Godkjenn alle viste linjer
-5442	Bogfør godkendte	Post approved	Bokfør godkjente
-5443	Bogfør kun de linjer, der er markeret som godkendt. De flyttes til en ny kladde, som bogføres; resten bliver stående her.	Post only the lines marked as approved. They are moved to a new journal, which is posted; the rest stays here.	Bokfør bare linjene som er merket som godkjent. De flyttes til en ny kladd, som bokføres; resten blir stående her.
-5444	Ingen linjer er godkendt	No lines are approved	Ingen linjer er godkjent
-5445	Følgende bilag har både godkendte og ikke-godkendte linjer og bliver stående:	The following vouchers have both approved and unapproved lines and stay behind:	Følgende bilag har både godkjente og ikke-godkjente linjer og blir stående:
-5446	linjer i	lines in	linjer i
-5447	bilag flyttes til en ny kladde og bogføres. Resten bliver stående i denne kladde. Fortsæt?	vouchers are moved to a new journal and posted. The rest stays in this journal. Continue?	bilag flyttes til en ny kladd og bokføres. Resten blir stående i denne kladden. Fortsett?
-5448	godkendte fra kladde	approved from journal	godkjente fra kladd
-5450	Kunne ikke gemme godkendelsen	Could not save the approval	Kunne ikke lagre godkjenningen
+5560	Godkendt	Approved	Godkjent
+5561	Godkend alle viste linjer	Approve all lines shown	Godkjenn alle viste linjer
+5562	Bogfør godkendte	Post approved	Bokfør godkjente
+5563	Bogfør kun de linjer, der er markeret som godkendt. De flyttes til en ny kladde, som bogføres; resten bliver stående her.	Post only the lines marked as approved. They are moved to a new journal, which is posted; the rest stays here.	Bokfør bare linjene som er merket som godkjent. De flyttes til en ny kladd, som bokføres; resten blir stående her.
+5564	Ingen linjer er godkendt	No lines are approved	Ingen linjer er godkjent
+5565	Følgende bilag har både godkendte og ikke-godkendte linjer og bliver stående:	The following vouchers have both approved and unapproved lines and stay behind:	Følgende bilag har både godkjente og ikke-godkjente linjer og blir stående:
+5566	linjer i	lines in	linjer i
+5567	bilag flyttes til en ny kladde og bogføres. Resten bliver stående i denne kladde. Fortsæt?	vouchers are moved to a new journal and posted. The rest stays in this journal. Continue?	bilag flyttes til en ny kladd og bokføres. Resten blir stående i denne kladden. Fortsett?
+5568	godkendte fra kladde	approved from journal	godkjente fra kladd
+5569	Kunne ikke gemme godkendelsen	Could not save the approval	Kunne ikke lagre godkjenningen
+5570	Bogføringen af de godkendte linjer blev afbrudt. Intet er flyttet.	Posting of the approved lines was aborted. Nothing was moved.	Bokføringen av de godkjente linjene ble avbrutt. Ingenting er flyttet.
