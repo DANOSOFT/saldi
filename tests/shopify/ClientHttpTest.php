@@ -8,6 +8,7 @@
 //
 // History:
 // 20261021 CL/SZ created (SD-747).
+// 20261023 CDX/LH Verify that the HTTP stub rejects execution outside cli-server.
 
 use PHPUnit\Framework\TestCase;
 
@@ -62,6 +63,31 @@ final class ClientHttpTest extends TestCase
 		$this->assertTrue($r['sent']);
 		$echo = json_decode($r['body'], true);
 		$this->assertSame(['POST', 'abc', '{"query":"{ shop { name } }"}'], [$echo['method'], $echo['token'], $echo['body']]);
+	}
+
+	public function test_stub_refuses_non_server_execution(): void
+	{
+		$code = <<<'PHP'
+register_shutdown_function(function (): void {
+	echo json_encode(['status' => http_response_code()]);
+});
+require $argv[1];
+echo 'stub continued';
+PHP;
+		$process = proc_open([
+			PHP_BINARY, '-d', 'display_errors=1', '-d', 'error_reporting=-1', '-r', $code,
+			__DIR__ . '/support/http_stub.php',
+		], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+		$this->assertIsResource($process);
+		$output = stream_get_contents($pipes[1]);
+		$errors = stream_get_contents($pipes[2]);
+		fclose($pipes[1]);
+		fclose($pipes[2]);
+		$status = proc_close($process);
+
+		$this->assertSame(0, $status);
+		$this->assertSame('', $errors);
+		$this->assertSame('{"status":404}', $output, 'only the shutdown probe runs; the stub returns no body');
 	}
 
 	public function test_429_retry_after_header_is_read(): void

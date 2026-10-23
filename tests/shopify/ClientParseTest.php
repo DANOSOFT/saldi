@@ -6,6 +6,7 @@
 //
 // History:
 // 20261021 CL/SZ created (SD-747).
+// 20261023 CDX/LH Preserve GraphQL execution error paths for reconcile decisions.
 
 use PHPUnit\Framework\TestCase;
 
@@ -39,6 +40,23 @@ final class ClientParseTest extends TestCase
 		$this->assertFalse($r['throttled']);
 	}
 
+	public function test_top_level_error_paths_are_preserved(): void
+	{
+		$path = ['made', 'order', 'lineItems', 'nodes', 0, 'title'];
+		$r = shopify_parse_graphql(200, json_encode([
+			'data' => ['made' => null],
+			'errors' => [
+				['message' => 'Resolver failed', 'path' => $path, 'extensions' => ['code' => 'ACCESS_DENIED']],
+				['message' => 'No path'],
+			],
+		]));
+
+		$this->assertFalse($r['ok']);
+		$this->assertSame('graphql_errors', $r['error']);
+		$this->assertSame(['message' => 'Resolver failed', 'code' => 'ACCESS_DENIED', 'path' => $path], $r['errors'][0]);
+		$this->assertNull($r['errors'][1]['path']);
+	}
+
 	public function test_errors_as_a_plain_string_are_failure(): void
 	{
 		$r = shopify_parse_graphql(401, json_encode(['errors' => '[API] Invalid API key or access token']));
@@ -46,6 +64,7 @@ final class ClientParseTest extends TestCase
 		$this->assertFalse($r['ok']);
 		$this->assertSame('http_401', $r['error']);
 		$this->assertSame('[API] Invalid API key or access token', $r['errors'][0]['message']);
+		$this->assertNull($r['errors'][0]['path']);
 	}
 
 	public function test_throttled_is_flagged(): void
@@ -102,7 +121,7 @@ final class ClientParseTest extends TestCase
 			throw new ErrorException($msg, 0, $no);
 		});
 		try {
-			$r1 = shopify_parse_graphql(200, json_encode(['errors' => [['message' => ['nested'], 'extensions' => ['code' => ['x']]], 'plain', null]]));
+			$r1 = shopify_parse_graphql(200, json_encode(['errors' => [['message' => ['nested'], 'path' => 'invalid', 'extensions' => ['code' => ['x']]], 'plain', null]]));
 			$r2 = shopify_parse_graphql(200, json_encode(['data' => ['x' => ['userErrors' => ['just text', ['message' => ['a' => 1], 'code' => 5]]]]]));
 			$r3 = shopify_parse_graphql(200, json_encode(['errors' => [['message' => 'Throttled', 'extensions' => ['code' => 'THROTTLED']]],
 				'extensions' => ['cost' => ['requestedQueryCost' => 'many', 'throttleStatus' => 'low']]]));
@@ -113,6 +132,7 @@ final class ClientParseTest extends TestCase
 
 		$this->assertSame(['["nested"]', 'plain', ''], array_column($r1['errors'], 'message'));
 		$this->assertSame([null, null, null], array_column($r1['errors'], 'code'));
+		$this->assertSame([null, null, null], array_column($r1['errors'], 'path'));
 		$this->assertSame(['just text', '{"a":1}'], array_column($r2['user_errors'], 'message'));
 		$this->assertSame('user_errors', $r2['error']);
 		$this->assertTrue($r3['throttled']);

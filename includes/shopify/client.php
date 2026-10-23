@@ -29,6 +29,7 @@
 // Nothing calls this yet, so it changes no behaviour on its own.
 //
 // 20261021 CL/SZ Created (SD-747).
+// 20261023 CDX/LH Tighten reconcile results, retry state, mutation guards and bulk polling (SD-747).
 
 const SHOPIFY_API_VERSION = '2026-07';
 const SHOPIFY_MAX_RETRIES = 3;
@@ -72,11 +73,12 @@ const SHOPIFY_BULK_POLL_QUERY = 'query bulkOperation($id: ID!) {
  * not run twice (SHOPIFY_RECONCILE_OPS, a note orderUpdate; both are detected in the document
  * itself, whatever $op says). In reconcile mode an attempt
  * that may have reached Shopify is followed by opts.reconcile, never by a blind resend.
- * The callback gets array{op, status, error, attempts, deadline} and returns array{state, data?}:
- * state "applied" with data = the effect found on Shopify (data may be omitted, the result's
- * data is then null), or "absent" when it is safe to
- * send again. Anything else, or an exception, ends the call with outcome "uncertain", and
- * then the caller must read before it sends again.
+ * The callback gets array{op, status, error, attempts, deadline} and returns
+ * array{state: string, data?: array}:
+ * state "applied" requires array data = the effect found on Shopify, or "absent" when it
+ * is safe to send again. Missing, null or scalar data on "applied", any other state, or a
+ * runtime exception ends the call with outcome "uncertain", and then the caller must read
+ * before it sends again. LogicException and Error propagate as programming errors.
  *
  * @param array $shop Shop row (shopify_shops): shop_key, domain (*.myshopify.com), api_version.
  * @param string $op Operation name for logs and pacing, e.g. "orderCreate".
@@ -97,7 +99,7 @@ const SHOPIFY_BULK_POLL_QUERY = 'query bulkOperation($id: ID!) {
  *   ok: bool,                True when Shopify returned data without errors (or reconcile found it applied).
  *   outcome: string,         ok | reconciled | failed | uncertain.
  *   data: array|null,        The response's data, or the reconcile callback's data.
- *   errors: list<array>,     Top-level GraphQL errors: message, code.
+ *   errors: list<array{message: string, code: string|null, path: list<string|int>|null}>,
  *   user_errors: list<array>, Every nested userErrors or mediaUserErrors-style entry, with its path.
  *   error: string|null,      Short failure code: http_<status>, graphql_errors, user_errors, throttled,
  *                            transport, invalid_json, deadline, retries_exhausted, uncertain.
@@ -157,12 +159,13 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
 			return shopify_client_stop($result, 'deadline');
 		}
 
+		$result = array_merge($result, ['data' => null, 'errors' => [], 'user_errors' => [], 'cost' => null]);
 		$started = $clock();
 		$resp = $transport($url, $headers, $body, min(SHOPIFY_CONNECT_TIMEOUT, $remaining), min(SHOPIFY_TOTAL_TIMEOUT, $remaining));
 		$result['attempts']++;
 		$parsed = $resp['errno'] === 0 ? shopify_parse_graphql($resp['status'], $resp['body']) : null;
 		$class = shopify_classify_attempt($resp, $parsed);
-		// Errors next to payload data mean the mutation ran, at least in part: read before anything else.
+		// A payload or an error below a root means the mutation may have run: read before anything else.
 		if ($class === 'fatal' && $mode === 'reconcile' && $isMutation && shopify_graphql_has_payload($parsed)) {
 			$class = 'uncertain';
 		}
@@ -194,8 +197,9 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
 			$log(['op' => $op, 'shop' => $shopKey, 'event' => 'reconcile', 'attempt' => $result['attempts'],
 				'state' => $found['state'] ?? null, 'correlation' => $correlation,
 				'exception' => isset($found['exception']) ? str_replace($token, '[redacted]', $found['exception']) : null]);
-			if (($found['state'] ?? null) === 'applied') {
-				return array_merge($result, ['ok' => true, 'outcome' => 'reconciled', 'error' => null, 'data' => $found['data'] ?? null]);
+			if (($found['state'] ?? null) === 'applied' && is_array($found['data'] ?? null)) {
+				return array_merge($result, ['ok' => true, 'outcome' => 'reconciled', 'error' => null,
+					'data' => $found['data'], 'errors' => [], 'user_errors' => []]);
 			}
 			if (($found['state'] ?? null) !== 'absent') {
 				return array_merge($result, ['outcome' => 'uncertain', 'error' => 'uncertain', 'retryable' => true]);
@@ -218,7 +222,7 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
  * @return array{
  *   ok: bool,                  HTTP 200, data present, no errors of either kind.
  *   data: array|null,
- *   errors: list<array{message: string, code: string|null}>,
+ *   errors: list<array{message: string, code: string|null, path: list<string|int>|null}>,
  *   user_errors: list<array{path: string, field: mixed, message: string, code: string|null}>,
  *   throttled: bool,           A top-level error has code THROTTLED.
  *   cost: array|null,          extensions.cost (requestedQueryCost, actualQueryCost, throttleStatus).
@@ -240,7 +244,10 @@ function shopify_parse_graphql(int $status, string $body): array
 	$errors = $json['errors'] ?? [];
 	foreach (is_array($errors) ? $errors : [$errors] as $e) {
 		$code = is_array($e) && is_string($e['extensions']['code'] ?? null) ? $e['extensions']['code'] : null;
-		$out['errors'][] = ['message' => shopify_client_text(is_array($e) ? ($e['message'] ?? '') : $e), 'code' => $code];
+		$out['errors'][] = [
+			'message' => shopify_client_text(is_array($e) ? ($e['message'] ?? '') : $e), 'code' => $code,
+			'path' => is_array($e) && is_array($e['path'] ?? null) ? $e['path'] : null,
+		];
 		$out['throttled'] = $out['throttled'] || $code === 'THROTTLED';
 	}
 	if ($out['data'] !== null) {
@@ -344,13 +351,17 @@ function shopify_bulk_start(array $shop, string $bulkQuery, array $opts = []): a
  * @return array shopify_graphql()'s result plus
  *   bulk: array{id: string, status: string, errorCode: string|null, objectCount: string,
  *     fileSize: string|null, url: string|null, partialDataUrl: string|null}|null,
- *   done: bool  True once the status is terminal (COMPLETED, FAILED, CANCELED, EXPIRED).
+ *   done: bool  True once the status is terminal (COMPLETED, FAILED, CANCELED, EXPIRED),
+ *               or the operation is not found (ok: false, error: not_found).
  */
 function shopify_bulk_poll(array $shop, string $id, array $opts = []): array
 {
 	$opts['retry_mode'] = 'read';
 	$result = shopify_graphql($shop, 'bulkOperation', SHOPIFY_BULK_POLL_QUERY, ['id' => $id], $opts);
 	$result['bulk'] = $result['ok'] ? ($result['data']['bulkOperation'] ?? null) : null;
+	if ($result['ok'] && $result['bulk'] === null) {
+		return array_merge($result, ['ok' => false, 'outcome' => 'failed', 'error' => 'not_found', 'done' => true]);
+	}
 	$result['done'] = in_array($result['bulk']['status'] ?? '', SHOPIFY_BULK_TERMINAL, true);
 	return $result;
 }
@@ -473,7 +484,8 @@ function shopify_http_download(string $url, $fh, float $connectTimeout, float $t
  * Sorts one attempt: ok; fatal (do not retry: auth, bad query, userErrors);
  * not_sent (Shopify certainly did not execute it: throttled, 429, no connection);
  * uncertain (it may have executed: 5xx, timeout after connecting, garbled 200). In reconcile
- * mode, shopify_graphql() also treats a mutation's errors next to payload data as uncertain.
+ * mode, shopify_graphql() also treats a mutation's errors next to payload data or below a
+ * null root as uncertain.
  */
 function shopify_classify_attempt(array $resp, ?array $parsed): string
 {
@@ -493,7 +505,7 @@ function shopify_classify_attempt(array $resp, ?array $parsed): string
 	return 'fatal';
 }
 
-/** True when a response with top-level errors still carries a non-null root payload. */
+/** True when top-level errors carry a payload or point below a returned root (even null). */
 function shopify_graphql_has_payload(?array $parsed): bool
 {
 	if ($parsed === null || !$parsed['errors'] || !is_array($parsed['data'])) {
@@ -501,6 +513,12 @@ function shopify_graphql_has_payload(?array $parsed): bool
 	}
 	foreach ($parsed['data'] as $value) {
 		if ($value !== null) {
+			return true;
+		}
+	}
+	foreach ($parsed['errors'] as $error) {
+		$path = $error['path'] ?? null;
+		if (is_array($path) && count($path) > 1 && is_string($path[0] ?? null) && array_key_exists($path[0], $parsed['data'])) {
 			return true;
 		}
 	}
@@ -579,7 +597,7 @@ function shopify_graphql_needs_reconcile(string $query, array $vars): ?string
 			return $field;
 		}
 	}
-	$setsNote = preg_match('/\bnote\s*:/', $code) || str_contains(json_encode($vars), '"note":');
+	$setsNote = preg_match('/\bnote(?:\s|,|\xEF\xBB\xBF)*+:/', $code) || str_contains(json_encode($vars), '"note":');
 	return preg_match('/\borderUpdate\b/', $code) && $setsNote ? 'orderUpdate (note)' : null;
 }
 
@@ -663,7 +681,7 @@ function shopify_client_stop(array $result, string $error): array
 
 /**
  * Calls the caller's read-first reconcile callback. An Exception counts as "unknown" and is
- * returned for the log; an Error (a bug in the callback) is not caught.
+ * returned for the log; LogicException and Error (bugs in the callback) are not swallowed.
  */
 function shopify_client_reconcile(callable $reconcile, string $op, array $attempt, float $deadline): array
 {
@@ -672,6 +690,8 @@ function shopify_client_reconcile(callable $reconcile, string $op, array $attemp
 			'op' => $op, 'status' => $attempt['status'], 'error' => $attempt['error'],
 			'attempts' => $attempt['attempts'], 'deadline' => $deadline,
 		]);
+	} catch (LogicException $e) {
+		throw $e;
 	} catch (Exception $e) {
 		return ['state' => 'unknown', 'exception' => get_class($e) . ': ' . $e->getMessage()];
 	}

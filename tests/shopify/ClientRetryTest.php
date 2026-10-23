@@ -8,6 +8,7 @@
 //
 // History:
 // 20261021 CL/SZ created (SD-747).
+// 20261023 CDX/LH Cover reconcile data, retry state, programming errors and mutation guard fixes.
 
 use PHPUnit\Framework\TestCase;
 
@@ -173,10 +174,84 @@ final class ClientRetryTest extends TestCase
 			return ['state' => 'applied', 'data' => []];
 		};
 
-		shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+		$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
 
 		$this->assertCount(1, $fake->calls);
 		$this->assertSame(1, $calls);
+		$this->assertTrue($r['ok']);
+		$this->assertSame('reconciled', $r['outcome']);
+		$this->assertSame([], $r['data'], 'an empty array still satisfies the reconcile contract');
+	}
+
+	public function test_reconcile_applied_requires_array_data(): void
+	{
+		$cases = [
+			'missing' => ['state' => 'applied'],
+			'null' => ['state' => 'applied', 'data' => null],
+			'string' => ['state' => 'applied', 'data' => 'found'],
+			'integer' => ['state' => 'applied', 'data' => 1],
+			'float' => ['state' => 'applied', 'data' => 1.5],
+			'boolean' => ['state' => 'applied', 'data' => false],
+		];
+		foreach ($cases as $name => $found) {
+			$fake = new FakeShopify([FakeShopify::timeout()]);
+			$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts([
+				'retry_mode' => 'reconcile', 'reconcile' => fn(): array => $found,
+			]));
+
+			$this->assertFalse($r['ok'], $name);
+			$this->assertSame('uncertain', $r['outcome'], $name);
+			$this->assertSame('uncertain', $r['error'], $name);
+			$this->assertTrue($r['retryable'], $name);
+			$this->assertNull($r['data'], $name);
+			$this->assertSame(1, $r['attempts'], $name);
+			$this->assertCount(1, $fake->calls, $name . ': never resend without absent');
+		}
+	}
+
+	public function test_transport_failures_do_not_keep_fields_from_an_earlier_attempt(): void
+	{
+		$first = FakeShopify::json([
+			'data' => ['orderCreate' => ['order' => null, 'userErrors' => [['message' => 'Invalid order']]]],
+			'errors' => [['message' => 'Internal error']],
+			'extensions' => ['cost' => ['requestedQueryCost' => 10]],
+		], 503);
+		$fake = new FakeShopify([$first, FakeShopify::timeout(), FakeShopify::timeout(), FakeShopify::timeout()]);
+
+		$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts([
+			'retry_mode' => 'reconcile', 'reconcile' => fn(): array => ['state' => 'absent'],
+		]));
+
+		$this->assertFalse($r['ok']);
+		$this->assertSame(4, $r['attempts']);
+		$this->assertCount(4, $fake->calls);
+		$this->assertSame('retries_exhausted', $r['error']);
+		$this->assertSame(0, $r['status']);
+		$this->assertNull($r['data']);
+		$this->assertSame([], $r['errors']);
+		$this->assertSame([], $r['user_errors']);
+		$this->assertNull($r['cost']);
+	}
+
+	public function test_reconciled_results_clear_graphql_and_user_errors(): void
+	{
+		$fake = new FakeShopify([FakeShopify::json([
+			'data' => ['orderCreate' => ['order' => null, 'userErrors' => [['message' => 'Invalid order']]]],
+			'errors' => [['message' => 'Internal error']],
+		], 502)]);
+		$data = ['orderCreate' => ['order' => ['id' => 'gid://shopify/Order/77'], 'userErrors' => []]];
+
+		$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts([
+			'retry_mode' => 'reconcile', 'reconcile' => fn(): array => ['state' => 'applied', 'data' => $data],
+		]));
+
+		$this->assertTrue($r['ok']);
+		$this->assertSame('reconciled', $r['outcome']);
+		$this->assertNull($r['error']);
+		$this->assertSame($data, $r['data']);
+		$this->assertSame([], $r['errors']);
+		$this->assertSame([], $r['user_errors']);
+		$this->assertCount(1, $fake->calls);
 	}
 
 	public function test_reconcile_absent_allows_one_resend(): void
@@ -242,15 +317,59 @@ final class ClientRetryTest extends TestCase
 
 	public function test_errors_with_only_null_payload_stay_fatal(): void
 	{
-		$denied = FakeShopify::json(['data' => ['orderCreate' => null], 'errors' => [['message' => 'Access denied', 'extensions' => ['code' => 'ACCESS_DENIED']]]]);
-		$fake = new FakeShopify([$denied, $denied]);
-		$reconcile = fn(): array => throw new LogicException('nothing ran, nothing to reconcile');
+		foreach ([null, ['orderCreate']] as $path) {
+			$denied = FakeShopify::json(['data' => ['orderCreate' => null], 'errors' => [['message' => 'Access denied', 'path' => $path, 'extensions' => ['code' => 'ACCESS_DENIED']]]]);
+			$fake = new FakeShopify([$denied, $denied]);
+			$reconcile = fn(): array => throw new LogicException('nothing ran, nothing to reconcile');
 
-		$r1 = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
-		$r2 = shopify_graphql(FakeShopify::shop(), 'tagsAdd', 'mutation { tagsAdd(id: "x", tags: []) { userErrors { message } } }', [], $fake->opts(['retry_mode' => 'idempotent']));
+			$r1 = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+			$r2 = shopify_graphql(FakeShopify::shop(), 'tagsAdd', 'mutation { tagsAdd(id: "x", tags: []) { userErrors { message } } }', [], $fake->opts(['retry_mode' => 'idempotent']));
 
-		$this->assertSame(['failed', 'graphql_errors', 1], [$r1['outcome'], $r1['error'], $r1['attempts']]);
-		$this->assertSame(['failed', 'graphql_errors', 1], [$r2['outcome'], $r2['error'], $r2['attempts']]);
+			$this->assertSame(['failed', 'graphql_errors', 1], [$r1['outcome'], $r1['error'], $r1['attempts']]);
+			$this->assertSame(['failed', 'graphql_errors', 1], [$r2['outcome'], $r2['error'], $r2['attempts']]);
+			$this->assertCount(2, $fake->calls);
+		}
+	}
+
+	public function test_errors_below_a_null_mutation_root_reconcile_without_resending(): void
+	{
+		foreach (['orderCreate', 'made'] as $root) {
+			$path = [$root, 'userErrors'];
+			$fake = new FakeShopify([FakeShopify::json([
+				'data' => [$root => null],
+				'errors' => [['message' => 'Resolver failed', 'path' => $path]],
+			])]);
+			$seen = 0;
+			$reconcile = function () use (&$seen): array {
+				$seen++;
+				return ['state' => 'unknown'];
+			};
+			$doc = 'mutation { ' . $root . ': orderCreate(order: {}) { order { id } userErrors { message } } }';
+
+			$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', $doc, [], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+
+			$this->assertFalse($r['ok']);
+			$this->assertSame('uncertain', $r['outcome']);
+			$this->assertSame('uncertain', $r['error']);
+			$this->assertTrue($r['retryable']);
+			$this->assertSame($path, $r['errors'][0]['path']);
+			$this->assertSame(1, $seen);
+			$this->assertCount(1, $fake->calls);
+		}
+	}
+
+	public function test_errors_below_a_null_root_stay_fatal_in_idempotent_mode(): void
+	{
+		$fake = new FakeShopify([FakeShopify::json([
+			'data' => ['tagsAdd' => null],
+			'errors' => [['message' => 'Resolver failed', 'path' => ['tagsAdd', 'userErrors']]],
+		])]);
+
+		$r = shopify_graphql(FakeShopify::shop(), 'tagsAdd', 'mutation { tagsAdd(id: "x", tags: []) { userErrors { message } } }', [], $fake->opts(['retry_mode' => 'idempotent']));
+
+		$this->assertSame(['failed', 'graphql_errors', 1], [$r['outcome'], $r['error'], $r['attempts']]);
+		$this->assertFalse($r['retryable']);
+		$this->assertCount(1, $fake->calls);
 	}
 
 	public function test_idempotent_mutation_is_resent_after_a_timeout(): void
@@ -301,6 +420,10 @@ final class ClientRetryTest extends TestCase
 			'aliased field' => ['import', 'mutation { made: customerCreate(input: {}) { customer { id } userErrors { message } } }', []],
 			'note in variables' => ['addNote', 'mutation u($input: OrderInput!) { orderUpdate(input: $input) { userErrors { message } } }', ['input' => ['id' => 'gid://shopify/Order/1', 'note' => 'x']]],
 			'note inline' => ['addNote', 'mutation { orderUpdate(input: {id: "gid://shopify/Order/1", note: "x"}) { userErrors { message } } }', []],
+			'note comma' => ['addNote', 'mutation { orderUpdate(input: {id: "gid://shopify/Order/1", note,: "x"}) { userErrors { message } } }', []],
+			'note BOM' => ['addNote', "mutation { orderUpdate(input: {id: \"gid://shopify/Order/1\", note\u{FEFF}: \"x\"}) { userErrors { message } } }", []],
+			'note mixed separators' => ['addNote', "mutation { orderUpdate(input: {id: \"gid://shopify/Order/1\", note ,\u{FEFF}\n,: \"x\"}) { userErrors { message } } }", []],
+			'note next to invalid UTF-8' => ['addNote', "mutation { orderUpdate(input: {id: \"gid://shopify/Order/1\", note: \"x\"}) { userErrors { message \xFF } } }", []],
 			'fragment first' => ['createOrder', "fragment f on Order { id }\nmutation { orderCreate(order: {}) { order { ...f } userErrors { message } } }", []],
 			'hash in a string' => ['tag', 'mutation { tagsAdd(id: "#", tags: []) { userErrors { message } } b: orderCreate(order: {}) { userErrors { message } } }', []],
 			'leading comma' => ['import', ', mutation { orderCreate(order: {}) { order { id } } }', []],
@@ -413,6 +536,22 @@ final class ClientRetryTest extends TestCase
 
 		$this->expectException(TypeError::class);
 		shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+	}
+
+	public function test_a_logic_exception_in_the_reconcile_callback_is_rethrown(): void
+	{
+		foreach ([new LogicException('bug in callback'), new InvalidArgumentException('wrong retry_mode')] as $exception) {
+			$fake = new FakeShopify([FakeShopify::timeout()]);
+			$reconcile = fn(): array => throw $exception;
+
+			try {
+				shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+				$this->fail('programming error was swallowed as uncertain');
+			} catch (LogicException $e) {
+				$this->assertSame($exception, $e);
+			}
+			$this->assertCount(1, $fake->calls);
+		}
 	}
 
 	public function test_an_order_update_without_a_note_may_be_idempotent(): void

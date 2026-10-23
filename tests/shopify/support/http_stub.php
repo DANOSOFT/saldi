@@ -6,6 +6,12 @@
 //
 // History:
 // 20261021 CL/SZ created (SD-747).
+// 20261023 CDX/LH Restrict the HTTP stub to PHP's built-in development server.
+
+if (PHP_SAPI !== 'cli-server') {
+	http_response_code(404);
+	exit;
+}
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 header('Content-Type: application/json');

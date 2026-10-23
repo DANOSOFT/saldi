@@ -8,6 +8,7 @@
 //
 // History:
 // 20261021 CL/SZ created (SD-747).
+// 20261023 CDX/LH Cover a missing bulk operation as a terminal polling failure.
 
 use PHPUnit\Framework\TestCase;
 
@@ -187,6 +188,21 @@ final class ClientBulkTest extends TestCase
 		$this->assertTrue($done['done']);
 		$this->assertSame($node['url'], $done['bulk']['url']);
 		$this->assertSame(['id' => self::OP], $fake->calls[0]['body']['variables']);
+	}
+
+	public function test_poll_null_operation_is_not_found_and_done(): void
+	{
+		$fake = new FakeShopify([FakeShopify::ok(['bulkOperation' => null])]);
+
+		$r = shopify_bulk_poll(FakeShopify::shop(), self::OP, $fake->opts());
+
+		$this->assertFalse($r['ok']);
+		$this->assertSame('failed', $r['outcome']);
+		$this->assertSame('not_found', $r['error']);
+		$this->assertTrue($r['done']);
+		$this->assertFalse($r['retryable']);
+		$this->assertNull($r['bulk']);
+		$this->assertCount(1, $fake->calls);
 	}
 
 	public function test_poll_failure_is_not_done(): void
