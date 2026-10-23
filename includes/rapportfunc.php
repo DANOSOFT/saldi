@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- ver 5.0.0 --- 2026-10-15 ---
+// --- includes/rapportfunc.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -96,6 +96,8 @@
 //                 Rykker sections are closed tables with their rows in tbody, and the layout and footer are closed once at the end.
 //                 The rykker forms post the account filter, mode, paging, PBS and aging state, so an action re-renders the same view.
 // 20261015 CL/LH PR #697 review: PHPDoc blocks on openpost(), bogfor_rykker(), kontokort() and kontosaldo().
+// 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
+//                collide with ids used by other open branches.
 include_once(__DIR__ . '/reportFunc/showOpenPosts.php');
 
 /**
@@ -256,9 +258,9 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	}
 
 	// Creditors have no rykker overview: their "hide" mode keeps the old 927 label and title.
-	$hideLabel = ($kontoart == 'K') ? findtekst('927|Skjul åbne poster', $sprog_id) : findtekst('5522|Vis kun rykkere', $sprog_id);
+	$hideLabel = ($kontoart == 'K') ? findtekst('927|Skjul åbne poster', $sprog_id) : findtekst('7605|Vis kun rykkere', $sprog_id);
 	if ($skjul_aabenpost == 'on') {
-		$title = ($kontoart == 'K') ? $hideLabel : findtekst('5546|Rykkere', $sprog_id);
+		$title = ($kontoart == 'K') ? $hideLabel : findtekst('7629|Rykkere', $sprog_id);
 	}
 
 	if ($vis_alle_poster == 'on') {
@@ -390,17 +392,17 @@ a:link{text-decoration:none;}</style>\n";
 			if ($vis_aaben_rykker == 'on' || $vis_inkasso == 'on' || $vis_bogfort_rykker == 'on' || $vis_afsluttet_rykker == 'on') {
 				$legendLevels = array();
 				foreach (array(1 => '#000000', 2 => '#CC6600', 3 => '#ff0000') as $level => $levelColor) {
-					$legendLevels[] = "<span style='color:$levelColor;'>" . htmlspecialchars(sprintf(findtekst('5534|%s. rykker', $sprog_id), $level), ENT_QUOTES) . "</span>";
+					$legendLevels[] = "<span style='color:$levelColor;'>" . htmlspecialchars(sprintf(findtekst('7617|%s. rykker', $sprog_id), $level), ENT_QUOTES) . "</span>";
 				}
-				$legend = htmlspecialchars(findtekst('5533|Rækkefarve', $sprog_id), ENT_QUOTES) . ": " . implode(", ", $legendLevels);
+				$legend = htmlspecialchars(findtekst('7616|Rækkefarve', $sprog_id), ENT_QUOTES) . ": " . implode(", ", $legendLevels);
 				$legend .= " &nbsp;&middot;&nbsp; " . htmlspecialchars(findtekst('934|Beløb', $sprog_id), ENT_QUOTES) . ": ";
-				$legend .= "<span style='color:#00aa00;'>" . htmlspecialchars(findtekst('5535|alle poster betalt', $sprog_id), ENT_QUOTES) . "</span>, ";
-				$legend .= "<span style='color:#0000aa;'>" . htmlspecialchars(findtekst('5536|delvist betalt', $sprog_id), ENT_QUOTES) . "</span>";
+				$legend .= "<span style='color:#00aa00;'>" . htmlspecialchars(findtekst('7618|alle poster betalt', $sprog_id), ENT_QUOTES) . "</span>, ";
+				$legend .= "<span style='color:#0000aa;'>" . htmlspecialchars(findtekst('7619|delvist betalt', $sprog_id), ENT_QUOTES) . "</span>";
 			}
 			print "{$rowOpen}<div id='opRykkere' style='padding:12px 6px 6px 6px;font-size:90%;color:#444;'>$legend</div>$rowClose";
 			// Section number => request parameter that expands it, title.
 			$sections = array(
-				1 => array('vis_aaben_rykker', findtekst('5532|Åbne rykkere', $sprog_id)),
+				1 => array('vis_aaben_rykker', findtekst('7615|Åbne rykkere', $sprog_id)),
 				2 => array('vis_inkasso', findtekst(1135, $sprog_id)),
 				3 => array('vis_bogfort_rykker', findtekst(1136, $sprog_id)),
 				4 => array('vis_afsluttet_rykker', findtekst(1137, $sprog_id)),

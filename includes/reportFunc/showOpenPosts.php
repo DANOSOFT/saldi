@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-10-15 ---
+// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,6 +111,8 @@
 // 20261015 CL/LH PR #697 rebase on SST-863: the SQL visibility mirror reads the group close date on a past
 //                 report date like openpost_account_aging(). Review: the menu T layout prints its paging line
 //                 once, above the rows.
+// 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
+//                 collide with ids used by other open branches.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -210,7 +212,7 @@ function openpost_aging_buckets() {
 		'30-60'  => array('key' => 'forfalden_plus30', 'label' => '30-60'),
 		'8-30'   => array('key' => 'forfalden_plus8',  'label' => '8-30'),
 		'0-8'    => array('key' => 'forfalden',        'label' => '0-8'),
-		'ikke'   => array('key' => 'ikke_forfalden',   'label' => findtekst('5500|Ikke forfalden', $sprog_id))
+		'ikke'   => array('key' => 'ikke_forfalden',   'label' => findtekst('7600|Ikke forfalden', $sprog_id))
 	);
 }
 }
@@ -856,7 +858,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	// is display-only and is not carried over (see openpost_export_csv()'s own comment on why).
 	$csvUrl=$reportUrl."&openpost_csv=1";
 	if ($agingBucket) $csvUrl.= "&aging_bucket=".rawurlencode($agingBucket);
-	$csvLabel=htmlspecialchars(findtekst('5531|Eksporter CSV',$sprog_id),ENT_QUOTES);
+	$csvLabel=htmlspecialchars(findtekst('7614|Eksporter CSV',$sprog_id),ENT_QUOTES);
 	$csvTitle=htmlspecialchars(findtekst('5152|Eksporter alle konti under de valgte filtre til CSV, uden sideopdeling',$sprog_id),ENT_QUOTES);
 
 	$filterTitle=htmlspecialchars(findtekst('5121|Vis kun konti med beløb i denne kolonne',$sprog_id),ENT_QUOTES);
@@ -879,7 +881,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$headerCell['total']=findtekst('5019|I alt',$sprog_id).(($agingBucket) ? "" : $sortLinks);
 
 	// One line that states what the grid shows: report date, account selection, mode, filter and sort.
-	if ($vis_alle) $modeLabel=findtekst('5555|Alle poster',$sprog_id);
+	if ($vis_alle) $modeLabel=findtekst('7631|Alle poster',$sprog_id);
 	elseif ($kun_debet) $modeLabel=findtekst('925|Kun konti i debet',$sprog_id);
 	elseif ($kun_kredit) $modeLabel=findtekst('926|Kun konti i kredit',$sprog_id);
 	else $modeLabel=findtekst('441|Åbne poster',$sprog_id);
@@ -887,24 +889,24 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
 		$accountsLabel=($konto_fra == $konto_til) ? $konto_fraHtml : "$konto_fraHtml&ndash;$konto_tilHtml";
 	} elseif (!empty($konto_fra) && $konto_fra != '*') {
-		$accountsLabel=htmlspecialchars(findtekst('5526|søgning',$sprog_id),ENT_QUOTES)." &lsquo;$konto_fraHtml&rsquo;";
+		$accountsLabel=htmlspecialchars(findtekst('7609|søgning',$sprog_id),ENT_QUOTES)." &lsquo;$konto_fraHtml&rsquo;";
 	} else {
 		$accountsLabel=htmlspecialchars(mb_strtolower(findtekst('2498|Alle',$sprog_id),'UTF-8'),ENT_QUOTES);
 	}
 	$summary=array();
-	$summary[]=htmlspecialchars(findtekst('5525|Opgjort pr.',$sprog_id),ENT_QUOTES)." <b>".dkdato($todate)."</b>";
+	$summary[]=htmlspecialchars(findtekst('7608|Opgjort pr.',$sprog_id),ENT_QUOTES)." <b>".dkdato($todate)."</b>";
 	$summary[]=htmlspecialchars(findtekst('117|Konti',$sprog_id),ENT_QUOTES).": <b>$accountsLabel</b>";
 	$summary[]=htmlspecialchars(findtekst('813|Visning',$sprog_id),ENT_QUOTES).": <b>$modeLabel</b>";
 	if ($agingBucket) {
 		$summary[]=htmlspecialchars(findtekst('5124|Filter',$sprog_id),ENT_QUOTES).": <b>".htmlspecialchars($buckets[$agingBucket]['label'],ENT_QUOTES)."</b> <a class='op-link' href=\"$clearUrl\">".$clearTitle."</a>";
 	}
 	if ($orderBy) {
-		$summary[]=htmlspecialchars(findtekst('5527|Sorteret efter beløb',$sprog_id),ENT_QUOTES)." ".(($orderDir == 'asc') ? '&uarr;' : '&darr;');
+		$summary[]=htmlspecialchars(findtekst('7610|Sorteret efter beløb',$sprog_id),ENT_QUOTES)." ".(($orderDir == 'asc') ? '&uarr;' : '&darr;');
 	}
 	$summaryHtml="<div class='op-summary'><span>".implode(" &nbsp;&middot;&nbsp; ", $summary)."</span>";
 	if ($rykkerAnchor) {
 		$summaryHtml.="<a class='op-link' href='#opRykkere' onclick=\"var e=document.getElementById('opRykkere'); if (e) {e.scrollIntoView({behavior: 'smooth'}); return false;}\">";
-		$summaryHtml.=htmlspecialchars(findtekst('5528|Gå til rykkere',$sprog_id),ENT_QUOTES)." &darr;</a>";
+		$summaryHtml.=htmlspecialchars(findtekst('7611|Gå til rykkere',$sprog_id),ENT_QUOTES)." &darr;</a>";
 	}
 	$summaryHtml.="</div>";
 
@@ -923,7 +925,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	if ($agingBucket) $searchRow.="<input type='hidden' name='aging_bucket' value='$agingBucket'>";
 	if ($orderBy) $searchRow.="<input type='hidden' name='order_by' value='$orderBy'><input type='hidden' name='order_dir' value='$orderDir'>";
 	$searchRow.="<input class='inputbox' type='text' name='kontonr' value=\"$searchValue\" style='width:260px;'";
-	$searchRow.=" placeholder=\"".htmlspecialchars(findtekst('5530|Kontonr., fra:til eller navn (* = joker)',$sprog_id),ENT_QUOTES)."\"";
+	$searchRow.=" placeholder=\"".htmlspecialchars(findtekst('7613|Kontonr., fra:til eller navn (* = joker)',$sprog_id),ENT_QUOTES)."\"";
 	$searchRow.=" title=\"".htmlspecialchars(findtekst('5123|Kontonr., interval (fra:til) eller firmanavn (* = jokertegn)',$sprog_id),ENT_QUOTES)."\"> ";
 	$searchRow.="<input type='submit' value=\"".htmlspecialchars(findtekst(913,$sprog_id),ENT_QUOTES)."\"></form>";
 	$searchRow.=" &nbsp; <input type='button' value=\"$csvLabel\" title=\"$csvTitle\" onclick=\"location.href='".htmlspecialchars($csvUrl,ENT_QUOTES)."';\">";
@@ -932,15 +934,15 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	// Header checkbox that ticks every account of the page for Mail kontoudtog/Opret rykker.
 	$selectAllCell="";
 	if ($kontoart=='D') {
-		$selectAllTitle=htmlspecialchars(findtekst('5529|Vælg konti til kontoudtog/rykker',$sprog_id),ENT_QUOTES);
+		$selectAllTitle=htmlspecialchars(findtekst('7612|Vælg konti til kontoudtog/rykker',$sprog_id),ENT_QUOTES);
 		$selectAllCell="<label class='checkContainerOrdreliste' title=\"$selectAllTitle\"><input type=checkbox onclick='opToggleAll(this);'><span class='checkmarkOrdreliste'></span></label>";
 	}
 	$leadColspan=($usePBS) ? 3 : 2;
-	$daysOverdue=htmlspecialchars(findtekst('5523|Dage over forfald',$sprog_id),ENT_QUOTES);
+	$daysOverdue=htmlspecialchars(findtekst('7606|Dage over forfald',$sprog_id),ENT_QUOTES);
 	$groupRow="<tr class='op-group-row'><th colspan='$leadColspan'></th><th colspan='5' class='op-group'>$daysOverdue</th><th colspan='3'></th></tr>";
 	if ($usePBS) {
 		$pbsToggleLabel=htmlspecialchars(mb_strtolower(findtekst(($showPBS) ? '1132|Skjul' : '1133|Vis',$sprog_id),'UTF-8'),ENT_QUOTES);
-		$pbsToggleTitle=htmlspecialchars(findtekst(($showPBS) ? '5556|Skjul PBS-kunder' : '5557|Vis PBS-kunder',$sprog_id),ENT_QUOTES);
+		$pbsToggleTitle=htmlspecialchars(findtekst(($showPBS) ? '7632|Skjul PBS-kunder' : '7633|Vis PBS-kunder',$sprog_id),ENT_QUOTES);
 		$pbsHeader="PBS <a class='op-filter' href='$pbsToggleUrl' title='$pbsToggleTitle'>($pbsToggleLabel)</a>";
 	}
 	$labelCells="<th align=left>Kontonr.</th>";
@@ -1157,14 +1159,14 @@ function opToggleAll(box) {
 	// Only offer the paging toggle when the result is bigger than one default page.
 	$showPagingBar=($totalKontoantal > (($openpostShowAll) ? $openpostDefaultPageSize : $openpostPageSize));
 	if ($openpostShowAll) {
-		$pageSizeToggle="<a class='op-link' href=\"$pagedUrl\">".htmlspecialchars(sprintf(findtekst('5521|Vis %s konti pr. side',$sprog_id),$openpostDefaultPageSize),ENT_QUOTES)."</a>";
+		$pageSizeToggle="<a class='op-link' href=\"$pagedUrl\">".htmlspecialchars(sprintf(findtekst('7604|Vis %s konti pr. side',$sprog_id),$openpostDefaultPageSize),ENT_QUOTES)."</a>";
 	} else {
-		$pageSizeToggle="<a class='op-link' href=\"$showAllUrl\">".htmlspecialchars(findtekst('5520|Vis alle konti på én side',$sprog_id),ENT_QUOTES)."</a>";
+		$pageSizeToggle="<a class='op-link' href=\"$showAllUrl\">".htmlspecialchars(findtekst('7603|Vis alle konti på én side',$sprog_id),ENT_QUOTES)."</a>";
 	}
 	$pagingHtml="";
 	if ($showPagingBar) {
 		if ($openpostShowAll) {
-			$pagingHtml=htmlspecialchars(sprintf(findtekst('5558|Viser alle %s konti',$sprog_id),$kontoantal),ENT_QUOTES);
+			$pagingHtml=htmlspecialchars(sprintf(findtekst('7634|Viser alle %s konti',$sprog_id),$kontoantal),ENT_QUOTES);
 		} else {
 			if ($openpostPage > 1) $pagingHtml.="<a class='op-link' href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a> &nbsp;";
 			$pagingHtml.="Viser $displayFirst-$displayLast af $kontoantal";
@@ -1249,7 +1251,7 @@ function opToggleAll(box) {
 	}
 
 	// "I alt" only when every matching account is on this page; otherwise the sum covers this page.
-	$totalLabel=($allAccountsLoaded) ? findtekst('5019|I alt',$sprog_id) : findtekst('5524|I alt (denne side)',$sprog_id);
+	$totalLabel=($allAccountsLoaded) ? findtekst('5019|I alt',$sprog_id) : findtekst('7607|I alt (denne side)',$sprog_id);
 	$totalLabel=htmlspecialchars($totalLabel,ENT_QUOTES);
 	($usePBS) ? $colspan = 2 : $colspan = 1 ;
 	if ($menu=='T') {
@@ -1297,23 +1299,23 @@ function opToggleAll(box) {
 			// so quotes in request-supplied values cannot break out of it (XSS).
 			$udlignUrl=$pageUrl.'&udlign='.rawurlencode($udlign);
 			$udlignCount=count(explode(',',$udlign));
-			if ($udlignCount == 1) $udlignConfirm=findtekst('5547|Udlign 1 konto med saldo 0,00?',$sprog_id);
-			else $udlignConfirm=sprintf(findtekst('5543|Udlign %s konti med saldo 0,00?',$sprog_id),$udlignCount);
-			$udlignTitle=htmlspecialchars(findtekst('5544|Udligner alle viste konti hvor saldoen er 0,00',$sprog_id),ENT_QUOTES);
+			if ($udlignCount == 1) $udlignConfirm=findtekst('7630|Udlign 1 konto med saldo 0,00?',$sprog_id);
+			else $udlignConfirm=sprintf(findtekst('7626|Udlign %s konti med saldo 0,00?',$sprog_id),$udlignCount);
+			$udlignTitle=htmlspecialchars(findtekst('7627|Udligner alle viste konti hvor saldoen er 0,00',$sprog_id),ENT_QUOTES);
 			$udlignClick=htmlspecialchars("if (confirm(".json_encode($udlignConfirm,$jsonFlags).")) location.href=".json_encode($udlignUrl,$jsonFlags).";",ENT_QUOTES);
 			$actionsHtml.="<input type='button' onclick=\"$udlignClick\" title=\"$udlignTitle\" value='Udlign alle'>&nbsp;&nbsp;";
 		}
 		// Ryk alle runs ny_rykker.php for every debtor unless ticked accounts with an overdue amount
 		// exist (then only for those, like Opret rykker) - the confirm states which of the two happens.
-		$rykAlleAll=findtekst('5537|Ryk alle kører rykkerkørslen for ALLE debitorer - ikke kun de viste eller afmærkede konti. Den vil:',$sprog_id);
-		foreach (array('5538|udligne konti hvis åbne poster giver 0,00, og slette deres åbne rykkere', '5539|slette åbne rykkere for konti uden åbne poster', '5540|oprette rykkere for forfaldne poster, der endnu ikke er rykket for', '5541|bogføre rykkere hvis frist er overskredet, og oprette næste rykker') as $textId) {
+		$rykAlleAll=findtekst('7620|Ryk alle kører rykkerkørslen for ALLE debitorer - ikke kun de viste eller afmærkede konti. Den vil:',$sprog_id);
+		foreach (array('7621|udligne konti hvis åbne poster giver 0,00, og slette deres åbne rykkere', '7622|slette åbne rykkere for konti uden åbne poster', '7623|oprette rykkere for forfaldne poster, der endnu ikke er rykket for', '7624|bogføre rykkere hvis frist er overskredet, og oprette næste rykker') as $textId) {
 			$rykAlleAll.="\n- ".findtekst($textId,$sprog_id);
 		}
 		$rykAlleContinue="\n\n".findtekst('1991|Fortsæt',$sprog_id)."?";
 		$rykAlleAll.=$rykAlleContinue;
-		$rykAlleSelected=findtekst('5542|Der er afmærket %s konti med forfaldent beløb, så Ryk alle opretter kun rykkere for dem (som Opret rykker).',$sprog_id).$rykAlleContinue;
-		$rykAlleSelectedOne=findtekst('5559|Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).',$sprog_id).$rykAlleContinue;
-		$rykAlleTitle=htmlspecialchars(findtekst('5545|Rykkerkørsel for alle debitorer - eller kun for de afmærkede konti med forfaldent beløb',$sprog_id),ENT_QUOTES);
+		$rykAlleSelected=findtekst('7625|Der er afmærket %s konti med forfaldent beløb, så Ryk alle opretter kun rykkere for dem (som Opret rykker).',$sprog_id).$rykAlleContinue;
+		$rykAlleSelectedOne=findtekst('7635|Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).',$sprog_id).$rykAlleContinue;
+		$rykAlleTitle=htmlspecialchars(findtekst('7628|Rykkerkørsel for alle debitorer - eller kun for de afmærkede konti med forfaldent beløb',$sprog_id),ENT_QUOTES);
 		print "<script>
 function opConfirmRykAlle() {
 	var n = 0;

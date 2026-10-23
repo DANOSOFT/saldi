@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------ver 5.0.0 ----2026-10-15--------------
+// -------debitor/rapport.php------ver 5.0.0 ----2026-10-23--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,8 @@
 // 20261001 CDX/LAH Encode sales-statistics redirects and use ifset for the reminder count lookup.
 // 20261015 CL/LH PR #697 review: "Slet" deletes each reminder's lines and order inside one transaction,
 //                and autoudlign_liste() has a PHPDoc block.
+// 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
+//                collide with ids used by other open branches.
 
 @session_start();
 $s_id = session_id();
@@ -187,7 +189,7 @@ JS;
 	}
 	$jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
 	$url = json_encode($page . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986), $jsonFlags);
-	$label = json_encode(html_entity_decode(findtekst('5511|Din browser blokerede vinduet. Klik her for at &aring;bne resultatet.', $sprog_id), ENT_QUOTES, 'UTF-8'), $jsonFlags);
+	$label = json_encode(html_entity_decode(findtekst('7602|Din browser blokerede vinduet. Klik her for at &aring;bne resultatet.', $sprog_id), ENT_QUOTES, 'UTF-8'), $jsonFlags);
 	$features = json_encode((string)$jsvars, $jsonFlags);
 	print "<script>window.addEventListener('load', function () { saldiOpenOrLink($url, $label, $features);";
 	if ($notice !== '') {
@@ -237,7 +239,7 @@ function rapport_account_action($submit, $konto_id, $kontoudtog, $rykkerbelob, $
 		}
 		$notice = '';
 		if ($skipped) {
-			$notice = sprintf(findtekst('5510|%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent bel&oslash;b.', $sprog_id), $skipped);
+			$notice = sprintf(findtekst('7601|%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent bel&oslash;b.', $sprog_id), $skipped);
 		}
 		rapport_result_popup('ny_rykker.php', $params, $jsvars, $sprog_id, $notice);
 		return true;
