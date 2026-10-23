@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261002 CL/NTR Created from autoudlign.php's local helper so any page can get UTF-8 text from findtekst().
 //                 Accepts a string, a list or a keyed array of text ids.
+// 20261022 CL/NTR Text ids may now also be descriptive string keys (tekst_key); they flow through unchanged.
 
 if (!function_exists('findtekst_utf8')) {
 	/**

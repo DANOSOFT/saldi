@@ -306,7 +306,9 @@ if (isset($_POST['opret'])){
 	$qtxt.= "kodeord text, kontrol_id text, aktiv int, logtime text,slettet varchar(2),tlf text,affiliate text, ";
 	$qtxt.= "referer text, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst text, PRIMARY KEY (id))";
+	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst_key varchar(190), tekst text, PRIMARY KEY (id))";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$qtxt = "CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE revisor";
 	$qtxt.= "(id serial NOT NULL,regnskabsaar integer,bruger_id integer,brugernavn text,db_id integer,PRIMARY KEY (id))";
