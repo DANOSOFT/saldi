@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.14
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.19
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -117,6 +117,7 @@
 // 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
 //                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
 //                  so the one-time build no longer blocks writes to adresser during a login.
+// 20261019 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that automatic settlement left without one.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1447,6 +1448,37 @@ if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHE
 		}
 		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
 	}
+}
+
+// 20261019 CL/LH MB-72: automatic settlement (equalizeMatchingRecords() and the journal's openpost())
+// closed open posts without a settlement date. Give each settled group still missing one the latest
+// transaction date in the group, which is what both now write. Rows settled without an udlign_id
+// cannot be grouped and are left alone. One-time, gated by a settings flag like
+// pool_files_norm_amount_backfilled above; the update itself only touches udlignet = '1' rows whose
+// udlign_date is NULL, so running it twice changes nothing.
+$udlignDateBackfilled = db_fetch_array(db_select(
+	"SELECT var_value FROM settings WHERE var_name = 'openpost_udlign_date_backfilled' AND var_grp = 'system'",
+	__FILE__ . " linje " . __LINE__
+));
+if (!$udlignDateBackfilled) {
+	$udlignGroups = "SELECT udlign_id, MAX(transdate) AS max_date FROM openpost";
+	$udlignGroups.= " WHERE udlignet = '1' AND udlign_id > 0 GROUP BY udlign_id";
+	if (in_array($db_type, ['mysql', 'mysqli'], true)) {
+		// MySQL has no UPDATE ... FROM; the grouped derived table is materialized, so it may read openpost.
+		$qtxt = "UPDATE openpost JOIN ($udlignGroups) udlign_group ON openpost.udlign_id = udlign_group.udlign_id";
+		$qtxt.= " SET openpost.udlign_date = udlign_group.max_date";
+		$qtxt.= " WHERE openpost.udlignet = '1' AND openpost.udlign_date IS NULL";
+	} else {
+		$qtxt = "UPDATE openpost SET udlign_date = udlign_group.max_date FROM ($udlignGroups) udlign_group";
+		$qtxt.= " WHERE openpost.udlign_id = udlign_group.udlign_id";
+		$qtxt.= " AND openpost.udlignet = '1' AND openpost.udlign_date IS NULL";
+	}
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify(
+		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+		VALUES ('openpost_udlign_date_backfilled', 'system', 'yes', 'One-time backfill of openpost.udlign_date for settled groups that had none')",
+		__FILE__ . " linje " . __LINE__
+	);
 }
 
 ?>
