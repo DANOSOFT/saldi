@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------debitor/sync_stamkort.php--------lap 5.0.7-------2023.01.23--------------
+// --------------debitor/sync_stamkort.php--------ver 5.0.0-------2026.10.23--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2008-2023 Saldi.dk ApS
+// Copyright (c) 2008-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230123 PHR Replaced addslashes by db_escape_string
+// 20261023 CL/MMR SST-887 Arrow up now also sets fornavn/efternavn for private customers.
+//                 Only firmanavn was updated, so the card kept the old name and saving it restored that name.
+//                 ordre_id and konto_id are cast to int before use in SQL.
 
 @session_start();
 $s_id=session_id();
@@ -31,8 +34,8 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$ordre_id=if_isset($_GET['ordre_id']);
-$konto_id=if_isset($_GET['konto_id']);
+$ordre_id=(int)if_isset($_GET['ordre_id']);
+$konto_id=(int)if_isset($_GET['konto_id']);
 $retning=if_isset($_GET['retning']);
 
 if ($ordre_id && $konto_id) {
@@ -52,7 +55,18 @@ if ($ordre_id && $konto_id) {
 	$ean=db_escape_string($r['ean']);
 	$institution=db_escape_string($r['institution']);
 	if ($retning=='op') {
-		$qtxt = "update adresser set ";
+		// A private customer's card shows fornavn/efternavn and rebuilds firmanavn from them on save,
+		// so they must follow the new name: last word is efternavn, the rest is fornavn.
+		$navnefelter = '';
+		$qtxt = "select kontotype from adresser where id='$konto_id'";
+		$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if ($r2 && $r2['kontotype'] == 'privat') {
+			$navnedele = preg_split('/\s+/', trim((string)$r['firmanavn']), -1, PREG_SPLIT_NO_EMPTY);
+			$efternavn = (count($navnedele) > 1) ? array_pop($navnedele) : '';
+			$fornavn = implode(' ', $navnedele);
+			$navnefelter = "fornavn='" . db_escape_string($fornavn) . "',efternavn='" . db_escape_string($efternavn) . "',";
+		}
+		$qtxt = "update adresser set $navnefelter";
 		$qtxt.= "firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',land='$land',";
 		$qtxt.= "cvrnr='$cvrnr',betalingsbet='$betalingsbet',betalingsdage='$betalingsdage',email='$email',ean='$ean',";
 		$qtxt.= "institution='$institution' where id='$konto_id'";
