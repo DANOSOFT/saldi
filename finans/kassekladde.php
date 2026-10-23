@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-13 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -158,6 +158,8 @@
 // 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
 // 20261003 CL/SZ SD-721 "Opret kreditor automatisk" in the gear box, per user, off by default; stored in box3 as kred_auto when on (save_kk_cols).
 //                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
+// 20261003 CL/SZ SD-722 "Udfyld modkonto automatisk" in the gear box, per user, off by default; stored in box3 as modk_auto when on.
+//                On, the document pool writes the suggested contra account into Debet instead of showing it under the field.
 // 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
 //                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
 //                and the journal then refused every save.
@@ -173,6 +175,9 @@
 // 20261012 CL/SZ SD-730 The paper-clip on a journal that was never saved saves it first even with nothing typed; it opened the pool
 //                with kladde_id=0, where "Indsæt valgte" inserted nothing and came back to an empty journal.
 //                (Reported under SD-730; the fix is here because the save-first clip is SD-716's.)
+// 20261022 CL/NTR The kredit genvej alert built its text from $txt1/$txt2 (only set in the debet branch), so an undefined
+//                 genvej letter in Kredit printed just the account and the bilag number with a space. It now uses this
+//                 branch's own $alert1/$alert2, matching the debet alert.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -718,8 +723,8 @@ $kk_toggle_cols = array(
 );
 // Panel-sektioner i det blaa kontoopslag - ikke tabelkolonner, men gemmes/fravaelges via samme mekanisme
 $kk_panel_opts = array('ac_forslag', 'ac_opslag');
-// Switches that are off by default and stored when on (SD-721: kred_auto, "Opret kreditor automatisk")
-$kk_user_opts = array('kred_auto');
+// Switches that are off by default and stored when on (SD-721: kred_auto, "Opret kreditor automatisk"; SD-722: modk_auto, "Udfyld modkonto automatisk")
+$kk_user_opts = array('kred_auto', 'modk_auto');
 
 
 // (int)$bruger_id != 0: revisor/admin sessions have bruger_id = -1 (online.php) and must also
@@ -2984,6 +2989,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kkAutoKred = findtekst('5359|Opret kreditor automatisk', $sprog_id);
 		$checked = in_array('kred_auto', $kk_opts_on, true) ? 'checked' : '';
 		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle' data-opt='kred_auto' $checked><span>" . htmlspecialchars($kkAutoKred, ENT_QUOTES, $charset) . "</span></label>";
+		// SD-722: on, the document pool fills Debet with the contra account suggested from the kreditor's history
+		$kkAutoModk = findtekst('5390|Udfyld modkonto automatisk', $sprog_id);
+		$checked = in_array('modk_auto', $kk_opts_on, true) ? 'checked' : '';
+		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle' data-opt='modk_auto' $checked><span>" . htmlspecialchars($kkAutoModk, ENT_QUOTES, $charset) . "</span></label>";
 		print "</div>";
 		print "<div class='kkVisFoot'><button type='button' id='kkVisShowAll'>" . htmlspecialchars($kkVisShowAll, ENT_QUOTES, $charset) . "</button></div>";
 		print "</div>";
@@ -4244,7 +4253,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$alert1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$alert2 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
-					$alerttekst = addslashes($kredit . " " . $txt1 . " " . $bilag . $txt2); # 20230306 added spaces
+					$alerttekst = addslashes($kredit . " " . $alert1 . " " . $bilag . $alert2); # 20230306 added spaces
 					alert($alerttekst);
 					$fejl = 1;
 				}
