@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-09-25--------------
+// --- includes/db_query.php ---ver 5.0.0 ----2026-10-23--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -57,6 +57,8 @@
 //                engines that need it after db_connect() (MySQLi; no-op on Postgres). Callers
 //                that reconnect to switch tenant/master keep their own error handling; this
 //                just gives them one place to call instead of hand-rolling the mysqli check.
+// 20261022 CDX/LH Return the transaction query result so Stripe booking can check BEGIN and COMMIT failures.
+// 20261023 CDX/LH Handle absent PostgreSQL optional tables without indexing an empty query result.
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -495,6 +497,7 @@ if (!function_exists('db_num_fields')) {
 }
 
 if (!function_exists('transaktion')) {
+	/** @return mixed Database command result, or false when BEGIN/COMMIT/ROLLBACK fails. */
 	function transaktion($qtext){
 		global $brugernavn;
 		global $db_type;
@@ -520,7 +523,7 @@ if (!function_exists('transaktion')) {
 		} else {
 			$query = pg_query($connection, $qtext);
 		}
-
+		return $query;
 	}
 }
 
@@ -597,8 +600,9 @@ if (!function_exists('saldi_schema_filter')) {
 }
 
 if (!function_exists('tbl_exists')) {
+	/** @return int 1 when the table exists, otherwise 0. */
 	function tbl_exists($table) {
- 		global $connection,$db,$db_type;
+		global $connection,$db,$db_type;
 		if ($db_type=="mysql") {
 			# 20260812 CL/LH (SD-644): COUNT(*) returnerer altid en raekke - tjek vaerdien, ikke om der kom en raekke
 			# 20260827 CL/NTR (SD-644): SELECT 1 i stedet for COUNT(*) - COUNT(*) gav altid en raekke, saa "kom der en raekke" sagde intet om tabellen findes
@@ -610,7 +614,7 @@ if (!function_exists('tbl_exists')) {
 		} else {
 			$qtxt="SELECT tablename FROM pg_tables where tablename='$table'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			($r['tablename'])?$tbl_exists=1:$tbl_exists=0;
+			($r)?$tbl_exists=1:$tbl_exists=0;
 		}
 		return($tbl_exists);
 	}

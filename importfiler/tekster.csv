@@ -1,4 +1,5 @@
 1	Dansk	English	Norsk
+// 20261022 CDX/LH Add Stripe master-port invoice, enrolment and independent signup settings texts.
 2	Vælg aktivt sprog	Select active language	Velg aktivt språk
 3	Gem	Save	Lagre
 4	Nyt sprog	New language	Nytt språk
@@ -6794,5 +6795,22 @@
 7104	Link til faktura og betaling	Link to invoice and payment	Lenke til faktura og betaling
 7105	Tekst i link-mailen	Text in the link e-mail	Tekst i lenke-e-posten
 7106	Resten af mailen er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.	The rest of the e-mail is fixed. [Fornavn] is replaced by the contact person's first name. Empty = the default text.	Resten av e-posten er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.
+7107	Kortbetaling af fakturaer	Invoice card payments	Kortbetaling av fakturaer
+7108	Tillad link-mails og betaling på fakturasiden. Standard: fra.	Allow link emails and payments on the invoice page. Default: off.	Tillat lenke-e-post og betaling på fakturasiden. Standard: av.
+7109	Gem kort og betal automatisk	Save cards and pay automatically	Lagre kort og betal automatisk
+7110	Tillad korttilmelding og automatisk træk. Kræver kortbetaling af fakturaer. Standard: fra.	Allow card enrolment and automatic collection. Requires invoice card payments. Default: off.	Tillat kortregistrering og automatisk trekk. Krever kortbetaling av fakturaer. Standard: av.
+7111	Nye Stripe-abonnementer	New Stripe subscriptions	Nye Stripe-abonnementer
+7112	Tillad nye abonnementstilmeldinger. Eksisterende abonnementer fortsætter. Standard: til.	Allow new subscription signups. Existing subscriptions continue. Default: on.	Tillat nye abonnementer. Eksisterende abonnementer fortsetter. Standard: på.
+7113	Offentlig Stripe-nøgle	Stripe publishable key	Offentlig Stripe-nøkkel
+7114	pk_test_... eller pk_live_... fra samme Stripe-konto som den hemmelige nøgle.	pk_test_... or pk_live_... from the same Stripe account as the secret key.	pk_test_... eller pk_live_... fra samme Stripe-konto som den hemmelige nøkkelen.
+7115	Automatisk træk	Automatic collection	Automatisk trekk
+7116	Hvornår det daglige job trækker fakturaer med Udskriv til = Stripe.	When the daily job collects invoices with Print to = Stripe.	Når den daglige jobben trekker fakturaer med Skriv ut til = Stripe.
+7117	På forfaldsdatoen	On the due date	På forfallsdatoen
+7118	På fakturadatoen	On the invoice date	På fakturadatoen
+7119	Bogfør Stripe-kladden automatisk	Post the Stripe journal automatically	Bokfør Stripe-kladden automatisk
+7120	Reserveret, ikke aktiv endnu	Reserved, not active yet	Reservert, ikke aktiv ennå
+7121	Publishable key afvist: forventet pk_test_... eller pk_live_... (feltet er IKKE gemt)	Publishable key rejected: expected pk_test_... or pk_live_... (field NOT saved)	Offentlig nøkkel avvist: forventet pk_test_... eller pk_live_... (feltet er IKKE lagret)
+7122	Automatisk træk afvist: vælg forfaldsdato eller fakturadato	Automatic collection rejected: choose due date or invoice date	Automatisk trekk avvist: velg forfallsdato eller fakturadato
+7123	Fakturaformat afvist: vælg PDF eller link	Invoice format rejected: choose PDF or link	Fakturaformat avvist: velg PDF eller lenke
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 

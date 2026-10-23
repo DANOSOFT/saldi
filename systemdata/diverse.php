@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-10-10------------
+// --- systemdata/diverse.php -----ver 5.0.0 ----2026-10-23------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -117,6 +117,7 @@
 //                  unescaped POST saves are no longer reachable); the CSV imports return there with the result.
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
+// 20261023 CDX/LH Allow tenant Stripe settings through the existing integration permission and CSRF gates.
 
 @session_start();
 $s_id = session_id();
@@ -550,7 +551,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 // 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 // 		#######################################################################################
 // 	} 
-	elseif ($sektion == 'stripe_valg' && $db == $sqdb) {
+	elseif ($sektion == 'stripe_valg') {
 		include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 		stripeValgSave();
 		#######################################################################################
@@ -771,11 +772,6 @@ if ($sektion == "variant_valg") variant_valg();
 // if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
 if ($sektion == "stripe_valg") {
-	// Subscriptions (Stripe) belong to the operator ledger only (settings redesign G9.6).
-	if ($db != $sqdb) {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=settings.php\">";
-		exit;
-	}
 	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 	stripeValg();
 }

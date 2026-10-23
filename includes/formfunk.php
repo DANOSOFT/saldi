@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,11 +86,15 @@
 //             konto_til was ignored. The revived query also treats a NULL lukket as open.
 // 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
 // 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
+// 20261022 CDX/LH Keep each batch mail tied to its order; fall back on link delivery errors and report them.
+// 20261022 CDX/LH Use the renderer private workspace and quote conversion paths while preserving interactive print directories.
+// 20261022 CL/LH S5 Udskriv til = Stripe now mails the pre-charge notice through the same delivery hook.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 
 
+require_once __DIR__ . '/formFuncIncludes/invoiceMailDelivery.php';
 require_once __DIR__ . '/formFuncIncludes/htmlStyle.php';
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 require_once __DIR__ . '/formFuncIncludes/descriptionLayout.php';
@@ -1086,6 +1090,7 @@ if (!function_exists('formularprint')) {
 		global $y, $ya, $locat;
 		$bgr = $psfp1 = $htmfp1 = $kommentarprint = $rvnr = $skjul_nul_lin = NULL;
 		$folgeseddel = $mailantal = $nomailantal = 0;
+		$mail_ordre_id = $mailDeliveryErrors = array();
 		$side_x = 210;
 		$side_y = 297;
 
@@ -1175,13 +1180,24 @@ if (!function_exists('formularprint')) {
 		$htm_ini = fread($initfil, $fsize);
 		fclose($initfil);
 
-		if (!file_exists("../temp/$db"))
-			mkdir("../temp/$db", 0775);
-
-		$mappe = "../temp/$db/" . abs($bruger_id);
-		if (!$inkasso)
-			system("rm -r $mappe");
-		mkdir("$mappe", 0775);
+		if (!empty($GLOBALS['saldi_pdf_only'])) {
+			// The CLI renderer owns this private per-render directory and its cleanup.
+			$mappe = (string)($GLOBALS['saldi_pdf_work_dir'] ?? '');
+			if ($mappe === '' || !is_dir($mappe) || is_link($mappe)) {
+				throw new RuntimeException('Missing private invoice render directory');
+			}
+		} else {
+			if (!file_exists("../temp/$db")) {
+				mkdir("../temp/$db", 0775);
+			}
+			$mappe = "../temp/$db/" . abs($bruger_id);
+			if (!$inkasso) {
+				system("rm -r " . escapeshellarg($mappe));
+			}
+			if (!is_dir($mappe)) {
+				mkdir($mappe, 0775);
+			}
+		}
 		if ($ordre_antal > 1) {
 			$printfilnavn = 'udskrift';
 			if ($formular <= 1)
@@ -1651,7 +1667,8 @@ if (!function_exists('formularprint')) {
 			if ($formular == 3 || $formular == 9)
 				$udskriv_til = 'PDF';
 			// 20261019 CL/ASR Udskriv til = Stripe (enrolled debtor): same path as e-mail so the delivery hook
-			// below caches the PDF and sends nothing (charged on the due date by tools/stripe_charge_due.php).
+			// below caches the PDF and mails the pre-charge notice with the invoice link, card and charge date
+			// (formSendMailEntry -> stripe_mail_invoice_notice); tools/stripe_charge_due.php charges on that date.
 			if (($mail_fakt && $formular != 3 && $udskriv_til == 'email') || ($formular == 4 && $udskriv_til == 'Stripe' && !$inkasso)) {
 				$mailantal++;
 				$filnavne = [
@@ -1685,6 +1702,7 @@ if (!function_exists('formularprint')) {
 				$mailsprog[$mailantal] = $formularsprog;
 				$form_nr[$mailantal] = $formular;
 				$pfliste[$mailantal] = $printfilnavn;
+				$mail_ordre_id[$mailantal] = $ordre_id[$o];
 				$pfnavn = $mappe . "/" . $printfilnavn;
 				$psfp = fopen("$pfnavn.ps", "w");
 				#		$psfp=$psfp2;
@@ -2365,18 +2383,19 @@ if (!function_exists('formularprint')) {
 					while (file_exists($mappe . "/" . $pfliste[$x] . "_" . $i . ".htm")) {
 						$indfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".htm";
 						$udfil = $mappe . "/" . $pfliste[$x] . "_" . $i . ".pdf";
-						system("weasyprint -e UTF-8 $indfil $udfil");
+						system("weasyprint -e UTF-8 " . escapeshellarg($indfil) . " " . escapeshellarg($udfil));
 						$sidepdf[] = escapeshellarg($udfil);
 						$i++;
 					}
 					// Merge in page order; the shell glob _*.pdf put _10.pdf before _2.pdf
-					system("$pdftk " . implode(' ', $sidepdf) . " output $mappe/$pfliste[$x].pdf");
-					if (file_exists($mappe . "/" . $pfliste[$x] . "_*.htm"))
+					system("$pdftk " . implode(' ', $sidepdf) . " output " . escapeshellarg("$mappe/$pfliste[$x].pdf"));
+					if (file_exists($mappe . "/" . $pfliste[$x] . "_*.htm")) {
 						unlink($mappe . "/" . $pfliste[$x] . "_*.htm");
+					}
 					#				unlink ($mappe."/".$pfliste[$x]."_*.pdf");
 				} else {
 
-					system("$ps2pdf $mappe/$pfliste[$x].ps $mappe/$pfliste[$x].pdf");
+					system("$ps2pdf " . escapeshellarg("$mappe/$pfliste[$x].ps") . " " . escapeshellarg("$mappe/$pfliste[$x].pdf"));
 				}
 				#			print "--> \n";
 				// if ($logoart == 'PDF') {
@@ -2389,31 +2408,19 @@ if (!function_exists('formularprint')) {
 
 				if ($logoart == 'PDF' && $background_pdf_path && file_exists($background_pdf_path)) {
 					$out = $mappe . "/" . $pfliste[$x] . "x.pdf";
-					system("$pdftk $mappe/$pfliste[$x].pdf background $background_pdf_path output $out");
-					system("mv $out $mappe/$pfliste[$x].pdf");
+					system("$pdftk " . escapeshellarg("$mappe/$pfliste[$x].pdf") . " background " . escapeshellarg($background_pdf_path) . " output " . escapeshellarg($out));
+					rename($out, "$mappe/$pfliste[$x].pdf");
 				}
-				$o = $x - 1;
 				if ($inkasso) {
 					return ("$mappe/$pfliste[$x].pdf");
 					exit;
 				}
-				// 20261019 CL/ASR invoice delivery (Requirements_invoice_email_payment_page_EN.md par. 4/8.1):
-				// 'link' = fixed mail with a button to the invoice & payment page (no PDF attached);
-				// 'stripe' = enrolled debtor, no mail at all (charged on the due date). The PDF the engine
-				// just built is cached for the page in both cases. Anything else = classic mail.
-				$stripeDelivery = 'pdf';
-				if ($form_nr[$x] == 4 && file_exists(__DIR__ . '/stripeIncludes/stripeInvoice.php')) {
-					include_once(__DIR__ . '/stripeIncludes/stripeInvoice.php');
-					$stripeDelivery = stripe_invoice_delivery($ordre_id[$o]);
+				$delivery = formSendMailEntry($mail_ordre_id, $x, "$mappe/$pfliste[$x].pdf", $email[$x],
+					$mailsprog[$x], $form_nr[$x], (string)($mail_subj ?? ''), (string)($mail_text ?? ''), (string)($mail_bilag ?? ''));
+				$svar = $delivery['result'];
+				if ($delivery['error'] !== '') {
+					$mailDeliveryErrors[] = $delivery['error'];
 				}
-				if ($stripeDelivery === 'link' || $stripeDelivery === 'stripe') {
-					stripe_invoice_pdf_cache($ordre_id[$o], "$mappe/$pfliste[$x].pdf");
-					if ($stripeDelivery === 'link') {
-						$stripeInv = stripe_invoice_load($ordre_id[$o]);
-						$svar = ($stripeInv && stripe_mail_invoice_link($stripeInv)) ? 'OK' : 'Fakturamailen med link kunne ikke sendes';
-					} else $svar = 'OK';
-				} else
-				$svar = send_mails("$ordre_id[$o]", "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], "$mail_subj", "$mail_text", "$mail_bilag", $x);
 			}
 		} elseif ($nomailantal > 0) {
 			print "<big><b>Vent - Udskrift genereres</b></big><br>";
@@ -2431,7 +2438,7 @@ if (!function_exists('formularprint')) {
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-		return ('OK');
+		return $mailDeliveryErrors ? implode('\n', $mailDeliveryErrors) : 'OK';
 		print "<!--function formularprint slut-->";
 	}
 } #endfunc formularprint;

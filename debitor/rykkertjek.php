@@ -1,5 +1,5 @@
 <?php
-// --- debitor/rykkertjek.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/rykkertjek.php --- ver 5.0.0 --- 2026-10-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,11 +15,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
 // 20200918 Ckeck bypassed if no email.
 // 20230524 PHR php8
 // 20260707 MJ Fix fatal re-declaration of std_func when included from login; fix missing globals in reminderCheck; fix BODY onLoad popup
+// 20261022 CDX/LH Exclude captured and in-flight Stripe payments from reminder notifications.
 
 @session_start();
 $s_id=session_id();
@@ -32,6 +33,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 if (!function_exists('findtekst')) include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
+include_once(__DIR__ . '/../includes/stripeIncludes/stripeDunning.php');
 
 if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
@@ -60,7 +62,8 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 		$konto_id=array();
 		$x=0;
 #	$q=db_select("select openpost.* from openpost,adresser where openpost.udlignet = '0' and openpost.forfaldsdate >= '$rykkerdate' and openpost.amount>'0' and adresser.id=openpost.konto_id and adresser.art = 'D' order by openpost.konto_id",__FILE__ . " linje " . __LINE__);
-		$q=db_select("select openpost.* from openpost,adresser where openpost.udlignet = '0' and openpost.amount>'0' and adresser.id=openpost.konto_id and adresser.art = 'D' order by openpost.konto_id",__FILE__ . " linje " . __LINE__);
+		$stripeDunningOpen = stripe_dunning_openpost_sql();
+		$q=db_select("select openpost.* from openpost,adresser where openpost.udlignet = '0' and openpost.amount>'0' and adresser.id=openpost.konto_id and adresser.art = 'D' and $stripeDunningOpen order by openpost.konto_id",__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 # 		echo "$r[forfaldsdate] <= $dd<br>";
 			$rykkerdate=usdate(forfaldsdag($r['forfaldsdate'],'netto',$ffdage));
