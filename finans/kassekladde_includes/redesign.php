@@ -128,7 +128,7 @@ function kk_gear_panel($toggle, $hidden, $opt, $optOn, $forced, $listed, $panelH
 	// Bilag fra puljen (spec section 7, renamed from "Automatik"): SD-721/722's switches, off by default, stored only when on
 	$out .= "</div><div class='kk-sec'><h4>" . kk_h(kk_t('Bilag fra puljen', 'Documents from the pool')) . "</h4>";
 	$out .= $sw('kred_auto', findtekst('5359|Opret kreditor automatisk', $sprog_id), in_array('kred_auto', $userOn, true), 'user',
-		kk_t('Ukendt leverandør oprettes ud fra CVR i stedet for at blive foreslået', 'An unknown supplier is created from the CVR register instead of being suggested'));
+		kk_t('Ukendt leverandÃ¸r oprettes ud fra CVR i stedet for at blive foreslÃ¥et', 'An unknown supplier is created from the CVR register instead of being suggested'));
 	$out .= $sw('modk_auto', findtekst('5390|Udfyld modkonto automatisk', $sprog_id), in_array('modk_auto', $userOn, true), 'user',
 		kk_t('Modkontoen skrives ind i stedet for at blive vist som forslag', 'The contra account is filled in instead of being shown as a suggestion'));
 	$out .= "</div><div class='kk-pf'><button type='button' id='kkVisShowAll'>" . kk_h(kk_t('Vis alle kolonner', 'Show all columns')) . "</button></div>";
