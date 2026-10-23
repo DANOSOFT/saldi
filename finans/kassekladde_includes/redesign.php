@@ -98,7 +98,7 @@ function kk_toolbar_cluster($closeHref, $newHref, $editable, $unsavedTxt, $bankH
  * @param array $listed  keys (of both) that exist on this journal and are listed
  * @param array $panelHidden hidden lookup-panel sections
  */
-function kk_gear_panel($toggle, $hidden, $opt, $optOn, $forced, $listed, $panelHidden)
+function kk_gear_panel($toggle, $hidden, $opt, $optOn, $forced, $listed, $panelHidden, $userOn = array())
 {
 	global $sprog_id;
 	$notes = array('forf' => kk_t('Udfyldes automatisk â€“ kan rettes', 'Filled in automatically â€“ can be changed'));
@@ -125,6 +125,12 @@ function kk_gear_panel($toggle, $hidden, $opt, $optOn, $forced, $listed, $panelH
 	$out .= "</div><div class='kk-sec'><h4>" . kk_h(kk_t('Opslagspanel', 'Lookup panel')) . "</h4>";
 	$out .= $sw('ac_forslag', findtekst('5142|Kontoforslag (sidste 5)', $sprog_id), !in_array('ac_forslag', $panelHidden, true), 'hide');
 	$out .= $sw('ac_opslag', findtekst('5143|Konto-opslag', $sprog_id), !in_array('ac_opslag', $panelHidden, true), 'hide');
+	// Bilag fra puljen (spec section 7, renamed from "Automatik"): SD-721/722's switches, off by default, stored only when on
+	$out .= "</div><div class='kk-sec'><h4>" . kk_h(kk_t('Bilag fra puljen', 'Documents from the pool')) . "</h4>";
+	$out .= $sw('kred_auto', findtekst('5359|Opret kreditor automatisk', $sprog_id), in_array('kred_auto', $userOn, true), 'user',
+		kk_t('Ukendt leverandør oprettes ud fra CVR i stedet for at blive foreslået', 'An unknown supplier is created from the CVR register instead of being suggested'));
+	$out .= $sw('modk_auto', findtekst('5390|Udfyld modkonto automatisk', $sprog_id), in_array('modk_auto', $userOn, true), 'user',
+		kk_t('Modkontoen skrives ind i stedet for at blive vist som forslag', 'The contra account is filled in instead of being shown as a suggestion'));
 	$out .= "</div><div class='kk-pf'><button type='button' id='kkVisShowAll'>" . kk_h(kk_t('Vis alle kolonner', 'Show all columns')) . "</button></div>";
 	return $out . "</div>";
 }

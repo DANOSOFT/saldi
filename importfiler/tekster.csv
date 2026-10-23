@@ -1,4 +1,5 @@
 1	Dansk	English	Norsk
+// 20261022 CDX/LH Add Stripe master-port invoice, enrolment and independent signup settings texts.
 2	Vælg aktivt sprog	Select active language	Velg aktivt språk
 3	Gem	Save	Lagre
 4	Nyt sprog	New language	Nytt språk
@@ -5204,12 +5205,67 @@
 5345	Ingen bilag valgt.	No documents selected.	Ingen bilag valgt.
 5346	af	of	av
 5347	Vis flere	Show more	Vis flere
+5348	Fordeling	Split	Fordeling
+5349	Bilagsbalance	Voucher balance	Bilagsbalanse
+5350	Bilaget går ikke op: rest	The voucher does not balance: remaining	Bilaget går ikke opp: rest
+5351	Fjern linjen	Remove the line	Fjern linjen
+5352	Ukendt leverandør	Unknown supplier	Ukjent leverandør
+5353	Opret kreditor	Create creditor	Opprett kreditor
+5354	oprettet automatisk fra CVR-registeret	created automatically from the CVR register	opprettet automatisk fra CVR-registeret
+5355	oprettet	created	opprettet
+5356	Kreditoren er slettet igen	The creditor was deleted again	Kreditoren er slettet igjen
+5357	Kan ikke fortrydes: kreditoren er taget i brug	Cannot be undone: the creditor is in use	Kan ikke angres: kreditoren er tatt i bruk
+5358	Kreditoren findes allerede	The creditor already exists	Kreditoren finnes allerede
+5359	Opret kreditor automatisk	Create creditor automatically	Opprett kreditor automatisk
+5360	Gem som standard	Save as default	Lagre som standard
+5361	Ubekræftede bankoplysninger	Unconfirmed bank details	Ubekreftede bankopplysninger
+5362	Bekræft	Confirm	Bekreft
+5363	Bankoplysningerne er læst fra en faktura og bruges ikke til betaling, før de er bekræftet.	The bank details were read from an invoice and are not used for payments until they are confirmed.	Bankopplysningene er lest fra en faktura og brukes ikke til betaling før de er bekreftet.
+5364	Oprettet automatisk fra CVR-registeret	Created automatically from the CVR register	Opprettet automatisk fra CVR-registeret
+5365	CVR-registeret kunne ikke svare	The CVR register did not answer	CVR-registeret kunne ikke svare
+5366	Virksomheden er ophørt	The company has ceased	Virksomheten har opphørt
+5367	CVR-nummeret findes ikke i CVR-registeret	The CVR number is not in the CVR register	CVR-nummeret finnes ikke i CVR-registeret
+5368	Firmanavn skal udfyldes	Company name is required	Firmanavn må fylles ut
+5369	Kreditoren kunne ikke oprettes	The creditor could not be created	Kreditoren kunne ikke opprettes
+5370	Intet CVR-nummer på bilaget	No CVR number on the document	Intet CVR-nummer på bilaget
+5401	er lukket	is closed	er lukket
+5402	Genåbn	Reopen	Gjenåpne
+5403	Opret ny	Create new	Opprett ny
+5404	genåbnet	reopened	gjenåpnet
 5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
 5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
+5408	cvrapi.dk afviser opslag fra serveren	cvrapi.dk refuses lookups from the server	cvrapi.dk avviser oppslag fra serveren
+5409	cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.	cvrapi.dk refuses lookups from the server. Please fill in the fields manually.	cvrapi.dk avviser oppslag fra serveren. Fyll ut feltene manuelt.
+5371	Aflæst	Read	Lest
+5372	Foreslået fordi de sidste $antal bilag fra denne kreditor blev bogført på konto $konto	Suggested because the last $antal vouchers from this creditor were posted to account $konto	Foreslått fordi de siste $antal bilagene fra denne kreditoren ble bokført på konto $konto
+5373	Foreslået fordi det seneste bilag fra denne kreditor blev bogført på konto $konto	Suggested because the latest voucher from this creditor was posted to account $konto	Foreslått fordi det siste bilaget fra denne kreditoren ble bokført på konto $konto
+5374	Fundet via CVR-nr.	Found by CVR number	Funnet via org.nr.
+5375	Fundet via bankkonto	Found by bank account	Funnet via bankkonto
+5376	Fundet via navn	Found by name	Funnet via navn
+5377	Fra aflæsningen	From the capture	Fra avlesningen
+5378	Efter Saldi	After Saldi	Etter Saldi
+5379	Korrekt værdi	Correct value	Korrekt verdi
+5380	Kommentar	Comment	Kommentar
+5381	Firma	Company	Firma
+5382	Database	Database	Database
+5383	Tidspunkt	Time	Tidspunkt
+5384	Indholds-hash	Content hash	Innholds-hash
+5385	Aflæsnings-id	Capture id	Avlesnings-id
+5386	Rapportér fejl i aflæsning	Report a capture error	Rapporter feil i avlesning
+5387	Bilaget og de viste oplysninger sendes til Saldi support, så aflæsningen kan forbedres.	The document and the information shown are sent to Saldi support so the capture can be improved.	Bilaget og de viste opplysningene sendes til Saldi support, slik at avlesningen kan forbedres.
+5388	Tak — fejlen er rapporteret	Thank you — the error has been reported	Takk — feilen er rapportert
+5389	Du har allerede rapporteret dette bilag	You have already reported this document	Du har allerede rapportert dette bilaget
+5390	Udfyld modkonto automatisk	Fill in contra account automatically	Fyll ut motkonto automatisk
+5391	Afvis forslaget	Reject the suggestion	Avvis forslaget
+5392	Nu	Now	Nå
+5393	Fejlen kunne ikke rapporteres. Prøv igen.	The error could not be reported. Try again.	Feilen kunne ikke rapporteres. Prøv igjen.
+5394	Ingen aflæste værdier er gemt for dette bilag	No captured values are stored for this document	Ingen avleste verdier er lagret for dette bilaget
 5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
 5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
 5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
 5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
+5439	Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.	Voucher number %s was used by another user while you were typing. The line was saved as voucher %s.	Bilagsnummer %s ble brukt av en annen bruker mens du skrev. Linjen er lagret som bilag %s.
+5449	Kladden kunne ikke låses, så intet er gemt. Prøv igen.	The journal could not be locked, so nothing was saved. Please try again.	Kladden kunne ikke låses, så ingenting er lagret. Prøv igjen.
 5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
 5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
@@ -6794,5 +6850,23 @@
 7104	Link til faktura og betaling	Link to invoice and payment	Lenke til faktura og betaling
 7105	Tekst i link-mailen	Text in the link e-mail	Tekst i lenke-e-posten
 7106	Resten af mailen er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.	The rest of the e-mail is fixed. [Fornavn] is replaced by the contact person's first name. Empty = the default text.	Resten av e-posten er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.
+7107	Kortbetaling af fakturaer	Invoice card payments	Kortbetaling av fakturaer
+7108	Tillad link-mails og betaling på fakturasiden. Standard: fra.	Allow link emails and payments on the invoice page. Default: off.	Tillat lenke-e-post og betaling på fakturasiden. Standard: av.
+7109	Gem kort og betal automatisk	Save cards and pay automatically	Lagre kort og betal automatisk
+7110	Tillad korttilmelding og automatisk træk. Kræver kortbetaling af fakturaer. Standard: fra.	Allow card enrolment and automatic collection. Requires invoice card payments. Default: off.	Tillat kortregistrering og automatisk trekk. Krever kortbetaling av fakturaer. Standard: av.
+7111	Nye Stripe-abonnementer	New Stripe subscriptions	Nye Stripe-abonnementer
+7112	Tillad nye abonnementstilmeldinger. Eksisterende abonnementer fortsætter. Standard: til.	Allow new subscription signups. Existing subscriptions continue. Default: on.	Tillat nye abonnementer. Eksisterende abonnementer fortsetter. Standard: på.
+7113	Offentlig Stripe-nøgle	Stripe publishable key	Offentlig Stripe-nøkkel
+7114	pk_test_... eller pk_live_... fra samme Stripe-konto som den hemmelige nøgle.	pk_test_... or pk_live_... from the same Stripe account as the secret key.	pk_test_... eller pk_live_... fra samme Stripe-konto som den hemmelige nøkkelen.
+7115	Automatisk træk	Automatic collection	Automatisk trekk
+7116	Hvornår det daglige job trækker fakturaer med Udskriv til = Stripe.	When the daily job collects invoices with Print to = Stripe.	Når den daglige jobben trekker fakturaer med Skriv ut til = Stripe.
+7117	På forfaldsdatoen	On the due date	På forfallsdatoen
+7118	På fakturadatoen	On the invoice date	På fakturadatoen
+7119	Bogfør Stripe-kladden automatisk	Post the Stripe journal automatically	Bokfør Stripe-kladden automatisk
+7120	Reserveret, ikke aktiv endnu	Reserved, not active yet	Reservert, ikke aktiv ennå
+7121	Publishable key afvist: forventet pk_test_... eller pk_live_... (feltet er IKKE gemt)	Publishable key rejected: expected pk_test_... or pk_live_... (field NOT saved)	Offentlig nøkkel avvist: forventet pk_test_... eller pk_live_... (feltet er IKKE lagret)
+7122	Automatisk træk afvist: vælg forfaldsdato eller fakturadato	Automatic collection rejected: choose due date or invoice date	Automatisk trekk avvist: velg forfallsdato eller fakturadato
+7123	Fakturaformat afvist: vælg PDF eller link	Invoice format rejected: choose PDF or link	Fakturaformat avvist: velg PDF eller lenke
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
+5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 

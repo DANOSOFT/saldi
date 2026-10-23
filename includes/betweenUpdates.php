@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.20
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,8 @@
 //                  every keystroke. Only created where pg_trgm exists.
 // 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
 // 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
+// 20261003 CL/SZ SD-721: adresser.auto_created, auto_created_by and bank_unconfirmed for the kreditor created from the CVR register, Postgres and MySQL.
+// 20261003 CL/SZ SD-722: pool_files.capture_raw, capture_values and captured, the pool_capture_log table and the settings rows for "Rapportér fejl i aflæsning", Postgres and MySQL.
 // 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261002 CL/SZ SST-808: index ordrer (konto_id, fakturanr) and the open openpost rows so the
 //                  auto-udlign open-post search stops scanning ordrer once per open post.
@@ -116,6 +118,9 @@
 // 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
 //                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
 //                  so the one-time build no longer blocks writes to adresser during a login.
+// 20261022 CDX/LH Add durable Stripe collection and delivery schema at the end of pending updates.
+// 20261022 CDX/LH Repair individual missing Stripe invoice indexes on tenant login.
+// 20261023 CDX/LH Retain redesign migrations and append the fixed Stripe schema repairs in chronological order.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1436,6 +1441,160 @@ if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables W
 	}
 }
 
+// 20261003 CL/SZ SD-721: kreditor from the CVR register.
+// adresser.auto_created (when) and auto_created_by (brugere.id, -1 for a revisor session): the kreditor was created automatically from the CVR register.
+// adresser.bank_unconfirmed (when): the bank details were read from an invoice and are not used for a payment before "Bekræft"; NULL means confirmed.
+// bank_unconfirmed last: includes/kreditorFromCvr.php probes for it, so once it exists all three do.
+$kredCvrMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$kredCvrSchema = $kredCvrMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$kredCvrColumns = array(
+	'auto_created' => $kredCvrMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+	'auto_created_by' => 'INTEGER NULL',
+	'bank_unconfirmed' => $kredCvrMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+);
+$kredCvrMissing = array();
+foreach ($kredCvrColumns as $kredCvrColumn => $kredCvrType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'adresser' AND column_name = '$kredCvrColumn'$kredCvrSchema";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$kredCvrMissing[$kredCvrColumn] = $qtxt;
+	}
+}
+if ($kredCvrMissing) {
+	if ($kredCvrMysql) {
+		// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the pool_files columns)
+		$kredCvrLock = "CONCAT('saldi:adresser_cvr:', MD5(DATABASE()))";
+		$kredCvrLockResult = db_fetch_array(db_select("SELECT GET_LOCK($kredCvrLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($kredCvrLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the adresser CVR migration lock.');
+		}
+		try {
+			foreach ($kredCvrMissing as $kredCvrColumn => $kredCvrProbe) {
+				if (!db_fetch_array(db_select($kredCvrProbe, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE adresser ADD COLUMN $kredCvrColumn " . $kredCvrColumns[$kredCvrColumn], __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($kredCvrLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($kredCvrMissing as $kredCvrColumn => $kredCvrProbe) {
+			db_modify("ALTER TABLE adresser ADD COLUMN IF NOT EXISTS $kredCvrColumn " . $kredCvrColumns[$kredCvrColumn], __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+
+// 20261003 CL/SZ SD-722: data capture in the document pool.
+// pool_files.capture_raw (the extraction service's answer), capture_values (the values after Saldi's normalisation) and captured (when): the snapshot, written once.
+// captured last: includes/docsIncludes/poolCapture.php probes for it, so once it exists all three do.
+// pool_capture_log: correction records, rejected suggestions, the snapshot of an attached document and the reports to support, which carry a sent status.
+// It is the company's own record; rows are not deleted.
+$poolCaptureMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$poolCaptureSchema = $poolCaptureMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$poolCaptureColumns = array(
+	'capture_raw' => $poolCaptureMysql ? 'MEDIUMTEXT NULL' : 'TEXT NULL',
+	'capture_values' => 'TEXT NULL',
+	'captured' => $poolCaptureMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+);
+if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'$poolCaptureSchema", __FILE__ . " linje " . __LINE__))) {
+	$poolCaptureMissing = array();
+	foreach ($poolCaptureColumns as $poolCaptureColumn => $poolCaptureType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolCaptureColumn'$poolCaptureSchema";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$poolCaptureMissing[$poolCaptureColumn] = $qtxt;
+		}
+	}
+	if ($poolCaptureMissing) {
+		if ($poolCaptureMysql) {
+			// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the archive columns)
+			$poolCaptureLock = "CONCAT('saldi:pool_files_capture:', MD5(DATABASE()))";
+			$poolCaptureLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolCaptureLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int) ($poolCaptureLockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the pool_files capture migration lock.');
+			}
+			try {
+				foreach ($poolCaptureMissing as $poolCaptureColumn => $poolCaptureProbe) {
+					if (!db_fetch_array(db_select($poolCaptureProbe, __FILE__ . " linje " . __LINE__))) {
+						db_modify("ALTER TABLE pool_files ADD COLUMN $poolCaptureColumn " . $poolCaptureColumns[$poolCaptureColumn], __FILE__ . " linje " . __LINE__);
+					}
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($poolCaptureLock)", __FILE__ . " linje " . __LINE__);
+			}
+		} else {
+			foreach ($poolCaptureMissing as $poolCaptureColumn => $poolCaptureProbe) {
+				db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolCaptureColumn " . $poolCaptureColumns[$poolCaptureColumn], __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+}
+if (!db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_capture_log'$poolCaptureSchema", __FILE__ . " linje " . __LINE__))) {
+	if ($poolCaptureMysql) {
+		db_modify("CREATE TABLE IF NOT EXISTS pool_capture_log (
+			id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			kind VARCHAR(12) NOT NULL,
+			filename VARCHAR(255),
+			content_hash VARCHAR(64),
+			source_id INTEGER,
+			field VARCHAR(20),
+			raw_value TEXT,
+			norm_value TEXT,
+			final_value TEXT,
+			kreditor_cvr VARCHAR(20),
+			data MEDIUMTEXT,
+			comment TEXT,
+			user_id INTEGER,
+			user_name VARCHAR(80),
+			created DATETIME NOT NULL,
+			sent DATETIME NULL,
+			attempts INTEGER NOT NULL DEFAULT 0,
+			next_attempt DATETIME NULL,
+			claim VARCHAR(32),
+			claimed DATETIME NULL,
+			last_error TEXT,
+			INDEX pool_capture_log_kind_idx (kind, sent),
+			INDEX pool_capture_log_file_idx (filename),
+			INDEX pool_capture_log_hash_idx (content_hash)
+		)", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("CREATE TABLE IF NOT EXISTS pool_capture_log (
+			id SERIAL PRIMARY KEY,
+			kind VARCHAR(12) NOT NULL,
+			filename VARCHAR(255),
+			content_hash VARCHAR(64),
+			source_id INTEGER,
+			field VARCHAR(20),
+			raw_value TEXT,
+			norm_value TEXT,
+			final_value TEXT,
+			kreditor_cvr VARCHAR(20),
+			data TEXT,
+			comment TEXT,
+			user_id INTEGER,
+			user_name VARCHAR(80),
+			created TIMESTAMP NOT NULL,
+			sent TIMESTAMP NULL,
+			attempts INTEGER NOT NULL DEFAULT 0,
+			next_attempt TIMESTAMP NULL,
+			claim VARCHAR(32),
+			claimed TIMESTAMP NULL,
+			last_error TEXT
+		)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_kind_idx ON pool_capture_log (kind, sent)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_file_idx ON pool_capture_log (filename)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS pool_capture_log_hash_idx ON pool_capture_log (content_hash)", __FILE__ . " linje " . __LINE__);
+	}
+}
+// The support address and the switch for the report button, so both can be changed without a code change.
+// The button stays off ('off') until the customer terms for sending documents to support are approved; 'on' shows it.
+foreach (array(
+	'capture_report_email' => array('support@danosoft.dk', 'Aflæsningsfejl fra dokumentpuljen sendes hertil'),
+	'capture_report' => array('off', 'Knappen Rapportér fejl i aflæsning (on/off)'),
+) as $poolCaptureVar => $poolCaptureDefault) {
+	if (!db_fetch_array(db_select("SELECT id FROM settings WHERE var_grp = 'pool' AND var_name = '$poolCaptureVar'", __FILE__ . " linje " . __LINE__))) {
+		db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('$poolCaptureVar', 'pool', '" . db_escape_string($poolCaptureDefault[0]) . "', '" . db_escape_string($poolCaptureDefault[1]) . "')", __FILE__ . " linje " . __LINE__);
+	}
+}
+
 // Preserve HTML users before the renderer changes; explicit choices survive later updates.
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);
@@ -1447,7 +1606,7 @@ initializeFormHtmlLayoutVersion($db_type);
 if ($db_type != 'mysql' && $db_type != 'mysqli') {
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_payments' AND column_name='payment_intent_id'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("CREATE TABLE stripe_payments (id SERIAL PRIMARY KEY, ordre_id integer NOT NULL, fakturanr varchar(30),
+		db_modify("CREATE TABLE IF NOT EXISTS stripe_payments (id SERIAL PRIMARY KEY, ordre_id integer NOT NULL, fakturanr varchar(30),
 			stripe_customer_id varchar(255), payment_intent_id varchar(255) NOT NULL,
 			amount_ore integer NOT NULL, currency varchar(3) NOT NULL DEFAULT 'DKK',
 			status varchar(20) NOT NULL, source varchar(10) NOT NULL DEFAULT 'page',
@@ -1455,9 +1614,6 @@ if ($db_type != 'mysql' && $db_type != 'mysqli') {
 			attempt smallint NOT NULL DEFAULT 1, last_error text,
 			created_at timestamp DEFAULT CURRENT_TIMESTAMP, succeeded_at timestamp,
 			journal_line_id integer, confirmation_sent_at timestamp, last_event_id varchar(255))", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE UNIQUE INDEX stripe_payments_pi_uidx ON stripe_payments (payment_intent_id)", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE UNIQUE INDEX stripe_payments_succeeded_uidx ON stripe_payments (ordre_id) WHERE status = 'succeeded'", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE INDEX stripe_payments_ordre_idx ON stripe_payments (ordre_id)", __FILE__ . " linje " . __LINE__);
 	}
 	foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date') as $stripeCol => $stripeType) {
 		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='$stripeCol'";
@@ -1547,6 +1703,17 @@ if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHE
 		}
 		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
 	}
+}
+
+// 20261022 CDX/LH Stripe durable request identities, technical errors and enrolment delivery outbox.
+require_once __DIR__ . '/stripeIncludes/stripePaymentBooking.php';
+require_once __DIR__ . '/stripeIncludes/stripeChargeSchema.php';
+stripe_charge_schema_ensure();
+
+// 20261022 CDX/LH Repair each missing invoice payment index even when its table already exists.
+if ($db_type != 'mysql' && $db_type != 'mysqli') {
+	require_once __DIR__ . '/stripeIncludes/stripeInvoiceSchema.php';
+	stripe_payment_indexes_ensure();
 }
 
 ?>

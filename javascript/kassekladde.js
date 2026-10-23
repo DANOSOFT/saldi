@@ -151,6 +151,7 @@
   var hint = document.getElementById('kkVisHint');
   function applyToggle(cb) {
     var col = cb.getAttribute('data-col'), show = cb.checked;
+    if (cb.getAttribute('data-kind') === 'user') return; // a pool behaviour (SD-721/722), nothing to show or hide
     if (col === 'ac_forslag' || col === 'ac_opslag') {
       window.saldiAutocompleteOptions = window.saldiAutocompleteOptions || {};
       if (col === 'ac_forslag') window.saldiAutocompleteOptions.showLastPostings = show;
@@ -164,7 +165,9 @@
     var tokens = [];
     $$('#kkVisPanel .kk-col-toggle').forEach(function (cb) {
       var col = cb.getAttribute('data-col');
-      if (cb.getAttribute('data-kind') === 'opt') { if (cb.checked && !cb.disabled) tokens.push(col + '_vis'); }
+      var kind = cb.getAttribute('data-kind');
+      if (kind === 'opt') { if (cb.checked && !cb.disabled) tokens.push(col + '_vis'); }
+      else if (kind === 'user') { if (cb.checked) tokens.push(col); }
       else if (!cb.checked) tokens.push(col);
     });
     var fd = new FormData(); fd.append('save_kk_cols', tokens.join(','));
@@ -185,7 +188,7 @@
     var all = document.getElementById('kkVisShowAll');
     if (all) all.addEventListener('click', function () {
       // apply every switch first, then persist once (N saves could finish out of order)
-      $$('#kkVisPanel .kk-col-toggle').forEach(function (cb) { if (!cb.checked && !cb.disabled) { cb.checked = true; applyToggle(cb); } });
+      $$('#kkVisPanel .kk-col-toggle').forEach(function (cb) { if (!cb.checked && !cb.disabled && cb.getAttribute('data-kind') !== 'user') { cb.checked = true; applyToggle(cb); } });
       saveCols();
     });
   }

@@ -1,0 +1,138 @@
+<?php
+// 20261022 CDX/LH Preserve Stripe order selection, validate Afmeld tokens and identify the current saved card.
+
+require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/../../debitor/orderIncludes/orderDelivery.php';
+require_once __DIR__ . '/../../includes/stripeIncludes/stripeStaff.php';
+
+final class StripeStaffTest extends StripeDatabaseTestCase
+{
+    public function testStoredStripeWinsOverMailOioPbsAndLocalPrintAndStaysSelected(): void
+    {
+        $debtor = StripeFixtures::debtor(['stripe' => 'on']);
+        foreach ([false, true] as $mail) {
+            foreach ([false, true] as $oioubl) {
+                foreach ([false, true] as $pbs) {
+                    $selected = orderDeliveryValue('Stripe', $mail, $oioubl, $pbs);
+                    $this->assertSame('Stripe', $selected);
+                    $this->assertStringContainsString("value='Stripe' selected", orderStripeDeliveryOption($selected, $debtor));
+                }
+            }
+        }
+        // Both layouts execute this production branch before checking the printer cookie.
+        $source = file_get_contents(__DIR__ . '/../../debitor/ordre.php');
+        $this->assertSame(2, preg_match_all('/if \(\$udskriv_til === \x27Stripe\x27\) \{\s*print orderStripeDeliveryOption\(\$udskriv_til, \$konto_id\);\s*\} elseif \(\$showLocalPrint && \$localPrint == \x27on\x27\)/', $source));
+        // A stored Stripe order remains visible even if its debtor is no longer enrolled.
+        $this->assertStringContainsString("value='Stripe' selected", orderStripeDeliveryOption('Stripe', 0));
+        $this->assertSame('email', orderDeliveryValue('PDF', true, false, false));
+        $this->assertSame('oioubl', orderDeliveryValue('PDF', true, true, false));
+        $this->assertSame('PBS', orderDeliveryValue('PDF', true, true, true));
+    }
+
+    public function testEnrolledDebtorCanChooseStripeWithoutOverwritingAnExplicitOtherMode(): void
+    {
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved']);
+        $option = orderStripeDeliveryOption('email', $debtor);
+        $this->assertStringContainsString("value='Stripe'", $option);
+        $this->assertStringNotContainsString(' selected', $option);
+        $other = StripeFixtures::debtor();
+        $this->assertSame('', orderStripeDeliveryOption('email', $other));
+    }
+
+    public function testPartialSavePreservesStoredStripeAndExplicitChoiceCanReplaceIt(): void
+    {
+        $id = StripeFixtures::invoice(null, ['udskriv_til' => 'Stripe']);
+        foreach ([[], ['udskriv_til' => ''], ['udskriv_til' => ['invalid']], ['udskriv_til' => 'Stripe']] as $input) {
+            $this->assertSame('Stripe', orderDeliveryPostedValue($input, $id));
+        }
+        foreach (['email', 'PDF', 'localPrint', 'oioubl'] as $picked) {
+            $this->assertSame($picked, orderDeliveryPostedValue(['udskriv_til' => $picked], $id));
+        }
+        $this->assertSame('Stripe', StripeFixtures::row('ordrer', $id)['udskriv_til']);
+        $this->assertStringContainsString('db_escape_string(orderDeliveryPostedValue($_POST, $id))', file_get_contents(__DIR__ . '/../../debitor/ordre.php'));
+    }
+
+    public function testForgedAfmeldCannotChangeTheDebtorOrdersOrSendMail(): void
+    {
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'udskriv_til' => 'Stripe']);
+        $order = StripeFixtures::order($debtor, ['udskriv_til' => 'Stripe', 'nextfakt' => '2026-02-01']);
+        $token = bin2hex(random_bytes(32));
+        $beforeDebtor = StripeFixtures::row('adresser', $debtor);
+        $beforeOrder = StripeFixtures::row('ordrer', $order);
+        foreach ([
+            ['POST', ['stripe_afmeld' => 'on']],
+            ['POST', ['stripe_afmeld' => 'on', 'csrf_token' => '']],
+            ['POST', ['stripe_afmeld' => 'on', 'csrf_token' => bin2hex(random_bytes(32))]],
+            ['POST', ['stripe_afmeld' => 'on', 'csrf_token' => [$token]]],
+            ['GET', ['stripe_afmeld' => 'on', 'csrf_token' => $token]],
+        ] as [$method, $input]) {
+            $this->assertFalse(stripe_staff_unenrol($debtor, $method, $input, $token));
+            $this->assertSame($beforeDebtor, StripeFixtures::row('adresser', $debtor));
+            $this->assertSame($beforeOrder, StripeFixtures::row('ordrer', $order));
+        }
+        $valid = ['stripe_afmeld' => 'on', 'csrf_token' => $token];
+        $this->assertTrue(stripe_staff_afmeld_allowed('POST', $valid, $token));
+        $this->assertFalse(stripe_staff_afmeld_allowed('POST', $valid, ''));
+        $this->assertFalse(stripe_staff_afmeld_allowed('POST', $valid, null));
+        $this->assertFalse(stripe_staff_afmeld_allowed('POST', ['csrf_token' => $token], $token));
+        $this->assertSame([], StripeTestTransport::$mails);
+        $this->assertSame([], StripeTestTransport::$requests);
+        $source = file_get_contents(__DIR__ . '/../../debitor/debitorkort.php');
+        $this->assertLessThan(strpos($source, 'print "<script'), strpos($source, 'http_response_code(403)'));
+        $this->assertStringContainsString("name='csrf_token'", $source);
+        $this->assertStringContainsString('stripe_staff_unenrol((int)$id, $stripeStaffMethod, $stripeStaffInput, $stripeStaffToken)', $source);
+    }
+
+    public function testSavedCardMatchesCurrentPaymentMethodDebtorAndCustomer(): void
+    {
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_customer_id' => 'cus_saved', 'stripe_pm_id' => 'pm_saved']);
+        $id = StripeFixtures::invoice($debtor);
+        $this->payment($id, 'pm_saved', 'cus_saved', 'visa', '4242');
+        // A newer one-off card must never replace the saved card display.
+        $this->payment($id, 'pm_oneoff', 'cus_saved', 'mastercard', '4444');
+        $this->payment($id, 'pm_saved', 'cus_other', 'amex', '0005');
+        $other = StripeFixtures::invoice();
+        $this->payment($other, 'pm_saved', 'cus_saved', 'mastercard', '5556');
+        $this->assertSame('Visa •••• 4242', stripe_staff_saved_card(StripeFixtures::row('adresser', $debtor)));
+        StripeTestEnvironment::query('UPDATE adresser SET stripe_pm_id=$1 WHERE id=$2', ['pm_oneoff', $debtor]);
+        $this->assertSame('Mastercard •••• 4444', stripe_staff_saved_card(StripeFixtures::row('adresser', $debtor)));
+        StripeTestEnvironment::query("UPDATE adresser SET stripe_pm_id='pm_missing' WHERE id=$1", [$debtor]);
+        $this->assertSame('', stripe_staff_saved_card(StripeFixtures::row('adresser', $debtor)));
+        StripeTestEnvironment::query("UPDATE adresser SET stripe='', stripe_pm_id='pm_saved' WHERE id=$1", [$debtor]);
+        $this->assertSame('', stripe_staff_saved_card(StripeFixtures::row('adresser', $debtor)));
+        $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testDebitorkortRendersCardBesideEnrollmentDateAndEscapesStoredDetails(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../debitor/debitorkort.php');
+        $this->assertStringContainsString('$stripe_saved_card = stripe_staff_saved_card($r);', $source);
+        $start = strpos($source, "if (isset(\$r['stripe']) || isset(\$stripe_status))");
+        $end = strpos($source, '##################### LUKKET', $start);
+        $block = substr($source, $start, $end - $start);
+        $r = ['stripe' => 'on'];
+        $stripe_status = 'on';
+        $stripe_date = '2026-10-22';
+        $stripe_saved_card = 'Visa •••• 4242 <card>';
+        $bg = $bgcolor = '#fff';
+        $bgcolor5 = '#eee';
+        ob_start();
+        try {
+            eval($block);
+            $html = ob_get_contents();
+        } finally {
+            ob_end_clean();
+        }
+        $this->assertStringContainsString('Tilmeldt automatisk kortbetaling 22-10-2026 · Visa •••• 4242 &lt;card&gt;', $html);
+        $this->assertStringNotContainsString('<card>', $html);
+        $this->assertStringContainsString('name=stripe_afmeld', $html);
+    }
+
+    private function payment(int $order, string $pm, string $customer, string $brand, string $last4): void
+    {
+        $row = StripeFixtures::row('ordrer', $order);
+        StripeFixtures::insert('stripe_payments', ['ordre_id' => $order, 'fakturanr' => $row['fakturanr'],
+            'payment_intent_id' => 'pi_staff_' . bin2hex(random_bytes(8)), 'status' => 'failed',
+            'amount_ore' => 34000, 'pm_id' => $pm, 'pm_brand' => $brand, 'pm_last4' => $last4, 'stripe_customer_id' => $customer]);
+    }
+}

@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-10-11 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-10-23 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -81,6 +81,7 @@
 //                  cards, which show 'Grundopsætning mangler' for Salg/Køb/Varer until their base rows exist.
 // 20261019 Sawaneh Review 2 (PR #803): left menu hides entries the user cannot read (the shown page stays); G8 check without Postgres-only "is distinct from".
 // 20261019 Sawaneh Review 2 (PR #803): the e-mail entry carries the section's own key (settings.email), so menu, landing and page agree.
+// 20261023 CDX/LH Show Stripe invoice and subscription settings in the tenant Integrationer menu and search.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -150,7 +151,7 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'api_valg',              'group' => 'integrations', 'url' => 'settingsSection.php?s=integrations.connections', 'section' => 'integrations.connections', 'category' => 'integrations', 'textId' => 5537,
 				'keywords' => array('api settings','api key','api access','ip whitelist','allowed ip addresses','external integration','import file path','api bruger','api nøgle',
 					'saldi db variable','saldi url variable','api client url','api reference user','update from shop','fetch new products from shop')),
-			array('key' => 'stripe_valg',           'group' => 'integrations', 'url' => 'diverse.php?sektion=stripe_valg',          'category' => 'integrations', 'visibilityRule' => 'masterDb', 'labelDa' => 'Stripe abonnement', 'labelEn' => 'Stripe subscriptions',
+			array('key' => 'stripe_valg',           'group' => 'integrations', 'url' => 'diverse.php?sektion=stripe_valg',          'category' => 'integrations', 'labelDa' => 'Stripe', 'labelEn' => 'Stripe', 'labelNo' => 'Stripe',
 				'keywords' => array('stripe','subscription','subscriptions','abonnement','recurring payment','recurring billing','checkout','webhook','webhook secret','secret key','api key stripe',
 					'kortbetaling','card payment','betalingslink','payment link','tax rate','vat rate id','base url','bogholder email','bookkeeper email','stripe mode','test mode','live mode')),
 			array('key' => 'labels',                'group' => 'items', 'url' => 'labels.php',                              'category' => 'documents', 'textId' => 791,

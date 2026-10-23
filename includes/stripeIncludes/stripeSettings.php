@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeSettings.php --- 2026.08.07
+// --- includes/stripeIncludes/stripeSettings.php --- 2026.10.22
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: canonical settings access + tenant resolver for the
 //                Stripe subscription integration. All stripe settings reads go
 //                through stripe_setting() - nobody queries the settings table
 //                for var_grp='stripe' directly. Contract: doc/stripe/INTERFACE_CONTRACT.md
+// 20261022 CDX/LH Add independent invoice, enrolment and signup rollout switch defaults.
+// 20261022 CDX/LH Default all new rollout switches off, including subscription signup.
 
 if (!function_exists('stripe_setting')) {
 	// Returns the value of a settings row (var_grp='stripe') or $default when the
@@ -44,6 +46,25 @@ if (!function_exists('stripe_setting')) {
 			return $stripe_settings_cache[$name];
 		}
 		return $default;
+	}
+}
+
+if (!function_exists('stripe_feature_on')) {
+	/**
+	 * Read a Stripe rollout switch. Unknown features fail closed.
+	 *
+	 * The shared enabled switch remains independent so pilot webhook processing
+	 * can continue while invoice payments and enrolment are disabled.
+	 *
+	 * @param string $name invoice_payments, enrolment or signup_enabled.
+	 * @return bool Whether the feature is explicitly on; all rollout switches default off.
+	 */
+	function stripe_feature_on($name) {
+		$defaults = array('invoice_payments' => 'off', 'enrolment' => 'off', 'signup_enabled' => 'off');
+		if (!array_key_exists($name, $defaults)) {
+			return false;
+		}
+		return stripe_setting($name, $defaults[$name]) === 'on';
 	}
 }
 

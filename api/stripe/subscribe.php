@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/subscribe.php --- 2026.08.07
+// --- api/stripe/subscribe.php --- 2026.10.22
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: signed subscription link endpoint.
 //                Contract: doc/stripe/INTERFACE_CONTRACT.md.
@@ -37,6 +37,7 @@
 // This is the codebase's first unauthenticated third-party HTML surface:
 // no findtekst()/alert()/std_func rendering here (alert() does no escaping),
 // every dynamic value goes through htmlspecialchars, zero JavaScript.
+// 20261022 CDX/LH Refuse subscription signup unless the independent signup switch is explicitly enabled.
 
 ob_start(); // std_func's alert()/injecttjek() print HTML on error paths - keep the buffer ours
 
@@ -148,7 +149,7 @@ function stripe_kr($ore) { return number_format($ore / 100, 2, ',', '.'); }
 if (!$stripe_boot_ok) stripe_fail_page(503, 'Midlertidigt utilgængelig', 'Prøv igen om lidt, eller besvar fakturamailen.');
 
 // Master switch (stripe_valg "Aktiv"): off = no new signups, full stop.
-if (stripe_setting('enabled', 'off') !== 'on') {
+if (!stripe_signup_allowed()) {
 	// The shared shell already appends the "faktura stadig gyldig" note.
 	stripe_fail_page(503, 'Ikke tilgængelig', 'Abonnementstilmelding er ikke aktiveret. Besvar fakturamailen ved spørgsmål.');
 }
@@ -169,8 +170,7 @@ if (!stripe_rate_limit('sub_ord_' . $order_id, 30, 600)) {
 	stripe_fail_page(429, 'For mange forsøg', 'Vent et par minutter og prøv igen.');
 }
 
-// Order-level guards. NB: nextfakt is deliberately never selected - no stripe
-// code may read or write it (interface contract / locked decision).
+// Subscription guards do not use nextfakt. Invoice enrolment may read it; no Stripe code writes the date.
 $order = db_fetch_array(db_select("select id, art, konto_id, kontonr, firmanavn, email, valuta, shop_status from ordrer where id = " . $order_id, __FILE__ . " linje " . __LINE__));
 $parkReason = '';
 if (!$order) {
