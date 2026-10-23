@@ -1,5 +1,5 @@
 <?php
-// --- includes/saldiBillingApi.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- includes/saldiBillingApi.php --- ver 5.1.0 --- 2026.10.23 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR Moved unchanged from admin/admin_panel.php so the nightly job and the operator overview can
@@ -24,7 +24,12 @@ define('SALDI_API_BASE', $saldi_api_base);
 define('SALDI_API_USER', $saldi_api_user);
 define('SALDI_API_PASS', $saldi_api_pass);
 define('SALDI_API_ACCOUNT', $saldi_api_account);
-define('SALDI_API_TOKEN_FILE', '/tmp/saldi_api_token_admin'.(function_exists('posix_geteuid') ? '_'.posix_geteuid() : '').'.json'); # one 0600 file per system user (web server, cron)
+// 20261023 CL/ASR The token cache is a 0700 directory of its own per system user (web server, cron) with a file that is
+//                  created 0600 before the token is written and then renamed into place, so the token is never readable by
+//                  other local users, not even for a moment (review #785). A symlink, another owner or a wider mode on the
+//                  directory means: no cache, log in every time.
+define('SALDI_API_TOKEN_DIR', rtrim(sys_get_temp_dir(), '/').'/saldi_api_token'.(function_exists('posix_geteuid') ? '_'.posix_geteuid() : ''));
+define('SALDI_API_TOKEN_FILE', SALDI_API_TOKEN_DIR.'/token.json');
 
 /**
  * Get a cached or fresh JWT token from the Saldi REST API
@@ -32,14 +37,51 @@ define('SALDI_API_TOKEN_FILE', '/tmp/saldi_api_token_admin'.(function_exists('po
 // 20261021 CL/ASR The cached token is bound to the whole API identity (base URL, user, password, account), so changed
 //                  credentials never reuse an old token; the cache file is per system user and readable by its owner only.
 function saldi_api_identity() { return hash('sha256', SALDI_API_BASE."\n".SALDI_API_USER."\n".SALDI_API_PASS."\n".SALDI_API_ACCOUNT); }
+/** The cache directory exists, is a real directory owned by this user and is 0700; otherwise the cache is not used. */
+function saldi_api_token_dir_ok() {
+    $dir = SALDI_API_TOKEN_DIR;
+    clearstatcache(true, $dir); # judge the path as it is now, not as an earlier call in this request saw it
+    if (!is_link($dir) && !is_dir($dir)) {
+        $old = umask(0077);
+        @mkdir($dir, 0700);
+        umask($old);
+    }
+    clearstatcache(true, $dir);
+    if (is_link($dir) || !is_dir($dir)) return false;
+    if (function_exists('posix_geteuid') && fileowner($dir) !== posix_geteuid()) return false;
+    if ((fileperms($dir) & 0777) !== 0700 && !@chmod($dir, 0700)) return false;
+    return true;
+}
+/** The cached token, when the cache is sound, not expired and from the same API identity; otherwise null. */
+function saldi_api_token_cache_read() {
+    if (!saldi_api_token_dir_ok() || is_link(SALDI_API_TOKEN_FILE) || !is_file(SALDI_API_TOKEN_FILE)) return null;
+    $cached = json_decode((string)@file_get_contents(SALDI_API_TOKEN_FILE), true);
+    if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time() && ($cached['id'] ?? '') === saldi_api_identity()) { # token is bound to the base URL and credentials it came from
+        return $cached['token'];
+    }
+    return null;
+}
+/** Writes the token to a file that is 0600 from the moment it exists, then renames it into place (atomic replace). */
+function saldi_api_token_cache_write($token) {
+    if (!saldi_api_token_dir_ok()) return false;
+    $tmp = SALDI_API_TOKEN_FILE.'.'.getmypid().'.tmp';
+    $old = umask(0077);          # born 0600: there is no moment where the file is wider than that
+    $fh = @fopen($tmp, 'x');     # 'x' creates a new file only; an existing path or symlink is refused
+    umask($old);
+    if (!$fh) return false;
+    $json = json_encode(['token' => $token, 'id' => saldi_api_identity(), 'expires' => time() + 3300]); # expires in 55 min to be safe
+    $ok = @chmod($tmp, 0600) && fwrite($fh, $json) !== false;
+    fclose($fh);
+    if (!$ok || !@rename($tmp, SALDI_API_TOKEN_FILE)) {
+        @unlink($tmp);
+        return false;
+    }
+    return true;
+}
 function get_saldi_api_token() {
     // Check for cached token
-    if (is_readable(SALDI_API_TOKEN_FILE)) {
-        $cached = json_decode(file_get_contents(SALDI_API_TOKEN_FILE), true);
-        if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time() && ($cached['id'] ?? '') === saldi_api_identity()) { # token is bound to the base URL and credentials it came from
-            return $cached['token'];
-        }
-    }
+    $cached = saldi_api_token_cache_read();
+    if ($cached !== null) return $cached;
     
     $url = SALDI_API_BASE . '/auth/login.php';
     $postData = json_encode([
@@ -71,13 +113,7 @@ function get_saldi_api_token() {
     
     $token = $data['data']['access_token'];
     
-    // Cache token (expires in 55 min to be safe)
-    @file_put_contents(SALDI_API_TOKEN_FILE, json_encode([
-        'token' => $token,
-        'id' => saldi_api_identity(),
-        'expires' => time() + 3300
-    ]));
-    @chmod(SALDI_API_TOKEN_FILE, 0600);
+    saldi_api_token_cache_write($token); // a cache that cannot be written safely is simply not used
     
     return $token;
 }
