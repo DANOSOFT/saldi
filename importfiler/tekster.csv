@@ -5276,6 +5276,7 @@
 5449	Kladden kunne ikke låses, så intet er gemt. Prøv igen.	The journal could not be locked, so nothing was saved. Please try again.	Kladden kunne ikke låses, så ingenting er lagret. Prøv igjen.
 5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
 5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5450	Ukendt betalingstype	Unknown payment type	Ukjent betalingstype
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
