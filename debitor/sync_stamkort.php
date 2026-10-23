@@ -26,6 +26,7 @@
 // 20261023 CL/MMR SST-887 Arrow up now also sets fornavn/efternavn for private customers.
 //                 Only firmanavn was updated, so the card kept the old name and saving it restored that name.
 //                 ordre_id and konto_id are cast to int before use in SQL.
+// 20261023 CL/MMR SST-887 Moved the sync into syncStamkort() per the controller/view convention (review by Codex).
 
 @session_start();
 $s_id=session_id();
@@ -34,11 +35,25 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$ordre_id=(int)if_isset($_GET['ordre_id']);
-$konto_id=(int)if_isset($_GET['konto_id']);
-$retning=if_isset($_GET['retning']);
+$ordre_id=(int)ifset($_GET, 'ordre_id', 0);
+$konto_id=(int)ifset($_GET, 'konto_id', 0);
+$retning=ifset($_GET, 'retning', '');
 
-if ($ordre_id && $konto_id) {
+/**
+ * Copies name, address and terms between an order and its debitor card.
+ *
+ * retning 'op' copies the order onto the card (adresser); anything else copies the card onto the
+ * order. For a private card, 'op' also sets fornavn/efternavn from the order's name, because the card
+ * shows those fields and rebuilds firmanavn from them on save (SST-887).
+ *
+ * @param int    $ordre_id ordrer.id
+ * @param int    $konto_id adresser.id
+ * @param string $retning  'op' (order to card) or 'ned' (card to order)
+ * @return void
+ */
+function syncStamkort($ordre_id, $konto_id, $retning) {
+	$ordre_id = (int)$ordre_id;
+	$konto_id = (int)$konto_id;
 	if ($retning=='op') $qtxt = "select * from ordrer where id='$ordre_id'";
 	else $qtxt = "select * from adresser where id='$konto_id'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -77,7 +92,10 @@ if ($ordre_id && $konto_id) {
 		$qtxt.= "institution='$institution' where id='$ordre_id'";
 	}
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	
+}
+
+if ($ordre_id && $konto_id) {
+	syncStamkort($ordre_id, $konto_id, $retning);
 }
 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$ordre_id\">";
 
