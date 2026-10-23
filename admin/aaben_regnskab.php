@@ -5,6 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-16 ---
+// 20261012 CL/ASR Access check, same rule as the account list (see below).
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +52,17 @@ if ($db != $sqdb) {
 }
 
 $tmp_db_id=if_isset($_GET,NULL,'db_id');
+
+// 20261012 CL/ASR Access check (none existed): the same rule as the account list in vis_regnskaber.php – the admin flag
+//                  or the account in the user's access list – so everything the list shows can still be opened, and
+//                  nothing else can be opened by typing an id in the address.
+$r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'", __FILE__ . " linje " . __LINE__));
+list($admin, , , $tmp) = array_pad(explode(",", (string)($r ? $r['rettigheder'] : ''), 4), 4, '');
+if (!$admin && !in_array($tmp_db_id, explode(",", $tmp))) {
+	print "<center><br><br>".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."<br><br>";
+	print "<a href='vis_regnskaber.php'>".findtekst('2692|Tilbage til oversigt', $sprog_id)."</a></center>";
+	exit;
+}
 
 $qtxt="select db from regnskab where id = '$tmp_db_id'";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
