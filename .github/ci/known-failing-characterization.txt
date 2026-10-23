@@ -1,5 +1,5 @@
 # Characterization files that fail on a clean checkout with no database and no
-# includes/connect.php (measured 2026-10-22, PHP 8.3, on hml/shopify = master d50f3ec4).
+# includes/connect.php (measured 2026-10-22/23 on hml/shopify, PHP 8.2 = production).
 # Pre-existing, not HML work. Each needs a fix ticket; remove the line when it passes.
 tests/characterization/debitor/PeppolCustomerCompanyIdTest.test.php
 tests/characterization/includes/AlignOpenpostRedirectTest.test.php
@@ -7,3 +7,5 @@ tests/characterization/includes/reportFunc/OpenPostHistoricalSettleDateTest.test
 tests/characterization/lager/labelprint_includes/NewlabelCharacterizationTest.test.php
 tests/characterization/systemdata/LabelTemplateEditableVisuallyCharacterizationTest.test.php
 tests/characterization/systemdata/SaveLabelTextCharacterizationTest.test.php
+# Passes on PHP 8.3, fails on 8.2 (extra warning on the production PHP version):
+tests/characterization/debitor/BatchWindowRenderTest.test.php
