@@ -89,6 +89,7 @@
 // 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
 // 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
 // 20261019 Sawaneh Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
+// 20261023 ASR Merge of master (#815 removed lager/vareliste.php): the warehouses gear link names lager/lister/vareliste.php, the list that is left.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -301,7 +302,7 @@ if (!function_exists('getSettingsSections')) {
 						)),
 				),
 				'legacy' => array(array(608)), 'old' => array('lagre' => array(608)),
-				'context' => array('lager/vareliste.php', 'lager/varekort.php'),
+				'context' => array('lager/lister/vareliste.php', 'lager/varekort.php'),
 				'keywords' => array('lagre', 'lager', 'warehouses', 'warehouse', 'lagersted'),
 			),
 			'items.units' => array(

@@ -39,8 +39,9 @@ Continuation lines start with `//` followed by spaces padding out to the column 
 - A change that is not a behavior/logic change (formatting, comments, whitespace, doc-only) does not touch the version marker, even if a history line is still appended for it.
 - This only applies to files that already have this versioning line in their header stack; do not add the line to files that lack it.
 
-**Bootstrapping `<Initials>` in a new working copy (user instruction, 2026-09-22):** `<Initials>` is personal to the user and machine, not part of this repo — it belongs in that user's local AI memory, not in any committed file. Before writing a history line, if the assistant does not already have the user's initials for this project recorded in local memory:
+**Bootstrapping `<Initials>` in a new working copy (user instruction, 2026-09-22; `whoami` step added 2026-10-22):** `<Initials>` is personal to the user and machine, not part of this repo — it belongs in that user's local AI memory, not in any committed file. Before writing a history line, if the assistant does not already have the user's initials for this project recorded in local memory:
 
-1. Look at the current working directory's folder name. If it is 2-4 letters, it may be a plausible initials/project-tag candidate — but this is only a hint, not a fallback used automatically.
-2. Ask the user directly what initials they want recorded in history for this project, regardless of whether step 1 produced a candidate.
-3. Save the answer to local memory (not to a repo file) so future sessions in this working copy don't need to ask again.
+1. Run `whoami`. If the login name is a plausible 2-4 letter token, use it (uppercased) as the initials.
+2. Otherwise look at the current working directory's folder name. If it is 2-4 letters, use it (uppercased) as the initials.
+3. Only if neither step produced a candidate, ask the user directly what initials they want recorded in history for this project.
+4. Save the resulting initials to local memory (not to a repo file) so future sessions in this working copy don't need to ask again.

@@ -3,7 +3,7 @@
 Pin the CURRENT behavior of legacy code so refactors (SD-599/SD-600 and the
 E-epic decompositions) can prove they changed nothing. Two kinds live here:
 
-1. **Pure-function suites** (e.g. `includes/usdecimal/`) — no dependencies,
+1. **Pure-function suites** (e.g. `includes/stdFunc/`) — no dependencies,
    run everywhere.
 2. **DB-backed suites** (SD-601: `finans/` kassekladde posting and
    `includes/ordrefunc/` order→invoice) — exercise the real posting engine
@@ -77,3 +77,4 @@ Verified 2026-07-23: all suites green in the container; deliberately breaking
 the simulate dispatch (posting for real) fails 2 tests.
 
 <!-- 20260723 CL/LH SD-601: created. -->
+<!-- 20261022 CL/NTR Restored after the master merge emptied it; pure-suite example now includes/stdFunc/ (includes/usdecimal/ was removed). -->

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/posmenufunc.php --- ver 4.0.5 --- 2026.09.25 ---
+//--- includes/posmenufunc.php --- ver 5.0.0 --- 2026.10.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,8 @@
 // 20220209 PHR  
 // 20260907 CDX/LH Preserve explicit popup context in POS navigation and close the correct window.
 // 20260925 CDX/PHR Cast table IDs before SQL lookup and handle missing selections and empty table plans with findtekst.
+// 20261020 LOE SST-878 The finished-sale menu no longer dies when "Tidsfrist for udskrift" is
+//                 empty, so Udskriv, Find bon and Korrektion are drawn again.
 
 include(__DIR__ . "/posmenufunc_includes/buttonFunc.php");
 require_once __DIR__ . '/stdFunc/navStack.php';
@@ -422,7 +424,7 @@ if (!function_exists('menubuttons')) {
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 							$r = db_fetch_array(db_select("select box13 from grupper where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
-							$timeout = $r['box13'] * 1;
+							$timeout = (int) ifset($r, 'box13', 0);
 							if ($timeout && !$bon) {
 								$r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
 								$brugervalg = $r['box1'];
