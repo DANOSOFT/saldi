@@ -2,6 +2,7 @@
 // --- includes/formFuncIncludes/paymentLink.php --- Vibrant payment link for the $..._betalingslink form variable ---
 // 20261006 CL/LH SST-842: Use the tenant's own Vibrant key (settings.vibrant_auth) instead of a key hardcoded
 //                 in the public repository; render nothing when no key is configured or the call fails.
+// 20261023 CL/LH SST-842: Read vibrant_auth the same way as debitor/payments/vibrant_proxy.php (#768).
 
 /**
  * @return string HTML "Betal her" link, or '' when no Vibrant key is configured or no link was issued.
@@ -9,7 +10,7 @@
 function paymentLink($id){
 	global $db;
 	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'vibrant_auth'", __FILE__ . " linje " . __LINE__));
-	$apiKey = trim((string)($r['var_value'] ?? ''));
+	$apiKey = $r ? $r[0] : '';
 	if ($apiKey === '') {
 		return '';
 	}
