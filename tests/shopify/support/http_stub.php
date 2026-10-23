@@ -7,6 +7,7 @@
 // History:
 // 20261021 CL/SZ created (SD-747).
 // 20261023 CDX/LH Restrict the HTTP stub to PHP's built-in development server.
+// 20261023 CL/SZ /echo sends an X-Request-Id header.
 
 if (PHP_SAPI !== 'cli-server') {
 	http_response_code(404);
@@ -17,6 +18,7 @@ $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 header('Content-Type: application/json');
 switch ($path) {
 	case '/echo':
+		header('X-Request-Id: 3f2a9c1e-77b4-4a0e-9d1f-0123456789ab');
 		echo json_encode([
 			'method' => $_SERVER['REQUEST_METHOD'],
 			'token' => $_SERVER['HTTP_X_SHOPIFY_ACCESS_TOKEN'] ?? null,

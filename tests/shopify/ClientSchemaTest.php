@@ -7,6 +7,7 @@
 //
 // History:
 // 20261021 CL/SZ created (SD-747).
+// 20261023 CL/SZ The idempotent-mode example is checked against the 2026-07 schema.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -29,6 +30,15 @@ final class ClientSchemaTest extends TestCase
 	public function test_client_documents_match_the_2026_07_schema(string $document): void
 	{
 		$this->assertSame([], GraphqlSchema::load()->validateDocument($document));
+	}
+
+	public function test_the_idempotent_mode_example_is_a_valid_2026_07_call(): void
+	{
+		require_once __DIR__ . '/ClientRetryTest.php';
+		$schema = GraphqlSchema::load();
+
+		$this->assertSame([], $schema->validateDocument(ClientRetryTest::INVENTORY_SET));
+		$this->assertSame([], $schema->validateInput('InventorySetQuantitiesInput!', ClientRetryTest::inventorySetVars()['input']));
 	}
 
 	public function test_the_pinned_version_matches_the_fixture(): void

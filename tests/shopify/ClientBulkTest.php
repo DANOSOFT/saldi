@@ -9,6 +9,7 @@
 // History:
 // 20261021 CL/SZ created (SD-747).
 // 20261023 CDX/LH Cover a missing bulk operation as a terminal polling failure.
+// 20261023 CL/SZ Exact bulk-start matching: formatting ignored, strings exact, a differing new operation is unknown.
 
 use PHPUnit\Framework\TestCase;
 
@@ -69,6 +70,73 @@ final class ClientBulkTest extends TestCase
 		$this->assertTrue($r['ok']);
 		$this->assertSame('reconciled', $r['outcome']);
 		$this->assertSame(['id' => self::OP, 'status' => 'RUNNING'], $r['bulk']);
+	}
+
+	public function test_start_matches_its_operation_whatever_the_formatting_between_tokens(): void
+	{
+		$inner = '{ products(query: "title:a  b") { edges { node { id } } } }';
+		$stored = "{products(query:\"title:a  b\"){edges{node{id}}}}  # stored reformatted";
+		$mine = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => $stored];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$mine])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), $inner, $fake->opts());
+
+		$this->assertSame('reconciled', $r['outcome']);
+		$this->assertSame(self::OP, $r['bulk']['id']);
+	}
+
+	public function test_whitespace_inside_a_string_literal_is_not_ignored(): void
+	{
+		$inner = '{ products(query: "title:a  b") { edges { node { id } } } }';
+		// Only the search string differs: "a b" with one space is a different query.
+		$other = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => '{ products(query: "title:a b") { edges { node { id } } } }'];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$other])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), $inner, $fake->opts());
+
+		$this->assertCount(3, $fake->calls, 'not started again');
+		$this->assertSame('uncertain', $r['outcome']);
+	}
+
+	public function test_a_new_operation_that_differs_from_ours_is_unknown_not_absent(): void
+	{
+		$different = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => '{ products { edges { node { id } } } }'];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$different])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), self::INNER, $fake->opts());
+
+		$this->assertCount(3, $fake->calls, 'a new operation we cannot tell apart from ours is never started again');
+		$this->assertSame('uncertain', $r['outcome']);
+		$this->assertNull($r['bulk']);
+	}
+
+	public function test_normalise_keeps_strings_exact_and_ignores_formatting(): void
+	{
+		$this->assertSame(shopify_graphql_normalise("{ a(x: 1, y: \"p  q\") { b } }"), shopify_graphql_normalise("{a(x:1 y:\"p  q\"){b}} # c"));
+		$this->assertNotSame(shopify_graphql_normalise('{ a(y: "p  q") { b } }'), shopify_graphql_normalise('{ a(y: "p q") { b } }'));
+		$this->assertSame(shopify_graphql_normalise('{ a { ...f } }'), shopify_graphql_normalise('{a{... f}}'));
+	}
+
+	public function test_a_malformed_query_is_never_matched_to_another_operation(): void
+	{
+		// A stray quote: unreadable, so it can't match the valid query another worker started.
+		$malformed = self::INNER . '"';
+		$theirs = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => self::INNER];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$theirs])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), $malformed, $fake->opts());
+
+		$this->assertSame('uncertain', $r['outcome']);
+		$this->assertNull($r['bulk']);
+		$this->assertCount(3, $fake->calls);
+	}
+
+	public function test_normalise_refuses_documents_it_cannot_read_fully(): void
+	{
+		$this->assertNull(shopify_graphql_normalise(self::INNER . '"'));
+		$this->assertNull(shopify_graphql_normalise('{ a(x: "unterminated) { b } }'));
+		$this->assertNull(shopify_graphql_normalise('{ a(x: """open block) { b } }'));
+		$this->assertNotNull(shopify_graphql_normalise('{ a(x: """closed "quotes" inside""") { b } }'));
 	}
 
 	public function test_start_resends_once_the_read_shows_it_did_not_start(): void
