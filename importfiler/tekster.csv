@@ -5284,3 +5284,4 @@
 
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
 5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med
+5454	Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)	The document number cannot be saved: the journal has no free numbers left (max 2147483647)	Bilagsnummeret kan ikke lagres: det er ikke flere ledige numre i kladden (maks 2147483647)

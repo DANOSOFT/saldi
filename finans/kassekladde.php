@@ -4722,12 +4722,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						if (isset($bilag_erstat[$bilag_noegle])) {
 							$bilag_tjek['bilag'] = $bilag_erstat[$bilag_noegle];
 						} elseif ($bilag_tjek['replaced']) {
+							# reserve the replacement through the same allocator a line without a number uses,
+							# so it cannot take a number a staged line already proposes
+							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat);
+							if (!bilagNumberFits((string)$bilag_tjek['bilag'])) $bilag_tjek['bilag'] = 0;
 							$bilag_erstat[$bilag_noegle] = $bilag_tjek['bilag'];
 						}
 						if ($bilag_tjek['replaced'] && $bilag_tjek['bilag'] <= 0) {
-							# the journal is already at 2147483647: no number left to offer, so the line is not saved
+							# the journal is already at 2147483647: no number left to offer, so this line is skipped
 							$fejl = 1;
-							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " 2147483647.");
+							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							continue;
 						} elseif ($bilag_tjek['replaced']) {
 							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
 							# the staged line keeps the bad number as text, so the next open would try it again
