@@ -4718,6 +4718,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						$bilag_tjek = bilagSafeNumber(if_isset($r, '', 'bilag'), $kladde_id);
 						# one replacement per original number: the staged update below rewrites every line
 						# that carries it, so the next line of the same group must get the same number
+						if (!isset($bilag_erstat)) $bilag_erstat = array();
 						$bilag_noegle = 'x' . $bilag_tjek['original'];
 						if (isset($bilag_erstat[$bilag_noegle])) {
 							$bilag_tjek['bilag'] = $bilag_erstat[$bilag_noegle];
