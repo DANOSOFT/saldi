@@ -4715,12 +4715,24 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 						# SST-888 The two branches above each carry this check; this one did not, so a
 						# voucher number that does not fit kassekladde.bilag reached the insert.
-						$bilag_tjek = bilagSafeNumber(if_isset($r, '', 'bilag'), $kladde_id, $regnstart, $regnslut);
-						if ($bilag_tjek['replaced']) {
-							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
+						$bilag_tjek = bilagSafeNumber(if_isset($r, '', 'bilag'), $kladde_id);
+						# one replacement per original number: the staged update below rewrites every line
+						# that carries it, so the next line of the same group must get the same number
+						$bilag_noegle = 'x' . $bilag_tjek['original'];
+						if (isset($bilag_erstat[$bilag_noegle])) {
+							$bilag_tjek['bilag'] = $bilag_erstat[$bilag_noegle];
+						} elseif ($bilag_tjek['replaced']) {
+							$bilag_erstat[$bilag_noegle] = $bilag_tjek['bilag'];
 						}
-							# SST-888 the staged line keeps the bad number as text, so the next open would try it again
+						if ($bilag_tjek['replaced'] && $bilag_tjek['bilag'] <= 0) {
+							# the journal is already at 2147483647: no number left to offer, so the line is not saved
+							$fejl = 1;
+							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " 2147483647.");
+						} elseif ($bilag_tjek['replaced']) {
+							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
+							# the staged line keeps the bad number as text, so the next open would try it again
 							db_modify("update tmpkassekl set bilag = '" . db_escape_string($bilag_tjek["bilag"]) . "' where kladde_id = '" . db_escape_string($kladde_id) . "' and bilag = '" . db_escape_string($bilag_tjek["original"]) . "'", __FILE__ . " linje " . __LINE__);
+						}
 						$insert_bilag = $bilag_tjek['bilag'];
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.

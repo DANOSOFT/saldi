@@ -207,5 +207,8 @@ function bilagSafeNumber($raw, $kladde_id, $regnstart = null, $regnslut = null) 
 	}
 	$result['bilag'] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
 	$result['replaced'] = true;
+	# a journal already at the column maximum has no number left to offer: bilag 0 with
+	# replaced = true is the caller's signal to refuse the line instead of writing it
+	if (!bilagNumberFits((string)$result['bilag'])) $result['bilag'] = 0;
 	return $result;
 }
