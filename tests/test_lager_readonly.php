@@ -34,12 +34,16 @@ foreach (array('/../lager/lister/vareliste.php', '/../lager/lagerflyt.php') as $
 
 # ---- the save path refuses a read-only or rightless user ----------------------------------
 $guard = lagerSource('/../lager/varekort.php');
-lagerCheck(strpos($guard, '$bilag_handling && $rettigheder !== ""') !== false, 'the save path tests the right itself, for every write action');
+lagerCheck(strpos($guard, 'MB-65 a read-only or rightless user may open the card') !== false, 'the write refusal is a single gate near the top of the page');
+lagerCheck(strpos($guard, 'MB-65 a read-only or rightless') < strpos($guard, 'insert into vare_lev'), 'and it sits above the first write handler, which GET can reach');
+foreach (array('copy', 'delete_category', 'delete_var_type', 'rename_category', 'ChangeDescription') as $action) {
+    lagerCheck(strpos($guard, "'$action'") !== false, 'the gate covers ' . $action);
+}
 lagerCheck(strpos($guard, '$deleteItem') !== false, 'a delete is refused too');
 lagerCheck(strpos($guard, 'acceptStockChange') !== false, 'and so is a stock correction');
 lagerCheck(strpos(lagerSource('/../lager/lagerflyt.php'), "REQUEST_METHOD'] === 'POST'") !== false, 'the move page refuses a POST from a read-only user');
-lagerCheck(strpos($guard, '$rettigheder[9] === "2"') !== false, 'read-only (2) is refused');
-lagerCheck(strpos($guard, '$rettigheder[9] < "1"') !== false, 'no right (0) is refused');
+lagerCheck(strpos($guard, '$rettigheder[9] ===') !== false, 'read-only (2) is refused');
+lagerCheck(strpos($guard, '$rettigheder[9] <') !== false, 'no right (0) is refused');
 lagerCheck(strpos($guard, 'error_log(') !== false, 'and the refused attempt is logged');
 
 # ---- the rule, for the rights the matrix uses --------------------------------------------

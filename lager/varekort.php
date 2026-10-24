@@ -269,6 +269,19 @@ $funktion = if_isset($_GET, NULL, 'funktion');
 if (in_array($funktion, ['kontoopslag'], true)) {
     $funktion(if_isset($_GET, NULL, 'sort'), if_isset($_GET, NULL, 'fokus'), $id, if_isset($_GET, NULL, 'vis_kost'), '', if_isset($_GET, NULL, 'find'), 'varekort.php');
 }
+# MB-65 a read-only or rightless user may open the card, but nothing here may write. The handlers
+# below write from GET as well as POST, so the refusal has to come before them, not inside the POST path.
+$mb65_write = false;
+foreach (array('copy', 'saveItem', 'deleteItem', 'acceptStockChange', 'delete_category', 'delete_var_type', 'rename_category', 'ChangeDescription') as $mb65_key) {
+    if (isset($_POST[$mb65_key]) || isset($_GET[$mb65_key])) $mb65_write = true;
+}
+if (isset($_GET['konto_id']) && (int)$_GET['konto_id']) $mb65_write = true;
+if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0 && (int)$id != (int)$_GET['vare_id']) $mb65_write = true;
+if ($mb65_write && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+    error_log('MB-65: item write refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+    print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
+    exit;
+}
 if ($konto_id = (int) if_isset($_GET, NULL, 'konto_id')) {
     db_modify("insert into vare_lev (lev_id, vare_id, posnr) values ('$konto_id', '$id', '1')", __FILE__ . " linje " . __LINE__);
 }
@@ -293,13 +306,6 @@ $show_subcat = if_isset($_GET, NULL, 'show_subcat');
 
 $deleteItem = if_isset($_POST, NULL, 'deleteItem');
 $saveItem = if_isset($_POST, NULL, 'saveItem');
-	# MB-65 the button is disabled for a read-only user, but a hand-crafted POST must be refused here too
-	$bilag_handling = $saveItem || $deleteItem || $acceptStockChange || if_isset($_POST, NULL, 'acceptStockChange');
-	if ($bilag_handling && $rettigheder !== "" && ($rettigheder[9] === "2" || $rettigheder[9] < "1")) {
-		error_log("MB-65: item save refused for user " . $brugernavn . " (Items right " . $rettigheder[9] . ")");
-		print tekstboks("Du har ikke nogen rettigheder her - din aktivitet er blevet logget");
-		exit;
-	}
 $submit = if_isset($_POST, NULL, 'submit');
 
 if ($deleteItem == 'Slet') {
@@ -2064,13 +2070,13 @@ print "value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"saveItem\" onclick=\"j
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
 if ($varenr && $samlevare == 'on') {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
-    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy' $noEdit></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
 } elseif ($varenr) {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
     $txt2049 = findtekst('2049|Leverandøropslag', $sprog_id); //Leverandøropslag
     $txt3056 = findtekst('3295|Lagerhistorik', $sprog_id);    //Lagerhistorik
-    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy' $noEdit></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;' $noEdit></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=button accesskey='o' value='$txt3056' name='stockHistory' onclick='javascript:docChange = false;location.href = \"productCardIncludes/stockLog.php?id=$id\"'></td>";
 }
