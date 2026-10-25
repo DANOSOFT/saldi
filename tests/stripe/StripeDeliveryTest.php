@@ -310,6 +310,12 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
             $this->assertMatchesRegularExpression('~/faktura_pdf\.php\?o=\d+&s=[0-9a-f]+&vis=1~', html_entity_decode(StripeTestTransport::$mails[0][$format], ENT_QUOTES, 'UTF-8'));
         }
         $this->assertStringContainsString("(!empty(\$_GET['vis']) ? 'inline' : 'attachment')", file_get_contents(__DIR__ . '/../../api/stripe/faktura_pdf.php'));
+        // 20261025 Saldi's own mails show the logo; another company keeps its name as text.
+        $this->assertStringContainsString('/img/SaldiMainLogo.png" width="128" alt="Saldi"', StripeTestTransport::$mails[0]['html']);
+        $other = $inv;
+        $other['brand'] = 'Hansen Tømrer';
+        $this->assertStringNotContainsString('SaldiMainLogo', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
+        $this->assertStringContainsString('margin-bottom:32px">Hansen Tømrer</div>', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
         $page = file_get_contents(__DIR__ . '/../../api/stripe/faktura.php');
         $this->assertStringNotContainsString('Abonnement & fakturering', $page);
         $this->assertStringNotContainsString('find_in_saldi', $page);
