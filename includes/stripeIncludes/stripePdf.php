@@ -1,5 +1,6 @@
 <?php
 // 20261022 CDX/LH Private invoice artifacts, isolated renderer workspaces and atomic cache publication.
+// 20261025 CL/ASR Page images of the invoice PDF for the payment page (stripe_invoice_page_images).
 
 require_once __DIR__ . '/stripeSettings.php';
 
@@ -236,4 +237,79 @@ function stripe_invoice_pdf_path($ordreId, $generate = true) {
 		return '';
 	}
 	return stripe_invoice_pdf_valid($pdf) ? $pdf : '';
+}
+
+/** @return string Ghostscript binary for page images (installation setting or the usual paths); empty if unavailable. */
+function stripe_invoice_gs() {
+	foreach (array((string)stripe_setting('gs'), '/usr/bin/gs', '/usr/local/bin/gs') as $gs) {
+		if ($gs !== '' && is_file($gs) && is_executable($gs)) return $gs;
+	}
+	return '';
+}
+
+/** @return array<int, string> Complete page-image set for one PDF version; empty unless its page count marker is present. */
+function stripe_invoice_page_list($key) {
+	clearstatcache(true, $key . '.pages');
+	if (is_link($key . '.pages') || !is_file($key . '.pages')) return array();
+	$count = (int)file_get_contents($key . '.pages');
+	$pages = array();
+	for ($n = 1; $n <= $count; $n++) {
+		$png = $key . '.p' . $n . '.png';
+		if (is_link($png) || !is_file($png) || !is_readable($png)) return array();
+		$pages[] = $png;
+	}
+	return $pages;
+}
+
+/**
+ * 20261025 CL/ASR The invoice PDF as page images for the payment page, so the customer sees the invoice exactly as
+ * the PDF (logo, layout) and not a summary. Cached next to the private PDF and keyed by its mtime and size, so a
+ * re-rendered PDF gets new images; old images are removed. Rendered under the invoice lock in a private workspace.
+ *
+ * @param int $ordreId Saldi order id.
+ * @param bool $generate Render the PDF and/or images when missing.
+ * @return array<int, string> Page PNG paths in order; empty on failure (the page then shows the HTML summary).
+ */
+function stripe_invoice_page_images($ordreId, $generate = true) {
+	$maxPages = 10;
+	$pdf = stripe_invoice_pdf_path($ordreId, $generate);
+	if ($pdf === '') return array();
+	clearstatcache(true, $pdf);
+	$key = $pdf . '.' . filemtime($pdf) . '-' . filesize($pdf);
+	$pages = stripe_invoice_page_list($key);
+	if ($pages || !$generate) return $pages;
+	$gs = stripe_invoice_gs();
+	if ($gs === '') return array();
+	$lock = stripe_invoice_pdf_lock($ordreId);
+	if (!$lock) return array();
+	try {
+		$pages = stripe_invoice_page_list($key);
+		if ($pages) return $pages;
+		$work = stripe_invoice_pdf_work_dir();
+		if ($work === '') return array();
+		try {
+			$cmd = escapeshellarg($gs) . ' -q -dSAFER -dBATCH -dNOPAUSE -dLastPage=' . $maxPages
+				. ' -sDEVICE=png16m -r144 -dTextAlphaBits=4 -dGraphicsAlphaBits=4'
+				. ' -sOutputFile=' . escapeshellarg($work . '/p%d.png') . ' ' . escapeshellarg($pdf) . ' 2>&1';
+			exec($cmd, $out, $rc);
+			if ($rc !== 0 || !is_file($work . '/p1.png')) {
+				stripe_log('invoice page images failed for ' . (int)$ordreId . ': ' . implode(' ', $out));
+				return array();
+			}
+			foreach (array_merge(glob($pdf . '.*.p*.png') ?: array(), glob($pdf . '.*.pages') ?: array()) as $old) {
+				if (!is_link($old) && is_file($old)) unlink($old);
+			}
+			for ($n = 1; $n <= $maxPages && is_file($work . '/p' . $n . '.png'); $n++) {
+				if (!chmod($work . '/p' . $n . '.png', 0640) || !rename($work . '/p' . $n . '.png', $key . '.p' . $n . '.png')) return array();
+			}
+			// The count marker is written last: readers only see a complete set.
+			if (file_put_contents($key . '.pages', (string)($n - 1), LOCK_EX) === false || !chmod($key . '.pages', 0640)) return array();
+		} finally {
+			stripe_invoice_pdf_cleanup($work);
+		}
+		return stripe_invoice_page_list($key);
+	} finally {
+		flock($lock, LOCK_UN);
+		fclose($lock);
+	}
 }

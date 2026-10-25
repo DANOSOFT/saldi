@@ -185,6 +185,55 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
         }
     }
 
+    public function testInvoicePageImagesFollowThePdfAndOnlyACompleteSetIsServed(): void
+    {
+        // 20261025 The payment page shows the invoice as its PDF pages (faktura_side.php serves them).
+        $gs = stripe_invoice_gs();
+        if ($gs === '') {
+            $this->markTestSkipped('Ghostscript is not installed');
+        }
+        $id = StripeFixtures::invoice();
+        $work = stripe_invoice_pdf_work_dir();
+        $source = $work . '/input.pdf';
+        $makePdf = function (string $postscript) use ($gs, $source): void {
+            exec(escapeshellarg($gs) . ' -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=' . escapeshellarg($source)
+                . ' -c ' . escapeshellarg('/Helvetica findfont 24 scalefont setfont ' . $postscript) . ' 2>&1', $out, $rc);
+            $this->assertSame(0, $rc, implode("\n", $out));
+        };
+        try {
+            $makePdf('72 720 moveto (Side 1) show showpage 72 720 moveto (Side 2) show showpage');
+            $this->assertTrue(stripe_invoice_pdf_cache($id, $source));
+            $this->assertSame([], stripe_invoice_page_images($id, false));
+            $pages = stripe_invoice_page_images($id, true);
+            $this->assertCount(2, $pages);
+            foreach ($pages as $png) {
+                $this->assertSame("\x89PNG", file_get_contents($png, false, null, 0, 4));
+                $this->assertSame(0640, fileperms($png) & 0777);
+                $this->assertSame(dirname(stripe_invoice_pdf_path($id, false)), dirname($png));
+            }
+            $this->assertSame($pages, stripe_invoice_page_images($id, false));
+
+            // A new PDF version gets new images and the old ones are removed.
+            $makePdf('72 720 moveto (Ny version med kun en side) show showpage');
+            $this->assertTrue(stripe_invoice_pdf_cache($id, $source));
+            $this->assertSame([], stripe_invoice_page_images($id, false));
+            $current = stripe_invoice_page_images($id, true);
+            $this->assertCount(1, $current);
+            foreach ($pages as $old) {
+                $this->assertFileDoesNotExist($old);
+            }
+            // Without the page-count marker the set counts as incomplete and is not served.
+            unlink(preg_replace('/\.p1\.png$/', '.pages', $current[0]));
+            $this->assertSame([], stripe_invoice_page_images($id, false));
+
+            $endpoint = file_get_contents(__DIR__ . '/../../api/stripe/faktura_side.php');
+            $this->assertStringContainsString("include(__DIR__ . '/faktura_common.php');", $endpoint);
+            $this->assertStringContainsString("stripe_invoice_page_images(\$inv['id'], false)", $endpoint);
+        } finally {
+            stripe_invoice_pdf_cleanup($work);
+        }
+    }
+
     public function testRenderWorkspacesAreIsolatedCleanedAndUseOneStableInvoiceLock(): void
     {
         $id = StripeFixtures::invoice();

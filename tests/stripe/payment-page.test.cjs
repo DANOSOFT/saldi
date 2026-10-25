@@ -35,11 +35,11 @@ function fixture(options = {}) {
       for (const child of ['consent-box', 'consent-title', 'consent-text']) node(child, row);
     }
   }
-  const calls = { submits: 0, creates: [], confirmations: [], actions: [], updates: [], redirects: [], mounts: [], elementOptions: [] };
+  const calls = { submits: 0, creates: [], confirmations: [], actions: [], updates: [], redirects: [], mounts: [], elementOptions: [], paymentElementOptions: [] };
   const peEvents = {};
   const updateEvents = new Set();
   const elements = {
-    create() { return { on(name, fn) { peEvents[name] = fn; }, mount(id) { calls.mounts.push(id); } }; },
+    create(type, value) { calls.paymentElementOptions.push({ type, value }); return { on(name, fn) { peEvents[name] = fn; }, mount(id) { calls.mounts.push(id); } }; },
     on(name, fn) { assert.equal(name, 'update-end'); updateEvents.add(fn); },
     update(value) { calls.updates.push(value); },
     async submit() { calls.submits++; return options.submitError ? { error: { message: 'Ret kortoplysningerne' } } : {}; }
@@ -127,6 +127,15 @@ test('Space and Enter toggle consent and prevent default; other keys leave it un
 test('M4: Elements accepts only card methods regardless of account defaults', () => {
   const f = fixture();
   assert.deepEqual(Array.from(f.calls.elementOptions[0].paymentMethodTypes), ['card']);
+});
+
+test('Stripe Link is hidden: the Payment Element shows the card form only', () => {
+  for (const state of ['open', 'open_recurring']) {
+    const f = fixture({ state });
+    assert.equal(f.calls.paymentElementOptions.length, 1);
+    assert.equal(f.calls.paymentElementOptions[0].type, 'payment');
+    assert.equal(f.calls.paymentElementOptions[0].value.wallets.link, 'never');
+  }
 });
 
 test('N5: no submit before ready; first ready click submits once and permits retry after decline', async () => {

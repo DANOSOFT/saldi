@@ -38,6 +38,9 @@
 // 20261022 CDX/LH Wait for Payment Element readiness and usage updates; prevent concurrent submits and keep consent date accurate.
 // 20261022 CDX/LH Enforce card payment methods in Elements and remove the unavailable Saldi menu hint.
 // 20261022 CDX/LH Place whole-row, keyboard-accessible consent above the resizing Payment Element.
+// 20261025 CL/ASR Left: the invoice exactly as its PDF (page images via faktura_side.php); the HTML
+//                 summary is only shown if the images cannot be made. Stripe Link is hidden in the
+//                 Payment Element (wallets.link = never): card only, shorter panel.
 
 include(__DIR__ . '/faktura_common.php');
 
@@ -58,6 +61,8 @@ $nr = $inv['nr'];
 $docName = $inv['is_credit'] ? stripe_txt('creditnote') : stripe_txt('invoice');
 $self = stripe_invoice_url($inv['id']);
 $pdfUrl = str_replace('/faktura.php?', '/faktura_pdf.php?', $self);
+$pageUrl = str_replace('/faktura.php?', '/faktura_side.php?', $self);
+$pageImgs = stripe_invoice_page_images($inv['id'], true);
 $contactMail = trim((string)($f['email'] ?? '')); $contactPhone = trim((string)($f['tlf'] ?? ''));
 $bankReg = trim((string)($f['bank_reg'] ?? '')); $bankKonto = trim((string)($f['bank_konto'] ?? ''));
 $hasBank = ($bankReg !== '' && $bankKonto !== '');
@@ -182,6 +187,7 @@ h1,h2{letter-spacing:-.01em}a{color:var(--blue)}.num{font-variant-numeric:tabula
 .btn.primary{border:0;background:linear-gradient(90deg,var(--blue),var(--purple));color:#fff;font-weight:600;height:52px;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(139,51,212,.18);margin-top:8px}.btn.primary:hover{filter:brightness(1.06)}.btn.primary[disabled]{opacity:.55;cursor:default;filter:none}
 .wrap{display:grid;grid-template-columns:minmax(0,1fr) 440px;min-height:calc(100vh - 72px)}.left{padding:48px 56px 64px;display:flex;justify-content:center}.right{background:var(--surface);border-left:1px solid var(--line);padding:48px 40px;min-width:0}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}.right{border-left:0;border-top:1px solid var(--line);order:-1;padding:28px 20px}.left{padding:24px 16px 48px}.top{padding:0 16px}.top .ttl span{display:none}}
+.pages{width:100%;max-width:820px;display:flex;flex-direction:column;gap:24px}.pages img{display:block;width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow)}
 .inv{width:100%;max-width:820px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:56px 60px}@media(max-width:980px){.inv{padding:28px 22px}}
 .inv .head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:40px}.inv .from b{display:block;font-size:20px;font-weight:600;margin-bottom:6px}.inv .from span{display:block;color:var(--ink-2);font-size:14.5px}.inv .title{text-align:right}.inv .title h1{font-size:44px;font-weight:700;line-height:1;margin-bottom:12px}
 .pill{display:inline-block;padding:6px 14px;border-radius:99px;font-size:13.5px;font-weight:600;background:var(--purple-pill);color:var(--purple-ink)}.pill.bad{background:var(--bad-bg);color:var(--bad)}.pill.good{background:var(--good-bg);color:var(--good)}.pill.grey{background:var(--soft);color:var(--ink-2)}
@@ -214,6 +220,13 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 </header>
 <div class="wrap">
   <main class="left">
+    <?php if ($pageImgs): ?>
+    <div class="pages">
+      <?php foreach ($pageImgs as $i => $png): $dim = @getimagesize($png); ?>
+      <img src="<?= $h($pageUrl . '&p=' . ($i + 1)) ?>" alt="<?= $h($docName . ' ' . $nr . ', side ' . ($i + 1) . ' af ' . count($pageImgs)) ?>"<?= $dim ? ' width="' . (int)$dim[0] . '" height="' . (int)$dim[1] . '"' : '' ?><?= $i > 0 ? ' loading="lazy"' : '' ?>>
+      <?php endforeach; ?>
+    </div>
+    <?php else: ?>
     <article class="inv">
       <div class="head">
         <div class="from"><b><?= $h($f['firmanavn'] ?? '') ?></b><span><?= $h($f['addr1'] ?? '') ?></span><?php if (trim((string)($f['addr2'] ?? '')) !== ''): ?><span><?= $h($f['addr2']) ?></span><?php endif; ?><span><?= $h(trim(($f['postnr'] ?? '') . ' ' . ($f['bynavn'] ?? ''))) ?></span><?php if (trim((string)($f['cvrnr'] ?? '')) !== ''): ?><span>CVR <?= $h($f['cvrnr']) ?></span><?php endif; ?></div>
@@ -241,6 +254,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
         <?php endif; ?>
       </div>
     </article>
+    <?php endif; ?>
   </main>
   <aside class="right" id="panel"><?= $panel ?></aside>
 </div>
@@ -317,7 +331,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
   elements.on('update-end', function(){
     if (usageResolve) { var resolve = usageResolve; usageResolve = null; resolve(); }
   });
-  var pe = elements.create('payment', {layout:'tabs'});
+  var pe = elements.create('payment', {layout:'tabs', wallets:{link:'never'}});
   pe.on('ready', function(){ elementReady = true; payBtn.disabled = submitting; });
   pe.on('loaderror', function(){ elementReady = false; payBtn.disabled = true; showErr(cfg.startError); });
   pe.mount('#payment-element');
