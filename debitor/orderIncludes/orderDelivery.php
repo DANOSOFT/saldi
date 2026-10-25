@@ -94,3 +94,32 @@ function orderLinkDeliveryOption($selected) {
 	return "<option value='Link'" . ($stored ? ' selected' : '') . " title=\"" . htmlspecialchars(findtekst('7125', $sprog_id), ENT_QUOTES, 'UTF-8') . "\">"
 		. htmlspecialchars(findtekst('7124', $sprog_id), ENT_QUOTES, 'UTF-8') . "</option>\n";
 }
+
+/**
+ * 20261025 CL/ASR When "E-mail med link" is chosen but this order cannot use the payment page, say so
+ * next to the dropdown instead of silently mailing the classic PDF (e.g. Kontant terms, PBS, not DKK).
+ *
+ * @return string HTML notice or ''.
+ */
+function orderLinkNotice($selected, $orderId) {
+	global $sprog_id;
+	if ($selected !== 'Link' || (int)$orderId <= 0) {
+		return '';
+	}
+	$reason = 'ledger';
+	if (orderLinkAvailable()) {
+		$o = db_fetch_array(db_select('select * from ordrer where id = ' . (int)$orderId, __FILE__ . ' linje ' . __LINE__));
+		if (!$o) {
+			return '';
+		}
+		$reason = stripe_invoice_uncollectable_reason(array('o' => $o, 'is_credit' => ($o['art'] ?? '') === 'DK'));
+	}
+	if ($reason === '') {
+		return '';
+	}
+	$texts = array('ledger' => '7129', 'credit' => '7130', 'currency' => '7131', 'terms' => '7132', 'pbs' => '7133', 'debtor' => '7134', 'no_card' => '7135', 'subscriber' => '7136');
+	$why = findtekst($texts[$reason] ?? '7129', $sprog_id);
+	return "<div style='margin-top:4px;max-width:260px;font-size:12px;line-height:1.35;color:#a15c07'>"
+		. htmlspecialchars(findtekst('7128', $sprog_id) . ' ' . $why, ENT_QUOTES, 'UTF-8') . "</div>";
+}
+

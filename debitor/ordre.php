@@ -4125,7 +4125,7 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til != "historik" && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			print "<option title=\"" . findtekst('1453|Gem en kopi og vedhæft kundens historik', $sprog_id) . "\">" . findtekst('907|Historik', $sprog_id) . "</option>\n";
 		}
-		print "</SELECT></td></tr>";
+		print "</SELECT>" . orderLinkNotice($udskriv_til, $id) . "</td></tr>";
 
 		/*
 		print "<tr><td><b>Fakt som mail</td><td><input class=\"inputbox\" type=\"checkbox\" name=\"mail_fakt\" $mail_fakt></td></tr>\n";
@@ -5045,7 +5045,7 @@ function ordreside($id, $regnskab)
 				elseif ($tmp && $udskriv_til != "PBS" && $lev_pbs == 'B') print "<option title=\"" . findtekst('1452|Opkræves via betalingsservice', $sprog_id) . "\">PBS</option>\n";
 			}
 		}
-		print "</SELECT></td></tr>\n";
+		print "</SELECT>" . orderLinkNotice($udskriv_til, $id) . "</td></tr>\n";
 		if (db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
 			print "<tr><td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\">" . findtekst('571|Baggrund', $sprog_id) . "</span></td>\n";
 			print "<td><select class='inputbox' style=\"width:130px\" name=\"sprog\">\n";

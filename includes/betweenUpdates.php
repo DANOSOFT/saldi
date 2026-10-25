@@ -1459,7 +1459,7 @@ if ($db_type != 'mysql' && $db_type != 'mysqli') {
 			created_at timestamp DEFAULT CURRENT_TIMESTAMP, succeeded_at timestamp,
 			journal_line_id integer, confirmation_sent_at timestamp, last_event_id varchar(255))", __FILE__ . " linje " . __LINE__);
 	}
-	foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date') as $stripeCol => $stripeType) {
+	foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date', 'udskriv_til' => 'varchar(10)') as $stripeCol => $stripeType) {
 		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='$stripeCol'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) db_modify("ALTER TABLE adresser ADD COLUMN $stripeCol $stripeType", __FILE__ . " linje " . __LINE__);
 	}

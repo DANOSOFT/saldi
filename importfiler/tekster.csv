@@ -6816,5 +6816,14 @@
 7125	Mailen har en knap til faktura- og betalingssiden. Ingen PDF vedhæftet.	The e-mail has a button to the invoice and payment page. No PDF attached.	E-posten har en knapp til faktura- og betalingssiden. Ingen PDF vedlagt.
 7126	Standard for nye e-mailordrer	Default for new e-mail orders	Standard for nye e-postordrer
 7127	Hvad Udskriv til står på, når der oprettes en ordre til en kunde med e-mailfaktura. Kan ændres på den enkelte ordre: E-mail eller E-mail med link.	What Print to is set to when an order is created for a customer with e-mail invoices. Can be changed on each order: E-mail or E-mail with link.	Hva Skriv ut til står på når det opprettes en ordre til en kunde med e-postfaktura. Kan endres på den enkelte ordren: E-post eller E-post med lenke.
+7128	Sendes som almindelig e-mail med PDF:	Sent as a normal e-mail with PDF:	Sendes som vanlig e-post med PDF:
+7129	betalingssiden er ikke slået til i dette regnskab.	the payment page is not switched on in this ledger.	betalingssiden er ikke slått på i dette regnskapet.
+7130	kreditnotaer sendes altid som almindelig e-mail.	credit notes are always sent as a normal e-mail.	kreditnotaer sendes alltid som vanlig e-post.
+7131	kun fakturaer i DKK kan betales på betalingssiden.	only invoices in DKK can be paid on the payment page.	bare fakturaer i DKK kan betales på betalingssiden.
+7132	betalingsbetingelsen er kontant eller kreditkort, så fakturaen regnes som betalt.	the payment terms are cash or credit card, so the invoice counts as paid.	betalingsbetingelsen er kontant eller kredittkort, så fakturaen regnes som betalt.
+7133	kunden betaler via Betalingsservice.	the customer pays by direct debit (Betalingsservice).	kunden betaler via AvtaleGiro/Betalingsservice.
+7134	ordren har ingen kunde.	the order has no customer.	ordren har ingen kunde.
+7135	kunden har fravalgt kortbetaling.	the customer has opted out of card payment.	kunden har valgt bort kortbetaling.
+7136	kunden betaler via sit Stripe-abonnement.	the customer pays through their Stripe subscription.	kunden betaler via sitt Stripe-abonnement.
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 

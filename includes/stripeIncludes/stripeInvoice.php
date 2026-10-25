@@ -279,7 +279,9 @@ if (!function_exists('stripe_payments_ensure')) {
 				journal_line_id integer, confirmation_sent_at timestamp, last_event_id varchar(255))", __FILE__ . " linje " . __LINE__);
 		}
 		stripe_payment_indexes_ensure();
-		foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date') as $col => $type) {
+		// udskriv_til is a standard adresser column (admin/opret.php) but missing in some old ledgers; the
+		// invoice load and enrolment read and write it (20261025 CL/ASR).
+		foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date', 'udskriv_til' => 'varchar(10)') as $col => $type) {
 			$c = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='$col'", __FILE__ . " linje " . __LINE__));
 			if (!$c) db_modify("ALTER TABLE adresser ADD COLUMN IF NOT EXISTS $col $type", __FILE__ . " linje " . __LINE__);
 		}
@@ -372,20 +374,32 @@ if (!function_exists('stripe_invoice_format')) {
  * @return bool Whether this tenant, currency, debtor and payment terms allow card collection.
  */
 function stripe_invoice_collectable($inv) {
+	return stripe_invoice_uncollectable_reason($inv) === '';
+}
+
+/**
+ * Why an invoice cannot be collected by card (and therefore is mailed classically), or '' when it can.
+ * Same checks and order as before 20261025; the key lets the order page explain the fallback.
+ *
+ * @return string ''|ledger|credit|currency|terms|pbs|debtor|no_card|subscriber
+ */
+function stripe_invoice_uncollectable_reason($inv) {
 	global $db;
-	if (!$db || $db !== stripeConfigDb()) return false;
+	if (!$db || $db !== stripeConfigDb()) return 'ledger';
 	$o = $inv['o'];
-	if (($o['art'] ?? '') !== 'DO' || !empty($inv['is_credit'])) return false;
-	if ((strtoupper(trim((string)($o['valuta'] ?? ''))) ?: 'DKK') !== 'DKK') return false;
-	if (in_array(strtolower(trim((string)($o['betalingsbet'] ?? ''))), array('kontant', 'kreditkort'), true)) return false;
-	if (strtoupper(trim((string)($o['pbs'] ?? ''))) === 'BS') return false;
+	if (($o['art'] ?? '') !== 'DO' || !empty($inv['is_credit'])) return 'credit';
+	if ((strtoupper(trim((string)($o['valuta'] ?? ''))) ?: 'DKK') !== 'DKK') return 'currency';
+	if (in_array(strtolower(trim((string)($o['betalingsbet'] ?? ''))), array('kontant', 'kreditkort'), true)) return 'terms';
+	if (strtoupper(trim((string)($o['pbs'] ?? ''))) === 'BS') return 'pbs';
 	$kontoId = (int)($o['konto_id'] ?? 0);
-	if (!$kontoId) return false;
+	if (!$kontoId) return 'debtor';
 	$d = db_fetch_array(stripe_payment_select("select pbs_nr, stripe_fravalg from adresser where id = $kontoId"));
-	if (!$d || (float)$d['pbs_nr'] > 0 || stripe_bool($d['stripe_fravalg'])) return false;
+	if (!$d) return 'debtor';
+	if ((float)$d['pbs_nr'] > 0) return 'pbs';
+	if (stripe_bool($d['stripe_fravalg'])) return 'no_card';
 	$subscriber = db_fetch_array(stripe_payment_select("select id from stripe_customers where konto_id = $kontoId
 		and coalesce(stripe_subscription_id, '') <> '' and status in ('active', 'trialing', 'past_due') limit 1"));
-	return !$subscriber;
+	return $subscriber ? 'subscriber' : '';
 }
 
 // ---------------------------------------------------------------- loading an invoice
