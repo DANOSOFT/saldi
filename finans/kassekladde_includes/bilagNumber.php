@@ -112,7 +112,7 @@ function bilagReplaceTakenProposals($kladde_id, $proposed) {
 	$q = db_select("SELECT lobenr, id, bilag FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$bilag = (int)$r['bilag'];
-		$staged_max = max($staged_max, $bilag);
+		if (bilagNumberFits((string)$r['bilag'])) $staged_max = max($staged_max, $bilag);
 		if ((int)$r['id'] > 0) {
 			continue;
 		}
@@ -140,6 +140,12 @@ function bilagReplaceTakenProposals($kladde_id, $proposed) {
  * @return int The voucher number to allocate.
  */
 function bilagNextNumberReserved($kladde_id, $replacements) {
+	# a replacement that does not fit must not raise the floor, or a free number is passed over
+	if ($replacements) {
+		foreach ($replacements as $replace_key => $replace_value) {
+			if (!bilagNumberFits((string)$replace_value)) unset($replacements[$replace_key]);
+		}
+	}
 	$next = bilagNextNumberForJournal($kladde_id);
 	return $replacements ? max($next, max($replacements) + 1) : $next;
 }
