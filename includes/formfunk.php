@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-22 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -89,6 +89,7 @@
 // 20261022 CDX/LH Keep each batch mail tied to its order; fall back on link delivery errors and report them.
 // 20261022 CDX/LH Use the renderer private workspace and quote conversion paths while preserving interactive print directories.
 // 20261022 CL/LH S5 Udskriv til = Stripe now mails the pre-charge notice through the same delivery hook.
+// 20261025 CL/ASR Udskriv til 'Link' is mailed like 'email' (the delivery step picks the link mail).
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 

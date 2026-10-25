@@ -6838,5 +6838,8 @@
 7148	kunden har fravalgt kort	customer opted out of cards	kunden har valgt bort kort
 7149	kunden har Stripe-abonnement	customer has a Stripe subscription	kunden har Stripe-abonnement
 7150	E-mail med link kan ikke bruges:	E-mail with link cannot be used:	E-post med lenke kan ikke brukes:
+7151	Eksisterende kunder	Existing customers	Eksisterende kunder
+7152	Kunder og tilbagevendende ordrer, der stadig står på E-mail fra før E-mail med link fandtes. Sæt hak og gem for at skifte dem til E-mail med link. Kontant/kreditkort, fremmed valuta og PBS ændres ikke.	Customers and recurring orders still set to E-mail from before E-mail with link existed. Tick and save to switch them to E-mail with link. Cash/card terms, foreign currency and PBS are not changed.	Kunder og gjentakende ordrer som fortsatt står på E-post fra før E-post med lenke fantes. Huk av og lagre for å bytte dem til E-post med lenke. Kontant/kort, fremmed valuta og PBS endres ikke.
+7153	Skift %kunder kunder og %ordrer tilbagevendende ordrer fra E-mail til E-mail med link	Switch %kunder customers and %ordrer recurring orders from E-mail to E-mail with link	Bytt %kunder kunder og %ordrer gjentakende ordrer fra E-post til E-post med lenke
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 

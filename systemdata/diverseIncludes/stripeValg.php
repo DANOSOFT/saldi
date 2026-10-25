@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.23
+// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 //                rejected with an alert, never silently sanitized.
 // 20261022 CDX/LH Complete native master invoice settings and rollout controls; preserve CSRF, escaping and collected errors.
 // 20261023 CDX/LH Pass raw settings values to the redesign setter, which handles SQL escaping internally.
+// 20261025 CL/ASR Invoice format label = default for new e-mail orders; one-time switch of existing customers/recurring orders to E-mail med link.
 
 /**
  * Injected by systemdata/diverse.php via online.php and the page setup:
@@ -41,6 +42,7 @@
  */
 
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeSettings.php');
+include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php'); // stripe_invoice_link_available(), stripe_link_conversion()
 
 /**
  * Save tenant Stripe settings after validating the existing CSRF token.
@@ -130,6 +132,10 @@ function stripeValgSave() {
 		$fejl[] = findtekst('7123|Fakturaformat afvist: vælg PDF eller link', $sprog_id);
 	}
 	update_settings_value('invoice_link_text', 'email_settings', trim((string)($input['invoice_link_text'] ?? '')), 'Tekst i link-mailen');
+	// 20261025 CL/ASR one-time switch of customers/recurring orders from "E-mail" to "E-mail med link"
+	if (!empty($input['stripe_convert_link']) && function_exists('stripe_invoice_link_available') && stripe_invoice_link_available()) {
+		stripe_link_conversion(true);
+	}
 
 	# vat_rate_id
 	$vat_rate_id = trim((string)($input['stripe_vat_rate_id'] ?? ''));
@@ -234,6 +240,15 @@ function stripeValg() {
 	print "<td colspan='3'><select name='invoice_format'><option value='pdf'" . ($invoice_format !== 'link' ? " selected" : "") . ">" . findtekst('7103', $sprog_id) . "</option><option value='link'" . ($invoice_format === 'link' ? " selected" : "") . ">" . findtekst('7104', $sprog_id) . "</option></select></td></tr>";
 	print "<tr><td title='" . htmlspecialchars(findtekst('7106', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7105', $sprog_id) . ":</td>";
 	print "<td colspan='3'><textarea name='invoice_link_text' rows='4' cols='60'>$invoice_link_text</textarea></td></tr>";
+	// 20261025 CL/ASR existing customers/subscriptions still on the classic e-mail: offer to switch them once
+	if (function_exists('stripe_invoice_link_available') && stripe_invoice_link_available()) {
+		$linkCandidates = stripe_link_conversion(false);
+		if ($linkCandidates['customers'] + $linkCandidates['orders'] > 0) {
+			print "<tr><td title='" . htmlspecialchars(findtekst('7152', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7151', $sprog_id) . ":</td>";
+			print "<td colspan='3'><label><input type='checkbox' name='stripe_convert_link' value='1'> "
+				. htmlspecialchars(str_replace(array('%kunder', '%ordrer'), array($linkCandidates['customers'], $linkCandidates['orders']), findtekst('7153', $sprog_id)), ENT_QUOTES, 'UTF-8') . "</label></td></tr>";
+		}
+	}
 
 	print "<tr><td title='Stripe tax rate (txr_...) for 25% dansk moms - oprettes i Stripe Dashboard og indsættes her. Uden den parkeres alle links.'>Tax rate id:</td>";
 	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_vat_rate_id' value='$vat_rate_id' placeholder='txr_...'></td></tr>";

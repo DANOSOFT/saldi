@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeEnrol.php --- 2026.10.22
+// --- includes/stripeIncludes/stripeEnrol.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261022 CDX/LH Keep historical invoices untouched; use the PI customer; deliver issued invoices on Afmeld with a retry outbox.
 // 20261022 CDX/LH Document that recurrence dates are read for eligibility but never written.
 // 20261022 CL/LH S5 Greet by first name in the outstanding-invoice mail sent after Afmeld.
+// 20261025 CL/ASR Afmeld puts Link (or e-mail) back on the debtor and its orders.
 
 include_once(__DIR__ . '/stripeHttp.php');
 include_once(__DIR__ . '/stripeSettings.php');

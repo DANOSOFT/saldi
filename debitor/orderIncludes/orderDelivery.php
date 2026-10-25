@@ -1,5 +1,6 @@
 <?php
 // 20261022 CDX/LH Preserve stored Stripe delivery across legacy mail flags, local printing and partial order saves.
+// 20261025 CL/ASR 'Link' delivery: option, G6.3 default, block reasons (hard vs temporary), notice and terms script.
 
 /**
  * Resolve legacy delivery flags without overriding a stored automatic-payment instruction.
@@ -64,15 +65,17 @@ function orderStripeDeliveryOption($selected, $kontoId) {
  * invoice & payment page is switched on in this ledger.
  */
 function orderLinkAvailable() {
-	static $available = null;
-	if ($available === null) {
-		$available = false;
+	global $db;
+	static $available = array();
+	$key = (string)$db;
+	if (!isset($available[$key])) {
+		$available[$key] = false;
 		if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php')) {
 			include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php');
-			$available = function_exists('stripe_invoice_link_available') && stripe_invoice_link_available();
+			$available[$key] = function_exists('stripe_invoice_link_available') && stripe_invoice_link_available();
 		}
 	}
-	return $available;
+	return $available[$key];
 }
 
 /** G6.3 default for new e-mail orders is the link mail. */
@@ -83,25 +86,43 @@ function orderLinkDefault() {
 /**
  * 20261025 CL/ASR Why this order cannot use "E-mail med link": '' = it can. 'ledger' when the payment page is
  * off here; otherwise the stripe_invoice_uncollectable_reason() codes (terms, currency, credit, pbs, ...).
- * $override holds posted order fields that are not saved yet (betalingsbet, valuta).
+ * $override holds posted order fields that are not saved yet (betalingsbet). Cached per request.
  *
  * @return string Reason code or ''.
  */
 function orderLinkBlockReason($orderId, $override = array()) {
+	global $db;
+	static $cache = array();
 	if ((int)$orderId <= 0) {
 		return '';
 	}
 	if (!orderLinkAvailable()) {
 		return 'ledger';
 	}
-	$o = db_fetch_array(db_select('select * from ordrer where id = ' . (int)$orderId, __FILE__ . ' linje ' . __LINE__));
-	if (!$o) {
-		return '';
+	$key = $db . '|' . (int)$orderId . '|' . json_encode($override);
+	if (!array_key_exists($key, $cache)) {
+		$o = db_fetch_array(db_select('select * from ordrer where id = ' . (int)$orderId, __FILE__ . ' linje ' . __LINE__));
+		if (!$o) {
+			return '';
+		}
+		foreach ($override as $field => $value) {
+			if (is_string($value) && trim($value) !== '') $o[$field] = $value;
+		}
+		$cache[$key] = stripe_invoice_uncollectable_reason(array('o' => $o));
 	}
-	foreach ($override as $field => $value) {
-		if (is_string($value) && trim($value) !== '') $o[$field] = $value;
-	}
-	return stripe_invoice_uncollectable_reason(array('o' => $o, 'is_credit' => ($o['art'] ?? '') === 'DK'));
+	return $cache[$key];
+}
+
+/**
+ * A block the user fixes on the order itself (payment terms, currency, credit note, customer, PBS): the option
+ * is disabled and a stored Link becomes E-mail. Other reasons (payment page off, card opt-out, Stripe
+ * subscriber) can change without touching the order: a stored Link is kept and sent as the classic e-mail
+ * meanwhile (formfunk falls back), so the choice is not lost.
+ *
+ * @return bool Whether the reason is fixed on the order.
+ */
+function orderLinkHardBlock($reason) {
+	return in_array($reason, array('terms', 'currency', 'credit', 'debtor', 'pbs'), true);
 }
 
 /**
@@ -120,8 +141,8 @@ function orderLinkBlockText($reason, $invoiced) {
 }
 
 /**
- * The "E-mail med link" option. A stored Link order renders it selected; when this order cannot use the
- * payment page ($block) it is shown disabled with a short hint, so it cannot be chosen.
+ * The "E-mail med link" option. A stored Link order renders it selected (callers turn a hard-blocked Link into
+ * E-mail first); otherwise, when this order cannot use the payment page ($block), it is disabled with a hint.
  *
  * @return string HTML option or ''.
  */

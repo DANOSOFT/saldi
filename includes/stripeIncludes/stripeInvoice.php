@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeInvoice.php --- 2026.10.22
+// --- includes/stripeIncludes/stripeInvoice.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@ include_once(__DIR__ . '/stripeAttempts.php');
 include_once(__DIR__ . '/stripeCharge.php');
 
 // 20261022 CDX/LH Reconcile attempts before collection; restrict eligibility and full-open amounts; support manual payment state.
+// 20261025 CL/ASR Delivery per order (Link = link mail, email = classic); uncollectable reason; one-time switch of existing customers/orders to Link.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -319,27 +320,53 @@ if (!function_exists('stripe_fmt_kr')) {
 // ---------------------------------------------------------------- settings: delivery format
 if (!function_exists('stripe_invoice_format')) {
 	/**
-	 * Resolve the tenant-wide invoice mail format, respecting the invoice rollout switch.
+	 * 20261025 CL/ASR The link mail is chosen per order (Udskriv til = 'Link', "E-mail med link"). Whether that
+	 * choice can be offered and honoured in the current ledger at all.
 	 *
-	 * @return string pdf (default/off) or link.
+	 * @return bool This is the Stripe ledger and invoice payments are on.
 	 */
-	// 20261025 CL/ASR The link mail is chosen per order (Udskriv til = 'Link', "E-mail med link"); this
-	// says whether that choice can be offered and honoured in the current ledger at all.
 	function stripe_invoice_link_available() {
 		global $db;
 		if (!$db || $db !== stripeConfigDb()) return false;
 		return stripe_feature_on('invoice_payments') && stripe_setting('enabled', 'off') === 'on';
 	}
 
-	// G6.3 documents.email.invoice_format: the DEFAULT for new orders to customers with e-mail invoices
-	// ('pdf' -> Udskriv til = email, 'link' -> Udskriv til = Link). The order's own value decides delivery.
+	/**
+	 * G6.3 documents.email.invoice_format: the DEFAULT for new orders to customers with e-mail invoices
+	 * ('pdf' -> Udskriv til = email, 'link' -> Udskriv til = Link). The order's own value decides delivery.
+	 *
+	 * @return string pdf (default, or the payment page is off) or link.
+	 */
 	function stripe_invoice_format() {
-		global $db;
 		if (!stripe_invoice_link_available()) {
 			return 'pdf';
 		}
 		$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'email_settings' and var_name = 'invoice_format' and (user_id is null or user_id = 0)", __FILE__ . " linje " . __LINE__));
 		return ($r && trim((string)$r['var_value']) === 'link') ? 'link' : 'pdf';
+	}
+
+	/**
+	 * 20261025 CL/ASR Customers and recurring orders that still say "E-mail" from before "E-mail med link"
+	 * existed. A G6.3 = link ledger converts them once (Stripe settings), so existing subscriptions get the
+	 * link mail too. Cash/card terms, foreign currency and PBS are left alone (they cannot use the page).
+	 *
+	 * @param bool $convert true: change them to Link; false: only count.
+	 * @return array{customers: int, orders: int} Number of rows (to be) changed.
+	 */
+	function stripe_link_conversion($convert = false) {
+		$customers = "from adresser where art = 'D' and udskriv_til = 'email'
+			and coalesce(betalingsbet, '') not in ('Kontant', 'Kreditkort') and coalesce(nullif(pbs_nr, ''), '0') = '0'";
+		$orders = "from ordrer where art = 'DO' and udskriv_til = 'email' and nextfakt is not null
+			and coalesce(betalingsbet, '') not in ('Kontant', 'Kreditkort')
+			and upper(coalesce(nullif(valuta, ''), 'DKK')) = 'DKK' and coalesce(pbs, '') <> 'BS'";
+		$c = db_fetch_array(db_select("select count(*) as n $customers", __FILE__ . " linje " . __LINE__));
+		$o = db_fetch_array(db_select("select count(*) as n $orders", __FILE__ . " linje " . __LINE__));
+		$count = array('customers' => (int)$c['n'], 'orders' => (int)$o['n']);
+		if ($convert) {
+			db_modify("update adresser set udskriv_til = 'Link' where id in (select id $customers)", __FILE__ . " linje " . __LINE__);
+			db_modify("update ordrer set udskriv_til = 'Link' where id in (select id $orders)", __FILE__ . " linje " . __LINE__);
+		}
+		return $count;
 	}
 
 	function stripe_invoice_link_text() {

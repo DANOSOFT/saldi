@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -166,6 +166,7 @@
 //                  follows the same rule as the button beside it.
 // 20261022 CDX/LH Keep Stripe selected despite legacy mail/local-print flags and preserve it on partial saves.
 // 20261023 CDX/LH Preserve Stripe delivery on partial saves alongside the redesign per-user local-print preference.
+// 20261025 CL/ASR Udskriv til 'Link' (E-mail med link) next to e-mail: per-order choice, blocked with a reason when the order cannot use the payment page, Send label, mail fields.
 
 @session_start();
 $s_id = session_id();
@@ -1021,10 +1022,10 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		$pbs = "BS";
 	}
 	if ($udskriv_til == 'oioubl') $oioubl = "on";
-	// 20261025 CL/ASR refuse "E-mail med link" when the order cannot use the payment page; say what to do instead
+	// 20261025 CL/ASR refuse "E-mail med link" when the order itself cannot use the payment page; say what to do instead
 	if ($udskriv_til == 'Link') {
-		$linkBlock = orderLinkBlockReason($id, array('betalingsbet' => if_isset($_POST, NULL, 'betalingsbet'), 'valuta' => if_isset($_POST, NULL, 'ny_valuta')));
-		if ($linkBlock !== '') {
+		$linkBlock = orderLinkBlockReason($id, array('betalingsbet' => $_POST['betalingsbet'] ?? null));
+		if (orderLinkHardBlock($linkBlock)) {
 			$linkOrder = db_fetch_array(db_select("select status from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 			$alert = orderLinkBlockText($linkBlock, (int)($linkOrder['status'] ?? 0) >= 3);
 			print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars(json_encode($alert, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') . ")\">\n";
@@ -4097,7 +4098,7 @@ function ordreside($id, $regnskab)
 		// 20261025 CL/ASR "E-mail med link" cannot be chosen when the invoice cannot use the payment page (e.g. Kontant)
 		$linkBlock = orderLinkBlockReason($id);
 		$linkChosen = $udskriv_til === 'Link';
-		if ($linkChosen && $linkBlock !== '') $udskriv_til = 'email';
+		if ($linkChosen && orderLinkHardBlock($linkBlock)) $udskriv_til = 'email';
 		print "<td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='this.form.submit()'>\n";
 		/*
 		print "<option>$udskriv_til</option>\n";
@@ -4108,11 +4109,13 @@ function ordreside($id, $regnskab)
 		*/
 		if ($udskriv_til === 'Stripe') {
 			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		} elseif ($udskriv_til === 'Link') {
+			// 20261025 CL/ASR like Stripe, a stored Link wins over the per-user local printer preference
+			print orderLinkDeliveryOption('Link');
 		} elseif ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
-		} elseif ($udskriv_til === 'Link') print orderLinkDeliveryOption('Link');
-		else print "<option>$udskriv_til</option>\n";
+		} else print "<option>$udskriv_til</option>\n";
 		if ($udskriv_til != "PDF") print "<option>PDF</option>\n";
 		if ($showLocalPrint && $localPrint != 'on') print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
@@ -4311,7 +4314,7 @@ function ordreside($id, $regnskab)
 			($mail_text) ? $std_txt_title = $mail_text : $std_txt_title = str_replace("<br>", "\r\n", $std_txt_title);
 		}
 		print "</tbody></table></td></tr>\n"; # -< Tabel 2.3
-		if ($udskriv_til == 'email') {
+		if ($udskriv_til == 'email' || $udskriv_til == 'Link') { // 20261025 CL/ASR quotes/order confirmations of Link orders are classic mails
 			print "<tr><td align=\"center\" colspan=\"3\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\"><tbody>\n"; #Tabel 2.4 ->
 			print "<tr><td width=\"120px\">" . findtekst('1476|Mail emne', $sprog_id) . "</td><td><input class = 'inputbox' type = 'text' style=\"width:1000px;\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_subj\" placeholder=\"$std_subj\" value=\"$mail_subj\" onchange=\"javascript:docChange = true;\"></td>";
 			if ($bilag) {
@@ -4668,7 +4671,7 @@ function ordreside($id, $regnskab)
 			print "title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog) . "\"></td>\n";
 		}
 		// 20261025 CL/ASR "E-mail med link" and Stripe (pre-charge notice) also mail the customer: label Send like e-mail.
-		if ($udskriv_til == 'Link' || $udskriv_til == 'Stripe') $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst($udskriv_til == 'Link' ? '7125' : '7137', $sprog_id) . "\"";
+		if ($art != 'DK' && ($udskriv_til == 'Link' || $udskriv_til == 'Stripe')) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst($udskriv_til == 'Link' ? '7125' : '7137', $sprog_id) . "\"";
 		else if ($mail_fakt) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id) . "\"";
 		else if ($udskriv_til == "Digitalt") $tmp = "value=\"Send\" title=\"" . findtekst('2539|Send faktura digitalt', $sprog_id) . "\"";
 		else $tmp = "value=\"" . findtekst('880|Udskriv', $sprog_id) . "\" title=\"" . findtekst('1461|Åbn et PDF-dokument, som kan gemmes eller viderebehandles på anden vis.', $sprog_id) . "\"";
@@ -5029,16 +5032,18 @@ function ordreside($id, $regnskab)
 		// 20261025 CL/ASR "E-mail med link" cannot be chosen when the order cannot use the payment page (e.g. Kontant)
 		$linkBlock = orderLinkBlockReason($id);
 		$linkChosen = $udskriv_til === 'Link';
-		if ($linkChosen && $linkBlock !== '') $udskriv_til = 'email';
+		if ($linkChosen && orderLinkHardBlock($linkBlock)) $udskriv_til = 'email';
 		print "<td><select class = 'inputbox' style=\"width:130px\" name=\"udskriv_til\">\n";
 		if (!$udskriv_til) $udskriv_til = "PDF";
 		if ($udskriv_til === 'Stripe') {
 			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		} elseif ($udskriv_til === 'Link') {
+			// 20261025 CL/ASR like Stripe, a stored Link wins over the per-user local printer preference
+			print orderLinkDeliveryOption('Link');
 		} elseif ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		} elseif ($udskriv_til == "PBS" && $lev_pbs != 'B') print "<option value=\"PBS\">PBS</option>\n";
-		elseif ($udskriv_til === 'Link') print orderLinkDeliveryOption('Link');
 		else print "<option>$udskriv_til</option>\n";
 		if ($udskriv_til != "PDF") print "<option>PDF</option>\n";
 		if ($showLocalPrint && $localPrint != 'on') print "<option value='localPrint'>" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
@@ -5113,7 +5118,7 @@ function ordreside($id, $regnskab)
 		if ($std_bilag && !file_exists("../logolib/" . $db_id . "/" . $std_bilag . "_bilag.pdf")) $std_bilag = NULL;
 
 		($mail_bilag == 'on') ? $checked = "checked='checked'" : $checked = NULL;
-		if ($std_bilag && $udskriv_til == "email") {
+		if ($std_bilag && ($udskriv_til == "email" || $udskriv_til == "Link")) {
 			$titletext = findtekst('1466|Afmærk her for at medsende standard bilag', $sprog_id);
 			print "<tr><td title='$titletext'>" . findtekst('1467|Mail bilag', $sprog_id) . "</td><td title='$titletext'><input type=\"checkbox\" name=\"mail_bilag\" $checked></td>"; #20131122 Checkbox til mail_bilag
 		} else print "<tr><td colspan=\"2\"><input type=\"hidden\" name=\"mail_bilag\" value=\"$mail_bilag\"></td>";
@@ -5739,7 +5744,7 @@ function ordreside($id, $regnskab)
 			print "<tr><td colspan=\"3\" witdh=\"100%\" style=\"color: rgb(255,0,0)\">$notes</td></tr>\n";
 		}
 		*/
-		if ($udskriv_til == 'email') {
+		if ($udskriv_til == 'email' || $udskriv_til == 'Link') {
 			if (!$formularsprog) $formularsprog = 'Dansk';
 			($status < 1) ? $form_nr = 1 : $form_nr = 2;
 			if ($art == 'DK') $form_nr = 5;
@@ -6496,7 +6501,7 @@ function ordreside($id, $regnskab)
 				elseif ($mail_fakt && $hurtigfakt && $status < 3) $tmp = "onclick=\"return confirm('$confirm15 $email')\"";
 				elseif ($mail_fakt && $status < 2) $tmp = "onclick=\"return confirm('$confirm16 $email')\"";
 				else $tmp = "";
-				if ($udskriv_til == 'email' || $udskriv_til == 'Link' || $udskriv_til == 'Stripe') {
+				if ($udskriv_til == 'email' || $udskriv_til == 'Link') { // 20261025 CL/ASR Stripe quotes/confirmations are not mailed: Udskriv
 					$b_name = 'send';
 					$txt  = findtekst('2310|Send', $sprog_id);
 				} else {

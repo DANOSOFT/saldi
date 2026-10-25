@@ -21,7 +21,8 @@ final class StripeStaffTest extends StripeDatabaseTestCase
         }
         // Both layouts execute this production branch before checking the printer cookie.
         $source = file_get_contents(__DIR__ . '/../../debitor/ordre.php');
-        $this->assertSame(2, preg_match_all('/if \(\$udskriv_til === \x27Stripe\x27\) \{\s*print orderStripeDeliveryOption\(\$udskriv_til, \$konto_id\);\s*\} elseif \(\$showLocalPrint && \$localPrint == \x27on\x27\)/', $source));
+        // 20261025: a stored Link sits between Stripe and the local printer preference (it wins over it too).
+        $this->assertSame(2, preg_match_all('/if \(\$udskriv_til === \x27Stripe\x27\) \{\s*print orderStripeDeliveryOption\(\$udskriv_til, \$konto_id\);\s*\} elseif \(\$udskriv_til === \x27Link\x27\) \{[^}]*\} elseif \(\$showLocalPrint && \$localPrint == \x27on\x27\)/', $source));
         // A stored Stripe order remains visible even if its debtor is no longer enrolled.
         $this->assertStringContainsString("value='Stripe' selected", orderStripeDeliveryOption('Stripe', 0));
         $this->assertSame('email', orderDeliveryValue('PDF', true, false, false));
@@ -73,10 +74,49 @@ final class StripeStaffTest extends StripeDatabaseTestCase
             // Both dropdowns render the block, and the save path refuses a posted Link.
             $source = file_get_contents(__DIR__ . '/../../debitor/ordre.php');
             $this->assertSame(2, substr_count($source, "print orderLinkDeliveryOption('', \$linkBlock);"));
-            $this->assertStringContainsString("orderLinkBlockReason(\$id, array('betalingsbet' => if_isset(\$_POST, NULL, 'betalingsbet')", $source);
+            $this->assertStringContainsString("orderLinkBlockReason(\$id, array('betalingsbet' => \$_POST['betalingsbet'] ?? null));", $source);
+            $this->assertSame(2, substr_count($source, "if (\$linkChosen && orderLinkHardBlock(\$linkBlock)) \$udskriv_til = 'email';"));
+            // Fixed on the order -> blocked and switched; temporary (page off, card opt-out, subscriber) -> stored Link kept.
+            foreach (['terms', 'currency', 'credit', 'debtor', 'pbs'] as $hard) {
+                $this->assertTrue(orderLinkHardBlock($hard), $hard);
+            }
+            foreach (['ledger', 'no_card', 'subscriber', ''] as $soft) {
+                $this->assertFalse(orderLinkHardBlock($soft), $soft);
+            }
+            $this->assertStringContainsString("value='Link' selected", orderLinkDeliveryOption('Link', 'no_card'));
+            $this->assertStringContainsString("value='Link' disabled", orderLinkDeliveryOption('', 'no_card'));
+            // A stored Link wins over the per-user local printer preference, in both views (like Stripe).
+            $this->assertSame(2, preg_match_all('/\} elseif \(\$udskriv_til === \x27Link\x27\) \{\s*\/\/[^\n]*\n\s*print orderLinkDeliveryOption\(\x27Link\x27\);\s*\} elseif \(\$showLocalPrint && \$localPrint == \x27on\x27\)/', $source));
+            // Quotes/order confirmations of Stripe orders are not mailed: the draft button says Udskriv.
+            $this->assertStringContainsString("if (\$udskriv_til == 'email' || \$udskriv_til == 'Link') { // 20261025 CL/ASR Stripe quotes/confirmations", $source);
+            // The recurring editor keeps mail_fakt for Link, so those invoices are still mailed.
+            $this->assertSame(2, substr_count(file_get_contents(__DIR__ . '/../../debitor/ret_genfakt.php'),
+                "(\$udskriv_til[\$x]=='email' || \$udskriv_til[\$x]=='Link')?\$mail_fakt[\$x]='on'"));
         } finally {
             $_SESSION = $saved;
         }
+    }
+
+    public function testExistingEmailCustomersAndRecurringOrdersSwitchToLinkOnce(): void
+    {
+        // 20261025 Go-live: rows set to "E-mail" before "E-mail med link" existed are switched once from Stripe settings.
+        $debtor = StripeFixtures::debtor(['udskriv_til' => 'email']);
+        $cash = StripeFixtures::debtor(['udskriv_til' => 'email', 'betalingsbet' => 'Kontant']);
+        $recurring = StripeFixtures::order($debtor, ['udskriv_til' => 'email', 'nextfakt' => '2026-02-08']);
+        $oneOff = StripeFixtures::order($debtor, ['udskriv_til' => 'email', 'nextfakt' => null]);
+        $euro = StripeFixtures::order($debtor, ['udskriv_til' => 'email', 'nextfakt' => '2026-02-08', 'valuta' => 'EUR']);
+        $before = stripe_link_conversion(false);
+        $this->assertGreaterThanOrEqual(1, $before['customers']);
+        $this->assertGreaterThanOrEqual(1, $before['orders']);
+        $this->assertSame('email', StripeFixtures::row('ordrer', $recurring)['udskriv_til']);
+        stripe_link_conversion(true);
+        $this->assertSame('Link', StripeFixtures::row('adresser', $debtor)['udskriv_til']);
+        $this->assertSame('email', StripeFixtures::row('adresser', $cash)['udskriv_til']);
+        $this->assertSame('Link', StripeFixtures::row('ordrer', $recurring)['udskriv_til']);
+        $this->assertSame('email', StripeFixtures::row('ordrer', $oneOff)['udskriv_til']);
+        $this->assertSame('email', StripeFixtures::row('ordrer', $euro)['udskriv_til']);
+        $this->assertSame(['customers' => 0, 'orders' => 0], stripe_link_conversion(false));
+        $this->assertStringContainsString("stripe_link_conversion(true)", file_get_contents(__DIR__ . '/../../systemdata/diverseIncludes/stripeValg.php'));
     }
 
     public function testEnrolledDebtorCanChooseStripeWithoutOverwritingAnExplicitOtherMode(): void
