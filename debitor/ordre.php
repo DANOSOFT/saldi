@@ -1021,6 +1021,16 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		$pbs = "BS";
 	}
 	if ($udskriv_til == 'oioubl') $oioubl = "on";
+	// 20261025 CL/ASR refuse "E-mail med link" when the order cannot use the payment page; say what to do instead
+	if ($udskriv_til == 'Link') {
+		$linkBlock = orderLinkBlockReason($id, array('betalingsbet' => if_isset($_POST, NULL, 'betalingsbet'), 'valuta' => if_isset($_POST, NULL, 'ny_valuta')));
+		if ($linkBlock !== '') {
+			$linkOrder = db_fetch_array(db_select("select status from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
+			$alert = orderLinkBlockText($linkBlock, (int)($linkOrder['status'] ?? 0) >= 3);
+			print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars(json_encode($alert, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') . ")\">\n";
+			$udskriv_til = 'email';
+		}
+	}
 
 	// safety: ordrer.pbs / mail_fakt / mail_bilag are all varchar(2). Clamp any
 	// over-long value so a legacy/long code can't crash the write ("value too long
@@ -4084,6 +4094,10 @@ function ordreside($id, $regnskab)
 		#if(isset($levered)){$leveret = (int)$leveret;}else{$leveret=0;}print "<tr class='tableTexting2'><td title='".findtekst('1447|Vælg på hvilken måde dokumentet skal udskrives, gemmes eller sendes.', $sprog_id)."'><b>".findtekst('880|Udskriv', $sprog_id)." ".findtekst('904|til', $sprog_id)."</b></td>\n";
 
 		$udskriv_til = orderDeliveryValue($udskriv_til, $mail_fakt, $oioubl, $lev_pbs_nr && $pbs);
+		// 20261025 CL/ASR "E-mail med link" cannot be chosen when the invoice cannot use the payment page (e.g. Kontant)
+		$linkBlock = orderLinkBlockReason($id);
+		$linkChosen = $udskriv_til === 'Link';
+		if ($linkChosen && $linkBlock !== '') $udskriv_til = 'email';
 		print "<td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='this.form.submit()'>\n";
 		/*
 		print "<option>$udskriv_til</option>\n";
@@ -4103,7 +4117,7 @@ function ordreside($id, $regnskab)
 		if ($showLocalPrint && $localPrint != 'on') print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
-		if ($udskriv_til !== 'Link') print orderLinkDeliveryOption('');
+		if ($udskriv_til !== 'Link') print orderLinkDeliveryOption('', $linkBlock);
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
 		if ($udskriv_til !== 'Stripe') {
@@ -4125,7 +4139,7 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til != "historik" && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			print "<option title=\"" . findtekst('1453|Gem en kopi og vedhæft kundens historik', $sprog_id) . "\">" . findtekst('907|Historik', $sprog_id) . "</option>\n";
 		}
-		print "</SELECT>" . orderLinkNotice($udskriv_til, $id) . "</td></tr>";
+		print "</SELECT>" . orderLinkNotice($linkBlock, $linkChosen, true) . "</td></tr>";
 
 		/*
 		print "<tr><td><b>Fakt som mail</td><td><input class=\"inputbox\" type=\"checkbox\" name=\"mail_fakt\" $mail_fakt></td></tr>\n";
@@ -5012,6 +5026,10 @@ function ordreside($id, $regnskab)
 				if ($pbs) $udskriv_til = "PBS";
 			}
 		}
+		// 20261025 CL/ASR "E-mail med link" cannot be chosen when the order cannot use the payment page (e.g. Kontant)
+		$linkBlock = orderLinkBlockReason($id);
+		$linkChosen = $udskriv_til === 'Link';
+		if ($linkChosen && $linkBlock !== '') $udskriv_til = 'email';
 		print "<td><select class = 'inputbox' style=\"width:130px\" name=\"udskriv_til\">\n";
 		if (!$udskriv_til) $udskriv_til = "PDF";
 		if ($udskriv_til === 'Stripe') {
@@ -5026,7 +5044,7 @@ function ordreside($id, $regnskab)
 		if ($showLocalPrint && $localPrint != 'on') print "<option value='localPrint'>" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
-		if ($udskriv_til !== 'Link') print orderLinkDeliveryOption('');
+		if ($udskriv_til !== 'Link') print orderLinkDeliveryOption('', $linkBlock);
 		if ($udskriv_til !== 'Stripe') {
 			print orderStripeDeliveryOption($udskriv_til, $konto_id);
 		}
@@ -5048,7 +5066,7 @@ function ordreside($id, $regnskab)
 				elseif ($tmp && $udskriv_til != "PBS" && $lev_pbs == 'B') print "<option title=\"" . findtekst('1452|Opkræves via betalingsservice', $sprog_id) . "\">PBS</option>\n";
 			}
 		}
-		print "</SELECT>" . orderLinkNotice($udskriv_til, $id) . "</td></tr>\n";
+		print "</SELECT>" . orderLinkNotice($linkBlock, $linkChosen, false) . orderLinkTermsScript($id, $linkChosen) . "</td></tr>\n";
 		if (db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
 			print "<tr><td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\">" . findtekst('571|Baggrund', $sprog_id) . "</span></td>\n";
 			print "<td><select class='inputbox' style=\"width:130px\" name=\"sprog\">\n";

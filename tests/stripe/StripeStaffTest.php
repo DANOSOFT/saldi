@@ -33,6 +33,52 @@ final class StripeStaffTest extends StripeDatabaseTestCase
         $this->assertSame('PBS', orderDeliveryValue('PDF', true, true, true));
     }
 
+    public function testLinkCannotBeChosenWhenTheOrderCannotUseThePaymentPage(): void
+    {
+        // 20261025 Kontant/Kreditkort, foreign currency etc.: "E-mail med link" is disabled and the text says what to do.
+        $saved = $_SESSION ?? [];
+        foreach (file(__DIR__ . '/../../importfiler/tekster.csv', FILE_IGNORE_NEW_LINES) as $line) {
+            $cells = explode("\t", $line);
+            if (count($cells) >= 4) {
+                $_SESSION['text_' . $cells[0] . '_1'] = $cells[1];
+            }
+        }
+        try {
+            $debtor = StripeFixtures::debtor();
+            $netto = StripeFixtures::order($debtor);
+            $cash = StripeFixtures::order($debtor, ['betalingsbet' => 'Kontant', 'betalingsdage' => 0]);
+            $this->assertSame('', orderLinkBlockReason($netto));
+            $this->assertSame('terms', orderLinkBlockReason($cash));
+            // Posted but not yet saved terms/currency decide on save.
+            $this->assertSame('terms', orderLinkBlockReason($netto, ['betalingsbet' => 'Kreditkort']));
+            $this->assertSame('', orderLinkBlockReason($cash, ['betalingsbet' => 'Netto']));
+            $this->assertSame('currency', orderLinkBlockReason($netto, ['valuta' => 'EUR']));
+            $this->assertSame('', orderLinkBlockReason($netto, ['betalingsbet' => null, 'valuta' => '']));
+
+            $option = orderLinkDeliveryOption('', 'terms');
+            $this->assertStringContainsString("value='Link' disabled", $option);
+            $this->assertStringContainsString('kræver Netto eller Lb. md.', $option);
+            $this->assertStringNotContainsString('disabled', orderLinkDeliveryOption('', ''));
+
+            $this->assertStringContainsString('Vælg Netto eller Lb. md.', orderLinkBlockText('terms', false));
+            $this->assertStringContainsString('almindelig e-mail med PDF i stedet', orderLinkBlockText('terms', true));
+            $notice = orderLinkNotice('terms', true, false);
+            $this->assertStringContainsString("id='orderLinkNotice'", $notice);
+            $this->assertStringContainsString('kontant eller kreditkort', $notice);
+            $this->assertStringContainsString('display:none', orderLinkNotice('terms', false, false));
+            $this->assertStringContainsString('display:none', orderLinkNotice('credit', true, true));
+
+            $this->assertStringContainsString('kontant|kreditkort', orderLinkTermsScript($netto, false));
+            $this->assertSame('', orderLinkTermsScript(StripeFixtures::order($debtor, ['valuta' => 'EUR']), false));
+            // Both dropdowns render the block, and the save path refuses a posted Link.
+            $source = file_get_contents(__DIR__ . '/../../debitor/ordre.php');
+            $this->assertSame(2, substr_count($source, "print orderLinkDeliveryOption('', \$linkBlock);"));
+            $this->assertStringContainsString("orderLinkBlockReason(\$id, array('betalingsbet' => if_isset(\$_POST, NULL, 'betalingsbet')", $source);
+        } finally {
+            $_SESSION = $saved;
+        }
+    }
+
     public function testEnrolledDebtorCanChooseStripeWithoutOverwritingAnExplicitOtherMode(): void
     {
         $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved']);

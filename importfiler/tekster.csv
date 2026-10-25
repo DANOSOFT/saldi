@@ -6816,7 +6816,7 @@
 7125	Mailen har en knap til faktura- og betalingssiden. Ingen PDF vedhæftet.	The e-mail has a button to the invoice and payment page. No PDF attached.	E-posten har en knapp til faktura- og betalingssiden. Ingen PDF vedlagt.
 7126	Standard for nye e-mailordrer	Default for new e-mail orders	Standard for nye e-postordrer
 7127	Hvad Udskriv til står på, når der oprettes en ordre til en kunde med e-mailfaktura. Kan ændres på den enkelte ordre: E-mail eller E-mail med link.	What Print to is set to when an order is created for a customer with e-mail invoices. Can be changed on each order: E-mail or E-mail with link.	Hva Skriv ut til står på når det opprettes en ordre til en kunde med e-postfaktura. Kan endres på den enkelte ordren: E-post eller E-post med lenke.
-7128	Sendes som almindelig e-mail med PDF:	Sent as a normal e-mail with PDF:	Sendes som vanlig e-post med PDF:
+7128	E-mail med link kan ikke bruges:	E-mail with link cannot be used:	E-post med lenke kan ikke brukes:
 7129	betalingssiden er ikke slået til i dette regnskab.	the payment page is not switched on in this ledger.	betalingssiden er ikke slått på i dette regnskapet.
 7130	kreditnotaer sendes altid som almindelig e-mail.	credit notes are always sent as a normal e-mail.	kreditnotaer sendes alltid som vanlig e-post.
 7131	kun fakturaer i DKK kan betales på betalingssiden.	only invoices in DKK can be paid on the payment page.	bare fakturaer i DKK kan betales på betalingssiden.
@@ -6826,5 +6826,17 @@
 7135	kunden har fravalgt kortbetaling.	the customer has opted out of card payment.	kunden har valgt bort kortbetaling.
 7136	kunden betaler via sit Stripe-abonnement.	the customer pays through their Stripe subscription.	kunden betaler via sitt Stripe-abonnement.
 7137	Sender fakturaen på mail med kort og trækdato. Beløbet trækkes automatisk på forfaldsdatoen.	Sends the invoice by e-mail with card and charge date. The amount is charged automatically on the due date.	Sender fakturaen på e-post med kort og trekkdato. Beløpet trekkes automatisk på forfallsdatoen.
+7138	Vælg Netto eller Lb. md. som betalingsbetingelse, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Choose Netto or Lb. md. as payment terms to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Velg Netto eller Lb. md. som betalingsbetingelse, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7139	Skift valuta til DKK, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Change the currency to DKK to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Bytt valuta til DKK, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7140	Fjern fravalget af kortbetaling på kundens debitorkort, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Remove the card payment opt-out on the customer card to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Fjern bortvalget av kortbetaling på kundekortet, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7141	Vælg en kunde på ordren.	Choose a customer on the order.	Velg en kunde på ordren.
+7142	Fakturaen sendes som almindelig e-mail med PDF i stedet.	The invoice is sent as a normal e-mail with PDF instead.	Fakturaen sendes som vanlig e-post med PDF i stedet.
+7143	kræver Netto eller Lb. md.	requires Netto or Lb. md.	krever Netto eller Lb. md.
+7144	kun DKK	DKK only	kun DKK
+7145	ikke på kreditnotaer	not for credit notes	ikke for kreditnotaer
+7146	kunden betaler via PBS	customer pays by direct debit	kunden betaler via PBS
+7147	kræver en kunde	requires a customer	krever en kunde
+7148	kunden har fravalgt kort	customer opted out of cards	kunden har valgt bort kort
+7149	kunden har Stripe-abonnement	customer has a Stripe subscription	kunden har Stripe-abonnement
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 
