@@ -47,6 +47,11 @@ bilagCheck(bilagSafeNumber('', 0) === array('bilag' => 0, 'replaced' => false, '
 bilagCheck(bilagSafeNumber('0', 0) === array('bilag' => 0, 'replaced' => false, 'original' => '0'),
 	'and so does a zero');
 bilagCheck(bilagSafeNumber(null, 0)['original'] === '', 'a NULL is treated as empty');
+# ---- neither allocator lets a value the column cannot hold raise the floor -----------------
+$bilagHelper = file_get_contents(__DIR__ . '/../finans/kassekladde_includes/bilagNumber.php');
+bilagCheck(strpos($bilagHelper, 'bilagNumberFits((string)$r') !== false, 'an oversized staged value does not raise the staged maximum');
+bilagCheck(strpos($bilagHelper, 'unset($replacements[$replace_key])') !== false, 'and a replacement that does not fit is dropped');
+
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";
