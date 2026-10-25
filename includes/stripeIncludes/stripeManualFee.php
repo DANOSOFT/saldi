@@ -23,11 +23,18 @@ function stripe_manual_fee_config() {
 	return array('vare' => $vare, 'from' => $from);
 }
 
-/** @return bool Whether stripe_manual_fees exists on this ledger (created by stripe_charge_schema_ensure). */
+/** @return bool Whether stripe_manual_fees exists; created here too, so the first posting after an update cannot skip a fee. */
 function stripe_manual_fee_table() {
 	static $exists = null;
 	if ($exists === null) {
-		$exists = (bool)db_fetch_array(db_select("select table_name from information_schema.tables where table_name = 'stripe_manual_fees'", __FILE__ . " linje " . __LINE__));
+		$query = "select table_name from information_schema.tables where table_name = 'stripe_manual_fees'";
+		$exists = (bool)db_fetch_array(db_select($query, __FILE__ . " linje " . __LINE__));
+		if (!$exists) {
+			// Same definition as stripe_charge_schema_ensure().
+			db_modify("CREATE TABLE IF NOT EXISTS stripe_manual_fees (ordre_id integer PRIMARY KEY, fee_ordre_id integer NOT NULL,
+				status varchar(10) NOT NULL, created_at timestamp DEFAULT CURRENT_TIMESTAMP)", __FILE__ . " linje " . __LINE__);
+			$exists = (bool)db_fetch_array(db_select($query, __FILE__ . " linje " . __LINE__));
+		}
 	}
 	return $exists;
 }
