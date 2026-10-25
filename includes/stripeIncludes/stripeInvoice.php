@@ -882,7 +882,8 @@ if (!function_exists('stripe_mail_layout')) {
 	function stripe_mail_confirmation($inv, $payment) {
 		if ($inv['email'] === '') return false;
 		$url = stripe_invoice_url($inv['id']);
-		$pdfUrl = $url ? str_replace('/faktura.php?', '/faktura_pdf.php?', $url) : '';
+		// vis=1: the button opens the PDF in the browser instead of a silent download (20261025)
+		$pdfUrl = $url ? str_replace('/faktura.php?', '/faktura_pdf.php?', $url) . '&vis=1' : '';
 		$card = stripe_card_label($payment['pm_brand'], $payment['pm_last4']);
 		$when = stripe_fmt_date_long(substr((string)$payment['succeeded_at'], 0, 10) ?: date('Y-m-d'));
 		$box = array('kind' => 'good', 'title' => stripe_txt('mail_paid_box', array('amount' => stripe_fmt_kr($payment['amount_ore']) . ' kr.', 'date' => $when)), 'sub' => $card . ' · ' . stripe_txt($payment['source'] === 'auto' ? 'auto_payment' : 'card_payment'));

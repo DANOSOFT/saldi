@@ -28,6 +28,8 @@
 //                 tools/stripe_invoice_pdf.php. Signed link required like the page itself.
 // 20261022 CDX/LH Stream one opened private PDF with its matching size after signed invoice verification.
 // 20261022 CL/LH S5 Danish PDF error texts from stripe_txt(); the page footer uses the invoicing company (faktura_common).
+// 20261025 CL/ASR vis=1 shows the PDF in the browser (link in the payment confirmation mail), so it does not
+//                 land silently in the download folder.
 
 include(__DIR__ . '/faktura_common.php');
 
@@ -41,7 +43,8 @@ while (ob_get_level()) ob_end_clean();
 $name = ($inv['is_credit'] ? 'Kreditnota-' : 'Faktura-') . preg_replace('/[^A-Za-z0-9_-]/', '_', $inv['nr']) . '.pdf';
 header('Content-Type: application/pdf');
 header('Content-Length: ' . $pdfStat['size']);
-header('Content-Disposition: attachment; filename="' . $name . '"');
+// vis=1 (the payment confirmation mail): open the PDF in the browser; the page's Download PDF keeps the download.
+header('Content-Disposition: ' . (!empty($_GET['vis']) ? 'inline' : 'attachment') . '; filename="' . $name . '"');
 fpassthru($stream);
 fclose($stream);
 exit;

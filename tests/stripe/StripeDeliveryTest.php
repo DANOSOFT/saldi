@@ -306,7 +306,10 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
             'succeeded_at' => StripeFixtures::TODAY, 'amount_ore' => 34000, 'source' => 'page']));
         foreach (['html', 'text'] as $format) {
             $this->assertStringNotContainsString('Abonnement & fakturering', html_entity_decode(StripeTestTransport::$mails[0][$format], ENT_QUOTES, 'UTF-8'));
+            // 20261025 the PDF button opens the invoice in the browser (vis=1 -> Content-Disposition inline)
+            $this->assertMatchesRegularExpression('~/faktura_pdf\.php\?o=\d+&s=[0-9a-f]+&vis=1~', html_entity_decode(StripeTestTransport::$mails[0][$format], ENT_QUOTES, 'UTF-8'));
         }
+        $this->assertStringContainsString("(!empty(\$_GET['vis']) ? 'inline' : 'attachment')", file_get_contents(__DIR__ . '/../../api/stripe/faktura_pdf.php'));
         $page = file_get_contents(__DIR__ . '/../../api/stripe/faktura.php');
         $this->assertStringNotContainsString('Abonnement & fakturering', $page);
         $this->assertStringNotContainsString('find_in_saldi', $page);
