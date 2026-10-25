@@ -4653,7 +4653,9 @@ function ordreside($id, $regnskab)
 			print "value=\"" . findtekst('1100||Kopier', $sprog_id) . "\" name=\"copy\" ";
 			print "title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog) . "\"></td>\n";
 		}
-		if ($mail_fakt) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id) . "\"";
+		// 20261025 CL/ASR "E-mail med link" and Stripe (pre-charge notice) also mail the customer: label Send like e-mail.
+		if ($udskriv_til == 'Link' || $udskriv_til == 'Stripe') $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst($udskriv_til == 'Link' ? '7125' : '7137', $sprog_id) . "\"";
+		else if ($mail_fakt) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id) . "\"";
 		else if ($udskriv_til == "Digitalt") $tmp = "value=\"Send\" title=\"" . findtekst('2539|Send faktura digitalt', $sprog_id) . "\"";
 		else $tmp = "value=\"" . findtekst('880|Udskriv', $sprog_id) . "\" title=\"" . findtekst('1461|Åbn et PDF-dokument, som kan gemmes eller viderebehandles på anden vis.', $sprog_id) . "\"";
 		print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" name=\"print\" $tmp></td>\n";
@@ -6417,7 +6419,7 @@ function ordreside($id, $regnskab)
 				$dd = dkdato(default_invoice_date($id));
 
 				if ($art != 'DK' && !$dan_kn) {
-					if ($udskriv_til == 'email' || $udskriv_til == 'Link') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
+					if ($udskriv_til == 'email' || $udskriv_til == 'Link' || $udskriv_til == 'Stripe') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
 					elseif ($udskriv_til == 'PBS') $tmp = "onclick=\"return confirm('$confirm3')\"";
 					elseif ($udskriv_til == 'oioubl') $tmp = "onclick=\"return confirm('$confirm4')\"";
 					elseif (!$fakturadato) $tmp = "onclick=\"return confirm('$confirm5 $dd!')\"";
@@ -6475,7 +6477,7 @@ function ordreside($id, $regnskab)
 				elseif ($mail_fakt && $hurtigfakt && $status < 3) $tmp = "onclick=\"return confirm('$confirm15 $email')\"";
 				elseif ($mail_fakt && $status < 2) $tmp = "onclick=\"return confirm('$confirm16 $email')\"";
 				else $tmp = "";
-				if ($udskriv_til == 'email' || $udskriv_til == 'Link') {
+				if ($udskriv_til == 'email' || $udskriv_til == 'Link' || $udskriv_til == 'Stripe') {
 					$b_name = 'send';
 					$txt  = findtekst('2310|Send', $sprog_id);
 				} else {

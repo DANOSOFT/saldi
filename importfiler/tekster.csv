@@ -6825,5 +6825,6 @@
 7134	ordren har ingen kunde.	the order has no customer.	ordren har ingen kunde.
 7135	kunden har fravalgt kortbetaling.	the customer has opted out of card payment.	kunden har valgt bort kortbetaling.
 7136	kunden betaler via sit Stripe-abonnement.	the customer pays through their Stripe subscription.	kunden betaler via sitt Stripe-abonnement.
+7137	Sender fakturaen på mail med kort og trækdato. Beløbet trækkes automatisk på forfaldsdatoen.	Sends the invoice by e-mail with card and charge date. The amount is charged automatically on the due date.	Sender fakturaen på e-post med kort og trekkdato. Beløpet trekkes automatisk på forfallsdatoen.
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 
