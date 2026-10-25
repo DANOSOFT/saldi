@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeInvoice.php --- 2026.10.22
+// --- includes/stripeIncludes/stripeInvoice.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@ include_once(__DIR__ . '/stripeAttempts.php');
 include_once(__DIR__ . '/stripeCharge.php');
 
 // 20261022 CDX/LH Reconcile attempts before collection; restrict eligibility and full-open amounts; support manual payment state.
+// 20261025 CL/ASR Delivery per order (Link = link mail, email = classic); uncollectable reason; one-time switch of existing customers/orders to Link.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -279,7 +280,9 @@ if (!function_exists('stripe_payments_ensure')) {
 				journal_line_id integer, confirmation_sent_at timestamp, last_event_id varchar(255))", __FILE__ . " linje " . __LINE__);
 		}
 		stripe_payment_indexes_ensure();
-		foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date') as $col => $type) {
+		// udskriv_til is a standard adresser column (admin/opret.php) but missing in some old ledgers; the
+		// invoice load and enrolment read and write it (20261025 CL/ASR).
+		foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date', 'udskriv_til' => 'varchar(10)') as $col => $type) {
 			$c = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='$col'", __FILE__ . " linje " . __LINE__));
 			if (!$c) db_modify("ALTER TABLE adresser ADD COLUMN IF NOT EXISTS $col $type", __FILE__ . " linje " . __LINE__);
 		}
@@ -317,18 +320,53 @@ if (!function_exists('stripe_fmt_kr')) {
 // ---------------------------------------------------------------- settings: delivery format
 if (!function_exists('stripe_invoice_format')) {
 	/**
-	 * Resolve the tenant-wide invoice mail format, respecting the invoice rollout switch.
+	 * 20261025 CL/ASR The link mail is chosen per order (Udskriv til = 'Link', "E-mail med link"). Whether that
+	 * choice can be offered and honoured in the current ledger at all.
 	 *
-	 * @return string pdf (default/off) or link.
+	 * @return bool This is the Stripe ledger and invoice payments are on.
+	 */
+	function stripe_invoice_link_available() {
+		global $db;
+		if (!$db || $db !== stripeConfigDb()) return false;
+		return stripe_feature_on('invoice_payments') && stripe_setting('enabled', 'off') === 'on';
+	}
+
+	/**
+	 * G6.3 documents.email.invoice_format: the DEFAULT for new orders to customers with e-mail invoices
+	 * ('pdf' -> Udskriv til = email, 'link' -> Udskriv til = Link). The order's own value decides delivery.
+	 *
+	 * @return string pdf (default, or the payment page is off) or link.
 	 */
 	function stripe_invoice_format() {
-		global $db;
-		if (!$db || $db !== stripeConfigDb()) return 'pdf';
-		if (!stripe_feature_on('invoice_payments') || stripe_setting('enabled', 'off') !== 'on') {
+		if (!stripe_invoice_link_available()) {
 			return 'pdf';
 		}
 		$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'email_settings' and var_name = 'invoice_format' and (user_id is null or user_id = 0)", __FILE__ . " linje " . __LINE__));
 		return ($r && trim((string)$r['var_value']) === 'link') ? 'link' : 'pdf';
+	}
+
+	/**
+	 * 20261025 CL/ASR Customers and recurring orders that still say "E-mail" from before "E-mail med link"
+	 * existed. A G6.3 = link ledger converts them once (Stripe settings), so existing subscriptions get the
+	 * link mail too. Cash/card terms, foreign currency and PBS are left alone (they cannot use the page).
+	 *
+	 * @param bool $convert true: change them to Link; false: only count.
+	 * @return array{customers: int, orders: int} Number of rows (to be) changed.
+	 */
+	function stripe_link_conversion($convert = false) {
+		$customers = "from adresser where art = 'D' and udskriv_til = 'email'
+			and coalesce(betalingsbet, '') not in ('Kontant', 'Kreditkort') and coalesce(nullif(pbs_nr, ''), '0') = '0'";
+		$orders = "from ordrer where art = 'DO' and udskriv_til = 'email' and nextfakt is not null
+			and coalesce(betalingsbet, '') not in ('Kontant', 'Kreditkort')
+			and upper(coalesce(nullif(valuta, ''), 'DKK')) = 'DKK' and coalesce(pbs, '') <> 'BS'";
+		$c = db_fetch_array(db_select("select count(*) as n $customers", __FILE__ . " linje " . __LINE__));
+		$o = db_fetch_array(db_select("select count(*) as n $orders", __FILE__ . " linje " . __LINE__));
+		$count = array('customers' => (int)$c['n'], 'orders' => (int)$o['n']);
+		if ($convert) {
+			db_modify("update adresser set udskriv_til = 'Link' where id in (select id $customers)", __FILE__ . " linje " . __LINE__);
+			db_modify("update ordrer set udskriv_til = 'Link' where id in (select id $orders)", __FILE__ . " linje " . __LINE__);
+		}
+		return $count;
 	}
 
 	function stripe_invoice_link_text() {
@@ -345,9 +383,13 @@ if (!function_exists('stripe_invoice_format')) {
 			$debtor = db_fetch_array(stripe_payment_select('select stripe, stripe_pm_id from adresser where id = ' . (int)$o['konto_id']));
 			return $debtor && $debtor['stripe'] === 'on' && !empty($debtor['stripe_pm_id']) && stripe_setting('enabled', 'off') === 'on' && stripe_feature_on('invoice_payments') && stripe_feature_on('enrolment') ? 'stripe' : 'pdf';
 		}
+		// 'Link' = e-mail with a button to the invoice & payment page; 'email' = the classic PDF mail.
+		// Both can be used side by side; the order (or its recurring template) says which.
+		if (trim((string)$o['udskriv_til']) === 'Link') {
+			return ($o['art'] === 'DO' && stripe_invoice_link_available()) ? 'link' : 'pdf'; // credit notes stay classic (D6/O6)
+		}
 		if (trim((string)$o['udskriv_til']) !== 'email') return 'none';
-		if ($o['art'] !== 'DO') return 'pdf';           // credit notes etc. stay classic in v1 (decision D6/O6)
-		return stripe_invoice_format();
+		return 'pdf';
 	}
 }
 
@@ -359,20 +401,32 @@ if (!function_exists('stripe_invoice_format')) {
  * @return bool Whether this tenant, currency, debtor and payment terms allow card collection.
  */
 function stripe_invoice_collectable($inv) {
+	return stripe_invoice_uncollectable_reason($inv) === '';
+}
+
+/**
+ * Why an invoice cannot be collected by card (and therefore is mailed classically), or '' when it can.
+ * Same checks and order as before 20261025; the key lets the order page explain the fallback.
+ *
+ * @return string ''|ledger|credit|currency|terms|pbs|debtor|no_card|subscriber
+ */
+function stripe_invoice_uncollectable_reason($inv) {
 	global $db;
-	if (!$db || $db !== stripeConfigDb()) return false;
+	if (!$db || $db !== stripeConfigDb()) return 'ledger';
 	$o = $inv['o'];
-	if (($o['art'] ?? '') !== 'DO' || !empty($inv['is_credit'])) return false;
-	if ((strtoupper(trim((string)($o['valuta'] ?? ''))) ?: 'DKK') !== 'DKK') return false;
-	if (in_array(strtolower(trim((string)($o['betalingsbet'] ?? ''))), array('kontant', 'kreditkort'), true)) return false;
-	if (strtoupper(trim((string)($o['pbs'] ?? ''))) === 'BS') return false;
+	if (($o['art'] ?? '') !== 'DO' || !empty($inv['is_credit'])) return 'credit';
+	if ((strtoupper(trim((string)($o['valuta'] ?? ''))) ?: 'DKK') !== 'DKK') return 'currency';
+	if (in_array(strtolower(trim((string)($o['betalingsbet'] ?? ''))), array('kontant', 'kreditkort'), true)) return 'terms';
+	if (strtoupper(trim((string)($o['pbs'] ?? ''))) === 'BS') return 'pbs';
 	$kontoId = (int)($o['konto_id'] ?? 0);
-	if (!$kontoId) return false;
+	if (!$kontoId) return 'debtor';
 	$d = db_fetch_array(stripe_payment_select("select pbs_nr, stripe_fravalg from adresser where id = $kontoId"));
-	if (!$d || (float)$d['pbs_nr'] > 0 || stripe_bool($d['stripe_fravalg'])) return false;
+	if (!$d) return 'debtor';
+	if ((float)$d['pbs_nr'] > 0) return 'pbs';
+	if (stripe_bool($d['stripe_fravalg'])) return 'no_card';
 	$subscriber = db_fetch_array(stripe_payment_select("select id from stripe_customers where konto_id = $kontoId
 		and coalesce(stripe_subscription_id, '') <> '' and status in ('active', 'trialing', 'past_due') limit 1"));
-	return !$subscriber;
+	return $subscriber ? 'subscriber' : '';
 }
 
 // ---------------------------------------------------------------- loading an invoice

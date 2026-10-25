@@ -576,7 +576,7 @@ final class StripeChargeTest extends PHPUnit\Framework\TestCase
         $debtor = StripeFixtures::row('adresser', (int)$inv['o']['konto_id']);
         $this->assertSame('cus_pi', $debtor['stripe_customer_id']);
         $this->assertSame('pm_new', $debtor['stripe_pm_id']);
-        $this->assertSame('email', StripeFixtures::row('ordrer', $old)['udskriv_til']);
+        $this->assertSame('Link', StripeFixtures::row('ordrer', $old)['udskriv_til']); // fixture default since 20261025
         $this->assertSame('email', StripeFixtures::row('ordrer', $order)['udskriv_til']);
         $this->assertSame('Stripe', StripeFixtures::row('ordrer', $template)['udskriv_til']);
         $this->assertSame('2026-11-22', StripeFixtures::row('ordrer', $template)['nextfakt']);
@@ -645,7 +645,7 @@ final class StripeChargeTest extends PHPUnit\Framework\TestCase
         $order = $this->invoice([], ['nextfakt' => null]);
         $inv = stripe_invoice_load($order);
         $this->assertTrue(stripe_unenrol_debtor((int)$inv['o']['konto_id']));
-        $this->assertSame('email', StripeFixtures::row('ordrer', $order)['udskriv_til']);
+        $this->assertSame('Link', StripeFixtures::row('ordrer', $order)['udskriv_til']);
         $this->assertSame('', StripeFixtures::row('adresser', (int)$inv['o']['konto_id'])['stripe']);
         $this->assertCount(1, $this->customerMails());
         $this->assertStringContainsString(stripe_invoice_url($order), $this->customerMails()[0]['text']);
@@ -680,7 +680,7 @@ final class StripeChargeTest extends PHPUnit\Framework\TestCase
         $this->assertTrue(stripe_unenrol_debtor((int)$inv['o']['konto_id']));
         $this->assertCount(1, $this->customerMails());
         $this->assertSame([$pdf], $this->customerMails()[0]['attachments']);
-        $this->assertSame('email', StripeFixtures::row('ordrer', $order)['udskriv_til']);
+        $this->assertSame('Link', StripeFixtures::row('ordrer', $order)['udskriv_til']);
     }
 
     public function testManualPayNowAuthenticationCompletesOriginalIntentOnceAndLateEventsCannotUndoIt(): void
