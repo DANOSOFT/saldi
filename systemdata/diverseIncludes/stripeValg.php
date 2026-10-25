@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.23
+// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,7 +130,7 @@ function stripeValgSave() {
 		$fee_from = trim((string)($input['stripe_manual_fee_from'] ?? ''));
 		if ($fee_varenr !== '' && !db_fetch_array(db_select("select id from varer where varenr = '" . db_escape_string($fee_varenr) . "'", __FILE__ . " linje " . __LINE__))) {
 			$fejl[] = findtekst('7164', $sprog_id);
-		} elseif ($fee_varenr !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fee_from)) {
+		} elseif ($fee_varenr !== '' && !(preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fee_from, $feeDate) && checkdate((int)$feeDate[2], (int)$feeDate[3], (int)$feeDate[1]))) {
 			$fejl[] = findtekst('7165', $sprog_id);
 		} else {
 			update_settings_value('manual_fee_varenr', 'stripe', $fee_varenr, 'Gebyr for manuel betaling: varenr (tom = slaaet fra)');

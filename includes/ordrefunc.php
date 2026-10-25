@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1429,7 +1429,7 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 	// 20261025 CL/ASR fee for manual payment of the customer's earlier invoices (Stripe ledger only, see stripeManualFee.php)
 	if ($art == 'DO') {
 		include_once(__DIR__ . '/stripeIncludes/stripeManualFee.php');
-		$feeError = stripe_manual_fee_bogfor($id, $art, $momssats);
+		$feeError = stripe_manual_fee_bogfor($id, $art, $momssats, $webservice, $genfakt);
 		if ($feeError !== '') {
 			if (!$callerOwnsTransaction) transaktion('rollback');
 			return $feeError;

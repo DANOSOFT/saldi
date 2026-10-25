@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura_pdf.php --- 2026.10.22
+// --- api/stripe/faktura_pdf.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

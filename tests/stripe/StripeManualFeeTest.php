@@ -65,23 +65,36 @@ final class StripeManualFeeTest extends StripeDatabaseTestCase
         $decision = stripe_manual_fee_decide($next);
         $this->assertSame([$bank, $once], self::ids($decision['charge']));
         $this->assertSame([], $decision['waive']);
+        // Paid automatically or never chargeable: decided once as exempt, so later postings skip them.
+        $this->assertEqualsCanonicalizing([$enrolled, $charged, $pbs, $cash, $credited, $refunded], self::ids($decision['exempt']));
         $this->assertSame($this->feeProduct, (int)$decision['vare']['id']);
         $this->assertSame('Gebyr for manuel betaling (fakturaer ' . (90000000 + $bank) . ', ' . (90000000 + $once) . ')',
             stripe_manual_fee_line_text($decision['vare'], $decision['charge']));
 
         stripe_manual_fee_record($next, $decision);
-        foreach ([$bank, $once] as $paid) {
-            $this->assertSame('charged', pg_fetch_result(StripeTestEnvironment::query('SELECT status FROM stripe_manual_fees WHERE ordre_id = $1', [$paid]), 0, 0));
+        foreach ([$bank => 'charged', $once => 'charged', $charged => 'exempt', $credited => 'exempt'] as $paid => $status) {
+            $this->assertSame($status, pg_fetch_result(StripeTestEnvironment::query('SELECT status FROM stripe_manual_fees WHERE ordre_id = $1', [$paid]), 0, 0));
         }
         // Decided once: the next invoice does not charge the same payments again.
         $this->assertSame([], stripe_manual_fee_decide(StripeFixtures::order($debtor))['charge']);
         // The unpaid invoice counts once it is paid by bank transfer.
         StripeTestEnvironment::query("UPDATE openpost SET udlignet = '1' WHERE faktnr = $1", [(string)(90000000 + $unpaid)]);
-        $this->assertSame([$unpaid], self::ids(stripe_manual_fee_decide(StripeFixtures::order($debtor))['charge']));
-        $pending = self::ids(stripe_manual_fee_pending($debtor, $next, '2026-01-01'));
-        foreach ([$pbs, $cash, $credited, $refunded, $early, $enrolled, $charged] as $exempt) {
-            $this->assertNotContains($exempt, $pending);
-        }
+        $later = stripe_manual_fee_decide(StripeFixtures::order($debtor));
+        $this->assertSame([$unpaid], self::ids($later['charge']));
+        $this->assertSame([], $later['exempt']);
+        $this->assertNotContains($early, self::ids(stripe_manual_fee_pending($debtor, 0, '2026-01-01')['manual']));
+    }
+
+    public function testAnOrderPostedAsACreditNoteNeverGetsAFee(): void
+    {
+        $debtor = StripeFixtures::debtor();
+        $this->invoice($debtor, [], true);
+        $credit = StripeFixtures::order($debtor);
+        StripeTestEnvironment::query('UPDATE ordrelinjer SET antal = -antal WHERE ordre_id = $1', [$credit]);
+        $decision = stripe_manual_fee_decide($credit);
+        $this->assertSame([], $decision['charge']);
+        $this->assertSame([], $decision['exempt']);
+        $this->assertNull($decision['vare']);
     }
 
     public function testCustomerWhoPaysAutomaticallyNowHasPendingFeesWaived(): void
@@ -106,8 +119,12 @@ final class StripeManualFeeTest extends StripeDatabaseTestCase
         $next = StripeFixtures::order($debtor);
         $this->assertCount(1, stripe_manual_fee_decide($next)['charge']);
         $this->assertSame(16125, stripe_manual_fee_ore(25));
+        $this->assertSame(16125, stripe_manual_fee_ore(25, '2026-01-08'));
+        // The page note is not shown for an invoice dated before the start date (it can never give a fee).
+        $this->assertSame(0, stripe_manual_fee_ore(25, '2025-12-31'));
 
-        foreach ([['manual_fee_varenr', ''], ['manual_fee_varenr', 'NO-SUCH-ITEM'], ['manual_fee_from', ''], ['enrolment', 'off'], ['enabled', 'off']] as [$name, $value]) {
+        foreach ([['manual_fee_varenr', ''], ['manual_fee_varenr', 'NO-SUCH-ITEM'], ['manual_fee_from', ''], ['manual_fee_from', '2026-02-30'],
+            ['enrolment', 'off'], ['invoice_payments', 'off'], ['enabled', 'off']] as [$name, $value]) {
             $saved = stripe_setting($name);
             StripeTestEnvironment::setting('stripe', $name, $value);
             $this->assertNull(stripe_manual_fee_config(), $name);
@@ -129,13 +146,16 @@ final class StripeManualFeeTest extends StripeDatabaseTestCase
     public function testPostingAddsTheLineOnceAndRecurringCopiesLeaveItOut(): void
     {
         $ordrefunc = file_get_contents(__DIR__ . '/../../includes/ordrefunc.php');
-        $hook = strpos($ordrefunc, 'stripe_manual_fee_bogfor($id, $art, $momssats)');
+        $hook = strpos($ordrefunc, 'stripe_manual_fee_bogfor($id, $art, $momssats, $webservice, $genfakt)');
         $this->assertNotFalse($hook);
         $this->assertGreaterThan(strpos($ordrefunc, "return ('Manglende vare til procenttillæg -- '"), $hook);
         $this->assertLessThan(strpos($ordrefunc, '$qtxt = "select * from ordrelinjer where ordre_id=\'$id\' and antal!=\'0\' order by saet";'), $hook);
         $fee = file_get_contents(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
         // kdo = 'on' (14th argument) keeps the line out of genfakt's recurring copy.
         $this->assertStringContainsString("\$posnr, '', '', 'on', 'percent',", $fee);
+        // No customer discount on the fee line; the order totals follow the stored line; levering() gets the posting context.
+        $this->assertStringContainsString("set rabat = 0, m_rabat = 0, leveres = '\$count'", $fee);
+        $this->assertStringContainsString('levering($id, \'\', $genfakt, $webservice)', $fee);
         $this->assertStringContainsString("(kdo!='on' or kdo is NULL)", file_get_contents(__DIR__ . '/../../debitor/genfakturer.php'));
     }
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeEnrol.php --- 2026.10.22
+// --- includes/stripeIncludes/stripeEnrol.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

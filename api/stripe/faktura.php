@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura.php --- 2026.10.22
+// --- api/stripe/faktura.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -97,7 +97,7 @@ $bankBox = $hasBank ? '<div class="bank"><b>' . $h(stripe_txt('bank_box_title'))
 $elementBlock = '<div id="payment-element" class="pe"></div><div id="pay-error" class="perr" role="alert"></div>';
 $panel = '';
 // 20261025 CL/ASR two pay buttons (automatic payment / this invoice only) and the fee note
-$feeOre = $inv['enrolled'] ? 0 : stripe_manual_fee_ore((float)$o['momssats']);
+$feeOre = $inv['enrolled'] ? 0 : stripe_manual_fee_ore((float)$o['momssats'], (string)$o['fakturadate']);
 $feeNote = $feeOre > 0 ? '<p class="fee">' . $h(stripe_txt('fee_note', array('fee' => stripe_fmt_kr($feeOre) . ' kr.'))) . '</p>' : '';
 $twoMode = stripe_invoice_save_allowed($inv) && !$inv['enrolled'];
 $autoInfo = '<div class="auto"><b>' . $h(stripe_txt('auto_title')) . '</b><span id="consent-text">' . $h(stripe_invoice_consent($inv)) . '</span></div>';
@@ -239,7 +239,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
   <main class="left">
     <?php if ($pageImgs): ?>
     <div class="pages">
-      <?php foreach ($pageImgs as $i => $png): $dim = @getimagesize($png); ?>
+      <?php foreach ($pageImgs as $i => $png): $dim = is_file($png) ? getimagesize($png) : false; ?>
       <img src="<?= $h($pageUrl . '&p=' . ($i + 1)) ?>" alt="<?= $h($docName . ' ' . $nr . ', side ' . ($i + 1) . ' af ' . count($pageImgs)) ?>"<?= $dim ? ' width="' . (int)$dim[0] . '" height="' . (int)$dim[1] . '"' : '' ?><?= $i > 0 ? ' loading="lazy"' : '' ?>>
       <?php endforeach; ?>
     </div>

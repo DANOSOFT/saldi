@@ -226,6 +226,13 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
             unlink(preg_replace('/\.p1\.png$/', '.pages', $current[0]));
             $this->assertSame([], stripe_invoice_page_images($id, false));
 
+            // Longer than the 20-page cap: no images (the page shows the HTML summary and Download PDF), not a cut-off set.
+            $makePdf('21 { 72 720 moveto (Lang faktura) show showpage } repeat');
+            $this->assertTrue(stripe_invoice_pdf_cache($id, $source));
+            $this->assertSame([], stripe_invoice_page_images($id, true));
+            $this->assertSame([], glob(stripe_invoice_pdf_path($id, false) . '.*.p*.png'));
+            $this->assertCount(1, glob(stripe_invoice_pdf_path($id, false) . '.*.failed'));
+
             $endpoint = file_get_contents(__DIR__ . '/../../api/stripe/faktura_side.php');
             $this->assertStringContainsString("include(__DIR__ . '/faktura_common.php');", $endpoint);
             $this->assertStringContainsString("stripe_invoice_page_images(\$inv['id'], false)", $endpoint);

@@ -30,6 +30,7 @@
 //
 //   faktura_side.php?o=<ordre_id>&s=<signature>&p=<page, 1-based>
 
+$FAKTURA_IMAGE = true;                       // own rate-limit buckets (faktura_common.php)
 include(__DIR__ . '/faktura_common.php');
 
 $page = isset($_GET['p']) ? (int)$_GET['p'] : 0;
@@ -39,6 +40,7 @@ $stream = fopen($pages[$page - 1], 'rb');
 if (!$stream) faktura_fail(503, stripe_txt('pdf_unavailable'), stripe_txt('pdf_unavailable_txt'), 'page');
 $imageStat = fstat($stream);
 while (ob_get_level()) ob_end_clean();
+header('Cache-Control: private, max-age=300');
 header('Content-Type: image/png');
 header('Content-Length: ' . $imageStat['size']);
 fpassthru($stream);

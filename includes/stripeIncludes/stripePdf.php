@@ -263,21 +263,24 @@ function stripe_invoice_page_list($key) {
 
 /**
  * 20261025 CL/ASR The invoice PDF as page images for the payment page, so the customer sees the invoice exactly as
- * the PDF (logo, layout) and not a summary. Cached next to the private PDF and keyed by its mtime and size, so a
- * re-rendered PDF gets new images; old images are removed. Rendered under the invoice lock in a private workspace.
+ * the PDF (logo, layout) and not a summary. Cached next to the private PDF and keyed by a hash of its content, so a
+ * new PDF version gets new images; old images are removed. Rendered under the invoice lock in a private workspace.
+ * A PDF longer than the page cap, or a failed render, gives no images (the page then shows the HTML summary and
+ * Download PDF); a failed render is not retried for an hour.
  *
  * @param int $ordreId Saldi order id.
  * @param bool $generate Render the PDF and/or images when missing.
- * @return array<int, string> Page PNG paths in order; empty on failure (the page then shows the HTML summary).
+ * @return array<int, string> Page PNG paths in order; empty when there are none.
  */
 function stripe_invoice_page_images($ordreId, $generate = true) {
-	$maxPages = 10;
+	$maxPages = 20;
 	$pdf = stripe_invoice_pdf_path($ordreId, $generate);
 	if ($pdf === '') return array();
-	clearstatcache(true, $pdf);
-	$key = $pdf . '.' . filemtime($pdf) . '-' . filesize($pdf);
+	$key = $pdf . '.' . substr((string)hash_file('sha256', $pdf), 0, 16);
 	$pages = stripe_invoice_page_list($key);
 	if ($pages || !$generate) return $pages;
+	clearstatcache(true, $key . '.failed');
+	if (is_file($key . '.failed') && filemtime($key . '.failed') > time() - 3600) return array();
 	$gs = stripe_invoice_gs();
 	if ($gs === '') return array();
 	$lock = stripe_invoice_pdf_lock($ordreId);
@@ -288,16 +291,18 @@ function stripe_invoice_page_images($ordreId, $generate = true) {
 		$work = stripe_invoice_pdf_work_dir();
 		if ($work === '') return array();
 		try {
-			$cmd = escapeshellarg($gs) . ' -q -dSAFER -dBATCH -dNOPAUSE -dLastPage=' . $maxPages
+			// One page more than the cap tells whether the PDF is too long to show as images.
+			$cmd = escapeshellarg($gs) . ' -q -dSAFER -dBATCH -dNOPAUSE -dLastPage=' . ($maxPages + 1)
 				. ' -sDEVICE=png16m -r144 -dTextAlphaBits=4 -dGraphicsAlphaBits=4'
 				. ' -sOutputFile=' . escapeshellarg($work . '/p%d.png') . ' ' . escapeshellarg($pdf) . ' 2>&1';
 			exec($cmd, $out, $rc);
-			if ($rc !== 0 || !is_file($work . '/p1.png')) {
-				stripe_log('invoice page images failed for ' . (int)$ordreId . ': ' . implode(' ', $out));
-				return array();
-			}
-			foreach (array_merge(glob($pdf . '.*.p*.png') ?: array(), glob($pdf . '.*.pages') ?: array()) as $old) {
+			foreach (array_merge(glob($pdf . '.*.p*.png') ?: array(), glob($pdf . '.*.pages') ?: array(), glob($pdf . '.*.failed') ?: array()) as $old) {
 				if (!is_link($old) && is_file($old)) unlink($old);
+			}
+			if ($rc !== 0 || !is_file($work . '/p1.png') || is_file($work . '/p' . ($maxPages + 1) . '.png')) {
+				if ($rc !== 0 || !is_file($work . '/p1.png')) stripe_log('invoice page images failed for ' . (int)$ordreId . ': ' . implode(' ', $out));
+				file_put_contents($key . '.failed', (string)time(), LOCK_EX);
+				return array();
 			}
 			for ($n = 1; $n <= $maxPages && is_file($work . '/p' . $n . '.png'); $n++) {
 				if (!chmod($work . '/p' . $n . '.png', 0640) || !rename($work . '/p' . $n . '.png', $key . '.p' . $n . '.png')) return array();
