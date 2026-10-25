@@ -115,7 +115,7 @@ function orderLinkBlockText($reason, $invoiced) {
 	$why = array('ledger' => '7129', 'credit' => '7130', 'currency' => '7131', 'terms' => '7132', 'pbs' => '7133', 'debtor' => '7134', 'no_card' => '7135', 'subscriber' => '7136');
 	$todo = $invoiced ? array() : array('terms' => '7138', 'currency' => '7139', 'debtor' => '7141');
 	$todo['no_card'] = '7140';
-	return findtekst('7128', $sprog_id) . ' ' . findtekst($why[$reason] ?? '7129', $sprog_id) . ' '
+	return findtekst('7150', $sprog_id) . ' ' . findtekst($why[$reason] ?? '7129', $sprog_id) . ' '
 		. findtekst($todo[$reason] ?? '7142', $sprog_id);
 }
 
