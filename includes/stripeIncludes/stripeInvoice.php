@@ -58,6 +58,7 @@ include_once(__DIR__ . '/stripeAttempts.php');
 include_once(__DIR__ . '/stripeCharge.php');
 
 // 20261022 CDX/LH Reconcile attempts before collection; restrict eligibility and full-open amounts; support manual payment state.
+// 20261025 CL/ASR Texts for the two pay buttons (automatic payment / this invoice only) and the fee for manual payment.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -124,6 +125,10 @@ if (!function_exists('stripe_txt')) {
 			'charge_date_lbl'   => 'Trækkes den',
 			'pay_btn'           => 'Betal %amount',
 			'pay_save_btn'      => 'Betal %amount og gem kortet',
+			'pay_auto_btn'      => 'Betal %amount og slå automatisk betaling til',
+			'pay_once_btn'      => 'Betal kun denne faktura',
+			'auto_title'        => 'Automatisk betaling',
+			'fee_note'          => 'Uden automatisk betaling lægges et gebyr for manuel betaling på %fee på din næste faktura.',
 			'pay_now_btn'       => 'Betal %amount nu',
 			'chk_title'         => 'Betal mine næste fakturaer automatisk',
 			'chk_sub'           => 'Kortet gemmes hos Stripe, og dine næste fakturaer fra %brand trækkes på forfaldsdatoen. Du får hver faktura på mail, før beløbet trækkes. Vil du fjerne kortet, så %kontakt.',

@@ -15,7 +15,7 @@ function fixture(options = {}) {
   const state = options.state || 'failed';
   const nodes = {};
   function node(id, parentNode = null) {
-    return nodes[id] = { disabled: id === 'pay', textContent: '', attributes: {}, events: {}, parentNode,
+    return nodes[id] = { disabled: id === 'pay' || id === 'pay-once', textContent: '', attributes: {}, events: {}, parentNode,
       addEventListener(name, fn) { this.events[name] = fn; },
       setAttribute(name, value) { this.attributes[name] = value; },
       dispatchEvent(event) {
@@ -30,7 +30,8 @@ function fixture(options = {}) {
   else if (state === 'requires_action') node('resume');
   else {
     node('pay-form'); node('pay');
-    if (options.checkbox !== false) {
+    if (options.twoButtons) node('pay-once');
+    if (options.checkbox !== false && !options.twoButtons) {
       const row = node('chk');
       for (const child of ['consent-box', 'consent-title', 'consent-text']) node(child, row);
     }
@@ -82,19 +83,22 @@ function fixture(options = {}) {
     } };
 }
 
-test('consent is a focusable whole row above the Payment Element in both page variants', () => {
-  for (const [start, end] of [["case 'open_recurring':", "case 'failed':"], ["case 'failed':", "case 'enrolled':"]]) {
-    const branch = source.slice(source.indexOf(start), source.indexOf(end));
-    assert.match(branch, /<div class="check" role="checkbox"[^>]*tabindex="0" id="chk"/);
-    assert.ok(branch.indexOf('$amountBox') < branch.indexOf('id="chk"'));
-    assert.ok(branch.indexOf('id="chk"') < branch.indexOf('$elementBlock'));
-  }
+test('replace-card consent is a focusable whole row above the Payment Element; recurring invoices show the consent text above two buttons', () => {
+  const failed = source.slice(source.indexOf("case 'failed':"), source.indexOf("case 'enrolled':"));
+  assert.match(failed, /<div class="check" role="checkbox"[^>]*tabindex="0" id="chk"/);
+  assert.ok(failed.indexOf('$amountBox') < failed.indexOf('id="chk"'));
+  assert.ok(failed.indexOf('id="chk"') < failed.indexOf('$elementBlock'));
+  const recurring = source.slice(source.indexOf("case 'open_recurring':"), source.indexOf("case 'failed':"));
+  assert.doesNotMatch(recurring, /role="checkbox"/);
+  assert.ok(recurring.indexOf('$autoInfo') < recurring.indexOf('$elementBlock'));
+  assert.ok(recurring.indexOf('$elementBlock') < recurring.indexOf('$payButtons'));
+  assert.match(source, /id="pay-once" type="submit" disabled/);
   assert.match(source, /\.check:focus-visible\{outline:3px solid var\(--purple\);outline-offset:3px\}/);
   assert.match(source, /\.check\[aria-checked="true"\] \.box/);
 });
 
 test('clicking the consent box, title, text or row toggles once and sends the selected usage', async () => {
-  for (const state of ['open_recurring', 'failed']) {
+  for (const state of ['failed']) {
     const initial = state === 'failed';
     for (const target of ['consent-box', 'consent-title', 'consent-text', 'chk']) {
       const usage = initial ? null : 'off_session';
@@ -113,7 +117,7 @@ test('clicking the consent box, title, text or row toggles once and sends the se
 });
 
 test('Space and Enter toggle consent and prevent default; other keys leave it unchanged', async () => {
-  const f = fixture({ state: 'open_recurring', saveDefault: false });
+  const f = fixture({ state: 'failed', saveDefault: false });
   assert.equal(f.key('Tab').prevented, false);
   assert.equal(f.nodes.chk.attributes['aria-checked'], 'false');
   for (const [key, checked] of [[' ', 'true'], ['Enter', 'false']]) {
@@ -135,6 +139,31 @@ test('Stripe Link is hidden: the Payment Element shows the card form only', () =
     assert.equal(f.calls.paymentElementOptions.length, 1);
     assert.equal(f.calls.paymentElementOptions[0].type, 'payment');
     assert.equal(f.calls.paymentElementOptions[0].value.wallets.link, 'never');
+  }
+});
+
+test('two buttons: the main button turns on automatic payment, "pay-once" pays this invoice only', async () => {
+  for (const state of ['open_recurring', 'overdue', 'failed']) {
+    const auto = fixture({ state, twoButtons: true, saveDefault: false });
+    assert.equal(auto.calls.elementOptions[0].setupFutureUsage, 'off_session');
+    assert.equal(auto.nodes.pay.disabled, true);
+    assert.equal(auto.nodes['pay-once'].disabled, true);
+    auto.ready();
+    assert.equal(auto.nodes['pay-once'].disabled, false);
+    auto.click('pay'); auto.submit(); await flush();
+    assert.equal(auto.calls.updates.length, 0);
+    assert.equal(JSON.parse(auto.calls.creates[0].request.body).save_card, true);
+    assert.equal(auto.calls.confirmations.length, 1);
+
+    const once = fixture({ state, twoButtons: true, effectiveUsage: null });
+    once.ready(); once.click('pay-once'); once.submit(); await flush();
+    assert.equal(once.calls.submits, 0);
+    assert.equal(once.calls.updates[0].setupFutureUsage, null);
+    once.updated(); await flush();
+    assert.equal(JSON.parse(once.calls.creates[0].request.body).save_card, false);
+    assert.equal(once.calls.confirmations.length, 1);
+    assert.equal(once.nodes.pay.disabled, false);
+    assert.equal(once.nodes['pay-once'].disabled, false);
   }
 });
 

@@ -153,6 +153,7 @@
 // 20261008 Sawaneh The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
 // 20261016 Sawaneh Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
+// 20261025 CL/ASR bogfor(): fee for manual payment of earlier invoices on DO orders (stripeManualFee.php; Stripe ledger only).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -1423,6 +1424,15 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		} else {
 			if (!$callerOwnsTransaction) transaktion('rollback');
 			return ('Manglende vare til procenttillæg -- ' . $procentvare);
+		}
+	}
+	// 20261025 CL/ASR fee for manual payment of the customer's earlier invoices (Stripe ledger only, see stripeManualFee.php)
+	if ($art == 'DO') {
+		include_once(__DIR__ . '/stripeIncludes/stripeManualFee.php');
+		$feeError = stripe_manual_fee_bogfor($id, $art, $momssats);
+		if ($feeError !== '') {
+			if (!$callerOwnsTransaction) transaktion('rollback');
+			return $feeError;
 		}
 	}
 	#	$x=0;

@@ -41,8 +41,12 @@
 // 20261025 CL/ASR Left: the invoice exactly as its PDF (page images via faktura_side.php); the HTML
 //                 summary is only shown if the images cannot be made. Stripe Link is hidden in the
 //                 Payment Element (wallets.link = never): card only, shorter panel.
+// 20261025 CL/ASR Recurring invoices of customers without automatic payment: the main button pays and turns on
+//                 automatic payment (consent text above it), "Betal kun denne faktura" is the visible alternative.
+//                 With the fee for manual payment on, the page says the fee goes on the next invoice.
 
 include(__DIR__ . '/faktura_common.php');
+include_once(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
 
 $state = $inv['state'];
 $o = $inv['o']; $f = $inv['firma']; $d = $inv['debtor'];
@@ -90,18 +94,27 @@ if ($contactMail !== '' || $contactPhone !== '') $foot = '<div class="foot">' . 
 if ($contactMail !== '') $foot = '<div class="foot">' . str_replace(array('%email', '%phone'), array('<a href="mailto:' . $h($contactMail) . '">' . $h($contactMail) . '</a>', $contactPhone !== '' ? ' eller ' . $h($contactPhone) : ''), $h(stripe_txt('questions'))) . '</div>';
 $bankBox = $hasBank ? '<div class="bank"><b>' . $h(stripe_txt('bank_box_title')) . '</b>Reg. ' . $h($bankReg) . ' · konto ' . $h($bankKonto) . '<br>' . $h(stripe_txt('bank_box_ref', array('nr' => $nr))) . '<br><span style="color:var(--ink-3)">' . $h(stripe_txt('bank_box_note')) . '</span></div>' : '';
 $elementBlock = '<div id="payment-element" class="pe"></div><div id="pay-error" class="perr" role="alert"></div>';
-
 $panel = '';
+// 20261025 CL/ASR two pay buttons (automatic payment / this invoice only) and the fee note
+$feeOre = $inv['enrolled'] ? 0 : stripe_manual_fee_ore((float)$o['momssats']);
+$feeNote = $feeOre > 0 ? '<p class="fee">' . $h(stripe_txt('fee_note', array('fee' => stripe_fmt_kr($feeOre) . ' kr.'))) . '</p>' : '';
+$twoMode = stripe_invoice_save_allowed($inv) && !$inv['enrolled'];
+$autoInfo = '<div class="auto"><b>' . $h(stripe_txt('auto_title')) . '</b><span id="consent-text">' . $h(stripe_invoice_consent($inv)) . '</span></div>';
+$payButtons = $twoMode
+	? '<button class="btn primary" id="pay" type="submit" disabled aria-describedby="consent-text">' . $h(stripe_txt('pay_auto_btn', array('amount' => $totalKr))) . '</button>'
+		. '<button class="btn once" id="pay-once" type="submit" disabled>' . $h(stripe_txt('pay_once_btn')) . '</button>' . $feeNote
+	: '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button>' . $feeNote;
+
 switch ($state) {
 	case 'open': case 'overdue':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt($state === 'overdue' ? 'h_overdue' : 'h_open')) . '</h2><p class="lead">' . $h($state === 'overdue' ? stripe_txt('lead_overdue', array('date' => $dueFmt)) : stripe_txt('lead_open')) . '</p>';
 		if ($state === 'overdue') $panel .= fak_status('bad', 'clock', stripe_txt('overdue_pill', array('date' => $dueFmt)), stripe_txt('amount_lbl') . ' ' . $totalKr);
 		else $panel .= $amountBox;
-		$panel .= '<form id="pay-form">' . $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		$panel .= '<form id="pay-form">' . ($twoMode ? $autoInfo : '') . $elementBlock . $payButtons . '</form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
 		break;
 	case 'open_recurring':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_recurring')) . '</h2><p class="lead">' . $h(stripe_txt('lead_recurring', array('brand' => $brand))) . '</p>' . $amountBox;
-		$panel .= '<form id="pay-form"><div class="check" role="checkbox" aria-checked="false" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h(stripe_txt('chk_title')) . '</b><span id="consent-text">' . $h(stripe_invoice_consent($inv)) . '</span></div></div>' . $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		$panel .= '<form id="pay-form">' . $autoInfo . $elementBlock . $payButtons . '</form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
 		break;
 	case 'failed':
 		$fp = $inv['failed']; $card = stripe_card_label($fp['pm_brand'], $fp['pm_last4']);
@@ -110,8 +123,9 @@ switch ($state) {
 		// Never show Stripe's raw code to the customer; stripe_decline_text() maps it to a Danish sentence.
 		$panel .= fak_status('bad', 'x', stripe_txt('failed_box', array('card' => $card, 'date' => stripe_fmt_date(stripe_attempt_date($fp)))), stripe_decline_text($fp['last_error']));
 		$panel .= $amountBox . '<form id="pay-form">';
-		if (stripe_feature_on('enrolment') && ($inv['enrolled'] || $inv['recurring'])) $panel .= '<div class="check" role="checkbox" aria-checked="true" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h($inv['enrolled'] ? stripe_txt('chk_replace_title') : stripe_txt('chk_title')) . '</b><span id="consent-text">' . $h($inv['enrolled'] ? stripe_txt('chk_replace_sub', array('card' => $card)) : stripe_invoice_consent($inv)) . '</span></div></div>';
-		$panel .= $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . $foot;
+		if (stripe_feature_on('enrolment') && $inv['enrolled']) $panel .= '<div class="check" role="checkbox" aria-checked="true" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h(stripe_txt('chk_replace_title')) . '</b><span id="consent-text">' . $h(stripe_txt('chk_replace_sub', array('card' => $card))) . '</span></div></div>';
+		elseif ($twoMode) $panel .= $autoInfo;
+		$panel .= $elementBlock . $payButtons . '</form>' . $trust . $foot;
 		break;
 	case 'enrolled':
 		$card = stripe_card_label('', '');
@@ -199,6 +213,8 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 .inv .terms{margin-top:40px;padding-top:24px;border-top:1px solid var(--line-2);color:var(--ink-2);font-size:14.5px}.inv .terms b{color:var(--ink);font-weight:600}.inv .terms p+p{margin-top:8px}
 .right .lab{color:var(--label);margin-bottom:14px}.right h2{font-size:30px;line-height:1.15;font-weight:700;margin-bottom:12px}.right .lead{color:var(--ink-2);font-size:15px;margin-bottom:24px}
 .amt{display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--soft);border-radius:12px;padding:20px 22px;margin-bottom:22px}.amt .l span{display:block;color:var(--ink-2);font-size:14px}.amt .l span+span{margin-top:6px}.amt b{font-size:34px;font-weight:700;white-space:nowrap}
+.btn.once{width:100%;height:46px;margin-top:10px;color:var(--ink-2)}.fee{margin-top:10px;color:var(--ink-3);font-size:13.5px;line-height:1.45}
+.auto{background:var(--tint);border:1px solid var(--tint-line);border-radius:12px;padding:16px 18px;margin:12px 0 20px}.auto b{display:block;font-weight:600;margin-bottom:4px}.auto span{display:block;color:var(--ink-2);font-size:14px}
 .pe{margin:4px 0 8px;min-height:40px}.perr{color:var(--bad);font-size:14px;min-height:0;margin:6px 0}
 .check{display:flex;gap:14px;background:var(--tint);border:1px solid var(--tint-line);border-radius:12px;padding:16px 18px;margin:12px 0 20px;cursor:pointer}.check:focus-visible{outline:3px solid var(--purple);outline-offset:3px}.check .box{width:24px;height:24px;border-radius:6px;border:2px solid var(--purple);display:grid;place-items:center;flex:none;background:var(--surface);cursor:pointer;margin-top:1px}.check[aria-checked="true"] .box{background:var(--purple);border-color:var(--purple)}.check .box svg{display:none;color:#fff}.check[aria-checked="true"] .box svg{display:block}.check b{display:block;font-weight:600;margin-bottom:4px}.check span{display:block;color:var(--ink-2);font-size:14px}
 .trust{display:flex;gap:12px;margin-top:18px;color:var(--ink-2);font-size:14px;line-height:1.5}.trust svg{flex:none;margin-top:3px;color:var(--ink-3)}
@@ -292,6 +308,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
     return;
   }
   var form = document.getElementById('pay-form'), payBtn = document.getElementById('pay'), chk = document.getElementById('chk'), payNow = document.getElementById('paynow');
+  var payOnce = document.getElementById('pay-once');
   if (payNow) {
     payNow.addEventListener('click', function(){
       payNow.disabled = true; showErr('');
@@ -305,10 +322,12 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
   }
   if (!form) return;
   if (!cfg.pk || !window.Stripe) { showErr(cfg.startError); return; }
-  var saveCard = !!cfg.saveDefault, elementReady = false, submitting = false;
+  // Two buttons: the main one pays and turns on automatic payment, "pay-once" pays this invoice only.
+  var saveCard = payOnce ? true : !!cfg.saveDefault, elementReady = false, submitting = false;
   var usageReady = Promise.resolve(), usageResolve = null;
-  function updBtn(){ if (payBtn) payBtn.textContent = saveCard ? cfg.btnSave : cfg.btn; }
-  function release(){ submitting = false; payBtn.disabled = !elementReady; }
+  function updBtn(){ if (payBtn && !payOnce) payBtn.textContent = saveCard ? cfg.btnSave : cfg.btn; }
+  function setDisabled(v){ payBtn.disabled = v; if (payOnce) payOnce.disabled = v; }
+  function release(){ submitting = false; setDisabled(!elementReady); }
   function updateUsage(usage){
     return new Promise(function(resolve){
       usageResolve = resolve;
@@ -324,6 +343,13 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
     var usage = saveCard ? 'off_session' : null;
     usageReady = usageReady.then(function(){ return updateUsage(usage); });
   }
+  function choose(save){
+    if (submitting || save === saveCard) return;
+    saveCard = save;
+    var usage = saveCard ? 'off_session' : null;
+    usageReady = usageReady.then(function(){ return updateUsage(usage); });
+  }
+  if (payOnce) { payBtn.addEventListener('click', function(){ choose(true); }); payOnce.addEventListener('click', function(){ choose(false); }); }
   updBtn();
   var stripe = Stripe(cfg.pk, {locale:'da'});
   var elements = stripe.elements({mode:'payment', amount: cfg.amount, currency: cfg.currency, paymentMethodTypes:['card'], setupFutureUsage: saveCard ? 'off_session' : null, paymentMethodCreation:'manual',
@@ -332,13 +358,13 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
     if (usageResolve) { var resolve = usageResolve; usageResolve = null; resolve(); }
   });
   var pe = elements.create('payment', {layout:'tabs', wallets:{link:'never'}});
-  pe.on('ready', function(){ elementReady = true; payBtn.disabled = submitting; });
-  pe.on('loaderror', function(){ elementReady = false; payBtn.disabled = true; showErr(cfg.startError); });
+  pe.on('ready', function(){ elementReady = true; setDisabled(submitting); });
+  pe.on('loaderror', function(){ elementReady = false; setDisabled(true); showErr(cfg.startError); });
   pe.mount('#payment-element');
   form.addEventListener('submit', function(e){
     e.preventDefault();
     if (!elementReady || submitting) return;
-    submitting = true; showErr(''); payBtn.disabled = true;
+    submitting = true; showErr(''); setDisabled(true);
     usageReady.then(function(){ return elements.submit(); }).then(function(res){
       if (res.error) { showErr(res.error.message); release(); return; }
       return fetch(cfg.payUrl, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({save_card: saveCard})}).then(function(r){return r.json()}).then(function(j){

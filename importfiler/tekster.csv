@@ -6813,4 +6813,10 @@
 7122	Automatisk træk afvist: vælg forfaldsdato eller fakturadato	Automatic collection rejected: choose due date or invoice date	Automatisk trekk avvist: velg forfallsdato eller fakturadato
 7123	Fakturaformat afvist: vælg PDF eller link	Invoice format rejected: choose PDF or link	Fakturaformat avvist: velg PDF eller lenke
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
+7160	Gebyr for manuel betaling (varenr.)	Fee for manual payment (item no.)	Gebyr for manuell betaling (varenr.)
+7161	Varenummeret på gebyrvaren, fx 129 kr. ekskl. moms. En faktura, der betales manuelt (bankoverførsel eller "Betal kun denne faktura" på betalingssiden), giver gebyret på kundens næste faktura. Automatisk kortbetaling og PBS er fritaget. Tom = slået fra.	Item number of the fee item, e.g. DKK 129 excl. VAT. An invoice paid manually (bank transfer or "Pay this invoice only" on the payment page) adds the fee to the customer's next invoice. Automatic card payment and PBS are exempt. Empty = off.	Varenummeret på gebyrvaren, f.eks. 129 kr. eks. mva. En faktura som betales manuelt (bankoverføring eller "Betal bare denne fakturaen" på betalingssiden) gir gebyret på kundens neste faktura. Automatisk kortbetaling og PBS er fritatt. Tom = slått av.
+7162	Gebyr fra fakturadato	Fee from invoice date	Gebyr fra fakturadato
+7163	Kun fakturaer med fakturadato fra og med denne dato kan give gebyr.	Only invoices dated on or after this date can give a fee.	Bare fakturaer med fakturadato fra og med denne datoen kan gi gebyr.
+7164	Gebyrvaren findes ikke (gebyret er IKKE gemt)	The fee item does not exist (the fee is NOT saved)	Gebyrvaren finnes ikke (gebyret er IKKE lagret)
+7165	Gebyr for manuel betaling: vælg en startdato (gebyret er IKKE gemt)	Fee for manual payment: choose a start date (the fee is NOT saved)	Gebyr for manuell betaling: velg en startdato (gebyret er IKKE lagret)
 

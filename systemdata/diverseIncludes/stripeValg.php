@@ -31,6 +31,7 @@
 //                rejected with an alert, never silently sanitized.
 // 20261022 CDX/LH Complete native master invoice settings and rollout controls; preserve CSRF, escaping and collected errors.
 // 20261023 CDX/LH Pass raw settings values to the redesign setter, which handles SQL escaping internally.
+// 20261025 CL/ASR Fee for manual payment: fee product (manual_fee_varenr, empty = off) and first invoice date (manual_fee_from).
 
 /**
  * Injected by systemdata/diverse.php via online.php and the page setup:
@@ -122,6 +123,20 @@ function stripeValgSave() {
 		$fejl[] = findtekst('7122|Automatisk træk afvist: vælg forfaldsdato eller fakturadato', $sprog_id);
 	}
 	update_settings_value('auto_post_journal', 'stripe', !empty($input['stripe_auto_post_journal']) ? 'on' : 'off', 'Bogfoer Stripe-kladden automatisk (reserveret)');
+
+	# Fee for manual payment (stripeManualFee.php). Only saved when the form carries the fields.
+	if (array_key_exists('stripe_manual_fee_varenr', $input)) {
+		$fee_varenr = trim((string)$input['stripe_manual_fee_varenr']);
+		$fee_from = trim((string)($input['stripe_manual_fee_from'] ?? ''));
+		if ($fee_varenr !== '' && !db_fetch_array(db_select("select id from varer where varenr = '" . db_escape_string($fee_varenr) . "'", __FILE__ . " linje " . __LINE__))) {
+			$fejl[] = findtekst('7164', $sprog_id);
+		} elseif ($fee_varenr !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fee_from)) {
+			$fejl[] = findtekst('7165', $sprog_id);
+		} else {
+			update_settings_value('manual_fee_varenr', 'stripe', $fee_varenr, 'Gebyr for manuel betaling: varenr (tom = slaaet fra)');
+			update_settings_value('manual_fee_from', 'stripe', $fee_from, 'Gebyr for manuel betaling: fra fakturadato');
+		}
+	}
 
 	$invoice_format = (string)($input['invoice_format'] ?? 'pdf');
 	if (in_array($invoice_format, array('pdf', 'link'), true)) {
@@ -223,6 +238,12 @@ function stripeValg() {
 	print "<td colspan='3'><select name='stripe_charge_on'><option value='due'" . ($charge_on != 'invoice_date' ? " selected" : "") . ">" . findtekst('7117', $sprog_id) . "</option><option value='invoice_date'" . ($charge_on == 'invoice_date' ? " selected" : "") . ">" . findtekst('7118', $sprog_id) . "</option></select></td></tr>";
 	print "<tr><td>" . findtekst('7119', $sprog_id) . ":</td>";
 	print "<td colspan='3'><input type='checkbox' name='stripe_auto_post_journal' value='1'" . (stripe_setting('auto_post_journal', 'off') == 'on' ? " checked" : "") . "> " . findtekst('7120', $sprog_id) . "</td></tr>";
+	$fee_varenr = htmlspecialchars(stripe_setting('manual_fee_varenr'), ENT_QUOTES, 'UTF-8');
+	$fee_from = htmlspecialchars(stripe_setting('manual_fee_from'), ENT_QUOTES, 'UTF-8');
+	print "<tr><td title='" . htmlspecialchars(findtekst('7161', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7160', $sprog_id) . ":</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:120px;' name='stripe_manual_fee_varenr' value='$fee_varenr'></td></tr>";
+	print "<tr><td title='" . htmlspecialchars(findtekst('7163', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7162', $sprog_id) . ":</td>";
+	print "<td colspan='3'><input type='date' name='stripe_manual_fee_from' value='$fee_from'></td></tr>";
 
 	// Display the stored preference even while invoice payments are switched off.
 	$r = db_fetch_array(db_select("select var_name, var_value from settings where var_grp = 'email_settings' and var_name = 'invoice_format' and (user_id is null or user_id = 0)", __FILE__ . " linje " . __LINE__));
