@@ -89,7 +89,6 @@
 // 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
 // 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
 // 20261019 Sawaneh Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
-// 20261025 CL/ASR documents.email.invoice_format: label/help say it is the default for new e-mail orders (7126/7127).
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -1452,6 +1451,7 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('settings', 'email_settings', 'sender_name', 'raw'), 'legacy' => array(573, 6166),
 				'keywords' => array('afsender', 'sender', 'afsendernavn', 'sender name')),
 			// 20261019 CL/ASR invoice format: classic PDF mail or link to the invoice & payment page
+			// 20261025 CL/ASR it is the default for new e-mail orders; each order chooses E-mail or E-mail med link (7126/7127)
 			'documents.email.invoice_format' => array('sub' => 'format', 'type' => 'select', 'label' => 7126, 'help' => 7127, 'default' => 'pdf',
 				'options' => array('pdf' => 7103, 'link' => 7104),
 				'storage' => array('settings', 'email_settings', 'invoice_format', 'raw'),
