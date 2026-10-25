@@ -5005,7 +5005,8 @@ function ordreside($id, $regnskab)
 		}
 		print "<td>&nbsp;</td><td>" . findtekst('880|Udskriv', $sprog_id) . " " . findtekst('904|til', $sprog_id) . "</td>\n";
 		if (!$udskriv_til) {
-			if ($mail_fakt) $udskriv_til = "email";
+			// 20261025 CL/ASR a new e-mail order gets the G6.3 default ("E-mail med link" or the classic e-mail)
+			if ($mail_fakt) $udskriv_til = orderLinkDefault() ? 'Link' : 'email';
 			#      if ($oio_fakt) $udskriv_til="oioxml";
 			if ($lev_pbs_nr) {
 				if ($pbs) $udskriv_til = "PBS";
