@@ -35,6 +35,7 @@
 // 20261022 CDX/LH Keep historical invoices untouched; use the PI customer; deliver issued invoices on Afmeld with a retry outbox.
 // 20261022 CDX/LH Document that recurrence dates are read for eligibility but never written.
 // 20261022 CL/LH S5 Greet by first name in the outstanding-invoice mail sent after Afmeld.
+// 20261025 CL/ASR The outstanding-invoice mail after Afmeld uses the shared mail layout (Saldi logo); PDF still attached.
 
 include_once(__DIR__ . '/stripeHttp.php');
 include_once(__DIR__ . '/stripeSettings.php');
@@ -138,6 +139,9 @@ function stripe_mail_invoice_classic($inv) {
 	if (!$pdf) return false;
 	$greeting = stripe_mail_greeting($inv);
 	$body = stripe_txt('mail_unenrol_body', array('nr' => $inv['nr']));
+	// 20261025 CL/ASR same layout (and Saldi logo) as the other invoice mails; the PDF stays attached
+	$rows = array(array(stripe_txt('amount_lbl'), stripe_fmt_kr($inv['total_ore']) . ' kr.'), array(stripe_txt('due_date'), stripe_fmt_date($inv['due'])));
+	$html = stripe_mail_layout($inv, stripe_txt('mail_label_invoice', array('nr' => $inv['nr'])), stripe_txt('mail_h_new'), $greeting . "\n\n" . $body, null, $rows, '', '', '', '', '');
 	return stripe_mail_send($inv['email'], stripe_txt('mail_subj_new', array('nr' => $inv['nr'], 'brand' => $inv['brand'])),
-		'<p>' . stripe_h($greeting) . '</p><p>' . stripe_h($body) . '</p>', $greeting . "\n\n" . $body, array($pdf));
+		$html, $greeting . "\n\n" . $body, array($pdf));
 }

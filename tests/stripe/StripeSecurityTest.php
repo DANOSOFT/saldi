@@ -234,6 +234,29 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
         }
     }
 
+    public function testUnenrolmentInvoiceMailUsesTheSharedLayoutAndKeepsThePdf(): void
+    {
+        // 20261025 The outstanding-invoice mail after Afmeld looks like the other invoice mails (Saldi logo).
+        require_once __DIR__ . '/../../includes/stripeIncludes/stripeEnrol.php';
+        $id = StripeFixtures::invoice();
+        $work = stripe_invoice_pdf_work_dir();
+        file_put_contents($work . '/input.pdf', '%PDF-1.4 unenrol ' . str_repeat('U', 256));
+        try {
+            $this->assertTrue(stripe_invoice_pdf_cache($id, $work . '/input.pdf'));
+            $inv = stripe_invoice_load($id);
+            $inv['brand'] = 'Saldi';
+            $before = count(StripeTestTransport::$mails);
+            $this->assertTrue(stripe_mail_invoice_classic($inv));
+            $mail = StripeTestTransport::$mails[$before];
+            $this->assertStringContainsString('/img/SaldiMainLogo.png" width="128" alt="Saldi"', $mail['html']);
+            $this->assertStringContainsString('Automatisk kortbetaling er stoppet', $mail['html']);
+            $this->assertCount(1, $mail['attachments']);
+            $this->assertSame(stripe_invoice_pdf_path($id, false), $mail['attachments'][0]);
+        } finally {
+            stripe_invoice_pdf_cleanup($work);
+        }
+    }
+
     public function testRenderWorkspacesAreIsolatedCleanedAndUseOneStableInvoiceLock(): void
     {
         $id = StripeFixtures::invoice();
