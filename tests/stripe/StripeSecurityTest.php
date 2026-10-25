@@ -185,6 +185,85 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
         }
     }
 
+    public function testInvoicePageImagesFollowThePdfAndOnlyACompleteSetIsServed(): void
+    {
+        // 20261025 The payment page shows the invoice as its PDF pages (faktura_side.php serves them).
+        $gs = stripe_invoice_gs();
+        if ($gs === '') {
+            $this->markTestSkipped('Ghostscript is not installed');
+        }
+        $id = StripeFixtures::invoice();
+        $work = stripe_invoice_pdf_work_dir();
+        $source = $work . '/input.pdf';
+        $makePdf = function (string $postscript) use ($gs, $source): void {
+            exec(escapeshellarg($gs) . ' -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=' . escapeshellarg($source)
+                . ' -c ' . escapeshellarg('/Helvetica findfont 24 scalefont setfont ' . $postscript) . ' 2>&1', $out, $rc);
+            $this->assertSame(0, $rc, implode("\n", $out));
+        };
+        try {
+            $makePdf('72 720 moveto (Side 1) show showpage 72 720 moveto (Side 2) show showpage');
+            $this->assertTrue(stripe_invoice_pdf_cache($id, $source));
+            $this->assertSame([], stripe_invoice_page_images($id, false));
+            $pages = stripe_invoice_page_images($id, true);
+            $this->assertCount(2, $pages);
+            foreach ($pages as $png) {
+                $this->assertSame("\x89PNG", file_get_contents($png, false, null, 0, 4));
+                $this->assertSame(0640, fileperms($png) & 0777);
+                $this->assertSame(dirname(stripe_invoice_pdf_path($id, false)), dirname($png));
+            }
+            $this->assertSame($pages, stripe_invoice_page_images($id, false));
+
+            // A new PDF version gets new images and the old ones are removed.
+            $makePdf('72 720 moveto (Ny version med kun en side) show showpage');
+            $this->assertTrue(stripe_invoice_pdf_cache($id, $source));
+            $this->assertSame([], stripe_invoice_page_images($id, false));
+            $current = stripe_invoice_page_images($id, true);
+            $this->assertCount(1, $current);
+            foreach ($pages as $old) {
+                $this->assertFileDoesNotExist($old);
+            }
+            // Without the page-count marker the set counts as incomplete and is not served.
+            unlink(preg_replace('/\.p1\.png$/', '.pages', $current[0]));
+            $this->assertSame([], stripe_invoice_page_images($id, false));
+
+            // Longer than the 20-page cap: no images (the page shows the HTML summary and Download PDF), not a cut-off set.
+            $makePdf('21 { 72 720 moveto (Lang faktura) show showpage } repeat');
+            $this->assertTrue(stripe_invoice_pdf_cache($id, $source));
+            $this->assertSame([], stripe_invoice_page_images($id, true));
+            $this->assertSame([], glob(stripe_invoice_pdf_path($id, false) . '.*.p*.png'));
+            $this->assertCount(1, glob(stripe_invoice_pdf_path($id, false) . '.*.failed'));
+
+            $endpoint = file_get_contents(__DIR__ . '/../../api/stripe/faktura_side.php');
+            $this->assertStringContainsString("include(__DIR__ . '/faktura_common.php');", $endpoint);
+            $this->assertStringContainsString("stripe_invoice_page_images(\$inv['id'], false)", $endpoint);
+        } finally {
+            stripe_invoice_pdf_cleanup($work);
+        }
+    }
+
+    public function testUnenrolmentInvoiceMailUsesTheSharedLayoutAndKeepsThePdf(): void
+    {
+        // 20261025 The outstanding-invoice mail after Afmeld looks like the other invoice mails (Saldi logo).
+        require_once __DIR__ . '/../../includes/stripeIncludes/stripeEnrol.php';
+        $id = StripeFixtures::invoice();
+        $work = stripe_invoice_pdf_work_dir();
+        file_put_contents($work . '/input.pdf', '%PDF-1.4 unenrol ' . str_repeat('U', 256));
+        try {
+            $this->assertTrue(stripe_invoice_pdf_cache($id, $work . '/input.pdf'));
+            $inv = stripe_invoice_load($id);
+            $inv['brand'] = 'Saldi';
+            $before = count(StripeTestTransport::$mails);
+            $this->assertTrue(stripe_mail_invoice_classic($inv));
+            $mail = StripeTestTransport::$mails[$before];
+            $this->assertStringContainsString('/img/SaldiMainLogo.png" width="128" alt="Saldi"', $mail['html']);
+            $this->assertStringContainsString('Automatisk kortbetaling er stoppet', $mail['html']);
+            $this->assertCount(1, $mail['attachments']);
+            $this->assertSame(stripe_invoice_pdf_path($id, false), $mail['attachments'][0]);
+        } finally {
+            stripe_invoice_pdf_cleanup($work);
+        }
+    }
+
     public function testRenderWorkspacesAreIsolatedCleanedAndUseOneStableInvoiceLock(): void
     {
         $id = StripeFixtures::invoice();

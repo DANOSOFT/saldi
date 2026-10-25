@@ -59,6 +59,8 @@ include_once(__DIR__ . '/stripeCharge.php');
 
 // 20261022 CDX/LH Reconcile attempts before collection; restrict eligibility and full-open amounts; support manual payment state.
 // 20261025 CL/ASR Delivery per order (Link = link mail, email = classic); uncollectable reason; one-time switch of existing customers/orders to Link.
+// 20261025 CL/ASR Texts for the two pay buttons (automatic payment / this invoice only) and the fee for manual payment.
+// 20261025 CL/ASR Mails from Saldi's own ledger show the Saldi logo instead of the name.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -125,6 +127,10 @@ if (!function_exists('stripe_txt')) {
 			'charge_date_lbl'   => 'Trækkes den',
 			'pay_btn'           => 'Betal %amount',
 			'pay_save_btn'      => 'Betal %amount og gem kortet',
+			'pay_auto_btn'      => 'Betal %amount og slå automatisk betaling til',
+			'pay_once_btn'      => 'Betal kun denne faktura',
+			'auto_title'        => 'Automatisk betaling',
+			'fee_note'          => 'Uden automatisk betaling lægges et gebyr for manuel betaling på %fee på din næste faktura.',
 			'pay_now_btn'       => 'Betal %amount nu',
 			'chk_title'         => 'Betal mine næste fakturaer automatisk',
 			'chk_sub'           => 'Kortet gemmes hos Stripe, og dine næste fakturaer fra %brand trækkes på forfaldsdatoen. Du får hver faktura på mail, før beløbet trækkes. Vil du fjerne kortet, så %kontakt.',
@@ -876,7 +882,12 @@ if (!function_exists('stripe_mail_layout')) {
 		$h = '<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>' . stripe_h($h1) . '</title></head>';
 		$h .= '<body style="margin:0;padding:40px 16px;background:#f7f5f0;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;color:#111318;font-size:16px;line-height:1.6">';
 		$h .= '<div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #e6e2da;border-radius:16px;padding:44px 44px 40px">';
-		$h .= '<div style="font-size:26px;font-weight:700;letter-spacing:-.02em;margin-bottom:32px">' . stripe_h($inv['brand']) . '</div>';
+		// 20261025 CL/ASR Saldi's own invoices show the Saldi logo (public image, alt text when images are blocked)
+		$base = rtrim((string)stripe_setting('public_base_url'), '/');
+		$brandHtml = ($inv['brand'] === 'Saldi' && $base !== '')
+			? '<img src="' . stripe_h($base . '/img/SaldiMainLogo.png') . '" width="128" alt="Saldi" style="display:block;width:128px;height:auto;border:0">'
+			: stripe_h($inv['brand']);
+		$h .= '<div style="font-size:26px;font-weight:700;letter-spacing:-.02em;margin-bottom:32px">' . $brandHtml . '</div>';
 		$h .= '<div style="font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#9a5b1a;margin-bottom:12px">' . stripe_h($label) . '</div>';
 		$h .= '<h1 style="font-size:32px;line-height:1.15;font-weight:700;margin:0 0 14px;letter-spacing:-.01em">' . stripe_h($h1) . '</h1>';
 		// A blank line separates paragraphs (greeting, then text); the text version keeps the same breaks.
@@ -931,7 +942,8 @@ if (!function_exists('stripe_mail_layout')) {
 	function stripe_mail_confirmation($inv, $payment) {
 		if ($inv['email'] === '') return false;
 		$url = stripe_invoice_url($inv['id']);
-		$pdfUrl = $url ? str_replace('/faktura.php?', '/faktura_pdf.php?', $url) : '';
+		// vis=1: the button opens the PDF in the browser instead of a silent download (20261025)
+		$pdfUrl = $url ? str_replace('/faktura.php?', '/faktura_pdf.php?', $url) . '&vis=1' : '';
 		$card = stripe_card_label($payment['pm_brand'], $payment['pm_last4']);
 		$when = stripe_fmt_date_long(substr((string)$payment['succeeded_at'], 0, 10) ?: date('Y-m-d'));
 		$box = array('kind' => 'good', 'title' => stripe_txt('mail_paid_box', array('amount' => stripe_fmt_kr($payment['amount_ore']) . ' kr.', 'date' => $when)), 'sub' => $card . ' · ' . stripe_txt($payment['source'] === 'auto' ? 'auto_payment' : 'card_payment'));

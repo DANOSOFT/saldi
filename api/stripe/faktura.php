@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura.php --- 2026.10.22
+// --- api/stripe/faktura.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,8 +38,16 @@
 // 20261022 CDX/LH Wait for Payment Element readiness and usage updates; prevent concurrent submits and keep consent date accurate.
 // 20261022 CDX/LH Enforce card payment methods in Elements and remove the unavailable Saldi menu hint.
 // 20261022 CDX/LH Place whole-row, keyboard-accessible consent above the resizing Payment Element.
+// 20261025 CL/ASR Left: the invoice exactly as its PDF (page images via faktura_side.php); the HTML
+//                 summary is only shown if the images cannot be made. Stripe Link is hidden in the
+//                 Payment Element (wallets.link = never): card only, shorter panel.
+// 20261025 CL/ASR Recurring invoices of customers without automatic payment: the main button pays and turns on
+//                 automatic payment (consent text above it), "Betal kun denne faktura" is the visible alternative.
+//                 With the fee for manual payment on, the page says the fee goes on the next invoice.
+// 20261025 CL/ASR Saldi logo in the top bar for Saldi's own invoices.
 
 include(__DIR__ . '/faktura_common.php');
+include_once(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
 
 $state = $inv['state'];
 $o = $inv['o']; $f = $inv['firma']; $d = $inv['debtor'];
@@ -58,6 +66,8 @@ $nr = $inv['nr'];
 $docName = $inv['is_credit'] ? stripe_txt('creditnote') : stripe_txt('invoice');
 $self = stripe_invoice_url($inv['id']);
 $pdfUrl = str_replace('/faktura.php?', '/faktura_pdf.php?', $self);
+$pageUrl = str_replace('/faktura.php?', '/faktura_side.php?', $self);
+$pageImgs = stripe_invoice_page_images($inv['id'], true);
 $contactMail = trim((string)($f['email'] ?? '')); $contactPhone = trim((string)($f['tlf'] ?? ''));
 $bankReg = trim((string)($f['bank_reg'] ?? '')); $bankKonto = trim((string)($f['bank_konto'] ?? ''));
 $hasBank = ($bankReg !== '' && $bankKonto !== '');
@@ -85,18 +95,27 @@ if ($contactMail !== '' || $contactPhone !== '') $foot = '<div class="foot">' . 
 if ($contactMail !== '') $foot = '<div class="foot">' . str_replace(array('%email', '%phone'), array('<a href="mailto:' . $h($contactMail) . '">' . $h($contactMail) . '</a>', $contactPhone !== '' ? ' eller ' . $h($contactPhone) : ''), $h(stripe_txt('questions'))) . '</div>';
 $bankBox = $hasBank ? '<div class="bank"><b>' . $h(stripe_txt('bank_box_title')) . '</b>Reg. ' . $h($bankReg) . ' · konto ' . $h($bankKonto) . '<br>' . $h(stripe_txt('bank_box_ref', array('nr' => $nr))) . '<br><span style="color:var(--ink-3)">' . $h(stripe_txt('bank_box_note')) . '</span></div>' : '';
 $elementBlock = '<div id="payment-element" class="pe"></div><div id="pay-error" class="perr" role="alert"></div>';
-
 $panel = '';
+// 20261025 CL/ASR two pay buttons (automatic payment / this invoice only) and the fee note
+$feeOre = $inv['enrolled'] ? 0 : stripe_manual_fee_ore((float)$o['momssats'], (string)$o['fakturadate']);
+$feeNote = $feeOre > 0 ? '<p class="fee">' . $h(stripe_txt('fee_note', array('fee' => stripe_fmt_kr($feeOre) . ' kr.'))) . '</p>' : '';
+$twoMode = stripe_invoice_save_allowed($inv) && !$inv['enrolled'];
+$autoInfo = '<div class="auto"><b>' . $h(stripe_txt('auto_title')) . '</b><span id="consent-text">' . $h(stripe_invoice_consent($inv)) . '</span></div>';
+$payButtons = $twoMode
+	? '<button class="btn primary" id="pay" type="submit" disabled aria-describedby="consent-text">' . $h(stripe_txt('pay_auto_btn', array('amount' => $totalKr))) . '</button>'
+		. '<button class="btn once" id="pay-once" type="submit" disabled>' . $h(stripe_txt('pay_once_btn')) . '</button>' . $feeNote
+	: '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button>' . $feeNote;
+
 switch ($state) {
 	case 'open': case 'overdue':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt($state === 'overdue' ? 'h_overdue' : 'h_open')) . '</h2><p class="lead">' . $h($state === 'overdue' ? stripe_txt('lead_overdue', array('date' => $dueFmt)) : stripe_txt('lead_open')) . '</p>';
 		if ($state === 'overdue') $panel .= fak_status('bad', 'clock', stripe_txt('overdue_pill', array('date' => $dueFmt)), stripe_txt('amount_lbl') . ' ' . $totalKr);
 		else $panel .= $amountBox;
-		$panel .= '<form id="pay-form">' . $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		$panel .= '<form id="pay-form">' . ($twoMode ? $autoInfo : '') . $elementBlock . $payButtons . '</form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
 		break;
 	case 'open_recurring':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_recurring')) . '</h2><p class="lead">' . $h(stripe_txt('lead_recurring', array('brand' => $brand))) . '</p>' . $amountBox;
-		$panel .= '<form id="pay-form"><div class="check" role="checkbox" aria-checked="false" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h(stripe_txt('chk_title')) . '</b><span id="consent-text">' . $h(stripe_invoice_consent($inv)) . '</span></div></div>' . $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		$panel .= '<form id="pay-form">' . $autoInfo . $elementBlock . $payButtons . '</form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
 		break;
 	case 'failed':
 		$fp = $inv['failed']; $card = stripe_card_label($fp['pm_brand'], $fp['pm_last4']);
@@ -105,8 +124,9 @@ switch ($state) {
 		// Never show Stripe's raw code to the customer; stripe_decline_text() maps it to a Danish sentence.
 		$panel .= fak_status('bad', 'x', stripe_txt('failed_box', array('card' => $card, 'date' => stripe_fmt_date(stripe_attempt_date($fp)))), stripe_decline_text($fp['last_error']));
 		$panel .= $amountBox . '<form id="pay-form">';
-		if (stripe_feature_on('enrolment') && ($inv['enrolled'] || $inv['recurring'])) $panel .= '<div class="check" role="checkbox" aria-checked="true" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h($inv['enrolled'] ? stripe_txt('chk_replace_title') : stripe_txt('chk_title')) . '</b><span id="consent-text">' . $h($inv['enrolled'] ? stripe_txt('chk_replace_sub', array('card' => $card)) : stripe_invoice_consent($inv)) . '</span></div></div>';
-		$panel .= $elementBlock . '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button></form>' . $trust . $foot;
+		if (stripe_feature_on('enrolment') && $inv['enrolled']) $panel .= '<div class="check" role="checkbox" aria-checked="true" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h(stripe_txt('chk_replace_title')) . '</b><span id="consent-text">' . $h(stripe_txt('chk_replace_sub', array('card' => $card))) . '</span></div></div>';
+		elseif ($twoMode) $panel .= $autoInfo;
+		$panel .= $elementBlock . $payButtons . '</form>' . $trust . $foot;
 		break;
 	case 'enrolled':
 		$card = stripe_card_label('', '');
@@ -177,11 +197,12 @@ header('Content-Type: text/html; charset=utf-8');
 :root{--bg:#f7f5f0;--surface:#fff;--ink:#111318;--ink-2:#4b5563;--ink-3:#6b7280;--line:#e6e2da;--line-2:#efece6;--label:#9a5b1a;--soft:#f3eee6;--tint:#f1eefb;--tint-line:#e2dbf6;--blue:#1b68bd;--purple:#8b33d4;--purple-pill:#efe6fb;--purple-ink:#5b21a6;--good:#15803d;--good-bg:#e9f7ee;--bad:#c2410c;--bad-bg:#fdeee8;--warn:#a15c07;--warn-bg:#fdf3e2;--sans:Inter,"Segoe UI",system-ui,sans-serif;--r:16px;--shadow:0 1px 2px rgba(17,19,24,.04),0 8px 24px rgba(17,19,24,.06)}
 *{box-sizing:border-box;margin:0;padding:0}html{background:var(--bg)}body{font:15px/1.55 var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh}
 h1,h2{letter-spacing:-.01em}a{color:var(--blue)}.num{font-variant-numeric:tabular-nums}
-.top{display:flex;align-items:center;gap:16px;height:72px;padding:0 32px;background:var(--surface);border-bottom:1px solid var(--line)}.top .logo{font-weight:700;font-size:26px;letter-spacing:-.02em}.top .sep{width:1px;height:28px;background:var(--line)}.top .ttl{font-size:17px;font-weight:500}.top .ttl span{color:var(--ink-3);font-size:14px;margin-left:10px;font-weight:400}.top .grow{flex:1}
+.top{display:flex;align-items:center;gap:16px;height:72px;padding:0 32px;background:var(--surface);border-bottom:1px solid var(--line)}.top .logo{font-weight:700;font-size:26px;letter-spacing:-.02em}.top .logo img{display:block;height:32px;width:auto}.top .sep{width:1px;height:28px;background:var(--line)}.top .ttl{font-size:17px;font-weight:500}.top .ttl span{color:var(--ink-3);font-size:14px;margin-left:10px;font-weight:400}.top .grow{flex:1}
 .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font:500 15px var(--sans);color:var(--ink);cursor:pointer;text-decoration:none;white-space:nowrap}.btn:hover{background:var(--soft)}
 .btn.primary{border:0;background:linear-gradient(90deg,var(--blue),var(--purple));color:#fff;font-weight:600;height:52px;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(139,51,212,.18);margin-top:8px}.btn.primary:hover{filter:brightness(1.06)}.btn.primary[disabled]{opacity:.55;cursor:default;filter:none}
 .wrap{display:grid;grid-template-columns:minmax(0,1fr) 440px;min-height:calc(100vh - 72px)}.left{padding:48px 56px 64px;display:flex;justify-content:center}.right{background:var(--surface);border-left:1px solid var(--line);padding:48px 40px;min-width:0}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}.right{border-left:0;border-top:1px solid var(--line);order:-1;padding:28px 20px}.left{padding:24px 16px 48px}.top{padding:0 16px}.top .ttl span{display:none}}
+.pages{width:100%;max-width:820px;display:flex;flex-direction:column;gap:24px}.pages img{display:block;width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow)}
 .inv{width:100%;max-width:820px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:56px 60px}@media(max-width:980px){.inv{padding:28px 22px}}
 .inv .head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:40px}.inv .from b{display:block;font-size:20px;font-weight:600;margin-bottom:6px}.inv .from span{display:block;color:var(--ink-2);font-size:14.5px}.inv .title{text-align:right}.inv .title h1{font-size:44px;font-weight:700;line-height:1;margin-bottom:12px}
 .pill{display:inline-block;padding:6px 14px;border-radius:99px;font-size:13.5px;font-weight:600;background:var(--purple-pill);color:var(--purple-ink)}.pill.bad{background:var(--bad-bg);color:var(--bad)}.pill.good{background:var(--good-bg);color:var(--good)}.pill.grey{background:var(--soft);color:var(--ink-2)}
@@ -193,6 +214,8 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 .inv .terms{margin-top:40px;padding-top:24px;border-top:1px solid var(--line-2);color:var(--ink-2);font-size:14.5px}.inv .terms b{color:var(--ink);font-weight:600}.inv .terms p+p{margin-top:8px}
 .right .lab{color:var(--label);margin-bottom:14px}.right h2{font-size:30px;line-height:1.15;font-weight:700;margin-bottom:12px}.right .lead{color:var(--ink-2);font-size:15px;margin-bottom:24px}
 .amt{display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--soft);border-radius:12px;padding:20px 22px;margin-bottom:22px}.amt .l span{display:block;color:var(--ink-2);font-size:14px}.amt .l span+span{margin-top:6px}.amt b{font-size:34px;font-weight:700;white-space:nowrap}
+.btn.once{width:100%;height:46px;margin-top:10px;color:var(--ink-2)}.fee{margin-top:10px;color:var(--ink-3);font-size:13.5px;line-height:1.45}
+.auto{background:var(--tint);border:1px solid var(--tint-line);border-radius:12px;padding:16px 18px;margin:12px 0 20px}.auto b{display:block;font-weight:600;margin-bottom:4px}.auto span{display:block;color:var(--ink-2);font-size:14px}
 .pe{margin:4px 0 8px;min-height:40px}.perr{color:var(--bad);font-size:14px;min-height:0;margin:6px 0}
 .check{display:flex;gap:14px;background:var(--tint);border:1px solid var(--tint-line);border-radius:12px;padding:16px 18px;margin:12px 0 20px;cursor:pointer}.check:focus-visible{outline:3px solid var(--purple);outline-offset:3px}.check .box{width:24px;height:24px;border-radius:6px;border:2px solid var(--purple);display:grid;place-items:center;flex:none;background:var(--surface);cursor:pointer;margin-top:1px}.check[aria-checked="true"] .box{background:var(--purple);border-color:var(--purple)}.check .box svg{display:none;color:#fff}.check[aria-checked="true"] .box svg{display:block}.check b{display:block;font-weight:600;margin-bottom:4px}.check span{display:block;color:var(--ink-2);font-size:14px}
 .trust{display:flex;gap:12px;margin-top:18px;color:var(--ink-2);font-size:14px;line-height:1.5}.trust svg{flex:none;margin-top:3px;color:var(--ink-3)}
@@ -206,7 +229,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 </head>
 <body>
 <header class="top">
-  <div class="logo"><?= $h($brand) ?></div>
+  <div class="logo"><?php if ($brand === 'Saldi'): ?><img src="../../img/SaldiMainLogo.png" alt="Saldi"><?php else: ?><?= $h($brand) ?><?php endif; ?></div>
   <div class="sep"></div>
   <div class="ttl"><?= $h($docName . ' ' . $nr) ?> <span>fra <?= $h($f['firmanavn'] ?? '') ?></span></div>
   <div class="grow"></div>
@@ -214,6 +237,13 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 </header>
 <div class="wrap">
   <main class="left">
+    <?php if ($pageImgs): ?>
+    <div class="pages">
+      <?php foreach ($pageImgs as $i => $png): $dim = is_file($png) ? getimagesize($png) : false; ?>
+      <img src="<?= $h($pageUrl . '&p=' . ($i + 1)) ?>" alt="<?= $h($docName . ' ' . $nr . ', side ' . ($i + 1) . ' af ' . count($pageImgs)) ?>"<?= $dim ? ' width="' . (int)$dim[0] . '" height="' . (int)$dim[1] . '"' : '' ?><?= $i > 0 ? ' loading="lazy"' : '' ?>>
+      <?php endforeach; ?>
+    </div>
+    <?php else: ?>
     <article class="inv">
       <div class="head">
         <div class="from"><b><?= $h($f['firmanavn'] ?? '') ?></b><span><?= $h($f['addr1'] ?? '') ?></span><?php if (trim((string)($f['addr2'] ?? '')) !== ''): ?><span><?= $h($f['addr2']) ?></span><?php endif; ?><span><?= $h(trim(($f['postnr'] ?? '') . ' ' . ($f['bynavn'] ?? ''))) ?></span><?php if (trim((string)($f['cvrnr'] ?? '')) !== ''): ?><span>CVR <?= $h($f['cvrnr']) ?></span><?php endif; ?></div>
@@ -241,6 +271,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
         <?php endif; ?>
       </div>
     </article>
+    <?php endif; ?>
   </main>
   <aside class="right" id="panel"><?= $panel ?></aside>
 </div>
@@ -278,6 +309,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
     return;
   }
   var form = document.getElementById('pay-form'), payBtn = document.getElementById('pay'), chk = document.getElementById('chk'), payNow = document.getElementById('paynow');
+  var payOnce = document.getElementById('pay-once');
   if (payNow) {
     payNow.addEventListener('click', function(){
       payNow.disabled = true; showErr('');
@@ -291,10 +323,12 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
   }
   if (!form) return;
   if (!cfg.pk || !window.Stripe) { showErr(cfg.startError); return; }
-  var saveCard = !!cfg.saveDefault, elementReady = false, submitting = false;
+  // Two buttons: the main one pays and turns on automatic payment, "pay-once" pays this invoice only.
+  var saveCard = payOnce ? true : !!cfg.saveDefault, elementReady = false, submitting = false;
   var usageReady = Promise.resolve(), usageResolve = null;
-  function updBtn(){ if (payBtn) payBtn.textContent = saveCard ? cfg.btnSave : cfg.btn; }
-  function release(){ submitting = false; payBtn.disabled = !elementReady; }
+  function updBtn(){ if (payBtn && !payOnce) payBtn.textContent = saveCard ? cfg.btnSave : cfg.btn; }
+  function setDisabled(v){ payBtn.disabled = v; if (payOnce) payOnce.disabled = v; }
+  function release(){ submitting = false; setDisabled(!elementReady); }
   function updateUsage(usage){
     return new Promise(function(resolve){
       usageResolve = resolve;
@@ -310,6 +344,13 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
     var usage = saveCard ? 'off_session' : null;
     usageReady = usageReady.then(function(){ return updateUsage(usage); });
   }
+  function choose(save){
+    if (submitting || save === saveCard) return;
+    saveCard = save;
+    var usage = saveCard ? 'off_session' : null;
+    usageReady = usageReady.then(function(){ return updateUsage(usage); });
+  }
+  if (payOnce) { payBtn.addEventListener('click', function(){ choose(true); }); payOnce.addEventListener('click', function(){ choose(false); }); }
   updBtn();
   var stripe = Stripe(cfg.pk, {locale:'da'});
   var elements = stripe.elements({mode:'payment', amount: cfg.amount, currency: cfg.currency, paymentMethodTypes:['card'], setupFutureUsage: saveCard ? 'off_session' : null, paymentMethodCreation:'manual',
@@ -317,14 +358,14 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
   elements.on('update-end', function(){
     if (usageResolve) { var resolve = usageResolve; usageResolve = null; resolve(); }
   });
-  var pe = elements.create('payment', {layout:'tabs'});
-  pe.on('ready', function(){ elementReady = true; payBtn.disabled = submitting; });
-  pe.on('loaderror', function(){ elementReady = false; payBtn.disabled = true; showErr(cfg.startError); });
+  var pe = elements.create('payment', {layout:'tabs', wallets:{link:'never'}});
+  pe.on('ready', function(){ elementReady = true; setDisabled(submitting); });
+  pe.on('loaderror', function(){ elementReady = false; setDisabled(true); showErr(cfg.startError); });
   pe.mount('#payment-element');
   form.addEventListener('submit', function(e){
     e.preventDefault();
     if (!elementReady || submitting) return;
-    submitting = true; showErr(''); payBtn.disabled = true;
+    submitting = true; showErr(''); setDisabled(true);
     usageReady.then(function(){ return elements.submit(); }).then(function(res){
       if (res.error) { showErr(res.error.message); release(); return; }
       return fetch(cfg.payUrl, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({save_card: saveCard})}).then(function(r){return r.json()}).then(function(j){

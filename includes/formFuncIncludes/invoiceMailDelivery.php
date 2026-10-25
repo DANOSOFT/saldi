@@ -1,6 +1,7 @@
 <?php
 // 20261022 CDX/LH Dispatch each rendered mail using its recorded order id; report Stripe fallback failures.
 // 20261022 CL/LH S5 Udskriv til = Stripe sends the pre-charge notice (invoice link, card, charge date); PDF mail on failure.
+// 20261025 CL/ASR Link/Stripe mails also prepare the payment page's invoice page images (stripe_invoice_page_images).
 
 /**
  * Deliver one rendered batch entry. The mail index is independent of the source order index.
@@ -32,6 +33,8 @@ function formSendMailEntry($mailOrderIds, $mailnr, $pdf, $email, $language, $for
 				if (!stripe_invoice_pdf_cache($ordreId, $pdf)) {
 					throw new RuntimeException('Invoice PDF cache failed');
 				}
+				// 20261025 CL/ASR prepare the payment page's invoice images now, not on the customer's first view
+				stripe_invoice_page_images($ordreId, true);
 				$inv = stripe_invoice_load($ordreId);
 				if (!$inv) {
 					throw new RuntimeException('Invoice not found for ' . $delivery . ' mail');

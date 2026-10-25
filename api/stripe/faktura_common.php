@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura_common.php --- 2026.10.22
+// --- api/stripe/faktura_common.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,8 @@
 // 20261022 CDX/LH Use Europe/Copenhagen consistently for invoice and rendering dates.
 // 20261022 CDX/LH Verify invoice-purpose signatures for every public invoice endpoint.
 // 20261022 CL/LH S5 Error pages show the invoicing company's name and e-mail; Danish texts from stripe_txt().
+// 20261025 CL/ASR Page images (faktura_side.php, $FAKTURA_IMAGE) use their own rate-limit buckets, so viewing a
+//                 multi-page invoice cannot use up the budget that faktura_pay/faktura_state need.
 
 date_default_timezone_set('Europe/Copenhagen');
 
@@ -76,9 +78,10 @@ if (stripe_setting('enabled', 'off') !== 'on') faktura_fail(503, stripe_txt('not
 $faktura_o = (int)(isset($_GET['o']) ? $_GET['o'] : (isset($_POST['o']) ? $_POST['o'] : 0));
 $faktura_s = (string)(isset($_GET['s']) ? $_GET['s'] : (isset($_POST['s']) ? $_POST['s'] : ''));
 $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '0';
-if (!stripe_rate_limit('fak_ip_' . $ip, 300, 600)) faktura_fail(429, stripe_txt('rate'), stripe_txt('rate_txt'), 'rate');
+$faktura_image = !empty($FAKTURA_IMAGE);
+if (!stripe_rate_limit(($faktura_image ? 'fak_img_ip_' : 'fak_ip_') . $ip, $faktura_image ? 1500 : 300, 600)) faktura_fail(429, stripe_txt('rate'), stripe_txt('rate_txt'), 'rate');
 if ($faktura_o < 1 || !stripe_link_verify($faktura_o, $faktura_s, 'invoice')) faktura_fail(403, stripe_txt('link_invalid'), stripe_txt('link_invalid_txt'), 'bad_link');
-if (!stripe_rate_limit('fak_ord_' . $faktura_o, 120, 600)) faktura_fail(429, stripe_txt('rate'), stripe_txt('rate_txt'), 'rate');
+if (!stripe_rate_limit(($faktura_image ? 'fak_img_' : 'fak_ord_') . $faktura_o, $faktura_image ? 600 : 120, 600)) faktura_fail(429, stripe_txt('rate'), stripe_txt('rate_txt'), 'rate');
 
 $inv = stripe_invoice_load($faktura_o);
 if (!$inv) faktura_fail(404, stripe_txt('link_invalid'), stripe_txt('link_invalid_txt'), 'not_found');
