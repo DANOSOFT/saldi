@@ -64,7 +64,7 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
 
     public function testMixedPdfEmailEmailLinkBatchCachesAndMailsTheMatchingInvoice(): void
     {
-        [$orders, $mailIds, $pdfs] = $this->mixedBatch();
+        [$orders, $mailIds, $pdfs] = $this->mixedBatch('Link');
         foreach ($mailIds as $slot => $id) {
             $this->assertSame(['result' => 'OK', 'error' => ''], $this->deliver($mailIds, $slot, $pdfs[$slot]));
             $this->assertSame(file_get_contents($pdfs[$slot]), file_get_contents(stripe_invoice_pdf_path($id, false)));
@@ -84,7 +84,7 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
 
     public function testLinkMailFailureFallsBackForTheSameOrderAndErrorSurvivesLaterSuccess(): void
     {
-        [$orders, $mailIds, $pdfs] = $this->mixedBatch();
+        [$orders, $mailIds, $pdfs] = $this->mixedBatch('Link');
         StripeTestTransport::$mailSucceeds = false;
         $failed = $this->deliver($mailIds, 1, $pdfs[1]);
         $this->assertStringContainsString('Ordre ' . $orders[1], $failed['error']);
@@ -360,12 +360,13 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
     }
 
     /** Queue the real production assignment block, skipping the PDF entry in a mixed source batch. */
-    private function mixedBatch(): array
+    private function mixedBatch(string $mail = 'email'): array
     {
         $ordre_id = [];
         foreach (['A', 'B', 'C'] as $name) {
             $debtor = StripeFixtures::debtor(['firmanavn' => 'Debtor ' . $name, 'email' => 'invoice-' . $name . '@stripe-tests.invalid']);
-            $ordre_id[] = StripeFixtures::invoice($debtor, ['udskriv_til' => $name === 'A' ? 'PDF' : 'email']);
+            // 20261025: 'email' is the classic PDF mail, 'Link' the link mail; both are queued by the e-mail path.
+            $ordre_id[] = StripeFixtures::invoice($debtor, ['udskriv_til' => $name === 'A' ? 'PDF' : $mail]);
         }
         $source = file_get_contents(__DIR__ . '/../../includes/formfunk.php');
         $this->assertSame(1, preg_match('/\$email\[\$mailantal\] = \$email\[0\];.*?\$mail_ordre_id\[\$mailantal\] = \$ordre_id\[\$o\];/s', $source, $queued));
@@ -375,7 +376,7 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         $email = $mailsprog = $form_nr = $pfliste = $mail_ordre_id = $pdfs = [];
         foreach ($ordre_id as $o => $id) {
             $row = StripeFixtures::row('ordrer', $id);
-            if ($row['udskriv_til'] !== 'email') {
+            if (!in_array($row['udskriv_til'], ['email', 'Link'], true)) {
                 continue;
             }
             $mailantal++;

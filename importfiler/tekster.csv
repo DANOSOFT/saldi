@@ -6812,5 +6812,9 @@
 7121	Publishable key afvist: forventet pk_test_... eller pk_live_... (feltet er IKKE gemt)	Publishable key rejected: expected pk_test_... or pk_live_... (field NOT saved)	Offentlig nøkkel avvist: forventet pk_test_... eller pk_live_... (feltet er IKKE lagret)
 7122	Automatisk træk afvist: vælg forfaldsdato eller fakturadato	Automatic collection rejected: choose due date or invoice date	Automatisk trekk avvist: velg forfallsdato eller fakturadato
 7123	Fakturaformat afvist: vælg PDF eller link	Invoice format rejected: choose PDF or link	Fakturaformat avvist: velg PDF eller lenke
+7124	E-mail med link	E-mail with link	E-post med lenke
+7125	Mailen har en knap til faktura- og betalingssiden. Ingen PDF vedhæftet.	The e-mail has a button to the invoice and payment page. No PDF attached.	E-posten har en knapp til faktura- og betalingssiden. Ingen PDF vedlagt.
+7126	Standard for nye e-mailordrer	Default for new e-mail orders	Standard for nye e-postordrer
+7127	Hvad Udskriv til står på, når der oprettes en ordre til en kunde med e-mailfaktura. Kan ændres på den enkelte ordre: E-mail eller E-mail med link.	What Print to is set to when an order is created for a customer with e-mail invoices. Can be changed on each order: E-mail or E-mail with link.	Hva Skriv ut til står på når det opprettes en ordre til en kunde med e-postfaktura. Kan endres på den enkelte ordren: E-post eller E-post med lenke.
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 

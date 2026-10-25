@@ -1271,6 +1271,9 @@ if (!function_exists('formularprint')) {
 				// 20261019 CL/ASR tools/stripe_invoice_pdf.php (no session) runs the engine in inkasso mode
 				// to get a PDF back; force the mail path regardless of the order's print channel.
 				if (!empty($GLOBALS['saldi_pdf_only'])) $udskriv_til = 'email';
+				// 20261025 CL/ASR "E-mail med link" is mailed like e-mail; formSendMailEntry() reads the order's
+				// stored Udskriv til and sends the link mail instead of attaching the PDF.
+				if ($udskriv_til === 'Link') $udskriv_til = 'email';
 
 				// Check if PBS is set and setting is enabled to automatically send email
 				$pbs = trim($row['pbs']);
@@ -1337,7 +1340,7 @@ if (!function_exists('formularprint')) {
 					}
 				}
 */
-				if ($email[0] && $udskriv_alle_til == 'email')
+				if ($email[0] && ($udskriv_alle_til == 'email' || $udskriv_alle_til == 'Link'))
 					$mail_fakt = 'on';
 				$pbs = $row['pbs'];
 				$mail_subj = $row['mail_subj'];

@@ -25,6 +25,10 @@ final class StripeStaffTest extends StripeDatabaseTestCase
         // A stored Stripe order remains visible even if its debtor is no longer enrolled.
         $this->assertStringContainsString("value='Stripe' selected", orderStripeDeliveryOption('Stripe', 0));
         $this->assertSame('email', orderDeliveryValue('PDF', true, false, false));
+        // 20261025 "E-mail med link" is kept, and a new e-mail order gets the G6.3 default (link in the suite).
+        $this->assertSame('Link', orderDeliveryValue('Link', true, false, false));
+        $this->assertSame('Link', orderDeliveryValue('', true, false, false));
+        $this->assertStringContainsString("value='Link' selected", orderLinkDeliveryOption('Link'));
         $this->assertSame('oioubl', orderDeliveryValue('PDF', true, true, false));
         $this->assertSame('PBS', orderDeliveryValue('PDF', true, true, true));
     }

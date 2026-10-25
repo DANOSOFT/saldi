@@ -230,7 +230,7 @@ function stripeValg() {
 	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'email_settings' and var_name = 'invoice_link_text' and (user_id is null or user_id = 0)", __FILE__ . " linje " . __LINE__));
 	$invoice_link_text = htmlspecialchars($r ? (string)$r['var_value'] : '', ENT_QUOTES, 'UTF-8');
 	print "<tr><td colspan='4'><b>" . findtekst('7100', $sprog_id) . "</b></td></tr>";
-	print "<tr><td title='" . htmlspecialchars(findtekst('7102', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7101', $sprog_id) . ":</td>";
+	print "<tr><td title='" . htmlspecialchars(findtekst('7127', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7126', $sprog_id) . ":</td>";
 	print "<td colspan='3'><select name='invoice_format'><option value='pdf'" . ($invoice_format !== 'link' ? " selected" : "") . ">" . findtekst('7103', $sprog_id) . "</option><option value='link'" . ($invoice_format === 'link' ? " selected" : "") . ">" . findtekst('7104', $sprog_id) . "</option></select></td></tr>";
 	print "<tr><td title='" . htmlspecialchars(findtekst('7106', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7105', $sprog_id) . ":</td>";
 	print "<td colspan='3'><textarea name='invoice_link_text' rows='4' cols='60'>$invoice_link_text</textarea></td></tr>";

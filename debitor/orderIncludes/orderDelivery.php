@@ -11,7 +11,8 @@ function orderDeliveryValue($stored, $mail, $oioubl, $pbs) {
 		return 'Stripe';
 	}
 	if ($mail) {
-		$stored = 'email';
+		// 20261025 CL/ASR keep an explicit "E-mail med link"; an order without a choice gets the G6.3 default
+		if ($stored !== 'Link') $stored = (($stored === '' || $stored === null) && orderLinkDefault()) ? 'Link' : 'email';
 	}
 	if ($oioubl) {
 		$stored = 'oioubl';
@@ -56,4 +57,40 @@ function orderStripeDeliveryOption($selected, $kontoId) {
 	}
 	return "<option value='Stripe'" . ($stored ? ' selected' : '')
 		. " title='Trækkes automatisk på kundens kort på forfaldsdatoen. Ingen fakturamail.'>Stripe</option>\n";
+}
+
+/**
+ * 20261025 CL/ASR "E-mail med link" (Udskriv til = Link) next to the classic e-mail: available when the
+ * invoice & payment page is switched on in this ledger.
+ */
+function orderLinkAvailable() {
+	static $available = null;
+	if ($available === null) {
+		$available = false;
+		if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php')) {
+			include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php');
+			$available = function_exists('stripe_invoice_link_available') && stripe_invoice_link_available();
+		}
+	}
+	return $available;
+}
+
+/** G6.3 default for new e-mail orders is the link mail. */
+function orderLinkDefault() {
+	return orderLinkAvailable() && stripe_invoice_format() === 'link';
+}
+
+/**
+ * The "E-mail med link" option; a stored Link order always renders it (selected), even if the page is off.
+ *
+ * @return string HTML option or ''.
+ */
+function orderLinkDeliveryOption($selected) {
+	global $sprog_id;
+	$stored = $selected === 'Link';
+	if (!$stored && !orderLinkAvailable()) {
+		return '';
+	}
+	return "<option value='Link'" . ($stored ? ' selected' : '') . " title=\"" . htmlspecialchars(findtekst('7125', $sprog_id), ENT_QUOTES, 'UTF-8') . "\">"
+		. htmlspecialchars(findtekst('7124', $sprog_id), ENT_QUOTES, 'UTF-8') . "</option>\n";
 }

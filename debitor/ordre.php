@@ -1000,8 +1000,8 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$genfakt = if_isset($_POST, NULL, 'genfakt');
 	if ($genfakt == '') $genfakt = '-';
 	$ean = db_escape_string(trim($_POST['ean']));
-	if (strpos($email, "@") && strpos($email, ".") && strlen($email) > 5 && $udskriv_til == 'email') $mail_fakt = 'on';
-	elseif ($udskriv_til == 'email') {
+	if (strpos($email, "@") && strpos($email, ".") && strlen($email) > 5 && ($udskriv_til == 'email' || $udskriv_til == 'Link')) $mail_fakt = 'on';
+	elseif ($udskriv_til == 'email' || $udskriv_til == 'Link') {
 		$alert = findtekst('1826|e-mail ikke gyldig Faktura kan ikke sendes', $sprog_id);
 		print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
 		$udskriv_til = "PDF";
@@ -4097,11 +4097,13 @@ function ordreside($id, $regnskab)
 		} elseif ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
-		} else print "<option>$udskriv_til</option>\n";
+		} elseif ($udskriv_til === 'Link') print orderLinkDeliveryOption('Link');
+		else print "<option>$udskriv_til</option>\n";
 		if ($udskriv_til != "PDF") print "<option>PDF</option>\n";
 		if ($showLocalPrint && $localPrint != 'on') print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
+		if ($udskriv_til !== 'Link') print orderLinkDeliveryOption('');
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
 		if ($udskriv_til !== 'Stripe') {
@@ -5015,11 +5017,13 @@ function ordreside($id, $regnskab)
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		} elseif ($udskriv_til == "PBS" && $lev_pbs != 'B') print "<option value=\"PBS\">PBS</option>\n";
+		elseif ($udskriv_til === 'Link') print orderLinkDeliveryOption('Link');
 		else print "<option>$udskriv_til</option>\n";
 		if ($udskriv_til != "PDF") print "<option>PDF</option>\n";
 		if ($showLocalPrint && $localPrint != 'on') print "<option value='localPrint'>" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
+		if ($udskriv_til !== 'Link') print orderLinkDeliveryOption('');
 		if ($udskriv_til !== 'Stripe') {
 			print orderStripeDeliveryOption($udskriv_til, $konto_id);
 		}
@@ -6413,7 +6417,7 @@ function ordreside($id, $regnskab)
 				$dd = dkdato(default_invoice_date($id));
 
 				if ($art != 'DK' && !$dan_kn) {
-					if ($udskriv_til == 'email') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
+					if ($udskriv_til == 'email' || $udskriv_til == 'Link') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
 					elseif ($udskriv_til == 'PBS') $tmp = "onclick=\"return confirm('$confirm3')\"";
 					elseif ($udskriv_til == 'oioubl') $tmp = "onclick=\"return confirm('$confirm4')\"";
 					elseif (!$fakturadato) $tmp = "onclick=\"return confirm('$confirm5 $dd!')\"";
@@ -6471,7 +6475,7 @@ function ordreside($id, $regnskab)
 				elseif ($mail_fakt && $hurtigfakt && $status < 3) $tmp = "onclick=\"return confirm('$confirm15 $email')\"";
 				elseif ($mail_fakt && $status < 2) $tmp = "onclick=\"return confirm('$confirm16 $email')\"";
 				else $tmp = "";
-				if ($udskriv_til == 'email') {
+				if ($udskriv_til == 'email' || $udskriv_til == 'Link') {
 					$b_name = 'send';
 					$txt  = findtekst('2310|Send', $sprog_id);
 				} else {

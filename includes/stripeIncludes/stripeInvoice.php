@@ -321,10 +321,19 @@ if (!function_exists('stripe_invoice_format')) {
 	 *
 	 * @return string pdf (default/off) or link.
 	 */
+	// 20261025 CL/ASR The link mail is chosen per order (Udskriv til = 'Link', "E-mail med link"); this
+	// says whether that choice can be offered and honoured in the current ledger at all.
+	function stripe_invoice_link_available() {
+		global $db;
+		if (!$db || $db !== stripeConfigDb()) return false;
+		return stripe_feature_on('invoice_payments') && stripe_setting('enabled', 'off') === 'on';
+	}
+
+	// G6.3 documents.email.invoice_format: the DEFAULT for new orders to customers with e-mail invoices
+	// ('pdf' -> Udskriv til = email, 'link' -> Udskriv til = Link). The order's own value decides delivery.
 	function stripe_invoice_format() {
 		global $db;
-		if (!$db || $db !== stripeConfigDb()) return 'pdf';
-		if (!stripe_feature_on('invoice_payments') || stripe_setting('enabled', 'off') !== 'on') {
+		if (!stripe_invoice_link_available()) {
 			return 'pdf';
 		}
 		$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'email_settings' and var_name = 'invoice_format' and (user_id is null or user_id = 0)", __FILE__ . " linje " . __LINE__));
@@ -345,9 +354,13 @@ if (!function_exists('stripe_invoice_format')) {
 			$debtor = db_fetch_array(stripe_payment_select('select stripe, stripe_pm_id from adresser where id = ' . (int)$o['konto_id']));
 			return $debtor && $debtor['stripe'] === 'on' && !empty($debtor['stripe_pm_id']) && stripe_setting('enabled', 'off') === 'on' && stripe_feature_on('invoice_payments') && stripe_feature_on('enrolment') ? 'stripe' : 'pdf';
 		}
+		// 'Link' = e-mail with a button to the invoice & payment page; 'email' = the classic PDF mail.
+		// Both can be used side by side; the order (or its recurring template) says which.
+		if (trim((string)$o['udskriv_til']) === 'Link') {
+			return ($o['art'] === 'DO' && stripe_invoice_link_available()) ? 'link' : 'pdf'; // credit notes stay classic (D6/O6)
+		}
 		if (trim((string)$o['udskriv_til']) !== 'email') return 'none';
-		if ($o['art'] !== 'DO') return 'pdf';           // credit notes etc. stay classic in v1 (decision D6/O6)
-		return stripe_invoice_format();
+		return 'pdf';
 	}
 }
 
