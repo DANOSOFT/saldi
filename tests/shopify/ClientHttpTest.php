@@ -10,6 +10,7 @@
 // 20261021 CL/SZ created (SD-747).
 // 20261023 CDX/LH Verify that the HTTP stub rejects execution outside cli-server.
 // 20261023 CL/SZ X-Request-Id is captured from the response headers.
+// 20261026 CL/SZ Only the final response's Retry-After and X-Request-Id count (#862 CodeRabbit).
 
 use PHPUnit\Framework\TestCase;
 
@@ -70,6 +71,22 @@ final class ClientHttpTest extends TestCase
 	public function test_no_request_id_header_gives_null(): void
 	{
 		$this->assertNull(shopify_http_post(self::$base . '/throttled', [], '{}', 2, 5)['request_id']);
+	}
+
+	public function test_only_the_final_responses_headers_count(): void
+	{
+		$retryAfter = $requestId = null;
+		$lines = ["HTTP/1.1 100 Continue\r\n", "X-Request-Id: interim-1\r\n", "Retry-After: 9\r\n", "\r\n",
+			"HTTP/1.1 200 OK\r\n", "Content-Type: application/json\r\n", "\r\n"];
+		foreach ($lines as $line) {
+			shopify_http_header_line($line, $retryAfter, $requestId);
+		}
+		$this->assertSame([null, null], [$retryAfter, $requestId], 'nothing from the 100 Continue block survives');
+
+		foreach (["HTTP/2 100\r\n", "\r\n", "HTTP/2 429\r\n", "retry-after: 2.5\r\n", "x-request-id: final-2\r\n", "\r\n"] as $line) {
+			shopify_http_header_line($line, $retryAfter, $requestId);
+		}
+		$this->assertSame([2.5, 'final-2'], [$retryAfter, $requestId], 'the final block is read, in any header case');
 	}
 
 	public function test_stub_refuses_non_server_execution(): void

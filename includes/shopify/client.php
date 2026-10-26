@@ -36,6 +36,8 @@
 //                escapes and BOMs as GraphQL does and refuses bad escapes and leading zeros; a body
 //                that can't be JSON-encoded is reported as redact_error, and error-log lines keep
 //                their metadata when a value isn't valid UTF-8 (SD-747, #862 review).
+// 20261026 CL/SZ Retry-After and X-Request-Id come from the final response only; an interim
+//                "100 Continue" block no longer carries over (SD-747, #862 CodeRabbit).
 
 const SHOPIFY_API_VERSION = '2026-07';
 const SHOPIFY_MAX_RETRIES = 3;
@@ -478,11 +480,7 @@ function shopify_http_post(string $url, array $headers, string $body, float $con
 		CURLOPT_CONNECTTIMEOUT_MS => max(1, (int) ($connectTimeout * 1000)),
 		CURLOPT_TIMEOUT_MS => max(1, (int) ($timeout * 1000)),
 		CURLOPT_HEADERFUNCTION => function ($handle, string $line) use (&$retryAfter, &$requestId): int {
-			if (preg_match('/^Retry-After:\s*(\d+(?:\.\d+)?)\s*$/i', $line, $m)) {
-				$retryAfter = (float) $m[1];
-			} elseif (preg_match('/^X-Request-Id:\s*([\w.:-]{1,128})\s*$/i', $line, $m)) {
-				$requestId = $m[1];
-			}
+			shopify_http_header_line($line, $retryAfter, $requestId);
 			return strlen($line);
 		},
 	]);
@@ -495,6 +493,24 @@ function shopify_http_post(string $url, array $headers, string $body, float $con
 		'status' => $status, 'body' => is_string($respBody) ? $respBody : '', 'errno' => $errno,
 		'error' => curl_error($ch), 'sent' => $sent, 'retry_after' => $retryAfter, 'request_id' => $requestId,
 	];
+}
+
+/**
+ * Reads one response header line for shopify_http_post(). curl hands over the headers of
+ * every response it receives, interim ones such as "100 Continue" included, so a status
+ * line starts a new block and clears what an earlier block set: only the final response's
+ * Retry-After and X-Request-Id count.
+ */
+function shopify_http_header_line(string $line, ?float &$retryAfter, ?string &$requestId): void
+{
+	if (preg_match('#^HTTP/\S+\s+\d{3}#', $line)) {
+		$retryAfter = null;
+		$requestId = null;
+	} elseif (preg_match('/^Retry-After:\s*(\d+(?:\.\d+)?)\s*$/i', $line, $m)) {
+		$retryAfter = (float) $m[1];
+	} elseif (preg_match('/^X-Request-Id:\s*([\w.:-]{1,128})\s*$/i', $line, $m)) {
+		$requestId = $m[1];
+	}
 }
 
 /**
