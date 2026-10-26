@@ -29,6 +29,7 @@
 // 20261026 CL/MMR SD-774 The popup also treats a CVR field without a real number ("-", "N/A", "0") as empty, like einvoice_cvr_present().
 // 20261026 CL/MMR SD-774 An invoiced order whose CVR is missing gets the popup script in every output mode, so choosing Digitalt after Annuller opens it again.
 //                 einvoiceCvrSavedRedirectUrl() gives ordre.php the redirect after a CVR saved on an invoiced order (Post/Redirect/Get).
+// 20261026 CL/MMR SD-774 An open order redirects too after a CVR saved through the popup, once its Gem save is done and only when that save printed nothing (einvoiceCvrPageHasOutput()).
 
 include_once(__DIR__ . '/../../includes/stdFunc/einvoiceCvr.php');
 
@@ -172,17 +173,28 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 
 if (!function_exists('einvoiceCvrSavedRedirectUrl')) {
 	/**
-	 * Where ordre.php redirects after the popup saved a CVR on an invoiced order (status >= 3),
-	 * so a refresh shows the order again instead of posting the save once more (Post/Redirect/Get).
-	 * An open order is saved through its own Gem button and keeps that flow; a rejected input is
-	 * shown again with its error on the same response, as nothing was written.
+	 * Where ordre.php redirects after the popup saved a CVR, so a refresh shows the order again
+	 * instead of posting the save once more (Post/Redirect/Get).
 	 *
-	 * @param array $saveResult einvoiceCvrSaveFromOrder()'s result.
-	 * @param array $query      The request's query parameters ($_GET); sag_id and returside are kept.
+	 * An invoiced order (status >= 3) redirects as soon as the CVR is saved: nothing else in the post
+	 * needs handling. An open order is saved through its Gem button, and the whole order form must be
+	 * saved first, so it redirects only once that save is done ($orderSaved) and only when the save
+	 * printed nothing ($pageHasOutput), as an alert printed by the save would otherwise be lost.
+	 * A rejected input is shown again with its error on the same response, as nothing was written.
+	 *
+	 * @param array $saveResult    einvoiceCvrSaveFromOrder()'s result.
+	 * @param array $query         The request's query parameters ($_GET); sag_id and returside are kept.
+	 * @param bool  $orderSaved    True after ordre.php's own POST handling (the Gem save) has run.
+	 * @param bool  $pageHasOutput True when the request has already printed something (einvoiceCvrPageHasOutput()).
 	 * @return string '' when there is nothing to redirect, otherwise a URL relative to debitor/.
 	 */
-	function einvoiceCvrSavedRedirectUrl(array $saveResult, array $query) {
-		if (!ifset($saveResult, 'handled', false) || ifset($saveResult, 'problem', '') !== '' || (int)ifset($saveResult, 'status', 0) < 3) {
+	function einvoiceCvrSavedRedirectUrl(array $saveResult, array $query, $orderSaved = false, $pageHasOutput = false) {
+		if (!ifset($saveResult, 'handled', false) || ifset($saveResult, 'problem', '') !== '' || $pageHasOutput) {
+			return '';
+		}
+		$invoiced = (int)ifset($saveResult, 'status', 0) >= 3;
+		// The invoiced order redirects before the order's own POST handling, the open one after it.
+		if ($invoiced === (bool)$orderSaved) {
 			return '';
 		}
 		$params = array('id' => (int)ifset($saveResult, 'ordreId', 0));
@@ -198,6 +210,26 @@ if (!function_exists('einvoiceCvrSavedRedirectUrl')) {
 			$params['returside'] = $returside;
 		}
 		return 'ordre.php?' . http_build_query($params);
+	}
+}
+
+if (!function_exists('einvoiceCvrPageHasOutput')) {
+	/**
+	 * Whether this request has printed anything yet, sent or still in an output buffer. A redirect
+	 * then would hide it (for instance an alert from the order's save).
+	 *
+	 * @return bool
+	 */
+	function einvoiceCvrPageHasOutput() {
+		if (headers_sent()) {
+			return true;
+		}
+		foreach (ob_get_status(true) as $buffer) {
+			if (!empty($buffer['buffer_used'])) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
 

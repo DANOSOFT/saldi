@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 // 20261026 CL/MMR SD-774 Created. Pins when ordre.php renders and auto-opens the CVR popup, the redirect after a CVR saved on an invoiced order (Post/Redirect/Get), and that the save runs before any output.
 //                 Codex round 2 found that an invoiced order in PDF mode had no popup script, so choosing Digitalt after Annuller never reopened it, and that the save rendered its POST directly.
 //                 einvoiceCvrPopupState() and einvoiceCvrSavedRedirectUrl() take plain arrays, so they are tested directly; the order of steps in ordre.php and the parameters of easyUblCvrMissing() are asserted on the source.
+// 20261026 CL/MMR SD-774 Codex round 3: an open order redirects too, after its Gem save and only when nothing was printed.
 #[RunTestsInSeparateProcesses]
 final class EInvoiceCvrPopupTest extends TestCase
 {
@@ -62,33 +63,53 @@ final class EInvoiceCvrPopupTest extends TestCase
         self::assertSame((int)$order['id'], $state['orderId']);
     }
 
-    /** @return array<string, array{array<string, mixed>, array<string, mixed>, string}> */
+    /** @return array<string, array{array<string, mixed>, array<string, mixed>, bool, bool, string}> */
     public static function saves(): array
     {
         $saved = array('handled' => true, 'problem' => '', 'status' => 4, 'ordreId' => 166784);
+        $open = array('status' => 1) + $saved;
         return [
-            'invoiced order, saved'                 => [$saved, array('id' => '166784'), 'ordre.php?id=166784'],
-            'keeps sag_id and returside'            => [$saved, array('id' => '1', 'sag_id' => '12', 'returside' => 'ordreliste.php'), 'ordre.php?id=166784&sag_id=12&returside=ordreliste.php'],
-            'returside is encoded'                  => [$saved, array('returside' => '../x.php?a=1&b=2'), 'ordre.php?id=166784&returside=..%2Fx.php%3Fa%3D1%26b%3D2'],
-            'array parameters are dropped'          => [$saved, array('sag_id' => array('1'), 'returside' => array('x')), 'ordre.php?id=166784'],
-            'rejected input renders the error'      => [array('problem' => 'invalid') + $saved, array(), ''],
-            'open order keeps its own Gem flow'     => [array('status' => 1) + $saved, array(), ''],
-            'not handled'                           => [array('handled' => false) + $saved, array(), ''],
-            'no save at all'                        => [array(), array(), ''],
+            'invoiced order, saved'                    => [$saved, array('id' => '166784'), false, false, 'ordre.php?id=166784'],
+            'keeps sag_id and returside'               => [$saved, array('id' => '1', 'sag_id' => '12', 'returside' => 'ordreliste.php'), false, false, 'ordre.php?id=166784&sag_id=12&returside=ordreliste.php'],
+            'returside is encoded'                     => [$saved, array('returside' => '../x.php?a=1&b=2'), false, false, 'ordre.php?id=166784&returside=..%2Fx.php%3Fa%3D1%26b%3D2'],
+            'array parameters are dropped'             => [$saved, array('sag_id' => array('1'), 'returside' => array('x')), false, false, 'ordre.php?id=166784'],
+            'invoiced order, not again after the save' => [$saved, array(), true, false, ''],
+            'open order, before its Gem save'          => [$open, array(), false, false, ''],
+            'open order, after its Gem save'           => [$open, array('sag_id' => '3', 'returside' => 'ordreliste.php'), true, false, 'ordre.php?id=166784&sag_id=3&returside=ordreliste.php'],
+            'open order, the save printed an alert'    => [$open, array(), true, true, ''],
+            'invoiced order, output already printed'   => [$saved, array(), false, true, ''],
+            'rejected input renders the error'         => [array('problem' => 'invalid') + $saved, array(), false, false, ''],
+            'rejected input on an open order'          => [array('problem' => 'missing') + $open, array(), true, false, ''],
+            'not handled'                              => [array('handled' => false) + $saved, array(), false, false, ''],
+            'no save at all'                           => [array(), array(), true, false, ''],
         ];
     }
 
     /**
-     * A CVR saved on an invoiced order redirects back to the order, so a refresh does not post
-     * the save again. A rejected input wrote nothing and is shown again with its error.
+     * A CVR saved through the popup redirects back to the order, so a refresh does not post the
+     * save again: an invoiced order at once, an open order after its Gem save has saved the whole
+     * form, and only when nothing was printed (an alert from the save would be lost). A rejected
+     * input wrote nothing and is shown again with its error.
      *
      * @param array<string, mixed> $result
      * @param array<string, mixed> $query
      */
     #[DataProvider('saves')]
-    public function testASavedCvrOnAnInvoicedOrderRedirects(array $result, array $query, string $expected): void
+    public function testASavedCvrRedirectsBackToTheOrder(array $result, array $query, bool $orderSaved, bool $pageHasOutput, string $expected): void
     {
-        self::assertSame($expected, einvoiceCvrSavedRedirectUrl($result, $query));
+        self::assertSame($expected, einvoiceCvrSavedRedirectUrl($result, $query, $orderSaved, $pageHasOutput));
+    }
+
+    public function testPrintedOutputBlocksTheRedirect(): void
+    {
+        ob_start();
+        try {
+            self::assertFalse(einvoiceCvrPageHasOutput(), 'nothing printed yet');
+            echo "<BODY onLoad=\"javascript:alert('x')\">";
+            self::assertTrue(einvoiceCvrPageHasOutput(), 'an alert in the output buffer is not seen');
+        } finally {
+            ob_end_clean();
+        }
     }
 
     /**
@@ -120,11 +141,20 @@ final class EInvoiceCvrPopupTest extends TestCase
         $save = $find('einvoiceCvrSaveFromOrder(');
         $redirect = $find("header('Location: ' . \$einvoiceCvrRedirect, true, 303)");
         $orderPost = $find("if ((\$b_submit || isset(\$_POST['udskriv_til'])) && \$id = \$_POST['id'])");
+        $early = $find('einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET, false, einvoiceCvrPageHasOutput())');
+        $late = $find('einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET, true, einvoiceCvrPageHasOutput())');
+        $render = $find('ordreside($id, $regnskab, $einvoiceCvrResult);');
 
         self::assertLessThan($firstOutput, $save, "the popup's CVR save runs after output has started (line $firstOutput)");
         self::assertLessThan($firstOutput, $redirect, 'the redirect after a saved CVR is gone or comes after output');
         self::assertGreaterThan($save, $redirect);
         self::assertLessThan($orderPost, $save, "the order's own POST handling runs before the popup's CVR is put into \$_POST['cvrnr']");
+        self::assertGreaterThan($save, $early, 'the invoiced-order redirect is gone');
+        self::assertLessThan($orderPost, $early, 'the invoiced-order redirect comes after the order POST handling');
+        self::assertGreaterThan($orderPost, $late, "the open-order redirect runs before the order's Gem save");
+        self::assertLessThan($render, $late, 'the open-order redirect comes after ordreside() renders the page');
+        self::assertSame(2, substr_count($src, "header('Location: ' . \$einvoiceCvrRedirect, true, 303)"),
+            'expected one redirect after each of the two calls');
     }
 
     /** easyUblCvrMissing() gets its context as parameters; peppol.php hands it over through sendInvoice(). */

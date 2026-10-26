@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -166,6 +166,7 @@
 //                 Its Gem saves the CVR on the order and, when ticked, on the debitor card (orderIncludes/einvoiceCvr.php, javascript/einvoiceCvrPopup.js).
 //                 ordreside() gets that save's result as a third parameter, so a rejected CVR is shown again with the error.
 // 20261026 CL/MMR SD-774 The popup's CVR save runs before any output, and a CVR saved on an invoiced order redirects back to the order, so a refresh does not post it again.
+// 20261026 CL/MMR SD-774 A CVR saved through the popup on an open order also redirects back to the order, after the Gem save and only when that save printed nothing.
 
 @session_start();
 $s_id = session_id();
@@ -208,7 +209,8 @@ include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
 
 // SD-774: the CVR typed in the e-invoice popup is saved before any output and before the order's own POST handling.
 // On an open order that handling saves cvrnr from the form again, so it gets the same value.
-// On an invoiced order nothing else needs the post, so a saved CVR redirects (Post/Redirect/Get).
+// On an invoiced order nothing else needs the post, so a saved CVR redirects (Post/Redirect/Get); an open order
+// redirects after its Gem save, just before ordreside() below.
 $einvoiceCvrResult = array();
 if (ifset($_POST, 'einvoiceCvrSave') === '1') {
 	$einvoiceCvrResult = einvoiceCvrSaveFromOrder(
@@ -217,7 +219,7 @@ if (ifset($_POST, 'einvoiceCvrSave') === '1') {
 		ifset($_POST, 'einvoiceCvrToCard') === '1',
 		ifset($_POST, 'einvoiceCvrCardWas', '')
 	);
-	$einvoiceCvrRedirect = einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET);
+	$einvoiceCvrRedirect = einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET, false, einvoiceCvrPageHasOutput());
 	if ($einvoiceCvrRedirect !== '') {
 		header('Location: ' . $einvoiceCvrRedirect, true, 303);
 		exit;
@@ -3404,6 +3406,13 @@ if ($status < 3 && isset($_GET['updateOrderCost']) && $_GET['updateOrderCost']) 
 
 ###########################################################################
 
+// SD-774: a CVR saved through the popup on an open order went through the Gem save above; redirect back to the
+// order now (Post/Redirect/Get), unless that save printed something the user must see.
+$einvoiceCvrRedirect = einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET, true, einvoiceCvrPageHasOutput());
+if ($einvoiceCvrRedirect !== '') {
+	header('Location: ' . $einvoiceCvrRedirect, true, 303);
+	exit;
+}
 ordreside($id, $regnskab, $einvoiceCvrResult);
 function ordreside($id, $regnskab, $einvoiceCvrResult = array())
 {
