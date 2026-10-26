@@ -1,5 +1,6 @@
 <?php
 // 20260907 CDX/LH Quote and HTML-escape return links; encode nested return query values.
+// 20261026 CL/LH Removed the Aiia bank login status icon.
 /**
  * Injected by ../includes/connect.php via the entry page that includes this file:
  * @var string $charset
@@ -44,21 +45,6 @@
 					}
 					?>
 				</div>
-				<style>
-					.auth-status-icon {
-						display: inline-flex;
-						align-items: center;
-						gap: 4px;
-						margin-left: auto;
-						padding: 6px;
-						color: white;
-					}
-					.auth-status-icon img {
-						width: 16px;
-						height: 16px;
-					}
-				</style>
-				<?php include(__DIR__ . '/../bank_integration/includes/auth_check_icon.php'); ?>
 			</div>
 		</td>
 	<?php

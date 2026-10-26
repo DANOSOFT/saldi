@@ -240,7 +240,7 @@ final class CharacterizationEnv
      *
      * Saldi allocates several primary keys itself with "SELECT MAX(id)+1"
      * and inserts the id explicitly (finans/kassekladde.php:1045,
-     * admin/bankfordeling.php:516, bank_integration/aiia_import.php:69),
+     * admin/bankfordeling.php:516),
      * so the serial sequences behind those tables never advance and a clone
      * of a used tenant starts out with sequences far behind its data. Any
      * fixture that relies on the column default would then collide with an
