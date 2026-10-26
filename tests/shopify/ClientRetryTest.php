@@ -9,6 +9,9 @@
 // History:
 // 20261021 CL/SZ created (SD-747).
 // 20261023 CDX/LH Cover reconcile data, retry state, programming errors and mutation guard fixes.
+// 20261023 CL/SZ Duplicate-order branches, @idempotent(key:) document, request id and redacted bodies in the log.
+// 20261026 CL/SZ A body that can't be JSON-encoded is reported as redact_error; error-log lines keep their
+//                metadata with an invalid byte (#862 review).
 
 use PHPUnit\Framework\TestCase;
 
@@ -293,6 +296,199 @@ final class ClientRetryTest extends TestCase
 		$this->assertCount(3, $fake->calls);
 	}
 
+	public function test_order_create_answered_200_with_internal_server_error_is_reconciled_not_resent(): void
+	{
+		$internal = FakeShopify::json(['errors' => [['message' => 'Internal error', 'extensions' => ['code' => 'INTERNAL_SERVER_ERROR']]]]);
+		$fake = new FakeShopify([$internal]);
+		$calls = 0;
+		$reconcile = function () use (&$calls): array {
+			$calls++;
+			return ['state' => 'applied', 'data' => ['orderCreate' => ['order' => ['id' => 'gid://shopify/Order/8']]]];
+		};
+
+		$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+
+		$this->assertSame([1, 1, 'reconciled'], [count($fake->calls), $calls, $r['outcome']]);
+	}
+
+	public function test_order_create_answered_with_a_garbled_200_is_reconciled_not_resent(): void
+	{
+		$garbled = ['status' => 200, 'body' => '{"data":{"orderCreate":{"order":{"id":"gid://sho', 'errno' => 0, 'error' => '', 'sent' => true, 'retry_after' => null];
+		$fake = new FakeShopify([$garbled]);
+		$calls = 0;
+		$reconcile = function () use (&$calls): array {
+			$calls++;
+			return ['state' => 'unknown'];
+		};
+
+		$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+
+		$this->assertSame([1, 1, 'uncertain'], [count($fake->calls), $calls, $r['outcome']]);
+	}
+
+	public function test_repeated_timeouts_with_absent_stop_at_four_sends(): void
+	{
+		$fake = new FakeShopify(array_fill(0, 6, FakeShopify::timeout()));
+		$calls = 0;
+		$reconcile = function () use (&$calls): array {
+			$calls++;
+			return ['state' => 'absent'];
+		};
+
+		$r = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts(['retry_mode' => 'reconcile', 'reconcile' => $reconcile]));
+
+		$this->assertCount(4, $fake->calls, 'one send plus three retries, never more');
+		$this->assertSame(4, $calls, 'every possibly-sent attempt is read first');
+		$this->assertSame(['failed', 'retries_exhausted', true], [$r['outcome'], $r['error'], $r['retryable']]);
+	}
+
+	public function test_429_without_retry_after_backs_off_one_second(): void
+	{
+		$fake = new FakeShopify([FakeShopify::json(['errors' => 'Too many requests'], 429), FakeShopify::ok(['shop' => ['name' => 'HML']])]);
+
+		$r = shopify_graphql(FakeShopify::shop(), 'shop', self::SHOP_QUERY, [], $fake->opts());
+
+		$this->assertTrue($r['ok']);
+		$this->assertSame([1.0], $fake->sleeps);
+	}
+
+	public function test_attempt_log_carries_the_request_id_and_redacted_bodies(): void
+	{
+		$reply = FakeShopify::ok(['customerCreate' => ['customer' => ['email' => 'kunde@example.dk'], 'userErrors' => []]]);
+		$reply['request_id'] = 'req-123';
+		$fake = new FakeShopify([$reply]);
+		$secretsSeen = [];
+		$redact = function (mixed $v, array $secrets) use (&$secretsSeen): mixed {
+			$secretsSeen[] = $secrets;
+			array_walk_recursive($v, function (&$x) {
+				$x = is_string($x) && str_contains($x, '@') ? '[email]' : $x;
+			});
+			return $v;
+		};
+		$reconcile = fn(): array => ['state' => 'absent'];
+		$doc = 'mutation c($input: CustomerInput!) { customerCreate(input: $input) { customer { email } userErrors { message } } }';
+
+		shopify_graphql(FakeShopify::shop(), 'customerCreate', $doc, ['input' => ['email' => 'kunde@example.dk']], $fake->opts([
+			'retry_mode' => 'reconcile', 'reconcile' => $reconcile, 'redact' => $redact,
+		]));
+
+		$entry = $fake->logs[0];
+		$this->assertSame(['req-123', 'out'], [$entry['request_id'], $entry['direction']]);
+		$request = json_decode(base64_decode($entry['request_b64']), true);
+		$response = json_decode(base64_decode($entry['response_b64']), true);
+		$this->assertSame('[email]', $request['variables']['input']['email']);
+		$this->assertSame('[email]', $response['data']['customerCreate']['customer']['email']);
+		$this->assertSame([[FakeShopify::TOKEN], [FakeShopify::TOKEN]], $secretsSeen, 'request and response: the token is handed to the redactor as a secret to strip');
+		$this->assertStringNotContainsString('kunde@example.dk', json_encode($fake->logs));
+		$this->assertStringNotContainsString(FakeShopify::TOKEN, json_encode($fake->logs));
+	}
+
+	public function test_a_failing_redactor_or_logger_never_costs_a_sent_mutations_result(): void
+	{
+		$created = FakeShopify::ok(['orderCreate' => ['order' => ['id' => 'gid://shopify/Order/3'], 'userErrors' => []]]);
+		$reconcile = fn(): array => ['state' => 'absent'];
+		$redact = fn(mixed $v, array $secrets): mixed => throw new RuntimeException('redact failed for ' . $secrets[0]);
+		$file = tempnam(sys_get_temp_dir(), 'shopify-log');
+		$previous = ini_set('error_log', $file);
+		try {
+			$fake = new FakeShopify([$created]);
+			$r1 = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake->opts([
+				'retry_mode' => 'reconcile', 'reconcile' => $reconcile, 'redact' => $redact,
+			]));
+			$entry = $fake->logs[0];
+
+			$fake2 = new FakeShopify([$created]);
+			$r2 = shopify_graphql(FakeShopify::shop(), 'orderCreate', self::ORDER_CREATE, ['order' => []], $fake2->opts([
+				'retry_mode' => 'reconcile', 'reconcile' => $reconcile,
+				'log' => fn(array $e) => throw new RuntimeException('call log down, token ' . FakeShopify::TOKEN),
+			]));
+		} finally {
+			ini_set('error_log', (string) $previous);
+		}
+		$fallback = (string) file_get_contents($file);
+		unlink($file);
+
+		$this->assertSame(['ok', 1], [$r1['outcome'], count($fake->calls)], 'redactor failure: result kept, nothing resent');
+		$this->assertSame([null, null, 'RuntimeException'], [$entry['request_b64'], $entry['response_b64'], $entry['redact_error']]);
+		$this->assertSame(['ok', 1], [$r2['outcome'], count($fake2->calls)], 'logger failure: result kept, nothing resent');
+		$this->assertStringContainsString('"log_error":"RuntimeException"', $fallback);
+		$this->assertStringNotContainsString(FakeShopify::TOKEN, json_encode($fake->logs) . $fallback, 'exception messages are never logged');
+	}
+
+	public function test_a_body_that_cannot_be_encoded_is_reported_not_logged_empty(): void
+	{
+		$garbled = ['status' => 200, 'body' => "\xFF\xFE not utf-8", 'errno' => 0, 'error' => '', 'sent' => true, 'retry_after' => null];
+		$fake = new FakeShopify([$garbled, FakeShopify::ok(['shop' => ['name' => 'HML']])]);
+
+		shopify_graphql(FakeShopify::shop(), 'shop', self::SHOP_QUERY, [], $fake->opts(['redact' => fn(mixed $v): mixed => $v]));
+
+		$entry = $fake->logs[0];
+		$this->assertSame([null, null, 'JsonException'], [$entry['request_b64'], $entry['response_b64'], $entry['redact_error'] ?? null]);
+	}
+
+	public function test_an_invalid_byte_in_the_entry_does_not_empty_the_error_log_line(): void
+	{
+		$file = tempnam(sys_get_temp_dir(), 'shopify-log');
+		$previous = ini_set('error_log', $file);
+		try {
+			shopify_client_log(['op' => 'shop', 'correlation' => ['id' => "\xFF"], 'outcome' => 'ok']);
+			$fake = new FakeShopify([FakeShopify::ok(['shop' => ['name' => 'HML']])]);
+			shopify_graphql(FakeShopify::shop(), 'shop', self::SHOP_QUERY, [], $fake->opts([
+				'correlation' => ['id' => "\xFF"], 'log' => fn(array $e) => throw new RuntimeException('call log down'),
+			]));
+		} finally {
+			ini_set('error_log', (string) $previous);
+		}
+		$lines = array_values(array_filter(explode("\n", (string) file_get_contents($file))));
+		unlink($file);
+
+		$this->assertCount(2, $lines);
+		$this->assertStringContainsString('"op":"shop"', $lines[0], 'default log keeps the metadata');
+		$this->assertStringContainsString('"op":"shop"', $lines[1], 'failed-logger fallback keeps the metadata');
+		$this->assertStringContainsString('"log_error":"RuntimeException"', $lines[1]);
+	}
+
+	public function test_an_invalid_log_or_redact_option_is_refused_before_anything_is_sent(): void
+	{
+		foreach (['log' => 'no_such_logger', 'redact' => 'no_such_redactor'] as $seam => $value) {
+			$fake = new FakeShopify([FakeShopify::ok(['shop' => ['name' => 'HML']])]);
+			try {
+				shopify_graphql(FakeShopify::shop(), 'shop', self::SHOP_QUERY, [], $fake->opts([$seam => $value]));
+				$this->fail("invalid $seam accepted");
+			} catch (InvalidArgumentException $e) {
+				$this->assertStringContainsString($seam, $e->getMessage());
+			}
+			$this->assertSame([], $fake->calls, "$seam: nothing sent");
+		}
+	}
+
+	public function test_without_a_redactor_no_bodies_are_logged(): void
+	{
+		$fake = new FakeShopify([FakeShopify::ok(['shop' => ['name' => 'HML']])]);
+
+		shopify_graphql(FakeShopify::shop(), 'shop', self::SHOP_QUERY, [], $fake->opts(['redact' => null]));
+
+		$this->assertNull($fake->logs[0]['request_b64']);
+		$this->assertNull($fake->logs[0]['response_b64']);
+	}
+
+	public function test_the_default_log_line_never_carries_bodies(): void
+	{
+		$file = tempnam(sys_get_temp_dir(), 'shopify-log');
+		$previous = ini_set('error_log', $file);
+		try {
+			shopify_client_log(['op' => 'shop', 'request_id' => 'req-9', 'request_b64' => base64_encode('{"secret":1}'), 'response_b64' => 'eA=='], ['tok']);
+		} finally {
+			ini_set('error_log', (string) $previous);
+		}
+		$line = (string) file_get_contents($file);
+		unlink($file);
+
+		$this->assertStringContainsString('"request_id":"req-9"', $line);
+		$this->assertStringNotContainsString('request_b64', $line);
+		$this->assertStringNotContainsString('response_b64', $line);
+	}
+
 	public function test_order_create_with_errors_next_to_its_order_data_is_reconciled_not_failed(): void
 	{
 		// The order was created; only a protected customer field in the selection was refused.
@@ -372,14 +568,31 @@ final class ClientRetryTest extends TestCase
 		$this->assertCount(1, $fake->calls);
 	}
 
-	public function test_idempotent_mutation_is_resent_after_a_timeout(): void
+	/** A valid 2026-07 absolute stock set: every attempt carries the same @idempotent key. */
+	public const INVENTORY_SET = 'mutation set($input: InventorySetQuantitiesInput!, $key: String!) {
+		inventorySetQuantities(input: $input) @idempotent(key: $key) { userErrors { field message } }
+	}';
+
+	public static function inventorySetVars(): array
+	{
+		return [
+			'key' => 'hml:stock:42:1',
+			'input' => ['name' => 'available', 'reason' => 'correction', 'quantities' => [
+				['inventoryItemId' => 'gid://shopify/InventoryItem/1', 'locationId' => 'gid://shopify/Location/1', 'quantity' => 3, 'changeFromQuantity' => null],
+			]],
+		];
+	}
+
+	public function test_idempotent_mutation_is_resent_after_a_timeout_with_the_same_key(): void
 	{
 		$fake = new FakeShopify([FakeShopify::timeout(), FakeShopify::ok(['inventorySetQuantities' => ['userErrors' => []]])]);
 
-		$r = shopify_graphql(FakeShopify::shop(), 'inventorySetQuantities', 'mutation { inventorySetQuantities(input: {}) { userErrors { message } } }', [], $fake->opts(['retry_mode' => 'idempotent']));
+		$r = shopify_graphql(FakeShopify::shop(), 'inventorySetQuantities', self::INVENTORY_SET, self::inventorySetVars(), $fake->opts(['retry_mode' => 'idempotent']));
 
 		$this->assertTrue($r['ok']);
 		$this->assertCount(2, $fake->calls);
+		$this->assertSame($fake->calls[0]['raw'], $fake->calls[1]['raw'], 'the resend is byte for byte the same request, key included');
+		$this->assertSame('hml:stock:42:1', $fake->calls[1]['body']['variables']['key']);
 	}
 
 	public function test_user_errors_and_auth_errors_are_not_retried(): void

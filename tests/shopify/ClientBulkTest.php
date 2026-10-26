@@ -9,6 +9,9 @@
 // History:
 // 20261021 CL/SZ created (SD-747).
 // 20261023 CDX/LH Cover a missing bulk operation as a terminal polling failure.
+// 20261023 CL/SZ Exact bulk-start matching: formatting ignored, strings exact, a differing new operation is unknown.
+// 20261026 CL/SZ Names, numbers and "..." are separate tokens; block-string escapes, BOMs, bad escapes
+//                and leading zeros when matching (#862 review).
 
 use PHPUnit\Framework\TestCase;
 
@@ -69,6 +72,126 @@ final class ClientBulkTest extends TestCase
 		$this->assertTrue($r['ok']);
 		$this->assertSame('reconciled', $r['outcome']);
 		$this->assertSame(['id' => self::OP, 'status' => 'RUNNING'], $r['bulk']);
+	}
+
+	public function test_start_matches_its_operation_whatever_the_formatting_between_tokens(): void
+	{
+		$inner = '{ products(query: "title:a  b") { edges { node { id } } } }';
+		$stored = "{products(query:\"title:a  b\"){edges{node{id}}}}  # stored reformatted";
+		$mine = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => $stored];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$mine])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), $inner, $fake->opts());
+
+		$this->assertSame('reconciled', $r['outcome']);
+		$this->assertSame(self::OP, $r['bulk']['id']);
+	}
+
+	public function test_whitespace_inside_a_string_literal_is_not_ignored(): void
+	{
+		$inner = '{ products(query: "title:a  b") { edges { node { id } } } }';
+		// Only the search string differs: "a b" with one space is a different query.
+		$other = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => '{ products(query: "title:a b") { edges { node { id } } } }'];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$other])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), $inner, $fake->opts());
+
+		$this->assertCount(3, $fake->calls, 'not started again');
+		$this->assertSame('uncertain', $r['outcome']);
+	}
+
+	public function test_a_new_operation_that_differs_from_ours_is_unknown_not_absent(): void
+	{
+		$different = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => '{ products { edges { node { id } } } }'];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$different])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), self::INNER, $fake->opts());
+
+		$this->assertCount(3, $fake->calls, 'a new operation we cannot tell apart from ours is never started again');
+		$this->assertSame('uncertain', $r['outcome']);
+		$this->assertNull($r['bulk']);
+	}
+
+	public function test_normalise_keeps_strings_exact_and_ignores_formatting(): void
+	{
+		$this->assertSame(shopify_graphql_normalise("{ a(x: 1, y: \"p  q\") { b } }"), shopify_graphql_normalise("{a(x:1 y:\"p  q\"){b}} # c"));
+		$this->assertNotSame(shopify_graphql_normalise('{ a(y: "p  q") { b } }'), shopify_graphql_normalise('{ a(y: "p q") { b } }'));
+		$this->assertSame(shopify_graphql_normalise('{ a { ...f } }'), shopify_graphql_normalise('{a{... f}}'));
+	}
+
+	public function test_names_numbers_and_spreads_are_separate_tokens(): void
+	{
+		$this->assertSame(shopify_graphql_normalise('{ a { id ... on Product { x } } }'), shopify_graphql_normalise('{a{id...on Product{x}}}'));
+		$this->assertSame(shopify_graphql_normalise('{ a(first: 10) { b } }'), shopify_graphql_normalise('{a(first:10){b}}'));
+		$this->assertSame(shopify_graphql_normalise('{ a(x: -1.5e3) { b } }'), shopify_graphql_normalise('{a(x:-1.5e3){b}}'));
+		$this->assertNotSame(shopify_graphql_normalise('{ a(x: 1) { b } }'), shopify_graphql_normalise('{ a(x: 10) { b } }'));
+		$this->assertNull(shopify_graphql_normalise('{ a(x: 1b) { c } }'), 'a number run into a name is not valid GraphQL');
+	}
+
+	public function test_a_block_string_escape_is_read_as_graphql_reads_it(): void
+	{
+		// In a block string \""" is the only escape: here the string runs to the last """, so its
+		// spacing is string content and must count.
+		$two = '{ products(query: """a\\\\""" b  c "d""") { edges { node { id } } } }';
+		$one = '{ products(query: """a\\\\""" b c "d""") { edges { node { id } } } }';
+		$this->assertNotNull(shopify_graphql_normalise($two));
+		$this->assertNotSame(shopify_graphql_normalise($two), shopify_graphql_normalise($one));
+
+		$other = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => $one];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$other])]);
+		$r = shopify_bulk_start(FakeShopify::shop(), $two, $fake->opts());
+		$this->assertCount(3, $fake->calls, 'not started again');
+		$this->assertSame('uncertain', $r['outcome']);
+	}
+
+	public function test_byte_order_marks_between_tokens_are_ignored(): void
+	{
+		$plain = shopify_graphql_normalise('{ products { edges { node { id } } } }');
+		$this->assertSame($plain, shopify_graphql_normalise("\u{FEFF}{products{edges{node{\u{FEFF}id}}}}"));
+		$this->assertNotSame(shopify_graphql_normalise('{ a(x: "p") { b } }'), shopify_graphql_normalise("{ a(x: \"\u{FEFF}p\") { b } }"), 'inside a string a BOM is content');
+	}
+
+	public function test_bad_escapes_leading_zeros_and_open_blocks_are_unreadable(): void
+	{
+		$this->assertNull(shopify_graphql_normalise('{ a(x: "bad\q") { b } }'));
+		$this->assertNull(shopify_graphql_normalise('{ a(x: 01) { b } }'));
+		$this->assertNull(shopify_graphql_normalise('{ a(x: """abc") { b } }'));
+		$this->assertNotNull(shopify_graphql_normalise('{ a(x: "tab æ æ \" \\\\ \/", y: 0, z: -0.5) { b } }'));
+	}
+
+	public function test_start_matches_its_operation_when_a_spread_follows_a_name_without_a_space(): void
+	{
+		$inner = '{ products { edges { node { id ... on Product { title } } } } }';
+		$mine = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => '{products{edges{node{id...on Product{title}}}}}'];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$mine])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), $inner, $fake->opts());
+
+		$this->assertCount(3, $fake->calls, 'snapshot, one start, one read, no second start');
+		$this->assertSame('reconciled', $r['outcome']);
+		$this->assertSame(self::OP, $r['bulk']['id']);
+	}
+
+	public function test_a_malformed_query_is_never_matched_to_another_operation(): void
+	{
+		// A stray quote: unreadable, so it can't match the valid query another worker started.
+		$malformed = self::INNER . '"';
+		$theirs = ['id' => self::OP, 'status' => 'RUNNING', 'type' => 'QUERY', 'query' => self::INNER];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$theirs])]);
+
+		$r = shopify_bulk_start(FakeShopify::shop(), $malformed, $fake->opts());
+
+		$this->assertSame('uncertain', $r['outcome']);
+		$this->assertNull($r['bulk']);
+		$this->assertCount(3, $fake->calls);
+	}
+
+	public function test_normalise_refuses_documents_it_cannot_read_fully(): void
+	{
+		$this->assertNull(shopify_graphql_normalise(self::INNER . '"'));
+		$this->assertNull(shopify_graphql_normalise('{ a(x: "unterminated) { b } }'));
+		$this->assertNull(shopify_graphql_normalise('{ a(x: """open block) { b } }'));
+		$this->assertNotNull(shopify_graphql_normalise('{ a(x: """closed "quotes" inside""") { b } }'));
 	}
 
 	public function test_start_resends_once_the_read_shows_it_did_not_start(): void

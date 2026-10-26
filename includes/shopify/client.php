@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/client.php --- ver 5.0.0 --- 2026-10-21 ---
+// --- includes/shopify/client.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,9 +30,19 @@
 //
 // 20261021 CL/SZ Created (SD-747).
 // 20261023 CDX/LH Tighten reconcile results, retry state, mutation guards and bulk polling (SD-747).
+// 20261023 CL/SZ Follow-ups from the #828 review: exact bulk-start matching, X-Request-Id and redacted
+//                bodies for WP02's call log, @idempotent(key:) in the idempotent-mode example (SD-747).
+// 20261026 CL/SZ Normalise splits names, numbers and "..." into separate tokens, reads block-string
+//                escapes and BOMs as GraphQL does and refuses bad escapes and leading zeros; a body
+//                that can't be JSON-encoded is reported as redact_error, and error-log lines keep
+//                their metadata when a value isn't valid UTF-8 (SD-747, #862 review).
+// 20261026 CL/SZ Retry-After and X-Request-Id come from the final response only; an interim
+//                "100 Continue" block no longer carries over (SD-747, #862 CodeRabbit).
 
 const SHOPIFY_API_VERSION = '2026-07';
 const SHOPIFY_MAX_RETRIES = 3;
+// Error-log lines: a stray invalid byte (say in a correlation id) is replaced, never an empty line.
+const SHOPIFY_LOG_JSON = JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR;
 const SHOPIFY_CONNECT_TIMEOUT = 10.0;
 const SHOPIFY_TOTAL_TIMEOUT = 30.0;
 // A request (or a reconcile read) is not started with less time than this left.
@@ -68,8 +78,10 @@ const SHOPIFY_BULK_POLL_QUERY = 'query bulkOperation($id: ID!) {
  * THROTTLED, HTTP 429, 5xx and transport failures up to SHOPIFY_MAX_RETRIES times within
  * the deadline. Failures are returned, never swallowed: the job runtime (WP02) counts them.
  *
- * Retry modes: "read" for queries; "idempotent" for mutations that are safe to send twice
- * (an absolute inventorySetQuantities, metafieldsSet); "reconcile" for mutations that must
+ * Retry modes: "read" for queries; "idempotent" for mutations that are safe to send twice,
+ * e.g. an absolute inventorySetQuantities that carries the same @idempotent(key: $key) on every
+ * attempt (`inventorySetQuantities(input: $input) @idempotent(key: $key) { userErrors { message } }`),
+ * or metafieldsSet; "reconcile" for mutations that must
  * not run twice (SHOPIFY_RECONCILE_OPS, a note orderUpdate; both are detected in the document
  * itself, whatever $op says). In reconcile mode an attempt
  * that may have reached Shopify is followed by opts.reconcile, never by a blind resend.
@@ -93,7 +105,9 @@ const SHOPIFY_BULK_POLL_QUERY = 'query bulkOperation($id: ID!) {
  *   transport?: callable,  Test seam, same contract as shopify_http_post().
  *   clock?: callable,      Test seam, returns unix time as float.
  *   sleep?: callable,      Test seam, takes seconds as float.
- *   log?: callable,        Test seam, receives one array per attempt.
+ *   log?: callable,        Receives one array per attempt; default shopify_client_log().
+ *   redact?: callable,     Redacts the logged bodies, called with the body and the secrets to strip;
+ *                          default WP02's shopify_redact once it exists. Without one, no bodies are logged.
  * } $opts
  * @return array{
  *   ok: bool,                True when Shopify returned data without errors (or reconcile found it applied).
@@ -126,17 +140,26 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
 	if ($mode === 'reconcile' && !is_callable($opts['reconcile'] ?? null)) {
 		throw new InvalidArgumentException("retry_mode reconcile needs a reconcile callback");
 	}
+	// Checked before anything is sent: a bad logging option found afterwards would cost the result.
+	foreach (['log', 'redact'] as $seam) {
+		if (isset($opts[$seam]) && !is_callable($opts[$seam])) {
+			throw new InvalidArgumentException("opts.$seam must be callable");
+		}
+	}
 
 	$transport = $opts['transport'] ?? 'shopify_http_post';
 	$clock = $opts['clock'] ?? fn() => microtime(true);
 	$sleep = $opts['sleep'] ?? fn(float $s) => usleep((int) round($s * 1e6));
-	$log = $opts['log'] ?? 'shopify_client_log';
+	$log = $opts['log'] ?? null;
+	$redact = $opts['redact'] ?? (function_exists('shopify_redact') ? 'shopify_redact' : null);
 	$correlation = $opts['correlation'] ?? [];
 	$deadline = (float) ($opts['deadline'] ?? $clock() + SHOPIFY_DEFAULT_BUDGET);
 	$shopKey = (string) ($shop['shop_key'] ?? $shop['domain'] ?? '');
 
 	$url = shopify_graphql_url($shop);
 	$token = shopify_client_access_token($shop, $opts);
+	// The token is passed to the logger only as a secret to strip, never inside an entry.
+	$log ??= fn(array $entry) => shopify_client_log($entry, [$token]);
 	$headers = [
 		'Content-Type: application/json',
 		'Accept: application/json',
@@ -175,14 +198,14 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
 		}
 		$result['status'] = $resp['status'];
 		$result['error'] = $parsed['error'] ?? 'transport';
-		$log([
+		shopify_client_emit($log, [
 			'op' => $op, 'shop' => $shopKey, 'attempt' => $result['attempts'], 'mode' => $mode,
 			'status' => $resp['status'], 'class' => $class, 'error' => $class === 'ok' ? null : $result['error'],
 			'curl_errno' => $resp['errno'], 'curl_error' => $resp['error'] ?: null, 'ms' => (int) round(($clock() - $started) * 1000),
 			'cost' => $parsed['cost']['actualQueryCost'] ?? $parsed['cost']['requestedQueryCost'] ?? null,
 			'available' => $parsed['cost']['throttleStatus']['currentlyAvailable'] ?? null,
-			'correlation' => $correlation,
-		]);
+			'correlation' => $correlation, 'direction' => 'out', 'request_id' => $resp['request_id'] ?? null,
+		] + shopify_client_logged_bodies($redact, ['query' => $query, 'variables' => $vars], $resp['body'], [$token]));
 
 		if ($class === 'ok') {
 			return array_merge($result, ['ok' => true, 'outcome' => 'ok', 'error' => null]);
@@ -194,7 +217,7 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
 			// No time left to read first: the effect stays unknown and nothing is resent.
 			$found = $deadline - $clock() >= SHOPIFY_MIN_ATTEMPT_BUDGET
 				? shopify_client_reconcile($opts['reconcile'], $op, $result, $deadline) : ['state' => 'no_time'];
-			$log(['op' => $op, 'shop' => $shopKey, 'event' => 'reconcile', 'attempt' => $result['attempts'],
+			shopify_client_emit($log, ['op' => $op, 'shop' => $shopKey, 'event' => 'reconcile', 'attempt' => $result['attempts'],
 				'state' => $found['state'] ?? null, 'correlation' => $correlation,
 				'exception' => isset($found['exception']) ? str_replace($token, '[redacted]', $found['exception']) : null]);
 			if (($found['state'] ?? null) === 'applied' && is_array($found['data'] ?? null)) {
@@ -299,9 +322,10 @@ function shopify_throttle_delay(array $bucket, float $cost, float $now): float
 /**
  * Starts a bulk query (bulkOperationRunQuery). The shop's recent bulk operations are read
  * first; a start that may have reached Shopify is reconciled by reading them again: exactly
- * one new QUERY operation with this query is this start's, whatever its status (a failed
- * one is reported, not started again); none means it did not start; more than one is
- * ambiguous and ends as uncertain. Since 2026-01 an app may run up to five bulk queries per
+ * one new QUERY operation, matching this query token for token (shopify_graphql_normalise()),
+ * is this start's, whatever its status (a failed one is reported, not started again); no new
+ * QUERY operation means it did not start; anything else (a new one that differs, or several)
+ * is ambiguous and ends as uncertain. Since 2026-01 an app may run up to five bulk queries per
  * shop at once; with one worker per tenant another start of the same query is not expected.
  * Never resent blind.
  *
@@ -325,18 +349,26 @@ function shopify_bulk_start(array $shop, string $bulkQuery, array $opts = []): a
 		if (!$read['ok']) {
 			return ['state' => 'unknown'];
 		}
-		$new = [];
+		$wanted = shopify_graphql_normalise($bulkQuery);
+		$new = 0;
+		$mine = [];
 		foreach ($read['data']['bulkOperations']['nodes'] ?? [] as $node) {
-			// Whitespace is normalised in case Shopify stores the query reformatted.
-			$same = preg_replace('/\s+/', ' ', trim((string) ($node['query'] ?? ''))) === preg_replace('/\s+/', ' ', trim($bulkQuery));
-			if ($same && ($node['type'] ?? '') === 'QUERY' && !in_array($node['id'] ?? null, $known, true)) {
-				$new[] = ['id' => $node['id'], 'status' => $node['status'] ?? null];
+			if (($node['type'] ?? '') !== 'QUERY' || in_array($node['id'] ?? null, $known, true)) {
+				continue;
+			}
+			$new++;
+			if ($wanted !== null && shopify_graphql_normalise((string) ($node['query'] ?? '')) === $wanted) {
+				$mine[] = ['id' => $node['id'], 'status' => $node['status'] ?? null];
 			}
 		}
-		if (count($new) > 1) {
-			return ['state' => 'unknown'];
+		if ($new === 0) {
+			return ['state' => 'absent'];
 		}
-		return $new ? ['state' => 'applied', 'data' => ['bulkOperationRunQuery' => ['bulkOperation' => $new[0], 'userErrors' => []]]] : ['state' => 'absent'];
+		// Exactly one new operation, and it is ours: anything else (a new one that differs, or
+		// several) may be this start under another shape, so it is never resent.
+		return $new === 1 && count($mine) === 1
+			? ['state' => 'applied', 'data' => ['bulkOperationRunQuery' => ['bulkOperation' => $mine[0], 'userErrors' => []]]]
+			: ['state' => 'unknown'];
 	};
 	$result = shopify_graphql($shop, 'bulkOperationRunQuery', SHOPIFY_BULK_START_MUTATION, ['query' => $bulkQuery], $opts);
 	$result['bulk'] = $result['ok'] ? ($result['data']['bulkOperationRunQuery']['bulkOperation'] ?? null) : null;
@@ -385,6 +417,9 @@ function shopify_bulk_download(string $url, string $path, array $opts = []): arr
 	if (parse_url($url, PHP_URL_SCHEME) !== 'https') {
 		throw new InvalidArgumentException('Bulk download URL must be https');
 	}
+	if (isset($opts['log']) && !is_callable($opts['log'])) {
+		throw new InvalidArgumentException('opts.log must be callable');
+	}
 	$clock = $opts['clock'] ?? fn() => microtime(true);
 	$log = $opts['log'] ?? 'shopify_client_log';
 	$remaining = (float) ($opts['deadline'] ?? $clock() + SHOPIFY_DEFAULT_BUDGET) - $clock();
@@ -418,7 +453,7 @@ function shopify_bulk_download(string $url, string $path, array $opts = []): arr
 	if (!$out['ok'] && is_file($tmp)) {
 		unlink($tmp);
 	}
-	$log([
+	shopify_client_emit($log, [
 		'op' => 'bulkDownload', 'host' => parse_url($url, PHP_URL_HOST), 'status' => $resp['status'], 'error' => $out['error'],
 		'curl_errno' => $resp['errno'], 'bytes' => $out['bytes'], 'ms' => (int) round(($clock() - $started) * 1000),
 		'correlation' => $opts['correlation'] ?? [],
@@ -430,11 +465,12 @@ function shopify_bulk_download(string $url, string $path, array $opts = []): arr
  * POSTs one request with curl. "sent" is false only when the request cannot have
  * reached Shopify (no DNS or TCP connection), which makes a resend safe.
  *
- * @return array{status: int, body: string, errno: int, error: string, sent: bool, retry_after: float|null}
+ * @return array{status: int, body: string, errno: int, error: string, sent: bool, retry_after: float|null, request_id: string|null}
  */
 function shopify_http_post(string $url, array $headers, string $body, float $connectTimeout, float $timeout): array
 {
 	$retryAfter = null;
+	$requestId = null;
 	$ch = curl_init($url);
 	curl_setopt_array($ch, [
 		CURLOPT_POST => true,
@@ -443,10 +479,8 @@ function shopify_http_post(string $url, array $headers, string $body, float $con
 		CURLOPT_RETURNTRANSFER => true,
 		CURLOPT_CONNECTTIMEOUT_MS => max(1, (int) ($connectTimeout * 1000)),
 		CURLOPT_TIMEOUT_MS => max(1, (int) ($timeout * 1000)),
-		CURLOPT_HEADERFUNCTION => function ($handle, string $line) use (&$retryAfter): int {
-			if (preg_match('/^Retry-After:\s*(\d+(?:\.\d+)?)\s*$/i', $line, $m)) {
-				$retryAfter = (float) $m[1];
-			}
+		CURLOPT_HEADERFUNCTION => function ($handle, string $line) use (&$retryAfter, &$requestId): int {
+			shopify_http_header_line($line, $retryAfter, $requestId);
 			return strlen($line);
 		},
 	]);
@@ -457,8 +491,26 @@ function shopify_http_post(string $url, array $headers, string $body, float $con
 	$sent = $errno === 0 || (float) curl_getinfo($ch, CURLINFO_PRETRANSFER_TIME) > 0;
 	return [
 		'status' => $status, 'body' => is_string($respBody) ? $respBody : '', 'errno' => $errno,
-		'error' => curl_error($ch), 'sent' => $sent, 'retry_after' => $retryAfter,
+		'error' => curl_error($ch), 'sent' => $sent, 'retry_after' => $retryAfter, 'request_id' => $requestId,
 	];
+}
+
+/**
+ * Reads one response header line for shopify_http_post(). curl hands over the headers of
+ * every response it receives, interim ones such as "100 Continue" included, so a status
+ * line starts a new block and clears what an earlier block set: only the final response's
+ * Retry-After and X-Request-Id count.
+ */
+function shopify_http_header_line(string $line, ?float &$retryAfter, ?string &$requestId): void
+{
+	if (preg_match('#^HTTP/\S+\s+\d{3}#', $line)) {
+		$retryAfter = null;
+		$requestId = null;
+	} elseif (preg_match('/^Retry-After:\s*(\d+(?:\.\d+)?)\s*$/i', $line, $m)) {
+		$retryAfter = (float) $m[1];
+	} elseif (preg_match('/^X-Request-Id:\s*([\w.:-]{1,128})\s*$/i', $line, $m)) {
+		$requestId = $m[1];
+	}
 }
 
 /**
@@ -601,6 +653,30 @@ function shopify_graphql_needs_reconcile(string $query, array $vars): ?string
 	return preg_match('/\borderUpdate\b/', $code) && $setsNote ? 'orderUpdate (note)' : null;
 }
 
+/**
+ * The document as a list of tokens joined by single spaces: string literals stay exact, while
+ * whitespace, commas and comments between tokens do not count. Two documents are the same query
+ * when this is equal. Null when the document cannot be read.
+ */
+function shopify_graphql_normalise(string $query): ?string
+{
+	// Every byte must belong to a token (string, punctuator, name or number), an ignored run
+	// (whitespace, commas, BOMs) or a comment; anything else (a stray quote, an unterminated
+	// string, a bad escape, a leading zero, a number run into a name) lands in the last group and
+	// makes the document unreadable. In a block string only \""" is an escape. Names, numbers
+	// and "..." are separate tokens, so "id..." and "id ..." normalise alike.
+	$found = preg_match_all(
+		'/"""(?:[^"\\\\]++|\\\\"""|\\\\|"(?!""))*+"""|(?!""")"(?:[^"\\\\\r\n]++|\\\\(?:["\\\\\/bfnrt]|u[0-9A-Fa-f]{4}|u\{[0-9A-Fa-f]++\}))*+"|#[^\r\n]*+|(?:[\s,]|\xEF\xBB\xBF)++|\.\.\.|[!$&():=@\[\]{}|]|[_A-Za-z][_0-9A-Za-z]*+|-?(?:0|[1-9]\d*+)(?:\.\d++)?+(?:[eE][+-]?+\d++)?+(?![_A-Za-z\d.])|(.)/s',
+		$query,
+		$m
+	);
+	if ($found === false || array_filter($m[1], fn(string $bad): bool => $bad !== '')) {
+		return null;
+	}
+	$tokens = array_filter($m[0], fn(string $t): bool => $t[0] !== '#' && trim($t, " \t\r\n\v\f,\xEF\xBB\xBF") !== '');
+	return implode(' ', $tokens);
+}
+
 /** Admin GraphQL endpoint for the shop. Only *.myshopify.com hosts get the access token. */
 function shopify_graphql_url(array $shop): string
 {
@@ -729,10 +805,61 @@ function shopify_client_text(mixed $value): string
 }
 
 /**
- * Default per-attempt log: one JSON line to the PHP error log, without request or
- * response bodies and without the token. Replaced by WP02's shopify_call_log once merged.
+ * The request and response bodies for the call log, redacted and base64 JSON. Null without a
+ * redactor, and null (with only the exception class noted) when the redactor fails or its
+ * output can't be JSON-encoded (invalid UTF-8): the call has already been sent, so neither may
+ * cost its result.
+ *
+ * @return array{request_b64: string|null, response_b64: string|null, redact_error?: string}
  */
-function shopify_client_log(array $entry): void
+function shopify_client_logged_bodies(?callable $redact, array $request, string $responseBody, array $secrets): array
 {
-	error_log('shopify_graphql ' . json_encode($entry, JSON_UNESCAPED_SLASHES));
+	if ($redact === null) {
+		return ['request_b64' => null, 'response_b64' => null];
+	}
+	try {
+		$encode = fn(mixed $body): string => base64_encode((string) json_encode($redact($body, $secrets), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+		return ['request_b64' => $encode($request), 'response_b64' => $encode(json_decode($responseBody, true) ?? $responseBody)];
+	} catch (Throwable $e) {
+		return ['request_b64' => null, 'response_b64' => null, 'redact_error' => get_class($e)];
+	}
+}
+
+/**
+ * Hands one entry to the logger. A logger that fails must not cost the call's result, so the
+ * entry then goes to the PHP error log without bodies, with only the exception class noted.
+ */
+function shopify_client_emit(callable $log, array $entry): void
+{
+	try {
+		$log($entry);
+	} catch (Throwable $e) {
+		unset($entry['request_b64'], $entry['response_b64']);
+		$entry['log_error'] = get_class($e);
+		try {
+			error_log('shopify_graphql ' . json_encode($entry, SHOPIFY_LOG_JSON));
+		} catch (Throwable) {
+			// Both destinations failed: the entry is lost, the call's result is not.
+		}
+	}
+}
+
+/**
+ * Default log. Call entries go to WP02's shopify_call_log() once it exists; a failure there
+ * falls back to the error log, because losing a call's result could lead to a resend.
+ * Otherwise, and for reconcile events, one JSON line goes to the PHP error log, without
+ * request or response bodies.
+ */
+function shopify_client_log(array $entry, array $secrets = []): void
+{
+	if (!isset($entry['event']) && function_exists('shopify_call_log')) {
+		try {
+			shopify_call_log($entry, $secrets);
+			return;
+		} catch (Throwable $e) {
+			$entry['call_log_error'] = get_class($e);
+		}
+	}
+	unset($entry['request_b64'], $entry['response_b64']);
+	error_log('shopify_graphql ' . json_encode($entry, SHOPIFY_LOG_JSON));
 }
