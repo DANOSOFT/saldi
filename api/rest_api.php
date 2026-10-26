@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-10-01 ---
+// --- api/rest_api.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -73,6 +73,8 @@
 //                     sends for empty address fields via strip_placeholder_value(); if_isset
 //                     calls in that block converted to ifset (JOB-115)
 // 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
+// 20261026 CL/SZ SD-750 insert_shop_order for a shop whose legacy slot is closed for intake answers 410 before
+//                anything is written (503 while a cutover runs); the afd-4 IP rule moved to shopify_legacy_effective_afd().
 
 
 // ----------------------------------------------------------------------
@@ -169,10 +171,8 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	else $tidspkt=(date('H:i')); 
 	$tidspkt=substr($tidspkt,0,5);
 */
-	// if ip is 172.105.246.144 set afd to 4
-	if (get_ip() == '172.105.246.144') {
-		$afd = 4;
-	}
+	// Orders from 172.105.246.144 always go to afd 4 (the rule lives in includes/shopify/coexistence.php)
+	$afd = shopify_legacy_effective_afd((int)$afd, get_ip());
 
 	if (strlen($ordredate)>10) { #20210107
 		$tidspkt=substr($ordredate,11); 
@@ -1136,6 +1136,22 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			else $value = "missing orderId";
 ##############################################
 		}	elseif ($action=='insert_shop_order') {
+			// Legacy intake switch (SD-750): a slot closed for intake gets 410 before anything is
+			// written; a cutover in progress gets 503 so the shop tries again. Admitted requests
+			// hold the slot's shared lock until they end.
+			$guardAfd = shopify_legacy_effective_afd((int)ifset($_GET, 'afd'), get_ip());
+			$admission = shopify_legacy_admission(array('db' => $db), shopify_legacy_slot_for_afd($guardAfd), $guardAfd, $action, (string)ifset($_GET, 'shop_ordre_id'));
+			if (!$admission['admitted']) {
+				fwrite($log, __line__." Legacy intake $admission[reason] for afd $guardAfd slot $admission[slot]\n");
+				fclose($log);
+				if ($admission['reason'] == 'busy') {
+					http_response_code(503);
+					header('Retry-After: 30');
+					exit(json_encode('Legacy intake is being switched for this shop, try again later'));
+				}
+				http_response_code(410);
+				exit(json_encode('Legacy intake is closed for this shop'));
+			}
 			$addr1         = strip_placeholder_value(ifset($_GET, 'addr1'));
 			$addr2         = strip_placeholder_value(ifset($_GET, 'addr2'));
 			$afd           = (int)ifset($_GET, 'afd');

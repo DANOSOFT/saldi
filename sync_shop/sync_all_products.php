@@ -34,8 +34,11 @@ $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 $api_fil = trim($r['box4']);
 $api_fil2 = trim($r["box5"]);
 $api_fil3 = trim($r["box6"]);
+// Every slot open for outbound in the shopify_legacy settings (SD-750); an empty box4 no
+// longer hides box5/box6.
+$endpoints = shopify_legacy_endpoints(array('db' => $db), 'outbound');
 
-if (!$api_fil) {
+if (!$endpoints) {
     echo "<p style='color: red;'>Error: No API configuration found. Please configure API settings in grupper table.</p>";
     exit;
 }
@@ -128,10 +131,7 @@ while ($product = db_fetch_array($products_query)) {
         $total_stock = array_sum($warehouses);
         
         // Build API URLs for each configured API
-        $apis = array();
-        if ($api_fil) $apis[] = $api_fil;
-        if ($api_fil2) $apis[] = $api_fil2;
-        if ($api_fil3) $apis[] = $api_fil3;
+        $apis = array_values($endpoints);
         
         foreach ($apis as $api_url) {
             // Update stock

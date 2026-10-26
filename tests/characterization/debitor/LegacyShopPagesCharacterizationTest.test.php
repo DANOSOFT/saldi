@@ -11,7 +11,7 @@
 //   shop_fakt=1 a wget --spider to box4.
 // - sync_shop/sync_all_products.php: stock, price and sku for every stock item, and stock
 //   and cost for the sets it is part of, to every slot by a backgrounded curl, refused
-//   without box4.
+//   when no slot has an endpoint.
 // - lager/varekort.php: opening a product card sends the item's price to every slot
 //   (sync_shop_price() at the end of the page runs on a plain view, not only on save).
 //
@@ -20,6 +20,7 @@
 //
 // History:
 // 20261026 CL/SZ Created (SD-777, sub-task of SD-750).
+// 20261026 CL/SZ SD-750 An empty box4 no longer disables box5/box6: every slot with an endpoint is called.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -98,7 +99,7 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 	// ---- debitor/ordreliste.php: order intake ---------------------------------------------
 
 	#[DataProvider('slotCombinations')]
-	public function testOrderListAsksEverySlotForNewOrdersOnlyWhenBox4IsSet(bool $four, bool $five, bool $six): void
+	public function testOrderListAsksEverySlotWithAnEndpointForNewOrders(bool $four, bool $five, bool $six): void
 	{
 		$this->setSlots($four, $five, $six);
 
@@ -111,7 +112,7 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 			$this->assertSame(['put_new_orders' => '1'], $request['query']);
 			$this->assertSame('Mozilla/5.0 Gecko/20100101 Firefox/23.0', $request['ua']);
 		}
-		$this->assertSame($four, is_file(self::tempFile()), 'the timestamp is only written when box4 is set');
+		$this->assertSame($expected !== [], is_file(self::tempFile()), 'the timestamp is written when any slot is asked');
 	}
 
 	public function testOrderListWaitsTwentyMinutesBetweenFetchesUnlessHentNuIsPressed(): void
@@ -189,7 +190,7 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 	// ---- sync_shop/sync_all_products.php --------------------------------------------------
 
 	#[DataProvider('slotCombinations')]
-	public function testSyncAllProductsSendsStockPriceSkuAndSetPartsToEverySlotOnlyWhenBox4IsSet(bool $four, bool $five, bool $six): void
+	public function testSyncAllProductsSendsStockPriceSkuAndSetPartsToEverySlotWithAnEndpoint(bool $four, bool $five, bool $six): void
 	{
 		$this->setSlots($four, $five, $six);
 		// A stock item that is part of a set: 4 in warehouse 1, 2 in warehouse 2. The set is in
@@ -206,7 +207,7 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 
 			$slots = $this->expectedPaths($four, $five, $six);
 			$ours = fn(array $r): bool => in_array($r['query']['itemNo'] ?? $r['query']['sku'] ?? null, [$item['varenr'], $set['varenr']], true);
-			if (!$four) {
+			if (!$slots) {
 				$this->assertSame([], self::$shop->waitFor(0, 0, 1.0), 'nothing at all is sent');
 				$this->assertStringContainsString('Error: No API configuration found', $out);
 				return;
@@ -255,7 +256,7 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 	// ---- lager/varekort.php ---------------------------------------------------------------
 
 	#[DataProvider('slotCombinations')]
-	public function testOpeningAProductCardSendsItsPriceToEverySlotOnlyWhenBox4IsSet(bool $four, bool $five, bool $six): void
+	public function testOpeningAProductCardSendsItsPriceToEverySlotWithAnEndpoint(bool $four, bool $five, bool $six): void
 	{
 		$this->setSlots($four, $five, $six);
 		$item = self::$fx->item(['salgspris' => 200.0, 'kostpris' => 80.0]);
@@ -303,12 +304,13 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 		}
 	}
 
+	/**
+	 * Every slot that holds an endpoint, in slot order. Before SD-750 an empty box4 sent
+	 * nothing at all, even to box5/box6; with no shopify_legacy settings that is the only change.
+	 */
 	private function expectedPaths(bool $four, bool $five, bool $six): array
 	{
-		if (!$four) {
-			return [];
-		}
-		return array_keys(array_filter(['/a/' => true, '/b/' => $five, '/c/' => $six]));
+		return array_keys(array_filter(['/a/' => $four, '/b/' => $five, '/c/' => $six]));
 	}
 
 	private function sortedPaths(array $requests): array

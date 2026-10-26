@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-05--------------
+// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-26--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,8 @@
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
 // 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
 // 20261005 LOE SD-687 Department names are escaped where the filter options are built.
+// 20261026 CL/SZ SD-750 Order intake asks every slot open for intake in the shopify_legacy settings (an empty box4
+//                no longer hides box5/box6); the SHOP import follows the intake switch of afd 4's slot.
 
 @session_start();
 $s_id = session_id();
@@ -2011,10 +2013,12 @@ print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 
 // Shop order integration logic (ported from ordrelisteOld.php)
 $show_shop_link = false;
-if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
-    $api_fil=trim($r['box4']);
-    $api_fil2=trim($r['box5']);
-    $api_fil3=trim($r['box6']);
+# Every slot open for intake (SD-750); an empty box4 no longer hides box5/box6. $api_fil stays
+# box4: the SHOP import's wget --spider below uses it.
+$r = db_fetch_array(db_select("select box4 from grupper where art='API'", __FILE__ . " linje " . __LINE__));
+$api_fil = trim((string)($r['box4'] ?? ''));
+$shopEndpoints = shopify_legacy_endpoints(array('db' => $db), 'intake');
+if ($shopEndpoints) {
    $show_shop_link = true; 
     if (file_exists("../temp/$db/shoptidspkt.txt")) {
         $fp=fopen("../temp/$db/shoptidspkt.txt","r");
@@ -2028,22 +2032,8 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
         fwrite($fp,date("U"));
         fclose ($fp);
         $header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-        $api_txt="$api_fil?put_new_orders=1";
-//		$api_encode='utf-8';
-        if ($api_encode) $api_txt.="&encode=$api_encode";
-        if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
-        elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
-        exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-        if($api_fil2){
-            $api_txt="$r[box5]?put_new_orders=1";
-    //		$api_encode='utf-8';
-            if ($api_encode) $api_txt.="&encode=$api_encode";
-            if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
-            elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
-            exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-        }
-        if($api_fil3){
-            $api_txt="$r[box6]?put_new_orders=1";
+        foreach ($shopEndpoints as $shopEndpoint) {
+            $api_txt="$shopEndpoint?put_new_orders=1";
     //		$api_encode='utf-8';
             if ($api_encode) $api_txt.="&encode=$api_encode";
             if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
@@ -2780,7 +2770,9 @@ if ($genberegn == 1) {
 // Additional API integration
 $r = db_fetch_array(db_select("select box2 from grupper where art='DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__));
 
-if (isset($r['box2']) && $apifil = $r['box2']) { //checks if $r$r['box2'] exists before using it
+# The import lands in afd 4 (api/hent_ordrer.php), so it follows that slot's intake switch (SD-750).
+$shopImportOpen = shopify_legacy_enabled(array('db' => $db), shopify_legacy_slot_for_afd(4), 'intake');
+if ($shopImportOpen && isset($r['box2']) && $apifil = $r['box2']) { //checks if $r$r['box2'] exists before using it
     (strpos($r['box2'], 'opdat_status=1')) ? $opdat_status = 1 : $opdat_status = 0;
     (strpos($r['box2'], 'shop_fakt=1')) ? $shop_fakt = 1 : $shop_fakt = 0;
     (strpos($r['box2'], 'betaling=kort')) ? $kortbetaling = 1 : $kortbetaling = 0;

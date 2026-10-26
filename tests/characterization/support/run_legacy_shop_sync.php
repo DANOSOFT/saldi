@@ -17,11 +17,15 @@
 //   regnaar fiscal year (sync_shop_vare's item-group lookup)
 //   rows    list of [regex, list of rows]: the answer to a query matching regex
 //   call    function name, args list of arguments
+//   calls   instead of call/args: a list of [function, args], run in order in one process
+//   db_type optional, e.g. 'mysql' (default: PostgreSQL without a connection)
 //
-// Prints one JSON line: {return, sql}.
+// Prints one JSON line: {return, sql}; with calls, return is the list of results. A call that
+// throws returns {exception: class, message}.
 //
 // History:
 // 20261026 CL/SZ Created (SD-777, sub-task of SD-750).
+// 20261026 CL/SZ Several calls per run, db_type and exceptions as results, for the coexistence tests (SD-750).
 
 $spec = json_decode((string)file_get_contents($argv[1] ?? ''), true);
 if (!is_array($spec)) {
@@ -64,12 +68,23 @@ function db_escape_string($text)
 }
 
 $db = $spec['db'];
+$db_type = $spec['db_type'] ?? 'postgresql';
+$connection = null;
 $regnaar = $spec['regnaar'] ?? 1;
 $bruger_id = 1;
 
 require dirname(__DIR__, 3) . '/includes/std_func.php';
 
 chdir($spec['work'] . '/page');
-$return = $spec['call'](...$spec['args']);
+$run = static function (string $function, array $args) {
+	try {
+		return $function(...$args);
+	} catch (Throwable $e) {
+		return ['exception' => get_class($e), 'message' => $e->getMessage()];
+	}
+};
+$return = isset($spec['calls'])
+	? array_map(static fn(array $c) => $run($c[0], $c[1]), $spec['calls'])
+	: $run($spec['call'], $spec['args']);
 
 echo "\n" . json_encode(['return' => $return, 'sql' => $GLOBALS['chartestSql']], JSON_UNESCAPED_SLASHES) . "\n";
