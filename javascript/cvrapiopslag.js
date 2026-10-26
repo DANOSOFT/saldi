@@ -32,9 +32,8 @@
 // 20261006 CL/SZ SD-721 Messages for BLOCKED and BANNED: cvrapi.dk refuses the server's lookups (sager/cvrLookupProxy.php passes the code on).
 // 20261006 CL/SZ SD-721 INVALID_UA gets the same message; the kreditor and debitor cards now use the proxy too (cvrLookupClientConfig()).
 // 20261007 CL/SZ SD-721 The kreditor and debitor cards are back on the browser lookup (cvrapi.dk, as on live) until Datafordeleren is tested; only the pool dialog sets cvrLookupProxy.
-// 20261026 CL/MMR SST-893 The e-mail from the lookup now reaches the debitor card, whose primary e-mail field is
-//                  kontakt_email_val[1] since the new e-mail system (there is no field named email there).
-//                  Fields cvrapi.dk sends as null (often e-mail and fax) are left out instead of being written as the text "null".
+// 20261026 CL/MMR SST-893 The e-mail from the lookup now reaches the debitor card, whose primary e-mail field is kontakt_email_val[1] since the new e-mail system (there is no field named email there).
+//                 Fields cvrapi.dk sends as null (often e-mail and fax) are left out instead of being written as the text "null".
 
 // The debitor card's primary e-mail field is kontakt_email_val[1]; the kreditor card, stamkort and sager still use email.
 // The name is quoted in the selector because of the brackets.
