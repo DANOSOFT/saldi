@@ -272,7 +272,7 @@ if (in_array($funktion, ['kontoopslag'], true)) {
 # MB-65 a read-only or rightless user may open the card, but nothing here may write. The handlers
 # below write from GET as well as POST, so the refusal has to come before them, not inside the POST path.
 $mb65_write = false;
-foreach (array('copy', 'saveItem', 'deleteItem', 'acceptStockChange', 'delete_category', 'delete_var_type', 'rename_category', 'ChangeDescription') as $mb65_key) {
+foreach (array('copy', 'saveItem', 'deleteItem', 'acceptStockChange', 'delete_category', 'delete_var_type', 'rename_category', 'ChangeDescription', 'supplierLookUp', 'submit') as $mb65_key) {
     if (isset($_POST[$mb65_key]) || isset($_GET[$mb65_key])) $mb65_write = true;
 }
 if (isset($_GET['konto_id']) && (int)$_GET['konto_id']) $mb65_write = true;
@@ -355,6 +355,13 @@ if (isset($_POST['copy']) && $_POST['copy'])
 if (isset($_POST['supplierLookUp']) && $_POST['supplierLookUp'])
     $submit = 'supplierLookUp';
 
+# MB-65 every path into this block writes, whatever button carried it, so the refusal sits here as
+# well as at the action names above: a new action cannot reach the save by not being named there.
+if ($rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+    error_log('MB-65: item save refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+    print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
+    exit;
+}
 if ($saveItem || $submit = trim($submit)) {
     $id = (int) if_isset($_POST, 0, 'id');
     $beskrivelse = if_isset($_POST, NULL,'beskrivelse');

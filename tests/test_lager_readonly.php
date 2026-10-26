@@ -55,6 +55,13 @@ lagerCheck(lagerMaySave('1111111112111111') === false, 'a read-only user (2 on m
 lagerCheck(lagerMaySave('1111111110111111') === false, 'a user with 0 may not');
 lagerCheck(lagerMaySave('') === true, 'an empty rights string is left as it was');
 
+# ---- and the gate at the head of the save block, which every write path passes through ------------
+$saveGate = strpos($guard, 'every path into this block writes');
+$saveBlock = strpos($guard, 'if ($saveItem || $submit = trim($submit))');
+lagerCheck($saveGate !== false, 'the save block carries its own refusal');
+lagerCheck($saveGate !== false && $saveBlock !== false && $saveGate < $saveBlock, 'and it sits before the block every write path enters');
+lagerCheck(strpos($guard, 'supplierLookUp') !== false && strpos($guard, '$mb65_write') !== false, 'the early gate names supplierLookUp as well');
+
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";
 exit($failures ? 1 : 0);
