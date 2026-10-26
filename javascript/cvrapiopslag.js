@@ -32,12 +32,28 @@
 // 20261006 CL/SZ SD-721 Messages for BLOCKED and BANNED: cvrapi.dk refuses the server's lookups (sager/cvrLookupProxy.php passes the code on).
 // 20261006 CL/SZ SD-721 INVALID_UA gets the same message; the kreditor and debitor cards now use the proxy too (cvrLookupClientConfig()).
 // 20261007 CL/SZ SD-721 The kreditor and debitor cards are back on the browser lookup (cvrapi.dk, as on live) until Datafordeleren is tested; only the pool dialog sets cvrLookupProxy.
+// 20261026 CL/MMR SST-893 The e-mail from the lookup now reaches the debitor card, whose primary e-mail field is kontakt_email_val[1] since the new e-mail system (there is no field named email there).
+//                 Fields cvrapi.dk sends as null (often e-mail and fax) are left out instead of being written as the text "null".
+// The debitor card's primary e-mail field is kontakt_email_val[1]; the kreditor card, stamkort and sager still use email.
+// The name is quoted in the selector because of the brackets.
 // 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
 //                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
 
+
+var cvrFeltAlias = { email: ['email', 'kontakt_email_val[1]'] };
+
+function cvrFeltNavn(name) {
+	var navne = cvrFeltAlias[name] || [name];
+	for (var i = 0; i < navne.length; i++) {
+		if ($("[name='" + navne[i] + "']").length) return navne[i];
+	}
+	return name;
+}
+
 function cvrField(name) {
-	var visible = $("[name=" + name + "]").not("[type=hidden]");
-	return visible.length ? visible.first() : $("[name=" + name + "]").first();
+	var alle    = $("[name='" + cvrFeltNavn(name) + "']");
+	var visible = alle.not("[type=hidden]");
+	return visible.length ? visible.first() : alle.first();
 }
 
 function cvrValue(name) {
@@ -68,12 +84,17 @@ function getExistingFormData() {
 	};
 }
 
+// cvrapi.dk sends a missing value as null; String(null) would put the text "null" in the field.
+function cvrHar(b, felt) {
+	return b.hasOwnProperty(felt) && b[felt] !== null && b[felt] !== undefined;
+}
+
 function normaliseApiData(b) {
 	var data = {};
-	if (b.hasOwnProperty("vat"))     data.cvrnr     = String(b.vat).trim();
-	if (b.hasOwnProperty("name"))    data.firmanavn  = String(b.name).trim();
-	if (b.hasOwnProperty("address")) {
-		if (b.hasOwnProperty("addressco") && b.addressco != null) {
+	if (cvrHar(b, "vat"))     data.cvrnr     = String(b.vat).trim();
+	if (cvrHar(b, "name"))    data.firmanavn = String(b.name).trim();
+	if (cvrHar(b, "address")) {
+		if (cvrHar(b, "addressco")) {
 			data.addr1 = "c/o " + b.addressco;
 			data.addr2 = b.address;
 		} else {
@@ -81,11 +102,11 @@ function normaliseApiData(b) {
 			data.addr2 = '';
 		}
 	}
-	if (b.hasOwnProperty("zipcode")) data.postnr    = String(b.zipcode).trim();
-	if (b.hasOwnProperty("city"))    data.bynavn    = String(b.city).trim();
-	if (b.hasOwnProperty("phone"))   data.tlf       = String(b.phone).trim();
-	if (b.hasOwnProperty("email"))   data.email     = String(b.email).trim();
-	if (b.hasOwnProperty("fax"))     data.fax       = String(b.fax).trim();
+	if (cvrHar(b, "zipcode")) data.postnr    = String(b.zipcode).trim();
+	if (cvrHar(b, "city"))    data.bynavn    = String(b.city).trim();
+	if (cvrHar(b, "phone"))   data.tlf       = String(b.phone).trim();
+	if (cvrHar(b, "email"))   data.email     = String(b.email).trim();
+	if (cvrHar(b, "fax"))     data.fax       = String(b.fax).trim();
 	return data;
 }
 
@@ -106,7 +127,7 @@ function detectConflicts(existing, incoming) {
 function applyFormFields(data) {
 	for (var key in data) {
 		if (!data.hasOwnProperty(key)) continue;
-		var el = $("[name=" + key + "]");
+		var el = $("[name='" + cvrFeltNavn(key) + "']");
 		if (el.length) el.val(data[key]);
 	}
 }
