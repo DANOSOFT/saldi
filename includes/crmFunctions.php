@@ -488,7 +488,7 @@ function crm_text_ids(): array
 		7566 => 'ekskl. moms',
 		7567 => 'Søg blandt alle kunder',
 		7568 => 'Fundet uden for listen',
-		7569 => 'Registreret af %s',
+		7569 => 'Markér handlen som %s',
 		7570 => 'Mandag',
 		7571 => 'Handel »%s« slettet',
 		7572 => 'Genåbn'

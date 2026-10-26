@@ -778,7 +778,7 @@ function dropOnBoard(c, g, col, end) {
 	const deals = openDeals(c.id);
 	if (end) {
 		const to = end === 'won' ? g.won : g.lost, lbl = end === 'won' ? t('vundet') : t('tabt');
-		const extra = deals.length ? {label: t('Markér %s åbne handler som %s', deals.length, lbl), fn: () => {
+		const extra = deals.length ? {label: deals.length === 1 ? t('Markér handlen som %s', lbl) : t('Markér %s åbne handler som %s', deals.length, lbl), fn: () => {
 			if (end === 'won') { deals.forEach(d => moveDeal(d, {state: 'won'}, t('vundet'))); return; }
 			lostDialog(deals.length === 1 ? deals[0] : {t: c.n}, reason => deals.forEach(d => moveDeal(d, {state: 'lost', reason}, t('tabt') + (reason ? ' – ' + reason : ''))));
 		}} : null;
