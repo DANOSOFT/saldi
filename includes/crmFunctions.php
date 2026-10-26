@@ -536,7 +536,8 @@ function crm_text_ids(): array
 		7610 => 'Åbn tandhjulet',
 		7611 => 'Vis 1 kunde uden opfølgning',
 		7612 => 'Skjul 1 kunde uden opfølgning',
-		7613 => 'Flyt opfølgningen til %s'
+		7613 => 'Flyt opfølgningen til %s',
+		7614 => '1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.'
 	);
 }
 

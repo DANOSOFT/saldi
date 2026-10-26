@@ -181,6 +181,8 @@ const SV = {
 // Errors as plain sentences, optimistic UI rolled back, an expired session with a Reload button (R75); a response older
 // than one already applied is ignored (R76).
 let busy = false, seqNo = 0, applied = 0;
+const shown = msg => { const e = new Error(msg); e.crmShown = true; return e; };
+window.addEventListener('unhandledrejection', e => { if (e.reason && e.reason.crmShown) e.preventDefault(); });
 const ERR = () => ({noaccess: t('Du har ikke rettighed til at ændre i CRM.'), status_used: t('Statussen er i brug og kan ikke slettes.'),
 	amount: t('Beløbet kunne ikke læses – skriv fx 12.500,50.'), fields: t('Kunne ikke gemme. Prøv igen.'), date: t('Kunne ikke gemme. Prøv igen.')});
 function redraw() { renderAll(); if (S.drawer) renderDrawer(); }
@@ -193,17 +195,17 @@ async function api(action, payload) {
 		try {
 			res = await fetch(DATA.api, {method: 'POST', credentials: 'same-origin',
 				headers: {'Content-Type': 'application/json', 'X-CSRF-Token': DATA.csrf}, body: JSON.stringify(Object.assign({action}, payload || {}))});
-		} catch (e) { redraw(); toast(t('Ingen forbindelse – ændringen blev ikke gemt.')); throw e; }
+		} catch (e) { redraw(); toast(t('Ingen forbindelse – ændringen blev ikke gemt.')); throw shown('network'); }
 		let j = null;
 		try { j = await res.json(); } catch (e) { j = null; }
 		if (!j) {
 			// includes/online.php answers an expired session with an HTML box and status 200
 			if (res.status === 200 || res.status === 401 || res.status === 403) loggedOut(); else { redraw(); toast(t('Kunne ikke gemme. Prøv igen.')); }
-			throw new Error('http ' + res.status);
+			throw shown('http ' + res.status);
 		}
 		if (!j.ok) {
 			if (j.error === 'csrf') loggedOut(); else { redraw(); toast(ERR()[j.error] || t('Kunne ikke gemme (%s). Prøv igen.', j.error || res.status)); }
-			throw new Error(j.error);
+			throw shown(j.error);
 		}
 		if (j.data && my > applied) { applied = my; load(j.data); redraw(); }
 		if (S.drawer && FULL[S.drawer]) { const cid = S.drawer; refreshFull(cid).then(ok => { if (ok && S.drawer === cid) { mergeFull(); redraw(); } }); }
@@ -967,7 +969,7 @@ function renderAll() {
 	if (old >= 3 && DATA.canWrite && localStorage.getItem('crm-oldlate') !== DATA.today) {
 		notes.push(esc(t('%s opfølgninger fra det gamle CRM er mere end 90 dage forsinkede.', old)) + ` <button type="button" class="linkbtn" data-closeold="1">${t('Markér dem som gjort')}</button> <button type="button" class="linkbtn" data-notnow="1">${t('Ikke nu')}</button>`);
 	}
-	if (DATA.ungrouped && DATA.canWrite) notes.push(esc(t('%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.', num(DATA.ungrouped))) + ` <button type="button" class="linkbtn" data-opengear="1">${t('Opsæt statusgrupper')}</button>`);
+	if (DATA.ungrouped && DATA.canWrite) notes.push(esc(DATA.ungrouped === 1 ? t('1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.') : t('%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.', num(DATA.ungrouped))) + ` <button type="button" class="linkbtn" data-opengear="1">${t('Opsæt statusgrupper')}</button>`);
 	if (!DATA.canWrite) notes.push(esc(t('Du kan se CRM, men ændringer kræver skriveadgang til Debitor → Konti.')));
 	nb.innerHTML = notes.join('<br>'); nb.hidden = !notes.length;
 	$('#gearBtn').closest('.gear').hidden = !DATA.canWrite;

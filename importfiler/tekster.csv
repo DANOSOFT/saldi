@@ -7114,3 +7114,4 @@
 7611	Vis 1 kunde uden opfølgning	Show 1 customer without a follow-up	Vis 1 kunde uten oppfølging
 7612	Skjul 1 kunde uden opfølgning	Hide 1 customer without a follow-up	Skjul 1 kunde uten oppfølging
 7613	Flyt opfølgningen til %s	Move the follow-up to %s	Flytt oppfølgingen til %s
+7614	1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	1 customer has a status that is not in a status group and is therefore not shown in the CRM.	1 kunde har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
