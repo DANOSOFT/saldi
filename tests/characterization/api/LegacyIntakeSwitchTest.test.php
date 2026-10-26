@@ -13,6 +13,8 @@
 // - debitor/ordreliste.php: a closed intake slot is not asked for orders; the SHOP import follows
 //   afd 4's slot.
 // - lager/varekort.php: a slot closed for outbound gets no price.
+// - sync_shop/sync_all_products.php: a slot closed for outbound gets nothing and the others the
+//   same calls; with every slot closed nothing is sent.
 //
 // Synthetic data. Requires the docker-compose stack (see README) - skips cleanly otherwise.
 //
@@ -217,6 +219,34 @@ final class LegacyIntakeSwitchTest extends CharacterizationTestCase
 		self::rows('DELETE FROM varer WHERE id = $1', [$item['id']]);
 	}
 
+	// ---- sync_shop/sync_all_products.php ---------------------------------------------------------
+
+	public function testSyncAllProductsSendsNothingToASlotClosedForOutbound(): void
+	{
+		$item = self::$fx->item(['salgspris' => 200.0, 'kostpris' => 80.0]);
+		self::rows('INSERT INTO lagerstatus (vare_id, lager, variant_id, beholdning) VALUES ($1, 1, 0, 3)', [$item['id']]);
+		$ours = fn(array $r): bool => in_array($r['query']['itemNo'] ?? $r['query']['sku'] ?? null, [$item['varenr']], true);
+		$calls = fn(array $requests): array => array_count_values(array_column($requests, 'path'));
+
+		try {
+			$this->setting(5, 'outbound_enabled', 'off');
+			$this->setting(4, 'intake_enabled', '0');
+			$this->page('sync_shop/sync_all_products.php', []);
+			// Stock, price and sku per open slot; intake doesn't matter.
+			$this->assertSame(['/a/' => 3, '/c/' => 3], $this->sorted($calls(self::$shop->waitFor(6, 10.0, 0.5, $ours))));
+
+			self::$shop->reset();
+			$this->setting(4, 'outbound_enabled', 'false');
+			$this->setting(6, 'outbound_enabled', 'nej');
+			$out = $this->page('sync_shop/sync_all_products.php', []);
+			$this->assertSame([], self::$shop->waitFor(0, 0, 1.0), 'nothing at all is sent');
+			$this->assertStringContainsString('Error: No API configuration found', $out);
+		} finally {
+			self::rows('DELETE FROM lagerstatus WHERE vare_id = $1', [$item['id']]);
+			self::rows('DELETE FROM varer WHERE id = $1', [$item['id']]);
+		}
+	}
+
 	// ---- helpers ---------------------------------------------------------------------------------
 
 	private function setting(int $slot, string $name, string $value): void
@@ -249,6 +279,12 @@ final class LegacyIntakeSwitchTest extends CharacterizationTestCase
 		$this->lastOrderId = (int)self::one('SELECT coalesce(max(id), 0) AS n FROM ordrer')['n'];
 		$this->writes = $count() - $before;
 		return [$res['status'], trim($res['output']), $orders];
+	}
+
+	private function sorted(array $counts): array
+	{
+		ksort($counts);
+		return $counts;
 	}
 
 	private function page(string $page, array $get): string
