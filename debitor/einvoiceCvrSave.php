@@ -26,6 +26,15 @@
 //                 The popup posts here instead of posting the order form, so a refresh of the order page can never send the CVR again, and a rejected CVR is shown in the popup without a page load.
 //                 Needs a logged-in user with debitor rights (online.php, module 5); the rules are in orderIncludes/einvoiceCvr.php.
 
+/**
+ * Injected by ../includes/connect.php, included below:
+ * @var string $sqdb
+ *
+ * Injected by ../includes/online.php, included below:
+ * @var string $db
+ * @var string $brugernavn
+ */
+
 ob_start(); // online.php may print; only the JSON below is sent
 
 @session_start();

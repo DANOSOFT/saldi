@@ -4,6 +4,15 @@
 // 20260924 Sawaneh    JOB-141: debitor module rights are checked here (online.php) - only a login
 //                     was required before, and a send now also writes ordrer.digital_status.
 // 20261026 CL/MMR SD-774 sendInvoice() gets the page's encoding and language, which its missing-CVR page needs.
+
+/**
+ * Injected by ../includes/connect.php through api.php, included below:
+ * @var string $db_encode
+ *
+ * Injected by ../includes/online.php through api.php, included below:
+ * @var int|string $sprog_id
+ */
+
 ob_start();
 $modulnr = 5;
 include_once("api.php");
