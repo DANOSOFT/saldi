@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.0.0 --- 2026-10-21 ---
+// --- debitor/api.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,8 @@
 //                  PartyLegalEntity/CompanyID under schemeID 0088 instead of a CVR under
 //                  0184. The key is omitted when no CVR is known; routing on the GLN and
 //                  the GLN exemptions in both missing-CVR guards are unchanged.
+
+// 20261026 CDX/MJ SST-873 Integrate current master while preserving international payment identifiers.
 
     @session_start();
     $s_id=session_id();
@@ -1089,4 +1091,5 @@
         $name = getInvoicesOrder($data, "https://easyubl.net/api/SendDocuments/Order/", $id);
         return $name;
     }
+
 ?>

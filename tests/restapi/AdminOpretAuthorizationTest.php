@@ -11,6 +11,8 @@
 // 20260803 CL/SZ SD-615: created.
 // 20260804 CL/SZ Assert the logout refusal body (not just status != 0) so the
 //                test fails on a 500 instead of passing on any failure.
+// 20261022 CL/NTR Dropped the "DEFECT PINNED" anonymous-create test: SD-615 fixed it, and it contradicted the refusal test.
+//                 The missing-field test uses a per-run entity name and RestApiEnv::httpForm() (self::ENTITY was undefined).
 
 use PHPUnit\Framework\TestCase;
 
@@ -72,5 +74,29 @@ final class AdminOpretAuthorizationTest extends TestCase
 
         $this->assertSame([], $rows, 'an anonymous request must not create a regnskab row');
         $this->assertNull($createdDb, 'an anonymous request must not create a tenant database');
+    }
+
+    /** An anonymous request with one field left out is refused the same way. */
+    public function test_the_same_request_missing_one_field_is_refused(): void
+    {
+        $regnskab = 'sd615probe' . bin2hex(random_bytes(4));
+
+        $res = RestApiEnv::httpForm('POST', '/admin/opret.php', [
+            'regnskab' => $regnskab,
+            'brugernavn' => 'probeadmin',
+            'passwd' => 'probe-password-2026',
+            // passwd2 deliberately omitted
+        ]);
+
+        $master = RestApiEnv::connect(RestApiEnv::masterDb());
+        $created = RestApiEnv::rows($master, 'SELECT db FROM regnskab WHERE regnskab = $1', [$regnskab]);
+        pg_close($master);
+
+        $this->assertSame([], $created, 'nothing is created when the session check runs');
+        $this->assertMatchesRegularExpression(
+            '/logud\.php|ikke noget at g/i',
+            $res['body'],
+            'the session check sends the caller to the logout page'
+        );
     }
 }
