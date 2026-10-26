@@ -1,4 +1,4 @@
-// --- javascript/cvrapiopslag.js --- patch 5.0.0 --- 2026-07-06 ---
+// --- javascript/cvrapiopslag.js --- ver 5.0.0 --- 2026-10-26 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,7 +17,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2026 Danosoft.ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2015.01.23 Hente virksomhedsdata fra CVR med CVRapi - tak Niels Rune https://github.com/nielsrune
 // 20260706 MJ Add plain 8-digit trigger, confirmation overlay with type="button" to prevent accidental form submission
@@ -32,6 +32,8 @@
 // 20261006 CL/SZ SD-721 Messages for BLOCKED and BANNED: cvrapi.dk refuses the server's lookups (sager/cvrLookupProxy.php passes the code on).
 // 20261006 CL/SZ SD-721 INVALID_UA gets the same message; the kreditor and debitor cards now use the proxy too (cvrLookupClientConfig()).
 // 20261007 CL/SZ SD-721 The kreditor and debitor cards are back on the browser lookup (cvrapi.dk, as on live) until Datafordeleren is tested; only the pool dialog sets cvrLookupProxy.
+// 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
+//                  The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
 
 function cvrField(name) {
 	var visible = $("[name=" + name + "]").not("[type=hidden]");
@@ -243,7 +245,8 @@ function cvrFejl(felt, kode) {
 
 var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
 var plainCvr = /^\d{8}$/;
-var trailingSymbolCvr = /^(\d{8})[\*\/\+]$/;
+// 8 digits followed by *, + or /, optionally also preceded by one (the guide on the debitor card says /20756438/).
+var symbolCvr = /^[\*\/\+]?(\d{8})[\*\/\+]$/;
 
 // The lookup used to be sent on the keystroke itself, so typing on - a longer number, say -
 // fired off several calls. It now waits until typing has been still for a moment, and
@@ -278,13 +281,13 @@ function cvrAutoOpslag(felt, vaerdi) {
 function cvrKeyupOpslag(e){
 	var felt = $(e.target);
 	var vaerdi = (felt.val() || '').trim();
-	var trailingMatch = trailingSymbolCvr.exec(vaerdi);
+	var symbolMatch = symbolCvr.exec(vaerdi);
 
 	if (cvrTimer) { clearTimeout(cvrTimer); cvrTimer = null; }
 
-	if(trailingMatch){
-		felt.val(trailingMatch[1]);
-		cvrOpslag(felt, trailingMatch[1], 'vat');
+	if(symbolMatch){
+		felt.val(symbolMatch[1]);
+		cvrOpslag(felt, symbolMatch[1], 'vat');
 	} else if(cvrAutoOpslag(felt, vaerdi)){
 		cvrTimer = setTimeout(function(){ cvrOpslag(felt, vaerdi, 'vat'); }, cvrPause);
 	} else {
@@ -293,10 +296,17 @@ function cvrKeyupOpslag(e){
 	}
 }
 
+// A pasted number fires no keyup, so the symbols are handled here as well; otherwise they were saved in the field.
 function cvrBlurOpslag(e){
 	var felt = $(e.target);
 	var vaerdi = (felt.val() || '').trim();
-	if(cvrAutoOpslag(felt, vaerdi)) cvrOpslag(felt, vaerdi, 'vat');
+	var symbolMatch = symbolCvr.exec(vaerdi);
+	if (symbolMatch) {
+		felt.val(symbolMatch[1]);
+		cvrOpslag(felt, symbolMatch[1], 'vat');
+	} else if (cvrAutoOpslag(felt, vaerdi)) {
+		cvrOpslag(felt, vaerdi, 'vat');
+	}
 }
 
 cvrField('ny_kontonr').keyup(cvrKeyupOpslag).blur(cvrBlurOpslag);
