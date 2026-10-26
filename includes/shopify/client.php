@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/client.php --- ver 5.0.0 --- 2026-10-21 ---
+// --- includes/shopify/client.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,9 +32,15 @@
 // 20261023 CDX/LH Tighten reconcile results, retry state, mutation guards and bulk polling (SD-747).
 // 20261023 CL/SZ Follow-ups from the #828 review: exact bulk-start matching, X-Request-Id and redacted
 //                bodies for WP02's call log, @idempotent(key:) in the idempotent-mode example (SD-747).
+// 20261026 CL/SZ Normalise splits names, numbers and "..." into separate tokens, reads block-string
+//                escapes and BOMs as GraphQL does and refuses bad escapes and leading zeros; a body
+//                that can't be JSON-encoded is reported as redact_error, and error-log lines keep
+//                their metadata when a value isn't valid UTF-8 (SD-747, #862 review).
 
 const SHOPIFY_API_VERSION = '2026-07';
 const SHOPIFY_MAX_RETRIES = 3;
+// Error-log lines: a stray invalid byte (say in a correlation id) is replaced, never an empty line.
+const SHOPIFY_LOG_JSON = JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR;
 const SHOPIFY_CONNECT_TIMEOUT = 10.0;
 const SHOPIFY_TOTAL_TIMEOUT = 30.0;
 // A request (or a reconcile read) is not started with less time than this left.
@@ -638,17 +644,20 @@ function shopify_graphql_needs_reconcile(string $query, array $vars): ?string
  */
 function shopify_graphql_normalise(string $query): ?string
 {
-	// Every byte must belong to a token, an ignored run or a comment; anything else (a stray
-	// quote, an unterminated string) lands in the last group and makes the document unreadable.
+	// Every byte must belong to a token (string, punctuator, name or number), an ignored run
+	// (whitespace, commas, BOMs) or a comment; anything else (a stray quote, an unterminated
+	// string, a bad escape, a leading zero, a number run into a name) lands in the last group and
+	// makes the document unreadable. In a block string only \""" is an escape. Names, numbers
+	// and "..." are separate tokens, so "id..." and "id ..." normalise alike.
 	$found = preg_match_all(
-		'/"""(?:[^"\\\\]++|\\\\.|"(?!""))*+"""|"(?:[^"\\\\\r\n]++|\\\\.)*+"|#[^\r\n]*+|[\s,]++|\.\.\.|[!$&():=@\[\]{}|]|[^\s,!$&():=@\[\]{}|"#]++|(.)/s',
+		'/"""(?:[^"\\\\]++|\\\\"""|\\\\|"(?!""))*+"""|(?!""")"(?:[^"\\\\\r\n]++|\\\\(?:["\\\\\/bfnrt]|u[0-9A-Fa-f]{4}|u\{[0-9A-Fa-f]++\}))*+"|#[^\r\n]*+|(?:[\s,]|\xEF\xBB\xBF)++|\.\.\.|[!$&():=@\[\]{}|]|[_A-Za-z][_0-9A-Za-z]*+|-?(?:0|[1-9]\d*+)(?:\.\d++)?+(?:[eE][+-]?+\d++)?+(?![_A-Za-z\d.])|(.)/s',
 		$query,
 		$m
 	);
 	if ($found === false || array_filter($m[1], fn(string $bad): bool => $bad !== '')) {
 		return null;
 	}
-	$tokens = array_filter($m[0], fn(string $t): bool => $t[0] !== '#' && trim($t, " \t\r\n,") !== '');
+	$tokens = array_filter($m[0], fn(string $t): bool => $t[0] !== '#' && trim($t, " \t\r\n\v\f,\xEF\xBB\xBF") !== '');
 	return implode(' ', $tokens);
 }
 
@@ -781,8 +790,9 @@ function shopify_client_text(mixed $value): string
 
 /**
  * The request and response bodies for the call log, redacted and base64 JSON. Null without a
- * redactor, and null (with only the exception class noted) when the redactor fails: the call
- * has already been sent, so a failing redactor must not cost its result.
+ * redactor, and null (with only the exception class noted) when the redactor fails or its
+ * output can't be JSON-encoded (invalid UTF-8): the call has already been sent, so neither may
+ * cost its result.
  *
  * @return array{request_b64: string|null, response_b64: string|null, redact_error?: string}
  */
@@ -792,7 +802,7 @@ function shopify_client_logged_bodies(?callable $redact, array $request, string 
 		return ['request_b64' => null, 'response_b64' => null];
 	}
 	try {
-		$encode = fn(mixed $body): string => base64_encode((string) json_encode($redact($body, $secrets), JSON_UNESCAPED_SLASHES));
+		$encode = fn(mixed $body): string => base64_encode((string) json_encode($redact($body, $secrets), JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 		return ['request_b64' => $encode($request), 'response_b64' => $encode(json_decode($responseBody, true) ?? $responseBody)];
 	} catch (Throwable $e) {
 		return ['request_b64' => null, 'response_b64' => null, 'redact_error' => get_class($e)];
@@ -811,7 +821,7 @@ function shopify_client_emit(callable $log, array $entry): void
 		unset($entry['request_b64'], $entry['response_b64']);
 		$entry['log_error'] = get_class($e);
 		try {
-			error_log('shopify_graphql ' . json_encode($entry, JSON_UNESCAPED_SLASHES));
+			error_log('shopify_graphql ' . json_encode($entry, SHOPIFY_LOG_JSON));
 		} catch (Throwable) {
 			// Both destinations failed: the entry is lost, the call's result is not.
 		}
@@ -835,5 +845,5 @@ function shopify_client_log(array $entry, array $secrets = []): void
 		}
 	}
 	unset($entry['request_b64'], $entry['response_b64']);
-	error_log('shopify_graphql ' . json_encode($entry, JSON_UNESCAPED_SLASHES));
+	error_log('shopify_graphql ' . json_encode($entry, SHOPIFY_LOG_JSON));
 }

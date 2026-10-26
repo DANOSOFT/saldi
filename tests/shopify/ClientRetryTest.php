@@ -10,6 +10,8 @@
 // 20261021 CL/SZ created (SD-747).
 // 20261023 CDX/LH Cover reconcile data, retry state, programming errors and mutation guard fixes.
 // 20261023 CL/SZ Duplicate-order branches, @idempotent(key:) document, request id and redacted bodies in the log.
+// 20261026 CL/SZ A body that can't be JSON-encoded is reported as redact_error; error-log lines keep their
+//                metadata with an invalid byte (#862 review).
 
 use PHPUnit\Framework\TestCase;
 
@@ -411,6 +413,39 @@ final class ClientRetryTest extends TestCase
 		$this->assertSame(['ok', 1], [$r2['outcome'], count($fake2->calls)], 'logger failure: result kept, nothing resent');
 		$this->assertStringContainsString('"log_error":"RuntimeException"', $fallback);
 		$this->assertStringNotContainsString(FakeShopify::TOKEN, json_encode($fake->logs) . $fallback, 'exception messages are never logged');
+	}
+
+	public function test_a_body_that_cannot_be_encoded_is_reported_not_logged_empty(): void
+	{
+		$garbled = ['status' => 200, 'body' => "\xFF\xFE not utf-8", 'errno' => 0, 'error' => '', 'sent' => true, 'retry_after' => null];
+		$fake = new FakeShopify([$garbled, FakeShopify::ok(['shop' => ['name' => 'HML']])]);
+
+		shopify_graphql(FakeShopify::shop(), 'shop', self::SHOP_QUERY, [], $fake->opts(['redact' => fn(mixed $v): mixed => $v]));
+
+		$entry = $fake->logs[0];
+		$this->assertSame([null, null, 'JsonException'], [$entry['request_b64'], $entry['response_b64'], $entry['redact_error'] ?? null]);
+	}
+
+	public function test_an_invalid_byte_in_the_entry_does_not_empty_the_error_log_line(): void
+	{
+		$file = tempnam(sys_get_temp_dir(), 'shopify-log');
+		$previous = ini_set('error_log', $file);
+		try {
+			shopify_client_log(['op' => 'shop', 'correlation' => ['id' => "\xFF"], 'outcome' => 'ok']);
+			$fake = new FakeShopify([FakeShopify::ok(['shop' => ['name' => 'HML']])]);
+			shopify_graphql(FakeShopify::shop(), 'shop', self::SHOP_QUERY, [], $fake->opts([
+				'correlation' => ['id' => "\xFF"], 'log' => fn(array $e) => throw new RuntimeException('call log down'),
+			]));
+		} finally {
+			ini_set('error_log', (string) $previous);
+		}
+		$lines = array_values(array_filter(explode("\n", (string) file_get_contents($file))));
+		unlink($file);
+
+		$this->assertCount(2, $lines);
+		$this->assertStringContainsString('"op":"shop"', $lines[0], 'default log keeps the metadata');
+		$this->assertStringContainsString('"op":"shop"', $lines[1], 'failed-logger fallback keeps the metadata');
+		$this->assertStringContainsString('"log_error":"RuntimeException"', $lines[1]);
 	}
 
 	public function test_an_invalid_log_or_redact_option_is_refused_before_anything_is_sent(): void
