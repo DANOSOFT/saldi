@@ -13,6 +13,8 @@
 // is the thing that decides whether the 30 second budget survives a document: how many rounds of
 // http calls one item is worth.
 //
+// 20261026 CDX/MJ Model non-stock-managed set groups, their structure and changing availability for recovery tests.
+//
 // Invoice 230508 of 2026-10-19 is the shape being reproduced: five lines, the first of them item
 // 13054, a component in 33 sets. On live it made 108 successful calls and then skipped everything
 // that followed, including item 107657.
@@ -59,7 +61,7 @@ function db_select($qtext, $spor = '', $global = false)
 			$rows[] = array('delvare' => $item['delvare'], 'gruppe' => $item['gruppe']);
 		}
 	} elseif (strpos($qtext, "select box8 from grupper") !== false) {
-		$rows[] = array('box8' => 'on');
+		$rows[] = array('box8' => strpos($qtext, "kodenr='12'") !== false ? '' : 'on');
 	} elseif (strpos($qtext, 'from lagerstatus,varer') !== false) {
 		preg_match("/lagerstatus.vare_id='(\d+)'/", $qtext, $m);
 		$item = isset($ITEMS[(int)$m[1]]) ? $ITEMS[(int)$m[1]] : null;
@@ -82,6 +84,13 @@ function db_select($qtext, $spor = '', $global = false)
 		$item = isset($ITEMS[(int)$m[1]]) ? $ITEMS[(int)$m[1]] : null;
 		foreach (($item ? $item['parents'] : array()) as $parent) {
 			$rows[] = array('indgaar_i' => $parent, 'vare_id' => (int)$m[1]);
+		}
+	} elseif (preg_match("/select indgaar_i from styklister where indgaar_i = ([0-9]+) limit 1/", $qtext, $m)) {
+		foreach ($ITEMS as $component) {
+			if (in_array((int)$m[1], $component['parents'], true)) {
+				$rows[] = array('indgaar_i' => (int)$m[1]);
+				break;
+			}
 		}
 	} elseif (preg_match("/select varenr,varenr_alias,kostpris from varer where id = '(\d+)'/", $qtext, $m)) {
 		$item = isset($ITEMS[(int)$m[1]]) ? $ITEMS[(int)$m[1]] : null;
@@ -108,7 +117,10 @@ function db_escape_string($text)
 
 function getAvailable($itemId, $stockNo)
 {
-	return '67|67';
+	if (($GLOBALS['setAvailabilityDelay'] ?? 0) > 0) {
+		usleep((int)($GLOBALS['setAvailabilityDelay'] * 1000000));
+	}
+	return $GLOBALS['setAvailability'][$itemId] ?? '67|67';
 }
 
 // ---------------------------------------------------------------- the stubbed transport
@@ -161,8 +173,9 @@ function calls_in_rounds()
 	return $n;
 }
 
-function reset_fanout()
+function reset_fanout($clearQueue = true)
 {
+	$GLOBALS['setAvailabilityDelay'] = 0.0;
 	$GLOBALS['shopRounds'] = array();
 	$GLOBALS['shopDead']   = '';
 	$GLOBALS['shopLatency'] = 0.0;
@@ -175,8 +188,10 @@ function reset_fanout()
 	$marks = &shopSyncMarkState();
 	$marks['items'] = array();
 	shopSyncClearFailedItems();
-	foreach (glob(shopSyncQueueDir() . '*') as $file) {
-		unlink($file);
+	if ($clearQueue) {
+		foreach (glob(shopSyncQueueDir() . '*') as $file) {
+			unlink($file);
+		}
 	}
 	// The set guard inside sync_shop_vare() is a static for the length of a request, and a test
 	// process is one request, so it is cleared the way a new request would get it.

@@ -42,6 +42,7 @@ for the local stack come from env vars or the gitignored
 ## SST-876 document stock synchronization
 
 <!-- 20261023 CDX/MJ Track the fixes requested in SST-876 comment 22605 and their regression checks. -->
+<!-- 20261026 CDX/MJ Document outage recovery for sets in non-stock-managed groups. -->
 
 The document sender prepares current quantities, prioritizes the document's lines,
 and sends up to ten payloads across the configured shops per round. Parent sets
@@ -59,6 +60,8 @@ php tests/test_sst876_flush.php
 php tests/test_sst876_sync_queue.php
 php tests/test_sst876_item_fanout.php
 php tests/test_sst876_document_http.php
+php tests/test_sst876_set_recovery.php
+SALDI_SHOP_SET_RECOVERY_HTTP=1 php tests/test_sst876_set_recovery.php
 php tests/test_shop_stock_sync.php
 ```
 
@@ -70,10 +73,29 @@ including vare_id 3580, receive three successful replies in the same request,
 with no warning or remaining queue markers. The controlled HTTP run on 2026-10-23
 sent 423 requests in 4.03 seconds. This is not a new invoice test on ssl12.
 
+The set-recovery regression uses six lines and 130 sets whose own group is not
+stock-managed. Shop 2 is unavailable during the sale, leaving 136 queue entries.
+After recovery it must receive all 136 items, with newly calculated set availability,
+before the queue is empty. Availability preparation is deliberately delayed so
+preparing all 130 sets at once would exceed the five-second queue allowance;
+recovery must prepare and send small groups to make progress. Component retries
+leave dependent sets on independent markers instead of calculating their entire
+fan-out again. The HTTP mode uses actual cURL, a closed loopback port
+for the outage, and the concurrent delayed mock for recovery. It also verifies
+that a known set without a payload stays pending and that full-mode set retries
+retain the original stock and cost-price payloads. Existing queue files work
+without migration: set membership is read from `styklister` when draining.
+
 Before deployment, repeat the saved six-line order against delayed test shops,
 then receive a three-line supplier order while a backlog exists. Also check a
 refusal, a transport outage followed by recovery, and a budget-exhausted request:
 only affected document lines should be named, untried markers must keep their
 attempt counts, and old backlog must not add thirty seconds to the receipt.
+For the outage acceptance test, make shop 2 unreachable before the six-line sale,
+restore it, then perform further stock updates. Check that all 136 items reach
+shop 2 with current stock before their markers disappear, especially sets in
+non-stock-managed group 12. This application-level acceptance test still needs
+to be repeated by the ticket tester.
+
 Do not point the test entity at customer shops. Background delivery and atomic
 queue/database transactions are separate outstanding reliability work.

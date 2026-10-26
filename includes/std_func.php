@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,6 +118,7 @@
 //                  one; shopSyncFailedItems() and shopSyncAlertFailedItems() carry the item
 //                  numbers to whichever page has a user to tell after it has committed.
 // 20261023 CDX/MJ SST-876 Batch document lines before sets, bound backlog work, and report only the document items.
+// 20261026 CDX/MJ SST-876 Share parent-set payload construction with queue recovery, including non-stock-managed sets.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2291,34 +2292,20 @@ if (!function_exists('sync_shop_vare')) {
 							continue;
 						}
 						$partsSent[$partKey] = true;
-						$shop_id = 0;
-						$qtxt = "select varenr,varenr_alias,kostpris from varer where id = '$partOf[$x]'";
-#if ($bruger_id == '-1') echo __line__." $qtxt<br>";
-						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-							$costPrice = $r['kostpris'];
-							$productNo = $r['varenr'];
-							$productNoAlias = $r['varenr_alias'];
+						$collector = &shopSyncDocumentState();
+						if ($collector['collecting'] && $collector['backlog']) {
+							// Sets have their own retry markers. Prepare their expensive availability
+							// only when their entry is drained, rather than expanding every component again.
+							shopSyncQueueAdd($partOf[$x], 0, $lager, $mode);
+							continue;
 						}
-#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
-						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
-						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $shop_id = $r['shop_id'];
-						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
-						$partStockParams = array(
-							'update_stock' => $shop_id,
-							'stock'        => $stock,
-							'totalStock'   => $totalStock,
-							'stockno'      => $lager,
-							'costPrice'    => $costPrice,
-							'itemNo'       => $productNo,
-							'itemNoAlias'  => $productNoAlias,
-							'sku'          => $productNo,
-							'skuAlias'     => $productNoAlias,
-						);
-						$partCostParams = array(
-							'costPrice' => $costPrice,
-							'sku'       => $productNo,
-							'skuAlias'  => $productNoAlias,
-						);
+						$payloads = shopSyncSetPayloads($partOf[$x], $lager);
+						if ($payloads === null) {
+							continue;
+						}
+						$partStockParams = $payloads['stock'];
+						$partCostParams = $payloads['cost'];
+						$productNo = $payloads['label'];
 						$send($endpoints, $partStockParams, "sync_shop_vare update_stock part vare_id $partOf[$x]", $partOf[$x], 0, (string)$productNo);
 						if ($mode !== 'stock') {
 							$send($endpoints, $partCostParams, "sync_shop_vare costPrice part vare_id $partOf[$x]", $partOf[$x], 0, (string)$productNo);
@@ -2475,7 +2462,7 @@ if (!function_exists('shopSyncFlush')) {
 			return 'no api';
 		}
 		if ($backlog) {
-			shopSyncRunDocument($backlog, false, 5);
+			shopSyncRunBacklog($backlog);
 		}
 		return $result['failed'] ? 'sync errors: ' . $result['failed'] : 'OK';
 	}
@@ -2502,7 +2489,7 @@ if (!function_exists('shopSyncDrainQueue')) {
 		}
 		$draining = true;
 		try {
-			$result = shopSyncRunDocument(shopSyncQueuePending($limit), false, 5, $maxAttempts);
+			$result = shopSyncRunBacklog(shopSyncQueuePending($limit), 5, $maxAttempts);
 			return $result['delivered'];
 		} finally {
 			$draining = false;
