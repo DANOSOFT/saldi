@@ -34,9 +34,12 @@
 // 20261007 CL/SZ SD-721 The kreditor and debitor cards are back on the browser lookup (cvrapi.dk, as on live) until Datafordeleren is tested; only the pool dialog sets cvrLookupProxy.
 // 20261026 CL/MMR SST-893 The e-mail from the lookup now reaches the debitor card, whose primary e-mail field is kontakt_email_val[1] since the new e-mail system (there is no field named email there).
 //                 Fields cvrapi.dk sends as null (often e-mail and fax) are left out instead of being written as the text "null".
-
 // The debitor card's primary e-mail field is kontakt_email_val[1]; the kreditor card, stamkort and sager still use email.
 // The name is quoted in the selector because of the brackets.
+// 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
+//                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
+
+
 var cvrFeltAlias = { email: ['email', 'kontakt_email_val[1]'] };
 
 function cvrFeltNavn(name) {
@@ -263,7 +266,8 @@ function cvrFejl(felt, kode) {
 
 var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
 var plainCvr = /^\d{8}$/;
-var trailingSymbolCvr = /^(\d{8})[\*\/\+]$/;
+// 8 digits followed by *, + or /, optionally also preceded by one (the guide on the debitor card says /20756438/).
+var symbolCvr = /^[\*\/\+]?(\d{8})[\*\/\+]$/;
 
 // The lookup used to be sent on the keystroke itself, so typing on - a longer number, say -
 // fired off several calls. It now waits until typing has been still for a moment, and
@@ -298,13 +302,13 @@ function cvrAutoOpslag(felt, vaerdi) {
 function cvrKeyupOpslag(e){
 	var felt = $(e.target);
 	var vaerdi = (felt.val() || '').trim();
-	var trailingMatch = trailingSymbolCvr.exec(vaerdi);
+	var symbolMatch = symbolCvr.exec(vaerdi);
 
 	if (cvrTimer) { clearTimeout(cvrTimer); cvrTimer = null; }
 
-	if(trailingMatch){
-		felt.val(trailingMatch[1]);
-		cvrOpslag(felt, trailingMatch[1], 'vat');
+	if(symbolMatch){
+		felt.val(symbolMatch[1]);
+		cvrOpslag(felt, symbolMatch[1], 'vat');
 	} else if(cvrAutoOpslag(felt, vaerdi)){
 		cvrTimer = setTimeout(function(){ cvrOpslag(felt, vaerdi, 'vat'); }, cvrPause);
 	} else {
@@ -313,10 +317,17 @@ function cvrKeyupOpslag(e){
 	}
 }
 
+// A pasted number fires no keyup, so the symbols are handled here as well; otherwise they were saved in the field.
 function cvrBlurOpslag(e){
 	var felt = $(e.target);
 	var vaerdi = (felt.val() || '').trim();
-	if(cvrAutoOpslag(felt, vaerdi)) cvrOpslag(felt, vaerdi, 'vat');
+	var symbolMatch = symbolCvr.exec(vaerdi);
+	if (symbolMatch) {
+		felt.val(symbolMatch[1]);
+		cvrOpslag(felt, symbolMatch[1], 'vat');
+	} else if (cvrAutoOpslag(felt, vaerdi)) {
+		cvrOpslag(felt, vaerdi, 'vat');
+	}
 }
 
 cvrField('ny_kontonr').keyup(cvrKeyupOpslag).blur(cvrBlurOpslag);
