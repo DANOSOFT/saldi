@@ -1,4 +1,4 @@
-// --- javascript/docPoolArchive.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/docPoolArchive.js --- ver 5.0.0 --- 2026-10-04 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-717 Created: the archive of the document pool.
 //                "Arkivér" per document and for the selection, Del when the focus is not in a field, "Vis arkiverede" and "Gendan".
@@ -6,6 +6,7 @@
 //                Archiving the document in the viewer opens the next one, as "Spring over" does.
 //                Needs window.saldiPoolArchive (docPool.php) and docPoolSaveNext.js's poolSkipDocument().
 // 20261003 CL/SZ SD-719 Archived and restored documents are taken out of the loaded list instead of reloading the page.
+// 20261004 CL/SZ SD-727 Under an archived document, the date it will be deleted follows the archive date: "Slettes 04-10-2027" (deleteNote()).
 (function () {
     'use strict';
 
@@ -48,13 +49,24 @@
             (restore ? ICON_RESTORE : ICON_ARCHIVE) + '</button>';
     }
 
+    /** Y-m-d... as d-m-Y. */
+    function danishDate(value) {
+        var date = String(value).substring(0, 10).split('-');
+        return date.length === 3 ? date[2] + '-' + date[1] + '-' + date[0] : String(value);
+    }
+
     /** "Arkiveret <date>" under a document in the archive. */
     function archivedNote(row) {
         var c = cfg();
         if (!c || !row || !row.archived) return '';
-        var date = String(row.archived).substring(0, 10).split('-');
-        var shown = date.length === 3 ? date[2] + '-' + date[1] + '-' + date[0] : String(row.archived);
-        return c.texts.archived + ' ' + shown;
+        return c.texts.archived + ' ' + danishDate(row.archived);
+    }
+
+    /** "Slettes <date>" under a document in the archive: the day the periodic sync deletes it (SD-727). */
+    function deleteNote(row) {
+        var c = cfg();
+        if (!c || !row || !row.archived || !row.deletes) return '';
+        return c.texts.deletes + ' ' + danishDate(row.deletes);
     }
 
     function post(action, file) {
@@ -156,6 +168,7 @@
         view: archiveView,
         button: button,
         archivedNote: archivedNote,
+        deleteNote: deleteNote,
         runSelected: runSelected,
         toggleView: toggleView
     };
