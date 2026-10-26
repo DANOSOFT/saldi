@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/stripe_charge_due.php --- 2026.10.22
+// --- tools/stripe_charge_due.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,20 +31,23 @@
 //                 is tried once before the customer is mailed. Paid is set by the webhook /
 //                 stripe_payment_sync, never here. Never reads or writes ordrer.nextfakt.
 //
-//   php tools/stripe_charge_due.php [--db=<ledger db>] [--dry-run] [--today=YYYY-MM-DD] [--repair-only]
-//   cron: 0 6 * * *  cd <docroot> && php tools/stripe_charge_due.php >> temp/stripe_charge.log 2>&1
+//   php tools/stripe_charge_due.php [--db=<ledger db> | --all] [--dry-run] [--today=YYYY-MM-DD] [--repair-only]
+//   cron: 0 6 * * *  cd <docroot> && php tools/stripe_charge_due.php --all >> temp/stripe_charge.log 2>&1
 // 20261022 CDX/LH Exit without collecting when invoice payments or enrolment are disabled.
 // 20261022 CDX/LH Repair captured payments before collecting; --repair-only never creates a PaymentIntent.
 // 20261022 CDX/LH Skip invoices outside the shared tenant/debtor/currency eligibility guard.
 // 20261022 CDX/LH Lock the entire job; share durable decline/authentication handling; report errors with non-zero exit.
 // 20261022 CDX/LH Use the tested tenant job for repair-only, summary counts and exit status.
+// 20261026 CL/NTR --all runs the job for every open ledger with Stripe switched on and set up in that ledger (not a
+//                 restored copy), one child process per ledger so each gets a clean connection, settings cache and job
+//                 lock. Exit 1 if any ledger fails.
 
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 date_default_timezone_set('Europe/Copenhagen');
 chdir(__DIR__);
 if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/cli/tools/stripe_charge_due.php';
 if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
-$options = getopt('', array('db::', 'dry-run', 'today::', 'repair-only'));
+$options = getopt('', array('db::', 'all', 'dry-run', 'today::', 'repair-only'));
 $dryRun = isset($options['dry-run']);
 $today = (isset($options['today']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$options['today'])) ? (string)$options['today'] : date('Y-m-d');
 
@@ -53,7 +56,36 @@ include(__DIR__ . '/../includes/connect.php');
 include(__DIR__ . '/../includes/std_func.php');
 include_once(__DIR__ . '/../includes/stripeIncludes/stripeSettings.php');
 
-// v1 runs for the pinned billing ledger; --db lets another ledger with its own Stripe setup run it.
+if (isset($options['all'])) {
+	if (isset($options['db'])) { fwrite(STDERR, "use either --db or --all\n"); exit(1); }
+	$webservice = true;
+	$ledgers = array();
+	$q = db_select("select db from regnskab where coalesce(lukket, '') <> 'on' and db is not null and db <> '' order by id", __FILE__ . " linje " . __LINE__, true);
+	while ($r = db_fetch_array($q)) {
+		if (preg_match('/^[a-z0-9_]{1,40}$/', (string)$r['db'])) $ledgers[] = (string)$r['db'];
+	}
+	$failed = 0;
+	$pinned = stripeConfigDb();
+	foreach ($ledgers as $ledger) {
+		// Only ledgers that switched Stripe on and set it up themselves (stripe_ledger_armed(): a ledger restored
+		// from a copy keeps the original's keys). Most ledgers have no Stripe tables at all.
+		$connection = db_connect($sqhost, $squser, $sqpass, $ledger);
+		if (!$connection) { fwrite(STDERR, "$ledger: no connection\n"); $failed++; continue; }
+		$db = $ledger;
+		$set = array();
+		$q = db_select("select var_name, var_value from settings where var_grp = 'stripe' and var_name in ('enabled', 'target_db')", __FILE__ . " linje " . __LINE__);
+		while ($q && $r = db_fetch_array($q)) $set[$r['var_name']] = (string)$r['var_value'];
+		db_close($connection);
+		if (($set['enabled'] ?? '') !== 'on' || (($set['target_db'] ?? '') !== $ledger && $ledger !== $pinned)) continue;
+		$cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__FILE__) . ' --db=' . escapeshellarg($ledger)
+			. ($dryRun ? ' --dry-run' : '') . ' --today=' . escapeshellarg($today) . (isset($options['repair-only']) ? ' --repair-only' : '');
+		passthru($cmd, $code);
+		if ($code !== 0) $failed++;
+	}
+	exit($failed ? 1 : 0);
+}
+
+// Without --db: the pinned ledger. Every ledger with its own Stripe setup can run it (--db, or all of them with --all).
 $targetDb = isset($options['db']) && $options['db'] !== false ? (string)$options['db'] : stripeConfigDb();
 if (!$targetDb || !preg_match('/^[a-z0-9_]{1,40}$/', $targetDb)) { fwrite(STDERR, "no ledger (pin .ht_stripe_db or pass --db)\n"); exit(1); }
 include_once(__DIR__ . '/../includes/stripeIncludes/stripeCharge.php');

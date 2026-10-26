@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.25
+// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,10 @@
 // 20261025 CL/ASR Invoice format label = default for new e-mail orders; one-time switch of existing customers/recurring orders to E-mail med link.
 // 20261025 CL/ASR Fee for manual payment: fee product (manual_fee_varenr, empty = off) and first invoice date (manual_fee_from).
 // 20261025 CL/ASR Customer contact e-mail (empty = company e-mail) and phone (empty = none) for the payment page and mails.
+// 20261026 CL/NTR Multi-ledger: Stripe is set up per ledger; the webhook URL carries this ledger (?r=), the locked-ledger
+//                 row is gone and target_db mirrors the ledger being saved. A copied ledger shows a warning until saved.
+// 20261026 CL/NTR Secret key and webhook secret are masked text fields, not password fields, so browsers do not treat them
+//                 as a login. Their placeholders keep the expected key format once a key is saved.
 
 /**
  * Injected by systemdata/diverse.php via online.php and the page setup:
@@ -51,7 +55,7 @@ include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php'); // s
  * @return void
  */
 function stripeValgSave() {
-	global $sprog_id;
+	global $db, $sprog_id;
 	$input = $_POST;
 
 	$posted_token = ($input['csrf_token'] ?? null);
@@ -103,8 +107,8 @@ function stripeValgSave() {
 		update_settings_value('link_secret', 'stripe', bin2hex(random_bytes(32)), 'HMAC secret for signede abonnementslinks');
 	}
 
-	# target_db - mirrored from the resolver, never from POST (contract 4.0.2)
-	update_settings_value('target_db', 'stripe', stripeConfigDb(), 'Spejl af stripeConfigDb() - informativ, laeses aldrig som sandhed');
+	# target_db - the ledger these settings belong to (session $db, never from POST); informative only
+	update_settings_value('target_db', 'stripe', (string)$db, 'Regnskabet disse Stripe-indstillinger tilhører - informativ, laeses aldrig som sandhed');
 
 	# Invoice payment rollout switches. Missing checkboxes are explicitly off.
 	foreach (array('invoice_payments', 'enrolment', 'signup_enabled') as $feature) {
@@ -199,7 +203,7 @@ function stripeValgSave() {
  * @return void
  */
 function stripeValg() {
-	global $bgcolor, $sprog_id, $csrf_token, $buttonStyle;
+	global $bgcolor, $db, $sprog_id, $csrf_token, $buttonStyle;
 
 	$mode        = stripe_setting('mode');
 	$has_secret  = stripe_setting('secret_key') ? true : false;
@@ -208,16 +212,23 @@ function stripeValg() {
 	$vat_rate_id = htmlspecialchars(stripe_setting('vat_rate_id'), ENT_QUOTES, 'UTF-8');
 	$base_url    = htmlspecialchars(stripe_setting('public_base_url'), ENT_QUOTES, 'UTF-8');
 	$bookkeeper  = htmlspecialchars(stripe_setting('bookkeeper_email'), ENT_QUOTES, 'UTF-8');
-	$target_db   = htmlspecialchars(stripeConfigDb(), ENT_QUOTES, 'UTF-8');
 
+	// API keys are not login passwords: type=password makes browsers and password managers offer to save/fill them.
+	// Plain text fields, drawn masked, opted out of autofill and the common password managers.
+	$secretAttrs = "style='text-align:left;width:300px;-webkit-text-security:disc;text-security:disc' autocomplete='off' spellcheck='false' autocapitalize='off'"
+		. " data-1p-ignore data-lpignore='true' data-bwignore data-form-type='other'";
 	print "<form name=diverse action=diverse.php?sektion=stripe_valg method=post autocomplete=off>";
 	print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') . "'>";
 	print "<tr><td colspan='6'><hr></td></tr>";
 	print "<tr><td colspan='4'><b>Stripe abonnement</b></td></tr>";
 	print "<tr><td><br></td></tr>";
 
-	print "<tr><td title='Regnskabet som webhook og links er låst til. Sættes via SALDI_STRIPE_DB eller includes/stripeIncludes/.ht_stripe_db på serveren - ikke her.'>Regnskab (låst):</td>";
-	print "<td colspan='3'>" . ($target_db ? $target_db : "<b style='color:red'>IKKE KONFIGURERET - integrationen er inaktiv</b>") . "</td></tr>";
+	// Settings copied along with a restored ledger keep the original's keys: inactive here until saved here.
+	$savedIn = (string)stripe_setting('target_db');
+	if (!stripe_ledger_armed() && $savedIn !== '') {
+		print "<tr><td colspan='4'><b style='color:red'>Indstillingerne er kopieret fra regnskabet " . htmlspecialchars($savedIn, ENT_QUOTES, 'UTF-8')
+			. ". Stripe er inaktivt her, indtil du gemmer. Kontrollér først nøglerne - brug testnøgler i et testregnskab.</b></td></tr>";
+	}
 
 	$enabled = (stripe_setting('enabled', 'off') == 'on');
 	print "<tr><td title='Hovedafbryder. Uden flueben viser abonnementslinks en venlig ikke-aktiv-side og der oprettes ingen nye abonnementer. Webhooken modtager stadig events for allerede oprettede abonnementer.'>Aktiv:</td>";
@@ -230,10 +241,10 @@ function stripeValg() {
 	print "</select></td></tr>";
 
 	print "<tr><td title='Stripe API secret key (sk_test_... eller sk_live_...). Feltet viser aldrig den gemte nøgle - tomt felt betyder uændret.'>Secret key:</td>";
-	print "<td colspan='3'><input type='password' style='text-align:left;width:300px;' name='stripe_secret_key' value='' placeholder='" . ($has_secret ? "(gemt - tomt felt = uændret)" : "sk_test_...") . "'></td></tr>";
+	print "<td colspan='3'><input type='text' $secretAttrs name='stripe_secret_key' value='' placeholder='" . ($has_secret ? "(gemt - tomt felt = uændret) " : "") . "sk_test_... / sk_live_...'></td></tr>";
 
 	print "<tr><td title='Webhook signing secret (whsec_...) fra Stripe Dashboard, når webhook-endpointet registreres. Tomt felt betyder uændret.'>Webhook secret:</td>";
-	print "<td colspan='3'><input type='password' style='text-align:left;width:300px;' name='stripe_webhook_secret' value='' placeholder='" . ($has_whsec ? "(gemt - tomt felt = uændret)" : "whsec_...") . "'></td></tr>";
+	print "<td colspan='3'><input type='text' $secretAttrs name='stripe_webhook_secret' value='' placeholder='" . ($has_whsec ? "(gemt - tomt felt = uændret) " : "") . "whsec_...'></td></tr>";
 
 	print "<tr><td title='HMAC-nøglen der signerer abonnementslinks i fakturamails. Genereres automatisk ved første gem.'>Link-nøgle:</td>";
 	print "<td colspan='3'>" . ($has_link ? "Genereret" : "Genereres ved første gem") . " &nbsp; <label><input type='checkbox' name='stripe_regen_link_secret' value='1'> Generér ny (ADVARSEL: alle links i allerede udsendte mails holder op med at virke)</label></td></tr>";
@@ -299,8 +310,8 @@ function stripeValg() {
 	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_bookkeeper_email' value='$bookkeeper'></td></tr>";
 
 	if ($base_url) {
-		print "<tr><td title='Denne URL registreres som webhook-endpoint i Stripe Dashboard.'>Webhook-URL:</td>";
-		print "<td colspan='3'><input type='text' style='text-align:left;width:400px;' value='" . $base_url . "/api/stripe/webhook.php' readonly onclick='this.select()'></td></tr>";
+		print "<tr><td title='Denne URL registreres som webhook-endpoint i Stripe Dashboard. Den indeholder dette regnskab, så hvert regnskab har sin egen.'>Webhook-URL:</td>";
+		print "<td colspan='3'><input type='text' style='text-align:left;width:400px;' value='" . $base_url . "/api/stripe/webhook.php?r=" . htmlspecialchars(rawurlencode((string)$db), ENT_QUOTES, 'UTF-8') . "' readonly onclick='this.select()'></td></tr>";
 	}
 
 	print "<tr><td><br></td></tr>";

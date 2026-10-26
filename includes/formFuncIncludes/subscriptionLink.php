@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/subscriptionLink.php --- 2026.10.22
+// --- includes/formFuncIncludes/subscriptionLink.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20260820 CL/LH Added subscriptionLinkHtml(): shared email-safe CTA block for
 //                the HTML invoice mailers (sendMail.php/oldSendMail.php).
 // 20261022 CDX/LH Remove classic mail subscription links when signup is disabled.
+// 20261026 CL/NTR Multi-ledger: any ledger with signup on can mint links; they carry the ledger (r=).
 
 include_once(__DIR__ . '/../stripeIncludes/stripeSettings.php');
 include_once(__DIR__ . '/../stripeIncludes/stripeLink.php');
@@ -44,12 +45,10 @@ if (!function_exists('subscriptionLinkUrl')) {
 		global $db;
 		$ordre_id = (int)$ordre_id;
 		if ($ordre_id < 1) return '';
-		// Tenant guard: subscribe.php loads the order from the PINNED regnskab
-		// (stripeConfigDb()), so a link minted from any other regnskab on the
-		// same install would resolve to the wrong order there. Only the pinned
-		// tenant may mint.
-		$target = stripeConfigDb();
-		if (!$target || !isset($db) || $db !== $target) return '';
+		// The link carries this ledger (r=) and its signature binds it, so
+		// subscribe.php loads the order from the ledger that minted it. A
+		// ledger restored from a copy mints nothing until set up in it.
+		if (!isset($db) || !$db || !stripe_ledger_armed()) return '';
 		if (!stripe_signup_allowed()) return '';
 		$mode = stripe_setting('mode');
 		if ($mode !== 'test' && $mode !== 'live') return '';

@@ -1,5 +1,6 @@
 <?php
 // 20261022 CDX/LH Purpose isolation, due-date and signup gates, private atomic PDFs, index repair and discount totals.
+// 20261026 CL/NTR Multi-ledger: links carry and bind the ledger, legacy v2 links only in the pinned ledger, copied ledgers stay off.
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/formFuncIncludes/subscriptionLink.php';
@@ -32,6 +33,57 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
         } finally {
             parent::tearDown();
         }
+    }
+
+    public function testLinksCarryAndBindTheirLedger(): void
+    {
+        $id = StripeFixtures::invoice();
+        $pinned = $GLOBALS['db'];
+        parse_str((string)parse_url(stripe_invoice_url($id), PHP_URL_QUERY), $query);
+        $this->assertSame($pinned, $query['r']);
+        $this->assertSame(['r', 'o', 's'], array_keys($query));
+        $v3 = $query['s'];
+        $v2 = hash_hmac('sha256', 'v2:invoice:' . $id, stripe_setting('link_secret'));
+        $this->assertTrue(stripe_link_verify($id, $v2, 'invoice'), 'links mailed before r= keep working in the pinned ledger');
+        StripeTestEnvironment::setting('stripe', 'signup_enabled', 'on');
+        $this->assertStringStartsWith('r=' . $pinned . '&id=' . (int)$id . '&sig=', (string)parse_url(stripe_link_url($id), PHP_URL_QUERY));
+        try {
+            // A ledger restored from a copy shares the link_secret: neither its own nor legacy links may cross over.
+            $GLOBALS['db'] = 'other_ledger';
+            $this->assertFalse(stripe_link_verify($id, $v3, 'invoice'));
+            $this->assertFalse(stripe_link_verify($id, $v2, 'invoice'));
+            $this->assertNotSame($v3, stripe_link_sign($id, 'invoice'));
+            $this->assertSame('', stripe_invoice_url($id), 'a copied ledger mints nothing');
+            StripeTestEnvironment::setting('stripe', 'target_db', 'other_ledger');
+            $this->assertTrue(stripe_ledger_armed());
+            parse_str((string)parse_url(stripe_invoice_url($id), PHP_URL_QUERY), $other);
+            $this->assertSame('other_ledger', $other['r']);
+            $this->assertTrue(stripe_link_verify($id, $other['s'], 'invoice'));
+        } finally {
+            $GLOBALS['db'] = $pinned;
+            stripe_settings_flush();
+        }
+        $this->assertFalse(stripe_link_verify($id, $other['s'], 'invoice'));
+    }
+
+    public function testPublicEntryPointsResolveTheLedgerFromTheLinkOnly(): void
+    {
+        $bootstrap = file_get_contents(__DIR__ . '/../../includes/stripeIncludes/stripeBootstrap.php');
+        $this->assertStringContainsString('stripe_request_db()', $bootstrap);
+        foreach (['faktura_common.php', 'subscribe.php'] as $file) {
+            $source = file_get_contents(__DIR__ . '/../../api/stripe/' . $file);
+            $this->assertStringContainsString("isset(\$_GET['db'])", $source, $file);
+            $this->assertStringContainsString("\$stripe_target_db === ''", $source, $file);
+        }
+        $webhook = file_get_contents(__DIR__ . '/../../api/stripe/webhook.php');
+        $this->assertStringContainsString("stripe_wh_respond(200, 'other_ledger')", $webhook);
+        $_GET = ['r' => 'Bad-Name'];
+        try {
+            $this->assertSame('', stripe_request_db(), 'a malformed r= never falls back to the pinned ledger');
+        } finally {
+            $_GET = [];
+        }
+        $this->assertSame(stripeConfigDb(), stripe_request_db());
     }
 
     public function testEveryLinkPurposeRejectsEveryOtherPurposeAndLegacySignature(): void
@@ -107,7 +159,9 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
             // Execute the actual endpoint refusal block, replacing only its terminating view call.
             $source = file_get_contents(__DIR__ . '/../../api/stripe/subscribe.php');
             $this->assertSame(1, preg_match('/if \(!stripe_signup_allowed\(\)\) \{.*?\n\}/s', $source, $matches));
-            $this->assertLessThan(strpos($source, '$isPost   ='), strpos($source, $matches[0]));
+            // After the signature check (no ledger probing), before the order is loaded or Stripe is called.
+            $this->assertGreaterThan(strpos($source, '!stripe_link_verify($order_id, $sig)'), strpos($source, $matches[0]));
+            $this->assertLessThan(strpos($source, '$order = db_fetch_array'), strpos($source, $matches[0]));
             $fail = static function ($status, $headline, $text): void {
                 throw new RuntimeException($text, $status);
             };

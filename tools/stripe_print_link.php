@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/stripe_print_link.php --- 2026.08.07
+// --- tools/stripe_print_link.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: pilot fallback for the mailer hook. Prints the
 //                signed subscription URL for one or more orders; the
@@ -29,8 +29,9 @@
 //                Runs the same guard chain as the mailer helper will: any
 //                gap -> no URL, with the reason on stderr. CLI only.
 //
-// Usage: php tools/stripe_print_link.php <ordre-id> [<ordre-id> ...]
+// Usage: php tools/stripe_print_link.php [--db=<ledger db>] <ordre-id> [<ordre-id> ...]
 // 20260818 CL/LH Anchored branch-added include paths to __DIR__.
+// 20261026 CL/NTR Multi-ledger: --db selects the ledger (default: the pinned one).
 
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 chdir(__DIR__);
@@ -41,8 +42,13 @@ chdir(__DIR__);
 if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/install/tools/stripe_print_link.php';
 if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
 
-if ($argc < 2) {
-	fwrite(STDERR, "Usage: php tools/stripe_print_link.php <ordre-id> [<ordre-id> ...]\n");
+$orderArgs = array();
+for ($i = 1; $i < $argc; $i++) {
+	if (strncmp($argv[$i], '--db=', 5) === 0) $stripe_cli_db = substr($argv[$i], 5); // read by stripeBootstrap.php
+	else $orderArgs[] = $argv[$i];
+}
+if (!$orderArgs) {
+	fwrite(STDERR, "Usage: php tools/stripe_print_link.php [--db=<ledger db>] <ordre-id> [<ordre-id> ...]\n");
 	exit(2);
 }
 
@@ -52,13 +58,13 @@ include(__DIR__ . '/../includes/stripeIncludes/stripeBootstrap.php');
 include(__DIR__ . '/../includes/stripeIncludes/stripeLink.php');
 
 if (!$stripe_boot_ok) {
-	fwrite(STDERR, "ERROR: tenant unresolved or connection failed (SALDI_STRIPE_DB / .ht_stripe_db)\n");
+	fwrite(STDERR, "ERROR: tenant unresolved or connection failed (--db, SALDI_STRIPE_DB / .ht_stripe_db)\n");
 	exit(2);
 }
 
 $exit = 0;
-for ($i = 1; $i < $argc; $i++) {
-	$order_id = (int)$argv[$i];
+foreach ($orderArgs as $orderArg) {
+	$order_id = (int)$orderArg;
 	$fail = '';
 	if ($order_id < 1) $fail = 'ugyldigt ordre-id';
 	if (!$fail && stripe_setting('enabled', 'off') !== 'on')                 $fail = 'integrationen er ikke aktiveret (flueben Aktiv i stripe_valg)';

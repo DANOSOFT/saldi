@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeLink.php --- 2026.10.22
+// --- includes/stripeIncludes/stripeLink.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,26 +31,53 @@
 //                content. The mailer and CLI tools consume these functions
 //                verbatim - nobody reimplements them.
 // 20261022 CDX/LH Separate invoice, signup and removal signatures; reject unscoped links and foreign payment Origins.
+// 20261026 CL/NTR Multi-ledger: v3 signatures bind the ledger and links carry it as r=; v2 links still verify in the pinned ledger.
 
 include_once(__DIR__ . '/stripeSettings.php');
 
 if (!function_exists('stripe_link_sign')) {
-	/** @return string Purpose-bound HMAC, or empty on invalid input/configuration. */
-	function stripe_link_sign($order_id, $purpose = 'subscribe') {
+	/**
+	 * Purpose- and ledger-bound HMAC. The ledger is in the payload because a test ledger restored from a
+	 * copy shares the original's link_secret: a link may only ever open the ledger it was minted in.
+	 *
+	 * @param string $version v3 (current, ledger-bound) or v2 (links minted before r=, pinned ledger only).
+	 * @return string HMAC, or empty on invalid input/configuration.
+	 */
+	function stripe_link_sign($order_id, $purpose = 'subscribe', $version = 'v3') {
+		global $db;
 		if ((int)$order_id < 1 || !in_array($purpose, array('subscribe', 'invoice', 'remove-card'), true)) return '';
 		$secret = stripe_setting('link_secret');
 		if (!$secret || strlen($secret) < 64) return ''; // 32 random bytes hex-encoded
-		return hash_hmac('sha256', 'v2:' . $purpose . ':' . (int)$order_id, $secret);
+		if ($version === 'v2') return hash_hmac('sha256', 'v2:' . $purpose . ':' . (int)$order_id, $secret);
+		if (!is_string($db) || !preg_match('/^[a-z0-9_]{1,40}$/', $db)) return '';
+		return hash_hmac('sha256', 'v3:' . $db . ':' . $purpose . ':' . (int)$order_id, $secret);
 	}
 }
 
 if (!function_exists('stripe_link_verify')) {
-	/** @return bool Constant-time verification for precisely the requested purpose. */
+	/**
+	 * Constant-time verification for precisely the requested purpose in the current ledger. Links sent
+	 * before r= existed (v2) only verify in the pinned stripeConfigDb() ledger, the only one that minted them.
+	 *
+	 * @return bool Whether $sig is valid.
+	 */
 	function stripe_link_verify($order_id, $sig, $purpose = 'subscribe') {
+		global $db;
 		if (!is_string($sig) || !preg_match('/^[0-9a-f]{64}$/', $sig)) return false;
 		$expected = stripe_link_sign($order_id, $purpose);
-		if ($expected === '') return false;
-		return hash_equals($expected, $sig);
+		if ($expected !== '' && hash_equals($expected, $sig)) return true;
+		$pinned = stripeConfigDb();
+		if ($pinned === '' || $db !== $pinned) return false;
+		$legacy = stripe_link_sign($order_id, $purpose, 'v2');
+		return $legacy !== '' && hash_equals($legacy, $sig);
+	}
+}
+
+if (!function_exists('stripe_link_ledger_param')) {
+	/** @return string "r=<db>" for the current ledger, the first query parameter of every signed link. */
+	function stripe_link_ledger_param() {
+		global $db;
+		return 'r=' . rawurlencode((string)$db);
 	}
 }
 
@@ -63,7 +90,7 @@ if (!function_exists('stripe_link_url')) {
 		$base = stripe_setting('public_base_url');
 		$sig  = stripe_link_sign($order_id);
 		if (!$base || $sig === '') return '';
-		return $base . '/api/stripe/subscribe.php?id=' . (int)$order_id . '&sig=' . $sig;
+		return $base . '/api/stripe/subscribe.php?' . stripe_link_ledger_param() . '&id=' . (int)$order_id . '&sig=' . $sig;
 	}
 }
 
