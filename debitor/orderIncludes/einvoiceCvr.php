@@ -28,8 +28,8 @@
 // 20261026 CL/MMR SD-774 The popup treats a CVR field holding the EAN/GLN as empty. Text 5169 now names the check digit.
 // 20261026 CL/MMR SD-774 The popup also treats a CVR field without a real number ("-", "N/A", "0") as empty, like einvoice_cvr_present().
 // 20261026 CL/MMR SD-774 An invoiced order whose CVR is missing gets the popup script in every output mode, so choosing Digitalt after Annuller opens it again.
-//                 einvoiceCvrSavedRedirectUrl() gives ordre.php the redirect after a CVR saved on an invoiced order (Post/Redirect/Get).
-// 20261026 CL/MMR SD-774 An open order redirects too after a CVR saved through the popup, once its Gem save is done and only when that save printed nothing (einvoiceCvrPageHasOutput()).
+// 20261026 CL/MMR SD-774 The popup saves through debitor/einvoiceCvrSave.php (AJAX, JSON) instead of posting the order form, so the order page is never rendered from a POST of the CVR.
+//                 einvoiceCvrSaveRequestProblem() and einvoiceCvrSaveJson() are that endpoint's request check and answer; the order form's save path and the rejected-input state are gone.
 
 include_once(__DIR__ . '/../../includes/stdFunc/einvoiceCvr.php');
 
@@ -77,16 +77,12 @@ if (!function_exists('einvoiceCvrRequestString')) {
 
 if (!function_exists('einvoiceCvrSaveFromOrder')) {
 	/**
-	 * Controller for the popup's "Gem": saves the CVR the user typed on the order and, when asked,
-	 * on the debitor card. Runs before ordre.php's own POST handling.
+	 * Controller for the popup's "Gem" (debitor/einvoiceCvrSave.php): saves the CVR the user typed on
+	 * the order and, when asked, on the debitor card.
 	 *
 	 * Only new input is checked with einvoice_cvr_input_problem() (modulus 11 for a Danish number);
 	 * nothing is written when it fails. The card is only written when its CVR is empty or still the
 	 * value the popup showed ($cardWas), so a CVR someone saved on the card in the meantime is kept.
-	 *
-	 * For an open order (status < 3) the popup submits through the Gem button, and the order's save
-	 * writes ordrer.cvrnr from $_POST['cvrnr'] again. formCvr is the value that save must use: the
-	 * normalised CVR, or the order's stored CVR when the input was rejected.
 	 *
 	 * @param mixed      $ordreId  ordrer.id from the posted form; anything but a number is ignored.
 	 * @param mixed      $cvrInput The CVR typed in the popup.
@@ -100,7 +96,6 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 	 *   status: int,           ordrer.status.
 	 *   savedCard: bool,       True when the card update ran (its where clause still skips a card saved in between).
 	 *   cardChanged: bool,     True when the card was not updated because its CVR changed since the popup was shown.
-	 *   formCvr: string|null,  The value $_POST['cvrnr'] must hold for the order's save (status < 3), null to leave the request alone.
 	 *   ordreId: int,          ordrer.id when handled, else 0.
 	 * }
 	 */
@@ -113,7 +108,6 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 			'status'      => 0,
 			'savedCard'   => false,
 			'cardChanged' => false,
-			'formCvr'     => null,
 			'ordreId'     => 0,
 		);
 		// (int) of an array is 1, so a posted id[] must not reach the cast.
@@ -129,22 +123,15 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 		$result['handled'] = true;
 		$result['ordreId'] = $ordreId;
 		$result['status'] = (int)ifset($order, 'status', 0);
-		$isOpen = $result['status'] < 3;
 
 		$problem = einvoice_cvr_input_problem($result['input']);
 		if ($problem !== '') {
 			$result['problem'] = $problem;
-			if ($isOpen) {
-				$result['formCvr'] = trim((string)ifset($order, 'cvrnr', ''));
-			}
 			return $result;
 		}
 
 		$cvr = einvoice_normalize_cvr($result['input']);
 		$result['cvr'] = $cvr;
-		if ($isOpen) {
-			$result['formCvr'] = $cvr;
-		}
 		$qtxt = "update ordrer set cvrnr = '" . db_escape_string($cvr) . "' where id = '$ordreId'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -171,65 +158,47 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 	}
 }
 
-if (!function_exists('einvoiceCvrSavedRedirectUrl')) {
+if (!function_exists('einvoiceCvrSaveRequestProblem')) {
 	/**
-	 * Where ordre.php redirects after the popup saved a CVR, so a refresh shows the order again
-	 * instead of posting the save once more (Post/Redirect/Get).
+	 * Whether debitor/einvoiceCvrSave.php may save: only a POST, only for a logged-in user of a tenant
+	 * (not the master database).
 	 *
-	 * An invoiced order (status >= 3) redirects as soon as the CVR is saved: nothing else in the post
-	 * needs handling. An open order is saved through its Gem button, and the whole order form must be
-	 * saved first, so it redirects only once that save is done ($orderSaved) and only when the save
-	 * printed nothing ($pageHasOutput), as an alert printed by the save would otherwise be lost.
-	 * A rejected input is shown again with its error on the same response, as nothing was written.
-	 *
-	 * @param array $saveResult    einvoiceCvrSaveFromOrder()'s result.
-	 * @param array $query         The request's query parameters ($_GET); sag_id and returside are kept.
-	 * @param bool  $orderSaved    True after ordre.php's own POST handling (the Gem save) has run.
-	 * @param bool  $pageHasOutput True when the request has already printed something (einvoiceCvrPageHasOutput()).
-	 * @return string '' when there is nothing to redirect, otherwise a URL relative to debitor/.
+	 * @param string|null $method   $_SERVER['REQUEST_METHOD'].
+	 * @param bool        $loggedIn True when online.php found the session (a user name and a tenant database).
+	 * @return string '' when the request may save, otherwise 'method' or 'session'.
 	 */
-	function einvoiceCvrSavedRedirectUrl(array $saveResult, array $query, $orderSaved = false, $pageHasOutput = false) {
-		if (!ifset($saveResult, 'handled', false) || ifset($saveResult, 'problem', '') !== '' || $pageHasOutput) {
-			return '';
+	function einvoiceCvrSaveRequestProblem($method, $loggedIn) {
+		if ((string)$method !== 'POST') {
+			return 'method';
 		}
-		$invoiced = (int)ifset($saveResult, 'status', 0) >= 3;
-		// The invoiced order redirects before the order's own POST handling, the open one after it.
-		if ($invoiced === (bool)$orderSaved) {
-			return '';
+		if (!$loggedIn) {
+			return 'session';
 		}
-		$params = array('id' => (int)ifset($saveResult, 'ordreId', 0));
-		if ($params['id'] <= 0) {
-			return '';
-		}
-		$sagId = ifset($query, 'sag_id', '');
-		if (is_scalar($sagId) && (int)$sagId > 0) {
-			$params['sag_id'] = (int)$sagId;
-		}
-		$returside = ifset($query, 'returside', '');
-		if (is_string($returside) && $returside !== '') {
-			$params['returside'] = $returside;
-		}
-		return 'ordre.php?' . http_build_query($params);
+		return '';
 	}
 }
 
-if (!function_exists('einvoiceCvrPageHasOutput')) {
+if (!function_exists('einvoiceCvrSaveJson')) {
 	/**
-	 * Whether this request has printed anything yet, sent or still in an output buffer. A redirect
-	 * then would hide it (for instance an alert from the order's save).
+	 * The answer debitor/einvoiceCvrSave.php sends the popup for einvoiceCvrSaveFromOrder()'s result.
 	 *
-	 * @return bool
+	 * @param array $result einvoiceCvrSaveFromOrder()'s result.
+	 * @return array{ok: bool, problem: string, error: string, cvr: string, open: bool, savedCard: bool, cardChanged: bool}
+	 *   ok when the CVR was saved; problem 'missing'/'invalid' when the input was refused (shown in the
+	 *   popup); error 'order' when the order cannot take a CVR from the popup (gone, wrong type, already delivered).
 	 */
-	function einvoiceCvrPageHasOutput() {
-		if (headers_sent()) {
-			return true;
-		}
-		foreach (ob_get_status(true) as $buffer) {
-			if (!empty($buffer['buffer_used'])) {
-				return true;
-			}
-		}
-		return false;
+	function einvoiceCvrSaveJson(array $result) {
+		$handled = (bool)ifset($result, 'handled', false);
+		$problem = $handled ? (string)ifset($result, 'problem', '') : '';
+		return array(
+			'ok'          => $handled && $problem === '',
+			'problem'     => $problem,
+			'error'       => $handled ? '' : 'order',
+			'cvr'         => (string)ifset($result, 'cvr', ''),
+			'open'        => (int)ifset($result, 'status', 0) < 3,
+			'savedCard'   => (bool)ifset($result, 'savedCard', false),
+			'cardChanged' => (bool)ifset($result, 'cardChanged', false),
+		);
 	}
 }
 
@@ -282,7 +251,6 @@ if (!function_exists('einvoiceCvrPopupState')) {
 	 *                               The order as ordreside() shows it.
 	 * @param array{cvrnr?: string, ean?: string, land?: string} $card The debitor card (einvoiceCvrLoadCard()).
 	 * @param bool  $redirectPending einvoiceCvrRedirectPending() for this request.
-	 * @param array $saveResult      einvoiceCvrSaveFromOrder()'s result for this request, array() when nothing was posted.
 	 * @return array{
 	 *   render: bool,          True when the page needs the popup's data and script.
 	 *   orderId: int,          ordrer.id, keys the "Annuller" memory in the browser session.
@@ -292,11 +260,9 @@ if (!function_exists('einvoiceCvrPopupState')) {
 	 *   cardEan: string,       The card's EAN, used when the order's EAN field is emptied.
 	 *   cardCvr: string,       The card's CVR, sent back as einvoiceCvrCardWas.
 	 *   receiverDanish: bool,  True when the receiver counts as Danish (only those are asked).
-	 *   value: string,         Input to show again in the popup after it was rejected.
-	 *   error: string,         '', 'missing' or 'invalid' from the rejected input.
 	 * }
 	 */
-	function einvoiceCvrPopupState(array $order, array $card, $redirectPending, array $saveResult) {
+	function einvoiceCvrPopupState(array $order, array $card, $redirectPending) {
 		$state = array(
 			'render'         => false,
 			'open'           => false,
@@ -305,8 +271,6 @@ if (!function_exists('einvoiceCvrPopupState')) {
 			'cardEan'        => '',
 			'cardCvr'        => '',
 			'receiverDanish' => false,
-			'value'          => '',
-			'error'          => '',
 			'orderId'        => (int)ifset($order, 'id', 0),
 		);
 		if ((int)ifset($order, 'id', 0) <= 0 || !einvoiceCvrOrderEligible(ifset($order, 'art', ''), ifset($order, 'digital_status', ''))) {
@@ -325,13 +289,8 @@ if (!function_exists('einvoiceCvrPopupState')) {
 		$state['open'] = (int)ifset($order, 'status', 0) < 3;
 		$state['receiverDanish'] = einvoice_receiver_country($land, '') === 'DK';
 
-		if (ifset($saveResult, 'handled', false) && ifset($saveResult, 'problem', '') !== '') {
-			$state['error'] = (string)$saveResult['problem'];
-			$state['value'] = (string)ifset($saveResult, 'input', '');
-		}
 		$missing = einvoice_cvr_missing($state['ean'], $cvr, $land);
-		$state['autoOpen'] = $missing && !$redirectPending
-			&& ((string)ifset($order, 'udskriv_til', '') === 'Digitalt' || $state['error'] !== '');
+		$state['autoOpen'] = $missing && !$redirectPending && (string)ifset($order, 'udskriv_til', '') === 'Digitalt';
 		// An open order also opens the popup when "Udskriv til" changes to Digitalt; that can only
 		// lead to it when the card has no CVR either and the receiver is Danish. An invoiced order
 		// in another output mode needs the script too: choosing Digitalt there submits the form, and
@@ -381,6 +340,7 @@ if (!function_exists('einvoiceCvrPopupTexts')) {
 			'cancel'        => '5|Annullér',
 			'cvrLabel'      => '376|CVR-nr.',
 			'eanLabel'      => '379|EAN-nr.',
+			'saveFailed'    => '5170|CVR-nummeret kunne ikke gemmes. Genindlæs siden, og prøv igen.',
 		);
 		$texts = array();
 		foreach ($ids as $key => $textId) {
@@ -417,9 +377,8 @@ if (!function_exists('einvoiceCvrPopupRender')) {
 			'cardEan'        => einvoiceCvrUtf8($state['cardEan'], $dbEncode),
 			'cardCvr'        => einvoiceCvrUtf8($state['cardCvr'], $dbEncode),
 			'receiverDanish' => (bool)$state['receiverDanish'],
-			'value'          => einvoiceCvrUtf8($state['value'], $dbEncode),
-			'error'          => (string)$state['error'],
 			'orderId'        => (int)$state['orderId'],
+			'saveUrl'        => 'einvoiceCvrSave.php',
 		);
 		// No JSON_UNESCAPED_UNICODE: \u escapes keep the tag ASCII, so it reads the same in a
 		// UTF-8 and an ISO-8859-1 page. The JSON_HEX_* flags keep "</script>" and quotes inert.
@@ -441,16 +400,15 @@ if (!function_exists('einvoiceCvrPopupView')) {
 	 *
 	 * @param array       $order           See einvoiceCvrPopupState(); konto_id is used to load the card.
 	 * @param bool        $redirectPending einvoiceCvrRedirectPending() for this request.
-	 * @param array       $saveResult      einvoiceCvrSaveFromOrder()'s result, array() when nothing was posted.
 	 * @param int|string  $sprogId         $sprog_id.
 	 * @param string|null $dbEncode        $db_encode.
 	 * @return void
 	 */
-	function einvoiceCvrPopupView(array $order, $redirectPending, array $saveResult, $sprogId, $dbEncode) {
+	function einvoiceCvrPopupView(array $order, $redirectPending, $sprogId, $dbEncode) {
 		if ((int)ifset($order, 'id', 0) <= 0 || !einvoiceCvrOrderEligible(ifset($order, 'art', ''), ifset($order, 'digital_status', ''))) {
 			return;
 		}
 		$card = einvoiceCvrLoadCard(ifset($order, 'konto_id', 0));
-		einvoiceCvrPopupRender(einvoiceCvrPopupState($order, $card, $redirectPending, $saveResult), $sprogId, $dbEncode);
+		einvoiceCvrPopupRender(einvoiceCvrPopupState($order, $card, $redirectPending), $sprogId, $dbEncode);
 	}
 }

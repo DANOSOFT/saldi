@@ -164,9 +164,7 @@
 // 20261023 CL/MMR SD-774 A popup asks for the receiver's CVR when an invoice is to be sent Digitalt to an EAN and neither the order nor the debitor card has a CVR.
 //                 It opens on load when Udskriv til is Digitalt, and on an open order also when Digitalt is chosen in the list.
 //                 Its Gem saves the CVR on the order and, when ticked, on the debitor card (orderIncludes/einvoiceCvr.php, javascript/einvoiceCvrPopup.js).
-//                 ordreside() gets that save's result as a third parameter, so a rejected CVR is shown again with the error.
-// 20261026 CL/MMR SD-774 The popup's CVR save runs before any output, and a CVR saved on an invoiced order redirects back to the order, so a refresh does not post it again.
-// 20261026 CL/MMR SD-774 A CVR saved through the popup on an open order also redirects back to the order, after the Gem save and only when that save printed nothing.
+// 20261026 CL/MMR SD-774 The popup saves the CVR through debitor/einvoiceCvrSave.php (AJAX) instead of posting the order form, so this page has no save path or redirect of its own for it.
 
 @session_start();
 $s_id = session_id();
@@ -206,28 +204,6 @@ include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
-
-// SD-774: the CVR typed in the e-invoice popup is saved before any output and before the order's own POST handling.
-// On an open order that handling saves cvrnr from the form again, so it gets the same value.
-// On an invoiced order nothing else needs the post, so a saved CVR redirects (Post/Redirect/Get); an open order
-// redirects after its Gem save, just before ordreside() below.
-$einvoiceCvrResult = array();
-if (ifset($_POST, 'einvoiceCvrSave') === '1') {
-	$einvoiceCvrResult = einvoiceCvrSaveFromOrder(
-		ifset($_POST, 'id', 0),
-		ifset($_POST, 'einvoiceCvr', ''),
-		ifset($_POST, 'einvoiceCvrToCard') === '1',
-		ifset($_POST, 'einvoiceCvrCardWas', '')
-	);
-	$einvoiceCvrRedirect = einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET, false, einvoiceCvrPageHasOutput());
-	if ($einvoiceCvrRedirect !== '') {
-		header('Location: ' . $einvoiceCvrRedirect, true, 303);
-		exit;
-	}
-	if ($einvoiceCvrResult['formCvr'] !== null) {
-		$_POST['cvrnr'] = $einvoiceCvrResult['formCvr'];
-	}
-}
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -3406,15 +3382,8 @@ if ($status < 3 && isset($_GET['updateOrderCost']) && $_GET['updateOrderCost']) 
 
 ###########################################################################
 
-// SD-774: a CVR saved through the popup on an open order went through the Gem save above; redirect back to the
-// order now (Post/Redirect/Get), unless that save printed something the user must see.
-$einvoiceCvrRedirect = einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET, true, einvoiceCvrPageHasOutput());
-if ($einvoiceCvrRedirect !== '') {
-	header('Location: ' . $einvoiceCvrRedirect, true, 303);
-	exit;
-}
-ordreside($id, $regnskab, $einvoiceCvrResult);
-function ordreside($id, $regnskab, $einvoiceCvrResult = array())
+ordreside($id, $regnskab);
+function ordreside($id, $regnskab)
 {
 	#  print "<!--Function ordreside start-->";
 	global $afd_lager, $art;
@@ -6611,7 +6580,6 @@ function ordreside($id, $regnskab, $einvoiceCvrResult = array())
 			'konto_id'       => $konto_id,
 		),
 		einvoiceCvrRedirectPending($b_submit),
-		$einvoiceCvrResult,
 		$sprog_id,
 		$db_encode
 	);

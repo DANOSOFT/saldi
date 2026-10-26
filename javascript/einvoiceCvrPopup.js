@@ -27,6 +27,8 @@
 // 20261026 CL/MMR SD-774 cvrPresent() mirrors einvoice_cvr_present(): a CVR field holding a 13-digit EAN/GLN counts as empty.
 // 20261026 CL/MMR SD-774 cvrPresent() also needs a digit other than 0, like einvoice_cvr_present().
 //                 Choosing Digitalt on an invoiced order forgets an earlier Annuller, so the dialog opens again after the reload.
+// 20261026 CL/MMR SD-774 Gem saves through debitor/einvoiceCvrSave.php (fetch, JSON) instead of submitting the order form.
+//                 A refused CVR is shown in the dialog without a page load; an open order keeps the user's unsaved edits, and an invoiced one is loaded again with GET.
 
 (function (global) {
 	'use strict';
@@ -39,7 +41,7 @@
 	var FORM_SELECTOR = 'form[name="ordre"]';
 
 	// The texts the page's JSON carries (einvoiceCvrPopupTexts() in PHP).
-	var TEXT_KEYS = ['title', 'text', 'lookup', 'toCardNew', 'toCardReplace', 'invalid', 'missing', 'save', 'cancel', 'cvrLabel', 'eanLabel'];
+	var TEXT_KEYS = ['title', 'text', 'lookup', 'toCardNew', 'toCardReplace', 'invalid', 'missing', 'save', 'cancel', 'cvrLabel', 'eanLabel', 'saveFailed'];
 
 	// ---- Checks, mirroring includes/stdFunc/einvoiceCvr.php ----
 
@@ -162,17 +164,6 @@
 		}
 	}
 
-	function setHidden(form, name, value) {
-		var el = form.querySelector('input[type="hidden"][name="' + name + '"]');
-		if (!el) {
-			el = document.createElement('input');
-			el.type = 'hidden';
-			el.name = name;
-			form.appendChild(el);
-		}
-		el.value = value;
-	}
-
 	// The EAN the invoice would go to with the form as it is now: the order's field, else the card's.
 	function currentEan(form, data) {
 		var formEan = phpTrim(fieldValue(form, 'ean'));
@@ -190,8 +181,8 @@
 		return isGlnEndpoint(ean);
 	}
 
-	// ordre.php's unlock beacon skips the unlock while isSubmitting is true. A programmatic
-	// submit() fires no submit event, so the page's own listener cannot set it.
+	// ordre.php's unlock beacon skips the unlock while isSubmitting is true. Loading the order again
+	// after a saved CVR is not leaving it, and the page's own submit listener never sees that load.
 	function markSubmitting() {
 		try {
 			if (typeof isSubmitting !== 'undefined') {
@@ -345,28 +336,38 @@
 		}
 	}
 
-	// Puts the CVR in the order form and submits it: through the Gem button on an open order, so the
-	// order's own save runs (and stores the same CVR), or directly on an invoiced one.
-	function submitCvr(data, cvr, toCard) {
+	// Saves the CVR through debitor/einvoiceCvrSave.php and hands its JSON answer to done(); a
+	// network error or an answer that is not the expected JSON gives {ok: false, error: 'request'}.
+	function saveCvr(data, cvr, toCard, done) {
+		var body = 'id=' + encodeURIComponent(String(data.orderId || '')) +
+			'&cvr=' + encodeURIComponent(cvr) +
+			'&toCard=' + (toCard ? '1' : '0') +
+			'&cardWas=' + encodeURIComponent(String(data.cardCvr || ''));
+		var failed = {ok: false, problem: '', error: 'request'};
+		fetch(String(data.saveUrl || 'einvoiceCvrSave.php'), {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+			body: body
+		}).then(function (response) {
+			return response.json();
+		}).then(function (answer) {
+			done(answer && typeof answer === 'object' ? answer : failed);
+		}, function () {
+			done(failed);
+		});
+	}
+
+	// After a saved CVR: an open order gets it in its form, so the user's unsaved edits stay and the
+	// next Gem stores the same value; an invoiced order is loaded again with GET (never a re-post).
+	function afterSaved(data, cvr) {
 		var form = findForm();
-		if (!form) {
+		if (data.open && form) {
+			setFieldValue(form, 'cvrnr', cvr);
 			return;
 		}
-		setHidden(form, 'einvoiceCvrSave', '1');
-		setHidden(form, 'einvoiceCvr', cvr);
-		setHidden(form, 'einvoiceCvrToCard', toCard ? '1' : '0');
-		setHidden(form, 'einvoiceCvrCardWas', data.cardCvr || '');
-		setFieldValue(form, 'cvrnr', cvr);
-		if (data.open) {
-			var saveButton = form.querySelector('input[name="save"]');
-			if (saveButton && !saveButton.disabled) {
-				saveButton.click();
-				return;
-			}
-		}
 		markSubmitting();
-		// The Gem button (id="submit") shadows form.submit on an open order.
-		HTMLFormElement.prototype.submit.call(form);
+		window.location.replace(window.location.href.split('#')[0]);
 	}
 
 	/**
@@ -415,25 +416,41 @@
 			input.focus();
 		}
 
+		var saveButton = overlay.querySelector('[data-action="save"]');
+		var saving = false;
+
 		function save() {
+			if (saving) {
+				return;
+			}
 			var typed = cleanInput(input.value);
 			var problem = cvrInputProblem(typed);
 			if (problem !== '') {
 				showProblem(problem);
 				return;
 			}
-			var keepToCard = toCard.checked;
-			if (active) {
-				active.returnFocus = null;
-			}
-			close();
-			submitCvr(data, normalizeCvr(typed), keepToCard);
+			var cvr = normalizeCvr(typed);
+			saving = true;
+			saveButton.disabled = true;
+			saveCvr(data, cvr, toCard.checked, function (answer) {
+				saving = false;
+				saveButton.disabled = false;
+				if (answer.ok) {
+					if (active) {
+						active.returnFocus = null;
+					}
+					close();
+					afterSaved(data, String(answer.cvr || cvr));
+				} else if (answer.problem === 'missing' || answer.problem === 'invalid') {
+					showProblem(answer.problem);
+				} else {
+					error.textContent = t.saveFailed;
+					input.setAttribute('aria-invalid', 'true');
+					input.focus();
+				}
+			});
 		}
 
-		input.value = String(data.value || '');
-		if (data.error === 'missing' || data.error === 'invalid') {
-			showProblem(data.error);
-		}
 		input.addEventListener('input', function () {
 			if (input.getAttribute('aria-invalid') === 'true' && cvrInputProblem(cleanInput(input.value)) === '') {
 				error.textContent = '';
@@ -451,7 +468,7 @@
 			e.stopPropagation();
 		});
 		overlay.querySelector('[data-action="cancel"]').addEventListener('click', cancel);
-		overlay.querySelector('[data-action="save"]').addEventListener('click', save);
+		saveButton.addEventListener('click', save);
 
 		active = {overlay: overlay, modal: modal, input: input, returnFocus: returnFocus || null};
 		document.addEventListener('keydown', onKeydown, true);
@@ -493,8 +510,8 @@
 		}
 		dismissKey = data.orderId ? 'saldiEinvoiceCvrDismissed:' + data.orderId : '';
 		bindDigitalChange(form, data);
-		// A rejected input is always shown again; otherwise respect a dismissal in this session.
-		if (data.autoOpen && (data.error || !wasDismissed())) {
+		// Respect a dismissal in this session.
+		if (data.autoOpen && !wasDismissed()) {
 			show(data, String(data.ean || ''));
 		}
 	}

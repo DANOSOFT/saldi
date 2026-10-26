@@ -6,10 +6,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
-// 20261026 CL/MMR SD-774 Created. Pins when ordre.php renders and auto-opens the CVR popup, the redirect after a CVR saved on an invoiced order (Post/Redirect/Get), and that the save runs before any output.
-//                 Codex round 2 found that an invoiced order in PDF mode had no popup script, so choosing Digitalt after Annuller never reopened it, and that the save rendered its POST directly.
-//                 einvoiceCvrPopupState() and einvoiceCvrSavedRedirectUrl() take plain arrays, so they are tested directly; the order of steps in ordre.php and the parameters of easyUblCvrMissing() are asserted on the source.
-// 20261026 CL/MMR SD-774 Codex round 3: an open order redirects too, after its Gem save and only when nothing was printed.
+// 20261026 CL/MMR SD-774 Created. Pins when ordre.php renders and auto-opens the CVR popup, and how the popup saves: through debitor/einvoiceCvrSave.php (JSON), never by posting the order form.
+//                 Codex round 2 found that an invoiced order in PDF mode had no popup script, so choosing Digitalt after Annuller never reopened it; rounds 2-3 asked for Post/Redirect/Get for the save, which the AJAX save makes unnecessary.
+//                 einvoiceCvrPopupState(), einvoiceCvrSaveRequestProblem() and einvoiceCvrSaveJson() take plain values, so they are tested directly; ordre.php, the endpoint, the script and easyUblCvrMissing() are asserted on the source.
 #[RunTestsInSeparateProcesses]
 final class EInvoiceCvrPopupTest extends TestCase
 {
@@ -56,105 +55,80 @@ final class EInvoiceCvrPopupTest extends TestCase
     #[DataProvider('orders')]
     public function testThePopupScriptIsOnThePageWheneverDigitaltCanNeedIt(array $order, array $card, bool $redirectPending, bool $render, bool $autoOpen): void
     {
-        $state = einvoiceCvrPopupState($order, $card, $redirectPending, array());
+        $state = einvoiceCvrPopupState($order, $card, $redirectPending);
 
         self::assertSame($render, $state['render'], 'render');
         self::assertSame($autoOpen, $state['autoOpen'], 'autoOpen');
         self::assertSame((int)$order['id'], $state['orderId']);
     }
 
-    /** @return array<string, array{array<string, mixed>, array<string, mixed>, bool, bool, string}> */
-    public static function saves(): array
+    public function testTheEndpointOnlySavesForALoggedInPost(): void
     {
-        $saved = array('handled' => true, 'problem' => '', 'status' => 4, 'ordreId' => 166784);
-        $open = array('status' => 1) + $saved;
+        self::assertSame('method', einvoiceCvrSaveRequestProblem('GET', true));
+        self::assertSame('method', einvoiceCvrSaveRequestProblem(null, true));
+        self::assertSame('session', einvoiceCvrSaveRequestProblem('POST', false));
+        self::assertSame('', einvoiceCvrSaveRequestProblem('POST', true));
+    }
+
+    /** @return array<string, array{array<string, mixed>, array<string, mixed>}> */
+    public static function answers(): array
+    {
+        $saved = array('handled' => true, 'problem' => '', 'cvr' => '29190623', 'status' => 4, 'savedCard' => true, 'cardChanged' => false);
         return [
-            'invoiced order, saved'                    => [$saved, array('id' => '166784'), false, false, 'ordre.php?id=166784'],
-            'keeps sag_id and returside'               => [$saved, array('id' => '1', 'sag_id' => '12', 'returside' => 'ordreliste.php'), false, false, 'ordre.php?id=166784&sag_id=12&returside=ordreliste.php'],
-            'returside is encoded'                     => [$saved, array('returside' => '../x.php?a=1&b=2'), false, false, 'ordre.php?id=166784&returside=..%2Fx.php%3Fa%3D1%26b%3D2'],
-            'array parameters are dropped'             => [$saved, array('sag_id' => array('1'), 'returside' => array('x')), false, false, 'ordre.php?id=166784'],
-            'invoiced order, not again after the save' => [$saved, array(), true, false, ''],
-            'open order, before its Gem save'          => [$open, array(), false, false, ''],
-            'open order, after its Gem save'           => [$open, array('sag_id' => '3', 'returside' => 'ordreliste.php'), true, false, 'ordre.php?id=166784&sag_id=3&returside=ordreliste.php'],
-            'open order, the save printed an alert'    => [$open, array(), true, true, ''],
-            'invoiced order, output already printed'   => [$saved, array(), false, true, ''],
-            'rejected input renders the error'         => [array('problem' => 'invalid') + $saved, array(), false, false, ''],
-            'rejected input on an open order'          => [array('problem' => 'missing') + $open, array(), true, false, ''],
-            'not handled'                              => [array('handled' => false) + $saved, array(), false, false, ''],
-            'no save at all'                           => [array(), array(), true, false, ''],
+            'saved on an invoiced order' => [$saved, array('ok' => true, 'problem' => '', 'error' => '', 'cvr' => '29190623', 'open' => false, 'savedCard' => true, 'cardChanged' => false)],
+            'saved on an open order'     => [array('status' => 0, 'savedCard' => false) + $saved, array('ok' => true, 'problem' => '', 'error' => '', 'cvr' => '29190623', 'open' => true, 'savedCard' => false, 'cardChanged' => false)],
+            'card changed meanwhile'     => [array('savedCard' => false, 'cardChanged' => true) + $saved, array('ok' => true, 'problem' => '', 'error' => '', 'cvr' => '29190623', 'open' => false, 'savedCard' => false, 'cardChanged' => true)],
+            'input refused'              => [array('problem' => 'invalid', 'cvr' => '') + $saved, array('ok' => false, 'problem' => 'invalid', 'error' => '', 'cvr' => '', 'open' => false, 'savedCard' => true, 'cardChanged' => false)],
+            'order cannot take it'       => [array('handled' => false), array('ok' => false, 'problem' => '', 'error' => 'order', 'cvr' => '', 'open' => true, 'savedCard' => false, 'cardChanged' => false)],
         ];
     }
 
     /**
-     * A CVR saved through the popup redirects back to the order, so a refresh does not post the
-     * save again: an invoiced order at once, an open order after its Gem save has saved the whole
-     * form, and only when nothing was printed (an alert from the save would be lost). A rejected
-     * input wrote nothing and is shown again with its error.
+     * The JSON the popup gets back. Only a saved CVR is ok; a refused input names the problem, so the
+     * popup shows the same text as its own check; an order that cannot take a CVR is an error.
      *
      * @param array<string, mixed> $result
-     * @param array<string, mixed> $query
+     * @param array<string, mixed> $expected
      */
-    #[DataProvider('saves')]
-    public function testASavedCvrRedirectsBackToTheOrder(array $result, array $query, bool $orderSaved, bool $pageHasOutput, string $expected): void
+    #[DataProvider('answers')]
+    public function testTheEndpointAnswersWithTheSaveResult(array $result, array $expected): void
     {
-        self::assertSame($expected, einvoiceCvrSavedRedirectUrl($result, $query, $orderSaved, $pageHasOutput));
-    }
-
-    public function testPrintedOutputBlocksTheRedirect(): void
-    {
-        ob_start();
-        try {
-            self::assertFalse(einvoiceCvrPageHasOutput(), 'nothing printed yet');
-            echo "<BODY onLoad=\"javascript:alert('x')\">";
-            self::assertTrue(einvoiceCvrPageHasOutput(), 'an alert in the output buffer is not seen');
-        } finally {
-            ob_end_clean();
-        }
+        self::assertSame($expected, einvoiceCvrSaveJson($result));
     }
 
     /**
-     * In ordre.php the save and its redirect come before anything is printed, and before the
-     * order's own POST handling, which on an open order saves cvrnr from the form again.
+     * The popup never posts the order form, so ordre.php has no CVR save path, no redirect for it and
+     * renders as before. The endpoint sends only JSON (online.php's output is dropped), needs debitor
+     * rights and saves only for a logged-in POST.
      */
-    public function testOrdrePhpSavesAndRedirectsBeforeAnyOutput(): void
+    public function testTheSaveGoesThroughTheJsonEndpointOnly(): void
     {
-        $src = (string)file_get_contents(self::ROOT . '/debitor/ordre.php');
-        $firstOutput = null;
-        foreach (token_get_all($src) as $t) {
-            if (is_array($t) && in_array($t[0], array(T_PRINT, T_ECHO, T_INLINE_HTML), true)
-                && !($t[0] === T_INLINE_HTML && trim($t[1]) === '')) {
-                $firstOutput = $t[2];
-                break;
-            }
+        $ordre = (string)file_get_contents(self::ROOT . '/debitor/ordre.php');
+        self::assertStringNotContainsString('einvoiceCvrSaveFromOrder(', $ordre, 'ordre.php saves the CVR from a form post again');
+        self::assertStringNotContainsString("'einvoiceCvrSave'", $ordre);
+        self::assertStringContainsString("\nordreside(\$id, \$regnskab);\nfunction ordreside(\$id, \$regnskab)\n", $ordre);
+
+        $endpoint = (string)file_get_contents(self::ROOT . '/debitor/einvoiceCvrSave.php');
+        $obStart = strpos($endpoint, 'ob_start();');
+        $online = strpos($endpoint, '/../includes/online.php');
+        $obClean = strpos($endpoint, 'ob_end_clean();');
+        $json = strpos($endpoint, "header('Content-Type: application/json");
+        $check = strpos($endpoint, 'einvoiceCvrSaveRequestProblem(');
+        $save = strpos($endpoint, 'einvoiceCvrSaveFromOrder(');
+        foreach (array('ob_start' => $obStart, 'online.php' => $online, 'ob_end_clean' => $obClean, 'json header' => $json, 'request check' => $check, 'save' => $save) as $what => $at) {
+            self::assertNotFalse($at, "$what is gone from the endpoint");
         }
-        self::assertNotNull($firstOutput, 'ordre.php prints nothing?');
+        self::assertLessThan($online, $obStart, 'online.php can print before the output buffer starts');
+        self::assertGreaterThan($online, $obClean);
+        self::assertLessThan($json, $obClean, 'online.php output can reach the JSON answer');
+        self::assertLessThan($save, $check, 'the endpoint saves before it checks the request');
+        self::assertMatchesRegularExpression('/\$modulnr = 5;/', $endpoint, 'the endpoint no longer needs debitor rights');
+        self::assertMatchesRegularExpression('/\$header = "nix";/', $endpoint, 'online.php prints its page head into the endpoint');
 
-        $lines = explode("\n", $src);
-        $find = static function (string $needle) use ($lines): int {
-            foreach ($lines as $i => $line) {
-                if (strpos($line, $needle) !== false && strpos(ltrim($line), '//') !== 0) {
-                    return $i + 1;
-                }
-            }
-            return PHP_INT_MAX;
-        };
-        $save = $find('einvoiceCvrSaveFromOrder(');
-        $redirect = $find("header('Location: ' . \$einvoiceCvrRedirect, true, 303)");
-        $orderPost = $find("if ((\$b_submit || isset(\$_POST['udskriv_til'])) && \$id = \$_POST['id'])");
-        $early = $find('einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET, false, einvoiceCvrPageHasOutput())');
-        $late = $find('einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET, true, einvoiceCvrPageHasOutput())');
-        $render = $find('ordreside($id, $regnskab, $einvoiceCvrResult);');
-
-        self::assertLessThan($firstOutput, $save, "the popup's CVR save runs after output has started (line $firstOutput)");
-        self::assertLessThan($firstOutput, $redirect, 'the redirect after a saved CVR is gone or comes after output');
-        self::assertGreaterThan($save, $redirect);
-        self::assertLessThan($orderPost, $save, "the order's own POST handling runs before the popup's CVR is put into \$_POST['cvrnr']");
-        self::assertGreaterThan($save, $early, 'the invoiced-order redirect is gone');
-        self::assertLessThan($orderPost, $early, 'the invoiced-order redirect comes after the order POST handling');
-        self::assertGreaterThan($orderPost, $late, "the open-order redirect runs before the order's Gem save");
-        self::assertLessThan($render, $late, 'the open-order redirect comes after ordreside() renders the page');
-        self::assertSame(2, substr_count($src, "header('Location: ' . \$einvoiceCvrRedirect, true, 303)"),
-            'expected one redirect after each of the two calls');
+        $js = (string)file_get_contents(self::ROOT . '/javascript/einvoiceCvrPopup.js');
+        self::assertStringContainsString('fetch(', $js);
+        self::assertStringNotContainsString('HTMLFormElement.prototype.submit', $js, 'the popup posts the order form again');
+        self::assertStringContainsString('window.location.replace(', $js, 'an invoiced order is no longer loaded again with GET after the save');
     }
 
     /** easyUblCvrMissing() gets its context as parameters; peppol.php hands it over through sendInvoice(). */
