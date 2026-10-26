@@ -24,9 +24,11 @@
 // ----------------------------------------------------------------------
 // 20261003 CL/SZ SD-722 Created: the contra account suggested for a kreditor (contraSuggestion()), and the user's "Udfyld modkonto automatisk".
 //                Read-only, JSON. The company and user come from the session.
+// 20261026 CL/LH The suggestion brings its total and its alternatives; "auto" is on unless the user switched it off.
 //
 // Request: kreditor=<kreditor account number>  kladde_id=<journal>
-// Answer:  {"suggestion": {account, type, name, moms, text, count, reason, source} or null, "auto": bool}
+// Answer:  {"suggestion": {account, type, name, moms, text, count, total, reason, source, alternatives: [{account, type, name, moms, text, count, reason}]}
+//           or null, "auto": bool}
 
 ob_start();
 

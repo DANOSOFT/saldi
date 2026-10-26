@@ -7,6 +7,15 @@ use PHPUnit\Framework\TestCase;
 require_once __DIR__ . '/../../includes/docsIncludes/poolCapture.php';
 require_once __DIR__ . '/../../finans/kassekladde_includes/contraSuggestion.php';
 
+if (!function_exists('findtekst')) {
+    // The text's Danish default, as for a text not yet in the database
+    function findtekst($textId, $languageID)
+    {
+        $at = strpos((string)$textId, '|');
+        return $at === false ? '#' . $textId : substr((string)$textId, $at + 1);
+    }
+}
+
 /**
  * The parts of the data capture (SD-722) that decide without a database: the snapshot of what was read, which saved values count
  * as corrections, which fields are still "Aflæst", the e-mail to support, and which account the kreditor's history suggests.
@@ -172,16 +181,82 @@ final class poolCapture extends TestCase
         $this->assertSame($keep, poolCaptureMailSender('info@firma.dk', '', 'bad-db;', 'ssl12.saldi.dk'));
     }
 
-    public function testSuggestionIsTheNewestAccountAndItsRun(): void
+    public function testSuggestionIsTheAccountMostBilagWentTo(): void
     {
         $rows = [
+            ['bilag' => 14, 'dato' => '01-11-2026', 'kontonr' => 2810, 'art' => 'F', 'tekst' => 'Arla nov'],
             ['bilag' => 12, 'dato' => '01-10-2026', 'kontonr' => 2800, 'art' => 'F', 'tekst' => 'Arla okt'],
             ['bilag' => 12, 'dato' => '01-10-2026', 'kontonr' => 2800, 'art' => 'F', 'tekst' => 'Arla okt (fordeling)'],
             ['bilag' => 9, 'dato' => '01-09-2026', 'kontonr' => 2800, 'art' => 'F', 'tekst' => 'Arla sep'],
-            ['bilag' => 5, 'dato' => '01-08-2026', 'kontonr' => 2810, 'art' => 'F', 'tekst' => 'Arla aug'],
             ['bilag' => 3, 'dato' => '01-07-2026', 'kontonr' => 2800, 'art' => 'F', 'tekst' => 'Arla jul'],
         ];
-        $this->assertSame(['kontonr' => '2800', 'tekst' => 'Arla okt', 'count' => 2], contraSuggestionPick($rows));
+        // The newest bilag went to 2810, but three of the four went to 2800; a bilag on two lines counts once
+        $this->assertSame(['kontonr' => '2800', 'tekst' => 'Arla okt', 'count' => 3], contraSuggestionPick($rows));
+    }
+
+    public function testTheOtherAccountsAreRankedByCountThenNewest(): void
+    {
+        $rank = contraSuggestionRank([
+            ['bilag' => 20, 'dato' => '05-10-2026', 'kontonr' => 7100, 'art' => 'F', 'tekst' => 'Papir'],
+            ['bilag' => 19, 'dato' => '04-10-2026', 'kontonr' => 15011, 'art' => 'F', 'tekst' => 'Internet'],
+            ['bilag' => 18, 'dato' => '03-10-2026', 'kontonr' => 15020, 'art' => 'F', 'tekst' => 'Telefon'],
+            ['bilag' => 17, 'dato' => '02-10-2026', 'kontonr' => 15011, 'art' => 'F', 'tekst' => 'Internet sep'],
+            ['bilag' => 16, 'dato' => '01-10-2026', 'kontonr' => 1002, 'art' => 'D', 'tekst' => 'Modregning'],
+        ]);
+        $this->assertSame(5, $rank['total']);
+        $this->assertSame(['15011', '7100', '15020'], array_column($rank['accounts'], 'kontonr'));
+        $this->assertSame([2, 1, 1], array_column($rank['accounts'], 'count'));
+    }
+
+    public function testABilagSplitOverTwoAccountsCountsForBoth(): void
+    {
+        $rank = contraSuggestionRank([
+            ['bilag' => 8, 'dato' => '01-10-2026', 'kontonr' => 4000, 'art' => 'F', 'tekst' => 'Husleje'],
+            ['bilag' => 8, 'dato' => '01-10-2026', 'kontonr' => 4010, 'art' => 'F', 'tekst' => 'Varme'],
+            ['bilag' => 7, 'dato' => '01-09-2026', 'kontonr' => 4000, 'art' => 'F', 'tekst' => 'Husleje'],
+        ]);
+        $this->assertSame(2, $rank['total']);
+        $this->assertSame([['kontonr' => '4000', 'tekst' => 'Husleje', 'count' => 2], ['kontonr' => '4010', 'tekst' => 'Varme', 'count' => 1]], $rank['accounts']);
+    }
+
+    public function testFiveBilagAreFiveBilagNotFiveLines(): void
+    {
+        $rows = [
+            ['kladde_id' => 30, 'bilag' => 9, 'dato' => '09-10-2026', 'kontonr' => 2800, 'art' => 'F', 'tekst' => 'B'],
+            ['kladde_id' => 30, 'bilag' => 8, 'dato' => '08-10-2026', 'kontonr' => 2700, 'art' => 'F', 'tekst' => 'A 1/3'],
+            ['kladde_id' => 30, 'bilag' => 8, 'dato' => '08-10-2026', 'kontonr' => 2700, 'art' => 'F', 'tekst' => 'A 2/3'],
+            ['kladde_id' => 30, 'bilag' => 8, 'dato' => '08-10-2026', 'kontonr' => 2700, 'art' => 'F', 'tekst' => 'A 3/3'],
+            ['kladde_id' => 30, 'bilag' => 7, 'dato' => '07-10-2026', 'kontonr' => 2700, 'art' => 'F', 'tekst' => 'A'],
+            // Same number and date in two journals: two bilag
+            ['kladde_id' => 21, 'bilag' => 70, 'dato' => '01-10-2026', 'kontonr' => 2800, 'art' => 'F', 'tekst' => 'B'],
+            ['kladde_id' => 22, 'bilag' => 70, 'dato' => '01-10-2026', 'kontonr' => 2800, 'art' => 'F', 'tekst' => 'B'],
+            // The sixth bilag is not looked at
+            ['kladde_id' => 20, 'bilag' => 60, 'dato' => '01-09-2026', 'kontonr' => 2700, 'art' => 'F', 'tekst' => 'A'],
+        ];
+        $rank = contraSuggestionRank($rows);
+        $this->assertSame(5, $rank['total']);
+        $this->assertSame(['2800', '2700'], array_column($rank['accounts'], 'kontonr'));
+        $this->assertSame([3, 2], array_column($rank['accounts'], 'count'));
+    }
+
+    public function testAChosenBilagsLaterRowsStillCount(): void
+    {
+        // Same date, ordered by row id: bilag 1 and 2 have a second line after the sixth bilag's first
+        $row = function ($bilag, $konto) {
+            return ['kladde_id' => 30, 'bilag' => $bilag, 'dato' => '01-10-2026', 'kontonr' => $konto, 'art' => 'F', 'tekst' => ''];
+        };
+        $rank = contraSuggestionRank([$row(1, 1000), $row(2, 1000), $row(3, 2000), $row(4, 2000), $row(5, 3000), $row(6, 4000), $row(1, 2000), $row(2, 2000)]);
+        $this->assertSame(5, $rank['total']);
+        $this->assertSame(['2000', '1000', '3000'], array_column($rank['accounts'], 'kontonr'));
+        $this->assertSame([4, 2, 1], array_column($rank['accounts'], 'count'));
+    }
+
+    public function testTheReasonSaysHowManyOfTheBilag(): void
+    {
+        $this->assertSame('Foreslået fordi de sidste 5 bilag fra denne kreditor blev bogført på konto 15011', contraSuggestionReason(5, '15011', 1, 5));
+        $this->assertSame('Foreslået fordi 3 af de sidste 5 bilag fra denne kreditor blev bogført på konto 15011', contraSuggestionReason(3, '15011', 1, 5));
+        $this->assertSame('Foreslået fordi det seneste bilag fra denne kreditor blev bogført på konto 15011', contraSuggestionReason(1, '15011', 1, 1));
+        $this->assertSame('Foreslået fordi de sidste 2 bilag fra denne kreditor blev bogført på konto 2800', contraSuggestionReason(2, '2800', 1));
     }
 
     public function testOnlyFinanceAccountsAreSuggested(): void

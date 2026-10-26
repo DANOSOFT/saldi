@@ -31,6 +31,7 @@
 // 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
 // 20261019 CL/SZ SD-721 A kreditor made with "Opret kreditor" advances the search token like any other selection (SST-814).
 // 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
+// 20261026 CL/LH An emptied account cancels the VAT lookup still running for its old value, so the old code isn't written back afterwards.
 (function () {
     'use strict'; 
 
@@ -493,11 +494,14 @@
         const isFinanceAccount = !accountType || accountType === 'F';
 
         if (!accountNo || !isFinanceAccount) {
+            // A lookup still running for the old account must not write its code back
+            delete vatField.dataset.lookupKey;
             setVatFieldValue(rowNum, side, '');
             return Promise.resolve('');
         }
 
         if (options && Object.prototype.hasOwnProperty.call(options, 'vatCode')) {
+            delete vatField.dataset.lookupKey;
             setVatFieldValue(rowNum, side, options.vatCode);
             return Promise.resolve(options.vatCode || '');
         }

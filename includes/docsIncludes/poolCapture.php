@@ -33,6 +33,7 @@
 // 20261021 CL/SZ SD-722 (CodeRabbit) poolCaptureReportId(): this user's latest report of a document, used by poolCaptureReported() and for a new report's id.
 // 20261023 CL/LH SST-868 poolCaptureRecordAttach() takes the pool file name separately ($poolFilename): an attach whose name was taken
 //                lands under a suffixed name, and the snapshot is still read from the pool row under the old one.
+// 20261026 CL/LH poolCaptureClientTexts(): the texts of the Debet suggestion line and its list of other accounts.
 
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
@@ -752,6 +753,11 @@ if (!function_exists('poolCaptureClientTexts')) {
 			'suggested' => findtekst('5255|Forslag', $sprog_id),
 			'use' => findtekst('5242|Brug forslag', $sprog_id),
 			'reject' => findtekst('5391|Afvis forslaget', $sprog_id),
+			'ofTotal' => findtekst('7660|$antal af $total bilag', $sprog_id),
+			'oneOther' => findtekst('7661|1 anden', $sprog_id),
+			'others' => findtekst('7662|$antal andre', $sprog_id),
+			'searchOther' => findtekst('7664|Søg anden konto', $sprog_id),
+			'listHead' => findtekst('7665|Sidste $antal bilag fra kreditoren', $sprog_id),
 			'viaCvr' => findtekst('5374|Fundet via CVR-nr.', $sprog_id),
 			'viaBank' => findtekst('5375|Fundet via bankkonto', $sprog_id),
 			'viaName' => findtekst('5376|Fundet via navn', $sprog_id),

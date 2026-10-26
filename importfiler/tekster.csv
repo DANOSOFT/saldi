@@ -5239,6 +5239,12 @@
 5371	Aflæst	Read	Lest
 5372	Foreslået fordi de sidste $antal bilag fra denne kreditor blev bogført på konto $konto	Suggested because the last $antal vouchers from this creditor were posted to account $konto	Foreslått fordi de siste $antal bilagene fra denne kreditoren ble bokført på konto $konto
 5373	Foreslået fordi det seneste bilag fra denne kreditor blev bogført på konto $konto	Suggested because the latest voucher from this creditor was posted to account $konto	Foreslått fordi det siste bilaget fra denne kreditoren ble bokført på konto $konto
+7660	$antal af $total bilag	$antal of $total vouchers	$antal av $total bilag
+7661	1 anden	1 other	1 annen
+7662	$antal andre	$antal others	$antal andre
+7663	Foreslået fordi $antal af de sidste $total bilag fra denne kreditor blev bogført på konto $konto	Suggested because $antal of the last $total vouchers from this creditor were posted to account $konto	Foreslått fordi $antal av de siste $total bilagene fra denne kreditoren ble bokført på konto $konto
+7664	Søg anden konto	Search another account	Søk annen konto
+7665	Sidste $antal bilag fra kreditoren	Last $antal vouchers from the creditor	Siste $antal bilag fra kreditoren
 5374	Fundet via CVR-nr.	Found by CVR number	Funnet via org.nr.
 5375	Fundet via bankkonto	Found by bank account	Funnet via bankkonto
 5376	Fundet via navn	Found by name	Funnet via navn
