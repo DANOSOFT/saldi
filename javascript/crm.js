@@ -305,7 +305,8 @@ function renderFollow() {
 	}
 	const nofu = noFollowUp().sort((a, b) => (lastContact(a.id) || '').localeCompare(lastContact(b.id) || '') || a.n.localeCompare(b.n, LOC));
 	if (nofu.length) {
-		html += `<button class="showdone" id="showNofu">${S.showNofu ? t('Skjul %s kunder uden opfølgning', nofu.length) : t('Vis %s kunder uden opfølgning', nofu.length)}</button>`;
+		const one = nofu.length === 1;
+		html += `<button class="showdone" id="showNofu">${S.showNofu ? (one ? t('Skjul 1 kunde uden opfølgning') : t('Skjul %s kunder uden opfølgning', nofu.length)) : (one ? t('Vis 1 kunde uden opfølgning') : t('Vis %s kunder uden opfølgning', nofu.length))}</button>`;
 		if (S.showNofu) html += nofu.map(c => { const lc = lastContact(c.id); return `<div class="row body-row" style="--cols:${NCOLS}" tabindex="0" data-open="${c.id}"><span></span>
 			<span class="cust"><b>${esc(c.n)}</b>${c.ppl.length ? `<small>${esc(c.ppl[0].n)}</small>` : ''}</span>
 			<span class="c3">${lc ? t('Seneste kontakt %s', rel(lc)) : t('Ingen kontakt endnu')}</span>
@@ -531,6 +532,8 @@ function composer(c, ctx) {
 
 function renderDrawer() {
 	const c = cust(S.drawer); if (!c) return;
+	// a re-render (after any save, or when the whole history arrives) keeps the cursor where the user is typing
+	const ae = document.activeElement, keep = ae && ae.closest && ae.closest('#drawer') && ae.id ? {id: ae.id, a: ae.selectionStart, b: ae.selectionEnd} : null;
 	const hist = H.filter(h => h.cid === c.id).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
 	const nx = prevFor(c, draft('c', c.id)), lc = lastContact(c.id);
 	const deals = DEALS.filter(d => d.cid === c.id);
@@ -555,6 +558,7 @@ function renderDrawer() {
 			<a class="addp" href="debitorkort.php?id=${c.id}&returside=${ret}">${t('+ Tilføj kontaktperson på debitorkortet')}</a>`}
 		</div>`;
 	if (S.dtab === 'tl' && DATA.canWrite) wireComposer('c', c);
+	if (keep) { const el = document.getElementById(keep.id); if (el) { el.focus(); try { if (keep.a != null) el.setSelectionRange(keep.a, keep.b); } catch (e) { /* not a text field */ } } }
 }
 function dealsTab(c, list) {
 	const free = list.filter(d => d.state === 'open' && !d.doc);
@@ -802,7 +806,7 @@ function nextStep(cid) {
 	const d = draft('c', cid);
 	d.due = roll(7); d.closePrev = false;
 	openDrawer(cid, 'tl');
-	const n = $('#cNote'); if (n) n.focus();
+	const n = $('#cNote'); if (n) n.focus();   // kept through the re-render when the whole history arrives
 }
 async function followUpIn7(cid) {
 	const c = cust(cid); if (!c) return;
@@ -816,7 +820,7 @@ async function setOwner(c, to) {
 	const name = to ? (EMP[to] ? EMP[to].n : '') : t('ingen');
 	const move = to ? openFor(c.id).filter(h => h.by !== to) : [];
 	toast(`${c.n}: ${t('ansvarlig: %s', name)}`, () => api('unset_owner', {cid: c.id, owner: r.from, remove: r.hid}),
-		move.length ? {label: t('Flyt %s åbne opfølgninger til %s', move.length, name), fn: async () => {
+		move.length ? {label: move.length === 1 ? t('Flyt opfølgningen til %s', name) : t('Flyt %s åbne opfølgninger til %s', move.length, name), fn: async () => {
 			const m = await api('move_followups', {cid: c.id, owner: to, ids: move.map(h => h.id)});
 			toast(t('Opfølgningerne er flyttet'), () => api('unmove_followups', {moved: m.moved}));
 		}} : null);

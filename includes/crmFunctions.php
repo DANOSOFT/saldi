@@ -533,7 +533,10 @@ function crm_text_ids(): array
 		7607 => 'Vis alle',
 		7608 => 'Viser de 10 nyeste.',
 		7609 => 'ingen',
-		7610 => 'Åbn tandhjulet'
+		7610 => 'Åbn tandhjulet',
+		7611 => 'Vis 1 kunde uden opfølgning',
+		7612 => 'Skjul 1 kunde uden opfølgning',
+		7613 => 'Flyt opfølgningen til %s'
 	);
 }
 
