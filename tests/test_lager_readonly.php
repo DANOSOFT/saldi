@@ -60,6 +60,8 @@ $saveGate = strpos($guard, 'every path into this block writes');
 $saveBlock = strpos($guard, 'if ($saveItem || $submit = trim($submit))');
 lagerCheck($saveGate !== false, 'the save block carries its own refusal');
 lagerCheck($saveGate !== false && $saveBlock !== false && $saveGate < $saveBlock, 'and it sits before the block every write path enters');
+$saveRequest = strpos($guard, '$mb65_save_request = $saveItem || (bool) trim((string) $submit);');
+lagerCheck($saveRequest !== false && strpos($guard, 'if ($mb65_save_request && $rettigheder') !== false && strpos($guard, 'if ($mb65_save_request') < $saveBlock, 'its refusal tests only what the block tests, so a read-only user still sees the card');
 lagerCheck(strpos($guard, 'supplierLookUp') !== false && strpos($guard, '$mb65_write') !== false, 'the early gate names supplierLookUp as well');
 
 # ---- viewing a card writes nothing either --------------------------------------------------

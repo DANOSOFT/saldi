@@ -357,7 +357,9 @@ if (isset($_POST['supplierLookUp']) && $_POST['supplierLookUp'])
 
 # MB-65 every path into this block writes, whatever button carried it, so the refusal sits here as
 # well as at the action names above: a new action cannot reach the save by not being named there.
-if ($rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+# It tests what the block tests, so a read-only user still sees the card on a plain GET.
+$mb65_save_request = $saveItem || (bool) trim((string) $submit);
+if ($mb65_save_request && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
     error_log('MB-65: item save refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
     print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
     exit;
