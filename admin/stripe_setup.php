@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/stripe_setup.php --- 2026.08.07
+// --- admin/stripe_setup.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: idempotent Stripe catalog seed/sync. CLI ONLY.
 //                Contract: doc/stripe/INTERFACE_CONTRACT.md
@@ -29,8 +29,8 @@
 // Usage (from the install root or admin/):
 //   php admin/stripe_setup.php --db=<regnskab-db> [--csv=<file>] [--dry-run]
 //
-//   --db       Must equal stripeConfigDb()'s answer (belt and braces - the
-//              script refuses to run against any other regnskab).
+//   --db       The ledger to sync: any open regnskab (each ledger with its
+//              own Stripe setup has its own catalog).
 //   --csv      Optional ingest: semicolon-separated lines
 //              "varenr;unit_ore[;navn[;interval[;interval_count]]]"
 //              interval: month|year (default month), interval_count: 1-12
@@ -51,6 +51,7 @@
 //
 // Exit codes: 0 = clean, 1 = completed with warnings, 2 = errors.
 // 20260818 CL/LH Anchored branch-added include paths to __DIR__.
+// 20261026 CL/NTR Multi-ledger: --db selects any open ledger instead of having to match the pinned one.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -87,14 +88,10 @@ include(__DIR__ . '/../includes/connect.php');
 include(__DIR__ . '/../includes/stripeIncludes/stripeSettings.php');
 include(__DIR__ . '/../includes/stripeIncludes/stripeHttp.php');
 
-// Tenant: the resolver is the only authority; --db is just a confirmation.
-$target = stripeConfigDb();
+// Tenant: --db, validated against the master locator (unknown or closed ledgers are refused).
+$target = stripe_ledger_db($argDb);
 if (!$target) {
-	err("stripeConfigDb() is unresolved - set SALDI_STRIPE_DB or includes/stripeIncludes/.ht_stripe_db");
-	exit(2);
-}
-if ($argDb !== $target) {
-	err("--db=" . $argDb . " does not match the configured tenant '" . $target . "' - refusing");
+	err("--db=" . $argDb . " is not an open ledger in regnskab - refusing");
 	exit(2);
 }
 $connection = db_connect($sqhost, $squser, $sqpass, $target);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeInvoice.php --- 2026.10.25
+// --- includes/stripeIncludes/stripeInvoice.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,8 @@ include_once(__DIR__ . '/stripeCharge.php');
 // 20261025 CL/ASR Texts for the two pay buttons (automatic payment / this invoice only) and the fee for manual payment.
 // 20261025 CL/ASR Mails from Saldi's own ledger show the Saldi logo instead of the name.
 // 20261025 CL/ASR Customer contact e-mail/phone from Stripe settings (reply-to too); no month in invoice mail headings.
+// 20261026 CL/NTR Multi-ledger: every ledger with Stripe switched on can offer and collect link/card invoices; invoice
+//                 links carry the ledger (r=). A ledger restored from a copy stays off until its settings are saved.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -339,11 +341,10 @@ if (!function_exists('stripe_invoice_format')) {
 	 * 20261025 CL/ASR The link mail is chosen per order (Udskriv til = 'Link', "E-mail med link"). Whether that
 	 * choice can be offered and honoured in the current ledger at all.
 	 *
-	 * @return bool This is the Stripe ledger and invoice payments are on.
+	 * @return bool Stripe and invoice payments are on in this ledger, and it is not a copy (stripe_ledger_armed()).
 	 */
 	function stripe_invoice_link_available() {
-		global $db;
-		if (!$db || $db !== stripeConfigDb()) return false;
+		if (!stripe_ledger_armed()) return false;
 		return stripe_feature_on('invoice_payments') && stripe_setting('enabled', 'off') === 'on';
 	}
 
@@ -427,8 +428,7 @@ function stripe_invoice_collectable($inv) {
  * @return string ''|ledger|credit|currency|terms|pbs|debtor|no_card|subscriber
  */
 function stripe_invoice_uncollectable_reason($inv) {
-	global $db;
-	if (!$db || $db !== stripeConfigDb()) return 'ledger';
+	if (!stripe_ledger_armed()) return 'ledger';
 	$o = $inv['o'];
 	if (($o['art'] ?? '') !== 'DO' || !empty($inv['is_credit'])) return 'credit';
 	if ((strtoupper(trim((string)($o['valuta'] ?? ''))) ?: 'DKK') !== 'DKK') return 'currency';
@@ -599,12 +599,11 @@ if (!function_exists('stripe_invoice_load')) {
 		return (float)$sum;
 	}
 	function stripe_invoice_url($ordreId) {
-		global $db;
-		if (!$db || $db !== stripeConfigDb()) return '';
+		if (!stripe_ledger_armed()) return '';
 		$base = rtrim((string)stripe_setting('public_base_url'), '/');
 		$sig = stripe_link_sign($ordreId, 'invoice');
 		if (!$base || $sig === '') return '';
-		return $base . '/api/stripe/faktura.php?o=' . (int)$ordreId . '&s=' . $sig;
+		return $base . '/api/stripe/faktura.php?' . stripe_link_ledger_param() . '&o=' . (int)$ordreId . '&s=' . $sig;
 	}
 }
 

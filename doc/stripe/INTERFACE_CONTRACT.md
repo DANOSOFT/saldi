@@ -1,5 +1,6 @@
 <!-- // 20261022 CDX/LH Align the master port contract for switches, recurrence reads, payment states, repair and private PDFs. -->
 <!-- // 20261022 CDX/LH Finalize notices, consent/readiness, webhook retry limits, job summaries and launch verification. -->
+<!-- // 20261026 CL/NTR Multi-ledger: every ledger can run Stripe; links and webhook URLs carry the ledger (r=), v3 signatures bind it. -->
 
 # Stripe integration — canonical interface contract
 
@@ -20,7 +21,7 @@ Full grounded plan (external): `Saldi payment/stripe-native-grounded-implementat
 | `secret_key` | stripe_valg page | stripeHttp, subscribe, webhook | one key; prefix must match mode; NO mode-suffixed key names |
 | `webhook_secret` | stripe_valg page | webhook | `whsec_...` |
 | `link_secret` | auto-generated on first save; explicit regen only | subscribe (verify), mailer (sign via stripeLink) | `bin2hex(random_bytes(32))` |
-| `target_db` | mirrored from resolver, never from POST | webhook (cross-check) | must equal `stripeConfigDb()` output |
+| `target_db` | stripe_valg save: the session ledger, never from POST | nobody (informative) | the ledger these settings belong to |
 | `vat_rate_id` | stripe_valg page | subscribe | `txr_...`, the 25% DK tax rate; unset => subscribe parks |
 | `public_base_url` | stripe_valg page | subscribe (link mint), mailer | e.g. `https://<pilot-host>`; unset => mailer token renders `''` |
 | `bookkeeper_email` | stripe_valg page | subscribe + webhook alerts | fallback: `adresser.email where art='S'` |
@@ -31,15 +32,34 @@ per-request static. Nobody queries `settings` for stripe values directly.
 
 ## 2. Tenant resolver
 
-**`stripeConfigDb()`** in `stripeSettings.php`:
-`getenv('SALDI_STRIPE_DB')` -> else gitignored `includes/stripeIncludes/.ht_stripe_db`
-(same `.ht*` convention as `restapi/.ht_jwt_secret.bin`) -> regex-gate `^[a-z0-9_]{1,40}$`
--> validate against the global locator (`db_select("select db from regnskab where db='...'"`,
-precedent `includes/online.php:176`) -> else **fail closed**.
+Every ledger (regnskab) can run Stripe with its own settings (§1). Logged-in code uses the
+session `$db`. Session-less entry points (`api/stripe/*.php`, CLI tools) resolve the ledger
+in `includes/stripeIncludes/stripeBootstrap.php`:
+
+- **`stripe_request_db()`**: public links and webhook URLs carry the ledger as `r=<db>`.
+  `r` only selects; it is authenticated by the link signature (§4, which binds the ledger)
+  or by that ledger's own `webhook_secret`. An `r` that is malformed, unknown or a closed
+  ledger (`regnskab.lukket='on'`) fails closed; the public pages answer it exactly like a
+  bad link, so they cannot be used to enumerate ledgers. Without `r` it falls back to:
+- **`stripeConfigDb()`**, the pinned (legacy default) ledger: `getenv('SALDI_STRIPE_DB')`
+  -> else gitignored `includes/stripeIncludes/.ht_stripe_db`. Only links minted before
+  `r=` existed and the original webhook URL need it; it is optional otherwise.
+- Both validate through **`stripe_ledger_db()`**: regex-gate `^[a-z0-9_]{1,40}$` -> the
+  global locator (`select db, lukket from regnskab`) -> else `''` (fail closed).
+- CLI tools take `--db=<ledger>` (`stripe_print_link.php` sets `$stripe_cli_db` for the
+  bootstrap; `stripe_setup.php`, `stripe_charge_due.php` and `stripe_invoice_pdf.php`
+  resolve it themselves). `stripe_charge_due.php --all` runs every open ledger whose
+  `enabled` is `on`, one child process per ledger, so one cron line covers a server.
 
 No committed default anywhere (`includes/connect.php` is untouched — it deploys to every
 install including customer installs on the same host). `?db=`/POST `db` on any stripe
 endpoint -> hard 400, never silently ignored.
+
+**Shared Stripe account.** A ledger restored from a copy keeps the original's keys and
+`link_secret`. Signatures bind the ledger (§4), idempotency keys, rate limits and alert
+throttles include it, and Stripe objects carry `metadata[saldi_db]`; the webhook acknowledges
+(200 `other_ledger`, no `stripe_events` row) an event whose object is tagged with another
+ledger. Each ledger registers its own endpoint `…/api/stripe/webhook.php?r=<db>`.
 
 ## 3. DDL
 
@@ -93,8 +113,11 @@ identify a recurring invoice/current series template. Stripe code never writes t
 
 ## 4. Link signature
 
-Payload = **`v2:<purpose>:<order_id>`**, HMAC-SHA256 with `link_secret`, compared via
-`hash_equals()`. `purpose` is exactly `subscribe`, `invoice`, or `remove-card`; unknown
+Payload = **`v3:<db>:<purpose>:<order_id>`**, HMAC-SHA256 with the ledger's `link_secret`,
+compared via `hash_equals()`. Every link carries the ledger as its first parameter
+(`faktura.php?r=<db>&o=…&s=…`, `subscribe.php?r=<db>&id=…&sig=…`). Links minted before
+2026-10-26 have no `r` and a `v2:<purpose>:<order_id>` signature; they still verify, but
+only in the pinned `stripeConfigDb()` ledger, the only one that could mint them. `purpose` is exactly `subscribe`, `invoice`, or `remove-card`; unknown
 purposes and invalid ids fail closed. `invoice` authorizes viewing, PDF download, payment
 and payment-state polling for that invoice. It never authorizes card removal or subscription
 signup. `remove-card` is reserved; this port has no public removal endpoint. Staff Afmeld
@@ -115,8 +138,8 @@ Line edits do not change link identity: endpoints load and validate current invo
 ## 5. Checkout <-> webhook metadata
 
 The subscribe endpoint sends `client_reference_id=<order_id>` **plus both** metadata blocks:
-- `metadata[saldi_order_id|saldi_konto_id]` (on the session — debugging), and
-- `subscription_data[metadata][saldi_order_id|saldi_konto_id|saldi_kontonr]` — Stripe
+- `metadata[saldi_db|saldi_order_id|saldi_konto_id]` (on the session — debugging), and
+- `subscription_data[metadata][saldi_db|saldi_order_id|saldi_konto_id|saldi_kontonr]` — Stripe
   copies subscription metadata onto every invoice it generates; this is what makes
   RENEWAL invoices resolvable. Non-optional.
 
@@ -177,10 +200,10 @@ verified events/sync, repairing captured payments, or retrying queued Afmeld inv
 Master-compatible controls live in `systemdata/diverseIncludes/stripeValg.php`; no redesign
 settings registry is required. `email_settings.invoice_format` is `pdf` (default) or `link`;
 `email_settings.invoice_link_text` is optional tenant-wide text. Collection/link generation
-also require the current `$db` to equal `stripeConfigDb()`.
+work in any ledger with these switches on (§2).
 
 **Eligibility and amounts.** The shared guard excludes subscriptions, PBS mandates/BS
-orders, non-DKK invoices, cash/card payment terms, opt-outs, and the wrong tenant.
+orders, non-DKK invoices, cash/card payment terms, opt-outs, and a missing tenant.
 Collection requires authoritative openpost rows for invoice number + debtor whose open
 balance equals the booked total within one øre. Partial/ambiguous balances go to a manual
 panel without card controls. The amount charged remains booked `ordrer.sum + moms`;

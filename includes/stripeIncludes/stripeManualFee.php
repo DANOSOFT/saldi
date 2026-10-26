@@ -8,6 +8,7 @@
 //                 Settings (var_grp stripe): manual_fee_varenr = the fee product (empty = off), manual_fee_from =
 //                 first invoice date that counts. Only in the Stripe ledger with invoice payments and enrolment on,
 //                 so the customer can always avoid the fee by turning on automatic payment.
+// 20261026 CL/NTR Multi-ledger: applies in every ledger with Stripe, invoice payments and enrolment on (not in a copy).
 
 require_once __DIR__ . '/stripeSettings.php';
 
@@ -19,7 +20,7 @@ function stripe_manual_fee_valid_date($date) {
 /** @return array{vare: array, from: string}|null Fee product (id, varenr, beskrivelse, salgspris, gruppe) and start date; null when off. */
 function stripe_manual_fee_config() {
 	global $db;
-	if (!$db || stripeConfigDb() !== $db || stripe_setting('enabled', 'off') !== 'on'
+	if (!$db || !stripe_ledger_armed() || stripe_setting('enabled', 'off') !== 'on'
 		|| !stripe_feature_on('invoice_payments') || !stripe_feature_on('enrolment')) return null;
 	$varenr = trim((string)stripe_setting('manual_fee_varenr'));
 	$from = trim((string)stripe_setting('manual_fee_from'));
