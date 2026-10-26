@@ -37,3 +37,43 @@ for the local stack come from env vars or the gitignored
 `includes/connect.php`, as documented per suite.
 
 <!-- 20260904 CL/NTR created. -->
+
+
+## SST-876 document stock synchronization
+
+<!-- 20261023 CDX/MJ Track the fixes requested in SST-876 comment 22605 and their regression checks. -->
+
+The document sender prepares current quantities, prioritizes the document's lines,
+and sends up to ten payloads across the configured shops per round. Parent sets
+follow the lines. Old backlog gets at most five additional seconds within the
+shared request budget. Budget skips remain queued without increasing attempts;
+answered application refusals are reported instead of retried indefinitely.
+Document warnings exclude sets and old backlog and identify deferred lines as
+pending an automatic retry on the next stock update. The unrelated empty
+`includes/documents_master.php` was removed.
+
+Run these scripts separately (they share fixture directory names):
+
+```bash
+php tests/test_sst876_flush.php
+php tests/test_sst876_sync_queue.php
+php tests/test_sst876_item_fanout.php
+php tests/test_sst876_document_http.php
+php tests/test_shop_stock_sync.php
+```
+
+The HTTP test needs PHP cURL, Python 3, and permission to bind/connect to loopback.
+It starts a concurrent mock returning a number after 0.25 seconds. Database calls
+use a synthetic six-line fixture with disjoint parent sets; no customer endpoint
+or accounting entity is contacted. The regression verifies all six lines,
+including vare_id 3580, receive three successful replies in the same request,
+with no warning or remaining queue markers. The controlled HTTP run on 2026-10-23
+sent 423 requests in 4.03 seconds. This is not a new invoice test on ssl12.
+
+Before deployment, repeat the saved six-line order against delayed test shops,
+then receive a three-line supplier order while a backlog exists. Also check a
+refusal, a transport outage followed by recovery, and a budget-exhausted request:
+only affected document lines should be named, untried markers must keep their
+attempt counts, and old backlog must not add thirty seconds to the receipt.
+Do not point the test entity at customer shops. Background delivery and atomic
+queue/database transactions are separate outstanding reliability work.

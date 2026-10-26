@@ -29,6 +29,8 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
     private const MODTAG = __DIR__ . '/../../../kreditor/modtag.php';
     private const VAREKORT = __DIR__ . '/../../../lager/varekort.php';
     private const ORDREFUNC = __DIR__ . '/../../../includes/ordrefunc.php';
+    private const LEVERING = __DIR__ . '/../../../debitor/levering.php';
+    private const MASSEFAKT = __DIR__ . '/../../../debitor/massefakt.php';
     private const TEKSTER = __DIR__ . '/../../../importfiler/tekster.csv';
 
     /** @var array<string, string> */
@@ -118,18 +120,46 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
             'this body denies the update, so it must not count as a successful sync');
     }
 
-    /** shopApiRequest() has to consult the body, not just the status line. */
-    public function testTheRequestPathChecksTheBodyBeforeReportingSuccess(): void
+    /** The source of one of the two senders, from its signature to the end of its wrapper. */
+    private static function senderBody(string $name): string
     {
         $src = self::source(__DIR__ . '/../../../includes/stdFunc/shopApiRequest.php');
-        $at = strpos($src, '$call[\'httpCode\'] < 400) {');
-        self::assertNotFalse($at, 'the success branch of shopApiRequest() has moved');
-        $tail = substr($src, $at, 1200);
-        self::assertStringContainsString('shopApiResponseRejected($call[\'body\'])', $tail,
-            'a 2xx is accepted without looking at the body again');
-        self::assertLessThan(strpos($tail, '$result[\'ok\']    = true;'),
-            strpos($tail, 'shopApiResponseRejected'),
-            'the body is checked only after the call is already called a success');
+        $at = strpos($src, 'function ' . $name . '(');
+        self::assertNotFalse($at, $name . '() is gone');
+        $end = strpos($src, "\nif (!function_exists(", $at);
+        return substr($src, $at, ($end === false ? strlen($src) : $end) - $at);
+    }
+
+    /**
+     * A 2xx is never called a success until the body has been judged.
+     *
+     * The judgement lives in shopApiOutcome() rather than inline, because there are now two
+     * senders - one call at a time and all three shops at once - and two senders judging a
+     * shop's answer by two rules is the defect this ticket is about. So this pins the
+     * classifier itself and then pins that neither sender can report success around it.
+     */
+    public function testA200IsNeverASuccessUntilTheBodyIsJudged(): void
+    {
+        $answer = array('error' => '', 'httpCode' => 200, 'transient' => false, 'unreachable' => false);
+        self::assertSame('ok', shopApiOutcome(array('body' => '5') + $answer)['state'],
+            'the bare figure a working adapter answers no longer counts as success');
+        self::assertSame('refused', shopApiOutcome(array('body' => '{"success":false}') + $answer)['state'],
+            'a 200 that denies the update counts as a success again');
+        self::assertSame('failed', shopApiOutcome(array('body' => '', 'error' => 'curl error 7: refused',
+            'httpCode' => 0, 'transient' => true, 'unreachable' => true))['state'],
+            'a call that never reached the shop is not reported as failed');
+
+        foreach (array('shopApiRequest', 'shopApiRequestParallel') as $sender) {
+            $body = self::senderBody($sender);
+            self::assertStringContainsString('shopApiOutcome(', $body,
+                $sender . '() judges a shop answer on its own again');
+            $guard   = strpos($body, "\$outcome['state'] === 'ok'");
+            $success = strpos($body, "['ok']    = true;");
+            self::assertNotFalse($guard, $sender . '() no longer asks the classifier whether the call succeeded');
+            self::assertNotFalse($success, $sender . '() no longer reports success at all');
+            self::assertLessThan($success, $guard,
+                $sender . '() reports success before the body has been judged');
+        }
     }
 
     /**
@@ -214,13 +244,17 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
      *
      * This is the defect itself: all four call sites used to invoke sync_shop_vare() as a
      * bare statement, so a shop refusing every update for a week left no trace anywhere.
+     *
+     * A caller may now mark its lines and send once at the end instead of sending per line, so
+     * on those it is shopSyncFlush()'s answer that has to be kept. shopSyncMark() returns
+     * nothing and sends nothing, so it is the one call allowed to stand on its own.
      */
     #[DataProvider('callSites')]
     public function testEveryCallerKeepsTheSyncResult(string $path, string $label): void
     {
         $src = self::source($path);
         self::assertMatchesRegularExpression(
-            '/=\s*(?:sync_shop_vare|lagerreguler)\s*\(/', $src,
+            '/=\s*(?:sync_shop_vare|lagerreguler|shopSyncFlush)\s*\(/', $src,
             "$label does not keep what the sync answered");
         self::assertStringContainsString('shopSyncFailed(', $src,
             "$label never asks whether the sync failed");
@@ -232,6 +266,38 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
         self::assertDoesNotMatchRegularExpression(
             '/^[ \t]*lagerreguler\s*\(/m', $src,
             "$label still calls lagerreguler() as a bare statement");
+        self::assertDoesNotMatchRegularExpression(
+            '/^[ \t]*shopSyncFlush\s*\(/m', $src,
+            "$label sends the document's updates without keeping the answer");
+    }
+
+    /**
+     * A caller that flushes has to mark something first.
+     *
+     * Flushing an empty list answers OK, so a caller that stopped marking its lines would sync
+     * nothing at all and report success - the same silence this ticket is about, arrived at from
+     * the other side. A mutation run found this one: removing the mark from the goods receipt
+     * left every test green.
+     */
+    public function testACallerThatFlushesMarksItsLinesFirst(): void
+    {
+        foreach (array(
+            array(self::MODTAG, 'kreditor/modtag.php'),
+            array(self::ORDREFUNC, 'includes/ordrefunc.php'),
+        ) as list($path, $label)) {
+            $src = self::source($path);
+            self::assertStringContainsString('shopSyncFlush(', $src, "$label no longer sends anything");
+            self::assertStringContainsString('shopSyncMark(', $src,
+                "$label flushes an empty list, so it syncs nothing and says it went fine");
+        }
+        // Only the receipt can be checked by position: its mark is in the line loop and its
+        // flush is below it. In ordrefunc.php the order on the page is the other way round -
+        // levering() holds the flush and is declared above linjeopdat(), which does the marking
+        // and is called from inside it - so the order that matters there is pinned by
+        // testTheSaleMarksItsLinesAndSendsOnce() instead.
+        $receipt = self::source(self::MODTAG);
+        self::assertLessThan(strpos($receipt, 'shopSyncFlush('), strpos($receipt, 'shopSyncMark('),
+            'the receipt flushes before it marks, so a line is sent a receipt late');
     }
 
     /** A refusal has to leave a trace an operator can find afterwards. */
@@ -260,8 +326,15 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
         foreach (array(
             array(self::MODTAG, 'kreditor/modtag.php', 1),
             array(self::VAREKORT, 'lager/varekort.php', 3),
+            // SST-876 step 4, the sale. levering.php has one exit that has committed by then;
+            // massefakt.php has two, because it invoices ten orders and then hands over to
+            // itself for the next ten, and anything printed after that refresh is never written.
+            array(self::LEVERING, 'debitor/levering.php', 1),
+            array(self::MASSEFAKT, 'debitor/massefakt.php', 2),
         ) as list($path, $label, $expected)) {
-            self::assertSame($expected, substr_count(self::source($path), 'shopSyncAlert('),
+            $src = self::source($path);
+            $says = substr_count($src, 'shopSyncAlert(') + substr_count($src, 'shopSyncAlertFailedItems(');
+            self::assertSame($expected, $says,
                 "$label should tell the user at $expected place(s) and does not");
         }
     }
@@ -502,5 +575,234 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
         foreach (array(1 => 'Dansk', 2 => 'English', 3 => 'Norsk') as $col => $lang) {
             self::assertNotSame('', trim($row[$col] ?? ''), "row 5442 has no $lang text");
         }
+    }
+
+    // ------------------------------------------------- which endpoint counts as degraded
+
+    /**
+     * Runs a call against an address that refuses the connection at once.
+     *
+     * These two tests execute the real shopApiRequest(), which is the only way to see the
+     * static $degraded map: nothing reads it out. 127.0.0.1 with a closed port answers
+     * ECONNREFUSED immediately, so this costs milliseconds and needs no network. The php
+     * error log is pointed at a temporary file for the duration, because every failure here
+     * is deliberate and would otherwise be printed by the test run.
+     *
+     * @return array{ok: bool, skipped: bool, error: string}
+     */
+    private function callDeadEndpoint(string $url): array
+    {
+        $previous = ini_get('error_log');
+        $sink = tempnam(sys_get_temp_dir(), 'shopsynctest');
+        ini_set('error_log', $sink !== false ? $sink : '/dev/null');
+        try {
+            $res = shopApiRequest($url, array('update_stock' => '1'), null, array(
+                'context'        => 'degradation test',
+                'retries'        => 0,
+                'connectTimeout' => 1,
+                'timeout'        => 1,
+            ));
+        } finally {
+            ini_set('error_log', $previous === false ? '' : $previous);
+            if ($sink !== false) {
+                @unlink($sink);
+            }
+        }
+        return $res;
+    }
+
+    /**
+     * One dead adapter must not stop the shop next to it.
+     *
+     * box4, box5 and box6 are normally three adapter scripts in one hosting account, so they
+     * differ only in the path. Keying the degradation on scheme and host alone meant the first
+     * unreachable adapter skipped the other two for the rest of the request - every remaining
+     * call reported 'endpoint degraded earlier in this request' without being tried once.
+     * That is Havemoebelland's complaint with a different cause.
+     */
+    public function testOneDeadAdapterDoesNotDegradeAnotherOnTheSameHost(): void
+    {
+        $first = $this->callDeadEndpoint('http://127.0.0.1:9/adapter-one.php');
+        self::assertFalse($first['ok'], 'a closed port answered successfully');
+        self::assertFalse($first['skipped'], 'the first call to an endpoint cannot be a skip');
+
+        $second = $this->callDeadEndpoint('http://127.0.0.1:9/adapter-two.php');
+        self::assertFalse($second['skipped'],
+            'the second webshop was skipped because the first one is dead: the degradation key '
+            . 'has lost the path again, so adapters sharing a host share a failure state');
+        self::assertStringNotContainsString('degraded', $second['error'],
+            'the second webshop was refused on the first one\'s failure');
+    }
+
+    /** The same adapter twice still degrades, or the skip saves nobody a timeout. */
+    public function testTheSameDeadAdapterIsSkippedTheSecondTime(): void
+    {
+        $first = $this->callDeadEndpoint('http://127.0.0.1:1/adapter-one.php');
+        self::assertFalse($first['skipped'], 'the first call to an endpoint cannot be a skip');
+
+        $second = $this->callDeadEndpoint('http://127.0.0.1:1/adapter-one.php');
+        self::assertTrue($second['skipped'],
+            'an endpoint that proved unreachable is being called again: every item in the '
+            . 'request now pays its connect timeout');
+        self::assertStringContainsString('degraded', $second['error'],
+            'the skip no longer says why it skipped');
+    }
+
+    // ------------------------------------------------ how many calls one item is worth
+
+    /**
+     * Every shop is called in one round, not one after the other.
+     *
+     * Three shops answered in turn cost three times one shop's latency, and an ordinary item is
+     * three sends, so an item was eight serial calls. That is what used the 30 second budget up:
+     * invoice 230508 made 108 calls on its first line and skipped everything after it.
+     */
+    public function testEveryShopIsCalledInOneRoundRatherThanInTurn(): void
+    {
+        $block = self::syncShopVare();
+        self::assertStringNotContainsString('shopApiRequest($endpoint', $block,
+            'sync_shop_vare() is calling the shops one at a time again');
+        self::assertStringNotContainsString('foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint)', $block,
+            'a per-endpoint send loop is back in sync_shop_vare()');
+        self::assertStringContainsString('shopApiRequestParallel(', $block,
+            'the sends no longer go through the parallel sender');
+    }
+
+    /**
+     * A stock change sends the stock calls only.
+     *
+     * A receipt, a sale and a regulation change the stock and nothing else, so update_price, sku
+     * and the per-set costPrice call have nothing to say. Eight calls become three. The product
+     * card keeps the default, because Gem is where a price actually changes.
+     */
+    public function testAStockChangeDoesNotResendPricesAndSkus(): void
+    {
+        $block = self::syncShopVare();
+        foreach (array('update_price', 'sku vare_id', 'costPrice part') as $send) {
+            $at = strpos($block, '"sync_shop_vare ' . $send);
+            self::assertNotFalse($at, "the $send send has moved");
+            $before = substr($block, 0, $at);
+            $guard = strrpos($before, "if (\$mode !== 'stock')");
+            self::assertNotFalse($guard, "the $send send is made even when only stock changed");
+            // The guard has to be the nearest thing above the send, not one from further up.
+            self::assertLessThan(200, strlen($before) - $guard,
+                "the $send send is no longer the one that guard protects");
+        }
+        $stock = strpos($block, '"sync_shop_vare update_stock vare_id');
+        self::assertNotFalse($stock, 'the stock send has moved');
+        $before = substr($block, 0, $stock);
+        self::assertGreaterThan(200, strlen($before) - (int)strrpos($before, "if (\$mode !== 'stock')"),
+            'the stock send is now skipped on a stock change, which leaves nothing to send at all');
+    }
+
+    /**
+     * The prices are still read in stock mode, because the stock send is built from them.
+     *
+     * Only the sending is skipped. Skipping the query would send the stock call with empty
+     * prices, which is a worse bug than the one being fixed.
+     */
+    public function testTheStockSendStillCarriesThePricesItAlwaysDid(): void
+    {
+        $block = self::syncShopVare();
+        $query = strpos($block, "'update_price' => \$shop_id,");
+        $guard = strpos($block, "if (\$mode !== 'stock')");
+        self::assertNotFalse($query, 'the price parameters are gone');
+        self::assertNotFalse($guard, 'the mode no longer decides anything');
+        self::assertLessThan($guard, $query,
+            'the price query is now inside the mode guard, so a stock change sends empty prices');
+        foreach (array('salesPrice', 'costPrice', 'retailPrice', 'barcode') as $param) {
+            self::assertStringContainsString("'" . $param . "'", $block,
+                "the stock send lost its $param parameter");
+        }
+    }
+
+    /** A set shared by several lines of one document is sent once, with its final figure. */
+    public function testASetSharedBySeveralLinesIsSentOnce(): void
+    {
+        $block = self::syncShopVare();
+        self::assertStringContainsString('&shopSyncSentSets()', $block,
+            'nothing remembers which sets this document has already sent');
+        // Shared rather than static: ten orders in one mass invoicing request are ten documents
+        // with ten sets of figures, so the guard has to be cleared between them.
+        self::assertStringNotContainsString('static $partsSent', $block,
+            'the guard is a static again, so the second order in a request skips its sets');
+        self::assertStringContainsString('shopSyncFlushRunning()', $block,
+            'a direct sync can inherit the sets a flush in the same request already sent');
+        self::assertStringContainsString('isset($partsSent[$partKey])', $block,
+            'a set shared by two lines is sent once per line again');
+        $guard = strpos($block, 'isset($partsSent[$partKey])');
+        $send  = strpos($block, '"sync_shop_vare update_stock part');
+        self::assertLessThan($send, $guard, 'the set is sent before anything checks whether it already was');
+    }
+
+    /** A send that never reached the shop leaves the item on the queue for the next request. */
+    public function testAnUndeliveredUpdateIsQueued(): void
+    {
+        $block = self::syncShopVare();
+        self::assertStringContainsString('shopSyncQueueAdd(', $block,
+            'a stock update that could not be delivered is dropped again');
+        self::assertStringContainsString('shopSyncWorthRetrying($res)', $block,
+            'every failure is queued, including the ones no retry can fix');
+        $guard = strpos($block, 'shopSyncWorthRetrying($res)');
+        $queue = strpos($block, 'shopSyncQueueAdd(');
+        self::assertLessThan($queue, $guard, 'the item is queued before anything asks whether that helps');
+        self::assertStringContainsString('shopSyncNoteFailedItem(', $block,
+            'the item number of a failed send is no longer collected for the screen');
+    }
+
+    // ------------------------------------------------------- the sale, SST-876 step 4
+
+    /**
+     * The sale sends once, when every line is posted.
+     *
+     * linjeopdat() used to sync the line it had just posted, so an order of five lines was five
+     * syncs and every set those lines belong to was sent once per line. It marks now, and
+     * levering() sends when the loop is done - which is also the only moment the figures are
+     * final.
+     */
+    public function testTheSaleMarksItsLinesAndSendsOnce(): void
+    {
+        $src = self::source(self::ORDREFUNC);
+        self::assertStringContainsString('shopSyncMark($vare_id, $variant_id, $lager', $src,
+            'linjeopdat() no longer marks the line it posted');
+        self::assertSame(1, substr_count($src, 'shopSyncFlush('),
+            'the sale sends its updates somewhere other than once at the end of levering()');
+        $mark  = strpos($src, 'shopSyncMark($vare_id');
+        $flush = strpos($src, 'shopSyncFlush(');
+        self::assertNotFalse($mark);
+        self::assertNotFalse($flush);
+        self::assertLessThan($mark, $flush,
+            'levering() sends after linjeopdat() in the file, so the flush is inside the line loop');
+        // The name still appears in the file's history header, so this looks at the function.
+        $body = substr($src, $mark);
+        $end = strpos($body, '# endfunc linjeopdat');
+        self::assertNotFalse($end, 'linjeopdat() no longer ends where it says it does');
+        self::assertStringNotContainsString('sync_shop_vare(', substr($body, 0, $end),
+            'linjeopdat() still sends the line it posted, outside the flush');
+    }
+
+    /**
+     * The paths with nobody watching stay quiet.
+     *
+     * The rest api, the webshop order import and mysale all reach levering(), and a popup in a
+     * machine-to-machine call is at best ignored and at worst breaks the response. Their
+     * failures are in the php error log and on the queue, which is what step 2 is for.
+     */
+    public function testThePathsWithNoUserDoNotTryToAlert(): void
+    {
+        foreach (array(
+            'api/rest_api.php', 'api/hent_ordrer.php', 'mysale/api.php',
+        ) as $path) {
+            $full = __DIR__ . '/../../../' . $path;
+            if (!is_file($full)) {
+                continue;
+            }
+            $src = self::source($full);
+            self::assertStringNotContainsString('shopSyncAlert', $src,
+                "$path would print a javascript alert into a machine-to-machine answer");
+        }
+        // levering() is shared by both kinds of caller, so it must not alert on its own behalf.
+        self::assertStringNotContainsString('shopSyncAlert', self::source(self::ORDREFUNC),
+            'levering() alerts by itself, so the rest api prints a popup too');
     }
 }

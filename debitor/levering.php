@@ -21,6 +21,10 @@
 //
 // Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20261022 CL/MJ SST-876 Names the items the webshops would not take, after the commit. A
+//                 delivery that was rolled back reports nothing: the sale did not happen, so
+//                 the shop figures are not what went wrong.
+// ----------------------------------------------------------------------
 // 2013.05.06 Rettet lidt i fejlh�ndtering.
 // 2013.05.08 Tilf�jet "and status < 2" s� status ikke bliver sat tilbage ved klik p� tilbagenap p� mus.
 // 2016.09.13 Tilf�jet oioubl S�g 20160913
@@ -44,6 +48,10 @@ if ($id && $id>=1) {
 	$svar=levering($id,$hurtigfakt,$genfakt,0);
 	if ($svar=='OK') {
 		transaktion("commit");
+		# SST-876: after the commit, so a webshop that would not take the new figure cannot be
+		# mistaken for a reason the delivery failed. Before the refresh below, because that
+		# hands the page over and anything printed after it is never written.
+		shopSyncAlertFailedItems();
 		if ($hurtigfakt=='on') {
 			db_modify("update ordrer set status= '2' where id='$id' and status < '2'",__FILE__ . " linje " . __LINE__);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=bogfor.php?id=$id&genfakt=$genfakt&mail_fakt=$mail_fakt&pbs=$pbs&oioubl=$oioubl\">"; #20160913
@@ -51,6 +59,9 @@ if ($id && $id>=1) {
 		} else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 	} else {
 		transaktion("rollback");
+		# SST-876: the delivery did not happen, so the webshop figures are not the user's
+		# problem and naming items here would only confuse what did go wrong.
+		shopSyncClearFailedItems();
 		print "<BODY onLoad=\"javascript:alert('$svar')\">";
 	}
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-21 ---
+//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -153,6 +153,12 @@
 //                  a credit note could post stock to a warehouse that had since been taken out
 //                  of use - where it counts in "i alt" and in the figure sent to the webshops
 //                  but shows in no warehouse column and lagerflyt cannot move it.
+// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells
+//                 the webshops once when every line is posted. An item on two lines was two
+//                 sends, and a set the lines share was sent once per line: item 13054 is a
+//                 component in 33 sets, so one order line was 198 webshop calls and the 30
+//                 second budget skipped everything after it.
+// 20261026 CDX/MJ SST-883 Keep warehouse validation alongside the latest SST-876 document batching and sales warnings.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 include_once(__DIR__ . '/stdFunc/warehouse.php'); # warehouseIsDefined() - used when posting stock
@@ -494,6 +500,15 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	#fclose ($fp);
 /* echo "<!--function levering slut-->"; */
 	#xit;
+	# SST-876: every line is posted, so the webshops are told once, here, instead of per line.
+	# The figures are read from the database as they now stand. A shop that could not be
+	# reached leaves the item on the queue for the next request, and the item numbers are kept
+	# for whichever page called this one to report after it has committed - this function has
+	# no screen of its own, and the rest api has none at all.
+	$shopSync = shopSyncFlush(); # std_func.
+	if (shopSyncFailed($shopSync)) {
+		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
+	}
 	return ("OK");
 } #endfunc levering
 
@@ -742,12 +757,11 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			}
 		}
 	}
-	# SST-876: this path has no user interface - invoicing and the rest api run it - so a shop
-	# that refuses the update goes to the php error log rather than on screen.
-	$shopSync = sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
-	if (shopSyncFailed($shopSync)) {
-		error_log("saldi: shop stock sync failed for vare_id $vare_id on order $id - $shopSync");
-	}
+	# SST-876: the line is marked and nothing is sent yet. levering() sends once when every
+	# line has been posted, so an item on two lines is one send with the figure the document
+	# ended with, and a set shared by several lines is sent once rather than once per line.
+	# Item 13054 is a component in 33 sets: its line alone used to be 198 webshop calls.
+	shopSyncMark($vare_id, $variant_id, $lager, 'stock'); # std_func.
 	$qtxt = "update ordrelinjer set leveret = leveret+$antal,leveres=0 where id='$linje_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } # endfunc linjeopdat
