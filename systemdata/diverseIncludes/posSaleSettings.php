@@ -41,7 +41,7 @@
 //                  the form variant an invoice is printed from, and debitor/formprintfunc.php falls
 //                  back to dansk only when it is empty - not when the variant is missing.
 //
-// 20261026 CL/SZ SD-758 Texts moved from 5439-5441 to 5500-5502, because master already uses 5439 (finans/kassekladde.php) and 5440/5441 (finans/bogfor.php).
+// 20261026 CL/SZ SD-758 Texts moved from 5439-5441 to 7200-7202, because master already uses 5439 (finans/kassekladde.php) and 5440/5441 (finans/bogfor.php).
 //                findtekst() keeps one text per id, so the POS-valg brand heading showed the kassekladde voucher text.
 //
 // The brand is kept as a tab separated list indexed by terminal number less one, in
@@ -98,9 +98,9 @@ function pos_sale_brand_variants() {
  * @return void
  */
 function pos_render_sale_brand_header($sprog_id) {
-	$text  = findtekst('5500|Brand', $sprog_id);
-	$title = findtekst('5501|Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant', $sprog_id);
-	print "<td title='$title'><!--Tekst 5501-->$text<!--Tekst 5500--></td>\n";
+	$text  = findtekst('7200|Brand', $sprog_id);
+	$title = findtekst('7201|Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant', $sprog_id);
+	print "<td title='$title'><!--Tekst 7201-->$text<!--Tekst 7200--></td>\n";
 }
 
 /**
@@ -214,7 +214,7 @@ function pos_save_sale_settings($post, $regnaar) {
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 	if ($refused) {
-		$txt = findtekst('5502|Ikke gemt, mangler formularvariant', $GLOBALS['sprog_id']);
+		$txt = findtekst('7202|Ikke gemt, mangler formularvariant', $GLOBALS['sprog_id']);
 		$safe = array();
 		foreach ($refused as $name) {
 			$safe[] = pos_sale_brand_for_alert($name);
