@@ -16,11 +16,12 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261026 CL/MMR Created (SST-890).
+ * 20261026 CL/MMR Real locateDir.php from a page two levels down (Codex review, SST-890).
  */
 #[RunTestsInSeparateProcesses]
 final class FindtekstDefaultTextTest extends TestCase
 {
-    private static function boot(string $dbEncode, ?array $tableRow = null): void
+    private static function boot(string $dbEncode, ?array $tableRow = null, bool $stubLocateDir = true): void
     {
         $dir = sys_get_temp_dir() . '/findtekst-sst890-' . getmypid();
         @mkdir($dir . '/importfiler', 0777, true);
@@ -47,8 +48,10 @@ final class FindtekstDefaultTextTest extends TestCase
             }
             function db_modify($q, $where = "") { $GLOBALS["__inserts"][] = $q; return true; }
             function db_escape_string($s) { return addslashes((string) $s); }
-            function locateDir($d) { return $GLOBALS["__fixtureDir"] . "/" . $d; }
         ');
+        if ($stubLocateDir) {
+            eval('function locateDir($d) { return $GLOBALS["__fixtureDir"] . "/" . $d; }');
+        }
         require dirname(__DIR__, 3) . '/includes/stdFunc/findTxt.php';
     }
 
@@ -101,6 +104,22 @@ final class FindtekstDefaultTextTest extends TestCase
     {
         self::boot('LATIN9');
         self::assertSame(mb_convert_encoding('Udløbsdato', 'ISO-8859-1', 'UTF-8'), findtekst('4981|Udløbsdato', 1));
+    }
+
+    public function testRealLocateDirIsIncludedWhateverTheWorkingDirectory(): void
+    {
+        // A page two levels down (like lager/lister/indkøb.php): findTxt.php must include locateDir.php itself.
+        self::boot('UTF8', null, false);
+        $cwd = (string) getcwd();
+        $page = $GLOBALS['__fixtureDir'] . '/lager/lister';
+        @mkdir($page, 0777, true);
+        chdir($page);
+        try {
+            self::assertSame('Bestiller', findtekst('4982|Something else', 1));
+            self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
+        } finally {
+            chdir($cwd);
+        }
     }
 
     public function testDefaultTextIsCachedForTheSession(): void

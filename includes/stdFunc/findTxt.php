@@ -10,6 +10,7 @@
  // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
  // 20261026 CL/MMR SST-890 Use the call's default text ('4981|Autoudfyld') when the text is missing in tekster and tekster.csv, instead of "Tekst nr: 4981".
  //                  An empty tekster.csv line no longer raises "Undefined array key" (trim() strips its tabs).
+ //                  locateDir.php is included via __DIR__, so it is found whatever the caller's working directory.
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
@@ -95,10 +96,12 @@ if (!function_exists('findtekst')) {
 				$tmp = array();
 				while (!feof($fp)) {
 					if ($linje = trim(fgets($fp))) {
-						if (strpos($linje, chr(9)))
+						if (strpos($linje, chr(9))) {
 							$tmp = explode(chr(9), $linje);
-						if ($textId == $tmp[0])
+						}
+						if ($textId == $tmp[0]) {
 							$newTxt = $tmp[$languageID]; # Linjen efter 1. tab. 
+						}
 					}
 				}
 				fclose($fp);
@@ -119,8 +122,7 @@ if (!function_exists('findtekst')) {
 				fclose($fp);
 			}
 			if (!function_exists('locateDir')) {
-				if (file_exists(("../stdFunc/locateDir.php"))) include("../stdFunc/locateDir.php");
-				elseif (file_exists(("../includes/stdFunc/locateDir.php"))) include("../includes/stdFunc/locateDir.php");
+				include_once(__DIR__ . '/locateDir.php');
 			}
 			$fiE3E = locateDir("importfiler");
 			$fp = fopen("$fiE3E/tekster.csv", "r");
@@ -140,10 +142,11 @@ if (!function_exists('findtekst')) {
 			}
 			$newTxt = str_replace('\n\n', "\n\n", $newTxt);
 			$tmp = db_escape_string($newTxt); #20140505
-			if ($id)
+			if ($id) {
 				$qtxt = "update tekster set tekst='$tmp' where id=$id";
-			else
+			} else {
 				$qtxt = "insert into tekster(sprog_id,tekst_id,tekst) values ('$languageID','$textId','$tmp')";
+			}
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$tekst = $newTxt;
 		} elseif ($db == $sqdb) {
