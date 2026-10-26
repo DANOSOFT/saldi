@@ -130,17 +130,29 @@ body {
 
 #kassebilagTopBar .topbar-fields-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 6px;
   overflow-x: auto;
   white-space: nowrap;
 }
 
 #kassebilagTopBar .topbar-field {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* Reserve the account-name line for every field so controls share a row. */
+  grid-template-rows: auto 26px 13px;
   gap: 1px;
   white-space: nowrap;
+}
+
+#kassebilagTopBar .topbar-field > :not(label):not(.pool-account-name) {
+  grid-row: 2;
+  align-self: center;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+#kassebilagTopBar .topbar-field > .pool-account-name {
+  grid-row: 3;
 }
 
 #kassebilagTopBar .topbar-field label {
@@ -151,13 +163,15 @@ body {
   line-height: 1.2;
 }
 
-#kassebilagTopBar .topbar-field input[type="text"] {
+#kassebilagTopBar .topbar-field input[type="text"],
+#kassebilagTopBar .topbar-field select {
   padding: 2px 4px;
   border: 1px solid #ccc;
   border-radius: 3px;
   font-size: 13px;
   height: 26px;
   box-sizing: border-box;
+  margin: 0;
 }
 
 #kassebilagTopBar .topbar-field input[type="checkbox"] {
@@ -844,6 +858,7 @@ body {
 
 .pool-account-inputs {
   display: flex;
+  align-items: center;
   gap: 2px;
 }
 
