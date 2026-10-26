@@ -15,6 +15,7 @@
 //
 // History:
 // 20261026 CL/SZ Created (SD-777, sub-task of SD-750).
+// 20261026 CL/SZ Reports the page's HTTP status (CHARTEST_HTTP), for the REST intake switch (SD-750).
 
 if ($argc < 5) {
 	fwrite(STDERR, "usage: php run_legacy_shop_page.php <page> <session_id> <request.json> <output file>\n");
@@ -46,6 +47,6 @@ chdir($root . '/' . dirname($page)); // the pages use ../includes/... relative i
 ob_start();
 register_shutdown_function(static function () use ($outputFile): void {
 	file_put_contents($outputFile, (string)ob_get_clean());
-	fwrite(STDOUT, "CHARTEST_PAGE_DONE\n");
+	fwrite(STDOUT, "CHARTEST_PAGE_DONE\nCHARTEST_HTTP " . (int)http_response_code() . "\n");
 });
 include basename($page);

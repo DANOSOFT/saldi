@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,6 +100,9 @@
 // 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
 //                  13-digit string is treated as an EAN-13 candidate (is_numeric also
 //                  accepted decimals, signs and scientific notation).
+// 20261026 CL/SZ hent_shop_ordrer, sync_shop_price and sync_shop_vare call every slot (box4/box5/box6) that is open
+//                for intake or outbound in the shopify_legacy settings (SD-750); an empty box4 no longer
+//                disables box5/box6. With no settings row every slot is open, as before.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -110,6 +113,7 @@ include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/jsString.php');
+require_once(__DIR__ . '/shopify/coexistence.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -1891,8 +1895,9 @@ if (!function_exists('hent_shop_ordrer')) {
 	  global $db;
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	  $api_fil = isset($r['box4']) ? trim($r['box4']) : 0;
-	  if ($api_fil) {
+	  # Every slot open for intake (SD-750); an empty box4 no longer hides box5/box6.
+	  $endpoints = shopify_legacy_endpoints(array('db' => $db), 'intake');
+	  if ($endpoints) {
 		file_put_contents("../temp/$db/ny_shop.json", json_encode($r));
 		if (file_exists("../temp/$db/shoptidspkt.txt")) {
 		  $tidspkt = trim(file_get_contents("../temp/$db/shoptidspkt.txt"));
@@ -1901,28 +1906,13 @@ if (!function_exists('hent_shop_ordrer')) {
 		if ($tidspkt < date("U") - 300 || $shop_ordre_id) {
 		  file_put_contents("../temp/$db/shoptidspkt.txt", date("U"));
 		  #      $header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-		  $api_txt = "$api_fil?put_new_orders=1";
-		  if ($shop_ordre_id)
-			$api_txt .= "&ordre_id=$shop_ordre_id";
-		  if ($from_date)
-			$api_txt .= "&from_date=$from_date";
-		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-		  
-		  if($r["box5"]){
-			$api_txt = "$r[box5]?put_new_orders=1";
-		  if ($shop_ordre_id)
-			$api_txt .= "&ordre_id=$shop_ordre_id";
-		  if ($from_date)
-			$api_txt .= "&from_date=$from_date";
-		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-		  }
-		  if($r["box6"]){
-			$api_txt = "$r[box6]?put_new_orders=1";
-		  if ($shop_ordre_id)
-			$api_txt .= "&ordre_id=$shop_ordre_id";
-		  if ($from_date)
-			$api_txt .= "&from_date=$from_date";
-		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		  foreach ($endpoints as $api_fil) {
+			$api_txt = "$api_fil?put_new_orders=1";
+			if ($shop_ordre_id)
+			  $api_txt .= "&ordre_id=$shop_ordre_id";
+			if ($from_date)
+			  $api_txt .= "&from_date=$from_date";
+			exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
 		  }
 		}
 	  }
@@ -1952,16 +1942,12 @@ if(!function_exists("sync_shop_price")){
 	  $costPrice = 0;
 	  $shop_id = $rand = ''; # never assigned in this function, kept empty as in the original url
 	  $failed = 0;
-	  $api_fil =$api_fil2=$api_fil3= NULL;
 	  $log = fopen("../temp/$db/rest_api.log", "a");
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$api_fil = trim($r['box4']);
-		$api_fil2 = trim($r["box5"]);
-		$api_fil3 = trim($r["box6"]);
-	  }
-	  if (!$api_fil) {
+	  # Every slot open for outbound (SD-750); an empty box4 no longer hides box5/box6.
+	  $endpoints = shopify_legacy_endpoints(array('db' => $db), 'outbound');
+	  if (!$endpoints) {
 		fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 		fclose($log);
 		return ('no api');
@@ -1988,10 +1974,7 @@ if(!function_exists("sync_shop_price")){
 			'webFragt'     => $webFragt,
 			'barcode'      => $stregkode,
 		);
-		foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
-		  if (!$endpoint) {
-			continue;
-		  }
+		foreach ($endpoints as $endpoint) {
 		  $res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
 		  if (!$res['ok']) {
 			$failed++;
@@ -2009,17 +1992,13 @@ if (!function_exists('sync_shop_vare')) {
 		global $bruger_id,$db,$regnaar;
 		$costPrice = 0;
 		$failed = 0;
-		$api_fil =$api_fil2=$api_fil3= NULL;
 		$log = fopen("../temp/$db/rest_api.log", "a");
 		$qtxt = "select box4, box5, box6 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$api_fil = trim($r['box4']);
-			$api_fil2 = trim($r["box5"]);
-			$api_fil3 = trim($r["box6"]);
-		}
-		
-		if (!$api_fil) {
+		# Every slot open for outbound (SD-750); an empty box4 no longer hides box5/box6.
+		$endpoints = shopify_legacy_endpoints(array('db' => $db), 'outbound');
+
+		if (!$endpoints) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 			fclose($log);
 			return ('no api');
@@ -2065,7 +2044,7 @@ if (!function_exists('sync_shop_vare')) {
 				'stockno'      => $lager,
 				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
 			);
-			foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+			foreach ($endpoints as $endpoint) {
 				if (!$endpoint) {
 					continue;
 				}
@@ -2125,7 +2104,7 @@ if (!function_exists('sync_shop_vare')) {
 					'webFragt'     => $webFragt,
 					'barcode'      => $stregkode,
 				);
-				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+				foreach ($endpoints as $endpoint) {
 					if (!$endpoint) {
 						continue;
 					}
@@ -2148,8 +2127,8 @@ if (!function_exists('sync_shop_vare')) {
 					'costPrice' => $costPrice,
 					'rand'      => $rand,
 				);
-				# api_fil3 is left out here as in the original code, this call never went to endpoint 3
-				foreach (array($api_fil, $api_fil2) as $endpoint) {
+				# Slot 6 (box6) is left out here as in the original code, this call never went to it
+				foreach (array_diff_key($endpoints, array(6 => true)) as $endpoint) {
 					if (!$endpoint) {
 						continue;
 					}
@@ -2174,7 +2153,7 @@ if (!function_exists('sync_shop_vare')) {
 					'webFragt'     => $webFragt,
 					'barcode'      => $stregkode,
 				);
-				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+				foreach ($endpoints as $endpoint) {
 					if (!$endpoint) {
 						continue;
 					}
@@ -2230,7 +2209,7 @@ if (!function_exists('sync_shop_vare')) {
 							'sku'       => $productNo,
 							'skuAlias'  => $productNoAlias,
 						);
-						foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+						foreach ($endpoints as $endpoint) {
 							if (!$endpoint) {
 								continue;
 							}

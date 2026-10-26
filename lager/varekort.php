@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,6 +130,8 @@
 //                  had been commented out, so on an account with warehouses a location typed
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
+// 20261026 CL/SZ SD-750 Saving syncs the shops when any slot is open for outbound in the shopify_legacy
+//                settings, not only when box4 is set.
 //
 ob_start(); //Starts output buffering
 
@@ -524,10 +526,9 @@ if ($saveItem || $submit = trim($submit)) {
         $stockItem = if_isset($r['box8'], 0);
         $batchItem = if_isset($r['box9'], 0);
     }
-    $qtxt = "select box4 from grupper where art='API'";
-    $api_fil = NULL;
-    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-        $api_fil = trim($r['box4']);
+    // Saving syncs the shops when any slot is open for outbound (SD-750); an empty box4 no longer
+    // hides box5/box6. Read before the transaction starts.
+    $api_fil = (bool) shopify_legacy_endpoints(array('db' => $db), 'outbound');
     transaktion('begin');
     $begin = 1;
     if ($ny_kategori && $ny_kategori != $tmp) {

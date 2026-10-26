@@ -13,6 +13,8 @@ require_once __DIR__ . '/../../support/LegacyShopStub.php';
 //                and sync_shop_vare() (outbound), for every box4/box5/box6 combination. The
 //                functions run unchanged against scripted query answers (run_legacy_shop_sync.php)
 //                and a local stand-in shop (LegacyShopStub). Data is synthetic.
+// 20261026 CL/SZ SD-750 An empty box4 no longer disables box5/box6: every slot with an endpoint is called.
+
 final class LegacyShopSyncCharacterizationTest extends TestCase
 {
 	private const DB = 'chardb';
@@ -61,7 +63,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 	// ---- hent_shop_ordrer(): order intake -------------------------------------------------
 
 	#[DataProvider('slotCombinations')]
-	public function testOrderIntakeAsksEverySlotWithAnEndpointOnlyWhenBox4IsSet(bool $four, bool $five, bool $six): void
+	public function testOrderIntakeAsksEverySlotWithAnEndpoint(bool $four, bool $five, bool $six): void
 	{
 		$api = $this->api($four, $five, $six);
 
@@ -74,7 +76,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 			$this->assertSame(['put_new_orders' => '1'], $request['query']);
 			$this->assertStringStartsWith('Wget/', $request['ua'], 'no User-Agent header is set: $header is undefined there');
 		}
-		if ($four) {
+		if ($expected) {
 			$this->assertSame(json_encode($api[1][0]), $this->temp('ny_shop.json'));
 			$this->assertEqualsWithDelta(time(), (int)$this->temp('shoptidspkt.txt'), 5);
 		} else {
@@ -115,19 +117,19 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 	// ---- sync_shop_price(): price outbound ------------------------------------------------
 
 	#[DataProvider('slotCombinations')]
-	public function testPriceSyncSendsTheSamePriceToEverySlotOnlyWhenBox4IsSet(bool $four, bool $five, bool $six): void
+	public function testPriceSyncSendsTheSamePriceToEverySlotWithAnEndpoint(bool $four, bool $five, bool $six): void
 	{
 		$out = $this->sync('sync_shop_price', [7], [$this->api($four, $five, $six), $this->item()]);
 
 		$expected = $this->expectedPaths($four, $five, $six);
 		$sent = self::$shop->requests();
-		$this->assertSame($four ? 'OK' : 'no api', $out['return']);
+		$this->assertSame($expected ? 'OK' : 'no api', $out['return']);
 		$this->assertSame($expected, $this->paths($sent));
 		foreach ($sent as $request) {
 			$this->assertSame('?update_price=&salesPrice=20&discountType=&discount=0&itemNo=V7&rand=&costPrice=10&retailPrice=25&webFragt=&barcode=123', substr($request['uri'], strlen($request['path'])));
 			$this->assertSame('Saldi shop sync', $request['ua']);
 		}
-		if (!$four) {
+		if (!$expected) {
 			$this->assertSame(["select box4, box5, box6 from grupper where art='API'"], $out['sql'], 'no item is even read');
 		}
 	}
@@ -153,7 +155,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 	// ---- sync_shop_vare(): stock, price and sku outbound -----------------------------------
 
 	#[DataProvider('slotCombinations')]
-	public function testItemSyncSendsPriceSkuAndStockPerSlotOnlyWhenBox4IsSet(bool $four, bool $five, bool $six): void
+	public function testItemSyncSendsPriceSkuAndStockToEverySlotWithAnEndpoint(bool $four, bool $five, bool $six): void
 	{
 		$out = $this->sync('sync_shop_vare', [7, 0, 1], array_merge([$this->api($four, $five, $six)], $this->stockItem()));
 
@@ -161,7 +163,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 		// sku never goes to box6: the original loop only covers box4 and box5.
 		$skuSlots = array_values(array_diff($slots, ['/c/']));
 		$sent = self::$shop->requests();
-		$this->assertSame($four ? 'OK' : 'no api', $out['return']);
+		$this->assertSame($slots ? 'OK' : 'no api', $out['return']);
 		$this->assertSame(array_merge($slots, $skuSlots, $slots), $this->paths($sent));
 
 		$price = ['update_price' => '501', 'salesPrice' => '20', 'discountType' => '', 'discount' => '0', 'itemNo' => 'V7', 'itemNoAlias' => 'A7',
@@ -180,7 +182,9 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 			} else {
 				$this->assertSame(['update_stock', 'stock', 'totalStock', 'stockno', 'costPrice', 'salesPrice', 'discountType', 'discount',
 					'itemNo', 'itemNoAlias', 'rand', 'retailPrice', 'webFragt', 'barcode'], array_keys($query));
-				$this->assertSame($skuRand, $query['rand'], 'stock and sku carry the same random number');
+				if ($skuSlots) {
+					$this->assertSame($skuRand, $query['rand'], 'stock and sku carry the same random number');
+				}
 				unset($query['rand']);
 				$this->assertSame($stock, $query);
 			}
@@ -284,13 +288,13 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 		]]];
 	}
 
-	/** Today's rule: nothing at all without box4, otherwise every slot that holds an endpoint, in slot order. */
+	/**
+	 * Every slot that holds an endpoint, in slot order. Before SD-750 an empty box4 sent
+	 * nothing at all, even to box5/box6; with no shopify_legacy settings that is the only change.
+	 */
 	private function expectedPaths(bool $four, bool $five, bool $six): array
 	{
-		if (!$four) {
-			return [];
-		}
-		return array_keys(array_filter(['/a/' => true, '/b/' => $five, '/c/' => $six]));
+		return array_keys(array_filter(['/a/' => $four, '/b/' => $five, '/c/' => $six]));
 	}
 
 	private function item(): array
