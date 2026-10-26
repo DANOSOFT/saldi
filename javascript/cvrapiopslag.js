@@ -33,7 +33,7 @@
 // 20261006 CL/SZ SD-721 INVALID_UA gets the same message; the kreditor and debitor cards now use the proxy too (cvrLookupClientConfig()).
 // 20261007 CL/SZ SD-721 The kreditor and debitor cards are back on the browser lookup (cvrapi.dk, as on live) until Datafordeleren is tested; only the pool dialog sets cvrLookupProxy.
 // 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
-//                  The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
+//                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
 
 function cvrField(name) {
 	var visible = $("[name=" + name + "]").not("[type=hidden]");
