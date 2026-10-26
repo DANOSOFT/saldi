@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------ver 5.0.0-------2026-10-23------
+// ------------------lager/lagerflyt.php-----------ver 5.0.0-------2026-10-26------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20260526 PHR Fixed bug. In rare cases qty was not removed from the giving stock but just added to the recieving stock
 // 20260603 PHR Fixed: $nyt_antal[$x] → $nyt_antal (array-access på scalar gav kun første ciffer → commit fejlede ved antal ≥ 10)
 // 20260923 CDX/PHR List each transfer destination once across fiscal years.
+// 20261026 LOE MB-65: assign module 9 and refuse a stock move posted by a read-only user.
 /* 
 Ved flytning af varer fra et lager et andet nedskrives rest for disse i det nødvendige antal batch_kob linjer for 
 det lager der flyttes fra, 

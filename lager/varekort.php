@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,6 +130,7 @@
 //                  had been commented out, so on an account with warehouses a location typed
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
+// 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
 //
 ob_start(); //Starts output buffering
 

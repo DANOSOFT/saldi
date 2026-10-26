@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/vareliste.php --- ver 5.0.0 --- 2026.10.23 ---
+// ---- lager/lister/vareliste.php --- ver 5.0.0 --- 2026.10.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 // 20260916 CDX/LH Sort DG by its selected alias so DISTINCT queries accept the expression.
 // 20260924 CDX/PHR Match the DG sort expression to the DISTINCT select expression.
 // 20261005 CDX/PHR Add total webshop stock synchronization to the item-list action dropdown.
+// 20261026 LOE MB-65: assign module 9 so the Items right is consulted before the page opens.
 
 @session_start();
 $s_id = session_id();
