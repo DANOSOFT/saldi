@@ -1892,8 +1892,11 @@ if (!$varenr) {
                 if ($x == 1 && !$lev_varenr[$x] && !$kostpris[$x]) {
                     $lev_varenr[$x] = $varenr;
                     $kostpris[$x] = $kostpris[0] * 1;
-                    $qtxt = "update vare_lev set lev_varenr='" . db_escape_string($lev_varenr[$x]) . "',kostpris='$kostpris[$x]' where id='$row[id]'";
-                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    # MB-65 the default is shown either way; only a user who may edit stores it
+                    if (!$noEdit) {
+                        $qtxt = "update vare_lev set lev_varenr='" . db_escape_string($lev_varenr[$x]) . "',kostpris='$kostpris[$x]' where id='$row[id]'";
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    }
                 }
             }
             $lev_ant = $x;
@@ -1973,8 +1976,13 @@ if (!$varenr) {
             $query2 = db_select("select * from varer where id = $row[indgaar_i]", __FILE__ . " linje " . __LINE__);
             $row2 = db_fetch_array($query2);
             if ($row2['id'] == $id) { #20131007
-                db_modify("delete from styklister where id='$row[id]'", __FILE__ . " linje " . __LINE__);
-                $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] fjernet fra stykliste";
+                # MB-65 the alert is shown either way; only a user who may edit removes the row
+                if (!$noEdit) {
+                    db_modify("delete from styklister where id='$row[id]'", __FILE__ . " linje " . __LINE__);
+                    $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] fjernet fra stykliste";
+                } else {
+                    $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] - kontakt en bruger med rettigheder";
+                }
                 print "<BODY onLoad=\"javascript:alert('$txt')\">";
             } else {
                 $x++;

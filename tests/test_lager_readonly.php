@@ -62,6 +62,16 @@ lagerCheck($saveGate !== false, 'the save block carries its own refusal');
 lagerCheck($saveGate !== false && $saveBlock !== false && $saveGate < $saveBlock, 'and it sits before the block every write path enters');
 lagerCheck(strpos($guard, 'supplierLookUp') !== false && strpos($guard, '$mb65_write') !== false, 'the early gate names supplierLookUp as well');
 
+# ---- viewing a card writes nothing either --------------------------------------------------
+$supplierDefault = strpos($guard, 'only a user who may edit stores it');
+$supplierStore = strpos($guard, 'update vare_lev set lev_varenr=', $supplierDefault);
+$supplierGate = strpos($guard, 'if (!$noEdit) {', $supplierDefault);
+lagerCheck($supplierDefault !== false && $supplierGate !== false && $supplierStore !== false && $supplierGate < $supplierStore, 'the supplier default is shown to all but stored only for an editor');
+$cycleNote = strpos($guard, 'only a user who may edit removes the row');
+$cycleDelete = strpos($guard, 'delete from styklister where id=', $cycleNote);
+$cycleGate = strpos($guard, 'if (!$noEdit) {', $cycleNote);
+lagerCheck($cycleNote !== false && $cycleGate !== false && $cycleDelete !== false && $cycleGate < $cycleDelete, 'a broken component reference is removed only for an editor');
+
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";
 exit($failures ? 1 : 0);
