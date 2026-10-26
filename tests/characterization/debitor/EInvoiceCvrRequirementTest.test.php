@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../../includes/stdFunc/einvoiceCvr.php';
+require_once __DIR__ . '/../../../debitor/debitorkortIncludes/einvoiceCvrBanner.php';
 
 // 20261023 CL/MMR SD-774 Pins when a digital invoice to an EAN must carry the receiver's CVR, and that sendInvoice() stops before anything is logged or sent when it does not.
 //                 A Danish receiver reached on a GLN rejects an invoice without its CVR (DK-R-017 / E-APS24003), and foreign receivers are not covered by that rule.
@@ -184,6 +185,9 @@ final class EInvoiceCvrRequirementTest extends TestCase
             'Swedish GLN receiver'                      => ['7322730089999', '', 'Sverige', false],
             'Norwegian GLN receiver'                    => [self::GLN, '', 'Norge', false],
             'Danish GLN receiver with a CVR'            => [self::GLN, '53383211', 'Danmark', false],
+            'EAN typed into the CVR field (243109)'     => ['5798007466206', '5798007466206', 'Danmark', true],
+            'other GLN in the CVR field, with spaces'   => [self::GLN, ' 5798007466206 ', 'Danmark', true],
+            'GLN in the CVR field, foreign receiver'    => ['7322730089999', '5798007466206', 'Sverige', false],
             'GLN receiver with a foreign CVR'           => [self::GLN, 'SE232100025501', '', false],
             'no EAN at all'                             => ['', '', 'Danmark', false],
             'numeric scheme 0184'                       => ['0184:53383211', '', 'Danmark', false],
@@ -215,6 +219,52 @@ final class EInvoiceCvrRequirementTest extends TestCase
             'the number used here is meant to fail modulus 11');
         self::assertFalse(einvoice_cvr_missing(self::GLN, '12345678', 'Danmark'),
             'a stored CVR failing modulus 11 now blocks the send, which stops invoices that are accepted today');
+    }
+
+    /**
+     * MEDSHOP faktura 243109: the CVR field on order and card held the receiver's EAN, and Kalundborg
+     * Kommune rejected the invoice. A 13-digit number in the CVR field is an EAN/GLN, not a CVR.
+     */
+    public function testAGlnInTheCvrFieldIsNoCvr(): void
+    {
+        self::assertTrue(einvoice_cvr_is_gln('5798007466206'));
+        self::assertTrue(einvoice_cvr_is_gln(' 5798007466206 '));
+        self::assertFalse(einvoice_cvr_is_gln('29189595'));
+        self::assertFalse(einvoice_cvr_is_gln('SE232100025501'));
+        self::assertFalse(einvoice_cvr_is_gln(''));
+        self::assertFalse(einvoice_cvr_present('5798007466206'));
+        self::assertFalse(einvoice_cvr_present('   '));
+        self::assertTrue(einvoice_cvr_present('29189595'));
+        self::assertTrue(einvoice_cvr_present('12345678'), 'a stored CVR failing modulus 11 still counts as present');
+        self::assertTrue(einvoice_cvr_present('SE232100025501'));
+    }
+
+    /** @return array<string, array{string, string, string, string, string}> */
+    public static function cards(): array
+    {
+        return [
+            'business card, no CVR'                     => ['erhverv', self::GLN, '', 'Danmark', 'missing'],
+            'empty type is shown as business'           => ['', self::GLN, '', 'Danmark', 'missing'],
+            'old capitalised Erhverv'                   => ['Erhverv', self::GLN, '', 'Denmark', 'missing'],
+            'EAN in the CVR field, empty type (243109)' => ['', '5798007466206', ' 5798007466206 ', 'Denmark', 'missing'],
+            'private card is not checked'               => ['privat', self::GLN, '', 'Danmark', ''],
+            'old capitalised Privat is not checked'     => ['Privat', self::GLN, '', 'Danmark', ''],
+            'business card with a CVR'                  => ['erhverv', self::GLN, '29189595', 'Danmark', ''],
+            'stored CVR failing modulus 11'             => ['erhverv', self::GLN, '12345678', 'Danmark', 'invalid'],
+            'foreign receiver'                          => ['', '7322730089999', '', 'Sverige', ''],
+        ];
+    }
+
+    /**
+     * The debitor card shows every card that is not 'privat' as a business card and saves an
+     * empty type as 'erhverv' on opening, so the warning must cover an empty type and old
+     * 'Erhverv' too. In MEDSHOP 465 of the 2026 e-invoices went to cards with an empty type.
+     */
+    #[DataProvider('cards')]
+    public function testTheCardWarningCoversEveryNonPrivateCard(string $type, string $ean, string $cvr, string $land, string $expected): void
+    {
+        self::assertSame($expected, debitorkortEinvoiceCvrProblem($type, $ean, $cvr, $land),
+            'type ' . var_export($type, true) . ', CVR ' . var_export($cvr, true));
     }
 
     // ------------------------------------------------------------------ parity with sendInvoice()

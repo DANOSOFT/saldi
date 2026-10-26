@@ -3,7 +3,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- javascript/einvoiceCvrPopup.js --- ver 5.0.0 --- 2026-10-23 ---
+// --- javascript/einvoiceCvrPopup.js --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // 20261023 CL/MMR SD-774 Created. The order page (debitor/ordre.php) asks for the receiver's CVR when a digital invoice to an EAN would be rejected without it.
 //                 The data and all texts (findtekst()) come from the JSON tag printed by debitor/orderIncludes/einvoiceCvr.php, and the checks mirror includes/stdFunc/einvoiceCvr.php.
 //                 The file is kept ASCII, so it reads the same in a UTF-8 and an ISO-8859-1 page.
+// 20261026 CL/MMR SD-774 cvrPresent() mirrors einvoice_cvr_present(): a CVR field holding a 13-digit EAN/GLN counts as empty.
 
 (function (global) {
 	'use strict';
@@ -57,6 +58,12 @@
 		});
 		var m = /^DK([0-9]{8})$/.exec(cvr);
 		return m ? m[1] : cvr;
+	}
+
+	// einvoice_cvr_present(): not empty and not a 13-digit EAN/GLN typed into the CVR field.
+	function cvrPresent(raw) {
+		var cvr = normalizeCvr(raw);
+		return cvr !== '' && !/^[0-9]{13}$/.test(cvr);
 	}
 
 	// einvoice_cvr_mod11_ok(): weights 2,7,6,5,4,3,2,1, the sum a multiple of 11.
@@ -175,7 +182,7 @@
 		if (!data.receiverDanish) {
 			return false;
 		}
-		if (normalizeCvr(fieldValue(form, 'cvrnr')) !== '' || normalizeCvr(data.cardCvr) !== '') {
+		if (cvrPresent(fieldValue(form, 'cvrnr')) || cvrPresent(data.cardCvr)) {
 			return false;
 		}
 		return isGlnEndpoint(ean);

@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- debitor/api.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,8 @@
 //                 order nor the debitor card has a CVR, and the popup window says why (easyUblCvrMissing()).
 //                 Receivers reject such invoices (DK-R-017 / E-APS24003); EasyUBL requires the CVR since 2026-10-22.
 //                 An order EAN or CVR holding only spaces now counts as empty, so the card's value is used instead.
+// 20261026 CL/MMR SD-774 An order or card CVR field holding the EAN/GLN is not used as the CVR (einvoice_cvr_present()),
+//                 so the card's real CVR is sent, or the send is blocked when neither has one.
 
     @session_start();
     $s_id=session_id();
@@ -478,7 +480,7 @@
             json_encode(array('error' => 'CVR missing for a GLN receiver (SD-774)', 'order_id' => (int)$orderId, 'ean' => (string)$ean)));
 
         $title = findtekst('5166|Fakturaen kan ikke sendes digitalt', $sprog_id);
-        $text = str_replace('%s', (string)$ean, findtekst('5167|Modtageren har EAN-nummer %s, men der er ikke angivet noget CVR-nummer. E-fakturaer til et EAN-nummer skal have modtagerens CVR-nummer, ellers bliver de afvist. Indtast CVR-nummeret på ordren eller debitorkortet, og send igen.', $sprog_id));
+        $text = str_replace('%s', (string)$ean, findtekst('5167|Modtageren har EAN-nummer %s, men der er ikke angivet noget CVR-nummer, eller CVR-feltet indeholder EAN-nummeret. E-fakturaer til et EAN-nummer skal have modtagerens CVR-nummer, ellers bliver de afvist. Indtast CVR-nummeret på ordren eller debitorkortet, og send igen.', $sprog_id));
         $link = findtekst('5163|Slå CVR op i NemHandelsregisteret', $sprog_id);
         $close = findtekst('2172|Luk', $sprog_id);
         $flags = ENT_QUOTES | ENT_SUBSTITUTE;
@@ -512,7 +514,8 @@
         if(trim((string)$r_faktura["ean"]) === ""){
             $r_faktura["ean"] = "";
         }
-        if(trim((string)$r_faktura["cvrnr"]) === ""){
+        // SD-774: a CVR field holding the EAN/GLN is no CVR either (einvoice_cvr_present()), so the card's CVR is used
+        if(!einvoice_cvr_present($r_faktura["cvrnr"])){
             $r_faktura["cvrnr"] = "";
         }
         if((empty($r_faktura["ean"]) || empty($r_faktura["cvrnr"])) && !empty($r_faktura["konto_id"])){
@@ -521,7 +524,7 @@
             if(empty($r_faktura["ean"]) && trim((string)$adresser_row["ean"]) !== ""){
                 $r_faktura["ean"] = $adresser_row["ean"];
             }
-            if(empty($r_faktura["cvrnr"]) && trim((string)$adresser_row["cvrnr"]) !== ""){
+            if(empty($r_faktura["cvrnr"]) && einvoice_cvr_present($adresser_row["cvrnr"])){
                 $r_faktura["cvrnr"] = $adresser_row["cvrnr"];
             }
         }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/orderIncludes/einvoiceCvr.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- debitor/orderIncludes/einvoiceCvr.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261023 CL/MMR SD-774 Created. The order page (debitor/ordre.php) asks for the receiver's CVR when a digital invoice to an EAN would be rejected without it.
 //                 einvoiceCvrSaveFromOrder() saves the typed CVR on the order and, when the user ticks it, on the debitor card.
 //                 einvoiceCvrPopupView() hands the popup (javascript/einvoiceCvrPopup.js) its texts and the order's values.
+// 20261026 CL/MMR SD-774 The popup treats a CVR field holding the EAN/GLN as empty. Text 5169 now names the check digit.
 
 include_once(__DIR__ . '/../../includes/stdFunc/einvoiceCvr.php');
 
@@ -248,7 +249,7 @@ if (!function_exists('einvoiceCvrPopupState')) {
 		$state['cardCvr'] = trim((string)ifset($card, 'cvrnr', ''));
 
 		$state['ean'] = ($orderEan !== '') ? $orderEan : $state['cardEan'];
-		$cvr = ($orderCvr !== '') ? $orderCvr : $state['cardCvr'];
+		$cvr = einvoice_cvr_present($orderCvr) ? $orderCvr : $state['cardCvr'];
 		// Same rule as sendInvoice(): the order's own country field decides, never the card's.
 		$land = $orderLand;
 		$state['open'] = (int)ifset($order, 'status', 0) < 3;
@@ -264,7 +265,7 @@ if (!function_exists('einvoiceCvrPopupState')) {
 		// An open order also opens the popup when "Udskriv til" changes to Digitalt; that can only
 		// lead to it when the card has no CVR either and the receiver is Danish.
 		$state['render'] = $state['autoOpen']
-			|| ($state['open'] && einvoice_normalize_cvr($state['cardCvr']) === '' && $state['receiverDanish']);
+			|| ($state['open'] && !einvoice_cvr_present($state['cardCvr']) && $state['receiverDanish']);
 		return $state;
 	}
 }
@@ -301,7 +302,7 @@ if (!function_exists('einvoiceCvrPopupTexts')) {
 			'lookup'        => '5163|Slå CVR op i NemHandelsregisteret',
 			'toCardNew'     => '5164|Gem også CVR-nummeret på debitorkortet',
 			'toCardReplace' => '5165|Erstat CVR-nummeret på debitorkortet',
-			'invalid'       => '5169|CVR-nummeret er ikke gyldigt. Et dansk CVR-nummer har 8 cifre. Kunder i udlandet skal have momsnummer med landekode, fx SE232100025501.',
+			'invalid'       => '5169|CVR-nummeret er ikke gyldigt. Et dansk CVR-nummer har 8 cifre, og kontrolcifferet skal passe. Kunder i udlandet skal have momsnummer med landekode, fx SE232100025501.',
 			'missing'       => '5161|CVR-nummer mangler',
 			'save'          => '3|Gem',
 			'cancel'        => '5|Annullér',
