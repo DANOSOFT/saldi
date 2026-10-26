@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.23
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1559,5 +1559,10 @@ if ($db_type != 'mysql' && $db_type != 'mysqli') {
 	require_once __DIR__ . '/stripeIncludes/stripeInvoiceSchema.php';
 	stripe_payment_indexes_ensure();
 }
+
+// 20261025 CL/ASR adresser.udskriv_til is standard (admin/opret.php) but missing on some old ledgers; the invoice
+// & payment flow reads it (stripe_invoice_load) and enrolment writes it. Independent of the patches above.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='udskriv_til'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) db_modify("ALTER TABLE adresser ADD COLUMN udskriv_til varchar(10)", __FILE__ . " linje " . __LINE__);
 
 ?>

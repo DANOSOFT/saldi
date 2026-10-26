@@ -36,6 +36,7 @@
 // 2020.02.20 PHR - $cvrnr set to '' if not valid; 
 // 20250815 PHR	Fiscal_year;
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261025 CL/ASR After a complete run, print/mail in the same window and return to the invoice list (no popup).
 
 @session_start();
 $s_id=session_id();
@@ -149,7 +150,9 @@ if ($_POST) {
 			}
 		} 	
 	}
-	if ($udskriv && $komplet) print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=-1&ordre_antal=$udskriv_antal&skriv=$udskriv&formular=4' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";
+	// 20261025 CL/ASR Same window as the other mass actions (ret_genfakt.php, ordreliste.php): print/mail the new invoices,
+	// then return to the invoice list. A popup opened outside the new shell and left this page empty.
+	if ($udskriv && $komplet) print "<meta http-equiv=\"refresh\" content=\"0;URL=formularprint.php?id=-1&returside=" . urlencode('ordreliste.php?valg=faktura') . "&ordre_antal=$udskriv_antal&skriv=$udskriv&formular=4\">";
 	else {
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=ret_genfakt.php?ordreliste=$ny_liste\">";	
 	}

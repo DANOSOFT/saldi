@@ -64,7 +64,7 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
 
     public function testMixedPdfEmailEmailLinkBatchCachesAndMailsTheMatchingInvoice(): void
     {
-        [$orders, $mailIds, $pdfs] = $this->mixedBatch();
+        [$orders, $mailIds, $pdfs] = $this->mixedBatch('Link');
         foreach ($mailIds as $slot => $id) {
             $this->assertSame(['result' => 'OK', 'error' => ''], $this->deliver($mailIds, $slot, $pdfs[$slot]));
             $this->assertSame(file_get_contents($pdfs[$slot]), file_get_contents(stripe_invoice_pdf_path($id, false)));
@@ -84,7 +84,7 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
 
     public function testLinkMailFailureFallsBackForTheSameOrderAndErrorSurvivesLaterSuccess(): void
     {
-        [$orders, $mailIds, $pdfs] = $this->mixedBatch();
+        [$orders, $mailIds, $pdfs] = $this->mixedBatch('Link');
         StripeTestTransport::$mailSucceeds = false;
         $failed = $this->deliver($mailIds, 1, $pdfs[1]);
         $this->assertStringContainsString('Ordre ' . $orders[1], $failed['error']);
@@ -298,6 +298,29 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         $this->assertSame('Hej,', stripe_mail_greeting($company));
     }
 
+    public function testCustomerContactComesFromStripeSettingsAndMailsNameNoMonth(): void
+    {
+        // 20261025 Contact e-mail (empty = company e-mail) and phone (empty = none); headings without a month.
+        $inv = stripe_invoice_load(StripeFixtures::invoice());
+        StripeTestEnvironment::setting('stripe', 'contact_email', 'faktura@saldi.dk');
+        StripeTestEnvironment::setting('stripe', 'contact_phone', null);
+        $this->assertSame('faktura@saldi.dk', stripe_contact_email($inv['firma']));
+        $this->assertSame('kontakt os på faktura@saldi.dk', stripe_contact_phrase($inv));
+        $this->assertSame('', stripe_contact_phone());
+        StripeTestEnvironment::setting('stripe', 'contact_phone', '12 34 56 78');
+        $this->assertSame('12 34 56 78', stripe_contact_phone());
+        StripeTestEnvironment::setting('stripe', 'contact_email', null);
+        $this->assertSame(trim((string)($inv['firma']['email'] ?? '')), stripe_contact_email($inv['firma']));
+
+        $source = file_get_contents(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php');
+        $this->assertStringNotContainsString('mail_h_new_month', $source);
+        $this->assertStringNotContainsString("stripe_txt('period')", $source);
+        $this->assertSame(2, substr_count($source, '$h1 = stripe_txt(\'mail_h_new\');'));
+        $this->assertStringContainsString('$replyTo = trim((string)stripe_setting(\'contact_email\'));', $source);
+        $this->assertStringContainsString('$contactMail = stripe_contact_email($f); $contactPhone = stripe_contact_phone();',
+            file_get_contents(__DIR__ . '/../../api/stripe/faktura.php'));
+    }
+
     public function testReceiptAndPaidPageOmitUnavailableMenuAndConsentNamesContactRoute(): void
     {
         $inv = stripe_invoice_load(StripeFixtures::invoice());
@@ -306,7 +329,16 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
             'succeeded_at' => StripeFixtures::TODAY, 'amount_ore' => 34000, 'source' => 'page']));
         foreach (['html', 'text'] as $format) {
             $this->assertStringNotContainsString('Abonnement & fakturering', html_entity_decode(StripeTestTransport::$mails[0][$format], ENT_QUOTES, 'UTF-8'));
+            // 20261025 the PDF button opens the invoice in the browser (vis=1 -> Content-Disposition inline)
+            $this->assertMatchesRegularExpression('~/faktura_pdf\.php\?o=\d+&s=[0-9a-f]+&vis=1~', html_entity_decode(StripeTestTransport::$mails[0][$format], ENT_QUOTES, 'UTF-8'));
         }
+        $this->assertStringContainsString("(!empty(\$_GET['vis']) ? 'inline' : 'attachment')", file_get_contents(__DIR__ . '/../../api/stripe/faktura_pdf.php'));
+        // 20261025 Saldi's own mails show the logo; another company keeps its name as text.
+        $this->assertStringContainsString('/img/SaldiMainLogo.png" width="128" alt="Saldi"', StripeTestTransport::$mails[0]['html']);
+        $other = $inv;
+        $other['brand'] = 'Hansen Tømrer';
+        $this->assertStringNotContainsString('SaldiMainLogo', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
+        $this->assertStringContainsString('margin-bottom:32px">Hansen Tømrer</div>', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
         $page = file_get_contents(__DIR__ . '/../../api/stripe/faktura.php');
         $this->assertStringNotContainsString('Abonnement & fakturering', $page);
         $this->assertStringNotContainsString('find_in_saldi', $page);
@@ -360,12 +392,13 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
     }
 
     /** Queue the real production assignment block, skipping the PDF entry in a mixed source batch. */
-    private function mixedBatch(): array
+    private function mixedBatch(string $mail = 'email'): array
     {
         $ordre_id = [];
         foreach (['A', 'B', 'C'] as $name) {
             $debtor = StripeFixtures::debtor(['firmanavn' => 'Debtor ' . $name, 'email' => 'invoice-' . $name . '@stripe-tests.invalid']);
-            $ordre_id[] = StripeFixtures::invoice($debtor, ['udskriv_til' => $name === 'A' ? 'PDF' : 'email']);
+            // 20261025: 'email' is the classic PDF mail, 'Link' the link mail; both are queued by the e-mail path.
+            $ordre_id[] = StripeFixtures::invoice($debtor, ['udskriv_til' => $name === 'A' ? 'PDF' : $mail]);
         }
         $source = file_get_contents(__DIR__ . '/../../includes/formfunk.php');
         $this->assertSame(1, preg_match('/\$email\[\$mailantal\] = \$email\[0\];.*?\$mail_ordre_id\[\$mailantal\] = \$ordre_id\[\$o\];/s', $source, $queued));
@@ -375,7 +408,7 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         $email = $mailsprog = $form_nr = $pfliste = $mail_ordre_id = $pdfs = [];
         foreach ($ordre_id as $o => $id) {
             $row = StripeFixtures::row('ordrer', $id);
-            if ($row['udskriv_til'] !== 'email') {
+            if (!in_array($row['udskriv_til'], ['email', 'Link'], true)) {
                 continue;
             }
             $mailantal++;

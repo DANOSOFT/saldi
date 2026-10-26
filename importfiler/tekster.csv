@@ -6812,5 +6812,45 @@
 7121	Publishable key afvist: forventet pk_test_... eller pk_live_... (feltet er IKKE gemt)	Publishable key rejected: expected pk_test_... or pk_live_... (field NOT saved)	Offentlig nøkkel avvist: forventet pk_test_... eller pk_live_... (feltet er IKKE lagret)
 7122	Automatisk træk afvist: vælg forfaldsdato eller fakturadato	Automatic collection rejected: choose due date or invoice date	Automatisk trekk avvist: velg forfallsdato eller fakturadato
 7123	Fakturaformat afvist: vælg PDF eller link	Invoice format rejected: choose PDF or link	Fakturaformat avvist: velg PDF eller lenke
+7124	E-mail med link	E-mail with link	E-post med lenke
+7125	Mailen har en knap til faktura- og betalingssiden. Ingen PDF vedhæftet.	The e-mail has a button to the invoice and payment page. No PDF attached.	E-posten har en knapp til faktura- og betalingssiden. Ingen PDF vedlagt.
+7126	Standard for nye e-mailordrer	Default for new e-mail orders	Standard for nye e-postordrer
+7127	Hvad Udskriv til står på, når der oprettes en ordre til en kunde med e-mailfaktura. Kan ændres på den enkelte ordre: E-mail eller E-mail med link.	What Print to is set to when an order is created for a customer with e-mail invoices. Can be changed on each order: E-mail or E-mail with link.	Hva Skriv ut til står på når det opprettes en ordre til en kunde med e-postfaktura. Kan endres på den enkelte ordren: E-post eller E-post med lenke.
+7129	betalingssiden er ikke slået til i dette regnskab.	the payment page is not switched on in this ledger.	betalingssiden er ikke slått på i dette regnskapet.
+7130	kreditnotaer sendes altid som almindelig e-mail.	credit notes are always sent as a normal e-mail.	kreditnotaer sendes alltid som vanlig e-post.
+7131	kun fakturaer i DKK kan betales på betalingssiden.	only invoices in DKK can be paid on the payment page.	bare fakturaer i DKK kan betales på betalingssiden.
+7132	betalingsbetingelsen er kontant eller kreditkort, så fakturaen regnes som betalt.	the payment terms are cash or credit card, so the invoice counts as paid.	betalingsbetingelsen er kontant eller kredittkort, så fakturaen regnes som betalt.
+7133	kunden betaler via Betalingsservice.	the customer pays by direct debit (Betalingsservice).	kunden betaler via AvtaleGiro/Betalingsservice.
+7134	ordren har ingen kunde.	the order has no customer.	ordren har ingen kunde.
+7135	kunden har fravalgt kortbetaling.	the customer has opted out of card payment.	kunden har valgt bort kortbetaling.
+7136	kunden betaler via sit Stripe-abonnement.	the customer pays through their Stripe subscription.	kunden betaler via sitt Stripe-abonnement.
+7137	Sender fakturaen på mail med kort og trækdato. Beløbet trækkes automatisk på forfaldsdatoen.	Sends the invoice by e-mail with card and charge date. The amount is charged automatically on the due date.	Sender fakturaen på e-post med kort og trekkdato. Beløpet trekkes automatisk på forfallsdatoen.
+7138	Vælg Netto eller Lb. md. som betalingsbetingelse, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Choose Netto or Lb. md. as payment terms to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Velg Netto eller Lb. md. som betalingsbetingelse, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7139	Skift valuta til DKK, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Change the currency to DKK to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Bytt valuta til DKK, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7140	Fjern fravalget af kortbetaling på kundens debitorkort, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Remove the card payment opt-out on the customer card to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Fjern bortvalget av kortbetaling på kundekortet, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7141	Vælg en kunde på ordren.	Choose a customer on the order.	Velg en kunde på ordren.
+7142	Fakturaen sendes som almindelig e-mail med PDF i stedet.	The invoice is sent as a normal e-mail with PDF instead.	Fakturaen sendes som vanlig e-post med PDF i stedet.
+7143	kræver Netto eller Lb. md.	requires Netto or Lb. md.	krever Netto eller Lb. md.
+7144	kun DKK	DKK only	kun DKK
+7145	ikke på kreditnotaer	not for credit notes	ikke for kreditnotaer
+7146	kunden betaler via PBS	customer pays by direct debit	kunden betaler via PBS
+7147	kræver en kunde	requires a customer	krever en kunde
+7148	kunden har fravalgt kort	customer opted out of cards	kunden har valgt bort kort
+7149	kunden har Stripe-abonnement	customer has a Stripe subscription	kunden har Stripe-abonnement
+7150	E-mail med link kan ikke bruges:	E-mail with link cannot be used:	E-post med lenke kan ikke brukes:
+7151	Eksisterende kunder	Existing customers	Eksisterende kunder
+7152	Kunder og tilbagevendende ordrer, der stadig står på E-mail fra før E-mail med link fandtes. Sæt hak og gem for at skifte dem til E-mail med link. Kontant/kreditkort, fremmed valuta og PBS ændres ikke.	Customers and recurring orders still set to E-mail from before E-mail with link existed. Tick and save to switch them to E-mail with link. Cash/card terms, foreign currency and PBS are not changed.	Kunder og gjentakende ordrer som fortsatt står på E-post fra før E-post med lenke fantes. Huk av og lagre for å bytte dem til E-post med lenke. Kontant/kort, fremmed valuta og PBS endres ikke.
+7153	Skift %kunder kunder og %ordrer tilbagevendende ordrer fra E-mail til E-mail med link	Switch %kunder customers and %ordrer recurring orders from E-mail to E-mail with link	Bytt %kunder kunder og %ordrer gjentakende ordrer fra E-post til E-post med lenke
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
+7160	Gebyr for manuel betaling (varenr.)	Fee for manual payment (item no.)	Gebyr for manuell betaling (varenr.)
+7161	Varenummeret på gebyrvaren, fx 129 kr. ekskl. moms. En faktura, der betales manuelt (bankoverførsel eller "Betal kun denne faktura" på betalingssiden), giver gebyret på kundens næste faktura. Automatisk kortbetaling og PBS er fritaget. Tom = slået fra.	Item number of the fee item, e.g. DKK 129 excl. VAT. An invoice paid manually (bank transfer or "Pay this invoice only" on the payment page) adds the fee to the customer's next invoice. Automatic card payment and PBS are exempt. Empty = off.	Varenummeret på gebyrvaren, f.eks. 129 kr. eks. mva. En faktura som betales manuelt (bankoverføring eller "Betal bare denne fakturaen" på betalingssiden) gir gebyret på kundens neste faktura. Automatisk kortbetaling og PBS er fritatt. Tom = slått av.
+7162	Gebyr fra fakturadato	Fee from invoice date	Gebyr fra fakturadato
+7163	Kun fakturaer med fakturadato fra og med denne dato kan give gebyr.	Only invoices dated on or after this date can give a fee.	Bare fakturaer med fakturadato fra og med denne datoen kan gi gebyr.
+7164	Gebyrvaren findes ikke (gebyret er IKKE gemt)	The fee item does not exist (the fee is NOT saved)	Gebyrvaren finnes ikke (gebyret er IKKE lagret)
+7165	Gebyr for manuel betaling: vælg en startdato (gebyret er IKKE gemt)	Fee for manual payment: choose a start date (the fee is NOT saved)	Gebyr for manuell betaling: velg en startdato (gebyret er IKKE lagret)
+7166	Kontakt-e-mail til kunder	Contact e-mail for customers	Kontakt-e-post til kunder
+7167	Vises på betalingssiden og i fakturamails og bruges som svaradresse. Tom = firmaets e-mail.	Shown on the payment page and in invoice mails and used as reply-to. Empty = the company e-mail.	Vises på betalingssiden og i fakturamailer og brukes som svaradresse. Tom = firmaets e-post.
+7168	Kontakt-telefon til kunder	Contact phone for customers	Kontakttelefon til kunder
+7169	Vises på betalingssiden. Tom = intet telefonnummer.	Shown on the payment page. Empty = no phone number.	Vises på betalingssiden. Tom = intet telefonnummer.
+7170	Kontakt-e-mail afvist: ugyldig e-mailadresse (IKKE gemt)	Contact e-mail rejected: invalid e-mail address (NOT saved)	Kontakt-e-post avvist: ugyldig e-postadresse (IKKE lagret)
 
