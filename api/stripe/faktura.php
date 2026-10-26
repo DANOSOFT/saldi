@@ -73,6 +73,9 @@ $contactMail = stripe_contact_email($f); $contactPhone = stripe_contact_phone();
 $bankReg = trim((string)($f['bank_reg'] ?? '')); $bankKonto = trim((string)($f['bank_konto'] ?? ''));
 $hasBank = ($bankReg !== '' && $bankKonto !== '');
 $vatPct = rtrim(rtrim(number_format((float)$o['momssats'], 2, ',', ''), '0'), ',');
+/**
+ * @var string $h - stripe_h - a callable function that escapes HTML special characters in a string, used for safely outputting text in HTML context.
+ */
 $h = 'stripe_h';
 $contact = stripe_contact_phrase($inv);
 
