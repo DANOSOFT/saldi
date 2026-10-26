@@ -8,6 +8,8 @@
  // 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
  // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
  // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
+ // 20261026 CL/MMR SST-890 Use the call's default text ('4981|Autoudfyld') when the text is missing in tekster and tekster.csv, instead of "Tekst nr: 4981".
+ //                  An empty tekster.csv line no longer raises "Undefined array key" (trim() strips its tabs).
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
@@ -15,10 +17,17 @@ if (!function_exists('findtekst')) {
 		global $sqdb;
 		global $webservice;
 		$id = 0;
+		$a = $b = null;
+		// Default text written in the call ('4981|Autoudfyld'), used when neither the tekster table
+		// nor tekster.csv has the text (SST-890).
+		$defaultText = '';
 
 		if (strpos($textId,'|')) {
 			list($a,$b) = explode('|',$textId);
-			if (preg_match('/^[0-9]+$/', $a)) $textId = $a;
+			if (preg_match('/^[0-9]+$/', $a)) {
+				$textId = $a;
+				$defaultText = trim((string)$b);
+			}
 		}
 		
 		$sessionVar = 'text_'. $textId .'_'. $languageID;
@@ -119,7 +128,8 @@ if (!function_exists('findtekst')) {
 				if ($linje = trim(fgets($fp))) {
 					$a = explode("\t", $linje);
 					if ($a[0] == $textId) {
-						$newTxt = $a[$languageID];
+						// trim() also strips the tabs of an empty line ("4981\t\t\t"), so the language column may be gone (SST-890)
+						$newTxt = $a[$languageID] ?? '';
 					}
 				}
 			}
@@ -138,6 +148,15 @@ if (!function_exists('findtekst')) {
 			$tekst = $newTxt;
 		} elseif ($db == $sqdb) {
 			$tekst = $newTxt;
+		}
+		if (!$tekst && $defaultText !== '') {
+			// SST-890: the text is missing or empty in tekster.csv on this server (e.g. a new id whose csv
+			// line is not deployed yet). Show the call's default text instead of "Tekst nr: N". It is not
+			// stored in tekster, so the csv text is still picked up once it is there.
+			$tekst = $defaultText;
+			if ($db != $sqdb && $db_encode != "UTF8") {
+				$tekst = mb_convert_encoding($tekst, 'ISO-8859-1', 'UTF-8');
+			}
 		}
 		if (!$tekst) {
 			$tekst = "Tekst nr: $textId";
