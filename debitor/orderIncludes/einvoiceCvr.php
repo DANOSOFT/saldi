@@ -26,6 +26,7 @@
 //                 einvoiceCvrSaveFromOrder() saves the typed CVR on the order and, when the user ticks it, on the debitor card.
 //                 einvoiceCvrPopupView() hands the popup (javascript/einvoiceCvrPopup.js) its texts and the order's values.
 // 20261026 CL/MMR SD-774 The popup treats a CVR field holding the EAN/GLN as empty. Text 5169 now names the check digit.
+// 20261026 CL/MMR SD-774 The popup also treats a CVR field without a real number ("-", "N/A", "0") as empty, like einvoice_cvr_present().
 
 include_once(__DIR__ . '/../../includes/stdFunc/einvoiceCvr.php');
 
@@ -216,6 +217,7 @@ if (!function_exists('einvoiceCvrPopupState')) {
 	 * @param array $saveResult      einvoiceCvrSaveFromOrder()'s result for this request, array() when nothing was posted.
 	 * @return array{
 	 *   render: bool,          True when the page needs the popup's data and script.
+	 *   orderId: int,          ordrer.id, keys the "Annuller" memory in the browser session.
 	 *   open: bool,            True for an open order (status < 3), whose form is saved with the Gem button.
 	 *   autoOpen: bool,        True when the popup opens as soon as the page is shown.
 	 *   ean: string,           The EAN the invoice would go to.

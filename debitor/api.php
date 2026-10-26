@@ -62,12 +62,11 @@
 //                  0184. The key is omitted when no CVR is known; routing on the GLN and
 //                  the GLN exemptions in both missing-CVR guards are unchanged.
 // 20261023 CL/MMR SST-884 sendInvoice() falls back to the customer card's CVR when the order has none, like EAN.
-// 20261023 CL/MMR SD-774 sendInvoice() stops before sending when a Danish receiver is reached on a GLN and neither the
-//                 order nor the debitor card has a CVR, and the popup window says why (easyUblCvrMissing()).
+// 20261023 CL/MMR SD-774 sendInvoice() stops before sending when a Danish receiver is reached on a GLN and neither the order nor the debitor card has a CVR, and the popup window says why (easyUblCvrMissing()).
 //                 Receivers reject such invoices (DK-R-017 / E-APS24003); EasyUBL requires the CVR since 2026-10-22.
 //                 An order EAN or CVR holding only spaces now counts as empty, so the card's value is used instead.
-// 20261026 CL/MMR SD-774 An order or card CVR field holding the EAN/GLN is not used as the CVR (einvoice_cvr_present()),
-//                 so the card's real CVR is sent, or the send is blocked when neither has one.
+// 20261026 CL/MMR SD-774 An order or card CVR field holding the EAN/GLN, or no real number such as "-" or "N/A", is not used as the CVR (einvoice_cvr_present()), so the card's real CVR is sent, or the send is blocked when neither has one.
+//                 A Danish receiver on a GLN scheme like "GLN:5798..." without a CVR gets the same explanation instead of the old alert, and a missing card row no longer raises warnings.
 
     @session_start();
     $s_id=session_id();
@@ -471,6 +470,7 @@
      *
      * @param string $ean     The EAN the document would have been sent to
      * @param int    $orderId ordrer.id
+     * @return never
      */
     function easyUblCvrMissing($ean, $orderId) {
         global $db, $db_encode, $sprog_id;
@@ -520,11 +520,11 @@
         }
         if((empty($r_faktura["ean"]) || empty($r_faktura["cvrnr"])) && !empty($r_faktura["konto_id"])){
             $q = db_select("SELECT ean, cvrnr FROM adresser WHERE id = " . intval($r_faktura["konto_id"]), __FILE__ . " linje " . __LINE__);
-            $adresser_row = db_fetch_array($q);
-            if(empty($r_faktura["ean"]) && trim((string)$adresser_row["ean"]) !== ""){
+            $adresser_row = db_fetch_array($q) ?: array(); // SD-774: the card may be gone
+            if(empty($r_faktura["ean"]) && trim((string)($adresser_row["ean"] ?? "")) !== ""){
                 $r_faktura["ean"] = $adresser_row["ean"];
             }
-            if(empty($r_faktura["cvrnr"]) && einvoice_cvr_present($adresser_row["cvrnr"])){
+            if(empty($r_faktura["cvrnr"]) && einvoice_cvr_present($adresser_row["cvrnr"] ?? "")){
                 $r_faktura["cvrnr"] = $adresser_row["cvrnr"];
             }
         }
@@ -597,7 +597,8 @@
                     // Already has country prefix (SE, NO, etc.) - use as is
                     $cvrnr_with_prefix = $r_faktura["cvrnr"];
                 }
-            }elseif($endpointType !== "GLN"){
+            }elseif($endpointType !== "GLN" && !einvoice_cvr_missing($r_faktura["ean"], $r_faktura["cvrnr"], $r_faktura["land"] ?? "")){
+                // SD-774: a Danish receiver on a GLN scheme ("GLN:...") goes on to easyUblCvrMissing() below, which says what is missing
                 // No CVR and no GLN — cannot route via Peppol
                 file_put_contents("../temp/$db/missing-cvr-error-" . date("Y-m-d-H-i-s") . ".json", json_encode(["error" => "Missing CVR number", "order_id" => $id, "customer" => $r_faktura["firmanavn"]], JSON_PRETTY_PRINT));
                 ?>

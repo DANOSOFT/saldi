@@ -22,11 +22,12 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261023 CL/MMR SD-774 Created. One place decides when a digital invoice to an EAN/GLN needs the
-//                 receiver's CVR, so the send block in debitor/api.php, the popup on the order and the
-//                 warning on the debitor card always agree.
-// 20261026 CL/MMR SD-774 A CVR field holding a 13-digit EAN/GLN counts as no CVR (einvoice_cvr_is_gln(), einvoice_cvr_present()),
-//                 as with MEDSHOP faktura 243109, which Kalundborg Kommune rejected.
+// 20261023 CL/MMR SD-774 Created.
+//                 One place decides when a digital invoice to an EAN/GLN needs the receiver's CVR, so the send block in debitor/api.php, the popup on the order and the warning on the debitor card always agree.
+// 20261026 CL/MMR SD-774 A CVR field holding a 13-digit EAN/GLN counts as no CVR (einvoice_cvr_is_gln(), einvoice_cvr_present()), as with MEDSHOP faktura 243109, which Kalundborg Kommune rejected.
+// 20261026 CL/MMR SD-774 A CVR field without a digit other than 0 counts as no CVR, such as "-", "N/A", "0" or a name (einvoice_cvr_present()).
+//                 MEDSHOP has cards with such values, and they let a Danish GLN invoice through without a CVR.
+//                 A 13-digit EAN/GLN with a "DK" in front counts as an EAN/GLN too.
 
 include_once(__DIR__ . '/countryCode.php');
 
@@ -52,7 +53,7 @@ if (!function_exists('einvoice_normalize_cvr')) {
 
 if (!function_exists('einvoice_cvr_is_gln')) {
 	/**
-	 * Whether a CVR field holds a 13-digit EAN/GLN instead of a CVR. It has happened that the
+	 * Whether a CVR field holds a 13-digit EAN/GLN (with or without "DK") instead of a CVR. It has happened that the
 	 * receiver's EAN was typed into the CVR field (MEDSHOP faktura 243109, rejected by Kalundborg
 	 * Kommune); sent on, it is not a legal-entity id, so it counts as no CVR.
 	 *
@@ -60,21 +61,22 @@ if (!function_exists('einvoice_cvr_is_gln')) {
 	 * @return bool
 	 */
 	function einvoice_cvr_is_gln($cvr) {
-		return (bool)preg_match('/^[0-9]{13}$/', einvoice_normalize_cvr($cvr));
+		return (bool)preg_match('/^(DK)?[0-9]{13}$/', einvoice_normalize_cvr($cvr));
 	}
 }
 
 if (!function_exists('einvoice_cvr_present')) {
 	/**
-	 * Whether a CVR field holds something that can be sent as the receiver's CVR: not empty and
-	 * not an EAN/GLN (einvoice_cvr_is_gln()). Stored numbers are not held to modulus 11 here,
-	 * because some that fail it were accepted by the receiver.
+	 * Whether a CVR field holds something that can be sent as the receiver's CVR: it has a digit
+	 * other than 0 and is not an EAN/GLN (einvoice_cvr_is_gln()). Values like "-", "N/A", "0",
+	 * "00000000" or a company name stand in cards for "no CVR" and count as missing. Stored numbers
+	 * are not held to modulus 11 here, because some that fail it were accepted by the receiver.
 	 *
 	 * @param string|null $cvr The CVR field, raw or normalised.
 	 * @return bool
 	 */
 	function einvoice_cvr_present($cvr) {
-		return einvoice_normalize_cvr($cvr) !== '' && !einvoice_cvr_is_gln($cvr);
+		return (bool)preg_match('/[1-9]/', einvoice_normalize_cvr($cvr)) && !einvoice_cvr_is_gln($cvr);
 	}
 }
 
@@ -186,7 +188,7 @@ if (!function_exists('einvoice_cvr_missing')) {
 	/**
 	 * SD-774: a digital invoice that goes to a GLN of a Danish receiver must carry the receiver's
 	 * CVR, or the receiver rejects it (DK-R-017 / E-APS24003). True when exactly that is missing.
- * A CVR field holding an EAN/GLN counts as missing (einvoice_cvr_present()).
+	 * A CVR field holding an EAN/GLN or no real number counts as missing (einvoice_cvr_present()).
 	 *
 	 * Pass the values sendInvoice() will use: the order's EAN/CVR, each falling back to the
 	 * debitor card when empty on the order (SST-884). Foreign receivers are not covered: the rule

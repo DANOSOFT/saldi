@@ -25,8 +25,8 @@
 // 20261023 CL/MMR SD-774 Created. The debitor card shows a warning when a Danish business customer with an EAN number has no CVR number, as the receiver then rejects e-invoices to it.
 //                 It shows the same kind of warning when the CVR number is filled in but not valid.
 //                 Neither warning blocks or changes the save of the card.
-// 20261026 CL/MMR SD-774 The warning covers every card that is not 'privat', as the card page shows the EAN field for them;
-//                 an empty type and old 'Erhverv' were skipped. A CVR field holding the EAN/GLN counts as missing.
+// 20261026 CL/MMR SD-774 The warning covers every card that is not 'privat', as sendInvoice() sends to the card's EAN whatever the type; an empty type and old 'Erhverv' were skipped.
+//                 A CVR field holding the EAN/GLN, or no real number such as "-" or "N/A", counts as missing.
 
 include_once(__DIR__ . '/../../includes/stdFunc/einvoiceCvr.php');
 
@@ -34,8 +34,10 @@ if (!function_exists('debitorkortEinvoiceCvrProblem')) {
 	/**
 	 * SD-774: what is wrong with a debitor card's CVR for e-invoicing, judged on the saved values.
 	 *
-	 * Every card except a private one ('privat', any case) is checked: debitorkort.php shows the
-	 * EAN field for all other types, including an empty type and 'Erhverv' from old data.
+	 * Every card except a private one ('privat', any case) is checked, including an empty type and
+	 * 'Erhverv' from old data: sendInvoice() uses the card's EAN whatever the type, and MEDSHOP sent
+	 * 465 of its 2026 e-invoices to cards with an empty type (446 EAN cards have 'Erhverv'). The card
+	 * page itself shows the EAN field only for exactly 'erhverv'.
 	 * 'missing' is exactly the case debitor/api.php sendInvoice() blocks (einvoice_cvr_missing()).
 	 * 'invalid' is a soft warning for a Danish receiver on a GLN whose stored CVR fails the input
 	 * check (8 digits with a valid check digit, or a foreign country prefix). Sending is not
@@ -48,8 +50,7 @@ if (!function_exists('debitorkortEinvoiceCvrProblem')) {
 	 * @return string '' when there is nothing to warn about, otherwise 'missing' or 'invalid'.
 	 */
 	function debitorkortEinvoiceCvrProblem($kontotype, $ean, $cvr, $land) {
-		// debitorkort.php shows every card that is not 'privat' as a business card (an empty type is
-		// saved as 'erhverv' when the card is opened; 'Erhverv' exists in old data), so only 'privat' is skipped.
+		// Only a private card is skipped: an empty type or old 'Erhverv' still gets e-invoices sent to its EAN.
 		if (strtolower(trim((string)$kontotype)) === 'privat') {
 			return '';
 		}

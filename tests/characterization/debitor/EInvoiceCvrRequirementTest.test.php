@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../../debitor/debitorkortIncludes/einvoiceCvrBanner.
 //                 The rule lives in includes/stdFunc/einvoiceCvr.php so that the send block, the popup on the order and the warning on the debitor card cannot disagree, and those functions are tested directly here.
 //                 Two parity tests run the matching blocks lifted out of sendInvoice() next to the helpers, so the helpers cannot drift from what is actually sent.
 //                 sendInvoice() opens a database connection and posts to EasyUBL, so the order of its steps is asserted on the source with comments stripped, because the comments around the block name the same functions.
+// 20261026 CL/MMR SD-774 Placeholders such as "-", "N/A" or "0" and "DK" + an EAN in the CVR field count as no CVR, and the card fallback in sendInvoice() runs for real, also without a card row.
 final class EInvoiceCvrRequirementTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -188,6 +189,13 @@ final class EInvoiceCvrRequirementTest extends TestCase
             'EAN typed into the CVR field (243109)'     => ['5798007466206', '5798007466206', 'Danmark', true],
             'other GLN in the CVR field, with spaces'   => [self::GLN, ' 5798007466206 ', 'Danmark', true],
             'GLN in the CVR field, foreign receiver'    => ['7322730089999', '5798007466206', 'Sverige', false],
+            'GLN with DK in the CVR field'              => [self::GLN, 'DK5798007466206', 'Danmark', true],
+            'bare DK in the CVR field'                  => [self::GLN, 'DK', 'Danmark', true],
+            'dash in the CVR field'                     => [self::GLN, '-', 'Danmark', true],
+            'N/A in the CVR field'                      => [self::GLN, 'N/A', 'Danmark', true],
+            'zero in the CVR field'                     => [self::GLN, '0', 'Danmark', true],
+            'eight zeros in the CVR field'              => [self::GLN, '00000000', 'Danmark', true],
+            'company name in the CVR field'             => [self::GLN, 'SOS International a/s', 'Danmark', true],
             'GLN receiver with a foreign CVR'           => [self::GLN, 'SE232100025501', '', false],
             'no EAN at all'                             => ['', '', 'Danmark', false],
             'numeric scheme 0184'                       => ['0184:53383211', '', 'Danmark', false],
@@ -229,6 +237,8 @@ final class EInvoiceCvrRequirementTest extends TestCase
     {
         self::assertTrue(einvoice_cvr_is_gln('5798007466206'));
         self::assertTrue(einvoice_cvr_is_gln(' 5798007466206 '));
+        self::assertTrue(einvoice_cvr_is_gln('DK5798007466206'));
+        self::assertTrue(einvoice_cvr_is_gln('dk 5798007466206'));
         self::assertFalse(einvoice_cvr_is_gln('29189595'));
         self::assertFalse(einvoice_cvr_is_gln('SE232100025501'));
         self::assertFalse(einvoice_cvr_is_gln(''));
@@ -237,6 +247,37 @@ final class EInvoiceCvrRequirementTest extends TestCase
         self::assertTrue(einvoice_cvr_present('29189595'));
         self::assertTrue(einvoice_cvr_present('12345678'), 'a stored CVR failing modulus 11 still counts as present');
         self::assertTrue(einvoice_cvr_present('SE232100025501'));
+        self::assertTrue(einvoice_cvr_present('DK29189595'));
+        self::assertFalse(einvoice_cvr_present('DK5798007466206'));
+    }
+
+    /** @return array<string, array{string}> */
+    public static function placeholderCvrs(): array
+    {
+        // Values found in MEDSHOP's adresser.cvrnr (saldi_390, 2026-10-26)
+        return [
+            'AFASFAF (16 cards)' => ['AFASFAF'],
+            'dash (5 cards)'     => ['-'],
+            'N/A'                => ['N/A'],
+            'zero'               => ['0'],
+            'eight zeros'        => ['00000000'],
+            'question marks'     => ['????????'],
+            'company name'       => ['Arkikon ApS'],
+            'bare DK'            => ['DK'],
+            'bare DK, spaced'    => [' dk '],
+        ];
+    }
+
+    /**
+     * A CVR field holding a placeholder instead of a number stands for "no CVR". Counting it as a
+     * CVR let a Danish GLN invoice through without one, and sendInvoice() would send the
+     * placeholder as companyId.
+     */
+    #[DataProvider('placeholderCvrs')]
+    public function testAPlaceholderInTheCvrFieldIsNoCvr(string $cvr): void
+    {
+        self::assertFalse(einvoice_cvr_present($cvr), var_export($cvr, true) . ' counts as a CVR');
+        self::assertTrue(einvoice_cvr_missing(self::GLN, $cvr, 'Danmark'), var_export($cvr, true) . ' lets the invoice through');
     }
 
     /** @return array<string, array{string, string, string, string, string}> */
@@ -252,13 +293,14 @@ final class EInvoiceCvrRequirementTest extends TestCase
             'business card with a CVR'                  => ['erhverv', self::GLN, '29189595', 'Danmark', ''],
             'stored CVR failing modulus 11'             => ['erhverv', self::GLN, '12345678', 'Danmark', 'invalid'],
             'foreign receiver'                          => ['', '7322730089999', '', 'Sverige', ''],
+            'placeholder in the CVR field'              => ['', self::GLN, 'AFASFAF', 'Danmark', 'missing'],
         ];
     }
 
     /**
-     * The debitor card shows every card that is not 'privat' as a business card and saves an
-     * empty type as 'erhverv' on opening, so the warning must cover an empty type and old
-     * 'Erhverv' too. In MEDSHOP 465 of the 2026 e-invoices went to cards with an empty type.
+     * sendInvoice() sends to the card's EAN whatever its type, so the warning must cover an empty
+     * type and old 'Erhverv' too. In MEDSHOP 465 of the 2026 e-invoices went to cards with an
+     * empty type.
      */
     #[DataProvider('cards')]
     public function testTheCardWarningCoversEveryNonPrivateCard(string $type, string $ean, string $cvr, string $land, string $expected): void
@@ -331,7 +373,9 @@ final class EInvoiceCvrRequirementTest extends TestCase
      * Left out on purpose: a whitespace-only EAN field, which sendInvoice() routes as a GLN with
      * a blank id while the helper treats it as no EAN, and a lower-case or unknown non-numeric
      * scheme ("gln:", "XYZ:"), which the helper treats as a GLN while sendInvoice() keeps the
-     * scheme as the endpoint type. Without a CVR, sendInvoice()'s older guard stops the latter first.
+     * scheme as the endpoint type. Without a CVR, a Danish receiver on such a scheme now passes
+     * sendInvoice()'s older guard and is stopped by easyUblCvrMissing(); a foreign one still gets
+     * the older alert (testTheOlderGuardLeavesADanishGlnSchemeToTheNewBlock).
      */
     #[DataProvider('eanFieldsForParity')]
     public function testTheGlnTestMatchesSendInvoiceRouting(string $ean): void
@@ -346,6 +390,65 @@ final class EInvoiceCvrRequirementTest extends TestCase
 
         self::assertSame($endpointType === 'GLN', einvoice_is_gln_endpoint($ean),
             "sendInvoice() routes '$ean' as $endpointType, and the helper disagrees");
+    }
+
+    /** @return array<string, array{array<string, string>, array<string, string>|false, string, string}> */
+    public static function cardFallbacks(): array
+    {
+        $order = array('ean' => self::GLN, 'cvrnr' => '', 'konto_id' => '7');
+        return [
+            'order CVR empty, card has one'        => [$order, array('ean' => '', 'cvrnr' => '29189595'), self::GLN, '29189595'],
+            'EAN in the order CVR, card has one'   => [array('cvrnr' => '5798007466206') + $order, array('ean' => '', 'cvrnr' => '29189595'), self::GLN, '29189595'],
+            'placeholder on the order, card has one' => [array('cvrnr' => '-') + $order, array('ean' => '', 'cvrnr' => '29189595'), self::GLN, '29189595'],
+            'EAN in both CVR fields'               => [array('cvrnr' => '5798007466206') + $order, array('ean' => '', 'cvrnr' => ' 5798007466206 '), self::GLN, ''],
+            'order CVR wins over the card'         => [array('cvrnr' => '53383211') + $order, array('ean' => '', 'cvrnr' => '29189595'), self::GLN, '53383211'],
+            'blank order EAN takes the card EAN'   => [array('ean' => '  ') + $order, array('ean' => '5798007466206', 'cvrnr' => '29189595'), '5798007466206', '29189595'],
+            'card row is gone'                     => [$order, false, self::GLN, ''],
+        ];
+    }
+
+    /**
+     * The order -> debitor card fallback at the top of sendInvoice(), run for real with the card
+     * row given instead of read from the database. Warnings fail the test: a deleted card used to
+     * raise "Trying to access array offset on false".
+     *
+     * @param array<string, string>       $order       ordrer row (ean, cvrnr, konto_id)
+     * @param array<string, string>|false $card        adresser row, false when the card is gone
+     * @param string                      $expectedEan The EAN sendInvoice() goes on with
+     * @param string                      $expectedCvr The CVR sendInvoice() goes on with
+     */
+    #[DataProvider('cardFallbacks')]
+    public function testTheCardFallbackSkipsAnEanOrPlaceholderInTheCvrField(array $order, $card, string $expectedEan, string $expectedCvr): void
+    {
+        $block = $this->lift('if(trim((string)$r_faktura["ean"]) === ""){', '$initials = explode(');
+        $block = str_replace('db_fetch_array($q)', '$card', preg_replace('/db_select\([^;]*\);/', 'null;', $block, 1, $n));
+        self::assertSame(1, $n, 'the card lookup in sendInvoice() changed shape');
+        $r_faktura = $order;
+
+        set_error_handler(static function (int $no, string $msg): bool { throw new \ErrorException($msg, 0, $no); });
+        try {
+            eval($block);
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertSame($expectedEan, $r_faktura['ean']);
+        self::assertSame($expectedCvr, $r_faktura['cvrnr']);
+    }
+
+    /**
+     * The older "neither CVR nor GLN" alert in sendInvoice() checks the endpoint type "GLN" only.
+     * A Danish receiver on another non-numeric scheme ("GLN:" in lower case, "XYZ:") without a CVR
+     * must reach easyUblCvrMissing(), which says what is missing; anything else keeps the alert.
+     */
+    public function testTheOlderGuardLeavesADanishGlnSchemeToTheNewBlock(): void
+    {
+        $code = self::code();
+        $fnStart = self::at($code, 'function sendInvoice(', 0, 'sendInvoice() is gone');
+        $guard = self::at($code, '}elseif($endpointType !== "GLN"', $fnStart, 'the older missing-CVR guard is gone from sendInvoice()');
+        $line = substr($code, $guard, (int)strpos($code, '{', $guard + 2) - $guard);
+        self::assertStringContainsString('!einvoice_cvr_missing(', $line,
+            'the older alert fires first for a Danish receiver on a non-numeric scheme, so the user never sees the CVR explanation');
     }
 
     // ------------------------------------------------------------------ where sendInvoice() checks

@@ -26,6 +26,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/countryCode.php';
 //                  which would end the PHPUnit process. It is asserted on the source only.
 // 20261023 CL/MMR SD-774 testSendingIsStillAllowedWithoutACvr no longer says that a customer with only a GLN is never blocked: sendInvoice() now stops a Danish GLN receiver without any CVR before the payload is built, so the two exemptions pinned there only let foreign GLN receivers through.
 //                 The file requires includes/stdFunc/countryCode.php itself, because the lifted resolution block calls countryCodeIso2() since SST-870 and five tests errored when this file ran alone.
+// 20261026 CL/MMR SD-774 testSendingIsStillAllowedWithoutACvr also accepts the first guard with "&& !einvoice_cvr_missing(...)", which sends a Danish receiver on another non-numeric scheme on to easyUblCvrMissing().
 final class PeppolCustomerCompanyIdTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -214,7 +215,8 @@ final class PeppolCustomerCompanyIdTest extends TestCase
     {
         $src = self::source();
 
-        self::assertStringContainsString('}elseif($endpointType !== "GLN"){', $src,
+        // SD-774: the guard also lets a Danish receiver on another non-numeric scheme through to easyUblCvrMissing()
+        self::assertMatchesRegularExpression('/\}elseif\(\$endpointType !== "GLN"( && !einvoice_cvr_missing\([^{]*\))?\)\{/', $src,
             'the first missing-CVR guard no longer exempts GLN, so foreign GLN receivers without a CVR are blocked,'
             . ' and Danish ones get its "neither CVR nor EAN" alert instead of the SD-774 explanation');
         self::assertStringContainsString('&& $endpointType !== "GLN"){', $src,

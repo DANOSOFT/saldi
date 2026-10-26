@@ -25,6 +25,8 @@
 //                 The data and all texts (findtekst()) come from the JSON tag printed by debitor/orderIncludes/einvoiceCvr.php, and the checks mirror includes/stdFunc/einvoiceCvr.php.
 //                 The file is kept ASCII, so it reads the same in a UTF-8 and an ISO-8859-1 page.
 // 20261026 CL/MMR SD-774 cvrPresent() mirrors einvoice_cvr_present(): a CVR field holding a 13-digit EAN/GLN counts as empty.
+// 20261026 CL/MMR SD-774 cvrPresent() also needs a digit other than 0, like einvoice_cvr_present().
+//                 Choosing Digitalt on an invoiced order forgets an earlier Annuller, so the dialog opens again after the reload.
 
 (function (global) {
 	'use strict';
@@ -60,10 +62,10 @@
 		return m ? m[1] : cvr;
 	}
 
-	// einvoice_cvr_present(): not empty and not a 13-digit EAN/GLN typed into the CVR field.
+	// einvoice_cvr_present(): a digit other than 0, and not a 13-digit EAN/GLN (with or without "DK") typed into the CVR field.
 	function cvrPresent(raw) {
 		var cvr = normalizeCvr(raw);
-		return cvr !== '' && !/^[0-9]{13}$/.test(cvr);
+		return /[1-9]/.test(cvr) && !/^(DK)?[0-9]{13}$/.test(cvr);
 	}
 
 	// einvoice_cvr_mod11_ok(): weights 2,7,6,5,4,3,2,1, the sum a multiple of 11.
@@ -299,6 +301,18 @@
 		close();
 	}
 
+	// Choosing Digitalt is an explicit request, so it clears an earlier Annuller for this order.
+	function forgetDismissal() {
+		if (!dismissKey) {
+			return;
+		}
+		try {
+			window.sessionStorage.removeItem(dismissKey);
+		} catch (e) {
+			// No storage: nothing was remembered.
+		}
+	}
+
 	function wasDismissed() {
 		if (!dismissKey) {
 			return false;
@@ -368,7 +382,7 @@
 		}
 		injectStyles();
 		var t = data.texts;
-		var cardHasCvr = normalizeCvr(data.cardCvr) !== '';
+		var cardHasCvr = cvrPresent(data.cardCvr);
 		var lookupUrl = /^https:\/\//.test(String(data.lookupUrl || '')) ? String(data.lookupUrl) : '';
 		var overlay = document.createElement('div');
 		overlay.className = 'saldi-ecvr-overlay';
@@ -446,7 +460,8 @@
 	}
 
 	// On an open order "Udskriv til" has no auto-submit: open the dialog as soon as Digitalt is
-	// chosen while the form's own values still lack the CVR.
+	// chosen while the form's own values still lack the CVR. On an invoiced order the select submits
+	// the form, and the reload opens the dialog by itself once an earlier Annuller is forgotten.
 	function bindDigitalChange(form, data) {
 		var select = form.querySelector('select[name="udskriv_til"]');
 		if (!select) {
@@ -454,6 +469,10 @@
 		}
 		select.addEventListener('change', function () {
 			if (select.value !== 'Digitalt') {
+				return;
+			}
+			forgetDismissal();
+			if (!data.open) {
 				return;
 			}
 			var ean = currentEan(form, data);
@@ -473,9 +492,7 @@
 			return;
 		}
 		dismissKey = data.orderId ? 'saldiEinvoiceCvrDismissed:' + data.orderId : '';
-		if (data.open) {
-			bindDigitalChange(form, data);
-		}
+		bindDigitalChange(form, data);
 		// A rejected input is always shown again; otherwise respect a dismissal in this session.
 		if (data.autoOpen && (data.error || !wasDismissed())) {
 			show(data, String(data.ean || ''));
