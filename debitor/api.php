@@ -67,6 +67,7 @@
 //                 An order EAN or CVR holding only spaces now counts as empty, so the card's value is used instead.
 // 20261026 CL/MMR SD-774 An order or card CVR field holding the EAN/GLN, or no real number such as "-" or "N/A", is not used as the CVR (einvoice_cvr_present()), so the card's real CVR is sent, or the send is blocked when neither has one.
 //                 A Danish receiver on a GLN scheme like "GLN:5798..." without a CVR gets the same explanation instead of the old alert, and a missing card row no longer raises warnings.
+// 20261026 CL/MMR SD-774 easyUblCvrMissing() takes the database, encoding and language as parameters instead of globals; sendInvoice() gets them from its caller in $context.
 
     @session_start();
     $s_id=session_id();
@@ -468,21 +469,22 @@
      * no payload log, no EasyUBL call, digital_status untouched. The popup window opened by
      * window.open() shows why, with the NemHandel lookup link. Never returns.
      *
-     * @param string $ean     The EAN the document would have been sent to
-     * @param int    $orderId ordrer.id
+     * @param string     $ean      The EAN the document would have been sent to
+     * @param int        $orderId  ordrer.id
+     * @param string     $db       The tenant database, names the temp/<db>/ folder for the log file
+     * @param string     $dbEncode $db_encode; 'UTF8' or the ISO-8859-1 page charset
+     * @param int|string $sprogId  $sprog_id for findtekst()
      * @return never
      */
-    function easyUblCvrMissing($ean, $orderId) {
-        global $db, $db_encode, $sprog_id;
-
-        $charset = ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1';
+    function easyUblCvrMissing($ean, $orderId, $db, $dbEncode, $sprogId) {
+        $charset = ($dbEncode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1';
         file_put_contents("../temp/$db/cvr-missing-" . (int)$orderId . "-" . date("Y-m-d-H-i-s") . ".json",
             json_encode(array('error' => 'CVR missing for a GLN receiver (SD-774)', 'order_id' => (int)$orderId, 'ean' => (string)$ean)));
 
-        $title = findtekst('5166|Fakturaen kan ikke sendes digitalt', $sprog_id);
-        $text = str_replace('%s', (string)$ean, findtekst('5167|Modtageren har EAN-nummer %s, men der er ikke angivet noget CVR-nummer, eller CVR-feltet indeholder EAN-nummeret. E-fakturaer til et EAN-nummer skal have modtagerens CVR-nummer, ellers bliver de afvist. Indtast CVR-nummeret på ordren eller debitorkortet, og send igen.', $sprog_id));
-        $link = findtekst('5163|Slå CVR op i NemHandelsregisteret', $sprog_id);
-        $close = findtekst('2172|Luk', $sprog_id);
+        $title = findtekst('5166|Fakturaen kan ikke sendes digitalt', $sprogId);
+        $text = str_replace('%s', (string)$ean, findtekst('5167|Modtageren har EAN-nummer %s, men der er ikke angivet noget CVR-nummer, eller CVR-feltet indeholder EAN-nummeret. E-fakturaer til et EAN-nummer skal have modtagerens CVR-nummer, ellers bliver de afvist. Indtast CVR-nummeret på ordren eller debitorkortet, og send igen.', $sprogId));
+        $link = findtekst('5163|Slå CVR op i NemHandelsregisteret', $sprogId);
+        $close = findtekst('2172|Luk', $sprogId);
         $flags = ENT_QUOTES | ENT_SUBSTITUTE;
         print "<div style='max-width:640px;margin:40px auto;padding:20px 24px;border:1px solid #c33;border-radius:6px;background:#fff6f6;font-family:Arial,Helvetica,sans-serif;'>";
         print "<h2 style='margin-top:0;color:#a00;'>" . htmlspecialchars($title, $flags, $charset) . "</h2>";
@@ -497,8 +499,9 @@
     /**
      * @param int $id The Orders ID
      * @param string $type The type of document (invoice or creditnote)
+     * @param array $context SD-774: 'db_encode' and 'sprog_id' of the caller, for the missing-CVR page
      */
-    function sendInvoice($id, $type) {
+    function sendInvoice($id, $type, array $context = array()) {
             global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $adresse = db_fetch_array($query);
@@ -714,7 +717,7 @@
         // SD-774: a Danish receiver reached on a GLN needs its CVR on the invoice. The order's EAN/CVR
         // already fall back to the debitor card above (SST-884), so this is the value that would be sent.
         if (einvoice_cvr_missing($r_faktura["ean"], $r_faktura["cvrnr"], $r_faktura["land"] ?? "")) {
-            easyUblCvrMissing(trim((string)$r_faktura["ean"]), $id);
+            easyUblCvrMissing(trim((string)$r_faktura["ean"]), $id, $db, (string)($context["db_encode"] ?? "UTF8"), $context["sprog_id"] ?? 1);
         }
         $data = [
             "invoiceCreditnote" => $creditNote,

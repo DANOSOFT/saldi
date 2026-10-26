@@ -27,6 +27,8 @@
 //                 einvoiceCvrPopupView() hands the popup (javascript/einvoiceCvrPopup.js) its texts and the order's values.
 // 20261026 CL/MMR SD-774 The popup treats a CVR field holding the EAN/GLN as empty. Text 5169 now names the check digit.
 // 20261026 CL/MMR SD-774 The popup also treats a CVR field without a real number ("-", "N/A", "0") as empty, like einvoice_cvr_present().
+// 20261026 CL/MMR SD-774 An invoiced order whose CVR is missing gets the popup script in every output mode, so choosing Digitalt after Annuller opens it again.
+//                 einvoiceCvrSavedRedirectUrl() gives ordre.php the redirect after a CVR saved on an invoiced order (Post/Redirect/Get).
 
 include_once(__DIR__ . '/../../includes/stdFunc/einvoiceCvr.php');
 
@@ -98,6 +100,7 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 	 *   savedCard: bool,       True when the card update ran (its where clause still skips a card saved in between).
 	 *   cardChanged: bool,     True when the card was not updated because its CVR changed since the popup was shown.
 	 *   formCvr: string|null,  The value $_POST['cvrnr'] must hold for the order's save (status < 3), null to leave the request alone.
+	 *   ordreId: int,          ordrer.id when handled, else 0.
 	 * }
 	 */
 	function einvoiceCvrSaveFromOrder($ordreId, $cvrInput, $toCard, $cardWas) {
@@ -110,6 +113,7 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 			'savedCard'   => false,
 			'cardChanged' => false,
 			'formCvr'     => null,
+			'ordreId'     => 0,
 		);
 		// (int) of an array is 1, so a posted id[] must not reach the cast.
 		$ordreId = is_scalar($ordreId) ? (int)$ordreId : 0;
@@ -122,6 +126,7 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 			return $result;
 		}
 		$result['handled'] = true;
+		$result['ordreId'] = $ordreId;
 		$result['status'] = (int)ifset($order, 'status', 0);
 		$isOpen = $result['status'] < 3;
 
@@ -162,6 +167,37 @@ if (!function_exists('einvoiceCvrSaveFromOrder')) {
 			}
 		}
 		return $result;
+	}
+}
+
+if (!function_exists('einvoiceCvrSavedRedirectUrl')) {
+	/**
+	 * Where ordre.php redirects after the popup saved a CVR on an invoiced order (status >= 3),
+	 * so a refresh shows the order again instead of posting the save once more (Post/Redirect/Get).
+	 * An open order is saved through its own Gem button and keeps that flow; a rejected input is
+	 * shown again with its error on the same response, as nothing was written.
+	 *
+	 * @param array $saveResult einvoiceCvrSaveFromOrder()'s result.
+	 * @param array $query      The request's query parameters ($_GET); sag_id and returside are kept.
+	 * @return string '' when there is nothing to redirect, otherwise a URL relative to debitor/.
+	 */
+	function einvoiceCvrSavedRedirectUrl(array $saveResult, array $query) {
+		if (!ifset($saveResult, 'handled', false) || ifset($saveResult, 'problem', '') !== '' || (int)ifset($saveResult, 'status', 0) < 3) {
+			return '';
+		}
+		$params = array('id' => (int)ifset($saveResult, 'ordreId', 0));
+		if ($params['id'] <= 0) {
+			return '';
+		}
+		$sagId = ifset($query, 'sag_id', '');
+		if (is_scalar($sagId) && (int)$sagId > 0) {
+			$params['sag_id'] = (int)$sagId;
+		}
+		$returside = ifset($query, 'returside', '');
+		if (is_string($returside) && $returside !== '') {
+			$params['returside'] = $returside;
+		}
+		return 'ordre.php?' . http_build_query($params);
 	}
 }
 
@@ -265,9 +301,12 @@ if (!function_exists('einvoiceCvrPopupState')) {
 		$state['autoOpen'] = $missing && !$redirectPending
 			&& ((string)ifset($order, 'udskriv_til', '') === 'Digitalt' || $state['error'] !== '');
 		// An open order also opens the popup when "Udskriv til" changes to Digitalt; that can only
-		// lead to it when the card has no CVR either and the receiver is Danish.
+		// lead to it when the card has no CVR either and the receiver is Danish. An invoiced order
+		// in another output mode needs the script too: choosing Digitalt there submits the form, and
+		// the script must first forget an earlier Annuller so the reload opens the popup.
 		$state['render'] = $state['autoOpen']
-			|| ($state['open'] && !einvoice_cvr_present($state['cardCvr']) && $state['receiverDanish']);
+			|| ($state['open'] && !einvoice_cvr_present($state['cardCvr']) && $state['receiverDanish'])
+			|| (!$state['open'] && $missing && !$redirectPending);
 		return $state;
 	}
 }

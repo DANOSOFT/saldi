@@ -165,6 +165,7 @@
 //                 It opens on load when Udskriv til is Digitalt, and on an open order also when Digitalt is chosen in the list.
 //                 Its Gem saves the CVR on the order and, when ticked, on the debitor card (orderIncludes/einvoiceCvr.php, javascript/einvoiceCvrPopup.js).
 //                 ordreside() gets that save's result as a third parameter, so a rejected CVR is shown again with the error.
+// 20261026 CL/MMR SD-774 The popup's CVR save runs before any output, and a CVR saved on an invoiced order redirects back to the order, so a refresh does not post it again.
 
 @session_start();
 $s_id = session_id();
@@ -204,6 +205,27 @@ include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
+
+// SD-774: the CVR typed in the e-invoice popup is saved before any output and before the order's own POST handling.
+// On an open order that handling saves cvrnr from the form again, so it gets the same value.
+// On an invoiced order nothing else needs the post, so a saved CVR redirects (Post/Redirect/Get).
+$einvoiceCvrResult = array();
+if (ifset($_POST, 'einvoiceCvrSave') === '1') {
+	$einvoiceCvrResult = einvoiceCvrSaveFromOrder(
+		ifset($_POST, 'id', 0),
+		ifset($_POST, 'einvoiceCvr', ''),
+		ifset($_POST, 'einvoiceCvrToCard') === '1',
+		ifset($_POST, 'einvoiceCvrCardWas', '')
+	);
+	$einvoiceCvrRedirect = einvoiceCvrSavedRedirectUrl($einvoiceCvrResult, $_GET);
+	if ($einvoiceCvrRedirect !== '') {
+		header('Location: ' . $einvoiceCvrRedirect, true, 303);
+		exit;
+	}
+	if ($einvoiceCvrResult['formCvr'] !== null) {
+		$_POST['cvrnr'] = $einvoiceCvrResult['formCvr'];
+	}
+}
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -958,20 +980,6 @@ if ($b_submit == 'Credit') $b_submit = 'Krediter';
 // MB-74: fingerprint of a POST that adds a new order line, remembered once the line is committed.
 $orderLineReplayKey = orderLineReplayKey($_POST, (string)$db, (string)$brugernavn);
 $orderLineSaved = false;
-// SD-774: the CVR typed in the e-invoice popup is saved before the order's own POST handling below.
-// On an open order that handling saves cvrnr from the form again, so it gets the same value.
-$einvoiceCvrResult = array();
-if (ifset($_POST, 'einvoiceCvrSave') === '1') {
-	$einvoiceCvrResult = einvoiceCvrSaveFromOrder(
-		ifset($_POST, 'id', 0),
-		ifset($_POST, 'einvoiceCvr', ''),
-		ifset($_POST, 'einvoiceCvrToCard') === '1',
-		ifset($_POST, 'einvoiceCvrCardWas', '')
-	);
-	if ($einvoiceCvrResult['formCvr'] !== null) {
-		$_POST['cvrnr'] = $einvoiceCvrResult['formCvr'];
-	}
-}
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
 	$sum = if_isset($_POST, NULL, 'sum');
