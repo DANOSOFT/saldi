@@ -39,7 +39,7 @@ $permission_key = 'debitor.konti';
 // Reading actions (search, place) only need read access; everything else writes.
 $crmBody = (string) file_get_contents('php://input');
 $crmPeek = json_decode($crmBody, true);
-$crmReadActions = array('search', 'place', 'customer');
+$crmReadActions = array('search', 'place', 'customer', 'data');
 $permission_level = (is_array($crmPeek) && in_array($crmPeek['action'] ?? '', $crmReadActions, true)) ? 'read' : 'write';
 // 20261024 ASR review R71: the central gate (includes/permissions.php) counts every POST as a write unless the page says
 //              the POST only reads; without this a read-only user could not search or report the page's place.
@@ -91,6 +91,10 @@ if ($in['action'] === 'place') {
 }
 if ($in['action'] === 'search') {
 	crm_api_answer(array('ok' => true, 'result' => crm_search((string) ($in['q'] ?? ''))));
+}
+if ($in['action'] === 'data') {
+	// the whole dataset again, read-only: the page refreshes itself when its tab is shown again (review R20)
+	crm_api_answer(array('ok' => true, 'data' => crm_dataset()));
 }
 if ($in['action'] === 'customer') {
 	// one customer with its history (a drawer on a customer outside the loaded set); read access is enough

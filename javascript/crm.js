@@ -108,6 +108,7 @@ function parseAmt(s) {
 // A date n days ahead that lands on a weekend rolls on to Monday (R18): the customer works Monday to Friday.
 const roll = n => { const d = D(n); while (d.getDay() % 6 === 0) d.setDate(d.getDate() + 1); return key(d); };
 const rollLabel = (label, n) => diff(roll(n)) === n ? label : t('Mandag');
+const rollMonth = () => { const d = new Date(TODAY); const day = d.getDate(); d.setMonth(d.getMonth() + 1); if (d.getDate() !== day) d.setDate(0); return roll(diff(key(d))); };
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const cust = id => C.find(c => c.id === id) || EXTRA[id];
 const stName = id => (ST[id] || {n: id || t('Ingen status')}).n;
@@ -352,7 +353,7 @@ function renderPipe() {
 	const g = boardGroup();
 	const starter = !GROUPS.length && DATA.canWrite ? `<button type="button" class="linkbtn" data-starter="1">${t('Start med en salgstavle')}</button> · <button type="button" class="linkbtn" data-opengear="1">${t('Åbn tandhjulet')}</button>` : '';
 	if (!g.s.length) {
-		$('#v-pipe').innerHTML = `<div class="empty"><b>${t('Ingen statusser at vise')}</b>${t('Opsæt statusser og statusgrupper under tandhjulet.')}${starter ? `<br>${t('Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.')}<br>${starter}` : ''}</div>`;
+		$('#v-pipe').innerHTML = (GROUPS.length > 1 ? `<div class="pipehead"><div class="seg" role="tablist" aria-label="${t('Statusgruppe')}">${GROUPS.map(x => `<button data-bgrp="${x.id}" class="${x.id === g.id ? 'on' : ''}">${esc(x.n)}</button>`).join('')}</div></div>` : '') + `<div class="empty"><b>${t('Ingen statusser at vise')}</b>${t('Opsæt statusser og statusgrupper under tandhjulet.')}${starter ? `<br>${t('Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.')}<br>${starter}` : ''}</div>`;
 		return;
 	}
 	const base = C.filter(c => g.s.includes(c.st) && (!S.mine || c.own === ME) && custMatch(c) && (!S.noFu || !openFor(c.id).length));
@@ -378,7 +379,8 @@ function renderPipe() {
 function evHtml(h, big) {
 	const c = cust(h.cid), late = !h.done && diff(h.due) < 0, drag = DATA.canWrite && !h.done;
 	if (big) return `<button class="wcard ${late ? 'late' : ''} ${h.done ? 'done' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}"><b>${esc(c.n)}</b><p>${esc(h.note)}</p><small>${esc(empName(h.by))}${h.to ? ' → ' + esc(ppl(c, h.to)) : ''}</small></button>`;
-	return `<button class="ev ${late ? 'late' : ''} ${h.done ? 'done' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}" title="${esc(c.n)} – ${esc(h.note)}"><span>${esc(c.n)}</span></button>`;
+	const ini = EMP[h.by] ? (EMP[h.by].i || EMP[h.by].n.split(' ').map(x => x.charAt(0)).join('').slice(0, 3)) : '';
+	return `<button class="ev ${late ? 'late' : ''} ${h.done ? 'done' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}" title="${esc(c.n)} – ${esc(h.note)}${ini ? ' · ' + esc(empName(h.by)) : ''}"><span>${esc(c.n)}</span>${ini ? `<small class="ini">${esc(ini)}</small>` : ''}</button>`;
 }
 function isoWeek(d) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - y) / 864e5 + 1) / 7); }
 function mondayOf(k) { const d = fromKey(k); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return key(d); }
@@ -450,7 +452,7 @@ function renderCust() {
 			<span class="r num ${c.rev ? '' : 'c3'}">${c.rev ? kr(c.rev) : '–'}</span>
 		</div>`;
 	}).join('');
-	if (!list.length) html += `<div class="empty"><b>${t('Ingen kunder')}</b>` + (C.length ? t('Ingen kunder matcher filtrene.') + (DATA.truncated && S.q ? ' ' + t('Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.', num(DATA.max)) : '') : t('Kunder kommer med i CRM, når de får en status, en note eller en handel. Brug »Ny opfølgning« for at finde en kunde.')) + srvSearchBtn() + '</div>';
+	if (!list.length) html += `<div class="empty"><b>${t('Ingen kunder')}</b>` + (C.length ? t('Ingen kunder matcher filtrene.') + (DATA.truncated && S.q ? ' ' + t('Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.', num(DATA.max)) : '') : t('Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en handel. Søg efter andre kunder med søgefeltet.')) + srvSearchBtn() + '</div>';
 	$('#v-cust').innerHTML = html;
 }
 
@@ -516,7 +518,7 @@ function composer(c, ctx) {
 	const prev = prevFor(c, d);
 	// pre-ticked only for the user's own follow-up, and not for the one just created in this composer (R2, R3)
 	const closePrev = d.closePrev !== null ? d.closePrev : !!(prev && prev.by === ME && prev.id !== d.lastId);
-	const chips = [[rollLabel(t('I morgen'), 1), roll(1)], [t('Om 1 uge'), roll(7)], [t('Om 2 uger'), roll(14)], [t('Om 1 måned'), roll(30)]];
+	const chips = [[rollLabel(t('I morgen'), 1), roll(1)], [t('Om 1 uge'), roll(7)], [t('Om 2 uger'), roll(14)], [t('Om 1 måned'), rollMonth()]];
 	const custom = d.due && !chips.some(([, k]) => k === d.due) ? d.due : '';
 	const to = d.to === null ? 0 : d.to;   // no contact person unless chosen (R8)
 	const needOwner = !ME && !d.owner;
@@ -1172,6 +1174,16 @@ document.addEventListener('drop', async e => {
 
 /* ================= start ================= */
 load(DATA);
+let loadedAt = Date.now();
+document.addEventListener('visibilitychange', async () => {
+	if (document.visibilityState !== 'visible') return;
+	if (DATA.today === key(new Date()) && Date.now() - loadedAt < 5 * 60000) return;
+	const my = ++seqNo;
+	try {
+		const r = await fetch(DATA.api, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRF-Token': DATA.csrf}, body: JSON.stringify({action: 'data'})}).then(x => x.json());
+		if (r && r.ok && r.data && my > applied) { applied = my; loadedAt = Date.now(); load(r.data); redraw(); }
+	} catch (e) { /* offline: keep what is shown */ }
+});
 S.calY = TODAY.getFullYear(); S.calM = TODAY.getMonth(); S.bgrp = GROUPS.length ? GROUPS[0].id : 0;
 if (!ME) S.mine = false;
 // place from the query (crm.php?tab=pipe&bgrp=25&drawer=4&dtab=deals); the old #pipe / #drawer=4 links still work

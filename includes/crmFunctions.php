@@ -270,7 +270,6 @@ function crm_text_ids(): array
 		7345 => 'Ingen opfølgning',
 		7346 => 'I %s siden %s',
 		7347 => 'Ingen statusser at vise',
-		7348 => 'Kundestatusser oprettes på debitorkortet (feltet Status). Statusgrupper sættes op under tandhjulet.',
 		7349 => '%s kunder',
 		7350 => 'åbne handler %s',
 		7351 => '%s med forsinket opfølgning',
@@ -298,7 +297,6 @@ function crm_text_ids(): array
 		7373 => 'Ingen',
 		7374 => 'Ingen kunder',
 		7375 => 'Ingen kunder matcher filtrene.',
-		7376 => 'Kunder kommer med i CRM, når de får en status, en note eller en handel. Brug »Ny opfølgning« for at finde en kunde.',
 		7377 => 'Opfølgning %s · gjort',
 		7378 => 'Opfølgning %s',
 		7379 => 'Ukendt',
@@ -372,13 +370,11 @@ function crm_text_ids(): array
 		7447 => 'Ny handel',
 		7448 => 'Titel',
 		7449 => 'Fx Saldi Plus, 3 brugere',
-		7450 => 'Beløb (kr)',
 		7451 => 'Forventet lukket',
 		7452 => 'Stadie',
 		7453 => 'Mig',
 		7454 => 'Slet handel',
 		7455 => 'Annullér',
-		7456 => 'Handlen er slettet',
 		7457 => 'vundet',
 		7458 => 'tabt',
 		7459 => 'Handlen er gemt',
@@ -411,23 +407,15 @@ function crm_text_ids(): array
 		7486 => 'Opfølgning sat til %s',
 		7487 => 'Sæt %s som %s',
 		7488 => 'vundet handel',
-		7489 => 'Der er ingen kundestatusser endnu. De oprettes på debitorkortet (feltet Status).',
 		7490 => 'Gruppenavn',
-		7491 => 'Fjern',
 		7492 => 'Fortrudt',
-		7493 => 'Din bruger er ikke knyttet til en medarbejder, så »Mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.',
 		7494 => 'Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.',
 		7495 => 'Ny gruppe',
-		7496 => 'Statusgrupperne er gemt',
 		7497 => '%s flyttet til %s',
 		7498 => 'Handel oprettet: »%s«',
 		7499 => 'genåbnet',
 		7500 => 'Handel »%s«: %s',
-		7501 => 'Salg til %s',
-		7502 => 'Handel oprettet ud fra kundens status: »%s«',
 		7503 => 'Søg',
-		7504 => 'Kun mine',
-		7505 => 'Ny opfølgning (N)',
 		7506 => 'Tilpas CRM',
 		7507 => 'Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.',
 		7508 => '+ Tilføj statusgruppe',
@@ -446,13 +434,6 @@ function crm_text_ids(): array
 		7521 => 'Alle opfølgninger og kunder i regnskabet',
 		7522 => 'Kun dem, du er ansvarlig for. Valget huskes til næste gang.',
 		7523 => 'Mine',
-		7524 => 'Ny',
-		7525 => 'Opret ny opfølgning, handel, tilbud eller ordre',
-		7526 => 'Tilbud',
-		7527 => 'Ordre',
-		7528 => 'Nyt tilbud',
-		7529 => 'Ny ordre',
-		7530 => 'Hvilken kunde gælder det?',
 		7531 => 'Statusser',
 		7532 => 'Statusgrupper',
 		7533 => '+ Tilføj status',
@@ -537,7 +518,9 @@ function crm_text_ids(): array
 		7611 => 'Vis 1 kunde uden opfølgning',
 		7612 => 'Skjul 1 kunde uden opfølgning',
 		7613 => 'Flyt opfølgningen til %s',
-		7614 => '1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.'
+		7614 => '1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.',
+		7615 => 'Din opfølgning er flyttet til %s',
+		7616 => 'Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en handel. Søg efter andre kunder med søgefeltet.'
 	);
 }
 
@@ -709,12 +692,19 @@ function crm_notif_drop(string $keyLike): void
 }
 
 /** "Ny opfølgning til dig": a follow-up whose owner is another employee than the acting user. */
-function crm_notify_followup(int $hid, int $cid, int $owner, string $due, string $note): void
+function crm_notify_followup(int $hid, int $cid, int $owner, string $due, string $note, bool $moved = false): void
 {
+	if ($moved) {
+		// review R64: a postponed follow-up is a change, not a new one, and the owner should see it again
+		$u = crm_user_for_ansat($owner);
+		if ($u > 0 && function_exists('notif_ready') && notif_ready()) {
+			db_modify("delete from notification_read where user_id = $u and notification_id in (select id from notifications where source_key = 'crm:fu:$hid')", __FILE__ . " linje " . __LINE__);
+		}
+	}
 	$c = db_fetch_array(db_select("select firmanavn from adresser where id = $cid", __FILE__ . " linje " . __LINE__));
 	$body = crm_out($c ? (string) $c['firmanavn'] : '') . ': ' . mb_substr(trim($note), 0, 120)
 		. ' · ' . crm_t('opfølgning %s', date('d-m-Y', strtotime($due))) . ' · ' . crm_t('fra %s', crm_actor_name());
-	crm_notify($owner, 'crm:fu:' . $hid, crm_t('Ny opfølgning til dig'), $body, '/debitor/crm.php?tab=follow&drawer=' . $cid, date('Y-m-d', strtotime($due . ' +30 days')));
+	crm_notify($owner, 'crm:fu:' . $hid, $moved ? crm_t('Din opfølgning er flyttet til %s', date('d-m-Y', strtotime($due))) : crm_t('Ny opfølgning til dig'), $body, '/debitor/crm.php?tab=follow&drawer=' . $cid, date('Y-m-d', strtotime($due . ' +30 days')));
 }
 
 /** "Handel tildelt dig" / "Handel vundet" / "Handel tabt" for the deal's owner. */
@@ -882,6 +872,18 @@ function crm_employees(): array
 	return $out;
 }
 
+function crm_status_zero(): bool
+{
+	static $z = null;
+	if ($z === null) {
+		$z = false;
+		foreach (crm_statuses() as $s) {
+			if ($s['id'] === '0') $z = true;
+		}
+	}
+	return $z;
+}
+
 function crm_employee_name(int $id): string
 {
 	$r = db_fetch_array(db_select("select navn from ansatte where id = $id", __FILE__ . " linje " . __LINE__));
@@ -920,7 +922,7 @@ function crm_customers(string $where, int $limit = 0, bool $byActivity = false):
 			'by'    => crm_out($r['bynavn']),
 			'tlf'   => crm_out($r['tlf']),
 			'mail'  => crm_out($r['email']),
-			'st'    => trim((string) $r['status']),
+			'st'    => (trim((string) $r['status']) === '0' && !crm_status_zero()) ? '' : trim((string) $r['status']),
 			'own'   => (int) $r['kontoansvarlig'],
 			'since' => (string) $r['oprettet'],
 			'rev'   => 0, 'inv' => 0, 'late' => 0,
@@ -1413,7 +1415,7 @@ function crm_action(string $action, array $in): array
 			$r = db_fetch_array(db_select("select konto_id, ansat_id, notat from historik where id = $hid", __FILE__ . " linje " . __LINE__));
 			if ($r) {
 				crm_sync_customer((int) $r['konto_id']);
-				if ((int) $r['ansat_id'] !== $me) crm_notify_followup($hid, (int) $r['konto_id'], (int) $r['ansat_id'], $due, crm_out($r['notat']));
+				if ((int) $r['ansat_id'] !== $me) crm_notify_followup($hid, (int) $r['konto_id'], (int) $r['ansat_id'], $due, crm_out($r['notat']), true);
 			}
 			return array('id' => $hid);
 
@@ -1485,6 +1487,7 @@ function crm_action(string $action, array $in): array
 				crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel oprettet: »%s«', trim((string) $in['t'])), null);
 				$prevOwn = 0;
 			}
+			if ($own !== $prevOwn) crm_notif_drop("crm:deal:$id:owner");
 			if ($own !== $me && $own !== $prevOwn) {
 				crm_notify_deal(array('id' => $id, 'konto_id' => $cid, 'title' => crm_in_raw($in['t'] ?? ''), 'amount' => $amount, 'ansat_id' => $own), 'owner');
 			}

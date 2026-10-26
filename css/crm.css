@@ -433,3 +433,4 @@ select.inl:hover{color:var(--link)}
   .newbtn{padding:0 9px}
   .vsep{margin:0 4px}
 }
+.ev .ini{flex:none;margin-left:auto;font-size:10.5px;color:var(--text-3);font-weight:600}
