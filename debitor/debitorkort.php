@@ -1107,7 +1107,12 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			}
 		}
 	} else {
-		
+		// 20261026 ASR a customer with CRM deals is not deleted: the deals would be left without a customer (CRM review R61)
+		if (tbl_exists('crm_deals') && db_fetch_array(db_select("select id from crm_deals where konto_id = '" . (int) $id . "' and state != 'deleted'", __FILE__ . " linje " . __LINE__))) {
+			print "<BODY onLoad=\"javascript:alert('" . addslashes(findtekst('7617|Kunden har handler i CRM og kan ikke slettes.', $sprog_id)) . "')\"><!--....-->\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=" . (int) $id . "&returside=" . urlencode($returside) . "\">\n";
+			exit;
+		}
 		db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from kontakt_emails where konto_id = $id", __FILE__ . " linje " . __LINE__);
@@ -2509,6 +2514,7 @@ $q = db_select("select id from openpost where konto_id = '$id'", __FILE__ . " li
 if (db_fetch_array($q)) $slet = "NO";
 $q = db_select("select id from ordrer where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 if (db_fetch_array($q)) $slet = "NO";
+if (tbl_exists('crm_deals') && db_fetch_array(db_select("select id from crm_deals where konto_id = '" . (int) $id . "' and state != 'deleted'", __FILE__ . " linje " . __LINE__))) $slet = "NO"; # 20261026 ASR CRM deals (R61)
 $q = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 if (db_fetch_array($q)) $slet = "NO";
 if (!isset($slet)) $slet = NULL;

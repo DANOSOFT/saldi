@@ -7098,3 +7098,9 @@
 7614	1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	1 customer has a status that is not in a status group and is therefore not shown in the CRM.	1 kunde har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
 7615	Din opfølgning er flyttet til %s	Your follow-up has been moved to %s	Oppfølgingen din er flyttet til %s
 7616	Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en handel. Søg efter andre kunder med søgefeltet.	Customers appear in the CRM when they have a status in a status group, a note or a deal. Find other customers with the search box.	Kunder kommer med i CRM når de har en status i en statusgruppe, et notat eller en avtale. Søk etter andre kunder med søkefeltet.
+7617	Kunden har handler i CRM og kan ikke slettes.	The customer has deals in the CRM and cannot be deleted.	Kunden har avtaler i CRM og kan ikke slettes.
+7618	lukket	closed	lukket
+7619	(lukket kontakt)	(closed contact)	(lukket kontakt)
+7620	(tidligere medarbejder)	(former employee)	(tidligere ansatt)
+7621	Indstillingerne er ændret af en anden. Genindlæs siden.	The settings were changed by someone else. Reload the page.	Innstillingene er endret av en annen. Last siden på nytt.
+7622	Gem eller annullér ændringerne i tandhjulet først.	Save or cancel the changes in the gear first.	Lagre eller avbryt endringene i tannhjulet først.

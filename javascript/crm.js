@@ -135,6 +135,8 @@ function placeParams(over) {
 	p.set('tab', st.tab);
 	if (st.tab === 'pipe' && st.bgrp) p.set('bgrp', st.bgrp);
 	if (st.drawer) { p.set('drawer', st.drawer); if (st.dtab && st.dtab !== 'tl') p.set('dtab', st.dtab); }
+	if (S.grp !== 'all') p.set('grp', S.grp);   // review R58: a reload keeps the status group filter and the calendar view
+	if (st.tab === 'cal' && S.calY) p.set('cal', S.calMode === 'week' && S.weekStart ? 'w' + S.weekStart : 'm' + S.calY + '-' + (S.calM + 1));
 	return p.toString();
 }
 let placeTimer = null, placeSent = '';
@@ -185,6 +187,7 @@ let busy = false, seqNo = 0, applied = 0;
 const shown = msg => { const e = new Error(msg); e.crmShown = true; return e; };
 window.addEventListener('unhandledrejection', e => { if (e.reason && e.reason.crmShown) e.preventDefault(); });
 const ERR = () => ({noaccess: t('Du har ikke rettighed til at ændre i CRM.'), status_used: t('Statussen er i brug og kan ikke slettes.'),
+	stale: t('Indstillingerne er ændret af en anden. Genindlæs siden.'),
 	amount: t('Beløbet kunne ikke læses – skriv fx 12.500,50.'), fields: t('Kunne ikke gemme. Prøv igen.'), date: t('Kunne ikke gemme. Prøv igen.')});
 function redraw() { renderAll(); if (S.drawer) renderDrawer(); }
 function loggedOut() { redraw(); toast(t('Du er logget ud – genindlæs siden og prøv igen.'), null, {label: t('Genindlæs'), fn: () => location.reload()}); }
@@ -248,11 +251,11 @@ function custMatch(c) {
 }
 // The main search only knows the loaded customers; with no hit the server search covers them all (R77).
 const srvSearchBtn = () => S.q ? `<br><button type="button" class="linkbtn" data-srvsearch="1">${t('Søg blandt alle kunder')}</button>` : '';
-const follows = incDone => H.filter(h => h.due && (incDone || !h.done) && custOk(cust(h.cid)) && (!S.mine || h.by === ME) && match(h));
+const follows = incDone => H.filter(h => h.due && (incDone || !h.done) && custOk(cust(h.cid)) && !cust(h.cid).closed && (!S.mine || h.by === ME) && match(h));
 const openFor = cid => H.filter(h => h.cid === cid && h.due && !h.done).sort((a, b) => a.due.localeCompare(b.due));
 const lastContact = cid => { const c = cust(cid); return H.filter(h => h.cid === cid && h.type !== 'status' && h.type !== 'deal').map(h => h.date).concat(c && c.last ? [c.last] : []).sort().pop(); };
 // customers on a status group's board (not on a won/lost status) without an open follow-up (R14)
-const noFollowUp = () => C.filter(c => GROUPS.some(g => g.s.includes(c.st)) && !isWon(c.st) && !isLost(c.st) && custOk(c) && (!S.mine || c.own === ME) && custMatch(c) && !openFor(c.id).length);
+const noFollowUp = () => C.filter(c => !c.closed && GROUPS.some(g => g.s.includes(c.st)) && !isWon(c.st) && !isLost(c.st) && custOk(c) && (!S.mine || c.own === ME) && custMatch(c) && !openFor(c.id).length);
 const NCOLS = '28px minmax(170px,1.25fr) minmax(160px,1fr) 130px 118px 170px';
 
 /* ================= faner ================= */
@@ -356,7 +359,7 @@ function renderPipe() {
 		$('#v-pipe').innerHTML = (GROUPS.length > 1 ? `<div class="pipehead"><div class="seg" role="tablist" aria-label="${t('Statusgruppe')}">${GROUPS.map(x => `<button data-bgrp="${x.id}" class="${x.id === g.id ? 'on' : ''}">${esc(x.n)}</button>`).join('')}</div></div>` : '') + `<div class="empty"><b>${t('Ingen statusser at vise')}</b>${t('Opsæt statusser og statusgrupper under tandhjulet.')}${starter ? `<br>${t('Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.')}<br>${starter}` : ''}</div>`;
 		return;
 	}
-	const base = C.filter(c => g.s.includes(c.st) && (!S.mine || c.own === ME) && custMatch(c) && (!S.noFu || !openFor(c.id).length));
+	const base = C.filter(c => !c.closed && g.s.includes(c.st) && (!S.mine || c.own === ME) && custMatch(c) && (!S.noFu || !openFor(c.id).length));
 	const late = base.filter(c => { const nx = openFor(c.id)[0]; return nx && diff(nx.due) < 0; }).length;
 	const none = base.filter(c => !openFor(c.id).length).length;
 	const dealSum = base.reduce((a, c) => a + openDeals(c.id).reduce((x, d) => x + d.v, 0), 0);
@@ -420,6 +423,7 @@ function renderCal() {
 		<span class="legend"><span class="dot" style="--c:var(--saldi-blue)">${t('Åben')}</span><span class="dot" style="--c:var(--bad)">${t('Forsinket')}</span><span class="dot" style="--c:${OFF}">${t('Gjort')}</span>${DATA.canWrite ? `<span class="c3">${t('Træk for at flytte')}</span>` : ''}</span>
 		<div class="seg"><button data-mode="month" class="${S.calMode === 'month' ? 'on' : ''}">${t('Måned')}</button><button data-mode="week" class="${S.calMode === 'week' ? 'on' : ''}">${t('Uge')}</button></div>
 	</div>` + body;
+	syncUrl();
 }
 
 /* ================= 4. kunder ================= */
@@ -506,12 +510,23 @@ function openDrawer(cid, tab, hid) {
 	// the writer by default, else the customer's owner - never the first employee in the alphabet (R6, R7)
 	if (!d.owner) d.owner = ME || (c && c.own) || 0;
 	d.prevId = hid || 0;
+	const ae = document.activeElement;
+	if (ae && !ae.closest('#drawer')) {
+		const row = ae.closest('[data-h],[data-card],.body-row[data-open]');
+		opener = row ? (row.dataset.h ? `.body-row[data-h="${row.dataset.h}"]` : row.dataset.card ? `[data-card="${row.dataset.card}"]` : `.body-row[data-open="${row.dataset.open}"]`) : '';
+	}
 	renderDrawer();
 	$('#drawer').classList.add('open'); $('#dscrim').classList.add('open');
+	const h2 = $('#drawer h2'); if (h2 && !$('#drawer').contains(document.activeElement)) h2.focus({preventScroll: true});
 	syncUrl();
 	if (!FULL[cid]) refreshFull(cid).then(ok => { if (ok && S.drawer === cid) renderDrawer(); });
 }
-function closeDrawer() { $('#drawer').classList.remove('open'); $('#dscrim').classList.remove('open'); S.drawer = null; syncUrl(); }
+let opener = '';
+function closeDrawer() {
+	$('#drawer').classList.remove('open'); $('#dscrim').classList.remove('open'); S.drawer = null; syncUrl();
+	const back = opener && document.querySelector(opener); opener = '';
+	if (back) back.focus();
+}
 
 function composer(c, ctx) {
 	const d = draft(ctx, c.id);
@@ -544,12 +559,12 @@ function renderDrawer() {
 	const ret = encodeURIComponent('crm.php');
 	const back = backTo(c.id); // back from the order to this customer's drawer, on Handler og ordrer
 	$('#drawer').innerHTML = `<div class="dh">
-			<div class="t"><div><h2>${esc(c.n)}</h2><div class="sub2">${t('Kunde %s', esc(c.nr))}${c.by ? ' · ' + esc(c.by) : ''}${DATA.canWrite && DATA.emps.length ? ` · <label class="ownlbl">${t('Ansvarlig')} <select class="inl" id="ownSel" aria-label="${t('Ansvarlig')}"><option value="0" ${!c.own ? 'selected' : ''}>${t('Ingen')}</option>${DATA.emps.map(e => `<option value="${e.id}" ${e.id === c.own ? 'selected' : ''}>${esc(e.n)}</option>`).join('')}</select></label>` : c.own ? ' · ' + t('ansvarlig: %s', esc(empLow(c.own))) : ''}</div></div>
+			<div class="t"><div><h2 tabindex="-1">${esc(c.n)}${c.closed ? ` <span class="c3">(${t('lukket')})</span>` : ''}</h2><div class="sub2">${t('Kunde %s', esc(c.nr))}${c.by ? ' · ' + esc(c.by) : ''}${DATA.canWrite && DATA.emps.length ? ` · <label class="ownlbl">${t('Ansvarlig')} <select class="inl" id="ownSel" aria-label="${t('Ansvarlig')}"><option value="0" ${!c.own ? 'selected' : ''}>${t('Ingen')}</option>${DATA.emps.map(e => `<option value="${e.id}" ${e.id === c.own ? 'selected' : ''}>${esc(e.n)}</option>`).join('')}</select></label>` : c.own ? ' · ' + t('ansvarlig: %s', esc(empLow(c.own))) : ''}</div></div>
 				<span class="x"></span>
 				<span class="stwrap" style="--c:${stColor(c.st)}"><select class="stsel" id="stSel" aria-label="${t('Status')}" ${DATA.canWrite ? '' : 'disabled'}>${c.st && !ST[c.st] ? `<option value="${esc(c.st)}" selected>${esc(c.st)}</option>` : ''}<option value="" ${!c.st ? 'selected' : ''}>${t('Ingen status')}</option>${ST_ORDER.map(id => `<option value="${esc(id)}" ${id === c.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></span>
 				<button class="ibtn" id="dClose" aria-label="${t('Luk (Esc)')}">${SV.x}</button></div>
 			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}${t('Opret handel')}</a>${DATA.quick ? '' : `<a data-mkdoc="0" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}${t('Opret tilbud')}</a>`}<a data-mkdoc="1" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}${t('Opret ordre')}</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}${t('Debitorkort')}</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}${t('Jobkort')}</a>` : ''}</div>
-			<div class="kv"><div><span>${t('Kunde siden')}</span><b>${c.since ? fmtY(c.since) : '–'}</b></div><div><span>${t('Seneste kontakt')}</span><b>${lc ? rel(lc) : '–'}</b></div><div><span>${t('Omsætning i år')} <small class="c3">${t('ekskl. moms')}</small></span><b>${kr(c.rev || 0)}</b></div><div><span>${t('Åbne poster')}</span><b class="${c.late ? 'late' : ''}">${c.inv ? c.inv + (c.late ? ' · ' + t('%s forfalden', c.late) : '') : '0'}</b></div></div>
+			<div class="kv"><div><span>${t('Kunde siden')}</span><b>${c.since ? fmtY(c.since) : '–'}</b></div><div><span>${t('Seneste kontakt')}</span><b>${lc ? rel(lc) : '–'}</b></div><div><span>${t('Omsætning i år')} <small class="c3">${t('ekskl. moms')}</small></span><b>${kr(c.rev || 0)}</b></div><div><span>${t('Åbne poster')}</span><b class="${c.late ? 'late' : ''}">${c.bal ? kr(c.bal) + (c.late ? ' · ' + t('%s forfalden', c.late) : '') : '0'}</b></div></div>
 			<div class="dtabs"><button data-dtab="tl" class="${S.dtab === 'tl' ? 'on' : ''}">${t('Historik')} <span class="c3">${hist.length}</span></button><button data-dtab="deals" class="${S.dtab === 'deals' ? 'on' : ''}">${t('Handler og ordrer')} <span class="c3">${deals.length + c.docs.length}</span></button><button data-dtab="ppl" class="${S.dtab === 'ppl' ? 'on' : ''}">${t('Kontaktpersoner')} <span class="c3">${c.ppl.length}</span></button></div>
 		</div>
 		<div class="db">${S.dtab === 'deals' ? dealsTab(c, deals) : S.dtab === 'tl' ? `
@@ -695,7 +710,7 @@ function dealDialog(deal, cid, stage) {
 				<label>${t('Beløb (kr, ekskl. moms)')}<input id="dV" inputmode="decimal" value="${esc(fmtAmt(d.v))}" placeholder="0"></label>
 				<label>${t('Forventet lukket')}<input id="dC" type="date" value="${esc(d.close || '')}"></label>
 				<label>${t('Stadie')}<select id="dS" ${deal && deal.state !== 'open' ? 'disabled' : ''}>${(deal && !g.s.includes(d.st) ? [d.st] : []).concat(g.s).map(id => `<option value="${esc(id)}" ${id === d.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></label>
-				<label>${t('Ansvarlig')}<select id="dO">${(d.own ? [] : [`<option value="0" selected>${t('– vælg –')}</option>`]).concat(DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.own ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`)).join('') || '<option value="0">–</option>'}</select></label>
+				<label>${t('Ansvarlig')}<select id="dO">${(d.own && !EMP[d.own] ? [`<option value="${d.own}" selected>${t('(tidligere medarbejder)')}</option>`] : d.own ? [] : [`<option value="0" selected>${t('– vælg –')}</option>`]).concat(DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.own ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`)).join('') || '<option value="0">–</option>'}</select></label>
 			</div>
 			${deal ? dealDocBox(deal, c) : ''}
 			<div class="ft">${deal ? `<button class="left" id="dDel">${t('Slet handel')}</button>` : ''}${deal && deal.state !== 'open' ? `<button id="dReopen">${t('Genåbn')}</button>` : ''}${deal && deal.state === 'open' ? `<button id="dWon">${t('Vundet')}</button><button id="dLost">${t('Tabt')}</button>` : ''}<button id="dNo">${t('Annullér')}</button><button class="primary" id="dYes">${deal ? t('Gem') : t('Opret handel')}</button></div>`);
@@ -770,16 +785,17 @@ function editDialog(hid) {
 	openDlg(`<h3>${t('Ret %s fra %s', TYPE_N[h.type].toLowerCase(), fmtY(h.date))}</h3>
 		<div class="fgrid">
 			<label>${t('Type')}<select id="eT">${COMPOSE_TYPES.map(t => `<option value="${t}" ${t === h.type ? 'selected' : ''}>${TYPE_N[t]}</option>`).join('')}</select></label>
-			<label>${t('Med')}<select id="eP">${c.ppl.map(p => `<option value="${p.id}" ${p.id === h.to ? 'selected' : ''}>${esc(p.n)}</option>`).join('')}<option value="0" ${!h.to ? 'selected' : ''}>${t('(ingen)')}</option></select></label>
+			<label>${t('Dato')}<input type="date" id="eDate" value="${esc(h.date)}" max="${DATA.today}"></label>
+			<label>${t('Med')}<select id="eP">${h.to && !c.ppl.some(p => p.id === h.to) ? `<option value="${h.to}" selected>${t('(lukket kontakt)')}</option>` : ''}${c.ppl.map(p => `<option value="${p.id}" ${p.id === h.to ? 'selected' : ''}>${esc(p.n)}</option>`).join('')}<option value="0" ${!h.to ? 'selected' : ''}>${t('(ingen)')}</option></select></label>
 			<label class="wide">${t('Note')}<textarea id="eN">${esc(h.note)}</textarea></label>
 			${h.due && !h.done ? `<label>${t('Opfølgning')}<input type="date" id="eD" value="${esc(h.due)}" title="${t('Tøm feltet for at fjerne påmindelsen – noten bliver stående')}"></label>
-			<label>${t('Til')}<select id="eO">${DATA.emps.map(e => `<option value="${e.id}" ${e.id === h.by ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`).join('')}</select></label>` : ''}
+			<label>${t('Til')}<select id="eO">${h.by && !EMP[h.by] ? `<option value="${h.by}" selected>${t('(tidligere medarbejder)')}</option>` : ''}${DATA.emps.map(e => `<option value="${e.id}" ${e.id === h.by ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`).join('')}</select></label>` : ''}
 		</div>
 		<div class="ft"><button id="eNo">${t('Annullér')}</button><button class="primary" id="eYes">${t('Gem')}</button></div>`);
 	$('#eNo').onclick = closeDlg;
 	$('#eYes').onclick = async () => {
-		const old = {id: h.id, type: h.type, to: h.to, note: h.note};
-		const upd = {id: h.id, type: $('#eT').value, to: +$('#eP').value, note: $('#eN').value};
+		const old = {id: h.id, type: h.type, to: h.to, note: h.note, date: h.date};
+		const upd = {id: h.id, type: $('#eT').value, to: +$('#eP').value, note: $('#eN').value, date: $('#eDate').value};
 		if ($('#eD')) { old.due = h.due; old.owner = h.by; upd.due = $('#eD').value; if ($('#eO')) upd.owner = +$('#eO').value; }
 		await api('update_entry', upd);
 		closeDlg(); toast(t('Noten er rettet'), () => api('update_entry', old));
@@ -997,7 +1013,7 @@ document.addEventListener('click', e => {
 		}
 	}
 	if (!t.closest('#menu') && !t.closest('[data-snooze]')) $('#menu').classList.remove('open');
-	if (!t.closest('.gear')) { $('#panel').classList.remove('open'); $('#gearBtn').setAttribute('aria-expanded', 'false'); }
+	if (!t.closest('.gear') && !t.closest('#toast')) gearOutside();
 	let b;
 	if ((b = t.closest('[data-tab]'))) { S.tab = b.dataset.tab; renderAll(); return; }
 	if ((b = t.closest('[data-tick]'))) { e.stopPropagation(); toggleDone(+b.dataset.tick, b.closest('.row')); return; }
@@ -1042,7 +1058,7 @@ document.addEventListener('click', e => {
 	if (t.closest('#showDone')) { S.showDone = !S.showDone; renderFollow(); return; }
 });
 document.addEventListener('keydown', e => {
-	if (e.key === 'Escape') { if ($('#scrim').classList.contains('open')) closeDlg(); else if (S.drawer) closeDrawer(); $('#menu').classList.remove('open'); }
+	if (e.key === 'Escape') { if ($('#scrim').classList.contains('open')) closeDlg(); else if ($('#panel').classList.contains('open')) closeGear(); else if (S.drawer) closeDrawer(); $('#menu').classList.remove('open'); }
 	if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('body-row')) openDrawer(+e.target.dataset.open);
 	if ((e.key === 'n' || e.key === 'N') && DATA.canWrite && !e.ctrlKey && !e.metaKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !$('#scrim').classList.contains('open')) { e.preventDefault(); newForTab(); }
 });
@@ -1094,8 +1110,18 @@ $('#gearBtn').onclick = e => {
 		GDRAFT = GROUPS.map(g => ({id: g.id, n: g.n, s: g.s.slice(), won: g.won, lost: g.lost}));
 		SDRAFT = DATA.statuses.map(s => ({id: s.id, n: s.n, used: s.used || 0}));
 		renderGroupEditor();
+		gearSnap = gearState();
 	}
 };
+let gearSnap = '';
+const gearState = () => JSON.stringify([GDRAFT, SDRAFT]);
+const closeGear = () => { $('#panel').classList.remove('open'); $('#gearBtn').setAttribute('aria-expanded', 'false'); gearSnap = ''; };
+function gearOutside() {
+	if (!$('#panel').classList.contains('open')) return;
+	if (gearSnap && gearState() !== gearSnap) { toast(t('Gem eller annullér ændringerne i tandhjulet først.')); return; }
+	closeGear();
+}
+$('#sgCancel').onclick = e => { e.stopPropagation(); closeGear(); };
 $('#sgList').addEventListener('input', e => {
 	const box = e.target.closest('.sg'); if (!box) return;
 	const g = GDRAFT[+box.dataset.i];
@@ -1137,7 +1163,8 @@ $('#sgSave').onclick = async e => {
 	e.stopPropagation();
 	if (SDRAFT.some(s => !s.n.trim())) { toast(t('Giv alle statusser et navn.')); return; }
 	GDRAFT.forEach(g => g.s.sort(bySdraft));
-	await api('save_groups', {groups: GDRAFT, statuses: SDRAFT.map(s => ({id: s.id, n: s.n.trim()}))});
+	await api('save_groups', {groups: GDRAFT, statuses: SDRAFT.map(s => ({id: s.id, n: s.n.trim()})), rev: DATA.rev});
+	gearSnap = '';
 	renderGroups(); $('#panel').classList.remove('open'); toast(t('Statusser og statusgrupper er gemt'));
 };
 
@@ -1191,6 +1218,9 @@ const hs = location.hash.slice(1);
 const qTab = QP0.get('tab') || hs;
 if (/^(follow|pipe|cal|cust|act)$/.test(qTab)) S.tab = qTab;
 if (QP0.get('bgrp') && GROUPS.some(g => String(g.id) === QP0.get('bgrp'))) S.bgrp = QP0.get('bgrp');
+if (QP0.get('grp') && GROUPS.some(g => String(g.id) === QP0.get('grp'))) S.grp = QP0.get('grp');
+{ const cal = QP0.get('cal') || '', w = cal.match(/^w(\d{4}-\d{2}-\d{2})$/), m = cal.match(/^m(\d{4})-(\d{1,2})$/);
+	if (w) { S.calMode = 'week'; S.weekStart = w[1]; } else if (m) { S.calY = +m[1]; S.calM = Math.min(11, Math.max(0, +m[2] - 1)); } }
 renderGroups();
 renderAll();
 const hm = hs.match(/^drawer=(\d+)(?:-(\w+))?$/);

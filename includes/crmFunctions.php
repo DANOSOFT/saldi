@@ -520,7 +520,12 @@ function crm_text_ids(): array
 		7613 => 'Flyt opfølgningen til %s',
 		7614 => '1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.',
 		7615 => 'Din opfølgning er flyttet til %s',
-		7616 => 'Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en handel. Søg efter andre kunder med søgefeltet.'
+		7616 => 'Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en handel. Søg efter andre kunder med søgefeltet.',
+		7618 => 'lukket',
+		7619 => '(lukket kontakt)',
+		7620 => '(tidligere medarbejder)',
+		7621 => 'Indstillingerne er ændret af en anden. Genindlæs siden.',
+		7622 => 'Gem eller annullér ændringerne i tandhjulet først.'
 	);
 }
 
@@ -806,7 +811,7 @@ function crm_save_statuses(array $list)
 	foreach (crm_statuses() as $s) {
 		$old[$s['id']] = $s['n'];
 	}
-	$max = 0;
+	$max = function_exists('get_settings_value') ? (int) get_settings_value('crm_status_max', 'crm', 0) : 0;   // review R49: numbers are never reused
 	foreach (array_keys($old) as $id) {
 		if (ctype_digit((string) $id)) $max = max($max, (int) $id);
 	}
@@ -829,6 +834,7 @@ function crm_save_statuses(array $list)
 	foreach (array_keys($old) as $id) {
 		if (!in_array((string) $id, $ids, true) && !empty($use[$id])) return 'status_used';
 	}
+	if (function_exists('update_settings_value')) update_settings_value('crm_status_max', 'crm', (string) $max, 'CRM: highest status number given out (never reused)');
 	$box3 = db_escape_string(implode(chr(9), $ids));
 	$box4 = db_escape_string(implode(chr(9), $names));
 	if (db_fetch_array(db_select("select id from grupper where art = 'DebInfo'", __FILE__ . " linje " . __LINE__))) {
@@ -872,6 +878,12 @@ function crm_employees(): array
 	return $out;
 }
 
+/** A fingerprint of the statuses and status groups: a save made from an older view of them is refused (review R50). */
+function crm_settings_rev(): string
+{
+	return substr(md5(json_encode(crm_statuses()) . json_encode(crm_groups())), 0, 12);
+}
+
 function crm_status_zero(): bool
 {
 	static $z = null;
@@ -911,7 +923,7 @@ function crm_customers(string $where, int $limit = 0, bool $byActivity = false):
 		$order = "case when fx.konto_id is not null or dx.konto_id is not null then 0 else 1 end, "
 			. "greatest(coalesce(hx.d, '1900-01-01'), coalesce(ox.d, '1900-01-01')) desc, a.firmanavn";
 	}
-	$qtxt = "select a.id, a.kontonr, a.firmanavn, a.bynavn, a.tlf, a.email, a.status, a.kontoansvarlig, a.oprettet "
+	$qtxt = "select a.id, a.kontonr, a.firmanavn, a.bynavn, a.tlf, a.email, a.status, a.kontoansvarlig, a.oprettet, a.lukket "
 		. "from adresser a$join where a.art = 'D' and $where order by $order" . ($limit > 0 ? " limit $limit" : "");
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -925,6 +937,7 @@ function crm_customers(string $where, int $limit = 0, bool $byActivity = false):
 			'st'    => (trim((string) $r['status']) === '0' && !crm_status_zero()) ? '' : trim((string) $r['status']),
 			'own'   => (int) $r['kontoansvarlig'],
 			'since' => (string) $r['oprettet'],
+			'closed' => trim((string) $r['lukket']) === 'on',
 			'rev'   => 0, 'inv' => 0, 'late' => 0,
 			'stSince' => (string) $r['oprettet'],
 			'ppl'   => array(),
@@ -946,10 +959,13 @@ function crm_customers(string $where, int $limit = 0, bool $byActivity = false):
 		$out[(int) $r['konto_id']]['rev'] = round((float) $r['s']);
 	}
 	$today = date('Y-m-d');
-	$q = db_select("select konto_id, count(*) as n, sum(case when forfaldsdate < '$today' then 1 else 0 end) as late from openpost where konto_id in ($ids) and (udlignet is null or udlignet != '1') and amount > 0 group by konto_id", __FILE__ . " linje " . __LINE__);
+	// review R43: the balance of the unmatched items (invoices minus payments/credit notes, in the company's currency) and how many invoices are overdue
+	$q = db_select("select konto_id, sum(case when amount > 0 then 1 else 0 end) as n, sum(case when amount > 0 and forfaldsdate < '$today' then 1 else 0 end) as late, "
+		. "sum(amount * coalesce(nullif(valutakurs, 0), 100) / 100) as bal from openpost where konto_id in ($ids) and (udlignet is null or udlignet != '1') group by konto_id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$out[(int) $r['konto_id']]['inv'] = (int) $r['n'];
 		$out[(int) $r['konto_id']]['late'] = (int) $r['late'];
+		$out[(int) $r['konto_id']]['bal'] = round((float) $r['bal'], 2);
 	}
 	// open offers (status 0) and orders (1-2), newest first, for the drawer
 	$q = db_select("select id, konto_id, ordrenr, status, sum * coalesce(nullif(valutakurs, 0), 100) / 100 as sum, ordredate from ordrer where art = 'DO' and status < 3 and konto_id in ($ids) order by id desc", __FILE__ . " linje " . __LINE__);
@@ -984,7 +1000,7 @@ function crm_nav_place(string $query): bool
 	}
 	parse_str($query, $in);
 	$clean = array();
-	foreach (array('inframe', 'popup', 'tab', 'bgrp', 'drawer', 'dtab') as $k) {
+	foreach (array('inframe', 'popup', 'tab', 'bgrp', 'drawer', 'dtab', 'grp', 'cal') as $k) {
 		if (isset($in[$k]) && is_string($in[$k]) && preg_match('/^[A-Za-z0-9_-]{1,20}$/', $in[$k])) {
 			$clean[$k] = $in[$k];
 		}
@@ -1156,6 +1172,7 @@ function crm_dataset(int $extraId = 0): array
 	}
 	return array(
 		'ungrouped' => $ungrouped,
+		'rev'       => crm_settings_rev(),
 		'histFrom'  => crm_hist_from(),
 		'dealFrom'  => crm_deal_from(),
 		'today'     => date('Y-m-d'),
@@ -1297,6 +1314,7 @@ function crm_action(string $action, array $in): array
 			$hid = (int) $in['id'];
 			$type = in_array($in['type'] ?? '', array('note', 'opkald', 'mail', 'moede'), true) ? $in['type'] : 'note';
 			$set = "notat = '" . crm_in($in['note'] ?? '') . "', type = '$type', kontakt_id = " . (int) ($in['to'] ?? 0);
+			if (crm_date($in['date'] ?? '') && crm_date($in['date']) <= date('Y-m-d')) $set .= ", kontaktet = '" . crm_date($in['date']) . "'";   // review R10
 			$old = db_fetch_array(db_select("select konto_id, ansat_id, kontaktes, completed from historik where id = $hid", __FILE__ . " linje " . __LINE__));
 			if (!$old) return array('error' => 'gone');
 			// review R15: an open follow-up can get another owner, another date, or no date (the note stays, the reminder goes)
@@ -1554,6 +1572,7 @@ function crm_action(string $action, array $in): array
 			return array('customer' => $c[$cid], 'hist' => crm_history(array($cid), true), 'deals' => crm_deals($cid));
 
 		case 'save_groups':
+			if (!empty($in['rev']) && (string) $in['rev'] !== crm_settings_rev()) return array('error' => 'stale');   // review R50
 			// statuses first (new ones get their number), then the groups that may point at them
 			$map = array();
 			if (isset($in['statuses'])) {

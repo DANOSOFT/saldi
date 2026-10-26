@@ -434,3 +434,6 @@ select.inl:hover{color:var(--link)}
   .vsep{margin:0 4px}
 }
 .ev .ini{flex:none;margin-left:auto;font-size:10.5px;color:var(--text-3);font-weight:600}
+.pbtn.pbtn-ghost{background:none!important;color:var(--text-2)!important;border:1px solid var(--border)!important;font-weight:500}
+.pbtn.pbtn-ghost:hover{color:var(--text)!important;background:var(--surface-2)!important}
+.dh h2:focus{outline:none}
