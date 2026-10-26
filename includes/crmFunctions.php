@@ -41,9 +41,12 @@
 // every customer has a status, so without the cap the page would load the whole customer file. Customers outside
 // the loaded set are reached through the server-side search (Ny opfølgning / Ny handel).
 //
-// Open follow-up: kontaktes set and completed false. Rows written before this page have completed NULL; such a row
-// only counts as open while no later entry exists for the customer (the old model kept one "next contact" per
-// customer, so a newer note replaced it). Without this every old note would show up as overdue.
+// Open follow-up: kontaktes set and completed false. Rows written by the old pages have completed NULL; such a row
+// counts as open only while it is the customer's newest row WITH a date (the old model kept one "next contact" per
+// customer: a newer dated row replaced it, a dateless note did not). crm_open_sql() is the one definition, and
+// crm_migrate_legacy_followups() makes the old rows explicit once. 20261024 ASR after the customer-perspective review
+// (CRM_review_consolidated_2026-10-23_EN.md): author_id on historik, soft-deleted deals, amounts with ore, currency
+// conversion, scope ordered by open work first.
 
 if (!function_exists('crm_ensure_schema')) {
 
@@ -109,6 +112,54 @@ function crm_ensure_schema(): void
 	if (!crm_col_exists('crm_deals', 'ordre_id')) {
 		db_modify("ALTER TABLE crm_deals ADD COLUMN ordre_id integer", __FILE__ . " linje " . __LINE__);
 	}
+	// 20261024 ASR review R4: who wrote the entry (ansat_id stays the follow-up's owner, as the old pages read it)
+	if (!crm_col_exists('historik', 'author_id')) {
+		db_modify("ALTER TABLE historik ADD COLUMN author_id integer", __FILE__ . " linje " . __LINE__);
+	}
+	// 20261024 ASR review R56: historik is read per customer on every CRM request; the table had no index on konto_id
+	if (!crm_is_mysql()) {
+		if (!db_fetch_array(db_select("select indexname from pg_indexes where tablename = 'historik' and indexname = 'historik_konto_idx'", __FILE__ . " linje " . __LINE__))) {
+			db_modify("CREATE INDEX historik_konto_idx ON historik (konto_id)", __FILE__ . " linje " . __LINE__);
+		}
+	} elseif (!db_fetch_array(db_select("show index from historik where Key_name = 'historik_konto_idx'", __FILE__ . " linje " . __LINE__))) {
+		db_modify("CREATE INDEX historik_konto_idx ON historik (konto_id)", __FILE__ . " linje " . __LINE__);
+	}
+	crm_migrate_legacy_followups();
+}
+
+/**
+ * 20261024 ASR review R22. Rows written by the old CRM pages have completed NULL. The old model kept one "next contact"
+ * per customer: a newer row WITH a next-contact date replaced it, a dateless note did not. Once, we make that explicit:
+ * every NULL row with a date that is not the customer's newest dated row becomes done (TRUE). The newest dated row stays
+ * NULL and is read as open by crm_open_sql(); later deletes and restores can then no longer flip old rows between open
+ * and done. Guarded by a settings flag so it runs once per company.
+ */
+function crm_migrate_legacy_followups(): void
+{
+	if (!function_exists('get_settings_value') || !function_exists('update_settings_value')) {
+		return;
+	}
+	if ((string) get_settings_value('crm_legacy_followups', 'crm', '') === '1') {
+		return;
+	}
+	if (crm_is_mysql()) {
+		db_modify("update historik h join (select konto_id, max(id) as m from historik where kontaktes is not null group by konto_id) x on x.konto_id = h.konto_id "
+			. "set h.completed = TRUE where h.completed is null and h.kontaktes is not null and h.id <> x.m", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("update historik h set completed = TRUE where h.completed is null and h.kontaktes is not null "
+			. "and h.id <> (select max(h2.id) from historik h2 where h2.konto_id = h.konto_id and h2.kontaktes is not null)", __FILE__ . " linje " . __LINE__);
+	}
+	update_settings_value('crm_legacy_followups', 'crm', '1', 'CRM: legacy follow-ups made explicit (review R22)');
+}
+
+/**
+ * The one definition of "open follow-up", used by the page, the bell and the sync of adresser.kontaktes:
+ * completed FALSE, or a legacy NULL row with a date that is the customer's newest dated row (see the migration above).
+ */
+function crm_open_sql(string $h = 'h'): string
+{
+	return "($h.kontaktes is not null and ($h.completed = FALSE or ($h.completed is null and $h.id = "
+		. "(select max(hx.id) from historik hx where hx.konto_id = $h.konto_id and hx.kontaktes is not null))))";
 }
 
 // ------------------------------------------------------------------ encoding (the JSON is always UTF-8)
@@ -410,7 +461,37 @@ function crm_text_ids(): array
 		7540 => 'Der er ingen kundestatusser endnu.',
 		7541 => 'Giv alle statusser et navn.',
 		7542 => 'Statusser og statusgrupper er gemt',
-		7543 => 'Ny kunde'
+		7543 => 'Ny kunde',
+		// 20261024 ASR after the customer-perspective review
+		7544 => 'Du er logget ud – genindlæs siden og prøv igen.',
+		7545 => 'Genindlæs',
+		7546 => 'Du har ikke rettighed til at ændre i CRM.',
+		7547 => 'Statussen er i brug og kan ikke slettes.',
+		7548 => 'Beløbet kunne ikke læses – skriv fx 12.500,50.',
+		7549 => 'Ingen forbindelse – ændringen blev ikke gemt.',
+		7550 => 'Kunne ikke gemme. Prøv igen.',
+		7551 => '%s opfølgninger fra det gamle CRM er mere end 90 dage forsinkede.',
+		7552 => 'Markér dem som gjort',
+		7553 => 'Ikke nu',
+		7554 => '%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort',
+		7555 => 'slettet',
+		7556 => 'Slet handlen »%s«?',
+		7557 => 'Handlen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.',
+		7558 => 'Kunden står ikke på tavlen – sæt status til %s',
+		7559 => 'Opsæt statusser først (tandhjulet øverst til højre).',
+		7560 => 'Markér %s åbne handler som %s',
+		7561 => 'Flyt også handlen til %s',
+		7562 => '– vælg –',
+		7563 => 'Vælg, hvem opfølgningen er til.',
+		7564 => 'Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.',
+		7565 => 'Beløb (kr, ekskl. moms)',
+		7566 => 'ekskl. moms',
+		7567 => 'Søg blandt alle kunder',
+		7568 => 'Fundet uden for listen',
+		7569 => 'Registreret af %s',
+		7570 => 'Mandag',
+		7571 => 'Handel »%s« slettet',
+		7572 => 'Genåbn'
 	);
 }
 
@@ -561,6 +642,11 @@ function crm_notify(int $ansatId, string $key, string $title, string $body, stri
 	if ($user <= 0 || $user === (int) $bruger_id) {
 		return;
 	}
+	// only to a user who may read the CRM (the Debitor right, as crm_notif_refresh checks it; review R69)
+	$u = db_fetch_array(db_select("select rettigheder from brugere where id = $user", __FILE__ . " linje " . __LINE__));
+	if (!$u || substr((string) $u['rettigheder'], 6, 1) < '1') {
+		return;
+	}
 	notif_upsert($key, $user, 'crm', crm_to_db($title), crm_to_db($body), $link, $expires);
 }
 
@@ -613,17 +699,19 @@ function crm_notif_refresh(int $brugerId, string $rettigheder, int $sprogId): vo
 	}
 	$today = date('Y-m-d');
 	$key = 'crm:due:' . $today;
+	// the same open rule as the page (crm_open_sql), closed customers left out as on the page; "today" without the overdue ones (review R63)
 	$r = db_fetch_array(db_select("select count(*) as n, sum(case when h.kontaktes < '$today' then 1 else 0 end) as late from historik h "
-		. "where h.ansat_id = $ansat and h.kontaktes is not null and h.kontaktes <= '$today' and (h.completed = FALSE "
-		. "or (h.completed is null and h.id = (select max(h2.id) from historik h2 where h2.konto_id = h.konto_id and (h2.type is null or h2.type not in ('status', 'deal')))))", __FILE__ . " linje " . __LINE__));
+		. "join adresser a on a.id = h.konto_id and (a.lukket is null or a.lukket != 'on') "
+		. "where h.ansat_id = $ansat and h.kontaktes <= '$today' and " . crm_open_sql('h'), __FILE__ . " linje " . __LINE__));
 	$n = $r ? (int) $r['n'] : 0;
 	if ($n <= 0) {
 		db_modify("delete from notification_read where notification_id in (select id from notifications where source_key = '$key' and user_id = $brugerId)", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from notifications where source_key = '$key' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
 		return;
 	}
+	$late = (int) $r['late'];
 	notif_upsert($key, $brugerId, 'crm', crm_to_db(crm_tl($sprogId, 'Opfølgninger i dag')),
-		crm_to_db(crm_tl($sprogId, '%s opfølgninger i dag · %s forsinkede', $n, (int) $r['late'])), '/debitor/crm.php?tab=follow', $today);
+		crm_to_db(crm_tl($sprogId, '%s opfølgninger i dag · %s forsinkede', $n - $late, $late)), '/debitor/crm.php?tab=follow', $today);
 }
 
 // ------------------------------------------------------------------ reference data
@@ -757,12 +845,20 @@ function crm_employees(): array
 function crm_customers(string $where, int $limit = 0, bool $byActivity = false): array
 {
 	$out = array();
-	// most recent entry first when asked (the cap keeps the active customers); otherwise by name
-	$order = $byActivity
-		? "coalesce((select max(h.kontaktet) from historik h where h.konto_id = a.id), '1900-01-01') desc, a.firmanavn"
-		: "a.firmanavn";
+	// When the cap applies (review R53): customers with open work first (an open follow-up or an open deal), then the
+	// most recently active by entry OR order/invoice, then by name. Otherwise by name.
+	$join = '';
+	$order = "a.firmanavn";
+	if ($byActivity) {
+		$join = " left join (select konto_id, max(kontaktet) as d from historik group by konto_id) hx on hx.konto_id = a.id"
+			. " left join (select konto_id, max(ordredate) as d from ordrer where art in ('DO', 'DK') group by konto_id) ox on ox.konto_id = a.id"
+			. " left join (select distinct h.konto_id from historik h where " . crm_open_sql('h') . ") fx on fx.konto_id = a.id"
+			. " left join (select distinct konto_id from crm_deals where state = 'open') dx on dx.konto_id = a.id";
+		$order = "case when fx.konto_id is not null or dx.konto_id is not null then 0 else 1 end, "
+			. "greatest(coalesce(hx.d, '1900-01-01'), coalesce(ox.d, '1900-01-01')) desc, a.firmanavn";
+	}
 	$qtxt = "select a.id, a.kontonr, a.firmanavn, a.bynavn, a.tlf, a.email, a.status, a.kontoansvarlig, a.oprettet "
-		. "from adresser a where a.art = 'D' and $where order by $order" . ($limit > 0 ? " limit $limit" : "");
+		. "from adresser a$join where a.art = 'D' and $where order by $order" . ($limit > 0 ? " limit $limit" : "");
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$out[(int) $r['id']] = array(
@@ -790,7 +886,8 @@ function crm_customers(string $where, int $limit = 0, bool $byActivity = false):
 		$out[(int) $r['konto_id']]['ppl'][] = array('id' => (int) $r['id'], 'n' => crm_out($r['navn']), 'tlf' => crm_out($r['mobil'] ?: $r['tlf']), 'mail' => crm_out($r['email']));
 	}
 	$year = date('Y') . '-01-01';
-	$q = db_select("select konto_id, sum(sum) as s from ordrer where art in ('DO', 'DK') and status >= 3 and fakturadate >= '$year' and konto_id in ($ids) group by konto_id", __FILE__ . " linje " . __LINE__);
+	// revenue this year in the company's currency (ordrer.sum is in the document's currency; valutakurs is per 100), excl. VAT (review R42)
+	$q = db_select("select konto_id, sum(sum * coalesce(nullif(valutakurs, 0), 100) / 100) as s from ordrer where art in ('DO', 'DK') and status >= 3 and fakturadate >= '$year' and konto_id in ($ids) group by konto_id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$out[(int) $r['konto_id']]['rev'] = round((float) $r['s']);
 	}
@@ -801,10 +898,10 @@ function crm_customers(string $where, int $limit = 0, bool $byActivity = false):
 		$out[(int) $r['konto_id']]['late'] = (int) $r['late'];
 	}
 	// open offers (status 0) and orders (1-2), newest first, for the drawer
-	$q = db_select("select id, konto_id, ordrenr, status, sum, ordredate from ordrer where art = 'DO' and status < 3 and konto_id in ($ids) order by id desc", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select id, konto_id, ordrenr, status, sum * coalesce(nullif(valutakurs, 0), 100) / 100 as sum, ordredate from ordrer where art = 'DO' and status < 3 and konto_id in ($ids) order by id desc", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (count($out[(int) $r['konto_id']]['docs']) < 10) {
-			$out[(int) $r['konto_id']]['docs'][] = array('id' => (int) $r['id'], 'nr' => (int) $r['ordrenr'], 'st' => (int) $r['status'], 'sum' => round((float) $r['sum']), 'date' => (string) $r['ordredate']);
+			$out[(int) $r['konto_id']]['docs'][] = array('id' => (int) $r['id'], 'nr' => (int) $r['ordrenr'], 'st' => (int) $r['status'], 'sum' => round((float) $r['sum'], 2), 'date' => (string) $r['ordredate']);
 		}
 	}
 	$q = db_select("select konto_id, max(kontaktet) as d from historik where type = 'status' and konto_id in ($ids) group by konto_id", __FILE__ . " linje " . __LINE__);
@@ -888,16 +985,16 @@ function crm_history(array $custIds): array
 	}
 	$ids = crm_ids($custIds);
 	$from = date('Y-m-d', strtotime('-2 years'));
-	$q = db_select("select id, konto_id, kontakt_id, ansat_id, notat, kontaktet, kontaktes, completed, type, dokument from historik "
+	$q = db_select("select id, konto_id, kontakt_id, ansat_id, author_id, notat, kontaktet, kontaktes, completed, type, dokument from historik "
 		. "where konto_id in ($ids) and (kontaktet >= '$from' or (kontaktes is not null and completed is null) or completed = FALSE) "
 		. "order by konto_id, kontaktet, id", __FILE__ . " linje " . __LINE__);
 	$rows = array();
 	while ($r = db_fetch_array($q)) {
 		$rows[] = $r;
 	}
-	// last real entry per customer, for the legacy rule - over all rows, not only the ones loaded above
+	// newest dated row per customer, for the legacy rule (crm_open_sql) - over all rows, not only the ones loaded above
 	$latest = array();
-	$q = db_select("select konto_id, max(id) as id from historik where konto_id in ($ids) and (type is null or type not in ('status', 'deal')) group by konto_id", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select konto_id, max(id) as id from historik where konto_id in ($ids) and kontaktes is not null group by konto_id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$latest[(int) $r['konto_id']] = (int) $r['id'];
 	}
@@ -914,6 +1011,7 @@ function crm_history(array $custIds): array
 			'cid'  => (int) $r['konto_id'],
 			'type' => $type !== '' ? $type : 'note',
 			'by'   => (int) $r['ansat_id'],
+			'au'   => (int) $r['author_id'] ?: (int) $r['ansat_id'],
 			'to'   => (int) $r['kontakt_id'],
 			'date' => (string) $r['kontaktet'],
 			'note' => crm_out($r['notat']),
@@ -929,12 +1027,13 @@ function crm_deals(): array
 {
 	$out = array();
 	$from = date('Y-m-d', strtotime('-1 year'));
-	$q = db_select("select d.*, o.ordrenr as doc_nr, o.status as doc_status, o.sum as doc_sum, o.art as doc_art from crm_deals d "
-		. "left join ordrer o on o.id = d.ordre_id where d.state = 'open' or d.closed >= '$from' order by d.id", __FILE__ . " linje " . __LINE__);
+	// deleted deals (state 'deleted', review R30) are kept for undo but never shown; document sums in the company's currency
+	$q = db_select("select d.*, o.ordrenr as doc_nr, o.status as doc_status, o.sum * coalesce(nullif(o.valutakurs, 0), 100) / 100 as doc_sum, o.art as doc_art from crm_deals d "
+		. "left join ordrer o on o.id = d.ordre_id where d.state = 'open' or (d.state in ('won', 'lost') and d.closed >= '$from') order by d.id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$doc = ($r['ordre_id'] && $r['doc_nr'] !== null) ? array('id' => (int) $r['ordre_id'], 'nr' => (int) $r['doc_nr'], 'st' => (int) $r['doc_status'], 'sum' => round((float) $r['doc_sum'])) : null;
+		$doc = ($r['ordre_id'] && $r['doc_nr'] !== null) ? array('id' => (int) $r['ordre_id'], 'nr' => (int) $r['doc_nr'], 'st' => (int) $r['doc_status'], 'sum' => round((float) $r['doc_sum'], 2)) : null;
 		$out[] = array(
-			'id' => (int) $r['id'], 'cid' => (int) $r['konto_id'], 't' => crm_out($r['title']), 'v' => round((float) $r['amount']),
+			'id' => (int) $r['id'], 'cid' => (int) $r['konto_id'], 't' => crm_out($r['title']), 'v' => round((float) $r['amount'], 2),
 			'st' => trim((string) $r['stage']), 'state' => (string) $r['state'], 'close' => (string) $r['expected_close'],
 			'own' => (int) $r['ansat_id'], 'since' => (string) ($r['stage_since'] ?: $r['created']), 'closed' => (string) $r['closed'],
 			'reason' => crm_out($r['lost_reason']),
@@ -944,8 +1043,11 @@ function crm_deals(): array
 	return $out;
 }
 
-/** Everything the page needs. */
-function crm_dataset(): array
+/**
+ * Everything the page needs. $extraId: a customer the page must show even when it is outside the loaded set (the
+ * drawer named in the query, e.g. the customer just created from Kunder -> Ny kunde; review R54).
+ */
+function crm_dataset(int $extraId = 0): array
 {
 	global $ansat_id;
 	$customers = crm_customers(crm_customer_scope(), CRM_MAX_CUSTOMERS + 1, true);
@@ -956,6 +1058,9 @@ function crm_dataset(): array
 	$deals = crm_deals();
 	// customers referenced by deals but outside the scope (closed accounts) are still needed for the cards
 	$missing = array_diff(array_map(function ($d) { return $d['cid']; }, $deals), array_keys($customers));
+	if ($extraId > 0 && !isset($customers[$extraId])) {
+		$missing[] = $extraId;
+	}
 	if ($missing) {
 		$customers += crm_customers("a.id in (" . crm_ids($missing) . ")");
 	}
@@ -986,21 +1091,42 @@ function crm_sync_customer(int $cid): void
 {
 	$r = db_fetch_array(db_select("select max(kontaktet) as d from historik where konto_id = $cid and (type is null or type not in ('status', 'deal'))", __FILE__ . " linje " . __LINE__));
 	$last = $r && $r['d'] ? "'" . $r['d'] . "'" : 'NULL';
-	$r = db_fetch_array(db_select("select min(kontaktes) as d from historik where konto_id = $cid and kontaktes is not null and completed = FALSE", __FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select min(h.kontaktes) as d from historik h where h.konto_id = $cid and " . crm_open_sql('h'), __FILE__ . " linje " . __LINE__));
 	$next = $r && $r['d'] ? "'" . $r['d'] . "'" : 'NULL';
 	db_modify("update adresser set kontaktet = $last, kontaktes = $next where id = $cid", __FILE__ . " linje " . __LINE__);
 }
 
-function crm_insert_entry(int $cid, string $type, int $by, int $to, string $note, ?string $due, bool $done = false, string $date = ''): int
+/** Legacy rows that are open by the rule become explicit (FALSE) before a new dated row would make them count as done. */
+function crm_materialize_open(int $cid): void
+{
+	db_modify("update historik set completed = FALSE where konto_id = $cid and completed is null and kontaktes is not null and id = "
+		. "(select m from (select max(hx.id) as m from historik hx where hx.konto_id = $cid and hx.kontaktes is not null) t)", __FILE__ . " linje " . __LINE__);
+}
+
+/** $by = the follow-up's owner (ansat_id, as the old pages read it); $author = who wrote it (author_id, review R4). */
+function crm_insert_entry(int $cid, string $type, int $by, int $to, string $note, ?string $due, bool $done = false, string $date = '', int $author = 0): int
 {
 	$date = crm_date($date) ?: date('Y-m-d');
 	$type = in_array($type, array('note', 'opkald', 'mail', 'moede', 'status', 'deal'), true) ? $type : 'note';
 	$dueSql = $due ? "'$due'" : 'NULL';
 	$doneSql = $due ? ($done ? 'TRUE' : 'FALSE') : 'NULL';
-	db_modify("insert into historik (konto_id, kontakt_id, ansat_id, notat, notedate, kontaktet, kontaktes, completed, type) values "
-		. "($cid, $to, $by, '" . crm_in($note) . "', '" . date('Y-m-d') . "', '$date', $dueSql, $doneSql, '$type')", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array(db_select("select max(id) as id from historik where konto_id = $cid", __FILE__ . " linje " . __LINE__));
-	return (int) $r['id'];
+	$author = $author ?: $by;
+	$authorSql = $author ? (string) $author : 'NULL';
+	db_modify("insert into historik (konto_id, kontakt_id, ansat_id, author_id, notat, notedate, kontaktet, kontaktes, completed, type) values "
+		. "($cid, $to, $by, $authorSql, '" . crm_in($note) . "', '" . date('Y-m-d') . "', '$date', $dueSql, $doneSql, '$type')", __FILE__ . " linje " . __LINE__);
+	return crm_last_id('historik', $cid);
+}
+
+/** The id of the row this connection just inserted - not a colleague's inserted meanwhile (review R74). */
+function crm_last_id(string $table, int $cid): int
+{
+	// currval of the table's own sequence: this connection's last insert there (lastval() could be another table's)
+	$r = db_fetch_array(db_select(crm_is_mysql() ? "select last_insert_id() as id" : "select currval(pg_get_serial_sequence('$table', 'id')) as id", __FILE__ . " linje " . __LINE__));
+	if ($r && (int) $r['id'] > 0) {
+		return (int) $r['id'];
+	}
+	$r = db_fetch_array(db_select("select max(id) as id from $table where konto_id = $cid", __FILE__ . " linje " . __LINE__));
+	return $r ? (int) $r['id'] : 0;
 }
 
 function crm_status_name(string $id): string
@@ -1024,19 +1150,56 @@ function crm_action(string $action, array $in): array
 		case 'add_entry':
 			$cid = (int) $in['cid'];
 			$due = crm_date($in['due'] ?? '');
+			if ($due) {
+				// a legacy follow-up the user chose NOT to close stays open, although this row becomes the newest dated one
+				crm_materialize_open($cid);
+			}
 			$closed = array();
 			foreach ((array) ($in['close'] ?? array()) as $hid) {
 				$hid = (int) $hid;
 				db_modify("update historik set completed = TRUE where id = $hid and konto_id = $cid", __FILE__ . " linje " . __LINE__);
+				crm_notif_drop('crm:fu:' . $hid);
 				$closed[] = $hid;
 			}
 			$owner = $due && !empty($in['owner']) ? (int) $in['owner'] : $me;
-			$id = crm_insert_entry($cid, (string) ($in['type'] ?? 'note'), $owner, (int) ($in['to'] ?? 0), (string) ($in['note'] ?? ''), $due);
+			$id = crm_insert_entry($cid, (string) ($in['type'] ?? 'note'), $owner, (int) ($in['to'] ?? 0), (string) ($in['note'] ?? ''), $due, false, '', $me);
 			crm_sync_customer($cid);
 			if ($due && $owner !== $me) {
 				crm_notify_followup($id, $cid, $owner, $due, (string) ($in['note'] ?? ''));
 			}
 			return array('id' => $id, 'closed' => $closed);
+
+		case 'reopen_many':
+			// undo of close_old / of the follow-ups closed by add_entry
+			$ids = array();
+			foreach ((array) ($in['ids'] ?? array()) as $hid) {
+				if ((int) $hid > 0) $ids[] = (int) $hid;
+			}
+			if ($ids) {
+				db_modify("update historik set completed = FALSE where id in (" . crm_ids($ids) . ") and kontaktes is not null", __FILE__ . " linje " . __LINE__);
+				$q = db_select("select distinct konto_id from historik where id in (" . crm_ids($ids) . ")", __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) crm_sync_customer((int) $r['konto_id']);
+			}
+			return array('n' => count($ids));
+
+		case 'close_old':
+			// review R23: one click closes the follow-ups from the old CRM that are more than 90 days overdue (returns the ids for undo)
+			$limit = date('Y-m-d', strtotime('-90 days'));
+			$ids = $cids = array();
+			$q = db_select("select h.id, h.konto_id from historik h where h.kontaktes < '$limit' and " . crm_open_sql('h'), __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$ids[] = (int) $r['id'];
+				$cids[(int) $r['konto_id']] = true;
+			}
+			if ($ids) {
+				db_modify("update historik set completed = TRUE where id in (" . crm_ids($ids) . ")", __FILE__ . " linje " . __LINE__);
+				foreach ($ids as $hid) crm_notif_drop('crm:fu:' . $hid);
+				foreach (array_keys($cids) as $c) crm_sync_customer($c);
+				if (function_exists('audit_log')) {
+					audit_log('crm_close_old', crm_t('%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort', count($ids)));
+				}
+			}
+			return array('ids' => $ids);
 
 		case 'update_entry':
 			$hid = (int) $in['id'];
@@ -1072,13 +1235,20 @@ function crm_action(string $action, array $in): array
 			db_modify("delete from historik where id = $hid", __FILE__ . " linje " . __LINE__);
 			crm_sync_customer((int) $r['konto_id']);
 			crm_notif_drop('crm:fu:' . $hid);
-			return array('row' => array('cid' => (int) $r['konto_id'], 'type' => (string) $r['type'], 'by' => (int) $r['ansat_id'], 'to' => (int) $r['kontakt_id'],
-				'note' => crm_out($r['notat']), 'due' => $r['kontaktes'], 'done' => crm_bool($r['completed']), 'date' => (string) $r['kontaktet']));
+			return array('row' => array('cid' => (int) $r['konto_id'], 'type' => (string) $r['type'], 'by' => (int) $r['ansat_id'], 'au' => (int) $r['author_id'], 'to' => (int) $r['kontakt_id'],
+				'note' => crm_out($r['notat']), 'due' => $r['kontaktes'], 'done' => ($r['completed'] === null || $r['completed'] === '') ? null : crm_bool($r['completed']),
+				'date' => (string) $r['kontaktet'], 'file' => crm_out($r['dokument'])));
 
 		case 'restore_entry':
 			$row = (array) $in['row'];
 			$cid = (int) $row['cid'];
-			$id = crm_insert_entry($cid, (string) $row['type'], (int) $row['by'], (int) $row['to'], (string) $row['note'], crm_date($row['due'] ?? ''), !empty($row['done']), (string) $row['date']);
+			$id = crm_insert_entry($cid, (string) $row['type'], (int) $row['by'], (int) $row['to'], (string) $row['note'], crm_date($row['due'] ?? ''), !empty($row['done']), (string) $row['date'], (int) ($row['au'] ?? 0));
+			if ($id) {
+				// the restored row keeps its attachment and its original open/done state (NULL = legacy, review R24)
+				$file = crm_in($row['file'] ?? '');
+				$doneSql = !isset($row['done']) || $row['done'] === null ? 'NULL' : (!empty($row['done']) ? 'TRUE' : 'FALSE');
+				db_modify("update historik set dokument = " . ($file !== '' ? "'$file'" : 'NULL') . ", completed = " . (crm_date($row['due'] ?? '') ? $doneSql : 'NULL') . " where id = $id", __FILE__ . " linje " . __LINE__);
+			}
 			crm_sync_customer($cid);
 			return array('id' => $id);
 
@@ -1104,7 +1274,11 @@ function crm_action(string $action, array $in): array
 			$cid = (int) $in['cid'];
 			$title = crm_in($in['t'] ?? '');
 			if ($title === '' || !$cid) return array('error' => 'fields');
-			$amount = round((float) str_replace(array('.', ','), array('', '.'), (string) ($in['v'] ?? '0')), 2);
+			// the page sends a canonical decimal ("12500.50"); anything else is refused instead of guessed (review R41)
+			$vIn = trim((string) ($in['v'] ?? '0'));
+			if ($vIn === '') $vIn = '0';
+			if (!preg_match('/^-?\d{1,13}(\.\d{1,2})?$/', $vIn)) return array('error' => 'amount');
+			$amount = round((float) $vIn, 2);
 			$stage = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($in['st'] ?? ''));
 			$close = crm_date($in['close'] ?? '');
 			$closeSql = $close ? "'$close'" : 'NULL';
@@ -1118,8 +1292,7 @@ function crm_action(string $action, array $in): array
 			} else {
 				db_modify("insert into crm_deals (konto_id, title, amount, stage, expected_close, ansat_id, state, stage_since, created) values "
 					. "($cid, '$title', $amount, '$stage', $closeSql, $own, 'open', '$today', '$today')", __FILE__ . " linje " . __LINE__);
-				$r = db_fetch_array(db_select("select max(id) as id from crm_deals where konto_id = $cid", __FILE__ . " linje " . __LINE__));
-				$id = (int) $r['id'];
+				$id = crm_last_id('crm_deals', $cid);
 				crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel oprettet: »%s«', trim((string) $in['t'])), null);
 				$prevOwn = 0;
 			}
@@ -1171,10 +1344,22 @@ function crm_action(string $action, array $in): array
 			return array('id' => $id);
 
 		case 'delete_deal':
+			// soft: state 'deleted' (never shown), logged in the history, undone with restore_deal (review R30)
 			$id = (int) $in['id'];
-			db_modify("delete from crm_deals where id = $id", __FILE__ . " linje " . __LINE__);
+			$d = db_fetch_array(db_select("select * from crm_deals where id = $id", __FILE__ . " linje " . __LINE__));
+			if (!$d) return array('error' => 'deal');
+			$before = array('stage' => $d['stage'], 'state' => $d['state'], 'stage_since' => $d['stage_since'], 'closed' => $d['closed'], 'lost_reason' => crm_out($d['lost_reason']));
+			db_modify("update crm_deals set state = 'deleted', closed = '" . date('Y-m-d') . "' where id = $id", __FILE__ . " linje " . __LINE__);
 			crm_notif_drop("crm:deal:$id:%");
-			return array('id' => $id);
+			$hid = crm_insert_entry((int) $d['konto_id'], 'deal', $me, 0, crm_t('Handel »%s«: %s', crm_out($d['title']), crm_t('slettet')), null);
+			return array('id' => $id, 'hid' => $hid, 'before' => $before);
+
+		case 'customer':
+			// one customer with its history, for a drawer on a customer outside the loaded set (picker hit, bell link; review R53/R77)
+			$cid = (int) $in['id'];
+			$c = crm_customers("a.id = $cid");
+			if (!isset($c[$cid])) return array('error' => 'customer');
+			return array('customer' => $c[$cid], 'hist' => crm_history(array($cid)));
 
 		case 'save_groups':
 			// statuses first (new ones get their number), then the groups that may point at them

@@ -401,3 +401,8 @@ body { font: 14px/1.45 var(--font-ui); color: var(--text); }
 .dealdoc .ddl{display:flex;gap:14px}
 .dealdoc .ddsug{display:block;margin-top:8px;padding:0;border:0;background:none;color:var(--link);font-size:13px;cursor:pointer;text-align:left}
 .dealdoc .ddsug:hover{text-decoration:underline}
+/* 20261024 ASR review fixes: link-styled buttons in the note bar and empty states (server search, close old follow-ups) */
+.linkbtn{border:0;background:none;padding:0;color:var(--link);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
+.linkbtn:hover{color:var(--text)}
+.close-prev .c3{font-weight:400}
+.kv small{font-weight:400;font-size:11px;margin-left:3px}

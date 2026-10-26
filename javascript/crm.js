@@ -4,6 +4,13 @@
 //              Every change can be undone from the message at the bottom (the inverse action is posted).
 //              Automatic help is only offered, never done: a follow-up after a status move, the customer's status
 //              after a won deal, closing the previous follow-up when a new entry is saved (pre-ticked, can be unticked).
+// 20261024 ASR after the customer-perspective review (CRM_review_consolidated_2026-10-23_EN.md): a draft per composer
+//              that survives re-renders (R1, R2, R9), the opened follow-up is the one offered for closing (R3), the author
+//              is shown instead of the owner (R4), "Ny opfølgning" starts with a date (R5), no first-employee default
+//              (R6), weekend dates roll to Monday (R18), one-click close of old follow-ups (R23), deal dialog keeps edits,
+//              confirms delete with undo, parses amounts by locale (R29, R30, R41), board/deal suggestions (R26-R28),
+//              plain error texts and rollback of optimistic UI (R75), no duplicate creates or stale datasets (R76),
+//              server search from the main search box (R77).
 (function () {
 'use strict';
 
@@ -27,7 +34,13 @@ function load(d) {
 	});
 	C = DATA.customers; H = DATA.hist; DEALS = DATA.deals;
 	EMP = {}; DATA.emps.forEach(e => { EMP[e.id] = e; });
+	// a history fetched for a customer outside the loaded set (openOutside) is kept across re-loads
+	Object.keys(EXTRA_H).forEach(cid => { if (!C.some(c => c.id === +cid)) H = H.concat(EXTRA_H[cid]); });
+	// a group deleted meanwhile (by this or another user) must not leave the lists pointing at it (R46)
+	if (S.grp !== 'all' && !GROUPS.some(g => String(g.id) === String(S.grp))) { S.grp = 'all'; S.stF = 'all'; }
+	if (S.bgrp && !GROUPS.some(g => String(g.id) === String(S.bgrp))) S.bgrp = GROUPS.length ? GROUPS[0].id : 0;
 }
+const EXTRA_H = {};
 
 /* ================= hjælpere ================= */
 const $ = s => document.querySelector(s);
@@ -54,6 +67,28 @@ const rel = k => { const n = diff(k); if (n === 0) return t('i dag'); if (n === 
 	if (n < 0) return t('for %s dage siden', -n); return n < 300 ? fmt(k) : fmtY(k); };
 const num = n => Math.round(n).toLocaleString(LOC);
 const kr = n => t('%s kr', num(n));
+// Amounts (R41): shown with the ore they have, read back by the user's locale and sent as "12500.50".
+const fmtAmt = v => v ? v.toLocaleString(LOC, {minimumFractionDigits: Math.abs(v % 1) > 0.004 ? 2 : 0, maximumFractionDigits: 2}) : '';
+function parseAmt(s) {
+	s = String(s == null ? '' : s).replace(/\s|kr\.?/gi, '').trim();
+	if (s === '') return '0';
+	const neg = s.charAt(0) === '-'; if (neg) s = s.slice(1);
+	if (!/^[\d.,]+$/.test(s)) return null;
+	const ld = s.lastIndexOf('.'), lc = s.lastIndexOf(',');
+	let dec = '';
+	if (ld >= 0 && lc >= 0) dec = ld > lc ? '.' : ',';
+	else if (ld >= 0 || lc >= 0) {
+		const sep = ld >= 0 ? '.' : ',', idx = Math.max(ld, lc), after = s.length - idx - 1, times = s.split(sep).length - 1;
+		dec = (times === 1 && after !== 3) ? sep : '';   // "12.500" / "1,500" = thousands; "12500.50" / "1234,5" = decimals
+	}
+	const digits = s.split(dec === '.' ? ',' : '.').join('');
+	const parts = dec ? digits.split(dec) : [digits];
+	if (parts.length > 2 || !/^\d+$/.test(parts[0]) || (parts[1] !== undefined && !/^\d{1,2}$/.test(parts[1]))) return null;
+	return (neg ? '-' : '') + parts[0] + (parts[1] ? '.' + parts[1] : '');
+}
+// A date n days ahead that lands on a weekend rolls on to Monday (R18): the customer works Monday to Friday.
+const roll = n => { const d = D(n); while (d.getDay() % 6 === 0) d.setDate(d.getDate() + 1); return key(d); };
+const rollLabel = (label, n) => diff(roll(n)) === n ? label : t('Mandag');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const cust = id => C.find(c => c.id === id) || EXTRA[id];
 const stName = id => (ST[id] || {n: id || t('Ingen status')}).n;
@@ -124,18 +159,53 @@ const SV = {
 };
 
 /* ================= server ================= */
-let busy = false;
+// Errors as plain sentences, optimistic UI rolled back, an expired session with a Reload button (R75); a response older
+// than one already applied is ignored (R76).
+let busy = false, seqNo = 0, applied = 0;
+const ERR = () => ({noaccess: t('Du har ikke rettighed til at ændre i CRM.'), status_used: t('Statussen er i brug og kan ikke slettes.'),
+	amount: t('Beløbet kunne ikke læses – skriv fx 12.500,50.'), fields: t('Kunne ikke gemme. Prøv igen.'), date: t('Kunne ikke gemme. Prøv igen.')});
+function redraw() { renderAll(); if (S.drawer) renderDrawer(); }
+function loggedOut() { redraw(); toast(t('Du er logget ud – genindlæs siden og prøv igen.'), null, {label: t('Genindlæs'), fn: () => location.reload()}); }
 async function api(action, payload) {
 	busy = true;
+	const my = ++seqNo;
 	try {
-		const res = await fetch(DATA.api, {method: 'POST', credentials: 'same-origin',
-			headers: {'Content-Type': 'application/json', 'X-CSRF-Token': DATA.csrf}, body: JSON.stringify(Object.assign({action}, payload || {}))});
+		let res;
+		try {
+			res = await fetch(DATA.api, {method: 'POST', credentials: 'same-origin',
+				headers: {'Content-Type': 'application/json', 'X-CSRF-Token': DATA.csrf}, body: JSON.stringify(Object.assign({action}, payload || {}))});
+		} catch (e) { redraw(); toast(t('Ingen forbindelse – ændringen blev ikke gemt.')); throw e; }
 		let j = null;
-		try { j = await res.json(); } catch (e) { j = {ok: false, error: 'http ' + res.status}; }
-		if (!j.ok) { toast(t('Kunne ikke gemme (%s). Prøv igen.', j.error || res.status)); throw new Error(j.error); }
-		if (j.data) { load(j.data); renderAll(); if (S.drawer) renderDrawer(); }
+		try { j = await res.json(); } catch (e) { j = null; }
+		if (!j) {
+			// includes/online.php answers an expired session with an HTML box and status 200
+			if (res.status === 200 || res.status === 401 || res.status === 403) loggedOut(); else { redraw(); toast(t('Kunne ikke gemme. Prøv igen.')); }
+			throw new Error('http ' + res.status);
+		}
+		if (!j.ok) {
+			if (j.error === 'csrf') loggedOut(); else { redraw(); toast(ERR()[j.error] || t('Kunne ikke gemme (%s). Prøv igen.', j.error || res.status)); }
+			throw new Error(j.error);
+		}
+		if (j.data && my > applied) { applied = my; load(j.data); redraw(); }
 		return j.result;
 	} finally { busy = false; }
+}
+// A read that returns no dataset (search, customer): null on any failure.
+async function apiRead(action, payload) {
+	try {
+		const r = await fetch(DATA.api, {method: 'POST', credentials: 'same-origin',
+			headers: {'Content-Type': 'application/json', 'X-CSRF-Token': DATA.csrf}, body: JSON.stringify(Object.assign({action}, payload || {}))}).then(x => x.json());
+		return r && r.ok ? r.result : null;
+	} catch (e) { return null; }
+}
+// Open the drawer on a customer outside the loaded set: fetch the customer and its history first (R53, R77).
+async function openOutside(cid, tab) {
+	if (cust(cid) && (C.some(c => c.id === cid) || EXTRA_H[cid])) { openDrawer(cid, tab); return; }
+	const r = await apiRead('customer', {id: cid});
+	if (!r) { toast(t('Kunne ikke gemme. Prøv igen.')); return; }
+	EXTRA[cid] = r.customer; EXTRA_H[cid] = r.hist;
+	H = H.filter(h => h.cid !== cid).concat(r.hist);
+	openDrawer(cid, tab);
 }
 
 /* ================= filtre ================= */
@@ -151,9 +221,13 @@ function match(h) {
 }
 function custMatch(c) {
 	if (!S.q) return true;
-	const q = S.q.toLowerCase();
-	return (c.n + ' ' + c.nr + ' ' + c.by + ' ' + c.ppl.map(p => p.n).join(' ')).toLowerCase().includes(q);
+	const q = S.q.toLowerCase(), qd = q.replace(/\D/g, '');
+	if ((c.n + ' ' + c.nr + ' ' + c.by + ' ' + (c.mail || '') + ' ' + c.ppl.map(p => p.n + ' ' + (p.mail || '')).join(' ')).toLowerCase().includes(q)) return true;
+	// a phone number, with or without spaces (R77)
+	return qd.length >= 4 && ((c.tlf || '') + ' ' + c.ppl.map(p => p.tlf || '').join(' ')).replace(/\D/g, '').includes(qd);
 }
+// The main search only knows the loaded customers; with no hit the server search covers them all (R77).
+const srvSearchBtn = () => S.q ? `<br><button type="button" class="linkbtn" data-srvsearch="1">${t('Søg blandt alle kunder')}</button>` : '';
 const follows = incDone => H.filter(h => h.due && (incDone || !h.done) && custOk(cust(h.cid)) && (!S.mine || h.by === ME) && match(h));
 const openFor = cid => H.filter(h => h.cid === cid && h.due && !h.done).sort((a, b) => a.due.localeCompare(b.due));
 const lastContact = cid => H.filter(h => h.cid === cid && h.type !== 'status' && h.type !== 'deal').map(h => h.date).sort().pop();
@@ -197,7 +271,7 @@ function followRow(h, done) {
 function renderFollow() {
 	const list = follows(false).sort((a, b) => a.due.localeCompare(b.due) || a.cid - b.cid);
 	let html = `<div class="row thead" style="--cols:${FCOLS}"><span></span><span>${t('Kunde · kontakt')}</span><span>${t('Opfølgning')}</span><span>${t('Status')}</span><span>${t('Ansvarlig')}</span><span>${t('Dato')}</span><span></span></div>`;
-	if (!list.length) html += `<div class="empty"><b>${t('Ingen åbne opfølgninger')}</b>${S.q || S.mine || S.grp !== 'all' ? t('Prøv at fjerne filtrene.') : t('Opret en med »Ny opfølgning« eller fra en kunde.')}</div>`;
+	if (!list.length) html += `<div class="empty"><b>${t('Ingen åbne opfølgninger')}</b>${S.q || S.mine || S.grp !== 'all' ? t('Prøv at fjerne filtrene.') + srvSearchBtn() : t('Opret en med »Ny opfølgning« eller fra en kunde.')}</div>`;
 	BUCKETS.forEach((b, i) => {
 		const rows = list.filter(h => bucket(h.due) === i);
 		if (rows.length) html += `<div class="grp ${i === 0 ? 'late' : ''}">${b}<span class="n">${rows.length}</span></div>` + rows.map(h => followRow(h, false)).join('');
@@ -338,7 +412,7 @@ function renderCust() {
 			<span class="r num ${c.rev ? '' : 'c3'}">${c.rev ? kr(c.rev) : '–'}</span>
 		</div>`;
 	}).join('');
-	if (!list.length) html += `<div class="empty"><b>${t('Ingen kunder')}</b>` + (C.length ? t('Ingen kunder matcher filtrene.') + (DATA.truncated && S.q ? ' ' + t('Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.', num(DATA.max)) : '') : t('Kunder kommer med i CRM, når de får en status, en note eller en handel. Brug »Ny opfølgning« for at finde en kunde.')) + '</div>';
+	if (!list.length) html += `<div class="empty"><b>${t('Ingen kunder')}</b>` + (C.length ? t('Ingen kunder matcher filtrene.') + (DATA.truncated && S.q ? ' ' + t('Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.', num(DATA.max)) : '') : t('Kunder kommer med i CRM, når de får en status, en note eller en handel. Brug »Ny opfølgning« for at finde en kunde.')) + srvSearchBtn() + '</div>';
 	$('#v-cust').innerHTML = html;
 }
 
@@ -352,7 +426,8 @@ function itemHtml(h, withCust, actions) {
 			: `<span class="fu ${n < 0 ? 'late' : ''}">${SV.clock}${t('Opfølgning %s', rel(h.due))} · ${esc(empLow(h.by))}</span>`;
 	}
 	const sys = h.type === 'status' || h.type === 'deal';
-	const who = `<b>${esc(empName(h.by)) || t('Ukendt')}</b>${h.to ? ` → ${esc(ppl(c, h.to))}` : ''}`;
+	// the author wrote it; the owner (h.by) is named on the follow-up line (R4)
+	const who = `<b>${esc(empName(h.au || h.by)) || t('Ukendt')}</b>${h.to ? ` → ${esc(ppl(c, h.to))}` : ''}`;
 	return `<div class="item" data-h="${h.id}">
 		<span class="ico" title="${TYPE_N[h.type] || TYPE_N.note}">${ICON[h.type] || ICON.note}</span>
 		<div><div class="top">${TYPE_N[h.type] || TYPE_N.note} · ${who}${withCust ? ` · <a href="#" data-open="${c.id}">${esc(c.n)}</a>` : ''}</div>
@@ -361,7 +436,7 @@ function itemHtml(h, withCust, actions) {
 	</div>`;
 }
 function renderAct() {
-	const list = H.filter(h => custOk(cust(h.cid)) && (!S.mine || h.by === ME) && match(h)).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 300);
+	const list = H.filter(h => custOk(cust(h.cid)) && (!S.mine || h.by === ME || (h.au || h.by) === ME) && match(h)).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 300);
 	let html = '<div class="feed">', last = '';
 	list.forEach(h => {
 		if (h.date !== last) { last = h.date; const n = diff(h.date);
@@ -373,11 +448,24 @@ function renderAct() {
 }
 
 /* ================= kundeskuffe ================= */
-const DR = {type: 'opkald', due: null, owner: 0, closePrev: true};
-function openDrawer(cid, tab) {
+// One draft per composer (R1, R2, R9): 'c:<cid>' = the drawer of that customer, 'n' = the Ny opfølgning dialog. The
+// draft holds the text too, so a re-render after any other action (status, Gjort, Udsæt, undo) puts it back. It is
+// reset before the save's response re-renders the composer, so the chips never show a date that will not be sent.
+const DRAFTS = {};
+const DR0 = () => ({type: 'opkald', due: null, owner: 0, closePrev: null, note: '', to: null, prevId: 0, lastId: 0});
+function draft(ctx, cid) { const k = ctx === 'c' ? 'c:' + cid : 'n'; return DRAFTS[k] || (DRAFTS[k] = DR0()); }
+// the follow-up the composer offers to close: the one the user opened the drawer from, else the earliest open one (R3)
+function prevFor(c, d) {
+	const sel = d.prevId ? H.find(h => h.id === d.prevId && h.cid === c.id && h.due && !h.done) : null;
+	return sel || openFor(c.id)[0];
+}
+function openDrawer(cid, tab, hid) {
 	S.drawer = cid; S.dtab = tab || 'tl';
 	const c = cust(cid);
-	Object.assign(DR, {type: 'opkald', due: null, owner: (c && c.own) || ME || (DATA.emps[0] || {}).id || 0, closePrev: true});
+	const d = draft('c', cid);
+	// the writer by default, else the customer's owner - never the first employee in the alphabet (R6, R7)
+	if (!d.owner) d.owner = ME || (c && c.own) || 0;
+	d.prevId = hid || 0;
 	renderDrawer();
 	$('#drawer').classList.add('open'); $('#dscrim').classList.add('open');
 	syncUrl();
@@ -385,17 +473,22 @@ function openDrawer(cid, tab) {
 function closeDrawer() { $('#drawer').classList.remove('open'); $('#dscrim').classList.remove('open'); S.drawer = null; syncUrl(); }
 
 function composer(c, ctx) {
-	const prev = openFor(c.id)[0];
-	const chips = [[t('I morgen'), 1], [t('Om 1 uge'), 7], [t('Om 2 uger'), 14], [t('Om 1 måned'), 30]];
-	const custom = DR.due && !chips.some(([, d]) => key(D(d)) === DR.due) ? DR.due : '';
+	const d = draft(ctx, c.id);
+	const prev = prevFor(c, d);
+	// pre-ticked only for the user's own follow-up, and not for the one just created in this composer (R2, R3)
+	const closePrev = d.closePrev !== null ? d.closePrev : !!(prev && prev.by === ME && prev.id !== d.lastId);
+	const chips = [[rollLabel(t('I morgen'), 1), roll(1)], [t('Om 1 uge'), roll(7)], [t('Om 2 uger'), roll(14)], [t('Om 1 måned'), roll(30)]];
+	const custom = d.due && !chips.some(([, k]) => k === d.due) ? d.due : '';
+	const to = d.to === null ? 0 : d.to;   // no contact person unless chosen (R8)
+	const needOwner = !ME && !d.owner;
 	return `<div class="comp" id="${ctx}comp">
-		<div class="ctop"><div class="types">${COMPOSE_TYPES.map(t => `<button type="button" data-type="${t}" class="${DR.type === t ? 'on' : ''}">${ICON[t]}${TYPE_N[t]}</button>`).join('')}</div>
-			<label class="with">${t('med')} <select id="${ctx}to">${c.ppl.map(p => `<option value="${p.id}">${esc(p.n)}</option>`).join('')}<option value="0">${t('(ingen)')}</option></select></label></div>
-		<textarea id="${ctx}Note" placeholder="${esc(t('Hvad blev der talt om?'))}"></textarea>
+		<div class="ctop"><div class="types">${COMPOSE_TYPES.map(t => `<button type="button" data-type="${t}" class="${d.type === t ? 'on' : ''}">${ICON[t]}${TYPE_N[t]}</button>`).join('')}</div>
+			<label class="with">${t('med')} <select id="${ctx}to"><option value="0" ${!to ? 'selected' : ''}>${t('(ingen)')}</option>${c.ppl.map(p => `<option value="${p.id}" ${p.id === to ? 'selected' : ''}>${esc(p.n)}</option>`).join('')}</select></label></div>
+		<textarea id="${ctx}Note" placeholder="${esc(t('Hvad blev der talt om?'))}">${esc(d.note)}</textarea>
 		<div class="cfoot"><span class="lbl">${t('Opfølgning')}</span>
-			<div class="chips" id="${ctx}chips"><button type="button" data-due="" class="${!DR.due ? 'on' : ''}">${t('Ingen')}</button>${chips.map(([n, d]) => `<button type="button" data-due="${key(D(d))}" class="${DR.due === key(D(d)) ? 'on' : ''}" title="${fmt(key(D(d)))}">${n}</button>`).join('')}<input type="date" id="${ctx}date" title="${t('Vælg dato')}" value="${custom}"></div>
-			${DATA.emps.length ? `<label class="owner ${DR.due ? 'show' : ''}" id="${ctx}owner">${t('til')} <select>${DATA.emps.map(e => `<option value="${e.id}" ${e.id === DR.owner ? 'selected' : ''}>${e.id === ME ? t('mig') : esc(e.n)}</option>`).join('')}</select></label>` : `<span id="${ctx}owner"></span>`}
-			${prev ? `<label class="close-prev show"><input type="checkbox" id="${ctx}closePrev" ${DR.closePrev ? 'checked' : ''}> ${t('Markér opfølgningen fra %s som gjort', fmt(prev.due))}</label>` : ''}
+			<div class="chips" id="${ctx}chips"><button type="button" data-due="" class="${!d.due ? 'on' : ''}">${t('Ingen')}</button>${chips.map(([n, k]) => `<button type="button" data-due="${k}" class="${d.due === k ? 'on' : ''}" title="${fmt(k)}">${n}</button>`).join('')}<input type="date" id="${ctx}date" title="${t('Vælg dato')}" value="${custom}"></div>
+			${DATA.emps.length ? `<label class="owner ${d.due ? 'show' : ''}" id="${ctx}owner">${t('til')} <select>${needOwner ? `<option value="0" selected>${t('– vælg –')}</option>` : ''}${DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.owner ? 'selected' : ''}>${e.id === ME ? t('mig') : esc(e.n)}</option>`).join('')}</select></label>` : `<span id="${ctx}owner"></span>`}
+			${prev ? `<label class="close-prev show" title="${esc(prev.note)}"><input type="checkbox" id="${ctx}closePrev" ${closePrev ? 'checked' : ''}> ${t('Markér opfølgningen fra %s som gjort', fmt(prev.due))} <span class="c3">· ${esc(empFirst(prev.by))}: ${esc(prev.note.length > 40 ? prev.note.slice(0, 40) + '…' : prev.note)}</span></label>` : ''}
 			<span style="flex:1"></span><span class="kbd">Ctrl+Enter</span><button type="button" class="save" id="${ctx}save" disabled>${t('Gem')}</button>
 		</div></div>`;
 }
@@ -403,7 +496,7 @@ function composer(c, ctx) {
 function renderDrawer() {
 	const c = cust(S.drawer); if (!c) return;
 	const hist = H.filter(h => h.cid === c.id).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
-	const nx = openFor(c.id)[0], lc = lastContact(c.id);
+	const nx = prevFor(c, draft('c', c.id)), lc = lastContact(c.id);
 	const deals = DEALS.filter(d => d.cid === c.id);
 	const ret = encodeURIComponent('crm.php');
 	const back = backTo(c.id); // back from the order to this customer's drawer, on Handler og ordrer
@@ -413,7 +506,7 @@ function renderDrawer() {
 				<span class="stwrap" style="--c:${stColor(c.st)}"><select class="stsel" id="stSel" aria-label="${t('Status')}" ${DATA.canWrite ? '' : 'disabled'}>${c.st && !ST[c.st] ? `<option value="${esc(c.st)}" selected>${esc(c.st)}</option>` : ''}<option value="" ${!c.st ? 'selected' : ''}>${t('Ingen status')}</option>${ST_ORDER.map(id => `<option value="${esc(id)}" ${id === c.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></span>
 				<button class="ibtn" id="dClose" aria-label="${t('Luk (Esc)')}">${SV.x}</button></div>
 			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}${t('Opret handel')}</a>${DATA.quick ? '' : `<a href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}${t('Opret tilbud')}</a>`}<a href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}${t('Opret ordre')}</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}${t('Debitorkort')}</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}${t('Jobkort')}</a>` : ''}</div>
-			<div class="kv"><div><span>${t('Kunde siden')}</span><b>${c.since ? fmtY(c.since) : '–'}</b></div><div><span>${t('Seneste kontakt')}</span><b>${lc ? rel(lc) : '–'}</b></div><div><span>${t('Omsætning i år')}</span><b>${kr(c.rev || 0)}</b></div><div><span>${t('Åbne poster')}</span><b class="${c.late ? 'late' : ''}">${c.inv ? c.inv + (c.late ? ' · ' + t('%s forfalden', c.late) : '') : '0'}</b></div></div>
+			<div class="kv"><div><span>${t('Kunde siden')}</span><b>${c.since ? fmtY(c.since) : '–'}</b></div><div><span>${t('Seneste kontakt')}</span><b>${lc ? rel(lc) : '–'}</b></div><div><span>${t('Omsætning i år')} <small class="c3">${t('ekskl. moms')}</small></span><b>${kr(c.rev || 0)}</b></div><div><span>${t('Åbne poster')}</span><b class="${c.late ? 'late' : ''}">${c.inv ? c.inv + (c.late ? ' · ' + t('%s forfalden', c.late) : '') : '0'}</b></div></div>
 			<div class="dtabs"><button data-dtab="tl" class="${S.dtab === 'tl' ? 'on' : ''}">${t('Historik')} <span class="c3">${hist.length}</span></button><button data-dtab="deals" class="${S.dtab === 'deals' ? 'on' : ''}">${t('Handler og ordrer')} <span class="c3">${deals.length + c.docs.length}</span></button><button data-dtab="ppl" class="${S.dtab === 'ppl' ? 'on' : ''}">${t('Kontaktpersoner')} <span class="c3">${c.ppl.length}</span></button></div>
 		</div>
 		<div class="db">${S.dtab === 'deals' ? dealsTab(c, deals) : S.dtab === 'tl' ? `
@@ -440,33 +533,44 @@ function dealsTab(c, list) {
 
 function wireComposer(ctx, c, onSaved) {
 	const root = document.getElementById(ctx + 'comp'); if (!root) return;
-	const note = document.getElementById(ctx + 'Note'), save = document.getElementById(ctx + 'save');
-	const upd = () => { save.disabled = busy || (!note.value.trim() && !DR.due); };
-	note.addEventListener('input', upd);
-	root.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { DR.type = b.dataset.type; root.querySelectorAll('[data-type]').forEach(x => x.classList.toggle('on', x === b)); note.focus(); });
-	const chips = document.getElementById(ctx + 'chips'), dateIn = document.getElementById(ctx + 'date'), owner = document.getElementById(ctx + 'owner');
-	const setDue = v => { DR.due = v || null; chips.querySelectorAll('button').forEach(x => x.classList.toggle('on', (x.dataset.due || null) === DR.due)); owner.classList.toggle('show', !!DR.due); upd(); };
+	const d = draft(ctx, c.id);
+	const note = document.getElementById(ctx + 'Note'), save = document.getElementById(ctx + 'save'), toSel = document.getElementById(ctx + 'to');
+	const owner = document.getElementById(ctx + 'owner'), osel = owner.querySelector('select');
+	const upd = () => { save.disabled = busy || (!note.value.trim() && !d.due) || !!(d.due && !ME && !d.owner); save.title = d.due && !ME && !d.owner ? t('Vælg, hvem opfølgningen er til.') : ''; };
+	note.addEventListener('input', () => { d.note = note.value; upd(); });
+	if (toSel) toSel.onchange = () => { d.to = +toSel.value || 0; };
+	root.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { d.type = b.dataset.type; root.querySelectorAll('[data-type]').forEach(x => x.classList.toggle('on', x === b)); note.focus(); });
+	const chips = document.getElementById(ctx + 'chips'), dateIn = document.getElementById(ctx + 'date');
+	const setDue = v => { d.due = v || null; chips.querySelectorAll('button').forEach(x => x.classList.toggle('on', (x.dataset.due || null) === d.due)); owner.classList.toggle('show', !!d.due); upd(); };
 	chips.querySelectorAll('button').forEach(b => b.onclick = () => { dateIn.value = ''; setDue(b.dataset.due); });
 	dateIn.onchange = () => setDue(dateIn.value);
-	const osel = owner.querySelector('select'); if (osel) osel.onchange = e => { DR.owner = +e.target.value; };
-	const cp = document.getElementById(ctx + 'closePrev'); if (cp) cp.onchange = () => { DR.closePrev = cp.checked; };
+	if (osel) osel.onchange = e => { d.owner = +e.target.value; upd(); };
+	const cp = document.getElementById(ctx + 'closePrev'); if (cp) cp.onchange = () => { d.closePrev = cp.checked; };
 	note.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !save.disabled) save.click(); });
+	upd();
 	save.onclick = async () => {
+		if (save.disabled) return;
 		save.disabled = true;
-		const prev = openFor(c.id)[0];
+		const prev = prevFor(c, d);
 		const close = cp && cp.checked && prev ? [prev.id] : [];
-		const due = DR.due;
-		const payload = {cid: c.id, type: DR.type, to: +document.getElementById(ctx + 'to').value || 0, note: note.value.trim() || t('Opfølgning'), due: due || '', owner: DR.owner, close};
+		const due = d.due;
+		const payload = {cid: c.id, type: d.type, to: toSel ? +toSel.value || 0 : 0, note: note.value.trim() || t('Opfølgning'), due: due || '', owner: d.owner, close};
+		// the draft is cleared BEFORE the response re-renders the composer (R2); put back if the save fails
+		const keep = Object.assign({}, d);
+		Object.assign(d, DR0(), {owner: d.owner, type: d.type});
 		try {
 			const r = await api('add_entry', payload);
-			Object.assign(DR, {due: null, closePrev: true});
+			// the response already re-rendered the composer; once more now that it knows the new row, so that row is
+			// never offered pre-ticked for closing (R2)
+			d.lastId = r.id;
+			if (ctx === 'c' && S.drawer === c.id && S.dtab === 'tl') renderDrawer();
 			if (onSaved) onSaved();
 			const el = document.querySelector(`#drawer .item[data-h="${r.id}"]`); if (el) el.classList.add('flash');
 			toast(t('Gemt') + (due ? ' · ' + t('opfølgning %s', rel(due)) : '') + (r.closed.length ? ' · ' + t('forrige opfølgning markeret som gjort') : ''), async () => {
 				await api('delete_entry', {id: r.id});
-				for (const id of r.closed) await api('toggle_done', {id, done: false});
+				if (r.closed.length) await api('reopen_many', {ids: r.closed});
 			});
-		} catch (e) { upd(); }
+		} catch (e) { Object.assign(d, keep); redraw(); }
 	};
 }
 
@@ -474,9 +578,9 @@ function wireComposer(ctx, c, onSaved) {
 const closeDlg = () => $('#scrim').classList.remove('open');
 function openDlg(html, cls) { const d = $('#dlg'); d.className = 'dlg ' + (cls || ''); d.innerHTML = html; $('#scrim').classList.add('open'); return d; }
 
-function customerPicker(title, intro, onPick) {
+function customerPicker(title, intro, onPick, initial) {
 	openDlg(`<h3>${title}</h3><div class="pi">${intro}</div>
-		<label class="fs">${SV.search}<input id="dq" placeholder="${esc(t('Søg kunde, kundenummer eller kontaktperson'))}" autocomplete="off"></label><div class="res" id="dres"></div>`);
+		<label class="fs">${SV.search}<input id="dq" placeholder="${esc(t('Søg kunde, kundenummer eller kontaktperson'))}" autocomplete="off" value="${esc(initial || '')}"></label><div class="res" id="dres"></div>`);
 	const q = $('#dq'); let hl = 0, res = [], seq = 0, timer = null;
 	const draw = () => {
 		$('#dres').innerHTML = res.map((c, i) => `<button class="${i === hl ? 'hl' : ''}" data-pick="${c.id}"><b>${esc(c.n)}</b><small>${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}</small><span class="ct">${c.ppl.map(p => esc(p.n)).join(', ')}</span></button>`).join('')
@@ -503,9 +607,11 @@ function customerPicker(title, intro, onPick) {
 
 function newFollowUp(dateKey, asNote) {
 	const title = asNote ? t('Ny note') : t('Ny opfølgning');
-	Object.assign(DR, {type: asNote ? 'note' : 'opkald', due: dateKey || null, owner: ME || (DATA.emps[0] || {}).id || 0, closePrev: true});
+	// "Ny opfølgning" starts with a date (tomorrow, or Monday), so Gem never silently saves a plain note (R5)
+	DRAFTS.n = Object.assign(DR0(), {type: asNote ? 'note' : 'opkald', due: dateKey || (asNote ? null : roll(1)), owner: ME || 0});
 	customerPicker(title, (dateKey ? t('Opfølgning %s', fmt(dateKey)) + '. ' : '') + t('Vælg kunden – du kan også søge på kontaktperson eller kundenummer.'), c => {
-		DR.owner = c.own || DR.owner;
+		const d = draft('n');
+		if (!ME) d.owner = c.own || 0;   // the writer by default; a customer's owner only when there is no writer (R7)
 		openDlg(`<h3>${title}</h3><div class="pick"><b>${esc(c.n)}</b><span class="c3">${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}</span><button id="back">${t('Skift kunde')}</button></div><div class="b2">${composer(c, 'n')}</div>`);
 		wireComposer('n', c, closeDlg);
 		$('#back').onclick = () => newFollowUp(dateKey, asNote);
@@ -519,9 +625,9 @@ const docState = o => o.st >= 3 ? t('faktureret') : o.st === 2 ? t('delvist leve
 function dealDocBox(deal, c) {
 	const back = backTo(c.id), o = deal.doc;
 	if (o) {
-		const diffSum = o.sum && Math.round(o.sum) !== Math.round(deal.v);
-		return `<div class="dealdoc"><div class="dd1"><span>${ICON.note}<b>${esc(docName(o))}</b> · ${kr(o.sum)} · ${docState(o)}</span><a href="ordre.php?id=${o.id}&returside=${back}">${t('Åbn')}</a></div>
-			${diffSum && deal.state === 'open' ? `<button type="button" class="ddsug" id="dUseSum" data-v="${Math.round(o.sum)}">${t(o.st === 0 && !DATA.quick ? 'Brug beløbet fra tilbuddet: %s' : 'Brug beløbet fra ordren: %s', kr(o.sum))}</button>` : ''}
+		const diffSum = o.sum && Math.abs(o.sum - deal.v) >= 0.005;
+		return `<div class="dealdoc"><div class="dd1"><span>${ICON.note}<b>${esc(docName(o))}</b> · ${kr(o.sum)} <span class="c3">${t('ekskl. moms')}</span> · ${docState(o)}</span><a href="ordre.php?id=${o.id}&returside=${back}">${t('Åbn')}</a></div>
+			${diffSum && deal.state === 'open' ? `<button type="button" class="ddsug" id="dUseSum" data-v="${esc(fmtAmt(o.sum))}">${t(o.st === 0 && !DATA.quick ? 'Brug beløbet fra tilbuddet: %s' : 'Brug beløbet fra ordren: %s', kr(o.sum))}</button>` : ''}
 			${o.st >= 3 && deal.state === 'open' ? `<button type="button" class="ddsug" id="dWonDoc">${t('Ordren er faktureret – markér handlen som vundet')}</button>` : ''}</div>`;
 	}
 	if (deal.state !== 'open' || !DATA.canWrite) return '';
@@ -530,31 +636,62 @@ function dealDocBox(deal, c) {
 // Deal stages come from the group holding the deal's stage, else the first status group (Salg).
 const dealGroup = st => GROUPS.find(x => x.s.includes(st)) || GROUPS[0] || boardGroup();
 function dealDialog(deal, cid, stage) {
-	const g = dealGroup(deal ? deal.st : stage);
+	if (!dealGroup(deal ? deal.st : stage).s.length) { toast(t('Opsæt statusser først (tandhjulet øverst til højre).')); return; }   // R27, empty setup
 	const go = c => {
-		const d = deal || {t: '', v: 0, st: stage || g.s[0] || '', close: key(D(30)), own: c.own || ME || (DATA.emps[0] || {}).id || 0};
+		// a new deal starts in the customer's own status when that is on the board (R33); never the first employee (R6)
+		const g = dealGroup(deal ? deal.st : (stage || c.st));
+		const d = deal || {t: '', v: 0, st: stage || (g.s.includes(c.st) ? c.st : g.s[0]) || '', close: key(D(30)), own: c.own || ME || 0};
 		openDlg(`<h3>${deal ? t('Ret handel') : t('Ny handel')}</h3><div class="pick"><b>${esc(c.n)}</b><span class="c3">${esc(c.nr)}</span>${deal ? '' : `<button id="back">${t('Skift kunde')}</button>`}</div>
 			<div class="fgrid">
 				<label class="wide">${t('Titel')}<input id="dT" value="${esc(d.t)}" placeholder="${esc(t('Fx Saldi Plus, 3 brugere'))}" maxlength="120"></label>
-				<label>${t('Beløb (kr)')}<input id="dV" inputmode="decimal" value="${d.v ? Math.round(d.v) : ''}" placeholder="0"></label>
+				<label>${t('Beløb (kr, ekskl. moms)')}<input id="dV" inputmode="decimal" value="${esc(fmtAmt(d.v))}" placeholder="0"></label>
 				<label>${t('Forventet lukket')}<input id="dC" type="date" value="${esc(d.close || '')}"></label>
 				<label>${t('Stadie')}<select id="dS" ${deal && deal.state !== 'open' ? 'disabled' : ''}>${(deal && !g.s.includes(d.st) ? [d.st] : []).concat(g.s).map(id => `<option value="${esc(id)}" ${id === d.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></label>
-				<label>${t('Ansvarlig')}<select id="dO">${DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.own ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`).join('') || '<option value="0">–</option>'}</select></label>
+				<label>${t('Ansvarlig')}<select id="dO">${(d.own ? [] : [`<option value="0" selected>${t('– vælg –')}</option>`]).concat(DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.own ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`)).join('') || '<option value="0">–</option>'}</select></label>
 			</div>
 			${deal ? dealDocBox(deal, c) : ''}
-			<div class="ft">${deal ? `<button class="left" id="dDel">${t('Slet handel')}</button>` : ''}${deal && deal.state === 'open' ? `<button id="dWon">${t('Vundet')}</button><button id="dLost">${t('Tabt')}</button>` : ''}<button id="dNo">${t('Annullér')}</button><button class="primary" id="dYes">${deal ? t('Gem') : t('Opret handel')}</button></div>`);
+			<div class="ft">${deal ? `<button class="left" id="dDel">${t('Slet handel')}</button>` : ''}${deal && deal.state !== 'open' ? `<button id="dReopen">${t('Genåbn')}</button>` : ''}${deal && deal.state === 'open' ? `<button id="dWon">${t('Vundet')}</button><button id="dLost">${t('Tabt')}</button>` : ''}<button id="dNo">${t('Annullér')}</button><button class="primary" id="dYes">${deal ? t('Gem') : t('Opret handel')}</button></div>`);
+		const fields = () => ({t: $('#dT').value.trim(), v: parseAmt($('#dV').value), st: $('#dS').value, close: $('#dC').value, own: +$('#dO').value});
+		const badAmount = () => { toast(t('Beløbet kunne ikke læses – skriv fx 12.500,50.')); $('#dV').focus(); };
+		// Vundet/Tabt/markér vundet first save what was edited in the dialog, incl. "Brug beløbet" (R29)
+		const saveIfChanged = async () => {
+			const f = fields();
+			if (f.v === null) { badAmount(); return false; }
+			if (f.t && (f.t !== deal.t || +f.v !== +deal.v || f.close !== (deal.close || '') || f.own !== deal.own)) {
+				await api('save_deal', {id: deal.id, cid: c.id, t: f.t, v: f.v, st: f.st, close: f.close, own: f.own});
+			}
+			return true;
+		};
 		if ($('#back')) $('#back').onclick = () => dealDialog(null, null, stage);
 		$('#dNo').onclick = closeDlg;
-		if ($('#dDel')) $('#dDel').onclick = async () => { await api('delete_deal', {id: deal.id}); closeDlg(); toast(t('Handlen er slettet')); };
-		if ($('#dWon')) $('#dWon').onclick = () => { closeDlg(); moveDeal(deal, {state: 'won'}, t('vundet')); };
-		if ($('#dWonDoc')) $('#dWonDoc').onclick = () => { closeDlg(); moveDeal(deal, {state: 'won'}, t('vundet')); };
+		if ($('#dDel')) $('#dDel').onclick = () => {
+			// confirmed, undoable and logged (R30)
+			openDlg(`<h3>${t('Slet handlen »%s«?', esc(deal.t))}</h3><div class="pi">${t('Handlen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.')}</div><div class="ft"><button id="cNo">${t('Annullér')}</button><button class="danger" id="cYes">${t('Slet')}</button></div>`, 'confirm');
+			$('#cNo').onclick = () => dealDialog(deal, cid, stage);
+			$('#cYes').onclick = async () => { const r = await api('delete_deal', {id: deal.id}); closeDlg(); toast(t('Handel »%s« slettet', deal.t), () => api('restore_deal', {id: deal.id, before: r.before, remove: r.hid})); };
+		};
+		const won = async () => { if (!(await saveIfChanged())) return; closeDlg(); moveDeal(DEALS.find(x => x.id === deal.id) || deal, {state: 'won'}, t('vundet')); };
+		if ($('#dWon')) $('#dWon').onclick = won;
+		if ($('#dWonDoc')) $('#dWonDoc').onclick = won;
+		if ($('#dReopen')) $('#dReopen').onclick = () => { closeDlg(); moveDeal(deal, {state: 'open'}, t('genåbnet')); };
 		if ($('#dUseSum')) $('#dUseSum').onclick = () => { $('#dV').value = $('#dUseSum').dataset.v; $('#dUseSum').remove(); $('#dV').focus(); };
-		if ($('#dLost')) $('#dLost').onclick = () => lostDialog(deal, reason => moveDeal(deal, {state: 'lost', reason}, t('tabt') + (reason ? ' – ' + reason : '')));
+		if ($('#dLost')) $('#dLost').onclick = async () => { if (!(await saveIfChanged())) return; lostDialog(deal, reason => moveDeal(DEALS.find(x => x.id === deal.id) || deal, {state: 'lost', reason}, t('tabt') + (reason ? ' – ' + reason : ''))); };
 		$('#dYes').onclick = async () => {
-			const title = $('#dT').value.trim(); if (!title) { $('#dT').focus(); return; }
-			await api('save_deal', {id: deal ? deal.id : 0, cid: c.id, t: title, v: $('#dV').value, st: $('#dS').value, close: $('#dC').value, own: +$('#dO').value});
-			if (deal && deal.state === 'open' && $('#dS').value !== deal.st) await api('move_deal', {id: deal.id, st: $('#dS').value});
-			closeDlg(); toast(deal ? t('Handlen er gemt') : t('Handel oprettet i %s', stName($('#dS').value)));
+			const btn = $('#dYes'); if (btn.disabled) return;   // no duplicates from a double click (R76)
+			const f = fields();
+			if (!f.t) { $('#dT').focus(); return; }
+			if (f.v === null) { badAmount(); return; }
+			btn.disabled = true;
+			try {
+				await api('save_deal', {id: deal ? deal.id : 0, cid: c.id, t: f.t, v: f.v, st: f.st, close: f.close, own: f.own});
+				if (deal && deal.state === 'open' && f.st !== deal.st) await api('move_deal', {id: deal.id, st: f.st});
+			} catch (e) { btn.disabled = false; return; }
+			closeDlg();
+			const fresh = cust(c.id) || c;
+			// the customer is not in the column the deal was put in: offer the status, never set it (R27, R26)
+			const offBoard = f.st && fresh.st !== f.st && g.s.includes(f.st) && !isWon(f.st) && !isLost(f.st);
+			toast(deal ? t('Handlen er gemt') : t('Handel oprettet i %s', stName(f.st)), null,
+				offBoard ? {label: t('Kunden står ikke på tavlen – sæt status til %s', stName(f.st)), fn: () => setStatus(fresh, f.st)} : null);
 		};
 		setTimeout(() => $('#dT').focus(), 30);
 	};
@@ -610,8 +747,11 @@ async function toggleDone(hid, rowEl) {
 }
 function snoozeMenu(hid, anchor) {
 	const h = H.find(x => x.id === hid), m = $('#menu');
-	const opts = [[t('I morgen'), 1], [t('Om 2 dage'), 2], [t('Næste mandag'), (8 - TODAY.getDay()) % 7 || 7], [t('Om 1 uge'), 7], [t('Om 2 uger'), 14]];
-	m.innerHTML = opts.map(([n, d]) => `<button data-to="${key(D(d))}">${n}<small>${fmt(key(D(d)))}</small></button>`).join('') + `<hr><input type="date" id="snDate" aria-label="${t('Vælg dato')}">`;
+	// weekend targets roll to Monday (R18); the list never shows the same date twice
+	const seen = {};
+	const opts = [[rollLabel(t('I morgen'), 1), roll(1)], [rollLabel(t('Om 2 dage'), 2), roll(2)], [t('Næste mandag'), key(D((8 - TODAY.getDay()) % 7 || 7))], [t('Om 1 uge'), roll(7)], [t('Om 2 uger'), roll(14)]]
+		.filter(([, k]) => !seen[k] && (seen[k] = true));
+	m.innerHTML = opts.map(([n, k]) => `<button data-to="${k}">${n}<small>${fmt(k)}</small></button>`).join('') + `<hr><input type="date" id="snDate" aria-label="${t('Vælg dato')}">`;
 	const r = anchor.getBoundingClientRect();
 	m.style.left = Math.min(r.left, innerWidth - 220) + 'px'; m.style.top = Math.min(r.bottom + 4, innerHeight - 260) + 'px';
 	m.classList.add('open');
@@ -620,17 +760,33 @@ function snoozeMenu(hid, anchor) {
 	$('#snDate').onchange = e => go(e.target.value);
 	$('#snDate').onclick = e => e.stopPropagation();
 }
-async function setStatus(c, to, how) {
+// $extra overrides the default suggestion (a follow-up in a week) - the board uses it for the customer's open deals (R26, R28)
+async function setStatus(c, to, how, extra) {
 	if (c.st === to) return;
 	const r = await api('set_status', {cid: c.id, status: to, how: how || ''});
 	const fresh = cust(c.id);
 	const suggest = to && !openFor(c.id).length && !isLost(to) && !isWon(to);
 	toast(`${c.n}: ${to ? stName(to) : t('ingen status')}${how ? ' (' + how + ')' : ''}`, () => api('set_status', {cid: c.id, status: r.from, remove: r.id}),
-		suggest ? {label: t('Opfølgning om 1 uge'), fn: async () => {
-			const due = key(D(7));
-			await api('add_entry', {cid: c.id, type: 'note', to: fresh.ppl[0] ? fresh.ppl[0].id : 0, note: t('Følg op – %s', stName(to).toLowerCase()), due, owner: fresh.own || ME, close: []});
+		extra || (suggest ? {label: t('Opfølgning om 1 uge'), fn: async () => {
+			const due = roll(7);
+			await api('add_entry', {cid: c.id, type: 'note', to: 0, note: t('Følg op – %s', stName(to).toLowerCase()), due, owner: fresh.own || ME, close: []});
 			toast(t('Opfølgning sat til %s', fmt(due)));
-		}} : null);
+		}} : null));
+}
+// Drop on the board (R26, R28): a column offers to move the customer's open deals along; Vundet/Tabt offer to close them.
+function dropOnBoard(c, g, col, end) {
+	const deals = openDeals(c.id);
+	if (end) {
+		const to = end === 'won' ? g.won : g.lost, lbl = end === 'won' ? t('vundet') : t('tabt');
+		const extra = deals.length ? {label: t('Markér %s åbne handler som %s', deals.length, lbl), fn: () => {
+			if (end === 'won') { deals.forEach(d => moveDeal(d, {state: 'won'}, t('vundet'))); return; }
+			lostDialog(deals.length === 1 ? deals[0] : {t: c.n}, reason => deals.forEach(d => moveDeal(d, {state: 'lost', reason}, t('tabt') + (reason ? ' – ' + reason : ''))));
+		}} : null;
+		return setStatus(c, to, lbl, extra);
+	}
+	const behind = deals.filter(d => d.st !== col);
+	const extra = behind.length ? {label: t('Flyt også handlen til %s', stName(col)), fn: () => behind.forEach(d => api('move_deal', {id: d.id, st: col}))} : null;
+	return setStatus(c, col, '', extra);
 }
 async function moveDeal(d, patch, label) {
 	const r = await api('move_deal', Object.assign({id: d.id}, patch));
@@ -687,11 +843,18 @@ function renderAll() {
 	if (S.tab === 'cust') renderCust();
 	if (S.tab === 'act') renderAct();
 	const nb = $('#noteBar'), notes = [];
-	if (!ME) notes.push(t('Din bruger er ikke knyttet til en medarbejder, så »Mine« og »Dig« virker ikke. Knyt brugeren til en medarbejder under Indstillinger → Brugere.'));
-	if (!DATA.emps.length) notes.push(t('Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.'));
-	if (DATA.truncated) notes.push(t('Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.', num(DATA.max)));
-	nb.innerHTML = notes.map(n => esc(n)).join('<br>'); nb.hidden = !notes.length;
-	$('#scope').querySelector('[data-scope="mine"]').disabled = !ME;
+	if (!ME) notes.push(esc(t('Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.')));
+	if (!DATA.emps.length) notes.push(esc(t('Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.')));
+	if (DATA.truncated) notes.push(esc(t('Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.', num(DATA.max))));
+	// follow-ups from the old CRM, long overdue: offered closed in one click, never done by itself (R23)
+	const old = H.filter(h => h.due && !h.done && diff(h.due) < -90).length;
+	if (old >= 3 && DATA.canWrite && localStorage.getItem('crm-oldlate') !== DATA.today) {
+		notes.push(esc(t('%s opfølgninger fra det gamle CRM er mere end 90 dage forsinkede.', old)) + ` <button type="button" class="linkbtn" data-closeold="1">${t('Markér dem som gjort')}</button> <button type="button" class="linkbtn" data-notnow="1">${t('Ikke nu')}</button>`);
+	}
+	nb.innerHTML = notes.join('<br>'); nb.hidden = !notes.length;
+	const mineBtn = $('#scope').querySelector('[data-scope="mine"]');
+	mineBtn.disabled = !ME;
+	if (!ME) mineBtn.title = t('Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.');
 	drawScope();
 }
 
@@ -722,10 +885,22 @@ document.addEventListener('click', e => {
 	if ((b = t.closest('[data-editdeal]'))) { if (DATA.canWrite) dealDialog(DEALS.find(d => d.id === +b.dataset.editdeal), DEALS.find(d => d.id === +b.dataset.editdeal).cid); return; }
 	if ((b = t.closest('[data-mode]'))) { S.calMode = b.dataset.mode; if (S.calMode === 'week') S.weekStart = mondayOf(S.calY === TODAY.getFullYear() && S.calM === TODAY.getMonth() ? DATA.today : key(new Date(S.calY, S.calM, 1))); renderCal(); return; }
 	if ((b = t.closest('[data-dtab]'))) { S.dtab = b.dataset.dtab; renderDrawer(); syncUrl(); return; }
-	if ((b = t.closest('[data-call]'))) { S.dtab = 'tl'; renderDrawer(); const sel = $('#cto'); if (sel) sel.value = b.dataset.call; const n = $('#cNote'); if (n) n.focus(); return; }
+	if ((b = t.closest('[data-call]'))) { S.dtab = 'tl'; draft('c', S.drawer).to = +b.dataset.call; renderDrawer(); const n = $('#cNote'); if (n) n.focus(); return; }
 	if ((b = t.closest('[data-del]'))) { confirmDel(+b.dataset.del); return; }
 	if ((b = t.closest('[data-edit]'))) { editDialog(+b.dataset.edit); return; }
-	if ((b = t.closest('[data-open]')) && !t.closest('.drawer')) { e.preventDefault(); openDrawer(+b.dataset.open, b.dataset.deal ? 'deals' : 'tl'); return; }
+	if ((b = t.closest('[data-closeold]'))) {
+		api('close_old').then(r => { localStorage.setItem('crm-oldlate', DATA.today); toast(t('%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort', r.ids.length), () => api('reopen_many', {ids: r.ids})); });
+		return;
+	}
+	if ((b = t.closest('[data-notnow]'))) { localStorage.setItem('crm-oldlate', DATA.today); renderAll(); return; }
+	if ((b = t.closest('[data-srvsearch]'))) { customerPicker(t('Søg blandt alle kunder'), t('Fundet uden for listen'), c => { closeDlg(); openOutside(c.id); }, S.q); return; }
+	// the row's own follow-up goes with it into the drawer, so the composer offers to close THAT one (R3)
+	if ((b = t.closest('[data-open]')) && !t.closest('.drawer')) {
+		e.preventDefault();
+		const row = b.closest('[data-h]');
+		openDrawer(+b.dataset.open, b.dataset.deal ? 'deals' : 'tl', +(b.dataset.h || b.dataset.ev || (row ? row.dataset.h : 0) || 0));
+		return;
+	}
 	if (t.closest('#calPrev') || t.closest('#calNext')) {
 		const dir = t.closest('#calPrev') ? -1 : 1;
 		if (S.calMode === 'month') { S.calM += dir; if (S.calM < 0) { S.calM = 11; S.calY--; } if (S.calM > 11) { S.calM = 0; S.calY++; } }
@@ -761,6 +936,13 @@ function newForTab() {
 $('#newBtn').onclick = e => { e.stopPropagation(); newForTab(); };
 $('#newBtn').hidden = !DATA.canWrite;
 $('#q').oninput = e => { S.q = e.target.value.trim(); renderAll(); };
+// Enter: one hit opens it; no hit searches all customers on the server (R77)
+$('#q').onkeydown = e => {
+	if (e.key !== 'Enter' || !S.q) return;
+	const hits = C.filter(c => custMatch(c));
+	if (hits.length === 1) openDrawer(hits[0].id);
+	else if (!hits.length) customerPicker(t('Søg blandt alle kunder'), t('Fundet uden for listen'), c => { closeDlg(); openOutside(c.id); }, S.q);
+};
 $('#grpSel').onchange = e => { S.grp = e.target.value; S.stF = 'all'; renderAll(); };
 // Alle | Mine - same control as the cash journal list (finans/kladdeliste.php): radio group, arrow keys, remembered.
 function drawScope() { $('#scope').querySelectorAll('[data-scope]').forEach(b => b.setAttribute('aria-checked', String((b.dataset.scope === 'mine') === S.mine))); }
@@ -841,8 +1023,7 @@ document.addEventListener('drop', async e => {
 	const z = e.target.closest('[data-col],[data-end]'); if (!z) return; e.preventDefault();
 	const id = dragCard; dragCard = null; document.body.classList.remove('carddrag');
 	const g = boardGroup(), c = cust(+id); if (!c) return;
-	if (z.dataset.col !== undefined) setStatus(c, z.dataset.col);
-	else setStatus(c, z.dataset.end === 'won' ? g.won : g.lost, z.dataset.end === 'won' ? t('vundet') : t('tabt'));
+	dropOnBoard(c, g, z.dataset.col, z.dataset.end);
 });
 
 /* ================= start ================= */
@@ -858,5 +1039,5 @@ renderGroups();
 renderAll();
 const hm = hs.match(/^drawer=(\d+)(?:-(\w+))?$/);
 const qDrawer = +(QP0.get('drawer') || (hm ? hm[1] : 0));
-if (qDrawer && cust(qDrawer)) openDrawer(qDrawer, QP0.get('dtab') || (hm && hm[2]) || 'tl');
+if (qDrawer) openOutside(qDrawer, QP0.get('dtab') || (hm && hm[2]) || 'tl');
 })();

@@ -46,18 +46,19 @@ include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/crmFunctions.php");
 
-if (!tbl_exists('crm_deals') || !crm_col_exists('historik', 'type') || !crm_col_exists('crm_deals', 'ordre_id')) {
+if (!tbl_exists('crm_deals') || !crm_col_exists('historik', 'type') || !crm_col_exists('crm_deals', 'ordre_id') || !crm_col_exists('historik', 'author_id')) {
 	crm_ensure_schema(); // first use before the next login has run includes/betweenUpdates.php
 }
 if (empty($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-$data = crm_dataset();
+// the drawer named in the query is loaded even when it is outside the loaded set (a customer just created; review R54)
+$data = crm_dataset(isset($_GET['drawer']) && ctype_digit((string) $_GET['drawer']) ? (int) $_GET['drawer'] : 0);
 $data['csrf'] = (string) $_SESSION['csrf_token'];
 $data['api'] = 'crmApi.php';
 ?>
-<link rel="stylesheet" href="../css/crm.css?v=12">
+<link rel="stylesheet" href="../css/crm.css?v=13">
 <style>:root{--btn:<?= htmlspecialchars((string) $buttonColor, ENT_QUOTES) ?>;--btn-text:<?= htmlspecialchars((string) $buttonTxtColor, ENT_QUOTES) ?>}</style>
 <div class="crm" id="crm">
   <div class="head">
@@ -100,5 +101,5 @@ $data['api'] = 'crmApi.php';
 <div class="scrim" id="scrim"><div class="dlg" id="dlg" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastX"></button><button id="toastU"><?= crm_h('Fortryd') ?></button></div>
 <script type="application/json" id="crm-data"><?= json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
-<script src="../javascript/crm.js?v=14" charset="utf-8"></script>
+<script src="../javascript/crm.js?v=15" charset="utf-8"></script>
 </body></html>

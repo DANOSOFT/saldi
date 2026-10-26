@@ -688,6 +688,12 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				print "<meta http-equiv=\"refresh\" content=\"0;URL={$returside}{$sep}fokus=kontonr&konto_id=$id\">\n";
 				exit;
 			}
+			// 20261024 ASR A customer created from the CRM (Kunder -> Ny kunde) lands in its own drawer there, so it is not "gone"
+			//              when it has no status yet (CRM review R54).
+			if (strpos($returside, 'crm.php?') === 0 && strpos($returside, 'drawer=') === false) {
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=" . htmlspecialchars($returside . '&drawer=' . (int) $id, ENT_QUOTES) . "\">\n";
+				exit;
+			}
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=" . urlencode($returside) . "\">\n";
 			exit;
 		} elseif ($id > 0) {

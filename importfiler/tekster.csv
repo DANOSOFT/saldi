@@ -7044,3 +7044,32 @@
 7106	Resten af mailen er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.	The rest of the e-mail is fixed. [Fornavn] is replaced by the contact person's first name. Empty = the default text.	Resten av e-posten er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.
 7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
 
+7544	Du er logget ud – genindlæs siden og prøv igen.	You have been logged out – reload the page and try again.	Du er logget ut – last siden på nytt og prøv igjen.
+7545	Genindlæs	Reload	Last på nytt
+7546	Du har ikke rettighed til at ændre i CRM.	You do not have the right to make changes in the CRM.	Du har ikke rettighet til å endre i CRM.
+7547	Statussen er i brug og kan ikke slettes.	The status is in use and cannot be deleted.	Statusen er i bruk og kan ikke slettes.
+7548	Beløbet kunne ikke læses – skriv fx 12.500,50.	The amount could not be read – write e.g. 12,500.50.	Beløpet kunne ikke leses – skriv f.eks. 12.500,50.
+7549	Ingen forbindelse – ændringen blev ikke gemt.	No connection – the change was not saved.	Ingen forbindelse – endringen ble ikke lagret.
+7550	Kunne ikke gemme. Prøv igen.	Could not save. Try again.	Kunne ikke lagre. Prøv igjen.
+7551	%s opfølgninger fra det gamle CRM er mere end 90 dage forsinkede.	%s follow-ups from the old CRM are more than 90 days overdue.	%s oppfølginger fra det gamle CRM er mer enn 90 dager forsinket.
+7552	Markér dem som gjort	Mark them as done	Merk dem som gjort
+7553	Ikke nu	Not now	Ikke nå
+7554	%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort	%s follow-ups from the old CRM (more than 90 days overdue) marked as done	%s oppfølginger fra det gamle CRM (mer enn 90 dager forsinket) merket som gjort
+7555	slettet	deleted	slettet
+7556	Slet handlen »%s«?	Delete the deal “%s”?	Slette avtalen «%s»?
+7557	Handlen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.	The deal, its amount and its link to a quote or order disappear from the CRM. You can undo from the message at the bottom.	Avtalen, beløpet og koblingen til tilbud eller ordre forsvinner fra CRM. Du kan angre fra meldingen nederst.
+7558	Kunden står ikke på tavlen – sæt status til %s	The customer is not on the board – set the status to %s	Kunden står ikke på tavlen – sett status til %s
+7559	Opsæt statusser først (tandhjulet øverst til højre).	Set up statuses first (the gear at the top right).	Sett opp statuser først (tannhjulet øverst til høyre).
+7560	Markér %s åbne handler som %s	Mark %s open deals as %s	Merk %s åpne avtaler som %s
+7561	Flyt også handlen til %s	Also move the deal to %s	Flytt også avtalen til %s
+7562	– vælg –	– choose –	– velg –
+7563	Vælg, hvem opfølgningen er til.	Choose who the follow-up is for.	Velg hvem oppfølgingen er til.
+7564	Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.	Your login is not linked to an employee: “Mine” does not work, your notes get no author, and you must choose who each follow-up is for. Ask an administrator to link the login under Settings → Users.	Brukeren din er ikke knyttet til en ansatt: «Mine» virker ikke, notatene dine får ingen avsender, og du må selv velge hvem en oppfølging er til. Be en administrator knytte brukeren under Innstillinger → Brukere.
+7565	Beløb (kr, ekskl. moms)	Amount (DKK, excl. VAT)	Beløp (kr, ekskl. mva.)
+7566	ekskl. moms	excl. VAT	ekskl. mva.
+7567	Søg blandt alle kunder	Search all customers	Søk blant alle kunder
+7568	Fundet uden for listen	Found outside the list	Funnet utenfor listen
+7569	Registreret af %s	Recorded by %s	Registrert av %s
+7570	Mandag	Monday	Mandag
+7571	Handel »%s« slettet	Deal “%s” deleted	Avtale «%s» slettet
+7572	Genåbn	Reopen	Gjenåpne

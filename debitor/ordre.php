@@ -891,8 +891,10 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 		db_modify("update ordrer set returside = '" . db_escape_string($returside) . "' where id = '" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
 	}
 	// 20261020 ASR An offer/order started from a CRM deal is linked to it (crm_deals.ordre_id).
-	if ($id && isset($_GET['crm_deal']) && ctype_digit((string) $_GET['crm_deal']) && tbl_exists('crm_deals')) {
-		db_modify("update crm_deals set ordre_id = '" . (int) $id . "' where id = '" . (int) $_GET['crm_deal'] . "' and konto_id = '" . (int) $konto_id . "'", __FILE__ . " linje " . __LINE__);
+	// 20261024 ASR review R68: only for a user who may write in the CRM (Debitor -> Konti), and only a deal that has no document yet.
+	if ($id && isset($_GET['crm_deal']) && ctype_digit((string) $_GET['crm_deal']) && tbl_exists('crm_deals')
+		&& (!function_exists('perm_can') || perm_can('debitor.konti', 'write'))) {
+		db_modify("update crm_deals set ordre_id = '" . (int) $id . "' where id = '" . (int) $_GET['crm_deal'] . "' and konto_id = '" . (int) $konto_id . "' and (ordre_id is null or ordre_id = 0)", __FILE__ . " linje " . __LINE__);
 	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
