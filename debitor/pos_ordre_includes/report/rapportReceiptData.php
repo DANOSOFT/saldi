@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/report/rapportReceiptData.php --- lap 4.0.0 --- 2021.03.07 ---
+// --- debitor/pos_ordre_includes/report/rapportReceiptData.php --- ver 5.0.0 --- 2026.10.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2021 saldi.dk aps
+// Copyright (c) 2019-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make functions that handles all data that deals with the receipts
 // 20210307 PHR Added $date to allmost all functions as it was countion all orders from day zero
+// 20261026 CL/MMR SST-897 proformaReceipts() reads the register's proforma counter without filtering on report_number.
+//                 That column does not exist on most installs, so the X- and Z-report stopped with the generic database error alert.
+//                 The Z-report now resets the counter instead, see writeToDatabase() in saveReport.php.
 
 function receiptCount($kasse,$date) {
 	$idArray = makeOrderIdArray($kasse,$date);
@@ -157,8 +160,19 @@ function saleWithoutVat($kasse,$date) {
 	return $saleWithoutVatArray;
 }
 
+/**
+ * Proforma receipts printed on the register since its last Z-report.
+ *
+ * proformaCount() keeps one running row per register in proforma (id = register number),
+ * and writeToDatabase() resets that row when a Z-report is saved.
+ *
+ * @return array{
+ *   count: int|float,  Number of proforma receipts.
+ *   totalPrice: float, Their total amount.
+ * }
+ */
 function proformaReceipts($kasse) {
-	$qtxt = "select * from proforma where id='$kasse' and report_number = '0'";
+	$qtxt = "select * from proforma where id = '" . (int)$kasse . "'";
 	$proformaQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$proformaArray['count'] = 0;
 	$proformaArray['totalPrice'] = 0;
