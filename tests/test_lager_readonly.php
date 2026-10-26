@@ -2,7 +2,7 @@
 // --- tests/test_lager_readonly.php --- 2026-10-23 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
-// 20261023 LOE Cover MB-65: the item list and the stock move consult the Items right, and the item
+// 20261026 LOE Cover MB-65: the item list and the stock move consult the Items right, and the item
 //                 card refuses a save from a read-only user whatever the button says.
 //
 //   php tests/test_lager_readonly.php
@@ -73,6 +73,15 @@ $cycleNote = strpos($guard, 'only a user who may edit removes the row');
 $cycleDelete = strpos($guard, 'delete from styklister where id=', $cycleNote);
 $cycleGate = strpos($guard, 'if (!$noEdit) {', $cycleNote);
 lagerCheck($cycleNote !== false && $cycleGate !== false && $cycleDelete !== false && $cycleGate < $cycleDelete, 'a broken component reference is removed only for an editor');
+
+# ---- and the move form does not offer what the refusal will not take ------------------------
+$movePage = lagerSource('/../lager/lagerflyt.php');
+$disable = strpos($movePage, "\$mb65_noedit = 'disabled'");
+lagerCheck($disable !== false, 'a read-only user gets disabled controls on the move page');
+lagerCheck($disable !== false && strpos($movePage, 'name=\"antal\"') > $disable, 'the flag is set before the form is drawn');
+lagerCheck(strpos($movePage, 'name=\"antal\" style=\"text-align:right\" value=\"0\" $mb65_noedit') !== false, 'the quantity field carries it');
+lagerCheck(strpos($movePage, 'name=\"opdater\" $mb65_noedit') !== false, 'and so does the Opdater button');
+lagerCheck(strpos($movePage, "REQUEST_METHOD'] === 'POST'") < $disable, 'while the server-side refusal stays, whatever the form says');
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";
