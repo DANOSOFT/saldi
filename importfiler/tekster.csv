@@ -5272,6 +5272,6 @@
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 
-5439	Brand	Brand	Brand
-5440	Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant	Brand a sale is created with on this terminal. Stored as the order's language/form variant	Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant
-5441	Ikke gemt, mangler formularvariant	Not saved, no matching form variant	Ikke lagret, mangler formularvariant
+5500	Brand	Brand	Brand
+5501	Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant	Brand a sale is created with on this terminal. Stored as the order's language/form variant	Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant
+5502	Ikke gemt, mangler formularvariant	Not saved, no matching form variant	Ikke lagret, mangler formularvariant
