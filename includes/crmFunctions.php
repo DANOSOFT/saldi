@@ -116,6 +116,10 @@ function crm_ensure_schema(): void
 	if (!crm_col_exists('historik', 'author_id')) {
 		db_modify("ALTER TABLE historik ADD COLUMN author_id integer", __FILE__ . " linje " . __LINE__);
 	}
+	// 20261026 ASR review R13/R16: when a follow-up was marked done (the "done in the last 14 days" list, the timeline)
+	if (!crm_col_exists('historik', 'completed_at')) {
+		db_modify("ALTER TABLE historik ADD COLUMN completed_at date", __FILE__ . " linje " . __LINE__);
+	}
 	// 20261024 ASR review R56: historik is read per customer on every CRM request; the table had no index on konto_id
 	if (!crm_is_mysql()) {
 		if (!db_fetch_array(db_select("select indexname from pg_indexes where tablename = 'historik' and indexname = 'historik_konto_idx'", __FILE__ . " linje " . __LINE__))) {
@@ -491,7 +495,45 @@ function crm_text_ids(): array
 		7569 => 'Markér handlen som %s',
 		7570 => 'Mandag',
 		7571 => 'Handel »%s« slettet',
-		7572 => 'Genåbn'
+		7572 => 'Genåbn',
+		7573 => '%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.',
+		7574 => 'Ansvarlig: %s → %s',
+		7575 => 'Der er ingen noter eller opkald endnu.',
+		7576 => 'Du kan se CRM, men ændringer kræver skriveadgang til Debitor → Konti.',
+		7577 => 'Faktureret – markér vundet?',
+		7578 => 'Flyt %s åbne opfølgninger til %s',
+		7579 => 'Flyt ned',
+		7580 => 'Flyt op',
+		7581 => 'Forhandling',
+		7582 => 'Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.',
+		7583 => 'Henvendelse',
+		7584 => 'Hver gruppe bliver en tavle under Pipeline. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.',
+		7585 => 'Hvilken handel gælder ordren?',
+		7586 => 'Hvilken handel gælder tilbuddet?',
+		7587 => 'Ingen handel',
+		7588 => 'Ingen kontakt endnu',
+		7589 => 'Ingen opfølgninger matcher »%s«.',
+		7590 => 'Ingen statusgrupper endnu.',
+		7591 => 'Knyt til handel',
+		7592 => 'Knyttet til handlen »%s«',
+		7593 => 'Luk',
+		7594 => 'Opfølgningerne er flyttet',
+		7595 => 'Opsæt statusgrupper',
+		7596 => 'Opsæt statusser og statusgrupper under tandhjulet.',
+		7597 => 'Salg',
+		7598 => 'Salgstavlen er oprettet',
+		7599 => 'Seneste kontakt %s',
+		7600 => 'Skjul %s kunder uden opfølgning',
+		7601 => 'Start med en salgstavle',
+		7602 => 'Statusserne er de samme som feltet Status på debitorkortet. Rækkefølgen her er rækkefølgen på tavlen.',
+		7603 => 'Til',
+		7604 => 'Tilbud sendt',
+		7605 => 'Tøm feltet for at fjerne påmindelsen – noten bliver stående',
+		7606 => 'Vis %s kunder uden opfølgning',
+		7607 => 'Vis alle',
+		7608 => 'Viser de 10 nyeste.',
+		7609 => 'ingen',
+		7610 => 'Åbn tandhjulet'
 	);
 }
 
@@ -836,6 +878,12 @@ function crm_employees(): array
 	return $out;
 }
 
+function crm_employee_name(int $id): string
+{
+	$r = db_fetch_array(db_select("select navn from ansatte where id = $id", __FILE__ . " linje " . __LINE__));
+	return $r ? crm_out($r['navn']) : '';
+}
+
 // ------------------------------------------------------------------ customers
 
 /**
@@ -903,6 +951,11 @@ function crm_customers(string $where, int $limit = 0, bool $byActivity = false):
 		if (count($out[(int) $r['konto_id']]['docs']) < 10) {
 			$out[(int) $r['konto_id']]['docs'][] = array('id' => (int) $r['id'], 'nr' => (int) $r['ordrenr'], 'st' => (int) $r['status'], 'sum' => round((float) $r['sum'], 2), 'date' => (string) $r['ordredate']);
 		}
+	}
+	// last real contact over the whole history, not only the loaded window (review R55)
+	$q = db_select("select konto_id, max(kontaktet) as d from historik where konto_id in ($ids) and (type is null or type not in ('status', 'deal')) group by konto_id", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$out[(int) $r['konto_id']]['last'] = (string) $r['d'];
 	}
 	$q = db_select("select konto_id, max(kontaktet) as d from historik where type = 'status' and konto_id in ($ids) group by konto_id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -977,16 +1030,23 @@ function crm_search(string $term): array
 
 // ------------------------------------------------------------------ entries and deals
 
-function crm_history(array $custIds): array
+/** The window the page loads history in; the drawer fetches the rest for one customer (action 'customer', review R55). */
+function crm_hist_from(): string
+{
+	return date('Y-m-d', strtotime('-2 years'));
+}
+
+function crm_history(array $custIds, bool $all = false): array
 {
 	$out = array();
 	if (!$custIds) {
 		return $out;
 	}
 	$ids = crm_ids($custIds);
-	$from = date('Y-m-d', strtotime('-2 years'));
-	$q = db_select("select id, konto_id, kontakt_id, ansat_id, author_id, notat, kontaktet, kontaktes, completed, type, dokument from historik "
-		. "where konto_id in ($ids) and (kontaktet >= '$from' or (kontaktes is not null and completed is null) or completed = FALSE) "
+	$from = crm_hist_from();
+	$window = $all ? '' : "and (kontaktet >= '$from' or (kontaktes is not null and completed is null) or completed = FALSE) ";
+	$q = db_select("select id, konto_id, kontakt_id, ansat_id, author_id, notat, kontaktet, kontaktes, completed, completed_at, type, dokument from historik "
+		. "where konto_id in ($ids) $window"
 		. "order by konto_id, kontaktet, id", __FILE__ . " linje " . __LINE__);
 	$rows = array();
 	while ($r = db_fetch_array($q)) {
@@ -1017,21 +1077,30 @@ function crm_history(array $custIds): array
 			'note' => crm_out($r['notat']),
 			'due'  => $due,
 			'done' => $done,
+			'doneAt' => (string) $r['completed_at'],
 			'file' => crm_out($r['dokument']),
 		);
 	}
 	return $out;
 }
 
-function crm_deals(): array
+function crm_deal_from(): string
+{
+	return date('Y-m-d', strtotime('-1 year'));
+}
+
+/** $cid > 0: all deals of that customer, however old (the drawer, review R55). */
+function crm_deals(int $cid = 0): array
 {
 	$out = array();
-	$from = date('Y-m-d', strtotime('-1 year'));
+	$from = crm_deal_from();
+	$which = $cid > 0 ? "d.konto_id = $cid and d.state in ('open', 'won', 'lost')" : "(d.state = 'open' or (d.state in ('won', 'lost') and d.closed >= '$from'))";
 	// deleted deals (state 'deleted', review R30) are kept for undo but never shown; document sums in the company's currency
-	$q = db_select("select d.*, o.ordrenr as doc_nr, o.status as doc_status, o.sum * coalesce(nullif(o.valutakurs, 0), 100) / 100 as doc_sum, o.art as doc_art from crm_deals d "
-		. "left join ordrer o on o.id = d.ordre_id where d.state = 'open' or (d.state in ('won', 'lost') and d.closed >= '$from') order by d.id", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select d.*, o.ordrenr as doc_nr, o.fakturanr as doc_fnr, o.status as doc_status, o.sum * coalesce(nullif(o.valutakurs, 0), 100) / 100 as doc_sum, o.art as doc_art from crm_deals d "
+		. "left join ordrer o on o.id = d.ordre_id where $which order by d.id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$doc = ($r['ordre_id'] && $r['doc_nr'] !== null) ? array('id' => (int) $r['ordre_id'], 'nr' => (int) $r['doc_nr'], 'st' => (int) $r['doc_status'], 'sum' => round((float) $r['doc_sum'], 2)) : null;
+		// an invoiced document is named by its invoice number (review R38)
+		$doc = ($r['ordre_id'] && $r['doc_nr'] !== null) ? array('id' => (int) $r['ordre_id'], 'nr' => (int) $r['doc_nr'], 'fnr' => trim((string) $r['doc_fnr']), 'st' => (int) $r['doc_status'], 'sum' => round((float) $r['doc_sum'], 2)) : null;
 		$out[] = array(
 			'id' => (int) $r['id'], 'cid' => (int) $r['konto_id'], 't' => crm_out($r['title']), 'v' => round((float) $r['amount'], 2),
 			'st' => trim((string) $r['stage']), 'state' => (string) $r['state'], 'close' => (string) $r['expected_close'],
@@ -1065,7 +1134,24 @@ function crm_dataset(int $extraId = 0): array
 		$customers += crm_customers("a.id in (" . crm_ids($missing) . ")");
 	}
 	$jobs = (bool) db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box7 = 'on'", __FILE__ . " linje " . __LINE__));
+	// customers whose status is a real status but in no status group: they stay out of the CRM (review R44)
+	$grouped = array();
+	foreach (crm_groups() as $g) {
+		foreach ($g['s'] as $s) $grouped[$s] = true;
+	}
+	$loose = array();
+	foreach (crm_statuses() as $s) {
+		if (!isset($grouped[$s['id']])) $loose[] = db_escape_string($s['id']);
+	}
+	$ungrouped = 0;
+	if ($loose) {
+		$r = db_fetch_array(db_select("select count(*) as n from adresser where art = 'D' and (lukket is null or lukket != 'on') and status in ('" . implode("','", $loose) . "')", __FILE__ . " linje " . __LINE__));
+		$ungrouped = $r ? (int) $r['n'] : 0;
+	}
 	return array(
+		'ungrouped' => $ungrouped,
+		'histFrom'  => crm_hist_from(),
+		'dealFrom'  => crm_deal_from(),
 		'today'     => date('Y-m-d'),
 		'me'        => (int) $ansat_id,
 		'canWrite'  => crm_can_write(),
@@ -1157,7 +1243,7 @@ function crm_action(string $action, array $in): array
 			$closed = array();
 			foreach ((array) ($in['close'] ?? array()) as $hid) {
 				$hid = (int) $hid;
-				db_modify("update historik set completed = TRUE where id = $hid and konto_id = $cid", __FILE__ . " linje " . __LINE__);
+				db_modify("update historik set completed = TRUE, completed_at = '" . date('Y-m-d') . "' where id = $hid and konto_id = $cid", __FILE__ . " linje " . __LINE__);
 				crm_notif_drop('crm:fu:' . $hid);
 				$closed[] = $hid;
 			}
@@ -1176,7 +1262,7 @@ function crm_action(string $action, array $in): array
 				if ((int) $hid > 0) $ids[] = (int) $hid;
 			}
 			if ($ids) {
-				db_modify("update historik set completed = FALSE where id in (" . crm_ids($ids) . ") and kontaktes is not null", __FILE__ . " linje " . __LINE__);
+				db_modify("update historik set completed = FALSE, completed_at = NULL where id in (" . crm_ids($ids) . ") and kontaktes is not null", __FILE__ . " linje " . __LINE__);
 				$q = db_select("select distinct konto_id from historik where id in (" . crm_ids($ids) . ")", __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) crm_sync_customer((int) $r['konto_id']);
 			}
@@ -1192,7 +1278,7 @@ function crm_action(string $action, array $in): array
 				$cids[(int) $r['konto_id']] = true;
 			}
 			if ($ids) {
-				db_modify("update historik set completed = TRUE where id in (" . crm_ids($ids) . ")", __FILE__ . " linje " . __LINE__);
+				db_modify("update historik set completed = TRUE, completed_at = '" . date('Y-m-d') . "' where id in (" . crm_ids($ids) . ")", __FILE__ . " linje " . __LINE__);
 				foreach ($ids as $hid) crm_notif_drop('crm:fu:' . $hid);
 				foreach (array_keys($cids) as $c) crm_sync_customer($c);
 				if (function_exists('audit_log')) {
@@ -1204,13 +1290,112 @@ function crm_action(string $action, array $in): array
 		case 'update_entry':
 			$hid = (int) $in['id'];
 			$type = in_array($in['type'] ?? '', array('note', 'opkald', 'mail', 'moede'), true) ? $in['type'] : 'note';
-			db_modify("update historik set notat = '" . crm_in($in['note'] ?? '') . "', type = '$type', kontakt_id = " . (int) ($in['to'] ?? 0) . " where id = $hid", __FILE__ . " linje " . __LINE__);
+			$set = "notat = '" . crm_in($in['note'] ?? '') . "', type = '$type', kontakt_id = " . (int) ($in['to'] ?? 0);
+			$old = db_fetch_array(db_select("select konto_id, ansat_id, kontaktes, completed from historik where id = $hid", __FILE__ . " linje " . __LINE__));
+			if (!$old) return array('error' => 'gone');
+			// review R15: an open follow-up can get another owner, another date, or no date (the note stays, the reminder goes)
+			$newOwner = isset($in['owner']) ? (int) $in['owner'] : (int) $old['ansat_id'];
+			if (isset($in['owner']) && $newOwner > 0) $set .= ", ansat_id = $newOwner";
+			$newDue = null;
+			if (array_key_exists('due', $in)) {
+				$newDue = crm_date($in['due'] ?? '');
+				$set .= $newDue ? ", kontaktes = '$newDue', completed = " . (crm_bool($old['completed']) ? 'TRUE' : 'FALSE') : ", kontaktes = NULL, completed = NULL, completed_at = NULL";
+			}
+			db_modify("update historik set $set where id = $hid", __FILE__ . " linje " . __LINE__);
+			crm_sync_customer((int) $old['konto_id']);
+			$due = array_key_exists('due', $in) ? $newDue : ($old['kontaktes'] ? (string) $old['kontaktes'] : null);
+			if (!$due) {
+				crm_notif_drop('crm:fu:' . $hid);
+			} elseif ($newOwner > 0 && $newOwner !== (int) $old['ansat_id'] && $newOwner !== $me) {
+				crm_notify_followup($hid, (int) $old['konto_id'], $newOwner, $due, (string) ($in['note'] ?? ''));
+			}
 			return array('id' => $hid);
+
+		case 'set_owner':
+			// review R15: the customer's responsible employee (adresser.kontoansvarlig), from the drawer
+			$cid = (int) $in['cid'];
+			$to = (int) ($in['owner'] ?? 0);
+			$r = db_fetch_array(db_select("select kontoansvarlig from adresser where id = $cid and art = 'D'", __FILE__ . " linje " . __LINE__));
+			if (!$r) return array('error' => 'customer');
+			db_modify("update adresser set kontoansvarlig = " . ($to > 0 ? $to : 'NULL') . " where id = $cid", __FILE__ . " linje " . __LINE__);
+			$from = (int) $r['kontoansvarlig'];
+			$hid = crm_insert_entry($cid, 'status', $me, 0, crm_t('Ansvarlig: %s → %s', $from ? crm_employee_name($from) : crm_t('ingen'), $to ? crm_employee_name($to) : crm_t('ingen')), null);
+			return array('from' => $from, 'hid' => $hid);
+
+		case 'unset_owner':
+			// undo of set_owner: the old responsible back and the logged line removed
+			$cid = (int) $in['cid'];
+			$to = (int) ($in['owner'] ?? 0);
+			db_modify("update adresser set kontoansvarlig = " . ($to > 0 ? $to : 'NULL') . " where id = $cid and art = 'D'", __FILE__ . " linje " . __LINE__);
+			if (!empty($in['remove'])) db_modify("delete from historik where id = " . (int) $in['remove'] . " and konto_id = $cid and type = 'status'", __FILE__ . " linje " . __LINE__);
+			return array('ok' => 1);
+
+		case 'move_followups':
+			// review R15: open follow-ups handed to another employee (suggested after a change of responsible); old owners returned for undo
+			$cid = (int) $in['cid'];
+			$to = (int) ($in['owner'] ?? 0);
+			if ($to <= 0) return array('error' => 'fields');
+			$moved = array();
+			foreach ((array) ($in['ids'] ?? array()) as $hid) {
+				$hid = (int) $hid;
+				$r = db_fetch_array(db_select("select ansat_id, kontaktes, notat from historik where id = $hid and konto_id = $cid", __FILE__ . " linje " . __LINE__));
+				if (!$r) continue;
+				db_modify("update historik set ansat_id = $to where id = $hid", __FILE__ . " linje " . __LINE__);
+				$moved[] = array('id' => $hid, 'from' => (int) $r['ansat_id']);
+				if ($to !== $me && $r['kontaktes']) crm_notify_followup($hid, $cid, $to, (string) $r['kontaktes'], crm_out($r['notat']));
+			}
+			return array('moved' => $moved);
+
+		case 'unmove_followups':
+			foreach ((array) ($in['moved'] ?? array()) as $m) {
+				$m = (array) $m;
+				$hid = (int) ($m['id'] ?? 0);
+				if ($hid <= 0) continue;
+				db_modify("update historik set ansat_id = " . (int) ($m['from'] ?? 0) . " where id = $hid", __FILE__ . " linje " . __LINE__);
+				crm_notif_drop('crm:fu:' . $hid);
+			}
+			return array('ok' => 1);
+
+		case 'link_doc':
+			// review R31: an existing quote/order of the customer attached to one of its deals that has none (undo: unlink_doc)
+			$cid = (int) $in['cid'];
+			$id = (int) $in['deal'];
+			$oid = (int) $in['doc'];
+			$o = db_fetch_array(db_select("select ordrenr, status from ordrer where id = $oid and konto_id = $cid and art = 'DO'", __FILE__ . " linje " . __LINE__));
+			$d = db_fetch_array(db_select("select title, ordre_id from crm_deals where id = $id and konto_id = $cid", __FILE__ . " linje " . __LINE__));
+			if (!$o || !$d) return array('error' => 'fields');
+			if ((int) $d['ordre_id'] > 0) return array('error' => 'linked');
+			db_modify("update crm_deals set ordre_id = $oid where id = $id", __FILE__ . " linje " . __LINE__);
+			$doc = crm_t((int) $o['status'] === 0 ? 'Tilbud %s' : 'Ordre %s', (int) $o['ordrenr']);
+			$hid = crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel »%s«: %s', crm_out($d['title']), $doc), null);
+			return array('id' => $id, 'hid' => $hid);
+
+		case 'unlink_doc':
+			$cid = (int) $in['cid'];
+			$id = (int) $in['deal'];
+			db_modify("update crm_deals set ordre_id = NULL where id = $id and konto_id = $cid", __FILE__ . " linje " . __LINE__);
+			if (!empty($in['remove'])) db_modify("delete from historik where id = " . (int) $in['remove'] . " and konto_id = $cid and type = 'deal'", __FILE__ . " linje " . __LINE__);
+			return array('id' => $id);
+
+		case 'starter':
+			// review R45: a suggested sales board for a company with no status groups yet - only on the user's click, never by itself
+			if (crm_groups()) return array('error' => 'exists');
+			$names = array(crm_t('Henvendelse'), crm_t('Tilbud sendt'), crm_t('Forhandling'), crm_t('Kunde'), crm_t('Tabt'));
+			$list = array();
+			foreach (crm_statuses() as $s) $list[] = array('id' => $s['id'], 'n' => $s['n']);
+			foreach ($names as $i => $n) $list[] = array('id' => 'new:' . ($i + 1), 'n' => $n);
+			$map = crm_save_statuses($list);
+			if (is_string($map)) return array('error' => $map);
+			$s = implode(chr(9), array($map['new:1'], $map['new:2'], $map['new:3']));
+			db_modify("insert into grupper (art, beskrivelse, box1, box2, box3, box4, kodenr) values ('SKN', 'Status knapper (CRM)', '" . crm_in(crm_t('Salg')) . "', '$s', '" . $map['new:4'] . "', '" . $map['new:5'] . "', '1')", __FILE__ . " linje " . __LINE__);
+			update_settings_value("antalStatusKnapper", "crmvisning", 1, "Number of status buttons");
+			if (function_exists('audit_log')) audit_log('crm_starter', crm_t('Salg') . ': ' . implode(' > ', $names));
+			return array('n' => 1);
 
 		case 'toggle_done':
 			$hid = (int) $in['id'];
 			$done = !empty($in['done']);
-			db_modify("update historik set completed = " . ($done ? 'TRUE' : 'FALSE') . " where id = $hid", __FILE__ . " linje " . __LINE__);
+			db_modify("update historik set completed = " . ($done ? "TRUE, completed_at = '" . date('Y-m-d') . "'" : 'FALSE, completed_at = NULL') . " where id = $hid", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select konto_id from historik where id = $hid", __FILE__ . " linje " . __LINE__));
 			if ($r) crm_sync_customer((int) $r['konto_id']);
 			if ($done) crm_notif_drop('crm:fu:' . $hid);
@@ -1359,7 +1544,7 @@ function crm_action(string $action, array $in): array
 			$cid = (int) $in['id'];
 			$c = crm_customers("a.id = $cid");
 			if (!isset($c[$cid])) return array('error' => 'customer');
-			return array('customer' => $c[$cid], 'hist' => crm_history(array($cid)));
+			return array('customer' => $c[$cid], 'hist' => crm_history(array($cid), true), 'deals' => crm_deals($cid));
 
 		case 'save_groups':
 			// statuses first (new ones get their number), then the groups that may point at them
@@ -1396,6 +1581,7 @@ function crm_action(string $action, array $in): array
 			}
 			db_modify("delete from grupper where art = 'SKN' and id not in (" . crm_ids($keep) . ")", __FILE__ . " linje " . __LINE__);
 			update_settings_value("antalStatusKnapper", "crmvisning", count($keep), "Number of status buttons");
+			if (function_exists('audit_log')) audit_log('crm_groups', crm_t('Statusser og statusgrupper er gemt') . ' (' . count($keep) . ')');
 			return array('n' => count($keep));
 	}
 	return array('error' => 'action');

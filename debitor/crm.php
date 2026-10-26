@@ -46,7 +46,7 @@ include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/crmFunctions.php");
 
-if (!tbl_exists('crm_deals') || !crm_col_exists('historik', 'type') || !crm_col_exists('crm_deals', 'ordre_id') || !crm_col_exists('historik', 'author_id')) {
+if (!tbl_exists('crm_deals') || !crm_col_exists('historik', 'type') || !crm_col_exists('crm_deals', 'ordre_id') || !crm_col_exists('historik', 'completed_at')) {
 	crm_ensure_schema(); // first use before the next login has run includes/betweenUpdates.php
 }
 if (empty($_SESSION['csrf_token'])) {
@@ -58,7 +58,7 @@ $data = crm_dataset(isset($_GET['drawer']) && ctype_digit((string) $_GET['drawer
 $data['csrf'] = (string) $_SESSION['csrf_token'];
 $data['api'] = 'crmApi.php';
 ?>
-<link rel="stylesheet" href="../css/crm.css?v=13">
+<link rel="stylesheet" href="../css/crm.css?v=14">
 <style>:root{--btn:<?= htmlspecialchars((string) $buttonColor, ENT_QUOTES) ?>;--btn-text:<?= htmlspecialchars((string) $buttonTxtColor, ENT_QUOTES) ?>}</style>
 <div class="crm" id="crm">
   <div class="head">
@@ -78,9 +78,11 @@ $data['api'] = 'crmApi.php';
           <div class="ph"><?= crm_h('Tilpas CRM') ?></div>
           <div class="pi"><?= crm_h('Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.') ?></div>
           <h4><?= crm_h('Statusser') ?></h4>
+          <div class="pi"><?= crm_h('Statusserne er de samme som feltet Status på debitorkortet. Rækkefølgen her er rækkefølgen på tavlen.') ?></div>
           <div id="stList"></div>
           <button type="button" class="paddl" id="stAdd"><?= crm_h('+ Tilføj status') ?></button>
           <h4><?= crm_h('Statusgrupper') ?></h4>
+          <div class="pi"><?= crm_h('Hver gruppe bliver en tavle under Pipeline. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.') ?></div>
           <div id="sgList"></div>
           <button type="button" class="paddl" id="sgAdd"><?= crm_h('+ Tilføj statusgruppe') ?></button>
           <div class="pf"><span></span><button id="sgSave" class="pbtn"><?= crm_h('Gem') ?></button></div>
@@ -101,5 +103,5 @@ $data['api'] = 'crmApi.php';
 <div class="scrim" id="scrim"><div class="dlg" id="dlg" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastX"></button><button id="toastU"><?= crm_h('Fortryd') ?></button></div>
 <script type="application/json" id="crm-data"><?= json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
-<script src="../javascript/crm.js?v=15" charset="utf-8"></script>
+<script src="../javascript/crm.js?v=16" charset="utf-8"></script>
 </body></html>

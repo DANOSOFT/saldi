@@ -7073,3 +7073,41 @@
 7570	Mandag	Monday	Mandag
 7571	Handel »%s« slettet	Deal “%s” deleted	Avtale «%s» slettet
 7572	Genåbn	Reopen	Gjenåpne
+7573	%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	%s customers have a status that is not in a status group and are therefore not shown in the CRM.	%s kunder har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
+7574	Ansvarlig: %s → %s	Responsible: %s → %s	Ansvarlig: %s → %s
+7575	Der er ingen noter eller opkald endnu.	There are no notes or calls yet.	Det er ingen notater eller samtaler ennå.
+7576	Du kan se CRM, men ændringer kræver skriveadgang til Debitor → Konti.	You can view the CRM, but changes require write access to Customers → Accounts.	Du kan se CRM, men endringer krever skrivetilgang til Debitor → Konti.
+7577	Faktureret – markér vundet?	Invoiced – mark as won?	Fakturert – merk som vunnet?
+7578	Flyt %s åbne opfølgninger til %s	Move %s open follow-ups to %s	Flytt %s åpne oppfølginger til %s
+7579	Flyt ned	Move down	Flytt ned
+7580	Flyt op	Move up	Flytt opp
+7581	Forhandling	Negotiation	Forhandling
+7582	Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.	Suggestion: a sales board with Enquiry › Quote sent › Negotiation, where Won gives the status Customer and Lost gives the status Lost.	Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, der Vunnet gir status Kunde og Tapt gir status Tapt.
+7583	Henvendelse	Enquiry	Henvendelse
+7584	Hver gruppe bliver en tavle under Pipeline. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.	Each group becomes a board under Pipeline. Won → and Lost → are the status the customer gets when its card is dragged to Won or Lost.	Hver gruppe blir en tavle under Pipeline. Vunnet → og Tapt → er statusen kunden får når kortet dras til Vunnet eller Tapt.
+7585	Hvilken handel gælder ordren?	Which deal is the order for?	Hvilken avtale gjelder ordren?
+7586	Hvilken handel gælder tilbuddet?	Which deal is the quote for?	Hvilken avtale gjelder tilbudet?
+7587	Ingen handel	No deal	Ingen avtale
+7588	Ingen kontakt endnu	No contact yet	Ingen kontakt ennå
+7589	Ingen opfølgninger matcher »%s«.	No follow-ups match “%s”.	Ingen oppfølginger samsvarer med «%s».
+7590	Ingen statusgrupper endnu.	No status groups yet.	Ingen statusgrupper ennå.
+7591	Knyt til handel	Link to deal	Knytt til avtale
+7592	Knyttet til handlen »%s«	Linked to the deal “%s”	Knyttet til avtalen «%s»
+7593	Luk	Close	Lukk
+7594	Opfølgningerne er flyttet	The follow-ups have been moved	Oppfølgingene er flyttet
+7595	Opsæt statusgrupper	Set up status groups	Sett opp statusgrupper
+7596	Opsæt statusser og statusgrupper under tandhjulet.	Set up statuses and status groups under the gear.	Sett opp statuser og statusgrupper under tannhjulet.
+7597	Salg	Sales	Salg
+7598	Salgstavlen er oprettet	The sales board has been created	Salgstavlen er opprettet
+7599	Seneste kontakt %s	Last contact %s	Siste kontakt %s
+7600	Skjul %s kunder uden opfølgning	Hide %s customers without a follow-up	Skjul %s kunder uten oppfølging
+7601	Start med en salgstavle	Start with a sales board	Start med en salgstavle
+7602	Statusserne er de samme som feltet Status på debitorkortet. Rækkefølgen her er rækkefølgen på tavlen.	The statuses are the same as the Status field on the customer card. The order here is the order on the board.	Statusene er de samme som feltet Status på debitorkortet. Rekkefølgen her er rekkefølgen på tavlen.
+7603	Til	To	Til
+7604	Tilbud sendt	Quote sent	Tilbud sendt
+7605	Tøm feltet for at fjerne påmindelsen – noten bliver stående	Clear the field to remove the reminder – the note stays	Tøm feltet for å fjerne påminnelsen – notatet blir stående
+7606	Vis %s kunder uden opfølgning	Show %s customers without a follow-up	Vis %s kunder uten oppfølging
+7607	Vis alle	Show all	Vis alle
+7608	Viser de 10 nyeste.	Showing the 10 newest.	Viser de 10 nyeste.
+7609	ingen	none	ingen
+7610	Åbn tandhjulet	Open the gear	Åpne tannhjulet

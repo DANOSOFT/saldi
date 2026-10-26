@@ -894,7 +894,16 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	// 20261024 ASR review R68: only for a user who may write in the CRM (Debitor -> Konti), and only a deal that has no document yet.
 	if ($id && isset($_GET['crm_deal']) && ctype_digit((string) $_GET['crm_deal']) && tbl_exists('crm_deals')
 		&& (!function_exists('perm_can') || perm_can('debitor.konti', 'write'))) {
-		db_modify("update crm_deals set ordre_id = '" . (int) $id . "' where id = '" . (int) $_GET['crm_deal'] . "' and konto_id = '" . (int) $konto_id . "' and (ordre_id is null or ordre_id = 0)", __FILE__ . " linje " . __LINE__);
+		$crmDeal = (int) $_GET['crm_deal'];
+		$crmD = db_fetch_array(db_select("select title from crm_deals where id = '$crmDeal' and konto_id = '" . (int) $konto_id . "' and state = 'open' and (ordre_id is null or ordre_id = 0)", __FILE__ . " linje " . __LINE__));
+		if ($crmD) {
+			db_modify("update crm_deals set ordre_id = '" . (int) $id . "' where id = '$crmDeal'", __FILE__ . " linje " . __LINE__);
+			// 20261026 ASR the deal's history says which quote/order was made for it (CRM review R32)
+			include_once(__DIR__ . "/../includes/crmFunctions.php");
+			if (function_exists('crm_insert_entry')) {
+				crm_insert_entry((int) $konto_id, 'deal', (int) $ansat_id, 0, crm_t('Handel »%s«: %s', crm_out($crmD['title']), crm_t($newOrderStatus === '1' ? 'Ordre %s' : 'Tilbud %s', (int) $ordrenr)), null);
+			}
+		}
 	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.

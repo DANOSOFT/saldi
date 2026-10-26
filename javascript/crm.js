@@ -34,13 +34,31 @@ function load(d) {
 	});
 	C = DATA.customers; H = DATA.hist; DEALS = DATA.deals;
 	EMP = {}; DATA.emps.forEach(e => { EMP[e.id] = e; });
-	// a history fetched for a customer outside the loaded set (openOutside) is kept across re-loads
-	Object.keys(EXTRA_H).forEach(cid => { if (!C.some(c => c.id === +cid)) H = H.concat(EXTRA_H[cid]); });
+	mergeFull();
 	// a group deleted meanwhile (by this or another user) must not leave the lists pointing at it (R46)
 	if (S.grp !== 'all' && !GROUPS.some(g => String(g.id) === String(S.grp))) { S.grp = 'all'; S.stF = 'all'; }
 	if (S.bgrp && !GROUPS.some(g => String(g.id) === String(S.bgrp))) S.bgrp = GROUPS.length ? GROUPS[0].id : 0;
 }
-const EXTRA_H = {};
+// One customer's whole history and deals, fetched when its drawer opens (R55) - or the customer itself when it is
+// outside the loaded set (R53, R77). Kept across re-loads: rows older than the page's window, and everything of a
+// customer the dataset does not hold.
+const FULL = {};
+function mergeFull() {
+	Object.keys(FULL).forEach(k => {
+		const cid = +k, f = FULL[k], inC = C.some(c => c.id === cid);
+		if (!inC) EXTRA[cid] = f.customer;
+		const haveH = new Set(H.filter(h => h.cid === cid).map(h => h.id));
+		f.hist.forEach(h => { if (!haveH.has(h.id) && (!inC || h.date < DATA.histFrom)) H.push(h); });
+		const haveD = new Set(DEALS.filter(d => d.cid === cid).map(d => d.id));
+		f.deals.forEach(d => { if (!haveD.has(d.id) && (!inC || (d.state !== 'open' && (d.closed || '') < DATA.dealFrom))) DEALS.push(d); });
+	});
+}
+async function refreshFull(cid) {
+	const r = await apiRead('customer', {id: cid});
+	if (!r) return false;
+	FULL[cid] = r; mergeFull();
+	return true;
+}
 
 /* ================= hjælpere ================= */
 const $ = s => document.querySelector(s);
@@ -61,7 +79,8 @@ const MO = [...Array(12).keys()].map(m => nm({month: 'short'}, new Date(2026, m,
 const MOL = [...Array(12).keys()].map(m => nm({month: 'long'}, new Date(2026, m, 1)));
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const DOT = LOC.indexOf('en') === 0 ? '' : '.';   // 17. okt (da/no) / 17 Oct (en)
-const fmt = k => { const d = fromKey(k); return `${WD[d.getDay()]} ${d.getDate()}${DOT} ${MO[d.getMonth()]}`; };
+// the year is added when the date is not in the current year, so a follow-up from 2023 does not look current (R19)
+const fmt = k => { const d = fromKey(k); return `${WD[d.getDay()]} ${d.getDate()}${DOT} ${MO[d.getMonth()]}` + (TODAY && d.getFullYear() !== TODAY.getFullYear() ? ' ' + d.getFullYear() : ''); };
 const fmtY = k => { if (!k) return ''; const d = fromKey(k); return `${d.getDate()}${DOT} ${MO[d.getMonth()]} ${d.getFullYear()}`; };
 const rel = k => { const n = diff(k); if (n === 0) return t('i dag'); if (n === 1) return t('i morgen'); if (n === -1) return t('i går');
 	if (n < 0) return t('for %s dage siden', -n); return n < 300 ? fmt(k) : fmtY(k); };
@@ -102,7 +121,7 @@ const isWon = id => GROUPS.some(g => g.won === id);
 
 /* ================= tilstand ================= */
 const S = {tab: 'follow', mine: localStorage.getItem('crm-mine') === '1', grp: 'all', q: '', stF: 'all', calMode: 'month', calY: 0, calM: 0,
-	weekStart: null, showDone: false, drawer: null, dtab: 'tl', bgrp: null};
+	weekStart: null, showDone: false, showNofu: false, noFu: false, drawer: null, dtab: 'tl', bgrp: null};
 
 /* The page's place (tab, board group, open customer and its tab) lives in the query string, so a back link or the
    browser's Back button lands where the user was. A returside without '?' would lose to the session's nav stack
@@ -187,6 +206,7 @@ async function api(action, payload) {
 			throw new Error(j.error);
 		}
 		if (j.data && my > applied) { applied = my; load(j.data); redraw(); }
+		if (S.drawer && FULL[S.drawer]) { const cid = S.drawer; refreshFull(cid).then(ok => { if (ok && S.drawer === cid) { mergeFull(); redraw(); } }); }
 		return j.result;
 	} finally { busy = false; }
 }
@@ -200,11 +220,8 @@ async function apiRead(action, payload) {
 }
 // Open the drawer on a customer outside the loaded set: fetch the customer and its history first (R53, R77).
 async function openOutside(cid, tab) {
-	if (cust(cid) && (C.some(c => c.id === cid) || EXTRA_H[cid])) { openDrawer(cid, tab); return; }
-	const r = await apiRead('customer', {id: cid});
-	if (!r) { toast(t('Kunne ikke gemme. Prøv igen.')); return; }
-	EXTRA[cid] = r.customer; EXTRA_H[cid] = r.hist;
-	H = H.filter(h => h.cid !== cid).concat(r.hist);
+	if (cust(cid) && (C.some(c => c.id === cid) || FULL[cid])) { openDrawer(cid, tab); return; }
+	if (!(await refreshFull(cid))) { toast(t('Kunne ikke gemme. Prøv igen.')); return; }
 	openDrawer(cid, tab);
 }
 
@@ -230,7 +247,10 @@ function custMatch(c) {
 const srvSearchBtn = () => S.q ? `<br><button type="button" class="linkbtn" data-srvsearch="1">${t('Søg blandt alle kunder')}</button>` : '';
 const follows = incDone => H.filter(h => h.due && (incDone || !h.done) && custOk(cust(h.cid)) && (!S.mine || h.by === ME) && match(h));
 const openFor = cid => H.filter(h => h.cid === cid && h.due && !h.done).sort((a, b) => a.due.localeCompare(b.due));
-const lastContact = cid => H.filter(h => h.cid === cid && h.type !== 'status' && h.type !== 'deal').map(h => h.date).sort().pop();
+const lastContact = cid => { const c = cust(cid); return H.filter(h => h.cid === cid && h.type !== 'status' && h.type !== 'deal').map(h => h.date).concat(c && c.last ? [c.last] : []).sort().pop(); };
+// customers on a status group's board (not on a won/lost status) without an open follow-up (R14)
+const noFollowUp = () => C.filter(c => GROUPS.some(g => g.s.includes(c.st)) && !isWon(c.st) && !isLost(c.st) && custOk(c) && (!S.mine || c.own === ME) && custMatch(c) && !openFor(c.id).length);
+const NCOLS = '28px minmax(170px,1.25fr) minmax(160px,1fr) 130px 118px 170px';
 
 /* ================= faner ================= */
 function renderTabs() {
@@ -271,15 +291,27 @@ function followRow(h, done) {
 function renderFollow() {
 	const list = follows(false).sort((a, b) => a.due.localeCompare(b.due) || a.cid - b.cid);
 	let html = `<div class="row thead" style="--cols:${FCOLS}"><span></span><span>${t('Kunde · kontakt')}</span><span>${t('Opfølgning')}</span><span>${t('Status')}</span><span>${t('Ansvarlig')}</span><span>${t('Dato')}</span><span></span></div>`;
-	if (!list.length) html += `<div class="empty"><b>${t('Ingen åbne opfølgninger')}</b>${S.q || S.mine || S.grp !== 'all' ? t('Prøv at fjerne filtrene.') + srvSearchBtn() : t('Opret en med »Ny opfølgning« eller fra en kunde.')}</div>`;
+	if (!list.length) html += `<div class="empty"><b>${t('Ingen åbne opfølgninger')}</b>${S.mine || S.grp !== 'all' ? t('Prøv at fjerne filtrene.') : S.q ? t('Ingen opfølgninger matcher »%s«.', esc(S.q)) + srvSearchBtn() : DATA.canWrite ? t('Opret en med »Ny opfølgning« eller fra en kunde.') : ''}</div>`;
 	BUCKETS.forEach((b, i) => {
 		const rows = list.filter(h => bucket(h.due) === i);
 		if (rows.length) html += `<div class="grp ${i === 0 ? 'late' : ''}">${b}<span class="n">${rows.length}</span></div>` + rows.map(h => followRow(h, false)).join('');
 	});
-	const done = follows(true).filter(h => h.done && diff(h.due) >= -14).sort((a, b) => b.due.localeCompare(a.due));
+	// "done in the last 14 days" by the day it was marked done, so a long-overdue call ticked today is found again (R16)
+	const doneDay = h => h.doneAt || h.due;
+	const done = follows(true).filter(h => h.done && diff(doneDay(h)) >= -14).sort((a, b) => doneDay(b).localeCompare(doneDay(a)));
 	if (done.length) {
 		html += `<button class="showdone" id="showDone">${S.showDone ? t('Skjul %s gjort de sidste 14 dage', done.length) : t('Vis %s gjort de sidste 14 dage', done.length)}</button>`;
 		if (S.showDone) html += `<div class="grp">${t('Gjort')}<span class="n">${done.length}</span></div>` + done.map(h => followRow(h, true)).join('');
+	}
+	const nofu = noFollowUp().sort((a, b) => (lastContact(a.id) || '').localeCompare(lastContact(b.id) || '') || a.n.localeCompare(b.n, LOC));
+	if (nofu.length) {
+		html += `<button class="showdone" id="showNofu">${S.showNofu ? t('Skjul %s kunder uden opfølgning', nofu.length) : t('Vis %s kunder uden opfølgning', nofu.length)}</button>`;
+		if (S.showNofu) html += nofu.map(c => { const lc = lastContact(c.id); return `<div class="row body-row" style="--cols:${NCOLS}" tabindex="0" data-open="${c.id}"><span></span>
+			<span class="cust"><b>${esc(c.n)}</b>${c.ppl.length ? `<small>${esc(c.ppl[0].n)}</small>` : ''}</span>
+			<span class="c3">${lc ? t('Seneste kontakt %s', rel(lc)) : t('Ingen kontakt endnu')}</span>
+			<span class="dot c2" style="--c:${stColor(c.st)}">${esc(stName(c.st))}</span>
+			<span class="who ${c.own === ME ? 'me' : ''}">${esc(empName(c.own))}</span>
+			<span class="acts" style="opacity:1">${DATA.canWrite ? `<button class="mini" data-fu7="${c.id}">${SV.clock}${t('Opfølgning om 1 uge')}</button>` : ''}</span></div>`; }).join('');
 	}
 	$('#v-follow').innerHTML = html;
 }
@@ -304,9 +336,10 @@ function cardSort(a, b) {
 function custCard(c) {
 	const nx = openFor(c.id)[0], n = nx ? diff(nx.due) : null, age = ageDays(c.stSince);
 	const deals = openDeals(c.id), sum = deals.reduce((a, d) => a + d.v, 0);
-	return `<button class="card" draggable="${DATA.canWrite}" data-card="${c.id}" data-open="${c.id}">
+	const invoiced = deals.some(d => d.doc && d.doc.st >= 3);   // R32: an invoiced deal still open
+	return `<button class="card" draggable="${DATA.canWrite}" data-card="${c.id}" data-open="${c.id}"${invoiced ? ' data-deal="1"' : ''}>
 		<div class="l1"><b>${esc(c.n)}</b>${sum ? `<span class="val" title="${deals.map(d => esc(d.t)).join(', ')}">${num(sum)}</span>` : ''}</div>
-		<div class="l2">${deals.length ? (deals.length === 1 ? esc(deals[0].t) : t('%s åbne handler', deals.length)) : c.ppl.length ? esc(c.ppl[0].n) + (c.ppl.length > 1 ? ` +${c.ppl.length - 1}` : '') : esc(c.by || c.nr)}</div>
+		<div class="l2">${invoiced ? `<span class="inv">${t('Faktureret – markér vundet?')}</span>` : deals.length ? (deals.length === 1 ? esc(deals[0].t) : t('%s åbne handler', deals.length)) : c.ppl.length ? esc(c.ppl[0].n) + (c.ppl.length > 1 ? ` +${c.ppl.length - 1}` : '') : esc(c.by || c.nr)}</div>
 		<div class="l3">${nx ? `<span class="due ${n < 0 ? 'late' : n === 0 ? 'today' : ''}" title="${esc(nx.note)}">${n < -1 ? fmt(nx.due) : rel(nx.due)}</span>` : `<span class="nofu">${t('Ingen opfølgning')}</span>`}
 			<span>${esc(empFirst(c.own))}</span>
 			<span class="age ${age > 14 ? 'stale' : ''}" title="${esc(t('I %s siden %s', stName(c.st), fmtY(c.stSince)))}">${ageTxt(age)}</span></div>
@@ -314,15 +347,16 @@ function custCard(c) {
 }
 function renderPipe() {
 	const g = boardGroup();
+	const starter = !GROUPS.length && DATA.canWrite ? `<button type="button" class="linkbtn" data-starter="1">${t('Start med en salgstavle')}</button> · <button type="button" class="linkbtn" data-opengear="1">${t('Åbn tandhjulet')}</button>` : '';
 	if (!g.s.length) {
-		$('#v-pipe').innerHTML = `<div class="empty"><b>${t('Ingen statusser at vise')}</b>${t('Kundestatusser oprettes på debitorkortet (feltet Status). Statusgrupper sættes op under tandhjulet.')}</div>`;
+		$('#v-pipe').innerHTML = `<div class="empty"><b>${t('Ingen statusser at vise')}</b>${t('Opsæt statusser og statusgrupper under tandhjulet.')}${starter ? `<br>${t('Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.')}<br>${starter}` : ''}</div>`;
 		return;
 	}
-	const base = C.filter(c => g.s.includes(c.st) && (!S.mine || c.own === ME) && custMatch(c));
+	const base = C.filter(c => g.s.includes(c.st) && (!S.mine || c.own === ME) && custMatch(c) && (!S.noFu || !openFor(c.id).length));
 	const late = base.filter(c => { const nx = openFor(c.id)[0]; return nx && diff(nx.due) < 0; }).length;
 	const none = base.filter(c => !openFor(c.id).length).length;
 	const dealSum = base.reduce((a, c) => a + openDeals(c.id).reduce((x, d) => x + d.v, 0), 0);
-	const sum = t('%s kunder', `<b>${base.length}</b>`) + (dealSum ? ' · ' + t('åbne handler %s', `<b>${kr(dealSum)}</b>`) : '') + (late ? ` · <span class="late">${t('%s med forsinket opfølgning', late)}</span>` : '') + (none ? ' · ' + t('%s uden opfølgning', none) : '');
+	const sum = t('%s kunder', `<b>${base.length}</b>`) + (dealSum ? ' · ' + t('åbne handler %s', `<b>${kr(dealSum)}</b>`) : '') + (late ? ` · <span class="late">${t('%s med forsinket opfølgning', late)}</span>` : '') + (none || S.noFu ? ` · <button type="button" class="linkbtn" data-nofu="1">${S.noFu ? t('Vis alle') : t('%s uden opfølgning', none)}</button>` : '');
 	const cols = g.s.map(id => {
 		const list = base.filter(c => c.st === id).sort(cardSort);
 		const colSum = list.reduce((a, c) => a + openDeals(c.id).reduce((x, d) => x + d.v, 0), 0);
@@ -332,6 +366,7 @@ function renderPipe() {
 			${GROUPS.length ? `<div class="seg" role="tablist" aria-label="${t('Statusgruppe')}">${GROUPS.map(x => `<button data-bgrp="${x.id}" class="${x.id === g.id ? 'on' : ''}">${esc(x.n)}</button>`).join('')}</div>` : ''}
 			<span class="psum">${sum}</span>
 		</div>
+		${starter ? `<div class="note-bar">${t('Ingen statusgrupper endnu.')} ${t('Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.')} ${starter}</div>` : ''}
 		<div class="board">${cols}</div>
 		<div class="ends">${g.won ? `<div class="end won" data-end="won">${t('Vundet')}<small>→ ${esc(stName(g.won))}</small></div>` : ''}${g.lost ? `<div class="end lost" data-end="lost">${t('Tabt')}<small>→ ${esc(stName(g.lost))}</small></div>` : ''}</div>`;
 }
@@ -422,7 +457,7 @@ function itemHtml(h, withCust, actions) {
 	let fu = '';
 	if (h.due) {
 		const n = diff(h.due);
-		fu = h.done ? `<span class="fu done">${SV.check}${t('Opfølgning %s · gjort', fmt(h.due))}</span>`
+		fu = h.done ? (actions && DATA.canWrite ? `<button type="button" class="fu done linkfu" data-tick="${h.id}" title="${t('Markér som ikke gjort')}">${SV.check}${t('Opfølgning %s · gjort', fmt(h.due))}</button>` : `<span class="fu done">${SV.check}${t('Opfølgning %s · gjort', fmt(h.due))}</span>`)
 			: `<span class="fu ${n < 0 ? 'late' : ''}">${SV.clock}${t('Opfølgning %s', rel(h.due))} · ${esc(empLow(h.by))}</span>`;
 	}
 	const sys = h.type === 'status' || h.type === 'deal';
@@ -431,8 +466,8 @@ function itemHtml(h, withCust, actions) {
 	return `<div class="item" data-h="${h.id}">
 		<span class="ico" title="${TYPE_N[h.type] || TYPE_N.note}">${ICON[h.type] || ICON.note}</span>
 		<div><div class="top">${TYPE_N[h.type] || TYPE_N.note} · ${who}${withCust ? ` · <a href="#" data-open="${c.id}">${esc(c.n)}</a>` : ''}</div>
-			<div class="txt">${esc(h.note)}</div>${fu}${h.file ? `<span class="attach">${SV.clip}${esc(h.file)}</span>` : ''}</div>
-		<div class="stack"><time title="${fmtY(h.date)}">${diff(h.date) > -7 ? rel(h.date) : fmtY(h.date)}</time>${actions && DATA.canWrite ? `<span class="ia">${sys ? '' : `<button class="mini" data-edit="${h.id}" title="${t('Ret')}">${SV.edit}</button>`}<button class="mini" data-del="${h.id}" title="${t('Slet')}">${SV.trash}</button></span>` : ''}</div>
+			<div class="txt">${esc(h.note)}</div>${fu}${h.file ? `<a class="attach" target="_blank" href="../includes/bilag.php?kilde=historik&filnavn=${encodeURIComponent(h.file)}&kilde_id=${h.cid}&bilag_id=${h.id}">${SV.clip}${esc(h.file)}</a>` : ''}</div>
+		<div class="stack"><time title="${fmtY(h.date)}">${diff(h.date) > -7 ? rel(h.date) : fmtY(h.date)}</time>${actions && DATA.canWrite && !sys ? `<span class="ia"><button class="mini" data-edit="${h.id}" title="${t('Ret')}">${SV.edit}</button><button class="mini" data-del="${h.id}" title="${t('Slet')}">${SV.trash}</button></span>` : ''}</div>
 	</div>`;
 }
 function renderAct() {
@@ -443,7 +478,7 @@ function renderAct() {
 			html += `<div class="fday">${n === 0 ? t('I dag') : n === -1 ? t('I går') : cap(WDL[fromKey(h.date).getDay()]) + ' ' + fmtY(h.date)}</div>`; }
 		html += itemHtml(h, true, false);
 	});
-	if (!list.length) html += `<div class="empty"><b>${t('Ingen aktivitet')}</b>${t('Ingen henvendelser matcher filtrene.')}</div>`;
+	if (!list.length) html += `<div class="empty"><b>${t('Ingen aktivitet')}</b>${S.q || S.mine || S.grp !== 'all' ? t('Ingen henvendelser matcher filtrene.') : t('Der er ingen noter eller opkald endnu.')}</div>`;
 	$('#v-act').innerHTML = html + '</div>';
 }
 
@@ -469,6 +504,7 @@ function openDrawer(cid, tab, hid) {
 	renderDrawer();
 	$('#drawer').classList.add('open'); $('#dscrim').classList.add('open');
 	syncUrl();
+	if (!FULL[cid]) refreshFull(cid).then(ok => { if (ok && S.drawer === cid) renderDrawer(); });
 }
 function closeDrawer() { $('#drawer').classList.remove('open'); $('#dscrim').classList.remove('open'); S.drawer = null; syncUrl(); }
 
@@ -501,11 +537,11 @@ function renderDrawer() {
 	const ret = encodeURIComponent('crm.php');
 	const back = backTo(c.id); // back from the order to this customer's drawer, on Handler og ordrer
 	$('#drawer').innerHTML = `<div class="dh">
-			<div class="t"><div><h2>${esc(c.n)}</h2><div class="sub2">${t('Kunde %s', esc(c.nr))}${c.by ? ' · ' + esc(c.by) : ''}${c.own ? ' · ' + t('ansvarlig: %s', esc(empLow(c.own))) : ''}</div></div>
+			<div class="t"><div><h2>${esc(c.n)}</h2><div class="sub2">${t('Kunde %s', esc(c.nr))}${c.by ? ' · ' + esc(c.by) : ''}${DATA.canWrite && DATA.emps.length ? ` · <label class="ownlbl">${t('Ansvarlig')} <select class="inl" id="ownSel" aria-label="${t('Ansvarlig')}"><option value="0" ${!c.own ? 'selected' : ''}>${t('Ingen')}</option>${DATA.emps.map(e => `<option value="${e.id}" ${e.id === c.own ? 'selected' : ''}>${esc(e.n)}</option>`).join('')}</select></label>` : c.own ? ' · ' + t('ansvarlig: %s', esc(empLow(c.own))) : ''}</div></div>
 				<span class="x"></span>
 				<span class="stwrap" style="--c:${stColor(c.st)}"><select class="stsel" id="stSel" aria-label="${t('Status')}" ${DATA.canWrite ? '' : 'disabled'}>${c.st && !ST[c.st] ? `<option value="${esc(c.st)}" selected>${esc(c.st)}</option>` : ''}<option value="" ${!c.st ? 'selected' : ''}>${t('Ingen status')}</option>${ST_ORDER.map(id => `<option value="${esc(id)}" ${id === c.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></span>
 				<button class="ibtn" id="dClose" aria-label="${t('Luk (Esc)')}">${SV.x}</button></div>
-			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}${t('Opret handel')}</a>${DATA.quick ? '' : `<a href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}${t('Opret tilbud')}</a>`}<a href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}${t('Opret ordre')}</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}${t('Debitorkort')}</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}${t('Jobkort')}</a>` : ''}</div>
+			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}${t('Opret handel')}</a>${DATA.quick ? '' : `<a data-mkdoc="0" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}${t('Opret tilbud')}</a>`}<a data-mkdoc="1" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}${t('Opret ordre')}</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}${t('Debitorkort')}</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}${t('Jobkort')}</a>` : ''}</div>
 			<div class="kv"><div><span>${t('Kunde siden')}</span><b>${c.since ? fmtY(c.since) : '–'}</b></div><div><span>${t('Seneste kontakt')}</span><b>${lc ? rel(lc) : '–'}</b></div><div><span>${t('Omsætning i år')} <small class="c3">${t('ekskl. moms')}</small></span><b>${kr(c.rev || 0)}</b></div><div><span>${t('Åbne poster')}</span><b class="${c.late ? 'late' : ''}">${c.inv ? c.inv + (c.late ? ' · ' + t('%s forfalden', c.late) : '') : '0'}</b></div></div>
 			<div class="dtabs"><button data-dtab="tl" class="${S.dtab === 'tl' ? 'on' : ''}">${t('Historik')} <span class="c3">${hist.length}</span></button><button data-dtab="deals" class="${S.dtab === 'deals' ? 'on' : ''}">${t('Handler og ordrer')} <span class="c3">${deals.length + c.docs.length}</span></button><button data-dtab="ppl" class="${S.dtab === 'ppl' ? 'on' : ''}">${t('Kontaktpersoner')} <span class="c3">${c.ppl.length}</span></button></div>
 		</div>
@@ -513,7 +549,7 @@ function renderDrawer() {
 			${nx ? `<div class="next ${diff(nx.due) < 0 ? 'late' : ''}"><div><div class="lbl">${t('Næste opfølgning')} · ${diff(nx.due) < 0 ? t('forsinket') + ', ' : ''}${rel(nx.due)} · ${esc(empLow(nx.by))}</div><p>${esc(nx.note)}</p></div>
 				${DATA.canWrite ? `<div class="ac"><button class="mini" data-snooze="${nx.id}">${SV.clock}${t('Udsæt')}</button><button class="mini" data-tick="${nx.id}">${SV.check}${t('Gjort')}</button></div>` : ''}</div>` : ''}
 			${DATA.canWrite ? composer(c, 'c') : ''}
-			<div class="tl">${hist.map(h => itemHtml(h, false, true)).join('') || `<div class="empty"><b>${t('Ingen historik endnu')}</b>${t('Skriv den første note ovenfor.')}</div>`}</div>` : `
+			<div class="tl">${hist.map(h => itemHtml(h, false, true)).join('') || `<div class="empty"><b>${t('Ingen historik endnu')}</b>${DATA.canWrite ? t('Skriv den første note ovenfor.') : ''}</div>`}</div>` : `
 			<div class="people">${c.ppl.map(p => `<div class="p"><div><b>${esc(p.n)}</b></div>${DATA.canWrite ? `<button class="mini" data-call="${p.id}">${t('Ny note')}</button>` : ''}
 				<div class="pl">${p.tlf ? `<a href="tel:${esc(p.tlf.replace(/ /g, ''))}">${esc(p.tlf)}</a>` : ''}${p.mail ? `<a href="mailto:${esc(p.mail)}">${esc(p.mail)}</a>` : ''}</div></div>`).join('') || `<div class="empty" style="padding:32px"><b>${t('Ingen kontaktpersoner')}</b></div>`}</div>
 			<a class="addp" href="debitorkort.php?id=${c.id}&returside=${ret}">${t('+ Tilføj kontaktperson på debitorkortet')}</a>`}
@@ -521,13 +557,17 @@ function renderDrawer() {
 	if (S.dtab === 'tl' && DATA.canWrite) wireComposer('c', c);
 }
 function dealsTab(c, list) {
+	const free = list.filter(d => d.state === 'open' && !d.doc);
 	return `<div class="deals">${list.map(d => `<div class="d" data-editdeal="${d.id}"><b>${esc(d.t)}</b><span class="num">${kr(d.v)}</span>
+		${d.state === 'open' && d.doc && d.doc.st >= 3 && DATA.canWrite ? `<button type="button" class="ddsug inl" data-wondeal="${d.id}">${t('Faktureret – markér vundet?')}</button>` : ''}
 		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · ' + t('forventet lukket %s', fmt(d.close)) : ''}` : d.state === 'won' ? t('Vundet %s', fmtY(d.closed)) : t('Tabt %s', fmtY(d.closed)) + (d.reason ? ' – ' + esc(d.reason) : '')} · ${esc(empLow(d.own))}${d.doc ? ` · ${esc(docName(d.doc))} (${docState(d.doc)})` : ''}</small></div>`).join('') || `<div class="empty" style="padding:32px"><b>${t('Ingen handler')}</b></div>`}</div>
 		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">${t('+ Ny handel')}</button>` : ''}
 		<h4 class="dsub">${t('Åbne tilbud og ordrer')}</h4>
-		<div class="deals">${c.docs.map(o => `<a class="d doc" href="ordre.php?id=${o.id}&returside=${backTo(c.id)}"><b>${esc(docName(o))}</b><span class="num">${kr(o.sum)}</span>
-			<small>${fmtY(o.date)}${o.st === 2 ? ' · ' + t('delvist leveret') : ''}${DEALS.find(d => d.doc && d.doc.id === o.id) ? ' · ' + t('handel: %s', esc(DEALS.find(d => d.doc && d.doc.id === o.id).t)) : ''}</small></a>`).join('') || `<div class="c3" style="padding:8px 0 4px">${t('Ingen åbne tilbud eller ordrer.')}</div>`}</div>
-		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" href="ordre.php?konto_id=${c.id}&returside=${backTo(c.id)}">${t('+ Opret tilbud')}</a>`}<a class="addp" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${backTo(c.id)}">${t('+ Opret ordre')}</a></div>` : ''}
+		<div class="deals">${c.docs.map(o => { const dl = DEALS.find(d => d.doc && d.doc.id === o.id);
+			return `<div class="d doc"><a href="ordre.php?id=${o.id}&returside=${backTo(c.id)}"><b>${esc(docName(o))}</b></a><span class="num">${kr(o.sum)}</span>
+			<small>${fmtY(o.date)}${o.st === 2 ? ' · ' + t('delvist leveret') : ''}${dl ? ' · ' + t('handel: %s', esc(dl.t)) : ''}${!dl && free.length && DATA.canWrite ? ` · <button type="button" class="linkbtn" data-linkdoc="${o.id}" data-cid="${c.id}">${t('Knyt til handel')}</button>` : ''}</small></div>`; }).join('') || `<div class="c3" style="padding:8px 0 4px">${t('Ingen åbne tilbud eller ordrer.')}</div>`}</div>
+		${c.docs.length >= 10 ? `<div class="c3" style="font-size:12.5px;margin-top:6px">${t('Viser de 10 nyeste.')}</div>` : ''}
+		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" data-mkdoc="0" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&returside=${backTo(c.id)}">${t('+ Opret tilbud')}</a>`}<a class="addp" data-mkdoc="1" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${backTo(c.id)}">${t('+ Opret ordre')}</a></div>` : ''}
 		${DATA.quick && DATA.canWrite ? `<div class="c3" style="font-size:12.5px;margin-top:6px">${t('Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).')}</div>` : ''}`;
 }
 
@@ -620,7 +660,7 @@ function newFollowUp(dateKey, asNote) {
 }
 
 // An offer/order linked to a deal (crm_deals.ordre_id): name, state and the suggestions it gives.
-const docName = o => t(o.st >= 3 ? 'Faktura %s' : o.st === 0 && !DATA.quick ? 'Tilbud %s' : 'Ordre %s', o.nr);
+const docName = o => o.st >= 3 ? t('Faktura %s', o.fnr || o.nr) : t(o.st === 0 && !DATA.quick ? 'Tilbud %s' : 'Ordre %s', o.nr);
 const docState = o => o.st >= 3 ? t('faktureret') : o.st === 2 ? t('delvist leveret') : o.st === 1 || DATA.quick ? t('ordre') : t('tilbud');
 function dealDocBox(deal, c) {
 	const back = backTo(c.id), o = deal.doc;
@@ -636,7 +676,7 @@ function dealDocBox(deal, c) {
 // Deal stages come from the group holding the deal's stage, else the first status group (Salg).
 const dealGroup = st => GROUPS.find(x => x.s.includes(st)) || GROUPS[0] || boardGroup();
 function dealDialog(deal, cid, stage) {
-	if (!dealGroup(deal ? deal.st : stage).s.length) { toast(t('Opsæt statusser først (tandhjulet øverst til højre).')); return; }   // R27, empty setup
+	if (!deal && !dealGroup(stage).s.length) { toast(t('Opsæt statusser først (tandhjulet øverst til højre).')); return; }   // R27, empty setup
 	const go = c => {
 		// a new deal starts in the customer's own status when that is on the board (R33); never the first employee (R6)
 		const g = dealGroup(deal ? deal.st : (stage || c.st));
@@ -651,6 +691,13 @@ function dealDialog(deal, cid, stage) {
 			</div>
 			${deal ? dealDocBox(deal, c) : ''}
 			<div class="ft">${deal ? `<button class="left" id="dDel">${t('Slet handel')}</button>` : ''}${deal && deal.state !== 'open' ? `<button id="dReopen">${t('Genåbn')}</button>` : ''}${deal && deal.state === 'open' ? `<button id="dWon">${t('Vundet')}</button><button id="dLost">${t('Tabt')}</button>` : ''}<button id="dNo">${t('Annullér')}</button><button class="primary" id="dYes">${deal ? t('Gem') : t('Opret handel')}</button></div>`);
+		if (!DATA.canWrite) {
+			// read-only: the deal is shown, nothing can be changed (R72)
+			$('#dlg').querySelectorAll('input,select').forEach(x => { x.disabled = true; });
+			['dDel', 'dWon', 'dLost', 'dYes', 'dReopen', 'dWonDoc', 'dUseSum', 'back'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+			$('#dNo').textContent = t('Luk'); $('#dNo').onclick = closeDlg;
+			return;
+		}
 		const fields = () => ({t: $('#dT').value.trim(), v: parseAmt($('#dV').value), st: $('#dS').value, close: $('#dC').value, own: +$('#dO').value});
 		const badAmount = () => { toast(t('Beløbet kunne ikke læses – skriv fx 12.500,50.')); $('#dV').focus(); };
 		// Vundet/Tabt/markér vundet first save what was edited in the dialog, incl. "Brug beløbet" (R29)
@@ -717,12 +764,16 @@ function editDialog(hid) {
 			<label>${t('Type')}<select id="eT">${COMPOSE_TYPES.map(t => `<option value="${t}" ${t === h.type ? 'selected' : ''}>${TYPE_N[t]}</option>`).join('')}</select></label>
 			<label>${t('Med')}<select id="eP">${c.ppl.map(p => `<option value="${p.id}" ${p.id === h.to ? 'selected' : ''}>${esc(p.n)}</option>`).join('')}<option value="0" ${!h.to ? 'selected' : ''}>${t('(ingen)')}</option></select></label>
 			<label class="wide">${t('Note')}<textarea id="eN">${esc(h.note)}</textarea></label>
+			${h.due && !h.done ? `<label>${t('Opfølgning')}<input type="date" id="eD" value="${esc(h.due)}" title="${t('Tøm feltet for at fjerne påmindelsen – noten bliver stående')}"></label>
+			<label>${t('Til')}<select id="eO">${DATA.emps.map(e => `<option value="${e.id}" ${e.id === h.by ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`).join('')}</select></label>` : ''}
 		</div>
 		<div class="ft"><button id="eNo">${t('Annullér')}</button><button class="primary" id="eYes">${t('Gem')}</button></div>`);
 	$('#eNo').onclick = closeDlg;
 	$('#eYes').onclick = async () => {
 		const old = {id: h.id, type: h.type, to: h.to, note: h.note};
-		await api('update_entry', {id: h.id, type: $('#eT').value, to: +$('#eP').value, note: $('#eN').value});
+		const upd = {id: h.id, type: $('#eT').value, to: +$('#eP').value, note: $('#eN').value};
+		if ($('#eD')) { old.due = h.due; old.owner = h.by; upd.due = $('#eD').value; if ($('#eO')) upd.owner = +$('#eO').value; }
+		await api('update_entry', upd);
 		closeDlg(); toast(t('Noten er rettet'), () => api('update_entry', old));
 	};
 	setTimeout(() => $('#eN').focus(), 30);
@@ -743,8 +794,67 @@ async function toggleDone(hid, rowEl) {
 	if (to && rowEl && rowEl.classList.contains('row')) { rowEl.querySelector('.tick').classList.add('on'); rowEl.classList.add('leaving'); }
 	await api('toggle_done', {id: hid, done: to});
 	const c = cust(h.cid);
-	toast(to ? t('%s markeret som gjort', c.n) : t('%s er åben igen', c.n), () => api('toggle_done', {id: hid, done: !to}));
+	// after a tick: offer the next step for that customer, never set it by itself (R13)
+	toast(to ? t('%s markeret som gjort', c.n) : t('%s er åben igen', c.n), () => api('toggle_done', {id: hid, done: !to}),
+		to && DATA.canWrite ? {label: t('Ny opfølgning'), fn: () => nextStep(h.cid)} : null);
 }
+function nextStep(cid) {
+	const d = draft('c', cid);
+	d.due = roll(7); d.closePrev = false;
+	openDrawer(cid, 'tl');
+	const n = $('#cNote'); if (n) n.focus();
+}
+async function followUpIn7(cid) {
+	const c = cust(cid); if (!c) return;
+	const due = roll(7);
+	const r = await api('add_entry', {cid, type: 'note', to: 0, note: t('Følg op – %s', stName(c.st).toLowerCase()), due, owner: ME || c.own || 0, close: []});
+	toast(t('Opfølgning sat til %s', fmt(due)), () => api('delete_entry', {id: r.id}));
+}
+// responsible employee of the customer, from the drawer; moving its open follow-ups along is offered (R15)
+async function setOwner(c, to) {
+	const r = await api('set_owner', {cid: c.id, owner: to});
+	const name = to ? (EMP[to] ? EMP[to].n : '') : t('ingen');
+	const move = to ? openFor(c.id).filter(h => h.by !== to) : [];
+	toast(`${c.n}: ${t('ansvarlig: %s', name)}`, () => api('unset_owner', {cid: c.id, owner: r.from, remove: r.hid}),
+		move.length ? {label: t('Flyt %s åbne opfølgninger til %s', move.length, name), fn: async () => {
+			const m = await api('move_followups', {cid: c.id, owner: to, ids: move.map(h => h.id)});
+			toast(t('Opfølgningerne er flyttet'), () => api('unmove_followups', {moved: m.moved}));
+		}} : null);
+}
+// "Opret tilbud/ordre" when the customer has open deals without a document: which deal is it for? (R31)
+function makeDoc(a) {
+	const cid = +a.dataset.cid, free = openDeals(cid).filter(d => !d.doc), order = a.dataset.mkdoc === '1';
+	const go = deal => { const href = a.getAttribute('href') + (deal ? '&crm_deal=' + deal : ''); sendPlace().finally(() => { location.href = href; }); };
+	if (!free.length) { go(0); return; }
+	openDlg(`<h3>${order ? t('Hvilken handel gælder ordren?') : t('Hvilken handel gælder tilbuddet?')}</h3>
+		<div class="res">${free.map(d => `<button type="button" data-mkdeal="${d.id}"><b>${esc(d.t)}</b><small>${kr(d.v)} · ${esc(stName(d.st))}</small></button>`).join('')}
+		<button type="button" data-mkdeal="0"><b>${t('Ingen handel')}</b></button></div>`);
+	$('#dlg').querySelectorAll('[data-mkdeal]').forEach(b => b.onclick = () => { closeDlg(); go(+b.dataset.mkdeal); });
+}
+// an existing quote/order attached to one of the customer's deals without a document (R31)
+function linkDoc(oid, cid) {
+	const free = openDeals(cid).filter(d => !d.doc);
+	const link = async deal => {
+		const r = await api('link_doc', {cid, deal: deal.id, doc: oid});
+		toast(t('Knyttet til handlen »%s«', deal.t), () => api('unlink_doc', {cid, deal: deal.id, remove: r.hid}));
+	};
+	if (free.length === 1) { link(free[0]); return; }
+	openDlg(`<h3>${t('Knyt til handel')}</h3><div class="res">${free.map(d => `<button type="button" data-lk="${d.id}"><b>${esc(d.t)}</b><small>${kr(d.v)} · ${esc(stName(d.st))}</small></button>`).join('')}</div>`);
+	$('#dlg').querySelectorAll('[data-lk]').forEach(b => b.onclick = () => { closeDlg(); link(free.find(d => d.id === +b.dataset.lk)); });
+}
+async function startBoard() {
+	await api('starter');
+	S.tab = 'pipe'; S.bgrp = GROUPS.length ? GROUPS[0].id : 0;
+	renderGroups(); renderAll();
+	toast(t('Salgstavlen er oprettet'));
+}
+async function closeOld() {
+	const r = await api('close_old');
+	localStorage.setItem('crm-oldlate', DATA.today);
+	toast(t('%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort', r.ids.length), () => api('reopen_many', {ids: r.ids}));
+}
+const serverSearch = () => customerPicker(t('Søg blandt alle kunder'), t('Fundet uden for listen'), c => { closeDlg(); openOutside(c.id); }, S.q);
+const openGear = () => { if (!$('#panel').classList.contains('open')) $('#gearBtn').click(); };
 function snoozeMenu(hid, anchor) {
 	const h = H.find(x => x.id === hid), m = $('#menu');
 	// weekend targets roll to Monday (R18); the list never shows the same date twice
@@ -809,12 +919,14 @@ const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const sdName = id => { const s = SDRAFT.find(x => x.id === id); return s ? (s.n || t('Ny status')) : stName(id); };
 function renderGroupEditor() {
 	const ro = DATA.canWrite ? '' : 'disabled';
+	const arrows = (i, n, up, down) => DATA.canWrite ? `<button type="button" class="parr" ${up}="${i}" ${i === 0 ? 'disabled' : ''} title="${t('Flyt op')}" aria-label="${t('Flyt op')}">▲</button><button type="button" class="parr" ${down}="${i}" ${i === n - 1 ? 'disabled' : ''} title="${t('Flyt ned')}" aria-label="${t('Flyt ned')}">▼</button>` : '';
 	$('#stList').innerHTML = SDRAFT.map((s, i) => `<div class="strow" data-si="${i}"><input type="text" value="${esc(s.n)}" maxlength="60" aria-label="${t('Statusnavn')}" placeholder="${esc(t('Ny status'))}" data-sf="n" ${ro}>
-		<span class="use">${s.used ? t('%s i brug', s.used) : ''}</span>
+		<span class="use">${s.used ? t('%s i brug', s.used) : ''}</span>${arrows(i, SDRAFT.length, 'data-sup', 'data-sdown')}
 		${DATA.canWrite ? `<button type="button" class="ptrash" data-dels="${i}" ${s.used ? 'disabled' : ''} title="${esc(s.used ? t('Bruges af %s kunder og handler – kan ikke slettes', s.used) : t('Slet status'))}" aria-label="${esc(t('Slet status'))}">${TRASH}</button>` : ''}</div>`).join('')
 		|| `<div class="pi">${t('Der er ingen kundestatusser endnu.')}</div>`;
 	const opts = sel => '<option value="">–</option>' + SDRAFT.map(s => `<option value="${esc(s.id)}" ${s.id === sel ? 'selected' : ''}>${esc(sdName(s.id))}</option>`).join('');
-	$('#sgList').innerHTML = GDRAFT.map((g, i) => `<div class="sg" data-i="${i}"><div class="sgh"><input type="text" value="${esc(g.n)}" aria-label="${t('Gruppenavn')}" data-f="n" ${ro}>
+	$('#sgList').innerHTML = (!GDRAFT.length && !GROUPS.length && DATA.canWrite ? `<div class="pi">${t('Ingen statusgrupper endnu.')} ${t('Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.')} <button type="button" class="linkbtn" data-starter="1">${t('Start med en salgstavle')}</button></div>` : '')
+		+ GDRAFT.map((g, i) => `<div class="sg" data-i="${i}"><div class="sgh"><input type="text" value="${esc(g.n)}" aria-label="${t('Gruppenavn')}" data-f="n" ${ro}>${arrows(i, GDRAFT.length, 'data-gup', 'data-gdown')}
 		${DATA.canWrite ? `<button type="button" class="ptrash" data-delg="${i}" title="${esc(t('Slet gruppe'))}" aria-label="${esc(t('Slet gruppe'))}">${TRASH}</button>` : ''}</div>
 		<div class="opts">${SDRAFT.map(s => `<label><input type="checkbox" data-st="${esc(s.id)}" ${g.s.includes(s.id) ? 'checked' : ''} ${ro}>${esc(sdName(s.id))}</label>`).join('')}</div>
 		<div class="wl"><label>${t('Vundet')} → <select data-f="won" ${ro}>${opts(g.won)}</select></label><label>${t('Tabt')} → <select data-f="lost" ${ro}>${opts(g.lost)}</select></label></div></div>`).join('');
@@ -851,7 +963,10 @@ function renderAll() {
 	if (old >= 3 && DATA.canWrite && localStorage.getItem('crm-oldlate') !== DATA.today) {
 		notes.push(esc(t('%s opfølgninger fra det gamle CRM er mere end 90 dage forsinkede.', old)) + ` <button type="button" class="linkbtn" data-closeold="1">${t('Markér dem som gjort')}</button> <button type="button" class="linkbtn" data-notnow="1">${t('Ikke nu')}</button>`);
 	}
+	if (DATA.ungrouped && DATA.canWrite) notes.push(esc(t('%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.', num(DATA.ungrouped))) + ` <button type="button" class="linkbtn" data-opengear="1">${t('Opsæt statusgrupper')}</button>`);
+	if (!DATA.canWrite) notes.push(esc(t('Du kan se CRM, men ændringer kræver skriveadgang til Debitor → Konti.')));
 	nb.innerHTML = notes.join('<br>'); nb.hidden = !notes.length;
+	$('#gearBtn').closest('.gear').hidden = !DATA.canWrite;
 	const mineBtn = $('#scope').querySelector('[data-scope="mine"]');
 	mineBtn.disabled = !ME;
 	if (!ME) mineBtn.title = t('Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.');
@@ -859,8 +974,11 @@ function renderAll() {
 }
 
 /* ================= hændelser ================= */
+const TXT_WON = () => t('vundet');
 document.addEventListener('click', e => {
 	const t = e.target;
+	const mk = t.closest('a[data-mkdoc]');
+	if (mk && e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); makeDoc(mk); return; }
 	const out = t.closest('a[href]');
 	if (out && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
 		const href = out.getAttribute('href');
@@ -882,18 +1000,23 @@ document.addEventListener('click', e => {
 	if ((b = t.closest('[data-stf]'))) { S.stF = b.dataset.stf; renderCust(); return; }
 	if ((b = t.closest('[data-bgrp]'))) { S.bgrp = b.dataset.bgrp; renderPipe(); syncUrl(); return; }
 	if ((b = t.closest('[data-adddeal]'))) { e.stopPropagation(); e.preventDefault(); dealDialog(null, b.dataset.cid ? +b.dataset.cid : null, b.dataset.adddeal || null); return; }
-	if ((b = t.closest('[data-editdeal]'))) { if (DATA.canWrite) dealDialog(DEALS.find(d => d.id === +b.dataset.editdeal), DEALS.find(d => d.id === +b.dataset.editdeal).cid); return; }
+	if ((b = t.closest('[data-editdeal]'))) { const d = DEALS.find(x => x.id === +b.dataset.editdeal); if (d) dealDialog(d, d.cid); return; }
 	if ((b = t.closest('[data-mode]'))) { S.calMode = b.dataset.mode; if (S.calMode === 'week') S.weekStart = mondayOf(S.calY === TODAY.getFullYear() && S.calM === TODAY.getMonth() ? DATA.today : key(new Date(S.calY, S.calM, 1))); renderCal(); return; }
 	if ((b = t.closest('[data-dtab]'))) { S.dtab = b.dataset.dtab; renderDrawer(); syncUrl(); return; }
 	if ((b = t.closest('[data-call]'))) { S.dtab = 'tl'; draft('c', S.drawer).to = +b.dataset.call; renderDrawer(); const n = $('#cNote'); if (n) n.focus(); return; }
 	if ((b = t.closest('[data-del]'))) { confirmDel(+b.dataset.del); return; }
 	if ((b = t.closest('[data-edit]'))) { editDialog(+b.dataset.edit); return; }
-	if ((b = t.closest('[data-closeold]'))) {
-		api('close_old').then(r => { localStorage.setItem('crm-oldlate', DATA.today); toast(t('%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort', r.ids.length), () => api('reopen_many', {ids: r.ids})); });
-		return;
-	}
+	// NB: in this handler t is the clicked element, not the text function - texts are made in the functions called
+	if ((b = t.closest('[data-closeold]'))) { closeOld(); return; }
 	if ((b = t.closest('[data-notnow]'))) { localStorage.setItem('crm-oldlate', DATA.today); renderAll(); return; }
-	if ((b = t.closest('[data-srvsearch]'))) { customerPicker(t('Søg blandt alle kunder'), t('Fundet uden for listen'), c => { closeDlg(); openOutside(c.id); }, S.q); return; }
+	if ((b = t.closest('[data-srvsearch]'))) { serverSearch(); return; }
+	if ((b = t.closest('[data-opengear]'))) { e.stopPropagation(); openGear(); return; }
+	if ((b = t.closest('[data-starter]'))) { startBoard(); return; }
+	if ((b = t.closest('[data-nofu]'))) { S.noFu = !S.noFu; renderPipe(); return; }
+	if ((b = t.closest('#showNofu'))) { S.showNofu = !S.showNofu; renderFollow(); return; }
+	if ((b = t.closest('[data-fu7]'))) { e.stopPropagation(); followUpIn7(+b.dataset.fu7); return; }
+	if ((b = t.closest('[data-wondeal]'))) { e.stopPropagation(); const d = DEALS.find(x => x.id === +b.dataset.wondeal); if (d) moveDeal(d, {state: 'won'}, TXT_WON()); return; }
+	if ((b = t.closest('[data-linkdoc]'))) { e.stopPropagation(); linkDoc(+b.dataset.linkdoc, +b.dataset.cid); return; }
 	// the row's own follow-up goes with it into the drawer, so the composer offers to close THAT one (R3)
 	if ((b = t.closest('[data-open]')) && !t.closest('.drawer')) {
 		e.preventDefault();
@@ -917,7 +1040,10 @@ document.addEventListener('keydown', e => {
 });
 $('#dscrim').onclick = closeDrawer;
 $('#drawer').addEventListener('click', e => { if (e.target.closest('#dClose')) closeDrawer(); });
-$('#drawer').addEventListener('change', e => { if (e.target.id === 'stSel') setStatus(cust(S.drawer), e.target.value); });
+$('#drawer').addEventListener('change', e => {
+	if (e.target.id === 'stSel') setStatus(cust(S.drawer), e.target.value);
+	if (e.target.id === 'ownSel') setOwner(cust(S.drawer), +e.target.value);
+});
 $('#scrim').onclick = e => { if (e.target.id === 'scrim') closeDlg(); };
 // The new-button follows the tab (also key N): Opfølgning/Kalender -> follow-up, Pipeline -> deal,
 // Kunder -> new customer card, Aktivitet -> note. Offers and orders are made from the customer's drawer.
@@ -967,13 +1093,24 @@ $('#sgList').addEventListener('input', e => {
 	const g = GDRAFT[+box.dataset.i];
 	if (e.target.dataset.f === 'n') g.n = e.target.value;
 	if (e.target.dataset.f === 'won' || e.target.dataset.f === 'lost') g[e.target.dataset.f] = e.target.value;
-	if (e.target.dataset.st !== undefined) { const id = e.target.dataset.st; g.s = e.target.checked ? g.s.concat(id) : g.s.filter(x => x !== id); g.s.sort((a, b) => ST_ORDER.indexOf(a) - ST_ORDER.indexOf(b)); }
+	// a group's statuses follow the status list's order (new ones are last there), not the order they were ticked (R45)
+	if (e.target.dataset.st !== undefined) { const id = e.target.dataset.st; g.s = e.target.checked ? g.s.concat(id) : g.s.filter(x => x !== id); g.s.sort(bySdraft); }
 });
-$('#sgList').addEventListener('click', e => { const b = e.target.closest('[data-delg]'); if (b) { e.stopPropagation(); GDRAFT.splice(+b.dataset.delg, 1); renderGroupEditor(); } });
+const bySdraft = (a, b) => SDRAFT.findIndex(x => x.id === a) - SDRAFT.findIndex(x => x.id === b);
+const swap = (arr, i, j) => { if (j < 0 || j >= arr.length) return; const x = arr[i]; arr[i] = arr[j]; arr[j] = x; };
+$('#sgList').addEventListener('click', e => {
+	let b;
+	if ((b = e.target.closest('[data-delg]'))) { e.stopPropagation(); GDRAFT.splice(+b.dataset.delg, 1); renderGroupEditor(); }
+	else if ((b = e.target.closest('[data-gup]'))) { e.stopPropagation(); swap(GDRAFT, +b.dataset.gup, +b.dataset.gup - 1); renderGroupEditor(); }
+	else if ((b = e.target.closest('[data-gdown]'))) { e.stopPropagation(); swap(GDRAFT, +b.dataset.gdown, +b.dataset.gdown + 1); renderGroupEditor(); }
+	else if ((b = e.target.closest('[data-starter]'))) { e.stopPropagation(); $('#panel').classList.remove('open'); startBoard(); }
+});
 $('#stList').addEventListener('input', e => { const r = e.target.closest('.strow'); if (r && e.target.dataset.sf === 'n') SDRAFT[+r.dataset.si].n = e.target.value; });
 // a renamed status shows up in the groups' chips when the field is left
 $('#stList').addEventListener('change', () => renderGroupEditor());
 $('#stList').addEventListener('click', e => {
+	const mv = e.target.closest('[data-sup],[data-sdown]');
+	if (mv) { e.stopPropagation(); const i = +(mv.dataset.sup ?? mv.dataset.sdown); swap(SDRAFT, i, mv.dataset.sup !== undefined ? i - 1 : i + 1); GDRAFT.forEach(g => g.s.sort(bySdraft)); renderGroupEditor(); return; }
 	const b = e.target.closest('[data-dels]'); if (!b || b.disabled) return;
 	e.stopPropagation();
 	const id = SDRAFT[+b.dataset.dels].id;
@@ -991,6 +1128,7 @@ $('#sgAdd').onclick = e => { e.stopPropagation(); GDRAFT.push({id: 0, n: t('Ny g
 $('#sgSave').onclick = async e => {
 	e.stopPropagation();
 	if (SDRAFT.some(s => !s.n.trim())) { toast(t('Giv alle statusser et navn.')); return; }
+	GDRAFT.forEach(g => g.s.sort(bySdraft));
 	await api('save_groups', {groups: GDRAFT, statuses: SDRAFT.map(s => ({id: s.id, n: s.n.trim()}))});
 	renderGroups(); $('#panel').classList.remove('open'); toast(t('Statusser og statusgrupper er gemt'));
 };
