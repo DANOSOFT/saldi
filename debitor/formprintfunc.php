@@ -19,6 +19,7 @@
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260917 CL/LH Delivery note no longer depends on the Show-delivery-address flag (Havemoebelland).
+// 20261026 CL/NTR The delivery note is added only when lev_navn, lev_addr1, lev_postnr and lev_bynavn are all set, as in tjek_lev_addr().
 
 function formularprint($id,$formular,$lev_nr,$charset) {
 	
@@ -74,8 +75,10 @@ if ($formular!=3 && $folgeseddel) {
 		$form[$q]=$formular;
 		// 20260917 CL/LH The delivery note follows the invoice whenever the order has a delivery address,
 		// regardless of the Show-delivery-address flag.
-		$r=db_fetch_array(db_select("select lev_addr1, lev_postnr from ordrer where id = $ordre_id[$q]",__FILE__ . " linje " . __LINE__));
-		if ($r['lev_addr1'] && $r['lev_postnr']) {
+		// 20261026 CL/NTR Same four fields as tjek_lev_addr(), so the note is only added when it prints the delivery address.
+		$qtxt = "select lev_navn, lev_addr1, lev_postnr, lev_bynavn from ordrer where id = " . (int)$ordre_id[$q];
+		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if ($r['lev_navn'] && $r['lev_addr1'] && $r['lev_postnr'] && $r['lev_bynavn']) {
 			$form[$q]=3;
 			$ordre_antal++;
 			for ($z=$ordre_antal; $z>$q; $z--) {
