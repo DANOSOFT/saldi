@@ -61,6 +61,7 @@ include_once(__DIR__ . '/stripeCharge.php');
 // 20261025 CL/ASR Delivery per order (Link = link mail, email = classic); uncollectable reason; one-time switch of existing customers/orders to Link.
 // 20261025 CL/ASR Texts for the two pay buttons (automatic payment / this invoice only) and the fee for manual payment.
 // 20261025 CL/ASR Mails from Saldi's own ledger show the Saldi logo instead of the name.
+// 20261025 CL/ASR Customer contact e-mail/phone from Stripe settings (reply-to too); no month in invoice mail headings.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -186,7 +187,6 @@ if (!function_exists('stripe_txt')) {
 			'mail_greeting'     => 'Hej %fornavn,',
 			'mail_greeting_anon'=> 'Hej,',
 			'mail_label_invoice'=> 'Faktura %nr',
-			'mail_h_new_month'  => 'Din faktura for %month er klar',
 			'mail_h_new'        => 'Din faktura er klar',
 			'mail_subj_new'     => 'Faktura %nr fra %brand',
 			'mail_body_new'     => 'Her er din faktura. Du kan se den og betale med kort på samme side.',
@@ -215,7 +215,6 @@ if (!function_exists('stripe_txt')) {
 			'mail_h_action'     => 'Din bank skal godkende betalingen',
 			'mail_body_action'  => 'Vi har forsøgt at trække beløbet for faktura %nr på dit gemte kort, men din bank vil have, at du godkender betalingen først. Tryk på knappen, og følg din banks anvisninger. Vi trækker ikke beløbet, før du har godkendt det.',
 			'mail_unenrol_body' => 'Automatisk kortbetaling er stoppet, så vi trækker ikke beløbet for faktura %nr på dit kort. Fakturaen er vedhæftet. Betal den med bankoverførsel som angivet på fakturaen.',
-			'period'            => 'Periode',
 			'next_invoice'      => 'Næste faktura',
 			'auto_payment'      => 'automatisk betaling',
 			'card_payment'      => 'kortbetaling',
@@ -254,8 +253,23 @@ if (!function_exists('stripe_decline_text')) {
 	}
 	/** @return string "kontakt os på <invoicing company's e-mail>", or "kontakt os" without one. */
 	function stripe_contact_phrase($inv) {
-		$email = trim((string)($inv['firma']['email'] ?? ''));
+		$email = stripe_contact_email($inv['firma'] ?? array());
 		return $email !== '' ? stripe_txt('contact_mail', array('email' => $email)) : stripe_txt('contact_plain');
+	}
+	/**
+	 * 20261025 CL/ASR The e-mail customers are told to write to (payment page, invoice mails, reply-to):
+	 * Stripe setting contact_email, otherwise the company's own e-mail.
+	 *
+	 * @param array $firma Company row (adresser art S) with 'email'.
+	 * @return string E-mail address or ''.
+	 */
+	function stripe_contact_email($firma) {
+		$email = trim((string)stripe_setting('contact_email'));
+		return $email !== '' ? $email : trim((string)($firma['email'] ?? ''));
+	}
+	/** @return string 20261025 CL/ASR Phone shown to customers on the payment page (Stripe setting contact_phone); '' = none. */
+	function stripe_contact_phone() {
+		return trim((string)stripe_setting('contact_phone'));
 	}
 	/** @return string Save-card consent matching the configured automatic collection date. */
 	function stripe_invoice_consent($inv) {
@@ -309,10 +323,6 @@ if (!function_exists('stripe_fmt_kr')) {
 		$mnd = array(1 => 'januar', 'februar', 'marts', 'april', 'maj', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'december');
 		if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})/', (string)$ymd, $m)) return (string)$ymd;
 		return (int)$m[3] . '. ' . $mnd[(int)$m[2]] . ' ' . $m[1];
-	}
-	function stripe_month_name($ymd) {
-		$mnd = array(1 => 'januar', 'februar', 'marts', 'april', 'maj', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'december');
-		return preg_match('/^(\d{4})-(\d{2})/', (string)$ymd, $m) ? $mnd[(int)$m[2]] . ' ' . $m[1] : '';
 	}
 	function stripe_h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 	function stripe_card_label($brand, $last4) {
@@ -859,7 +869,11 @@ if (!function_exists('stripe_mail_send')) {
 			}
 			if (!filter_var($from, FILTER_VALIDATE_EMAIL)) $from = 'noreply@saldi.dk';
 			$mail->From = $from; $mail->FromName = $snd['name'];
-			if (filter_var($snd['from'], FILTER_VALIDATE_EMAIL)) { $mail->AddReplyTo($snd['from'], $snd['name']); $mail->Sender = $snd['from']; }
+			// 20261025 CL/ASR replies go to the customer contact e-mail (Stripe setting contact_email) when set
+			$replyTo = trim((string)stripe_setting('contact_email'));
+			if (!filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $replyTo = $snd['from'];
+			if (filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $mail->AddReplyTo($replyTo, $snd['name']);
+			if (filter_var($snd['from'], FILTER_VALIDATE_EMAIL)) $mail->Sender = $snd['from'];
 			stripe_mail_apply_envelope($mail, $envelope);
 			foreach ($attachments as $attachment) $mail->AddAttachment($attachment);
 			$mail->Subject = $subject;
@@ -920,8 +934,7 @@ if (!function_exists('stripe_mail_layout')) {
 		if (!stripe_feature_on('invoice_payments') || !stripe_invoice_collectable($inv)) return false;
 		$url = stripe_invoice_url($inv['id']);
 		if ($url === '' || $inv['email'] === '') return false;
-		$month = stripe_month_name($inv['o']['fakturadate']);
-		$h1 = ($inv['recurring'] && $month) ? stripe_txt('mail_h_new_month', array('month' => $month)) : stripe_txt('mail_h_new');
+		$h1 = stripe_txt('mail_h_new');   // 20261025 CL/ASR no month: many customers are invoiced yearly
 		$body = stripe_invoice_link_text();
 		if ($body === '') {
 			$body = stripe_mail_greeting($inv) . "\n\n" . stripe_txt('mail_body_new') . ($inv['recurring'] && stripe_feature_on('enrolment') ? stripe_txt('mail_body_new_rec') : '');
@@ -948,7 +961,6 @@ if (!function_exists('stripe_mail_layout')) {
 		$when = stripe_fmt_date_long(substr((string)$payment['succeeded_at'], 0, 10) ?: date('Y-m-d'));
 		$box = array('kind' => 'good', 'title' => stripe_txt('mail_paid_box', array('amount' => stripe_fmt_kr($payment['amount_ore']) . ' kr.', 'date' => $when)), 'sub' => $card . ' · ' . stripe_txt($payment['source'] === 'auto' ? 'auto_payment' : 'card_payment'));
 		$rows = array(array(stripe_txt('invoice'), $inv['nr']));
-		$month = stripe_month_name($inv['o']['fakturadate']); if ($inv['recurring'] && $month) $rows[] = array(stripe_txt('period'), ucfirst($month));
 		if ($inv['recurring'] && trim((string)$inv['o']['nextfakt']) !== '') $rows[] = array(stripe_txt('next_invoice'), stripe_fmt_date_long(substr((string)$inv['o']['nextfakt'], 0, 10)));
 		$body = stripe_mail_greeting($inv) . "\n\n" . stripe_txt('mail_body_paid', array('nr' => $inv['nr']));
 		$html = stripe_mail_layout($inv, stripe_txt('mail_label_invoice', array('nr' => $inv['nr'])), stripe_txt('mail_h_paid'), $body, $box, $rows, stripe_txt('mail_btn_pdf'), $pdfUrl, '', '', '');
@@ -971,8 +983,7 @@ if (!function_exists('stripe_mail_layout')) {
 		include_once(__DIR__ . '/stripeStaff.php');
 		$card = stripe_staff_saved_card($inv['debtor']);
 		$date = stripe_fmt_date_long($charge);
-		$month = stripe_month_name($inv['o']['fakturadate']);
-		$h1 = (trim((string)$inv['o']['nextfakt']) !== '' && $month) ? stripe_txt('mail_h_new_month', array('month' => $month)) : stripe_txt('mail_h_new');
+		$h1 = stripe_txt('mail_h_new');   // 20261025 CL/ASR no month: many customers are invoiced yearly
 		$body = stripe_mail_greeting($inv) . "\n\n" . stripe_txt('mail_body_notice', array('date' => $date));
 		$rows = array(
 			array(stripe_txt('amount_lbl'), stripe_fmt_kr($inv['total_ore']) . ' kr.'),

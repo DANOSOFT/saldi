@@ -72,7 +72,7 @@ function faktura_fail($status, $headline, $text, $code = 'error') {
 $GLOBALS['stripe_page_identity'] = array('name' => '', 'email' => '');
 if (!$stripe_boot_ok) faktura_fail(503, stripe_txt('unavailable'), stripe_txt('unavailable_txt'), 'unavailable');
 $faktura_firma = db_fetch_array(db_select("select firmanavn, email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
-if ($faktura_firma) $GLOBALS['stripe_page_identity'] = array('name' => trim((string)$faktura_firma['firmanavn']), 'email' => trim((string)$faktura_firma['email']));
+if ($faktura_firma) $GLOBALS['stripe_page_identity'] = array('name' => trim((string)$faktura_firma['firmanavn']), 'email' => stripe_contact_email($faktura_firma));
 if (stripe_setting('enabled', 'off') !== 'on') faktura_fail(503, stripe_txt('not_active'), stripe_txt('not_active_txt'), 'disabled');
 
 $faktura_o = (int)(isset($_GET['o']) ? $_GET['o'] : (isset($_POST['o']) ? $_POST['o'] : 0));

@@ -33,6 +33,7 @@
 // 20261023 CDX/LH Pass raw settings values to the redesign setter, which handles SQL escaping internally.
 // 20261025 CL/ASR Invoice format label = default for new e-mail orders; one-time switch of existing customers/recurring orders to E-mail med link.
 // 20261025 CL/ASR Fee for manual payment: fee product (manual_fee_varenr, empty = off) and first invoice date (manual_fee_from).
+// 20261025 CL/ASR Customer contact e-mail (empty = company e-mail) and phone (empty = none) for the payment page and mails.
 
 /**
  * Injected by systemdata/diverse.php via online.php and the page setup:
@@ -125,6 +126,17 @@ function stripeValgSave() {
 		$fejl[] = findtekst('7122|Automatisk træk afvist: vælg forfaldsdato eller fakturadato', $sprog_id);
 	}
 	update_settings_value('auto_post_journal', 'stripe', !empty($input['stripe_auto_post_journal']) ? 'on' : 'off', 'Bogfoer Stripe-kladden automatisk (reserveret)');
+
+	# 20261025 CL/ASR Customer contact on the payment page and in invoice mails (reply-to too)
+	if (array_key_exists('stripe_contact_email', $input)) {
+		$contact_email = trim((string)$input['stripe_contact_email']);
+		if ($contact_email === '' || filter_var($contact_email, FILTER_VALIDATE_EMAIL)) {
+			update_settings_value('contact_email', 'stripe', $contact_email, 'Kontakt-e-mail til kunder (tom = firmaets e-mail)');
+		} else {
+			$fejl[] = findtekst('7170', $sprog_id);
+		}
+		update_settings_value('contact_phone', 'stripe', trim((string)($input['stripe_contact_phone'] ?? '')), 'Kontakt-telefon til kunder (tom = intet nummer)');
+	}
 
 	# Fee for manual payment (stripeManualFee.php). Only saved when the form carries the fields.
 	if (array_key_exists('stripe_manual_fee_varenr', $input)) {
@@ -244,6 +256,12 @@ function stripeValg() {
 	print "<td colspan='3'><select name='stripe_charge_on'><option value='due'" . ($charge_on != 'invoice_date' ? " selected" : "") . ">" . findtekst('7117', $sprog_id) . "</option><option value='invoice_date'" . ($charge_on == 'invoice_date' ? " selected" : "") . ">" . findtekst('7118', $sprog_id) . "</option></select></td></tr>";
 	print "<tr><td>" . findtekst('7119', $sprog_id) . ":</td>";
 	print "<td colspan='3'><input type='checkbox' name='stripe_auto_post_journal' value='1'" . (stripe_setting('auto_post_journal', 'off') == 'on' ? " checked" : "") . "> " . findtekst('7120', $sprog_id) . "</td></tr>";
+	$contact_email = htmlspecialchars(stripe_setting('contact_email'), ENT_QUOTES, 'UTF-8');
+	$contact_phone = htmlspecialchars(stripe_setting('contact_phone'), ENT_QUOTES, 'UTF-8');
+	print "<tr><td title='" . htmlspecialchars(findtekst('7167', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7166', $sprog_id) . ":</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_contact_email' value='$contact_email'></td></tr>";
+	print "<tr><td title='" . htmlspecialchars(findtekst('7169', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7168', $sprog_id) . ":</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:160px;' name='stripe_contact_phone' value='$contact_phone'></td></tr>";
 	$fee_varenr = htmlspecialchars(stripe_setting('manual_fee_varenr'), ENT_QUOTES, 'UTF-8');
 	$fee_from = htmlspecialchars(stripe_setting('manual_fee_from'), ENT_QUOTES, 'UTF-8');
 	print "<tr><td title='" . htmlspecialchars(findtekst('7161', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7160', $sprog_id) . ":</td>";

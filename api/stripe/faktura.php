@@ -45,6 +45,7 @@
 //                 automatic payment (consent text above it), "Betal kun denne faktura" is the visible alternative.
 //                 With the fee for manual payment on, the page says the fee goes on the next invoice.
 // 20261025 CL/ASR Saldi logo in the top bar for Saldi's own invoices.
+// 20261025 CL/ASR Contact e-mail/phone from the Stripe settings (no phone unless set).
 
 include(__DIR__ . '/faktura_common.php');
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
@@ -68,7 +69,7 @@ $self = stripe_invoice_url($inv['id']);
 $pdfUrl = str_replace('/faktura.php?', '/faktura_pdf.php?', $self);
 $pageUrl = str_replace('/faktura.php?', '/faktura_side.php?', $self);
 $pageImgs = stripe_invoice_page_images($inv['id'], true);
-$contactMail = trim((string)($f['email'] ?? '')); $contactPhone = trim((string)($f['tlf'] ?? ''));
+$contactMail = stripe_contact_email($f); $contactPhone = stripe_contact_phone(); // 20261025 CL/ASR Stripe settings contact_email/contact_phone
 $bankReg = trim((string)($f['bank_reg'] ?? '')); $bankKonto = trim((string)($f['bank_konto'] ?? ''));
 $hasBank = ($bankReg !== '' && $bankKonto !== '');
 $vatPct = rtrim(rtrim(number_format((float)$o['momssats'], 2, ',', ''), '0'), ',');

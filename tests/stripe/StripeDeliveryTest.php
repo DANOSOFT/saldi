@@ -298,6 +298,29 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         $this->assertSame('Hej,', stripe_mail_greeting($company));
     }
 
+    public function testCustomerContactComesFromStripeSettingsAndMailsNameNoMonth(): void
+    {
+        // 20261025 Contact e-mail (empty = company e-mail) and phone (empty = none); headings without a month.
+        $inv = stripe_invoice_load(StripeFixtures::invoice());
+        StripeTestEnvironment::setting('stripe', 'contact_email', 'faktura@saldi.dk');
+        StripeTestEnvironment::setting('stripe', 'contact_phone', null);
+        $this->assertSame('faktura@saldi.dk', stripe_contact_email($inv['firma']));
+        $this->assertSame('kontakt os på faktura@saldi.dk', stripe_contact_phrase($inv));
+        $this->assertSame('', stripe_contact_phone());
+        StripeTestEnvironment::setting('stripe', 'contact_phone', '12 34 56 78');
+        $this->assertSame('12 34 56 78', stripe_contact_phone());
+        StripeTestEnvironment::setting('stripe', 'contact_email', null);
+        $this->assertSame(trim((string)($inv['firma']['email'] ?? '')), stripe_contact_email($inv['firma']));
+
+        $source = file_get_contents(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php');
+        $this->assertStringNotContainsString('mail_h_new_month', $source);
+        $this->assertStringNotContainsString("stripe_txt('period')", $source);
+        $this->assertSame(2, substr_count($source, '$h1 = stripe_txt(\'mail_h_new\');'));
+        $this->assertStringContainsString('$replyTo = trim((string)stripe_setting(\'contact_email\'));', $source);
+        $this->assertStringContainsString('$contactMail = stripe_contact_email($f); $contactPhone = stripe_contact_phone();',
+            file_get_contents(__DIR__ . '/../../api/stripe/faktura.php'));
+    }
+
     public function testReceiptAndPaidPageOmitUnavailableMenuAndConsentNamesContactRoute(): void
     {
         $inv = stripe_invoice_load(StripeFixtures::invoice());

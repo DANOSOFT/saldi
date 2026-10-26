@@ -6848,4 +6848,9 @@
 7163	Kun fakturaer med fakturadato fra og med denne dato kan give gebyr.	Only invoices dated on or after this date can give a fee.	Bare fakturaer med fakturadato fra og med denne datoen kan gi gebyr.
 7164	Gebyrvaren findes ikke (gebyret er IKKE gemt)	The fee item does not exist (the fee is NOT saved)	Gebyrvaren finnes ikke (gebyret er IKKE lagret)
 7165	Gebyr for manuel betaling: vælg en startdato (gebyret er IKKE gemt)	Fee for manual payment: choose a start date (the fee is NOT saved)	Gebyr for manuell betaling: velg en startdato (gebyret er IKKE lagret)
+7166	Kontakt-e-mail til kunder	Contact e-mail for customers	Kontakt-e-post til kunder
+7167	Vises på betalingssiden og i fakturamails og bruges som svaradresse. Tom = firmaets e-mail.	Shown on the payment page and in invoice mails and used as reply-to. Empty = the company e-mail.	Vises på betalingssiden og i fakturamailer og brukes som svaradresse. Tom = firmaets e-post.
+7168	Kontakt-telefon til kunder	Contact phone for customers	Kontakttelefon til kunder
+7169	Vises på betalingssiden. Tom = intet telefonnummer.	Shown on the payment page. Empty = no phone number.	Vises på betalingssiden. Tom = intet telefonnummer.
+7170	Kontakt-e-mail afvist: ugyldig e-mailadresse (IKKE gemt)	Contact e-mail rejected: invalid e-mail address (NOT saved)	Kontakt-e-post avvist: ugyldig e-postadresse (IKKE lagret)
 
