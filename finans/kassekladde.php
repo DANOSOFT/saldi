@@ -4587,7 +4587,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	 */
 	function opdater($kladde_id, $bilagForslag = array())
 	{
-		global $baseCurrency,$egen_kto_id,$sprog_id;
+		global $baseCurrency, $egen_kto_id, $sprog_id, $fejl;
 
 		$kladde_id = (int)$kladde_id;
 		transaktion('begin');
