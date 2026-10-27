@@ -147,14 +147,6 @@
 // 20260918 CDX/PHR Store Udført af in performed_by independently of the system field hvem.
 // 20260919 CDX/PHR Preserve three-decimal unit prices when displaying and saving orders.
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
-// 20260928 NTR Plukliste buttons: status<3 Print and Send now share one gating condition
-//              ($pluklisteEmail plus the hurtigfakt/opValue check), so Send no longer shows
-//              without a matching Print button for non-faktura/non-tilbud orders; status>=3
-//              Print condition checks $opValue!='faktura' instead of $hurtigfakt!='on', and its
-//              Send condition is simplified to just $pluklisteEmail (already nested in the same check).
-// 20260928 NTR Braced the single-statement konto_id credit-limit check and switched to
-//              (int) ifset($r, 'kreditmax', 0) instead of if_isset($r['kreditmax']) * 1, which evaluated
-//              the array offset before the call and warned when kreditmax was unset, and threw warnings due to string * int.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
@@ -169,6 +161,9 @@
 // 20261019 CL/LH MB-74: Reloading (resending) the POST that saved a new order line, or a double-click on Gem, no longer inserts the line again.
 //                The order form carries a per-render order_form_token, and the fingerprint of a POST whose new line was committed is kept in the session per order (orderIncludes/orderLineReplay.php).
 //                An identical POST for the same order skips only the new-line insert; failed saves are not remembered.
+// 20261027 CL/LH PR #681 (NTR): the credit-limit lookup and the Kreditloft warning only run when the order has a
+//                konto_id, and kreditmax is read with floatval(ifset($r, 'kreditmax', 0)). if_isset($r['kreditmax']) * 1
+//                read the offset before the call, so it warned when there was no konto_id or no adresser row.
 
 @session_start();
 $s_id = session_id();
