@@ -4,6 +4,8 @@
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261023 LOE Cover SST-888: a voucher number that does not fit kassekladde.bilag is rejected
 //                 before it reaches the database, and the journal's next number is used instead.
+// 20261027 LOE Cover SST-888 (review): the allocator also passes the highest number a staged line holds, so a
+//                 replacement cannot take the number another staged line is saved under.
 //
 //   php tests/test_bilag_safe_number.php
 //
@@ -12,6 +14,32 @@
 // which needs a journal and is exercised by the manual run.
 
 require_once __DIR__ . '/../finans/kassekladde_includes/bilagNumber.php';
+
+# The allocator reads the journal's highest number and the staged lines; the test supplies those two
+# reads and nothing else. A result is a handle that the caller consumes, the way the real one is, or
+# bilagStagedMaxNumber() would read the same row for ever.
+class BilagTestResult {
+	public $rows;
+	public function __construct($rows) { $this->rows = $rows; }
+}
+$GLOBALS['bilag_test'] = array('journal_max' => 0, 'staged' => array());
+function db_select($qtext, $spor = '', $global = false) {
+	if (strpos($qtext, 'FROM tmpkassekl') !== false) {
+		$rows = array();
+		foreach ($GLOBALS['bilag_test']['staged'] as $bilag) {
+			$rows[] = array('lobenr' => count($rows) + 1, 'id' => 0, 'bilag' => $bilag);
+		}
+		return new BilagTestResult($rows);
+	}
+	return new BilagTestResult(array(array('bilag' => $GLOBALS['bilag_test']['journal_max'])));
+}
+function db_fetch_array($result) {
+	if (!($result instanceof BilagTestResult) || !$result->rows) return false;
+	return array_shift($result->rows);
+}
+function bilagTestJournal($journal_max, $staged) {
+	$GLOBALS['bilag_test'] = array('journal_max' => $journal_max, 'staged' => $staged);
+}
 
 $checks = 0;
 $failures = array();
@@ -52,6 +80,22 @@ $bilagHelper = file_get_contents(__DIR__ . '/../finans/kassekladde_includes/bila
 bilagCheck(strpos($bilagHelper, 'bilagNumberFits((string)$r') !== false, 'an oversized staged value does not raise the staged maximum');
 bilagCheck(strpos($bilagHelper, 'unset($replacements[$replace_key])') !== false, 'and a replacement that does not fit is dropped');
 
+
+# ---- a replacement never takes a number a staged line already holds (SST-888 review) --------
+bilagTestJournal(3, array('26126114721473', '4'));
+bilagCheck(bilagStagedMaxNumber(1) === 4, 'the staged maximum ignores the value the column cannot hold');
+bilagCheck(bilagNextNumberReserved(1, array()) === 5,
+	'a journal at 3 with a staged 4 offers the replacement 5, not the 4 that line is about to take');
+bilagTestJournal(3, array('26126114721473'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 4, 'an oversized staged value alone leaves the floor at the journal');
+bilagTestJournal(3, array());
+bilagCheck(bilagNextNumberReserved(1, array()) === 4, 'and with nothing staged the journal continues at its next number');
+bilagTestJournal(3, array('abc', ''));
+bilagCheck(bilagNextNumberReserved(1, array()) === 4, 'staged values the column cannot hold are ignored');
+bilagTestJournal(3, array('9', '4'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 10, 'the highest staged number is passed, not only the last one read');
+bilagTestJournal(3, array('4'));
+bilagCheck(bilagNextNumberReserved(1, array(4 => 7)) === 8, 'and a replacement already handed out in the same save is passed too');
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";

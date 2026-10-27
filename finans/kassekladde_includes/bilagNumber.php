@@ -27,7 +27,8 @@
 //
 // 20261020 CL/SZ MB-81 (CodeRabbit) A line saved without a number in the same save gets one past the moved proposals
 // (bilagNextNumberReserved()), and an existing line renumbered in that save counts toward the numbers it brings.
-// 20261028 CL/LH MB-126 The "<bilag>+N" lines a save inserts before this check no longer count as another user taking the proposal.
+// 20261027 LOE SST-888 (review) the allocator also passes the highest number a staged line holds, so a
+//                replacement cannot take the number another staged line is about to be saved under.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -136,6 +137,29 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
 }
 
 /**
+ * Highest voucher number a staged line already holds, ignoring a value the column cannot store.
+ *
+ * The staged lines are saved with their own numbers, so a replacement must not be handed one of them.
+ *
+ * @param int $kladde_id Journal (kladdeliste.id).
+ * @return int The highest staged number, or 0 when there is none.
+ */
+function bilagStagedMaxNumber($kladde_id) {
+	$kladde_id = (int)$kladde_id;
+	$staged_max = 0;
+	if ($kladde_id <= 0) {
+		return 0;
+	}
+	$q = db_select("SELECT bilag FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (bilagNumberFits((string)$r['bilag'])) {
+			$staged_max = max($staged_max, (int)$r['bilag']);
+		}
+	}
+	return $staged_max;
+}
+
+/**
  * bilagNextNumberForJournal() for a line saved without a number in the same save as bilagReplaceTakenProposals():
  * kept past the numbers the moved proposals get, which are not in the journal until their lines are inserted.
  *
@@ -151,6 +175,9 @@ function bilagNextNumberReserved($kladde_id, $replacements) {
 		}
 	}
 	$next = bilagNextNumberForJournal($kladde_id);
+	# a staged line is saved under the number it holds, so the floor passes the highest of them:
+	# journal max 3 with a staged 4 must offer 5, not the 4 that line is about to take
+	$next = max($next, bilagStagedMaxNumber($kladde_id) + 1);
 	return $replacements ? max($next, max($replacements) + 1) : $next;
 }
 
