@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitor_kommission.php -----patch 5.1.0 ----2026-09-15--------------
+// --- debitor/debitor_kommission.php -----ver 5.0.0 ----2026-10-27--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
 // 20260915 CDX/PHR Restore server sender/Reply-To and own SMTP for MySale invitations.
 // 20261027 NTR - CodeRabbit Review - if there's 2 semicolons/commas in a row or it's the a end comma, skip the empty address when adding recipients to PHPMailer. As well as skipping duplicate addresses by using array_unique() on the list of recipients. This prevents PHPMailer from throwing an exception when trying to add an empty or duplicate address.
+// 20261027 CL/NTR Trim and case-insensitively deduplicate invitation recipients before adding them.
 
 
 #ob_start();
@@ -154,10 +155,17 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 				try {
 					$mail = commissionMail($invitationSender, $db, $_SERVER['SERVER_NAME'], $charset);
 					$recipientOk = true;
-					foreach (array_unique(explode(';', str_replace(',', ';', $custMail[$i]))) as $recipient) {
-						// If there's 2 semicolons/commas in a row or it's the a end comma, skip the empty address 
-						if(trim($recipient) === '') continue;
-						$recipientOk = $mail->addAddress(trim($recipient)) && $recipientOk;
+					// Trim before deduplicating and skip empty entries ("a@x.dk;;", "a@x.dk; a@x.dk");
+					// PHPMailer rejects a repeated address case-insensitively, so key on lowercase.
+					$recipients = array();
+					foreach (explode(';', str_replace(',', ';', $custMail[$i])) as $recipient) {
+						$recipient = trim($recipient);
+						if ($recipient !== '' && !isset($recipients[strtolower($recipient)])) {
+							$recipients[strtolower($recipient)] = $recipient;
+						}
+					}
+					foreach ($recipients as $recipient) {
+						$recipientOk = $mail->addAddress($recipient) && $recipientOk;
 					}
 					$mail->Subject = $subject;
 					$mail->Body = $mailText;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/commissionMail.php -----patch 5.1.0 ----206-09-15--------------
+// --- debitor/commissionMail.php -----ver 5.0.0 ----2026-10-27--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,11 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Kommission view - separate file for better grid differentiation
 // 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
 // 20260915 CDX/PHR Restore server sender/Reply-To and own SMTP for MySale invitations.
+// 20261027 CL/NTR Take SMTPSecure from felt_4 only; a port in felt_1 is left in Host for PHPMailer.
 
 // 20260915 CDX/PHR Configure MySale invitation sender and transport from shop stamdata.
 
@@ -52,7 +53,8 @@ function commissionMail(array $sender, $database, $serverName, $charset) {
 		$mail->Username = (string) ($sender['felt_2'] ?? '');
 		$mail->Password = (string) ($sender['felt_3'] ?? '');
 		$mail->SMTPAuth = $mail->Username !== '';
-		$mail->SMTPSecure = (string) (ifset(explode(":", $smtp, 2), 1) ?? $sender['felt_4'] ?? '');
+		// A port in felt_1 ("host:465") is parsed by PHPMailer from Host; only felt_4 holds ssl/tls.
+		$mail->SMTPSecure = (string) ($sender['felt_4'] ?? '');
 		$from = $replyTo;
 	} else {
 		$mail->isMail();

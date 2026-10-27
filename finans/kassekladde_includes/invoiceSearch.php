@@ -1,5 +1,5 @@
 <?php
-// finans/kassekladde_includes/invoiceSearch.php --- 2026-09-22
+// finans/kassekladde_includes/invoiceSearch.php --- 2026-10-27
 // Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Require an exact customer/supplier filter for automatic settlement.
 // 20260911 Sawaneh Return the order payment ID (ordrer.betalings_id) with each open post and
@@ -10,6 +10,7 @@
 // 20260922 CDX/PHR Aggregate payment IDs once and avoid redundant candidate counts.
 // 20261026 CL/LH Ported the payment-ID aggregation above from live and kept the SQL candidate
 //                signal paging: every query joins payment_ids instead of a per-row subquery.
+// 20261027 CL/NTR Display the payment ID that matched the search, falling back to MAX(betalings_id).
 
 ob_start();
 
@@ -65,12 +66,16 @@ $baseWhere = "(openpost.udlignet != '1' OR openpost.udlignet IS NULL)";
 
 // Payment ID lives on the invoiced order, never on the open post itself.
 // Aggregate once per account/invoice instead of scanning orders for every open post.
-// Search all payment IDs, including IDs other than the MAX displayed in the result.
-$paymentSearchSelect = $search !== ''
-    ? ", MAX(CASE WHEN betalings_id ILIKE '%$search_escaped%' THEN 1 ELSE 0 END) AS search_match"
-    : '';
+// Search all payment IDs; when one matches, display a matching ID instead of the MAX.
+$paymentIdAggregate = "MAX(betalings_id)";
+$paymentSearchSelect = '';
+if ($search !== '') {
+    $paymentIdMatch = "betalings_id ILIKE '%$search_escaped%'";
+    $paymentIdAggregate = "COALESCE(MAX(CASE WHEN $paymentIdMatch THEN betalings_id END), MAX(betalings_id))";
+    $paymentSearchSelect = ", MAX(CASE WHEN $paymentIdMatch THEN 1 ELSE 0 END) AS search_match";
+}
 $paymentIdJoin = "LEFT JOIN (
-    SELECT konto_id, fakturanr, MAX(betalings_id) AS betalings_id $paymentSearchSelect
+    SELECT konto_id, fakturanr, $paymentIdAggregate AS betalings_id $paymentSearchSelect
     FROM ordrer
     WHERE art IN ('DO', 'DK', 'KO', 'KK') AND COALESCE(betalings_id, '') != ''
     GROUP BY konto_id, fakturanr
