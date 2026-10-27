@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/posmenuer_includes/systemButtons.php --- ver 4.0.5 -- 2022-02-09 --
+// --- systemdata/posmenuer_includes/systemButtons.php --- ver 5.0.0 -- 2026-10-05 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,12 +15,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2022 Saldi.dk ApS
+// Copyright (c) 2019-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20190805 LN Allow only specific countries to see given system buttons
 // 20190709 LN Add buttons, "Gem bestilling", "Hent bestilling"
 // 20191128 PHR	Set $country to 'Denmark' if not set.
 // 20220209	PHR enabled udskriv_sidste for Norway.
+// 20261005 LOE SST-849 Removed a duplicate "Sæt" option; value 47 is the terminal reconciliation's.
 
 
 $country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
@@ -54,7 +55,6 @@ if ($d==6 && $menutype!='U') {
     print "<OPTION value='33'".($c==33?" selected":"").">Sæt</OPTION>\n";
     print "<OPTION value='17'".($c==17?" selected":"").">$buttonTextArr[price]</OPTION>\n";
     print "<OPTION value='18'".($c==18?" selected":"").">$buttonTextArr[discount]</OPTION>\n";
-    print "<OPTION value='47'".($c==47?" selected":"").">Sæt</OPTION>"; # PHR 20240823
     print "<OPTION value='38'".($c==38?" selected":"").">Totalrabat</OPTION>\n";	# 20190104
     
 # Generelle knapper

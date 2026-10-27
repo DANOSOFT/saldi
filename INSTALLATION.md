@@ -258,3 +258,26 @@ docker compose up --build     # Rebuild after Dockerfile changes
 ---
 
 *© Saldi.dk ApS — https://saldi.dk/*
+
+---
+
+## SALDI Assist (support chatbot)
+
+The support chatbot is embedded in the shell (`index/main.php`) and issues a
+signed context token per session from `includes/saldi_assist_token.php` so the
+assistant knows the tenant, user rights, licences and the screen the user is
+on. It never receives record data. Set two variables in the web server
+environment (never in a PHP file under the web root):
+
+```
+SALDI_ASSIST_CONTEXT_SECRET=<32+ random characters, shared with the chatbot operator>
+SALDI_ASSIST_KID=k2026a            # key id; rotate by adding a new kid on both sides
+# optional, for a test instance of the chatbot:
+SALDI_ASSIST_WIDGET_URL=https://wuweiworkai.com/chaty-v2/widget.js
+```
+
+With Docker Compose these are passed through from `.env` (see
+`docker-compose.yml`). Verify after deployment: log in, open the shell and
+call `includes/saldi_assist_token.php?embed_session=<32 hex chars>` in the
+same browser session; it must answer `{"token": "v1.<kid>...."}`. Anonymous
+calls answer `{"error": "no_session"}` with HTTP 401.

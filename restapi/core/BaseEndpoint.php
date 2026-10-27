@@ -10,25 +10,13 @@ require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/JWT.php';
 require_once __DIR__ . '/JWTAuth.php';
 
-// JWT signing secret (SD-587): install-specific, >=256 bits, stored outside the
-// repo at restapi/.ht_jwt_secret.bin (git-ignored, matches the .ht* pattern
-// already used for bank_integration/.ht_oauth_key.bin). Generate it once per
-// install with:
-//   php -r "file_put_contents(__DIR__.'/../.ht_jwt_secret.bin', random_bytes(32));"
-// (from restapi/core), or let index/install.php create it for new installs.
-if (!function_exists('_jwtLoadSecret')) {
-    function _jwtLoadSecret(): string {
-        $path = JWT::secretPath();
-        if (!is_readable($path)) {
-            throw new \RuntimeException('JWT secret file not found: ' . $path);
-        }
-        $secret = file_get_contents($path);
-        if ($secret === false || strlen($secret) < 32) {
-            throw new \RuntimeException('JWT secret file must contain at least 32 bytes (256 bits): ' . $path);
-        }
-        return $secret;
-    }
-}
+// JWT signing secret (SD-587, self-provisioning added SD-634): install-specific,
+// >=256 bits, stored outside the repo at restapi/.ht_jwt_secret.bin (git-ignored,
+// matches the .ht* pattern already used for bank_integration/.ht_oauth_key.bin).
+// One file per codebase install, shared by every tenant it serves - see
+// "JWT signing secret is per install, not per tenant" in restapi/IMPLEMENTATION_STATUS.md.
+// See JwtSecretProvisioning.php for how it's loaded/created.
+require_once __DIR__ . '/JwtSecretProvisioning.php';
 try {
     JWT::setSecret(_jwtLoadSecret());
 } catch (\RuntimeException $e) {
@@ -165,7 +153,7 @@ abstract class BaseEndpoint
             switch ($method) {
                 case 'POST':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("POST data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePost()", $logDb, 'INFO');
                     $this->handlePost($data);
@@ -178,21 +166,21 @@ abstract class BaseEndpoint
                     break;
                 case 'PUT':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("PUT data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePut()", $logDb, 'INFO');
                     $this->handlePut($data);
                     break;
                 case 'DELETE':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("DELETE data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handleDelete()", $logDb, 'INFO');
                     $this->handleDelete($data);
                     break;
                 case 'PATCH':
                     $rawInput = file_get_contents("php://input");
-                    $data = json_decode($rawInput);
+                    $data = $this->decodeJsonBody($rawInput);
                     write_log("PATCH data received: " . $this->sanitizeLogData($rawInput), $logDb, 'DEBUG');
                     write_log("Calling handlePatch()", $logDb, 'INFO');
                     $this->handlePatch($data);
@@ -202,11 +190,24 @@ abstract class BaseEndpoint
                     $this->handleError(new Exception("Method Not Allowed"));
                     break;
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) { // 20260812 CL/LH: was Exception - an Error (e.g. undefined method) escaped the JSON error handling and died as an empty HTTP 500
             write_log("Exception caught: " . $e->getMessage(), $logDb, 'ERROR');
             write_log("Stack trace: " . $e->getTraceAsString(), $logDb, 'ERROR');
             $this->handleError($e);
         }
+    }
+
+    // 20260812 CL/LH: reject malformed JSON bodies with a clear 400 instead of letting a null
+    // $data surface further down as misleading 'missing required field' errors (a truncated
+    // body previously read as a business-validation problem).
+    protected function decodeJsonBody($rawInput)
+    {
+        $data = json_decode($rawInput);
+        if ($data === null && trim((string)$rawInput) !== '' && json_last_error() !== JSON_ERROR_NONE) {
+            $this->sendResponse(false, null, 'Invalid JSON body: ' . json_last_error_msg(), 400);
+            exit;
+        }
+        return $data;
     }
 
     protected function sanitizeLogData($data)
@@ -264,6 +265,14 @@ abstract class BaseEndpoint
             if (!$conn) {
                 $this->sendResponse(false, null, 'Database connection failed', 500);
                 return false;
+            }
+
+            // 20261008 CL/LH: the models read the fiscal year from global $regnaar, which nothing
+            // set on the JWT path - see api_current_fiscal_year() in auth.php.
+            global $regnaar;
+            $regnaar = api_current_fiscal_year();
+            if (!$regnaar) {
+                write_log("No fiscal year found (grupper art RA) in {$this->db}", $this->db, 'WARNING');
             }
             
             write_log("JWT auth successful for user: {$this->username}, db: {$this->db}", $this->db, 'INFO');
@@ -357,6 +366,56 @@ abstract class BaseEndpoint
         
         if (!empty($missingFields)) {
             throw new ApiException("Missing required fields: " . implode(', ', $missingFields), 400);
+        }
+    }
+
+    // 20261019 CL/LH Added validateNumericFields() (MB-76).
+    //                The models cast numbers with (float)/(int), so "1,50" was saved as 1 without an error.
+    /**
+     * Reject numeric request fields that are not a JSON number or a plain numeric string, with a
+     * 400 ApiException in the same format as validateData(). A string must match ^-?\d+(\.\d+)?$
+     * (dot as decimal separator, no thousands separator, no spaces); a whole-number field only
+     * accepts ^-?\d+$ or a JSON number without a fractional part. Absent and null fields are
+     * skipped, matching the isset() checks endpoints use before calling a setter.
+     *
+     * @param object|null $data          Decoded JSON request body.
+     * @param string[]    $decimalFields Fields that take a decimal number (prices, quantities, sizes).
+     * @param string[]    $integerFields Fields that take a whole number (ids, codes).
+     * @return void
+     * @throws ApiException 400 naming every field with an invalid value.
+     */
+    protected function validateNumericFields($data, $decimalFields, $integerFields = [])
+    {
+        $invalidFields = [];
+
+        foreach (array_merge($decimalFields, $integerFields) as $field) {
+            if (!isset($data->$field)) {
+                continue;
+            }
+            $value = $data->$field;
+            $wholeNumber = in_array($field, $integerFields, true);
+
+            if (is_int($value)) {
+                $valid = true;
+            } elseif (is_float($value)) {
+                $valid = is_finite($value) && (!$wholeNumber || floor($value) == $value);
+            } elseif (is_string($value)) {
+                $valid = preg_match($wholeNumber ? '/^-?\d+$/D' : '/^-?\d+(\.\d+)?$/D', $value) === 1;
+            } else {
+                $valid = false;
+            }
+
+            if (!$valid) {
+                $invalidFields[] = $field . ($wholeNumber ? ' (whole number)' : '');
+            }
+        }
+
+        if (!empty($invalidFields)) {
+            throw new ApiException(
+                "Invalid number format for fields: " . implode(', ', $invalidFields)
+                . ". Send a JSON number or a string such as \"1250.50\" - dot as decimal separator, no thousands separator.",
+                400
+            );
         }
     }
 }

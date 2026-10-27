@@ -29,6 +29,14 @@ info:
     an older token without that claim. Its value is the numeric account ID, not a
     registry or account database name.
 
+    ## Fetching a single record
+    Paths written as `/resource/{id}` below are served by the collection URL
+    with the id as a query parameter: `GET /products/?id=301`,
+    `GET /products/groups/?id=12`. A path segment such as `/products/groups/12`
+    returns 404. For product groups, `id` is the record id; the value a product
+    carries in `group` is the group's `codeNo` - look it up with
+    `GET /products/groups/?field=codeNo&value=1`.
+
   version: 1.1.0
   contact:
     name: API Support
@@ -860,6 +868,96 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+
+  /debitor/external-paid-invoices/:
+    post:
+      tags:
+        - External Paid Invoices
+      summary: Import one externally paid Stripe invoice as a posted and settled debtor invoice
+      description: |
+        Imports one Stripe-paid invoice atomically and idempotently.
+        The endpoint only accepts DKK invoices, rejects EAN/OIOUBL data, requires exact ore reconciliation,
+        and returns the existing posted result when the same externalInvoiceId and payloadHash are replayed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalPaidInvoiceImportRequest'
+            examples:
+              stripe_paid_invoice:
+                summary: Stripe paid invoice import
+                value:
+                  externalInvoiceId: in_1Qwerty123456789
+                  payloadHash: 4f7a1b6a9d8c2e1f
+                  invoiceDate: '2026-07-15'
+                  currency: DKK
+                  totals:
+                    netOre: 100000
+                    vatOre: 25000
+                    grossOre: 125000
+                  customer:
+                    companyName: ACME ApS
+                    contactName: Jane Doe
+                    address1: Main Street 123
+                    address2: Suite 4
+                    postalCode: '2100'
+                    city: Copenhagen
+                    country: Denmark
+                    cvr: '12345678'
+                    email: billing@acme.example
+                    phone: '+4511223344'
+                    groupCode: 1
+                  lines:
+                    - sku: STRIPE-SERVICE
+                      description: Consulting July 2026
+                      quantity: '2'
+                      netOre: 80000
+                      vatOre: 20000
+                      grossOre: 100000
+                    - sku: STRIPE-SUPPORT
+                      description: Support retainer
+                      quantity: '1'
+                      netOre: 20000
+                      vatOre: 5000
+                      grossOre: 25000
+      responses:
+        '200':
+          description: The same externalInvoiceId and payloadHash was already imported; existing posted result returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalPaidInvoiceImportResponse'
+        '201':
+          description: Invoice imported, delivered and posted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalPaidInvoiceImportResponse'
+        '400':
+          description: Malformed JSON or request body is not an object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: externalInvoiceId already exists with a different payloadHash or conflicting legacy state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation or accounting prerequisite failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   # Order Lines - Debitor
   /debitor/orderlines/:
     get:
@@ -1295,7 +1393,10 @@ paths:
         - `description` - Product description
         - `salesPrice` - Sales price
         - `costPrice` - Cost price
-        - `group` - Product group ID
+        - `group` - Product group code (matches `codeNo` in `/products/groups/`)
+
+        `limit`, `offset`, `page`, `orderBy` and `orderDirection` apply to the full list and to a
+        `field`/`value` filtered list alike.
       parameters:
         
         
@@ -1332,11 +1433,29 @@ paths:
           in: query
           schema:
             type: integer
-            default: 50
+            default: 20
             maximum: 200
             minimum: 1
-          description: Maximum number of products to return
-          example: 20
+          description: Maximum number of products to return (values above 200 are capped at 200)
+          example: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Number of products to skip. Takes precedence over `page`.
+          example: 200
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: |
+            1-based page number, used when `offset` is not given (offset = (page - 1) * limit).
+            Page through the catalogue until a page returns fewer than `limit` products.
+          example: 2
       responses:
         '200':
           description: List of products
@@ -1522,6 +1641,12 @@ paths:
                     success: false
                     message: "Product with SKU 'PROD001' already exists."
                     data: null
+                invalid_number:
+                  summary: Invalid number format
+                  value:
+                    success: false
+                    message: "Invalid number format for fields: salesPrice. Send a JSON number or a string such as \"1250.50\" - dot as decimal separator, no thousands separator."
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -1641,6 +1766,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_number:
+                  summary: Invalid number format
+                  value:
+                    success: false
+                    message: "Invalid number format for fields: costPrice, group (whole number). Send a JSON number or a string such as \"1250.50\" - dot as decimal separator, no thousands separator."
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -4264,6 +4396,12 @@ components:
     # Product Schemas
     CreateProductRequest:
       type: object
+      description: |
+        Number format: the numeric fields (salesPrice, costPrice, minInventory, maxInventory,
+        netweight, grossweight, length, width, height, colli_webfreight and group) take a JSON
+        number (`1.5`) or a string matching `^-?\d+(\.\d+)?$` (`"1.50"`) - dot as decimal
+        separator, no thousands separator, no spaces. `group` must be a whole number. Any other
+        value, such as the Danish-formatted `"1,50"`, is rejected with HTTP 400 and nothing is saved.
       required:
         - sku
       properties:
@@ -4396,6 +4534,12 @@ components:
 
     UpdateProductRequest:
       type: object
+      description: |
+        Number format: the numeric fields (salesPrice, costPrice, minInventory, maxInventory,
+        netweight, grossweight, length, width, height, colli_webfreight and group) take a JSON
+        number (`1.5`) or a string matching `^-?\d+(\.\d+)?$` (`"1.50"`) - dot as decimal
+        separator, no thousands separator, no spaces. `group` must be a whole number. Any other
+        value, such as the Danish-formatted `"1,50"`, is rejected with HTTP 400 and nothing is saved.
       required:
         - id
       properties:
@@ -5760,6 +5904,26 @@ components:
             currency:
               type: string
               example: DKK
+            vendor:
+              type: string
+              description: Seller's name as printed; stored as the pool file's subject
+              example: Dan Group Alarm ApS
+            vendor_vat_number:
+              type: string
+              description: Seller's CVR/VAT number as printed; matched against kreditorer (adresser.cvrnr)
+              example: DK12345678
+            vendor_iban:
+              type: string
+              description: Seller's IBAN as printed; matched against kreditorer (adresser.iban)
+            vendor_bank_reg:
+              type: string
+              description: Seller's Danish reg.nr., matched with vendor_bank_account against adresser.bank_reg/bank_konto
+            vendor_bank_account:
+              type: string
+              description: Seller's Danish kontonr.
+            customer_vat_number:
+              type: string
+              description: Buyer's CVR/VAT number as printed, so it is never taken as the seller's
 
     Attachment:
       type: object
@@ -5845,6 +6009,184 @@ components:
           description: Response data
 
 
+
+    ExternalPaidInvoiceImportRequest:
+      type: object
+      required:
+        - externalInvoiceId
+        - payloadHash
+        - invoiceDate
+        - currency
+        - totals
+        - customer
+        - lines
+      properties:
+        externalInvoiceId:
+          type: string
+          example: in_1Qwerty123456789
+        payloadHash:
+          type: string
+          example: 4f7a1b6a9d8c2e1f
+        invoiceDate:
+          type: string
+          format: date
+        currency:
+          type: string
+          enum: [DKK]
+        totals:
+          $ref: '#/components/schemas/ExternalPaidInvoiceTotals'
+        customer:
+          $ref: '#/components/schemas/ExternalPaidInvoiceCustomer'
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ExternalPaidInvoiceRequestLine'
+
+    ExternalPaidInvoiceTotals:
+      type: object
+      required:
+        - netOre
+        - vatOre
+        - grossOre
+      properties:
+        netOre:
+          type: integer
+          example: 100000
+        vatOre:
+          type: integer
+          example: 25000
+        grossOre:
+          type: integer
+          example: 125000
+
+    ExternalPaidInvoiceCustomer:
+      type: object
+      required:
+        - address1
+        - postalCode
+        - city
+        - country
+        - cvr
+        - groupCode
+      properties:
+        companyName:
+          type: string
+        contactName:
+          type: string
+        address1:
+          type: string
+        address2:
+          type: string
+        postalCode:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        cvr:
+          type: string
+          example: '12345678'
+        email:
+          type: string
+        phone:
+          type: string
+        groupCode:
+          type: integer
+          example: 1
+
+    ExternalPaidInvoiceRequestLine:
+      type: object
+      required:
+        - sku
+        - quantity
+        - netOre
+        - vatOre
+        - grossOre
+      properties:
+        sku:
+          type: string
+        description:
+          type: string
+        quantity:
+          oneOf:
+            - type: string
+            - type: number
+        netOre:
+          type: integer
+        vatOre:
+          type: integer
+        grossOre:
+          type: integer
+
+    ExternalPaidInvoiceLineSummary:
+      type: object
+      properties:
+        sku:
+          type: string
+        description:
+          type: string
+        quantity:
+          type: string
+        netOre:
+          type: integer
+        vatOre:
+          type: integer
+        grossOre:
+          type: integer
+
+    ExternalPaidInvoiceImportData:
+      type: object
+      properties:
+        idempotent:
+          type: boolean
+        orderId:
+          type: integer
+        invoiceId:
+          type: integer
+        invoiceNumber:
+          type: integer
+        externalInvoiceId:
+          type: string
+        payloadHash:
+          type: string
+        status:
+          type: integer
+          example: 4
+        paid:
+          type: boolean
+          example: true
+        settled:
+          type: boolean
+          example: true
+        paidState:
+          type: string
+          example: settled
+        currency:
+          type: string
+          example: DKK
+        netOre:
+          type: integer
+        vatOre:
+          type: integer
+        grossOre:
+          type: integer
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalPaidInvoiceLineSummary'
+
+    ExternalPaidInvoiceImportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: External paid invoice imported successfully
+        data:
+          $ref: '#/components/schemas/ExternalPaidInvoiceImportData'
 tags:
   - name: Authentication
     description: Obtain and refresh JWT access tokens
@@ -5872,3 +6214,5 @@ tags:
     description: Operations for fiscal year information
   - name: Attachments
     description: Operations for file attachment management (upload, download, delete)
+  - name: External Paid Invoices
+    description: Import externally paid Stripe invoices as posted debtor invoices

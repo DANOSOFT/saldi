@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- lap 4.1.0 --- 2024.3.13---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.0.0 --- 2024.3.13---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,66 @@
 // 20211203 PHR drawer will now remail closed if no cash is involved
 // 20240209 PHR Added indbetaling to vibrant & flatpay
 // 20240313 MMK/PHR Vipps / Mobilepay
+// 20260914 CDX/LH Restore drawer redirect after cash payment without an automatic receipt (MB-48).
+// 20260914 CDX/LH Require HTTPS for remote cash drawer redirects; allow HTTP only on loopback.
+// 20261006 CL/LH SST-839: Reach LAN print servers (private/reserved IPs, localhost, .local, single-label names) over HTTP
+//                 again (the mini-PCs do not serve HTTPS); other hosts still default to HTTPS and may not use HTTP.
+// 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
+
+/**
+ * True for a print server on the shop's own network: a private or reserved IP (10/8,
+ * 172.16/12, 192.168/16, loopback, link-local, IPv6 ULA), localhost, a .local name or a
+ * single-label host name. Those are the mini-PCs that only speak plain HTTP.
+ *
+ * @param string $host Lower-cased host from parse_url(), IPv6 still in brackets.
+ * @return bool
+ */
+function cashDrawerPrintHostIsLan($host) {
+	$address = trim($host, '[]');
+	if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+		return !filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+	}
+	if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+		return !filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+	}
+	return $host === 'localhost' || substr($host, -6) === '.local' || strpos($host, '.') === false;
+}
+
+/**
+ * Resolve the cash drawer endpoint from the configured print server.
+ *
+ * Print servers on the shop LAN (see cashDrawerPrintHostIsLan()) are reached over plain
+ * HTTP, exactly like every other saldiprint.php/drawerstatus.php call in Saldi, so an
+ * address without a scheme becomes http:// for them. Any other host defaults to https://
+ * and may not be forced to http://. Anything that could smuggle credentials, a path, a
+ * query or a fragment into the redirect is rejected.
+ *
+ * @param string $printserver Host with optional port, HTTP(S) origin, or android.
+ * @return string|null Printer origin, or null for an invalid or unsafe configuration.
+ */
+function cashDrawerPrintOrigin($printserver) {
+	$printserver = trim($printserver);
+	if ($printserver === 'android') {
+		return 'saldiprint://';
+	}
+	$hasScheme = strpos($printserver, '://') !== false;
+	$candidate = $hasScheme ? $printserver : 'http://' . $printserver;
+	if (!filter_var($candidate, FILTER_VALIDATE_URL)) {
+		return null;
+	}
+	$parts = parse_url($candidate);
+	if (isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+		|| !in_array($parts['path'] ?? '', ['', '/'], true)) {
+		return null;
+	}
+	$host = strtolower($parts['host'] ?? '');
+	$isLan = cashDrawerPrintHostIsLan($host);
+	$scheme = $hasScheme ? strtolower($parts['scheme']) : ($isLan ? 'http' : 'https');
+	if ($scheme !== 'https' && !($scheme === 'http' && $isLan)) {
+		return null;
+	}
+	return $scheme . '://' . $host . (isset($parts['port']) ? ':' . $parts['port'] : '');
+}
 
 function afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id=null) {
 
@@ -194,7 +254,7 @@ print "\n<!-- Function afslut (start)-->\n";
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Move3500") {
-						$tmp="payments/move3500.php?amount=$belob&id=$id&indbetaling=$indbetaling";
+						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling"; // Nets Connect@Cloud terminal, served by lane3000.php (SST-846)
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
@@ -287,12 +347,12 @@ print "\n<!-- Function afslut (start)-->\n";
 			fwrite ($tracelog, __file__." ".__line__." Calls: pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling)\n");
 		}
 		pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling);
-	 } elseif ( !$konto_id && ($betaling == 'Kontant' || $betaling2 == 'Kontant' || abs($retur) > 0.01 )) {
+	} elseif ( !$konto_id && ($betaling == 'Kontant' || $betaling2 == 'Kontant' || abs($retur) > 0.01 )) {
 		file_put_contents("../temp/skuffe.log",__file__." $konto_id && ($betaling == 'Kontant' || $betaling2 == 'Kontant' || $modtaget+$modtaget2 != $sum+$moms", FILE_APPEND);
-		 #20160211+20211203
-		$url="://".$_SERVER['SERVER_NAME'].=$_SERVER['PHP_SELF'];
+		#20160211+20211203
+		$url="://".$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF'];
 		$url=str_replace("/debitor/pos_ordre.php","",$url);
-		if ($_SERVER['HTTPS']) $url="s".$url;
+		if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') $url="s".$url;
 		$url="http".$url;
 		$returside=$url."/debitor/pos_ordre.php";
 		$bon='';
@@ -304,15 +364,24 @@ print "\n<!-- Function afslut (start)-->\n";
 				if ($printserver) setcookie("saldi_printserver",$printserver,time()+60*60*24*7,'/');
 			}
 		}
-		if ($printserver=='box' || !$printserver) $printserver=$_COOKIE['saldi_printserver'];
+		if ($printserver=='box' || !$printserver) $printserver=$_COOKIE['saldi_printserver'] ?? '';
 		if (!$printserver) $printserver = 'localhost';
 		$skuffe=1;
 		file_put_contents("../temp/skuffe.log",__file__." $id B: $betaling S: $skuffe\n", FILE_APPEND);
 
-		if ($printpopup) {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?&url=$url&bruger_id=$bruger_id&bon=&bonantal=1&id=$id&skuffe=$skuffe&returside=$returside&logo=\">\n";
+		$printOrigin = cashDrawerPrintOrigin($printserver);
+		if ($printOrigin === null) {
+			print "<p>Kasseskuffen kunne ikke åbnes. Kontrollér printserverens adresse. ";
+			print "Printservere uden for det lokale netværk skal bruge HTTPS.</p>";
+			print '<a href="pos_ordre.php">Fortsæt til næste salg</a>';
+			exit;
 		}
-		
+		$drawerUrl = $printOrigin . '/saldiprint.php?' . http_build_query([
+			'url' => $url, 'bruger_id' => $bruger_id, 'bon' => '', 'bonantal' => 1,
+			'id' => $id, 'skuffe' => $skuffe, 'returside' => $returside, 'logo' => '',
+		], '', '&', PHP_QUERY_RFC3986);
+		print '<meta http-equiv="refresh" content="0;URL=' . htmlspecialchars($drawerUrl, ENT_QUOTES, 'UTF-8') . "\">\n";
+
 		exit;
 	} else { #20160211
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";

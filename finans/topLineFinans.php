@@ -1,7 +1,14 @@
 <?php
-	include("../includes/oldDesign/header.php");
-	include("../includes/topline_settings.php");
+// 20260907 CDX/LH Quote and HTML-escape return links; encode nested return query values.
+/**
+ * Injected by ../includes/connect.php via the entry page that includes this file:
+ * @var string $charset
+ */
+	include(__DIR__ . '/../includes/oldDesign/header.php');
+	include(__DIR__ . '/../includes/topline_settings.php');
 	$returside = nav_back_url(isset($returside) ? $returside : null);
+	$retursideHref = htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, $charset);
+	$retursideQuery = rawurlencode($returside);
 
 	$border = 'border:1px';
 	$TableBG = "bgcolor=$bgcolor";
@@ -16,7 +23,7 @@
 	# Dont show close on sidebar
 	if ($menu !== "S") {
 		print "<td width=5% style=$buttonStyle>
-			<a href=$returside accesskey='L'>
+			<a href='$retursideHref' accesskey='L'>
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			Luk</button></a></td>";
 	}
@@ -30,7 +37,7 @@
 							$icon_kladdeliste ".findtekst('639|Kladdeliste', $sprog_id)."
 							</button>";
 					} else {
-						print "<a href='kladdeliste.php?returside=$returside'>
+						print "<a href='kladdeliste.php?returside=$retursideQuery'>
 							<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
 							$icon_kladdeliste ".findtekst('639|Kladdeliste', $sprog_id)."
 							</button></a>";

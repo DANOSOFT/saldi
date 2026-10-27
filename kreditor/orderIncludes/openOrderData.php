@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- patch 5.0.0 --- 2026-07-13 ---
+// --- kreditor/orderIncludes/openOrderData.php --- patch 5.0.0 --- 2026-09-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20221104 MLH added lookup function for the delivery address fields
@@ -33,6 +33,15 @@
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
 // 20260521 LOE Added check to set afd based on first employee if no match is found for ref in employees list
 // 20260713 MJ Fix ref SELECT: add selected='selected', preserve stored ref when not in active employee list, fix </select> typo. Same fix for afd SELECT.
+// 20260811 Sawaneh Header padded with the second empty cell for status < 1, so the Expiry date and
+//                  Batch no. columns line up with the inputs on draft orders.
+// 20260923 CL/SZ Include varer.has_due_date in the has_expiry_items check, not just group-level
+//                 box9 (CodeRabbit, PR #608): an item flagged has_due_date under a group without
+//                 box9='on' was skipping the whole batch input block and saving NULL over any
+//                 existing batch data.
+// 20260924 CL/SZ Left-join grupper instead of inner-joining it (CodeRabbit, PR #608): an item
+//                 with has_due_date=TRUE but no current-year VG group row was still being
+//                 dropped by the join before the has_due_date check ran.
 
 /*
 $attachId    = null;
@@ -306,7 +315,9 @@ if ($status==1) {
 else {
 	print "<td align=center title='".findtekst(1502, $sprog_id)."'>Pos.</td><td align=center title='".findtekst(320, $sprog_id)."'>".findtekst(917, $sprog_id).".</td><td align=center title='".findtekst(1511, $sprog_id)."'>".findtekst(952, $sprog_id).".</td><td align=center>".findtekst(916, $sprog_id)."</td><td>".findtekst(945, $sprog_id)."</td><td align=center>".findtekst(914,$sprog_id)."</td><td align=center>".findtekst(915, $sprog_id)."</td><td align=center title='".findtekst(1503, $sprog_id)."'>%</td><td align=center>".findtekst(947, $sprog_id)."</td>";
 	if ($vis_projekt && $projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
-	elseif ($status < 1) print "<td></td>";
+	# Two pads: every line prints two empty cells when status < 1 (openOrderLines.php), so the
+	# header needs both or the trailing columns - Expiry date / Batch no. - sit one column off.
+	elseif ($status < 1) print "<td></td><td></td>";
 	if ($status >= 2) {
 		if ($art=='KK') print "<td colspan='2' align='center' title='".findtekst(1508, $sprog_id)."'>".findtekst(937, $sprog_id)."</td>";
 		else print "<td colspan='2' align='center' title='".findtekst(1510, $sprog_id)."'>".findtekst(1485, $sprog_id)."</td>";
@@ -318,7 +329,7 @@ if ($omlev) print "<td title ='".findtekst(1512, $sprog_id)."'>O/B</td>";
 // (grupper.box9 = 'on' for art='VG'). Query DB directly since line data is loaded after this header.
 $has_expiry_items = false;
 if ($id) {
-	$_eq = db_select("SELECT ol.vare_id FROM ordrelinjer ol JOIN varer v ON v.id = ol.vare_id JOIN grupper g ON g.kodenr = v.gruppe AND g.art = 'VG' AND g.fiscal_year = '$regnaar' WHERE ol.ordre_id = '$id' AND g.box9 = 'on' LIMIT 1", __FILE__ . " linje " . __LINE__);
+	$_eq = db_select("SELECT ol.vare_id FROM ordrelinjer ol JOIN varer v ON v.id = ol.vare_id LEFT JOIN grupper g ON g.kodenr = v.gruppe AND g.art = 'VG' AND g.fiscal_year = '$regnaar' WHERE ol.ordre_id = '$id' AND (g.box9 = 'on' OR v.has_due_date = TRUE) LIMIT 1", __FILE__ . " linje " . __LINE__);
 	if (db_fetch_array($_eq)) $has_expiry_items = true;
 }
 if ($has_expiry_items) {

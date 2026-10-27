@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-07-09 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-09-30 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,11 +15,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260709 SZ Created: hand-maintained registry of Settings pages/keywords for search
 // 20260710 SZ Expanded keywords (deep page content, DA/EN/NO, sys_div_func.php-derived terms)
 // 20260721 Sawaneh Added Opgaveliste/Brug jobkort (task list) search terms to div_valg entry
+// 20260930 CL/NTR Added HTML/CSS layout version search terms to div_valg entry.
+//                 Hid the admin_settings entry outside the master database ('masterDb' rule).
 //
 // Hand-maintained index of Settings pages, used by settingsSearch.php.
 // Each entry:
@@ -34,7 +36,9 @@
 //                    has no Norwegian draft yet, settingsSearch.php falls back to labelEn rather than
 //                    silently showing Danish.
 //   requiresReseller  true => only shown when $revisorregnskab || $forhandlerregnskab is truthy
-//   visibilityRule    null | 'posModule' | 'docubizz' - re-checked live in settingsSearch.php
+//   visibilityRule    null | 'posModule' | 'docubizz' | 'masterDb' - re-checked live in settingsSearch.php
+//                    ('masterDb' => only shown when $db == $sqdb, i.e. logged in to the master database,
+//                    for pages such as admin/admin_settings.php that log everyone else out)
 //   keywords         array of extra search terms describing what's actually configurable on that
 //                    page (field names, synonyms, abbreviations, DA/EN/NO) - matched when the query
 //                    doesn't hit the label itself, so e.g. searching "auditor" finds "Brugere"
@@ -95,7 +99,8 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('order settings','order options','vat on orders','show vat private customers','show vat business customers','negative stock','allow negative stock','low stock warning','out of stock warning','fifo costing','cost method','quick invoicing','immediate posting','same day posting','discount item number','delivery note text','packing slip text','shipping item number','freight item number','postage item','pick list email','send pick list by mail','gs1 barcode scanning','barcode parsing','order autocomplete','search autocomplete orders','lock invoice until paid','ipad system','ordrerelaterede valg','hurtigfaktura','negativt lager','rabatvarenummer','bestillingsrelaterte valg','bestilling',
 					'automatic cost price adjustment','average cost price','replacement cost price','update cost prices button','packing slip comments','quantity only on packing slip','total price bundle discount','percentage invoicing','rental percentage invoicing','percentage surcharge','item number for surcharge','cash sale account number','credit card sale account number','internal order note','debtor ipad self email','discount decimals on orders','immediate posting purchase orders','immediate posting sales orders','item number for set bundle')),
 			array('key' => 'productOptions',        'url' => 'diverse.php?sektion=productOptions',       'category' => 'products', 'textId' => 787,
-				'keywords' => array('product options','vat on product card','show prices with vat','confirm description change','confirm stock change','consignment sales','commission sales','used goods commission','commission percentage','commission account','minimum stock level','reorder level','low stock threshold','stock status email','stock status report','email frequency stock','varerelaterede valg','kommissionsvarer','minimumsbeholdning','lagerstatus mail','lagerstatus rapport','varerelaterte valg','kommisjonsvarer','provisjonssalg','minimumsbeholdning av varer','lagerstatusrapporter','mva på varekort')),
+				'keywords' => array('product options','vat on product card','show prices with vat','confirm description change','confirm stock change','consignment sales','commission sales','used goods commission','commission percentage','commission account','minimum stock level','reorder level','low stock threshold','stock status email','stock status report','email frequency stock','varerelaterede valg','kommissionsvarer','minimumsbeholdning','lagerstatus mail','lagerstatus rapport','varerelaterte valg','kommisjonsvarer','provisjonssalg','minimumsbeholdning av varer','lagerstatusrapporter','mva på varekort',
+					'batch','batch management','batch control','expiry date','due date','shelf life','fefo','batchstyring','udløbsdato','holdbarhed','batchkontrol')),
 			array('key' => 'variant_valg',           'url' => 'diverse.php?sektion=variant_valg',         'category' => 'products', 'textId' => 788,
 				'keywords' => array('product variants','variant types','variant values','color variant','size variant','import variants','import variant types','import variant values','csv import variants','variantrelaterede valg','varianter','variasjonsrelaterte valg',
 					'webshop selection','internal webshop','external webshop','no webshop','webshop url','fetch products from shop','shop character encoding','quickpay merchant number','quickpay agreement id','quickpay md5 secret')),
@@ -117,7 +122,7 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'div_valg',               'url' => 'diverse.php?sektion=div_valg',             'category' => 'diverse', 'textId' => 794,
 				'keywords' => array('shipping integration','carrier integration','freight integration','gls','bring','dfm','mobilepay','mobilepay webhook','copayone','quickpay','nemhandel','e-invoicing','electronic invoicing','vibrant','paperflow','scan invoices ocr','payment gateway','payment days','default payment terms','label size mysale','vat on orders private customers','vat on orders business customers','pickup address','multiple pickup addresses','fragtintegration','betalingsdage','afhentningsadresse',
 					'mysale','customer sales portal','salesperson self service','commission self service portal','let customers see own sales','jobkort','brug jobkort','use job cards','opgaveliste','task list','oppgaveliste','bruk jobbkort','task list under debtor accounts','job card system','work order tracking','payment list toggle','show payment list debitor creditor','betalingsliste','customer phone on new order','different dates on order','extra employee on order','enable docubizz','docubizz toggle',
-					'mandatory debtor group on debtor card','mandatory customer responsible on debtor card','extra fields on employee card','payment lists erh bank format','debtor account as order phone','docubizz scanned documents application','activate mysale flea market','max label character length','use jobkort task descriptions','direct print to local printer','html css form generation','different dates same voucher cash journal','collection agency account number','use paperflow ocr','paperflow id','paperflow bearer token','ebconnect integration','oioubl e-invoice','gls id','gls username','gls contact id','gls password','danske fragtmænd','dfm agreement number','dfm hub code','dfm api url','dfm clientid','dfm api username','dfm api password','default shipping type danske fragtmænd','default goods type danske fragtmænd','default payment method danske fragtmænd','default delivery method danske fragtmænd','pickup address different from main address','pickup company name','pickup zip code and city','order button name')),
+					'mandatory debtor group on debtor card','mandatory customer responsible on debtor card','extra fields on employee card','payment lists erh bank format','debtor account as order phone','docubizz scanned documents application','activate mysale flea market','max label character length','use jobkort task descriptions','direct print to local printer','html css form generation','html layout','html/css layout','html layout version','form layout version','layout version','form generator html','formulargenerator html','keep existing look','form fonts and line thickness','different dates same voucher cash journal','collection agency account number','use paperflow ocr','paperflow id','paperflow bearer token','ebconnect integration','oioubl e-invoice','gls id','gls username','gls contact id','gls password','danske fragtmænd','dfm agreement number','dfm hub code','dfm api url','dfm clientid','dfm api username','dfm api password','default shipping type danske fragtmænd','default goods type danske fragtmænd','default payment method danske fragtmænd','default delivery method danske fragtmænd','pickup address different from main address','pickup company name','pickup zip code and city','order button name')),
 			array('key' => 'tjekliste',             'url' => 'diverse.php?sektion=tjekliste',            'category' => 'diverse', 'textId' => 796,
 				'keywords' => array('checklist','checklists','case checklist','task list','workflow phases','case phases','sagsstyring tjekliste','tjekpunkt','sjekkliste','sjekklister','new check group','new checklist')),
 			array('key' => 'docubizz',              'url' => 'diverse.php?sektion=docubizz',             'category' => 'integrations', 'labelDa' => 'Docubizz integration', 'labelEn' => 'Docubizz integration', 'labelNo' => 'Docubizz-integrasjon', 'visibilityRule' => 'docubizz',
@@ -142,7 +147,7 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('import export','chart of accounts import export','customer import export','product import export','form import export','sql query tool','data import','data export','solar vvs import','kontoplan import','debitor import','varer import','formular import')),
 
 			// -- Scattered elsewhere in the app --
-			array('key' => 'admin_settings',    'url' => '../admin/admin_settings.php',      'category' => 'system',  'textId' => 613, 'requiresReseller' => true,
+			array('key' => 'admin_settings',    'url' => '../admin/admin_settings.php',      'category' => 'system',  'textId' => 613, 'requiresReseller' => true, 'visibilityRule' => 'masterDb',
 				'keywords' => array('pdf conversion tools','weasyprint','pdftk','ps2pdf','ftp tool path','database dump tool','backup tool path','zip unzip tar path','system alert text','dashboard news snippet','system tools')),
 			array('key' => 'email_settings',    'url' => 'email_settings.php',                'category' => 'documents', 'labelDa' => 'Email Indstillinger', 'labelEn' => 'Email settings', 'labelNo' => 'E-postinnstillinger',
 				'keywords' => array('sender email','sender name','email from address','invoice email sender','background specific email settings','afsender email','afsender navn')),

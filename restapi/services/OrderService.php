@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/../../includes/std_func.php';
 require_once __DIR__ . '/../models/orders/OrderModel.php';
 
 class OrderService
@@ -57,8 +58,10 @@ class OrderService
         
         $mappedData = new stdClass();
         
-        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility
+        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility.
+        // Placeholder values such as "dummyvalue" are stored blank (JOB-115).
         foreach ($data as $key => $value) {
+            $value = strip_placeholder_value($value);
             if (isset($mapping[$key])) {
                 // Use Danish property name
                 $danishKey = $mapping[$key];
@@ -222,7 +225,7 @@ class OrderService
                 'id' => $existingDebtor['id'],
                 'kontonr' => $existingDebtor['kontonr'],
                 'betalingsbet' => $existingDebtor['betalingsbet'] ?: 'netto',
-                'betalingsdage' => $existingDebtor['betalingsdage'] ?: 8,
+                'betalingsdage' => ($existingDebtor['betalingsdage'] === null || $existingDebtor['betalingsdage'] === '') ? 8 : (int)$existingDebtor['betalingsdage'], // 20260812 CL/LH (SD-621): `?: 8` rewrote a legitimately stored 0 to 8, giving REST-created orders wrong due dates
                 'addr1' => $existingDebtor['addr1'] ?: '',
                 'bynavn' => $existingDebtor['bynavn'] ?: '',
                 'tlf' => $existingDebtor['tlf'] ?: '',
@@ -239,7 +242,7 @@ class OrderService
                     'id' => $existingDebtor['id'],
                     'kontonr' => $existingDebtor['kontonr'],
                     'betalingsbet' => $existingDebtor['betalingsbet'] ?: 'netto',
-                    'betalingsdage' => $existingDebtor['betalingsdage'] ?: 8,
+                    'betalingsdage' => ($existingDebtor['betalingsdage'] === null || $existingDebtor['betalingsdage'] === '') ? 8 : (int)$existingDebtor['betalingsdage'], // 20260812 CL/LH (SD-621): `?: 8` rewrote a legitimately stored 0 to 8, giving REST-created orders wrong due dates
                     'addr1' => $existingDebtor['addr1'] ?: '',
                     'bynavn' => $existingDebtor['bynavn'] ?: '',
                     'tlf' => $existingDebtor['tlf'] ?: '',

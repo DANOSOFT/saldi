@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-07-09 ----
+// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-09-30 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,10 +15,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260709 SZ Created: JSON lookup endpoint backing the Settings search box
 // 20260710 SZ Added 3-tier label/keyword/word-fallback matching + Norwegian label support
+// 20260930 CL/NTR Added 'masterDb' visibility rule so master-only pages are not offered in other accounts.
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
 ob_start();
@@ -44,8 +45,17 @@ if (!isset($bruger_id) || !$bruger_id) {
 
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
+/**
+ * Whether a registry entry may be offered to the current user.
+ *
+ * Checks the entry's 'requiresReseller' flag and its 'visibilityRule'
+ * ('posModule', 'docubizz' or 'masterDb', see settingsRegistry.php).
+ *
+ * @param array $entry Registry entry from getSettingsRegistry()
+ * @return bool True when the entry should appear in the search results
+ */
 function settingsEntryIsVisible($entry) {
-	global $revisorregnskab, $forhandlerregnskab;
+	global $revisorregnskab, $forhandlerregnskab, $db, $sqdb;
 
 	if (!empty($entry['requiresReseller']) && !($revisorregnskab || $forhandlerregnskab)) {
 		return false;
@@ -53,6 +63,10 @@ function settingsEntryIsVisible($entry) {
 
 	if (!empty($entry['visibilityRule'])) {
 		switch ($entry['visibilityRule']) {
+			case 'masterDb':
+				// admin_settings.php logs out anyone not in the master database
+				if ($db != $sqdb) return false;
+				break;
 			case 'posModule':
 				if (!file_exists("../debitor/pos_ordre.php")) return false;
 				break;

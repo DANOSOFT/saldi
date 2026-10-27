@@ -40,7 +40,7 @@ if ($delete_category=if_isset($_GET['delete_category'])) {
 $rename_category=if_isset($_GET['rename_category']);
 if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 	$submit=db_escape_string(trim($_POST['submit']));
- 	$id=$_POST['id'];
+ 	$id=(int)$_POST['id'];	# Kommer fra formularen og bruges direkte i SQL nedenfor
  	if ($submit!="Slet") {
 		$notes=$_POST['notes'];
 		$firmanavn=db_escape_string(trim($_POST['firmanavn']));
@@ -76,6 +76,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 		}
 */
 		$ny_kontonr=db_escape_string(trim($_POST['ny_kontonr']));
+		$auto_kontonr=(int)if_isset($_POST,0,'auto_kontonr');	# Customer no. that was assigned automatically when the card was shown
 		$gl_kontotype=db_escape_string(trim($_POST['gl_kontotype']));
 		$kontotype=db_escape_string(trim($_POST['kontotype']));
 		$fornavn=db_escape_string(trim($_POST['fornavn']));
@@ -251,7 +252,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
  		 	$tmp2=$tmp2.$y;
  		}
  		$tmp2=(int)$tmp2;
- 		if ($tmp2!=$ny_kontonr) {
+ 		if ($ny_kontonr!=='' && $tmp2!=$ny_kontonr) {	# An empty field is not an error - the number is assigned automatically further down
 			$alerttekst=findtekst(345,$sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 345-->";
 		}
@@ -293,6 +294,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 		}  
  	## Tildeler aut kontonr hvis det ikke er angivet
 	 	$ktoliste=array();
+	 	$auto_tildelt=0;	# Set when the number was chosen by the system and not typed by the user
  		if (($firmanavn)&&(($ny_kontonr < 1)||(!$ny_kontonr))) {
  		 	if (!$id) {$id="0";}
  		 	$x=0;
@@ -303,6 +305,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
  			}
  			$ny_kontonr=1000;
  			while(in_array($ny_kontonr, $ktoliste)) $ny_kontonr++;
+ 			$auto_tildelt=1;
 			$alerttekst=findtekst(349,$sprog_id);
 				$alerttekst=str_replace('$ny_kontonr',$ny_kontonr,$alerttekst);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 349-->\n";
@@ -312,6 +315,30 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
  		if(!$betalingsdage){$betalingsdage=0;}
  	 	if(!$kreditmax){$kreditmax=0;}
  	 	if ($id==0) {
+			# Two users creating a customer at the same time could pick the same number: the
+			# free number is found by one query and used by the next. The allocation is
+			# serialised with a Postgres advisory lock so only one save at a time runs from
+			# "find the free number" to "insert". The lock is held on the connection and is
+			# released by the database when the request ends, also if the script stops early.
+			# Skipped on MySQL, where the function does not exist - behaviour is then as before.
+			$kto_laas = 0;
+			$akt_db_type = if_isset($GLOBALS,'postgres','db_type');
+			if ($akt_db_type != 'mysql' && $akt_db_type != 'mysqli') {
+				db_select("select pg_advisory_lock(5130513)",__FILE__ . " linje " . __LINE__);
+				$kto_laas = 1;
+			}
+			# Only numbers the system chose are moved on - a number typed by the user is left
+			# alone, so the existing "already in use" warning still appears for it.
+			if ($auto_tildelt || ($auto_kontonr && $ny_kontonr==$auto_kontonr)) {
+				$ktoliste=array();
+				$q = db_select("select kontonr from adresser where art = 'D'",__FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$ktoliste[]=$r['kontonr'];
+				}
+				while (in_array($ny_kontonr,$ktoliste)) {
+					$ny_kontonr++;
+				}
+			}
  	 	 	$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__);
  	 	 	$r = db_fetch_array($q);
  	 	 	if ($r['id']) {
@@ -328,12 +355,14 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 				$qtxt = "insert into ansatte(konto_id, navn) values ('$id', '$kontakt')";
 				if ($kontakt && $id) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
+			if ($kto_laas) db_select("select pg_advisory_unlock(5130513)",__FILE__ . " linje " . __LINE__);
  	 	} elseif ($id > 0) {
  	 	 	if ($ny_kontonr!=$kontonr) {
- 	 	 	 	$q = db_select("select kontonr from adresser where art = 'D' order by kontonr",__FILE__ . " linje " . __LINE__);
+ 	 	 	 	$x=0;
+ 	 	 	 	$q = db_select("select kontonr from adresser where art = 'D' and id != '$id' order by kontonr",__FILE__ . " linje " . __LINE__);
  	 	 	 	while ($r = db_fetch_array($q)) {
  	 	 	 	 	$x++;
- 	 	 	 	 	$ktoliste[$x]=$r[kontonr];
+ 	 	 	 	 	$ktoliste[$x]=$r['kontonr'];
  	 	 	 	}
  	 	 	 	if (in_array($ny_kontonr, $ktoliste)) {
 					$alerttekst=findtekst(351,$sprog_id);

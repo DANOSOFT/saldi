@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2024.02.27 ---
+// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.10.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
+// 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token) and the login itself in the
+//                 browser console; the log endpoint now takes the tenant from the session.
+// 20261007 CL/SZ SST-843 The Nets Connect@Cloud username and password are no longer written into the page or the console.
+//                The login and the transaction run in lane3000_proxy.php, so the bearer token stays on the server too.
 
 @session_start();
 $s_id = session_id();
@@ -111,11 +116,23 @@ elseif ($printserver == 'box' || $printserver == 'saldibox') {
 	}
 }
 
-# Print setup
-$printfile = 'https://'.$_SERVER['SERVER_NAME'];
-$printfile.= str_replace('debitor/payments/lane3000.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
+// Build from the installation path, independent of lane3000/move3500 aliases.
+$installationPath = rtrim(dirname($_SERVER['SCRIPT_NAME'], 3), '/');
+$printfile = 'https://' . $_SERVER['SERVER_NAME'] . $installationPath
+    . '/temp/' . rawurlencode($db) . '/receipt_' . (int)$kasse . '.txt';
+$receiptPrintUrl = 'http://' . $printserver . '/saldiprint.php?' . http_build_query([
+    'bruger_id' => 99,
+    'bonantal' => 1,
+    'printfil' => $printfile,
+    'skuffe' => 0,
+    'gem' => 1
+], '', '&', PHP_QUERY_RFC3986);
 
 writeLog("Print file URL: $printfile");
+
+# Session-bound token that lane3000_proxy.php checks; the Nets login itself is read there
+if (!isset($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf_token = $_SESSION['csrf_token'];
 ?>
 
 <script>
@@ -133,8 +150,7 @@ function logToServer(message, level = 'INFO') {
             message: message,
             level: level,
             timestamp: new Date().toISOString(),
-            ordre_id: '<?php print $ordre_id; ?>',
-            db: '<?php print $db; ?>'
+            ordre_id: '<?php print (int)$ordre_id; ?>'
         })
     }).catch(err => console.error('Logging failed:', err));
 }
@@ -178,107 +194,21 @@ function leave(cardScheme) {
     }
 }
 
-// GET API KEY
-async function get_api_key(baseurl) {
-    const initialLogPromise = logToServer('Starting API key request', 'INFO');
-    document.getElementById('status').innerText = "Authorizer...";
-    console.log("<?php print get_settings_value("username", "move3500", "", null, $kasse);?>", "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>");
-    const data = {
-        "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
-        "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
-    }
-    console.log(data)
-    
-    try {
-        const fetchPromise = fetch(
-            `${baseurl}login`,
-            {
-                method: 'post',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
-            }
-        );
-        // Wait for both initial logging and fetch request
-        const [logResult, fetchResult] = await Promise.allSettled([initialLogPromise, fetchPromise]);
-        console.log(logResult, fetchResult);
-        // Check if initial logging failed
-        if (logResult.status === 'rejected') {
-            console.error('Initial logging failed:', logResult.reason);
-        }
-        
-        // Check if fetch failed
-        if (fetchResult.status === 'rejected') {
-            const errorMsg = `Network error: ${fetchResult.reason.message}`;
-            await Promise.allSettled([
-                logToServer(`API key request exception: ${fetchResult.reason.message}`, 'ERROR'),
-                Promise.resolve(fail(errorMsg))
-            ]);
-            return null;
-        }
-
-        const res = fetchResult.value;
-        const jsondata = await res.json();
-        
-         // Log the response (don't wait for it to complete)
-        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
-        /*
-        // write a put command to the settings for the terminal
-        const putPromise = fetch(
-            `${baseurl}terminal/TERMINAL ID HERER/settings`,
-            {
-                method: 'put',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `bearer ${jsondata.token}`
-                },
-                body: JSON.stringify({
-                    "printerWidth": 0
-                }),
-            }
-        ).then(async (putRes) => {
-            const putData = await putRes.json().catch(() => ({}));
-            if (putRes.ok) {
-                logToServer(`Terminal settings updated successfully - Status: ${putRes.status}`, 'INFO');
-            } else {
-                logToServer(`Terminal settings update failed - Status: ${putRes.status}, Error: ${JSON.stringify(putData)}`, 'ERROR');
-            }
-            return putRes;
-        }).catch((putError) => {
-            logToServer(`Terminal settings update exception: ${putError.message}`, 'ERROR');
-            console.error('Terminal settings PUT failed:', putError);
-        });
-
-        if (res.status != 200) {
-            // Wait for both error logging and fail function
-            await Promise.allSettled([
-                logToServer(`API key request failed - Status: ${res.status}, Error: ${jsondata.error}`, 'ERROR'),
-                Promise.resolve(fail(jsondata.error))
-            ]);
-            return null;
-        } */
-
-        // Wait for both success logging and response logging to complete
-        await Promise.allSettled([
-            logToServer('API key retrieved successfully', 'INFO'),
-            responseLogPromise
-        ]);
-        
-        return jsondata.token;
-        
-    } catch (error) {
-        // Handle any unexpected errors
-        const errorMsg = `Network error: ${error.message}`;
-        await Promise.allSettled([
-            logToServer(`API key request exception: ${error.message}`, 'ERROR'),
-            Promise.resolve(fail(errorMsg))
-        ]);
-        return null;
-    }
+// Nets is called through lane3000_proxy.php, which logs in with this register's Connect@Cloud login
+// and starts the transaction on the server. It answers with the terminal's own status and body; a failed
+// login is marked with the X-Nets-Stage: login header.
+function netsApi(action, params) {
+    return fetch('lane3000_proxy.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': <?php print json_encode($csrf_token); ?>
+        },
+        body: JSON.stringify(Object.assign({ action: action, kasse: <?php print (int) $kasse; ?> }, params))
+    });
 }
 
-async function print_str(baseurl, apikey, data) {
+async function print_str(data) {
     const initialLogPromise = logToServer('Starting receipt printing', 'INFO');
     document.getElementById('status').innerText = "Printer...";
     
@@ -322,7 +252,7 @@ async function print_str(baseurl, apikey, data) {
         }
 
         // Open print window and log it
-        window.open("http://<?php echo $printserver ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
+        window.open(<?php echo json_encode($receiptPrintUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, '', 'width=200,height=100');
         
         await Promise.allSettled([
             logToServer('Print command sent', 'INFO')
@@ -341,7 +271,7 @@ async function print_str(baseurl, apikey, data) {
 }
 
 // START PAYMENT ON TERMINAL
-async function start_payment(baseurl, apikey, amount) {
+async function start_payment(amount) {
     logToServer(`Starting payment on terminal - Amount: ${amount}`, 'INFO');
     const data = {
         "transactionType": "<?php print $type; ?>",
@@ -349,23 +279,19 @@ async function start_payment(baseurl, apikey, amount) {
     }
     
     // Log the exact request details for debugging
-    logToServer(`Transaction request - URL: ${baseurl}terminal/<?php print $terminal_id; ?>/transaction, Data: ${JSON.stringify(data)}`, 'DEBUG');
+    logToServer(`Transaction request - Terminal: <?php print $terminal_id; ?>, Data: ${JSON.stringify(data)}`, 'DEBUG');
     console.log('Transaction request data:', data);
     
     try {
-        var res = await fetch(
-            `${baseurl}terminal/<?php print $terminal_id; ?>/transaction`,
-            {
-                method: 'post',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `bearer ${apikey}`
-                },
-                body: JSON.stringify(data),
-            }
-        );
+        var res = await netsApi('transaction', data);
 
         counting = false;
+        if (res.headers.get('X-Nets-Stage') === 'login') {
+            const loginError = await res.json().catch(() => ({}));
+            logToServer(`API key request failed - Status: ${res.status}, Error: ${loginError.error}`, 'ERROR');
+            fail(`Autorisation fejlede: ${loginError.error || res.status}`);
+            return;
+        }
         var jsondata = await res.json();
      
         logToServer(`Payment response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
@@ -382,7 +308,7 @@ async function start_payment(baseurl, apikey, amount) {
             lines = lines.join("\n");
 
             if (true) {
-                await print_str(baseurl, apikey, lines);
+                await print_str(lines);
             } else {
                 finished = true;
             }
@@ -397,20 +323,12 @@ async function start_payment(baseurl, apikey, amount) {
 
 async function start() {
     logToServer('Payment process started', 'INFO');
-    // https://connectcloud-test.aws.nets.eu/v1/
-    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
-    const apikey = await get_api_key(baseurl);
-    if (!apikey || elm.innerText.includes("Fejl:")) {
-        logToServer('Failed to get API key, stopping process', 'ERROR');
-        return;
-    }
-    
     counting = true;
     countdown(121);
     document.getElementById('status').innerText = "Afventer kort...";
-    await start_payment(baseurl, apikey, <?php print $amount; ?>);
+    await start_payment(<?php print $amount; ?>);
     if (elm.innerText.includes("Fejl:")) {
         logToServer('Payment process completed with error', 'ERROR');
         return;

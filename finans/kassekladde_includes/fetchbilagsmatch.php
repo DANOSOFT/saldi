@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
+// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.0.0 --- 2026-10-12 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -34,6 +34,26 @@
 //                   created the real pool_files.norm_amount column (which it now does on
 //                   every install), SELECT * plus the alias made pf.norm_amount ambiguous,
 //                   so the query errored and the endpoint always returned "0 fundet".
+// 20260811 CL/SZ - Added dateRange/amountTolerance/includePosted settings (see
+//                   invoicematch_settings.md): the 0-45-day one-directional decay window
+//                   is now additionally gated by a symmetric +/-N day hard filter around
+//                   transdate, the 0.5%/1kr amount tolerance branch can be turned off, and
+//                   already-attached pool files (a documents row sharing pf.filename - the
+//                   delete in insertDoc.php on attach is best-effort via @db_modify, so a
+//                   leftover pool_files row is possible) are excluded unless requested.
+// 20260812 CL/SZ - Bug fix per client feedback (Mr. Rude, 20260812): dateRange had been
+//                   wired as a hard WHERE filter on the whole row, so a pool file with an
+//                   exact amount match but a far-off date was dropped entirely instead of
+//                   surfacing as "Beløb matcher" - amount and date are supposed to be
+//                   independent signals (a value-only match shouldn't need the date to also
+//                   be in range, and vice versa). Moved the +/-dateRange check into the
+//                   date_score CASE itself (same pattern amountTolerance already used
+//                   correctly), so it now only zeroes the date signal when out of range
+//                   instead of excluding the row outright.
+// 20261003 CL/SZ SD-717: archived pool documents are not offered as matches.
+//                The header named the wrong file (kassekladde.php); corrected.
+// 20261012 CL/SZ SD-730 Each match carries its pool row's version (poolMetadataVersion()): since SST-777 docPool.php refuses an
+//                   attach without it, so "Match valgte" attached nothing.
 
     // Start buffering
     ob_start();
@@ -42,6 +62,8 @@
     $s_id=session_id();
     include("../../includes/connect.php");
     include("../../includes/online.php");
+    require_once __DIR__ . "/../../includes/docsIncludes/poolArchive.php";
+    require_once __DIR__ . "/../../includes/docsIncludes/poolMetadata.php";
 
 
     ini_set('display_errors', 0);
@@ -51,6 +73,15 @@
     // Cast to int before it ever touches SQL - the previous version interpolated
     // $_GET['kladde_id'] straight into the query, which was a SQL injection hole.
     $kladde_id = (int) ($_GET['kladde_id'] ?? $_POST['kladde_id'] ?? 0);
+
+    // Settings panel params (see doc/ai/../invoicematch_settings.md) - all cast to int
+    // before touching SQL, same as kladde_id above.
+    $date_range        = (int) ($_GET['dateRange'] ?? $_POST['dateRange'] ?? 3);
+    if ($date_range < 0) {
+        $date_range = 0;
+    }
+    $amount_tolerance  = (int) ($_GET['amountTolerance'] ?? $_POST['amountTolerance'] ?? 1) ? 1 : 0;
+    $include_posted    = (int) ($_GET['includePosted'] ?? $_POST['includePosted'] ?? 0) ? 1 : 0;
 
     $base_currency_escaped = db_escape_string($baseCurrency ?: 'DKK');
 
@@ -85,11 +116,16 @@
     // kassekladde.valuta is an integer code, not a currency string - it points at
     // grupper(art='VK').kodenr, whose box1 holds the actual ISO code (same lookup the
     // main kassekladde grid uses in build_kassekladde_query()). No match -> base currency.
-    // pool_files.norm_amount is the migrated NUMERIC column (populated at write time via
-    // poolAmountNormalizer.php, created + backfilled in betweenUpdates.php). It must NOT
-    // be recomputed here: a) SELECT * already carries the real column, so an alias with
-    // the same name makes every pf.norm_amount reference ambiguous and kills the whole
-    // query, and b) a bare ::numeric cast throws on Danish-formatted amounts ('682,93').
+    // pool_files.norm_amount is a real persisted NUMERIC column (populated at write time by
+    // extractInvoiceHandler.php / normalizePoolAmount(), plus a one-time backfill - see
+    // includes/betweenUpdates.php), already pulled in via `SELECT *` below. Re-deriving it
+    // here as `NULLIF(TRIM(amount), '')::numeric` both duplicated the column name (Postgres
+    // then throws "column reference is ambiguous" on every `pf.norm_amount` reference below,
+    // so this query has been failing outright, on every tenant, regardless of data - the
+    // silently-caught DB error is why the endpoint always returned an empty array) and
+    // reintroduced the exact naive-cast bug normalizePoolAmount() exists to avoid: Postgres's
+    // ::numeric cast doesn't understand Danish thousands separators, so "1.234,56" or even
+    // plain "1.234" (meant as 1234 kr) would either error or silently misparse.
     $qtxt = "
         WITH kl AS (
             SELECT k.*,
@@ -104,6 +140,7 @@
                 (CASE WHEN file_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN file_date::date ELSE NULL END) AS safe_file_date,
                 UPPER(TRIM(COALESCE(NULLIF(currency, ''), '$base_currency_escaped'))) AS currency_code
             FROM pool_files
+            WHERE " . poolArchiveActiveSql() . "
         )
         SELECT * FROM (
             SELECT
@@ -124,20 +161,25 @@
                 kl.transdate AS file_date,
                 pf.safe_file_date AS pool_date,
 
-                -- Amount signal (max 40): exact match, or within +/-0.5% (min +/-1 kr) tolerance
+                -- Amount signal (max 40): exact match, or (when the amount-tolerance
+                -- setting is on) within +/-0.5% (min +/-1 kr) tolerance
                 (CASE
                     WHEN kl.amount IS NULL OR pf.norm_amount IS NULL THEN 0
                     WHEN kl.amount = pf.norm_amount THEN 40
-                    WHEN ABS(kl.amount - pf.norm_amount) <= GREATEST(ABS(kl.amount) * 0.005, 1) THEN 20
+                    WHEN $amount_tolerance = 1 AND ABS(kl.amount - pf.norm_amount) <= GREATEST(ABS(kl.amount) * 0.005, 1) THEN 20
                     ELSE 0
                 END) AS amount_score,
 
-                -- Date signal (max 25): invoice date 0-45 days before/equal to transdate.
+                -- Date signal (max 25): invoice date 0-45 days before/equal to transdate,
+                -- AND within the user's +/-dateRange setting (see below - this is a signal
+                -- gate, not a row filter, so a row that only matches on amount still shows
+                -- up with date_score=0 rather than being dropped entirely).
                 -- Cubic (not linear) decay: stays close to full marks for the first ~2-3
                 -- weeks (typical NET-14/NET-30 payment terms), then drops off sharply as
                 -- it approaches the 45-day boundary, where it reaches 0.
                 (CASE
                     WHEN pf.safe_file_date IS NULL OR kl.transdate IS NULL THEN 0
+                    WHEN ABS(kl.transdate - pf.safe_file_date) > $date_range THEN 0
                     WHEN (kl.transdate - pf.safe_file_date) BETWEEN 0 AND 45
                         THEN ROUND((25 * (1 - POWER((kl.transdate - pf.safe_file_date)::numeric / 45, 3)))::numeric, 1)
                     ELSE 0
@@ -154,6 +196,13 @@
             FROM kl
             CROSS JOIN pf
             WHERE kl.currency_code = pf.currency_code
+                -- Include-already-posted setting: pool_files rows are normally
+                -- deleted once attached (insertDoc.php), but that delete is best-effort
+                -- (@db_modify), so exclude any pool file a documents row already claims
+                -- unless the user opts in.
+                AND ($include_posted = 1 OR NOT EXISTS (
+                    SELECT 1 FROM documents d WHERE d.filename = pf.filename
+                ))
         ) scored
         WHERE (amount_score + date_score + text_score + invoice_bonus) >= 30
         ORDER BY (amount_score + date_score + text_score + invoice_bonus) DESC
@@ -171,6 +220,9 @@
             },
             ARRAY_FILTER_USE_KEY
         );
+        // docPool.php refuses an attach without the pool row's metadata version (SST-777), so send it along
+        $pfRow = db_fetch_array(db_select("SELECT * FROM pool_files WHERE id = " . (int)$row['pf_id'], __FILE__ . " linje " . __LINE__));
+        $row['version'] = $pfRow ? poolMetadataVersion($pfRow) : '';
 
         $score = round(
             (float) ($row['amount_score'] ?? 0)

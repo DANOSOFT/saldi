@@ -16,6 +16,7 @@
 //
 // Copyright (c) 2004-2008 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 
 @session_start();
 $s_id = session_id();
@@ -37,7 +38,8 @@ include("../includes/topline_settings.php");
 
 $returside = (if_isset($_GET['returside']));
 if (!$returside) {
-	if ($popup)
+	// 20260904 Sawaneh WP-1.3c: request flag instead of popup preference
+	if (!empty($_GET['popup']))
 		$returside = "../includes/luk.php";
 	else
 		$returside = "modtageliste.php";

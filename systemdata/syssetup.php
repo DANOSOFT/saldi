@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-07-24 ---
+// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20132127 Indsat kontrol for at kodenr er numerisk på momskoder.
@@ -48,6 +48,8 @@
 // 20260723 MJ  Varer/ydelser-type (box5) til VG-varegrupper for Momsrubrikker A/B/C-afledning.
 // 20260723 MJ  Fjernet Rubrik-kolonne (box5) fra SM/KM/YM/EM-momskoder: bruges ikke laengere.
 // 20260724 MJ  EU-zone-dropdown (box10) paa KG-kreditorgrupper til Momsrubrikker Rubrik A.
+// 20260917 CDX/LH Correct VAT mapping label translation reference (MB-45).
+// 20261001 CDX/PHR Show one editable definition per warehouse, preferring the selected fiscal year.
 
 @session_start();
 $s_id=session_id();
@@ -115,8 +117,22 @@ if ($nopdat!=1) {
 	$qtxt.= "OR art = 'AFD' OR art = 'LG' OR art = 'VPG' OR art = 'VTG' OR art = 'VRG' ";
 	$qtxt.= "order by kodenr";
 	if ($valg=="projekter") $qtxt.=' desc';
+	if ($valg === 'lagre') {
+		// Keep the chosen row ID for saving; retain older warehouses without a current-year copy.
+		$qtxt = "SELECT * FROM grupper WHERE art='LG' ORDER BY kodenr, ";
+		$qtxt .= "case when fiscal_year=" . (int)$regnaar . " then 0 else 1 end, ";
+		$qtxt .= "coalesce(fiscal_year,0) desc,id desc";
+	}
+	$seenWarehouses = array();
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
+		if ($valg === 'lagre') {
+			$warehouseNumber = (int)ifset($row, 'kodenr', 0);
+			if (array_key_exists($warehouseNumber, $seenWarehouses)) {
+				continue;
+			}
+			$seenWarehouses[$warehouseNumber] = true;
+		}
 		$x++;
 		$id[$x]	=	$row['id'];
 		$beskrivelse[$x]	=	htmlentities(stripslashes($row['beskrivelse']),ENT_COMPAT,$charset);
@@ -149,7 +165,7 @@ if ($valg=='moms'){
 	$spantxt1 = findtekst('2244|En beskrivende tekst efter eget valg', $sprog_id);
 	$spantxt2 = findtekst('2245|Det nummer i kontoplanen som salgsmomsen skal konteres på.', $sprog_id);
 	$spantxt3 = findtekst('770|Moms', $sprog_id).' %';
-	$spantxt4 = findtekst('3039|Map til', $sprog_id);
+	$spantxt4 = findtekst('2340|Map til', $sprog_id);
 	$spantxt5 = findtekst('2246|Momskode hos SKAT', $sprog_id);
 	print "<tr><td></td><td colspan=3><b><span title='".findtekst('2247|Den moms du skal betale til SKAT', $sprog_id)."'>".findtekst('994|Salgsmoms (udgående moms)', $sprog_id)."</span></td></tr>\n";
 	print "<tr><td></td><td>".findtekst('2248|Nr.', $sprog_id)."</td>";

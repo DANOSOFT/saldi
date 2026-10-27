@@ -167,6 +167,13 @@ if ($menu=='T') {
                 <li>
                   <a href='../../../lager/rapport.php'><?php echo findtekst(603,$sprog_id) ?></a>
                 </li>
+                <?php /* SST-836: expiry report under Lager, where batch/expiry management is used and the
+                       user holds the module the page itself requires (12) - see includes/online.php:353 */ ?>
+                <?php if (batch_expiry_in_use() && (!$rettigheder || substr($rettigheder, 12, 1) >= '1')) { ?>
+                <li>
+                  <a href='../../../lager/udlobsrapport.php'><?php echo findtekst(5014,$sprog_id) ?></a>
+                </li>
+                <?php } ?>
               </ul>
               <div class='menu-end'>&nbsp;</div>
             </div>

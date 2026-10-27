@@ -2,6 +2,16 @@
 // Fiscal Year Dropdown with Activation Logic
 // Place this in your target file
 
+/**
+ * Injected by ../../includes/online.php via index/dashboard.php, which includes this file:
+ * @var string $regnaar
+ * @var string $brugernavn
+ * @var mixed $revisor
+ * @var int $db_id
+ * @var int $bruger_id
+ * @var int $sprog_id
+ */
+
 // Check if a fiscal year has been selected
 if (isset($_GET['aktiver_regnaar']) && $_GET['aktiver_regnaar']) {
     $aktiver = $_GET['aktiver_regnaar'];
@@ -30,28 +40,7 @@ if (isset($_GET['aktiver_regnaar']) && $_GET['aktiver_regnaar']) {
 
 // Get all active fiscal years
 $regnskabsaar = array();
-// Check the database type
-if ($db_type == 'mysqli') {
-    // For MySQL, use != or <> instead of IS DISTINCT FROM
-    $query = db_select("SELECT * 
-    FROM grupper 
-    WHERE art = 'RA' 
-      AND box10 != 'on'
-      AND box5 = 'on' 
-    ORDER BY box2 DESC, box1 DESC
-    ", __FILE__ . " linje " . __LINE__);
-} else {
-    // For PostgreSQL, use IS DISTINCT FROM
-    $query = db_select("SELECT * 
-    FROM grupper 
-    WHERE art = 'RA' 
-      AND box10 IS DISTINCT FROM 'on'
-      AND box5 = 'on' 
-    ORDER BY box2 DESC, box1 DESC
-    ", __FILE__ . " linje " . __LINE__);
-}
-
-while ($row = db_fetch_array($query)) {
+foreach (active_fiscal_years() as $row) {
     $regnskabsaar[] = array(
         'kodenr' => $row['kodenr'],
         'beskrivelse' => $row['beskrivelse'],

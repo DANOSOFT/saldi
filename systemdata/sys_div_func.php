@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.06.05 ---
+// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.DK ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------
 // Kaldes fra systemdata/diverse.php
 // 2013.11.01 Tilføjet fravalg af tjek for forskellige datoer på samme bilag i kasseklasse. Søg 20131101
@@ -105,6 +105,31 @@
 //                     out-of-stock warning, delivery address + extra fields) via findtekst(), tekst_id 9902-9909
 // 20260729 NTR Fixed $r being set to a bool due to && without guarding parenteses, causing error when trying to assign $timezone.
 //              Changed the tekst_id's of the previous translation to be 3032-3039 instead.
+// 20260819 CL/NTR Added loadLabelText()/saveLabelText() so the label editor reads and writes the same
+//                 storage lager/labelprint.php prints from. Raw HTML help text now names
+//                 $minbeskrivelse/$minpris as the default; translated via findtekst(), tekst_id 5056.
+// 20260824 CL/NTR loadLabelText()/saveLabelText() prefer account_id 0 over null legacy rows and only
+//                 touch global rows, matching what the label editor shows.
+// 20260826 CL/SZ  Added labelTemplateEditableVisually() and forced raw-HTML mode in labels() for any
+//                 label the visual editor's field model can't losslessly regenerate (imported
+//                 Brother/Dymo templates, hand-written raw HTML, ...) - saving via the visual editor
+//                 was silently discarding whatever it doesn't model (MB-18).
+// 20260826 SZ    kontoplan_io: removed the redundant "Eksportér kontoplan" header row that was
+//                 printed unconditionally right before the real (popup or non-popup) export row
+//                 of the same label, making it appear twice under System -> Indstillinger ->
+//                 Diverse -> Import & eksport (MB-26).
+// 20260827 CL/SZ Removed the dead "MySalesTest" checkbox row and its duplicate mySale
+//                query (was mislabeled $mySaleTest but still read var_name='mySale');
+//                also dropped the debug echo block referencing it. Never saved
+//                ($_POST['mySaleTest'] was read nowhere) and had no consumer. MB-28.
+// 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
+// 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
+// 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
+// 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
+// 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
+// 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
+//                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
+//                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -334,7 +359,6 @@ function kontoplan_io() {
 	$antal_regnskabsaar = $x;
 	print "<tr><td colspan='6'><hr></td></tr>";
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('1352|Indlæs/udlæs kontoplan', $sprog_id)."</b></u></td></tr>";
-	print "<tr><td colspan='6'><br>".findtekst('1353|Eksportér kontoplan', $sprog_id)."</td></tr>";
 	if ($popup) {
 		print "<form name=diverse action=diverse.php?sektion=kontoplan_io method=post>";
 		print "<tr><td colspan='2'></td>\n";
@@ -728,6 +752,7 @@ function personlige_valg() {
 
 function div_valg() {
 	global $bgcolor, $bgcolor5;
+	global $csrf_token;
 	global $docubizz;
 	global $regnaar;
 	global $sprog_id;
@@ -860,10 +885,6 @@ function div_valg() {
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	($r['var_value']) ? $mySale = "checked='checked'" : $mySale = NULL;
 
-	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
-	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	($r['var_value']) ? $mySaleTest = "checked='checked'" : $mySaleTest = NULL;
-
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySaleLabel'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	($r['var_value']) ? $mySaleLabel = "checked='checked'" : $mySaleLabel = NULL;
@@ -958,24 +979,12 @@ function div_valg() {
 	print "<!-- 768 : Brug 'Mit salg' -->";
 	print "<input name='labelsize' class='inputbox' type='text' value='$labelsize'>\n";
 	print "</td></tr>\n";
-/*
-	echo "mySale: $mySale <br>";
-	echo "mySaleLabel: $mySaleLabel <br>";
-	echo "mySaleTest: $mySaleTest";
-*/
 	if ($mySale) {
 		print "<tr>\n<td title='Deaktivere labels for kunder så det kun er ejeren der kan oprette dem'>Deaktiver labels for kunder</td>\n";
 		print "<td title='Deaktiver labels for kunder'>\n";
 		print "<input name='mySaleLabel' class='inputbox' type='checkbox' $mySaleLabel>\n";
 		print "</td></tr>\n";
 	}
-
-	print "<tr>\n<td title='Test'>mySaleTest</td>\n";
-	print "<td title='mySaleTest'>\n";
-	print "<input name='mySaleTest' class='inputbox' type='checkbox' $mySaleTest>\n";
-	print "</td></tr>\n";
-
-
 
 	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst('194|Jobkort findes i debitorkonti. Her kan du definere opgavebeskrivelser til medarbejdere osv.', $sprog_id)."'>".findtekst('168|Brug jobkort', $sprog_id)."</td>\n";
 	print "<td title='".findtekst('194|Jobkort findes i debitorkonti. Her kan du definere opgavebeskrivelser til medarbejdere osv.', $sprog_id)."'>\n";
@@ -994,6 +1003,12 @@ function div_valg() {
 	print "<td title='".findtekst('817|Afmærkes feltet anvendes HTML/CSS til formulargenerering.', $sprog_id)."'>\n";
 	print "<input name='pv_box3' class='inputbox' type='checkbox' $formgen>\n";
 	print "</td></tr>\n";
+	require_once __DIR__ . '/../includes/formFuncIncludes/htmlLayoutVersion.php';
+	$htmlLayoutVersion = formHtmlLayoutVersion();
+	print "<tr><td>HTML/CSS-layout</td><td><select name='html_layout_version' class='inputbox'>";
+	print "<option value='1'" . ($htmlLayoutVersion === 1 ? ' selected' : '') . ">Bevar hidtidigt udseende</option>";
+	print "<option value='2'" . ($htmlLayoutVersion === 2 ? ' selected' : '') . ">Brug formularens skrifter og stregtykkelser</option>";
+	print "</select><br><small>Gælder kun HTML/CSS. Kontrollér en prøveudskrift efter ændring.</small></td></tr>\n";
 	print "<tr>\n<td title='".findtekst('709|Afmærk her for at undtrykke advarsel i kassekladden', $sprog_id)."'>".findtekst('708|Tillad forskellige datoer på samme bilagsnummer i kassekladde.', $sprog_id)."</td>\n";
 	print "<td title='".findtekst('709|Afmærk her for at undtrykke advarsel i kassekladden', $sprog_id)."'>\n";
 	print "<input name='box4' class='inputbox' type='checkbox' $forskellige_datoer></td></tr>\n"; #20131101
@@ -1327,7 +1342,7 @@ function removeDfmPickup(idx) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='flatpay_auth'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-	# Guid form flatpay, looks like 9e802837-307b-48c3-9f0e-1b4cac291376
+	# Guid form flatpay, looks like 00000000-0000-4000-8000-000000000000 (example, not a real ID)
 	$guid   = $r ? str_split($r[0], 7)[0] . "-xxxx-xxxx-xxxx-xxxxxxxxxxxx" : "";
 
 	$mtxt   = findtekst('2314|Flatpay ID', $sprog_id);
@@ -1344,14 +1359,15 @@ function removeDfmPickup(idx) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='vibrant_auth'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-	# Check if it exsists
-	$APIKEY = $r ? $r[0] : "";
+	# The saved key is never printed back, only its last four characters as a hint. The field starts
+	# empty, and diverse.php only saves a non-empty value, so an untouched field keeps the saved key.
+	$vibrantKeyHint = ($r && $r[0] !== '') ? htmlspecialchars('********' . substr($r[0], -4), ENT_QUOTES) : '';
 
 	$mtxt   = findtekst('2317|Vibrant API nøjle', $sprog_id);
 	$mtitle = findtekst('2318|API nøjlen til din Vibrant APP', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2318 -->$mtxt <!-- Tekst 2317 --></td>\n";
 	print "<td title='$mtitle'>
-    <input name='vibrant_id' class='inputbox' style='width:150px;' type='text' value='$APIKEY'>
+    <input name='vibrant_id' class='inputbox' style='width:150px;' type='text' value='' placeholder='$vibrantKeyHint' autocomplete='off'>
   </td>\n</tr>\n";
 
 	# Vibrant login setup
@@ -1362,12 +1378,13 @@ function removeDfmPickup(idx) {
 	$mtitle = findtekst('2323|Kontoen du anvender til at logge ind på din vibrant terminal med', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2323 -->$mtxt <!-- Tekst 2322 --></td>\n";
 
-	# If an account is already setup, show the "Show account" button
+	# If an account is already setup, show the "Show account" button. The login is fetched on click,
+	# so it is not in the page source or the browser cache.
 	if ($r) {
 		$ntxt = findtekst('2325|Vis login', $sprog_id); # Show account
 
 		print "<td title='$mtitle'>
-      <button type='button' onclick='alert(\"Dit login til din vibrant terminalen: \\n\\n$r[var_name] \\n$r[var_value]\")'>$ntxt</button>
+      <button type='button' onclick='show_vibrant_login()'>$ntxt</button>
     </td>\n</tr>\n";
 	} else { # No vibrant account in the system
 		$ytxt = findtekst('2324|Opret login', $sprog_id); # Create account
@@ -1399,58 +1416,54 @@ function removeDfmPickup(idx) {
     document.getElementsByClassName('backdrop')[0].style.display = 'block';
   }
 
+  function show_vibrant_login() {
+    fetch('diverseIncludes/show_vibrant_login.php', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': " . json_encode($csrf_token) . "
+      }
+    })
+      .then(response => response.json())
+      .then(res => {
+        if (!res.success) {
+          alert(res.error);
+          return;
+        }
+        alert('Dit login til din vibrant terminalen: \\n\\n' + res.email + ' \\n' + res.password);
+      })
+      .catch(error => {
+        // e.g. an expired session, where the answer is the HTML login page instead of JSON
+        console.error('Fetch Error:', error);
+        alert('Uventet svar fra serveren. Log evt. ind igen og prøv igen.');
+      });
+  }
+
+  // create_vibrant_login.php creates the user at Vibrant with the API key on the server and saves the login
   function hide_popup_vibrant() {
     var name = document.getElementById('vibrant-acc-name').value;
     var email = document.getElementById('vibrant-acc-email').value;
     var passwd = document.getElementById('vibrant-acc-passwd').value;
 
-    data = {
-      'name': name,
-      'email': email,
-      'roleIds': [
-        'ro_1xBHy6kquVWMne9caAaXps',
-        'ro_bzDKsUpAeFsFm8kUUXkXTy'
-      ],                           
-      'password': passwd       
-    }
-
-    fetch('https://pos.api.vibrant.app/pos/v1/users', {
+    fetch('diverseIncludes/create_vibrant_login.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '$APIKEY'
+        'X-CSRF-Token': " . json_encode($csrf_token) . "
       },
-      body: JSON.stringify(data) 
+      body: JSON.stringify({name: name, email: email, passwd: passwd})
     })
-      .then(response => {
-        if (!response.ok) {
-          console.log(response);
-          response.json().then((res) => {console.log(res); alert(res.error + ' : ' + res.message)}).catch(error => {
-            throw new Error('Network response was not ok');
-          })
-          throw new Error('Network response was not ok');
+      .then(response => response.json())
+      .then(res => {
+        if (!res.success) {
+          alert(res.error);
+          return;
         }
-        console.log('Response:', response);
-        fetch('diverseIncludes/create_vibrant_login.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({name: name, email: email, passwd: passwd}) 
-        })
-          .then(response => {
-            if (!response.ok) {
-              throw new Error('Network response was not ok');
-            }
-            console.log('Response:', response);
-            location.reload();
-          })
-          .catch(error => {
-            console.error('Fetch Error:', error);
-          });
+        location.reload();
       })
       .catch(error => {
+        // e.g. an expired session, where the answer is the HTML login page instead of JSON
         console.error('Fetch Error:', error);
+        alert('Uventet svar fra serveren. Log evt. ind igen og prøv igen.');
       });
 
 
@@ -1728,18 +1741,31 @@ function removeDfmPickup(idx) {
       close_popup();
 
       async function save_id(id){
-        var res = await fetch(
-          'diverseIncludes/save_flatpay_id.php',
-          {
-            method: 'post',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              'id': id
-            }),
-          }
-        )
+        var res = null;
+        var svar = null;
+        try {
+          res = await fetch(
+            'diverseIncludes/save_flatpay_id.php',
+            {
+              method: 'post',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': " . json_encode($csrf_token) . ",
+              },
+              body: JSON.stringify({
+                'id': id
+              }),
+            }
+          )
+          svar = await res.json();
+        } catch (fejl) {
+          res = null;
+          svar = null;
+        }
+        if (!res || !res.ok || !svar || !svar.success) {
+          alert('" . findtekst('3405|Ugyldig eller udløbet formular - genindlæs siden og prøv igen', $sprog_id) . "');
+          return;
+        }
         location.reload();
       }
 
@@ -1757,10 +1783,6 @@ function removeDfmPickup(idx) {
             }),
           }
         )
-        console.log({
-              'username': document.getElementById('flatpay-username').value,
-              'password': document.getElementById('flatpay-password').value
-            })
         if (res.status == 200) {
           const text = await res.text();
           close_popup();
@@ -1804,6 +1826,9 @@ function ordre_valg() {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		if ($r['var_value']) $incl_moms_business = 'checked';
 	}
+
+	// SD-657: while this is on, users without the Indstillinger right are kept out of turnover and Finans.
+	$hideRevenue = (get_settings_value('hideRevenue', 'finans', 'off') === 'on') ? 'checked' : '';
 	$rabatvareid = (int)$grupper_data['box2'];
 	($grupper_data['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
 	($grupper_data['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
@@ -1936,6 +1961,7 @@ function ordre_valg() {
 	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
+	print "<tr><td title='".findtekst('5247|Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.', $sprog_id)."'>".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."</td><td><INPUT title='".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."' class='inputbox' type='checkbox' name='hideRevenue' $hideRevenue></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -2260,7 +2286,7 @@ function api_valg() {
 	print "<tr><td><br></td></tr>";
 	list($tmp, $folder, $tmp) = explode('/', $_SERVER['REQUEST_URI'], 3);
 	$url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]/$folder/api";
-	if ($userId) {
+	if (count($userId)) {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
@@ -2294,13 +2320,87 @@ function api_valg() {
 		print "<tr><td colspan='6'><hr></td></tr>";
 		print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop', $sprog_id)."<!--tekst 741--></td><td colspan='3' title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi', $sprog_id)."'><!--tekst 740--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=1><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop', $sprog_id)."'><!--tekst 749--></a></td></tr>";
 		print "<tr><td title='".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."'><!--tekst 1726-->".findtekst('2546|Opdater fra shop', $sprog_id)."<!--tekst 2546--></td><td colspan='3' title='".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."'><!--tekst 1726--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=2><input style='text-align:center;width:300px;' type='button' value='".findtekst('2546|Opdater fra shop', $sprog_id)."'><!--tekst 2546--></a></td></tr>";
-	} else print "<tr><td colspan='2'>".findtekst('825|Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.', $sprog_id)."</td></tr>";
+	} else {
+		print "<tr><td colspan='2'>".findtekst('825|Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.', $sprog_id)."</td></tr>";
+		print "</form>";
+	}
 	print "<tr><td colspan='6'><hr></td></tr>";
 	if (isset($_GET['varesync']) && $_GET['varesync']) {
 		include("../api/varesync.php");
 		varesync($_GET['varesync']);
 	}
 } # endfunc api_valg
+
+/**
+ * Reads the stored text for one label.
+ *
+ * Item labels ($valg='box1') live in the labels table since 4.0; grupper.box1 is only the
+ * pre-4.0 fallback. lager/labelprint.php resolves them in the same order, so the editor has to
+ * as well - otherwise an edit is written somewhere the print never looks. Address labels
+ * ($valg='box2') only ever live in grupper.
+ *
+ * @param string $valg      'box1' for item labels, 'box2' for address labels
+ * @param string $labelName Name of the label to read
+ * @return array{labeltext: string, labeltype: string}
+ */
+function loadLabelText($valg, $labelName) {
+    $label = array('labeltext' => '', 'labeltype' => 'sheet');
+    if ($valg == 'box1') {
+        // account_id is null on labels created before the insert below started setting it; they are
+        // still editable here and a save heals them to 0, which is all lager/labelprint.php reads.
+        $qtxt = "select labeltext, labeltype from labels where labelname = '" . db_escape_string($labelName) . "'";
+        $qtxt.= " and (account_id = '0' or account_id is null)";
+        $qtxt.= " order by account_id is null"; // if account_id is not null it'll be false, which is ordered before true.
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $label['labeltext'] = $r['labeltext'];
+            if ($r['labeltype']) $label['labeltype'] = $r['labeltype'];
+            return $label;
+        }
+        if ($labelName != 'Standard') return $label;
+    }
+    $qtxt = "select $valg from grupper where art = 'LABEL'";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $label['labeltext'] = $r[$valg];
+    return $label;
+}
+
+/**
+ * Writes one label back to storage.
+ *
+ * Item labels go to the labels table, which is what lager/labelprint.php reads, and are mirrored
+ * into grupper.box1 so the pre-4.0 fallback cannot serve a stale template. Address labels only go
+ * to grupper. Rows left with a NULL account_id by older inserts are healed to 0 on update, since
+ * labelprint.php only ever selects account_id 0.
+ *
+ * @param string $valg      'box1' for item labels, 'box2' for address labels
+ * @param string $labelName Name of the label to write
+ * @param string $labelText Full label template
+ * @param string $labelType 'sheet' or 'label'
+ * @return void
+ */
+function saveLabelText($valg, $labelName, $labelText, $labelType) {
+    $labelText = db_escape_string($labelText);
+    $labelType = db_escape_string($labelType);
+    $labelName = db_escape_string($labelName);
+    if ($valg != 'box1' || $labelName == 'Standard') {
+        $qtxt = "select id from grupper where art = 'LABEL'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $qtxt = "update grupper set $valg = '$labelText' where id = '$r[id]'";
+        } else {
+            $qtxt = "insert into grupper (art, $valg) values ('LABEL', '$labelText')";
+        }
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    }
+    if ($valg != 'box1') return;
+    $qtxt = "select id from labels where labelname = '$labelName'";
+    $qtxt.= " and (account_id = '0' or account_id is null)";
+    $qtxt.= " order by account_id is null";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+        $qtxt = "update labels set labeltext = '$labelText', labeltype = '$labelType', account_id = '0' where id = '$r[id]'";
+    } else {
+        $qtxt = "insert into labels (account_id, labelname, labeltype, labeltext) values ('0', '$labelName', '$labelType', '$labelText')";
+    }
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 function labels($valg) {
     global $sprog_id;
@@ -2309,6 +2409,7 @@ function labels($valg) {
     global $db;
     global $labelName;
     global $labelprint;
+    global $saveLabelRefused;
 
     if (!$labelName) {
         $labelName = if_isset($_POST['labelName']);
@@ -2354,20 +2455,21 @@ function labels($valg) {
         print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips och tricks.', $sprog_id)."'><!--tekst 737-->";
         print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
         
-        if ($labelName == 'Standard') {
-            // Standard label is stored in grupper table
-            $qtxt = "select $valg from grupper where art = 'LABEL'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $labelText = $r[$valg];
-            }
-        } elseif ($valg == 'box1' && in_array($labelName, $labelNames)) {
-            $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $labelText = $r['labeltext'];
-                $labelType = $r['labeltype'];
-            }
+        if ($labelName == 'Standard' || ($valg == 'box1' && in_array($labelName, $labelNames))) {
+            $label     = loadLabelText($valg, $labelName);
+            $labelText = $label['labeltext'];
+            $labelType = $label['labeltype'];
         }
-        
+
+        // Captured before the 'Standard'-and-empty branch below fills $labelText with a
+        // display-only placeholder, so the visually-editable check further down judges what is
+        // actually stored (empty = nothing to lose) rather than that placeholder, which is
+        // written in the labels table's older $beskrivelse/$pris variable names and so never
+        // matches what generateLabelTemplate() itself produces (MB-18: an emptied-out label
+        // regenerates the placeholder on the next render and was wrongly staying locked out of
+        // the visual editor because of that mismatch).
+        $storedLabelText = $labelText;
+
         if (empty($labelType)) $labelType = 'sheet';
         if ($labelName == 'Standard' && empty($labelText)) {
             $labelText = '$cols=1;
@@ -2413,7 +2515,16 @@ Pris $pris<br>
 </div>
 /bottom;';
         }
-        
+
+        // A label whose template the visual editor's narrow field model can't reproduce
+        // exactly (imported Brother/Dymo templates, hand-written raw HTML, ...) must stay in
+        // raw-HTML mode - opening it in the visual editor and saving would silently discard
+        // whatever it doesn't model (MB-18).
+        if (!$editRawHTML && !labelTemplateEditableVisually($storedLabelText)) {
+            $editRawHTML = true;
+            $forcedRawHTML = true;
+        }
+
         if ($valg == 'box1') {
             // Label selection dropdown - only show if there are custom labels
             $hasMultipleOptions = count($labelNames) > 1 || (count($labelNames) == 1 && $labelName != 'Standard');
@@ -2454,7 +2565,13 @@ Pris $pris<br>
 			print "<tr><td colspan='4'>";
 			print "<div style='margin-bottom: 10px;'>";
 			print "<h3>Rå HTML Editor</h3>";
-			print "<p style='color: #666; font-size: 12px;'>Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$beskrivelse, \$pris, \$img, osv.</p>";
+			print "<p style='color: #666; font-size: 12px;'>".findtekst('5057|Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$minbeskrivelse, \$minpris, \$img, osv. \$minbeskrivelse og \$minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. \$beskrivelse og \$pris henter altid varens egen.', $sprog_id)."<!--tekst 5056--></p>";
+			if (!empty($forcedRawHTML)) {
+				print "<p style='color: #a94442; background-color: #f2dede; padding: 6px; font-size: 12px;'>".findtekst('5078|Denne label indeholder formatering, som den visuelle editor ikke forstår, og kan derfor kun redigeres her som rå HTML - at gemme via den visuelle editor ville slette den formatering, den ikke kan vise. For at få adgang til den visuelle editor igen skal den rå HTML tømmes og gemmes.', $sprog_id)."</p>";
+			}
+			if (!empty($saveLabelRefused)) {
+				print "<p style='color: #a94442; background-color: #f2dede; padding: 6px; font-size: 12px;'>".findtekst('5079|Din ændring blev ikke gemt - denne labels skabelon er ændret siden siden blev indlæst (fx i en anden fane), og kan nu kun redigeres som rå HTML. Genindlæs siden og prøv igen.', $sprog_id)."</p>";
+			}
 			print "</div>";
 			print "<textarea name='rawHTML' style='width: 100%; height: 400px; font-family: monospace; font-size: 12px;'>" . htmlspecialchars($labelText) . "</textarea>";
 			print "</td></tr>";
@@ -2465,7 +2582,9 @@ Pris $pris<br>
 			else print "<option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option><option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option>";
 			print "</select>";
 			print "<input type='submit' style='width:150px' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='saveRawHTML'>";
-			print "&nbsp;<input type='submit' style='width:150px' value='Skift til Visuel Editor' name='switchToVisual'>";
+			if (empty($forcedRawHTML)) {
+				print "&nbsp;<input type='submit' style='width:150px' value='Skift til Visuel Editor' name='switchToVisual'>";
+			}
 			if ($valg == 'box1') {
 			print "&nbsp;<input type='submit' style='width:150px' value='".findtekst('39|Ny', $sprog_id)." Label' name='newLabel'>";
 			if ($labelName != 'Standard') {
@@ -2572,7 +2691,7 @@ Pris $pris<br>
 		print "<tr><td></td><td><a href=diverse.php?sektion=labels&valg=box2>";
 		print "<input type='button' style='width:100px' value='".findtekst('361|Adresse', $sprog_id)."'></a></td></tr>";
     }
-}
+} # endfunc labels
 
 function parseLabelTemplate($labelText) {
     $parsed = array(
@@ -2608,26 +2727,29 @@ function parseLabelTemplate($labelText) {
         $parsed['txtlen'] = $matches[1];
     }
     
-    // Parse CSS dimensions
-    if (preg_match('/width:\s*([0-9.]+)mm/', $labelText, $matches)) {
-        $parsed['width'] = $matches[1];
+    // Parse CSS dimensions. Accepts a comma decimal separator too (and normalizes it to a dot) in
+    // case a template written before the generateLabelTemplate() comma-normalization fix already
+    // has one stored - generateLabelTemplate() itself never writes a comma, so this is a read-side
+    // safety net, not the primary fix.
+    if (preg_match('/width:\s*([0-9.,]+)mm/', $labelText, $matches)) {
+        $parsed['width'] = str_replace(',', '.', $matches[1]);
     }
-    if (preg_match('/height:\s*([0-9.]+)mm/', $labelText, $matches)) {
-        $parsed['height'] = $matches[1];
+    if (preg_match('/height:\s*([0-9.,]+)mm/', $labelText, $matches)) {
+        $parsed['height'] = str_replace(',', '.', $matches[1]);
     }
-    if (preg_match('/font-size:\s*([0-9.]+)px/', $labelText, $matches)) {
-        $parsed['font_size'] = $matches[1];
+    if (preg_match('/font-size:\s*([0-9.,]+)px/', $labelText, $matches)) {
+        $parsed['font_size'] = str_replace(',', '.', $matches[1]);
         // Set default font sizes for all elements
-        $parsed['varenr_font_size'] = $matches[1];
-        $parsed['varemrk_font_size'] = $matches[1];
-        $parsed['beskrivelse_font_size'] = $matches[1];
-        $parsed['pris_font_size'] = $matches[1];
+        $parsed['varenr_font_size'] = $parsed['font_size'];
+        $parsed['varemrk_font_size'] = $parsed['font_size'];
+        $parsed['beskrivelse_font_size'] = $parsed['font_size'];
+        $parsed['pris_font_size'] = $parsed['font_size'];
     }
-    if (preg_match('/margin-top:\s*([0-9.]+)mm/', $labelText, $matches)) {
-        $parsed['margin_top'] = $matches[1];
+    if (preg_match('/margin-top:\s*([0-9.,]+)mm/', $labelText, $matches)) {
+        $parsed['margin_top'] = str_replace(',', '.', $matches[1]);
     }
-    if (preg_match('/margin-left:\s*([0-9.]+)mm/', $labelText, $matches)) {
-        $parsed['margin_left'] = $matches[1];
+    if (preg_match('/margin-left:\s*([0-9.,]+)mm/', $labelText, $matches)) {
+        $parsed['margin_left'] = str_replace(',', '.', $matches[1]);
     }
     
     // Check what fields are shown
@@ -2645,28 +2767,32 @@ function parseLabelTemplate($labelText) {
         foreach ($lines as $line) {
             $line = trim($line);
             
-            // Check for varenr with specific font size
-            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$varenr.*?<\/span>/i', $line, $fontMatches)) {
+            // Check for varenr with specific font size. [^<]*? (not .*?) keeps the match inside
+            // a single <span>...</span> - $varenr and $varemrk can share one line
+            // ("<span ...>$varenr</span> / <span ...>$varemrk</span>"), and .*? doesn't stop at
+            // a tag boundary, so it would happily match across into the *other* span and report
+            // its font-size instead (MB-18 review: locks out a label the editor itself just wrote).
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>[^<]*?\$varenr[^<]*?<\/span>/i', $line, $fontMatches)) {
                 $parsed['varenr_font_size'] = $fontMatches[1];
             }
-            
+
             // Check for varemrk with specific font size
-            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$varemrk.*?<\/span>/i', $line, $fontMatches)) {
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>[^<]*?\$varemrk[^<]*?<\/span>/i', $line, $fontMatches)) {
                 $parsed['varemrk_font_size'] = $fontMatches[1];
             }
-            
+
             // Check for beskrivelse with specific font size
-            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$(min)?beskrivelse.*?<\/span>/i', $line, $fontMatches)) {
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>[^<]*?\$(min)?beskrivelse[^<]*?<\/span>/i', $line, $fontMatches)) {
                 $parsed['beskrivelse_font_size'] = $fontMatches[1];
             }
-            
+
             // Check for pris with specific font size
-            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?[Pp]ris.*?\$(min)?pris.*?<\/span>/i', $line, $fontMatches)) {
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>[^<]*?[Pp]ris[^<]*?\$(min)?pris[^<]*?<\/span>/i', $line, $fontMatches)) {
                 $parsed['pris_font_size'] = $fontMatches[1];
             }
         }
     }
-    
+
     // Extract custom text with individual font sizes
     if (preg_match('/<p>(.*?)<\/p>/s', $labelText, $matches)) {
         $content         = $matches[1];
@@ -2674,13 +2800,17 @@ function parseLabelTemplate($labelText) {
         $customLineCount = 1;
         foreach ($lines as $line) {
             $line = trim($line);
-            if (!empty($line) && 
-                !preg_match('/\$/', $line) && 
-                !preg_match('/<img/', $line) && 
-                !preg_match('/[Pp]ris/', $line)) {
-                
+            // A line is one of the fixed generated lines (and NOT custom text) only if it
+            // actually contains one of the template variables/markup generateLabelTemplate()
+            // emits - not merely the words "pris"/"$"/"img" as plain text. The old check
+            // excluded any custom line containing those words at all (e.g. "Pris pr. stk",
+            // "Kun $99"), silently dropping legitimate custom text the editor's own UI accepts
+            // (MB-18 review).
+            $isFixedLine = preg_match('/\$varenr|\$varemrk|\$minbeskrivelse|\$beskrivelse|\$minpris|\$pris|<img/i', $line);
+            if (!empty($line) && !$isFixedLine) {
+
                 // Check if this line has a specific font-size
-                if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>(.*?)<\/span>/i', $line, $spanMatches)) {
+                if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>([^<]*?)<\/span>/i', $line, $spanMatches)) {
                     $parsed["custom_text_$customLineCount"]        = trim(strip_tags($spanMatches[2]));
                     $parsed["custom_text_{$customLineCount}_size"] = $spanMatches[1];
                 } else {
@@ -2694,9 +2824,22 @@ function parseLabelTemplate($labelText) {
     }
     
     return $parsed;
-}
+} # endfunc parseLabelTemplate
 
 function generateLabelTemplate($data) {
+    // $minbeskrivelse/$minpris are the default: they show the customer's own text and price from
+    // Mit salg, and lager/labelprint_includes/newlabel.php falls back to the item's own when
+    // printing without an account, so they work in both places where $beskrivelse/$pris only work
+    // from the item card.
+
+    // width/height/font_size/margin_top/margin_left are free-text form fields (not type=number),
+    // so a Danish "3,5" reaches here as-is; a comma there isn't valid CSS to begin with, and
+    // parseLabelTemplate()'s [0-9.]+ regexes can't read it back either, locking the label out of
+    // the visual editor on the very next load (MB-18 review) - normalize before it's ever written.
+    foreach (array('width', 'height', 'font_size', 'margin_top', 'margin_left') as $dimensionField) {
+        if (isset($data[$dimensionField])) $data[$dimensionField] = str_replace(',', '.', $data[$dimensionField]);
+    }
+
     $template = "\$cols={$data['cols']};\n";
     $template.= "\$rows={$data['rows']};\n";
     $template.= "\$txtlen={$data['txtlen']};\n";
@@ -2796,9 +2939,99 @@ function generateLabelTemplate($data) {
     $template .= "<bottom>\n";
     $template .= "</div>\n";
     $template .= "/bottom;";
-    
+
     return $template;
-} # endfunc labels
+} # endfunc generateLabelTemplate
+
+/**
+ * True if regenerating $labelText through the visual editor's own field model
+ * (parseLabelTemplate() -> generateLabelTemplate()) reproduces it exactly (modulo
+ * whitespace and the legacy $beskrivelse/$pris variable names, see below).
+ * parseLabelTemplate() only understands a fixed, narrow set of CSS properties and
+ * content lines - anything else in the template (custom CSS like transform/rotate,
+ * margin shorthand, extra markup, more than 5 content lines, a hand-written raw-HTML
+ * structure, an imported Brother/Dymo template, ...) is invisible to it, so
+ * generateLabelTemplate() silently drops it on the very next visual-editor save.
+ * Saving via the visual editor must be refused whenever this returns false, or
+ * "changing one setting" ends up discarding the customer's whole template (MB-18).
+ *
+ * generateLabelTemplate() only ever writes $minbeskrivelse/$minpris, never the older
+ * $beskrivelse/$pris (deliberate, see the 20260824 history entry) - so a template using
+ * only the old names would otherwise never round-trip even though nothing about it is
+ * actually unrepresentable. That's exactly what opdat_4.0.php's upgrade migration wrote
+ * into every existing install's Standard label, so canonicalize the old names to the
+ * new ones before comparing.
+ *
+ * @param string $labelText Full label template text, as stored in labels.labeltext /
+ *                          grupper.box1.
+ * @return bool True if the template is safe to edit visually (an empty template counts
+ *              as safe - nothing to lose); false if it has content the visual editor's
+ *              model can't reproduce and must stay in raw-HTML mode.
+ */
+function labelTemplateEditableVisually($labelText) {
+    if (empty($labelText)) return true; // nothing to lose on a brand new label
+    $canonical   = str_replace(array('$beskrivelse', '$pris'), array('$minbeskrivelse', '$minpris'), $labelText);
+    $regenerated = generateLabelTemplate(parseLabelTemplate($labelText));
+    $normalize   = function ($s) { return preg_replace('/\s+/', ' ', trim($s)); };
+    return $normalize($regenerated) === $normalize($canonical);
+} # endfunc labelTemplateEditableVisually
+
+/**
+ * Applies a visual-editor save for one label, refusing when the label's CURRENT stored
+ * template has content the visual editor's field model can't reproduce (MB-18) - this is
+ * the authoritative guard a form submit cannot bypass; systemdata/diverse.php's $saveLabel
+ * POST handler is a thin wrapper around this function, not a reimplementation of it, so
+ * tests exercising this function exercise the real save path.
+ *
+ * @param string $valg      'box1' for item labels, 'box2' for address labels
+ * @param string $labelName Name of the label being saved
+ * @param array  $postData  Raw $_POST-shaped visual-editor form fields (cols, rows, txtlen,
+ *                          width, height, font_size, margin_top, margin_left, show_*,
+ *                          *_font_size, custom_text_N, custom_text_N_size, labelType)
+ * @return bool True if the save was applied; false if refused - nothing is written to
+ *              storage in that case.
+ */
+function saveVisualLabelEdit($valg, $labelName, $postData) {
+    $existingLabel = loadLabelText($valg, $labelName);
+    if (!labelTemplateEditableVisually($existingLabel['labeltext'])) return false;
+
+    // The safe 3-arg if_isset($array, $default, $key) form is required throughout - the
+    // show_* checkboxes are genuinely absent from $_POST whenever unchecked (that's how HTML
+    // checkboxes work), and the eager-dereference 1/2-arg form (if_isset($postData['key'], ...))
+    // evaluates $postData['key'] before if_isset() ever runs, warning on the very undefined key
+    // it's supposed to guard against.
+    $formData = array(
+        'cols'                  => if_isset($postData, 1, 'cols'),
+        'rows'                  => if_isset($postData, 1, 'rows'),
+        'txtlen'                => if_isset($postData, 50, 'txtlen'),
+        'width'                 => if_isset($postData, '38.1', 'width'),
+        'height'                => if_isset($postData, '21.2', 'height'),
+        'font_size'             => if_isset($postData, '12', 'font_size'),
+        'margin_top'            => if_isset($postData, '7', 'margin_top'),
+        'margin_left'           => if_isset($postData, '3', 'margin_left'),
+        'show_varenr'           => if_isset($postData, null, 'show_varenr')      == 'on',
+        'show_varemrk'          => if_isset($postData, null, 'show_varemrk')     == 'on',
+        'show_beskrivelse'      => if_isset($postData, null, 'show_beskrivelse') == 'on',
+        'show_pris'             => if_isset($postData, null, 'show_pris')        == 'on',
+        'show_barcode'          => if_isset($postData, null, 'show_barcode')     == 'on',
+        // Individual font sizes for each element
+        'varenr_font_size'      => if_isset($postData, if_isset($postData, '12', 'font_size'), 'varenr_font_size'),
+        'varemrk_font_size'     => if_isset($postData, if_isset($postData, '12', 'font_size'), 'varemrk_font_size'),
+        'beskrivelse_font_size' => if_isset($postData, if_isset($postData, '12', 'font_size'), 'beskrivelse_font_size'),
+        'pris_font_size'        => if_isset($postData, if_isset($postData, '12', 'font_size'), 'pris_font_size')
+    );
+
+    // Add custom text lines with individual font sizes
+    for ($i = 1; $i <= 5; $i++) {
+        $formData["custom_text_$i"] = if_isset($postData, '', "custom_text_$i");
+        $formData["custom_text_{$i}_size"] = if_isset($postData, $formData['font_size'], "custom_text_{$i}_size");
+    }
+
+    $generatedTemplate = generateLabelTemplate($formData);
+    $labelType         = if_isset($postData, 'sheet', 'labelType');
+    saveLabelText($valg, $labelName, $generatedTemplate, $labelType);
+    return true;
+} # endfunc saveVisualLabelEdit
 
 function prislister()
 {

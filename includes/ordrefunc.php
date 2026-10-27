@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-07-29 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,6 +113,97 @@
 //             elseif(!$svar) branch, right after $fejl (which is never reassigned), making it
 //             dead code and leaving the committed-success path unchecked; moved it back to
 //             sit unconditionally before the shared return (SD-595)
+// 20260813 Sawaneh function krediter: replacement serial row insert interpolated the whole
+//             $batch_kob_id array as literal "Array" causing a SQL syntax error, so the fresh
+//             salgslinje_id=0 row was never created on credit; insert batch_kob_id '0' like the
+//             credit path in linjeopdat, and initialize $batch_kob_id as array
+// 20260824 Sawaneh JOB-056 function momsupdat: free-text lines (vare_id=0) with their own bogf_konto/momssats
+//             were invisible to the mixed-VAT detection, so the flat header-rate recalculation overwrote
+//             ordrer.moms with header rate on the whole order while bogfor_nu posts VAT per line rate
+//             (invoice 14239: 89.40 DKK ledger imbalance)
+// 20260824 Sawaneh JOB-056 function bogfor_nu: new pre-flight check forkontrolPosteringsbalance rejects an
+//             out-of-balance order BEFORE any transaktioner/openpost rows are written (previously the
+//             imbalance was detected after posting, with no rollback for callers outside bogfor).
+//             Also guarded the vatAccount rounding loops against infinite loop on empty SM account list
+// 20260811 Sawaneh function batch: automatic batch reservation now uses fefo_order_clause() instead
+//                  of 'order by kobsdate', so the batch expiring first is drawn first (FEFO).
+//                  Items without due dates are unaffected - they still come out in kobsdate order.
+// 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
+// 20260908 CL/Sawaneh SST-763: duplicate pbsfakt() removed; includes/pbsfunc.php is included instead.
+// 20260908 CDX/MJ JOB-106 Validate the date against the effective order type: an all-negative DO
+//             order is turned into a DK credit note by bogfor(), but only after the date checks
+//             had already run, so a valid return date was still rejected for that case
+// 20260921 MJ SST-796 linjeopdat(): when a sale runs off negative stock the deficit batch_kob
+//             was priced from the static varer.kostpris. Prefer the price on an open, unreceived
+//             kreditorordre line for the same item (pris, less line discount, x the order's
+//             valutakurs), keep varer.kostpris as the last resort, log which was used, and warn the
+//             user once per delivery without blocking it.
+// 20260923 MJ SST-796 Same fix applied to the negative-quantity/kreditnota deficit branch, which
+//             read varer.kostpris too. Both branches now share deficit_cost_price().
+// 20260914 CL/SZ SST-744: function bogfor_nu: moved the vat_account/findAccountVat check for a VAT-liable
+//             line to before $d_kontrol/$k_kontrol are incremented for it, so a missing VAT code on the
+//             posting account can never inflate the control totals without a matching posting; the
+//             returned error now names the offending account and order instead of a bare generic string.
+// 20260716 CL/LH Added caller-owned transactions for atomic imports.
+// 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
+// 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+
+include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
+
+/**
+ * Check whether a delivery date invalidly precedes its order date.
+ *
+ * Customer credit notes use levdate as the return date, so their date is not
+ * ordered relative to the date on which the credit note was created.
+ *
+ * @return bool True when the delivery date is invalid for this order type.
+ */
+function delivery_date_before_order_date($art, $levdate, $ordredate)
+{
+	return !$levdate || ($art !== 'DK' && $levdate < $ordredate);
+}
+
+/**
+ * Decide whether an order will be converted into a credit note when it is posted.
+ *
+ * bogfor() turns an all-negative DO order into a DK credit note (its $dan_kn flag),
+ * but not until after the delivery date has been validated. Callers that validate
+ * earlier have to classify the order themselves, or they reject a return date that
+ * is legitimately older than the order date.
+ *
+ * Mirrors the $dan_kn loop in bogfor(): same query, same row order, same conditions.
+ *
+ * @param int|string $id  Order id.
+ * @param string     $art Order type as currently stored.
+ * @return bool True when this is a DO order whose lines all point the credit way.
+ */
+function order_becomes_credit_note($id, $art)
+{
+	if ($art !== 'DO') {
+		return false;
+	}
+	$id = intval($id);
+	$dan_kn = 1;
+	$a = 0;
+	$z = 0;
+	$q = db_select("select vare_id, antal from ordrelinjer where ordre_id = '$id' and antal != '0' order by saet", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$z++;
+		if ($r['antal'] < 0) {
+			$a += $r['antal'];
+		}
+		if ($r['vare_id'] && $r['antal'] >= 0) {
+			$dan_kn = 0;
+		}
+		if ($dan_kn && !$a) {
+			$dan_kn = 0;
+		}
+	}
+	if ($dan_kn && !$z) {
+		$dan_kn = 0;
+	}
+	return (bool)$dan_kn;
+}
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -231,14 +322,15 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 		$ordredate = $fakturadate;
 	}
 	$r = db_fetch_array(db_select("select * from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-	if ($fakturadate && !$r['levdate']) {
+	if (!$r['levdate']) {
 		if ($webservice)
 			return ('Manglende leveringsdato');
 		else
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato SKAL udfyldes')\">";
 		exit;
 	} else {
-		if (!$hurtigfakt && $r['levdate'] < $r['ordredate']) {
+		$effektiv_art = order_becomes_credit_note($id, $art) ? 'DK' : $art;
+		if (!$hurtigfakt && delivery_date_before_order_date($effektiv_art, $r['levdate'], $r['ordredate'])) {
 			print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato $r[levdate]<$r[ordredate]')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 			exit;
@@ -383,7 +475,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 					exit;
 				}
 				if ($vare_id[$x] && $leveres[$x]) {
-					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x], $bogf_konto[$x], $variant_id[$x], $lager[$x]);
+					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x], $bogf_konto[$x], $variant_id[$x], $lager[$x], $webservice);
 					#				if (trim($row['samlevare'])=='on') {
 #					$q2 = db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
 #					while($r2 =db_fetch_array($q2)) 
@@ -399,7 +491,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 } #endfunc levering
 
 #############################################################################################
-function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pris, $nettopris, $rabat, $samlevare, $linje_nr, $posnr, $serienr, $kred_linje_id, $bogf_konto, $variant_id, $lager)
+function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pris, $nettopris, $rabat, $samlevare, $linje_nr, $posnr, $serienr, $kred_linje_id, $bogf_konto, $variant_id, $lager, $webservice = false)
 {
 
 	#xit;
@@ -414,6 +506,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 	global $lev_nr, $levdate;
 	global $regnaar, $ref;
 	global $sn_id;
+	global $sprog_id;            # SST-796 for findtekst() on the estimated-cost warning
 
 	$antal *= 1;
 
@@ -563,8 +656,15 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				}
 
 				if ($tmp) { # F.eks negativt salg uden købsreference
-					$r = db_fetch_array(db_select("select kostpris from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
-					$kostpris = $r['kostpris'] * 1;
+					// 20260923 MJ SST-796 Same stale-cost-price exposure as the normal-sale branch
+					//             below: this quantity has no batch_kob behind it, so its cost was
+					//             taken from the static varer.kostpris. $kred_linje_id zeroes $tmp
+					//             above, so a return booked against a specific original sale line
+					//             never reaches here - there is no historical cost to inherit, and an
+					//             open purchase line is the better estimate. Shared resolver so the
+					//             two branches cannot drift apart again.
+					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
+					$kostpris = deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'negativt salg/kreditnota', $webservice);
 					$tmp2 = $tmp * -1;
 					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
 					#db_modify("insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) values ('$vare_id', '0', '0','0','$tmp','$kostpris','$lager','$variant_id')",__FILE__ . " linje " . __LINE__);
@@ -599,8 +699,15 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					db_modify("update batch_kob set rest='$ny_rest' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
 				}
 				if ($tmp) {
-					$r = db_fetch_array(db_select("select kostpris from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
-					$kostpris = $r['kostpris'] * 1;
+					// 20260921 MJ SST-796 Selling off negative stock: no batch_kob with rest > 0
+					//             covers this quantity, so a deficit batch is written below. Its price
+					//             used to come straight from the static varer.kostpris, which at
+					//             Den-Tec was three years old - a machine bought at EUR 18.500 (kurs
+					//             7,50 = 138.750 kr) went out on an invoice at 88.100,93 kr, with the
+					//             real price sitting on an open purchase line for the same item the
+					//             whole time. Prefer that line; keep varer.kostpris as the last resort.
+					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
+					$kostpris = deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'salg fra negativ lagerbeholdning', $webservice);
 					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
 					$tmp2 = $tmp * -1;
 					$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) ";
@@ -791,6 +898,7 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 	$kobsbelob = 0;
 	$a = 0;
 	$res_sum = 0;
+	$batch_kob_id = array();
 
 	$row = db_fetch_array(db_select("select posnr, kred_linje_id from ordrelinjer where id='$linje_id'", __FILE__ . " linje " . __LINE__));
 	$kred_linje_id = $row['kred_linje_id'];
@@ -831,7 +939,7 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 		$q = db_select("select * from serienr where salgslinje_id=-$kred_linje_id", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$serienr = $r['serienr'];
-			db_modify("insert into serienr (kobslinje_id, vare_id, batch_kob_id, serienr, batch_salg_id, salgslinje_id) values ('$linje_id','$vare_id', $batch_kob_id, '$r[serienr]','0','0')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into serienr (kobslinje_id, vare_id, batch_kob_id, serienr, batch_salg_id, salgslinje_id) values ('$linje_id','$vare_id', '0', '$r[serienr]','0','0')", __FILE__ . " linje " . __LINE__);
 		}
 	}
 	#xit;
@@ -1074,10 +1182,13 @@ function batch($linje_id)
 		$x = 0;
 		$rest = array();
 		$lev_rest = $leveres;
-		if ($lager)
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by kobsdate", __FILE__ . " linje " . __LINE__);
-		else
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by kobsdate", __FILE__ . " linje " . __LINE__);
+		# FEFO: batches with the earliest due_date are drawn first. Batches without a due_date
+		# sort last and then by kobsdate, so items without expiry dates keep the old FIFO order.
+		if ($lager) {
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
+		} else {
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
+		}
 		while ($row = db_fetch_array($query)) {
 			$x++;
 			$batch_kob_id[$x] = $row['id'];
@@ -1158,7 +1269,7 @@ function samlevare($id, $art, $linje_id, $v_id, $leveres)
 	#exit;
 } # endfunc samlevare
 ###############################################################
-function bogfor($id, $webservice=false)
+function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=false)
 {
 	/* print "<!--function bogfor start-->"; */
 
@@ -1188,7 +1299,7 @@ function bogfor($id, $webservice=false)
 		return $err;
 	}
 
-	transaktion('begin');
+	if (!$callerOwnsTransaction) transaktion('begin');
 
 	$nextfakt = $row['nextfakt'];
 	$art = $row['art'];
@@ -1249,7 +1360,7 @@ function bogfor($id, $webservice=false)
 	}
 
 	if ($row['status'] > '2') {
-		transaktion('rollback');
+		if (!$callerOwnsTransaction) transaktion('rollback');
 		return ("invoice allready created for order id $id");
 	}
 	/*
@@ -1300,11 +1411,11 @@ function bogfor($id, $webservice=false)
 				db_modify("update ordrer set sum=sum+$tillag, moms=moms+$tillag/100*$momssats where id = '$id'", __FILE__ . " linje " . __LINE__);
 				#xit;	
 			} else {
-				transaktion('rollback');
+				if (!$callerOwnsTransaction) transaktion('rollback');
 				return ('Manglende vare til procenttillæg');
 			}
 		} else {
-			transaktion('rollback');
+			if (!$callerOwnsTransaction) transaktion('rollback');
 			return ('Manglende vare til procenttillæg -- ' . $procentvare);
 		}
 	}
@@ -1366,7 +1477,7 @@ function bogfor($id, $webservice=false)
 	$row = db_fetch_array($query);
 
 	if (!$fakturadate) {
-		transaktion('rollback');
+		if (!$callerOwnsTransaction) transaktion('rollback');
 		if ($webservice) {
 			return ("missing invoicedate for order $id");
 		} else {
@@ -1389,7 +1500,7 @@ function bogfor($id, $webservice=false)
 			$qtxt = "select id, moms from kontoplan where kontonr='$currDiff' and regnskabsaar='$regnaar'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			} else {
-				transaktion('rollback');
+				if (!$callerOwnsTransaction) transaktion('rollback');
 				if ($webservice)
 					return ("Kontonr $currDiff (kursdiff) eksisterer ikke");
 				else {
@@ -1399,7 +1510,7 @@ function bogfor($id, $webservice=false)
 			/* echo count($xx); */
 			#	exit;
 		} else {
-			transaktion('rollback');
+			if (!$callerOwnsTransaction) transaktion('rollback');
 			$tmp = dkdato($fakturadate);
 			return ("Der er ikke nogen valutakurs for $valuta den $tmp (fakturadatoen).");
 		}
@@ -1409,14 +1520,14 @@ function bogfor($id, $webservice=false)
 	}
 
 	if (!$levdate) {
-		transaktion('rollback');
+		if (!$callerOwnsTransaction) transaktion('rollback');
 		if ($webservice)
 			return ("Missing deliverydate");
 		else
 			return ("Leveringsdato SKAL udfyldes");
 	}
-	if ($levdate < $ordredate) {
-		transaktion('rollback');
+	if (delivery_date_before_order_date($dan_kn ? 'DK' : $art, $levdate, $ordredate)) {
+		if (!$callerOwnsTransaction) transaktion('rollback');
 		if ($webservice)
 			return ("Deliverydate prior to orderdate");
 		else
@@ -1429,7 +1540,7 @@ function bogfor($id, $webservice=false)
 #	}
 
 	if (($nextfakt) && ($nextfakt <= $fakturadate)) {
-		transaktion('rollback');
+		if (!$callerOwnsTransaction) transaktion('rollback');
 		if ($webservice)
 			return ("Next_invoicedate prior to invoicedate");
 		else
@@ -1440,7 +1551,7 @@ function bogfor($id, $webservice=false)
 	$ym = $year . $month;
 
 	if ($art != 'PO' && !$webservice && ($ym < $aarstart || $ym > $aarslut)) {
-		transaktion('rollback');
+		if (!$callerOwnsTransaction) transaktion('rollback');
 		print "<BODY onLoad=\"javascript:alert('Fakturadato udenfor regnskabs&aring;r')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 		exit;
@@ -1449,7 +1560,7 @@ function bogfor($id, $webservice=false)
 		if ($r = db_fetch_array(db_select("select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=" . nr_cast("grupper.kodenr") . " and valuta.valdate <= '$ordredate' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
 			$valutakurs = $r['kurs'];
 		} else {
-			transaktion('rollback');
+			if (!$callerOwnsTransaction) transaktion('rollback');
 			$tmp = dkdato($ordredate);
 			return ("Der er ikke nogen valutakurs for $valuta den $ordredate (ordredatoen)");
 		}
@@ -1618,14 +1729,14 @@ function bogfor($id, $webservice=false)
 		if ($straksbogfor)
 			$svar = bogfor_nu($id, $webservice);
 		if ($svar != "OK") {
-			transaktion('rollback');
+			if (!$callerOwnsTransaction) transaktion('rollback');
 			return ($svar);
 			exit;
 		} else {
-			transaktion('commit');
+			if (!$callerOwnsTransaction) transaktion('commit');
 		}
 	} elseif (!$svar) {
-		transaktion('rollback');
+		if (!$callerOwnsTransaction) transaktion('rollback');
 		$svar = $fejl;
 	}
 	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
@@ -1667,9 +1778,11 @@ function momsupdat($id)
 			$antal_diff_moms++;
 			continue;
 		}
-		if ($r['vare_id'] && $r['momsfri'] != 'on' && !$r['omvbet']) {
+		if (($r['vare_id'] || $r['bogf_konto'] > 0) && $r['momsfri'] != 'on' && !$r['omvbet']) {
 			if ($r['momssats'] > 0 && $r['momssats'] < $momssats)
 				$varemomssats = $r['momssats'];
+			elseif (!$r['vare_id']) # fritekstlinje med egen konto: momssatsen er valgt bevidst og maa ikke overskrives
+				$varemomssats = $r['momssats'] * 1;
 			else {
 				if ($r['momssats'] != $momssats)
 					db_modify("update ordrelinjer set momssats=$momssats where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
@@ -1684,7 +1797,7 @@ function momsupdat($id)
 			if ($r['procent'] || $r['procent'] == '0')
 				$linjemoms *= $r['procent'] / 100;
 			$moms += afrund($linjemoms, 2);
-		} else if ($r['vare_id'])
+		} else if ($r['vare_id'] || $r['bogf_konto'] > 0)
 			$antal_diff_moms++;
 	}
 	if (!$antal_diff_moms && $art != 'PO') {
@@ -2220,6 +2333,106 @@ function bogfor_indbetaling($id, $webservice) {
 	return ('OK');
 }
 ######################################################################################################################################
+function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
+{
+	# 20260824 Sawaneh JOB-056
+	# Toerkoersel af posteringsberegningen i bogfor_nu: forudsiger den debet/kredit-difference
+	# bogfoeringen vil skabe, saa en ordre i ubalance kan afvises FOER der skrives til
+	# transaktioner/openpost. Tolerancerne spejler dem kursdifference-/oeredifference-
+	# posteringerne allerede opfanger, saa ordrer der bogfoeres rent i dag paavirkes ikke.
+	global $baseCurrency;
+	if (!$valutakurs)
+		$valutakurs = 100;
+	$maxdif = 2;
+	if (is_numeric($id))
+		$tmp = "ordre_id = '" . $id . "'";
+	else {
+		$idliste = explode(",", $id);
+		$antal = count($idliste);
+		$tmp = "(ordre_id = '" . $idliste[0] . "'";
+		for ($x = 1; $x < $antal; $x++)
+			$tmp .= " or ordre_id = '" . $idliste[$x] . "'";
+		$tmp .= ")";
+	}
+	$p = 0;
+	$projekt = array();
+	$q = db_select("select distinct(coalesce(projekt,'')) as projekt from ordrelinjer where $tmp and vare_id >'0'", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$p++;
+		$projekt[$p] = trim($r['projekt']);
+	}
+	$projektantal = ($p) ? $p : 1;
+	if (!$p)
+		$projekt[1] = '';
+	$kontrol = afrund(afrund($headerTotal, 3) * $valutakurs / 100, 3);
+	for ($t = 1; $t <= 2; $t++) {
+		for ($p = 1; $p <= $projektantal; $p++) {
+			$y = 0;
+			$konto = $vatkonto = $net = $vat = array();
+			if ($t == 1)
+				$qtxt = "select * from ordrelinjer where $tmp and coalesce(projekt,'')='$projekt[$p]' and posnr>='0' and bogf_konto > 0 order by bogf_konto,vat_account";
+			else
+				$qtxt = "select * from ordrelinjer where $tmp and coalesce(projekt,'')='$projekt[$p]' and posnr<'0' order by bogf_konto,vat_account";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				if ($valutakurs != 100)
+					$maxdif += 2;
+				if (!in_array($r['bogf_konto'], $konto)) {
+					$y++;
+					$konto[$y] = $r['bogf_konto'];
+					$vatkonto[$y] = $r['vat_account'] * 1;
+					if ($r['rabatart'] == 'amount') {
+						$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']);
+						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
+					} else {
+						$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
+						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
+						$net[$y] = afrund($net[$y], 3);
+					}
+					($r['momssats'] && !$r['momsfri']) ? $vat[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $vat[$y] = 0;
+				} else {
+					for ($a = 1; $a <= $y; $a++) {
+						if ($konto[$a] == $r['bogf_konto'] && $vatkonto[$a] == $r['vat_account']) {
+							if ($r['rabatart'] == 'amount')
+								$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']);
+							else
+								$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
+							($r['procent'] || $r['procent'] != '') ? $net[$a] += $linjesum * $r['procent'] / 100 : $net[$a] += $linjesum;
+							$net[$a] = afrund($net[$a], 3);
+							if ($r['momssats'] && !$r['momsfri'])
+								$vat[$a] += afrund($linjesum / 100 * $r['momssats'], 3);
+						}
+					}
+				}
+			}
+			for ($x = 1; $x <= $y; $x++) {
+				if (!$konto[$x] || !$net[$x])
+					continue;
+				if ($t == 1)
+					$kontrol -= afrund($net[$x] * $valutakurs / 100, 3) + afrund($vat[$x] * $valutakurs / 100, 3);
+				else
+					$kontrol -= afrund($net[$x], 3) + afrund($vat[$x], 3);
+			}
+		}
+	}
+	$diff = afrund($kontrol, 2);
+	if (!$diff)
+		return NULL;
+	if ($valuta != $baseCurrency && abs($diff) <= $maxdif)
+		return NULL;
+	if (abs($diff) < 0.05)
+		return NULL;
+	return $diff;
+}
+######################################################################################################################################
+/**
+ * Posts one or more orders' lines to the ledger (transaktioner/kontoplan), validating VAT/account
+ * setup and control-total balance before writing anything.
+ *
+ * @param int|string $id A single ordrer.id, or a comma-separated list of ids to post together.
+ * @param string $kilde Caller context; 'Dagsafslutning' forces POS (cash-drawer) posting rules.
+ * @return string 'OK' on success, otherwise a user-facing description of why posting failed.
+ */
 function bogfor_nu($id, $kilde) {
 
 	include("../includes/genberegn.php");
@@ -2426,6 +2639,16 @@ function bogfor_nu($id, $kilde) {
 		$konto_id = '0';
 		$kontonr = NULL;
 	}
+	# 20260824 Sawaneh JOB-056 ->
+	if ($art != 'PO' && ($balancediff = forkontrolPosteringsbalance($id, $sum, $valuta, $valutakurs))) {
+		$svar = "Bogf&oslash;ring afbrudt: ordren balancerer ikke (difference " . dkdecimal($balancediff, 2) . " $baseCurrency). ";
+		$svar .= "Ordrens moms stemmer ikke med ordrelinjernes momssatser - &aring;bn ordren, kontroller konto og momssats p&aring; linjerne og gem den igen f&oslash;r bogf&oslash;ring.";
+		$message = $db . " | Bogfoering blokeret foer postering: ordre_id=$id, diff=$balancediff | " . __FILE__ . " linje " . __LINE__ . " | " . $brugernavn . " " . date("Y-m-d H:i:s");
+		$headers = 'From: fejl@saldi.dk' . "\r\n" . 'Reply-To: fejl@saldi.dk' . "\r\n" . 'X-Mailer: PHP/' . phpversion();
+		mail('fejl@saldi.dk', 'SALDI Fejl', $message, $headers);
+		return ($svar);
+	}
+	# <- 20260824 Sawaneh JOB-056
 	if ($konto_id && $kontonr) {
 		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'", __FILE__ . " linje " . __LINE__));
 		$debitorgruppe = $r['gruppe'];
@@ -2853,6 +3076,16 @@ function bogfor_nu($id, $kilde) {
 					$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$bogf_konto[$y]' and regnskabsaar='$regnaar'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					if ($linjemoms[$y]) {
+						if (!$vat_account[$y]) {
+							include_once('../includes/stdFunc/findAccountVat.php');
+							$vat_account[$y] = findAccountVat($bogf_konto[$y]);
+						}
+						if (!$vat_account[$y]) {
+							# 20260914 CL/SZ SST-744: bail out before $d_kontrol/$k_kontrol are touched for this
+							# line, so a VAT/account setup problem can never leave the control totals holding an
+							# amount that was never actually posted anywhere.
+							return ("Kontroller moms & momsopsætning: kontonr $bogf_konto[$y] har ingen momskode, men ordre $id har en linje med moms");
+						}
 						if ($linjemoms[$y] > 0) {
 							$kredit = $linjemoms[$y];
 							$debet = 0;
@@ -2870,14 +3103,6 @@ function bogfor_nu($id, $kilde) {
 						$k_kontrol = $k_kontrol + $kredit;
 						$debet = afrund($debet, 2);
 						$kredit = afrund($kredit, 2);
-						if (!$vat_account[$y]) {
-							include_once('../includes/stdFunc/findAccountVat.php');
-							$vat_account[$y] = findAccountVat($bogf_konto[$y]);
-						}
-						if (!$vat_account[$y]) {
-							return ("Kontroller moms & momsopsætning");
-							exit;
-						}
 						if (is_numeric($id)) {
 							$qtxt = "insert into transaktioner ";
 							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
@@ -2915,7 +3140,7 @@ function bogfor_nu($id, $kilde) {
 	}
 	$moms = afrund($moms, 2);
 	$lineVatTotal = afrund($lineVatTotal, 2);
-	while (afrund($moms - $lineVatTotal, 2) >= 0.01) { #20190311
+	while (count($vatAccount) && afrund($moms - $lineVatTotal, 2) >= 0.01) { #20190311 #20260824 Sawaneh JOB-056 count() da tom kontoliste ellers giver uendelig loekke
 		for ($v = 0; $v < count($vatAccount); $v++) {
 			if (afrund($moms - $lineVatTotal, 2) >= 0.01) {
 				$vatAmount[$v] += 0.01;
@@ -2925,7 +3150,7 @@ function bogfor_nu($id, $kilde) {
 			}
 		}
 	}
-	while (afrund($lineVatTotal - $moms, 2) >= 0.01) { #20190311
+	while (count($vatAccount) && afrund($lineVatTotal - $moms, 2) >= 0.01) { #20190311 #20260824 Sawaneh JOB-056 count()
 		for ($v = 0; $v < count($vatAccount); $v++) {
 			if (afrund($lineVatTotal - $moms, 2) >= 0.01) {
 				$vatAmount[$v] -= 0.01;
@@ -4640,7 +4865,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
 		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=../debitor/ordreliste.php accesskey=L title='Klik her for at komme tilbage til ordreliste'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+		print "<div class=\"headerbtnLft headLink\"><a href=../debitor/ordreliste.php accesskey=L title='Klik her for at komme tilbage til ordreliste' onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\"><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></div>";
 		print "<div class=\"headerTxt\">$tekst</div>";
 		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "</div>";
@@ -4728,9 +4953,9 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"6\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 		if (!strstr($returside, "ordre.php"))
-			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 		else
-			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
 		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a></td>";
 		print "</tbody></table>";
@@ -4741,31 +4966,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 }
 
 ######################################################################################################################################
-if (!function_exists('pbsfakt')) {
-	function pbsfakt($id)
-	{
-
-		if ($id && $id > 0) {
-			if ($r = db_fetch_array(db_select("select id from pbs_liste where afsendt = ''", __FILE__ . " linje " . __LINE__)))
-				$liste_id = $r['id'];
-			else {
-				$liste_date = date("Y-m-d");
-				$afsendt = NULL;
-				db_modify("insert into pbs_liste (liste_date,afsendt) values ('$liste_date','$afsendt')", __FILE__ . " linje " . __LINE__);
-				$r = db_fetch_array(db_select("select id from pbs_liste where afsendt = ''", __FILE__ . " linje " . __LINE__));
-				$liste_id = $r['id'];
-			}
-			if (db_fetch_array(db_select("select id from pbs_ordrer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__))) {
-				print "<tr><td>Faktura nr $r[fakturanr] findes allerede i PBS liste</td></tr>";
-			} else {
-				$r = db_fetch_array(db_select("select fakturanr, konto_id from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-				$konto_id = $r['konto_id'];
-				db_modify("insert into pbs_ordrer (liste_id,ordre_id) values ('$liste_id','$id')", __FILE__ . " linje " . __LINE__);
-				print "<tr><td>Faktura nr $r[fakturanr] tilf&oslash;jet til PBS liste</td></tr>";
-			}
-		}
-	}
-}
+include_once(__DIR__ . '/pbsfunc.php'); # pbsfakt() lives there now (SST-763)
 ##################################################
 function pos_afrund($sum, $difkto, $kurs)
 {

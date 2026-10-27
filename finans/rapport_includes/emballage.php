@@ -8,6 +8,8 @@
 // Packaging tax report (producentansvar). Detailed and Summary views over
 // invoiced packaging within a date range, filtered by delivery country.
 // Copyright (c) 2003-2026 saldi.dk ApS
+// 20260814 Sawaneh Include booked orders (status 4) so the report is not
+//                  empty once invoices are booked.
 
 function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -140,7 +142,7 @@ function emballage_detailed_view($csv, $dateFilter, $landFilter, $startdato, $sl
 	         JOIN ordrer o ON ol.ordre_id = o.id
 	         JOIN emballage e ON e.varer_id = ol.vare_id
 	         LEFT JOIN adresser a ON a.id = o.konto_id
-	         WHERE o.status = '3' $dateFilter $landFilter
+	         WHERE o.status IN ('3','4') $dateFilter $landFilter
 	         ORDER BY o.fakturadate, e.category, e.type";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -193,7 +195,7 @@ function emballage_summary_view($csv, $dateFilter, $landFilter, $startdato, $slu
 	         JOIN ordrer o ON ol.ordre_id = o.id
 	         JOIN emballage e ON e.varer_id = ol.vare_id
 	         LEFT JOIN adresser a ON a.id = o.konto_id
-	         WHERE o.status = '3' $dateFilter $landFilter
+	         WHERE o.status IN ('3','4') $dateFilter $landFilter
 	         GROUP BY periode, e.category, e.waste_sorting, slutbruger
 	         ORDER BY periode, e.category, e.waste_sorting, slutbruger";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);

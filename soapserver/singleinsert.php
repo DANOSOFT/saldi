@@ -21,6 +21,7 @@
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2014.01.06 Fejl hvis paranteser i variabel. Søg 20140106
+// 20260911 Sawaneh Blank quoted "dummyvalue" literals in client SQL (JOB-115)
 
 ini_set("soap.wsdl_cache_enabled", "1");
 
@@ -33,6 +34,7 @@ function singleinsert($string) {
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
 	include ("../includes/online.php");
+	include_once(__DIR__ . '/../includes/std_func.php');
 
 	$linje=NULL;
 	$fp=fopen("../temp/soap.log","a");
@@ -41,6 +43,7 @@ function singleinsert($string) {
 	$singleinsert=str_replace(chr(9),"",$singleinsert);
 	$singleinsert=str_replace(chr(10),"",$singleinsert);
 	$singleinsert=str_replace(chr(13),"",$singleinsert);
+	$singleinsert=strip_placeholder_sql_literals($singleinsert);
 #	$singleinsert=str_replace(" ","",$singleinsert);
 	list($table,$tmp)=explode("(",$singleinsert,2);
 	$table=trim($table);

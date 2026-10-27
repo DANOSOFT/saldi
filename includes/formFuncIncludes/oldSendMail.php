@@ -28,6 +28,10 @@
 // 20-09-2024 PBLM added betalingsLink functionality
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260818 CL/LH Disabled shared-key payment-link minting in mail templates.
+// 20260819 Sawaneh Echo 'Mail sent to' confirmation like sendMail.php does, so
+//                  callers show it regardless of which mailer is loaded.
+// 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
+//                  and offers the ASCII suggestion via emailLookalike.php.
 	
 /*if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
@@ -46,6 +50,7 @@ print "<!--function send_mails start-->";
 	global $exec_path;
 #	global $id; // hent 'mail_bilag' fra ordrer + leveringsaddr.
 	global $returside;
+	global $sprog_id;
 
 	$email=str_replace(' ','',$email);
 	if (strpos($email,';')) $emails=explode(';',$email);
@@ -53,8 +58,8 @@ print "<!--function send_mails start-->";
 	else $emails[0]=$email;
 	for ($x=0;$x<count($emails);$x++) {
 		if (!filter_var($emails[$x], FILTER_VALIDATE_EMAIL)) { #20200122
-			alert("Invalid email format in $emails[$x]");
-			return ("Invalid email format in $emails[$x]");
+			include_once(__DIR__ . "/emailLookalike.php");
+			return emailRecipientRejected($emails[$x], $ordre_id, $sprog_id, $mailantal);
 		}
 	}
 	$bilag=$brugermail=$mail_bilag=NULL;
@@ -341,6 +346,7 @@ print "<!--function send_mails start-->";
 			alert($tekst);
 		}
 	}
+	echo findtekst('3370|Mail sendt til', $sprog_id)." ".htmlspecialchars($email, ENT_QUOTES)."<br>";
 	return("Mail sent to $email");
 	print "<!--function send_mails slut-->";
 }

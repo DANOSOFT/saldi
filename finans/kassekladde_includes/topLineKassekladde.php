@@ -23,6 +23,10 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // -----------------------------------------------------------------------------------
 // 20260126 PHR fixed $exitDraft
+// 20260904 Sawaneh Gear button for the Customize view panel added next to 'Ny' (editable journals only);
+//                  the panel itself and its logic live in kassekladde.php.
+// 20260908 SZ SST-755: Back/Ny now release the lock through includes/luk.php unconditionally,
+//           instead of exitDraft (which only fired when the back target equaled kladdeliste.php).
 
 $border = 'border:1px';
 $TableBG = "bgcolor=$bgcolor";
@@ -40,7 +44,10 @@ print "<tr><td height='25' align='center' valign='top' class='top-header'>";
 print "<table class='topLine' width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>"; # Tabel 1.1 ->
 
 # Back button
-$backTargetS = ($backUrl == '../finans/kladdeliste.php') ? "$backUrl?exitDraft=$kladde_id&line=". __line__ : $backUrl;
+// 20260908 SZ SST-755: release the lock through includes/luk.php (with the row's current
+// tidspkt) regardless of the back target, instead of only when $backUrl happened to equal
+// kladdeliste.php - see finans/kassekladde.php for $kladdeLukBase.
+$backTargetS = isset($kladdeLukBase) ? $kladdeLukBase . "&returside=" . urlencode($backUrl) : $backUrl;
 print "<td width=5% style='$buttonStyle'>
 	<a href=\"javascript:confirmClose('" . htmlspecialchars($backTargetS, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
@@ -84,12 +91,21 @@ print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\
 print $help_icon;
 print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 
+$createNewTarget = isset($kladdeLukBase) ? $kladdeLukBase . "&returside=" . urlencode('../finans/kassekladde.php') : '../finans/kassekladde.php';
 print "<td id='create-new' width='5%' style='$buttonStyle'>
-	<a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>
+	<a href=\"javascript:confirmClose('" . htmlspecialchars($createNewTarget, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='N'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 		$add_icon ".
-		findtekst('39|Ny', $sprog_id)." 
+		findtekst('39|Ny', $sprog_id)."
 	</button></a></td>";
+
+if ($bogfort == '-' || $bogfort == '') { // gear only where the Customize view panel exists (editable journal)
+	$gear_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M370-80l-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm112-260q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Z"/></svg>';
+	$gear_title = htmlspecialchars(findtekst('3380|Tilpas visning', $sprog_id), ENT_QUOTES, $charset);
+	print "<td id='kk-vis-cell' width='3%' style='$buttonStyle'>
+		<button type='button' id='kkVisToggle' class='center-btn' style='$buttonStyle; width:100%; justify-content:center;' title='$gear_title' onMouseOver=\"this.style.cursor='pointer'\">
+		$gear_icon</button></td>";
+}
 
 print "</tr></tbody></table></td></tr>\n"; # <- Tabel 1.1
 
@@ -102,6 +118,8 @@ print "</tr></tbody></table></td></tr>\n"; # <- Tabel 1.1
 		text-decoration: none;
 		gap: 5px;
 	}
+	#kkVisToggle svg { transition: transform .25s ease; }
+	#kkVisToggle:hover svg { transform: rotate(60deg); }
 	 /* no use for underlines on the top href buttons */
 	.header-row a,
 	.header-row a:link,

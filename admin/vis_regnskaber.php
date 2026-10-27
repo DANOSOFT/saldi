@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- patch 4.1.1 --- 2025.05.21 ---
+// --- admin/vis_regnskaber.php --- ver 5.0.0 --- 2026.09.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +18,7 @@ $s_id=session_id();
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210328 PHR Some cleanup.
 // 20210916 LOE Translated some texts
@@ -32,6 +32,10 @@ $s_id=session_id();
 // 20260728 NTR Fixed lukket, booking and email being shuffled/missing.
 // 20260728 CL/NTR Changed how show/hide closed button is rendered, both so all params are preserved, but also so we don't have duplicate markup. Also made it a http_build_query so that it's easier to read.
 //                 Both the mobile and computer version.
+// 20260928 CL/NTR regnskab has no booking column, so the Booking column warned on every row and
+//                  sorting by it was a fatal error. It now comes from license_features (feature_key
+//                  'booking', see license_manager.php) via a left join, and the sort/sort2 params are
+//                  whitelisted before they reach ORDER BY.
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -206,8 +210,9 @@ if (isset($menu) && $menu=='S') {
 
 $id=array(); $regnskab=array(); $db_navn=array();
 
-if (!$sort) $sort='regnskab';
-if (!$sort2) $sort2='id';
+$sortable = ['id', 'regnskab', 'brugerantal', 'posteringer', 'posteret', 'sidst', 'booking', 'lukket', 'lukkes', 'betalt_til', 'logintekst'];
+if (!in_array($sort, $sortable, true)) $sort='regnskab';
+if (!in_array($sort2, $sortable, true)) $sort2='id';
 if ($sort==$sort2) {
 	if (!$desc) {
 		$order="order by $sort desc";
@@ -243,7 +248,17 @@ $r = db_fetch_array($q);
 list($admin,$oprette,$slette,$tmp)=explode(",",$r['rettigheder'],4);
 $adgang_til=explode(",",$tmp);
 $x=0;
-$qtxt = "select * from regnskab where db != '$sqdb'";
+// The Booking column mirrors license_features (feature_key 'booking', edited in license_manager.php);
+// regnskab itself has no booking column. A regnskab without a row counts as licensed, matching
+// is_feature_licensed() in includes/license_func.php. The alias makes "order by booking" work.
+$qtxt = "SELECT 1 FROM information_schema.tables WHERE table_name = 'license_features'";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "select regnskab.*, case when lf.id is null or (lf.enabled and (lf.expires_at is null or lf.expires_at >= current_date)) then 'on' else '' end as booking";
+	$qtxt.= " from regnskab left join license_features lf on lf.regnskab_id = regnskab.id and lf.feature_key = 'booking'";
+} else {
+	$qtxt = "select regnskab.*, 'on' as booking from regnskab";
+}
+$qtxt.= " where regnskab.db != '$sqdb'";
 if (!$showClosed) $qtxt.= " and lukket != 'on'";
 $qtxt.= " $order";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -367,7 +382,8 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 			print "<td><input type=text size=\"5\" style=\"text-align:right\" name=\"posteringer[$x]\" value=\"$posteringer[$x]\"</td>";
 			print "<td align='right'>$posteret[$x]</td>";
 			print "<td align='right'>".date("d-m-Y",$sidst[$x])."</td>";
-			print "<td><input type='checkbox' name='booking[$x]' $booking[$x]></td>";
+			if ($booking[$x]) $booking[$x]="checked";
+			print "<td><input type='checkbox' name='booking[$x]' $booking[$x] disabled title='license_manager.php'></td>";
 			print "<td align='left'>$email[$x]<br></td>";
 			if ($lukket[$x]) $lukket[$x]="checked";
 			if ($showClosed) print "<td align=center><input type=checkbox name=lukket[$x] $lukket[$x]></td>";

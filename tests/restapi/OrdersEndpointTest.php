@@ -13,6 +13,7 @@
 //
 // History:
 // 20260723 CL/LH SD-602: created.
+// 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
 
 use PHPUnit\Framework\TestCase;
 
@@ -29,7 +30,12 @@ final class OrdersEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenantOnce();
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        RestApiEnv::teardownTenant();
     }
 
     private function authHeaders(): array

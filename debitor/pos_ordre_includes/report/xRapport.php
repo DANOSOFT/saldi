@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------ debitor/pos_print/xRapport.php -- lap 3.7.5 -- 2019-03-19 --
+// --- debitor/pos_ordre_includes/report/xRapport.php -- ver 5.0.0 -- 2026-10-01 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,10 +23,15 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2019 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // --------------------------------------------------------------------------
 // 20190312 LN If the report is a X-report make the correct calls
 // 20190319 LN Add correct parameter to the following print functions
+// 20261001 MJ SST-825 Always print the redirect to the print server. a5fcb2f3 wrapped it in
+//             if ($printpopup), but this file runs inside pos_txt_print(), which never sets
+//             that variable - so the X-report sent nothing to the browser and nothing to the
+//             printer, while the Z-report kept working. Header path corrected: the file moved
+//             out of debitor/pos_print/ long ago.
 
 
 printReportFunctions($fp, $firmanavn, $cvrnr, $orgNr, $date, $uniqueShopId, $reportArray, $type, $kasse);
@@ -58,9 +63,15 @@ if ($printserver=='box' || !$printserver) $printserver=$_COOKIE['saldi_printserv
 
 $skuffe=0;
 
-if ($printpopup) {
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=&url=$url&bruger_id=$bruger_id&bon=$bon&bonantal=$bonantal&id=$id&skuffe=$skuffe&returside=$returside&logo=on\">\n";
-}
+// SST-825 This redirect used to be wrapped in if ($printpopup). The file is included
+// from posTxtPrint/setTextVar.php, inside pos_txt_print(), which declares
+// global $printserver but never global $printpopup and never assigns it - so the
+// condition was an undefined local, always false. Nothing was written to the browser
+// before the exit below: a blank page in the till and no receipt. zRapport.php, on the
+// same path, prints this line unconditionally, which is why Z-reports always worked.
+// Whether printing is switched off at all is already decided one level up, by
+// setTextVar.php's deactivateBonprint check, before this file is ever included.
+print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=&url=$url&bruger_id=$bruger_id&bon=$bon&bonantal=$bonantal&id=$id&skuffe=$skuffe&returside=$returside&logo=on\">\n";
 
 exit;
 

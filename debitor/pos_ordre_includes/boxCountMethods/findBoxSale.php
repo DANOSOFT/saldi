@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 5.0.0 - 2026.06.05 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- ver 5.0.0 --- 2026.10.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260605 CL/PHR findBoxSale: inkluder kasse_nr=0 transaktioner for ordrer tilhørende denne kasse i kasseopgørelsen
@@ -30,12 +30,21 @@
 // 20260523 CL/PHR Changed INNER JOIN with pos_betalinger to LEFT JOIN with COALESCE fallback to ordrer.felt_1/valuta,
 //                 so orders without pos_betalinger rows (art='DO') are included in cash balance calculation
 // 20260523 CL/PHR Fixed negative tilgang: skip retur calculation when pos_betalinger has no rows (NULL amount)
-function findBoxSale ($kasse,$optalt,$valuta) {
+// 20260907 CDX/PHR Expose included orders for cash report assignment.
+// 20260908 CDX/LH Limit immediate-posting report assignments to counted accounts; keep calculation read-only.
+// 20261019 CL/LH MB-70: Count only POS orders (and debtor orders when sets are enabled), as posbogfor() posts them.
+//                Ordinary invoices with a transaction on the register no longer inflate the turnover.
+//                A sale without payment type is logged and shown as "Ukendt betalingstype" instead of a nameless bucket.
+//                A missing (NULL) payment type no longer reaches substr()/strtolower().
+function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
+	$reportOrderIds = array();
 	echo "<!-- function findBoxSale begin -->"; 
   	global $baseCurrency,$db,$regnaar;
 	global $sprog_id,$straksbogfor;
 	global $vis_saet;
 	$retur=0;
+	$kontosum = $accountPayment = 0;
+	$vatRates = $vatAmounts = '';
 	$dd=date("Y-m-d");
 	$r=db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$startmd=$r['box1'];
@@ -65,10 +74,13 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$kortantal=0;
 		$kortnavn=array();
 	}
-	$qtxt = "select box1,box6 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+	$qtxt = "select box1,box6,box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($byttepenge=$r['box1'])?$fast_morgen=1:$fast_morgen=0;
 	$otherCardsAccount = (int)$r['box6'];
+	# Select orders as posbogfor() in pos_ordre.php does: POS orders only, plus debtor
+	# orders handed in at the register when sets are enabled (vis_saet, box12).
+	$includeDebtorOrders = (bool)trim((string)($r['box12'] ?? ''));
 	$acountExists = $kortsum = array();
 	for ($i=0;$i<count($kortnavn);$i++) {
 		if (!in_array($kortkonto[$i],$acountExists)) {
@@ -117,6 +129,8 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 			$qtxt = "select distinct(t.ordre_id) from transaktioner t left join ordrer o on t.ordre_id = o.id";
 			$qtxt.= " where (t.logdate > '$logdate' or (t.logdate = '$logdate' and t.logtime > '$logtime'))";
 			$qtxt.= " and (t.kasse_nr='$kasse' or (t.kasse_nr=0 and o.felt_5='$kasse'))";
+			if ($includeDebtorOrders) $qtxt.= " and (o.art = 'PO' or o.art like 'D%')";
+			else $qtxt.= " and o.art = 'PO'";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$o=0;
 			$oList=array();
@@ -167,7 +181,6 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 	} else {
 		$tilgang=0;
 		$oid=0;
-		db_modify("update ordrer set felt_3='' where felt_3 is NULL and status='3'",__FILE__ . " linje " . __LINE__);
 		$b = $v = 0;
 		$oid=$osum=$oVat=array();
 #		$kontosalg='';
@@ -182,6 +195,8 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$qtxt.="from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id ";
 		$qtxt.="where ordrer.felt_5='$kasse' $tmp and ordrer.fakturadate >= '$regnstart' ";
 		$qtxt.="and ordrer.fakturadate <= '$dd' and ordrer.valuta = '$valuta' ";
+		if ($includeDebtorOrders) $qtxt.= "and (ordrer.art = 'PO' or ordrer.art like 'D%') ";
+		else $qtxt.= "and ordrer.art = 'PO' ";
 		if (count($oList)) $qtxt.= "and ordrer.status >= '3' ";
 		else $qtxt.= "and ordrer.status = '3'";
 		$qtxt.=" order by betalingstype, ordrer.id";
@@ -189,9 +204,16 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		while ($r=db_fetch_array($q)) {
 			if ($r['status'] == '3' || in_array($r['ordre_id'],$oList)) {
 				$betalingstype=$r['betalingstype']; #20170317
+				if (trim((string)$betalingstype) === '') {
+					# A nameless bucket is added to the turnover but never saved as a payment row
+					# on the report, so name it and leave a trace of the order behind it.
+					error_log(sprintf("findBoxSale: order %d on register %d has no payment type", $r['ordre_id'], $kasse));
+					$betalingstype = findtekst('5450|Ukendt betalingstype', $sprog_id);
+				}
 				if (substr($betalingstype,0,14)=='Betalingskort|')$betalingstype='Betalingskort';	
 				if (!in_array($r['ordre_id'],$oid)) {
 					$oid[$b]  = $r['ordre_id'];
+					$reportOrderIds[] = (int)$r['ordre_id'];
 					$oVat[$b] = (float)$r['moms'];
 					$osum[$b] = $r['sum']+$r['moms'];
 #$tsum+=$osum[$b];
@@ -199,7 +221,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 					$b++;
 				}
 #					if (strtolower($r['betalingstype'])=='konto') $kontosalg.=$oid[$b].chr(9);
-				if (strtolower($r['betalingstype'])=='konto') $kontosum+=$r['amount'];
+				if (strtolower((string)$r['betalingstype'])=='konto') $kontosum+=$r['amount'];
 				elseif ($valuta==$baseCurrency && $r['betalingstype']=='Kontant' && ($r['valuta'] == $valuta || $r['valuta'] == '')) {
 					$tilgang+=$r['amount'];
 				} elseif ($valuta!=$baseCurrency && $r['betalingstype']=='Kontant' && $r['valuta'] == $valuta) {
@@ -273,6 +295,26 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); # and kasse_nr = '$kasse'
 				$kortsum[$x]+=$r['debet']-$r['kredit'];
 			}
+		}
+	}
+	if ($straksbogfor && func_num_args() >= 4) {
+		$reportRegister = (int)$kasse;
+		$reportCurrency = db_escape_string($valuta);
+		$qtxt = "select distinct o.id from ordrer o join transaktioner t on t.ordre_id = o.id ";
+		$qtxt.= "where o.felt_5 = '$reportRegister' and o.status >= 3 and o.valuta = '$reportCurrency' ";
+		// Match the cash and card predicates used by the totals above, including
+		// the fiscal-year bound on cash and the absence of cards for foreign currency.
+		$cashAccount = (int)$kassekonti[$k];
+		$reportStart = db_escape_string($regnstart);
+		$accountPredicate = "(t.kontonr = '$cashAccount' and t.transdate >= '$reportStart')";
+		$cardAccounts = array_filter(array_map('intval', array_slice($kortkonto, 0, $kortantal)));
+		if ($cardAccounts) {
+			$accountPredicate .= ' or t.kontonr in (' . implode(',', array_unique($cardAccounts)) . ')';
+		}
+		$qtxt.= "and t.transdate = '$dd' and ($accountPredicate)";
+		$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$reportOrderIds[] = (int)$r['id'];
 		}
 	}
 #	$kassesum=dkdecimal($byttepenge+$tilgang);

@@ -94,6 +94,7 @@ class CustomerModel
             $this->lev_land = $r['lev_land'];
             $this->kontakt = $r['kontakt'];
             $this->kontonr = $r['kontonr'];
+            $this->gruppe = (int)$r['gruppe']; // 20260812 CL/LH (SD-621): gruppe was never hydrated, so toArray() returned null and the group was lost on API read-back
 
             // Load kontakt_emails
             $this->kontakt_emails = [];
@@ -246,8 +247,13 @@ class CustomerModel
                 $this->id = (int)$r['id'];
             }
 
-            // Save kontakt_emails for new customer
-            $this->saveKontaktEmails();
+            // Save kontakt_emails for new customer - only when some were supplied, as on update:
+            // 20260904 CL/NTR syncing an empty list back to adresser.email wiped the email the
+            // caller had just inserted, so API-created customers lost their email (and the
+            // duplicate-email check never matched them).
+            if (!empty($this->kontakt_emails)) {
+                $this->saveKontaktEmails();
+            }
             return true;
         }
 

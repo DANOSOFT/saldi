@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/accountchart.php --- lap 5.0.0 --- 2026.04.23 ---
+// --- includes/reportFunc/accountchart.php --- lap 5.0.0 --- 2026.10.06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 - 2026 Saldi.dk ApS
+// Copyright (c) 2023 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20250627 base currency anount was not calculated correct.
@@ -28,6 +28,16 @@
 // 20251002 MS Removed "Width=80%" and added padding to allow the Print/Email buttons to have the intended size, while still centering the text
 // 20260423 PHR Corrected call to text number for text
 // 20260429 PHR Removed 'unalign' from Openpost / AllAcount
+// 20260824 CL/SZ Restore caller's dato_fra/dato_til (not just konto_fra/til)
+//                when the saved KRV/DRV filter overwrites them - detail view
+//                was silently running against a stale date range (SST-672)
+// 20260907 CL/LH MB-15: port the accountChart fix from PR #480 (landed in the dead
+//                top-level reportFunc/ copy) - exact kontonr match first, second
+//                firmanavn query line appended instead of overwriting, and
+//                konto_fra/kontoart escaped before SQL interpolation
+// 20260925 CDX/PHR Default to open posts and preserve the report filter when opening settlement.
+// 20261006 CL/LH PR #677 review: skip settled entries in the top-menu (menu T) row loop too when showing open posts,
+//                and compute the Primosaldo title when every entry was skipped.
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -41,16 +51,9 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	global $top_bund;
 
 	$title = "Kontokort"; 
-	if(isset($_GET['kilde'])) {
-		
-		$OpenPost = if_isset($_GET['kilde'])=='openpost' ? 'on' : 'off';
-		$AllAcount = if_isset($_GET['kilde'])=='show_all' ? 'on' : 'off';
-		if($OpenPost != 'on' && $AllAcount != 'on') {
-			$OpenPost = 'on'; //default to open post
-		}
-	} 
-
-	
+	$kilde = ifset($_GET, 'kilde') === 'show_all' ? 'show_all' : 'openpost';
+	$OpenPost = $kilde === 'openpost' ? 'on' : 'off';
+	$AllAcount = $kilde === 'show_all' ? 'on' : 'off';
 
 	$email=$forfaldsum=$fromdate=$kto_fra=$kto_til=$returside=$todate=NULL;
 
@@ -75,7 +78,6 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 
 	$difflink=0;
 	$kontoart=trim($kontoart);
-	$kilde=if_isset($_GET['kilde']);
 	$kilde_kto_fra=if_isset($_GET['kilde_kto_fra']);
 	$kilde_kto_til=if_isset($_GET['kilde_kto_til']);
 
@@ -83,6 +85,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	else $returnpath="../debitor/";
 
 	$tmp=$konto_fra;
+	$tmpDatoFra=$dato_fra;
+	$tmpDatoTil=$dato_til;
 	($kontoart=='D')?$tekst='DRV':$tekst='KRV';
 	$qtxt = "select * from grupper where art = '$tekst' and kodenr = '$bruger_id'";
 	if(isset($_GET['returside'])) $returside= $_GET['returside'];
@@ -105,6 +109,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 		$returside="rapport.php?rapportart=$rapportart"; //&submit=ok&regnaar=$regnaar&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 		$konto_fra=$tmp;
 		$konto_til=$konto_fra;
+		$dato_fra=$tmpDatoFra;
+		$dato_til=$tmpDatoTil;
 	} elseif (!$returside) $returside="rapport.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 
 	if ($dato_fra && $dato_til) {
@@ -116,9 +122,10 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	$kontonr=array();
 	$kto_id=array();
 	$x=0;
+	$kontoartSql=db_escape_string($kontoart);
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) { #changed 20210816
 #		$qtxt = "select id from adresser where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art = '$kontoart' order by ".nr_cast('kontonr')."";
-		$qtxt = "select id,kontonr from adresser where art = '$kontoart' order by kontonr";
+		$qtxt = "select id,kontonr from adresser where art = '$kontoartSql' order by kontonr";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($konto_fra <= $r['kontonr'] && $konto_til >= $r['kontonr']) {
@@ -127,17 +134,33 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 			}
 		}
 	} else {
-		if ($konto_fra && $konto_fra!='*') {
-			$konto_fra=str_replace("*","%",$konto_fra);
-			$tmp1=strtolower($konto_fra);
-			$tmp2=strtoupper($konto_fra);
-			$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
-			$qtxt = "upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
-		}	else $qtxt = "select id from adresser where art = '$kontoart' order by firmanavn";
+		# 20260907 MB-15: alphanumeric kontonr (e.g. from the open-posts report) ended in the
+		# firmanavn search below and found nothing - try an exact kontonr match first.
+		if ($konto_fra && $konto_fra==$konto_til && strpos($konto_fra,'*')===false) {
+			$tmp=db_escape_string($konto_fra);
+			$qtxt = "select id from adresser where kontonr = '$tmp' and art = '$kontoartSql'";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$x++;
-			$konto_id[$x]=$r['id'];
+			while ($r = db_fetch_array($q)) {
+				$x++;
+				$konto_id[$x]=$r['id'];
+			}
+		}
+		if (!$x) {
+			if ($konto_fra && $konto_fra!='*') {
+				$konto_fra=str_replace("*","%",$konto_fra);
+				$tmp1=db_escape_string(strtolower($konto_fra));
+				$tmp2=db_escape_string(strtoupper($konto_fra));
+				$konto_fra=db_escape_string($konto_fra);
+				$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
+				$qtxt.= "upper(firmanavn) like '$tmp2') and art = '$kontoartSql' order by firmanavn";
+			} else {
+				$qtxt = "select id from adresser where art = '$kontoartSql' order by firmanavn";
+			}
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$x++;
+				$konto_id[$x]=$r['id'];
+			}
 		}
 	}
 	$kontoantal=$x;
@@ -411,6 +434,11 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 		$pre_openpost=0;
 		for ($y=1;$y<=count($oppId);$y++) {
 			$diff=0;
+			# Filter Open Post: same rule as the classic layout below, otherwise
+			# "Vis åbne poster" still lists settled entries in the top-menu layout.
+			if ($OpenPost == 'on' && $udlignet[$y] == '1') {
+				continue;
+			}
 			if ($transdate[$y]<$fromdate) {
 				 $primoprint[$x]=0;
 				 $kontosum+=$amount[$y];
@@ -439,7 +467,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 				($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 				if ($udlignet[$y]!='1') {
 						$pre_openpost=1;
-						print "<td valign=\"top\">$ffdag<br></td><td valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"text-align:right\">0</td>";
+						print "<td valign=\"top\">$ffdag<br></td><td valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"text-align:right\">0</td>";
 					} else {
 						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
 						$alink="rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
@@ -452,7 +480,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 				} else {
 					($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 					if ($udlignet[$y]!='1') {
-						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
+						print "<td>$ffdag<br></td><td style=\";text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
 						$pre_openpost=1;
 					} else {
 						$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
@@ -509,6 +537,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 		}
 		if ($primoprint[$x]==0) {
 			$tmp=dkdecimal($kontosum,2);
+			// Every entry may have been skipped by the open-post filter, so the loop never set $dkktmp.
+			$dkktmp=dkdecimal($dkksum ?? 0,2);
 			print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency sum $dkktmp\">$tmp<br></td></tr>\n";
 		}
 
@@ -590,7 +620,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 					($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 					   if ($udlignet[$y]!='1') {
 							$pre_openpost=1;
-							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
+							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
 						} else {
 							$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 
 							$alink="rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
@@ -603,7 +633,7 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 					} else {
 						($kontoart=='K')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
 						if ($udlignet[$y]!='1') {
-							print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
+							print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&kilde=$kilde&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td>";
 							$pre_openpost=1;
 						} else {
 							$titletag="Udlign id=$udlign_id[$y]. Klik for at ophæve udligning"; 

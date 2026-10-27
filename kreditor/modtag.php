@@ -36,6 +36,19 @@
 // 20231025 PHR Added call to sync_shop_vare and log to stocklog.
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20250207 PHR Corrected error in 'bogf_konto' as is used wrong account !
+// 20260908 CDX/LH Lock creditor orders before receipt validation and batch changes (SST-765).
+// 20260914 CL/SZ Block receipt of a batch/expiry-tracked line whose batch_due_date or
+//                batch_batch_no is empty, mirroring the existing serial-number check; also
+//                escaped batch_due_date and fixed a "0" batch-no being treated as empty in
+//                every batch_kob insert/update built from these two fields (MB-36).
+// 20260914 CL/SZ Added docstrings to reservation()/returnering() (CodeRabbit, PR #608).
+// 20260917 SZ Split the batch-info hard-stop above: batch_due_date is required only when
+//             item_has_due_date() is true, batch_no is required when that OR the item's
+//             group has box9='on' - box9 governs lot/batch tracking independently of expiry
+//             tracking, and item_has_due_date() itself used to query box9 before this PR,
+//             so box9-only items already relied on this validation (MB-36).
+// 20260917 SZ Guard the box9 lookup above against a missing grupper row (CodeRabbit,
+//             PR #608) - degrades to "not tracked" instead of a PHP warning.
 
 @session_start();
 $s_id=session_id();
@@ -44,7 +57,11 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$id=$_GET['id'];
+$id = (int)($_GET['id'] ?? 0);
+if ($id <= 0) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+	exit;
+}
 	
 ?>
 <script language="JavaScript">
@@ -69,23 +86,33 @@ if ($row = db_fetch_array($query)) {
 $r=db_fetch_array(db_select("select box6 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
 $fifo=$r['box6'];
 
-$query = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
+// Serialize receipt eligibility with posting and order saves.
+transaktion("begin");
+$query = db_select("select * from ordrer where id = '$id' for update",__FILE__ . " linje " . __LINE__);
 $row = db_fetch_array($query);
+if (!$row) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+	transaktion("rollback");
+	exit;
+}
 $art=$row['art'];
 $kred_ord_id=$row['kred_ord_id'];
 $ref=$row['ref'];
 if ($row['status']>2) {
 	print "<BODY onLoad=\"fejltekst('Hmmm - har du brugt browserens opdater eller tilbageknap???')\">";
 	 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+	transaktion("rollback");
 	exit;
 } elseif (!$row['levdate']) {
 	print "<BODY onLoad=\"fejltekst('Leveringsdato ikke udfyldt')\">";
 	 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+	transaktion("rollback");
 	exit;
 }
 elseif ($row['levdate']<$row['ordredate']) {
 	print "<BODY onLoad=\"fejltekst('Leveringsdato er f&oslash;r ordredato')\">";
 	 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+	transaktion("rollback");
 	exit;
 } else $fejl=0;
 
@@ -96,11 +123,11 @@ $ym=$year.$month;
 if (empty($aarstart) || empty($aarslut) || ($ym<$aarstart) || ($ym>$aarslut)) {
 	print "<BODY onLoad=\"fejltekst('Leveringsdato udenfor regnskabs&aring;r')\">";
 	 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+	transaktion("rollback");
 	exit;
 }
 
 if ($fejl==0) {
-	transaktion("begin");
 	$x=0;
 	$query = db_select("select * from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
@@ -134,9 +161,23 @@ if ($fejl==0) {
 				$sn_id[$y]=$row['id'];
 			}
 			if ($leveres[$x]>$sn_antal[$x]/1000){
-				 print "<BODY onLoad=\"fejltekst('Serienumre ikke udfyldt')\">";
+				print "<BODY onLoad=\"fejltekst('Serienumre ikke udfyldt')\">";
+				transaktion("rollback");
 				exit;
 			}
+		}
+		$dueDateTracked = item_has_due_date($vare_id[$x]);
+		$r = db_fetch_array(db_select(
+			"select g.box9 from varer v join grupper g on g.kodenr = v.gruppe and g.art = 'VG' and g.fiscal_year = '$regnaar' where v.id = '$vare_id[$x]'",
+			__FILE__ . " linje " . __LINE__
+		));
+		$batchNoTracked = $dueDateTracked || (trim((string) ($r['box9'] ?? '')) == 'on');
+		$batchDueDateEmpty = ($batch_due_date[$x] === null || $batch_due_date[$x] === '');
+		$batchBatchNoEmpty = ($batch_batch_no[$x] === null || $batch_batch_no[$x] === '');
+		if (($leveres[$x]>0)&&($art!='KK')&&(($dueDateTracked&&$batchDueDateEmpty)||($batchNoTracked&&$batchBatchNoEmpty))){
+			print "<BODY onLoad=\"fejltekst('Batchoplysninger ikke udfyldt')\">";
+			transaktion("rollback");
+			exit;
 		}
 		if (($leveres[$x]<0)&&($serienr[$x])){
 			$sn_antal[$x]=0; 
@@ -148,9 +189,10 @@ if ($fejl==0) {
 				$sn_id[$y]=$row['id'];
 			}
 			if ($leveres[$x]!=$sn_antal[$x]/-1000) {
-				 print "<BODY onLoad=\"fejltekst('Serienumre ikke valgt')\">";
-				 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-				 exit;
+				print "<BODY onLoad=\"fejltekst('Serienumre ikke valgt')\">";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+				transaktion("rollback");
+				exit;
 			}
 		}
 	}
@@ -174,13 +216,14 @@ if ($fejl==0) {
 				if (!$box3) {
 					print "<BODY onLoad=\"javascript:alert('Varenr $varenr[$x] (Pos nr: $posnr[$x]) er ikke tilnykttet nogen varegruppe, modtagelse afbrudt')\">";
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+					transaktion("rollback");
 					exit;
 				}
 				$qtxt = "update ordrelinjer set bogf_konto='$box3' where id='$linje_id[$x]'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 # PHR - Pris fjernet 06.04.08 - Prisen skal ikke saettes ved modtagelse
-				$_due = $batch_due_date[$x] ? ",'$batch_due_date[$x]'" : ",NULL";
-				$_bno = $batch_batch_no[$x] ? ",'" . db_escape_string($batch_batch_no[$x]) . "'" : ",NULL";
+				$_due = ($batch_due_date[$x] !== null && $batch_due_date[$x] !== '') ? ",'" . db_escape_string($batch_due_date[$x]) . "'" : ",NULL";
+				$_bno = ($batch_batch_no[$x] !== null && $batch_batch_no[$x] !== '') ? ",'" . db_escape_string($batch_batch_no[$x]) . "'" : ",NULL";
 				db_modify("insert into batch_kob(vare_id,variant_id,linje_id,kobsdate,ordre_id,antal,lager,due_date,batch_no) values ('$vare_id[$x]','$variant_id[$x]','$linje_id[$x]','$levdate','$id','$leveres[$x]','$lager[$x]'$_due$_bno)",__FILE__ . " linje " . __LINE__);
 			} else { #hvis varen ER lagerfoert
 				db_modify("update varer set beholdning='$vare_beholdning' where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
@@ -214,8 +257,8 @@ if ($fejl==0) {
 #						$rest=$leveres[$x]-($leveres[$x]-$beholdning);
 #						if ($rest<0) $rest=0;
 #						elseif ($rest>$leveres[$x])$rest=$leveres[$x];	
-						$_due = $batch_due_date[$x] ? ",'$batch_due_date[$x]'" : ",NULL";
-						$_bno = $batch_batch_no[$x] ? ",'" . db_escape_string($batch_batch_no[$x]) . "'" : ",NULL";
+						$_due = ($batch_due_date[$x] !== null && $batch_due_date[$x] !== '') ? ",'" . db_escape_string($batch_due_date[$x]) . "'" : ",NULL";
+						$_bno = ($batch_batch_no[$x] !== null && $batch_batch_no[$x] !== '') ? ",'" . db_escape_string($batch_batch_no[$x]) . "'" : ",NULL";
 						db_modify("insert into batch_kob(vare_id,variant_id,linje_id,kobsdate,ordre_id,antal,rest,lager,due_date,batch_no) values ('$vare_id[$x]','$variant_id[$x]','$linje_id[$x]','$levdate','$id','$leveres[$x]','$leveres[$x]','$lager[$x]'$_due$_bno)",__FILE__ . " linje " . __LINE__);
 #					} else {
 					#Pris fjernet fra nedenstaende 06.04.08 - Prisen skal ikke saettes ved modtagelse
@@ -394,6 +437,19 @@ echo "$shopurl<br>";
 #xit;
 } #endif ($fejl==0);
 
+/**
+ * Records a batch-tracked goods receipt for a lagerf&oslash;rt (stock-managed) order line:
+ * creates or updates the matching batch_kob row (carrying over the line's expiry
+ * date/batch number), reassigns any open reservation onto it, and moves its
+ * serial numbers across.
+ *
+ * @param int    $linje_id  ordrelinjer.id being received
+ * @param float  $leveres   Quantity received on this call
+ * @param int    $vare_id   Item id
+ * @param string $serienr   'on' if the item is serial-number tracked
+ * @param int    $lager     Warehouse id
+ * @return void
+ */
 function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 	global $id;
 	global $levdate;
@@ -403,6 +459,7 @@ function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 	while ($row = db_fetch_array($query)) {$res_sum=$res_sum+$row['antal'];}
 	if ($leveres<$res_sum) {
 		print "<BODY onLoad=\"fejltekst('Der er reserveret flere varer end der modtages - foretag proiritering')\">";
+		transaktion("rollback");
 		exit;
 	} 
 	$res_sum=0;
@@ -420,16 +477,16 @@ function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 	$rest=$leveres-$res_sum;
 	// Get expiry date data from ordrelinjer
 	$_ol = db_fetch_array(db_select("select batch_due_date, batch_batch_no from ordrelinjer where id=$linje_id", __FILE__ . " linje " . __LINE__));
-	$_due_val = ($_ol && $_ol['batch_due_date']) ? ",'$_ol[batch_due_date]'" : ",NULL";
-	$_bno_val = ($_ol && $_ol['batch_batch_no']) ? ",'" . db_escape_string($_ol['batch_batch_no']) . "'" : ",NULL";
+	$_due_val = ($_ol && $_ol['batch_due_date'] !== null && $_ol['batch_due_date'] !== '') ? ",'" . db_escape_string($_ol['batch_due_date']) . "'" : ",NULL";
+	$_bno_val = ($_ol && $_ol['batch_batch_no'] !== null && $_ol['batch_batch_no'] !== '') ? ",'" . db_escape_string($_ol['batch_batch_no']) . "'" : ",NULL";
 	if (!$batch_kob_id) {
 		db_modify("insert into batch_kob(linje_id, ordre_id, vare_id, kobsdate, antal, rest, lager, due_date, batch_no) values ($linje_id, $id, $vare_id, '$levdate', $leveres, $rest, $lager $_due_val $_bno_val)",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array(db_select("select id from batch_kob where linje_id=$linje_id and ordre_id=$id and kobsdate='$levdate' and	antal=$leveres and rest=$rest",__FILE__ . " linje " . __LINE__));
 		$batch_kob_id=$row['id'];
 	}
 	else {
-		$_due_set = ($_ol && $_ol['batch_due_date']) ? ",due_date='$_ol[batch_due_date]'" : ",due_date=NULL";
-		$_bno_set = ($_ol && $_ol['batch_batch_no']) ? ",batch_no='" . db_escape_string($_ol['batch_batch_no']) . "'" : ",batch_no=NULL";
+		$_due_set = ($_ol && $_ol['batch_due_date'] !== null && $_ol['batch_due_date'] !== '') ? ",due_date='" . db_escape_string($_ol['batch_due_date']) . "'" : ",due_date=NULL";
+		$_bno_set = ($_ol && $_ol['batch_batch_no'] !== null && $_ol['batch_batch_no'] !== '') ? ",batch_no='" . db_escape_string($_ol['batch_batch_no']) . "'" : ",batch_no=NULL";
 		db_modify("update batch_kob set kobsdate='$levdate', ordre_id=$id, vare_id=$vare_id, antal=$leveres, rest=$rest $_due_set $_bno_set where id=$batch_kob_id",__FILE__ . " linje " . __LINE__);
 	}
 	db_modify("delete from reservation where batch_kob_id=$batch_kob_id and linje_id=$linje_id",__FILE__ . " linje " . __LINE__); 
@@ -444,6 +501,24 @@ function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 	}
 }
 
+/**
+ * Records a return of previously-received, batch-tracked goods: reduces `rest` on
+ * the original batch_kob row(s) for the credited line, reassigns their serial
+ * numbers, and inserts a new batch_kob row for the return carrying over the
+ * line's expiry date/batch number.
+ *
+ * @param int    $id            ordrer.id of the credit note
+ * @param int    $linje_id      ordrelinjer.id of the credited line
+ * @param float  $leveres       Quantity being returned (negative)
+ * @param int    $vare_id       Item id
+ * @param int    $variant_id    Variant id, or 0
+ * @param float  $pris          Unit price
+ * @param string $serienr       'on' if the item is serial-number tracked
+ * @param int    $lager         Warehouse id
+ * @param int    $kred_linje_id Original kreditor order line being credited
+ * @param string $levdate       Delivery date
+ * @return void
+ */
 function returnering ($id,$linje_id,$leveres,$vare_id, $variant_id,$pris, $serienr,$lager,$kred_linje_id, $levdate) {
 	global $id;
 	$rest=$leveres;
@@ -452,6 +527,7 @@ function returnering ($id,$linje_id,$leveres,$vare_id, $variant_id,$pris, $serie
 
 	if (!$kred_linje_id) {
 		print "<BODY onLoad=\"fejltekst('Batch ikke valgt')\">";
+		transaktion("rollback");
 		exit;
 	}
 	$query = db_select("select * from batch_kob where linje_id=$kred_linje_id",__FILE__ . " linje " . __LINE__);
@@ -470,8 +546,8 @@ function returnering ($id,$linje_id,$leveres,$vare_id, $variant_id,$pris, $serie
 	}
 	// Get expiry date data from ordrelinjer for returnering
 	$_ol = db_fetch_array(db_select("select batch_due_date, batch_batch_no from ordrelinjer where id=$linje_id", __FILE__ . " linje " . __LINE__));
-	$_due_val = ($_ol && $_ol['batch_due_date']) ? ",'$_ol[batch_due_date]'" : ",NULL";
-	$_bno_val = ($_ol && $_ol['batch_batch_no']) ? ",'" . db_escape_string($_ol['batch_batch_no']) . "'" : ",NULL";
+	$_due_val = ($_ol && $_ol['batch_due_date'] !== null && $_ol['batch_due_date'] !== '') ? ",'" . db_escape_string($_ol['batch_due_date']) . "'" : ",NULL";
+	$_bno_val = ($_ol && $_ol['batch_batch_no'] !== null && $_ol['batch_batch_no'] !== '') ? ",'" . db_escape_string($_ol['batch_batch_no']) . "'" : ",NULL";
 	db_modify("insert into batch_kob(linje_id, ordre_id, vare_id, variant_id, kobsdate,antal,rest,lager,due_date,batch_no) values ('$linje_id', '$id', '$vare_id', '$variant_id','$levdate', '$leveres','0',$lager $_due_val $_bno_val)",__FILE__ . " linje " . __LINE__);
 }
 

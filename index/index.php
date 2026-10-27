@@ -67,6 +67,18 @@ if (!file_exists("../includes/connect.php")) {
 #cho $_SERVER['HTTP_USER_AGENT'];
 if (!isset($timezone)) $timezone='Europe/Copenhagen';
 
+// get_relative() (includes/db_query.php) derives its "../" depth from REQUEST_URI's slash
+// count, assuming the URL reflects this script's own path (.../index/index.php). When this
+// page is served as the bare site root (e.g. "/ntr/", via the webserver's directory index)
+// REQUEST_URI is one segment too shallow, so temp/ resolves to index/temp/ instead of the
+// install's temp/ - fixed here to match the convention used by admin/verify_moms_periode_luk.php.
+$requestPath = rtrim(strtok($_SERVER['REQUEST_URI'], '?'), '/');
+if (!preg_match('#/index/index\.php$#', $requestPath)) {
+	if (preg_match('#/index$#', $requestPath)) $requestPath .= '/index.php';
+	else $requestPath .= '/index/index.php';
+	$_SERVER['REQUEST_URI'] = $requestPath;
+}
+
 include("../includes/connect.php");
 include("../includes/db_query.php");
 #include("../includes/online.php"); #20210929

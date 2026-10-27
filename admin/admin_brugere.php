@@ -26,6 +26,7 @@
 // 20210917 LOE translated some texts
 // 20230227 CA  Add missing parameters on some calls to db_select & db_modify
 // 20230323 PBLM Fixed some minor errors
+// 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
 
 @session_start();
 $s_id=session_id();
@@ -61,6 +62,11 @@ if ($_POST) {
 	$kode=trim($_POST['kode']);
 	$kode2=trim($_POST['kode2']);
 	$ret_bruger=trim($ret_bruger);
+	if (is_input_too_long($ret_bruger)) {
+		$alerttext=findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id);
+		print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
+		$ret_bruger=NULL;
+	}
 	$admin=$_POST['admin'];
 	$oprette=if_isset($_POST['oprette'], 0);
 	$slette=if_isset($_POST['slette'], 0);
@@ -172,7 +178,7 @@ if ($ret_id) {
 	$tmp="navn".rand(100,999); #For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<input type=hidden name=random value = $tmp>";
 	print "<tr><td>".findtekst('333|Ny bruger', $sprog_id)."</td>";
-	print "<td><input type=text  style=\"width:170px\" name=\"$tmp\" value=\" \"></td>";
+	print "<td><input type=text  style=\"width:170px\" maxlength=80 name=\"$tmp\" value=\" \"></td>";
 	print "<td title=\"".findtekst('334|Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til', $sprog_id)."\"><input type=\"text\" style=\"width:170px\" name=\"adgang_til\" value=\"*\"></td>\n";
 	print "<td title=\"".findtekst('335|Afmærk her, hvis brugeren skal have administratorrettigheder', $sprog_id)."\" bgcolor=\"$bgcolor2\"><input type=\"checkbox\" name=\"admin\"></td>\n";
 	print "<td title=\"".findtekst('336|Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse', $sprog_id)."\"><input type=\"checkbox\" name=\"oprette\" checked></td>\n";
