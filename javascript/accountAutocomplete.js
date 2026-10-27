@@ -38,6 +38,10 @@
 //                  longer recalculated on both sides after a pick, only on the side whose account the pick wrote (its change event).
 //                  The invoice search ignores an account or amount an earlier pick wrote, so a second pick can find another debitor's invoice.
 //                  updateVatFieldForRow() drops a finance VAT lookup still in flight when the field no longer holds a finance account.
+// 20261027 CL/LH (review) "Fortryd" also puts back the momskode of a side it puts back: a pick keeps the side's code from before it
+//                  first wrote the side, and drops the VAT lookups the restored account starts. The cursor moves to Fakturanr.
+//                  before the line is put back, so leaving an account field can't look its default code up over the restored one.
+//                  The notice's actions advance searchSeq like a pick (AccountSearchShortTermGateTest's abandon-point rule).
 (function () {
     'use strict'; 
 
@@ -1639,6 +1643,8 @@
     const AUTOFILL_FIELDS = ['besk', 'debe', 'd_ty', 'kred', 'k_ty', 'fakt', 'belo', 'valu'];
     // A side's type and account are one value
     const AUTOFILL_PAIRS = [['d_ty', 'debe'], ['k_ty', 'kred']];
+    // The side of each pair, for its momskode (getVatField), which goes with the side
+    const AUTOFILL_PAIR_SIDES = ['debet', 'kredit'];
     let autofillNotice = null;
     let autofillListenersBound = false;
 
@@ -1681,10 +1687,23 @@
         return null;
     }
 
+    /** The momskode field of the side a type or account field belongs to, or null for any other field. */
+    function sideVatField(field) {
+        const prefix = field.name.slice(0, 4);
+        for (let i = 0; i < AUTOFILL_PAIRS.length; i++) {
+            if (AUTOFILL_PAIRS[i].indexOf(prefix) !== -1) return getVatField(field.name.slice(4), AUTOFILL_PAIR_SIDES[i]);
+        }
+        return null;
+    }
+
     /** Write a value as the pick's own, remembering what the field held before. */
     function autofillField(field, value) {
         if (!field || field.value === value) return;
         const original = field.dataset.autofillValue !== undefined ? field.dataset.autofillOriginal : field.value;
+        // The side's momskode as it was before the line's picks first wrote the side: writing its type or
+        // account changes the code (bindVatFieldListeners), and revertAutofill puts it back with the side
+        const vatField = sideVatField(field);
+        if (vatField && vatField.dataset.autofillOriginal === undefined) vatField.dataset.autofillOriginal = vatField.value;
         setFieldValue(field, value);
         field.dataset.autofillOriginal = original;
         field.dataset.autofillValue = field.value;
@@ -1700,8 +1719,9 @@
     /** Put back every field the line's picks wrote and nobody has changed since; forget the rest. */
     function revertAutofill(rowNum) {
         // When the user has changed the type or the account of a side, the whole side is theirs:
-        // putting back only the other half would give a type that doesn't belong to the account
-        AUTOFILL_PAIRS.forEach(function (pair) {
+        // putting back only the other half would give a type that doesn't belong to the account.
+        // Its momskode is then the one their account gave it.
+        AUTOFILL_PAIRS.forEach(function (pair, i) {
             const written = pair.map(function (prefix) {
                 return rowField(prefix, rowNum);
             }).filter(function (field) {
@@ -1709,6 +1729,8 @@
             });
             if (written.some(function (field) { return !isAutofilled(field); })) {
                 written.forEach(forgetAutofill);
+                const vatField = getVatField(rowNum, AUTOFILL_PAIR_SIDES[i]);
+                if (vatField) delete vatField.dataset.autofillOriginal;
             }
         });
         AUTOFILL_FIELDS.forEach(function (prefix) {
@@ -1718,6 +1740,17 @@
                 setFieldValue(field, field.dataset.autofillOriginal);
             }
             forgetAutofill(field);
+        });
+        // A side put back takes back its own momskode. Putting back its account started the account's VAT
+        // lookups, which answer with the account's default code: an empty lookupKey drops their answers, here
+        // and in kassekladde.php's lookupVat(). A line marked VAT exempt (moms<N>) has no momskode.
+        AUTOFILL_PAIR_SIDES.forEach(function (side) {
+            const vatField = getVatField(rowNum, side);
+            if (!vatField || vatField.dataset.autofillOriginal === undefined) return;
+            const exemptField = rowField('moms', rowNum);
+            vatField.dataset.lookupKey = '';
+            setVatFieldValue(rowNum, side, exemptField && exemptField.checked ? '' : vatField.dataset.autofillOriginal);
+            delete vatField.dataset.autofillOriginal;
         });
     }
 
@@ -1902,6 +1935,8 @@
 
     /** Run fn with selectionMade set, as a pick does, so the input events setFieldValue sends don't start lookups. */
     function withoutLookup(fn) {
+        // Like a pick, the notice's actions rewrite the line: a search still on its way is for a value it no longer holds
+        searchSeq++;
         selectionMade = true;
         try {
             fn();
@@ -1957,12 +1992,14 @@
             const line = document.createElement('div');
             line.appendChild(document.createTextNode(autofillText('autofillFilled', 'Udfyldt fra faktura') + ' ' + faktnr + ': ' + filled.join(', ') + ' · '));
             line.appendChild(noticeAction(autofillText('undo', 'Fortryd'), function () {
+                // The cursor goes first: leaving an account field looks up its momskode (bindVatFieldListeners),
+                // which must not land on the code revertAutofill puts back
+                if (faktField) window.focusAccountQuietly(faktField);
                 withoutLookup(function () {
                     clearConflicts(rowNum);
                     revertAutofill(rowNum);
                 });
                 hideAutofillNotice();
-                if (faktField) window.focusAccountQuietly(faktField);
             }));
             box.appendChild(line);
         }

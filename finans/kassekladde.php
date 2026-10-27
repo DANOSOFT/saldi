@@ -190,6 +190,8 @@
 // 20261023 CL/LH Texts for the invoice-pick notice in accountAutocomplete.js (tekst_id 7640-7643, plus existing labels), written
 //                with jsString() so a quote in a translation can't break the script and æøå survive on non-UTF8 installs;
 //                accountAutocomplete.js?v= and accountAutocomplete.css?v= bumped: a pick no longer overwrites what the line holds.
+// 20261027 CL/LH (review) lookupVat() drops an answer for a momskode the field no longer holds (data-lookup-key or the code
+//                changed since it asked), so "Fortryd" after an invoice pick keeps the code it puts back; accountAutocomplete.js?v= bumped.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -646,7 +648,7 @@ print "<script>
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.6">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.14" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.15" defer></script>';
 // SD-721: "Opret kreditor" in the lookup panel when a kreditor search finds nothing
 include_once("../includes/kreditorFromCvr.php");
 print kreditorCvrClientScript($sprog_id, '1');
@@ -5956,11 +5958,19 @@ document.addEventListener('DOMContentLoaded', function() {
 		// Initialize datepicker on Due Date fields
 		$('input[name^="forf"]').datepickerDa();
 
-		// VAT lookup for debit and credit account fields
+		// VAT lookup for debit and credit account fields. The answer is for the momskode the field held when
+		// it was asked: once the code has been set again (accountAutocomplete.js's own lookup, or "Fortryd"
+		// after an invoice pick, which empties data-lookup-key) the answer is dropped
 		function lookupVat(kontonr, vatField) {
 			if (!kontonr || kontonr.trim() === '') {
 				$(vatField).val('');
 				return;
+			}
+			var askedKey = $(vatField).attr('data-lookup-key') || '';
+			var askedVat = $(vatField).val();
+			function answer(vat) {
+				if (($(vatField).attr('data-lookup-key') || '') !== askedKey || $(vatField).val() !== askedVat) return;
+				$(vatField).val(vat);
 			}
 			$.post('kassekladde.php', {
 				action: 'lookup_vat',
@@ -5968,12 +5978,12 @@ document.addEventListener('DOMContentLoaded', function() {
 				regnaar: '<?php echo $regnaar; ?>'
 			}, function(data) {
 				if (data && data.vat !== undefined) {
-					$(vatField).val(data.vat);
+					answer(data.vat);
 				} else {
-					$(vatField).val('');
+					answer('');
 				}
 			}, 'json').fail(function() {
-				$(vatField).val('');
+				answer('');
 			});
 		}
 
