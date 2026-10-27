@@ -1,6 +1,10 @@
 <?php
-// --- debitor/generalLedger.php --- patch 5.0.0 --- 2026-03-19 ---
+// --- debitor/generalLedger.php --- patch 5.0.0 --- 2026-10-15 ---
 // 20260908 CDX/LH Restored the reconciled credit entry link for undoing reconciliation.
+// 20261015 CL/LH PR #697 review: escape konto_fra in the account lookup; it comes straight from the request.
+// 20261015 CL/LH PR #697 review: returside from GET is kept only as a relative Saldi .php page, so the Luk link
+//                cannot become a javascript: or off-site URL; anything else falls back to the default.
+//                PHPDoc block on renderDebitorGeneralLedgerGrid().
 
 function debitorGeneralLedgerEscape($value)
 {
@@ -18,6 +22,12 @@ function debitorGeneralLedgerUrl($params)
 	return 'rapport.php?' . http_build_query($params, '', '&');
 }
 
+/**
+ * Renders the grid-layout debtor kontokort for a single account. Falls back to kontokort() when
+ * the range is not one account or the account is not a debtor.
+ *
+ * @return void
+ */
 function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart)
 {
 	global $bgcolor, $bgcolor5, $bruger_id, $jsvars, $menu, $popup, $regnaar, $sprog_id;
@@ -72,6 +82,11 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 	}
 
 	$backUrl = if_isset($_GET['returside']);
+	// Every producer sends a relative page (rapport.php?..., debitorkort.php?..., ../includes/luk.php,
+	// ../debitor/ansatte.php?...). The path part is restricted to letters, digits and underscores, so no scheme fits.
+	if (!is_string($backUrl) || !preg_match('#^(\.\./[a-z0-9_]+/)?[a-z0-9_]+\.php(\?|$)#Di', $backUrl)) {
+		$backUrl = '';
+	}
 	if (!$backUrl) {
 		if ($popup) {
 			$backUrl = "../includes/luk.php";
@@ -91,7 +106,8 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 		$todate = usdate($dato_fra);
 	}
 
-	$qtxt = "select * from adresser where art = 'D' and kontonr = '$konto_fra' order by id limit 1";
+	$konto_fraSql = db_escape_string($konto_fra);
+	$qtxt = "select * from adresser where art = 'D' and kontonr = '$konto_fraSql' order by id limit 1";
 	$account = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$account) {
 		kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
