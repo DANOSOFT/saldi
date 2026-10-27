@@ -29,6 +29,8 @@
 // (bilagNextNumberReserved()), and an existing line renumbered in that save counts toward the numbers it brings.
 // 20261027 LOE SST-888 (review) the allocator also passes the highest number a staged line holds, so a
 //                replacement cannot take the number another staged line is about to be saved under.
+// 20261027 LOE SST-888 (review) a staged row with neither a date nor an amount is skipped by the save before it
+//                looks at anything else, so it cannot hold a number back.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -150,9 +152,13 @@ function bilagStagedRowWillBeSaved($row) {
 	# the helper stays free of the page's own helpers, so it can be read and tested on its own
 	$bilag = isset($row['bilag']) ? trim((string)$row['bilag']) : '';
 	$transdate = isset($row['transdate']) ? trim((string)$row['transdate']) : '';
+	$debet = isset($row['debet']) ? trim((string)$row['debet']) : '';
+	$kredit = isset($row['kredit']) ? trim((string)$row['kredit']) : '';
 	$id = isset($row['id']) ? (int)$row['id'] : 0;
-	if ($bilag === '-') {
-		return false;   # opdater() skips such a row before it looks at anything else
+	# opdater()'s outer guard first: a line with neither a date nor an amount is skipped before any of
+	# its branches are reached, so it cannot hold a number back however it is numbered
+	if ($bilag === '-' || ($transdate === '' && $debet === '' && $kredit === '')) {
+		return false;
 	}
 	$has_bilag = ($bilag !== '');
 	$has_content = false;

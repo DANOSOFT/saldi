@@ -6,6 +6,8 @@
 //                 before it reaches the database, and the journal's next number is used instead.
 // 20261027 LOE Cover SST-888 (review): the allocator also passes the highest number a staged line holds, so a
 //                 replacement cannot take the number another staged line is saved under.
+// 20261027 LOE Cover SST-888 (review): an exact resend of a save that kept a refused line neither stages nor
+//                 clears the staging table, and it balances no rows.
 //
 //   php tests/test_bilag_safe_number.php
 //
@@ -33,6 +35,7 @@ function db_select($qtext, $spor = '', $global = false) {
 				'id' => 0,
 				'bilag' => $bilag,
 				'beskrivelse' => $GLOBALS['bilag_test']['content'] ? 'line text' : '',
+				'debet' => $GLOBALS['bilag_test']['content'] ? '100' : '',
 				'transdate' => $GLOBALS['bilag_test']['transdate'],
 				'id' => $GLOBALS['bilag_test']['id'],
 			);
@@ -129,8 +132,12 @@ bilagCheck(bilagNextNumberReserved(1, array()) === 5,
 	'a staged 4 that will be saved still holds a number back, as before');
 $GLOBALS['bilag_test']['content'] = false;   # so each branch below is proved on its own
 $GLOBALS['bilag_test']['id'] = 17;
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'a numbered existing line with no date or amount fails opdater() outer guard, so it holds nothing back');
+$GLOBALS['bilag_test']['content'] = true;
 bilagCheck(bilagNextNumberReserved(1, array()) === 5,
-	'a staged line that exists in the journal is updated, so its 4 still holds a number back');
+	'with an amount it is updated, so its 4 does hold a number back');
+$GLOBALS['bilag_test']['content'] = false;
 $GLOBALS['bilag_test']['id'] = 0;
 $GLOBALS['bilag_test']['transdate'] = '01-02-2020';
 bilagCheck(bilagNextNumberReserved(1, array()) === 5,
@@ -166,6 +173,19 @@ bilagCheck(strpos($kassekladde2, "and lobenr not in (") !== false,
 bilagCheck(strpos($kassekladde2, "if (!\$fejl && \$submit == 'save' && \$kkAfterSave !== '')") !== false,
 	'no document prompt is opened for a save that refused a line');
 
+# ---- an exact resend neither re-stages nor clears what a refused save kept (SST-888 review) -----------
+$replayAt = strpos($kassekladde2, "\$kk_replay = false;");
+$stageAt = strpos($kassekladde2, "insert into tmpkassekl ");
+bilagCheck($replayAt !== false && $stageAt !== false && $replayAt < $stageAt,
+	'the replay is decided before anything is staged');
+bilagCheck(strpos($kassekladde2, "if (!\$kk_replay) {") !== false,
+	'and a replay stages nothing');
+$replayNote = strpos($kassekladde2, 'an exact resend leaves the staging table alone');
+bilagCheck($replayNote !== false && strpos(substr($kassekladde2, $replayNote, 240), 'delete from tmpkassekl') === false,
+	'and it leaves the staged rows alone, so a refused line survives the resend');
+
+bilagCheck(strpos($kassekladde2, "if (!\$kk_replay && \$x == \$antal - 1 && \$kladde_id)") !== false,
+	'and it balances no rows on a replay, since the staged set is a refused line, not a form' . "\n");
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";
 exit($failures ? 1 : 0);

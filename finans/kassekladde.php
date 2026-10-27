@@ -84,6 +84,9 @@
 // 20260903 Sawaneh find_dublet() now also warns when a matching line is already posted: secondary lookup
 //                  in transaktioner (fiscal-year constrained, limit 1) pairing the voucher's debit/credit
 //                  rows; return extended backwards-compatibly with a source field; params SQL-escaped.
+// 20261027 LOE SST-888 (review) A save that refuses a line no longer reports the whole save as done: the refused
+//                  row stays staged for the re-rendered form and only the other lines are collected. An exact resend of that save
+//                  keeps the staged rows instead of staging its lines again, so a line that was committed is not written twice.
 // 20260903 Sawaneh Browser autofill disabled on the journal form and account fields (autocomplete=off) so
 //                  only the blue lookup panel opens; two new per-user checkboxes in the settings box select
 //                  which panel sections (suggestions/lookup) are shown, via window.saldiAutocompleteOptions.
@@ -281,6 +284,8 @@ $kredit_ligslut = $kredit_ligstart = $kladde_id = $kladdenote = $kontrolkonto = 
 $lukket = $linjebg = $opslag_id = NULL;
 $restlig = NULL;
 $simuler = $sletrest = $sletstart = $sletslut = $submit = NULL;
+# SST-888 (review) the replay flag is read after the save block too, so it is defined for every request
+$kk_replay = false;
 $vis_afd = $vis_ansat = $vis_bet_liste = $vis_forfald = $vis_projekt = $vis_valuta = NULL;
 $control_bal_fetched = FALSE;
 $control_bal_last = $control_next_date = $control_record_daet = $titletxt = NULL;
@@ -1063,6 +1068,15 @@ if ($_POST) {
 	else $submit   = trim(if_isset($_POST['submit'], ''));
 	$tidspkt       = if_isset($_POST['tidspkt']);
 	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
+	# SST-888 (review) the replay is decided before the staging table is touched: an exact resend must not
+	# clear the lines a refused save left staged, or they would vanish from the form the resend renders.
+	$kk_replay = false;
+	if ($submit == 'save' && $kladde_id) {
+		$kk_payload = md5(serialize($_POST));
+		if (isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
+			$kk_replay = true;
+		}
+	}
 	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool)
 	$kkAfterSave   = (string)ifset($_POST, 'kkAfterSave', '');
 	// A clip dropped on the new line: link that line's documents to the line the save inserts from form row kkLinkRow
@@ -1092,11 +1106,13 @@ if ($_POST) {
 	#		}
 		// MB-81 Another save of this journal finishes first: tmpkassekl is shared by the journal's saves
 		kkJournalLock($kladde_id);
-		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
-		// This request stages the lines itself, so opdater() below may move them into the journal
-		$kkStaged = true;
-		// A lookup page opened before this request no longer returns to the lines it replaces (see 'lookup' below)
-		unset($_SESSION['kk_lookup_staged'][$kladde_id]);
+		if (!$kk_replay) {
+			db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+			// This request stages the lines itself, so opdater() below may move them into the journal
+			$kkStaged = true;
+			// A lookup page opened before this request no longer returns to the lines it replaces (see 'lookup' below)
+			unset($_SESSION['kk_lookup_staged'][$kladde_id]);
+		}
 		if (isset($_POST['cancelSimulation']) && $_POST['cancelSimulation']) {
 			db_modify("delete from simulering where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 			$qtxt = "update kladdeliste set bogfort = '-', bogforingsdate = NULL, bogfort_af = '' where id = '$kladde_id' and bogfort = 'S'";
@@ -1608,6 +1624,9 @@ if ($_POST) {
 			$ansat[$x] = db_escape_string(if_isset($ansat[$x], ''));
 			$valuta[$x] = db_escape_string(if_isset($valuta[$x], ''));
 			$forfaldsdato[$x] = db_escape_string(if_isset($forfaldsdato[$x], ''));
+			# SST-888 (review) a replay stages nothing: the lines it would write are already in the journal or
+			# already staged (the refused ones), and re-staging them is what duplicated rows before.
+			if (!$kk_replay) {
 			$qtxt = "insert into tmpkassekl ";
 			$qtxt.= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,debetvat,kreditvat,faktura,";
 			$qtxt.= "amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) ";
@@ -1617,8 +1636,9 @@ if ($_POST) {
 			$qtxt.= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
 			#cho __line__." $qtxt<br>";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
 
-			if ($x == $antal - 1 && $kladde_id) { // only after last line
+			if (!$kk_replay && $x == $antal - 1 && $kladde_id) { // only after last line, and never on a replay: the sum of the rows a refused save kept is not a form to balance
 				$sum_debet = 0;
 				$sum_kredit = 0;
 
@@ -1659,16 +1679,10 @@ if ($_POST) {
 	// check below never fires for an open journal (bogfort is '-' which is truthy), so detect the
 	// replay explicitly: the same session re-posting the exact same save payload for the same
 	// journal is a replay and must not touch the lines again. A stale tab with *different*
-	// content is not affected (different payload) and saves as before. The fingerprint is only
-	// compared here; it is recorded after opdater() below, once the save has actually succeeded,
-	// so a re-post of a save that failed validation is validated (and rejected) again.
-	$kk_replay = false;
-	if ($submit == 'save' && $kladde_id) {
-		$kk_payload = md5(serialize($_POST));
-		if (isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
-			$kk_replay = true;
-		}
-	}
+	// content is not affected (different payload) and saves as before. The fingerprint is compared
+	// where $kk_replay is decided, before anything is staged; it is recorded once the save has
+	// actually succeeded (or partially succeeded, SST-888), so a re-post of a save that failed
+	// validation is validated and rejected again.
 	if ($kladde_id) {
 		$row = db_fetch_array(db_select("select bogfort,tidspkt from kladdeliste where id=$kladde_id", __FILE__ . " linje " . __LINE__));
 		if (!$row['bogfort'] && $tidspkt == $row['tidspkt']) { #Refreshtjek"
@@ -1919,7 +1933,8 @@ if (!$fejl && $kladde_id) {
 			unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 		}
 	} else {
-		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+		# SST-888 (review) an exact resend leaves the staging table alone: it still holds the lines a refused
+		# save kept for the form, and this request has staged nothing of its own.
 		unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 	}
 	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now.
