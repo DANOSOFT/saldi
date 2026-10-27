@@ -49,8 +49,10 @@ stockCheck(strpos($src, 'and lager=$lager') !== false, 'only the validated value
 	stockCheck(strpos($src, "\$vis_kost = (if_isset(\$_GET, '', 'vis_kost') === 'on') ? 'on' : '';") !== false,
 	'only "on" is accepted for the cost-price switch, which is put back into the links');
 stockCheck(strpos($src, "if (\$sort === 'beholdning') {") !== false, 'the balance column sorts by what it shows');
-stockCheck(strpos($src, 'from lagerstatus where vare_id = varer.id and lager = $lager') !== false,
+stockCheck(strpos($src, 'coalesce((select beholdning from lagerstatus where vare_id = varer.id and lager = $lager), 0)') !== false,
 	'which is the selected warehouse stock, with a missing row counting as 0');
+stockCheck(strpos($src, 'coalesce(beholdning, 0) from lagerstatus') === false,
+	'and the coalesce wraps the subquery, or a missing row would sort as NULL (last) instead of 0');
 stockCheck(strpos($src, "\$orderby = \$sort;") !== false, 'and every other column sorts by itself');
 stockCheck(strpos($src, 'logud.php') === false, 'the page no longer ends the session');
 stockCheck(strpos($src, "findtekst('586|Vælg'") !== false, 'it asks the user to choose');
