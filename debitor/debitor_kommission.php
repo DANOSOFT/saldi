@@ -26,6 +26,8 @@
 // Kommission view - separate file for better grid differentiation
 // 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
 // 20260915 CDX/PHR Restore server sender/Reply-To and own SMTP for MySale invitations.
+// 20261027 NTR - CodeRabbit Review - if there's 2 semicolons/commas in a row or it's the a end comma, skip the empty address when adding recipients to PHPMailer. As well as skipping duplicate addresses by using array_unique() on the list of recipients. This prevents PHPMailer from throwing an exception when trying to add an empty or duplicate address.
+
 
 #ob_start();
 @session_start();
@@ -152,7 +154,9 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 				try {
 					$mail = commissionMail($invitationSender, $db, $_SERVER['SERVER_NAME'], $charset);
 					$recipientOk = true;
-					foreach (explode(';', str_replace(',', ';', $custMail[$i])) as $recipient) {
+					foreach (array_unique(explode(';', str_replace(',', ';', $custMail[$i]))) as $recipient) {
+						// If there's 2 semicolons/commas in a row or it's the a end comma, skip the empty address 
+						if(trim($recipient) === '') continue;
 						$recipientOk = $mail->addAddress(trim($recipient)) && $recipientOk;
 					}
 					$mail->Subject = $subject;
@@ -162,7 +166,9 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 					$svar = $e->getMessage();
 				}
 				if ($svar) {
-					echo $svar."<br>";
+					// 20261027 NTR - CodeRabbit Review - $svar needs to be escaped to prevent XSS when outputting the error message. Use htmlspecialchars() with ENT_QUOTES and UTF-8 encoding. 
+					// If sending fails, show the error and exit to prevent further processing
+					echo htmlspecialchars($svar, ENT_QUOTES, 'UTF-8')."<br>";
 					exit;
 				}
 				echo "Mail sendt til $custName[$i] &lt;$custMail[$i]&gt;<br>";

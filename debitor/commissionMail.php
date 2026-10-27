@@ -52,7 +52,7 @@ function commissionMail(array $sender, $database, $serverName, $charset) {
 		$mail->Username = (string) ($sender['felt_2'] ?? '');
 		$mail->Password = (string) ($sender['felt_3'] ?? '');
 		$mail->SMTPAuth = $mail->Username !== '';
-		$mail->SMTPSecure = (string) ($sender['felt_4'] ?? '');
+		$mail->SMTPSecure = (string) (ifset(explode(":", $smtp, 2), 1) ?? $sender['felt_4'] ?? '');
 		$from = $replyTo;
 	} else {
 		$mail->isMail();

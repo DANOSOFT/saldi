@@ -77,6 +77,8 @@
 // 20260922 CDX/PHR Restore legacy read-table access with parsed queries and migrate fetch inputs to ifset.
 // 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
 // 20261026 CL/LH Ported the 20260917/20260922 fetch_from_table() production hotfix from live into master.
+// 20261027 CL/NTR fetch_from_table(): return 'query failed' when db_select() fails instead of
+//                reading field metadata from a false result (CodeRabbit).
 
 
 // ----------------------------------------------------------------------
@@ -128,6 +130,11 @@ function fetch_from_table($select, $from, $where, $order_by, $limit) {
 	}
 	fwrite($log, __LINE__ . " Query: $qtxt\n");
 	$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+	if (!$q) {
+		fwrite($log, __LINE__ . " query failed\n");
+		fclose($log);
+		return 'query failed';
+	}
 	if ($readSql !== null) {
 		// Keep ssl3's metadata row, numeric/named row keys and trailing false sentinel.
 		$result = [[]];

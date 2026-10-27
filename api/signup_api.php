@@ -150,8 +150,8 @@ if (!ctype_digit($ts) || abs(time() - (int) $ts) > 300) {
 // --- validation (mirrors admin/opret.php) ---
 $regnskab     = db_escape_string(trim((string) (isset($_POST['regnskab']) ? $_POST['regnskab'] : '')));
 $brugernavn   = db_escape_string(trim((string) (isset($_POST['brugernavn']) ? $_POST['brugernavn'] : '')));
-$passwd       = db_escape_string(trim((string) (isset($_POST['passwd']) ? $_POST['passwd'] : '')));
-$passwd2      = db_escape_string(trim((string) (isset($_POST['passwd2']) ? $_POST['passwd2'] : '')));
+$passwd       = trim((string) (isset($_POST['passwd']) ? $_POST['passwd'] : ''));
+$passwd2      = trim((string) (isset($_POST['passwd2']) ? $_POST['passwd2'] : ''));
 $email        = db_escape_string(trim((string) (isset($_POST['email']) ? $_POST['email'] : '')));
 $posteringer  = (int) (isset($_POST['posteringer']) ? $_POST['posteringer'] : 0);
 $brugerantal  = (int) (isset($_POST['brugerantal']) ? $_POST['brugerantal'] : 0);
