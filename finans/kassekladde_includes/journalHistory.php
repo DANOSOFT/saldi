@@ -5,18 +5,22 @@
 //                A posted bilag that is also a journal line is shown once. Every row says where it came from (kilde: bogfort or kladde).
 // 20261014 CL/SZ SD-722 With SST-818's counter-account filter and limit 5 in the query: the journal lines of the posted bilag already shown
 //                are left out in the query as well, so a kreditor with posted bilag still gets 5 suggestions.
+// 20261026 CL/LH sidste_5_forslag() takes the number of rows ($maxRows, still 5 for the panel) and every row says its kladde_id,
+//                so the contra account suggestion can count the last 5 bilag even when a bilag is spread over several lines.
 
 /**
  * Find recent counter-accounts without losing their customer/supplier/finance identity.
  * For a kreditor, posted entries come first and journal lines after them.
  *
+ * @param int $maxRows Rows to return; the panel shows 5.
  * @return array{
  *   heading: string,
- *   rows: array<array{bilag: mixed, dato: string, tekst: string, kontonr: mixed, art: string, kilde: string}>
+ *   rows: array<array{bilag: mixed, kladde_id: mixed, dato: string, tekst: string, kontonr: mixed, art: string, kilde: string}>
  * }
  */
-function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
+function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id, $maxRows = 5)
 {
+	$maxRows = max(1, (int)$maxRows);
 	$forslag = array(
 		'heading' => '',
 		'rows' => array()
@@ -72,9 +76,10 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 	if ($art == 'K') {
 		foreach (sidste_5_bogfoerte_kreditor($kontonr, $dk) as $r) {
 			$postedBilag[(int)$r['kladde_id'] . '|' . (int)$r['bilag']] = true;
-			if (count($forslag['rows']) < 5) {
+			if (count($forslag['rows']) < $maxRows) {
 				$forslag['rows'][] = array(
 					'bilag' => $r['bilag'],
+					'kladde_id' => $r['kladde_id'],
 					'dato' => dkdato($r['transdate']),
 					'tekst' => $toUtf8($r['beskrivelse']),
 					'kontonr' => $r['kontonr'],
@@ -85,19 +90,20 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		}
 	}
 
-	// The journal lines of a posted bilag already shown are left out in the query too, so limit 5 returns 5 rows the loop keeps
+	// The journal lines of a posted bilag already shown are left out in the query too, so the limit returns rows the loop keeps
 	foreach (array_keys($postedBilag) as $postedKey) {
 		list($postedKladde, $postedNr) = array_map('intval', explode('|', $postedKey));
 		$txt .= " and not (kladde_id = $postedKladde and coalesce(bilag, 0) = $postedNr)";
 	}
-	$txt .= " order by transdate desc,id desc limit 5";
-	$q = count($forslag['rows']) < 5 ? db_select($txt, __FILE__ . " linje " . __LINE__) : false;
-	while ($q && count($forslag['rows']) < 5 && ($r = db_fetch_array($q))) {
+	$txt .= " order by transdate desc,id desc limit " . $maxRows;
+	$q = count($forslag['rows']) < $maxRows ? db_select($txt, __FILE__ . " linje " . __LINE__) : false;
+	while ($q && count($forslag['rows']) < $maxRows && ($r = db_fetch_array($q))) {
 		$counterType = strtoupper(trim((string)$r['kontoart'])) ?: 'F';
 		if (isset($postedBilag[(int)$r['kladde_id'] . '|' . (int)$r['bilag']])) continue;
 		if ($r['kontonr'] && in_array($counterType, array('D', 'K', 'F'), true)) {
 			$forslag['rows'][] = array(
 				'bilag' => $r['bilag'],
+				'kladde_id' => $r['kladde_id'],
 				'dato' => dkdato($r['transdate']),
 				'tekst' => $toUtf8($r['beskrivelse']),
 				'kontonr' => $r['kontonr'],

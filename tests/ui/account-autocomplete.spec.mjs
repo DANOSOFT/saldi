@@ -1,4 +1,5 @@
 // 20260907 CDX/LH Exercise the real autocomplete script with typed historical counter-accounts.
+// 20261027 CL/LH (CodeRabbit, #890) A failed earlier VAT lookup must not clear the code a newer lookup of the same account set.
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 
@@ -78,4 +79,48 @@ test('ordinary supplier lookup retains the selected account type', async ({ page
     await page.locator('.account-autocomplete-item[data-kontonr="990003"]:visible').click();
     await expect(field).toHaveValue('990003');
     await expect(page.locator('[name=k_ty1]')).toHaveValue('K');
+});
+
+test('a failed earlier VAT lookup does not clear the code a newer lookup of the same account set', async ({ page }) => {
+    await openForm(page, 'kredit', 'F', []);
+    // The first VAT lookup is held and then fails; every later one is answered at once.
+    let releaseFirst;
+    const firstHeld = new Promise(resolve => { releaseFirst = resolve; });
+    let lookups = 0;
+    await page.route(url => url.pathname.endsWith('/accountSearch.php') && url.searchParams.get('exact') === '1', async route => {
+        lookups++;
+        if (lookups === 1) {
+            await firstHeld;
+            return route.abort();
+        }
+        return route.fulfill({ json: { results: [{ kontonr: '990003', beskrivelse: 'Lookup account', moms: 'K1' }] } });
+    });
+    // Keep every request the page starts, so the test can wait until all of them have settled.
+    await page.evaluate(() => {
+        const realFetch = window.fetch;
+        window.startedFetches = [];
+        window.fetch = function () {
+            const request = realFetch.apply(this, arguments);
+            window.startedFetches.push(request);
+            return request;
+        };
+    });
+    const setAccount = value => page.locator('[name=kred1]').evaluate((input, accountNo) => {
+        input.value = accountNo;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, value);
+
+    await setAccount('990003');
+    await expect.poll(() => lookups).toBe(1);
+    await setAccount('');
+    await setAccount('990003');
+    await expect(page.locator('[name=kvat1]')).toHaveValue('K1');
+    expect(lookups).toBe(2);
+
+    releaseFirst();
+    await page.evaluate(async () => {
+        await Promise.allSettled(window.startedFetches);
+        await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    await expect(page.locator('[name=kvat1]')).toHaveValue('K1');
 });
