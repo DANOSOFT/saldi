@@ -27,6 +27,8 @@
 //                 Only firmanavn was updated, so the card kept the old name and saving it restored that name.
 //                 ordre_id and konto_id are cast to int before use in SQL.
 // 20261023 CL/MMR SST-887 Moved the sync into syncStamkort() per the controller/view convention (review by Codex).
+// 20261027 CL/LH SST-887 ordre_id and konto_id must be plain digit strings; anything else (an array such as
+//                ordre_id[]=7, which (int) turned into 1) counts as a missing id. Raised by CodeRabbit on PR #851.
 
 @session_start();
 $s_id=session_id();
@@ -35,8 +37,12 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$ordre_id=(int)ifset($_GET, 'ordre_id', 0);
-$konto_id=(int)ifset($_GET, 'konto_id', 0);
+// An id is a plain digit string. (int) would turn an array (ordre_id[]=7) into 1 and sync the wrong order,
+// so anything else counts as a missing id: nothing is synced.
+$ordre_id=ifset($_GET, 'ordre_id', '');
+$ordre_id=(is_string($ordre_id) && ctype_digit($ordre_id)) ? (int)$ordre_id : 0;
+$konto_id=ifset($_GET, 'konto_id', '');
+$konto_id=(is_string($konto_id) && ctype_digit($konto_id)) ? (int)$konto_id : 0;
 $retning=ifset($_GET, 'retning', '');
 
 /**
