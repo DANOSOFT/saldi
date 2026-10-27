@@ -95,6 +95,19 @@ bilagCheck(bilagNextNumberReserved(1, array()) === 4, 'staged values the column 
 bilagTestJournal(3, array('9', '4'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 10, 'the highest staged number is passed, not only the last one read');
 bilagTestJournal(3, array('4'));
+bilagTestJournal(2147483647, array());
+bilagCheck(bilagNextNumberReserved(1, array()) === 0,
+	'a journal at the column maximum has no storable number left: the allocator says 0');
+bilagTestJournal(3, array('2147483647'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 0,
+	'and so does a staged line at the maximum, which would otherwise push the floor past it');
+bilagTestJournal(3, array('2147483646'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 2147483647,
+	'one below the maximum still yields a storable number');
+$kassekladde = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
+	bilagCheck(substr_count($kassekladde, '# SST-888 (review) no storable number is left') === 3,
+	'the three other allocations refuse the line when no storable number is left');
+bilagTestJournal(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array(4 => 7)) === 8, 'and a replacement already handed out in the same save is passed too');
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";

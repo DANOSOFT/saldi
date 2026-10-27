@@ -161,11 +161,12 @@ function bilagStagedMaxNumber($kladde_id) {
 
 /**
  * bilagNextNumberForJournal() for a line saved without a number in the same save as bilagReplaceTakenProposals():
- * kept past the numbers the moved proposals get, which are not in the journal until their lines are inserted.
+ * kept past the numbers the moved proposals get, which are not in the journal until their lines are inserted,
+ * and past the highest number a staged line holds.
  *
  * @param int             $kladde_id    Journal (kladdeliste.id).
  * @param array<int, int> $replacements What bilagReplaceTakenProposals() returned.
- * @return int The voucher number to allocate.
+ * @return int The voucher number to allocate, or 0 when the column cannot hold the next one.
  */
 function bilagNextNumberReserved($kladde_id, $replacements) {
 	# a replacement that does not fit must not raise the floor, or a free number is passed over
@@ -178,7 +179,9 @@ function bilagNextNumberReserved($kladde_id, $replacements) {
 	# a staged line is saved under the number it holds, so the floor passes the highest of them:
 	# journal max 3 with a staged 4 must offer 5, not the 4 that line is about to take
 	$next = max($next, bilagStagedMaxNumber($kladde_id) + 1);
-	return $replacements ? max($next, max($replacements) + 1) : $next;
+	$next = $replacements ? max($next, max($replacements) + 1) : $next;
+	# SST-888 (review) the column cannot hold a number past its maximum, so say there is none left
+	return bilagNumberFits((string)$next) ? $next : 0;
 }
 
 /**

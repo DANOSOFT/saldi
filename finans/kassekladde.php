@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -200,12 +200,7 @@
 //                rendered by a save and dropped unsaved changes.
 //                The clip drag uses the copy effect instead of link: Chrome on a Wayland desktop cancelled every drop of
 //                a link drag (Wayland has no link action), so nothing happened when a clip was released on another clip.
-// 20261028 CL/LH "<bilag>+N" put its N empty lines at the bottom of the journal on the render after the save: the post-save
-//                order (MB-41) only knew the ids the form posted, and lines inserted by indsaet_linjer() sorted after them.
-//                indsaet_linjer() now returns the new id and the order places those lines right under the row they came from.
-//                The date a row was drawn with (transdate[]) is matched by line id, not screen row, since those lines shift the rows
-//                below them; by row a debtor line could take another line's date and lose a due date typed by hand.
-//                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
+// 20261027 LOE SST-888 (review) the three other allocations refuse the line when no storable number is left.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -4734,6 +4729,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# writing the 0 back; a positive number the user entered is kept as it is.
 					if ($bilag <= 0) {
 						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
+						# SST-888 (review) no storable number is left: refuse the line rather than write one
+						# the column cannot hold
+						if ($bilag <= 0) {
+							$fejl = 1;
+							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							continue;
+						}
 					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
@@ -4764,6 +4766,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# reused while the journal is open.
 						if ($insert_bilag <= 0) {
 							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
+							# SST-888 (review) no storable number is left: refuse the line rather than write one
+							# the column cannot hold
+							if ($insert_bilag <= 0) {
+								$fejl = 1;
+								alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+								continue;
+							}
 						}
 						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
@@ -4813,6 +4822,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {
 							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
+							# SST-888 (review) no storable number is left: refuse the line rather than write one
+							# the column cannot hold
+							if ($insert_bilag <= 0) {
+								$fejl = 1;
+								alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+								continue;
+							}
 						}
 						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
