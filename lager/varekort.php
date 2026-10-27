@@ -131,8 +131,9 @@
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
-//
 // 20261019 CDX/LH MB-78: fix PHP warnings
+// 20261027 CL/LH MB-78: A missing cost price reaches usdecimal() as '', not null, which trim() rejects (CodeRabbit).
+//
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -517,7 +518,7 @@ if ($saveItem || $submit = trim($submit)) {
         } else
             $kostpris[0] = 0;
     } else
-        $kostpris[0] = usdecimal($kostpris[0] ?? null, 3);
+        $kostpris[0] = usdecimal($kostpris[0] ?? '', 3);
 
     if ($commissionItem && $kostpris[0] > '0' && $salgspris == 0) {
         $qtxt = "select var_value from settings where var_grp = 'items' and var_name = 'commissionInclVat'";

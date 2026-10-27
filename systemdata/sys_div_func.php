@@ -131,6 +131,7 @@
 //                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
 //                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
 // 20261019 CDX/LH MB-78: fix PHP warnings
+// 20261027 CL/LH MB-78: div_valg(): no external IP found gives '' as the str_replace() replacement, not null (CodeRabbit).
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -994,7 +995,7 @@ function div_valg() {
 	print "</td></tr>\n";
 	$externalContent = file_get_contents('http://checkip.dyndns.com/');
 	preg_match('/Current IP Address: \[?([:.0-9a-fA-F]+)\]?/', $externalContent, $m);
-	$externalIp = $m[1] ?? null;
+	$externalIp = $m[1] ?? '';
 	$txt = str_replace('$myip',$externalIp,findtekst('764|Hvis du vil kunne udskrive direkte til en lokal printer skal din router redirrigere data på port 9100 fra $myip direkte til din lokale printer. Herudover skal din printer være oprettet på saldi serveren. Kontakt Saldi for uddybning.', $sprog_id));
 	print "<tr>\n<td title='$txt'>".findtekst('763|Direkte print til lokal printer.', $sprog_id)."</td>\n";
 	print "<td title='$txt'>\n";

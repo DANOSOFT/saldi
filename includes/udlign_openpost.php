@@ -55,6 +55,7 @@
 // 20260923 CDX/PHR Save explicit manual reference edits on Update, separately from automatic insertion.
 // 20260925 CDX/PHR Preserve the account-chart filter through settlement forms, period changes and return links.
 // 20261019 CDX/LH MB-78: fix PHP warnings
+// 20261027 CL/LH MB-78: A currency without a VK group gives str_replace() '' as the subject, not null.
  
 @session_start();
 $s_id=session_id();
@@ -196,7 +197,7 @@ $art=substr($r['art'],0,1)."G";
 $r2 = db_fetch_array(db_select("select box3 from grupper where art='$art' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__)); # Finder valuta for konto.
 $basisvaluta=trim($r2['box3']);
 $r2=db_fetch_array(db_select("select box2 from grupper where art ='VK' and box1='$basisvaluta'",__FILE__ . " linje " . __LINE__)); # Finder valutakurs for konto.
-$basiskurs=str_replace(",",".",$r2 ? $r2['box2'] : null); #Valutaen kan være i dansk talformat (BUG).
+$basiskurs=str_replace(",",".",$r2 ? $r2['box2'] : ''); #Valutaen kan være i dansk talformat (BUG).
 #	cho "$valuta[0] basisvaluta $basisvaluta basiskurs $basiskurs<br>";
 if ($basisvaluta=='DKK') $basiskurs=100; 
 if ($basisvaluta != $valuta[0]) {

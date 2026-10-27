@@ -50,6 +50,7 @@
 // 20260923 CL/NTR Guard count($konto_id) against the field being absent from $_POST when the openpost
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
 // 20261019 CDX/LH MB-78: fix PHP warnings
+// 20261027 CL/LH MB-78: An unset konto_fra/konto_til reaches trim() as '', not null.
 
 @session_start();
 $s_id = session_id();
@@ -321,11 +322,11 @@ if (isset($_POST['submit']) || $rapportart) {
 	if (!isset($_POST['konto']) && !isset($_GET['konto_fra']) && isset($_GET['kontonr'])) {
 		list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
 	}
-	$konto_fra = trim($konto_fra ?? null);
+	$konto_fra = trim($konto_fra ?? '');
 	#	}
 	#	if (isset($_POST['konto_til']) && strpos($_POST['konto_til'],":")) {
 	#		list ($konto_til, $firmanavn) = explode(":", $_POST['konto_til']);
-	$konto_til = trim($konto_til ?? null);
+	$konto_til = trim($konto_til ?? '');
 	#	}
 	#	if (isset($_POST['regnaar']) && strpos($_POST['regnaar'],"-")) {
 	#		list ($regnaar, $firmanavn)= explode("-", $_POST['regnaar']);
