@@ -72,9 +72,19 @@
 // 20260911 Sawaneh insert_shop_order dispatch: blank the literal "dummyvalue" Shoptech
 //                     sends for empty address fields via strip_placeholder_value(); if_isset
 //                     calls in that block converted to ifset (JOB-115)
+// 20260917 CDX/PHR Restore fixed WooCommerce item lookups with escaped values and legacy response rows.
+// 20260917 CDX/PHR Log rejected query fields so external integrations can be diagnosed without API credentials.
+// 20260922 CDX/PHR Restore legacy read-table access with parsed queries and migrate fetch inputs to ifset.
 // 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
+// 20261023 CL/MMR SST-884 insert_shop_order: an existing customer's CVR/EAN from the card is used when the shop sends none.
+//                 The shop's value still wins when it is filled in. cvrnr/ean are escaped in the order insert.
+// 20261023 CL/MMR SST-884 insert_shop_order escapes every value it puts into its SQL, cast to string so absent fields stay ''.
+//                 A ' in a shop field (ekstra1, ref, kontonr, tlf ...) no longer breaks the query and drops the order.
+// 20261026 CL/LH Ported the 20260917/20260922 fetch_from_table() production hotfix from live into master.
 // 20261026 CL/SZ SD-750 insert_shop_order for a shop whose legacy slot is closed for intake answers 410 before
 //                anything is written (503 while a cutover runs); the afd-4 IP rule moved to shopify_legacy_effective_afd().
+// 20261027 CL/NTR fetch_from_table(): return 'query failed' when db_select() fails instead of
+//                reading field metadata from a false result (CodeRabbit).
 
 
 // ----------------------------------------------------------------------
@@ -91,49 +101,94 @@ $brugernavn=NULL;
 $db_skriv_id=NULL;
 $webservice='on';
 
-// SD-589: fetch_from_table(), update_table() and insert_into_table() used to
-// take $select/$from/$where/$set/$fields/$values straight from $_GET and
-// interpolate them into SQL, guarded only by a ';' check and a table-name
-// allowlist that never touched $select/$where/$set — a single-statement
-// UNION/subquery (no ';' needed) was a general read/write SQL primitive over
-// the tenant DB for anyone past access_check(). Caller enumeration (only
-// api/rest_api_client.php, a 2017 reference client) found exactly one real,
-// working use: exporting varenr+beholdning from 'varer' for stock sync via
-// action=fetch_from_table. Its update_table call passes the misspelled
-// action 'update_tablee' and can never have worked; its insert_into_table
-// wrapper is an unwired manual query tool. Order creation already goes
-// through the separate, already-parameterized insert_shop_order/
-// insert_shop_orderline functions. update_table()/insert_into_table() are
-// therefore removed outright rather than replaced, and fetch_from_table() is
-// narrowed to the single known-good shape actually used: no table/column/
-// where-clause pass-through, no arbitrary SQL of any kind.
+// SD-589 removed update_table()/insert_into_table() and the raw select/from/where
+// pass-through. Integrations still read through fetch_from_table() (stock export,
+// WooCommerce item lookups, legacy table reads), so requests are parsed and compiled
+// against the table allowlist in rest_api_fetch.php; request text never reaches SQL as is.
+require_once __DIR__ . '/rest_api_fetch.php';
+
 function fetch_from_table($select, $from, $where, $order_by, $limit) {
 	global $db;
-	if(!isset($where)) $where = '';
-
-	$log=fopen("../temp/$db/rest_api.log","a");
-
-	if ($from !== 'varer' || !in_array(str_replace(' ','',$select), array('varenr,beholdning'), true)) {
-		fwrite($log,__line__." rejected: unsupported select/from ($select / $from)\n");
+	$request = restApiFetchRequest($select, $from, $where ?? '');
+	$readSql = $request === null
+		? restApiFetchSql($select, $from, $where ?? '', $order_by ?? '', $limit ?? '', $_SERVER['REMOTE_ADDR'] ?? '')
+		: null;
+	$log = fopen("../temp/$db/rest_api.log", 'a');
+	if ($request === null && $readSql === null) {
+		// JSON keeps each request on one log line; authentication parameters are excluded.
+		$rejectedQuery = json_encode(['select' => $select, 'from' => $from, 'where' => $where],
+			JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+		fwrite($log, __LINE__ . " rejected: unsupported query shape " . $rejectedQuery . "\n");
 		fclose($log);
 		return 'unsupported query shape';
 	}
-	if ('' !== $where) {
-		fwrite($log,__line__." rejected: where clause no longer supported ($where)\n");
-		fclose($log);
-		return 'unsupported query shape';
+	if ($readSql !== null) {
+		$qtxt = $readSql;
+	} elseif ($request['kind'] === 'stock') {
+		$qtxt = 'select varenr, beholdning from varer order by varenr';
+	} elseif ($request['kind'] === 'item') {
+		$sku = db_escape_string($request['sku']);
+		$qtxt = "select id from varer where varenr='$sku' order by id limit 1";
+	} else {
+		$shopId = db_escape_string($request['shop_id']);
+		$variantId = db_escape_string($request['shop_variant']);
+		$qtxt = "select id from shop_varer where shop_id='$shopId' and shop_variant='$variantId' order by id limit 1";
 	}
-
-	$qtxt="select varenr, beholdning from varer order by varenr";
-	fwrite($log,__line__." Query: $qtxt\n");
-	$result = array();
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$result[] = array('varenr' => $r['varenr'], 'beholdning' => $r['beholdning']);
+	fwrite($log, __LINE__ . " Query: $qtxt\n");
+	$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+	if (!$q) {
+		fwrite($log, __LINE__ . " query failed\n");
+		fclose($log);
+		return 'query failed';
+	}
+	if ($readSql !== null) {
+		// Keep ssl3's metadata row, numeric/named row keys and trailing false sentinel.
+		$result = [[]];
+		for ($column = 0; $column < db_num_fields($q); $column++) {
+			$result[0][] = db_field_name($q, $column) . '(' . db_field_type($q, $column) . ')';
+		}
+		while ($row = db_fetch_array($q)) {
+			$result[] = $row;
+		}
+		$result[] = false;
+		fclose($log);
+		return $result;
+	}
+	$result = $request['kind'] === 'stock' ? [] : [['id(' . db_field_type($q, 0) . ')']];
+	while ($r = db_fetch_array($q)) {
+		if ($request['kind'] === 'stock') {
+			$result[] = ['varenr' => $r['varenr'], 'beholdning' => $r['beholdning']];
+		} else {
+			$result[] = [0 => $r['id'], 'id' => $r['id']];
+		}
 	}
 	fclose($log);
 	return $result;
 } #endfunc fetch_from_table
+
+/**
+ * SST-884: CVR and EAN for a shop order. The shop's own values win; when the shop sends an empty
+ * value and the customer already has a card, the card's value is used, so e-invoices to existing
+ * business customers carry the CVR the card has (DK-R-017 otherwise).
+ *
+ * @param int|string $saldi_addr_id adresser.id of the customer, empty for none
+ * @param string     $cvrnr         CVR sent by the shop
+ * @param string|int $ean           EAN sent by the shop
+ * @return array{0: string, 1: string} [cvrnr, ean]
+ */
+function shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean) {
+	$cvrnr = trim((string)$cvrnr);
+	$ean = trim((string)$ean);
+	$saldi_addr_id = (int)$saldi_addr_id;
+	if ($saldi_addr_id && ($cvrnr === '' || $ean === '')) {
+		$qtxt = "select cvrnr, ean from adresser where id = '$saldi_addr_id'";
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			if ($cvrnr === '') $cvrnr = trim((string)$r['cvrnr']);
+			if ($ean === '') $ean = trim((string)$r['ean']);
+		}
+	}
+	return array($cvrnr, $ean);
+}
 
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
@@ -233,7 +288,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	if ($shopOrderId) {
 		// Primary check: Check if shop order ID already exists with same art type
 		fwrite($log,__line__." Checking for existing shop order: $shopOrderId (art: $art)\n");
-		$qtxt = "select so.id,so.saldi_id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='$shopOrderId' and o.art='$art'";
+		$qtxt = "select so.id,so.saldi_id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='".db_escape_string((string)$shopOrderId)."' and o.art='".db_escape_string((string)$art)."'";
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if ($r['id']) {
@@ -246,8 +301,8 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		if ($nettosum > 0 && $saldi_addr_id) {
 			$duplicate_window = date('Y-m-d', strtotime('-1 day')); // Check last 24 hours
 			$qtxt = "select o.id, o.ordrenr, o.sum from ordrer o ";
-			$qtxt.= "where o.konto_id='$saldi_addr_id' and o.sum='$nettosum' ";
-			$qtxt.= "and o.ordredate >= '$duplicate_window' and o.art='DO'";
+			$qtxt.= "where o.konto_id='".db_escape_string((string)$saldi_addr_id)."' and o.sum='".db_escape_string((string)$nettosum)."' ";
+			$qtxt.= "and o.ordredate >= '".db_escape_string((string)$duplicate_window)."' and o.art='DO'";
 			fwrite($log,__line__." Checking for potential duplicate by amount and customer: $qtxt\n");
 			$duplicate_check = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$duplicate_count = 0;
@@ -261,14 +316,14 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			}
 		}
 	}
-	$qtxt="select saldi_id from shop_adresser where shop_id='$shop_addr_id' and afd='$afd'";
+	$qtxt="select saldi_id from shop_adresser where shop_id='".db_escape_string((string)$shop_addr_id)."' and afd='".db_escape_string((string)$afd)."'";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$saldi_addr_id=$r['saldi_id'];
 	fwrite($log,__line__." saldi_addr_id='$saldi_addr_id'\n");
 	if (!$saldi_addr_id) {
 		if ($saldi_kontonr) {
-			$qtxt="select id, kontonr from adresser where kontonr='$saldi_kontonr'";
+			$qtxt="select id, kontonr from adresser where kontonr='".db_escape_string((string)$saldi_kontonr)."'";
 			fwrite($log,__line__." $qtxt\n");
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$saldi_addr_id=$r['id'];
@@ -279,7 +334,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			fwrite($log,__line__." Kontonr $kontonr=$saldi_kontonr\n");
 		} elseif ($tlf) {
 			$qtxt="select id,kontonr from adresser where art = 'D' and "; 
-			$qtxt.="tlf='$tlf'";
+			$qtxt.="tlf='".db_escape_string((string)$tlf)."'";
 			fwrite($log,__line__." $qtxt\n");
 			$qtxt=chk4utf8($qtxt);
 			if ($r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -290,11 +345,11 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			}
 		}
 		if ($saldi_addr_id && $shop_addr_id) {
-			$qtxt="insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_addr_id','$shop_addr_id','$afd')";
+			$qtxt="insert into shop_adresser(saldi_id,shop_id,afd)values('".db_escape_string((string)$saldi_addr_id)."','".db_escape_string((string)$shop_addr_id)."','".db_escape_string((string)$afd)."')";
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 		} elseif (!$saldi_addr_id) { #if ($shop_addr_id) {
-				$qtxt="select id from adresser where art = 'D' and kontonr='$num_tlf'";
+				$qtxt="select id from adresser where art = 'D' and kontonr='".db_escape_string((string)$num_tlf)."'";
 				fwrite($log,__line__." $qtxt\n");
 				if ($tlf && !$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 					if (!$kontonr) $kontonr=$num_tlf;
@@ -321,37 +376,39 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 				$qtxt.= "lev_postnr,lev_bynavn,lev_land,";
 				$qtxt.= "lev_kontakt,lev_tlf,lev_email,lukket)";
 				$qtxt.= " values ";
-				$qtxt.="('$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
+				$qtxt.="('".db_escape_string((string)$kontonr)."','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
 				$qtxt.="'".db_escape_string($postnr)."','".db_escape_string($bynavn)."','".db_escape_string($land)."',";
 				$qtxt.="'".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
-				$qtxt.="'$gruppe','D','$betalingsbet','$betalingsdage','".db_escape_string($kontakt)."',";
+				$qtxt.="'".db_escape_string((string)$gruppe)."','D','".db_escape_string((string)$betalingsbet)."','".db_escape_string((string)$betalingsdage)."','".db_escape_string($kontakt)."',";
 				$qtxt.="'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
 				$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
 				$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
 				fwrite($log,__line__." $qtxt\n");
 				$qtxt=chk4utf8($qtxt);
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__));
+				$r=db_fetch_array(db_select("select id from adresser where kontonr='".db_escape_string((string)$kontonr)."' and art = 'D'",__FILE__ . " linje " . __LINE__));
 				$saldi_addr_id=$r['id'];
 			} 
 			if ($shop_addr_id) {
 				fwrite($log,__line__." insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')\n");
-				db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_addr_id','$shop_addr_id','$afd')",__FILE__ . " linje " . __LINE__);  
+				db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('".db_escape_string((string)$saldi_addr_id)."','".db_escape_string((string)$shop_addr_id)."','".db_escape_string((string)$afd)."')",__FILE__ . " linje " . __LINE__);
 			}
 	} else {
 		fwrite($log,__line__." select kontonr from adresser where id = '$saldi_addr_id'\n");
-		$r=db_fetch_array(db_select("select kontonr from adresser where id = '$saldi_addr_id'",__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select kontonr from adresser where id = '".db_escape_string((string)$saldi_addr_id)."'",__FILE__ . " linje " . __LINE__));
 		$kontonr=$r['kontonr'];
 		fwrite($log,__line__." kontonr $kontonr\n");
 	}
+	list($cvrnr, $ean) = shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean); # SST-884
+	fwrite($log,__line__." cvrnr '$cvrnr' ean '$ean'\n");
 	$ordrenr = get_next_order_number("DO");
 	$projektnr=0;
-	$qtxt = "select box1 from grupper where art='DG' and kodenr = '$gruppe' ";
+	$qtxt = "select box1 from grupper where art='DG' and kodenr = '".db_escape_string((string)$gruppe)."' ";
 	$qtxt.= "order by fiscal_year desc limit 1";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
 	$momsgruppe=str_replace('S','',$r['box1']);
-	$qtxt = "select box2 from grupper where art='SM' and kodenr = '$momsgruppe' ";
+	$qtxt = "select box2 from grupper where art='SM' and kodenr = '".db_escape_string((string)$momsgruppe)."' ";
 	$qtxt.= "order by fiscal_year desc limit 1";
 	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
 	$momssats=$r['box2']*1;
@@ -359,7 +416,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	if ($valuta=='DKK') {
 		$valutakurs=100;
 	} else {
-		$qtxt="select box2 from grupper where art='VK' and box1 = '$valuta'";
+		$qtxt="select box2 from grupper where art='VK' and box1 = '".db_escape_string((string)$valuta)."'";
 		fwrite($log,__line__." $qtxt\n");
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $valutakurs=$r['box2']; #20260223
 		else $valutakurs=100;
@@ -379,21 +436,21 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$qtxt.= "lev_postnr,lev_bynavn,lev_kontakt,";
 	$qtxt.= "tidspkt,phone,shop_status,shop_id,notes,sprog)";
 	$qtxt.= " values ";
-	$qtxt.= "('$ordrenr','$saldi_addr_id','$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
+	$qtxt.= "('".db_escape_string((string)$ordrenr)."','".db_escape_string((string)$saldi_addr_id)."','".db_escape_string((string)$kontonr)."','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
 	$qtxt.= "'".db_escape_string($addr2)."','".db_escape_string($postnr)."','".db_escape_string($bynavn)."',";
 	$qtxt.= "'".db_escape_string($land)."','".db_escape_string($kontakt)."','".db_escape_string($email)."',";
 	$initial_status = ($art == 'DK') ? '1' : '0';
-	$qtxt.= "'$udskriv_til','$art','$projektnr','$momssats','$betalingsbet','$betalingsdage','$betalings_id','$initial_status',";
-	$qtxt.= "'$ordredate','$valuta','$valutakurs','$afd','$ref','','$ekstra1','$ekstra2','$ekstra3',";
-	$qtxt.= "'$ekstra4','$ekstra5','$shop_fakturanr','$cvrnr','$ean','$nettosum','$momssum',";
+	$qtxt.= "'".db_escape_string((string)$udskriv_til)."','".db_escape_string((string)$art)."','".db_escape_string((string)$projektnr)."','".db_escape_string((string)$momssats)."','".db_escape_string((string)$betalingsbet)."','".db_escape_string((string)$betalingsdage)."','".db_escape_string((string)$betalings_id)."','".db_escape_string((string)$initial_status)."',";
+	$qtxt.= "'".db_escape_string((string)$ordredate)."','".db_escape_string((string)$valuta)."','".db_escape_string((string)$valutakurs)."','".db_escape_string((string)$afd)."','".db_escape_string((string)$ref)."','','".db_escape_string((string)$ekstra1)."','".db_escape_string((string)$ekstra2)."','".db_escape_string((string)$ekstra3)."',";
+	$qtxt.= "'".db_escape_string((string)$ekstra4)."','".db_escape_string((string)$ekstra5)."','".db_escape_string((string)$shop_fakturanr)."','".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string((string)$nettosum)."','".db_escape_string((string)$momssum)."',";
 	$qtxt.= "'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
 	$qtxt.= "'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_kontakt)."',";
-	$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','$shop_status',";
-	$qtxt.= "'$shopOrderId','".db_escape_string($notes)."','$sprog')";
+	$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','".db_escape_string((string)$shop_status)."',";
+	$qtxt.= "'".db_escape_string((string)$shopOrderId)."','".db_escape_string($notes)."','".db_escape_string((string)$sprog)."')";
 	fwrite($log,__line__." $qtxt\n");
 	$qtxt=chk4utf8 ($qtxt);
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt="select id from ordrer where ordrenr='$ordrenr' and kontonr='$kontonr'";
+	$qtxt="select id from ordrer where ordrenr='".db_escape_string((string)$ordrenr)."' and kontonr='".db_escape_string((string)$kontonr)."'";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
 	$saldi_ordre_id=$r['id'];
@@ -402,24 +459,24 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	// Enhanced shop_ordrer insertion with duplicate prevention
 	if ($saldi_ordre_id && $shopOrderId) {
 		// Final check before inserting into shop_ordrer table
-		$qtxt_check="select so.id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='$shopOrderId' and o.art='$art'";
+		$qtxt_check="select so.id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='".db_escape_string((string)$shopOrderId)."' and o.art='".db_escape_string((string)$art)."'";
 		$check_r=db_fetch_array(db_select($qtxt_check,__FILE__ . " linje " . __LINE__));
 		if ($check_r['id']) {
 			fwrite($log,__line__." ERROR: Race condition detected - shop_id $shopOrderId (art: $art) already exists in shop_ordrer\n");
 			// Clean up the order we just created since it's a duplicate
-			db_modify("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
+			db_modify("delete from ordrer where id='".db_escape_string((string)$saldi_ordre_id)."'",__FILE__ . " linje " . __LINE__);
 			fclose ($log);
 			return "Error: Duplicate shop order detected during insertion";
 		}
 		
-		$qtxt="insert into shop_ordrer(saldi_id,shop_id)values('$saldi_ordre_id','$shopOrderId')";
+		$qtxt="insert into shop_ordrer(saldi_id,shop_id)values('".db_escape_string((string)$saldi_ordre_id)."','".db_escape_string((string)$shopOrderId)."')";
 		fwrite($log,__line__." $qtxt\n");
 		$insert_result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		
 		if (!$insert_result) {
 			fwrite($log,__line__." ERROR: Failed to insert into shop_ordrer table\n");
 			// Clean up the order we just created
-			db_modify("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
+			db_modify("delete from ordrer where id='".db_escape_string((string)$saldi_ordre_id)."'",__FILE__ . " linje " . __LINE__);
 			fclose ($log);
 			return "Error: Failed to create shop order mapping";
 		}
@@ -1101,13 +1158,18 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 		fwrite($log,__line__." Action:".$_GET['action']."\n");
 		if ($action=='fetch_from_table') {
 			fclose ($log);
-			// SD-589: select/from/where are no longer passed through to SQL —
-			// fetch_from_table() itself now only accepts the one known-good
-			// shape (varenr,beholdning from varer, no where clause).
-			$select = if_isset($_GET, false, ['select']);
-			$from   = if_isset($_GET, false, ['from']);
-			$where  = if_isset($_GET, '', ['where']);
-			if ($select && $from) $value = fetch_from_table($select,$from,$where,'','');
+			// Read-only legacy queries are compiled before execution.
+			$select = ifset($_GET, 'select', '');
+			$from = ifset($_GET, 'from', '');
+			$where = ifset($_GET, 'where', '');
+			if (is_string($where)) {
+				$where = str_replace('**', '%', $where);
+			}
+			$orderBy = ifset($_GET, 'order_by', '');
+			$limit = ifset($_GET, 'limit', '');
+			if ($select && $from) {
+				$value = fetch_from_table($select, $from, $where, $orderBy, $limit);
+			}
 ##############################################
 		} elseif ($action=='get_sold_labels') {
 			fclose ($log);
