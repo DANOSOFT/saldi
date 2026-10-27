@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/worker.php --- ver 5.0.0 --- 2026.10.26
+// --- includes/shopify/worker.php --- ver 5.0.0 --- 2026.10.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20261026 Sawaneh SD-737: created (WP02-2).
 // 20261026 Sawaneh SD-737 review: a transaction left open by a handler is rolled back before the job is
 //                 finished, so the terminal state always commits; a yield waits until after the pass.
+// 20261027 Sawaneh SD-737 review: the same for a producer; the legacy transaktion() depth is always reset.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/queue.php';
@@ -76,10 +77,15 @@ function shopify_worker_run(array $ctx, array $registry, array $producers, int $
 	$types = array_keys($registry);
 	$summary['scheduled'] = shopify_schedule_insert($now(), $ctx['shops'] ?? shopify_shops(), $types);
 	foreach ($producers as $name => $producer) {
+		$threw = false;
 		try {
 			$summary['producers'][$name] = $producer($ctx, $end);
 		} catch (Throwable $e) {
 			$summary['producers'][$name] = array('error' => get_class($e) . ': ' . $e->getMessage());
+			$threw = true;
+		}
+		if (shopify_worker_close_transaction() && !$threw) {
+			$summary['producers'][$name] = array('error' => 'producer returned with a transaction open; its uncommitted work was rolled back');
 		}
 	}
 
@@ -142,16 +148,16 @@ function shopify_worker_execute(array $job, callable $handler, float $deadline):
 }
 
 /**
- * Rolls back a transaction a handler left open (or aborted) on the tenant connection and resets
- * the legacy transaktion() depth. True when there was one.
+ * Rolls back a transaction a handler or producer left open (or aborted) on the tenant connection
+ * and always resets the legacy transaktion() depth. True when there was one.
  */
 function shopify_worker_close_transaction(): bool {
 	global $connection, $db_transaktion_depth;
+	$db_transaktion_depth = 0;
 	if (!$connection || pg_transaction_status($connection) === PGSQL_TRANSACTION_IDLE) {
 		return false;
 	}
 	@pg_query($connection, 'ROLLBACK');
-	$db_transaktion_depth = 0;
 	return true;
 }
 

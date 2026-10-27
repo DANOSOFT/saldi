@@ -18,6 +18,7 @@
 //
 // History:
 // 20261026 Sawaneh SD-737: created.
+// 20261027 Sawaneh SD-737 review: a producer that leaves a transaction open, and a leaked transaktion() depth.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_worker.php <queue|hold|claim|run|backlog|misuse_replay|busy_yield> <test_db> [arg]\n");
@@ -258,6 +259,35 @@ try {
             }
             $summary = shopify_worker_run(['db' => $testDb, 'shops' => [], 'heartbeat_file' => null], $registry, [], 20);
             out(['summary' => array_diff_key($summary, ['jobs' => 1]), 'jobs' => $summary['jobs']]);
+            // no break: out() exits
+        case 'producer_open':
+            $registry = [];
+            shopify_worker_register($registry, 'catalogue.seed', function () {
+                $GLOBALS['db_transaktion_depth'] = 1;
+                return ['outcome' => 'done'];
+            });
+            $producers = [
+                'opens' => function () use ($connection) {
+                    pg_query($connection, 'BEGIN');
+                    shopify_db_rows("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('effect', 'shopify_test_effect', '3')");
+                    return ['marked' => 1];
+                },
+                'aborts' => function () use ($connection) {
+                    pg_query($connection, 'BEGIN');
+                    @pg_query($connection, 'SELECT 1/0');
+                    throw new RuntimeException('producer failed mid-transaction');
+                },
+            ];
+            shopify_queue_enqueue('catalogue.seed', null, 'tenant:after-producers', [], 60);
+            $summary = shopify_worker_run(['db' => $testDb, 'shops' => [], 'heartbeat_file' => null], $registry, $producers, 20);
+            $effects = shopify_db_rows("SELECT count(*) AS n FROM settings WHERE var_grp = 'shopify_test_effect'");
+            out([
+                'summary' => array_diff_key($summary, ['jobs' => 1]),
+                'jobs' => $summary['jobs'],
+                'state' => shopify_db_rows("SELECT state FROM shopify_jobs WHERE dedupe_key = 'tenant:after-producers'")[0]['state'],
+                'effects' => (int)$effects[0]['n'],
+                'depth' => (int)($GLOBALS['db_transaktion_depth'] ?? 0),
+            ]);
             // no break: out() exits
         case 'busy_yield':
             $calls = 0;

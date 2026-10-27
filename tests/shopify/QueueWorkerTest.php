@@ -8,6 +8,7 @@
 //
 // History:
 // 20261026 Sawaneh SD-737: created.
+// 20261027 Sawaneh SD-737 review: a producer that leaves a transaction open, and a leaked transaktion() depth.
 
 use PHPUnit\Framework\TestCase;
 
@@ -223,6 +224,17 @@ final class QueueWorkerTest extends TestCase
         ShopifyEnv::rows($conn, "DELETE FROM settings WHERE var_grp = 'shopify_test_effect'");
         pg_close($conn);
         $this->assertSame(['1'], array_column($effects, 'var_value'), 'the committed effect exists once and the uncommitted one is rolled back');
+    }
+
+    public function testATransactionLeftOpenByAProducerIsRolledBackBeforeClaiming(): void
+    {
+        $r = $this->runMode('producer_open');
+        $this->assertSame(['error' => 'producer returned with a transaction open; its uncommitted work was rolled back'], $r['summary']['producers']['opens']);
+        $this->assertSame(['error' => 'RuntimeException: producer failed mid-transaction'], $r['summary']['producers']['aborts'], 'an aborted transaction does not break the claims after it');
+        $this->assertSame([['id' => $r['jobs'][0]['id'], 'type' => 'catalogue.seed', 'result' => 'done']], $r['jobs']);
+        $this->assertSame('done', $r['state'], 'the job is finished and committed, not lost with the producer transaction');
+        $this->assertSame(0, $r['effects'], "the producer's uncommitted row is rolled back");
+        $this->assertSame(0, $r['depth'], 'legacy transaktion() depth left by a handler is reset');
     }
 
     public function testAYieldedJobIsNotReclaimedInTheSamePass(): void
