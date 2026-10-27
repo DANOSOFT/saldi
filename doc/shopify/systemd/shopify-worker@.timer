@@ -1,0 +1,11 @@
+# Every minute for tenant %i (WP02, SD-737). Enable with: systemctl enable --now shopify-worker@<tenant>.timer
+[Unit]
+Description=Saldi Shopify worker every minute for %i
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
