@@ -6,6 +6,7 @@
 // 20261027 CL/MMR SST-897 A proforma receipt printed between reading and saving the Z-report stays on the counter (CodeRabbit, PR #894).
 //                 The Z-report's row lock makes a second Z-report and the real proformaCount() writer wait (Codex verification round 2).
 //                 A register without a counter row gets one before the lock, so a first proforma print cannot slip past two Z-reports (Codex round 3).
+// 20261027 CL/NTR SST-897 Cleanup rolls back open transactions, closes the second connection and the writer before dropping the schema, and keeps the original failure (CodeRabbit, PR #894).
 // Run with SALDI_CHAR_PGHOST / PGPORT / PGUSER / PGPASS / PGDATABASE (all prefixed SALDI_CHAR_).
 
 error_reporting(E_ALL);
@@ -70,6 +71,10 @@ require_once(__DIR__ . '/../debitor/pos_ordre_includes/report/rapportReceiptData
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/report/saveReport.php');
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/helperMethods/helperFunc.php');
 $kasse = '2';
+$other = null;
+$writer = null;
+$pipes = array();
+$passed = false;
 try {
 	pg_query($connection, "CREATE SCHEMA $schema");
 	pg_query($connection, "SET search_path TO $schema");
@@ -160,6 +165,7 @@ try {
 	transaktion('commit');
 	$writerOut = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
 	$writerExit = proc_close($writer);
+	$writer = null;
 	checkZReport($writerExit === 0, 'The proforma print finishes after the Z-report: ' . trim($writerOut));
 	checkZReport(firstValue("SELECT count FROM report WHERE type = 'Proforma receipt' ORDER BY id DESC LIMIT 1") === '2',
 		'The locked Z-report saves the numbers it read');
@@ -190,7 +196,9 @@ try {
 	saveLastReport(array('proformaReceiptsArray' => $read));
 	transaktion('commit');
 	$writerOut = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
-	checkZReport(proc_close($writer) === 0, 'The first proforma print finishes after the Z-report: ' . trim($writerOut));
+	$writerExit = proc_close($writer);
+	$writer = null;
+	checkZReport($writerExit === 0, 'The first proforma print finishes after the Z-report: ' . trim($writerOut));
 	pg_get_result($other);
 	pg_query($other, $lockSql);
 	checkZReport(pg_fetch_result(pg_query($other, 'SELECT count FROM proforma WHERE id = 2'), 0, 0) === '1',
@@ -199,8 +207,52 @@ try {
 	checkZReport(firstValue("SELECT count FROM report WHERE type = 'Proforma receipt' ORDER BY id DESC LIMIT 1") === '0'
 		&& firstValue('SELECT count FROM proforma WHERE id = 2') === '1' && (float)firstValue('SELECT price FROM proforma WHERE id = 2') === 45.0,
 		'The first Z-report saved no proforma receipt, the counter holds the first receipt and is not negative');
-	pg_close($other);
+	$passed = true;
 } finally {
-	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
-	pg_close($connection);
+	// A failed check can leave a transaction holding the register row, the second connection waiting
+	// on it and the writer blocked; release them all before DROP SCHEMA, which would wait on their locks.
+	// Every step runs even if an earlier one fails, and a cleanup error never replaces the test's own failure.
+	$cleanupError = null;
+	$cleanup = function(callable $step) use (&$cleanupError) {
+		try {
+			$step();
+		} catch (Throwable $e) {
+			$cleanupError = $cleanupError ?? $e;
+		}
+	};
+	$cleanup(function() use ($connection) {
+		if (pg_transaction_status($connection) !== PGSQL_TRANSACTION_IDLE) {
+			pg_query($connection, 'ROLLBACK');
+		}
+	});
+	if ($other) {
+		$cleanup(function() use ($other) {
+			if (pg_connection_busy($other)) {
+				pg_cancel_query($other);
+			}
+			if (pg_transaction_status($other) !== PGSQL_TRANSACTION_IDLE) {
+				pg_query($other, 'ROLLBACK');
+			}
+		});
+		$cleanup(function() use ($other) { pg_close($other); });
+	}
+	if ($writer) {
+		$cleanup(function() use ($writer) {
+			if (proc_get_status($writer)['running']) {
+				proc_terminate($writer);
+			}
+		});
+		foreach ($pipes as $pipe) {
+			$cleanup(function() use ($pipe) { if (is_resource($pipe)) fclose($pipe); });
+		}
+		$cleanup(function() use ($writer) { proc_close($writer); });
+	}
+	$cleanup(function() use ($connection, $schema) { pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE"); });
+	$cleanup(function() use ($connection) { pg_close($connection); });
+	if ($cleanupError !== null) {
+		if ($passed) {
+			throw $cleanupError;
+		}
+		fwrite(STDERR, 'Cleanup also failed: ' . $cleanupError->getMessage() . "\n");
+	}
 }
