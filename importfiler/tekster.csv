@@ -5256,6 +5256,20 @@
 5389	Du har allerede rapporteret dette bilag	You have already reported this document	Du har allerede rapportert dette bilaget
 5390	Udfyld modkonto automatisk	Fill in contra account automatically	Fyll ut motkonto automatisk
 5391	Afvis forslaget	Reject the suggestion	Avvis forslaget
+5392	Nu	Now	Nå
+5393	Fejlen kunne ikke rapporteres. Prøv igen.	The error could not be reported. Try again.	Feilen kunne ikke rapporteres. Prøv igjen.
+5394	Ingen aflæste værdier er gemt for dette bilag	No captured values are stored for this document	Ingen avleste verdier er lagret for dette bilaget
+5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
+5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
+5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
+5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
+5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
+5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+
+
 7600	Ikke forfalden	Not yet due	Ikke forfalt
 7601	%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent beløb.	%s selected accounts were skipped because they have no positive overdue balance.	%s valgte kontoer ble hoppet over fordi de ikke har et positivt forfalt beløp.
 7602	Din browser blokerede vinduet. Klik her for at åbne resultatet.	Your browser blocked the window. Click here to open the result.	Nettleseren din blokkerte vinduet. Klikk her for å åpne resultatet.
@@ -5292,16 +5306,3 @@
 7633	Vis PBS-kunder	Show PBS customers	Vis PBS-kunder
 7634	Viser alle %s konti	Showing all %s accounts	Viser alle %s kontoer
 7635	Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).	One selected account has an overdue balance, so Remind all only creates a reminder for it (like Create reminder).	Det er avmerket 1 konto med forfalt beløp, så Påminn alle oppretter bare en påminnelse for den (som Opprett påminnelse).
-5392	Nu	Now	Nå
-5393	Fejlen kunne ikke rapporteres. Prøv igen.	The error could not be reported. Try again.	Feilen kunne ikke rapporteres. Prøv igjen.
-5394	Ingen aflæste værdier er gemt for dette bilag	No captured values are stored for this document	Ingen avleste verdier er lagret for dette bilaget
-5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
-5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
-5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
-5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
-5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
-5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
-5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
-5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
-5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
-
