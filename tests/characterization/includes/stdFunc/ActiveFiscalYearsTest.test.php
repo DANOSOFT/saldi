@@ -14,6 +14,8 @@ use PHPUnit\Framework\TestCase;
 //                  The real SQL runs against an in-memory SQLite table, and also against PostgreSQL
 //                  when ACTIVE_FISCAL_YEARS_PG is set to a pg_connect() string for a throwaway
 //                  database (the test creates and drops a temporary table only).
+// 20261027 CL/LH MB-94 A backend that is expected to run now fails instead of skipping: SQLite always,
+//                  PostgreSQL once ACTIVE_FISCAL_YEARS_PG is set. Only an unset ACTIVE_FISCAL_YEARS_PG skips.
 #[RunTestsInSeparateProcesses]
 #[PreserveGlobalState(false)]
 final class ActiveFiscalYearsTest extends TestCase
@@ -47,7 +49,7 @@ final class ActiveFiscalYearsTest extends TestCase
     {
         if ($backend === 'sqlite') {
             if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
-                self::markTestSkipped('pdo_sqlite is required for the SQLite fixture.');
+                self::fail('pdo_sqlite is required for the SQLite fixture.');
             }
             $pdo = new PDO('sqlite::memory:');
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -64,8 +66,11 @@ final class ActiveFiscalYearsTest extends TestCase
             };
         } else {
             $dsn = (string) getenv('ACTIVE_FISCAL_YEARS_PG');
-            if ($dsn === '' || !function_exists('pg_connect')) {
+            if ($dsn === '') {
                 self::markTestSkipped('Set ACTIVE_FISCAL_YEARS_PG to a pg_connect() string to run against PostgreSQL.');
+            }
+            if (!function_exists('pg_connect')) {
+                self::fail('ACTIVE_FISCAL_YEARS_PG is set, but the pgsql extension (pg_connect) is not loaded.');
             }
             $pg = pg_connect($dsn);
             self::assertNotFalse($pg, 'could not connect to ACTIVE_FISCAL_YEARS_PG');
