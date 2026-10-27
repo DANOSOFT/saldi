@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-16 ---
+// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2015.01.04 Initerer variablen $nextver så den bypasser versionskontrol i online.php
 // 2018.11.07 Rettet stavefejl i variablen $regnskabsaar linje 63
@@ -31,6 +31,7 @@
 // 2023.11.03 PHR Added call to online.php after tjek4opdat
 // 2025.05.14 LOE Added check for empty database and added error message if database is empty
 // 2025.05.14 LOE Added check for global_id in table regnskab and added error message if not exist as the former failed for mysql insert
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 @session_start();
 $s_id=session_id();
 
@@ -109,7 +110,7 @@ if (if_isset($r, NULL, 'id') && ($_SERVER['SERVER_NAME'] != 'ssl12.saldi.dk')) {
 	if ($_SERVER['HTTPS']) $dbLocation="s".$dbLocation;
 	$dbLocation="http".$dbLocation;
 	$dbAlias=urlencode($r['regnskab']);
-	$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&dbAlias=$dbAlias&globalId=$r[global_id]";
+	$url = "https://ssl3.saldi.dk/locator/locator.php?action=getDBlocation&dbAlias=$dbAlias&globalId=$r[global_id]";
 	$url.= "&dbName=$tmp_db&dbLocation=$dbLocation";
 	$result = file_get_contents($url);
 	$a = explode(',',json_decode($result, true));
