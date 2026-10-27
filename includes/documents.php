@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php --- ver 5.0.0 --- 2026-10-04 ---
+// --- includes/documents.php --- ver 5.0.0 --- 2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,7 +33,28 @@
 //                  via FileReservation instead of file_exists() polling, closing the window in
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20261003 CL/SZ SD-722 An upload that was extracted stores the document's snapshot on its pool row (poolCapture.php).
+//                A document attached to a journal line gets "Rapportér fejl i aflæsning" in the viewer's left panel, when the company has it switched on.
 // 20261004 CDX/LOE Share browser upload handling and redirect form uploads before rendering.
+// 20261002 CL/SZ SD-701 viewOnly=1 shows only the line's document, for the voucher tab the journal opens.
+//                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
+// 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
+//                  instead of always the first regardless, so a missing first file no longer hides the others.
+// 20261006 CL/SZ SD-727 An upload whose content matches an archived pool row brings that row back to
+//                the list instead of staying refused as a duplicate (poolUploadRestoreIfArchived(), poolUpload.php).
+// 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
+// 20261019 MJ SST-868 (review) This page holds its own output buffer, so an attach that fails
+//                  deep in docPool.php can still answer the pool with a status it reads. The
+//                  page frame from online.php and the ~700 lines printed here had already gone
+//                  past php.ini's 4096-byte buffer by then, so insertDocAttachFailed() found
+//                  headers_sent() true and fell back to an alert() that fetch() never
+//                  evaluates - a failed attach answered http 200 and looked like a success.
+
+// SST-868: must stay above every include. online.php prints the page frame as it is included,
+// and php.ini buffers only 4096 bytes, so without a buffer of our own the response is already
+// committed by the time docPool.php decides whether an attach worked.
+ob_start();
+
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -49,6 +70,9 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
+include_once(__DIR__ . "/docsIncludes/poolCapture.php");
+include_once(__DIR__ . "/docsIncludes/FileReservation.php");
+include_once(__DIR__ . "/docsIncludes/docFileFunc.php");
 require_once __DIR__ . "/docsIncludes/poolUpload.php";
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
@@ -117,6 +141,77 @@ if ($dokument) {
 
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
 
+// SD-701 View-only voucher tab, opened by openBilagTab() in finans/kassekladde.php. It shows only the
+// document, so the same journal line can't be edited here while the journal tab is open. Managing the
+// attachments (delete, unlink, move, pool) is handed back to the journal tab through openBilagManage().
+// Handled before any action branch below, so a view-only request never deletes, moves or unlinks anything.
+if (ifset($_GET, 'viewOnly') == '1' && $source && $sourceId) {
+	include_once(__DIR__ . '/docsIncludes/viewOnlyDocs.php');
+	$viewDocs = viewOnlyDocs($source, $sourceId, $docFolder, $db);
+	// Only a document of this line can be shown, whatever showDoc the URL carries.
+	// Without one in the URL, the first document whose file is on the server, so a missing first file doesn't hide the others.
+	$viewPath = $viewDocs ? $viewDocs[0]['path'] : '';
+	foreach ($viewDocs as $viewDoc) {
+		if (is_file($viewDoc['path'])) { $viewPath = $viewDoc['path']; break; }
+	}
+	foreach ($viewDocs as $viewDoc) {
+		if ($viewDoc['path'] == $showDoc) $viewPath = $viewDoc['path'];
+	}
+	$viewParams = "source=" . urlencode((string)$source) . "&sourceId=" . intval($sourceId) . "&kladde_id=" . intval($kladde_id);
+	$viewParams.= "&bilag=" . urlencode((string)$bilag) . "&fokus=" . urlencode((string)$fokus);
+	$manageUrl  = jsString(array("../includes/documents.php?$viewParams"));
+
+	print "<style>
+		html, body { margin: 0; height: 100%; overflow: hidden; font-family: Helvetica, Arial, sans-serif; }
+		#viewOnlyBar { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px; box-sizing: border-box;
+			background-color: $buttonColor; color: $buttonTxtColor; font-size: 13px; }
+		#viewOnlyBar .viewOnlyDocs { flex: 1; display: flex; gap: 4px; overflow-x: auto; white-space: nowrap; }
+		#viewOnlyBar a { color: $buttonTxtColor; text-decoration: none; padding: 4px 8px; border-radius: 4px; }
+		#viewOnlyBar a.current { font-weight: bold; background-color: rgba(255,255,255,0.25); }
+		#viewOnlyBar button { cursor: pointer; padding: 4px 10px; border: 1px solid $buttonTxtColor; border-radius: 4px;
+			background: transparent; color: $buttonTxtColor; font-size: 13px; }
+		#viewOnlyDoc { position: fixed; top: 40px; left: 0; right: 0; bottom: 0; background-color: #ffffff; overflow: auto; }
+		#viewOnlyDoc > div { height: 100%; }
+		#viewOnlyEmpty { padding: 20px; }
+	</style>";
+	print "<script>
+		function bilagManage() {
+			var journal = null;
+			try { journal = window.opener; } catch (e) {}
+			if (journal && !journal.closed && typeof journal.openBilagManage === 'function') {
+				journal.focus();
+				if (journal.openBilagManage($manageUrl)) window.close();
+			} else {
+				window.location.href = $manageUrl;
+			}
+		}
+	</script>";
+	print "<div id='viewOnlyBar'>";
+	print "<span>" . findtekst('1408|Kassebilag', $sprog_id) . "</span>";
+	print "<span class='viewOnlyDocs'>";
+	if (count($viewDocs) > 1) {
+		foreach ($viewDocs as $viewDoc) {
+			$viewHref = "documents.php?$viewParams&viewOnly=1&showDoc=" . urlencode($viewDoc['path']);
+			$viewClass = ($viewDoc['path'] == $viewPath) ? " class='current'" : "";
+			print "<a href='" . htmlspecialchars($viewHref, ENT_QUOTES) . "'$viewClass>" . htmlspecialchars($viewDoc['filename'], ENT_QUOTES) . "</a>";
+		}
+	}
+	print "</span>";
+	print "<button type='button' onclick='bilagManage()'>" . findtekst('5282|Administrér bilag', $sprog_id) . "</button>";
+	print "<button type='button' onclick='window.close()'>" . findtekst('2172|Luk', $sprog_id) . "</button>";
+	print "</div>";
+	print "<div id='viewOnlyDoc'>";
+	if ($viewPath) {
+		$showDoc = $viewPath;
+		include(__DIR__ . "/docsIncludes/showDoc.php");
+	} else {
+		print "<div id='viewOnlyEmpty'>" . findtekst('5283|Der er ikke længere et bilag på denne linje.', $sprog_id) . "</div>";
+	}
+	print "</div>";
+	print "</body></html>";
+	exit;
+}
+
 // Process both upload paths before rendering. AJAX callers get structured duplicate results;
 // form uploads redirect to the pool with a one-time notice so refresh cannot resubmit.
 if (!empty($_FILES['uploadedFile']['name'])) {
@@ -124,6 +219,10 @@ if (!empty($_FILES['uploadedFile']['name'])) {
 		|| !empty($_POST['openPool']);
 	$uploadResult = poolUploadFile($_FILES['uploadedFile'], "$docFolder/$db/pulje",
 		!isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0', $isAjax);
+	// SD-722: what the extraction read, kept before anything is saved or corrected
+	if ($uploadResult['success'] && !empty($uploadResult['extracted'])) {
+		poolCaptureStoreExtraction($uploadResult['filename'], "$docFolder/$db/pulje/" . $uploadResult['filename'], $uploadResult['extracted']);
+	}
 	if ($isAjax) {
 		while (ob_get_level()) {
 			ob_end_clean();
@@ -144,9 +243,10 @@ if (!empty($_FILES['uploadedFile']['name'])) {
 		exit;
 	}
 	// online.php prints the page frame before this branch runs, so the Location header above only
-	// works while PHP's output buffer still holds that output (output_buffering in php.ini). Once it
-	// has been flushed, send the user on with the page's own refresh instead of leaving a
-	// half-rendered page behind after the file was already stored.
+	// works while the output buffer still holds that output. Since SST-868 this page opens its own
+	// buffer at the top, so the header is what normally goes out; this stays as the fallback for a
+	// caller that has already flushed, sending the user on with the page's own refresh instead of
+	// leaving a half-rendered page behind after the file was already stored.
 	print "<meta http-equiv='refresh' content='0;URL=" . htmlspecialchars($redirectUrl, ENT_QUOTES, 'UTF-8') . "'>";
 	exit;
 }
@@ -434,7 +534,7 @@ if ($linkBilag && $source == 'kassekladde') {
 		// Build the file path for preview
 		$filePath = $docFolder . '/' . $db . '/' . $r['filepath'] . '/' . $r['filename'];
 		$filePath = str_replace('//', '/', $filePath);
-		$filePathEncoded = htmlspecialchars($filePath, ENT_QUOTES);
+		$filePathEncoded = htmlspecialchars(docFileUrl($filePath, $docFolder, $db), ENT_QUOTES);
 		
 		$linkUrl = "documents.php?doLink=1&linkDocId=$docId&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
 		
@@ -838,6 +938,19 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 		print "<a href='$linkUrl' style='display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
 		print "<i class='fa fa-link'></i> Link bilag fra anden linje";
 		print "</a>";
+		// SD-722: "Rapportér fejl i aflæsning" for the document shown, when the company has it switched on
+		if ($showDoc && poolCaptureReady() && poolCaptureReportSettings()['enabled']) {
+			print "<div id='poolCaptureReportSlot'></div>";
+			print "<script>window.saldiPoolCapture = " . json_encode(array(
+				'filename'      => basename((string)$showDoc),
+				'sourceId'      => (int)$sourceId,
+				'reportEnabled' => true,
+				'endpoint'      => 'docsIncludes/poolCaptureReport.php',
+				'texts'         => poolCaptureClientTexts($sprog_id),
+			), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>";
+			$vCapture = file_exists("../javascript/poolCapture.js") ? filemtime("../javascript/poolCapture.js") : 0;
+			print "<script src=\"../javascript/poolCapture.js?v=$vCapture\"></script>";
+		}
 	}
 	print "</div>";
 	

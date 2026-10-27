@@ -49,7 +49,7 @@
 	$nysort   = if_isset($_GET['nysort']);
 	$vis      = if_isset($_GET['vis']);
 	
-	if (!$funktion)$funktion='kontrolskemaliste';
+	if (!in_array($funktion, ['kontrolskemaliste', 'arbejdsseddelskemaliste', 'kontrolseddelskemaliste', 'vis_arbejdsseddel', 'vis_kontrolskema'], true)) $funktion = 'kontrolskemaliste';
 	/*
 	if (!$funktion) {
 		($sag_id)?$funktion='':$funktion='kontrolskemaliste';  

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-02 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -91,6 +91,15 @@
 //                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
 // 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
 // 20261002 CL/NTR Include stdFunc/findTxtUtf8.php (findtekst_utf8()).
+// 20261006 CL/NTR Docblocks of ifset()/if_isset(): plain-variable checks should use $var ?? $default (undefined variable still warns).
+// 20261007 NTR Added global function to get_settings_value and update_settings_value.
+// 20261007 MJ SST-830 barcode(): ask the SVG renderer to fill the box the label template
+//                  gives the image, the way the PNG it replaced did. Templates set both
+//                  width and height on $img, where the SVG default keeps its own ~9:1
+//                  proportions, so the code printed about half as tall.
+// 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
+//                  13-digit string is treated as an EAN-13 candidate (is_numeric also
+//                  accepted decimals, signs and scientific notation).
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -211,10 +220,10 @@ if (!function_exists('ifset')) {
 		 * $rows = ifset($cache, 'key', fn() => expensive_lookup());
 		 * ########################################
 		 *
-		 * Prefer if_isset() over this function for a plain-variable check with a non-null default
-		 * (`if_isset($id, 0)` vs. `ifset($id, null, 0)`) - the explicit `null` middle argument this
-		 * form requires makes if_isset() the shorter, clearer call for that one case. For everything
-		 * else (array/object key lookups, nested keys, no default, Closure defaults) use ifset().
+		 * For a plain-variable check with a default use `$id ?? 0` instead of this function: the
+		 * variable is passed by value, so an undefined variable still raises "Undefined variable"
+		 * before the call is made. Use ifset() for array/object key lookups, nested keys, no default
+		 * and Closure defaults.
 		 *
          * @param mixed $arrayOrVar The array or variable to check.
          * @param mixed $key        The key (if array is passed).
@@ -289,14 +298,13 @@ if (!function_exists('if_isset')) {
          * - Closures: `$default` may be a zero-arg Closure, resolved lazily - see ifset().
          * #############USECASE####################
 		 * $sektion = if_isset($_GET,null,'sektion');
-		 * $id = if_isset($id, 0);   // plain-variable check with a default - shorter than ifset($id, null, 0)
+		 * $id = $id ?? 0;   // plain-variable check: use ?? (if_isset($id, 0) warns if $id is undefined)
 		 * ########################################
 		 *
 		 * New code should use ifset() for array/object key lookups (it takes the key before the
-		 * default, so it reads naturally and needs no placeholder argument). This function is still
-		 * the better choice for a plain-variable check against a non-null default, since ifset()
-		 * needs an explicit `null` key argument for that same call (`ifset($id, null, 0)`) - use
-		 * if_isset($id, 0) instead. Never write a new call in the `if_isset($arr, $default, $key)`
+		 * default, so it reads naturally and needs no placeholder argument). This function is
+		 * not meant for plain-variable checks: use `$id ?? 0` there, since if_isset($id, 0) still
+		 * warns when $id is undefined (the argument is evaluated before the call). Never write a new call in the `if_isset($arr, $default, $key)`
 		 * three-argument key-lookup form; convert those to ifset($arr, $key, $default) instead, since
 		 * that argument order is the one easy to get backwards.
 		 *
@@ -2639,7 +2647,7 @@ if (!function_exists('barcode')) {
 
 		if ($dan_kode && $stregkoder[0] !== '') {
 			$ean13 = false;
-			if (is_numeric($stregkoder[0]) && strlen($stregkoder[0]) == 13) {
+			if (ctype_digit($stregkoder[0]) && strlen($stregkoder[0]) == 13) {
 				$a = substr($stregkoder[0], 11, 1) + substr($stregkoder[0], 9, 1) + substr($stregkoder[0], 7, 1) + substr($stregkoder[0], 5, 1) + substr($stregkoder[0], 3, 1) + substr($stregkoder[0], 1, 1);
 				$a *= 3;
 				$a += substr($stregkoder[0], 10, 1) + substr($stregkoder[0], 8, 1) + substr($stregkoder[0], 6, 1) + substr($stregkoder[0], 4, 1) + substr($stregkoder[0], 2, 1) + substr($stregkoder[0], 0, 1);
@@ -2659,6 +2667,13 @@ if (!function_exists('barcode')) {
 				'th' => 0,
 				'ts' => 0,
 				'bc' => '',
+				// 20261007 MJ SST-830 Fill the box the template gives the image, the way the
+				// PNG this replaced did. Label templates set both width and height on $img
+				// (Standard 80% x 2.15em, A4-Mit-salg 90% x 5mm, TD-4410 50mm x 5mm), and the
+				// SVG default keeps the 9:1 proportions, so the code came out about half as
+				// tall. Code 128 and EAN-13 encode data in relative bar widths and every bar
+				// scales by the same factor, so stretching does not affect scanning.
+				'par' => 'none',
 			]);
 			$svg_path = "../temp/$db/$stregkoder[0].svg";
 			if (file_put_contents($svg_path, $svg_content) === false) {
@@ -3033,14 +3048,14 @@ if(!function_exists('get_settings_value')){
 	 *
 	 * @return mixed - The value of the setting if found, otherwise the default value.
 	 */
-	function get_settings_value($var_name, $var_grp, $default, $user=NULL, $kasse=NULL) {
+	function get_settings_value($var_name, $var_grp, $default, $user=NULL, $kasse=NULL, $global = false) {
 
 		$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
 
 		if ($user !== NULL) $qtxt = $qtxt." AND user_id=$user";
 		if ($kasse !== NULL) $qtxt = $qtxt." AND pos_id=$kasse";
 
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $global));
 		if ($r) {
 			return $r[0];
 		} else {
@@ -3108,7 +3123,7 @@ if (!function_exists('is_input_too_long')) {
 }
 
 if(!function_exists('update_settings_value')){
-        function update_settings_value($var_name, $var_grp, $var_value, $var_description, $user=NULL, $posid=NULL) {
+        function update_settings_value($var_name, $var_grp, $var_value, $var_description, $user=NULL, $posid=NULL, $global = false) {
 		/**
 		 * Updates or inserts a settings value in the database.
 		 *
@@ -3128,14 +3143,14 @@ if(!function_exists('update_settings_value')){
                 $qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
                 if ($user !== NULL)  $qtxt .= " AND user_id=$user";
 				if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
-                $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+                $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $global));
 				
                 # If the row already exsists
                 if ($r) {
                         $qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
                         if ($user !== NULL)  $qtxt .= " AND user_id=$user";
                         if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
-                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__, $global);
                 # If the row needs to be created in the database
                 } else {
                         $qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description";
@@ -3147,7 +3162,7 @@ if(!function_exists('update_settings_value')){
                         if ($posid !== NULL) $qtxt .= ", $posid";
                         $qtxt = $qtxt.")";
 
-                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__, $global);
                 }
         }
 }
@@ -3204,7 +3219,7 @@ if (!function_exists('send_sms')) {
 
 		# Access global db
 		include (get_relative().'includes/connect.php');
-		$apikey = get_settings_value("apikey", "cpsms", NULL);
+		$apikey = get_settings_value("apikey", "cpsms", NULL, NULL, NULL, true);
 		include (get_relative().'includes/online.php');
 
 		# Alert the user if it is unable to send if misconfigured
@@ -3243,13 +3258,13 @@ if (!function_exists('send_sms')) {
 
 				# Update the value for the client of how manu sms they send
 				include (get_relative().'includes/connect.php');
-				$r=db_fetch_array(db_select("select coalesce(sms, 0) as sms from regnskab where db='$regnskab'",__FILE__ . " linje " . __LINE__));
+				$r=db_fetch_array(db_select("select coalesce(sms, 0) as sms from regnskab where db='$regnskab'",__FILE__ . " linje " . __LINE__, true));
 				if ($r["sms"] == 0) {
 					echo "<script>alert('Dette er den første SMS der afsendes fra Saldi i dit regnskab. Bemærk venligst at såfremt du overstiger en grænse på 10 afstente sms'ser, vil du modregnes 0,89 kr. pr. sms på din næste faktura.');</script>";
 				}
 				$sms = $r["sms"] + $cost;
 
-				db_modify("update regnskab set sms = $sms where db='$regnskab'",__FILE__ . " linje " . __LINE__);
+				db_modify("update regnskab set sms = $sms where db='$regnskab'",__FILE__ . " linje " . __LINE__, true);
 				include (get_relative().'includes/online.php');
 				return true;
 			} else {

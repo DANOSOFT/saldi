@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-05--------------
+// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-23--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,10 @@
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
 // 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
 // 20261005 LOE SD-687 Department names are escaped where the filter options are built.
+// 20261023 CL/MMR SST-874 "Ryd" now only empties the grid's search fields and filter selections.
+//                 It used to delete the user's whole datatables row, so added columns, own headers and rows per page were lost.
+// 20261023 CL/MMR SST-874 Moved the "Ryd" database work into clearOrderListSearch() per the controller/view convention.
+//                 The list name (valg) is escaped in its SQL (review by Codex).
 
 @session_start();
 $s_id = session_id();
@@ -104,6 +108,34 @@ $find = array(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 $padding2 = $padding = $padding1_5 = null; #20211018
 include("../includes/connect.php");
 include("../includes/std_func.php");
+
+/**
+ * "Ryd" in the order list: empties the user's saved search for the current list, nothing else.
+ *
+ * The grid row keeps column setup, own headers, widths, rowcount and sort (SST-874); only its search,
+ * filter selections and offset are reset, to the same empty values fetch_grid_setup() in
+ * includes/grid.php gives a new row. The legacy search (grupper OLV box9) and the selected debitor
+ * (settings debitorId) are cleared as before.
+ *
+ * @param string|null $datagrid_id Grid id from the form, e.g. 'ordrelst_faktura'; NULL skips the grid reset
+ * @param string      $valg        Current list (ordrer, faktura, ...)
+ * @param int         $bruger_id   Logged-in user
+ * @return void
+ */
+function clearOrderListSearch($datagrid_id, $valg, $bruger_id) {
+    $bruger_id = (int)$bruger_id;
+    if ($datagrid_id) {
+        $qtxt = "update datatables set search_setup = '[]', filter_setup = '{}', \"offset\" = 0 ";
+        $qtxt.= "where tabel_id = '" . db_escape_string($datagrid_id) . "' and user_id = '$bruger_id'";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    }
+
+    $qtxt = "update grupper set box9='' where art = 'OLV' and kode='" . db_escape_string($valg) . "' and kodenr = '$bruger_id'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+    $qtxt = "update settings set var_value = NULL where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 // Helper function: escapes HTML but preserves search term highlight spans
 function ordreliste_safe_output($value) {
@@ -469,20 +501,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $kontoid = NULL;
         $firma = NULL;
         $firmanavn_ant = NULL;
-        $datagrid_id = if_isset($_POST, NULL, 'datagrid_id');
-
-        if ($datagrid_id) {
-            // Clear datagrid filters
-            db_modify("delete from datatables where tabel_id = '$datagrid_id' and user_id = '$bruger_id'", __FILE__ . " linje " . __LINE__);
-        }
-
-        // Clear the stored search criteria in the database
-        $qtxt = "update grupper set box9='' where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'";
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-        // Also clear the settings for debitorId
-        $qtxt = "update settings set var_value = NULL where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        $datagrid_id = ifset($_POST, 'datagrid_id', NULL);
+        clearOrderListSearch($datagrid_id, $valg, $bruger_id);
 
         // Redirect to the same page with only the view type preserved
         print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?valg=$valg\">";

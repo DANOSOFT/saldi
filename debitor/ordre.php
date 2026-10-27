@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-09-21 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,6 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
 // 20240201 PBLM - Made some adjustments to EasyUBL
 // 20240303 PHR - Changed $rabat decimal precision from 3 to 5 
 // 20240416 LOE - $std_txt initialized to null
@@ -150,6 +149,18 @@
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
+// 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
+// 20261008 MJ SST-833 The batch-selection control on a sales line no longer uses the
+//                  serial-number icon and alt text. It opens batch(), not serienummer(),
+//                  and appeared on items with no serial number at all.
+// 20261011 MJ SST-828 The plukliste buttons now follow the order's own status instead of
+//                  $opValue ($_GET['valg']), which made them disappear entirely whenever
+//                  hurtigfakturering was on. They are shown on anything but a tilbud, so
+//                  nothing loses them, and the Send plukliste field in the button row
+//                  follows the same rule as the button beside it.
+// 20261019 CL/LH MB-74: Reloading (resending) the POST that saved a new order line, or a double-click on Gem, no longer inserts the line again.
+//                The order form carries a per-render order_form_token, and the fingerprint of a POST whose new line was committed is kept in the session per order (orderIncludes/orderLineReplay.php).
+//                An identical POST for the same order skips only the new-line insert; failed saves are not remembered.
 
 @session_start();
 $s_id = session_id();
@@ -186,6 +197,8 @@ include("../includes/std_func.php");
 
 include("../includes/connect.php");
 include("../includes/online.php");
+include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
+include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -937,6 +950,9 @@ elseif (isset($_POST['save']) && $_POST['save']) $b_submit = 'Gem';
 elseif (isset($_POST['send']) && $_POST['send']) $b_submit = 'Send';
 else $b_submit  = if_isset($_POST, NULL, 'b_submit');
 if ($b_submit == 'Credit') $b_submit = 'Krediter';
+// MB-74: fingerprint of a POST that adds a new order line, remembered once the line is committed.
+$orderLineReplayKey = orderLineReplayKey($_POST, (string)$db, (string)$brugernavn);
+$orderLineSaved = false;
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
 	$sum = if_isset($_POST, NULL, 'sum');
@@ -1149,7 +1165,7 @@ if ($b_submit) {
 	$levdato = trim(if_isset($_POST, NULL, 'levdato'));
 	#  $genfakt = trim(if_isset($_POST['genfakt']));
 	$fakturadato    = trim(if_isset($_POST, NULL, 'fakturadato'));
-	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = date("d-m-Y");
+	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = dkdato(default_invoice_date($id, $ordredate));
 	$cvrnr          = db_escape_string(trim(if_isset($_POST, NULL, 'cvrnr')));
 	$procenttillag  = usdecimal($procenttillag, 2);
 	$institution    = db_escape_string(trim(if_isset($_POST, NULL, 'institution')));
@@ -2237,8 +2253,10 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 			}
 		}
+		// MB-74: a reload/resend or double-click of the POST that already added this line adds nothing.
+		$orderLineReplay = orderLineIsReplay($_SESSION, (int)$id, $orderLineReplayKey);
 		// User clicked 'Opslag'
-		if (($posnr_ny[0]) && (!strstr($b_submit, 'Opslag'))) {
+		if (($posnr_ny[0]) && (!strstr($b_submit, 'Opslag')) && !$orderLineReplay) {
 			// Varenr is not set
 			if (!$varenr[0] && $beskrivelse[0] && $pris[0]) {
 				$i = $tmp = 0;
@@ -2341,6 +2359,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				if ($brugsamletpris && $samlevare[0]) {
 					if ($incl_moms) $salgspris[0] = $r['salgspris'] + $r['salgspris'] * $momssats / 100;
 					opret_saet($id, $r['id'], $salgspris[0], $momssats, $antal[0], $incl_moms, $lager[0]); #20170627
+					$orderLineSaved = true;
 				} else {
 					// Create the orderlinje using opret_ordrelinje
 					$svar = opret_ordrelinje($id, "", $varenr[0], $antal[0], $beskrivelse[0], $pris[0], $rabat[0], $procent[0], $art, $momsfri[0], $posnr_ny[0], 0, $incl_moms, "", "", 0, "", "", "", $lager[0], __LINE__);
@@ -2349,6 +2368,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
 
 					if (is_numeric($svar)) {
+						$orderLineSaved = true;
 						// note_on_orderline column is added lazily by varekort.php and may not exist on
 						// older DBs — check once per request and skip the auto-populate cleanly if not there.
 						static $_noteColExists = null;
@@ -2401,6 +2421,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 			} elseif ($beskrivelse[0] && is_numeric($posnr_ny[0])) {
 				db_modify("insert into ordrelinjer (ordre_id,posnr,beskrivelse,lager) values ('$id','$posnr_ny[0]','$beskrivelse[0]','$lager[0]')", __FILE__ . " linje " . __LINE__);
+				$orderLineSaved = true;
 			}
 		}
 
@@ -2574,6 +2595,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		}
 	}
 	transaktion("commit");
+	if ($orderLineSaved) orderLineRememberSave($_SESSION, (int)$id, $orderLineReplayKey);
 }
 ########################## KOPIER #################################
 if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
@@ -3224,7 +3246,7 @@ if ($b_submit == 'del_ordre') {
 ########################## FAKTURER   - SKAL VAERE PLACERET EFTER "del_ordre" ################################
 if ($b_submit == 'doInvoice' && $status < 3) {
 	if (!$fakturadate) {
-		$fakturadate = date("Y-m-d");
+		$fakturadate = default_invoice_date($id);
 		db_modify("update ordrer set fakturadate='$fakturadate' where id = '$id'", __FILE__ . " linje " . __LINE__);
 	}
 	if ($udskriv_til == "oioubl") {
@@ -3800,6 +3822,14 @@ function ordreside($id, $regnskab)
 	if ($status == 0) $tmp = "tilbud";
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
+	// 20261011 MJ SST-828 Decided from the order's own status, not from $opValue, which is
+	// $_GET['valg'] - the tab the user arrived from. With hurtigfakturering it could never be
+	// 'faktura' for an open order, so the buttons were hidden on every one of them.
+	// A plukliste belongs to anything that is not a tilbud. With hurtigfakturering there are
+	// no tilbud: ordreliste.php lists status 0 under 'ordrer' (line 531) and gives those rows
+	// the plukliste icon, so the only case left out is status 0 without hurtigfakturering.
+	// $tmp cannot serve here - the next line overwrites it with the navigation value.
+	$visPlukliste = $id && ($hurtigfakt == "on" || $status > 0);
 	$value_type = if_isset($_GET, 'ordrer', 'valg');
 	if($tmp != $value_type) $tmp = $value_type;
 	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
@@ -4216,7 +4246,7 @@ function ordreside($id, $regnskab)
 			if (!$sag_id) {
 				include("../includes/topline_settings.php");
 				// Merged conditions to avoid duplicate code for pluklisteEmail check
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud")) {
+				if ($visPlukliste) {
 					$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 					$printPopupQuery = nav_popup_query($_GET, $_POST);
 					$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
@@ -4225,7 +4255,7 @@ function ordreside($id, $regnskab)
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					if ($pluklisteEmail && (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud"))) {
+					if ($pluklisteEmail) {
 						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
 						print "<input type='text' id='plukkommentar1' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
 						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar1').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
@@ -4711,6 +4741,7 @@ function ordreside($id, $regnskab)
 		($r['antal'] < 0) ? $dan_kn = 1 : $dan_kn = NULL;
 		print "<div class=\"ordreform\">\n";
 		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
+		print "<input type=\"hidden\" name=\"order_form_token\" value=\"" . orderFormToken() . "\">\n"; // MB-74
 		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
 			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 			if ($swTextsJson === false) $swTextsJson = '{}';
@@ -5078,7 +5109,7 @@ function ordreside($id, $regnskab)
 			print "<td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:130px\" name=\"levdato\" value=\"$levdato\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		}
 		if ($fakturadato || $status > 0) {
-			$dd = date("d-m-Y");
+			$dd = dkdato(default_invoice_date($id));
 			print "<tr><td ";
 			if ($art != 'DK') print "title=\"" . findtekst('1094|Fakturadato', $sprog_id) . "\">" . findtekst('883|Fakt. dato', $sprog_id) . "";
 			else print "title=\"" . findtekst('1470|Dato for kreditnota', $sprog_id) . "\">" . findtekst('1471|KN. dato', $sprog_id) . "";
@@ -6385,7 +6416,7 @@ function ordreside($id, $regnskab)
 				$disabled = NULL;
 				$titletext = '';
 				$tmp = "";
-				$dd = date("d-m-Y");
+				$dd = dkdato(default_invoice_date($id));
 
 				if ($art != 'DK' && !$dan_kn) {
 					if ($udskriv_til == 'email') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
@@ -6482,11 +6513,12 @@ function ordreside($id, $regnskab)
 				$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 				$printPopupQuery = nav_popup_query($_GET, $_POST);
 				$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != 'tilbud')) {
+				if ($visPlukliste) {
 					print "<td align=\"center\"><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;'>Print plukliste</button></td>\n";
 				}
-				// Writing field: only when this is a real order (sag_id null/0) and a plukliste email is configured.
-				if ($pluklisteEmail) {
+				// Writing field: same rule as the button beside it. Until SST-828 this was gated on
+				// the mail setting alone, so it showed on invoices and tilbud where the button did not.
+				if ($visPlukliste && $pluklisteEmail) {
 					print "<td align=\"center\" style=\"white-space:nowrap;\">";
 					print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:120px;margin-right:4px;padding:0.2rem;box-sizing:border-box;vertical-align:middle;' class='inputbox'>";
 					print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;vertical-align:middle;'>Send plukliste</button>";
@@ -7102,7 +7134,10 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
 				print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
-				if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
+				// 20261008 MJ SST-833 This opens batch(), not serienummer(), so it no longer uses the
+				// serial-number icon and alt text. MEDSHOP read the serial icon on an item with no
+				// serial number as the feature misbehaving. 1496 is the text already on its title.
+				if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\" src=\"../ikoner/opslag.png\"></td>\n";
 				elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"" . findtekst('1501|Vælg serienr', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
 
 				if ($linje_id && $leveret != $tidl_lev) db_modify("update ordrelinjer set leveret=$tidl_lev where id=$linje_id", __FILE__ . " linje " . __LINE__);

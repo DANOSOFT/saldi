@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,7 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
+// 20260917 CL/LH Delivery note always prints the delivery address; vis_lev_addr no longer gates formular 3 (Havemoebelland).
 // 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
 //             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
@@ -84,6 +85,10 @@
 // 20261001 MJ SST-819 kontoprint(): printing a range of accounts printed only the first one.
 //             The branch test compared konto_fra with itself, so the range query was dead code and
 //             konto_til was ignored. The revived query also treats a NULL lukket as open.
+// 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
+// 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
+// 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
+//                holds the last printed order by then.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -650,7 +655,7 @@ if (!function_exists('find_form_tekst')) {
 					list($tabel, $variabel) = explode("_", $streng[$x], 2);
 
 					if (($tabel == "ordre") && (($variabel == "lev_navn") || ($variabel == "lev_addr1") || ($variabel == "lev_addr2") || ($variabel == "lev_postnr") || ($variabel == "lev_bynavn") || ($variabel == "lev_kontakt")) && (($formular == 3) || get_settings_value("showBothAddrExtra", "ordre", "off") === "on")) {
-						$variabel = tjek_lev_addr($variabel, $id);
+						$variabel = tjek_lev_addr($variabel, $id, $formular);
 					}
 					if ($tabel == "afdeling" && $variabel == "note") {
 						$qtxt = "select afd from ordrer where id=$id";
@@ -962,16 +967,19 @@ if (!function_exists('find_forfaldsdato')) {
 }
 
 if (!function_exists('tjek_lev_addr')) {
-	function tjek_lev_addr($variabel, $id)
+	function tjek_lev_addr($variabel, $id, $formular = NULL)
 	{
 		print "<!--function tjek_lev_addr start-->";
 		if ($variabel == "lev_navn")
 			$tmp = "firmanavn";
 		else
 			$tmp = substr($variabel, 4);
-		// 20260709 Sawaneh SD-562: when "show both" is enabled, only print the delivery address
-		// on the delivery note if the order's Show-delivery-address flag (vis_lev_addr) is on.
-		$vis_lev_cond = (get_settings_value("showBothAddrExtra", "ordre", "off") === "on") ? " and vis_lev_addr='on'" : "";
+		// 20260917 CL/LH The delivery note (formular 3) always uses the delivery address when one is set.
+		// In "show both" mode the order's Show-delivery-address flag (vis_lev_addr) only gates the other forms.
+		$vis_lev_cond = "";
+		if ($formular != 3 && get_settings_value("showBothAddrExtra", "ordre", "off") === "on") {
+			$vis_lev_cond = " and vis_lev_addr='on'";
+		}
 		$query = db_select("select $tmp from ordrer where id=$id and lev_navn!='' and lev_addr1!='' and lev_postnr!='' and lev_bynavn!=''$vis_lev_cond", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			return $variabel;
@@ -1104,6 +1112,7 @@ if (!function_exists('formularprint')) {
 		if ($vis_saet)
 			$brugsamletpris = 'on';
 
+		$bulkPrint = ($id == -1);
 		if ($id == -1) {	# Saa er der flere fakturaer
 			$ordre_antal = $_GET['ordre_antal'];
 			$ordreliste = $_GET['skriv'];
@@ -1726,7 +1735,9 @@ if (!function_exists('formularprint')) {
 				$pfnavn = $mappe . "/" . $printfilnavn;
 				$psfp = fopen("$pfnavn.ps", "w");
 				$htmfp = fopen("$pfnavn.htm", "w");
-				$printBatchDocuments[] = array('name' => $printfilnavn, 'background' => $background_pdf_path ?? '', 'pages' => 1);
+				// A default filename is only a candidate; tenants without letterhead must still print.
+				$printBatchBackground = is_file($background_pdf_path ?? '') ? $background_pdf_path : '';
+				$printBatchDocuments[] = array('name' => $printfilnavn, 'background' => $printBatchBackground, 'pages' => 1);
 				$printBatchIndex = count($printBatchDocuments) - 1;
 				#		} else {
 				#			fclose ($htmfp);
@@ -2404,7 +2415,7 @@ if (!function_exists('formularprint')) {
 			}
 			// 20260807 MJ urlencode returside saa search-parametre ikke laekaer som separate GET-parametre i udskriv.php
 			// 20260812 MJ Brug is_string-guard saa array-input ikke giver PHP-advarsel (null/array -> tom streng)
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art" . ($bulkPrint ? '&amp;bulk=1' : '') . "&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
@@ -2662,16 +2673,18 @@ if (!function_exists('rykkerprint')) {
 			fclose($logofil);
 		}
 
-		$mappe = "../temp/$db/$bruger_id" . "_*";
-		system("rm -r $mappe");
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_" . date("his");
-		mkdir("$mappe", 0775);
+		// Each print request keeps its own files so another tab cannot delete them.
+		$printDirectory = abs((int) $bruger_id) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8));
+		$mappe = "../temp/$db/" . $printDirectory;
+		if (!mkdir($mappe, 0775)) {
+			throw new RuntimeException('Udskriftsmappen kunne ikke oprettes.');
+		}
 		#	if ($inkasso) $printfilnavn=abs($bruger_id)."_".date("his")."/"."$inkasso";
 		#	else
 		if ($rykkernr[0])
-			$printfilnavn = abs($bruger_id) . "_" . date("his") . "/" . "$rykkernr[0]";
+			$printfilnavn = $printDirectory . "/" . "$rykkernr[0]";
 		else
-			$printfilnavn = abs($bruger_id) . "_" . date("his") . "/" . "rykker";
+			$printfilnavn = $printDirectory . "/" . "rykker";
 		$psfp = fopen("../temp/$db/$printfilnavn.ps", "w");
 		$htmfp = fopen("../temp/$db/$printfilnavn.htm", "w");
 		$htminitxt = "<html>\n";
@@ -2920,11 +2933,12 @@ if (!function_exists('kontoprint')) {
 			include("../includes/formularimport.php");
 			formularimport("../importfiler/formular.txt", '11');
 		}
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_*";
-		system("rm -r $mappe");
-		$mappe = "../temp/$db/" . abs($bruger_id) . "_" . date("his");
-		if (!file_exists($mappe))
-			mkdir("$mappe", 0775);
+		// Each print request keeps its own files so another tab cannot delete them.
+		$printDirectory = abs((int) $bruger_id) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8));
+		$mappe = "../temp/$db/" . $printDirectory;
+		if (!mkdir($mappe, 0775)) {
+			throw new RuntimeException('Udskriftsmappen kunne ikke oprettes.');
+		}
 		$printfilnavn = "$mappe/" . "kontoudtog";
 		$psfp = fopen("$printfilnavn.ps", "w");
 		$htmfp = fopen("$printfilnavn.htm", "w");
