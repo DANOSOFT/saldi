@@ -25,6 +25,8 @@
 //                Each purchase order line only takes its own outstanding quantity, and receiving more than is open is refused.
 //                An invalid warehouse or variant, duplicate lagerstatus rows or a write that does not add up rolls the whole receipt back with a message (texts 5461-5467).
 //                A list that is already received is not booked again; modtaget_af is escaped and tidspkt uses minutes (H:i:s).
+// 20261027 CL/LH MB-75: The warehouse-1 comment in modtag() no longer claims kreditor/modtag.php matches lager 0/null rows;
+//                it states where this receipt and the product card differ.
 
 @session_start();
 $s_id = session_id();
@@ -358,7 +360,10 @@ function modtag($liste_id)
 						throw new RuntimeException('Varemodtagelsen er afbrudt: varianten på indkøbsordrelinjen findes ikke', 5462);
 					}
 				}
-				// Warehouse 0 or no warehouse is warehouse 1, as in kreditor/modtag.php.
+				// Warehouse 1 also takes a legacy lagerstatus row with lager 0 or null, so such a row is increased
+				// instead of getting a second row next to it. kreditor/modtag.php, the product card and
+				// lagerreguler() match lager exactly, so on a tenant with a 0/null row and no lager=1 row
+				// this receipt lands on the 0/null row and the product card does not show it under warehouse 1.
 				$lagerBetingelse = ($lager == 1) ? "(lager is null or lager<=1)" : "lager=$lager";
 				$stockWhere = "vare_id=$vareId and coalesce(variant_id,0)=$variantId and $lagerBetingelse";
 				$q4 = db_select("select id, beholdning from lagerstatus where $stockWhere order by id for update", __FILE__ . " linje " . __LINE__);
