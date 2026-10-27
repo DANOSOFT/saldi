@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -161,8 +161,15 @@
 // 20261019 CL/LH MB-74: Reloading (resending) the POST that saved a new order line, or a double-click on Gem, no longer inserts the line again.
 //                The order form carries a per-render order_form_token, and the fingerprint of a POST whose new line was committed is kept in the session per order (orderIncludes/orderLineReplay.php).
 //                An identical POST for the same order skips only the new-line insert; failed saves are not remembered.
+// 20261023 CL/MMR SD-774 A popup asks for the receiver's CVR when an invoice is to be sent Digitalt to an EAN and neither the order nor the debitor card has a CVR.
+//                 It opens on load when Udskriv til is Digitalt, and on an open order also when Digitalt is chosen in the list.
+//                 Its Gem saves the CVR on the order and, when ticked, on the debitor card (orderIncludes/einvoiceCvr.php, javascript/einvoiceCvrPopup.js).
 // 20261023 CL/MMR SST-889 A samlet pris typed in "I alt" right after adding an item left the line without a price field, so the next save stored the price as 0 kr.
 //                  The hidden price is now only left out when an enabled visible price field carries it.
+// 20261026 CL/MMR SD-774 The popup saves the CVR through debitor/einvoiceCvrSave.php (AJAX) instead of posting the order form, so this page has no save path or redirect of its own for it.
+// 20261027 CL/LH PR #681 (NTR): the credit-limit lookup and the Kreditloft warning only run when the order has a
+//                konto_id, and kreditmax is read with floatval(ifset($r, 'kreditmax', 0)). if_isset($r['kreditmax']) * 1
+//                read the offset before the call, so it warned when there was no konto_id or no adresser row.
 
 @session_start();
 $s_id = session_id();
@@ -201,6 +208,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
+include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -6533,35 +6541,55 @@ function ordreside($id, $regnskab)
 
 			//print "<tr><td></td></tr>\n";
 		} # end if ($status < 3)
-		if ($konto_id) $r = db_fetch_array(db_select("select kreditmax from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
-		if ($kreditmax = if_isset($r['kreditmax']) * 1) { #20210719 checked whether it is set as it was throwing a boolean error
-			if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
-			$q = db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'", __FILE__ . " linje " . __LINE__);
-			$tilgode = 0;
-			while ($r = db_fetch_array($q)) {
-				if (!$r['valuta']) $r['valuta'] = $baseCurrency;
-				if (!$r['valutakurs']) $r['valutakurs'] = 100;
-				if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
-				elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
-					if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc"))) {
-						$opp_amount = $r['amount'] * 100 / $r3['kurs'];
-						$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
-					} elseif ($valuta) print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
-				} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
-					$tmp == $r['amount'] * $r['valuta'] / 100;
-					$opp_amount = $tmp * 100 / $r['valutakurs'];
-				} else $opp_amount = $r['amount'];
-				$tilgode = $tilgode + $opp_amount;
-			}
-			if ($kreditmax < $ialt + $tilgode) {
-				$tmp = dkdecimal(($ialt + $tilgode) - $kreditmax, 2);
-				$alert1 = findtekst('1851|Kreditloft overskrides med', $sprog_id); #20210809
-				print "<big><span style='color:#FF0000';>$alert1 $valuta $tmp</span></big><br>\n";
-			}
-		} # end  if ($kreditmax....
+		if ($konto_id) {
+			$r = db_fetch_array(db_select("select kreditmax from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
+			if ($kreditmax = floatval(ifset($r, 'kreditmax', 0))) { // 20210719 checked whether it is set as it was throwing a boolean error // Changed it from string * int to floatval to avoid type errors.
+				if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
+				$q = db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'", __FILE__ . " linje " . __LINE__);
+				$tilgode = 0;
+				while ($r = db_fetch_array($q)) {
+					if (!$r['valuta']) $r['valuta'] = $baseCurrency;
+					if (!$r['valutakurs']) $r['valutakurs'] = 100;
+					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
+					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
+						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc"))) {
+							$opp_amount = $r['amount'] * 100 / $r3['kurs'];
+							$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
+						} elseif ($valuta) print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
+					} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
+						$tmp == $r['amount'] * $r['valuta'] / 100;
+						$opp_amount = $tmp * 100 / $r['valutakurs'];
+					} else $opp_amount = $r['amount'];
+					$tilgode = $tilgode + $opp_amount;
+				}
+				if ($kreditmax < $ialt + $tilgode) {
+					$tmp = dkdecimal(($ialt + $tilgode) - $kreditmax, 2);
+					$alert1 = findtekst('1851|Kreditloft overskrides med', $sprog_id); #20210809
+					print "<big><span style='color:#FF0000';>$alert1 $valuta $tmp</span></big><br>\n";
+				}
+			} # end  if ($kreditmax....
+		}
 		print "</tbody></table></td></tr>\n"; # <- Tabel 4
 		print "</form>\n"; # 
 	} # end else for (if ($status>=3))
+
+	// SD-774: the popup asking for the receiver's CVR (orderIncludes/einvoiceCvr.php).
+	einvoiceCvrPopupView(
+		array(
+			'id'             => $id,
+			'art'            => $art,
+			'status'         => $status,
+			'udskriv_til'    => $udskriv_til,
+			'digital_status' => $digitalStatus ?? '',
+			'ean'            => $ean,
+			'cvrnr'          => $cvrnr,
+			'land'           => $land,
+			'konto_id'       => $konto_id,
+		),
+		einvoiceCvrRedirectPending($b_submit),
+		$sprog_id,
+		$db_encode
+	);
 
 	# Malene, dette er enden
 
