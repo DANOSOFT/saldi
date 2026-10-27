@@ -5276,9 +5276,12 @@
 5449	Kladden kunne ikke låses, så intet er gemt. Prøv igen.	The journal could not be locked, so nothing was saved. Please try again.	Kladden kunne ikke låses, så ingenting er lagret. Prøv igjen.
 5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
 5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5450	Ukendt betalingstype	Unknown payment type	Ukjent betalingstype
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
+5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med
+5454	Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)	The document number cannot be saved: the journal has no free numbers left (max 2147483647)	Bilagsnummeret kan ikke lagres: det er ikke flere ledige numre i kladden (maks 2147483647)

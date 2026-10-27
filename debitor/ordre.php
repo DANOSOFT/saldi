@@ -158,6 +158,9 @@
 //                  hurtigfakturering was on. They are shown on anything but a tilbud, so
 //                  nothing loses them, and the Send plukliste field in the button row
 //                  follows the same rule as the button beside it.
+// 20261019 CL/LH MB-74: Reloading (resending) the POST that saved a new order line, or a double-click on Gem, no longer inserts the line again.
+//                The order form carries a per-render order_form_token, and the fingerprint of a POST whose new line was committed is kept in the session per order (orderIncludes/orderLineReplay.php).
+//                An identical POST for the same order skips only the new-line insert; failed saves are not remembered.
 // 20261023 CL/MMR SST-889 A samlet pris typed in "I alt" right after adding an item left the line without a price field, so the next save stored the price as 0 kr.
 //                  The hidden price is now only left out when an enabled visible price field carries it.
 
@@ -197,6 +200,7 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
+include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -948,6 +952,9 @@ elseif (isset($_POST['save']) && $_POST['save']) $b_submit = 'Gem';
 elseif (isset($_POST['send']) && $_POST['send']) $b_submit = 'Send';
 else $b_submit  = if_isset($_POST, NULL, 'b_submit');
 if ($b_submit == 'Credit') $b_submit = 'Krediter';
+// MB-74: fingerprint of a POST that adds a new order line, remembered once the line is committed.
+$orderLineReplayKey = orderLineReplayKey($_POST, (string)$db, (string)$brugernavn);
+$orderLineSaved = false;
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
 	$sum = if_isset($_POST, NULL, 'sum');
@@ -2248,8 +2255,10 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 			}
 		}
+		// MB-74: a reload/resend or double-click of the POST that already added this line adds nothing.
+		$orderLineReplay = orderLineIsReplay($_SESSION, (int)$id, $orderLineReplayKey);
 		// User clicked 'Opslag'
-		if (($posnr_ny[0]) && (!strstr($b_submit, 'Opslag'))) {
+		if (($posnr_ny[0]) && (!strstr($b_submit, 'Opslag')) && !$orderLineReplay) {
 			// Varenr is not set
 			if (!$varenr[0] && $beskrivelse[0] && $pris[0]) {
 				$i = $tmp = 0;
@@ -2352,6 +2361,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				if ($brugsamletpris && $samlevare[0]) {
 					if ($incl_moms) $salgspris[0] = $r['salgspris'] + $r['salgspris'] * $momssats / 100;
 					opret_saet($id, $r['id'], $salgspris[0], $momssats, $antal[0], $incl_moms, $lager[0]); #20170627
+					$orderLineSaved = true;
 				} else {
 					// Create the orderlinje using opret_ordrelinje
 					$svar = opret_ordrelinje($id, "", $varenr[0], $antal[0], $beskrivelse[0], $pris[0], $rabat[0], $procent[0], $art, $momsfri[0], $posnr_ny[0], 0, $incl_moms, "", "", 0, "", "", "", $lager[0], __LINE__);
@@ -2360,6 +2370,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
 
 					if (is_numeric($svar)) {
+						$orderLineSaved = true;
 						// note_on_orderline column is added lazily by varekort.php and may not exist on
 						// older DBs — check once per request and skip the auto-populate cleanly if not there.
 						static $_noteColExists = null;
@@ -2412,6 +2423,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 			} elseif ($beskrivelse[0] && is_numeric($posnr_ny[0])) {
 				db_modify("insert into ordrelinjer (ordre_id,posnr,beskrivelse,lager) values ('$id','$posnr_ny[0]','$beskrivelse[0]','$lager[0]')", __FILE__ . " linje " . __LINE__);
+				$orderLineSaved = true;
 			}
 		}
 
@@ -2585,6 +2597,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		}
 	}
 	transaktion("commit");
+	if ($orderLineSaved) orderLineRememberSave($_SESSION, (int)$id, $orderLineReplayKey);
 }
 ########################## KOPIER #################################
 if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
@@ -4730,6 +4743,7 @@ function ordreside($id, $regnskab)
 		($r['antal'] < 0) ? $dan_kn = 1 : $dan_kn = NULL;
 		print "<div class=\"ordreform\">\n";
 		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
+		print "<input type=\"hidden\" name=\"order_form_token\" value=\"" . orderFormToken() . "\">\n"; // MB-74
 		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
 			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 			if ($swTextsJson === false) $swTextsJson = '{}';

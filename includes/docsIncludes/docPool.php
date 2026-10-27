@@ -4406,7 +4406,7 @@ print <<<JS
 						if (payload && payload.message) insertError = payload.message;
 					} catch (e) {}
 					if (insertError) alert(insertError);
-					else alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text) || '{$txt34} (Status: ' + response.status + '). {$txt32}.');
+					else alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text) || '{$txt34} (Status: ' + response.status + '). {$txt32}.'));
 					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');
