@@ -3,6 +3,16 @@
 //                     it is used in the temp path below.
 // 20260924 Sawaneh    JOB-141: debitor module rights are checked here (online.php) - only a login
 //                     was required before, and a send now also writes ordrer.digital_status.
+// 20261026 CL/MMR SD-774 sendInvoice() gets the page's encoding and language, which its missing-CVR page needs.
+
+/**
+ * Injected by ../includes/connect.php through api.php, included below:
+ * @var string $db_encode
+ *
+ * Injected by ../includes/online.php through api.php, included below:
+ * @var int|string $sprog_id
+ */
+
 ob_start();
 $modulnr = 5;
 include_once("api.php");
@@ -12,7 +22,7 @@ $type = isset($_GET["type"]) ? $_GET["type"] : "";
 if(isset($_GET["id"]) && isset($_GET["type"])){
     $id = (int)$_GET["id"];
     if($_GET["type"] == "invoice"){
-        $name = sendInvoice($id, "invoice");
+        $name = sendInvoice($id, "invoice", array("db_encode" => $db_encode ?? "UTF8", "sprog_id" => $sprog_id ?? 1)); // SD-774
         header("Location: peppol.php?name=".$name."&type=faktura");
         exit;
     }elseif($_GET["type"] == "order"){
@@ -20,7 +30,7 @@ if(isset($_GET["id"]) && isset($_GET["type"])){
         header("Location: peppol.php?name=".$name."&type=faktura");
         exit;
     }elseif($_GET["type"] == "creditnote"){
-        $name = sendInvoice($id, "creditnote");
+        $name = sendInvoice($id, "creditnote", array("db_encode" => $db_encode ?? "UTF8", "sprog_id" => $sprog_id ?? 1)); // SD-774
         header("Location: peppol.php?name=".$name."&type=faktura");
         exit;
     }
