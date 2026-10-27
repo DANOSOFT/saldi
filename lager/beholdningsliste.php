@@ -20,6 +20,8 @@
 //                a user without a warehouse gets a picker instead of being logged out (SD-623).
 // 20261027 LOE MB-99 (review) the cost-price switch only accepts its one value, and the balance column
 //                sorts by the warehouse stock it shows.
+// 20261027 CL/LH MB-99 (review) the warehouse balance is summed over the item's lagerstatus rows (one per
+//                variant) in the sort and in the column, and the totals sort counts a missing balance as 0.
 
 @session_start();
 $s_id = session_id();
@@ -126,10 +128,12 @@ if (!$sort) {
 }
 
 # MB-99 (review) the Beh. column shows the selected warehouse's stock, so the sort follows it; without a
-# warehouse (a totals list) the item's own balance is still what the column shows
+# warehouse (a totals list) the item's own balance is still what the column shows. An item has one
+# lagerstatus row per variant in a warehouse, so the stock is their sum (a bare subquery aborts the list
+# with "more than one row"), and a missing row or balance sorts as the 0 the column prints
 $orderby = $sort;
 if ($sort === 'beholdning') {
-    $orderby = ($lager >= 1) ? "coalesce((select beholdning from lagerstatus where vare_id = varer.id and lager = $lager), 0)" : 'beholdning';
+    $orderby = ($lager >= 1) ? "coalesce((select sum(beholdning) from lagerstatus where vare_id = varer.id and lager = $lager), 0)" : 'coalesce(beholdning, 0)';
 }
 $linjebg = NULL;
 $query = db_select("select * from varer where lukket != '1' order by $orderby", __FILE__ . " linje " . __LINE__);
@@ -168,11 +172,9 @@ while ($row = db_fetch_array($query)) {
             }
         }
         $linjetext = "<span title= 'Reserveret: $reserveret'>";
-        if ($r2 = db_fetch_array(db_select("select beholdning from lagerstatus where vare_id=$row[id] and lager=$lager", __FILE__ . " linje " . __LINE__))) {
-            print "<td align=right>$linjetext<small>$font ".dkdecimal($r2['beholdning'])."</small></span></td>";
-        } else {
-            print "<td align=right>$linjetext<small>$font 0,00</small></span></td>";
-        }
+        # MB-99 (review) the warehouse stock is the sum of the item's variant rows, the same figure the sort uses
+        $r2 = db_fetch_array(db_select("select coalesce(sum(beholdning), 0) as beholdning from lagerstatus where vare_id=$row[id] and lager=$lager", __FILE__ . " linje " . __LINE__));
+        print "<td align=right>$linjetext<small>$font ".dkdecimal($r2['beholdning'])."</small></span></td>";
     } else {
         $q2 = db_select("select * from batch_kob where vare_id=$row[id] and rest > 0", __FILE__ . " linje " . __LINE__);
         while ($r2 = db_fetch_array($q2)) {
