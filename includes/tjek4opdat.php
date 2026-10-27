@@ -143,8 +143,15 @@ if (!function_exists('tjek4opdat')) {
 				}
 				if ($b==3) {
 					include("../includes/opdat_4.3.php");
-					opdat_4_3($a,$b,$c);
+					opdat_4_3();
 					$b=4;$c=0;
+				}
+			}
+			if ($a==5) {
+				if ($b==0) {	
+					include("../includes/opdat_5.0.php");
+					opdat_5_0();
+					$b=1;$c=0;
 				}
 			}
 		}
