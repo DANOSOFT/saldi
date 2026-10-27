@@ -1078,6 +1078,8 @@
 1078	Hent	Fetch	Hent
 1079	Import fra Danløn	Import from Danløn	Import fra Danløn
 1080	Import fra Dataløn	Import from Dataløn	Import fra Dataløn
+8020	MobilePay er ikke tilsluttet - tjek loginoplysninger	MobilePay is not connected - check credentials	MobilePay er ikke tilkoblet - sjekk påloggingsopplysninger
+8021	Regenerér QR-kode	Regenerate QR code	Regenerer QR-kode
 1081	Import af BS betalinger	Import of BS payments	Import av BS-betalinger
 1082	Import af andre data	Import of other data	Import av andre data
 1083	Afregning Kommisionssalg	Settlement Commission sales	Salg av forlikskommisjonen

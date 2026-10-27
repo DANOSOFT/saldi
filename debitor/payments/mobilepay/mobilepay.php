@@ -24,6 +24,9 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20261027 CL/LH Show 'MobilePay er ikke tilsluttet' (text 8020) when the access token call fails or returns
+//                no token, instead of an echoed curl error or a payment started with a null token.
+//                The Vipps api base comes from mobilepay_api_base() (paymentui.php) so tests can stub it.
 
 #print '<head>';
 #print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
@@ -103,7 +106,7 @@ if (file_exists($filePath)) {
 # Get auth token
 # 
 # #########################################################
-$url = 'https://api.vipps.no/accesstoken/get';
+$url = mobilepay_api_base() . '/accesstoken/get';
 
 $headers = array(
     'Content-Type: application/json',
@@ -130,18 +133,18 @@ $status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 if ($response === false) {
     // Handle curl error
     curl_close($ch);
-    ui_output($pretty_amount, findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id), "red", $raw_amount, $indbetaling, $ordre_id);
+    ui_output($pretty_amount, findtekst('8020|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id), "red", $raw_amount, $indbetaling, $ordre_id);
     exit;
 } else {
     // Process response
     $response = json_decode($response, true);
-    $accessToken = if_isset($response, null, "access_token");
+    $accessToken = ifset($response, 'access_token');
 }
 
 curl_close($ch);
 
 if ($status_code !== 200 || !$accessToken) {
-    ui_output($pretty_amount, findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id), "red", $raw_amount, $indbetaling, $ordre_id);
+    ui_output($pretty_amount, findtekst('8020|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id), "red", $raw_amount, $indbetaling, $ordre_id);
     exit;
 }
 
@@ -153,7 +156,7 @@ if ($status_code !== 200 || !$accessToken) {
 # #########################################################
 # Try creating the payment 20 times, if a payment already exsists with that ID (canceled or split payments)
 $time = date("is");
-$url = 'https://api.vipps.no/epayment/v1/payments';
+$url = mobilepay_api_base() . '/epayment/v1/payments';
 $data = array(
     'amount' => array(
 	'value' => $amount,

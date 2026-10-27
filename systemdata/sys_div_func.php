@@ -130,6 +130,9 @@
 // 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
 //                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
 //                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
+// 20261027 CL/LH div_valg() MobilePay: a failed access token call shows 'MobilePay er ikke tilsluttet' (text 8020)
+//                on the till's QR row instead of an echoed curl error; each till has a 'Regenerér QR-kode'
+//                button (text 8021) that calls sys_div_func_includes/regenerate_mobilepay_qr.php with the form token.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -1565,18 +1568,18 @@ function removeDfmPickup(idx) {
 				if ($response === false) {
 					// Handle curl error
 					curl_close($ch);
-					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
+					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('8020|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
 					continue;
 				} else {
 					// Process response
 					$response = json_decode($response, true);
-					$accessToken = if_isset($response, null, "access_token");
+					$accessToken = ifset($response, 'access_token');
 				}
 
 				curl_close($ch);
 
 				if ($status_code !== 200 || !$accessToken) {
-					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
+					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('8020|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
 					continue;
 				}
 
@@ -1674,7 +1677,8 @@ function removeDfmPickup(idx) {
 			print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n";
 			print "<td title='MobilePay'>\n";
 			print "<a style='width:150px;' href='$mobilepay' target='_blank'>Se QR kode</a>\n";
-			print " <button onclick=\"window.location.href='sys_div_func_includes/regenerate_mobilepay_qr.php?pos_id=$i';\" class='inputbox' type='button'>" . findtekst('5058|Regenerér QR-kode', $sprog_id) . "</button>\n";
+			$regenerateUrl = 'sys_div_func_includes/regenerate_mobilepay_qr.php?pos_id=' . $i . '&csrf=' . urlencode($csrf_token);
+			print " <button onclick=\"window.location.href='$regenerateUrl';\" class='inputbox' type='button'>" . findtekst('8021|Regenerér QR-kode', $sprog_id) . "</button>\n";
 			print "</td></tr>\n";
 		}
 	}

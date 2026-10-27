@@ -36,6 +36,8 @@
 //              see also ordrefunc.php & productLines.php  
 // 20240227	PK Altered eventtype from 11999 to 12999
 // 20240519 PHR Corrected error in '$rabatgruppe' update when using percent discount
+// 20261027 CL/LH receipt_id is escaped as a string instead of cast to int, which stored 0 in the varchar
+//                pos_betalinger.receipt_id for every reference (MobilePay 'ordreid-<id>-<time>', Vibrant).
 
 $x = 0;
 if ($status < 3) {

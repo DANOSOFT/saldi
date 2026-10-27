@@ -1,7 +1,9 @@
 <?php
-// Router for `php -S`: a stand-in for api.vipps.no used by MobilepayWebhookSyncTest.
-// The scenario file (env MP_STUB_SCENARIO) holds {"token"|"list"|"delete"|"register": {"code": int, "body": string}};
+// Router for `php -S`: a stand-in for api.vipps.no used by MobilepayWebhookSyncTest and MobilepayPaymentFlowTest.
+// The scenario file (env MP_STUB_SCENARIO) holds
+// {"token"|"list"|"delete"|"register"|"create"|"capture": {"code": int, "body": string}};
 // every request is appended to the log file (env MP_STUB_LOG) as "METHOD PATH BODY".
+// 20261027 CL/LH Also answers the ePayment create and capture calls of debitor/payments/mobilepay (PR #502).
 
 $scenario = json_decode((string)@file_get_contents(getenv('MP_STUB_SCENARIO')), true) ?: array();
 $method   = $_SERVER['REQUEST_METHOD'];
@@ -14,6 +16,10 @@ if ($path === '/accesstoken/get') {
 	$key = ($method === 'POST') ? 'register' : 'list';
 } elseif ($method === 'DELETE' && strpos($path, '/webhooks/v1/webhooks/') === 0) {
 	$key = 'delete';
+} elseif ($method === 'POST' && $path === '/epayment/v1/payments') {
+	$key = 'create';
+} elseif ($method === 'POST' && preg_match('#^/epayment/v1/payments/[^/]+/capture$#', $path)) {
+	$key = 'capture';
 } else {
 	http_response_code(404);
 	return true;
