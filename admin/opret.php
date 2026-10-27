@@ -114,6 +114,7 @@
 // 20260928 CL/LH Create ordrer.shop_status as varchar(20), matching api/rest_api.php and the
 //                Stripe paid-invoice index predicate in includes/betweenUpdates.php.
 // 20261012 CL/LH stripe_events gets the webhook lease columns (claim_token, claimed_at, attempts, event_created).
+// 20261027 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on existing accounts.
 
 @session_start();
 $s_id=session_id();
@@ -429,7 +430,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt = "CREATE TABLE ordrelinjer ";
 	$qtxt.= "($id_column,varenr text,beskrivelse text,enhed text,posnr integer,pris $decimal_type(15,3),";
 	$qtxt.= "vat_price $decimal_type(15,3),rabat $decimal_type(15,3),lev_varenr text,ordre_id integer,serienr text,vare_id integer,";
-	$qtxt.= "antal $decimal_type(15,3),leveres $decimal_type(15,3),leveret $decimal_type(15,3),bogf_konto integer,oprettet_af text,";
+	$qtxt.= "antal $decimal_type(15,3),leveres $decimal_type(15,3),leveret $decimal_type(15,3) default 0,bogf_konto integer,oprettet_af text,";
 	$qtxt.= "bogfort_af text,hvem text,tidspkt text,kred_linje_id integer,momsfri varchar(2),momssats $decimal_type(15,3),";
 	$qtxt.= "vat_account $decimal_type(15,0),kostpris $decimal_type(15,3),samlevare varchar(2),projekt text,m_rabat $decimal_type(15,3),";
 	$qtxt.= "rabatgruppe integer,folgevare integer,kdo varchar(2),rabatart varchar(10),variant_id text,";

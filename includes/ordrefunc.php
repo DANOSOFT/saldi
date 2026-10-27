@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-19 ---
+//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -151,6 +151,8 @@
 //                opret_ordrelinje() inserts leveret = 0.
 //                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
 //                Braces added to the brace-less ifs in the edited blocks.
+// 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
+//                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -518,6 +520,17 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 		$levdate = date("Y-m-d");
 	}
 
+	// 20261027 CL/LH MB-73 (review): a line whose leveret is still NULL was created before the column got DEFAULT 0,
+	// and the one-time backfill (includes/opdat_func/backfillOrderLineDelivered.php) has not reached it yet; it runs
+	// at login, a window at a time, and API, SOAP and remoteBooking deliveries never log in. Such a line starts from
+	// its earlier delivery records, summed as the backfill and debitor/ordre.php sum them, so the result is the one
+	// the backfill followed by this delivery would give. Read before this delivery writes to batch_salg.
+	$qtxt = "select sum(batch_salg.antal) as antal from ordrelinjer, batch_salg where ordrelinjer.id = '" . (int)$linje_id . "'";
+	$qtxt .= " and ordrelinjer.leveret is null and batch_salg.linje_id = ordrelinjer.id";
+	$qtxt .= " and batch_salg.ordre_id = ordrelinjer.ordre_id and batch_salg.vare_id = ordrelinjer.vare_id";
+	$deliveredRecords = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$deliveredBefore = (float)($deliveredRecords['antal'] ?? 0);
+
 	$query = db_select("select * from grupper where art='VG' and kodenr='$gruppe' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__); #VG = Varegruppe
 	if ($row = db_fetch_array($query)) {
 		$box1 = trim($row['box1']);
@@ -735,7 +748,8 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
 	// 20261019 CL/LH MB-73 leveret has no default and opret_ordrelinje() never set it, so NULL+$antal stayed
 	// NULL and fast invoicing (which never opens debitor/ordre.php's re-sync) left the delivered quantity unrecorded.
-	$qtxt = "update ordrelinjer set leveret = coalesce(leveret,0)+$antal,leveres=0 where id='$linje_id'";
+	// 20261027 CL/LH MB-73 (review): a NULL line starts from $deliveredBefore (read above), not from 0.
+	$qtxt = "update ordrelinjer set leveret = coalesce(leveret,$deliveredBefore)+$antal,leveres=0 where id='$linje_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } # endfunc linjeopdat
 
