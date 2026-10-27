@@ -24,6 +24,16 @@ jobs:
     name: PHPUnit + Playwright
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Every docker compose call in this job (bootstrap-stack.sh and
+      # e2e/seed-user.mjs too) adds the CI file, which keeps the stack away from
+      # the production locator.
+      COMPOSE_FILE: docker-compose.yml:tools/ci/compose.ci.yml
+      # Local-only credentials for the throwaway stack this job installs.
+      # SALDI_E2E_TENANT_DB is exported by tools/ci/bootstrap-stack.sh.
+      SALDI_PGPASS: password
+      SALDI_E2E_ACCOUNT: saldi_chatbot_test
+      SALDI_E2E_PASSWORD: e2etest-ci-local-2026
 
     steps:
       - uses: actions/checkout@v4
