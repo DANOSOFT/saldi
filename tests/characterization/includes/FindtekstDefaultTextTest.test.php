@@ -17,6 +17,7 @@ use PHPUnit\Framework\TestCase;
  * History:
  * 20261026 CL/MMR Created (SST-890).
  * 20261026 CL/MMR Real locateDir.php from a page two levels down (Codex review, SST-890).
+ * 20261027 CL/MMR CodeRabbit (PR #878): '|' inside the default, fallbacks cached per default text, default "0".
  */
 #[RunTestsInSeparateProcesses]
 final class FindtekstDefaultTextTest extends TestCase
@@ -122,10 +123,41 @@ final class FindtekstDefaultTextTest extends TestCase
         }
     }
 
-    public function testDefaultTextIsCachedForTheSession(): void
+    public function testDefaultTextIsCachedForTheSessionPerDefaultText(): void
     {
         self::boot('UTF8');
         findtekst('4981|Autoudfyld', 1);
-        self::assertSame('Autoudfyld', $_SESSION['text_4981_1'] ?? null);
+        self::assertArrayNotHasKey('text_4981_1', $_SESSION, 'a fallback must not take the text id\'s cache key');
+        // Served from the session now: the csv is gone, and nothing else could give "Autoudfyld"
+        unlink($GLOBALS['__fixtureDir'] . '/importfiler/tekster.csv');
+        self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
+    }
+
+    public function testDefaultTextKeepsAPipe(): void
+    {
+        self::boot('UTF8');
+        self::assertSame('A | B', findtekst('4981|A | B', 1));
+    }
+
+    public function testEachCallKeepsItsOwnDefaultText(): void
+    {
+        self::boot('UTF8');
+        self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
+        self::assertSame('Another label', findtekst('4981|Another label', 1));
+        self::assertSame('Tekst nr: 4981', findtekst('4981', 1));
+        self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
+    }
+
+    public function testCachedPlaceholderDoesNotHideALaterDefault(): void
+    {
+        self::boot('UTF8');
+        self::assertSame('Tekst nr: 4981', findtekst('4981', 1));
+        self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
+    }
+
+    public function testDefaultTextZeroIsKept(): void
+    {
+        self::boot('UTF8');
+        self::assertSame('0', findtekst('4981|0', 1));
     }
 }

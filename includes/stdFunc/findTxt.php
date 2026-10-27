@@ -11,6 +11,9 @@
  // 20261026 CL/MMR SST-890 Use the call's default text ('4981|Autoudfyld') when the text is missing in tekster and tekster.csv, instead of "Tekst nr: 4981".
  //                  An empty tekster.csv line no longer raises "Undefined array key" (trim() strips its tabs).
  //                  locateDir.php is included via __DIR__, so it is found whatever the caller's working directory.
+ // 20261027 CL/MMR SST-890 CodeRabbit (PR #878): the default text is split off at the first '|' only, so a default that contains '|' is kept whole.
+ //                  A default text or the "Tekst nr" placeholder is cached in the session per default text, so another call with the same id and a different default gets its own.
+ //                  A default text "0" is shown as "0", not as the placeholder.
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
@@ -24,7 +27,7 @@ if (!function_exists('findtekst')) {
 		$defaultText = '';
 
 		if (strpos($textId,'|')) {
-			list($a,$b) = explode('|',$textId);
+			list($a,$b) = explode('|',$textId,2);
 			if (preg_match('/^[0-9]+$/', $a)) {
 				$textId = $a;
 				$defaultText = trim((string)$b);
@@ -35,6 +38,11 @@ if (!function_exists('findtekst')) {
 		$sessionVar = preg_replace('/[^a-zA-Z0-9_]/','_','text_'. $textId .'_'. $languageID); 
 		if (isset($_SESSION[$sessionVar])) {
 			return ($_SESSION[$sessionVar]);
+		}
+		// A fallback (the call's default text or the "Tekst nr" placeholder) is cached per default text (SST-890)
+		$fallbackVar = $sessionVar . '_d' . crc32($defaultText);
+		if (isset($_SESSION[$fallbackVar])) {
+			return ($_SESSION[$fallbackVar]);
 		}
 		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster'";
 
@@ -152,22 +160,31 @@ if (!function_exists('findtekst')) {
 		} elseif ($db == $sqdb) {
 			$tekst = $newTxt;
 		}
-		if (!$tekst && $defaultText !== '') {
+		// A fallback text (the call's default or the placeholder) is cached under $fallbackVar, not under the text id,
+		// because another call with the same id may carry another default (SST-890).
+		$isFallback = false;
+		if (($tekst === null || $tekst === '') && $defaultText !== '') {
 			// SST-890: the text is missing or empty in tekster.csv on this server (e.g. a new id whose csv
 			// line is not deployed yet). Show the call's default text instead of "Tekst nr: N". It is not
 			// stored in tekster, so the csv text is still picked up once it is there.
 			$tekst = $defaultText;
+			$isFallback = true;
 			if ($db != $sqdb && $db_encode != "UTF8") {
 				$tekst = mb_convert_encoding($tekst, 'ISO-8859-1', 'UTF-8');
 			}
 		}
-		if (!$tekst) {
+		if ($tekst === null || $tekst === '') {
 			$tekst = "Tekst nr: $textId";
+			$isFallback = true;
 		}
 		elseif ($tekst == "-") {
 			$tekst = '';
 		}
-		$_SESSION[$sessionVar] = $tekst;
+		if ($isFallback) {
+			$_SESSION[$fallbackVar] = $tekst;
+		} else {
+			$_SESSION[$sessionVar] = $tekst;
+		}
 		return ($tekst);
 	} //end of findtekst
 }
