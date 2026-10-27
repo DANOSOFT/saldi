@@ -46,6 +46,7 @@
 // 20260904 CL/NTR Pre-flight check of the OAuth key and JWT secret directories, trying chmod first, so a
 //                   missing write access stops the wizard with a message instead of an exception after the DB is created.
 // 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
+// 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -293,7 +294,7 @@ if (isset($_POST['opret'])){
 	$qtxt = "CREATE TABLE regnskab (id serial NOT NULL,	regnskab varchar(60), dbhost varchar(25), dbuser varchar(25), ";
 	$qtxt.= "db varchar(25), version varchar(10), sidst varchar(16), brugerantal numeric(5,0), posteringer numeric(10,0), ";
 	$qtxt.= "posteret numeric(10,0), mysale numeric(1,0), lukket varchar(2),administrator varchar(2),lukkes date, ";
-	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT, PRIMARY KEY (id))";
+	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT,global_id int default 0, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version,bilag) values ";
 	$qtxt.= "('$db_navn' ,'$db_host', '$db_bruger', '$db_navn', '$version','0')";
