@@ -81,9 +81,8 @@
 // 20261023 CL/MMR SST-884 insert_shop_order escapes every value it puts into its SQL, cast to string so absent fields stay ''.
 //                 A ' in a shop field (ekstra1, ref, kontonr, tlf ...) no longer breaks the query and drops the order.
 // 20261026 CL/LH Ported the 20260917/20260922 fetch_from_table() production hotfix from live into master.
-// 20261027 CL/LH SST-884 insert_shop_order decodes HTML entities in each shop value before escaping it (shop_input_text())
-//                and no longer runs its queries through chk4utf8(), whose html_entity_decode() on the escaped SQL
-//                turned &#39; back into a bare ' (O&#39;Brien broke the insert and dropped the order).
+// 20261027 CL/LH SST-884 insert_shop_order decodes HTML entities in each shop value before escaping it (shop_input_text()), and no longer runs its queries through chk4utf8().
+//                chk4utf8()'s html_entity_decode() on the escaped SQL turned &#39; back into a bare ', so O&#39;Brien broke the insert and dropped the order.
 // 20261027 CL/NTR fetch_from_table(): return 'query failed' when db_select() fails instead of
 //                reading field metadata from a false result (CodeRabbit).
 
