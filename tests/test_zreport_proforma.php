@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261026 CL/MMR SST-897 Exercise the X/Z-report proforma counter and the saved report rows on an isolated PostgreSQL schema.
+// 20261027 CL/MMR SST-897 A proforma receipt printed between reading and saving the Z-report stays on the counter (CodeRabbit, PR #894).
 // Run with SALDI_CHAR_PGHOST / PGPORT / PGUSER / PGPASS / PGDATABASE (all prefixed SALDI_CHAR_).
 
 error_reporting(E_ALL);
@@ -99,6 +100,21 @@ try {
 		'Read the counter when the hand-added columns hold NULL');
 	saveLastReport(array('proformaReceiptsArray' => $withColumns));
 	checkZReport(firstValue('SELECT count FROM proforma WHERE id = 2') === '0', 'Reset the counter on that table too');
+
+	// A proforma receipt printed after the Z-report read the counter but before it was saved belongs to the next report.
+	pg_query($connection, 'UPDATE proforma SET price = 80, count = 2 WHERE id = 2');
+	$read = proformaReceipts($kasse);
+	pg_query($connection, 'UPDATE proforma SET price = price + 45.5, count = count + 1 WHERE id = 2');
+	saveLastReport(array('proformaReceiptsArray' => $read));
+	checkZReport(firstValue("SELECT count FROM report WHERE type = 'Proforma receipt' ORDER BY id DESC LIMIT 1") === '2',
+		'The Z-report saves the proforma count it read');
+	checkZReport((float)firstValue('SELECT price FROM proforma WHERE id = 2') === 45.5 && firstValue('SELECT count FROM proforma WHERE id = 2') === '1',
+		'A proforma receipt printed while the Z-report was saved stays on the counter');
+
+	// Without a read in this request (no proforma numbers in the report) the counter is left alone.
+	saveLastReport(array('receiptArray' => array('count' => 0, 'totalPrice' => 0)));
+	checkZReport((float)firstValue('SELECT price FROM proforma WHERE id = 2') === 45.5 && firstValue('SELECT count FROM proforma WHERE id = 2') === '1',
+		'Saving a report without reading the counter leaves it unchanged');
 } finally {
 	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
 	pg_close($connection);

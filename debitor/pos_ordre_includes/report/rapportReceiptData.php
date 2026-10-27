@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/report/rapportReceiptData.php --- ver 5.0.0 --- 2026.10.26 ---
+// --- debitor/pos_ordre_includes/report/rapportReceiptData.php --- ver 5.0.0 --- 2026.10.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,8 @@
 // 20210307 PHR Added $date to allmost all functions as it was countion all orders from day zero
 // 20261026 CL/MMR SST-897 proformaReceipts() reads the register's proforma counter without filtering on report_number.
 //                 That column does not exist on most installs, so the X- and Z-report stopped with the generic database error alert.
-//                 The Z-report now resets the counter instead, see writeToDatabase() in saveReport.php.
+//                 The Z-report now resets the counter instead, see saveLastReport() in saveReport.php.
+// 20261027 CL/MMR SST-897 proformaReceipts() keeps the raw numbers it read in $GLOBALS['proformaRead'] for that reset.
 
 function receiptCount($kasse,$date) {
 	$idArray = makeOrderIdArray($kasse,$date);
@@ -163,8 +164,9 @@ function saleWithoutVat($kasse,$date) {
 /**
  * Proforma receipts printed on the register since its last Z-report.
  *
- * proformaCount() keeps one running row per register in proforma (id = register number),
- * and writeToDatabase() resets that row when a Z-report is saved.
+ * proformaCount() keeps one running row per register in proforma (id = register number).
+ * The raw numbers read are kept in $GLOBALS['proformaRead'], so saveLastReport() can take exactly
+ * them off the counter when a Z-report is saved.
  *
  * @return array{
  *   count: int|float,  Number of proforma receipts.
@@ -176,7 +178,10 @@ function proformaReceipts($kasse) {
 	$proformaQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$proformaArray['count'] = 0;
 	$proformaArray['totalPrice'] = 0;
+	$GLOBALS['proformaRead'] = array('kasse' => (int)$kasse, 'count' => 0, 'price' => 0);
 	while($proforma = db_fetch_array($proformaQuery)) {
+		$GLOBALS['proformaRead']['count'] += (int)$proforma['count'];
+		$GLOBALS['proformaRead']['price'] += (float)$proforma['price'];
 		$price = $proforma['price'];
 		$price = abs($price);
 		$proformaArray['count'] += $proforma['count'];

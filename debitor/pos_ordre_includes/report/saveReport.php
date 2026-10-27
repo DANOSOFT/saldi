@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- debitor/pos_ordre_includes/report/saveReport.php ---------- ver 5.0.0----2026.10.26-------
+// ------------- debitor/pos_ordre_includes/report/saveReport.php ---------- ver 5.0.0----2026.10.27-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -30,6 +30,8 @@
 // 20261026 CL/MMR SST-897 writeToDatabase() resets the register's proforma counter instead of setting report_number on it.
 //                 That column does not exist on most installs, so the update stopped the Z-report with the generic database error alert before it was printed.
 //                 Values in its queries are now cast or escaped, so a description with an apostrophe no longer breaks the insert.
+// 20261027 CL/MMR SST-897 saveLastReport() takes the read proforma numbers off the counter once, after all report rows are written.
+//                 A proforma receipt printed while the report is saved stays on the counter for the next report.
 
 function saveLastReport($dataArray) {
 	global $kasse;
@@ -80,6 +82,16 @@ function saveLastReport($dataArray) {
             writeToDatabase($date, $type, $description, $count, $reportNumber, $total);
         }
     }
+    // proforma has one running counter row per register (id = register number, see proformaCount()) and, on most
+    // installs, no report_number column. Take exactly the numbers this report read off the counter, once, so a
+    // proforma receipt printed meanwhile is not lost but counted in the next report.
+    $proformaRead = $GLOBALS['proformaRead'] ?? null;
+    if ($proformaRead && $proformaRead['kasse'] === (int)$kasse && ($proformaRead['count'] || $proformaRead['price'])) {
+        $qtxt = "update proforma set count = count - " . (int)$proformaRead['count'] . ", price = price - " . round((float)$proformaRead['price'], 3);
+        $qtxt.= " where id = '" . (int)$kasse . "'";
+        db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+    }
+    unset($GLOBALS['proformaRead']);
     unset($_SESSION['reportNumber']);
 }
 
@@ -97,10 +109,6 @@ function writeToDatabase($date, $type, $descr, $count, $repNr, $total) {
 	$qtxt = "update deleted_order set report_number = '$repNr' where report_number = '0' and kasse = '$kasseNr'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "update price_correction set report_number = '$repNr' where report_number = '0' and kasse = '$kasseNr'";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	# proforma has one running counter row per register (id = register number, see proformaCount()) and, on most
-	# installs, no report_number column. The counter is reset once its numbers are in the saved Z-report.
-	$qtxt = "update proforma set price = 0, count = 0 where id = '$kasseNr'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "update returnings set report_number = '$repNr' where report_number = '0' and kasse = '$kasseNr'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
