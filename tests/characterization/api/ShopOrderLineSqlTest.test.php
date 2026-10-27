@@ -5,17 +5,17 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-// 20261027 CL/MMR SST-904 Created. A shop name like O&#039;Brien broke the customer/order insert: api/rest_api.php escaped the values and then decoded the finished SQL with chk4utf8(), which turned the entity into an unescaped quote.
-//                 insert_shop_orderline() must escape every shop identifier it puts into SQL (Codex round 1), and accept numeric ids with leading zeros (round 2).
-//                 restApiShopText() is lifted from api/rest_api.php (including the file connects to a database) and run here; the order of decoding and SQL building is asserted on the source.
-final class ShopTextDecodeTest extends TestCase
+// 20261027 CL/MMR SST-904 Created. insert_shop_orderline() in api/rest_api.php decoded its finished SQL with chk4utf8(), so an apostrophe (O&#039;Brien) in a comment line or an item number broke the query.
+//                 It now decodes each shop value with shop_input_text() (SST-884, which covers insert_shop_order(); see ShopOrderHtmlEntityTest), escapes the text identifiers and casts the integer ids.
+//                 shop_input_text() is lifted from api/rest_api.php (including the file connects to a database); the function's SQL is asserted on the source.
+final class ShopOrderLineSqlTest extends TestCase
 {
     private const API = __DIR__ . '/../../../api/rest_api.php';
 
     public static function setUpBeforeClass(): void
     {
-        if (!function_exists('restApiShopText')) {
-            eval(self::functionSource('restApiShopText'));
+        if (!function_exists('shop_input_text')) {
+            eval(self::functionSource('shop_input_text'));
         }
     }
 
@@ -32,21 +32,21 @@ final class ShopTextDecodeTest extends TestCase
             'plain ASCII unchanged'     => ['Hansen ApS', 'Hansen ApS'],
             'spaces are not trimmed'    => [' Vej 2 ', ' Vej 2 '],
             'empty'                     => ['', ''],
-            'null stays null'           => [null, null],
+            'null becomes empty'        => [null, ''],
             'number becomes a string'   => [9870, '9870'],
         ];
     }
 
     #[DataProvider('values')]
-    public function testAShopValueIsDecodedAsItIsStored(mixed $in, mixed $expected): void
+    public function testAShopValueIsDecodedBeforeItIsEscaped(mixed $in, mixed $expected): void
     {
-        self::assertSame($expected, restApiShopText($in));
+        self::assertSame($expected, shop_input_text($in));
     }
 
     /** The decoded value is escaped like any other quote, so the SQL stays intact. */
     public function testADecodedQuoteIsEscapedInTheSql(): void
     {
-        $escaped = str_replace("'", "''", restApiShopText('O&#039;Brien'));
+        $escaped = str_replace("'", "''", shop_input_text('O&#039;Brien'));
         self::assertSame("insert into adresser(firmanavn) values ('O''Brien')", "insert into adresser(firmanavn) values ('$escaped')");
     }
 
@@ -64,14 +64,7 @@ final class ShopTextDecodeTest extends TestCase
             self::assertDoesNotMatchRegularExpression('/\$qtxt\s*=\s*chk4utf8\s*\(\s*\$qtxt\s*\)/', $body,
                 "$fn decodes finished SQL again, so a decoded quote breaks it");
         }
-        $decode = strpos($order, '$firmanavn = restApiShopText($firmanavn);');
-        $firstSql = strpos($order, '$qtxt');
-        self::assertNotFalse($decode, 'insert_shop_order() no longer decodes firmanavn');
-        self::assertLessThan($firstSql, $decode, 'insert_shop_order() builds SQL before the values are decoded');
-        foreach (['addr1', 'kontakt', 'lev_firmanavn', 'notes', 'tlf', 'email'] as $field) {
-            self::assertStringContainsString("\$$field = restApiShopText(\$$field);", $order, "$field is not decoded");
-        }
-        self::assertStringContainsString('$shopVarenrSql = db_escape_string((string)restApiShopText($shop_varenr));', $line,
+        self::assertStringContainsString('$shopVarenrSql = db_escape_string((string)shop_input_text($shop_varenr));', $line,
             'the item number lookups no longer escape the decoded value');
         self::assertStringContainsString('$shopVariantInt = (int)$shop_variant;', $line, 'shop_varer.shop_variant (integer) is no longer cast');
         self::assertStringContainsString('$shopVareIdInt = (int)$shop_vare_id;', $line, 'shop_varer.shop_id (integer) is no longer cast');

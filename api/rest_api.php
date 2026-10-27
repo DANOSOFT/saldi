@@ -76,17 +76,19 @@
 // 20260917 CDX/PHR Log rejected query fields so external integrations can be diagnosed without API credentials.
 // 20260922 CDX/PHR Restore legacy read-table access with parsed queries and migrate fetch inputs to ifset.
 // 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
-// 20261026 CL/LH Ported the 20260917/20260922 fetch_from_table() production hotfix from live into master.
-// 20261027 CL/NTR fetch_from_table(): return 'query failed' when db_select() fails instead of
-//                reading field metadata from a false result (CodeRabbit).
 // 20261023 CL/MMR SST-884 insert_shop_order: an existing customer's CVR/EAN from the card is used when the shop sends none.
 //                 The shop's value still wins when it is filled in. cvrnr/ean are escaped in the order insert.
 // 20261023 CL/MMR SST-884 insert_shop_order escapes every value it puts into its SQL, cast to string so absent fields stay ''.
 //                 A ' in a shop field (ekstra1, ref, kontonr, tlf ...) no longer breaks the query and drops the order.
-// 20261027 CL/MMR SST-904 insert_shop_order() decodes the shop's text values (restApiShopText()) before they are escaped, instead of decoding the finished SQL with chk4utf8().
-//                 A name like O&#039;Brien became an unescaped quote in the SQL, and the customer and order were not created.
-//                 insert_shop_orderline() does the same for the item number lookup and the comment line.
-//                 insert_shop_orderline() escapes every shop identifier it puts into SQL (item number, barcode), casts the integer ids (order, item, variant, shop_varer.shop_id/shop_variant), and includes ordrefunc.php via __DIR__.
+// 20261026 CL/LH Ported the 20260917/20260922 fetch_from_table() production hotfix from live into master.
+// 20261027 CL/LH SST-884 insert_shop_order decodes HTML entities in each shop value before escaping it (shop_input_text())
+//                and no longer runs its queries through chk4utf8(), whose html_entity_decode() on the escaped SQL
+//                turned &#39; back into a bare ' (O&#39;Brien broke the insert and dropped the order).
+// 20261027 CL/NTR fetch_from_table(): return 'query failed' when db_select() fails instead of
+//                reading field metadata from a false result (CodeRabbit).
+// 20261027 CL/MMR SST-904 insert_shop_orderline() decodes the shop's values with shop_input_text() (SST-884) before they are escaped, instead of decoding the finished SQL with chk4utf8().
+//                 A comment line or an item number with an apostrophe (O&#039;Brien) broke the SQL: the comment was lost silently and the shop got «Uforudset hændelse».
+//                 Every shop identifier it puts into SQL is escaped (item number, barcode), the integer ids are cast (order, item, variant, shop_varer.shop_id/shop_variant), and ordrefunc.php is included via __DIR__.
 
 
 // ----------------------------------------------------------------------
@@ -192,6 +194,23 @@ function shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean) {
 	return array($cvrnr, $ean);
 }
 
+/**
+ * SST-884: a value the shop sent, as the plain UTF-8 text to store. Bytes that are not valid UTF-8
+ * are read as Windows-1252 (as db_escape_string() does) and HTML entities are decoded, so
+ * O&#39;Brien becomes O'Brien. Run it before db_escape_string(), never on finished SQL: decoding
+ * after escaping turns &#39; back into a bare ' inside a quoted value.
+ *
+ * @param mixed $value Value from the shop request; null becomes ''.
+ * @return string
+ */
+function shop_input_text($value) {
+	$value = (string)$value;
+	if (!mb_check_encoding($value, 'UTF-8')) {
+		$value = mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
+	}
+	return html_entity_decode($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8');
+}
+
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
 	global $db,$db_skriv_id;
@@ -199,40 +218,18 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	global $webservice;
 	global $regnaar;
 
+	// SST-884: decode the shop's text once, before any of it is escaped into SQL. The queries below
+	// no longer pass through chk4utf8(), which decoded entities after escaping.
+	$shop_text_fields = array(
+		'shop_fakturanr','saldi_kontonr','firmanavn','addr1','addr2','postnr','bynavn','land','cvrnr','ean',
+		'tlf','email','udskriv_til','ref','kontakt','lev_firmanavn','lev_addr1','lev_addr2','lev_postnr',
+		'lev_bynavn','lev_land','lev_tlf','lev_email','lev_kontakt','betalingsbet','betalings_id','ordredate',
+		'valuta','gruppe','ekstra1','ekstra2','ekstra3','ekstra4','ekstra5','shop_status','notes','sprog','art'
+	);
+	foreach ($shop_text_fields as $shop_text_field) {
+		$$shop_text_field = shop_input_text($$shop_text_field);
+	}
 	$betalingsdage=(int)$betalingsdage;
-	// SST-904: the shop's text values are decoded once here, before any of them is escaped into SQL.
-	// Decoding the finished SQL (chk4utf8()) turned O&#039;Brien into an unescaped quote and the insert failed.
-	$firmanavn = restApiShopText($firmanavn);
-	$addr1 = restApiShopText($addr1);
-	$addr2 = restApiShopText($addr2);
-	$postnr = restApiShopText($postnr);
-	$bynavn = restApiShopText($bynavn);
-	$land = restApiShopText($land);
-	$cvrnr = restApiShopText($cvrnr);
-	$ean = restApiShopText($ean);
-	$institution = restApiShopText($institution);
-	$tlf = restApiShopText($tlf);
-	$email = restApiShopText($email);
-	$udskriv_til = restApiShopText($udskriv_til);
-	$ref = restApiShopText($ref);
-	$kontakt = restApiShopText($kontakt);
-	$lev_firmanavn = restApiShopText($lev_firmanavn);
-	$lev_addr1 = restApiShopText($lev_addr1);
-	$lev_addr2 = restApiShopText($lev_addr2);
-	$lev_postnr = restApiShopText($lev_postnr);
-	$lev_bynavn = restApiShopText($lev_bynavn);
-	$lev_land = restApiShopText($lev_land);
-	$lev_tlf = restApiShopText($lev_tlf);
-	$lev_email = restApiShopText($lev_email);
-	$lev_kontakt = restApiShopText($lev_kontakt);
-	$betalingsbet = restApiShopText($betalingsbet);
-	$ekstra1 = restApiShopText($ekstra1);
-	$ekstra2 = restApiShopText($ekstra2);
-	$ekstra3 = restApiShopText($ekstra3);
-	$ekstra4 = restApiShopText($ekstra4);
-	$ekstra5 = restApiShopText($ekstra5);
-	$notes = restApiShopText($notes);
-	$sprog = restApiShopText($sprog);
 	// Route this customer's shop orders to the replacement warehouse.
 	if ($db === 'pos_50') {
 		$lager = 4;
@@ -539,9 +536,9 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$shop_varenr = trim($shop_varenr);
 	// SST-904: the shop's identifiers as SQL values, decoded once and escaped (text columns) or cast (the integer
 	// shop_varer.shop_id/shop_variant); the raw values stay for the log and the order line
-	$shopVarenrSql = db_escape_string((string)restApiShopText($shop_varenr));
-	$shopVareIdSql = db_escape_string((string)restApiShopText($shop_vare_id));
-	$stregkodeSql = db_escape_string((string)restApiShopText($stregkode));
+	$shopVarenrSql = db_escape_string((string)shop_input_text($shop_varenr));
+	$shopVareIdSql = db_escape_string((string)shop_input_text($shop_vare_id));
+	$stregkodeSql = db_escape_string((string)shop_input_text($stregkode));
 	$shopVareIdInt = (int)$shop_vare_id;
 	$shopVariantInt = (int)$shop_variant;
 	// A non-numeric shop id would cast to 0 and match the many shop_varer rows stored with 0, so it is not looked up there;
@@ -755,7 +752,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		$posnr+=100;
 		$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr,vare_id,antal,pris,rabat,lager,momsfri)";
 		$qtxt.=" values ";
-		$qtxt.="('$ordre_id','".db_escape_string(restApiShopText($beskrivelse))."','" . (int)$posnr . "','0','0','0','0','0','')";
+		$qtxt.="('$ordre_id','".db_escape_string(shop_input_text($beskrivelse))."','" . (int)$posnr . "','0','0','0','0','0','')";
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt = "select max(id) as id 	from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '0'"; 
@@ -1365,25 +1362,6 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 		}
 	} else $value=$svar;
 } else $value= if_isset($_GET['action']);
-
-/**
- * SST-904: a text value from the shop as it is stored: ISO-8859-1 becomes UTF-8 (valid UTF-8, plain
- * ASCII included, is kept) and HTML entities are decoded (&#039; -> ', &amp; -> &). Use it on each
- * value before db_escape_string(), never on finished SQL, so a decoded quote is escaped like any other.
- *
- * @param mixed $value The value as the shop sent it.
- * @return mixed The decoded string; null stays null.
- */
-function restApiShopText($value) {
-	if ($value === null) {
-		return null;
-	}
-	$text = (string)$value;
-	if (!mb_check_encoding($text, 'UTF-8')) {
-		$text = mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1');
-	}
-	return html_entity_decode($text, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8');
-}
 
 function chk4utf8 ($text) {
 	$enc='IS0-8859';
