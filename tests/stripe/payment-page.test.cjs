@@ -143,7 +143,7 @@ test('Stripe Link is hidden: the Payment Element shows the card form only', () =
 });
 
 test('two buttons: the main button turns on automatic payment, "pay-once" pays this invoice only', async () => {
-  for (const state of ['open_recurring', 'overdue', 'failed']) {
+  for (const state of ['open', 'open_recurring', 'overdue', 'failed']) {   // 20261027 one-off invoices ('open') too
     const auto = fixture({ state, twoButtons: true, saveDefault: false });
     assert.equal(auto.calls.elementOptions[0].setupFutureUsage, 'off_session');
     assert.equal(auto.nodes.pay.disabled, true);
