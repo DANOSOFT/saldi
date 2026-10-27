@@ -28,6 +28,8 @@
 //20260824 CL/SZ Cast konto_fra/konto_til to int - unescaped GET values hit the
 //                numeric(15,0) kontonr columns and threw "invalid input syntax
 //                for type numeric" (SST-672)
+//20260929 MJ SST-809 Read udskriv from the URL and pass it on: the print view
+//                renders the whole kontokort instead of the requested page.
 @session_start();
 $s_id = session_id();
 
@@ -59,7 +61,10 @@ $simulering  = if_isset($_GET, null, 'simulering');
 $lagerbev    = if_isset($_GET, null, 'lagerbev');
 $page        = max(1, (int) if_isset($_GET, 1, 'page'));
 $per_page = (int) if_isset($_GET, 50, 'per_page');
-if ($per_page < 1) $per_page = 50; 
+if ($per_page < 1) $per_page = 50;
+// SST-809 udskriv=on renders the whole kontokort in one pass for printing,
+// ignoring page/per_page. Treated as a flag, never interpolated anywhere.
+$udskriv     = if_isset($_GET, null, 'udskriv') ? true : false;
 
 include("rapport_includes/kontokort.php");
 
@@ -67,6 +72,6 @@ kontokort(
     $regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
     $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,
-    $simulering, $lagerbev, $page, $per_page   
+    $simulering, $lagerbev, $page, $per_page, $udskriv
 );
 

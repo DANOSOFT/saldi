@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/vareliste.php --- lap 5.0.0 --- 2026.09.24 ---
+// ---- lager/lister/vareliste.php --- ver 5.0.0 --- 2026.10.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,8 @@
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260916 CDX/LH Sort DG by its selected alias so DISTINCT queries accept the expression.
 // 20260924 CDX/PHR Match the DG sort expression to the DISTINCT select expression.
+// 20261005 CDX/PHR Add total webshop stock synchronization to the item-list action dropdown.
+// 20261026 LOE MB-65: assign module 9 so the Items right is consulted before the page opens.
 
 @session_start();
 $s_id = session_id();
@@ -42,6 +44,7 @@ $css = "../../css/standard.css?v=20";
 $include_start = microtime(true);
 include("../../includes/std_func.php");
 include("../../includes/connect.php");
+$modulnr = 9;
 include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 
@@ -658,6 +661,23 @@ if (!empty($initial_search)) {
 $grid_render_start = microtime(true);
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("varelst$vatOnItemCard", $data);
+// Keep this item-list action out of the shared grid used by unrelated pages.
+if (substr((string) $rettigheder, 9, 1) === '1') {
+    $shopStockGridId = json_encode('datatable-varelst' . $vatOnItemCard);
+    print "<script>
+    (function () {
+        const grid = document.getElementById($shopStockGridId);
+        const menu = grid ? grid.querySelector('.dropdown-content') : null;
+        if (!menu) return;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'Opdater webshopbeholdning';
+        button.addEventListener('click', function () { window.location.href = '../webshopStock.php'; });
+        menu.appendChild(button);
+    }());
+    </script>";
+}
+
 print "</div>";
 log_performance("Grid rendering completed", $grid_render_start);
 

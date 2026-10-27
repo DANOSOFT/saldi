@@ -1,10 +1,11 @@
+// 20261006 CL/LH SST-850: Settings password is checked server-side; the password is no longer compared or logged in the browser.
 // Make sure you're in an async context
 (async () => {
     const url = new URL(window.location.href)
     const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
     const firstFolder = pathSegments[0]
     // Dynamically import the module
-    const { getAllProducts, updateRemoteProduct, updateMail, getMailInfo, getSettings, getPayment, updatePayment, getRemoteLink } = await import(`/${firstFolder}/rental/api/api.js`)
+    const { getAllProducts, updateRemoteProduct, updateMail, getMailInfo, getSettings, getPayment, updatePayment, getRemoteLink, isSettingsUnlocked, checkSettingsPassword } = await import(`/${firstFolder}/rental/api/api.js`)
 
 const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" style="pointer-events: none;" width="24" height="24" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
 <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
@@ -12,10 +13,10 @@ const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" style="pointer-events:
 </svg>`
 const settings = await getSettings()
 
-if(settings.use_password == "1"){
+if(settings.use_password == "1" && !(await isSettingsUnlocked()).success){
     const pass = prompt("Indtast adgangskode for at fortsætte")
-    if(pass != settings.pass){
-        console.log(pass + " " + settings.pass)
+    const result = await checkSettingsPassword(pass ?? "")
+    if(!result.success){
         alert("Forkert adgangskode")
         // get the first folder in url
         const currentUrl = new URL(window.location.href)

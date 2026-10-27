@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.09.29 ---
+// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,6 +125,11 @@
 // 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
 // 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
+// 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
+// 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
+// 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
+//                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
+//                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -747,6 +752,7 @@ function personlige_valg() {
 
 function div_valg() {
 	global $bgcolor, $bgcolor5;
+	global $csrf_token;
 	global $docubizz;
 	global $regnaar;
 	global $sprog_id;
@@ -1336,7 +1342,7 @@ function removeDfmPickup(idx) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='flatpay_auth'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-	# Guid form flatpay, looks like 9e802837-307b-48c3-9f0e-1b4cac291376
+	# Guid form flatpay, looks like 00000000-0000-4000-8000-000000000000 (example, not a real ID)
 	$guid   = $r ? str_split($r[0], 7)[0] . "-xxxx-xxxx-xxxx-xxxxxxxxxxxx" : "";
 
 	$mtxt   = findtekst('2314|Flatpay ID', $sprog_id);
@@ -1353,14 +1359,15 @@ function removeDfmPickup(idx) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='vibrant_auth'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-	# Check if it exsists
-	$APIKEY = $r ? $r[0] : "";
+	# The saved key is never printed back, only its last four characters as a hint. The field starts
+	# empty, and diverse.php only saves a non-empty value, so an untouched field keeps the saved key.
+	$vibrantKeyHint = ($r && $r[0] !== '') ? htmlspecialchars('********' . substr($r[0], -4), ENT_QUOTES) : '';
 
 	$mtxt   = findtekst('2317|Vibrant API nøjle', $sprog_id);
 	$mtitle = findtekst('2318|API nøjlen til din Vibrant APP', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2318 -->$mtxt <!-- Tekst 2317 --></td>\n";
 	print "<td title='$mtitle'>
-    <input name='vibrant_id' class='inputbox' style='width:150px;' type='text' value='$APIKEY'>
+    <input name='vibrant_id' class='inputbox' style='width:150px;' type='text' value='' placeholder='$vibrantKeyHint' autocomplete='off'>
   </td>\n</tr>\n";
 
 	# Vibrant login setup
@@ -1371,12 +1378,13 @@ function removeDfmPickup(idx) {
 	$mtitle = findtekst('2323|Kontoen du anvender til at logge ind på din vibrant terminal med', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2323 -->$mtxt <!-- Tekst 2322 --></td>\n";
 
-	# If an account is already setup, show the "Show account" button
+	# If an account is already setup, show the "Show account" button. The login is fetched on click,
+	# so it is not in the page source or the browser cache.
 	if ($r) {
 		$ntxt = findtekst('2325|Vis login', $sprog_id); # Show account
 
 		print "<td title='$mtitle'>
-      <button type='button' onclick='alert(\"Dit login til din vibrant terminalen: \\n\\n$r[var_name] \\n$r[var_value]\")'>$ntxt</button>
+      <button type='button' onclick='show_vibrant_login()'>$ntxt</button>
     </td>\n</tr>\n";
 	} else { # No vibrant account in the system
 		$ytxt = findtekst('2324|Opret login', $sprog_id); # Create account
@@ -1408,58 +1416,54 @@ function removeDfmPickup(idx) {
     document.getElementsByClassName('backdrop')[0].style.display = 'block';
   }
 
+  function show_vibrant_login() {
+    fetch('diverseIncludes/show_vibrant_login.php', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': " . json_encode($csrf_token) . "
+      }
+    })
+      .then(response => response.json())
+      .then(res => {
+        if (!res.success) {
+          alert(res.error);
+          return;
+        }
+        alert('Dit login til din vibrant terminalen: \\n\\n' + res.email + ' \\n' + res.password);
+      })
+      .catch(error => {
+        // e.g. an expired session, where the answer is the HTML login page instead of JSON
+        console.error('Fetch Error:', error);
+        alert('Uventet svar fra serveren. Log evt. ind igen og prøv igen.');
+      });
+  }
+
+  // create_vibrant_login.php creates the user at Vibrant with the API key on the server and saves the login
   function hide_popup_vibrant() {
     var name = document.getElementById('vibrant-acc-name').value;
     var email = document.getElementById('vibrant-acc-email').value;
     var passwd = document.getElementById('vibrant-acc-passwd').value;
 
-    data = {
-      'name': name,
-      'email': email,
-      'roleIds': [
-        'ro_1xBHy6kquVWMne9caAaXps',
-        'ro_bzDKsUpAeFsFm8kUUXkXTy'
-      ],                           
-      'password': passwd       
-    }
-
-    fetch('https://pos.api.vibrant.app/pos/v1/users', {
+    fetch('diverseIncludes/create_vibrant_login.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '$APIKEY'
+        'X-CSRF-Token': " . json_encode($csrf_token) . "
       },
-      body: JSON.stringify(data) 
+      body: JSON.stringify({name: name, email: email, passwd: passwd})
     })
-      .then(response => {
-        if (!response.ok) {
-          console.log(response);
-          response.json().then((res) => {console.log(res); alert(res.error + ' : ' + res.message)}).catch(error => {
-            throw new Error('Network response was not ok');
-          })
-          throw new Error('Network response was not ok');
+      .then(response => response.json())
+      .then(res => {
+        if (!res.success) {
+          alert(res.error);
+          return;
         }
-        console.log('Response:', response);
-        fetch('diverseIncludes/create_vibrant_login.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({name: name, email: email, passwd: passwd}) 
-        })
-          .then(response => {
-            if (!response.ok) {
-              throw new Error('Network response was not ok');
-            }
-            console.log('Response:', response);
-            location.reload();
-          })
-          .catch(error => {
-            console.error('Fetch Error:', error);
-          });
+        location.reload();
       })
       .catch(error => {
+        // e.g. an expired session, where the answer is the HTML login page instead of JSON
         console.error('Fetch Error:', error);
+        alert('Uventet svar fra serveren. Log evt. ind igen og prøv igen.');
       });
 
 
@@ -1729,18 +1733,31 @@ function removeDfmPickup(idx) {
       close_popup();
 
       async function save_id(id){
-        var res = await fetch(
-          'diverseIncludes/save_flatpay_id.php',
-          {
-            method: 'post',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              'id': id
-            }),
-          }
-        )
+        var res = null;
+        var svar = null;
+        try {
+          res = await fetch(
+            'diverseIncludes/save_flatpay_id.php',
+            {
+              method: 'post',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': " . json_encode($csrf_token) . ",
+              },
+              body: JSON.stringify({
+                'id': id
+              }),
+            }
+          )
+          svar = await res.json();
+        } catch (fejl) {
+          res = null;
+          svar = null;
+        }
+        if (!res || !res.ok || !svar || !svar.success) {
+          alert('" . findtekst('3405|Ugyldig eller udløbet formular - genindlæs siden og prøv igen', $sprog_id) . "');
+          return;
+        }
         location.reload();
       }
 
@@ -1758,10 +1775,6 @@ function removeDfmPickup(idx) {
             }),
           }
         )
-        console.log({
-              'username': document.getElementById('flatpay-username').value,
-              'password': document.getElementById('flatpay-password').value
-            })
         if (res.status == 200) {
           const text = await res.text();
           close_popup();

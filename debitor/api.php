@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- patch 5.0.0 --- 2026-08-25 ---
+// --- debitor/api.php --- ver 5.0.0 --- 2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
@@ -47,6 +47,20 @@
 //                     Every failure now logs one fakture-error file, sets ordrer.digital_status
 //                     to SendFailed so the order shows it and a resend asks first, and reports
 //                     through findtekst(); an HTTP 500 with a document is no longer a success.
+// 20261019 CL/MJ SST-870 sendInvoice() reads the country code off the invoice's own land field
+//                  (countryCodeIso2()), and only falls back to the prefix in the CVR field and
+//                  then DK. A foreign customer without a prefixed CVR was sent as DK whatever
+//                  the address said - 33 of MEDSHOP's invoices in a year, all Swedish or
+//                  Norwegian. lev_land gives the delivery address its own code when it is
+//                  filled. Greenland and the Faroe Islands are still sent as DK.
+// 20261007 MJ SST-860 sendInvoice() no longer sends an empty accountingCustomerParty
+//                  companyId. A customer registered with an EAN/GLN and no CVR took the
+//                  GLN branch, which leaves $cvrnr_with_prefix empty, and the payload
+//                  carried "companyId": "". Brondby Kommune rejected faktura 12034 on
+//                  Schematron rule DK-R-017 because the sent XML had the GLN in
+//                  PartyLegalEntity/CompanyID under schemeID 0088 instead of a CVR under
+//                  0184. The key is omitted when no CVR is known; routing on the GLN and
+//                  the GLN exemptions in both missing-CVR guards are unchanged.
 
     @session_start();
     $s_id=session_id();
@@ -62,6 +76,7 @@
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
     include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");
+    include_once(__DIR__ . "/../includes/stdFunc/countryCode.php");
 
     /**
      * @param string $address The full street address to split
@@ -543,16 +558,35 @@
                 exit;
             }
         }
-        // country code should be the same as prefix for cvrnr
-        $countryCode = "DK";
+        // 20261019 CL/MJ SST-870 The prefix in the CVR field still decides companyId, including
+        // the Greenland/Faroe rewrite, because that is a statement about the number itself. It is
+        // only the weaker source for the address: a customer can be Swedish and have no CVR on
+        // file at all, which is how 33 of MEDSHOP's invoices went out saying Denmark.
+        $cvrCountry = ($cvrnr_with_prefix !== "") ? strtoupper(substr($cvrnr_with_prefix, 0, 2)) : "";
 
-        if($cvrnr_with_prefix !== ""){
-            $countryCode = substr($cvrnr_with_prefix, 0, 2);
-        }
         // Greenland (GL) and Faroe Islands (FO) should be sent as DK in companyId
-        if($countryCode == "GL" || $countryCode == "FO"){
+        if($cvrCountry == "GL" || $cvrCountry == "FO"){
             $cvrnr_with_prefix = "DK" . substr($cvrnr_with_prefix, 2);
+            $cvrCountry = "DK";
+        }
+
+        // The invoice's own country field decides the address; the CVR prefix is the fallback, and
+        // DK the last resort when the field is empty or holds something unrecognised. Keeping DK
+        // last means an unexpected value behaves exactly as it did before SST-870.
+        $countryCode = countryCodeIso2($r_faktura["land"] ?? "", $cvrCountry);
+        if($countryCode === ""){
             $countryCode = "DK";
+        }
+        // Both are inside the Danish VAT area for e-invoicing, as the companyId rewrite above says.
+        if($countryCode === "GL" || $countryCode === "FO"){
+            $countryCode = "DK";
+        }
+
+        // The delivery address carries its own country when lev_land is filled - goods can go to
+        // one country while the invoice goes to another - and otherwise follows the customer's.
+        $deliveryCountryCode = countryCodeIso2($r_faktura["lev_land"] ?? "", $countryCode);
+        if($deliveryCountryCode === "GL" || $deliveryCountryCode === "FO"){
+            $deliveryCountryCode = "DK";
         }
         // 20260604 - Validate recipient address to prevent E-APS24003 transmission errors
         // Prepare customer address with fallback logic
@@ -596,7 +630,7 @@
                 "postalCode" => $levPostnr,
                 "countrySubentity" => "",
                 "addressLine" => "",
-                "countryCode" => $countryCode
+                "countryCode" => $deliveryCountryCode
             ];
         }else if($customerAddr1 !== "" && $customerBynavn !== "" && $customerPostnr !== ""){
             // 20260604 - Fallback to main address if delivery address is incomplete
@@ -798,6 +832,17 @@
             );
         }
         $data["invoiceLines"] = $line;
+        // 20261007 MJ SST-860 An empty string is not a legal-entity identifier. Customers
+        // registered with an EAN/GLN and no CVR take the GLN branch above, which leaves
+        // $cvrnr_with_prefix empty, and the payload then carried "companyId": "". Schematron
+        // rule DK-R-017 requires schemeID 0184 (CVR) whenever PartyLegalEntity/CompanyID is
+        // present for a Danish customer, and Brøndby Kommune rejected faktura 12034 because
+        // the sent XML carried the GLN there under schemeID 0088 instead. Omit the key when
+        // we have no CVR, so there is no empty value downstream to substitute for. A bare
+        // "DK" is the same case with only the prefix applied.
+        if ($cvrnr_with_prefix === "" || $cvrnr_with_prefix === "DK") {
+            unset($data["accountingCustomerParty"]["companyId"]);
+        }
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
 
         // 20260604 - Validate required fields before transmission to prevent E-APS24003 errors

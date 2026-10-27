@@ -56,7 +56,7 @@ $s_id=session_id();
 	$konto_id=if_isset($_GET['konto_id']);
 	if (!$konto_id) $konto_id = 0; 
 	$funktion=if_isset($_GET['funktion']);
-	if (!$funktion)$funktion="ansatliste";
+	if (!in_array($funktion, ['ansatliste', 'ret_ansat', 'brugergrupper', 'stamkort'], true)) $funktion = "ansatliste";
 	$vis=if_isset($_GET['vis']);
 	
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
