@@ -87,6 +87,8 @@
 // 20261027 LOE SST-888 (review) A save that refuses a line no longer reports the whole save as done: the refused
 //                  row stays staged for the re-rendered form and only the other lines are collected. An exact resend of that save
 //                  keeps the staged rows instead of staging its lines again, so a line that was committed is not written twice.
+// 20261027 LOE SST-888 (review) A save that refused every line no longer records a resend fingerprint, so an
+//                  unchanged retry can still save the line it kept; opdater() counts the rows it writes to tell them apart.
 // 20260903 Sawaneh Browser autofill disabled on the journal form and account fields (autocomplete=off) so
 //                  only the blue lookup panel opens; two new per-user checkboxes in the settings box select
 //                  which panel sections (suggestions/lookup) are shown, via window.saldiAutocompleteOptions.
@@ -1907,8 +1909,10 @@ if (!$fejl && $kladde_id) {
 		if ($fejl) {
 			# SST-888 (review) the fingerprint is recorded for a partial save too: a double-click or a browser
 			# resend of the same POST must not insert the lines that were committed again. Pressing Gem on the
-			# re-rendered page posts a different payload, so the refused line is still retried normally.
-			if (isset($kk_payload)) {
+			# re-rendered page posts a different payload, so the refused line is still retried normally. But
+			# only once the save wrote a row: a save that refused every line has nothing a resend could
+			# duplicate, and caching its payload would turn an unchanged retry into a replay that never retries.
+			if (isset($kk_payload) && !empty($GLOBALS['kk_committed'])) {
 				if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
 				$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
 			}
@@ -4694,6 +4698,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kladde_id = (int)$kladde_id;
 		# SST-888 (review) the caller keeps a refused line staged, so it must know which ones were refused
 		$GLOBALS['kk_refused_lobenr'] = array();
+		# SST-888 (review) and whether it wrote a row at all: a save that refused every line committed nothing
+		$GLOBALS['kk_committed'] = 0;
 		transaktion('begin');
 		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, array_merge(array(), ...array_values($GLOBALS['kk_plus_line_ids'])));
 
@@ -4889,6 +4895,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 					if ($qtxt) {
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						# SST-888 (review) a row of the journal was written, so this save is not a no-op
+						$GLOBALS['kk_committed']++;
 						# Only an insert creates a row to pin and to move the focus to; an update must leave
 						# the caret where the user was. The generated id comes from this connection, so a
 						# concurrent insert in another session cannot be picked up instead.

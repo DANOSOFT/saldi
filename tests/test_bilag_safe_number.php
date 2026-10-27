@@ -8,6 +8,8 @@
 //                 replacement cannot take the number another staged line is saved under.
 // 20261027 LOE Cover SST-888 (review): an exact resend of a save that kept a refused line neither stages nor
 //                 clears the staging table, and it balances no rows.
+// 20261027 LOE Cover SST-888 (review): a staged 0 holds no number back, and only a save that wrote a row is
+//                 cached as a replay, so a save that refused every line can be retried.
 //
 //   php tests/test_bilag_safe_number.php
 //
@@ -186,6 +188,27 @@ bilagCheck($replayNote !== false && strpos(substr($kassekladde2, $replayNote, 24
 
 bilagCheck(strpos($kassekladde2, "if (!\$kk_replay && \$x == \$antal - 1 && \$kladde_id)") !== false,
 	'and it balances no rows on a replay, since the staged set is a refused line, not a form' . "\n");
+# ---- a staged zero is no content, because the save reads it as nothing (SST-888 review) ---------
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => '', 'id' => 0, 'debet' => '0', 'kredit' => '',
+	'beskrivelse' => '')) === false,
+	'a line whose staged amount is the string 0 holds no number back, since the save reads it as empty' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('Y-m-d'), 'id' => 0, 'debet' => '0',
+	'kredit' => '0', 'beskrivelse' => '', 'amount' => '0')) === false,
+	'and neither does a row dated today that carries only zeros' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('Y-m-d'), 'id' => 0, 'debet' => '5',
+	'kredit' => '', 'beskrivelse' => '')) === true,
+	'while a row dated today with a real amount is still saved' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => '2020-01-01', 'id' => 0, 'debet' => '0',
+	'kredit' => '0', 'beskrivelse' => '')) === true,
+	'and a row dated another day is inserted even when its amounts are zero' . "\n");
+
+# ---- a save that committed nothing may be retried (SST-888 review) -----------------------------
+bilagCheck(strpos($kassekladde2, "if (isset(\$kk_payload) && !empty(\$GLOBALS['kk_committed']))") !== false,
+	'the replay fingerprint is recorded only when the save wrote a row' . "\n");
+bilagCheck(strpos($kassekladde2, "\$GLOBALS['kk_committed']++;") !== false,
+	'and opdater() counts the rows it writes' . "\n");
+bilagCheck(strpos($kassekladde2, "\$GLOBALS['kk_committed'] = 0;") !== false,
+	'starting from nothing on every save' . "\n");
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";
 exit($failures ? 1 : 0);

@@ -31,6 +31,8 @@
 //                replacement cannot take the number another staged line is about to be saved under.
 // 20261027 LOE SST-888 (review) a staged row with neither a date nor an amount is skipped by the save before it
 //                looks at anything else, so it cannot hold a number back.
+// 20261027 LOE SST-888 (review) a staged 0 is no amount to the save, which reads it as empty, so it does
+//                not count as content on the line either.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -143,7 +145,8 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
  *
  * The staging table holds every posted line, including one a user typed a voucher number into and
  * nothing else; opdater() skips such a line (none of its three branches match), so its number must not
- * hold a number back from a line that is saved.
+ * hold a number back from a line that is saved. A staged amount of 0 is such a line: opdater() tests
+ * those columns as booleans, where the string '0' is empty.
  *
  * @param array $row One tmpkassekl row.
  * @return bool True when one of opdater()'s save branches would take the line.
@@ -156,14 +159,22 @@ function bilagStagedRowWillBeSaved($row) {
 	$kredit = isset($row['kredit']) ? trim((string)$row['kredit']) : '';
 	$id = isset($row['id']) ? (int)$row['id'] : 0;
 	# opdater()'s outer guard first: a line with neither a date nor an amount is skipped before any of
-	# its branches are reached, so it cannot hold a number back however it is numbered
-	if ($bilag === '-' || ($transdate === '' && $debet === '' && $kredit === '')) {
+	# its branches are reached, so it cannot hold a number back however it is numbered. It reads those
+	# values as PHP booleans, where the string '0' is empty, so a staged 0 is no amount here either.
+	$no_debet = ($debet === '' || $debet === '0');
+	$no_kredit = ($kredit === '' || $kredit === '0');
+	if ($bilag === '-' || ($transdate === '' && $no_debet && $no_kredit)) {
 		return false;
 	}
 	$has_bilag = ($bilag !== '');
 	$has_content = false;
 	foreach (array('beskrivelse', 'debet', 'kredit', 'faktura', 'amount') as $field) {
-		if (isset($row[$field]) && trim((string)$row[$field]) !== '') {
+		if (!isset($row[$field])) {
+			continue;
+		}
+		$content_text = trim((string)$row[$field]);
+		# a staged 0 is what opdater() reads as nothing, so it cannot make the line look saved
+		if ($content_text !== '' && $content_text !== '0') {
 			$has_content = true;
 			break;
 		}
