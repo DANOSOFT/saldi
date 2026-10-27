@@ -1888,21 +1888,38 @@ if (!$fejl && $kladde_id) {
 		// Only lines this request staged and checked (kontroller()). What a refused save left in tmpkassekl must not
 		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
 		if (!empty($kkStaged)) opdater($kladde_id, $bilagForslag ?? array());
-		initializePositions($kladde_id);
-		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
-		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
-		// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
-		// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
-		if (isset($kk_payload)) {
-			if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
-			$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+		# SST-888 (review) opdater() can refuse a single line and still commit the rest: the refused
+		# rows stay staged, so the error re-render shows them and a retry can save them, and the request
+		# is not recorded as a save - otherwise the retry would be read as a replay and dropped.
+		if ($fejl) {
+			$kk_refused = isset($GLOBALS['kk_refused_lobenr']) ? array_map('intval', $GLOBALS['kk_refused_lobenr']) : array();
+			if ($kk_refused) {
+				db_modify("delete from tmpkassekl where kladde_id=$kladde_id and lobenr not in (" . implode(',', $kk_refused) . ")", __FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+				unset($_SESSION['kk_lookup_staged'][$kladde_id]);
+			}
+		} else {
+			initializePositions($kladde_id);
+			journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
+			// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
+			// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
+			// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
+			if (isset($kk_payload)) {
+				if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+				$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+			}
+			db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+			unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 		}
+	} else {
+		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+		unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 	}
-	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
-	unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now.
 	// A clip dropped on the new line comes here too, with kkLinkFrom set.
-	if ($submit == 'save' && $kkAfterSave !== '') {
+	// SST-888 (review) but not when opdater() refused a line: there is no saved line to hang it on
+	if (!$fejl && $submit == 'save' && $kkAfterSave !== '') {
 		$kkPoolLine = 0;
 		if ($kkAfterSave === 'new') {
 			// The line typed at the bottom is the last one this save inserted, if it inserted one. The ids come from
@@ -4654,6 +4671,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $baseCurrency, $egen_kto_id, $sprog_id, $fejl;
 
 		$kladde_id = (int)$kladde_id;
+		# SST-888 (review) the caller keeps a refused line staged, so it must know which ones were refused
+		$GLOBALS['kk_refused_lobenr'] = array();
 		transaktion('begin');
 		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, array_merge(array(), ...array_values($GLOBALS['kk_plus_line_ids'])));
 
@@ -4733,6 +4752,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# the column cannot hold
 						if ($bilag <= 0) {
 							$fejl = 1;
+							$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
 							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
 							continue;
 						}
@@ -4770,6 +4790,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							# the column cannot hold
 							if ($insert_bilag <= 0) {
 								$fejl = 1;
+								$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
 								alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
 								continue;
 							}
@@ -4810,6 +4831,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						if ($bilag_tjek['replaced'] && $bilag_tjek['bilag'] <= 0) {
 							# the journal is already at 2147483647: no number left to offer, so this line is skipped
 							$fejl = 1;
+							$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
 							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
 							continue;
 						} elseif ($bilag_tjek['replaced']) {
@@ -4826,6 +4848,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							# the column cannot hold
 							if ($insert_bilag <= 0) {
 								$fejl = 1;
+								$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
 								alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
 								continue;
 							}

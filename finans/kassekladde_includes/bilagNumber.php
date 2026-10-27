@@ -144,15 +144,48 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
  * @param int $kladde_id Journal (kladdeliste.id).
  * @return int The highest staged number, or 0 when there is none.
  */
+/**
+ * Whether the save will take a staged line at all.
+ *
+ * The staging table holds every posted line, including one a user typed a voucher number into and
+ * nothing else; opdater() skips such a line (none of its three branches match), so its number must not
+ * hold a number back from a line that is saved.
+ *
+ * @param array $row One tmpkassekl row.
+ * @return bool True when one of opdater()'s save branches would take the line.
+ */
+function bilagStagedRowWillBeSaved($row) {
+	# the helper stays free of the page's own helpers, so it can be read and tested on its own
+	$bilag = isset($row['bilag']) ? trim((string)$row['bilag']) : '';
+	$transdate = isset($row['transdate']) ? trim((string)$row['transdate']) : '';
+	$id = isset($row['id']) ? (int)$row['id'] : 0;
+	$has_bilag = ($bilag !== '');
+	$has_content = false;
+	foreach (array('beskrivelse', 'debet', 'kredit', 'faktura', 'amount') as $field) {
+		if (isset($row[$field]) && trim((string)$row[$field]) !== '') {
+			$has_content = true;
+			break;
+		}
+	}
+	if ($id > 0 && $has_bilag) {
+		return true;   # an existing line with a number is updated
+	}
+	if ($transdate !== '' && ($transdate !== date('Y-m-d') || $has_content)) {
+		return true;   # a dated line, which is inserted with or without a number
+	}
+	return $has_bilag && $has_content;   # a numbered line with something on it
+}
+
 function bilagStagedMaxNumber($kladde_id) {
 	$kladde_id = (int)$kladde_id;
 	$staged_max = 0;
 	if ($kladde_id <= 0) {
 		return 0;
 	}
-	$q = db_select("SELECT bilag FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+	$q = db_select("SELECT * FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (bilagNumberFits((string)$r['bilag'])) {
+		# SST-888 (review) only a line the save will take can hold a number back
+		if (bilagStagedRowWillBeSaved($r) && bilagNumberFits((string)$r['bilag'])) {
 			$staged_max = max($staged_max, (int)$r['bilag']);
 		}
 	}

@@ -27,7 +27,14 @@ function db_select($qtext, $spor = '', $global = false) {
 	if (strpos($qtext, 'FROM tmpkassekl') !== false) {
 		$rows = array();
 		foreach ($GLOBALS['bilag_test']['staged'] as $bilag) {
-			$rows[] = array('lobenr' => count($rows) + 1, 'id' => 0, 'bilag' => $bilag);
+			# a staged line is saved when it has content, or an existing id, or a date other than today
+			$rows[] = array(
+				'lobenr' => count($rows) + 1,
+				'id' => 0,
+				'bilag' => $bilag,
+				'beskrivelse' => $GLOBALS['bilag_test']['content'] ? 'line text' : '',
+				'transdate' => '',
+			);
 		}
 		return new BilagTestResult($rows);
 	}
@@ -38,7 +45,11 @@ function db_fetch_array($result) {
 	return array_shift($result->rows);
 }
 function bilagTestJournal($journal_max, $staged) {
-	$GLOBALS['bilag_test'] = array('journal_max' => $journal_max, 'staged' => $staged);
+	$GLOBALS['bilag_test'] = array('journal_max' => $journal_max, 'staged' => $staged, 'content' => true);
+}
+function bilagTestJournalEmptyLines($journal_max, $staged) {
+	# lines that carry only a number: opdater() skips them, so they hold nothing back
+	$GLOBALS['bilag_test'] = array('journal_max' => $journal_max, 'staged' => $staged, 'content' => false);
 }
 
 $checks = 0;
@@ -107,8 +118,34 @@ bilagCheck(bilagNextNumberReserved(1, array()) === 2147483647,
 $kassekladde = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
 	bilagCheck(substr_count($kassekladde, '# SST-888 (review) no storable number is left') === 3,
 	'the three other allocations refuse the line when no storable number is left');
+bilagTestJournalEmptyLines(3, array('4'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'a staged 4 the save will skip does not hold a number back: the replacement is still 4');
+bilagTestJournalEmptyLines(3, array('2147483647'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'and a skipped 2147483647 does not claim the journal is full');
+bilagTestJournal(3, array('4'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 5,
+	'a staged 4 that will be saved still holds a number back, as before');
 bilagTestJournal(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array(4 => 7)) === 8, 'and a replacement already handed out in the same save is passed too');
+
+
+# ---- a refused line is not recorded as a saved one (SST-888 review) --------------------------
+$kassekladde2 = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
+bilagCheck(strpos($kassekladde2, "\$GLOBALS['kk_refused_lobenr'] = array();") !== false,
+	'opdater() starts with an empty list of refused lines');
+bilagCheck(substr_count($kassekladde2, "\$GLOBALS['kk_refused_lobenr'][] = (int)\$r['lobenr'];") === 4,
+	'and records every line it refuses, all four' . "
+");
+$refusedAt = strpos($kassekladde2, "if (\$fejl) {\n\t\t\t\$kk_refused = isset");
+$rememberAt = strpos($kassekladde2, 'journalRememberSave(');
+bilagCheck($refusedAt !== false && $rememberAt !== false && $refusedAt < $rememberAt,
+	'the caller checks for a refused line before recording the save as successful');
+bilagCheck(strpos($kassekladde2, "and lobenr not in (") !== false,
+	'and keeps the refused rows staged while the saved ones are cleared');
+bilagCheck(strpos($kassekladde2, "if (!\$fejl && \$submit == 'save' && \$kkAfterSave !== '')") !== false,
+	'no document prompt is opened for a save that refused a line');
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";
