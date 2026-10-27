@@ -31,12 +31,12 @@ stockCheck(strpos($src, "\$row['beholdning'] = 0;") !== false, 'an item without 
 stockCheck(strpos($src, "\$sorteringer = array('varenr', 'beskrivelse', 'salgspris', 'beholdning');") !== false,
 	'the sortable columns are a fixed list');
 $whitelist = strpos($src, 'in_array($sort, $sorteringer, true)');
-$firstOrder = strpos($live, 'order by $sort');
+$firstOrder = strpos($live, 'order by $orderby');
 stockCheck($whitelist !== false, 'the sort is checked against that list');
 stockCheck($whitelist !== false && $firstOrder !== false && $whitelist < $firstOrder,
 	'and checked before the query uses it');
 stockCheck(strpos($src, "\$sort = if_isset(\$_GET, '', 'sort');") !== false, 'the sort comes in through if_isset()');
-stockCheck(substr_count($live, 'order by $sort') === 1, 'exactly one query in the live code sorts by it');
+stockCheck(substr_count($live, 'order by $orderby') === 1, 'exactly one query in the live code sorts, by the checked expression');
 
 # ---- the warehouse is a number that exists (criterion 2) --------------------------------------
 stockCheck(strpos($src, "\$lager = (int) if_isset(\$_GET, 0, 'lager');") !== false,
@@ -46,6 +46,12 @@ stockCheck(strpos($src, "select beskrivelse from grupper where art='LG' and kode
 stockCheck(strpos($src, 'and lager=$lager') !== false, 'only the validated value reaches the stock queries');
 
 # ---- a user without a warehouse chooses one instead of losing the session (criterion 3) ------
+	stockCheck(strpos($src, "\$vis_kost = (if_isset(\$_GET, '', 'vis_kost') === 'on') ? 'on' : '';") !== false,
+	'only "on" is accepted for the cost-price switch, which is put back into the links');
+stockCheck(strpos($src, "if (\$sort === 'beholdning') {") !== false, 'the balance column sorts by what it shows');
+stockCheck(strpos($src, 'from lagerstatus where vare_id = varer.id and lager = $lager') !== false,
+	'which is the selected warehouse stock, with a missing row counting as 0');
+stockCheck(strpos($src, "\$orderby = \$sort;") !== false, 'and every other column sorts by itself');
 stockCheck(strpos($src, 'logud.php') === false, 'the page no longer ends the session');
 stockCheck(strpos($src, "findtekst('586|Vælg'") !== false, 'it asks the user to choose');
 stockCheck(strpos($src, 'beholdningsliste.php?lager=') !== false, 'and offers the warehouses as links');

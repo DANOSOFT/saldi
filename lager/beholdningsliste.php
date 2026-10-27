@@ -18,6 +18,8 @@
 // ----------------------------------------------------------------------
 // 20261027 LOE MB-99 opening the list no longer writes, the sort/lager input is whitelisted or cast, and
 //                a user without a warehouse gets a picker instead of being logged out (SD-623).
+// 20261027 LOE MB-99 (review) the cost-price switch only accepts its one value, and the balance column
+//                sorts by the warehouse stock it shows.
 
 @session_start();
 $s_id = session_id();
@@ -42,7 +44,8 @@ $sort = if_isset($_GET, '', 'sort');
 if (!in_array($sort, $sorteringer, true)) {
     $sort = 'varenr';
 }
-$vis_kost = if_isset($_GET, '', 'vis_kost');
+# MB-99 (review) the flag is a switch and is put back into the links below, so nothing else is accepted
+$vis_kost = (if_isset($_GET, '', 'vis_kost') === 'on') ? 'on' : '';
 
 # MB-99 the warehouse is a number and must exist, or every query below would take it as given
 $lager = (int) if_isset($_GET, 0, 'lager');
@@ -122,8 +125,14 @@ if (!$sort) {
     $sort = "varenr";
 }
 
+# MB-99 (review) the Beh. column shows the selected warehouse's stock, so the sort follows it; without a
+# warehouse (a totals list) the item's own balance is still what the column shows
+$orderby = $sort;
+if ($sort === 'beholdning') {
+    $orderby = ($lager >= 1) ? "(select coalesce(beholdning, 0) from lagerstatus where vare_id = varer.id and lager = $lager)" : 'beholdning';
+}
 $linjebg = NULL;
-$query = db_select("select * from varer where lukket != '1' order by $sort", __FILE__ . " linje " . __LINE__);
+$query = db_select("select * from varer where lukket != '1' order by $orderby", __FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
     # MB-99 nothing on a GET may write: an item without a balance is shown with 0, never repaired
     if ($row['beholdning'] === NULL || $row['beholdning'] === '') {
