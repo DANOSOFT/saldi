@@ -6,7 +6,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 // 20261027 CL/MMR SST-904 Created. A shop name like O&#039;Brien broke the customer/order insert: api/rest_api.php escaped the values and then decoded the finished SQL with chk4utf8(), which turned the entity into an unescaped quote.
-//                 insert_shop_orderline() must escape every shop identifier it puts into SQL (Codex round 1).
+//                 insert_shop_orderline() must escape every shop identifier it puts into SQL (Codex round 1), and accept numeric ids with leading zeros (round 2).
 //                 restApiShopText() is lifted from api/rest_api.php (including the file connects to a database) and run here; the order of decoding and SQL building is asserted on the source.
 final class ShopTextDecodeTest extends TestCase
 {
@@ -75,6 +75,15 @@ final class ShopTextDecodeTest extends TestCase
             'the item number lookups no longer escape the decoded value');
         self::assertStringContainsString('$shopVariantInt = (int)$shop_variant;', $line, 'shop_varer.shop_variant (integer) is no longer cast');
         self::assertStringContainsString('$shopVareIdInt = (int)$shop_vare_id;', $line, 'shop_varer.shop_id (integer) is no longer cast');
+
+        // Which shop ids reach the integer shop_varer lookup: digits only, leading zeros included (Codex round 2)
+        $guard = [];
+        preg_match('/\$shopVareIdIsId = (.+?);/', $line, $guard);
+        self::assertNotEmpty($guard, 'the shop item id guard is gone');
+        $isId = eval('return static function ($shop_vare_id) { return ' . $guard[1] . '; };');
+        foreach (['5312' => true, '05312' => true, ' 5312 ' => true, '0' => true, "x'1" => false, '5312abc' => false, '-5' => false, '' => false, '1.5' => false] as $in => $ok) {
+            self::assertSame($ok, (bool)$isId((string)$in), "shop item id '$in'");
+        }
         foreach (['shop_varenr', 'shop_vare_id', 'shop_variant', 'stregkode', 'saldi_variant'] as $raw) {
             self::assertStringNotContainsString("'\$$raw'", $line, "insert_shop_orderline() puts \$$raw into SQL unescaped");
         }

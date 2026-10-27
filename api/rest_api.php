@@ -544,9 +544,10 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$stregkodeSql = db_escape_string((string)restApiShopText($stregkode));
 	$shopVareIdInt = (int)$shop_vare_id;
 	$shopVariantInt = (int)$shop_variant;
-	// A non-numeric shop id would cast to 0 and match the many shop_varer rows stored with 0, so it is not looked up there
-	$shopVariantIsId = (string)$shopVariantInt === trim((string)$shop_variant);
-	$shopVareIdIsId = (string)$shopVareIdInt === trim((string)$shop_vare_id);
+	// A non-numeric shop id would cast to 0 and match the many shop_varer rows stored with 0, so it is not looked up there;
+	// digits only (leading zeros allowed: 05312 is shop id 5312)
+	$shopVariantIsId = ctype_digit(trim((string)$shop_variant));
+	$shopVareIdIsId = ctype_digit(trim((string)$shop_vare_id));
 
 	list($master,$db_skriv_id)=explode('_',$db);
 	$lager*=1;
