@@ -29,6 +29,7 @@ use PHPUnit\Framework\TestCase;
 //
 //                  Fixture only; no customer data. The warehouse numbers are the ones named in
 //                  the ticket: 4 is Havemøbelland's M, 10 is the «V» that was removed.
+// 20261027 CDX/MJ SST-883 Cover primary department mapping and removed fallback mappings.
 
 function db_select($sql, $location = '')
 {
@@ -43,6 +44,9 @@ function db_select($sql, $location = '')
 	}
 	if (strpos($sql, 'from ansatte') !== false) {
 		return $GLOBALS['pwEmployeeAfd'] === null ? false : array('afd' => $GLOBALS['pwEmployeeAfd']);
+	}
+	if (strpos($sql, "and art='AFD'") !== false) {
+		return $GLOBALS['pwPrimaryWarehouse'] === null ? false : array('box1' => $GLOBALS['pwPrimaryWarehouse']);
 	}
 	if (strpos($sql, "from grupper where box1=") !== false) {
 		return $GLOBALS['pwAfdWarehouse'] === null ? false : array('kodenr' => $GLOBALS['pwAfdWarehouse']);
@@ -60,10 +64,7 @@ function db_escape_string($value)
 	return str_replace("'", "''", (string) $value);
 }
 
-function ifset($array, $key, $default = '')
-{
-	return isset($array[$key]) ? $array[$key] : $default;
-}
+require_once __DIR__ . '/../../../includes/std_func.php';
 
 final class PostingWarehouseTest extends TestCase
 {
@@ -108,6 +109,7 @@ final class PostingWarehouseTest extends TestCase
 		$GLOBALS['pwDefined'] = array(1, 4);
 		$GLOBALS['pwEmployeeAfd'] = '2';
 		$GLOBALS['pwAfdWarehouse'] = '4';
+		$GLOBALS['pwPrimaryWarehouse'] = null;
 		$GLOBALS['pwQueries'] = array();
 		$GLOBALS['ref'] = 'lotte';
 	}
@@ -186,6 +188,36 @@ final class PostingWarehouseTest extends TestCase
 
 		self::assertSame(0, resolvePostingWarehouse(10, 2003, 55),
 			'the fallback handed back a warehouse that does not exist either');
+	}
+
+	/** @return array<string, array{mixed, mixed, int}> */
+	public static function departmentMappings(): array
+	{
+		return [
+			'primary only' => ['4', null, 4],
+			'primary preferred' => ['1', '4', 1],
+			'removed primary uses legacy' => ['10', '4', 4],
+			'empty primary uses legacy' => ['', '4', 4],
+			'both removed' => ['10', '10', 0],
+			'no warehouses' => [null, null, 0],
+		];
+	}
+
+	#[DataProvider('departmentMappings')]
+	public function testDepartmentMappingPriority($primary, $legacy, int $expected): void
+	{
+		$GLOBALS['pwPrimaryWarehouse'] = $primary;
+		$GLOBALS['pwAfdWarehouse'] = $legacy;
+		self::assertSame($expected, resolvePostingWarehouse(10, 2003, 55));
+	}
+
+	public function testDepartmentNumberIsCastBeforePrimaryLookup(): void
+	{
+		$GLOBALS['pwEmployeeAfd'] = "2' OR 1=1 --";
+		resolvePostingWarehouse(10, 2003, 55);
+		foreach ($GLOBALS['pwQueries'] as $sql) {
+			self::assertStringNotContainsString('OR 1=1', $sql);
+		}
 	}
 
 	// ------------------------------------------------------------ the predicate

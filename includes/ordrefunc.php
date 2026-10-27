@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-26 ---
+//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -159,6 +159,9 @@
 //                 component in 33 sets, so one order line was 198 webshop calls and the 30
 //                 second budget skipped everything after it.
 // 20261026 CDX/MJ SST-883 Keep warehouse validation alongside the latest SST-876 document batching and sales warnings.
+// 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
+// 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
+// 20261027 CDX/MJ SST-883 Apply line deltas when a removed warehouse falls back to warehouse zero.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 include_once(__DIR__ . '/stdFunc/warehouse.php'); # warehouseIsDefined() - used when posting stock
@@ -500,12 +503,10 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	#fclose ($fp);
 /* echo "<!--function levering slut-->"; */
 	#xit;
-	# SST-876: every line is posted, so the webshops are told once, here, instead of per line.
-	# The figures are read from the database as they now stand. A shop that could not be
-	# reached leaves the item on the queue for the next request, and the item numbers are kept
-	# for whichever page called this one to report after it has committed - this function has
-	# no screen of its own, and the rest api has none at all.
-	$shopSync = shopSyncFlush(); # std_func.
+	# SST-876: every line is marked. With an open transaction, the flush defers these
+	# figures until the owner drains after commit; otherwise it sends the document now.
+	# Failed item numbers belong to the screen caller, never a popup in this shared function.
+	$shopSync = shopSyncFlush(0); # Document only; the transaction owner drains after commit.
 	if (shopSyncFailed($shopSync)) {
 		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
 	}
@@ -538,7 +539,9 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 	# days after it stopped being listed. Stock posted there counts in "i alt" and in the
 	# totalStock sent to the webshops, but appears in no warehouse column, so nobody can find it
 	# or move it. Resolve it to a warehouse that exists before anything is written.
+	$requestedWarehouse = (int) $lager;
 	$lager = resolvePostingWarehouse($lager, $vare_id, $linje_id);
+	$warehouseRedirected = $lager !== $requestedWarehouse;
 
 	if (!$levdate)
 		$levdate = date("Y-m-d");
@@ -619,16 +622,19 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 		$tmp = $antal * -1;
 		$qtxt = "select id,beholdning from lagerstatus where vare_id='$vare_id' and variant_id = '$variant_id' and lager='$lager'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)); #20161011 + næste 2
-		if ($lager > 0)
-			$ny_beh = $r['beholdning'] + $tmp;
-		else
+		// A redirected warehouse receives this line's delta, never the item's total across warehouses.
+		if ($lager > 0 || $warehouseRedirected) {
+			$ny_beh = (float) ifset($r, 'beholdning', 0) + $tmp;
+		} else {
 			$ny_beh = $beholdning;
-		if ($r['id']) {
+		}
+		if (ifset($r, 'id')) {
 			$qtxt = "delete from lagerstatus where vare_id='$vare_id' and variant_id = '$variant_id' and lager='$lager' and id !='$r[id]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "update lagerstatus set beholdning='$ny_beh' where id='$r[id]'";
-		} else
+		} else {
 			$qtxt = "insert into lagerstatus (vare_id,variant_id,beholdning,lager) values ('$vare_id','$variant_id','$tmp','$lager')";
+		}
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		if ($variant_id) {
 			db_modify("update variant_varer set variant_beholdning=variant_beholdning+$tmp where id='$variant_id'", __FILE__ . " linje " . __LINE__);
@@ -1773,6 +1779,9 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		$svar = $fejl;
 	}
 	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
+	if (!$callerOwnsTransaction && $svar === 'OK' && !$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor

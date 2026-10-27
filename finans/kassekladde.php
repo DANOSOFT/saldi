@@ -4587,7 +4587,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	 */
 	function opdater($kladde_id, $bilagForslag = array())
 	{
-		global $baseCurrency,$egen_kto_id,$sprog_id;
+		global $baseCurrency, $egen_kto_id, $sprog_id, $fejl;
 
 		$kladde_id = (int)$kladde_id;
 		transaktion('begin');
@@ -4712,6 +4712,34 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+
+						# SST-888 The two branches above each carry this check; this one did not, so a
+						# voucher number that does not fit kassekladde.bilag reached the insert.
+						$bilag_tjek = bilagSafeNumber(if_isset($r, '', 'bilag'), $kladde_id);
+						# one replacement per original number: the staged update below rewrites every line
+						# that carries it, so the next line of the same group must get the same number
+						if (!isset($bilag_erstat)) $bilag_erstat = array();
+						$bilag_noegle = 'x' . $bilag_tjek['original'];
+						if (isset($bilag_erstat[$bilag_noegle])) {
+							$bilag_tjek['bilag'] = $bilag_erstat[$bilag_noegle];
+						} elseif ($bilag_tjek['replaced']) {
+							# reserve the replacement through the same allocator a line without a number uses,
+							# so it cannot take a number a staged line already proposes
+							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat);
+							if (!bilagNumberFits((string)$bilag_tjek['bilag'])) $bilag_tjek['bilag'] = 0;
+							$bilag_erstat[$bilag_noegle] = $bilag_tjek['bilag'];
+						}
+						if ($bilag_tjek['replaced'] && $bilag_tjek['bilag'] <= 0) {
+							# the journal is already at 2147483647: no number left to offer, so this line is skipped
+							$fejl = 1;
+							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							continue;
+						} elseif ($bilag_tjek['replaced']) {
+							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
+							# the staged line keeps the bad number as text, so the next open would try it again
+							db_modify("update tmpkassekl set bilag = '" . db_escape_string($bilag_tjek["bilag"]) . "' where kladde_id = '" . db_escape_string($kladde_id) . "' and bilag = '" . db_escape_string($bilag_tjek["original"]) . "'", __FILE__ . " linje " . __LINE__);
+						}
+						$insert_bilag = $bilag_tjek['bilag'];
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {

@@ -1,5 +1,5 @@
 <?php
-// --- includes/stdFunc/shopSyncQueue.php --- ver 5.0.0 --- 2026-10-22 ---
+// --- includes/stdFunc/shopSyncQueue.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Keeps the stock updates a request could not deliver, so the next one delivers them.
 //
@@ -37,6 +37,8 @@
 // the system temp directory, because work that must not be lost cannot live somewhere the
 // operating system sweeps.
 // 20261022 CL/MJ SST-876 Created.
+// 20261027 CDX/MJ SST-876 Refresh a delivery claim timestamp so old pending markers are not reclaimed during an active send.
+// 20261027 CDX/MJ SST-876 Retain retryable transport failures even when the shop sent HTTP 200 before disconnecting.
 
 if (!function_exists('shopSyncQueueDir')) {
 	/**
@@ -265,6 +267,8 @@ if (!function_exists('shopSyncQueueClaim')) {
 		if (!@rename($entry['path'], $claim)) {
 			return null;
 		}
+		// rename() preserves the old marker age; recovery must measure time since this claim.
+		@touch($claim);
 		$entry['claim'] = $claim;
 		$entry['live']  = $entry['path'];
 		$entry['path']  = $claim;
@@ -349,7 +353,7 @@ if (!function_exists('shopSyncWorthRetrying')) {
 			return true;
 		}
 		$code = (int) (isset($res['httpCode']) ? $res['httpCode'] : 0);
-		return ($code === 0 || $code >= 500);
+		return (!empty($res['transient']) || $code === 0 || $code >= 500);
 	}
 }
 

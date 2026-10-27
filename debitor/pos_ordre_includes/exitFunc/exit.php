@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.0.0 --- 2024.3.13---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.0.0 --- 2026.10.27---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190510 Move function find_bon here
@@ -34,6 +34,7 @@
 // 20261006 CL/LH SST-839: Reach LAN print servers (private/reserved IPs, localhost, .local, single-label names) over HTTP
 //                 again (the mini-PCs do not serve HTTPS); other hosts still default to HTTPS and may not use HTTP.
 // 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
+// 20261027 CDX/MJ SST-876 Drain webshop retry updates after POS settlement commits.
 
 /**
  * True for a print server on the shop's own network: a private or reserved IP (10/8,
@@ -323,6 +324,7 @@ print "\n<!-- Function afslut (start)-->\n";
 	include("settlePOS.php"); #20190510
 	if ($svar=='OK') { #20150213
 		transaktion("commit");
+		shopSyncDrainQueue();
 		$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
 		$qtxt.= "values ";
 		$qtxt.= "('11001','". date('U') ."','$kasse','$bruger_id','$id','".__file__."','".__line__."')";

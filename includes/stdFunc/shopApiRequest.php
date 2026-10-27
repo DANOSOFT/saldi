@@ -1,5 +1,5 @@
 <?php
-// --- includes/stdFunc/shopApiRequest.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- includes/stdFunc/shopApiRequest.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 //                  into shopApiSyncState() so both senders share one copy, and the judgement
 //                  of a shop's answer moved into shopApiOutcome() so they cannot drift apart.
 // 20261023 CDX/MJ SST-876 Preserve each payload context when batching multiple items across shops.
+// 20261027 CDX/MJ SST-876 Read parallel transfer completion results and shell curl exit status so incomplete HTTP 200 responses remain retryable failures.
 
 if (!function_exists('shopApiUrl')) {
 	/**
@@ -171,6 +172,7 @@ if (!function_exists('shopApiRequest')) {
 	 *   body: string,      Response body, empty when it could not be captured.
 	 *   attempts: int,     Number of attempts made.
 	 *   skipped: bool,     True when the call was skipped because the endpoint is known dead.
+	 *   transient: bool,   True when the latest transfer failed in a retryable way, including after HTTP 200.
 	 * }
 	 */
 	function shopApiRequest($endpoint, array $params = array(), $log = null, array $options = array()) {
@@ -194,6 +196,7 @@ if (!function_exists('shopApiRequest')) {
 			'body'     => '',
 			'attempts' => 0,
 			'skipped'  => false,
+			'transient' => false,
 		);
 
 		$url = shopApiUrl($endpoint, $params);
@@ -250,6 +253,7 @@ if (!function_exists('shopApiRequest')) {
 			$state['spent'] += microtime(true) - $started;
 			$result['httpCode'] = $call['httpCode'];
 			$result['body']     = $call['body'];
+			$result['transient'] = !empty($call['transient']);
 
 			$outcome = shopApiOutcome($call);
 			if ($outcome['state'] === 'ok') {
@@ -372,7 +376,7 @@ if (!function_exists('shopApiShellCall')) {
 			. ' -A ' . escapeshellarg((string)$options['userAgent'])
 			. ' -o ' . escapeshellarg($bodyFile)
 			. ' -w ' . escapeshellarg("\nSALDI_HTTP:%{http_code}\n")
-			. ' ' . escapeshellarg($url) . ' 2>&1';
+			. ' ' . escapeshellarg($url) . ' 2>&1; shop_curl_status=$?; printf "\nSALDI_EXIT:%s\n" "$shop_curl_status"';
 		$out      = shell_exec($cmd);
 		$body     = (string)@file_get_contents($bodyFile);
 		@unlink($bodyFile);
@@ -381,13 +385,15 @@ if (!function_exists('shopApiShellCall')) {
 		// than from trailing digits, which could come from an error message instead.
 		$out      = trim((string)$out);
 		$httpCode = preg_match('/SALDI_HTTP:(\d{3})/', $out, $m) ? (int)$m[1] : 0;
-		$error    = $httpCode ? '' : ('curl command failed: ' . ($out === '' ? 'no output' : $out));
+		$exitCode = preg_match('/(?:^|\n)SALDI_EXIT:(\d+)$/D', $out, $m) ? (int)$m[1] : -1;
+		$error = $exitCode !== 0 || !$httpCode
+			? 'curl command failed (exit ' . $exitCode . '): ' . ($out === '' ? 'no output' : $out) : '';
 
 		return array(
 			'httpCode'    => $httpCode,
 			'body'        => $body,
 			'error'       => $error,
-			'transient'   => ($httpCode === 0 || $httpCode >= 500),
+			'transient'   => ($exitCode !== 0 || $httpCode === 0 || $httpCode >= 500),
 			'unreachable' => ($httpCode === 0),
 		);
 	}
@@ -598,13 +604,23 @@ if (!function_exists('shopApiCurlMultiCall')) {
 			}
 		} while ($running && $status === CURLM_OK);
 
+		$completed = array();
+		while ($info = curl_multi_info_read($multi)) {
+			foreach ($handles as $slot => $handle) {
+				if ($handle === $info['handle']) {
+					$completed[$slot] = (int)$info['result'];
+					break;
+				}
+			}
+		}
 		foreach ($handles as $slot => $handle) {
-			$errno    = curl_errno($handle);
+			// A missing DONE message is not a successful completed transfer.
+			$errno = $completed[$slot] ?? CURLE_FAILED_INIT;
 			$httpCode = (int)curl_getinfo($handle, CURLINFO_HTTP_CODE);
 			$out[$slot] = array(
 				'httpCode'    => $httpCode,
 				'body'        => isset($bodies[$slot]) ? $bodies[$slot] : '',
-				'error'       => $errno ? 'curl error ' . $errno . ': ' . curl_error($handle) : '',
+				'error'       => $errno ? 'curl error ' . $errno . ': ' . curl_strerror($errno) : '',
 				'transient'   => ($errno !== 0 || $httpCode === 0 || $httpCode >= 500),
 				'unreachable' => ($httpCode === 0),
 			);
@@ -661,7 +677,7 @@ if (!function_exists('shopApiRequestParallel')) {
 		$results = array();
 		$pending = array();
 		foreach ($endpoints as $slot => $endpoint) {
-			$result = array('ok' => false, 'url' => '', 'httpCode' => 0, 'error' => '', 'body' => '', 'attempts' => 0, 'skipped' => false);
+			$result = array('ok' => false, 'url' => '', 'httpCode' => 0, 'error' => '', 'body' => '', 'attempts' => 0, 'skipped' => false, 'transient' => false);
 			$url = shopApiUrl($endpoint, $params);
 			if ($url === '') {
 				$result['error'] = 'invalid api endpoint';
@@ -718,6 +734,7 @@ if (!function_exists('shopApiRequestParallel')) {
 				$results[$slot]['attempts'] = $attempt;
 				$results[$slot]['httpCode'] = $call['httpCode'];
 				$results[$slot]['body']     = $call['body'];
+				$results[$slot]['transient'] = !empty($call['transient']);
 				$outcome = shopApiOutcome($call);
 				if ($outcome['state'] === 'ok') {
 					$results[$slot]['ok']    = true;

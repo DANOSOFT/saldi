@@ -1,6 +1,7 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
 // 20261023 CDX/MJ SST-876 Exercise the real cURL transport against a concurrent delayed HTTP mock.
+// 20261027 CDX/MJ SST-876 Exercise deferred delivery after commit without duplicate sends or pending correction markers.
 // Starts a loopback-only Python mock, or uses SALDI_SHOP_TEST_URL=http://127.0.0.1:<port>/shop.
 
 $endpoint = getenv('SALDI_SHOP_TEST_URL');
@@ -43,7 +44,11 @@ foreach ($document as $i => $id) {
 $logPath = __DIR__ . '/../temp/' . $db . '/rest_api.log';
 $offset = is_file($logPath) ? filesize($logPath) : 0;
 $start = microtime(true);
-check(shopSyncFlush(0) === 'OK', 'The six-line document succeeds through actual parallel HTTP');
+$GLOBALS['db_transaktion_depth'] = 1;
+check(shopSyncFlush(0) === 'OK' && shopSyncMarkedCount() === count($document),
+	'The six-line document waits for its transaction to commit');
+$GLOBALS['db_transaktion_depth'] = 0;
+check(shopSyncDrainQueue() > 0, 'The committed six-line document succeeds through actual parallel HTTP');
 $elapsed = microtime(true) - $start;
 $log = substr(file_get_contents($logPath), $offset);
 foreach ($document as $id) {

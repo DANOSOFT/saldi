@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-// --------------debitor/levering.php--------patch 4.0.8 ----2023-21-12-----
+// --------------debitor/levering.php--------ver 5.0.0 ----2026-10-27-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,7 +19,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261022 CL/MJ SST-876 Names the items the webshops would not take, after the commit. A
 //                 delivery that was rolled back reports nothing: the sale did not happen, so
@@ -28,6 +28,7 @@
 // 2013.05.06 Rettet lidt i fejlh�ndtering.
 // 2013.05.08 Tilf�jet "and status < 2" s� status ikke bliver sat tilbage ved klik p� tilbagenap p� mus.
 // 2016.09.13 Tilf�jet oioubl S�g 20160913
+// 20261027 CDX/MJ SST-876 Drain older webshop updates after the delivery transaction commits.
 
 $id=NULL;	
 if (isset($_GET['id'])) $id=($_GET['id']);
@@ -48,6 +49,7 @@ if ($id && $id>=1) {
 	$svar=levering($id,$hurtigfakt,$genfakt,0);
 	if ($svar=='OK') {
 		transaktion("commit");
+		shopSyncDrainQueue();
 		# SST-876: after the commit, so a webshop that would not take the new figure cannot be
 		# mistaken for a reason the delivery failed. Before the refresh below, because that
 		# hands the page over and anything printed after it is never written.

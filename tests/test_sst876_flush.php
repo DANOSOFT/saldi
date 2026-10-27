@@ -8,6 +8,8 @@
 // that exists and the real mark, flush and drain layer runs against it. What is tested is which
 // items that layer decides to send, with which mode, in which order, and what it does with the
 // ones that fail - none of which needs a database.
+// 20261026 CDX/MJ Model the queue structure lookup without a tenant database.
+// 20261027 CDX/MJ SST-876 Model the cached API configuration check in the flush fixture.
 
 $GLOBALS['calls']   = array();   // every (vare_id, variant_id, lager, mode) the layer sent
 $GLOBALS['answers'] = array();   // vare_id => answer sync_shop_vare() should give
@@ -39,6 +41,21 @@ function shopSyncDrainQueueNested()
 		$delivered++;
 	}
 	return $delivered;
+}
+
+// This isolated fixture has ordinary products only, never assembled items.
+function db_select($sql, $location = '') {
+	if (strpos($sql, "select box4 from grupper where art='API'") !== false) {
+		return array('box4' => 'http://shop.test/adapter');
+	}
+	if (strpos($sql, 'select indgaar_i from styklister') !== false) {
+		return false;
+	}
+	throw new RuntimeException('Unexpected fixture query: ' . $sql);
+}
+
+function db_fetch_array($row) {
+	return $row;
 }
 
 $db = 'sst876_test_flush';

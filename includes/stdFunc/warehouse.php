@@ -1,10 +1,11 @@
 <?php
-//--- includes/stdFunc/warehouse.php ---ver 5.0.0 ----2026-10-21 ---
+//--- includes/stdFunc/warehouse.php ---ver 5.0.0 ----2026-10-27 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261021 CL/MJ SST-883 warehouseIsDefined() - is a warehouse number still one this account
 //                  has? Order lines carry a warehouse from the moment they are written, so a
 //                  document posted later can name one that has since been taken out of use.
+// 20261027 CDX/MJ SST-883 Prefer the department warehouse mapping and validate both fallback mappings.
 
 if (!function_exists('warehouseIsDefined')) {
 	/**
@@ -38,7 +39,7 @@ if (!function_exists('resolvePostingWarehouse')) {
 	/**
 	 * The warehouse stock should actually be posted to.
 	 *
-	 * An empty warehouse falls back to the logged-in employee's department, which is what the
+	 * An empty warehouse falls back to the order reference employee's department, which is what the
 	 * posting code has always done. A warehouse that is set but no longer exists takes the same
 	 * fallback rather than being used - that case is new, and it is the one that strands stock
 	 * where no warehouse column can show it.
@@ -63,14 +64,19 @@ if (!function_exists('resolvePostingWarehouse')) {
 		$asked = (int) $lager;
 
 		$resolved = 0;
-		$employee = db_escape_string((string) $ref);
+		$employee = db_escape_string((string) ($ref ?? ''));
 		if ($r = db_fetch_array(db_select(
 				"select afd from ansatte where navn = '$employee'",
 				__FILE__ . " linje " . __LINE__))) {
-			$afd = db_escape_string((string) ifset($r, 'afd', ''));
-			if ($r = db_fetch_array(db_select(
+			$afd = (int) ifset($r, 'afd', 0);
+			$r = db_fetch_array(db_select(
+				"select box1 from grupper where kodenr='$afd' and art='AFD'",
+				__FILE__ . " linje " . __LINE__));
+			$resolved = (int) ifset($r, 'box1', 0);
+			if (!$resolved || !warehouseIsDefined($resolved)) {
+				$r = db_fetch_array(db_select(
 					"select kodenr from grupper where box1='$afd' and art='LG'",
-					__FILE__ . " linje " . __LINE__))) {
+					__FILE__ . " linje " . __LINE__));
 				$resolved = (int) ifset($r, 'kodenr', 0);
 			}
 		}

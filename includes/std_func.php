@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,6 +118,11 @@
 //                  one; shopSyncFailedItems() and shopSyncAlertFailedItems() carry the item
 //                  numbers to whichever page has a user to tell after it has committed.
 // 20261023 CDX/MJ SST-876 Batch document lines before sets, bound backlog work, and report only the document items.
+// 20261026 CDX/MJ SST-876 Share parent-set payload construction with queue recovery, including non-stock-managed sets.
+// 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
+//                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
+// 20261027 CDX/MJ SST-876 Skip queue filesystem work without a webshop and defer backlog processing until transactions have committed.
+// 20261027 CDX/MJ SST-876 Defer document sends until the outer transaction completes and send them before old backlog in the post-commit drain.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -897,7 +902,11 @@ if (!function_exists('reducer')) {
 
 if (!function_exists('active_fiscal_years')) {
 	/**
-	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 not 'on'), newest first.
+	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 NULL or ''), newest first.
+	 *
+	 * box10 is the deleted marker: 'on' for years deleted before 2025-07-01 or auto-marked by
+	 * systemdata/regnskabsaar.php, a date('U') timestamp for years deleted by
+	 * systemdata/fiscalYearInc/deleteFiscalYear.php. Only an empty box10 is a live year, as in regnskabsaar.php.
 	 *
 	 * @return array<int, array{
 	 *   kodenr: string,       Fiscal year number as fetched (grupper.kodenr).
@@ -905,7 +914,7 @@ if (!function_exists('active_fiscal_years')) {
 	 * }>
 	 */
 	function active_fiscal_years() {
-		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
+		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 = '') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		$years = array();
 		while ($r = db_fetch_array($q)) {
@@ -2291,34 +2300,20 @@ if (!function_exists('sync_shop_vare')) {
 							continue;
 						}
 						$partsSent[$partKey] = true;
-						$shop_id = 0;
-						$qtxt = "select varenr,varenr_alias,kostpris from varer where id = '$partOf[$x]'";
-#if ($bruger_id == '-1') echo __line__." $qtxt<br>";
-						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-							$costPrice = $r['kostpris'];
-							$productNo = $r['varenr'];
-							$productNoAlias = $r['varenr_alias'];
+						$collector = &shopSyncDocumentState();
+						if ($collector['collecting'] && $collector['backlog']) {
+							// Sets have their own retry markers. Prepare their expensive availability
+							// only when their entry is drained, rather than expanding every component again.
+							shopSyncQueueAdd($partOf[$x], 0, $lager, $mode);
+							continue;
 						}
-#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
-						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
-						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $shop_id = $r['shop_id'];
-						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
-						$partStockParams = array(
-							'update_stock' => $shop_id,
-							'stock'        => $stock,
-							'totalStock'   => $totalStock,
-							'stockno'      => $lager,
-							'costPrice'    => $costPrice,
-							'itemNo'       => $productNo,
-							'itemNoAlias'  => $productNoAlias,
-							'sku'          => $productNo,
-							'skuAlias'     => $productNoAlias,
-						);
-						$partCostParams = array(
-							'costPrice' => $costPrice,
-							'sku'       => $productNo,
-							'skuAlias'  => $productNoAlias,
-						);
+						$payloads = shopSyncSetPayloads($partOf[$x], $lager);
+						if ($payloads === null) {
+							continue;
+						}
+						$partStockParams = $payloads['stock'];
+						$partCostParams = $payloads['cost'];
+						$productNo = $payloads['label'];
 						$send($endpoints, $partStockParams, "sync_shop_vare update_stock part vare_id $partOf[$x]", $partOf[$x], 0, (string)$productNo);
 						if ($mode !== 'stock') {
 							$send($endpoints, $partCostParams, "sync_shop_vare costPrice part vare_id $partOf[$x]", $partOf[$x], 0, (string)$productNo);
@@ -2391,11 +2386,30 @@ if (!function_exists('shopSyncMarkState')) {
 	 * its lines as it posts them and flushes once, which is how an item on two lines becomes
 	 * one send, and how the figure that is sent is the one the document ended with.
 	 *
-	 * @return array{items: array<string, array>}
+	 * @return array{items: array<string, array>, delivered: int}
 	 */
 	function &shopSyncMarkState() {
-		static $state = array('items' => array());
+		static $state = array('items' => array(), 'delivered' => 0);
 		return $state;
+	}
+}
+
+if (!function_exists('shopSyncApiConfigured')) {
+	/**
+	 * Whether this tenant has the primary endpoint required by sync_shop_vare().
+	 * Cache the configuration check per tenant for this request, before any queue filesystem work.
+	 *
+	 * @return bool
+	 */
+	function shopSyncApiConfigured() {
+		global $db;
+		static $configured = array();
+		$key = (string)$db;
+		if (!array_key_exists($key, $configured)) {
+			$row = db_fetch_array(db_select("select box4 from grupper where art='API'", __FILE__ . ' line ' . __LINE__));
+			$configured[$key] = $row && trim((string)($row['box4'] ?? '')) !== '';
+		}
+		return $configured[$key];
 	}
 }
 
@@ -2410,6 +2424,9 @@ if (!function_exists('shopSyncMark')) {
 	 * @return void
 	 */
 	function shopSyncMark($vare_id, $variant_id, $lager, $mode = 'stock') {
+		if (!shopSyncApiConfigured()) {
+			return;
+		}
 		$state = &shopSyncMarkState();
 		$key   = (int)$vare_id . ':' . (int)$variant_id . ':' . (int)$lager;
 		// 'all' covers 'stock', so a line that only moved stock must not narrow an item that
@@ -2452,17 +2469,27 @@ if (!function_exists('shopSyncFlush')) {
 	 * The document's own items go first, because those are the figures somebody is waiting to
 	 * see in the shop. The queue is drained afterwards: if the budget runs out in the middle of
 	 * it, everything left is still on the queue and the next request picks it up, which is the
-	 * difference between late and lost.
+	 * difference between late and lost. Inside a transaction, marks remain pending until
+	 * the transaction owner calls the drain after commit.
 	 *
-	 * @param int $drain  Most queued items to attempt afterwards. 0 does not touch the queue.
+	 * @param int $drain  Most old queued items to attempt afterwards. 0 skips the old backlog.
+	 * @param int $maxAttempts Attempts after which failed queue deliveries are reported.
 	 * @return string  'no api', 'OK' or 'sync errors: n', as sync_shop_vare() answers.
 	 */
-	function shopSyncFlush($drain = 50) {
+	function shopSyncFlush($drain = 50, $maxAttempts = 5) {
 		$state = &shopSyncMarkState();
+		$state['delivered'] = 0;
+		// Keep the marks until the transaction owner commits; shops must only see committed stock.
+		if (!empty($GLOBALS['db_transaktion_depth'])) {
+			return shopSyncApiConfigured() ? 'OK' : 'no api';
+		}
 		$marked = $state['items'];
 		$state['items'] = array();
+		if (!shopSyncApiConfigured()) {
+			return 'no api';
+		}
 		// Snapshot the old backlog: this document's newly deferred items wait for another request.
-		$backlog = $drain > 0 ? shopSyncQueuePending($drain) : array();
+		$backlog = $drain > 0 && empty($GLOBALS['db_transaktion_depth']) ? shopSyncQueuePending($drain) : array();
 		$keys = array();
 		foreach ($marked as $item) {
 			$keys[shopSyncQueueKey($item['vare_id'], $item['variant_id'], $item['lager'])] = true;
@@ -2470,12 +2497,14 @@ if (!function_exists('shopSyncFlush')) {
 		$backlog = array_values(array_filter($backlog, function ($entry) use ($keys) {
 			return !isset($keys[shopSyncQueueKey($entry['vare_id'], $entry['variant_id'], $entry['lager'])]);
 		}));
-		$result = shopSyncRunDocument($marked);
+		$result = shopSyncRunDocument($marked, true, 0, $maxAttempts);
+		$state['delivered'] = $result['delivered'];
 		if ($result['noApi']) {
 			return 'no api';
 		}
 		if ($backlog) {
-			shopSyncRunDocument($backlog, false, 5);
+			$retried = shopSyncRunBacklog($backlog, 5, $maxAttempts);
+			$state['delivered'] += $retried['delivered'];
 		}
 		return $result['failed'] ? 'sync errors: ' . $result['failed'] : 'OK';
 	}
@@ -2491,18 +2520,27 @@ if (!function_exists('shopSyncDrainQueue')) {
 	 * that cannot be delivered becomes something a person can act on rather than a retry that
 	 * goes on for ever.
 	 *
-	 * @param int $limit        Most items to attempt in this request.
+	 * @param int $limit        Most old backlog items to attempt after any deferred document.
 	 * @param int $maxAttempts  Attempts after which an item counts as a final failure.
 	 * @return int  Items delivered.
 	 */
 	function shopSyncDrainQueue($limit = 50, $maxAttempts = 5) {
 		static $draining = false;
+		// db_query.php tracks outer transaction ownership; retries must not extend its locks.
+		if (!empty($GLOBALS['db_transaktion_depth']) || !shopSyncApiConfigured()) {
+			return 0;
+		}
 		if ($draining) {
 			return 0;
 		}
 		$draining = true;
 		try {
-			$result = shopSyncRunDocument(shopSyncQueuePending($limit), false, 5, $maxAttempts);
+			if (shopSyncMarkedCount() > 0) {
+				shopSyncFlush($limit, $maxAttempts);
+				$state = &shopSyncMarkState();
+				return $state['delivered'];
+			}
+			$result = shopSyncRunBacklog(shopSyncQueuePending($limit), 5, $maxAttempts);
 			return $result['delivered'];
 		} finally {
 			$draining = false;
