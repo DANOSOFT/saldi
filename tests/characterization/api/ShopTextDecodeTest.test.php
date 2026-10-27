@@ -73,6 +73,8 @@ final class ShopTextDecodeTest extends TestCase
         }
         self::assertStringContainsString('$shopVarenrSql = db_escape_string((string)restApiShopText($shop_varenr));', $line,
             'the item number lookups no longer escape the decoded value');
+        self::assertStringContainsString('$shopVariantInt = (int)$shop_variant;', $line, 'shop_varer.shop_variant (integer) is no longer cast');
+        self::assertStringContainsString('$shopVareIdInt = (int)$shop_vare_id;', $line, 'shop_varer.shop_id (integer) is no longer cast');
         foreach (['shop_varenr', 'shop_vare_id', 'shop_variant', 'stregkode', 'saldi_variant'] as $raw) {
             self::assertStringNotContainsString("'\$$raw'", $line, "insert_shop_orderline() puts \$$raw into SQL unescaped");
         }

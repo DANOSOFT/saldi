@@ -86,7 +86,7 @@
 // 20261027 CL/MMR SST-904 insert_shop_order() decodes the shop's text values (restApiShopText()) before they are escaped, instead of decoding the finished SQL with chk4utf8().
 //                 A name like O&#039;Brien became an unescaped quote in the SQL, and the customer and order were not created.
 //                 insert_shop_orderline() does the same for the item number lookup and the comment line.
-//                 insert_shop_orderline() casts its ids and escapes every shop identifier it puts into SQL (variant, item id, item number, barcode), and includes ordrefunc.php via __DIR__.
+//                 insert_shop_orderline() escapes every shop identifier it puts into SQL (item number, barcode), casts the integer ids (order, item, variant, shop_varer.shop_id/shop_variant), and includes ordrefunc.php via __DIR__.
 
 
 // ----------------------------------------------------------------------
@@ -537,11 +537,13 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$varenr = NULL;
 	$linje_id = $ordresum = 0;
 	$shop_varenr = trim($shop_varenr);
-	// SST-904: the shop's identifiers as SQL values, decoded once and escaped; the raw values stay for the log and the order line
+	// SST-904: the shop's identifiers as SQL values, decoded once and escaped (text columns) or cast (the integer
+	// shop_varer.shop_id/shop_variant); the raw values stay for the log and the order line
 	$shopVarenrSql = db_escape_string((string)restApiShopText($shop_varenr));
 	$shopVareIdSql = db_escape_string((string)restApiShopText($shop_vare_id));
-	$shopVariantSql = db_escape_string((string)restApiShopText($shop_variant));
 	$stregkodeSql = db_escape_string((string)restApiShopText($stregkode));
+	$shopVareIdInt = (int)$shop_vare_id;
+	$shopVariantInt = (int)$shop_variant;
 
 	list($master,$db_skriv_id)=explode('_',$db);
 	$lager*=1;
@@ -573,7 +575,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	}
 	fwrite($log,__line__." $ordre_id status $r[status]\n");
 	if ($shop_variant) {
-		$qtxt="select saldi_id, saldi_variant from shop_varer where shop_variant = '$shopVariantSql'"; #20220615
+		$qtxt="select saldi_id, saldi_variant from shop_varer where shop_variant = '$shopVariantInt'"; #20220615
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['saldi_id'];
@@ -584,7 +586,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['id'];
 	} elseif ($shop_vare_id) {
-		$qtxt="select saldi_id from shop_varer where shop_id='$shopVareIdSql'";
+		$qtxt="select saldi_id from shop_varer where shop_id='$shopVareIdInt'";
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['saldi_id'];
@@ -689,7 +691,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		if ($vare_id && $shop_vare_id) {
 			if (!$saldi_variant) $saldi_variant=0; 	
 			if (!$shop_variant) $shop_variant=0; #20190104
-			$qtxt="insert into shop_varer(saldi_id,shop_id,saldi_variant,shop_variant)values('" . (int)$vare_id . "','$shopVareIdSql','" . (int)$saldi_variant . "','" . db_escape_string((string)restApiShopText($shop_variant)) . "')";
+			$qtxt="insert into shop_varer(saldi_id,shop_id,saldi_variant,shop_variant)values('" . (int)$vare_id . "','$shopVareIdInt','" . (int)$saldi_variant . "','$shopVariantInt')";
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 		}
