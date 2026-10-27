@@ -72,7 +72,11 @@
 // 20260911 Sawaneh insert_shop_order dispatch: blank the literal "dummyvalue" Shoptech
 //                     sends for empty address fields via strip_placeholder_value(); if_isset
 //                     calls in that block converted to ifset (JOB-115)
+// 20260917 CDX/PHR Restore fixed WooCommerce item lookups with escaped values and legacy response rows.
+// 20260917 CDX/PHR Log rejected query fields so external integrations can be diagnosed without API credentials.
+// 20260922 CDX/PHR Restore legacy read-table access with parsed queries and migrate fetch inputs to ifset.
 // 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
+// 20261026 CL/LH Ported the 20260917/20260922 fetch_from_table() production hotfix from live into master.
 
 
 // ----------------------------------------------------------------------
@@ -89,45 +93,61 @@ $brugernavn=NULL;
 $db_skriv_id=NULL;
 $webservice='on';
 
-// SD-589: fetch_from_table(), update_table() and insert_into_table() used to
-// take $select/$from/$where/$set/$fields/$values straight from $_GET and
-// interpolate them into SQL, guarded only by a ';' check and a table-name
-// allowlist that never touched $select/$where/$set — a single-statement
-// UNION/subquery (no ';' needed) was a general read/write SQL primitive over
-// the tenant DB for anyone past access_check(). Caller enumeration (only
-// api/rest_api_client.php, a 2017 reference client) found exactly one real,
-// working use: exporting varenr+beholdning from 'varer' for stock sync via
-// action=fetch_from_table. Its update_table call passes the misspelled
-// action 'update_tablee' and can never have worked; its insert_into_table
-// wrapper is an unwired manual query tool. Order creation already goes
-// through the separate, already-parameterized insert_shop_order/
-// insert_shop_orderline functions. update_table()/insert_into_table() are
-// therefore removed outright rather than replaced, and fetch_from_table() is
-// narrowed to the single known-good shape actually used: no table/column/
-// where-clause pass-through, no arbitrary SQL of any kind.
+// SD-589 removed update_table()/insert_into_table() and the raw select/from/where
+// pass-through. Integrations still read through fetch_from_table() (stock export,
+// WooCommerce item lookups, legacy table reads), so requests are parsed and compiled
+// against the table allowlist in rest_api_fetch.php; request text never reaches SQL as is.
+require_once __DIR__ . '/rest_api_fetch.php';
+
 function fetch_from_table($select, $from, $where, $order_by, $limit) {
 	global $db;
-	if(!isset($where)) $where = '';
-
-	$log=fopen("../temp/$db/rest_api.log","a");
-
-	if ($from !== 'varer' || !in_array(str_replace(' ','',$select), array('varenr,beholdning'), true)) {
-		fwrite($log,__line__." rejected: unsupported select/from ($select / $from)\n");
+	$request = restApiFetchRequest($select, $from, $where ?? '');
+	$readSql = $request === null
+		? restApiFetchSql($select, $from, $where ?? '', $order_by ?? '', $limit ?? '', $_SERVER['REMOTE_ADDR'] ?? '')
+		: null;
+	$log = fopen("../temp/$db/rest_api.log", 'a');
+	if ($request === null && $readSql === null) {
+		// JSON keeps each request on one log line; authentication parameters are excluded.
+		$rejectedQuery = json_encode(['select' => $select, 'from' => $from, 'where' => $where],
+			JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+		fwrite($log, __LINE__ . " rejected: unsupported query shape " . $rejectedQuery . "\n");
 		fclose($log);
 		return 'unsupported query shape';
 	}
-	if ('' !== $where) {
-		fwrite($log,__line__." rejected: where clause no longer supported ($where)\n");
-		fclose($log);
-		return 'unsupported query shape';
+	if ($readSql !== null) {
+		$qtxt = $readSql;
+	} elseif ($request['kind'] === 'stock') {
+		$qtxt = 'select varenr, beholdning from varer order by varenr';
+	} elseif ($request['kind'] === 'item') {
+		$sku = db_escape_string($request['sku']);
+		$qtxt = "select id from varer where varenr='$sku' order by id limit 1";
+	} else {
+		$shopId = db_escape_string($request['shop_id']);
+		$variantId = db_escape_string($request['shop_variant']);
+		$qtxt = "select id from shop_varer where shop_id='$shopId' and shop_variant='$variantId' order by id limit 1";
 	}
-
-	$qtxt="select varenr, beholdning from varer order by varenr";
-	fwrite($log,__line__." Query: $qtxt\n");
-	$result = array();
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$result[] = array('varenr' => $r['varenr'], 'beholdning' => $r['beholdning']);
+	fwrite($log, __LINE__ . " Query: $qtxt\n");
+	$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+	if ($readSql !== null) {
+		// Keep ssl3's metadata row, numeric/named row keys and trailing false sentinel.
+		$result = [[]];
+		for ($column = 0; $column < db_num_fields($q); $column++) {
+			$result[0][] = db_field_name($q, $column) . '(' . db_field_type($q, $column) . ')';
+		}
+		while ($row = db_fetch_array($q)) {
+			$result[] = $row;
+		}
+		$result[] = false;
+		fclose($log);
+		return $result;
+	}
+	$result = $request['kind'] === 'stock' ? [] : [['id(' . db_field_type($q, 0) . ')']];
+	while ($r = db_fetch_array($q)) {
+		if ($request['kind'] === 'stock') {
+			$result[] = ['varenr' => $r['varenr'], 'beholdning' => $r['beholdning']];
+		} else {
+			$result[] = [0 => $r['id'], 'id' => $r['id']];
+		}
 	}
 	fclose($log);
 	return $result;
@@ -1101,13 +1121,18 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 		fwrite($log,__line__." Action:".$_GET['action']."\n");
 		if ($action=='fetch_from_table') {
 			fclose ($log);
-			// SD-589: select/from/where are no longer passed through to SQL —
-			// fetch_from_table() itself now only accepts the one known-good
-			// shape (varenr,beholdning from varer, no where clause).
-			$select = if_isset($_GET, false, ['select']);
-			$from   = if_isset($_GET, false, ['from']);
-			$where  = if_isset($_GET, '', ['where']);
-			if ($select && $from) $value = fetch_from_table($select,$from,$where,'','');
+			// Read-only legacy queries are compiled before execution.
+			$select = ifset($_GET, 'select', '');
+			$from = ifset($_GET, 'from', '');
+			$where = ifset($_GET, 'where', '');
+			if (is_string($where)) {
+				$where = str_replace('**', '%', $where);
+			}
+			$orderBy = ifset($_GET, 'order_by', '');
+			$limit = ifset($_GET, 'limit', '');
+			if ($select && $from) {
+				$value = fetch_from_table($select, $from, $where, $orderBy, $limit);
+			}
 ##############################################
 		} elseif ($action=='get_sold_labels') {
 			fclose ($log);
