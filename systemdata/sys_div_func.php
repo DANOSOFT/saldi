@@ -132,6 +132,7 @@
 //                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
 // 20261027 CL/MMR SD-780 The SMTP password on Kontoindstillinger is a password field (was clear text) with a "Vis" box to show it.
 //                 The value is still posted unchanged, so Skift works without retyping it.
+//                 The two includes in kontoindstillinger() use __DIR__ now (include-path convention for an edited block).
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -157,7 +158,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	$disabled  = "";
 	@session_start();
 	$s_id = session_id();
-	include("../includes/connect.php");
+	include(__DIR__ . '/../includes/connect.php');
 		$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
 		$result = db_select($query, __FILE__ . " linje " . __LINE__);
 	
@@ -167,7 +168,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 				$max_users = (int)$row['brugerantal'];
 			}
 		}
-	include("../includes/online.php");
+	include(__DIR__ . '/../includes/online.php');
 	if($masterDb == "gratis" || $masterDb == "mini") {
 		$disabled = "disabled";
 	}
