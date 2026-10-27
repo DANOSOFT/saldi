@@ -26,6 +26,8 @@
 // 20190508 LN Move pos_txt_print function to this seperate file
 // 20210226 PHR Added $reportNumber
 // 20250926 PHR Updated call to function getVatArray
+// 20261023 CL/LH MB-95 pos_txt_print() no longer writes ordrer.afd, so a reprint on another terminal does not move a booked sale's
+//                department. Same hunk as SD-758 on hml/shopify; on master the open sale gets its afd from vis_pos_linjer().
 
 include("pos_ordre_includes/posTxtPrint/posTxtFunctions.php"); #20190506
 function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$type = "standard") {

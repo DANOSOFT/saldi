@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/kreditorFromCvr.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/kreditorFromCvr.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,8 @@
 // 20261020 CL/SZ SD-721 (CodeRabbit) kreditorCvrFindByCvr() compares every kreditor's CVR number after normalising (kreditorCvrPickByCvr()); the LIKE on the last
 //                four digits missed a stored "DK 12 34 56 78" or "NL805494595B01", and "Opret kreditor" made a second kreditor with the number.
 // 20261020 CL/SZ SD-721 (CodeRabbit) kreditorCvrNameCount(): betalinger.php confirms bank details by name only when one kreditor has the name.
+// 20261023 CL/SZ MB-92 kreditorCvrReferenced() also counts linked items (vare_lev) and contact persons (ansatte), as the kreditor card does.
+//                "Fortryd" no longer deletes a kreditor and leaves those rows pointing at an id that doesn't exist.
 
 require_once __DIR__ . '/cvrLookup.php';
 require_once __DIR__ . '/kreditorCreate.php';
@@ -341,7 +343,8 @@ if (!function_exists('kreditorCvrLinkPoolFile')) {
 
 if (!function_exists('kreditorCvrReferenced')) {
 	/**
-	 * Whether a saved journal line, a posted entry or an order refers to the kreditor.
+	 * Whether a saved journal line, a posted entry, an order, a linked item (vare_lev) or a contact person (ansatte) refers to the kreditor.
+	 * The last two are the kreditor card's own reasons to refuse a delete (kreditor/kreditorkort.php).
 	 *
 	 * @param int $id adresser.id
 	 * @param string $kontonr
@@ -353,6 +356,8 @@ if (!function_exists('kreditorCvrReferenced')) {
 			"select id from kassekladde where (d_type = 'K' and debet = '$nr') or (k_type = 'K' and kredit = '$nr') limit 1",
 			"select id from openpost where konto_id = " . (int)$id . " limit 1",
 			"select id from ordrer where konto_id = " . (int)$id . " limit 1",
+			"select vare_id from vare_lev where lev_id = " . (int)$id . " limit 1",
+			"select id from ansatte where konto_id = " . (int)$id . " limit 1",
 		);
 		foreach ($checks as $qtxt) {
 			if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) return true;
