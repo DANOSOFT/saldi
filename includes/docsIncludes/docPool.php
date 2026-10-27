@@ -165,6 +165,8 @@
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
 // 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
+// 20261005 CL/SZ SD-727 The folder sync hashes a batch of rows that have no content hash (poolContentHashBackfill()).
+// 20261005 CL/SZ SD-727 An upload whose document is in the pool already says so (5407 "Findes allerede i puljen") and opens that one, instead of "uploadet" for a copy the next load drops.
 // 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
 // 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
 // 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
@@ -187,9 +189,21 @@
 //                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
 // 20261004 CL/SZ SD-725 A VAT code field per side of each row (dvat/kvat + row number, as in the journal), so the lookup panel fills it when an account is chosen.
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
+// 20261004 CL/SZ SD-726 The user's "Ctrl + pil op/ned" from the journal's gear box comes in window.saldiShortcuts.
+//                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
+// 20261004 CL/SZ SD-727 The periodic folder sync (every 10 minutes) deletes documents archived 12 months ago (poolArchivePurge()).
+//                The archive shows the date each document will be deleted.
+// 20261004 CL/SZ SD-727 A copy of an archived document arriving in the pool folder restores the archived one (the copy is still dropped, MB-42).
+//                poolFolderSync() reports that as a change, so the open pool fetches its list again.
+// 20261004 CL/SZ Pool account check: a save refused for an account that doesn't exist marks Debet / Kredit with what is wrong (poolMarkFields(), docPoolSaveNext.js).
+//                A refused attach shows the server's message (<pool-account-problem>) instead of the general error, and nothing is attached.
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
+// 20261014 MJ SST-868 The insert response is read for the redirect insertDoc.php actually writes -
+//                  a window.location.replace(...) call, not an assignment - so leaving the pool after
+//                  an attach is no longer indistinguishable from reloading it after a silent failure.
+//                  A non-2xx answer carrying a message shows that message instead of the generic one.
 // 20261015 CL/SZ SD-719 (CodeRabbit) poolParams goes into the list script as a JSON string, so a poolFile with ' or </script> can't break out of it.
 // 20261015 CL/SZ SD-719 (CodeRabbit) poolSetLineContext() reloads as many rows as were loaded (200 per request) and keeps the scroll position, and returns its promise
 //                so the in-place switch shows the open document after the reload, not before it. It holds poolLoading meanwhile, so a scroll to the end
@@ -205,6 +219,8 @@
 //                box; attaching the document to it made a second line. "Gem" and "Gem alle" refuse a dot that is not a thousands separator
 //                ("12.50" was saved as 1250) and a space inside the amount.
 // 20261022 CL/SZ SD-725 (CodeRabbit) The VAT field gets the other side's saved code too, so a blank chosen next to it stays blank (poolVatShown()).
+// 20261022 CL/SZ MB-91 The list's "Indsæt" refuses the attach while a "Fordeling" row isn't saved (5451), with the cursor in that row; nothing is saved or attached.
+//                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -216,6 +232,7 @@ include_once(__DIR__ . "/../kreditorFromCvr.php");
 include_once(__DIR__ . "/poolCapture.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
+include_once(__DIR__ . "/../../finans/kassekladde_includes/shortcutProfile.php");
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -697,6 +714,9 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 					// copy is dropped. When the row's file is gone, the row is an orphan the cleanup above
 					// removes (or one too recent for it to touch) and this file is the last copy of the
 					// bilag - so it falls through and gets a row of its own instead of being removed.
+					// SD-727: an archived bilag that arrives again is needed after all (e.g. a reminder), so it comes back to the list
+					require_once __DIR__ . '/poolArchive.php';
+					poolArchiveRestoreOnArrival($syncDuplicate['filename'], $file, 'folder');
 					@unlink($fullPath);
 					docPoolLog("syncPuljeFilesToDatabase: $file has the same content as " . $syncDuplicate['filename'] . ", file removed and no row inserted");
 					continue;
@@ -749,6 +769,11 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
+	// Rows an upload's extraction created have no content hash; a batch of them gets it here (MB-42, SD-727)
+	poolContentHashBackfill($puljePath);
+	// SD-727: documents archived 12 months ago are deleted here, with file and row, and written to audit_log and the pool log
+	require_once __DIR__ . '/poolArchive.php';
+	poolArchivePurge($puljePath, $db);
 	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
 	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 }
@@ -867,6 +892,9 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 				__FILE__ . " line " . __LINE__
 			));
 			if ($duplicateRow && is_file("$puljePath/" . $duplicateRow['filename'])) {
+				// SD-727: an archived bilag that arrives again comes back to the list
+				require_once __DIR__ . '/poolArchive.php';
+				poolArchiveRestoreOnArrival($duplicateRow['filename'], $file, 'folder');
 				@unlink("$puljePath/$file");
 				docPoolLog("checkIfAllPoolFilesAreInDatabase: $file has the same content as " . $duplicateRow['filename'] . ", file removed and no row inserted");
 				continue;
@@ -891,11 +919,13 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
  */
 function poolFolderSync($docFolder, $db) {
 	$before = poolFilesSignature();
+	$restoredBefore = $GLOBALS['poolArchiveRestoredOnArrival'] ?? 0;
 	// No table yet: the full sync creates it, so it runs now instead of waiting for the 10-minute window to end
 	if ($before === '') update_settings_value("skip_sync", "docs", 0, "Skip pool sync after initial run");
 	checkIfAllPoolFilesAreInDatabase();
 	syncPuljeFilesToDatabase($docFolder, $db);
-	return poolFilesSignature() !== $before;
+	// SD-727: a document restored because it arrived again changes neither the row count nor the highest id
+	return poolFilesSignature() !== $before || ($GLOBALS['poolArchiveRestoredOnArrival'] ?? 0) !== $restoredBefore;
 }
 
 /**
@@ -2316,6 +2346,7 @@ if ($source == 'kassekladde') {
 			'stale'     => findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id),
 		),
 	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
+	window.saldiShortcuts = " . json_encode(kkShortcutUserProfile($bruger_id)) . ";
 	" . ($readOnly ? '' : "window.saldiInvoiceReuse = " . json_encode(array(
 		'url'      => '../finans/kassekladde_includes/invoiceReuseCheck.php',
 		'kladdeId' => $escKladde,
@@ -2540,6 +2571,7 @@ print "<script>window.saldiPoolArchive = " . json_encode(array(
 		'archive'      => findtekst('5337|Arkivér', $sprog_id),
 		'restore'      => findtekst('5339|Gendan', $sprog_id),
 		'archived'     => findtekst('5343|Arkiveret', $sprog_id),
+		'deletes'      => findtekst('5398|Slettes', $sprog_id),
 		'noneSelected' => findtekst('5345|Ingen bilag valgt.', $sprog_id),
 		'emptyArchive' => findtekst('5344|Ingen arkiverede bilag', $sprog_id),
 	),
@@ -2677,6 +2709,8 @@ $txt71  = $txt31.". ".$txt32.".";                                               
 $txt72  = $txt1 ." ".lcfirst($txt15);                                                           #Gem alle
 $txt73  = $txt15." ".lcfirst($txt50)."!";                                                       #Alle gemt!
 $txt74  = $txt16." ".lcfirst($txt14);                                                           #Duplikér linje
+$txt75  = findtekst('5451|Rækkerne i fordelingen er ikke gemt. Gem dem først med', $sprog_id)." \"".$txt72."\".";
+$txt75Js = json_encode($txt75, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 $poolSuggestedText = findtekst('5255|Forslag', $sprog_id);
 $poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
 $txtPoolOf   = findtekst('5346|af', $sprog_id);        // SD-719: "50 af 497"
@@ -3551,6 +3585,8 @@ print <<<JS
 			const metadataState = row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}';
 			subjectCell += "<br><small>" + escapeHTML(metadataState) + "</small>";
 			if (row.archived && window.poolArchive) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.archivedNote(row)) + "</small>";
+			// SD-727: the day it will be deleted, on its own line so the cell doesn't cut it off
+			if (row.archived && window.poolArchive && window.poolArchive.deleteNote(row)) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.deleteNote(row)) + "</small>";
 			const dataAttrs = "data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + 
 				(isMatch ? "data-selected='true' " : "") + 
 				(isPerfectMatch ? "data-perfect-match='true' " : "") +
@@ -3879,6 +3915,7 @@ print <<<JS
 			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
 			html += '<span>' + escapeHTML(row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}') + '</span>';
 			if (row.archived && window.poolArchive) html += '<span>' + escapeHTML(window.poolArchive.archivedNote(row)) + '</span>';
+			if (row.archived && window.poolArchive && window.poolArchive.deleteNote(row)) html += '<span>' + escapeHTML(window.poolArchive.deleteNote(row)) + '</span>';
 			if (account) html += '<span><strong>{$txt6}:</strong> ' + escapeHTML(account) + '</span>';
 			if (amount) {
 				let amountHtml = '<span><strong>{$txt10}:</strong> ';
@@ -4099,7 +4136,20 @@ print <<<JS
 			alert('{$txt33}');
 			return;
 		}
-		
+
+		// The list's "Indsæt" saves no rows first, so a "Fordeling" row that isn't saved yet was left out without a word (MB-91).
+		// "Gem og næste" (afterAttach) has saved every row before it gets here.
+		if (typeof afterAttach !== 'function') {
+			const unsavedSplit = Array.from(document.querySelectorAll('.kassebilag-entry[data-split="1"]')).find(entry => !entry.dataset.savedLineId);
+			if (unsavedSplit) {
+				alert({$txt75Js});
+				const rowId = unsavedSplit.id.replace('bilagEntry_', '');
+				const field = document.getElementById('row_' + rowId + '_Debet') || unsavedSplit.querySelector('input[type="text"]');
+				if (field) field.focus();
+				return;
+			}
+		}
+
 		// Debug: log selected files
 		console.log('Selected files to insert:', selectedFiles);
 		
@@ -4297,6 +4347,13 @@ print <<<JS
 
 			if (response.ok || (response.status >= 200 && response.status < 300)) {
 				return response.text().then(text => {
+					// Refused for an account the journal would refuse, also when the status couldn't be set: the message, and the user stays
+					const accountProblem = poolAccountProblemText(text);
+					if (accountProblem) {
+						alert(accountProblem);
+						if (typeof afterAttach === 'function') afterAttach(new Error(accountProblem));
+						return;
+					}
 					// Clear sessionStorage for inserted files
 					selectedFiles.forEach(file => {
 						sessionStorage.removeItem('docPool_checked_' + file);
@@ -4317,9 +4374,12 @@ print <<<JS
 					// Leaving the pool for the kassekladde: keep the list position for the way back.
 					savePoolListView();
 
-					const redirectMatch = text.match(/window\.location\.(replace|href)\s*=\s*['"]([^'"]+)['"]/);
+					// SST-868: insertDoc.php writes a call - window.location.replace('url') - not an
+					// assignment. Matching only the assignment form meant this never fired, so the
+					// pool simply reloaded and a failed attach looked exactly like a successful one.
+					const redirectMatch = text.match(/window\.location\.(?:replace|href)\s*(?:=\s*|\(\s*)['"]([^'"]+)['"]/);
 					if (redirectMatch) {
-						window.location.replace(redirectMatch[2]);
+						window.location.replace(redirectMatch[1]);
 					} else {
 						const kladdeId = url.searchParams.get('kladde_id') || '';
 						const fokus = url.searchParams.get('fokus') || '';
@@ -4337,7 +4397,16 @@ print <<<JS
 			} else {
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
-					alert(response.status === 409 ? '{$poolStaleText}' : '{$txt34} (Status: ' + response.status + '). {$txt32}.');
+					// SST-868: insertDoc.php answers a failed attach with
+					// {"success":false,"message":"..."} so the reason reaches the user. Anything
+					// else keeps the generic text.
+					let insertError = '';
+					try {
+						const payload = JSON.parse(text);
+						if (payload && payload.message) insertError = payload.message;
+					} catch (e) {}
+					if (insertError) alert(insertError);
+					else alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text) || '{$txt34} (Status: ' + response.status + '). {$txt32}.'));
 					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');
@@ -4352,6 +4421,13 @@ print <<<JS
 		});
 	};
 	
+	// The message insertDoc.php marks when it refuses an account (<pool-account-problem>"…"</pool-account-problem>), or ''
+	function poolAccountProblemText(text) {
+		const match = /<pool-account-problem>([\s\S]*?)<\/pool-account-problem>/.exec(text || '');
+		if (!match) return '';
+		try { return JSON.parse(match[1]); } catch (e) { return ''; }
+	}
+
 	// Save checkbox state to sessionStorage
 	window.saveCheckboxState = function() {
 		const checkboxes = document.querySelectorAll('.file-checkbox');
@@ -6332,6 +6408,8 @@ HTML;
                     var savedBox = savedEntry.querySelector(".targetLineCheckbox");
                     if (savedBox) savedBox.value = data.sourceId;
                 }
+                // An account the journal would refuse: the field is marked, as a missing one is
+                if (data && !data.success && Array.isArray(data.fields) && typeof window.poolMarkFields === 'function') window.poolMarkFields(rowId, data.fields);
                 return data;
             });
     }
