@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-10-01 ---
+// --- api/rest_api.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -73,6 +73,7 @@
 //                     sends for empty address fields via strip_placeholder_value(); if_isset
 //                     calls in that block converted to ifset (JOB-115)
 // 20261001 CDX/PHR Route pos_50 shop orders and order lines to warehouse 4 after warehouse 10 closes.
+// 20261027 CL/SZ insert_shop_order: initialise $ktonr so a tenant with no debtors gets account 1000 instead of a PHP 8 TypeError (MB-115).
 
 
 // ----------------------------------------------------------------------
@@ -301,6 +302,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 					fwrite($log,__line__." kontonr $kontonr\n");
 				} elseif (!$kontonr) { 
 					$x=0;
+					$ktonr=array();
 					$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
 					fwrite($log,__line__." $qtxt\n");
 					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
