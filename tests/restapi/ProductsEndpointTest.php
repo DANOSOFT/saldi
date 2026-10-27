@@ -11,28 +11,13 @@
 // 20260904 CL/NTR created.
 // 20261008 CL/LH paging (limit cap 200, offset, page) and the documented English orderBy/field names.
 // 20261008 CL/LH a field/value filter accepts 0, pages like the full list, and ignores non-numeric values on numeric fields.
+// 20261022 CL/NTR Tenant setup/teardown inherited from RestApiTestCase instead of overridden.
 
-use PHPUnit\Framework\TestCase;
+require_once __DIR__ . '/support/RestApiTestCase.php';
 
-require_once __DIR__ . '/support/RestApiEnv.php';
-
-final class ProductsEndpointTest extends TestCase
+final class ProductsEndpointTest extends RestApiTestCase
 {
     private const PRODUCTS = '/restapi/endpoints/v1/products/';
-
-    public static function setUpBeforeClass(): void
-    {
-        $reason = RestApiEnv::unavailableReason();
-        if ($reason !== null) {
-            self::markTestSkipped($reason);
-        }
-        RestApiEnv::bootstrapTenant();
-    }
-
-    public static function tearDownAfterClass(): void
-    {
-        RestApiEnv::teardownTenant();
-    }
 
     private function sku(string $tag): string
     {

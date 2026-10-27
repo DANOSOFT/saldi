@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-16 ---
+//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -153,6 +153,7 @@
 //                 sends, and a set the lines share was sent once per line: item 13054 is a
 //                 component in 33 sets, so one order line was 198 webshop calls and the 30
 //                 second budget skipped everything after it.
+// 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -498,7 +499,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	# reached leaves the item on the queue for the next request, and the item numbers are kept
 	# for whichever page called this one to report after it has committed - this function has
 	# no screen of its own, and the rest api has none at all.
-	$shopSync = shopSyncFlush(); # std_func.
+	$shopSync = shopSyncFlush(0); # Document only; the transaction owner drains after commit.
 	if (shopSyncFailed($shopSync)) {
 		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
 	}
@@ -1759,6 +1760,9 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		$svar = $fejl;
 	}
 	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
+	if (!$callerOwnsTransaction && $svar === 'OK' && !$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor

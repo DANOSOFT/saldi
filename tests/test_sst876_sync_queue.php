@@ -6,6 +6,7 @@
 // before includes/stdFunc/shopApiRequest.php is read: every function in that file is wrapped
 // in if (!function_exists(...)), so a stub defined first wins and the real sender runs against
 // it unchanged. Nothing here touches the network or a database.
+// 20261027 CDX/MJ SST-876 Verify an old marker becomes a fresh active claim and is not recovered by a second request.
 
 // ---------------------------------------------------------------- the stubbed transport
 $GLOBALS['sent']    = array();   // every batch of urls the sender handed to the transport
@@ -216,11 +217,17 @@ check(count(shopSyncQueuePending(1)) === 1, 'The pending list honours its limit'
 // while it runs queues itself afresh instead of being swept up when the delivery ends.
 $oldest = $pending[0];
 $live   = $oldest['path'];
+touch($live, time() - 1200);
+clearstatcache(true, $live);
 $claim  = shopSyncQueueClaim($oldest);
 check(is_array($claim), 'An entry can be claimed for the length of a delivery');
 check(!is_file($live), 'The marker is out of the way while the delivery runs');
 check(is_file($claim['claim']), 'The claim is on disk, so a dead request leaves a trace');
 check(shopSyncQueueClaim($oldest) === null, 'Two requests cannot hold the same entry at once');
+clearstatcache(true, $claim['claim']);
+check(filemtime($claim['claim']) >= time() - 5, 'Claim age starts at delivery, not when an old marker was queued');
+shopSyncQueuePending(0);
+check(is_file($claim['claim']) && !is_file($live), 'A second request does not recover a freshly claimed old marker');
 
 $final = shopSyncQueueRelease($claim, 3);
 check($final === false, 'One failed attempt is not final');

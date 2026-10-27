@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -119,6 +119,9 @@
 //                  numbers to whichever page has a user to tell after it has committed.
 // 20261023 CDX/MJ SST-876 Batch document lines before sets, bound backlog work, and report only the document items.
 // 20261026 CDX/MJ SST-876 Share parent-set payload construction with queue recovery, including non-stock-managed sets.
+// 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
+//                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
+// 20261027 CDX/MJ SST-876 Skip queue filesystem work without a webshop and defer backlog processing until transactions have committed.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -898,7 +901,11 @@ if (!function_exists('reducer')) {
 
 if (!function_exists('active_fiscal_years')) {
 	/**
-	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 not 'on'), newest first.
+	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 NULL or ''), newest first.
+	 *
+	 * box10 is the deleted marker: 'on' for years deleted before 2025-07-01 or auto-marked by
+	 * systemdata/regnskabsaar.php, a date('U') timestamp for years deleted by
+	 * systemdata/fiscalYearInc/deleteFiscalYear.php. Only an empty box10 is a live year, as in regnskabsaar.php.
 	 *
 	 * @return array<int, array{
 	 *   kodenr: string,       Fiscal year number as fetched (grupper.kodenr).
@@ -906,7 +913,7 @@ if (!function_exists('active_fiscal_years')) {
 	 * }>
 	 */
 	function active_fiscal_years() {
-		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
+		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 = '') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		$years = array();
 		while ($r = db_fetch_array($q)) {
@@ -2386,6 +2393,25 @@ if (!function_exists('shopSyncMarkState')) {
 	}
 }
 
+if (!function_exists('shopSyncApiConfigured')) {
+	/**
+	 * Whether this tenant has the primary endpoint required by sync_shop_vare().
+	 * Cache the configuration check per tenant for this request, before any queue filesystem work.
+	 *
+	 * @return bool
+	 */
+	function shopSyncApiConfigured() {
+		global $db;
+		static $configured = array();
+		$key = (string)$db;
+		if (!array_key_exists($key, $configured)) {
+			$row = db_fetch_array(db_select("select box4 from grupper where art='API'", __FILE__ . ' line ' . __LINE__));
+			$configured[$key] = $row && trim((string)($row['box4'] ?? '')) !== '';
+		}
+		return $configured[$key];
+	}
+}
+
 if (!function_exists('shopSyncMark')) {
 	/**
 	 * Notes that an item's figures have changed, without sending anything yet.
@@ -2397,6 +2423,9 @@ if (!function_exists('shopSyncMark')) {
 	 * @return void
 	 */
 	function shopSyncMark($vare_id, $variant_id, $lager, $mode = 'stock') {
+		if (!shopSyncApiConfigured()) {
+			return;
+		}
 		$state = &shopSyncMarkState();
 		$key   = (int)$vare_id . ':' . (int)$variant_id . ':' . (int)$lager;
 		// 'all' covers 'stock', so a line that only moved stock must not narrow an item that
@@ -2441,15 +2470,18 @@ if (!function_exists('shopSyncFlush')) {
 	 * it, everything left is still on the queue and the next request picks it up, which is the
 	 * difference between late and lost.
 	 *
-	 * @param int $drain  Most queued items to attempt afterwards. 0 does not touch the queue.
+	 * @param int $drain  Most old queued items to attempt afterwards. 0 skips the old backlog.
 	 * @return string  'no api', 'OK' or 'sync errors: n', as sync_shop_vare() answers.
 	 */
 	function shopSyncFlush($drain = 50) {
 		$state = &shopSyncMarkState();
 		$marked = $state['items'];
 		$state['items'] = array();
+		if (!shopSyncApiConfigured()) {
+			return 'no api';
+		}
 		// Snapshot the old backlog: this document's newly deferred items wait for another request.
-		$backlog = $drain > 0 ? shopSyncQueuePending($drain) : array();
+		$backlog = $drain > 0 && empty($GLOBALS['db_transaktion_depth']) ? shopSyncQueuePending($drain) : array();
 		$keys = array();
 		foreach ($marked as $item) {
 			$keys[shopSyncQueueKey($item['vare_id'], $item['variant_id'], $item['lager'])] = true;
@@ -2484,6 +2516,10 @@ if (!function_exists('shopSyncDrainQueue')) {
 	 */
 	function shopSyncDrainQueue($limit = 50, $maxAttempts = 5) {
 		static $draining = false;
+		// db_query.php tracks outer transaction ownership; retries must not extend its locks.
+		if (!empty($GLOBALS['db_transaktion_depth']) || !shopSyncApiConfigured()) {
+			return 0;
+		}
 		if ($draining) {
 			return 0;
 		}

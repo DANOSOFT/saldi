@@ -56,6 +56,8 @@ pending an automatic retry on the next stock update. The unrelated empty
 Run these scripts separately (they share fixture directory names):
 
 ```bash
+php tests/test_sst876_configuration.php
+php tests/test_sst876_delivery_transaction.php
 php tests/test_sst876_flush.php
 php tests/test_sst876_sync_queue.php
 php tests/test_sst876_item_fanout.php
@@ -64,6 +66,10 @@ php tests/test_sst876_set_recovery.php
 SALDI_SHOP_SET_RECOVERY_HTTP=1 php tests/test_sst876_set_recovery.php
 php tests/test_shop_stock_sync.php
 ```
+
+The configuration regression verifies that tenants without a webshop perform no queue
+filesystem work, and that old backlog waits until the stock transaction commits.
+The queue regression also checks that claiming an old marker starts a fresh lease.
 
 The HTTP test needs PHP cURL, Python 3, and permission to bind/connect to loopback.
 It starts a concurrent mock returning a number after 0.25 seconds. Database calls
