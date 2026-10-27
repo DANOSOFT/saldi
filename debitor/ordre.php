@@ -161,8 +161,8 @@
 // 20261019 CL/LH MB-74: Reloading (resending) the POST that saved a new order line, or a double-click on Gem, no longer inserts the line again.
 //                The order form carries a per-render order_form_token, and the fingerprint of a POST whose new line was committed is kept in the session per order (orderIncludes/orderLineReplay.php).
 //                An identical POST for the same order skips only the new-line insert; failed saves are not remembered.
-// 20261027 CL/MMR SST-902 The order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
-//                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 here, while the invoice posts 69,82 and 349,12.
+// 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
+//                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
 
 @session_start();
 $s_id = session_id();
@@ -6294,7 +6294,8 @@ function ordreside($id, $regnskab)
 			print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">\n";
 
 			// SST-902: from the unrounded net and rounded to øre, like momsupdat() in includes/ordrefunc.php does when the order is invoiced.
-			// The rounded $sum made e.g. 2 x 139,648 show moms 69,83 and 349,13 here, while the invoice is 69,82 and 349,12.
+			// This line runs after a save (the global $momssats that ordrelinjer() compares with is only set by the POST handling);
+			// with the rounded $sum, 2 x 139,648 showed and stored moms 69,825 (69,83 / 349,13) while the invoice is 69,82 / 349,12.
 			if (!$blandet_moms && !$incl_moms) $moms = afrund($sumBeforeRounding * $momssats / 100, 2); #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 			$moms = afrund($moms * 1, 3);
 
