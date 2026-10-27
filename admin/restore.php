@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/restore.php --- lap 5.0.0 --- 2026-10-15 ---
+// --- admin/restore.php --- lap 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 // 20260129 PHR Added some str_replace  and a call to connect.php before lookup in 'regnskab'
 // 20260702 CX/PHR Close target PostgreSQL connection and terminate active sessions before DROP DATABASE in restore
 // 20261015 CDX/PHR Copy the restored tenant version to the master database before the next login.
+// 20261027 CL/NTR Catch restore failures at both call sites and show them to the admin instead of a blank page.
 
 @session_start();
 $s_id=session_id();
@@ -213,7 +214,11 @@ if ($menu=='T') {
 			$backup_encode=if_isset($_POST, NULL, 'backup_encode');
 			$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
 			$filnavn=if_isset($_POST, NULL,'filnavn');
-			restore($filnavn,$backup_encode,$backup_dbtype);
+			try {
+				restore($filnavn,$backup_encode,$backup_dbtype);
+			} catch (RuntimeException $e) {
+				printRestoreFailure($e);
+			}
 		} else {
 		
 			if (!if_isset($_POST,NULL,'mysql_db') ) {
@@ -288,7 +293,11 @@ if ($menu=='T') {
 					}elseif(stripos(trim($result), 'PostgreSQL') !== false){
 						$backup_encode=if_isset($_POST, NULL, 'backup_encode');
 						$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
-						restore($backupfil,$backup_encode,$backup_dbtype);
+						try {
+							restore($backupfil,$backup_encode,$backup_dbtype);
+						} catch (RuntimeException $e) {
+							printRestoreFailure($e);
+						}
 					}
 					fclose($handle);
 				} else {
@@ -538,7 +547,7 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 			if ($psql) system("export PGPASSWORD=$sqpass\n$psql -h $sqhost -U $squser $db < $filnavn2", $restoreExitCode);
 		}
 		if ($restoreExitCode !== 0) {
-			throw new RuntimeException('Database restore failed; the backup files have been retained.');
+			throw new RuntimeException('Database restore failed. The existing data has already been replaced; the backup files have been retained.');
 		}
 		// Read the version from the imported data, not the running application or old tenant.
 		db_close($connection);
@@ -551,7 +560,7 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 		$restoredVersionRow = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'VE'", __FILE__ . ' linje ' . __LINE__));
 		$restoredVersion = trim((string) ifset($restoredVersionRow, 'box1', ''));
 		if ($restoredVersion === '') {
-			throw new RuntimeException('The restored database has no version; the backup files have been retained.');
+			throw new RuntimeException('The restored database has no version. The existing data has already been replaced; the backup files have been retained.');
 		}
 		db_close($connection);
 		$connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . ' linje ' . __LINE__);
@@ -587,6 +596,21 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 
 print "</div></div></div>";
 ##########################
+/**
+ * Shows a restore() failure to the admin. restore() throws after it has opened the
+ * "<!--" comment that hides the import output, so the comment is closed first.
+ *
+ * @param RuntimeException $e
+ * @return void
+ */
+function printRestoreFailure(RuntimeException $e) {
+	$message = $e->getMessage();
+	error_log('restore.php: ' . $message);
+	print "--> \n";
+	print "<p style='color: red; font-weight: bold;'>" . htmlspecialchars($message, ENT_QUOTES) . "</p>";
+	print "<script>alert(" . json_encode($message) . ");</script>";
+}
+
 function renderRestoreForm($db, $backupfil, $restoreV = 'Submit') {
 	echo '<p style="color: red; font-weight: bold;">Please note: This operation may take up to 12 minutes to complete.</p>';
 
