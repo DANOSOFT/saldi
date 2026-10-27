@@ -137,14 +137,6 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
 }
 
 /**
- * Highest voucher number a staged line already holds, ignoring a value the column cannot store.
- *
- * The staged lines are saved with their own numbers, so a replacement must not be handed one of them.
- *
- * @param int $kladde_id Journal (kladdeliste.id).
- * @return int The highest staged number, or 0 when there is none.
- */
-/**
  * Whether the save will take a staged line at all.
  *
  * The staging table holds every posted line, including one a user typed a voucher number into and
@@ -159,7 +151,7 @@ function bilagStagedRowWillBeSaved($row) {
 	$bilag = isset($row['bilag']) ? trim((string)$row['bilag']) : '';
 	$transdate = isset($row['transdate']) ? trim((string)$row['transdate']) : '';
 	$id = isset($row['id']) ? (int)$row['id'] : 0;
-	$has_bilag = ($bilag !== '');
+	$has_bilag = ($bilag !== '' && $bilag !== '-');   # '-' is the row opdater() skips outright
 	$has_content = false;
 	foreach (array('beskrivelse', 'debet', 'kredit', 'faktura', 'amount') as $field) {
 		if (isset($row[$field]) && trim((string)$row[$field]) !== '') {
@@ -176,6 +168,15 @@ function bilagStagedRowWillBeSaved($row) {
 	return $has_bilag && $has_content;   # a numbered line with something on it
 }
 
+/**
+ * Highest voucher number a staged line that the save will take already holds.
+ *
+ * Lines the save skips (see bilagStagedRowWillBeSaved()) are ignored, and so is a value the column
+ * cannot store, or a staged typo would raise the floor the allocator works from.
+ *
+ * @param int $kladde_id Journal (kladdeliste.id).
+ * @return int The highest staged number, or 0 when there is none.
+ */
 function bilagStagedMaxNumber($kladde_id) {
 	$kladde_id = (int)$kladde_id;
 	$staged_max = 0;

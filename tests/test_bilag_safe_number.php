@@ -127,6 +127,11 @@ bilagCheck(bilagNextNumberReserved(1, array()) === 4,
 bilagTestJournal(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 5,
 	'a staged 4 that will be saved still holds a number back, as before');
+bilagTestJournalEmptyLines(3, array('-'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'a staged "-" row is skipped by the save, so its number cannot hold the allocator back');
+bilagCheck(strpos($bilagHelper, "/**\n * Highest voucher number a staged line that the save will take already holds.") !== false,
+	'both helpers carry the PHPDoc the convention asks for');
 bilagTestJournal(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array(4 => 7)) === 8, 'and a replacement already handed out in the same save is passed too');
 
