@@ -1,6 +1,13 @@
 <?php
 // 20261021 CL/MJ MB-79 Pin the exchange difference an automatic settlement leaves behind, and the
 // currency condition that stops a DKK payment settling a foreign-currency post.
+// 20261027 CL/LH MB-79 The open-post difference row is written the way manual settlement writes it, and
+// equalizeMatchingRecords() (includes/genberegn.php), which runs after every posting, keeps to the same
+// currency and rate conditions; it is lifted the same way.
+// 20261027 CL/LH MB-79 Simuler measures against what the journal's earlier lines would have written to
+// openpost, the confirmation page gets the same differences (journalRateDifferences()), a reference given
+// twice is measured once, and a difference account missing from the chart of accounts is refused.
+// 20261027 CL/LH MB-79 The confirmation page's in-voucher currency rounding goes on the difference account's row.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -19,6 +26,7 @@ final class ExchangeRateSettlementTest extends TestCase
     // settlement functions and the db_* stubs they call - is in this namespace, so nothing here
     // can collide with another test's globals and the tests need no process of their own.
     private static bool $lifted = false;
+    private static bool $equalizeLifted = false;
 
     private const EUR = 2;   // grupper art='VK' kodenr
     private const USD = 3;
@@ -50,6 +58,18 @@ final class ExchangeRateSettlementTest extends TestCase
             kredit NUMERIC, faktura TEXT, kladde_id INTEGER, afd TEXT, ansat TEXT, projekt TEXT,
             valuta TEXT, valutakurs NUMERIC, ordre_id INTEGER, moms NUMERIC)");
         $this->db->exec("CREATE TABLE simulering AS SELECT * FROM transaktioner");
+        $this->db->exec("CREATE TABLE kontoplan (id INTEGER PRIMARY KEY AUTOINCREMENT, kontonr TEXT, regnskabsaar INTEGER,
+            kontotype TEXT, beskrivelse TEXT)");
+        // The difference accounts exist as operating accounts in the fiscal year; 7900 is a heading.
+        $this->db->exec("INSERT INTO kontoplan (kontonr,regnskabsaar,kontotype,beskrivelse) VALUES
+            ('7960',2026,'D','Valutadifferencer EUR'),('7961',2026,'D','Valutadifferencer USD'),
+            ('7900',2026,'H','Finansielle poster'),('7962',2025,'D','Kun sidste aar')");
+        $this->db->exec("CREATE TABLE kassekladde (id INTEGER PRIMARY KEY AUTOINCREMENT, kladde_id INTEGER, bilag INTEGER,
+            transdate TEXT, beskrivelse TEXT, d_type TEXT, debet INTEGER, k_type TEXT, kredit INTEGER, faktura TEXT,
+            amount NUMERIC, valuta INTEGER, projekt TEXT, afd INTEGER, ansat INTEGER, ordre_id INTEGER, momsfri TEXT)");
+        $this->db->exec("CREATE TABLE valuta (id INTEGER PRIMARY KEY AUTOINCREMENT, gruppe INTEGER, valdate TEXT, kurs NUMERIC)");
+        $this->db->exec("INSERT INTO valuta (gruppe,valdate,kurs) VALUES
+            (" . self::EUR . ",'2026-09-01',745),(" . self::EUR . ",'2026-10-01',746)");
         // Creditor 1009 in group 1, whose control account is 6710; debtor 2200 in group 5, control 6010.
         $this->db->exec("INSERT INTO adresser (id,kontonr,art,gruppe) VALUES (29,'1009','K','1'),(30,'2200','D','5')");
         $this->db->exec("INSERT INTO grupper (art,kodenr,box1,box2,box3) VALUES
@@ -62,6 +82,22 @@ final class ExchangeRateSettlementTest extends TestCase
             eval('namespace ' . __NAMESPACE__ . '; ' . self::liftedSource());
             self::$lifted = true;
         }
+        if (!self::$equalizeLifted) {
+            eval('namespace ' . __NAMESPACE__ . '; ' . self::liftedEqualizeSource());
+            self::$equalizeLifted = true;
+        }
+    }
+
+    /** equalizeMatchingRecords() exactly as includes/genberegn.php ships it. */
+    private static function liftedEqualizeSource(): string
+    {
+        $src = file_get_contents(dirname(__DIR__, 3) . '/includes/genberegn.php');
+        $from = strpos($src, 'function equalizeMatchingRecords (');
+        self::assertNotFalse($from, 'includes/genberegn.php no longer defines equalizeMatchingRecords(); the lift is stale');
+        // The function and the function_exists() guard around it close together on one line.
+        $to = strpos($src, "\n}}", $from);
+        self::assertNotFalse($to, 'equalizeMatchingRecords() no longer ends with the guard\'s closing brace');
+        return substr($src, $from, $to - $from) . "\n}";
     }
 
     /** The settlement functions exactly as finans/bogfor.php ships them. */
@@ -75,7 +111,10 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertGreaterThan($from, $to, 'valutaopslag() now comes before the settlement functions');
         $lift = substr($src, $from, $to - $from);
         foreach (['openpostAccountQuery', 'openpostInvoiceList', 'openpostMatchQuery',
-                  'openpostRateDifferenceAmount', 'openpostRateDifference', 'rateDifferenceText',
+                  'openpostMatches', 'openpostOverlay', 'openpostOverlayMatch', 'openpostOverlayRecord',
+                  'openpostRateDifferenceAmount', 'openpostRateDifference', 'journalLineOpenpostSides',
+                  'journalRateDifferences', 'confirmationRoundingOnListedAccount', 'rateDifferenceText',
+                  'rateDifferenceOpenpostAmount', 'rateDifferenceAccounts', 'rateDifferenceAccountError',
                   'bookRateDifference', 'openpost'] as $needed) {
             self::assertStringContainsString('function ' . $needed . '(', $lift,
                 $needed . '() is no longer between openpostCurrencyLetters() and valutaopslag()');
@@ -294,9 +333,13 @@ final class ExchangeRateSettlementTest extends TestCase
             self::assertSame('1', (string)$row['udlign_id'], 'and belongs to the same settlement');
         }
         $difference = $rows[2];
-        self::assertSame('DKK', $difference['valuta']);
-        self::assertSame('100', (string)$difference['valutakurs']);
-        self::assertSame(-10.0, (float)$difference['amount']);
+        // Written the way doAlign.php writes a manual settlement's difference: 0,001 EUR worth -10,00 DKK. A
+        // DKK row at rate 100 was converted into EUR by the account statement and left a EUR balance.
+        self::assertSame('EUR', $difference['valuta'], 'the difference row is in the settled currency');
+        self::assertSame(-0.001, (float)$difference['amount']);
+        self::assertSame(1000000.0, (float)$difference['valutakurs']);
+        self::assertSame(0.0, round((float)$difference['amount'], 2),
+            'so it adds nothing to the account\'s balance in EUR');
         self::assertStringContainsString('Udligning af valutadiff', $difference['beskrivelse']);
         self::assertStringContainsString('EUR 1.000,03', $difference['beskrivelse']);
         self::assertStringContainsString('DKK 10,00', $difference['beskrivelse']);
@@ -448,10 +491,26 @@ final class ExchangeRateSettlementTest extends TestCase
         $insert = strpos($src, 'insert into $tabel', $from);
         self::assertNotFalse($insert, 'bookRateDifference() no longer inserts into $tabel');
         $guard = substr($src, $from, $insert - $from);
-        self::assertStringContainsString('if (!$diffkonto)', $guard,
-            'a missing currency difference account would be posted to as account 0');
+        self::assertMatchesRegularExpression('/\$accountError\s*=\s*rateDifferenceAccountError\(\$diffkonto/', $guard,
+            'a missing or unknown currency difference account would be posted to');
         self::assertStringContainsString("transaktion('rollback')", $guard,
             'and the journal would be left half posted');
+    }
+
+    public function testADifferenceAccountMustBeSetUpAndExistInTheFiscalYear(): void
+    {
+        self::assertSame('Manglende konto til valutadiffencer! (bilag: 7)', rateDifferenceAccountError('', 7));
+        self::assertSame('Difference konto 999999 eksisterer ikke (bilag: 7)', rateDifferenceAccountError('999999', 7),
+            'an account that is not in the chart of accounts had the difference committed to it');
+        self::assertNotSame('', rateDifferenceAccountError('7900', 7), 'a heading cannot be posted to');
+        self::assertNotSame('', rateDifferenceAccountError('7962', 7), 'nor an account from another fiscal year');
+        self::assertSame('', rateDifferenceAccountError('7960', 7));
+    }
+
+    public function testTheAccountsOfAGainAndALoss(): void
+    {
+        self::assertSame(['7960', '6710', 10.0], rateDifferenceAccounts(10.004, '6710', '7960'), 'a loss debits the currency account');
+        self::assertSame(['6010', '7960', 10.0], rateDifferenceAccounts(-10.00, '6010', '7960'), 'a gain credits it');
     }
 
     // ----------------------------------------------- how bogfor() wires it up
@@ -465,16 +524,37 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertNotFalse($end, 'the end of the open-item block in bogfor() has moved');
         $block = substr($src, $loop, $end - $loop);
 
-        self::assertSame(2, preg_match_all('/\$kursdiff\s*=\s*openpostRateDifference\(/', $block),
-            'the debit and the credit side each have to measure their own difference');
-        self::assertSame(2, preg_match_all('/bookRateDifference\(/', $block),
-            'and each has to book it');
-        self::assertSame(2, preg_match_all('/if \(!\$simuler\) openpost\(/', $block),
+        self::assertStringContainsString('foreach (journalLineOpenpostSides($row,$line) as $side)', $block,
+            'the debit and the credit side each measure their own difference');
+        self::assertMatchesRegularExpression('/\$kursdiff=openpostRateDifference\([^;]*\$openpostOverlay\);/', $block,
+            'against the record of the journal\'s earlier lines while simulating');
+        self::assertStringContainsString("bookRateDifference(\$kursdiff, \$side['samlekonto']", $block,
+            'each side clears the control account its own posting used');
+        self::assertSame(1, preg_match_all('/if \(!\$simuler\) openpost\(/', $block),
             'while openpost() itself still only runs when posting for real');
-        self::assertStringContainsString("bookRateDifference(\$kursdiff, \$line['debet']", $block,
-            'the debit side clears the control account its own posting used');
-        self::assertStringContainsString("bookRateDifference(\$kursdiff, \$line['kredit']", $block,
-            'and so does the credit side');
+        self::assertMatchesRegularExpression('/\$openpostOverlay=\(\$simuler\) \? openpostOverlay\(\) : NULL;/', $src,
+            'posting for real measures the open-post ledger as the earlier lines left it');
+    }
+
+    public function testTheSidesOfAJournalLineThatOpenOrSettleAPost(): void
+    {
+        $line = ['d_type' => 'D', 'k_type' => 'F', 'debet' => '6010', 'kredit' => '1250'];
+        $sides = journalLineOpenpostSides(['debet' => '2200', 'kredit' => '1250', 'amount' => 100], $line);
+        self::assertSame(['debet'], array_keys($sides));
+        self::assertSame(['art' => 'D', 'konto' => '2200', 'amount' => 100, 'samlekonto' => '6010'], $sides['debet']);
+
+        $line = ['d_type' => 'F', 'k_type' => 'K', 'debet' => '2600', 'kredit' => '6710'];
+        $sides = journalLineOpenpostSides(['debet' => '2600', 'kredit' => '1009', 'amount' => 100], $line);
+        self::assertSame(['kredit'], array_keys($sides));
+        self::assertSame(-100, $sides['kredit']['amount'], 'the credit side is negated, as bogfor() hands it to openpost()');
+        self::assertSame('6710', $sides['kredit']['samlekonto']);
+
+        $line = ['d_type' => 'K', 'k_type' => 'D', 'debet' => '6710', 'kredit' => '6010'];
+        self::assertSame(['debet', 'kredit'],
+            array_keys(journalLineOpenpostSides(['debet' => '1009', 'kredit' => '2200', 'amount' => 5], $line)),
+            'a transfer from a debtor to a creditor opens or settles a post on both, debit side first');
+        $line = ['d_type' => 'F', 'k_type' => 'F', 'debet' => '58000', 'kredit' => '1250'];
+        self::assertSame([], journalLineOpenpostSides(['debet' => '58000', 'kredit' => '1250', 'amount' => 5], $line));
     }
 
     public function testTheDifferenceIsBookedIntoWhicheverTableTheJournalIsPostingTo(): void
@@ -486,5 +566,236 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertStringContainsString('insert into $tabel', $body,
             'hardcoding transaktioner would keep the difference out of Simuler');
         self::assertStringNotContainsString('insert into transaktioner', $body);
+    }
+
+    // ----------------------------------------------- the open-post difference row
+
+    public function testTheDifferenceRowIsWorthTheDifferenceInDkkAndNothingInTheCurrency(): void
+    {
+        foreach ([10.00, -10.00, 12.34, 0.01, -98765.43] as $dkkdiff) {
+            [$rowAmount, $rowKurs] = rateDifferenceOpenpostAmount($dkkdiff);
+            self::assertSame(0.001, abs((float)$rowAmount), "the row for $dkkdiff is 0,001 in the currency");
+            self::assertSame(-$dkkdiff, round((float)$rowAmount * $rowKurs / 100, 2),
+                "and worth -$dkkdiff in DKK, so the settled group nets to zero");
+        }
+    }
+
+    public function testASalesInvoicePaidAtAHigherRateSettlesWithAPositiveDifferenceRow(): void
+    {
+        // Debtor 2200: EUR 1.000,03 invoiced at 745 and paid at 746 - a gain of 10,00 DKK.
+        $this->post('D', '2200', 'F-746', 1000.03, self::EUR, 745, '2026-09-01', 1);
+        $GLOBALS['kladde_id'] = 4002;
+        $this->post('D', '2200', 'F-746', -1000.03, self::EUR, 746, '2026-10-01', 2);
+
+        $rows = $this->openposts();
+        self::assertCount(3, $rows);
+        self::assertSame('EUR', $rows[2]['valuta']);
+        self::assertSame(0.001, (float)$rows[2]['amount']);
+        self::assertSame(0.0, $this->groupDkk());
+    }
+
+    // ----------------------------- equalizeMatchingRecords() after the posting
+
+    private function openRow(string $faktnr, float $amount, ?string $valuta, $kurs): void
+    {
+        $this->db->exec("INSERT INTO openpost (konto_id,konto_nr,faktnr,amount,udlignet,udlign_id,transdate,projekt,valuta,valutakurs)
+            VALUES (29,'1009','$faktnr',$amount,'0',0,'2026-09-01',''," . ($valuta === null ? 'NULL' : "'$valuta'") . ","
+            . ($kurs === null ? 'NULL' : $kurs) . ")");
+    }
+
+    /** @return array<int,string> udlignet per row, in id order */
+    private function settledFlags(): array
+    {
+        return array_map(fn($row) => (string)$row['udlignet'], $this->openposts());
+    }
+
+    public function testEqualizeLeavesADkkPaymentAgainstAForeignCurrencyInvoiceOpen(): void
+    {
+        // bogfor() calls equalizeMatchingRecords() after every posting. It matched number and figure only,
+        // so it settled what openpost() had just refused to: DKK 500 against EUR 500.
+        $this->openRow('F-950', 500.00, 'EUR', 745);
+        $this->openRow('F-950', -500.00, 'DKK', 100);
+        equalizeMatchingRecords();
+        self::assertSame(['0', '0'], $this->settledFlags());
+    }
+
+    public function testEqualizeLeavesAForeignCurrencyPairAtDifferentRatesOpen(): void
+    {
+        // Settling here books nothing, so the 10,00 DKK between the rates would stay on the control account.
+        $this->openRow('F-951', 1000.03, 'EUR', 745);
+        $this->openRow('F-951', -1000.03, 'EUR', 746);
+        equalizeMatchingRecords();
+        self::assertSame(['0', '0'], $this->settledFlags());
+    }
+
+    public function testEqualizeStillSettlesAForeignCurrencyPairAtTheSameRate(): void
+    {
+        $this->openRow('F-952', 1000.03, 'EUR', 745);
+        $this->openRow('F-952', -1000.03, 'EUR', 745);
+        equalizeMatchingRecords();
+        self::assertSame(['1', '1'], $this->settledFlags());
+    }
+
+    public function testEqualizeStillSettlesADkkPairWithOrWithoutTheCurrencyColumns(): void
+    {
+        $this->openRow('F-953', 500.00, null, null);
+        $this->openRow('F-953', -500.00, 'DKK', 100);
+        $this->openRow('F-954', 300.00, 'DKK', 100);
+        $this->openRow('F-954', -300.00, '', null);
+        equalizeMatchingRecords();
+        self::assertSame(['1', '1', '1', '1'], $this->settledFlags());
+    }
+
+    public function testEqualizeSettlesAForeignCurrencyRowWithNoRateAsBefore(): void
+    {
+        // The same reading as openpostRateDifferenceAmount(): a row without a rate says nothing about its DKK value.
+        $this->openRow('F-955', 1000.03, 'EUR', 745);
+        $this->openRow('F-955', -1000.03, 'EUR', null);
+        equalizeMatchingRecords();
+        self::assertSame(['1', '1'], $this->settledFlags());
+    }
+    // -------------------------------------- the same lookup for measuring and settling
+
+    public function testTheMatchQuerySkipsTheIdsAlreadyTakenAndHasAFixedOrder(): void
+    {
+        $qtxt = openpostMatchQuery(29, '', 'F', 'EUR', 100, true, [5, 'j1', '7']);
+        self::assertStringContainsString(' and id not in (5,7)', $qtxt,
+            'the journal\'s own unwritten posts (j1) are not stored ids');
+        self::assertStringEndsWith(' order by id', $qtxt);
+        self::assertStringNotContainsString('not in', openpostMatchQuery(29, '', 'F', 'EUR', 100, true));
+    }
+
+    public function testTheSameInvoiceReferenceTwiceIsMeasuredOnceTheWayOpenpostSettlesIt(): void
+    {
+        // A payment of EUR 100 at 746 against invoice F-960 at 745, with the reference typed as 'F-960;F-960'.
+        // The measurement found the invoice twice, so the amounts did not cancel and nothing was booked, while
+        // openpost() settles it once and wrote the 1,00 DKK difference on the open-post ledger only.
+        $this->post('D', '2200', 'F-960', 100.00, self::EUR, 745, '2026-09-15', 1);
+        $GLOBALS['kladde_id'] = 4002;
+
+        $measured = openpostRateDifference('D', '2200', 'F-960;F-960', -100.00, self::EUR, 746, '');
+        self::assertSame(-1.00, $measured, 'the difference the ledger gets');
+
+        $this->post('D', '2200', 'F-960;F-960', -100.00, self::EUR, 746, '2026-10-05', 2);
+        $rows = $this->openposts();
+        self::assertCount(3, $rows, 'the invoice, the payment and one difference row');
+        self::assertSame(['1', '1', '1'], array_map(fn($row) => (string)$row['udlignet'], $rows));
+        self::assertSame(-$measured, round((float)$rows[2]['amount'] * (float)$rows[2]['valutakurs'] / 100, 2),
+            'and the open-post ledger gets the same difference');
+    }
+
+    // ------------------------------------------- Simuler: the journal's own lines
+
+    public function testSimulerSeesTheInvoiceAnEarlierLineOfTheSameJournalOpens(): void
+    {
+        // One journal: invoice F-961 EUR 100 at 745, then its payment at 746. Posting writes the invoice to
+        // openpost before the payment is measured; Simuler writes nothing, so it measured nothing.
+        $overlay = openpostOverlay();
+        self::assertSame(0.0, openpostRateDifference('D', '2200', 'F-961', 100.00, self::EUR, 745, '', $overlay));
+        self::assertSame(-1.00, openpostRateDifference('D', '2200', 'F-961', -100.00, self::EUR, 746, '', $overlay),
+            'the payment settles the invoice the first line would have opened');
+        self::assertCount(0, $this->openposts(), 'and the simulation wrote nothing to openpost');
+
+        // Posting the same journal for real books the same difference.
+        self::assertSame(0.0, openpostRateDifference('D', '2200', 'F-961', 100.00, self::EUR, 745, ''));
+        $this->post('D', '2200', 'F-961', 100.00, self::EUR, 745, '2026-09-15', 1);
+        self::assertSame(-1.00, openpostRateDifference('D', '2200', 'F-961', -100.00, self::EUR, 746, ''));
+    }
+
+    public function testSimulerMeasuresAnInvoiceOnceWhenTheJournalPaysItTwice(): void
+    {
+        // Invoice F-962 is posted; one journal holds two EUR 100 payments for it. Posting, the first settles
+        // it and the second is left open. Simuler measured the invoice for both and booked two differences.
+        $this->post('D', '2200', 'F-962', 100.00, self::EUR, 745, '2026-09-15', 1);
+        $GLOBALS['kladde_id'] = 4002;
+
+        $overlay = openpostOverlay();
+        $simulated = [
+            openpostRateDifference('D', '2200', 'F-962', -100.00, self::EUR, 746, '', $overlay),
+            openpostRateDifference('D', '2200', 'F-962', -100.00, self::EUR, 746, '', $overlay),
+        ];
+        self::assertSame([-1.00, 0.0], $simulated);
+
+        $posted = [];
+        foreach ([2, 3] as $bilag) {
+            $posted[] = openpostRateDifference('D', '2200', 'F-962', -100.00, self::EUR, 746, '');
+            $this->post('D', '2200', 'F-962', -100.00, self::EUR, 746, '2026-10-05', $bilag);
+        }
+        self::assertSame($posted, $simulated, 'Simuler books what posting books');
+    }
+
+    public function testAPostTheJournalOpensIsMatchedByTheSameRulesAsAStoredOne(): void
+    {
+        $overlay = openpostOverlay();
+        openpostRateDifference('D', '2200', 'F-963', 100.00, self::EUR, 745, '', $overlay);
+        self::assertSame(0.0, openpostRateDifference('D', '2200', 'F-963', -100.00, self::EUR, 746, 'P1', $overlay),
+            'not from another project');
+        self::assertSame(0.0, openpostRateDifference('D', '2200', 'F-963', -40.00, self::EUR, 746, '', $overlay),
+            'not for another figure');
+        self::assertSame(0.0, openpostRateDifference('D', '2200', 'F-964', -100.00, self::EUR, 746, '', $overlay),
+            'not under another number');
+        self::assertSame(0.0, openpostRateDifference('D', '2200', 'F-963', -100.00, 0, 100, '', $overlay),
+            'not from a DKK payment');
+        self::assertSame(-1.00, openpostRateDifference('D', '2200', 'F-963', -100.00, self::EUR, 746, '', $overlay));
+        self::assertSame(0.0, openpostRateDifference('D', '2200', 'F-963', -100.00, self::EUR, 746, '', $overlay),
+            'and only once');
+    }
+
+    // ------------------------------------------------ the confirmation page
+
+    private function journalRow(int $bilag, string $date, string $dType, string $debet, string $kType,
+                                string $kredit, string $faktura, float $amount, int $valuta): void
+    {
+        $this->db->exec("INSERT INTO kassekladde (kladde_id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,
+            amount,valuta,projekt,afd,ansat,ordre_id,momsfri) VALUES (4100,$bilag,'$date','line','$dType',$debet,'$kType',
+            $kredit,'$faktura',$amount,$valuta,'',0,0,0,'')");
+    }
+
+    public function testTheConfirmationPageGetsTheDifferencesPostingBooks(): void
+    {
+        // Debtor 2200: invoice F-965 EUR 100 on 15-09 (745) and its payment on 05-10 (746) in one journal, and
+        // creditor 1009: a payment at 746 of the invoice F-966 posted earlier at 745.
+        $this->post('K', '1009', 'F-966', -1000.03, self::EUR, 745, '2026-09-01', 1);
+        $before = $this->openposts();
+        $this->journalRow(10, '2026-09-15', 'D', '2200', 'F', '1250', 'F-965', 100.00, self::EUR);
+        $this->journalRow(11, '2026-10-05', 'F', '58000', 'D', '2200', 'F-965', 100.00, self::EUR);
+        $this->journalRow(12, '2026-10-05', 'K', '1009', 'F', '58000', 'F-966', 1000.03, self::EUR);
+        $this->journalRow(13, '2026-10-05', 'F', '58000', 'F', '1250', '', 50.00, 0);
+
+        $differences = journalRateDifferences(4100);
+
+        self::assertCount(2, $differences);
+        self::assertSame(['bilag' => '11', 'art' => 'D', 'konto' => '2200', 'kursdiff' => -1.00, 'diffkonto' => '7960',
+            'debetkonto' => '6010', 'kreditkonto' => '7960', 'belob' => 1.0],
+            array_map(fn($v) => is_int($v) ? (string)$v : $v, $differences[0]),
+            'the gain on the debtor: control account 6010 debited, 7960 credited');
+        self::assertSame('6710', $differences[1]['kreditkonto'], 'the loss on the creditor clears its control account');
+        self::assertSame('7960', $differences[1]['debetkonto']);
+        self::assertSame(10.0, $differences[1]['belob']);
+        self::assertSame($before, $this->openposts(), 'and working it out wrote nothing');
+    }
+
+    public function testTheConfirmationPageShowsTheCurrencyRoundingOnTheDifferenceAccountsOwnRow(): void
+    {
+        // A EUR 150,06 payment for two invoices, split over two credit lines in one voucher: 0,01 of in-voucher
+        // rounding, and exchange differences that already gave 7960 a row with 1,50 credit.
+        $kontoliste  = ['56100', '58000', '7960'];
+        $kontodebet  = [1.50, 1119.45, 0.0];
+        $kontokredit = [1119.44, 0.0, 1.50];
+
+        self::assertTrue(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, '7960', 0.01));
+        self::assertSame([1.50, 1119.45, 0.0], $kontodebet, 'nothing else moves');
+        self::assertEqualsWithDelta(1.51, $kontokredit[2], 0.0001, 'the rounding is credited on the 7960 row');
+        self::assertSame(1119.44, $kontokredit[0]);
+
+        self::assertTrue(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, 7960, -0.02));
+        self::assertEqualsWithDelta(0.02, $kontodebet[2], 0.0001, 'a negative rounding is debited there');
+
+        $before = [$kontodebet, $kontokredit];
+        self::assertFalse(confirmationRoundingOnListedAccount(['56100', '58000'], $kontodebet, $kontokredit, '7960', 0.01),
+            'without a 7960 row the page prints the rounding on a row of its own, as before');
+        self::assertFalse(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, '', 0.01),
+            'and with no difference account it is left to the page\'s existing error');
+        self::assertSame($before, [$kontodebet, $kontokredit]);
     }
 }

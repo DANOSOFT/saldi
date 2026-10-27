@@ -1,5 +1,6 @@
 <?php
 // 20261021 CL/MJ MB-79 Run the open-post settlement queries against an isolated in-memory database.
+// 20261027 CL/LH MB-79 Stubs for findtekst() and postingLineAmounts(), which the confirmation page's lookups call.
 
 namespace Saldi\Tests\ExchangeRateSettlement;
 
@@ -37,4 +38,46 @@ function dkdecimal($tal, $decimaler = null) {
 
 function transaktion($action) {
     $GLOBALS['exchangeRateSettlementTransactions'][] = $action;
+}
+
+// 20261027 CL/LH MB-79 rateDifferenceAccountError() names the account through findtekst(); the stub returns
+// the default text, as an installation without a translation does.
+function findtekst($text, $language = null) {
+    $parts = explode('|', (string)$text, 2);
+    return $parts[1] ?? $parts[0];
+}
+
+/**
+ * The parts of finans/bogfor_includes/postingRules.php postingLineAmounts() that journalRateDifferences()
+ * reads - the side types, the control accounts, the rate and the difference account - from the fixture's
+ * adresser, grupper and valuta tables.
+ */
+function postingLineAmounts($row, $preview = false) {
+    $db = $GLOBALS['exchangeRateSettlementDb'];
+    $line = ['d_type' => $row['d_type'], 'k_type' => $row['k_type'], 'debet' => (string)$row['debet'],
+        'kredit' => (string)$row['kredit'], 'diffkonto' => null, 'valutakurs' => null];
+    if (!$row['debet']) {
+        $line['d_type'] = 'F';
+    }
+    if (!$row['kredit']) {
+        $line['k_type'] = 'F';
+    }
+    foreach (['d' => 'debet', 'k' => 'kredit'] as $side => $field) {
+        $type = $line[$side . '_type'];
+        if (($type == 'D' || $type == 'K') && $row[$field] > 0) {
+            $stmt = $db->prepare("SELECT g.box2 FROM adresser a JOIN grupper g ON g.art = ? AND g.kodenr = a.gruppe
+                WHERE a.kontonr = ? AND a.art = ?");
+            $stmt->execute([$type . 'G', (string)$row[$field], $type]);
+            $line[$field] = (string)$stmt->fetchColumn();
+        }
+    }
+    if ($row['valuta']) {
+        $stmt = $db->prepare("SELECT kurs FROM valuta WHERE gruppe = ? AND valdate <= ? ORDER BY valdate DESC LIMIT 1");
+        $stmt->execute([$row['valuta'], $row['transdate']]);
+        $line['valutakurs'] = (float)$stmt->fetchColumn();
+        $stmt = $db->prepare("SELECT box3 FROM grupper WHERE art = 'VK' AND kodenr = ?");
+        $stmt->execute([$row['valuta']]);
+        $line['diffkonto'] = (string)$stmt->fetchColumn();
+    }
+    return $line;
 }
