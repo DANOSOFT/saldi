@@ -9,6 +9,7 @@
 //   node tools/guardrails/check.mjs --base origin/hml/shopify
 //   node tools/guardrails/check.mjs --base abc123^ --head abc123   # judge one past commit
 //   node tools/guardrails/check.mjs --only php-syntax,js-syntax
+//   gh pr view 123 --json body -q .body | node tools/guardrails/check.mjs --pr-body -
 //
 // Exit code 1 when any check finds something. An exception for a single line is
 // described in lib/exceptions.mjs.

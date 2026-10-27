@@ -9,6 +9,7 @@ node tools/guardrails/check.mjs                      # your working tree against
 node tools/guardrails/check.mjs --base origin/hml/shopify
 node tools/guardrails/check.mjs --only php-syntax,js-syntax
 node tools/guardrails/check.mjs --list
+gh pr view 123 --json body -q .body | node tools/guardrails/check.mjs --pr-body -
 ```
 
 CI runs the same command (`.github/workflows/guardrails.yml`). Only what the

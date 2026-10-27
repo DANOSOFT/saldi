@@ -63,3 +63,22 @@ jobs:
         run: node tools/guardrails/check.mjs --base "$BEFORE" --only php-syntax,js-syntax,tekster
         env:
           BEFORE: ${{ github.event.before }}
+
+  description:
+    name: PR description
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/guardrails
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Says what changed and how it was verified
+        run: printf '%s' "$PR_BODY" | node tools/guardrails/check.mjs --pr-body -
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
