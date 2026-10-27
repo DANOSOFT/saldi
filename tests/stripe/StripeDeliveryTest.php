@@ -290,6 +290,9 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         $this->assertSame('Hej,', stripe_mail_greeting($anonymous));
         $this->assertTrue(stripe_mail_invoice_link($anonymous));
         $this->assertStringContainsString("Hej,\n\n", StripeTestTransport::$mails[0]['text']);
+        // 20261027 a one-off invoice mail also says how to turn on automatic payment
+        $this->assertFalse($anonymous['recurring']);
+        $this->assertStringContainsString(trim(stripe_txt('mail_body_new_rec')), StripeTestTransport::$mails[0]['text']);
         $this->assertStringNotContainsString('kunde', StripeTestTransport::$mails[0]['text']);
         StripeTestEnvironment::setting('email_settings', 'invoice_link_text', 'Hej [Fornavn], her er jeres faktura.');
         $this->assertTrue(stripe_mail_invoice_link($anonymous));

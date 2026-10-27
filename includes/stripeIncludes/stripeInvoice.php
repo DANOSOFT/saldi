@@ -64,6 +64,7 @@ include_once(__DIR__ . '/stripeCharge.php');
 // 20261025 CL/ASR Customer contact e-mail/phone from Stripe settings (reply-to too); no month in invoice mail headings.
 // 20261026 CL/NTR Multi-ledger: every ledger with Stripe switched on can offer and collect link/card invoices; invoice
 //                 links carry the ledger (r=). A ledger restored from a copy stays off until its settings are saved.
+// 20261027 CL/ASR The link mail offers automatic payment on every invoice (stripe_invoice_save_allowed), not only recurring ones.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -936,7 +937,7 @@ if (!function_exists('stripe_mail_layout')) {
 		$h1 = stripe_txt('mail_h_new');   // 20261025 CL/ASR no month: many customers are invoiced yearly
 		$body = stripe_invoice_link_text();
 		if ($body === '') {
-			$body = stripe_mail_greeting($inv) . "\n\n" . stripe_txt('mail_body_new') . ($inv['recurring'] && stripe_feature_on('enrolment') ? stripe_txt('mail_body_new_rec') : '');
+			$body = stripe_mail_greeting($inv) . "\n\n" . stripe_txt('mail_body_new') . (!$inv['enrolled'] && stripe_invoice_save_allowed($inv) ? stripe_txt('mail_body_new_rec') : '');   // 20261027 CL/ASR every invoice offers automatic payment
 		} elseif ($inv['fornavn'] !== '') {
 			$body = str_replace(array('[Fornavn]', '[fornavn]', '$fornavn'), $inv['fornavn'], $body);
 		} else {

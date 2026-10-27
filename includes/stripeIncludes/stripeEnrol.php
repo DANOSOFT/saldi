@@ -37,6 +37,8 @@
 // 20261022 CL/LH S5 Greet by first name in the outstanding-invoice mail sent after Afmeld.
 // 20261025 CL/ASR Afmeld puts Link (or e-mail) back on the debtor and its orders.
 // 20261025 CL/ASR The outstanding-invoice mail after Afmeld uses the shared mail layout (Saldi logo); PDF still attached.
+// 20261027 CL/ASR stripe_enrolled_copy_delivery(): genfakt gives a customer with automatic card payment its next invoice
+//                 as Stripe in every series, so enrolment on any invoice (also a one-off) covers all next invoices.
 
 include_once(__DIR__ . '/stripeHttp.php');
 include_once(__DIR__ . '/stripeSettings.php');
@@ -147,4 +149,26 @@ function stripe_mail_invoice_classic($inv) {
 	$html = stripe_mail_layout($inv, stripe_txt('mail_label_invoice', array('nr' => $inv['nr'])), stripe_txt('mail_h_new'), $greeting . "\n\n" . $body, null, $rows, '', '', '', '', '');
 	return stripe_mail_send($inv['email'], stripe_txt('mail_subj_new', array('nr' => $inv['nr'], 'brand' => $inv['brand'])),
 		$html, $greeting . "\n\n" . $body, array($pdf));
+}
+
+if (!function_exists('stripe_enrolled_copy_delivery')) {
+	/**
+	 * Delivery for the next invoice of a recurring series (genfakturer.php). A customer with automatic card payment
+	 * (card on file) gets 'Stripe', so the charge job collects it on the due date - in every series, not only the one
+	 * the card was saved on, as the consent promises ("dine næste fakturaer"). Only e-mail and link copies switch;
+	 * PBS, OIOUBL and print keep their channel, and issued invoices are never changed.
+	 *
+	 * @param array $template ordrer row the copy is made from.
+	 * @return string 'Stripe' or the template's own delivery.
+	 */
+	function stripe_enrolled_copy_delivery($template) {
+		$delivery = (string)($template['udskriv_til'] ?? '');
+		$kontoId = (int)($template['konto_id'] ?? 0);
+		if (!in_array($delivery, array('email', 'Link'), true) || $kontoId <= 0) return $delivery;
+		if (stripe_setting('enabled', 'off') !== 'on' || !stripe_feature_on('invoice_payments') || !stripe_feature_on('enrolment')) return $delivery;
+		// Same blocks as the payment page (Stripe ledger, DKK, terms, PBS, card opt-out, existing Stripe subscription).
+		if (stripe_invoice_uncollectable_reason(array('o' => $template)) !== '') return $delivery;
+		$d = db_fetch_array(stripe_payment_select("select stripe, stripe_pm_id from adresser where id = $kontoId", __FILE__ . " linje " . __LINE__));
+		return ($d && (string)$d['stripe'] === 'on' && trim((string)$d['stripe_pm_id']) !== '') ? 'Stripe' : $delivery;
+	}
 }

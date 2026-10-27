@@ -58,16 +58,18 @@ final class StripePageTest extends StripeDatabaseTestCase
                 StripeTestEnvironment::setting('stripe', 'enrolment', 'off');
             }
             $rendered = $this->render(stripe_invoice_load($id));
-            $allowed = in_array($case, ['recurring', 'replacement'], true);
+            // 20261027 a one-off invoice offers automatic payment like a recurring one
+            $allowed = in_array($case, ['one_off', 'recurring', 'replacement'], true);
+            $twoButtons = in_array($case, ['one_off', 'recurring'], true);
             $this->assertSame($allowed, $rendered['config']['saveDefault'], $case);
             $this->assertSame($case === 'replacement', strpos($rendered['panel'], 'id="chk"') !== false, $case);
-            $this->assertSame($case === 'recurring', strpos($rendered['panel'], 'id="pay-once"') !== false, $case);
+            $this->assertSame($twoButtons, strpos($rendered['panel'], 'id="pay-once"') !== false, $case);
             $this->assertStringContainsString('disabled', $rendered['panel']);
             $this->assertStringContainsString('Der er ikke dækning på kortet.', $rendered['panel']);
             $this->assertStringNotContainsString('insufficient_funds', $rendered['panel']);
             if ($case === 'replacement') {
                 $this->assertConsentBeforeElement($rendered['panel']);
-            } elseif ($case === 'recurring') {
+            } elseif ($twoButtons) {
                 $this->assertTwoButtonsAfterConsentText($rendered['panel']);
             }
             if ($case === 'replacement') {
@@ -110,6 +112,26 @@ final class StripePageTest extends StripeDatabaseTestCase
         $this->assertStringContainsString('<span id="consent-text">', $panel);
         $this->assertStringContainsString('aria-describedby="consent-text">Betal 340,00 kr. og slå automatisk betaling til</button>', $panel);
         $this->assertStringContainsString('>Betal kun denne faktura</button>', $panel);
+    }
+
+    public function testOneOffInvoiceAlsoOffersAutomaticPaymentSoTheFeeCanBeAvoided(): void
+    {
+        $varenr = 'FEE' . bin2hex(random_bytes(4));
+        StripeFixtures::insert('varer', ['varenr' => $varenr, 'beskrivelse' => 'Gebyr', 'salgspris' => 129, 'gruppe' => 1]);
+        StripeTestEnvironment::setting('stripe', 'manual_fee_varenr', $varenr);
+        StripeTestEnvironment::setting('stripe', 'manual_fee_from', '2026-01-01');
+        $inv = stripe_invoice_load(StripeFixtures::invoice());
+        $this->assertFalse($inv['recurring']);
+        $this->assertSame('open', $inv['state']);
+        $this->assertTrue(stripe_invoice_save_allowed($inv));
+        $rendered = $this->render($inv);
+        $this->assertTwoButtonsAfterConsentText($rendered['panel']);
+        $this->assertStringContainsString('class="fee"', $rendered['panel']);
+        // A credit note never offers it; the enrolment switch still turns it off everywhere.
+        $this->assertFalse(stripe_invoice_save_allowed(array('recurring' => false, 'enrolled' => false, 'is_credit' => true, 'o' => array('art' => 'DK'))));
+        StripeTestEnvironment::setting('stripe', 'enrolment', 'off');
+        $this->assertFalse(stripe_invoice_save_allowed($inv));
+        $this->assertStringNotContainsString('id="pay-once"', $this->render(stripe_invoice_load($inv['id']))['panel']);
     }
 
     public function testOpenRecurringShowsConsentTextAndTwoButtonsAndTheFeeNote(): void

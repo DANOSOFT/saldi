@@ -97,6 +97,35 @@ final class StripeStaffTest extends StripeDatabaseTestCase
         }
     }
 
+    public function testGenfaktGivesAnEnrolledCustomerTheNextInvoiceAsStripeInEverySeries(): void
+    {
+        // 20261027 Enrolment on any invoice (also a one-off) covers the customer's next invoices in every series.
+        require_once __DIR__ . '/../../includes/stripeIncludes/stripeEnrol.php';
+        $enrolled = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_customer_id' => 'cus_saved']);
+        $copy = fn(int $debtor, array $order = []) => stripe_enrolled_copy_delivery(
+            StripeFixtures::row('ordrer', StripeFixtures::invoice($debtor, array_replace(['nextfakt' => '2026-02-08'], $order))));
+        foreach (['Link' => 'Stripe', 'email' => 'Stripe', 'PBS' => 'PBS', 'oioubl' => 'oioubl', 'PDF' => 'PDF', 'Stripe' => 'Stripe'] as $delivery => $expected) {
+            $this->assertSame($expected, $copy($enrolled, ['udskriv_til' => $delivery]), $delivery);
+        }
+        // Not enrolled, or the series cannot be paid by card (terms, currency, PBS, card opt-out): unchanged.
+        $this->assertSame('Link', $copy(StripeFixtures::debtor()));
+        $this->assertSame('Link', $copy(StripeFixtures::debtor(['stripe' => 'on'])));
+        $this->assertSame('Link', $copy($enrolled, ['betalingsbet' => 'Kontant']));
+        $this->assertSame('Link', $copy($enrolled, ['valuta' => 'EUR']));
+        $this->assertSame('email', $copy($enrolled, ['udskriv_til' => 'email', 'pbs' => 'BS']));
+        $this->assertSame('Link', $copy(StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_x', 'stripe_fravalg' => 'on'])));
+        // A customer who still has an old Stripe subscription is never charged twice.
+        $subscriber = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_sub']);
+        StripeFixtures::insert('stripe_customers', ['konto_id' => $subscriber, 'stripe_customer_id' => 'cus_copy_sub', 'stripe_subscription_id' => 'sub_copy', 'status' => 'active']);
+        $this->assertSame('Link', $copy($subscriber));
+        StripeTestEnvironment::setting('stripe', 'enrolment', 'off');
+        $this->assertSame('Link', $copy($enrolled));
+        StripeTestEnvironment::setting('stripe', 'enrolment', 'on');
+        $genfakt = file_get_contents(__DIR__ . '/../../debitor/genfakturer.php');
+        $this->assertStringContainsString('$udskriv_til = stripe_enrolled_copy_delivery($r);', $genfakt);
+        $this->assertLessThan(strpos($genfakt, "\$qtxt.= \"lev_postnr,lev_bynavn,levdate,fakturadate,nextfakt"), strpos($genfakt, 'stripe_enrolled_copy_delivery($r)'));
+    }
+
     public function testExistingEmailCustomersAndRecurringOrdersSwitchToLinkOnce(): void
     {
         // 20261025 Go-live: rows set to "E-mail" before "E-mail med link" existed are switched once from Stripe settings.
