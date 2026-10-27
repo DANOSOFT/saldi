@@ -3,26 +3,29 @@
 # plus CI/workflow files; everything else is reviewed by the HML devs.
 
 # Core edits 1, 2, 3, 4 (order/line/set/delivery functions) and their duplicate definitions
-/includes/ordrefunc.php           @SirRolin
-/mysale/api.php                   @SirRolin
-/rental/rental.php                @SirRolin
+/includes/ordrefunc.php						@SirRolin
+/mysale/api.php								@SirRolin
+/rental/rental.php							@SirRolin
 # Core edits 1, 7 (order numbers, legacy shop sync switches)
-/includes/std_func.php            @SirRolin
-/debitor/ordreliste.php           @SirRolin
-/sync_shop/                       @SirRolin
-/api/rest_api.php                 @SirRolin
-/api/hent_ordrer.php              @SirRolin
+/includes/std_func.php						@SirRolin
+/debitor/ordreliste.php						@SirRolin
+/sync_shop/									@SirRolin
+/api/rest_api.php							@SirRolin
+/api/hent_ordrer.php						@SirRolin
 # Core edit 6 (document printing)
-/includes/formfunk.php            @SirRolin
+/includes/formfunk.php						@SirRolin
 # Core edit 8 (debtor creation)
-/includes/stdFunc/createDebitor.php @SirRolin
+/includes/stdFunc/createDebitor.php			@SirRolin
 # Core edits 9, 10 and the POS/order screens
-/debitor/ordre.php                @SirRolin
-/debitor/pos_ordre.php            @SirRolin
-/debitor/pos_ordre_includes/      @SirRolin
+/debitor/ordre.php							@SirRolin
+/debitor/pos_ordre.php						@SirRolin
+/debitor/pos_ordre_includes/				@SirRolin
 # Schema and posting
-/includes/betweenUpdates.php      @SirRolin
-/admin/opret.php                  @SirRolin
-/finans/bogfor.php                @SirRolin
+/includes/betweenUpdates.php				@SirRolin
+/includes/opdat_*.php						@SirRolin
+/includes/opdat_func/opdat_func.php			@SirRolin
+/includes/opdat_func/deleteStaleTekst.php	@SirRolin
+/admin/opret.php							@SirRolin
+/finans/bogfor.php							@SirRolin
 # CI and workflows
-/.github/                         @SirRolin
+/.github/									@SirRolin
