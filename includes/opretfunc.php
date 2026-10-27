@@ -34,6 +34,9 @@
 //                 script, and the trailing alert/redirect moved to the callers.
 // 20261026 CL/LH stripe_events gets the webhook lease columns (claim_token, claimed_at, attempts,
 //                event_created), carried over from master's admin/opret.php (#795).
+// 20261027 CL/NTR create_regnskab: roll back and return build_failed when a master-row write
+//                fails, before the db_modify_fejl reset hides it (CodeRabbit). Fixed the brugere
+//                lookup precedence and '*' check, and skip that grant on the sign-up API.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -100,16 +103,27 @@ if (!function_exists('create_regnskab')) {
 		$db_id = $row['id'];
 		$db = $sqdb . "_" . $row['id'];
 		db_modify("update regnskab set db='$db' where id=$row[id]", __FILE__ . " linje " . __LINE__);
-		$q = db_select("select * from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__);
-		if ($r = db_fetch_array($q) && isset($r) && $bruger_id = $r['id']) {
-			$rettigheder = $r['rettigheder'];
-			list($admin, $oprette, $slette, $tmp) = explode(",", $rettigheder, 4);
-			$adgang_til = explode(",", $tmp);
-			if ($adgang_til != "*") {
-				if (substr($rettigheder, -1) == ",") $rettigheder = $rettigheder . $db_id;
-				else $rettigheder = $rettigheder . "," . $db_id;
-				db_modify("update brugere set rettigheder='$rettigheder' where id='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		// Skipped on the sign-up API: there $brugernavn is the new account's
+		// administrator, so matching it against master users would grant access
+		// to whoever happens to share the name.
+		if (empty($GLOBALS['webservice'])) {
+			$q = db_select("select * from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__);
+			if (($r = db_fetch_array($q)) && isset($r) && $bruger_id = $r['id']) {
+				$rettigheder = $r['rettigheder'];
+				list($admin, $oprette, $slette, $tmp) = explode(",", $rettigheder, 4);
+				$adgang_til = explode(",", $tmp);
+				if (!in_array("*", $adgang_til, true)) {
+					if (substr($rettigheder, -1) == ",") $rettigheder = $rettigheder . $db_id;
+					else $rettigheder = $rettigheder . "," . $db_id;
+					db_modify("update brugere set rettigheder='$rettigheder' where id='$bruger_id'", __FILE__ . " linje " . __LINE__);
+				}
 			}
+		}
+		// A failed master-row write must stop here: the reset below would
+		// otherwise hide it and the tenant build would run against a bad $db.
+		if (!empty($GLOBALS['db_modify_fejl']) || empty($db_id)) {
+			transaktion('rollback');
+			return array('ok' => false, 'db_id' => null, 'db' => null, 'error' => 'build_failed');
 		}
 		transaktion('commit');
 
