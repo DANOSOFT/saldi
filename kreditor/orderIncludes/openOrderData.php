@@ -42,6 +42,7 @@
 // 20260924 CL/SZ Left-join grupper instead of inner-joining it (CodeRabbit, PR #608): an item
 //                 with has_due_date=TRUE but no current-year VG group row was still being
 //                 dropped by the join before the has_due_date check ran.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 /*
 $attachId    = null;
@@ -90,6 +91,8 @@ if (!$id) {
 	print "<tr><td colspan='4' width='100%'><hr width='90%'></td></tr>";
 	$id = 0;
 }
+$email = $email ?? null;
+$udskriv_til = $udskriv_til ?? null;
 #20221104 BEGIN
 print "<tr><td>".findtekst(402,$sprog_id)."</td>";
 print "<td><input class='inputbox' type='text' style='width:110px;' name='email' value='$email' onchange='javascript:docChange = true;'></td>";
@@ -166,7 +169,7 @@ if ($id) {
 	// 		print "<option value = '$attachName[$x]'>substr($attachName[$x],0,25)</option>";
 	// 	}	
 
-	if (is_array($attachId) && count($attachId) >= 1) {
+	if (is_array($attachId ?? null) && count($attachId) >= 1) {
         print "<select name = 'showAttachment' id = 'showAttachment'>";
         for ($x = 0; $x < count($attachId); $x++) {
             $shortName = substr($attachName[$x], 0, 25);
@@ -210,7 +213,7 @@ if (count($employees)) {
 print "</td>";
 
 //use the $firstEmployee to get the afd
-if(!$afd && $firstEmployee){
+if (!($afd ?? null) && ($firstEmployee ?? null)) {
 	$query = db_select("SELECT afd FROM ansatte WHERE navn = '$firstEmployee'",__FILE__ . " linje " . __LINE__);
 	if($r = db_fetch_array($query)){
 		$afd = $r['afd'];
@@ -264,6 +267,7 @@ print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td colspan='2'><inpu
 print "<tr><td></td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr2 value='$lev_addr2' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst('549|Postnr, by', $sprog_id)."</td><td><input class='inputbox' type='text' size=4 name=lev_postnr value='$lev_postnr' onchange='javascript:docChange = true;'>&nbsp;<input class='inputbox' type='text' size=16 name=lev_bynavn value='$lev_bynavn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>Att.:</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_kontakt value='$lev_kontakt' onchange='javascript:docChange = true;'></td></tr>\n";
+$kundeordnr = $kundeordnr ?? null;
 print "<tr><td>".findtekst('2129|Rekv. nr.', $sprog_id).":</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='kundeordnr' value='$kundeordnr' onchange='javascript:docChange = true;'></td></tr>\n"; #20221104
 print "</td></tr></tbody></table></td>";
 print "</td></tr>";

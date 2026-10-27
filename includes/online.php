@@ -66,6 +66,7 @@
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
 // 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -248,7 +249,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$regnaar = (string) $fallbackYear;
 			$qtxt = "update online set regnskabsaar = '$fallbackYear' where session_id = '" . db_escape_string($s_id) . "'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
-			if (!$revisor) {
+			if (!($revisor ?? null)) {
 				$qtxt = "update brugere set regnskabsaar = '$fallbackYear' where brugernavn = '$brugernavn' and regnskabsaar is null";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
@@ -261,16 +262,17 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$baseCurrency = $r['var_value'];
 		} else $baseCurrency = 'DKK';
 	} else $baseCurrency = 'DKK';
-	if (!$revisor) {
+	if (!($revisor ?? null)) {
 		if ($lukket) {
 			echo "regnskabet er lukket";
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/index.php\">";
 			exit;
 		}
+		$brugernavn = $brugernavn ?? null;
 		$r = db_fetch_array(db_select("select * from brugere where brugernavn= '$brugernavn'", __FILE__ . " linje " . __LINE__));
-		$bruger_id = $r['id'];
-		$rettigheder = trim(if_isset($r['rettigheder'], ''));
-		$ansat_id = $r['ansat_id'] * 1;
+		$bruger_id = $r ? $r['id'] : null;
+		$rettigheder = trim($r['rettigheder'] ?? '');
+		$ansat_id = ($r ? $r['ansat_id'] : null) * 1;
 		#		if ($r['language_id']) $languageID=$sprog_id=$r['language_id'];
 		if ($ansat_id) { #20120905 
 			$r = db_fetch_array(db_select("select * from ansatte where id = '$ansat_id'", __FILE__ . " linje " . __LINE__));

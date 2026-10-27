@@ -36,6 +36,7 @@
 //                  dagen efter forfald. Fristen regnes nu som dags dato minus ffdage1, som ved ffdage2/3.
 // 20260828 Sawaneh Review: the three cutoffs use calendar-day arithmetic (dunning_cutoff_date) instead of
 //                  date('U') - days*86400, which shifted eligibility by a day around the DST switches.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -80,7 +81,7 @@ $ffdage3=(int)$r['box7'];
 $rykkerfrist1=dunning_cutoff_date($ffdage1);
 
 $r = db_fetch_array(db_select("select id from formularer where beskrivelse LIKE '%inkassotekst'",__FILE__ . " linje " . __LINE__));
-if ($r['id']) {
+if ($r && $r['id']) {
 	$inkassotekst='';
 }
 
@@ -159,8 +160,8 @@ if ($konto_id[0]=="alle") {
 }
 for ($i=0; $i<=$konto_antal; $i++) {
 	$forfalden=0;
-	if (($konto_id[$i])||($rykker_id[$i])) {
-		if (!$rykker_id[$i]) {
+	if (($konto_id[$i] ?? null)||($rykker_id[$i] ?? null)) {
+		if (!($rykker_id[$i] ?? null)) {
 			$sum=0;
 			$r_ordrenr=0;
 			

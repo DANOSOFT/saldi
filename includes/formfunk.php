@@ -89,6 +89,7 @@
 // 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
 // 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
 //                holds the last printed order by then.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -760,11 +761,11 @@ if (!function_exists('find_form_tekst')) {
 					} elseif ($tabel == "forfalden" || $tabel == "rykker") { # finder forfalden_sum på rykker - $tabel=="rykker" indsat 14.04.08
 						$qtxt = "select * from varer where id IN (select xb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog')";
 						$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						$gebyr = (float) $r2['salgspris'];
+						$gebyr = (float) ($r2 ? $r2['salgspris'] : null);
 						if ($deb_valutakurs != '100')
 							$gebyr *= 100 / $deb_valutakurs; #20140628
 							$r2 = db_fetch_array(db_select("select yb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__));
-						$rentevare = (int) $r2['yb'];
+						$rentevare = (int) ($r2 ? $r2['yb'] : null);
 						$rente = 0; #20141211
 						$q2 = db_select("select * from ordrelinjer where ordre_id = '$id' and vare_id = '$rentevare'", __FILE__ . " linje " . __LINE__);
 						while ($r2 = db_fetch_array($q2))
@@ -2873,12 +2874,16 @@ if (!function_exists('rykkerprint')) {
 						system("$pdftk ../temp/$db/$pfliste[$x].pdf background ../logolib/$db_id/bg.pdf output $out");
 					} else $out = "../temp/$db/$pfliste[$x].pdf";
 					if (!$inkasso) {
-						unlink("$mappe/$pfliste[$x].pdf");
+						if (file_exists("$mappe/$pfliste[$x].pdf")) {
+							unlink("$mappe/$pfliste[$x].pdf");
+						}
 						system("mv $out $mappe/$pfliste[$x].pdf");
 					}
 				} else {
 					if (!$inkasso) {
-						unlink("$mappe/$pfliste[$x].pdf");
+						if (file_exists("$mappe/$pfliste[$x].pdf")) {
+							unlink("$mappe/$pfliste[$x].pdf");
+						}
 						system("mv ../temp/$db/$pfliste[$x].pdf $mappe/$pfliste[$x].pdf");
 					}
 				}

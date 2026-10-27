@@ -49,6 +49,8 @@
 //                CSV headers with nothing else sent yet.
 // 20260923 CL/NTR Guard count($konto_id) against the field being absent from $_POST when the openpost
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
+// 20261019 CDX/LH MB-78: fix PHP warnings
+// 20261027 CL/LH MB-78: An unset konto_fra/konto_til reaches trim() as '', not null.
 
 @session_start();
 $s_id = session_id();
@@ -208,7 +210,7 @@ if (isset($_GET['ny_rykker'])) {
 	$konto_fra = $_GET['konto_fra'];
 	$konto_til = $_GET['konto_til'];
 	#	$regnaar=$_GET['regnaar'];
-	openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
+	openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart ?? null, 'D');
 	exit;
 } elseif (isset($_GET['rapportart']) && $_GET['rapportart'] != 'openpost') {
 	$dato_fra = if_isset($_GET['dato_fra']);
@@ -304,6 +306,10 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_fra = $_POST['dato_fra'];
 		$dato_til = $_POST['dato_til'];
 	} else {
+		$dato_fra = $dato_fra ?? null;
+		$dato_til = $dato_til ?? null;
+		$konto_fra = $konto_fra ?? null;
+		$konto_til = $konto_til ?? null;
 		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 		$submit = 'ok';
 	}
@@ -316,11 +322,11 @@ if (isset($_POST['submit']) || $rapportart) {
 	if (!isset($_POST['konto']) && !isset($_GET['konto_fra']) && isset($_GET['kontonr'])) {
 		list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
 	}
-	$konto_fra = trim(if_isset($konto_fra));
+	$konto_fra = trim($konto_fra ?? '');
 	#	}
 	#	if (isset($_POST['konto_til']) && strpos($_POST['konto_til'],":")) {
 	#		list ($konto_til, $firmanavn) = explode(":", $_POST['konto_til']);
-	$konto_til = trim(if_isset($konto_til));
+	$konto_til = trim($konto_til ?? '');
 	#	}
 	#	if (isset($_POST['regnaar']) && strpos($_POST['regnaar'],"-")) {
 	#		list ($regnaar, $firmanavn)= explode("-", $_POST['regnaar']);

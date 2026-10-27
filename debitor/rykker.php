@@ -29,6 +29,7 @@
 // 20210701 - LOE - Translated some of these texts from Danish to English and Norsk
 // 20211110 MSC - Implementing new design
 // 20230228 PHR Implementing formular language $formularsprog, $newFormLanguage & FormLangId
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 @session_start();
 $s_id=session_id();
@@ -280,7 +281,7 @@ print "<input type = 'hidden' name='rykkernr'      value=\"$rykkernr\">";
 print "<input type = 'hidden' name='valuta'        value=\"$valuta\">"; #21040628
 print "<input type = 'hidden' name='felt_5'        value=\"$felt_5\">"; #21070303
 
-$ordre_id=if_isset($id);
+$ordre_id=$id ?? null;
 if ($menu=='T') {
 	print "<table cellpadding=0 cellspacing=0 border=0 width=100% class='dataTableNTH'>";
 	print "<tr>";
@@ -422,6 +423,7 @@ if ($menu=='T') {
 		print "<tr><input type = 'hidden' name = 'linje_id[$x]' value = \"$linje_id[$x]\">";
 		if ($dato[$x]) {
 			print "<td align=center>$dato[$x]</td>";
+			$faktnr[$x] = $faktnr[$x] ?? null;
 			print "<td align=center>$faktnr[$x]</td>";
 			if ($status<3) {
 				print "<td><input class=\"inputbox\" type=\"text\" size=\"44\" name=\"beskrivelse[$x]\" value=\"$beskrivelse[$x]\"></td>";

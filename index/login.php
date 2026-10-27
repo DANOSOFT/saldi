@@ -63,6 +63,7 @@
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -884,12 +885,12 @@ if(!isset($afbryd)){
 				$userMail = ifset($mailRow, 'email', '');
 			}
 			$result = loginLocatorRequest(array(
-				'action' => 'getDBlocation', 'globalId' => (int) if_isset($globalId, 0),
+				'action' => 'getDBlocation', 'globalId' => (int) ($globalId ?? 0),
 				'dbName' => $db, 'dbMail' => $mainMail, 'dbAlias' => $regnskab,
 				'dbLocation' => $dbLocation, 'userId' => (int) $userId,
 				'userName' => $brugernavn, 'userMail' => if_isset($userMail, '')
 			));
-			$locatorId = loginLocatorGlobalId($result, $db, (int) if_isset($globalId, 0));
+			$locatorId = loginLocatorGlobalId($result, $db, (int) ($globalId ?? 0));
 			if ($locatorId && (empty($globalId) || (!$dbMail && $mainMail))) {
 				$globalId = $locatorId;
 				include(__DIR__ . '/../includes/connect.php');

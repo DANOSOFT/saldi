@@ -46,6 +46,7 @@
 // 20260917 CDX/PHR Replace Print last with a same-tab cash count history button.
 // 20260917 CL/LH Translate the cash count history button label (text 5153).
 // 20260924 LOE SD-657 The turnover line on the till count screen is hidden from users the setting keeps out.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -289,7 +290,7 @@ function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_
 
 	for ($x=0;$x<count($kontkonto);$x++) {
 		$kortsum[$x]    = (float)if_isset($kortsum[$x],0);
-		$ny_kortsum[$x] = (float)if_isset($ny_kortsum[$x],0);
+		$ny_kortsum[$x] = (float)($ny_kortsum[$x] ?? 0);
 		if ($change_cardvalue) {
 			print "<tr><td colspan='2'><b>$kortnavn[$x]</b>(".dkdecimal($kortsum[$x],2).")</td><td align='right'>";
 			print "<input type='text' style=\"width:100;text-align:right;font-size:$ifs;\" ";

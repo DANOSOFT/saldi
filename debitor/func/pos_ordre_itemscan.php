@@ -69,6 +69,7 @@
 // 20251007 PHR Now looking for varenr_alias
 // 20260914 CDX/LH Port ssl3 extended mylabel barcodes; keep full IDs in fallback lookup.
 // 20260917 CDX/PHR Normalize zero prices for PHP 8 and set price focus before rendering inputs.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny) {
 	print "\n<!-- Function varescan (start)-->\n";
@@ -396,7 +397,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 		print "<tr><td><b>$kontonr</b></td><td colspan=\"2\">\n";
 		if ($status<3) print findtekst('2129|Rekv. nr.', $sprog_id).": <input type=\"text\" size=\"15\" name=\"kundeordnr\" value=\"$kundeordnr\">\n";
 		elseif ($kundeordnr) print findtekst('2129|Rekv. nr.', $sprog_id).": $kundeordnr</td>\n";
-		($bordnavn)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';  
+		($bordnavn ?? null)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';
 		if ($status>=3) print "</td><td colspan=\"2\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref | $tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td>\n";
 		print "</tr>\n<tr><td colspan=\"2\"><b>$firmanavn</b></td>\n";
 		if ($status>=3) print "<td colspan=\"4\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato, $tidspkt</td></tr>\n";
@@ -405,7 +406,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			if ($betalingsbet=='Kontant') print "<tr><td colspan=\"2\"><b>".findtekst('1866|Ingen kredit', $sprog_id)."</b></td>\n";
 		}
 	} elseif ($status>=3) {
-		($bordnavn)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';  
+		($bordnavn ?? null)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';
 		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref |$tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td></tr>\n";
 		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato, $tidspkt</td></tr>\n";
 	}
