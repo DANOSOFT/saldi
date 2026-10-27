@@ -1,5 +1,5 @@
 <?php
-// --------------------------------------------------lager/beholdningsliste.php     patch 0.983----------
+// --------------------------------------------------lager/beholdningsliste.php     ver 5.0.0 --- 20261027 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,54 +14,85 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2006 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261027 LOE MB-99 opening the list no longer writes, the sort/lager input is whitelisted or cast, and
+//                a user without a warehouse gets a picker instead of being logged out (SD-623).
 
 @session_start();
 $s_id = session_id();
 
-print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>SALDI - beholdningsliste</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
+include("../includes/connect.php");
+# MB-99 the document declares the charset the tenant actually stores, not a fixed ISO-8859-1
+$charset = ($db_encode == "UTF8") ? "UTF-8" : "ISO-8859-1";
+print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>SALDI - beholdningsliste</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\"></head><body>";
 
 # $modulnr=9;
 
-include("../includes/connect.php");
 include("../includes/online.php");
+# MB-99 the page now reads and formats input, so it needs if_isset() and findtekst() explicitly
+include("../includes/std_func.php");
 include("../includes/stdFunc/dkDecimal.php");
 # include("../includes/db_query.php");
 
-$vis_lev = $_GET['vis_lev'];
-$vis_kost = $_GET['vis_kost'];
-$sort = $_GET['sort'];
-if (!$sort) {
-    $sort = "varenr";
+# MB-99 only the columns the list can sort by are accepted, so nothing from the query string
+# reaches the ORDER BY
+$sorteringer = array('varenr', 'beskrivelse', 'salgspris', 'beholdning');
+$sort = if_isset($_GET, '', 'sort');
+if (!in_array($sort, $sorteringer, true)) {
+    $sort = 'varenr';
+}
+$vis_kost = if_isset($_GET, '', 'vis_kost');
+
+# MB-99 the warehouse is a number and must exist, or every query below would take it as given
+$lager = (int) if_isset($_GET, 0, 'lager');
+$lagernavn = '';
+if ($lager) {
+    if ($row = db_fetch_array(db_select("select beskrivelse from grupper where art='LG' and kodenr='$lager'", __FILE__ . " linje " . __LINE__))) {
+        $lagernavn = $row['beskrivelse'];
+    } else {
+        $lager = 0;
+    }
 }
 
-if (!isset($_GET["lager"])) {
-    $row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
-    if ($row["ansat_id"]) {
-        $row = db_fetch_array(db_select("select navn from ansatte where id = $row[ansat_id]", __FILE__ . " linje " . __LINE__));
-        if ($row["navn"]) {
-            $ref = $row['navn'];
-            if ($row = db_fetch_array(db_select("select afd from ansatte where navn = '$ref'", __FILE__ . " linje " . __LINE__))) {
-                if ($row = db_fetch_array(db_select("select beskrivelse, kodenr from grupper where box1='$row[afd]' and art='LG'", __FILE__ . " linje " . __LINE__))) {
-                    $lager = $row['kodenr'] * 1;
-                    $lagernavn = $row['beskrivelse'];
-                }
-            }
+# without a warehouse of its own the page follows the employee's department, as the menu does
+if (!$lager && !empty($ansat_id)) {
+    $row = db_fetch_array(db_select("select afd from ansatte where id = '$ansat_id'", __FILE__ . " linje " . __LINE__));
+    if ($row['afd']) {
+        $afd = db_escape_string($row['afd']);
+        if ($row = db_fetch_array(db_select("select beskrivelse, kodenr from grupper where box1='$afd' and art='LG' order by kodenr", __FILE__ . " linje " . __LINE__))) {
+            $lager = (int) $row['kodenr'];
+            $lagernavn = $row['beskrivelse'];
         }
     }
-} else {
-    $lager = $_GET["lager"];
 }
+# MB-99 a user without a warehouse link gets the warehouses to choose from: ending their session
+# (SD-623) told them nothing and cost them the login
 if (!$lager) {
-    print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/logud.php\">";
-    exit;
+    $lagre = array();
+    $q = db_select("select beskrivelse, kodenr from grupper where art='LG' order by kodenr", __FILE__ . " linje " . __LINE__);
+    while ($row = db_fetch_array($q)) {
+        $lagre[] = $row;
+    }
+    if (!$lagre) {
+        # MB-99 no warehouse is set up in this account: the list shows the totals instead of an
+        # empty picker, which is what the page did before it had a choice of warehouses
+        $lager = 0;
+    } else {
+        print "<center><h3>" . findtekst('980|Beholdning', $sprog_id) . "</h3>\n";
+        print "<p>" . findtekst('586|Vælg', $sprog_id) . ":</p>\n<ul>\n";
+        foreach ($lagre as $lagerrow) {
+            print "<li><a href='beholdningsliste.php?lager=" . (int) $lagerrow['kodenr'] . "'>" . htmlspecialchars($lagerrow['beskrivelse'], ENT_QUOTES, $charset) . "</a></li>\n";
+        }
+        print "</ul></center>\n</body>\n</html>\n";
+        exit;
+    }
 }
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 print "<td width=\"25%\" bgcolor=\"$bgcolor2\"><font face=\"Helvetica, Arial, sans-serif\" color=\"$color\"><small><a href=../includes/luk.php accesskey=L>Luk</a></small></td>\n";
-print "<td width=\"50%\" bgcolor=\"$bgcolor2\" align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"$color\"><small>Beholdningsliste - $lagernavn</small></td>\n";
+print "<td width=\"50%\" bgcolor=\"$bgcolor2\" align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"$color\"><small>Beholdningsliste - " . htmlspecialchars($lagernavn, ENT_QUOTES, $charset) . "</small></td>\n";
 print "<td width=\"25%\" bgcolor=\"$bgcolor2\" align=\"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"$color\"><small></small></td>\n";
 print "</tbody></table>\n";
 print "</td></tr>\n";
@@ -69,38 +100,34 @@ print "<tr><td valign=\"top\">\n";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">\n";
 print "<tbody>\n";
 
-print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0	\" width=\"100%\" valign = \"top\">";
+print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
 print "<tbody><tr>";
+# MB-99 the links keep the chosen warehouse, and no longer carry parameters the page never read
 if ($vis_kost) {
-    print "<tr><td colspan=8 align=center><a href=beholdningsliste.php?sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id>$font<small>Udelad kostpriser</a></td></tr>";
+    print "<tr><td colspan=8 align=center><a href='beholdningsliste.php?sort=$sort&amp;lager=$lager'>" . findtekst('1132|Skjul', $sprog_id) . " " . findtekst('950|Kostpris', $sprog_id) . "</a></td></tr>";
 } else {
-    print "<tr><td colspan=4 align=center><a href=beholdningsliste.php?sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=on>$font<small>Vis kostpriser</a></td></tr>";
+    print "<tr><td colspan=4 align=center><a href='beholdningsliste.php?sort=$sort&amp;lager=$lager&amp;vis_kost=on'>" . findtekst('560|Vis kostpriser', $sprog_id) . "</a></td></tr>";
 }
-print "<td><small><b>$font<a href=beholdningsliste.php?sort=varenr&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Varenr</a></b></small></td>";
-print "<td><small><b>$font<a href=beholdningsliste.php?sort=beskrivelse&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Beskrivelse</a></b></small></td>";
-print "<td align=right><small><b>$font<a href=beholdningsliste.php?sort=salgspris&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id>Salgspris</a></b></small></td>";
+print "<td><small><b>$font<a href='beholdningsliste.php?sort=varenr&amp;lager=$lager&amp;vis_kost=$vis_kost'>" . findtekst('917|Varenr.', $sprog_id) . "</a></b></small></td>";
+print "<td><small><b>$font<a href='beholdningsliste.php?sort=beskrivelse&amp;lager=$lager&amp;vis_kost=$vis_kost'>" . findtekst('914|Beskrivelse', $sprog_id) . "</a></b></small></td>";
+print "<td align=right><small><b>$font<a href='beholdningsliste.php?sort=salgspris&amp;lager=$lager&amp;vis_kost=$vis_kost'>" . findtekst('949|Salgspris', $sprog_id) . "</a></b></small></td>";
 if ($vis_kost) {
-    print "<td align=right><small><b>$font Kostpris</b></small></td>";
+    print "<td align=right><small><b>$font " . findtekst('950|Kostpris', $sprog_id) . "</b></small></td>";
 }
-print "<td align=right><small><b>$font<a href=beholdningsliste.php?sort=beholdning&funktion=vareOpslag&x=$x&fokus=$fokus&id=$id&vis_kost=$vis_kost>Beh.</a></b></small></td>";
+print "<td align=right><small><b>$font<a href='beholdningsliste.php?sort=beholdning&amp;lager=$lager&amp;vis_kost=$vis_kost'>" . findtekst('980|Beholdning', $sprog_id) . "</a></b></small></td>";
 print "<td><br></td>";
-#  print"<td><br></td><td><small><b>$fontKunde</b></small></td>";
 print " </tr>\n";
 
 if (!$sort) {
     $sort = "varenr";
 }
 
+$linjebg = NULL;
 $query = db_select("select * from varer where lukket != '1' order by $sort", __FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
-    $query2 = db_select("select box8 from grupper where art='VG' and kodenr='$row[gruppe]'", __FILE__ . " linje " . __LINE__);
-    $row2 = db_fetch_array($query2);
-    if (($row2["box8"] == 'on') || ($row["samlevare"] == 'on')) {
-        if (($row["beholdning"] != '0') and (!$row["beholdning"])) {
-            db_modify("update varer set beholdning=0 where id=$row[id]", __FILE__ . " linje " . __LINE__);
-        }
-    } elseif ($row["beholdning"]) {
-        db_modify("update varer set beholdning='' where id=$row[id]", __FILE__ . " linje " . __LINE__);
+    # MB-99 nothing on a GET may write: an item without a balance is shown with 0, never repaired
+    if ($row['beholdning'] === NULL || $row['beholdning'] === '') {
+        $row['beholdning'] = 0;
     }
 
     if ($linjebg != $bgcolor) {
