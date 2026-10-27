@@ -86,6 +86,7 @@
 // 20261027 CL/MMR SST-904 insert_shop_order() decodes the shop's text values (restApiShopText()) before they are escaped, instead of decoding the finished SQL with chk4utf8().
 //                 A name like O&#039;Brien became an unescaped quote in the SQL, and the customer and order were not created.
 //                 insert_shop_orderline() does the same for the item number lookup and the comment line.
+//                 insert_shop_orderline() casts its ids and escapes every shop identifier it puts into SQL (variant, item id, item number, barcode), and includes ordrefunc.php via __DIR__.
 
 
 // ----------------------------------------------------------------------
@@ -536,6 +537,11 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$varenr = NULL;
 	$linje_id = $ordresum = 0;
 	$shop_varenr = trim($shop_varenr);
+	// SST-904: the shop's identifiers as SQL values, decoded once and escaped; the raw values stay for the log and the order line
+	$shopVarenrSql = db_escape_string((string)restApiShopText($shop_varenr));
+	$shopVareIdSql = db_escape_string((string)restApiShopText($shop_vare_id));
+	$shopVariantSql = db_escape_string((string)restApiShopText($shop_variant));
+	$stregkodeSql = db_escape_string((string)restApiShopText($stregkode));
 
 	list($master,$db_skriv_id)=explode('_',$db);
 	$lager*=1;
@@ -544,6 +550,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	
 	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
 	if ($ordre_id && is_numeric($ordre_id)) {
+		$ordre_id = (int)$ordre_id;
 		$qtxt="select status,momssats,valutakurs,art from ordrer where id='$ordre_id'";
 		fwrite($log,__line__." ".$qtxt."\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -564,22 +571,20 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		return "Invalid order ID $ordre_id";
 		exit;
 	}
-		fwrite($log,__line__." $ordre_id status $r[status]\n");
+	fwrite($log,__line__." $ordre_id status $r[status]\n");
 	if ($shop_variant) {
-		$qtxt="select saldi_id, saldi_variant from shop_varer where shop_variant = '$shop_variant'"; #20220615
+		$qtxt="select saldi_id, saldi_variant from shop_varer where shop_variant = '$shopVariantSql'"; #20220615
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['saldi_id'];
 		$saldi_variant=$r['saldi_variant'];
 	} elseif ($shop_varenr) {
-		// SST-904: the item number is decoded and escaped as a value; the finished SQL is no longer decoded
-		$shopVarenrSql = db_escape_string(restApiShopText($shop_varenr));
 		$qtxt="select id from varer where UPPER(varenr)=UPPER('$shopVarenrSql') or UPPER(varenr_alias)=UPPER('$shopVarenrSql') or UPPER(stregkode)=UPPER('$shopVarenrSql')";
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['id'];
 	} elseif ($shop_vare_id) {
-		$qtxt="select saldi_id from shop_varer where shop_id='$shop_vare_id'";
+		$qtxt="select saldi_id from shop_varer where shop_id='$shopVareIdSql'";
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['saldi_id'];
@@ -594,8 +599,9 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	}
 	fwrite($log,__line__." Vare ID $vare_id\n");
 	fwrite($log,__line__." Stregkode $stregkode\n");
-	include("../includes/ordrefunc.php");
+	include(__DIR__ . "/../includes/ordrefunc.php");
 	if ($vare_id) {
+		$vare_id = (int)$vare_id;
 		$qtxt="select varenr,samlevare from varer where id='$vare_id'";
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -603,7 +609,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		if (!$varenr) $varenr=$r['varenr'];
 		fwrite($log,__line__." Vare_id $vare_id - Samlevare $samlevare - Varenr $varenr\n");
 		if ($saldi_variant) {
-			$qtxt="select variant_stregkode FROM variant_varer where id='$saldi_variant'";
+			$qtxt="select variant_stregkode FROM variant_varer where id='" . (int)$saldi_variant . "'";
 			fwrite($log,__line__." $qtxt\n");
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$varenr=$r['variant_stregkode'];
@@ -611,7 +617,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			}
 		}
 		if ($stregkode) {
-			$qtxt="select id FROM variant_varer where variant_stregkode='$stregkode'";
+			$qtxt="select id FROM variant_varer where variant_stregkode='$stregkodeSql'";
 			fwrite($log,__line__." $qtxt\n");
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$varenr=$stregkode;
@@ -620,7 +626,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		}
 	} else {
 		if ($stregkode) {
-			$qtxt="select id,samlevare from varer where stregkode='$stregkode'";
+			$qtxt="select id,samlevare from varer where stregkode='$stregkodeSql'";
 			fwrite($log,__line__." $qtxt\n");
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$vare_id=$r['id'];
@@ -630,7 +636,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			}
 		}
 		if (!$vare_id && $stregkode) {
-			$qtxt="select id,vare_id from variant_varer where variant_stregkode='$stregkode'";
+			$qtxt="select id,vare_id from variant_varer where variant_stregkode='$stregkodeSql'";
 			fwrite($log,__line__." $qtxt\n");
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$vare_id=$r['vare_id'];
@@ -641,8 +647,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			}
 		}
 		if (!$vare_id && ($shop_varenr || $shop_vare_id)) {
-			if ($shop_varenr) $qtxt="select id,samlevare from varer where UPPER(varenr)=UPPER('$shop_varenr') or UPPER(varenr_alias)=UPPER('$shop_varenr') or UPPER(stregkode)=UPPER('$shop_varenr')";
-			else $qtxt="select id,samlevare from varer where varenr='$shop_vare_id' or varenr_alias='$shop_vare_id' or stregkode='$shop_vare_id'";
+			if ($shop_varenr) $qtxt="select id,samlevare from varer where UPPER(varenr)=UPPER('$shopVarenrSql') or UPPER(varenr_alias)=UPPER('$shopVarenrSql') or UPPER(stregkode)=UPPER('$shopVarenrSql')";
+			else $qtxt="select id,samlevare from varer where varenr='$shopVareIdSql' or varenr_alias='$shopVareIdSql' or stregkode='$shopVareIdSql'";
 			fwrite($log,__line__." $qtxt\n");
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$vare_id=$r['id'];
@@ -683,13 +689,13 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		if ($vare_id && $shop_vare_id) {
 			if (!$saldi_variant) $saldi_variant=0; 	
 			if (!$shop_variant) $shop_variant=0; #20190104
-			$qtxt="insert into shop_varer(saldi_id,shop_id,saldi_variant,shop_variant)values('$vare_id','$shop_vare_id','$saldi_variant','$shop_variant')";
+			$qtxt="insert into shop_varer(saldi_id,shop_id,saldi_variant,shop_variant)values('" . (int)$vare_id . "','$shopVareIdSql','" . (int)$saldi_variant . "','" . db_escape_string((string)restApiShopText($shop_variant)) . "')";
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 		}
 	}
 	if (($vare_id)) {
-		$qtxt="update varer set publiceret='on' where id = '$vare_id'";
+		$qtxt="update varer set publiceret='on' where id = '" . (int)$vare_id . "'";
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
@@ -730,20 +736,20 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100',$line_art,$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,__LINE__);
 		
 		fwrite($log,__line__." LineSum =  $lineSum\n");
-		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '$vare_id'"; 
+		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '" . (int)$vare_id . "'"; 
 		fwrite($log,__line__." $qtxt\n");
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $linje_id = $r['id'];
 		else $linje_id = 0;
 	}else{
 		$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr,vare_id,antal,pris,rabat,lager,momsfri)";
 		$qtxt.=" values ";
-		$qtxt.="('$ordre_id','','$posnr','0','0','0','0','0','')";
+		$qtxt.="('$ordre_id','','" . (int)$posnr . "','0','0','0','0','0','')";
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$posnr+=100;
 		$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr,vare_id,antal,pris,rabat,lager,momsfri)";
 		$qtxt.=" values ";
-		$qtxt.="('$ordre_id','".db_escape_string(restApiShopText($beskrivelse))."','$posnr','0','0','0','0','0','')";
+		$qtxt.="('$ordre_id','".db_escape_string(restApiShopText($beskrivelse))."','" . (int)$posnr . "','0','0','0','0','0','')";
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt = "select max(id) as id 	from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '0'"; 

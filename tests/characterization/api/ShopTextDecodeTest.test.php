@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 // 20261027 CL/MMR SST-904 Created. A shop name like O&#039;Brien broke the customer/order insert: api/rest_api.php escaped the values and then decoded the finished SQL with chk4utf8(), which turned the entity into an unescaped quote.
+//                 insert_shop_orderline() must escape every shop identifier it puts into SQL (Codex round 1).
 //                 restApiShopText() is lifted from api/rest_api.php (including the file connects to a database) and run here; the order of decoding and SQL building is asserted on the source.
 final class ShopTextDecodeTest extends TestCase
 {
@@ -70,8 +71,13 @@ final class ShopTextDecodeTest extends TestCase
         foreach (['addr1', 'kontakt', 'lev_firmanavn', 'notes', 'tlf', 'email'] as $field) {
             self::assertStringContainsString("\$$field = restApiShopText(\$$field);", $order, "$field is not decoded");
         }
-        self::assertStringContainsString('db_escape_string(restApiShopText($shop_varenr))', $line,
-            'the item number lookup no longer escapes the decoded value');
+        self::assertStringContainsString('$shopVarenrSql = db_escape_string((string)restApiShopText($shop_varenr));', $line,
+            'the item number lookups no longer escape the decoded value');
+        foreach (['shop_varenr', 'shop_vare_id', 'shop_variant', 'stregkode', 'saldi_variant'] as $raw) {
+            self::assertStringNotContainsString("'\$$raw'", $line, "insert_shop_orderline() puts \$$raw into SQL unescaped");
+        }
+        self::assertStringContainsString('include(__DIR__ . "/../includes/ordrefunc.php");', $line,
+            'insert_shop_orderline() includes ordrefunc.php relative to the working directory again');
     }
 
     /** The source without comments, so commented-out code does not count. */
