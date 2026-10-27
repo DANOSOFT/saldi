@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
         barcode \
         msmtp \
         msmtp-mta \
+        wget \
     && docker-php-ext-install pgsql pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
