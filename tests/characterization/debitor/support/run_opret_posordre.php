@@ -26,10 +26,13 @@
 //   order_number      what the order-number allocator returns
 //
 // Prints one JSON line: the return value, every table afterwards, the SQL in order, the
-// stood-in calls in order, the warnings raised, anything printed, and the lock file's state.
+// stood-in calls in order, the warnings raised, anything printed, and the lock file's state:
+// lock is its timestamp less the second the call started, elapsed the seconds the call took.
 //
 // History:
 // 20261026 CL/MJ SD-772: created (M-PREP for S12).
+// 20261027 CL/LH SD-772 review: the lock is reported against the second the call started, with
+//                the call's own duration beside it, instead of against the clock at shutdown.
 
 $spec = json_decode((string)file_get_contents($argv[1] ?? ''), true);
 if (!is_array($spec)) {
@@ -45,6 +48,7 @@ $GLOBALS['opretCalls'] = [];
 $GLOBALS['opretWarnings'] = [];
 $GLOBALS['opretResult'] = null;
 $GLOBALS['opretReached'] = 'start';
+$GLOBALS['opretCalledAt'] = null;
 
 // ------------------------------------------------------------ the page's working directory
 //
@@ -194,7 +198,9 @@ register_shutdown_function(static function () use ($lockFile, $work) {
         'calls' => $GLOBALS['opretCalls'],
         'warnings' => $GLOBALS['opretWarnings'],
         'printed' => $printed,
-        'lock' => file_exists($lockFile) ? (int)file_get_contents($lockFile) - time() : null,
+        'lock' => file_exists($lockFile)
+            ? (int)file_get_contents($lockFile) - ($GLOBALS['opretCalledAt'] ?? time()) : null,
+        'elapsed' => $GLOBALS['opretCalledAt'] === null ? null : time() - $GLOBALS['opretCalledAt'],
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR) . "\n";
 
     // The fixture is this process's own temp directory; nothing outside $work is touched.
@@ -232,5 +238,6 @@ $_POST = $spec['post'] ?? [];
 require dirname(__DIR__, 4) . '/debitor/pos_ordre_includes/saleHeaderFunctions.php';
 
 $GLOBALS['opretReached'] = 'calling';
+$GLOBALS['opretCalledAt'] = time();
 $GLOBALS['opretResult'] = opret_posordre($spec['konto_id'] ?? 0, $spec['kasse'] ?? 1);
 $GLOBALS['opretReached'] = 'returned';

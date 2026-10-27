@@ -12,6 +12,9 @@ require_once __DIR__ . '/../support/CharacterizationEnv.php';
 //                prints redirects and exit()s; in a child process (support/run_opret_posordre.php)
 //                none of that is in the way, so the sale it writes is read back from the row.
 //                Covered here and nowhere else: the double-click lock. Synthetic data, no tenant.
+// 20261027 CL/LH SD-772 review: the spec file is the one tempnam() created (no orphan per test), and
+//                the lock is measured from the second the call started, so a clock tick during
+//                the call cannot turn the "now + 1" pin red.
 
 final class OpretPosordreCharacterizationTest extends TestCase
 {
@@ -41,11 +44,12 @@ final class OpretPosordreCharacterizationTest extends TestCase
      * Creates one sale and returns the child's report.
      *
      * @return array{result: ?int, reached: string, tables: array, sql: list<string>,
-     *               calls: list<array>, warnings: list<string>, printed: string, lock: ?int}
+     *               calls: list<array>, warnings: list<string>, printed: string, lock: ?int,
+     *               elapsed: ?int}
      */
     private function create(array $spec): array
     {
-        $this->specFile = tempnam(sys_get_temp_dir(), 'sd772opret') . '.json';
+        $this->specFile = (string)tempnam(sys_get_temp_dir(), 'sd772opret');
         file_put_contents($this->specFile, json_encode($this->withDefaults($spec), JSON_THROW_ON_ERROR));
 
         $child = CharacterizationEnv::runChild(__DIR__ . '/support/run_opret_posordre.php', [$this->specFile]);
@@ -238,7 +242,14 @@ final class OpretPosordreCharacterizationTest extends TestCase
     {
         $report = $this->create([]);
 
-        self::assertSame(1, $report['lock'], 'the lock is set one second into the future');
+        // The lock is written as "now + 1" partway through the call. Counted from the second the
+        // call started that is 1, plus one for each second boundary the call happened to cross.
+        self::assertGreaterThanOrEqual(1, $report['lock'], 'the lock is set one second into the future');
+        self::assertLessThanOrEqual(
+            1 + $report['elapsed'],
+            $report['lock'],
+            'the lock is set one second into the future'
+        );
     }
 
     public function testTheLockIsHeldPerTerminalNotPerInstallation(): void

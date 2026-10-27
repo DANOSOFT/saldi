@@ -13,6 +13,8 @@ require_once __DIR__ . '/../support/CharacterizationEnv.php';
 //                type, the order of levering() and bogfor(), and the three variables the file uses
 //                without ever assigning them. The real file runs unchanged in a child process
 //                (support/run_settle_pos.php) against SQLite; no tenant, no ledger, synthetic data.
+// 20261027 CL/LH SD-772 review: the spec file is the one tempnam() created (no orphan per test), and
+//                $payment_id, the third unassigned variable, is pinned beside $receipt_id.
 
 final class SettlePosCharacterizationTest extends TestCase
 {
@@ -50,7 +52,7 @@ final class SettlePosCharacterizationTest extends TestCase
      */
     private function settle(array $spec): array
     {
-        $this->specFile = tempnam(sys_get_temp_dir(), 'sd772') . '.json';
+        $this->specFile = (string)tempnam(sys_get_temp_dir(), 'sd772');
         file_put_contents($this->specFile, json_encode($this->withDefaults($spec), JSON_THROW_ON_ERROR));
 
         $child = CharacterizationEnv::runChild(__DIR__ . '/support/run_settle_pos.php', [$this->specFile]);
@@ -448,7 +450,21 @@ final class SettlePosCharacterizationTest extends TestCase
         $report = $this->settle([]);
 
         self::assertContains('Undefined variable $receipt_id in settlePOS.php:333', $report['warnings']);
-        self::assertSame(0, (int)$report['tables']['pos_betalinger'][0]['receipt_id']);
+        self::assertSame('0', (string)$report['tables']['pos_betalinger'][0]['receipt_id']);
+    }
+
+    public function testThePaymentIdIsNeverSetSoTheClaimedReservedRowStoresZero(): void
+    {
+        // A terminal that reports a payment id (payments/vibrant.php) sends it to pos_ordre.php,
+        // which keeps it in $_SESSION['payment_id']; nothing hands it to afslut(), and settlePOS
+        // casts the undefined $payment_id to int when it claims the reserved row.
+        $report = $this->settle([
+            'betalinger' => [['id' => 77, 'ordre_id' => 1, 'betalingstype' => '!', 'amount' => 0,
+                'valuta' => 'DKK', 'valutakurs' => 100]],
+        ]);
+
+        self::assertContains('Undefined variable $payment_id in settlePOS.php:346', $report['warnings']);
+        self::assertSame('0', (string)$report['tables']['pos_betalinger'][0]['payment_id']);
     }
 
     // ----------------------------------------------------------------- oere rounding
