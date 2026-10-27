@@ -26,6 +26,7 @@
 // 20210307 PHR Added $date to allmost all functions as it was countion all orders from day zero
 // 20261027 CL/MMR SST-897 The Z-report locks the register's proforma row before it reads the data and keeps the lock until the report is saved.
 //                 A second Z-report for the same register waits and reads the counter after the first one took its numbers off.
+//                 The register's counter row is created first when missing, so there is always a row to lock.
 
 
 include("pos_ordre_includes/report/rapportData.php"); #20190219
@@ -42,7 +43,9 @@ function setupReport($type, $kasse) {
 		if ($type == 'zRapport') {
 			// The proforma counter is read here and taken off in saveLastReport(). Lock the register's row first, so a
 			// second Z-report or a proforma print (proformaCount()) for this register waits until this report is saved.
+			// The row is created first if the register has none yet: a missing row cannot be locked (ensureProformaRow()).
 			transaktion('begin');
+			ensureProformaRow($kasse);
 			db_select("select id from proforma where id = '" . (int)$kasse . "' for update", __FILE__ . " linje " . __LINE__);
 		}
 		$reportArray = retrieveReportData($kasse,$date);

@@ -30,6 +30,7 @@
 // PHR php8
 // 20261027 CL/MMR SST-897 proformaCount() adds to the register's proforma counter in the database instead of writing back a total it read before.
 //                 A Z-report that took the counter's numbers off meanwhile is no longer undone.
+//                 ensureProformaRow() creates the register's zero counter row, so a Z-report can lock it before the first proforma print.
 
 function printWarningMessage($textType) { #LN Print warning message
     if($textType == "proforma") {
@@ -171,23 +172,38 @@ function getReceiptId($table)
     return $id;
 }
 
+/**
+ * Make sure the register has its proforma counter row (id = register number).
+ *
+ * A Z-report locks this row while it reads and saves (setupReport()), and proformaCount() adds to it.
+ * A row that does not exist yet cannot be locked, so both create it first. A concurrent creation of the
+ * same row waits for the other transaction and then does nothing.
+ *
+ * @return void
+ */
+function ensureProformaRow($kasse) {
+    global $db_type;
+    $kasseNr = (int)$kasse;
+    if ($db_type == 'mysql' || $db_type == 'mysqli') {
+        $qtxt = "insert ignore into proforma (id, price, count) values ($kasseNr, 0, 0)";
+    } else {
+        $qtxt = "insert into proforma (id, price, count) values ($kasseNr, 0, 0) on conflict (id) do nothing";
+    }
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 function proformaCount($x, $dkkpris, $kasse) {
-	$totalPrice = 0;
+    $totalPrice = 0;
     for ($j = 0; $j <= $x; $j++) {
         $temp = dkdecimal($dkkpris[$j],2);
-				$totalPrice += $temp;
+        $totalPrice += $temp;
     }
     $kasseNr = (int)$kasse;
     $totalPrice = (float)$totalPrice;
-    $proformaQuery = db_fetch_array(db_select("select id from proforma where id='$kasseNr'",__FILE__."linje".__LINE__));
-
-    if (isset($proformaQuery['id'])) {
-        // Add in the database: a Z-report holds this row locked while it saves (setupReport()), and its numbers must
-        // not be written back afterwards from a total read before it.
-        db_modify("update proforma set price = price + $totalPrice, count = count + 1 where id='$kasseNr'", __FILE__ . " linje " . __LINE__);
-    } else {
-        db_modify("insert into proforma (id, price, count) values ($kasseNr, $totalPrice, '1')",__FILE__."linje".__LINE__);
-    }
+    // Add in the database: a Z-report holds this row locked while it saves (setupReport()), and its numbers must
+    // not be written back afterwards from a total read before it.
+    ensureProformaRow($kasseNr);
+    db_modify("update proforma set price = price + $totalPrice, count = count + 1 where id='$kasseNr'", __FILE__ . " linje " . __LINE__);
 }
 
 

@@ -5,6 +5,7 @@
 // 20261026 CL/MMR SST-897 Exercise the X/Z-report proforma counter and the saved report rows on an isolated PostgreSQL schema.
 // 20261027 CL/MMR SST-897 A proforma receipt printed between reading and saving the Z-report stays on the counter (CodeRabbit, PR #894).
 //                 The Z-report's row lock makes a second Z-report and the real proformaCount() writer wait (Codex verification round 2).
+//                 A register without a counter row gets one before the lock, so a first proforma print cannot slip past two Z-reports (Codex round 3).
 // Run with SALDI_CHAR_PGHOST / PGPORT / PGUSER / PGPASS / PGDATABASE (all prefixed SALDI_CHAR_).
 
 error_reporting(E_ALL);
@@ -67,6 +68,7 @@ function firstValue($sql) {
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/report/reportSubtract.php');
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/report/rapportReceiptData.php');
 require_once(__DIR__ . '/../debitor/pos_ordre_includes/report/saveReport.php');
+require_once(__DIR__ . '/../debitor/pos_ordre_includes/helperMethods/helperFunc.php');
 $kasse = '2';
 try {
 	pg_query($connection, "CREATE SCHEMA $schema");
@@ -138,6 +140,7 @@ try {
 	$other = pg_connect(implode(' ', $parts), PGSQL_CONNECT_FORCE_NEW);
 	pg_query($other, "SET search_path TO $schema");
 	transaktion('begin');
+	ensureProformaRow($kasse);
 	pg_query($connection, $lockSql);
 	// A second Z-report for the same register cannot take the row while the first one holds it.
 	try {
@@ -167,6 +170,35 @@ try {
 	checkZReport(pg_fetch_result(pg_query($other, 'SELECT count FROM proforma WHERE id = 2'), 0, 0) === '1',
 		'The second Z-report then reads only what was printed after the first one');
 	pg_query($other, 'COMMIT');
+
+	// A register that never printed a proforma receipt has no row to lock: setupReport() creates it first (ensureProformaRow()).
+	pg_query($connection, 'DELETE FROM proforma WHERE id = 2');
+	transaktion('begin');
+	ensureProformaRow($kasse);
+	pg_query($connection, $lockSql);
+	// A second Z-report starts now; its row creation waits for the first Z-report.
+	pg_query($other, 'BEGIN');
+	pg_send_query($other, "insert into proforma (id, price, count) values (2, 0, 0) on conflict (id) do nothing");
+	usleep(500000);
+	checkZReport(pg_connection_busy($other), 'On a register without a counter row a second Z-report waits for the first one');
+	// The register's first proforma print, with the real proformaCount(), waits as well.
+	$writer = proc_open(array(PHP_BINARY, __FILE__, 'writer', $schema), array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+	usleep(700000);
+	$status = proc_get_status($writer);
+	checkZReport($status['running'], 'The first proforma print on the register waits for the Z-report too');
+	$read = proformaReceipts($kasse);
+	saveLastReport(array('proformaReceiptsArray' => $read));
+	transaktion('commit');
+	$writerOut = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+	checkZReport(proc_close($writer) === 0, 'The first proforma print finishes after the Z-report: ' . trim($writerOut));
+	pg_get_result($other);
+	pg_query($other, $lockSql);
+	checkZReport(pg_fetch_result(pg_query($other, 'SELECT count FROM proforma WHERE id = 2'), 0, 0) === '1',
+		'The second Z-report reads the first proforma receipt once');
+	pg_query($other, 'COMMIT');
+	checkZReport(firstValue("SELECT count FROM report WHERE type = 'Proforma receipt' ORDER BY id DESC LIMIT 1") === '0'
+		&& firstValue('SELECT count FROM proforma WHERE id = 2') === '1' && (float)firstValue('SELECT price FROM proforma WHERE id = 2') === 45.0,
+		'The first Z-report saved no proforma receipt, the counter holds the first receipt and is not negative');
 	pg_close($other);
 } finally {
 	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
