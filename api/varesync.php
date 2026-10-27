@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- lap 4.1.0 --- 2024.03.18 ---
+// --- api/varesync.php --- ver 5.0.0 --- 2026.10.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 2018.04.24 Omskrevet variant delen så det inditificeres på variant_id i stedet for på stregkode så det er muligt at ændre stregkode på shop.
@@ -34,10 +34,22 @@
 // 2024-03-18	PHR Speed optimation.
 // 2024-03-27 PHR Some improvemnets
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261027 CL/SZ SD-778: fetches and writes nothing while box4 (legacy slot 4) is closed for intake.
 
+require_once(__DIR__ . '/../includes/shopify/coexistence.php');
 
 function varesync($valg) {
 	global $brugernavn,$db;
+	// Legacy coexistence switch (SD-778): the products come from box4, legacy slot 4. Once that
+	// shop has moved to Shopify, Saldi owns the items, so nothing is fetched or written.
+	if (shopify_legacy_shared(array('db' => $db), 4) === false) {
+		echo "Webshoppen er ved at blive skiftet. Prøv igen om lidt.<br>";
+		return;
+	}
+	if (!shopify_legacy_enabled(array('db' => $db), 4, 'intake')) {
+		echo "Varer hentes ikke fra den gamle webshop: den er lukket, fordi butikken er flyttet til Shopify.<br>";
+		return;
+	}
 	# if ($db == 'pos_8') transaktion('begin');
 	$showtxt=NULL;
 	$newItemsId = $vare_id = $vnrtjek = array();

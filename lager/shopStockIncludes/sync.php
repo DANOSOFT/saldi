@@ -1,11 +1,14 @@
 <?php
-// --- lager/shopStockIncludes/sync.php --- 2026-10-05 ---
+// --- lager/shopStockIncludes/sync.php --- 2026-10-27 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261005 CDX/PHR Add resumable total-stock synchronization without price or warehouse updates.
 // 20261005 CDX/PHR Allow retrying an individual failed item/shop without advancing the queue.
 // 20261006 CL/NTR Documented why webshop requests deliberately follow customer-controlled redirects.
 // 20261006 CL/NTR Documented that a batch may exceed its 8 s budget by one cURL timeout.
+// 20261027 CL/SZ SD-778: a slot closed for legacy outbound (shopify_legacy settings) is not offered or sent to.
+
+require_once(__DIR__ . '/../../includes/shopify/coexistence.php');
 
 class ShopStockException extends RuntimeException {}
 
@@ -20,9 +23,14 @@ function shopStockRows($sql)
 	return $rows;
 }
 
-/** @return array<int, string> Configured, deduplicated shop endpoints keyed by API slot. */
+/**
+ * @return array<int, string> Configured, deduplicated shop endpoints keyed by API slot (1-3 for
+ *   box4-box6), without the slots closed for legacy outbound (SD-778). A closed slot is removed
+ *   after deduplication, so a URL it shares with a later slot never moves to that slot.
+ */
 function shopStockEndpoints()
 {
+	global $db;
 	$rows = shopStockRows("SELECT box4,box5,box6 FROM grupper WHERE art='API' ORDER BY id");
 	$endpoints = array();
 	foreach ($rows as $row) {
@@ -34,6 +42,13 @@ function shopStockEndpoints()
 				}
 				$endpoints[$slot] = $url;
 			}
+		}
+	}
+	foreach (array_keys($endpoints) as $slot) {
+		// Like the other outbound reads, the slot's shared lock is held for the request, so a
+		// cutover waits for a batch that is still sending.
+		if (shopify_legacy_shared(array('db' => $db), $slot + 3) === false || !shopify_legacy_enabled(array('db' => $db), $slot + 3, 'outbound')) {
+			unset($endpoints[$slot]);
 		}
 	}
 	return $endpoints;
