@@ -141,6 +141,7 @@ if (!function_exists('create_regnskab')) {
 		// --- restore the master connection on every path ---
 		if (!empty($connection)) db_close($connection);
 		$connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
+		db_select_database($connection, $sqdb);
 		$db = $sqdb;
 		$GLOBALS['db'] = $sqdb;
 
