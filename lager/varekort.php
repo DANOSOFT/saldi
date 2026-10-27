@@ -131,6 +131,7 @@
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
+// 20261027 LOE MB-62 a read-only user is offered only the buttons that read, not the ones that write.
 //
 ob_start(); //Starts output buffering
 
@@ -258,6 +259,17 @@ $numberOfStocks = count($warehouseNames);
 
 $opener = if_isset($_GET, NULL, 'opener');
 $id = (int) if_isset($_GET, NULL, 'id');
+# MB-62 no id means a new item: a read-only user gets no create form at all
+if (!$id && $noEdit) {
+    error_log('MB-62: item create refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+    # MB-62 a refused page offers a way back in the Saldi button look: a left arrow and the Tilbage text,
+    # and the top window, so the SPA shell opens instead of leaving the user inside the frame
+    print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+    print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+    print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+    	. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+    exit;
+}
 $returside = nav_sanitize_returside($_GET['returside'] ?? null);
 if ($returside) {
     $ordre_id = if_isset($_GET, NULL, 'ordre_id') * 1;
@@ -280,7 +292,12 @@ if (isset($_GET['konto_id']) && (int)$_GET['konto_id']) $mb65_write = true;
 if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0 && (int)$id != (int)$_GET['vare_id']) $mb65_write = true;
 if ($mb65_write && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
     error_log('MB-65: item write refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
-    print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
+    # MB-62 a refused page offers a way back in the Saldi button look: a left arrow and the Tilbage text,
+    # and the top window, so the SPA shell opens instead of leaving the user inside the frame
+    print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+    print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+    print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+    	. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
     exit;
 }
 if ($konto_id = (int) if_isset($_GET, NULL, 'konto_id')) {
@@ -362,7 +379,12 @@ if (isset($_POST['supplierLookUp']) && $_POST['supplierLookUp'])
 $mb65_save_request = $saveItem || (bool) trim((string) $submit);
 if ($mb65_save_request && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
     error_log('MB-65: item save refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
-    print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
+    # MB-62 a refused page offers a way back in the Saldi button look: a left arrow and the Tilbage text,
+    # and the top window, so the SPA shell opens instead of leaving the user inside the frame
+    print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+    print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+    print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+    	. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
     exit;
 }
 if ($saveItem || $submit = trim($submit)) {
@@ -1757,7 +1779,11 @@ if (!$varenr) {
     print "<input class=\"inputbox\" type=\"text\" size=\"25\" name=\"varenr\" value=\"$varenr\" pattern='" . $pattern . "' ";
     print "onchange=\"javascript:docChange = true;\"></td></tr>\n";
     print "<tr><td align=center>".findtekst('2021|Tilladte tegn er: a-z A-Z 0-9 . + -_', $sprog_id)."</td>\n";
+    # MB-62 a mass import is a write, so a read-only user is not offered it (the target page does not
+    # exist in the repository either - logged as BUG-20261027-1)
+    if (!$noEdit) {
     print "<tr><td align=center><a href='varescanimport.php?returside=varekort.php'><button type='button'>Masse vare scan</button></a></td></tr>\n";
+    }
 } else {
     print "<input type=\"hidden\" name=\"varenr\" value=\"$varenr\">\n";
     print "<tr><td colspan='4' width='100%'><table bordercolor='#FFFFFF' border='1' cellspacing='5' width='100%'><tbody>\n";
@@ -2082,23 +2108,33 @@ print "<input type = 'hidden' name=gl_kostpris value='$kostpris[0]'>";
 print "<input type = 'hidden' name='oldRetailPrice' value='$retail_price'>";
 
 
-print "<tr><td align = center><input class='button green medium' style='width:150px;' type=submit accesskey=\"g\" ";
-print "value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"saveItem\" onclick=\"javascript:docChange = false;\" $noEdit></td>";
+# MB-62 the row opens either way; a read-only user gets no Save in it
+print "<tr>";
+if (!$noEdit) {
+print "<td align = center><input class='button green medium' style='width:150px;' type=submit accesskey=\"g\" ";
+print "value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"saveItem\" onclick=\"javascript:docChange = false;\"></td>";
+}
 
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
+# MB-62 a read-only user is shown what may be read and nothing that writes: copy, item lookup,
+# supplier lookup and delete all run a save, so they are not drawn at all
 if ($varenr && $samlevare == 'on') {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
-    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy' $noEdit></td>";
+    if (!$noEdit) {
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
+    }
 } elseif ($varenr) {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
     $txt2049 = findtekst('2049|Leverandøropslag', $sprog_id); //Leverandøropslag
     $txt3056 = findtekst('3295|Lagerhistorik', $sprog_id);    //Lagerhistorik
-    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy' $noEdit></td>";
-    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;' $noEdit></td>";
+    if (!$noEdit) {
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;'></td>";
+    }
     print "<td align = center><input class='button blue medium' style='width:150px;' type=button accesskey='o' value='$txt3056' name='stockHistory' onclick='javascript:docChange = false;location.href = \"productCardIncludes/stockLog.php?id=$id\"'></td>";
 }
-if ($id) {
+if ($id && !$noEdit) {
     $txt1099 = findtekst('1099|Slet', $sprog_id); //Slet
     $q = db_select("select distinct(id) from ordrelinjer where vare_id = $id", __FILE__ . " linje " . __LINE__);
     if (!db_fetch_array($q) && $lev_ant < 1 && $ant_be_af < 1 && $ant_indg_i < 1) {
@@ -2332,7 +2368,6 @@ function kontoopslag($sort, $fokus, $id)
 
         print "<td width=\"10%\" align=\"right\" onClick=\"JavaScript:window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\">
            <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Ny</button></td>";
-
         print "</tbody></table></td></tr>";
 
     } else {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------lager/ret_varenralias.php-------------patch 3.9.1 -- 20200612 ----------
+// ----------lager/ret_varenralias.php-------------ver 5.0.0 -- 20261027 ----------
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 2018.05.15 Kontrol mod flet af styklister og vares som indgår.
 // 2020.06.12 PHR Added pattern match on item no (varenr).
 // 2025.08.07 Modified to support varenr_alias instead of varenr.
+// 20261027 LOE MB-62 A read-only user may not rename or merge items.
 
 @session_start();
 $s_id=session_id();
@@ -37,6 +38,18 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+
+# MB-62 a read-only user may not rename or merge items: this page writes the number into every table that carries it
+if ($rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+	error_log('MB-62: item renumber refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+	# MB-62 a refused page offers a way back in the Saldi button look: a left arrow and the Tilbage text,
+	# and the top window, so the SPA shell opens instead of leaving the user inside the frame
+	print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+	print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+	print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+		. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+	exit;
+}
 
 if (isset($_GET['id'])) $id = $_GET['id'];
 elseif(isset($_POST['id'])) {

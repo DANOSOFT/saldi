@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.0.0 --- 2026.09.30 ---
+// ---- index/main.php --- ver 5.0.0 --- 2026.10.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 //                 ignore the inframe flag when deciding whether the iframe already shows the target.
 // 20260914 CDX/LH Removed the Guides sidebar entry and its popup.
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
+// 20261027 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 @session_start();
 $s_id = session_id();
 
@@ -56,7 +57,7 @@ function check_permissions($permarr)
 {
   global $rettigheder;
   $filtered = array_filter($permarr, function ($item) use ($rettigheder) {
-    return (substr($rettigheder, $item, 1) == "1");
+    return in_array(substr($rettigheder, $item, 1), array('1', '2'), true);
   });
   return !empty($filtered);
 }

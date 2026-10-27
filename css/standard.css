@@ -209,3 +209,10 @@ th {
 	text-decoration: none;
 	cursor: pointer;
   }
+
+/* MB-62 a disabled button must look disabled (20261027): the item card links only this stylesheet */
+.button[disabled],
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

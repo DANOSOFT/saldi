@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---patch 4.1.0 ----2026-09-25--------------
+// --- lager/varer.php ---ver 5.0.0 ----2026-10-27--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -114,6 +114,8 @@ $beskrivelse = $fokus = $linjeantal = $slut = $start = $udvalg = $vis_lev = $vis
 
 include("../includes/connect.php");
 include("../includes/online.php");
+# MB-62 creating an item is a write, so a read-only user is not offered the list's Ny button
+$mb62_readonly = ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1'));
 include("../includes/std_func.php");
 include("productCardIncludes/itemVat.php");
 // 20260925 CL/NTR - genbestil() replay guard (see varerIncludes/genbestilReplay.php); included after
@@ -493,7 +495,7 @@ if ($menu=='T') {
 
 	print "<td width='5%'><a href='varevisning.php'>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$txt3101'>$txt813</button></a></td>";
-	print "<td width='5%'><a href='varekort.php?returside={$listReturnQuery}'>
+	if (!$mb62_readonly) print "<td width='5%'><a href='varekort.php?returside={$listReturnQuery}'>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Opret en ny vare'>Ny</button></a></td>";
 
 	print "</tr>\n";
@@ -520,7 +522,7 @@ if ($menu=='T') {
 		print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:var productWindow=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');if(productWindow){productWindow.focus();}\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
 	} else {
 		print "<td width=\"5%\" $top_bund><a href=\"varevisning.php\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></a></td>";
-		print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside={$listReturnQuery}\"><span title='Opret en ny vare'>Ny</span></a></td>";
+		if (!$mb62_readonly) print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside={$listReturnQuery}\"><span title='Opret en ny vare'>Ny</span></a></td>";
 	}
 	print "</tr>\n";
 	print "</tbody></table>\n";
@@ -862,6 +864,7 @@ while ($r = db_fetch_array($q)) {
 //             off, so that ran for every matching row rather than the fifty on screen - measured at
 //             7,3 ms per item on a dev tenant loaded to Dyre-Loppen's volume, about 300 s for their
 //             41.381 varer. Both lookups are read-only and keyed by vare_id, so they are built once
+// 20261027 LOE MB-62 a read-only user is not offered the list's Ny button.
 //             here instead. Behaviour is unchanged: same rows, same numbers, same page contents.
 $lagerSum = array();
 $lagerRow = array();
