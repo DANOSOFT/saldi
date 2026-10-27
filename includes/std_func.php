@@ -122,6 +122,7 @@
 // 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
 //                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
 // 20261027 CDX/MJ SST-876 Skip queue filesystem work without a webshop and defer backlog processing until transactions have committed.
+// 20261027 CDX/MJ SST-876 Defer document sends until the outer transaction completes and send them before old backlog in the post-commit drain.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2385,10 +2386,10 @@ if (!function_exists('shopSyncMarkState')) {
 	 * its lines as it posts them and flushes once, which is how an item on two lines becomes
 	 * one send, and how the figure that is sent is the one the document ended with.
 	 *
-	 * @return array{items: array<string, array>}
+	 * @return array{items: array<string, array>, delivered: int}
 	 */
 	function &shopSyncMarkState() {
-		static $state = array('items' => array());
+		static $state = array('items' => array(), 'delivered' => 0);
 		return $state;
 	}
 }
@@ -2468,13 +2469,20 @@ if (!function_exists('shopSyncFlush')) {
 	 * The document's own items go first, because those are the figures somebody is waiting to
 	 * see in the shop. The queue is drained afterwards: if the budget runs out in the middle of
 	 * it, everything left is still on the queue and the next request picks it up, which is the
-	 * difference between late and lost.
+	 * difference between late and lost. Inside a transaction, marks remain pending until
+	 * the transaction owner calls the drain after commit.
 	 *
 	 * @param int $drain  Most old queued items to attempt afterwards. 0 skips the old backlog.
+	 * @param int $maxAttempts Attempts after which failed queue deliveries are reported.
 	 * @return string  'no api', 'OK' or 'sync errors: n', as sync_shop_vare() answers.
 	 */
-	function shopSyncFlush($drain = 50) {
+	function shopSyncFlush($drain = 50, $maxAttempts = 5) {
 		$state = &shopSyncMarkState();
+		$state['delivered'] = 0;
+		// Keep the marks until the transaction owner commits; shops must only see committed stock.
+		if (!empty($GLOBALS['db_transaktion_depth'])) {
+			return shopSyncApiConfigured() ? 'OK' : 'no api';
+		}
 		$marked = $state['items'];
 		$state['items'] = array();
 		if (!shopSyncApiConfigured()) {
@@ -2489,12 +2497,14 @@ if (!function_exists('shopSyncFlush')) {
 		$backlog = array_values(array_filter($backlog, function ($entry) use ($keys) {
 			return !isset($keys[shopSyncQueueKey($entry['vare_id'], $entry['variant_id'], $entry['lager'])]);
 		}));
-		$result = shopSyncRunDocument($marked);
+		$result = shopSyncRunDocument($marked, true, 0, $maxAttempts);
+		$state['delivered'] = $result['delivered'];
 		if ($result['noApi']) {
 			return 'no api';
 		}
 		if ($backlog) {
-			shopSyncRunBacklog($backlog);
+			$retried = shopSyncRunBacklog($backlog, 5, $maxAttempts);
+			$state['delivered'] += $retried['delivered'];
 		}
 		return $result['failed'] ? 'sync errors: ' . $result['failed'] : 'OK';
 	}
@@ -2510,7 +2520,7 @@ if (!function_exists('shopSyncDrainQueue')) {
 	 * that cannot be delivered becomes something a person can act on rather than a retry that
 	 * goes on for ever.
 	 *
-	 * @param int $limit        Most items to attempt in this request.
+	 * @param int $limit        Most old backlog items to attempt after any deferred document.
 	 * @param int $maxAttempts  Attempts after which an item counts as a final failure.
 	 * @return int  Items delivered.
 	 */
@@ -2525,6 +2535,11 @@ if (!function_exists('shopSyncDrainQueue')) {
 		}
 		$draining = true;
 		try {
+			if (shopSyncMarkedCount() > 0) {
+				shopSyncFlush($limit, $maxAttempts);
+				$state = &shopSyncMarkState();
+				return $state['delivered'];
+			}
 			$result = shopSyncRunBacklog(shopSyncQueuePending($limit), 5, $maxAttempts);
 			return $result['delivered'];
 		} finally {

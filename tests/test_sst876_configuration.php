@@ -1,6 +1,7 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-876 Verify no-webshop requests avoid queue I/O and transactions defer backlog delivery.
+// 20261027 CDX/MJ SST-876 Assert document stock is deferred until commit rather than published inside the transaction.
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
 	throw new ErrorException($message, 0, $severity, $file, $line);
@@ -68,11 +69,11 @@ try {
 	$GLOBALS['db_transaktion_depth'] = 1;
 	$GLOBALS['queueAccesses'] = 0;
 	check(shopSyncDrainQueue() === 0 && $GLOBALS['queueAccesses'] === 0, 'A retry drain never scans the queue inside a transaction');
-	check(shopSyncFlush() === 'OK', 'Document items still send while their caller owns a transaction');
-	check($GLOBALS['delivered'] === array(123), 'An open transaction does not send old backlog along with the document');
+	check(shopSyncFlush() === 'OK', 'The transactional flush safely defers work until commit');
+	check($GLOBALS['delivered'] === array() && shopSyncMarkedCount() === 1, 'An open transaction sends neither uncommitted document figures nor old backlog');
 	check(is_file($marker), 'The old marker remains queued until commit');
 	$GLOBALS['db_transaktion_depth'] = 0;
-	check(shopSyncDrainQueue() === 1 && $GLOBALS['delivered'] === array(123, 77), 'After commit the backlog sends successfully');
+	check(shopSyncDrainQueue() === 2 && $GLOBALS['delivered'] === array(123, 77), 'After commit the backlog sends successfully');
 	check(!is_file($marker), 'Delivered backlog is removed only after its post-commit send');
 	check($GLOBALS['configurationReads'] === 2, 'A different tenant has an independent cached configuration');
 } finally {

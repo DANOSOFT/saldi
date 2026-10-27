@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/shopSyncDocument.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- includes/stdFunc/shopSyncDocument.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20261023 CDX/MJ SST-876 Prepare document updates before sending bounded batches, with document lines before sets.
 // 20261026 CDX/MJ SST-876 Recover queued sets through their original part path and retain claims when no payload was sent.
+// 20261027 CDX/MJ SST-876 Retain correction markers for any successful low-level send inside a transaction, including parent sets.
 
 /**
  * Request-local payload collection; quantities are rebuilt on every delivery.
@@ -207,7 +208,7 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 			}
 			$subject = $claim ?: $entry;
 			$groups[$key] = array('claim' => $claim, 'failed' => false, 'retry' => false,
-				'attempted' => false, 'label' => '', 'noApi' => false);
+				'attempted' => false, 'sent' => false, 'label' => '', 'noApi' => false);
 			$queuedSet = !$report && shopSyncIsQueuedSet($subject);
 			$result = $queuedSet ? shopSyncCollectQueuedSet($subject)
 				: sync_shop_vare($subject['vare_id'], $subject['variant_id'], $subject['lager'], $subject['mode']);
@@ -257,7 +258,7 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 					continue;
 				}
 				$groups[$key] = array('claim' => $claim, 'failed' => false, 'retry' => false,
-					'attempted' => false, 'label' => '', 'noApi' => false);
+					'attempted' => false, 'sent' => false, 'label' => '', 'noApi' => false);
 			}
 			$groups[$key]['label'] = $task['label'];
 			$ordered[] = $task;
@@ -288,6 +289,7 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 			$results = shopApiRequestParallel($urls, array(), $log, $options);
 			foreach ($results as $index => $res) {
 				$key = $owners[$index];
+				$groups[$key]['sent'] = $groups[$key]['sent'] || $res['ok'];
 				if (!$res['ok']) {
 					$groups[$key]['failed'] = true;
 					if (shopSyncWorthRetrying($res)) {
@@ -315,6 +317,9 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 			if ($final && $group['attempted']) {
 				error_log('saldi: shop stock sync failed repeatedly for ' . $key);
 			}
+		} elseif ($claim && !$group['failed'] && $group['sent'] && !empty($GLOBALS['db_transaktion_depth'])) {
+			// Defensive direct callers may send before commit. Retain correction work for rollback.
+			shopSyncQueueRelease($claim, $maxAttempts, false);
 		} elseif ($claim) {
 			// An answered refusal is reported, not retried indefinitely as if it were transport failure.
 			shopSyncQueueDone($claim);

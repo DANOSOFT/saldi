@@ -18,6 +18,7 @@
 // Invoice 230508 of 2026-10-19 is the shape being reproduced: five lines, the first of them item
 // 13054, a component in 33 sets. On live it made 108 successful calls and then skipped everything
 // that followed, including item 107657.
+// 20261027 CDX/MJ SST-876 Allow the transaction regression to distinguish pending stock from committed stock.
 
 chdir(__DIR__);   // sync_shop_vare() opens ../temp/<db>/rest_api.log
 
@@ -67,10 +68,10 @@ function db_select($qtext, $spor = '', $global = false)
 		$item = isset($ITEMS[(int)$m[1]]) ? $ITEMS[(int)$m[1]] : null;
 		if ($item) {
 			$rows[] = array('varenr' => $item['varenr'], 'varenr_alias' => '', 'kostpris' => '100',
-				'salgspris' => '200', 'm_type' => '', 'm_rabat' => '0', 'stock' => '67');
+				'salgspris' => '200', 'm_type' => '', 'm_rabat' => '0', 'stock' => (string)($GLOBALS['fixtureStock'] ?? '67'));
 		}
 	} elseif (strpos($qtext, 'sum(beholdning) as total_stock') !== false) {
-		$rows[] = array('total_stock' => '67');
+		$rows[] = array('total_stock' => (string)($GLOBALS['fixtureStock'] ?? '67'));
 	} elseif (preg_match("/select shop_id from shop_varer where saldi_id ?= ?'?(\d+)'?/", $qtext, $m)) {
 		$rows[] = array('shop_id' => 'shop-' . (int)$m[1]);
 	} elseif (preg_match("/FROM varer WHERE varer.id='(\d+)'/", $qtext, $m)) {

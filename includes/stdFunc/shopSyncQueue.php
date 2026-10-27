@@ -38,6 +38,7 @@
 // operating system sweeps.
 // 20261022 CL/MJ SST-876 Created.
 // 20261027 CDX/MJ SST-876 Refresh a delivery claim timestamp so old pending markers are not reclaimed during an active send.
+// 20261027 CDX/MJ SST-876 Retain retryable transport failures even when the shop sent HTTP 200 before disconnecting.
 
 if (!function_exists('shopSyncQueueDir')) {
 	/**
@@ -352,7 +353,7 @@ if (!function_exists('shopSyncWorthRetrying')) {
 			return true;
 		}
 		$code = (int) (isset($res['httpCode']) ? $res['httpCode'] : 0);
-		return ($code === 0 || $code >= 500);
+		return (!empty($res['transient']) || $code === 0 || $code >= 500);
 	}
 }
 

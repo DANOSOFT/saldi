@@ -58,6 +58,8 @@ Run these scripts separately (they share fixture directory names):
 ```bash
 php tests/test_sst876_configuration.php
 php tests/test_sst876_delivery_transaction.php
+php tests/test_sst876_transaction_recovery.php
+php tests/test_sst876_transport_http.php
 php tests/test_sst876_flush.php
 php tests/test_sst876_sync_queue.php
 php tests/test_sst876_item_fanout.php
@@ -68,7 +70,10 @@ php tests/test_shop_stock_sync.php
 ```
 
 The configuration regression verifies that tenants without a webshop perform no queue
-filesystem work, and that old backlog waits until the stock transaction commits.
+filesystem work, and that document sends and old backlog wait until the stock transaction commits.
+The transaction recovery regression covers rollback stock and low-level sends with parent sets.
+The transport HTTP regression rejects truncated and timed-out HTTP 200 responses in both
+parallel cURL and shell cURL, and retains the failed item until a complete retry succeeds.
 The queue regression also checks that claiming an old marker starts a fresh lease.
 
 The HTTP test needs PHP cURL, Python 3, and permission to bind/connect to loopback.

@@ -154,6 +154,7 @@
 //                 component in 33 sets, so one order line was 198 webshop calls and the 30
 //                 second budget skipped everything after it.
 // 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
+// 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -494,11 +495,9 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	#fclose ($fp);
 /* echo "<!--function levering slut-->"; */
 	#xit;
-	# SST-876: every line is posted, so the webshops are told once, here, instead of per line.
-	# The figures are read from the database as they now stand. A shop that could not be
-	# reached leaves the item on the queue for the next request, and the item numbers are kept
-	# for whichever page called this one to report after it has committed - this function has
-	# no screen of its own, and the rest api has none at all.
+	# SST-876: every line is marked. With an open transaction, the flush defers these
+	# figures until the owner drains after commit; otherwise it sends the document now.
+	# Failed item numbers belong to the screen caller, never a popup in this shared function.
 	$shopSync = shopSyncFlush(0); # Document only; the transaction owner drains after commit.
 	if (shopSyncFailed($shopSync)) {
 		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
