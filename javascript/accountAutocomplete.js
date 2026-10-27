@@ -32,6 +32,7 @@
 // 20261019 CL/SZ SD-721 A kreditor made with "Opret kreditor" advances the search token like any other selection (SST-814).
 // 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
 // 20261026 CL/LH An emptied account cancels the VAT lookup still running for its old value, so the old code isn't written back afterwards.
+// 20261027 CL/LH (CodeRabbit) Each VAT lookup gets its own key, so a failed earlier lookup of the same account can't clear the code a newer one set.
 (function () {
     'use strict'; 
 
@@ -68,6 +69,9 @@
     // that comes back carrying an older number is for a value the field no longer holds,
     // so it is dropped rather than painted over the current state.
     let searchSeq = 0;
+    // Numbers every VAT lookup, so each request's key is its own even for the same account:
+    // an answer for an earlier lookup, success or failure, no longer matches and is dropped.
+    let vatLookupSeq = 0;
     let dropdownContainer = null;
     let selectionMade = false;
     let currentPage = 1;
@@ -506,7 +510,8 @@
             return Promise.resolve(options.vatCode || '');
         }
 
-        const lookupKey = side + ':' + accountNo;
+        vatLookupSeq++;
+        const lookupKey = side + ':' + accountNo + ':' + vatLookupSeq;
         vatField.dataset.lookupKey = lookupKey;
 
         return fetch(getVatBasePath() + '?type=finance&exact=1&search=' + encodeURIComponent(accountNo))
