@@ -368,4 +368,54 @@ abstract class BaseEndpoint
             throw new ApiException("Missing required fields: " . implode(', ', $missingFields), 400);
         }
     }
+
+    // 20261019 CL/LH Added validateNumericFields() (MB-76).
+    //                The models cast numbers with (float)/(int), so "1,50" was saved as 1 without an error.
+    /**
+     * Reject numeric request fields that are not a JSON number or a plain numeric string, with a
+     * 400 ApiException in the same format as validateData(). A string must match ^-?\d+(\.\d+)?$
+     * (dot as decimal separator, no thousands separator, no spaces); a whole-number field only
+     * accepts ^-?\d+$ or a JSON number without a fractional part. Absent and null fields are
+     * skipped, matching the isset() checks endpoints use before calling a setter.
+     *
+     * @param object|null $data          Decoded JSON request body.
+     * @param string[]    $decimalFields Fields that take a decimal number (prices, quantities, sizes).
+     * @param string[]    $integerFields Fields that take a whole number (ids, codes).
+     * @return void
+     * @throws ApiException 400 naming every field with an invalid value.
+     */
+    protected function validateNumericFields($data, $decimalFields, $integerFields = [])
+    {
+        $invalidFields = [];
+
+        foreach (array_merge($decimalFields, $integerFields) as $field) {
+            if (!isset($data->$field)) {
+                continue;
+            }
+            $value = $data->$field;
+            $wholeNumber = in_array($field, $integerFields, true);
+
+            if (is_int($value)) {
+                $valid = true;
+            } elseif (is_float($value)) {
+                $valid = is_finite($value) && (!$wholeNumber || floor($value) == $value);
+            } elseif (is_string($value)) {
+                $valid = preg_match($wholeNumber ? '/^-?\d+$/D' : '/^-?\d+(\.\d+)?$/D', $value) === 1;
+            } else {
+                $valid = false;
+            }
+
+            if (!$valid) {
+                $invalidFields[] = $field . ($wholeNumber ? ' (whole number)' : '');
+            }
+        }
+
+        if (!empty($invalidFields)) {
+            throw new ApiException(
+                "Invalid number format for fields: " . implode(', ', $invalidFields)
+                . ". Send a JSON number or a string such as \"1250.50\" - dot as decimal separator, no thousands separator.",
+                400
+            );
+        }
+    }
 }

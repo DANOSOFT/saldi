@@ -17,6 +17,8 @@
 // Copyright (c) 2004-2007 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
+// 20260729 LOE Updated to include stdFunc/dkDecimal.php and removed dkdecimal.php which is no longer used.
+
 @session_start();
 $s_id=session_id();
 $title="Vareimport";
@@ -24,7 +26,7 @@ $title="Vareimport";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/dkdato.php");
-include("../includes/dkdecimal.php");
+include("../includes/stdFunc/dkDecimal.php");
 include("../includes/db_query.php");
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";

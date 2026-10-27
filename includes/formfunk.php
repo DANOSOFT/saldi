@@ -69,6 +69,7 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
+// 20260917 CL/LH Delivery note always prints the delivery address; vis_lev_addr no longer gates formular 3 (Havemoebelland).
 // 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
 //             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
@@ -86,6 +87,8 @@
 //             konto_til was ignored. The revived query also treats a NULL lukket as open.
 // 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
 // 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
+// 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
+//                holds the last printed order by then.
 // 20261019 CDX/LH MB-78: fix PHP warnings
 
 #use PHPMailer\PHPMailer\PHPMailer;
@@ -653,7 +656,7 @@ if (!function_exists('find_form_tekst')) {
 					list($tabel, $variabel) = explode("_", $streng[$x], 2);
 
 					if (($tabel == "ordre") && (($variabel == "lev_navn") || ($variabel == "lev_addr1") || ($variabel == "lev_addr2") || ($variabel == "lev_postnr") || ($variabel == "lev_bynavn") || ($variabel == "lev_kontakt")) && (($formular == 3) || get_settings_value("showBothAddrExtra", "ordre", "off") === "on")) {
-						$variabel = tjek_lev_addr($variabel, $id);
+						$variabel = tjek_lev_addr($variabel, $id, $formular);
 					}
 					if ($tabel == "afdeling" && $variabel == "note") {
 						$qtxt = "select afd from ordrer where id=$id";
@@ -965,16 +968,19 @@ if (!function_exists('find_forfaldsdato')) {
 }
 
 if (!function_exists('tjek_lev_addr')) {
-	function tjek_lev_addr($variabel, $id)
+	function tjek_lev_addr($variabel, $id, $formular = NULL)
 	{
 		print "<!--function tjek_lev_addr start-->";
 		if ($variabel == "lev_navn")
 			$tmp = "firmanavn";
 		else
 			$tmp = substr($variabel, 4);
-		// 20260709 Sawaneh SD-562: when "show both" is enabled, only print the delivery address
-		// on the delivery note if the order's Show-delivery-address flag (vis_lev_addr) is on.
-		$vis_lev_cond = (get_settings_value("showBothAddrExtra", "ordre", "off") === "on") ? " and vis_lev_addr='on'" : "";
+		// 20260917 CL/LH The delivery note (formular 3) always uses the delivery address when one is set.
+		// In "show both" mode the order's Show-delivery-address flag (vis_lev_addr) only gates the other forms.
+		$vis_lev_cond = "";
+		if ($formular != 3 && get_settings_value("showBothAddrExtra", "ordre", "off") === "on") {
+			$vis_lev_cond = " and vis_lev_addr='on'";
+		}
 		$query = db_select("select $tmp from ordrer where id=$id and lev_navn!='' and lev_addr1!='' and lev_postnr!='' and lev_bynavn!=''$vis_lev_cond", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			return $variabel;
@@ -1107,6 +1113,7 @@ if (!function_exists('formularprint')) {
 		if ($vis_saet)
 			$brugsamletpris = 'on';
 
+		$bulkPrint = ($id == -1);
 		if ($id == -1) {	# Saa er der flere fakturaer
 			$ordre_antal = $_GET['ordre_antal'];
 			$ordreliste = $_GET['skriv'];
@@ -2409,7 +2416,7 @@ if (!function_exists('formularprint')) {
 			}
 			// 20260807 MJ urlencode returside saa search-parametre ikke laekaer som separate GET-parametre i udskriv.php
 			// 20260812 MJ Brug is_string-guard saa array-input ikke giver PHP-advarsel (null/array -> tom streng)
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art" . ($bulkPrint ? '&amp;bulk=1' : '') . "&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
