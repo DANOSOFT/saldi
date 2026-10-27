@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/schema.php --- ver 5.0.0 --- 2026.10.21
+// --- includes/shopify/schema.php --- ver 5.0.0 --- 2026.10.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,15 +22,18 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// Shopify data model, schema manifest version 1 (implementation plan 2.4).
+// Shopify data model, schema manifest version 2 (implementation plan 2.4), and the stock triggers.
 // The one catalog for both the upgrade path (includes/betweenUpdates.php) and the
 // fresh-tenant path (admin/opret.php). Later packages extend it only by a version bump here.
 //
 // 20261021 Sawaneh SD-733: created (WP01-1).
 // 20261021 Sawaneh SD-733 review: a failed statement rolls its section back and keeps the marker unwritten;
 //                 primary keys are repaired like the other constraints.
+// 20261027 Sawaneh SD-736: manifest v2. Stock triggers on lagerstatus, styklister and varer mark items in
+//                 shopify_stock_dirty, created only when a shop exists; shopify_stock_dirty becomes append-only
+//                 (id key, vare_id indexed) so two stock writers never wait on each other's dirty row.
 
-const SHOPIFY_SCHEMA_VERSION = 1;
+const SHOPIFY_SCHEMA_VERSION = 2;
 
 final class ShopifySchemaError extends RuntimeException
 {
@@ -333,10 +336,14 @@ function shopify_schema_catalog(): array {
 		),
 		'shopify_stock_dirty' => array(
 			'columns' => array(
+				'id' => 'bigserial NOT NULL',
 				'vare_id' => 'integer NOT NULL',
 				'dirtied_at' => $created,
 			),
-			'primary' => 'vare_id',
+			'primary' => 'id',
+			'indexes' => array(
+				'shopify_stock_dirty_vare_idx' => array('cols' => 'vare_id'),
+			),
 		),
 		'shopify_stock_state' => array(
 			'columns' => array(
@@ -573,6 +580,9 @@ function ensure_shopify_schema(bool $force = false): bool {
 	$ok = true;
 	foreach (shopify_schema_catalog() as $table => $definition) {
 		$ok = shopify_schema_locked($table, function () use ($table, $definition) {
+			if ($table === 'shopify_stock_dirty') {
+				shopify_schema_migrate_stock_dirty();
+			}
 			ensure_shopify_table($table, $definition);
 		}) && $ok;
 	}
@@ -583,12 +593,157 @@ function ensure_shopify_schema(bool $force = false): bool {
 			}
 		}) && $ok;
 	}
+	$ok = shopify_schema_locked('stock_triggers', function () {
+		ensure_shopify_stock_triggers(true);
+	}) && $ok;
 	if (!$ok) {
 		return false;
 	}
 	return shopify_schema_locked('schema_version', function () {
 		shopify_schema_write_marker();
 	});
+}
+
+/**
+ * Manifest v1 keyed shopify_stock_dirty on vare_id. Two stock writers marking the same set then
+ * waited on each other's uncommitted dirty row while holding the stock rows the other needed: a
+ * deadlock the legacy code alone does not have. v2 makes the table append-only; a v1 table is
+ * dropped and recreated in the same section (nothing wrote to it before the triggers came with v2).
+ */
+function shopify_schema_migrate_stock_dirty(): void {
+	$old = shopify_schema_select(
+		"SELECT 1 FROM pg_constraint c JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+		 WHERE c.contype = 'p' AND c.conrelid = to_regclass('shopify_stock_dirty') AND a.attname = 'vare_id'"
+	);
+	if ($old) {
+		shopify_schema_exec('DROP TABLE shopify_stock_dirty');
+	}
+}
+
+/**
+ * Stock columns per table: an UPDATE that changes none of them marks nothing (varer's modtime trigger
+ * fires on every update). Triggers are found by name, so a change here reaches existing tenants only
+ * with a version bump that drops the old triggers first.
+ */
+const SHOPIFY_STOCK_TRIGGER_COLUMNS = array(
+	'lagerstatus' => array('lager', 'vare_id', 'variant_id', 'beholdning'),
+	'styklister' => array('vare_id', 'indgaar_i', 'antal'),
+	'varer' => array('beholdning', 'gruppe', 'samlevare'),
+);
+
+/**
+ * Creates the stock triggers (core edit 10) when the tenant has a shop row, else does nothing:
+ * the installs without Shopify get no triggers at all. Idempotent. Called by the manifest pass
+ * ($refresh: also replaces the function body) and by shopify_save_shop() in the shop's own transaction.
+ * Serialized by the stock_triggers advisory lock; when everything exists it takes no table lock.
+ * A missing trigger or index locks varer, lagerstatus and styklister up front, in the order a
+ * sale writes them, with a 500ms lock timeout (below deadlock_timeout), so the save gives way
+ * and fails instead of stalling or deadlocking a stock writer.
+ *
+ * The trigger marks the changed item, or the set a styklister row belongs to, plus every set
+ * above it through styklister.indgaar_i, by a plain INSERT into shopify_stock_dirty inside the
+ * writer's transaction. It marks nothing until a shop has stock_capture_enabled.
+ *
+ * @return bool true when the triggers exist afterwards
+ * @throws ShopifySchemaError when a statement fails
+ */
+function ensure_shopify_stock_triggers(bool $refresh = false): bool {
+	global $connection;
+	if (!shopify_schema_raw_one('SELECT 1 FROM shopify_shops LIMIT 1')) {
+		return false;
+	}
+	shopify_schema_raw("SELECT pg_advisory_xact_lock(hashtext('shopify_schema:stock_triggers'))");
+	$state = shopify_schema_raw_one(
+		"SELECT to_regprocedure('shopify_mark_stock_dirty()') IS NOT NULL AS has_function,
+		        to_regclass('shopify_styklister_vare_idx') IS NOT NULL AS has_index,
+		        (SELECT string_agg(c.relname || '.' || t.tgname, ',') FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+		         WHERE t.tgname IN ('shopify_dirty_insdel', 'shopify_dirty_upd')) AS triggers"
+	);
+	$existing = explode(',', (string)$state['triggers']);
+	$missing = array();
+	foreach (SHOPIFY_STOCK_TRIGGER_COLUMNS as $table => $columns) {
+		$changed = array();
+		foreach ($columns as $column) {
+			$changed[] = "OLD.$column IS DISTINCT FROM NEW.$column";
+		}
+		$definitions = array(
+			'shopify_dirty_insdel' => "AFTER INSERT OR DELETE ON $table FOR EACH ROW",
+			'shopify_dirty_upd' => 'AFTER UPDATE OF ' . implode(', ', $columns) . " ON $table FOR EACH ROW WHEN (" . implode(' OR ', $changed) . ')',
+		);
+		foreach ($definitions as $name => $when) {
+			if (!in_array("$table.$name", $existing, true)) {
+				$missing[] = "CREATE TRIGGER $name $when EXECUTE PROCEDURE shopify_mark_stock_dirty()";
+			}
+		}
+	}
+	if ($refresh || $state['has_function'] !== 't') {
+		shopify_schema_raw(<<<'SQL'
+CREATE OR REPLACE FUNCTION shopify_mark_stock_dirty() RETURNS trigger LANGUAGE plpgsql AS $shopify$
+DECLARE
+	ids integer[] := '{}';
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM shopify_shops WHERE stock_capture_enabled) THEN
+		RETURN NULL;
+	END IF;
+	IF TG_TABLE_NAME = 'varer' THEN
+		IF TG_OP <> 'DELETE' THEN ids := ids || NEW.id; END IF;
+		IF TG_OP <> 'INSERT' THEN ids := ids || OLD.id; END IF;
+	ELSIF TG_TABLE_NAME = 'lagerstatus' THEN
+		IF TG_OP <> 'DELETE' THEN ids := ids || NEW.vare_id; END IF;
+		IF TG_OP <> 'INSERT' THEN ids := ids || OLD.vare_id; END IF;
+	ELSE
+		IF TG_OP <> 'DELETE' THEN ids := ids || NEW.indgaar_i; END IF;
+		IF TG_OP <> 'INSERT' THEN ids := ids || OLD.indgaar_i; END IF;
+	END IF;
+	INSERT INTO shopify_stock_dirty (vare_id)
+	WITH RECURSIVE up(id, depth) AS (
+		SELECT x, 0 FROM unnest(ids) AS x WHERE x IS NOT NULL
+		UNION
+		SELECT s.indgaar_i, up.depth + 1 FROM styklister s JOIN up ON s.vare_id = up.id
+		WHERE up.depth < 10 AND s.indgaar_i IS NOT NULL
+	)
+	SELECT DISTINCT id FROM up;
+	RETURN NULL;
+END
+$shopify$
+SQL);
+	}
+	if ($missing || $state['has_index'] !== 't') {
+		$timeout = shopify_schema_raw_one("SELECT current_setting('lock_timeout') AS v")['v'];
+		shopify_schema_raw("SET LOCAL lock_timeout = '500ms'");
+		shopify_schema_raw('LOCK TABLE varer, lagerstatus, styklister IN SHARE ROW EXCLUSIVE MODE');
+		shopify_schema_raw("SELECT set_config('lock_timeout', " . pg_escape_literal($connection, $timeout) . ', true)');
+		if ($state['has_index'] !== 't') {
+			shopify_schema_raw('CREATE INDEX shopify_styklister_vare_idx ON styklister (vare_id)');
+		}
+		foreach ($missing as $sql) {
+			shopify_schema_raw($sql);
+		}
+	}
+	return true;
+}
+
+/**
+ * Runs one statement directly on the tenant connection, for DDL whose body holds semicolons
+ * (db_modify()'s injection check would refuse it). No bound values, so the error is safe to keep.
+ */
+function shopify_schema_raw(string $sql): void {
+	global $connection;
+	$result = @pg_query($connection, $sql);
+	if ($result === false) {
+		throw new ShopifySchemaError('schema statement failed: ' . trim((string)pg_last_error($connection)) . ' -- ' . (strstr(ltrim($sql), "\n", true) ?: ltrim($sql)));
+	}
+}
+
+/** @return array<string, string|null>|null first row of a query run directly on the tenant connection */
+function shopify_schema_raw_one(string $sql): ?array {
+	global $connection;
+	$result = @pg_query($connection, $sql);
+	if ($result === false) {
+		throw new ShopifySchemaError('schema query failed: ' . trim((string)pg_last_error($connection)));
+	}
+	$row = pg_fetch_assoc($result);
+	return $row === false ? null : $row;
 }
 
 /**
