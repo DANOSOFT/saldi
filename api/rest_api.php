@@ -544,6 +544,9 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$stregkodeSql = db_escape_string((string)restApiShopText($stregkode));
 	$shopVareIdInt = (int)$shop_vare_id;
 	$shopVariantInt = (int)$shop_variant;
+	// A non-numeric shop id would cast to 0 and match the many shop_varer rows stored with 0, so it is not looked up there
+	$shopVariantIsId = (string)$shopVariantInt === trim((string)$shop_variant);
+	$shopVareIdIsId = (string)$shopVareIdInt === trim((string)$shop_vare_id);
 
 	list($master,$db_skriv_id)=explode('_',$db);
 	$lager*=1;
@@ -574,7 +577,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		exit;
 	}
 	fwrite($log,__line__." $ordre_id status $r[status]\n");
-	if ($shop_variant) {
+	if ($shop_variant && $shopVariantIsId) {
 		$qtxt="select saldi_id, saldi_variant from shop_varer where shop_variant = '$shopVariantInt'"; #20220615
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -585,7 +588,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['id'];
-	} elseif ($shop_vare_id) {
+	} elseif ($shop_vare_id && $shopVareIdIsId) {
 		$qtxt="select saldi_id from shop_varer where shop_id='$shopVareIdInt'";
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -688,7 +691,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			$smlv='on';
 */
 		} elseif ($vare_id) fwrite($log,__line__." Vare $varenr eksisterer\n");
-		if ($vare_id && $shop_vare_id) {
+		if ($vare_id && $shop_vare_id && $shopVareIdIsId) {
 			if (!$saldi_variant) $saldi_variant=0; 	
 			if (!$shop_variant) $shop_variant=0; #20190104
 			$qtxt="insert into shop_varer(saldi_id,shop_id,saldi_variant,shop_variant)values('" . (int)$vare_id . "','$shopVareIdInt','" . (int)$saldi_variant . "','$shopVariantInt')";
