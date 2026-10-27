@@ -151,7 +151,10 @@ function bilagStagedRowWillBeSaved($row) {
 	$bilag = isset($row['bilag']) ? trim((string)$row['bilag']) : '';
 	$transdate = isset($row['transdate']) ? trim((string)$row['transdate']) : '';
 	$id = isset($row['id']) ? (int)$row['id'] : 0;
-	$has_bilag = ($bilag !== '' && $bilag !== '-');   # '-' is the row opdater() skips outright
+	if ($bilag === '-') {
+		return false;   # opdater() skips such a row before it looks at anything else
+	}
+	$has_bilag = ($bilag !== '');
 	$has_content = false;
 	foreach (array('beskrivelse', 'debet', 'kredit', 'faktura', 'amount') as $field) {
 		if (isset($row[$field]) && trim((string)$row[$field]) !== '') {
@@ -162,8 +165,12 @@ function bilagStagedRowWillBeSaved($row) {
 	if ($id > 0 && $has_bilag) {
 		return true;   # an existing line with a number is updated
 	}
-	if ($transdate !== '' && ($transdate !== date('Y-m-d') || $has_content)) {
-		return true;   # a dated line, which is inserted with or without a number
+	if ($transdate !== '') {
+		# the staged date keeps the operator's format, so compare the day it names, not the string
+		$dato_ts = strtotime($transdate);
+		if ($has_content || $dato_ts === false || date('Y-m-d', $dato_ts) !== date('Y-m-d')) {
+			return true;   # a dated line, which is inserted with or without a number
+		}
 	}
 	return $has_bilag && $has_content;   # a numbered line with something on it
 }

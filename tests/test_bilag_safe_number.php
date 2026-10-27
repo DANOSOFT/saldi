@@ -33,7 +33,8 @@ function db_select($qtext, $spor = '', $global = false) {
 				'id' => 0,
 				'bilag' => $bilag,
 				'beskrivelse' => $GLOBALS['bilag_test']['content'] ? 'line text' : '',
-				'transdate' => '',
+				'transdate' => $GLOBALS['bilag_test']['transdate'],
+				'id' => $GLOBALS['bilag_test']['id'],
 			);
 		}
 		return new BilagTestResult($rows);
@@ -45,11 +46,11 @@ function db_fetch_array($result) {
 	return array_shift($result->rows);
 }
 function bilagTestJournal($journal_max, $staged) {
-	$GLOBALS['bilag_test'] = array('journal_max' => $journal_max, 'staged' => $staged, 'content' => true);
+	$GLOBALS['bilag_test'] = array('journal_max' => $journal_max, 'staged' => $staged, 'content' => true, 'id' => 0, 'transdate' => '');
 }
 function bilagTestJournalEmptyLines($journal_max, $staged) {
 	# lines that carry only a number: opdater() skips them, so they hold nothing back
-	$GLOBALS['bilag_test'] = array('journal_max' => $journal_max, 'staged' => $staged, 'content' => false);
+	$GLOBALS['bilag_test'] = array('journal_max' => $journal_max, 'staged' => $staged, 'content' => false, 'id' => 0, 'transdate' => '');
 }
 
 $checks = 0;
@@ -105,7 +106,6 @@ bilagTestJournal(3, array('abc', ''));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4, 'staged values the column cannot hold are ignored');
 bilagTestJournal(3, array('9', '4'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 10, 'the highest staged number is passed, not only the last one read');
-bilagTestJournal(3, array('4'));
 bilagTestJournal(2147483647, array());
 bilagCheck(bilagNextNumberReserved(1, array()) === 0,
 	'a journal at the column maximum has no storable number left: the allocator says 0');
@@ -116,8 +116,8 @@ bilagTestJournal(3, array('2147483646'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 2147483647,
 	'one below the maximum still yields a storable number');
 $kassekladde = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
-	bilagCheck(substr_count($kassekladde, '# SST-888 (review) no storable number is left') === 3,
-	'the three other allocations refuse the line when no storable number is left');
+	bilagCheck(substr_count($kassekladde, 'alert(findtekst("5454|') === 4,
+	'every allocation that finds no storable number refuses its line with the exhaustion alert');
 bilagTestJournalEmptyLines(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4,
 	'a staged 4 the save will skip does not hold a number back: the replacement is still 4');
@@ -127,6 +127,18 @@ bilagCheck(bilagNextNumberReserved(1, array()) === 4,
 bilagTestJournal(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 5,
 	'a staged 4 that will be saved still holds a number back, as before');
+$GLOBALS['bilag_test']['content'] = false;   # so each branch below is proved on its own
+$GLOBALS['bilag_test']['id'] = 17;
+bilagCheck(bilagNextNumberReserved(1, array()) === 5,
+	'a staged line that exists in the journal is updated, so its 4 still holds a number back');
+$GLOBALS['bilag_test']['id'] = 0;
+$GLOBALS['bilag_test']['transdate'] = '01-02-2020';
+bilagCheck(bilagNextNumberReserved(1, array()) === 5,
+	'a line dated another day is inserted with or without a number, so it holds its 4 back too');
+$GLOBALS['bilag_test']['transdate'] = date('d-m-Y');
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'a line dated today with nothing on it is skipped, and the date format does not matter');
+$GLOBALS['bilag_test']['transdate'] = '';
 bilagTestJournalEmptyLines(3, array('-'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4,
 	'a staged "-" row is skipped by the save, so its number cannot hold the allocator back');
@@ -143,7 +155,9 @@ bilagCheck(strpos($kassekladde2, "\$GLOBALS['kk_refused_lobenr'] = array();") !=
 bilagCheck(substr_count($kassekladde2, "\$GLOBALS['kk_refused_lobenr'][] = (int)\$r['lobenr'];") === 4,
 	'and records every line it refuses, all four' . "
 ");
-$refusedAt = strpos($kassekladde2, "if (\$fejl) {\n\t\t\t\$kk_refused = isset");
+$refusedAt = strpos($kassekladde2, "if (\$fejl) {\n\t\t\t# SST-888 (review) the fingerprint is recorded");
+bilagCheck($refusedAt !== false && strpos($kassekladde2, "\$_SESSION['kk_last_save'][\$kladde_id] = \$kk_payload;", $refusedAt) !== false,
+	'a partial save records the fingerprint, so a resend of the same POST cannot insert its lines twice');
 $rememberAt = strpos($kassekladde2, 'journalRememberSave(');
 bilagCheck($refusedAt !== false && $rememberAt !== false && $refusedAt < $rememberAt,
 	'the caller checks for a refused line before recording the save as successful');

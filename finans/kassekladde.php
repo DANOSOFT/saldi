@@ -1889,9 +1889,15 @@ if (!$fejl && $kladde_id) {
 		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
 		if (!empty($kkStaged)) opdater($kladde_id, $bilagForslag ?? array());
 		# SST-888 (review) opdater() can refuse a single line and still commit the rest: the refused
-		# rows stay staged, so the error re-render shows them and a retry can save them, and the request
-		# is not recorded as a save - otherwise the retry would be read as a replay and dropped.
+		# rows stay staged, so the error re-render shows them and pressing Gem again saves them.
 		if ($fejl) {
+			# SST-888 (review) the fingerprint is recorded for a partial save too: a double-click or a browser
+			# resend of the same POST must not insert the lines that were committed again. Pressing Gem on the
+			# re-rendered page posts a different payload, so the refused line is still retried normally.
+			if (isset($kk_payload)) {
+				if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+				$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+			}
 			$kk_refused = isset($GLOBALS['kk_refused_lobenr']) ? array_map('intval', $GLOBALS['kk_refused_lobenr']) : array();
 			if ($kk_refused) {
 				db_modify("delete from tmpkassekl where kladde_id=$kladde_id and lobenr not in (" . implode(',', $kk_refused) . ")", __FILE__ . " linje " . __LINE__);
