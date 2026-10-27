@@ -129,7 +129,7 @@ if (!$sort) {
 # warehouse (a totals list) the item's own balance is still what the column shows
 $orderby = $sort;
 if ($sort === 'beholdning') {
-    $orderby = ($lager >= 1) ? "(select coalesce(beholdning, 0) from lagerstatus where vare_id = varer.id and lager = $lager)" : 'beholdning';
+    $orderby = ($lager >= 1) ? "coalesce((select beholdning from lagerstatus where vare_id = varer.id and lager = $lager), 0)" : 'beholdning';
 }
 $linjebg = NULL;
 $query = db_select("select * from varer where lukket != '1' order by $orderby", __FILE__ . " linje " . __LINE__);
