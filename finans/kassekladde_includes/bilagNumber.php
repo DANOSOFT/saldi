@@ -33,6 +33,9 @@
 //                looks at anything else, so it cannot hold a number back.
 // 20261027 LOE SST-888 (review) a staged 0 is no amount to the save, which reads it as empty, so it does
 //                not count as content on the line either.
+// 20261027 LOE SST-888 (review) the staged-row test now mirrors the save branch for branch: the outer guard,
+//                the update of an existing line, and the insert that needs a due date or a number with something on it.
+//                A zero in a numeric column is no value there, while a zero in the description is not a zero at all.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -141,15 +144,24 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
 }
 
 /**
- * Whether the save will take a staged line at all.
+ * Whether the save will take a staged line at all, branch for branch.
  *
- * The staging table holds every posted line, including one a user typed a voucher number into and
- * nothing else; opdater() skips such a line (none of its three branches match), so its number must not
- * hold a number back from a line that is saved. A staged amount of 0 is such a line: opdater() tests
- * those columns as booleans, where the string '0' is empty.
+ * opdater() decides in this order, and so does this helper:
+ *   1. the outer guard skips a line whose voucher number is '-' and a line with neither a date nor a debit
+ *      or credit, testing the raw columns as PHP booleans (the string '0' is empty, '0,00' is not);
+ *   2. an existing line (an id) with a number is updated, whatever else it holds;
+ *   3. otherwise the line is only stored when the insert branch is entered and takes it: the branch is
+ *      entered by a line dated another day, or one with a description, a debit, a credit or an invoice
+ *      number, and it stores the line when the line has a due date, or a number and something on it. A
+ *      line without a date of its own can inherit the date of the line above it, so it is never ruled out
+ *      by its date alone.
+ *
+ * Anything else is skipped by the save, so its number must not hold a number back from a line that is
+ * saved. A zero in a numeric column is no value there, because the save casts the debit and the credit to
+ * integers and converts the amount before it tests them.
  *
  * @param array $row One tmpkassekl row.
- * @return bool True when one of opdater()'s save branches would take the line.
+ * @return bool True when one of opdater()'s save branches takes the line.
  */
 function bilagStagedRowWillBeSaved($row) {
 	# the helper stays free of the page's own helpers, so it can be read and tested on its own
@@ -158,40 +170,102 @@ function bilagStagedRowWillBeSaved($row) {
 	$debet = isset($row['debet']) ? trim((string)$row['debet']) : '';
 	$kredit = isset($row['kredit']) ? trim((string)$row['kredit']) : '';
 	$id = isset($row['id']) ? (int)$row['id'] : 0;
-	# opdater()'s outer guard first: a line with neither a date nor an amount is skipped before any of
-	# its branches are reached, so it cannot hold a number back however it is numbered. It reads those
-	# values as PHP booleans, where the string '0' is empty, so a staged 0 is no amount here either.
-	$no_debet = ($debet === '' || $debet === '0');
-	$no_kredit = ($kredit === '' || $kredit === '0');
-	if ($bilag === '-' || ($transdate === '' && $no_debet && $no_kredit)) {
+	# 1. the outer guard, in the same order as the save
+	if ($bilag === '-') {
 		return false;
 	}
-	$has_bilag = ($bilag !== '');
-	$has_content = false;
-	foreach (array('beskrivelse', 'debet', 'kredit', 'faktura', 'amount') as $field) {
+	if (!bilagStagedValueIsSet($row, 'transdate') && !bilagStagedValueIsSet($row, 'debet') && !bilagStagedValueIsSet($row, 'kredit')) {
+		return false;
+	}
+	# 2. an existing line with an id and a number is updated
+	if ($id > 0 && $bilag !== '') {
+		return true;
+	}
+	# 3. the insert branch, which is entered by a date that is not today or by something on the line
+	$enters = !bilagStagedValueIsSet($row, 'transdate')
+		|| !bilagStagedRowIsToday($transdate)
+		|| bilagStagedValueIsSet($row, 'beskrivelse')
+		|| ((int)$debet != 0)
+		|| ((int)$kredit != 0)
+		|| bilagStagedValueIsSet($row, 'faktura');
+	if (!$enters) {
+		return false;
+	}
+	# and stores the line for its due date, or for a number with something on it
+	if (bilagStagedValueIsSet($row, 'forfaldsdate')) {
+		return true;
+	}
+	return ($bilag !== '' && bilagStagedRowHasContent($row));
+}
+
+/**
+ * Whether a staged column holds a value the way opdater() sees it: the raw text as a PHP boolean.
+ *
+ * The string '0' is empty to PHP and '0,00' is not, which is exactly what the save's outer guard uses when
+ * it decides whether a line has a date or an amount.
+ *
+ * @param array  $row   One tmpkassekl row.
+ * @param string $field The column to read.
+ * @return bool True when the column holds a value the save reads as one.
+ */
+function bilagStagedValueIsSet($row, $field) {
+	if (!isset($row[$field])) {
+		return false;
+	}
+	$text = trim((string)$row[$field]);
+	return ($text !== '' && $text !== '0');
+}
+
+/**
+ * Whether a staged date names today, the comparison opdater() makes when it enters the insert branch.
+ *
+ * The staging table keeps the operator's dd-mm-yyyy, so the day the value names is compared, not the text.
+ *
+ * @param string $date The staged transdate.
+ * @return bool True when the value names today in a format strtotime() understands.
+ */
+function bilagStagedRowIsToday($date) {
+	$date = trim((string)$date);
+	if ($date === '') {
+		return false;
+	}
+	$date_ts = strtotime($date);
+	if ($date_ts === false) {
+		return false;
+	}
+	return (date('Y-m-d', $date_ts) === date('Y-m-d'));
+}
+
+/**
+ * Whether a staged line holds anything the insert branch of opdater() would store.
+ *
+ * That branch tests the description as a string and the debit, the credit and the amount as numbers, so a
+ * zero in a numeric column is nothing while a zero in the description is not.
+ *
+ * @param array $row One tmpkassekl row.
+ * @return bool True when the line has something the save stores.
+ */
+function bilagStagedRowHasContent($row) {
+	foreach (array('beskrivelse', 'debet', 'kredit', 'amount') as $field) {
 		if (!isset($row[$field])) {
 			continue;
 		}
-		$content_text = trim((string)$row[$field]);
-		# a staged 0 is what opdater() reads as nothing, so it cannot make the line look saved
-		if ($content_text !== '' && $content_text !== '0') {
-			$has_content = true;
-			break;
+		$text = trim((string)$row[$field]);
+		if ($text === '' || $text === '0') {
+			continue;
 		}
-	}
-	if ($id > 0 && $has_bilag) {
-		return true;   # an existing line with a number is updated
-	}
-	if ($transdate !== '') {
-		# the staged date keeps the operator's format, so compare the day it names, not the string
-		$dato_ts = strtotime($transdate);
-		if ($has_content || $dato_ts === false || date('Y-m-d', $dato_ts) !== date('Y-m-d')) {
-			return true;   # a dated line, which is inserted with or without a number
+		if ($field === 'debet' || $field === 'kredit') {
+			if ((int)$text == 0) {
+				continue;
+			}
+		} elseif ($field === 'amount' && ((float)str_replace(',', '.', $text) == 0)) {
+			# the save converts the amount through usdecimal(), so a zero written '0,00' is nothing
+			continue;
 		}
+		return true;
 	}
-	return $has_bilag && $has_content;   # a numbered line with something on it
+	return false;
 }
-
 /**
  * Highest voucher number a staged line that the save will take already holds.
  *

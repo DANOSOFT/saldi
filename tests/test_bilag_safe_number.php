@@ -10,6 +10,9 @@
 //                 clears the staging table, and it balances no rows.
 // 20261027 LOE Cover SST-888 (review): a staged 0 holds no number back, and only a save that wrote a row is
 //                 cached as a replay, so a save that refused every line can be retried.
+// 20261027 LOE Cover SST-888 (review): the staged-row test mirrors the save branch for branch, so a dated row
+//                 with nothing on it, a zero amount in either notation, and a description-only line all read as the save
+//                 reads them.
 //
 //   php tests/test_bilag_safe_number.php
 //
@@ -142,8 +145,12 @@ bilagCheck(bilagNextNumberReserved(1, array()) === 5,
 $GLOBALS['bilag_test']['content'] = false;
 $GLOBALS['bilag_test']['id'] = 0;
 $GLOBALS['bilag_test']['transdate'] = '01-02-2020';
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'a line dated another day with nothing on it is not inserted either, so it holds nothing back');
+$GLOBALS['bilag_test']['content'] = true;
 bilagCheck(bilagNextNumberReserved(1, array()) === 5,
-	'a line dated another day is inserted with or without a number, so it holds its 4 back too');
+	'but one dated another day with a description is inserted, so its 4 does hold a number back');
+$GLOBALS['bilag_test']['content'] = false;
 $GLOBALS['bilag_test']['transdate'] = date('d-m-Y');
 bilagCheck(bilagNextNumberReserved(1, array()) === 4,
 	'a line dated today with nothing on it is skipped, and the date format does not matter');
@@ -199,8 +206,32 @@ bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('
 	'kredit' => '', 'beskrivelse' => '')) === true,
 	'while a row dated today with a real amount is still saved' . "\n");
 bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => '2020-01-01', 'id' => 0, 'debet' => '0',
-	'kredit' => '0', 'beskrivelse' => '')) === true,
-	'and a row dated another day is inserted even when its amounts are zero' . "\n");
+	'kredit' => '0', 'beskrivelse' => '')) === false,
+	'and a row dated another day with only a number is not inserted either' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('Y-m-d'), 'id' => 0, 'debet' => '',
+	'kredit' => '', 'beskrivelse' => '', 'amount' => '0,00')) === false,
+	'a zero written with a comma separator is no amount either, since the save converts it' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('Y-m-d'), 'id' => 0, 'debet' => '',
+	'kredit' => '', 'beskrivelse' => '', 'amount' => '1.234,50')) === false,
+	'a real amount alone does not enter the insert branch, so nothing is stored' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('Y-m-d'), 'id' => 0, 'debet' => '0',
+	'kredit' => '0', 'beskrivelse' => '', 'forfaldsdate' => '01-02-2020')) === false,
+	'and neither does a due date on a line the branch was never entered for' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('Y-m-d'), 'id' => 0, 'debet' => '',
+	'kredit' => '', 'beskrivelse' => '', 'faktura' => '77', 'amount' => '1.234,50')) === true,
+	'an amount is content once the branch is entered, here through the invoice number' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('Y-m-d'), 'id' => 0, 'debet' => '',
+	'kredit' => '', 'beskrivelse' => '', 'faktura' => '77', 'amount' => '0,00')) === false,
+	'but a zero amount is not content, so the line is not stored' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => '', 'id' => 0, 'debet' => '0',
+	'kredit' => '', 'beskrivelse' => 'line text')) === false,
+	'a staged 0 is no amount to the outer guard either, so a line it skips holds nothing back' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => '', 'id' => 0, 'debet' => '100',
+	'kredit' => '', 'beskrivelse' => '')) === true,
+	'a staged line with an amount and a number is inserted, so it holds its number back' . "\n");
+bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('Y-m-d'), 'id' => 0, 'debet' => '',
+	'kredit' => '', 'beskrivelse' => 'line text')) === true,
+	'a description alone is content, since the save tests it as a string' . "\n");
 
 # ---- a save that committed nothing may be retried (SST-888 review) -----------------------------
 bilagCheck(strpos($kassekladde2, "if (isset(\$kk_payload) && !empty(\$GLOBALS['kk_committed']))") !== false,
