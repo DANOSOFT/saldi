@@ -5281,10 +5281,9 @@
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
-
-5439	Brand	Brand	Brand
-5440	Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant	Brand a sale is created with on this terminal. Stored as the order's language/form variant	Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant
-5441	Ikke gemt, mangler formularvariant	Not saved, no matching form variant	Ikke lagret, mangler formularvariant
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
 5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med
 5454	Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)	The document number cannot be saved: the journal has no free numbers left (max 2147483647)	Bilagsnummeret kan ikke lagres: det er ikke flere ledige numre i kladden (maks 2147483647)
+7200	Brand	Brand	Brand
+7201	Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant	Brand a sale is created with on this terminal. Stored as the order's language/form variant	Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant
+7202	Ikke gemt, mangler formularvariant	Not saved, no matching form variant	Ikke lagret, mangler formularvariant
