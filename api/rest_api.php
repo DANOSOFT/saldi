@@ -86,6 +86,7 @@
 // 20261027 CL/SZ insert_shop_order: an order without 'gruppe' takes the debtor's own group (a new
 //                debtor gets the first DG group), and keeps the shop's momssats if no group is
 //                found, instead of an SQL error on kodenr = '' and momssats 0 (MB-116)
+// 20261027 CL/SZ insert_shop_order: initialise $ktonr so a tenant with no debtors gets account 1000 instead of a PHP 8 TypeError (MB-115).
 
 
 // ----------------------------------------------------------------------
@@ -360,6 +361,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 					fwrite($log,__line__." kontonr $kontonr\n");
 				} elseif (!$kontonr) { 
 					$x=0;
+					$ktonr=array();
 					$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
 					fwrite($log,__line__." $qtxt\n");
 					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
