@@ -259,8 +259,9 @@ function settings_rows_usage(array $t, array $row): array
 				$add("select count(*) as n from varer where " . db_cast('gruppe', 'text') . " = '$esc'", 6427);
 				break;
 			case 'background':
-				// G6.2: customers, suppliers and orders name their background (form language) by its name.
-				$add("select count(*) as n from adresser where sprog = '$esc'", 6682);
+				// G6.2: debtor and creditor groups (grupper.box4) and orders name their background (form language)
+				// by its name. adresser has no sprog column - a customer's language comes from its group.
+				$add("select count(*) as n from grupper where art in ('DG', 'KG') and box4 = '$esc'", 6464);
 				$add("select count(*) as n from ordrer where sprog = '$esc'", 6422);
 				break;
 			case 'currency':
