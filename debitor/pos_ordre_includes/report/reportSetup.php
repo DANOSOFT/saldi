@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/report/reportSetup.php --- lap 4.0.0 --- 2021.03.07 ---
+// --- debitor/pos_ordre_includes/report/reportSetup.php --- ver 5.0.0 --- 2026.10.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2021 saldi.dk aps
+// Copyright (c) 2019-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // LN 20190306 Make the most basic setup for the report
 // 20210307 PHR Added $date to allmost all functions as it was countion all orders from day zero
+// 20261027 CL/MMR SST-897 The Z-report locks the register's proforma row before it reads the data and keeps the lock until the report is saved.
+//                 A second Z-report for the same register waits and reads the counter after the first one took its numbers off.
 
 
 include("pos_ordre_includes/report/rapportData.php"); #20190219
@@ -37,10 +39,17 @@ include("pos_ordre_includes/report/printFuncII.php");
 function setupReport($type, $kasse) {
 	$date = date("Y-m-d");
 	if (in_array($type, ['zRapport', 'xRapport'])) { #Make array to the report
+		if ($type == 'zRapport') {
+			// The proforma counter is read here and taken off in saveLastReport(). Lock the register's row first, so a
+			// second Z-report or a proforma print (proformaCount()) for this register waits until this report is saved.
+			transaktion('begin');
+			db_select("select id from proforma where id = '" . (int)$kasse . "' for update", __FILE__ . " linje " . __LINE__);
+		}
 		$reportArray = retrieveReportData($kasse,$date);
 		if ($type == 'zRapport') {
 			$_SESSION['zreport'] = "disabled";
 			saveLastReport($reportArray);
+			transaktion('commit');
 		}
 		return $reportArray;
 	}

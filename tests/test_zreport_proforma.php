@@ -4,6 +4,7 @@
 // ----------------------------------------------------------------------
 // 20261026 CL/MMR SST-897 Exercise the X/Z-report proforma counter and the saved report rows on an isolated PostgreSQL schema.
 // 20261027 CL/MMR SST-897 A proforma receipt printed between reading and saving the Z-report stays on the counter (CodeRabbit, PR #894).
+//                 The Z-report's row lock makes a second Z-report and the real proformaCount() writer wait (Codex verification round 2).
 // Run with SALDI_CHAR_PGHOST / PGPORT / PGUSER / PGPASS / PGDATABASE (all prefixed SALDI_CHAR_).
 
 error_reporting(E_ALL);
@@ -25,6 +26,19 @@ foreach (array('host', 'port', 'user', 'password', 'dbname') as $key) {
 	}
 }
 $connection = pg_connect(implode(' ', $parts), PGSQL_CONNECT_FORCE_NEW);
+if (($argv[1] ?? '') === 'writer') {
+	// Child process: print one proforma receipt of 45,00 on register 2 with the real proformaCount().
+	pg_query($connection, 'SET search_path TO ' . preg_replace('/[^a-z0-9_]/', '', $argv[2]));
+	set_error_handler(null);
+	// db_select(), db_fetch_array() and db_modify() are the stubs declared further down in this file.
+	/** @return float std_func.php's afrund(), which dkdecimal() calls. */
+	function afrund($number, $decimals) { return round((float)$number, (int)$decimals); }
+	require_once(__DIR__ . '/../includes/stdFunc/dkDecimal.php');
+	require_once(__DIR__ . '/../debitor/pos_ordre_includes/helperMethods/helperFunc.php');
+	proformaCount(0, array('45'), '2');
+	echo "writer done\n";
+	exit(0);
+}
 $schema = 'zreport_proforma_test_' . bin2hex(random_bytes(6));
 
 /** @return PgSql\Result */
@@ -35,6 +49,8 @@ function db_fetch_array($query) { return pg_fetch_assoc($query); }
 function db_modify($sql, $location) { return pg_query($GLOBALS['connection'], $sql); }
 /** @return string */
 function db_escape_string($value) { return pg_escape_string($GLOBALS['connection'], (string)$value); }
+/** @return PgSql\Result transaktion() as db_query.php runs it, on the test connection. */
+function transaktion($qtext) { return pg_query($GLOBALS['connection'], $qtext); }
 /** @return int The report number saveLastReport() stores; reportSetup.php is not loaded here. */
 function getReportNumber($header) { return 4711; }
 /** @return void */
@@ -115,6 +131,43 @@ try {
 	saveLastReport(array('receiptArray' => array('count' => 0, 'totalPrice' => 0)));
 	checkZReport((float)firstValue('SELECT price FROM proforma WHERE id = 2') === 45.5 && firstValue('SELECT count FROM proforma WHERE id = 2') === '1',
 		'Saving a report without reading the counter leaves it unchanged');
+
+	// setupReport() for a Z-report: lock the register's row, read, save, commit (the same statements as reportSetup.php).
+	$lockSql = "select id from proforma where id = '" . (int)$kasse . "' for update";
+	pg_query($connection, 'UPDATE proforma SET price = 80, count = 2 WHERE id = 2');
+	$other = pg_connect(implode(' ', $parts), PGSQL_CONNECT_FORCE_NEW);
+	pg_query($other, "SET search_path TO $schema");
+	transaktion('begin');
+	pg_query($connection, $lockSql);
+	// A second Z-report for the same register cannot take the row while the first one holds it.
+	try {
+		$second = pg_query($other, "$lockSql nowait");
+	} catch (ErrorException $e) {
+		$second = false;
+	}
+	checkZReport($second === false && strpos(pg_last_error($other), 'lock') !== false,
+		'A second Z-report for the register waits for the first one');
+	// The real proformaCount() writer (helperMethods/helperFunc.php) in its own PHP process prints a receipt now.
+	$writer = proc_open(array(PHP_BINARY, __FILE__, 'writer', $schema), array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+	usleep(700000);
+	$status = proc_get_status($writer);
+	checkZReport($status['running'], 'A proforma print waits while the Z-report holds the register row');
+	$read = proformaReceipts($kasse);
+	saveLastReport(array('proformaReceiptsArray' => $read));
+	transaktion('commit');
+	$writerOut = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+	$writerExit = proc_close($writer);
+	checkZReport($writerExit === 0, 'The proforma print finishes after the Z-report: ' . trim($writerOut));
+	checkZReport(firstValue("SELECT count FROM report WHERE type = 'Proforma receipt' ORDER BY id DESC LIMIT 1") === '2',
+		'The locked Z-report saves the numbers it read');
+	checkZReport(firstValue('SELECT count FROM proforma WHERE id = 2') === '1' && (float)firstValue('SELECT price FROM proforma WHERE id = 2') === 45.0,
+		'Only the receipt printed during the Z-report is left, the reported numbers do not come back');
+	pg_query($other, 'BEGIN');
+	pg_query($other, $lockSql);
+	checkZReport(pg_fetch_result(pg_query($other, 'SELECT count FROM proforma WHERE id = 2'), 0, 0) === '1',
+		'The second Z-report then reads only what was printed after the first one');
+	pg_query($other, 'COMMIT');
+	pg_close($other);
 } finally {
 	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
 	pg_close($connection);

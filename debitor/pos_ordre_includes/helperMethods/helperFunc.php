@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/helperMethods/helperFunc.php --- lap 4.1.1 --- 2025.05.15 ---
+// --- debitor/pos_ordre_includes/helperMethods/helperFunc.php --- ver 5.0.0 --- 2026.10.27 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,11 +23,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2025 saldi.dk aps
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make various helper functions for the pos_ordre and the report files
 // PHR php8
+// 20261027 CL/MMR SST-897 proformaCount() adds to the register's proforma counter in the database instead of writing back a total it read before.
+//                 A Z-report that took the counter's numbers off meanwhile is no longer undone.
 
 function printWarningMessage($textType) { #LN Print warning message
     if($textType == "proforma") {
@@ -175,15 +177,16 @@ function proformaCount($x, $dkkpris, $kasse) {
         $temp = dkdecimal($dkkpris[$j],2);
 				$totalPrice += $temp;
     }
-    $proformaQuery = db_fetch_array(db_select("select * from proforma where id='$kasse'",__FILE__."linje".__LINE__));
-    
+    $kasseNr = (int)$kasse;
+    $totalPrice = (float)$totalPrice;
+    $proformaQuery = db_fetch_array(db_select("select id from proforma where id='$kasseNr'",__FILE__."linje".__LINE__));
+
     if (isset($proformaQuery['id'])) {
-        $totalPrice = $totalPrice + $proformaQuery['price'];
-        $count = $proformaQuery['count'] + 1;
-        db_modify("update proforma set price='$totalPrice' where id='$kasse'", __FILE__ . " linje " . __LINE__);
-        db_modify("update proforma set count='$count' where id='$kasse'", __FILE__ . " linje " . __LINE__);
+        // Add in the database: a Z-report holds this row locked while it saves (setupReport()), and its numbers must
+        // not be written back afterwards from a total read before it.
+        db_modify("update proforma set price = price + $totalPrice, count = count + 1 where id='$kasseNr'", __FILE__ . " linje " . __LINE__);
     } else {
-        db_modify("insert into proforma (id, price, count) values ($kasse, $totalPrice, '1')",__FILE__."linje".__LINE__);
+        db_modify("insert into proforma (id, price, count) values ($kasseNr, $totalPrice, '1')",__FILE__."linje".__LINE__);
     }
 }
 
