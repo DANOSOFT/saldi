@@ -86,6 +86,8 @@
 // 20260824 CL/NTR Flush the openpost topline to the client (ob_flush + flush, draining php.ini's output_buffering) before vis_aabne_poster's heavy queries run, so it renders while the SQL is still working.
 // 20260826 Sawaneh SD-140: openpost() no longer overwrites dato/konto with the stored DRV row when the request
 //                  itself carries konto_fra or kontonr (pagination, filter links and the in-report account search).
+// 20261027 CL/LH PR #450: openpost() escapes the rykker overview's firm-name search and the box7 view flags
+//                at the query; debitor/rapport.php now hands it the openpost GET filters unescaped.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -169,7 +171,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	if (isset($_GET['vis_afsluttet_rykker'])) $e = $_GET['vis_afsluttet_rykker'];
 
 	$box7 = "$a;$b;$c;$d;$e;$f;$g";
-	$qtxt = "update grupper set box7='$box7' where art='$tekst' and kodenr='1'";
+	$qtxt = "update grupper set box7='" . db_escape_string($box7) . "' where art='$tekst' and kodenr='1'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$vis_aabenpost = ($a == 'on') ? 'on' : NULL;
@@ -291,9 +293,10 @@ a:link{text-decoration:none;}</style>\n";
 			$qtxt = "select * from ordrer where " . nr_cast('kontonr') . ">='$konto_fra' and " . nr_cast('kontonr') . "<='$konto_til' and art LIKE 'R%' order by " . nr_cast('kontonr') . "";
 		} elseif ($konto_fra && $konto_fra != '*') {
 			$konto_fra = str_replace("*", "%", $konto_fra);
-			$tmp1 = strtolower($konto_fra);
-			$tmp2 = strtoupper($konto_fra);
-			$qtxt = "select * from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' order by firmanavn";
+			// Escaped here, at the query: debitor/rapport.php reads the openpost GET filters raw.
+			$tmp1 = db_escape_string(strtolower($konto_fra));
+			$tmp2 = db_escape_string(strtoupper($konto_fra));
+			$qtxt = "select * from ordrer where (firmanavn like '" . db_escape_string($konto_fra) . "' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' order by firmanavn";
 		} else $qtxt = "select * from ordrer where art LIKE 'R%' order by firmanavn";
 
 		if ($menu == 'T') {
@@ -354,9 +357,9 @@ a:link{text-decoration:none;}</style>\n";
 						$qtxt = "select * from ordrer where " . nr_cast('kontonr') . ">='$konto_fra' and " . nr_cast('kontonr') . "<='$konto_til' and art LIKE 'R%' $betalt $inkasso and status $status order by " . nr_cast('kontonr') . "";
 					} elseif ($konto_fra && $konto_fra != '*') {
 						$konto_fra = str_replace("*", "%", $konto_fra);
-						$tmp1 = strtolower($konto_fra);
-						$tmp2 = strtoupper($konto_fra);
-						$qtxt = "select * from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' $betalt $inkasso and status $status order by firmanavn";
+						$tmp1 = db_escape_string(strtolower($konto_fra));
+						$tmp2 = db_escape_string(strtoupper($konto_fra));
+						$qtxt = "select * from ordrer where (firmanavn like '" . db_escape_string($konto_fra) . "' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' $betalt $inkasso and status $status order by firmanavn";
 					} else $qtxt = "select * from ordrer where art LIKE 'R%' $betalt $inkasso and status $status order by firmanavn";
 
 					$q1 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);

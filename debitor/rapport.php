@@ -51,6 +51,8 @@
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
 // 20261006 Sawaneh Openpost GET filters are read once and raw; both DRV report-setting updates
 //                  (salgsstat and report submit) escape every value at the query instead.
+// 20261027 CL/LH PR #450: the salgsstat redirect URL-encodes the dato/konto values and escapes the
+//                URL for the attribute (a firm name with & or a quote broke the link).
 
 @session_start();
 $s_id = session_id();
@@ -298,7 +300,13 @@ if (isset($_POST['salgsstat']) && $_POST['salgsstat']) {
 		$qtxt .= " where art='DRV' and kodenr='" . (int) $bruger_id . "'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
-	print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&art=D\">";
+	// The account field is free text (a firm name may hold & or a quote), so encode each value
+	// and escape the URL for the attribute rather than interpolating them raw.
+	$salgsstatUrl  = "../includes/salgsstat.php?dato_fra=" . rawurlencode((string) $dato_fra);
+	$salgsstatUrl .= "&dato_til=" . rawurlencode((string) $dato_til);
+	$salgsstatUrl .= "&konto_fra=" . rawurlencode((string) $konto_fra);
+	$salgsstatUrl .= "&konto_til=" . rawurlencode((string) $konto_til) . "&art=D";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=" . htmlspecialchars($salgsstatUrl, ENT_QUOTES) . "\">";
 	exit;
 }
 if (isset($_POST['saft'])) {
