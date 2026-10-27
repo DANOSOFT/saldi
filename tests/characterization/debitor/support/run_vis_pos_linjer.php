@@ -111,7 +111,10 @@ function db_fetch_array($query)
     if (!$query instanceof PDOStatement) {
         return false;
     }
-    return $query->fetch(PDO::FETCH_ASSOC);
+    // Both key styles, like production: db_query.php's db_fetch_array() returns
+    // MYSQLI_BOTH / pg_fetch_array(), and callers rely on it - get_settings_value()
+    // ends in `return $r[0]`, which an associative-only row turns into null.
+    return $query->fetch(PDO::FETCH_BOTH);
 }
 
 function db_modify($qtxt, $where = '')
@@ -184,7 +187,8 @@ pos_lift_into([
     $root . '/includes/std_func.php' => [
         'afrund', 'ifset', 'ifset_resolve_default', 'if_isset', 'get_settings_value',
     ],
-    $root . '/includes/funktioner.php' => ['dkdecimal', 'usdecimal'],
+    $root . '/includes/stdFunc/dkDecimal.php' => ['dkdecimal'],
+    $root . '/includes/stdFunc/usDecimal.php' => ['usdecimal'],
     $root . '/includes/ordrefunc.php' => ['pos_afrund', 'grupperabat'],
 ]);
 

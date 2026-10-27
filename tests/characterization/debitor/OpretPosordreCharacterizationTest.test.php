@@ -169,10 +169,10 @@ final class OpretPosordreCharacterizationTest extends TestCase
         // the payment-terminal list (line 101) and the VAT-code list (line 143) directly, so a
         // till past the end of those warns twice. Legacy floor: recorded, not fixed here.
         self::assertSame([
-            'Undefined array key 8 in saleHeaderFunctions.php:101',
-            'Undefined array key 8 in saleHeaderFunctions.php:143',
+            'Undefined array key 8 in saleHeaderFunctions.php',
+            'Undefined array key 8 in saleHeaderFunctions.php',
         ], array_values(array_filter(
-            $report['warnings'],
+            self::withoutLineNumbers($report['warnings']),
             static fn(string $w) => str_contains($w, 'Undefined array key 8')
         )));
     }
@@ -335,5 +335,22 @@ final class OpretPosordreCharacterizationTest extends TestCase
 
         self::assertStringContainsString('id=90', $report['printed'], 'the till is sent to the open sale');
         self::assertCount(2, $report['tables']['ordrer'], 'the function carried on and opened another');
+    }
+
+    /**
+     * The recorded warnings with the trailing line number stripped. The message and the file
+     * are the behaviour being pinned; the line is not, and the S12 refactor these tests exist
+     * to protect will move it. Asserting on `:317` makes the test fail on an inserted line
+     * and report it as a behaviour change.
+     *
+     * @param list<string> $warnings
+     * @return list<string>
+     */
+    private static function withoutLineNumbers(array $warnings): array
+    {
+        return array_values(array_map(
+            static fn(string $w): string => (string)preg_replace('/:\d+$/', '', $w),
+            $warnings
+        ));
     }
 }

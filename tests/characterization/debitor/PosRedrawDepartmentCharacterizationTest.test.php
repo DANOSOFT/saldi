@@ -12,6 +12,11 @@ require_once __DIR__ . '/../support/CharacterizationEnv.php';
 //                department and the till on every redraw with the drawing terminal's, and leaves
 //                the brand alone. That divergence was read in the code during the review of #900
 //                and is pinned here by running the real function. Synthetic data, no tenant.
+// 20261027 CL/MJ Why the row matters: levering() in includes/ordrefunc.php reads the department
+//                back with `select afd,art,ref from ordrer where id = $id` and posts the stock
+//                movement with it, so whatever the last redraw wrote is what gets booked. That
+//                is a code reading, not something these tests execute - posting to the ledger is
+//                out of scope here - so it is recorded as a note rather than asserted.
 
 final class PosRedrawDepartmentCharacterizationTest extends TestCase
 {
@@ -190,20 +195,16 @@ final class PosRedrawDepartmentCharacterizationTest extends TestCase
     }
 
     /**
-     * The department reaches the ledger through the order row: levering() reads it back off
-     * ordrer rather than taking it from the page, which is why the redraw matters at all.
+     * What the ledger would read. levering() takes the department off the order row rather
+     * than from the page, so the row is the whole of the exposure - which is why a redraw
+     * matters at all, and why this asserts the row rather than grepping ordrefunc.php for
+     * the select. A source grep fails on a reformat and passes if levering() stops reading
+     * the column, which is the wrong way round. See the header for that trace.
      */
-    public function testTheDepartmentTheLedgerWouldReadIsTheDrawingTerminals(): void
+    public function testTheDepartmentLeftOnTheRowIsTheDrawingTerminals(): void
     {
         $report = $this->redraw(['vars' => ['afd' => 9, 'kasse' => 2, 'brugernavn' => 'kasse2']]);
 
-        $source = file_get_contents(dirname(__DIR__, 3) . '/includes/ordrefunc.php');
-        self::assertIsString($source);
-        self::assertStringContainsString(
-            "select afd,art,ref from ordrer where id = \$id",
-            $source,
-            'levering() still reads the department off the order row'
-        );
         self::assertSame(9, (int)$this->order($report)['afd']);
     }
 }

@@ -416,8 +416,14 @@ final class SettlePosCharacterizationTest extends TestCase
             $this->queriesMatching($report, "art='OreDif'"),
             'the rounding asked for the global account, so it was given no account'
         );
-        self::assertContains('Undefined variable $diffkto in settlePOS.php:317', $report['warnings']);
-        self::assertContains('Undefined variable $diffkto in settlePOS.php:320', $report['warnings']);
+        self::assertCount(
+            2,
+            array_filter(
+                self::withoutLineNumbers($report['warnings']),
+                static fn(string $w): bool => $w === 'Undefined variable $diffkto in settlePOS.php'
+            ),
+            'both of the rounding reads of $diffkto should warn'
+        );
     }
 
     public function testTheTillsOwnDifferenceAccountIsNotWhatRoundsTheCash(): void
@@ -449,7 +455,10 @@ final class SettlePosCharacterizationTest extends TestCase
         // afslut() does not assign $receipt_id either, and settlePOS casts it to int.
         $report = $this->settle([]);
 
-        self::assertContains('Undefined variable $receipt_id in settlePOS.php:333', $report['warnings']);
+        self::assertContains(
+            'Undefined variable $receipt_id in settlePOS.php',
+            self::withoutLineNumbers($report['warnings'])
+        );
         self::assertSame('0', (string)$report['tables']['pos_betalinger'][0]['receipt_id']);
     }
 
@@ -463,7 +472,10 @@ final class SettlePosCharacterizationTest extends TestCase
                 'valuta' => 'DKK', 'valutakurs' => 100]],
         ]);
 
-        self::assertContains('Undefined variable $payment_id in settlePOS.php:346', $report['warnings']);
+        self::assertContains(
+            'Undefined variable $payment_id in settlePOS.php',
+            self::withoutLineNumbers($report['warnings'])
+        );
         self::assertSame('0', (string)$report['tables']['pos_betalinger'][0]['payment_id']);
     }
 
@@ -501,5 +513,22 @@ final class SettlePosCharacterizationTest extends TestCase
             $report['result']['incl_moms'],
             'after the correction the two totals have to agree'
         );
+    }
+
+    /**
+     * The recorded warnings with the trailing line number stripped. The message and the file
+     * are the behaviour being pinned; the line is not, and the S12 refactor these tests exist
+     * to protect will move it. Asserting on `:317` makes the test fail on an inserted line
+     * and report it as a behaviour change.
+     *
+     * @param list<string> $warnings
+     * @return list<string>
+     */
+    private static function withoutLineNumbers(array $warnings): array
+    {
+        return array_values(array_map(
+            static fn(string $w): string => (string)preg_replace('/:\d+$/', '', $w),
+            $warnings
+        ));
     }
 }
