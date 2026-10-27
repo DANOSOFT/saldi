@@ -97,3 +97,4 @@ readonlyCheck(strpos($tab_css, '.button[disabled]') !== false, 'so does the tab-
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $f) echo "  FAILED: $f\n";
+exit($failures ? 1 : 0);
