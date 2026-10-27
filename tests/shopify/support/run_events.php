@@ -1,0 +1,139 @@
+<?php
+// tests/shopify/support/run_events.php
+//
+// Child-process runner for the webhook inbox and event promotion (SD-748). Bootstraps the
+// tenant like run_config.php and runs one mode:
+//   receive  <deliveries.json> [alarm_fails|no_alarm]  shopify_receive_webhook() for each {shop_key, raw_b64, headers}
+//   promote  <limit> [fail_type|alarm_fails|sql_error|misuse]  shopify_promote_events(); enqueue
+//            of fail_type throws before writing; with sql_error the order.import enqueue writes its
+//            job and then fails in SQL; with misuse every enqueue sends COMMIT itself
+// Prints JSON on stdout: the results, or the error that ended the run.
+//
+// S02c's shopify_error_open() and S02b's queue bodies are not on hml/shopify yet. Until they
+// are, this runner stands in for both, on the real tables, so their writes commit and roll back
+// with the caller's transaction: shopify_error_open() opens (or counts again) an unresolved row
+// in shopify_errors, and shopify_queue_enqueue() inserts into shopify_jobs under the table's own
+// unique index on (type, dedupe_key) for queued and running jobs, which is the contract's "an
+// equal job still queued or running is returned with created=false". With alarm_fails every
+// alarm throws; with no_alarm shopify_error_open() isn't defined at all, as on hml/shopify today.
+//
+// History:
+// 20261027 CL/SZ SD-748: created.
+
+if ($argc < 4) {
+    fwrite(STDERR, "usage: php run_events.php <receive|promote> <test_db> <deliveries.json|limit> [fail_type]\n");
+    exit(2);
+}
+$mode = $argv[1];
+$testDb = $argv[2];
+
+require_once __DIR__ . '/ShopifyEnv.php';
+ShopifyEnv::assertSafeTestDb($testDb);
+
+function alert($msg)
+{
+    fwrite(STDERR, "alert: $msg\n");
+    exit(3);
+}
+
+function out(array $data, int $exit = 0): void
+{
+    echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    exit($exit);
+}
+
+$failType = $argv[4] ?? '';
+
+// With no_alarm the stand-in is not defined: the include chain the endpoint has today.
+if ($failType !== 'no_alarm') {
+function shopify_error_open(?int $shopId, string $kind, string $ref, string $message, string $severity = 'error', array $correlation = []): int
+{
+    global $failType;
+    if ($failType === 'alarm_fails') {
+        throw new RuntimeException("alarm $kind failed (test)");
+    }
+    $rows = shopify_db_rows(
+        "INSERT INTO shopify_errors (shop_id, error_key, kind, ref, message, severity, correlation) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+        . " ON CONFLICT (error_key) WHERE resolved_at IS NULL DO UPDATE SET occurrences = shopify_errors.occurrences + 1, last_at = now() RETURNING id",
+        [$shopId, hash('sha256', "$kind|$ref"), $kind, $ref, $message, $severity, json_encode($correlation)]
+    );
+    return (int)$rows[0]['id'];
+}
+}
+
+function shopify_queue_enqueue(string $type, ?int $shopId, string $dedupeKey, array $payload, int $priority, ?DateTimeImmutable $runAt = null, array $correlation = []): array
+{
+    global $failType;
+    if ($type === $failType) {
+        throw new RuntimeException("enqueue of $type failed (test)");
+    }
+    if ($failType === 'misuse') {
+        // ends the transaction itself, the way a legacy transaktion('commit') would
+        shopify_db_rows('COMMIT');
+    }
+    $rows = shopify_db_rows(
+        "INSERT INTO shopify_jobs (type, shop_id, dedupe_key, payload, priority, correlation, event_row_id, order_gid) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+        . " ON CONFLICT (type, dedupe_key) WHERE state IN ('queued', 'running') DO NOTHING RETURNING id, state",
+        [$type, $shopId, $dedupeKey, json_encode($payload), $priority, json_encode($correlation), $correlation['event_row_id'] ?? null, $correlation['order_gid'] ?? null]
+    );
+    if ($failType === 'sql_error' && $type === 'order.import') {
+        // the job row is written, then a statement fails: the transaction is aborted
+        shopify_db_rows('SELECT 1 / 0');
+    }
+    if ($rows) {
+        return ['id' => (int)$rows[0]['id'], 'created' => true, 'state' => $rows[0]['state']];
+    }
+    $rows = shopify_db_rows("SELECT id, state FROM shopify_jobs WHERE type = $1 AND dedupe_key = $2 AND state IN ('queued', 'running')", [$type, $dedupeKey]);
+    return ['id' => (int)$rows[0]['id'], 'created' => false, 'state' => $rows[0]['state']];
+}
+
+// The real priority table: shopify_route_event() reads it, and queue.php itself can't be
+// loaded beside the stand-in enqueue above.
+$queueSource = (string)file_get_contents(ShopifyEnv::repoRoot() . '/includes/shopify/queue.php');
+if (!preg_match('/^const SHOPIFY_QUEUE_PRIORITY = array\((.*?)^\);/ms', $queueSource, $m)) {
+    fwrite(STDERR, "SHOPIFY_QUEUE_PRIORITY not found in queue.php\n");
+    exit(2);
+}
+eval('const SHOPIFY_QUEUE_PRIORITY = array(' . $m[1] . ');');
+
+$db_type = 'postgresql';
+$db_encode = 'UTF8';
+$sqhost = ShopifyEnv::pgHost();
+$squser = ShopifyEnv::pgUser();
+$sqpass = ShopifyEnv::pgPass();
+$sqdb = ShopifyEnv::masterDb();
+$db = $sqdb;
+$db_skriv_id = null;
+$brugernavn = '';
+$webservice = false;
+
+require_once ShopifyEnv::repoRoot() . '/includes/db_query.php';
+$connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
+require_once ShopifyEnv::repoRoot() . '/includes/shopify/bootstrap.php';
+require_once ShopifyEnv::repoRoot() . '/includes/shopify/events.php';
+
+// The receiver's log lines go to stderr, where the test can check that no secret is in them.
+ini_set('log_errors', '1');
+ini_set('error_log', 'php://stderr');
+
+try {
+    shopify_bootstrap($testDb);
+    switch ($mode) {
+        case 'receive':
+            $results = [];
+            foreach (json_decode((string)file_get_contents($argv[3]), true) as $delivery) {
+                $shop = shopify_shop($delivery['shop_key']);
+                $results[] = shopify_receive_webhook($shop, base64_decode($delivery['raw_b64']), $delivery['headers']);
+            }
+            out(['results' => $results]);
+            // no break: out() exits
+        case 'promote':
+            out(['result' => shopify_promote_events((int)$argv[3])]);
+            // no break: out() exits
+        default:
+            fwrite(STDERR, "unknown mode $mode\n");
+            exit(2);
+    }
+} catch (Throwable $e) {
+    out(['error' => ['class' => get_class($e), 'message' => $e->getMessage()]], 1);
+}
