@@ -34,6 +34,7 @@
 // 20261001 CL/NTR Merged the two history blocks into one and grouped the includes.
 // 20261003 CL/SZ SD-717 Archived documents are left out of the list and the duplicate marking.
 //                With archived=1 ("Vis arkiverede") only archived documents are returned, newest archive first, with their archive time.
+// 20261004 CL/SZ SD-727 An archived document also carries the date it will be deleted (deletes, Y-m-d).
 // 20261003 CL/SZ SD-719 With limit: one page of the list as {rows, total, offset, limit, matches, extra, currentIndex}.
 //                Search (q), sort (sort, order) and the match against the journal line (sum, dato) are done here over the full set (poolListQuery.php).
 //                extra holds the open document (current) and the ticked ones (include[]) when they are not on the page; filesOnly=1 lists every file name.

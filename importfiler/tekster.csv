@@ -5113,6 +5113,16 @@
 5158	Forbindelsesfejl til EasyUBL:	Connection error to EasyUBL:	Tilkoblingsfeil til EasyUBL:
 5159	Kontrollér hos EasyUBL om dokumentet alligevel er modtaget, før du sender igen. Kontakt saldi.dk support med oplysningerne nedenfor.	Check with EasyUBL whether the document was received anyway before sending again. Contact saldi.dk support with the details below.	Sjekk hos EasyUBL om dokumentet likevel er mottatt før du sender på nytt. Kontakt saldi.dk support med opplysningene nedenfor.
 5160	Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?	The last digital sending of this document failed. EasyUBL may have received it anyway - check the status at EasyUBL before sending again. Send again?	Siste digitale sending av dette dokumentet mislyktes. EasyUBL kan likevel ha mottatt det - sjekk status hos EasyUBL før du sender på nytt. Send på nytt?
+5161	CVR-nummer mangler	CVR number missing	CVR-nummer mangler
+5162	E-fakturaer til et EAN-nummer skal også have modtagerens CVR-nummer. Uden CVR-nummer bliver fakturaen afvist af modtageren.	E-invoices to an EAN number must also carry the receiver's CVR number. Without it, the receiver rejects the invoice.	E-fakturaer til et EAN-nummer må også ha mottakerens CVR-nummer. Uten CVR-nummer blir fakturaen avvist av mottakeren.
+5163	Slå CVR op i NemHandelsregisteret	Look up the CVR in the NemHandel register	Slå opp CVR i NemHandel-registeret
+5164	Gem også CVR-nummeret på debitorkortet	Also save the CVR number on the customer card	Lagre også CVR-nummeret på kundekortet
+5165	Erstat CVR-nummeret på debitorkortet	Replace the CVR number on the customer card	Erstatt CVR-nummeret på kundekortet
+5166	Fakturaen kan ikke sendes digitalt	The invoice cannot be sent digitally	Fakturaen kan ikke sendes digitalt
+5167	Modtageren har EAN-nummer %s, men der er ikke angivet noget CVR-nummer, eller CVR-feltet indeholder EAN-nummeret. E-fakturaer til et EAN-nummer skal have modtagerens CVR-nummer, ellers bliver de afvist. Indtast CVR-nummeret på ordren eller debitorkortet, og send igen.	The receiver has EAN number %s, but no CVR number is given, or the CVR field holds the EAN number. E-invoices to an EAN number must carry the receiver's CVR number, or they are rejected. Enter the CVR number on the order or the customer card, and send again.	Mottakeren har EAN-nummer %s, men det er ikke oppgitt noe CVR-nummer, eller CVR-feltet inneholder EAN-nummeret. E-fakturaer til et EAN-nummer må ha mottakerens CVR-nummer, ellers blir de avvist. Skriv inn CVR-nummeret på ordren eller kundekortet, og send på nytt.
+5168	Kunden har EAN-nummer, men intet CVR-nummer, eller CVR-feltet indeholder EAN-nummeret. E-fakturaer til kunden bliver afvist, indtil CVR-nummeret er udfyldt.	The customer has an EAN number but no CVR number, or the CVR field holds the EAN number. E-invoices to the customer are rejected until the CVR number is filled in.	Kunden har EAN-nummer, men ikke noe CVR-nummer, eller CVR-feltet inneholder EAN-nummeret. E-fakturaer til kunden blir avvist til CVR-nummeret er fylt ut.
+5169	CVR-nummeret er ikke gyldigt. Et dansk CVR-nummer har 8 cifre, og kontrolcifferet skal passe. Kunder i udlandet skal have momsnummer med landekode, fx SE232100025501.	The CVR number is not valid. A Danish CVR number has 8 digits, and the check digit must match. Customers abroad need a VAT number with a country code, e.g. SE232100025501.	CVR-nummeret er ikke gyldig. Et dansk CVR-nummer har 8 sifre, og kontrollsifferet må stemme. Kunder i utlandet må ha MVA-nummer med landskode, f.eks. SE232100025501.
+5170	CVR-nummeret kunne ikke gemmes. Genindlæs siden, og prøv igen.	The CVR number could not be saved. Reload the page and try again.	CVR-nummeret kunne ikke lagres. Last inn siden på nytt, og prøv igjen.
 5210	Ugyldig e-mailadresse	Invalid e-mail address	Ugyldig e-postadresse
 5211	Ugyldigt tegn	Invalid character	Ugyldig tegn
 5212	position	position	posisjon
@@ -5233,6 +5243,7 @@
 5404	genåbnet	reopened	gjenåpnet
 5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
 5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
+5407	Findes allerede i puljen	Already in the pool	Finnes allerede i puljen
 5408	cvrapi.dk afviser opslag fra serveren	cvrapi.dk refuses lookups from the server	cvrapi.dk avviser oppslag fra serveren
 5409	cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.	cvrapi.dk refuses lookups from the server. Please fill in the fields manually.	cvrapi.dk avviser oppslag fra serveren. Fyll ut feltene manuelt.
 5371	Aflæst	Read	Lest
@@ -5259,19 +5270,67 @@
 5392	Nu	Now	Nå
 5393	Fejlen kunne ikke rapporteres. Prøv igen.	The error could not be reported. Try again.	Feilen kunne ikke rapporteres. Prøv igjen.
 5394	Ingen aflæste værdier er gemt for dette bilag	No captured values are stored for this document	Ingen avleste verdier er lagret for dette bilaget
+5395	Ctrl + pil op/ned	Ctrl + arrow up/down	Ctrl + pil opp/ned
+5396	Hop mellem linjer	Move between lines	Hopp mellom linjer
+5397	Gem og gå til næste/forrige	Save and go to next/previous	Lagre og gå til neste/forrige
+5398	Slettes	To be deleted	Slettes
+5399	er ikke et kontonummer	is not an account number	er ikke et kontonummer
+5400	er lukket og kan ikke bruges	is closed and cannot be used	er lukket og kan ikke brukes
 5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
 5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5440	Kladden kan ikke bogføres. Følgende bilag har tekst eller beløb, men hverken debet- eller kreditkonto	The journal cannot be posted. The following vouchers have a text or an amount but neither a debit nor a credit account	Kladden kan ikke bokføres. Følgende bilag har tekst eller beløp, men verken debet- eller kreditkonto
+5441	Udfyld kontoen, eller slet linjen ved at skrive - i bilagsfeltet.	Fill in the account, or delete the line by entering - in the voucher field.	Fyll ut kontoen, eller slett linjen ved å skrive - i bilagsfeltet.
 5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
 5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
 5439	Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.	Voucher number %s was used by another user while you were typing. The line was saved as voucher %s.	Bilagsnummer %s ble brukt av en annen bruker mens du skrev. Linjen er lagret som bilag %s.
 5449	Kladden kunne ikke låses, så intet er gemt. Prøv igen.	The journal could not be locked, so nothing was saved. Please try again.	Kladden kunne ikke låses, så ingenting er lagret. Prøv igjen.
 5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
 5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5450	Ukendt betalingstype	Unknown payment type	Ukjent betalingstype
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
+5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
+5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med
+5454	Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)	The document number cannot be saved: the journal has no free numbers left (max 2147483647)	Bilagsnummeret kan ikke lagres: det er ikke flere ledige numre i kladden (maks 2147483647)
+7200	Brand	Brand	Brand
+7201	Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant	Brand a sale is created with on this terminal. Stored as the order's language/form variant	Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant
+7202	Ikke gemt, mangler formularvariant	Not saved, no matching form variant	Ikke lagret, mangler formularvariant
 
-5439	Brand	Brand	Brand
-5440	Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant	Brand a sale is created with on this terminal. Stored as the order's language/form variant	Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant
-5441	Ikke gemt, mangler formularvariant	Not saved, no matching form variant	Ikke lagret, mangler formularvariant
+7600	Ikke forfalden	Not yet due	Ikke forfalt
+7601	%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent beløb.	%s selected accounts were skipped because they have no positive overdue balance.	%s valgte kontoer ble hoppet over fordi de ikke har et positivt forfalt beløp.
+7602	Din browser blokerede vinduet. Klik her for at åbne resultatet.	Your browser blocked the window. Click here to open the result.	Nettleseren din blokkerte vinduet. Klikk her for å åpne resultatet.
+7603	Vis alle konti på én side	Show all accounts on one page	Vis alle kontoer på én side
+7604	Vis %s konti pr. side	Show %s accounts per page	Vis %s kontoer per side
+7605	Vis kun rykkere	Show reminders only	Vis bare påminnelser
+7606	Dage over forfald	Days overdue	Dager over forfall
+7607	I alt (denne side)	Total (this page)	Totalt (denne siden)
+7608	Opgjort pr.	As of	Per
+7609	søgning	search	søk
+7610	Sorteret efter beløb	Sorted by amount	Sortert etter beløp
+7611	Gå til rykkere	Go to reminders	Gå til påminnelser
+7612	Vælg konti til kontoudtog/rykker	Select accounts for statement/reminder	Velg kontoer for kontoutskrift/påminnelse
+7613	Kontonr., fra:til eller navn (* = joker)	Account no., from:to or name (* = wildcard)	Kontonr., fra:til eller navn (* = joker)
+7614	Eksporter CSV	Export CSV	Eksporter CSV
+7615	Åbne rykkere	Open reminders	Åpne påminnelser
+7616	Rækkefarve	Row colour	Radfarge
+7617	%s. rykker	Reminder %s	%s. påminnelse
+7618	alle poster betalt	all items paid	alle poster betalt
+7619	delvist betalt	partly paid	delvis betalt
+7620	Ryk alle kører rykkerkørslen for ALLE debitorer - ikke kun de viste eller afmærkede konti. Den vil:	Remind all runs the reminder run for ALL debtors - not only the accounts shown or selected. It will:	Påminn alle kjører påminnelseskjøringen for ALLE debitorer - ikke bare de viste eller avmerkede kontoene. Den vil:
+7621	udligne konti hvis åbne poster giver 0,00, og slette deres åbne rykkere	settle accounts whose open items total 0.00 and delete their open reminders	avstemme kontoer der åpne poster gir 0,00, og slette deres åpne påminnelser
+7622	slette åbne rykkere for konti uden åbne poster	delete open reminders for accounts without open items	slette åpne påminnelser for kontoer uten åpne poster
+7623	oprette rykkere for forfaldne poster, der endnu ikke er rykket for	create reminders for overdue items that have not been reminded yet	opprette påminnelser for forfalte poster som ennå ikke er purret
+7624	bogføre rykkere hvis frist er overskredet, og oprette næste rykker	post reminders whose deadline has passed and create the next reminder	bokføre påminnelser der fristen er overskredet, og opprette neste påminnelse
+7625	Der er afmærket %s konti med forfaldent beløb, så Ryk alle opretter kun rykkere for dem (som Opret rykker).	%s selected accounts have an overdue balance, so Remind all only creates reminders for them (like Create reminder).	Det er avmerket %s kontoer med forfalt beløp, så Påminn alle oppretter bare påminnelser for dem (som Opprett påminnelse).
+7626	Udlign %s konti med saldo 0,00?	Settle %s accounts with balance 0.00?	Avstem %s kontoer med saldo 0,00?
+7627	Udligner alle viste konti hvor saldoen er 0,00	Settles all accounts shown whose balance is 0.00	Avstemmer alle viste kontoer der saldoen er 0,00
+7628	Rykkerkørsel for alle debitorer - eller kun for de afmærkede konti med forfaldent beløb	Reminder run for all debtors - or only for the selected accounts with an overdue balance	Påminnelseskjøring for alle debitorer - eller bare for de avmerkede kontoene med forfalt beløp
+7629	Rykkere	Reminders	Påminnelser
+7630	Udlign 1 konto med saldo 0,00?	Settle 1 account with balance 0.00?	Avstem 1 konto med saldo 0,00?
+7631	Alle poster	All items	Alle poster
+7632	Skjul PBS-kunder	Hide PBS customers	Skjul PBS-kunder
+7633	Vis PBS-kunder	Show PBS customers	Vis PBS-kunder
+7634	Viser alle %s konti	Showing all %s accounts	Viser alle %s kontoer
+7635	Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).	One selected account has an overdue balance, so Remind all only creates a reminder for it (like Create reminder).	Det er avmerket 1 konto med forfalt beløp, så Påminn alle oppretter bare en påminnelse for den (som Opprett påminnelse).

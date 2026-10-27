@@ -28,7 +28,6 @@
 // daily slots by their Copenhagen date, so a DST change neither skips nor repeats them.
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
-// 20261026 Sawaneh SD-737 seam: contracts only (classes, constants, public signatures); bodies follow.
 
 require_once __DIR__ . '/queue.php';
 
@@ -56,5 +55,80 @@ const SHOPIFY_SCHEDULE_SLOTS = array(
  * @return list<array{type: string, shop_id: int|null, dedupe_key: string, schedule_slot: string, priority: int, payload: array<string, mixed>}>
  */
 function shopify_schedule_due(DateTimeImmutable $now, array $shops): array {
-	throw new LogicException('SD-737: contract only; the body lands in the implementation PR');
+	$utc = $now->setTimezone(new DateTimeZone('UTC'));
+	$local = $now->setTimezone(new DateTimeZone(SHOPIFY_SCHEDULE_ZONE));
+	$due = array();
+	foreach (SHOPIFY_SCHEDULE_SLOTS as $type => $slot) {
+		if (isset($slot['every'])) {
+			$minutes = (int)$utc->format('H') * 60 + (int)$utc->format('i');
+			$start = $minutes - $minutes % $slot['every'];
+			$key = $utc->format('Y-m-d') . sprintf('T%02d:%02dZ', intdiv($start, 60), $start % 60);
+		} else {
+			[$hour, $minute] = array_map('intval', explode(':', $slot['daily']));
+			// setTime on a missing local time (spring forward) moves to the next valid one
+			if ($local < $local->setTime($hour, $minute)) {
+				continue;
+			}
+			$key = $local->format('Y-m-d');
+		}
+		foreach (shopify_schedule_targets($slot, $shops) as $shop) {
+			$due[] = array(
+				'type' => $type,
+				'shop_id' => $shop === null ? null : (int)$shop['id'],
+				'dedupe_key' => ($shop === null ? 'tenant' : (string)$shop['shop_key']) . ':' . $key,
+				'schedule_slot' => $key,
+				'priority' => SHOPIFY_QUEUE_PRIORITY[$type],
+				'payload' => array('slot' => $key),
+			);
+		}
+	}
+	return $due;
+}
+
+/**
+ * The shops a slot runs for: those with one of its flows enabled, or a single tenant-wide
+ * target (null) when the slot names no flows.
+ *
+ * @param array<string, mixed> $slot
+ * @param list<array<string, mixed>> $shops
+ * @return list<array<string, mixed>|null>
+ */
+function shopify_schedule_targets(array $slot, array $shops): array {
+	if (!isset($slot['flows'])) {
+		return array(null);
+	}
+	$targets = array();
+	foreach ($shops as $shop) {
+		foreach ($slot['flows'] as $flow) {
+			$enabled = $shop[$flow . '_enabled'] ?? false;
+			if ($enabled === true || $enabled === 't' || $enabled === '1' || $enabled === 1) {
+				$targets[] = $shop;
+				break;
+			}
+		}
+	}
+	return $targets;
+}
+
+/**
+ * Inserts the due slots whose job type has a handler; a slot that already has a job is left
+ * alone.
+ *
+ * @param list<string> $types job types with a registered handler
+ * @return int slots inserted
+ */
+function shopify_schedule_insert(DateTimeImmutable $now, array $shops, array $types): int {
+	$inserted = 0;
+	foreach (shopify_schedule_due($now, $shops) as $slot) {
+		if (!in_array($slot['type'], $types, true)) {
+			continue;
+		}
+		$result = shopify_queue_insert(array(
+			'type' => $slot['type'], 'shop_id' => $slot['shop_id'], 'dedupe_key' => $slot['dedupe_key'],
+			'payload' => $slot['payload'], 'priority' => $slot['priority'], 'run_at' => null,
+			'correlation' => array(), 'schedule_slot' => $slot['schedule_slot'],
+		));
+		$inserted += $result['created'] ? 1 : 0;
+	}
+	return $inserted;
 }

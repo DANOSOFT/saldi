@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/config.php --- ver 5.0.0 --- 2026.10.22
+// --- includes/shopify/config.php --- ver 5.0.0 --- 2026.10.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 //
 // 20261022 Sawaneh SD-735: created (WP01-2).
 // 20261022 Sawaneh SD-735 review: secret saves serialized per secret, brand compared lower-cased on both sides.
+// 20261027 Sawaneh SD-736: saving a shop ensures the stock triggers in the same transaction, once the schema is current.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/schema.php';
@@ -69,7 +70,8 @@ function shopify_shops(?string $flow = null): array {
 
 /**
  * Creates or updates a shop by its shop_key and returns its id. Unknown columns are refused,
- * the domain must be a *.myshopify.com host, flags take booleans. Call inside shopify_db_transaction().
+ * the domain must be a *.myshopify.com host, flags take booleans. The first save installs the stock
+ * triggers in the same transaction; later saves only check them. Call inside shopify_db_transaction().
  *
  * @param array<string, mixed> $shop shop_key and domain required on create
  */
@@ -94,6 +96,7 @@ function shopify_save_shop(array $shop): int {
 		if ($values !== array()) {
 			shopify_config_update('shopify_shops', $values, 'shop_key = $%d', array($key), true);
 		}
+		shopify_save_shop_triggers();
 		return (int)$existing['id'];
 	}
 	if (!isset($values['domain'])) {
@@ -101,7 +104,15 @@ function shopify_save_shop(array $shop): int {
 	}
 	$values = array('shop_key' => $key) + $values;
 	$row = shopify_config_insert('shopify_shops', $values, 'id');
+	shopify_save_shop_triggers();
 	return (int)$row['id'];
+}
+
+/** On a tenant still below the current schema the next login pass migrates and installs the triggers. */
+function shopify_save_shop_triggers(): void {
+	if (shopify_schema_ready()) {
+		ensure_shopify_stock_triggers();
+	}
 }
 
 /**

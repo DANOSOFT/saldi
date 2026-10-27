@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.21
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,6 +118,7 @@
 //                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
 //                  so the one-time build no longer blocks writes to adresser during a login.
 // 20261021 Sawaneh SD-733: Shopify schema manifest v1 (includes/shopify/schema.php) ensured at the end of the file.
+// 20261026 CL/SZ SD-758: delete the cached 5439-5441 rows that still hold the POS brand texts, which moved to 7200-7202.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1455,5 +1456,17 @@ if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHE
 // current version, and does nothing on MySQL tenants (the Shopify module is PostgreSQL only).
 include_once(__DIR__ . '/shopify/schema.php');
 ensure_shopify_schema();
+
+// 20261026 CL/SZ SD-758: the POS brand texts were added as 5439-5441, which master uses for the kassekladde
+// voucher alert (5439) and the bogfor.php posting refusal (5440/5441), and have moved to 7200-7202. A tenant
+// that opened POS-valg on hml/shopify still has the brand texts cached under the old ids, so the finance
+// pages would show them. Only rows still holding a brand text are deleted; findtekst() re-seeds them.
+deleteStaleTekst(5439, 'Brand');
+deleteStaleTekst(5440, array(
+	'Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant',
+	"Brand a sale is created with on this terminal. Stored as the order's language/form variant",
+	'Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant'
+));
+deleteStaleTekst(5441, array('Ikke gemt, mangler formularvariant', 'Not saved, no matching form variant', 'Ikke lagret, mangler formularvariant'));
 
 ?>

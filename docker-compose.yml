@@ -24,6 +24,22 @@ services:
       SALDI_SHOPIFY_DB: ${SALDI_SHOPIFY_DB:-}
     restart: unless-stopped
 
+  shopify-worker:
+    # Shopify job worker for development: `docker compose --profile shopify up shopify-worker`
+    # with SALDI_SHOPIFY_DB set to the test tenant (WP02, SD-737).
+    build: .
+    profiles: ["shopify"]
+    working_dir: /var/www/html/saldi
+    volumes:
+      - .:/var/www/html/saldi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SALDI_SHOPIFY_DB: ${SALDI_SHOPIFY_DB:-}
+    command: ["sh", "tools/shopify_worker_loop.sh", "${SALDI_SHOPIFY_DB:-saldi_shopify_test}"]
+    restart: unless-stopped
+
   postgres:
     image: postgres:16
     environment:
