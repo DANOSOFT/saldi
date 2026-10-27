@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-10-19 ---
+// ---------------finans/bogfor.php---------- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,10 +67,17 @@
 // 20260930 CL/SZ SD-699: Moved get_saved_vat_override(), momsberegning() and gruppeopslag() to
 //                  bogfor_includes/postingRules.php, shared with the "Kontokort med u-bogført" report.
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
+// 20261021 CL/MJ MB-79 Automatic settlement matched on the currency amount alone, so an invoice and its
+//                  payment settled each other even when they were booked at different rates - and the DKK
+//                  difference between the rates was left on the debtor/creditor control account. It is now
+//                  booked on the currency's difference account, the way manual settlement books it, and a
+//                  post only settles against another post in the same currency. openpostRateDifference()
+//                  measures the difference without writing anything, so bogfor() books it into simulering
+//                  as well as transaktioner and openpost() keeps its "only when not simulating" guard.
 // 20261019 CL/LH MB-71: Simulation and posting are refused, naming the vouchers, while a saved row has text, amount or invoice number but no debit or credit account (unfinishedJournalVouchers()).
 //                Such rows are no longer deleted silently; only rows without any content are still dropped.
 // 20261023 CL/LH MB-71: The refusal alert text goes through jsString(), so it is no longer empty when $db_encode isn't UTF8.
-
+// 20261026 CDX/MJ MB-79 Preserve exchange-difference settlement alongside current master journal validation.
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
@@ -846,10 +853,23 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 #				if ($row['kredit']) $b_sum[$b_antal]-=$dkkamount[$y];
 			}
 			// Open items are booked on the debtor/creditor number itself, not on the control account.
+			// 20261021 CL/MJ MB-79 The exchange difference is measured before openpost() settles anything and
+			// booked here, where $tabel already chooses between transaktioner and simulering - so Simuler shows
+			// the row posting will write, without the open-post writer running during a simulation. The control
+			// account comes from $line, which is where this line's own debtor/creditor posting goes, so the pair
+			// clears exactly what it left behind.
 			if (((strstr($d_type[$y],'D'))||(strstr($d_type[$y],'K'))) && $row['debet']>0) {
+				$kursdiff=openpostRateDifference($d_type[$y], $row['debet'], $faktura[$y], $amount[$y], $valuta[$y], $valutakurs[$y], $projekt[$y]);
+				if ($kursdiff) {
+					bookRateDifference($kursdiff, $line['debet'], $diffkonto[$y], $tabel, $kladde_id, $row, openpostCurrencyLetters($valuta[$y]));
+				}
 				if (!$simuler) openpost($d_type[$y], $row['debet'], $bilag[$y], $faktura[$y], $amount[$y], $beskrivelse[$y], $transdate[$y], $postid[$y], $valuta[$y], $valutakurs[$y], $forfaldsdate[$y], $betal_id[$y],$projekt[$y]);
 			}
 			if ((($k_type[$y]=='D')||($k_type[$y]=='K')) && $row['kredit']>0) {
+				$kursdiff=openpostRateDifference($k_type[$y], $row['kredit'], $faktura[$y], $amount[$y]*-1, $valuta[$y], $valutakurs[$y], $projekt[$y]);
+				if ($kursdiff) {
+					bookRateDifference($kursdiff, $line['kredit'], $diffkonto[$y], $tabel, $kladde_id, $row, openpostCurrencyLetters($valuta[$y]));
+				}
 				if (!$simuler) openpost($k_type[$y], $row['kredit'], $bilag[$y], $faktura[$y], $amount[$y]*-1, $beskrivelse[$y], $transdate[$y], $postid[$y], $valuta[$y], $valutakurs[$y], $forfaldsdate[$y], $betal_id[$y],$projekt[$y]);
 			}
 			$debet[$y]=$line['debet'];
@@ -1132,6 +1152,223 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 #xit;	
 } #endfunc bogfor
 ######################################################################################################################################
+// 20261021 CL/MJ MB-79 From here down to openpost(): the first five are the pieces openpost() matches
+// with, split out so openpostRateDifference() can ask the same question read-only - for Simuler, and for
+// the difference bogfor() books - leaving one matcher, so the measurement and the settlement cannot drift
+// apart. The last three are new: the read-only question, the posting text, and the two ledger rows.
+/**
+ * Resolves a cash-journal currency code to the letters stored in openpost.valuta.
+ *
+ * @param string|int $valutakode grupper art='VK' kodenr; 0 or '' is the installation's own currency.
+ * @return string                The currency letters (grupper box1), 'DKK', or '' when the code has no VK row.
+ */
+function openpostCurrencyLetters($valutakode) {
+	if (!$valutakode) {
+		return 'DKK';
+	}
+	$r = db_fetch_array(db_select("select box1 from grupper where art = 'VK' and kodenr = '" . (int)$valutakode . "'",__FILE__ . " linje " . __LINE__));
+	return $r ? (string)$r['box1'] : '';
+}
+/**
+ * The open posts of one debtor or creditor number.
+ *
+ * @param string|int $debet Debtor/creditor number, spaces already removed by the caller.
+ * @param string     $art   'D'/'K' and their variants, as postingLineAmounts() resolved the line's type.
+ * @return string
+ */
+function openpostAccountQuery($debet,$art) {
+	return "select id from adresser where kontonr = '" . db_escape_string((string)$debet) . "' and art ='" . db_escape_string((string)$art) . "'";
+}
+/**
+ * The invoice references one posting settles against. A single posting can carry several, separated
+ * by ';' - openpost() then drops the amount window, because no one reference matches the whole figure.
+ *
+ * @param string $faktura
+ * @return array<int,string>
+ */
+function openpostInvoiceList($faktura) {
+	if (strpos($faktura,";")) {
+		return explode(';',$faktura);
+	}
+	return array($faktura);
+}
+/**
+ * The query openpost() uses to find the open post a new posting settles.
+ *
+ * @param string|int $konto_id     adresser.id of the debtor/creditor.
+ * @param string     $projekt      Project number; a post only settles within the same project (20121122).
+ * @param string     $faktnr       One invoice reference, already escaped by bogfor().
+ * @param string     $valuta       Currency letters of the new posting; '' is read as DKK.
+ * @param float      $belob        The counter-amount to look for ($amount*-1).
+ * @param bool       $amountWindow Apply the +/-0,005 window; only for a single invoice reference.
+ * @return string
+ */
+function openpostMatchQuery($konto_id,$projekt,$faktnr,$valuta,$belob,$amountWindow) {
+	// MB-79 Without the currency condition a DKK payment settles a foreign-currency post that happens to
+	// carry the same invoice number and figure. Rows written before openpost.valuta existed have it NULL and
+	// includes/ret_valutadiff.php writes '-', so an empty value is read as DKK the way
+	// includes/udlign_openpost.php reads it - otherwise an ordinary DKK settlement would stop working.
+	$matchValuta = ($valuta === '' || $valuta === NULL) ? 'DKK' : $valuta;
+	$qtxt = "select id,transdate,amount,valutakurs from openpost where konto_id='" . (int)$konto_id . "'";
+	$qtxt.= " and projekt='" . db_escape_string((string)$projekt) . "' and udlignet!='1'";
+	// $faktnr arrives escaped from bogfor(); escaping it again would double any quote and lose the match.
+	$qtxt.= " and faktnr='$faktnr'";
+	$qtxt.= " and coalesce(nullif(valuta,''),'DKK')='" . db_escape_string($matchValuta) . "'";
+	if ($amountWindow) {
+		$qtxt.= " and amount >= '" . ($belob-0.005) . "' and amount < '" . ($belob+0.005) . "'";
+	}
+	return $qtxt;
+}
+/**
+ * The DKK difference the exchange rates leave behind when $amount settles $matches.
+ *
+ * Each row's DKK value is amount*valutakurs/100 rounded to two decimals, and the difference is their
+ * sum - the same arithmetic manual settlement does in includes/udlign_openpost.php. It is positive when
+ * the settled group leaves a debit on the control account.
+ *
+ * Returns 0,00 unless this is a foreign-currency settlement whose currency amounts cancel and whose rates
+ * actually differ, which is the only case where that sum is a rate difference rather than an ordinary
+ * residual. A row with no rate at all says nothing about what it was worth in DKK, so nothing is derived
+ * from it either - openpost.valuta and openpost.valutakurs were added to the table together, and a row
+ * missing one is read as the settlement it was before MB-79 rather than as a rate of nothing, which would
+ * turn the whole amount into a difference.
+ *
+ * @param float  $amount     The new posting's currency amount, in openpost's sign convention.
+ * @param float  $valutakurs Its rate, in hundredths.
+ * @param array  $matches    Rows from openpostMatchQuery(); amount and valutakurs are read.
+ * @param string $valuta     Currency letters; DKK, or none, is never a rate difference.
+ * @return float             The difference in DKK, or 0.0.
+ */
+function openpostRateDifferenceAmount($amount,$valutakurs,$matches,$valuta) {
+	if (!$matches || $valuta === '' || $valuta === NULL || $valuta === 'DKK') {
+		return 0.0;
+	}
+	$kurs = (float)$valutakurs;
+	if (!$kurs) {
+		return 0.0;
+	}
+	$dkkdiff = afrund($amount*$kurs/100,2);
+	$residual = (float)$amount;
+	$ratesDiffer = false;
+	foreach ($matches as $match) {
+		$matchKurs = (float)$match['valutakurs'];
+		if (!$matchKurs) {
+			return 0.0;
+		}
+		if ($matchKurs != $kurs) {
+			$ratesDiffer = true;
+		}
+		$dkkdiff += afrund($match['amount']*$matchKurs/100,2);
+		$residual += (float)$match['amount'];
+	}
+	if (!$ratesDiffer || abs($residual) >= 0.005 || abs($dkkdiff) < 0.01) {
+		return 0.0;
+	}
+	return afrund($dkkdiff,2);
+}
+/**
+ * What openpost() would settle for this journal line, measured without writing anything.
+ *
+ * bogfor() calls this for every debtor/creditor line, simulating or not, and books whatever comes back.
+ * Only one adresser row is read, because openpost() only ever reaches one: it reuses $q for the match
+ * query inside its own loop over the account numbers, which ends the loop after the first.
+ *
+ * NB: it reads the open-post ledger as it stands, so a simulated journal holding two payments for the
+ * same invoice measures that invoice twice. Posting for real, the first payment has settled it before
+ * the second is measured.
+ *
+ * @param string     $art        The line's debtor/creditor type.
+ * @param string|int $debet      Debtor/creditor number.
+ * @param string     $faktura    Invoice reference(s), already escaped by bogfor().
+ * @param float      $amount     Currency amount in openpost's sign convention.
+ * @param string|int $valutakode grupper art='VK' kodenr.
+ * @param float      $valutakurs The line's rate, in hundredths.
+ * @param string     $projekt
+ * @return float                 The DKK exchange difference, or 0.0 when there is none.
+ */
+function openpostRateDifference($art,$debet,$faktura,$amount,$valutakode,$valutakurs,$projekt) {
+	$valuta = openpostCurrencyLetters($valutakode);
+	if ($valuta === 'DKK' || $valuta === '') {
+		return 0.0;
+	}
+	$belob = $amount*-1;
+	$debet = str_replace(" ","",$debet);
+	$invoices = openpostInvoiceList($faktura);
+	$q = db_select(openpostAccountQuery($debet,$art),__FILE__ . " linje " . __LINE__);
+	if (!($row = db_fetch_array($q))) {
+		return 0.0;
+	}
+	$matches = array();
+	for ($x=0;$x<count($invoices);$x++) {
+		$qtxt = openpostMatchQuery($row['id'],$projekt,$invoices[$x],$valuta,$belob,count($invoices) == 1);
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$matches[] = $r;
+		}
+	}
+	return openpostRateDifferenceAmount($amount,$valutakurs,$matches,$valuta);
+}
+/**
+ * The posting text an exchange difference carries, in both the ledger and the open-post ledger, worded
+ * the way manual settlement words it so the two are recognisable as the same thing.
+ *
+ * @param string $valuta  Currency letters.
+ * @param float  $amount  The settled figure in that currency.
+ * @param float  $dkkdiff The difference in DKK.
+ * @return string
+ */
+function rateDifferenceText($valuta,$amount,$dkkdiff) {
+	return "Udligning af valutadiff ($valuta " . dkdecimal(abs($amount)) . ", DKK " . dkdecimal($dkkdiff) . ")";
+}
+/**
+ * Books a DKK exchange difference from an automatic settlement: the currency's difference account
+ * against the debtor/creditor control account, which is where manual settlement puts it
+ * (includes/alignOpenpostIncludes/doAlign.php). It writes to $tabel, so Simuler shows the same row.
+ *
+ * @param float      $dkkdiff    Positive when the settled group leaves a debit on the control account.
+ * @param string|int $samlekonto The line's control account, as postingLineAmounts() resolved it.
+ * @param string|int $diffkonto  The currency's difference account (grupper art='VK' box3).
+ * @param string     $tabel      'transaktioner' or 'simulering'.
+ * @param int        $kladde_id
+ * @param array      $row        The cash-journal line being posted.
+ * @param string     $valuta     Currency letters, for the posting text.
+ * @return void
+ */
+function bookRateDifference($dkkdiff,$samlekonto,$diffkonto,$tabel,$kladde_id,$row,$valuta) {
+	// 20131028 further up refuses a voucher whose currency difference has nowhere to go. A settlement
+	// difference has the same problem: posting it to account '' would strand it without saying so.
+	if (!$diffkonto) {
+		transaktion('rollback');
+		print "<BODY onLoad=\"javascript:alert('Manglende konto til valutadiffencer! (bilag: " . htmlspecialchars((string)$row['bilag']) . ")')\">";
+		exit;
+	}
+	$dkkdiff=afrund($dkkdiff,2);
+	$debetkonto  = ($dkkdiff > 0) ? $diffkonto  : $samlekonto;
+	$kreditkonto = ($dkkdiff > 0) ? $samlekonto : $diffkonto;
+	$belob=abs($dkkdiff);
+	$beskrivelse=db_escape_string(rateDifferenceText($valuta,$row['amount'],$dkkdiff));
+	$bilag=db_escape_string((string)$row['bilag']);
+	$transdate=db_escape_string((string)$row['transdate']);
+	$faktura=db_escape_string((string)$row['faktura']);
+	$afd=db_escape_string((string)($row['afd'] ? $row['afd'] : 0));
+	$ansat=(int)$row['ansat'];
+	$projekt=db_escape_string((string)$row['projekt']);
+	$ordre_id=(int)$row['ordre_id'];
+	$logdate=date("Y-m-d");
+	$logtime=date("H:i");
+	// The difference is already in DKK, so the row carries no rate of its own - the same way the
+	// in-voucher currency rounding above is written with 'DKK','100'.
+	foreach (array(array($debetkonto,$belob,0), array($kreditkonto,0,$belob)) as $postering) {
+		$qtxt = "insert into $tabel ";
+		$qtxt.= "(kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,";
+		$qtxt.= "valuta,valutakurs,ordre_id,moms)";
+		$qtxt.= " values ";
+		$qtxt.= "('" . db_escape_string((string)$postering[0]) . "','$bilag','$transdate','$logdate','$logtime','$beskrivelse',";
+		$qtxt.= "'$postering[1]','$postering[2]','$faktura','" . (int)$kladde_id . "','$afd','$ansat','$projekt','DKK',";
+		$qtxt.= "'100','$ordre_id','0')";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	}
+}
+######################################################################################################################################
 function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$bilag_id,$valutakode,$valutakurs,$forfaldsdate,$betal_id,$projekt){
 	global $connection;
 	global $regnaar;
@@ -1144,36 +1381,31 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	if (abs((float)$amount) < 0.005) return;
 
 ## Finder kreditorens valuta;
-	if ($valutakode) {
-		$r = db_fetch_array(db_select("select box1 from grupper where art = 'VK' and kodenr = '$valutakode'",__FILE__ . " linje " . __LINE__));
-		$valuta=$r['box1'];
-	} else $valuta='DKK';
+	$valuta=openpostCurrencyLetters($valutakode);
 	$udlignet=0;
 	$udlign_date=$transdate;
 	$dato=date("Y-m-d");
 	$belob=$amount*-1;
 	$debet=str_replace(" ","",$debet);
-	$qtxt = "select id from adresser where kontonr = '$debet' and art ='$art'";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$q = db_select(openpostAccountQuery($debet,$art),__FILE__ . " linje " . __LINE__);
 	while($row = db_fetch_array($q)){
 		$konto_id=$row['id'];
 		$query = db_select("select MAX(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) $udlign_id=$row['udlign_id']+1;
 # -> 2009.05.04		
-		$min=$belob-0.005; 
-		$max=$belob+0.005;
-		if (strpos($faktura,";")) {
-			$invoices = explode(';',$faktura);
-		} else $invoices[0] = $faktura; 
+		$invoices=openpostInvoiceList($faktura);
 		
 # 20121122 >>and projekt='$projekt'<< indsat herunder.
 		if ($udlign_date<$transdate) $udlign_date=$transdate;
+		// 20261021 CL/MJ MB-79 Collected so the rate difference is measured over the whole settled group:
+		// a posting carrying several invoice references settles them all, and only their sum tells whether
+		// the currency amounts cancelled.
+		$matches=array();
 		for ($x=0;$x<count($invoices);$x++) {
-			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and projekt='$projekt' and udlignet!='1' and ";
-			$qtxt.= " faktnr='$invoices[$x]'";
-			if (count($invoices) == 1) $qtxt.= " and amount >= '$min' and amount < '$max'";  
+			$qtxt = openpostMatchQuery($konto_id,$projekt,$invoices[$x],$valuta,$belob,count($invoices) == 1);
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($r = db_fetch_array($q)) {
+				$matches[]=$r;
 # $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
 				$udlign_date=$r['transdate'];
 				$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
@@ -1192,6 +1424,20 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 				$udlignet=1;
 				// <-- 20230626
 			}
+		}
+		// 20261021 CL/MJ MB-79 doAlign.php writes this row after a manual settlement so the settled group's
+		// DKK value (amount*valutakurs/100) nets to zero against the difference booked on the control
+		// account, and the two ledgers agree on what is left. It reaches that figure by writing 0,001 at a
+		// rate of dkkdiff*100000; the same value written in DKK at rate 100 is the difference itself.
+		$kursdiff=openpostRateDifferenceAmount($amount,$valutakurs,$matches,$valuta);
+		if ($kursdiff) {
+			$kursdiffbesk=db_escape_string(rateDifferenceText($valuta,$amount,$kursdiff));
+			$qtxt = "insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,";
+			$qtxt.= "kladde_id,transdate,udlign_id,bilag_id,valuta,valutakurs,projekt)";
+			$qtxt.= " values ";
+			$qtxt.= "('$konto_id','$debet','$faktura','" . ($kursdiff*-1) . "','$bilag','$kursdiffbesk','1','$udlign_date',";
+			$qtxt.= "'$kladde_id','$transdate','$udlign_id','$bilag_id','DKK','100','$projekt')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
 	if ($udlignet<1) {
