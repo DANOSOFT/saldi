@@ -4,13 +4,15 @@
 // Child-process runner for the webhook inbox and event promotion (SD-748). Bootstraps the
 // tenant like run_config.php and runs one mode:
 //   receive  <deliveries.json> [alarm_fails|no_alarm]  shopify_receive_webhook() for each {shop_key, raw_b64, headers}
-//   promote  <limit> [fail_type|alarm_fails|sql_error|misuse]  shopify_promote_events(); enqueue
-//            of fail_type throws before writing; with sql_error the order.import enqueue writes its
-//            job and then fails in SQL; with misuse every enqueue sends COMMIT itself
+//   promote  <limit> [fail_type|alarm_fails|sql_error|misuse|real_queue]  shopify_promote_events();
+//            enqueue of fail_type throws before writing; with sql_error the order.import enqueue
+//            writes its job and then fails in SQL; with misuse every enqueue sends COMMIT itself;
+//            with real_queue the enqueue is SD-737's own includes/shopify/queue.php
 // Prints JSON on stdout: the results, or the error that ended the run.
 //
-// S02c's shopify_error_open() and S02b's queue bodies are not on hml/shopify yet. Until they
-// are, this runner stands in for both, on the real tables, so their writes commit and roll back
+// S02c's shopify_error_open() is not on hml/shopify yet; this runner stands in for it, and for
+// S02b's queue unless real_queue is given (the failure modes need a queue that can fail on
+// cue). Both stand-ins work on the real tables, so their writes commit and roll back
 // with the caller's transaction: shopify_error_open() opens (or counts again) an unresolved row
 // in shopify_errors, and shopify_queue_enqueue() inserts into shopify_jobs under the table's own
 // unique index on (type, dedupe_key) for queued and running jobs, which is the contract's "an
@@ -19,6 +21,7 @@
 //
 // History:
 // 20261027 CL/SZ SD-748: created.
+// 20261027 CL/SZ SD-748: real_queue runs promotion on SD-737's queue (#918) instead of the stand-in.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_events.php <receive|promote> <test_db> <deliveries.json|limit> [fail_type]\n");
@@ -61,6 +64,8 @@ function shopify_error_open(?int $shopId, string $kind, string $ref, string $mes
 }
 }
 
+// With real_queue the stand-in is not defined: shopify_promote_events() loads queue.php itself.
+if ($failType !== 'real_queue') {
 function shopify_queue_enqueue(string $type, ?int $shopId, string $dedupeKey, array $payload, int $priority, ?DateTimeImmutable $runAt = null, array $correlation = []): array
 {
     global $failType;
@@ -95,6 +100,7 @@ if (!preg_match('/^const SHOPIFY_QUEUE_PRIORITY = array\((.*?)^\);/ms', $queueSo
     exit(2);
 }
 eval('const SHOPIFY_QUEUE_PRIORITY = array(' . $m[1] . ');');
+}
 
 $db_type = 'postgresql';
 $db_encode = 'UTF8';

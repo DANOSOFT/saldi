@@ -4,13 +4,16 @@
 // The webhook inbox and event promotion (includes/shopify/events.php, SD-748) on a throwaway
 // tenant registered in master: what shopify_receive_webhook() stores and answers, and how
 // shopify_promote_events() turns stored events into jobs. Skips when ShopifyEnv is not
-// configured. The queue and the alarm are the stand-ins of support/run_events.php until S02b's
-// queue bodies and S02c's shopify_error_open() are on hml/shopify; both write to the real
-// tables, so alarms are read from shopify_errors. The webhook secrets are random per run.
+// configured. The alarm is the stand-in of support/run_events.php until S02c's
+// shopify_error_open() is on hml/shopify; the queue is its stand-in too, except where a test
+// runs SD-737's real queue. Both stand-ins write to the real tables, so alarms are read from
+// shopify_errors. The webhook secrets are random per run.
 //
 // History:
 // 20261027 CL/SZ SD-748: created.
+// 20261027 CL/SZ SD-748: the promotion test also runs on SD-737's real queue (#918).
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/ShopifyEnv.php';
@@ -229,7 +232,13 @@ final class WebhookInboxTest extends TestCase
 
     // ---- promote ---------------------------------------------------------------------------
 
-    public function testPaidOrdersArePromotedFirstAndAnEventIsNeverEnqueuedTwice(): void
+    public static function queues(): array
+    {
+        return ['stand-in queue' => [''], 'SD-737 queue' => ['real_queue']];
+    }
+
+    #[DataProvider('queues')]
+    public function testPaidOrdersArePromotedFirstAndAnEventIsNeverEnqueuedTwice(string $queue): void
     {
         $this->receive([
             self::delivery('hml', 'customers/create', 'ev-1', self::body('customers_create')),
@@ -238,9 +247,9 @@ final class WebhookInboxTest extends TestCase
             self::delivery('hml', 'orders/paid', 'ev-4', self::body('orders_paid')),
         ]);
 
-        $first = $this->promote(2);
-        $second = $this->promote(10);
-        $third = $this->promote(10);
+        $first = $this->promote(2, $queue);
+        $second = $this->promote(10, $queue);
+        $third = $this->promote(10, $queue);
 
         $this->assertSame([['ORDERS_PAID', 'queued'], ['ORDERS_PAID', 'queued']], self::promoted($first), 'ORDERS_PAID before older events');
         $this->assertSame([['CUSTOMERS_CREATE', 'queued'], ['ORDERS_CREATE', 'queued']], self::promoted($second), 'then oldest first');
