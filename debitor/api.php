@@ -47,11 +47,6 @@
 //                     Every failure now logs one fakture-error file, sets ordrer.digital_status
 //                     to SendFailed so the order shows it and a resend asks first, and reports
 //                     through findtekst(); an HTTP 500 with a document is no longer a success.
-// 20261021 CL/MJ SST-873 sendInvoice() leaves the Danish reg.nr./account out of the
-//                  paymentMeans when the invoice is foreign and an IBAN is on file, so
-//                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
-//                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
-//                  without the spaces Stamdata stores them with.
 // 20261019 CL/MJ SST-870 sendInvoice() reads the country code off the invoice's own land field
 //                  (countryCodeIso2()), and only falls back to the prefix in the CVR field and
 //                  then DK. A foreign customer without a prefixed CVR was sent as DK whatever
@@ -66,7 +61,11 @@
 //                  PartyLegalEntity/CompanyID under schemeID 0088 instead of a CVR under
 //                  0184. The key is omitted when no CVR is known; routing on the GLN and
 //                  the GLN exemptions in both missing-CVR guards are unchanged.
-
+// 20261021 CL/MJ SST-873 sendInvoice() leaves the Danish reg.nr./account out of the
+//                  paymentMeans when the invoice is foreign and an IBAN is on file, so
+//                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
+//                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
+//                  without the spaces Stamdata stores them with.
 // 20261026 CDX/MJ SST-873 Integrate current master while preserving international payment identifiers.
 
     @session_start();
@@ -1091,5 +1090,4 @@
         $name = getInvoicesOrder($data, "https://easyubl.net/api/SendDocuments/Order/", $id);
         return $name;
     }
-
 ?>
