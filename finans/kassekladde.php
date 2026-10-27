@@ -160,6 +160,11 @@
 //                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
 // 20261003 CL/SZ SD-722 "Udfyld modkonto automatisk" in the gear box, per user, off by default; stored in box3 as modk_auto when on.
 //                On, the document pool writes the suggested contra account into Debet instead of showing it under the field.
+// 20261004 CL/SZ SD-726 "Ctrl + pil op/ned" in the gear box, per user: "Hop mellem linjer" (default) or "Gem og gå til næste/forrige".
+//                Stored with the gear box options as the first choice of the shortcut profile (shortcutProfile.php); the change takes effect without a reload.
+//                With "Gem og gå til næste/forrige", Ctrl+↓ / Ctrl+↑ save through the normal save and focus the same field in the line below / above (kkNavFocus).
+//                If the save fails validation, focus stays in the field and the normal error is shown.
+//                An unseen invoice-number warning takes the first Ctrl+↓ / Ctrl+↑, as it takes the first Enter; invoiceReuse.js?v= bumped.
 // 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
 //                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
 //                and the journal then refused every save.
@@ -735,6 +740,8 @@ $kk_toggle_cols = array(
 $kk_panel_opts = array('ac_forslag', 'ac_opslag');
 // Switches that are off by default and stored when on (SD-721: kred_auto, "Opret kreditor automatisk"; SD-722: modk_auto, "Udfyld modkonto automatisk")
 $kk_user_opts = array('kred_auto', 'modk_auto');
+// SD-726: the shortcut profile ("Ctrl + pil op/ned"), stored as sc.<choice>=<value> with the options above
+include_once(__DIR__ . '/kassekladde_includes/shortcutProfile.php');
 
 
 // (int)$bruger_id != 0: revisor/admin sessions have bruger_id = -1 (online.php) and must also
@@ -743,7 +750,7 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
     $parts = array_filter(array_map('trim', explode(',', (string)$_POST['save_kk_cols'])));
     $clean = array();
     foreach ($parts as $p) {
-        if (array_key_exists($p, $kk_toggle_cols) || in_array($p, $kk_panel_opts, true) || in_array($p, $kk_user_opts, true)) $clean[] = $p;
+        if (array_key_exists($p, $kk_toggle_cols) || in_array($p, $kk_panel_opts, true) || in_array($p, $kk_user_opts, true) || kkShortcutToken($p)) $clean[] = $p;
     }
     $cols_str = db_escape_string(implode(',', $clean));
     $exists = db_fetch_array(db_select("select id from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
@@ -761,6 +768,7 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
 $kk_hidden_cols = array();
 $kk_panel_hidden = array();
 $kk_opts_on = array();
+$kk_shortcuts = kkShortcutProfile('');
 if (isset($bruger_id) && (int)$bruger_id != 0) {
     $kk_r = db_fetch_array(db_select("select box3 from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
     if ($kk_r && trim((string)$kk_r['box3']) !== '') {
@@ -770,6 +778,7 @@ if (isset($bruger_id) && (int)$bruger_id != 0) {
             elseif (in_array($c, $kk_panel_opts, true)) $kk_panel_hidden[] = $c;
             elseif (in_array($c, $kk_user_opts, true)) $kk_opts_on[] = $c;
         }
+        $kk_shortcuts = kkShortcutProfile($kk_r['box3']);
     }
 }
 
@@ -2965,6 +2974,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		.kkVisRow:hover{background:#eef3fa;}
 		.kkVisRow input{margin:0;cursor:pointer;}
 		.kkVisRow input:not(:checked)+span{color:#99a;text-decoration:line-through;}
+		.kkVisRow input[type=radio]:not(:checked)+span{color:inherit;text-decoration:none;}
+		.kkVisGroup{padding:5px 6px 1px 6px;font-weight:bold;color:#15488f;}
 		.kkVisSplit{margin:4px 6px;border:none;border-top:1px solid #dde5f0;}
 		.kkVisFoot{border-top:1px solid #dde5f0;padding:7px 10px;text-align:right;}
 		.kkVisFoot button{background:none;border:none;padding:0;font:inherit;color:#15488f;cursor:pointer;text-decoration:underline;}
@@ -3010,6 +3021,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kkAutoModk = findtekst('5390|Udfyld modkonto automatisk', $sprog_id);
 		$checked = in_array('modk_auto', $kk_opts_on, true) ? 'checked' : '';
 		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle' data-opt='modk_auto' $checked><span>" . htmlspecialchars($kkAutoModk, ENT_QUOTES, $charset) . "</span></label>";
+		// SD-726: what Ctrl+↓ / Ctrl+↑ do in the journal and the pool; the default isn't stored
+		print "<hr class='kkVisSplit'>";
+		print "<div class='kkVisGroup'>" . htmlspecialchars(findtekst('5395|Ctrl + pil op/ned', $sprog_id), ENT_QUOTES, $charset) . "</div>";
+		$kkCtrlArrow = array(
+			'lines' => findtekst('5396|Hop mellem linjer', $sprog_id),
+			'save'  => findtekst('5397|Gem og gå til næste/forrige', $sprog_id),
+		);
+		foreach ($kkCtrlArrow as $value => $label) {
+			$checked = $kk_shortcuts['ctrl_arrow'] === $value ? 'checked' : '';
+			print "<label class='kkVisRow'><input type='radio' name='kkScCtrlArrow' class='kk-sc-choice' data-sc='ctrl_arrow' data-default='lines' value='$value' $checked><span>" . htmlspecialchars($label, ENT_QUOTES, $charset) . "</span></label>";
+		}
 		print "</div>";
 		print "<div class='kkVisFoot'><button type='button' id='kkVisShowAll'>" . htmlspecialchars($kkVisShowAll, ENT_QUOTES, $charset) . "</button></div>";
 		print "</div>";
@@ -3033,12 +3055,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			var hidden=[];
 			document.querySelectorAll('.kk-col-toggle').forEach(function(cb){if(!cb.checked) hidden.push(cb.getAttribute('data-col'));});
 			document.querySelectorAll('.kk-opt-toggle').forEach(function(cb){if(cb.checked) hidden.push(cb.getAttribute('data-opt'));});
+			document.querySelectorAll('.kk-sc-choice').forEach(function(rb){if(rb.checked && rb.value!==rb.getAttribute('data-default')) hidden.push('sc.'+rb.getAttribute('data-sc')+'='+rb.value);});
 			var fd=new FormData();fd.append('save_kk_cols',hidden.join(','));
 			// keepalive: a reload right after toggling must not cancel the save request
 			fetch(window.location.pathname+window.location.search,{method:'POST',body:fd,credentials:'same-origin',keepalive:true}).catch(function(){});
 		}
 		document.addEventListener('change',function(e){
 			if(e.target.classList.contains('kk-opt-toggle')){kkSaveCols();return;}
+			if(e.target.classList.contains('kk-sc-choice')){
+				// SD-726: takes effect at once (fieldNavigation.js reads it on every key)
+				window.saldiShortcuts=window.saldiShortcuts||{};
+				window.saldiShortcuts[e.target.getAttribute('data-sc')]=e.target.value;
+				kkSaveCols();
+				return;
+			}
 			if(!e.target.classList.contains('kk-col-toggle')) return;
 			kkApplyColToggle(e.target.getAttribute('data-col'),e.target.checked);
 			kkSaveCols();
@@ -3751,6 +3781,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (strstr($submit, 'save') && !empty($GLOBALS['kk_new_line_ids']) && $x < 3000) {
 		$fokus = 'bila' . $x;
 	}
+	# SD-726: Ctrl+↓ / Ctrl+↑ with "Gem og gå til næste/forrige" ask for the same field in the line below / above.
+	# A save that failed validation keeps the focus in the field it came from, with the normal error.
+	$kkNavFocus = (string)ifset($_POST, 'kkNavFocus', '');
+	if ($submit == 'save' && !$fejl && preg_match('/^[a-z_]{3,4}\d+$/', $kkNavFocus)) {
+		$fokus = $kkNavFocus;
+	}
 	print "</tr>\n";
 
 	if (!isset($dato[$y]))         $dato[$y]        = NULL;
@@ -4000,6 +4036,35 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	// SD-716: Ctrl + arrow keys between fields; works on the table with class formnavi, also for lines added later
 	$fieldNavVersion = @filemtime('../javascript/fieldNavigation.js') ?: 0;
 	?>
+	<script>
+	// SD-726: the user's shortcut profile; "save" makes Ctrl+↓ / Ctrl+↑ save and go to the line below / above
+	window.saldiShortcuts = window.saldiShortcuts || <?php echo json_encode($kk_shortcuts); ?>;
+	window.fieldNavigationSave = function (field, target, step) {
+		var save = document.querySelector('input[name="save"]');
+		var form = save && save.form;
+		if (!form || field.form !== form || !form.elements.fokus) return false;
+		// Nothing to save (a typed value counts before the field has fired change): just move
+		if (!docChange && !(field.tagName === 'INPUT' && field.value !== field.defaultValue)) return false;
+		// An unseen invoice-number warning takes the first key, as it takes the first Enter (invoiceReuse.js)
+		if (typeof window.invoiceReuseStopsSave === 'function' && window.invoiceReuseStopsSave(field)) return true;
+		var name = target && target.name ? target.name : '';
+		// No line below yet (the blank line): the save adds one, with the next number
+		if (!name && step > 0) name = field.name.replace(/\d+$/, function (n) { return String(parseInt(n, 10) + 1); });
+		if (!name || name === field.name) return false;
+		var next = form.querySelector('input[name="kkNavFocus"]');
+		if (!next) {
+			next = document.createElement('input');
+			next.type = 'hidden';
+			next.name = 'kkNavFocus';
+			form.appendChild(next);
+		}
+		next.value = name;
+		form.elements.fokus.value = field.name;
+		docChange = false;
+		if (typeof form.requestSubmit === 'function') form.requestSubmit(save); else save.click();
+		return true;
+	};
+	</script>
 	<script src="../javascript/fieldNavigation.js?v=<?php echo $fieldNavVersion; ?>"></script>
 	<?php
 
@@ -4522,7 +4587,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	 */
 	function opdater($kladde_id, $bilagForslag = array())
 	{
-		global $baseCurrency,$egen_kto_id,$sprog_id;
+		global $baseCurrency, $egen_kto_id, $sprog_id, $fejl;
 
 		$kladde_id = (int)$kladde_id;
 		transaktion('begin');
@@ -4647,6 +4712,34 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+
+						# SST-888 The two branches above each carry this check; this one did not, so a
+						# voucher number that does not fit kassekladde.bilag reached the insert.
+						$bilag_tjek = bilagSafeNumber(if_isset($r, '', 'bilag'), $kladde_id);
+						# one replacement per original number: the staged update below rewrites every line
+						# that carries it, so the next line of the same group must get the same number
+						if (!isset($bilag_erstat)) $bilag_erstat = array();
+						$bilag_noegle = 'x' . $bilag_tjek['original'];
+						if (isset($bilag_erstat[$bilag_noegle])) {
+							$bilag_tjek['bilag'] = $bilag_erstat[$bilag_noegle];
+						} elseif ($bilag_tjek['replaced']) {
+							# reserve the replacement through the same allocator a line without a number uses,
+							# so it cannot take a number a staged line already proposes
+							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat);
+							if (!bilagNumberFits((string)$bilag_tjek['bilag'])) $bilag_tjek['bilag'] = 0;
+							$bilag_erstat[$bilag_noegle] = $bilag_tjek['bilag'];
+						}
+						if ($bilag_tjek['replaced'] && $bilag_tjek['bilag'] <= 0) {
+							# the journal is already at 2147483647: no number left to offer, so this line is skipped
+							$fejl = 1;
+							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							continue;
+						} elseif ($bilag_tjek['replaced']) {
+							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
+							# the staged line keeps the bad number as text, so the next open would try it again
+							db_modify("update tmpkassekl set bilag = '" . db_escape_string($bilag_tjek["bilag"]) . "' where kladde_id = '" . db_escape_string($kladde_id) . "' and bilag = '" . db_escape_string($bilag_tjek["original"]) . "'", __FILE__ . " linje " . __LINE__);
+						}
+						$insert_bilag = $bilag_tjek['bilag'];
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {
