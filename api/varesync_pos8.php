@@ -34,6 +34,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20261028 CL/SZ MB-120 Fixed the PHP 8 fatals: arrays only filled inside loops now start as array(), and count($newItems) is count($newItemsId).
 //                variant_id/parent_id use (int) and variant stock uses (float) instead of *1, so an empty value no longer throws.
+// 20261028 CL/SZ MB-120 Product qty column now goes into $stock[$y] instead of a scalar $stock, as in varesync.php.
 
 function varesync($valg) {
 	global $brugernavn,$db;
@@ -115,7 +116,7 @@ function varesync($valg) {
 		}
 		$shop_id[$y]=0;
 		if ($useQty) {
-			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y],$stock)=explode(";",$linje[$y]);
+			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y],$stock[$y])=explode(";",$linje[$y]);
 			$stockItemNo[$y]=$varenr[$y];
 		} elseif ($useCost) {
 			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$kostpris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y])=explode(";",$linje[$y]);
