@@ -11,6 +11,7 @@
  // 20261022 CL/NTR findtekst() now accepts descriptive string keys (tekst_key) alongside numeric tekst_id, with key-first resolution, self-heal insert and a placeholder rule. See doc/ai/convention_findtekst_keys.md.
  // 20261028 CL/NTR Schema-scoped the tekst_key column probe; $db_type pulled in via global.
  // 20261028 CL/NTR Session cache key moved to findtekst_session_var() so editors can clear it after a change.
+ // 20261028 CL/NTR findtekst_session_var() no longer lets different tokens collapse to one key after sanitizing.
 
 
 if (!function_exists('findtekst_session_var')) {
@@ -19,12 +20,27 @@ if (!function_exists('findtekst_session_var')) {
 	 *
 	 * Unset this key after changing a text so the editing user sees the new value straight away.
 	 *
+	 * Distinct tokens never share a key. A token of only letters, digits, '.' and '-' with a numeric
+	 * language (every numeric tekst_id and keys like 'common.accept') keeps the readable
+	 * 'text_<token>_<language>' form; '_' is left out because it separates token and language.
+	 * Anything else ('common_accept', literal text with spaces or æøå) would be ambiguous once
+	 * sanitized, so it gets the separate 'texth_' prefix and a hash of the original token and language.
+	 * findtekst() strips the '|fallback' part before calling this. As a safeguard anything from a
+	 * remaining '|' onwards is dropped here too, because a '|' in a session key stops the php session
+	 * serializer from saving the whole session.
+	 *
 	 * @param string|int $textId    Numeric tekst_id or tekst_key, without any '|fallback' suffix.
 	 * @param int        $languageID Language id ($sprog_id).
 	 * @return string The session key.
 	 */
 	function findtekst_session_var($textId, $languageID) {
-		return preg_replace('/[^a-zA-Z0-9_]/', '_', 'text_' . $textId . '_' . $languageID);
+		$textId = explode('|', (string)$textId, 2)[0];
+		$languageID = (string)$languageID;
+		if (preg_match('/^[a-zA-Z0-9_.-]+$/', $textId) && ctype_digit($languageID)) {
+			return 'text_' . $textId . '_' . $languageID;
+		}
+		$readable = preg_replace('/[^a-zA-Z0-9_.-]/', '_', substr($textId, 0, 40));
+		return 'texth_' . $readable . '_' . hash('sha256', $textId . "\0" . $languageID);
 	}
 }
 
