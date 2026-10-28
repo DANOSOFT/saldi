@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeEnrol.php --- 2026.10.22
+// --- includes/stripeIncludes/stripeEnrol.php --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,10 @@
 // 20261022 CDX/LH Keep historical invoices untouched; use the PI customer; deliver issued invoices on Afmeld with a retry outbox.
 // 20261022 CDX/LH Document that recurrence dates are read for eligibility but never written.
 // 20261022 CL/LH S5 Greet by first name in the outstanding-invoice mail sent after Afmeld.
+// 20261025 CL/ASR Afmeld puts Link (or e-mail) back on the debtor and its orders.
+// 20261025 CL/ASR The outstanding-invoice mail after Afmeld uses the shared mail layout (Saldi logo); PDF still attached.
+// 20261027 CL/ASR stripe_enrolled_copy_delivery(): genfakt gives a customer with automatic card payment its next invoice
+//                 as Stripe in every series, so enrolment on any invoice (also a one-off) covers all next invoices.
 
 include_once(__DIR__ . '/stripeHttp.php');
 include_once(__DIR__ . '/stripeSettings.php');
@@ -78,9 +82,11 @@ if (!function_exists('stripe_enrol_debtor')) {
 		$kontoId = (int)$kontoId;
 		$d = db_fetch_array(stripe_payment_select("select id, kontonr from adresser where id = $kontoId"));
 		if (!$d) return false;
+		// 20261025 CL/ASR back to "E-mail med link" when the link mail is available, else the classic e-mail
+		$back = stripe_invoice_link_available() ? 'Link' : 'email';
 		stripe_payment_transaction('begin');
 		try {
-			stripe_payment_modify("update adresser set stripe = '', stripe_pm_id = null, udskriv_til = case when udskriv_til = 'Stripe' then 'email' else udskriv_til end where id = $kontoId");
+			stripe_payment_modify("update adresser set stripe = '', stripe_pm_id = null, udskriv_til = case when udskriv_til = 'Stripe' then '$back' else udskriv_til end where id = $kontoId");
 			$q = stripe_payment_select("select id from ordrer where konto_id = $kontoId and art = 'DO'
 				and udskriv_til = 'Stripe' and coalesce(betalt, '') <> 'on' and coalesce(fakturanr, '') not in ('', '0')
 				and not exists (select 1 from stripe_payments p where p.ordre_id = ordrer.id and (p.journal_line_id is not null or p.status in ('succeeded', 'duplicate_paid', 'refunded', 'disputed', 'unmapped')))");
@@ -89,9 +95,9 @@ if (!function_exists('stripe_enrol_debtor')) {
 			foreach ($ids as $id) {
 				$exists = db_fetch_array(stripe_payment_select("select ordre_id from stripe_unenrol_mail where ordre_id = $id"));
 				if (!$exists) stripe_payment_modify("insert into stripe_unenrol_mail (ordre_id) values ($id)");
-				stripe_payment_modify("update ordrer set udskriv_til = 'email' where id = $id");
+				stripe_payment_modify("update ordrer set udskriv_til = '$back' where id = $id");
 			}
-			stripe_payment_modify("update ordrer set udskriv_til = 'email' where art = 'DO' and nextfakt >= '" . db_escape_string(stripe_today()) . "' and udskriv_til = 'Stripe' and konto_id = $kontoId");
+			stripe_payment_modify("update ordrer set udskriv_til = '$back' where art = 'DO' and nextfakt >= '" . db_escape_string(stripe_today()) . "' and udskriv_til = 'Stripe' and konto_id = $kontoId");
 			stripe_payment_transaction('commit');
 		} catch (Throwable $e) {
 			stripe_payment_transaction('rollback');
@@ -138,6 +144,31 @@ function stripe_mail_invoice_classic($inv) {
 	if (!$pdf) return false;
 	$greeting = stripe_mail_greeting($inv);
 	$body = stripe_txt('mail_unenrol_body', array('nr' => $inv['nr']));
+	// 20261025 CL/ASR same layout (and Saldi logo) as the other invoice mails; the PDF stays attached
+	$rows = array(array(stripe_txt('amount_lbl'), stripe_fmt_kr($inv['total_ore']) . ' kr.'), array(stripe_txt('due_date'), stripe_fmt_date($inv['due'])));
+	$html = stripe_mail_layout($inv, stripe_txt('mail_label_invoice', array('nr' => $inv['nr'])), stripe_txt('mail_h_new'), $greeting . "\n\n" . $body, null, $rows, '', '', '', '', '');
 	return stripe_mail_send($inv['email'], stripe_txt('mail_subj_new', array('nr' => $inv['nr'], 'brand' => $inv['brand'])),
-		'<p>' . stripe_h($greeting) . '</p><p>' . stripe_h($body) . '</p>', $greeting . "\n\n" . $body, array($pdf));
+		$html, $greeting . "\n\n" . $body, array($pdf));
+}
+
+if (!function_exists('stripe_enrolled_copy_delivery')) {
+	/**
+	 * Delivery for the next invoice of a recurring series (genfakturer.php). A customer with automatic card payment
+	 * (card on file) gets 'Stripe', so the charge job collects it on the due date - in every series, not only the one
+	 * the card was saved on, as the consent promises ("dine næste fakturaer"). Only e-mail and link copies switch;
+	 * PBS, OIOUBL and print keep their channel, and issued invoices are never changed.
+	 *
+	 * @param array $template ordrer row the copy is made from.
+	 * @return string 'Stripe' or the template's own delivery.
+	 */
+	function stripe_enrolled_copy_delivery($template) {
+		$delivery = (string)($template['udskriv_til'] ?? '');
+		$kontoId = (int)($template['konto_id'] ?? 0);
+		if (!in_array($delivery, array('email', 'Link'), true) || $kontoId <= 0) return $delivery;
+		if (stripe_setting('enabled', 'off') !== 'on' || !stripe_feature_on('invoice_payments') || !stripe_feature_on('enrolment')) return $delivery;
+		// Same blocks as the payment page (Stripe ledger, DKK, terms, PBS, card opt-out, existing Stripe subscription).
+		if (stripe_invoice_uncollectable_reason(array('o' => $template)) !== '') return $delivery;
+		$d = db_fetch_array(stripe_payment_select("select stripe, stripe_pm_id from adresser where id = $kontoId", __FILE__ . " linje " . __LINE__));
+		return ($d && (string)$d['stripe'] === 'on' && trim((string)$d['stripe_pm_id']) !== '') ? 'Stripe' : $delivery;
+	}
 }

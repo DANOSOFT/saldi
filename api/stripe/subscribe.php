@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/subscribe.php --- 2026.10.22
+// --- api/stripe/subscribe.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,9 @@
 // no findtekst()/alert()/std_func rendering here (alert() does no escaping),
 // every dynamic value goes through htmlspecialchars, zero JavaScript.
 // 20261022 CDX/LH Refuse subscription signup unless the independent signup switch is explicitly enabled.
+// 20261026 CL/NTR Multi-ledger: r= selects the ledger (unknown ledger = invalid link); the form, cancel URL,
+//                 Checkout metadata (saldi_db), rate limit and idempotency key carry the ledger. The signup switch is
+//                 checked after the signature.
 
 ob_start(); // std_func's alert()/injecttjek() print HTML on error paths - keep the buffer ours
 
@@ -47,7 +50,7 @@ header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 
-// The tenant is pinned by config - a db parameter is always an attack or a bug.
+// The ledger comes only from r= (bound by the link signature) - a db parameter is always an attack or a bug.
 if (isset($_GET['db']) || isset($_POST['db']) || isset($_REQUEST['db'])) {
 	http_response_code(400);
 	ob_end_clean();
@@ -68,11 +71,13 @@ function stripe_fail_page($status, $headline, $text) {
 	stripe_status_page($status, 'warn', $headline, [$text]);
 }
 function stripe_park_page() {
+	$identity = $GLOBALS['stripe_page_identity'] ?? array('email' => STRIPE_PAGE_SUPPORT);
+	$support = filter_var(trim((string)($identity['email'] ?? '')), FILTER_VALIDATE_EMAIL) ? htmlspecialchars(trim((string)$identity['email']), ENT_QUOTES, 'UTF-8') : '';
 	// Deliberately vague: no varenr, prices or reasons leak to the visitor.
 	stripe_status_page(200, 'info', 'Vi kan ikke oprette abonnementet automatisk',
 		['Der er en detalje på din aftale, som vi lige skal se på manuelt, før automatisk betaling kan sættes op.',
 		 'Vi er allerede blevet adviseret og vender tilbage til dig.'],
-		"<div class='box'><p>Vil du selv kontakte os, kan du blot besvare fakturamailen eller skrive til <a href='mailto:" . STRIPE_PAGE_SUPPORT . "'>" . STRIPE_PAGE_SUPPORT . "</a>.</p></div>");
+		"<div class='box'><p>Vil du selv kontakte os, kan du blot besvare fakturamailen" . ($support !== '' ? " eller skrive til <a href='mailto:" . $support . "'>" . $support . "</a>" : '') . ".</p></div>");
 }
 
 // ---------- order matching (shared by GET and POST) ----------
@@ -146,12 +151,13 @@ function stripe_match_order($order_id) {
 function stripe_kr($ore) { return number_format($ore / 100, 2, ',', '.'); }
 
 // ---------- request handling ----------
+// No ledger resolved (unknown r=): the same answer as a bad signature, so ledgers cannot be probed.
+if ($stripe_target_db === '') stripe_fail_page(403, 'Linket er ugyldigt', 'Linket er ugyldigt eller udløbet. Brug linket fra din seneste faktura, eller besvar fakturamailen.');
 if (!$stripe_boot_ok) stripe_fail_page(503, 'Midlertidigt utilgængelig', 'Prøv igen om lidt, eller besvar fakturamailen.');
-
-// Master switch (stripe_valg "Aktiv"): off = no new signups, full stop.
-if (!stripe_signup_allowed()) {
-	// The shared shell already appends the "faktura stadig gyldig" note.
-	stripe_fail_page(503, 'Ikke tilgængelig', 'Abonnementstilmelding er ikke aktiveret. Besvar fakturamailen ved spørgsmål.');
+// Other ledgers than the pinned one show their own company in the page footer, like the invoice pages.
+if ($db !== stripeConfigDb()) {
+	$sub_firma = db_fetch_array(db_select("select firmanavn, email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
+	$GLOBALS['stripe_page_identity'] = array('name' => trim((string)($sub_firma['firmanavn'] ?? '')), 'email' => trim((string)($sub_firma['email'] ?? '')));
 }
 
 $isPost   = ($_SERVER['REQUEST_METHOD'] === 'POST');
@@ -166,7 +172,13 @@ if ($order_id < 1 || !stripe_link_verify($order_id, $sig)) {
 	stripe_log("subscribe: bad signature for order $order_id from $ip");
 	stripe_fail_page(403, 'Linket er ugyldigt', 'Linket er ugyldigt eller udløbet. Brug linket fra din seneste faktura, eller besvar fakturamailen.');
 }
-if (!stripe_rate_limit('sub_ord_' . $order_id, 30, 600)) {
+// Master switch (stripe_valg "Aktiv"): off = no new signups, full stop. Checked after the signature, so only a
+// real link learns that this ledger exists but has signup switched off.
+if (!stripe_signup_allowed()) {
+	// The shared shell already appends the "faktura stadig gyldig" note.
+	stripe_fail_page(503, 'Ikke tilgængelig', 'Abonnementstilmelding er ikke aktiveret. Besvar fakturamailen ved spørgsmål.');
+}
+if (!stripe_rate_limit('sub_ord_' . $db . '_' . $order_id, 30, 600)) {
 	stripe_fail_page(429, 'For mange forsøg', 'Vent et par minutter og prøv igen.');
 }
 
@@ -242,6 +254,7 @@ if (!$isPost) {
 		. $rows
 		. "<tr class='total'><td colspan='3'>I alt $per, ekskl. moms</td><td class='r'>" . stripe_kr($match['total_ore']) . " kr</td></tr></table>"
 		. "<form method='post' action='subscribe.php'>"
+		. "<input type='hidden' name='r' value='" . htmlspecialchars($db, ENT_QUOTES, 'UTF-8') . "'>"
 		. "<input type='hidden' name='id' value='" . (int)$order_id . "'>"
 		. "<input type='hidden' name='sig' value='" . htmlspecialchars($sig, ENT_QUOTES, 'UTF-8') . "'>"
 		. "<button class='btn' type='submit'>Fortsæt til betaling</button>"
@@ -273,8 +286,9 @@ $params = [
 	'billing_address_collection' => 'required',
 	'tax_id_collection' => ['enabled' => 'true'],
 	'success_url' => $base_url . '/api/stripe/tak.php',
-	'cancel_url' => $base_url . '/api/stripe/afbrudt.php?id=' . $order_id . '&sig=' . $sig,
+	'cancel_url' => $base_url . '/api/stripe/afbrudt.php?' . stripe_link_ledger_param() . '&id=' . $order_id . '&sig=' . $sig,
 	'metadata' => [
+		'saldi_db' => (string)$db,
 		'saldi_order_id' => (string)$order_id,
 		'saldi_konto_id' => (string)(int)$order['konto_id'],
 	],
@@ -283,6 +297,7 @@ $params = [
 		// Copied by Stripe onto every invoice the subscription generates -
 		// this is what makes RENEWAL invoices resolvable in the webhook.
 		'metadata' => [
+			'saldi_db' => (string)$db,
 			'saldi_order_id' => (string)$order_id,
 			'saldi_konto_id' => (string)(int)$order['konto_id'],
 			'saldi_kontonr' => (string)$order['kontonr'],
@@ -297,7 +312,7 @@ $params['line_items'] = $li;
 $lineSig = '';
 foreach ($match['lines'] as $l) $lineSig .= $l['varenr'] . ':' . $l['antal'] . ':' . $l['unit_ore'] . ';';
 $resp = stripeHttpRequest('POST', '/v1/checkout/sessions', $params,
-	['idempotency_key' => 'saldi-sub-' . $order_id . '-' . date('Ymd') . '-' . substr(sha1($lineSig), 0, 16)]);
+	['idempotency_key' => 'saldi-sub-' . $db . '-' . $order_id . '-' . date('Ymd') . '-' . substr(sha1($lineSig), 0, 16)]);
 
 if (!$resp['ok'] || !is_array($resp['body']) || empty($resp['body']['url'])) {
 	stripe_log("subscribe: session create failed order $order_id: " . $resp['error'] . ' (' . $resp['error_code'] . ') req ' . $resp['request_id']);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.23
+// --- systemdata/diverseIncludes/stripeValg.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,13 @@
 //                rejected with an alert, never silently sanitized.
 // 20261022 CDX/LH Complete native master invoice settings and rollout controls; preserve CSRF, escaping and collected errors.
 // 20261023 CDX/LH Pass raw settings values to the redesign setter, which handles SQL escaping internally.
+// 20261025 CL/ASR Invoice format label = default for new e-mail orders; one-time switch of existing customers/recurring orders to E-mail med link.
+// 20261025 CL/ASR Fee for manual payment: fee product (manual_fee_varenr, empty = off) and first invoice date (manual_fee_from).
+// 20261025 CL/ASR Customer contact e-mail (empty = company e-mail) and phone (empty = none) for the payment page and mails.
+// 20261026 CL/NTR Multi-ledger: Stripe is set up per ledger; the webhook URL carries this ledger (?r=), the locked-ledger
+//                 row is gone and target_db mirrors the ledger being saved. A copied ledger shows a warning until saved.
+// 20261026 CL/NTR Secret key and webhook secret are masked text fields, not password fields, so browsers do not treat them
+//                 as a login. Their placeholders keep the expected key format once a key is saved.
 
 /**
  * Injected by systemdata/diverse.php via online.php and the page setup:
@@ -41,13 +48,14 @@
  */
 
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeSettings.php');
+include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php'); // stripe_invoice_link_available(), stripe_link_conversion()
 
 /**
  * Save tenant Stripe settings after validating the existing CSRF token.
  * @return void
  */
 function stripeValgSave() {
-	global $sprog_id;
+	global $db, $sprog_id;
 	$input = $_POST;
 
 	$posted_token = ($input['csrf_token'] ?? null);
@@ -99,8 +107,8 @@ function stripeValgSave() {
 		update_settings_value('link_secret', 'stripe', bin2hex(random_bytes(32)), 'HMAC secret for signede abonnementslinks');
 	}
 
-	# target_db - mirrored from the resolver, never from POST (contract 4.0.2)
-	update_settings_value('target_db', 'stripe', stripeConfigDb(), 'Spejl af stripeConfigDb() - informativ, laeses aldrig som sandhed');
+	# target_db - the ledger these settings belong to (session $db, never from POST); informative only
+	update_settings_value('target_db', 'stripe', (string)$db, 'Regnskabet disse Stripe-indstillinger tilhører - informativ, laeses aldrig som sandhed');
 
 	# Invoice payment rollout switches. Missing checkboxes are explicitly off.
 	foreach (array('invoice_payments', 'enrolment', 'signup_enabled') as $feature) {
@@ -123,6 +131,31 @@ function stripeValgSave() {
 	}
 	update_settings_value('auto_post_journal', 'stripe', !empty($input['stripe_auto_post_journal']) ? 'on' : 'off', 'Bogfoer Stripe-kladden automatisk (reserveret)');
 
+	# 20261025 CL/ASR Customer contact on the payment page and in invoice mails (reply-to too)
+	if (array_key_exists('stripe_contact_email', $input)) {
+		$contact_email = trim((string)$input['stripe_contact_email']);
+		if ($contact_email === '' || filter_var($contact_email, FILTER_VALIDATE_EMAIL)) {
+			update_settings_value('contact_email', 'stripe', $contact_email, 'Kontakt-e-mail til kunder (tom = firmaets e-mail)');
+		} else {
+			$fejl[] = findtekst('7170', $sprog_id);
+		}
+		update_settings_value('contact_phone', 'stripe', trim((string)($input['stripe_contact_phone'] ?? '')), 'Kontakt-telefon til kunder (tom = intet nummer)');
+	}
+
+	# Fee for manual payment (stripeManualFee.php). Only saved when the form carries the fields.
+	if (array_key_exists('stripe_manual_fee_varenr', $input)) {
+		$fee_varenr = trim((string)$input['stripe_manual_fee_varenr']);
+		$fee_from = trim((string)($input['stripe_manual_fee_from'] ?? ''));
+		if ($fee_varenr !== '' && !db_fetch_array(db_select("select id from varer where varenr = '" . db_escape_string($fee_varenr) . "'", __FILE__ . " linje " . __LINE__))) {
+			$fejl[] = findtekst('7164', $sprog_id);
+		} elseif ($fee_varenr !== '' && !(preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fee_from, $feeDate) && checkdate((int)$feeDate[2], (int)$feeDate[3], (int)$feeDate[1]))) {
+			$fejl[] = findtekst('7165', $sprog_id);
+		} else {
+			update_settings_value('manual_fee_varenr', 'stripe', $fee_varenr, 'Gebyr for manuel betaling: varenr (tom = slaaet fra)');
+			update_settings_value('manual_fee_from', 'stripe', $fee_from, 'Gebyr for manuel betaling: fra fakturadato');
+		}
+	}
+
 	$invoice_format = (string)($input['invoice_format'] ?? 'pdf');
 	if (in_array($invoice_format, array('pdf', 'link'), true)) {
 		update_settings_value('invoice_format', 'email_settings', $invoice_format, 'Fakturaformat');
@@ -130,6 +163,10 @@ function stripeValgSave() {
 		$fejl[] = findtekst('7123|Fakturaformat afvist: vælg PDF eller link', $sprog_id);
 	}
 	update_settings_value('invoice_link_text', 'email_settings', trim((string)($input['invoice_link_text'] ?? '')), 'Tekst i link-mailen');
+	// 20261025 CL/ASR one-time switch of customers/recurring orders from "E-mail" to "E-mail med link"
+	if (!empty($input['stripe_convert_link']) && function_exists('stripe_invoice_link_available') && stripe_invoice_link_available()) {
+		stripe_link_conversion(true);
+	}
 
 	# vat_rate_id
 	$vat_rate_id = trim((string)($input['stripe_vat_rate_id'] ?? ''));
@@ -166,7 +203,7 @@ function stripeValgSave() {
  * @return void
  */
 function stripeValg() {
-	global $bgcolor, $sprog_id, $csrf_token, $buttonStyle;
+	global $bgcolor, $db, $sprog_id, $csrf_token, $buttonStyle;
 
 	$mode        = stripe_setting('mode');
 	$has_secret  = stripe_setting('secret_key') ? true : false;
@@ -175,16 +212,23 @@ function stripeValg() {
 	$vat_rate_id = htmlspecialchars(stripe_setting('vat_rate_id'), ENT_QUOTES, 'UTF-8');
 	$base_url    = htmlspecialchars(stripe_setting('public_base_url'), ENT_QUOTES, 'UTF-8');
 	$bookkeeper  = htmlspecialchars(stripe_setting('bookkeeper_email'), ENT_QUOTES, 'UTF-8');
-	$target_db   = htmlspecialchars(stripeConfigDb(), ENT_QUOTES, 'UTF-8');
 
+	// API keys are not login passwords: type=password makes browsers and password managers offer to save/fill them.
+	// Plain text fields, drawn masked, opted out of autofill and the common password managers.
+	$secretAttrs = "style='text-align:left;width:300px;-webkit-text-security:disc;text-security:disc' autocomplete='off' spellcheck='false' autocapitalize='off'"
+		. " data-1p-ignore data-lpignore='true' data-bwignore data-form-type='other'";
 	print "<form name=diverse action=diverse.php?sektion=stripe_valg method=post autocomplete=off>";
 	print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') . "'>";
 	print "<tr><td colspan='6'><hr></td></tr>";
 	print "<tr><td colspan='4'><b>Stripe abonnement</b></td></tr>";
 	print "<tr><td><br></td></tr>";
 
-	print "<tr><td title='Regnskabet som webhook og links er låst til. Sættes via SALDI_STRIPE_DB eller includes/stripeIncludes/.ht_stripe_db på serveren - ikke her.'>Regnskab (låst):</td>";
-	print "<td colspan='3'>" . ($target_db ? $target_db : "<b style='color:red'>IKKE KONFIGURERET - integrationen er inaktiv</b>") . "</td></tr>";
+	// Settings copied along with a restored ledger keep the original's keys: inactive here until saved here.
+	$savedIn = (string)stripe_setting('target_db');
+	if (!stripe_ledger_armed() && $savedIn !== '') {
+		print "<tr><td colspan='4'><b style='color:red'>Indstillingerne er kopieret fra regnskabet " . htmlspecialchars($savedIn, ENT_QUOTES, 'UTF-8')
+			. ". Stripe er inaktivt her, indtil du gemmer. Kontrollér først nøglerne - brug testnøgler i et testregnskab.</b></td></tr>";
+	}
 
 	$enabled = (stripe_setting('enabled', 'off') == 'on');
 	print "<tr><td title='Hovedafbryder. Uden flueben viser abonnementslinks en venlig ikke-aktiv-side og der oprettes ingen nye abonnementer. Webhooken modtager stadig events for allerede oprettede abonnementer.'>Aktiv:</td>";
@@ -197,10 +241,10 @@ function stripeValg() {
 	print "</select></td></tr>";
 
 	print "<tr><td title='Stripe API secret key (sk_test_... eller sk_live_...). Feltet viser aldrig den gemte nøgle - tomt felt betyder uændret.'>Secret key:</td>";
-	print "<td colspan='3'><input type='password' style='text-align:left;width:300px;' name='stripe_secret_key' value='' placeholder='" . ($has_secret ? "(gemt - tomt felt = uændret)" : "sk_test_...") . "'></td></tr>";
+	print "<td colspan='3'><input type='text' $secretAttrs name='stripe_secret_key' value='' placeholder='" . ($has_secret ? "(gemt - tomt felt = uændret) " : "") . "sk_test_... / sk_live_...'></td></tr>";
 
 	print "<tr><td title='Webhook signing secret (whsec_...) fra Stripe Dashboard, når webhook-endpointet registreres. Tomt felt betyder uændret.'>Webhook secret:</td>";
-	print "<td colspan='3'><input type='password' style='text-align:left;width:300px;' name='stripe_webhook_secret' value='' placeholder='" . ($has_whsec ? "(gemt - tomt felt = uændret)" : "whsec_...") . "'></td></tr>";
+	print "<td colspan='3'><input type='text' $secretAttrs name='stripe_webhook_secret' value='' placeholder='" . ($has_whsec ? "(gemt - tomt felt = uændret) " : "") . "whsec_...'></td></tr>";
 
 	print "<tr><td title='HMAC-nøglen der signerer abonnementslinks i fakturamails. Genereres automatisk ved første gem.'>Link-nøgle:</td>";
 	print "<td colspan='3'>" . ($has_link ? "Genereret" : "Genereres ved første gem") . " &nbsp; <label><input type='checkbox' name='stripe_regen_link_secret' value='1'> Generér ny (ADVARSEL: alle links i allerede udsendte mails holder op med at virke)</label></td></tr>";
@@ -223,6 +267,18 @@ function stripeValg() {
 	print "<td colspan='3'><select name='stripe_charge_on'><option value='due'" . ($charge_on != 'invoice_date' ? " selected" : "") . ">" . findtekst('7117', $sprog_id) . "</option><option value='invoice_date'" . ($charge_on == 'invoice_date' ? " selected" : "") . ">" . findtekst('7118', $sprog_id) . "</option></select></td></tr>";
 	print "<tr><td>" . findtekst('7119', $sprog_id) . ":</td>";
 	print "<td colspan='3'><input type='checkbox' name='stripe_auto_post_journal' value='1'" . (stripe_setting('auto_post_journal', 'off') == 'on' ? " checked" : "") . "> " . findtekst('7120', $sprog_id) . "</td></tr>";
+	$contact_email = htmlspecialchars(stripe_setting('contact_email'), ENT_QUOTES, 'UTF-8');
+	$contact_phone = htmlspecialchars(stripe_setting('contact_phone'), ENT_QUOTES, 'UTF-8');
+	print "<tr><td title='" . htmlspecialchars(findtekst('7167', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7166', $sprog_id) . ":</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_contact_email' value='$contact_email'></td></tr>";
+	print "<tr><td title='" . htmlspecialchars(findtekst('7169', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7168', $sprog_id) . ":</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:160px;' name='stripe_contact_phone' value='$contact_phone'></td></tr>";
+	$fee_varenr = htmlspecialchars(stripe_setting('manual_fee_varenr'), ENT_QUOTES, 'UTF-8');
+	$fee_from = htmlspecialchars(stripe_setting('manual_fee_from'), ENT_QUOTES, 'UTF-8');
+	print "<tr><td title='" . htmlspecialchars(findtekst('7161', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7160', $sprog_id) . ":</td>";
+	print "<td colspan='3'><input type='text' style='text-align:left;width:120px;' name='stripe_manual_fee_varenr' value='$fee_varenr'></td></tr>";
+	print "<tr><td title='" . htmlspecialchars(findtekst('7163', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7162', $sprog_id) . ":</td>";
+	print "<td colspan='3'><input type='date' name='stripe_manual_fee_from' value='$fee_from'></td></tr>";
 
 	// Display the stored preference even while invoice payments are switched off.
 	$r = db_fetch_array(db_select("select var_name, var_value from settings where var_grp = 'email_settings' and var_name = 'invoice_format' and (user_id is null or user_id = 0)", __FILE__ . " linje " . __LINE__));
@@ -230,10 +286,19 @@ function stripeValg() {
 	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'email_settings' and var_name = 'invoice_link_text' and (user_id is null or user_id = 0)", __FILE__ . " linje " . __LINE__));
 	$invoice_link_text = htmlspecialchars($r ? (string)$r['var_value'] : '', ENT_QUOTES, 'UTF-8');
 	print "<tr><td colspan='4'><b>" . findtekst('7100', $sprog_id) . "</b></td></tr>";
-	print "<tr><td title='" . htmlspecialchars(findtekst('7102', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7101', $sprog_id) . ":</td>";
+	print "<tr><td title='" . htmlspecialchars(findtekst('7127', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7126', $sprog_id) . ":</td>";
 	print "<td colspan='3'><select name='invoice_format'><option value='pdf'" . ($invoice_format !== 'link' ? " selected" : "") . ">" . findtekst('7103', $sprog_id) . "</option><option value='link'" . ($invoice_format === 'link' ? " selected" : "") . ">" . findtekst('7104', $sprog_id) . "</option></select></td></tr>";
 	print "<tr><td title='" . htmlspecialchars(findtekst('7106', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7105', $sprog_id) . ":</td>";
 	print "<td colspan='3'><textarea name='invoice_link_text' rows='4' cols='60'>$invoice_link_text</textarea></td></tr>";
+	// 20261025 CL/ASR existing customers/subscriptions still on the classic e-mail: offer to switch them once
+	if (function_exists('stripe_invoice_link_available') && stripe_invoice_link_available()) {
+		$linkCandidates = stripe_link_conversion(false);
+		if ($linkCandidates['customers'] + $linkCandidates['orders'] > 0) {
+			print "<tr><td title='" . htmlspecialchars(findtekst('7152', $sprog_id), ENT_QUOTES, 'UTF-8') . "'>" . findtekst('7151', $sprog_id) . ":</td>";
+			print "<td colspan='3'><label><input type='checkbox' name='stripe_convert_link' value='1'> "
+				. htmlspecialchars(str_replace(array('%kunder', '%ordrer'), array($linkCandidates['customers'], $linkCandidates['orders']), findtekst('7153', $sprog_id)), ENT_QUOTES, 'UTF-8') . "</label></td></tr>";
+		}
+	}
 
 	print "<tr><td title='Stripe tax rate (txr_...) for 25% dansk moms - oprettes i Stripe Dashboard og indsættes her. Uden den parkeres alle links.'>Tax rate id:</td>";
 	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_vat_rate_id' value='$vat_rate_id' placeholder='txr_...'></td></tr>";
@@ -245,8 +310,8 @@ function stripeValg() {
 	print "<td colspan='3'><input type='text' style='text-align:left;width:300px;' name='stripe_bookkeeper_email' value='$bookkeeper'></td></tr>";
 
 	if ($base_url) {
-		print "<tr><td title='Denne URL registreres som webhook-endpoint i Stripe Dashboard.'>Webhook-URL:</td>";
-		print "<td colspan='3'><input type='text' style='text-align:left;width:400px;' value='" . $base_url . "/api/stripe/webhook.php' readonly onclick='this.select()'></td></tr>";
+		print "<tr><td title='Denne URL registreres som webhook-endpoint i Stripe Dashboard. Den indeholder dette regnskab, så hvert regnskab har sin egen.'>Webhook-URL:</td>";
+		print "<td colspan='3'><input type='text' style='text-align:left;width:400px;' value='" . $base_url . "/api/stripe/webhook.php?r=" . htmlspecialchars(rawurlencode((string)$db), ENT_QUOTES, 'UTF-8') . "' readonly onclick='this.select()'></td></tr>";
 	}
 
 	print "<tr><td><br></td></tr>";

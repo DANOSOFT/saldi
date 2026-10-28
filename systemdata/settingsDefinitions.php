@@ -1452,7 +1452,8 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('settings', 'email_settings', 'sender_name', 'raw'), 'legacy' => array(573, 6166),
 				'keywords' => array('afsender', 'sender', 'afsendernavn', 'sender name')),
 			// 20261019 CL/ASR invoice format: classic PDF mail or link to the invoice & payment page
-			'documents.email.invoice_format' => array('sub' => 'format', 'type' => 'select', 'label' => 7101, 'help' => 7102, 'default' => 'pdf',
+			// 20261025 CL/ASR it is the default for new e-mail orders; each order chooses E-mail or E-mail med link (7126/7127)
+			'documents.email.invoice_format' => array('sub' => 'format', 'type' => 'select', 'label' => 7126, 'help' => 7127, 'default' => 'pdf',
 				'options' => array('pdf' => 7103, 'link' => 7104),
 				'storage' => array('settings', 'email_settings', 'invoice_format', 'raw'),
 				'keywords' => array('fakturaformat', 'invoice format', 'betalingslink', 'payment link', 'stripe', 'kortbetaling', 'card payment')),

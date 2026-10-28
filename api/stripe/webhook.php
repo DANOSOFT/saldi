@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/webhook.php --- 2026.10.22
+// --- api/stripe/webhook.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,8 @@
 //                doc/stripe/INTERFACE_CONTRACT.md.
 // 20260818 CL/LH Hardened claims, DB failures, and invoice identity.
 // 20261022 CDX/LH Route invoice events through retryable booking and manual refund/dispute handling.
+// 20261026 CL/NTR Multi-ledger: the endpoint URL carries the ledger (?r=<db>, verified by that ledger's own
+//                 webhook secret); events for objects tagged with another ledger (saldi_db) are acknowledged unrecorded.
 //
 // PILOT MODE OF RECORD = record-only: verify + dedupe + record + PDF + alert;
 // nothing is booked. The import path is gated behind the import_enabled
@@ -155,6 +157,23 @@ if (!is_array($event) || empty($event['id']) || empty($event['type']) || !isset(
 $eventId   = (string)$event['id'];
 $eventType = (string)$event['type'];
 $obj       = $event['data']['object'];
+
+// A Stripe account can serve several ledgers (a test ledger restored from a copy keeps the keys), so each
+// ledger's endpoint also receives the others' events. Ours are untagged (from before saldi_db) or tagged
+// with this ledger; anything else is acknowledged without a row, so it is neither processed nor retried.
+function stripe_wh_object_ledger($obj) {
+	$sources = array(
+		$obj['metadata'] ?? null,
+		$obj['parent']['subscription_details']['metadata'] ?? null,
+		$obj['subscription_details']['metadata'] ?? null,
+	);
+	foreach ($sources as $meta) {
+		if (is_array($meta) && isset($meta['saldi_db']) && (string)$meta['saldi_db'] !== '') return (string)$meta['saldi_db'];
+	}
+	return '';
+}
+$objectLedger = stripe_wh_object_ledger($obj);
+if ($objectLedger !== '' && $objectLedger !== $db) stripe_wh_respond(200, 'other_ledger');
 $mode      = stripe_setting('mode');
 $liveMode  = !empty($event['livemode']);
 if (!in_array($mode, ['test', 'live'], true)) {

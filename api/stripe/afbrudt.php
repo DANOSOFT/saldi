@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/afbrudt.php --- 2026.08.07
+// --- api/stripe/afbrudt.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: Checkout cancel landing page. Renders a retry link
 //                ONLY when the id+sig pair verifies - otherwise no link, so
@@ -30,6 +30,7 @@
 // 20260818 CL/LH Anchored branch-added include paths to __DIR__.
 // 20260820 CL/LH Presentation only: shared shell from stripePage.php. The
 //                retry link still renders ONLY on a verified id+sig pair.
+// 20261026 CL/NTR Multi-ledger: the retry link keeps the ledger (r=).
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
@@ -46,7 +47,7 @@ $order_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $sig      = isset($_GET['sig']) ? (string)$_GET['sig'] : '';
 $retry    = '';
 if ($stripe_boot_ok && $order_id > 0 && stripe_link_verify($order_id, $sig)) {
-	$retry = 'subscribe.php?id=' . $order_id . '&sig=' . htmlspecialchars($sig, ENT_QUOTES, 'UTF-8');
+	$retry = 'subscribe.php?' . htmlspecialchars(stripe_link_ledger_param(), ENT_QUOTES, 'UTF-8') . '&id=' . $order_id . '&sig=' . htmlspecialchars($sig, ENT_QUOTES, 'UTF-8');
 }
 
 stripe_status_page(200, 'stop', 'Betalingen blev afbrudt',

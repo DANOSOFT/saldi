@@ -59,7 +59,7 @@ final class StripeFixtures
             'postnr' => '1000', 'bynavn' => 'Testby', 'cvrnr' => '',
             'status' => 1, 'ordrenr' => (int)$r['n'], 'fakturanr' => '',
             'betalingsbet' => 'Netto', 'betalingsdage' => 8,
-            'udskriv_til' => 'email', 'betalt' => '', 'nextfakt' => null,
+            'udskriv_til' => 'Link', 'betalt' => '', 'nextfakt' => null,
             'ordredate' => self::INVOICE_DATE, 'fakturadate' => null,
             'sum' => '272.000', 'moms' => '68.000', 'momssats' => '25.000',
             'valuta' => 'DKK', 'valutakurs' => '100.000', 'projekt' => '', 'pbs' => '',
