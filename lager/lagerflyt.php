@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------patch 5.0.0-------2026-09-23------
+// ------------------lager/lagerflyt.php-----------ver 5.0.0-------2026-10-26------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20260526 PHR Fixed bug. In rare cases qty was not removed from the giving stock but just added to the recieving stock
 // 20260603 PHR Fixed: $nyt_antal[$x] → $nyt_antal (array-access på scalar gav kun første ciffer → commit fejlede ved antal ≥ 10)
 // 20260923 CDX/PHR List each transfer destination once across fiscal years.
+// 20261026 LOE MB-65: assign module 9, refuse a read-only stock move and disable the move form.
 /* 
 Ved flytning af varer fra et lager et andet nedskrives rest for disse i det nødvendige antal batch_kob linjer for 
 det lager der flyttes fra, 
@@ -41,8 +42,17 @@ $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$modulnr = 9;
 include("../includes/online.php");
 include("../includes/std_func.php");
+# MB-65 read-only (2) may look at the move page, but posting a move is a write
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+	error_log('MB-65: stock move refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+	print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
+	exit;
+}
+# MB-65 a read-only user may look, but every move they could post is refused, so the form is disabled too
+($rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) ? $mb65_noedit = 'disabled' : $mb65_noedit = '';
 include("../includes/db_query.php");
 
 $input=if_isset($_GET['input']);
@@ -205,8 +215,8 @@ print "<form name=ordre lagerflyt.php method=post>";
 print "<tr><td align=\"center\"><b>Beh.</td><td>&nbsp;</td><td align=\"center\"><b>Antal</td><td align=\"center\"><b>Til lager</td></tr>";
 print "<tr><td colspan=4><hr></td></tr>";
 print "<tr><td align=\"right\">".dkdecimal($max_antal,2)."</td><td></td>";
-print "<td align=\"center\"><input type=text size=\"2\" name=\"antal\" style=\"text-align:right\" value=\"0\"></td>";
-print "<td align=\"center\"><SELECT NAME=nyt_lager>";
+print "<td align=\"center\"><input type=text size=\"2\" name=\"antal\" style=\"text-align:right\" value=\"0\" $mb65_noedit></td>";
+print "<td align=\"center\"><SELECT NAME=nyt_lager $mb65_noedit>";
 foreach ($warehouseNames as $warehouseNumber => $warehouseName) {
 	if ($warehouseNumber != $lager) {
 		print "<option value='$warehouseNumber'>$warehouseNumber : " . htmlspecialchars($warehouseName, ENT_QUOTES, 'UTF-8') . "</option>";
@@ -217,7 +227,7 @@ print "<input type=hidden name='vare_id' value='$vare_id'>";
 print "<input type=hidden name='lager' value='$lager'>";
 print "<input type=hidden name='max_antal' value='$max_antal'>";
 print "<tr><td colspan='4'><hr></td></tr>";
-print "<tr><td colspan='4' align='center'><input style=\"width:100px;\" type=\"submit\" value=\"Opdater\" name=\"opdater\">&nbsp;&nbsp;<a href='varer.php'><input  style='width:100px;' type='button' Value='Luk'></a></td></tr>";  #<input type=submit value=\"Luk\" name=\"submit\">
+print "<tr><td colspan='4' align='center'><input style=\"width:100px;\" type=\"submit\" value=\"Opdater\" name=\"opdater\" $mb65_noedit>&nbsp;&nbsp;<a href='varer.php'><input  style='width:100px;' type='button' Value='Luk'></a></td></tr>";  #<input type=submit value=\"Luk\" name=\"submit\">
 print "</form></tr>";
 print "</td></tr></tbody></table>";
 ?>

@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- includes/documents.php --- ver 5.0.0 --- 2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,7 +40,21 @@
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
 // 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
 //                  instead of always the first regardless, so a missing first file no longer hides the others.
+// 20261006 CL/SZ SD-727 An upload whose content matches an archived pool row brings that row back to
+//                the list instead of staying refused as a duplicate (poolUploadRestoreIfArchived(), poolUpload.php).
 // 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
+// 20261019 MJ SST-868 (review) This page holds its own output buffer, so an attach that fails
+//                  deep in docPool.php can still answer the pool with a status it reads. The
+//                  page frame from online.php and the ~700 lines printed here had already gone
+//                  past php.ini's 4096-byte buffer by then, so insertDocAttachFailed() found
+//                  headers_sent() true and fell back to an alert() that fetch() never
+//                  evaluates - a failed attach answered http 200 and looked like a success.
+
+// SST-868: must stay above every include. online.php prints the page frame as it is included,
+// and php.ini buffers only 4096 bytes, so without a buffer of our own the response is already
+// committed by the time docPool.php decides whether an attach worked.
+ob_start();
+
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -229,9 +243,10 @@ if (!empty($_FILES['uploadedFile']['name'])) {
 		exit;
 	}
 	// online.php prints the page frame before this branch runs, so the Location header above only
-	// works while PHP's output buffer still holds that output (output_buffering in php.ini). Once it
-	// has been flushed, send the user on with the page's own refresh instead of leaving a
-	// half-rendered page behind after the file was already stored.
+	// works while the output buffer still holds that output. Since SST-868 this page opens its own
+	// buffer at the top, so the header is what normally goes out; this stays as the fallback for a
+	// caller that has already flushed, sending the user on with the page's own refresh instead of
+	// leaving a half-rendered page behind after the file was already stored.
 	print "<meta http-equiv='refresh' content='0;URL=" . htmlspecialchars($redirectUrl, ENT_QUOTES, 'UTF-8') . "'>";
 	exit;
 }
