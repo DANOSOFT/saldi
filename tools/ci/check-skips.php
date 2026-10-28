@@ -9,6 +9,7 @@
 //
 // Usage: php tools/ci/check-skips.php <phpunit --log-junit file>
 
+// Entries are Class::method for one test, or Class for a class skipped as a whole.
 $allowed = [
 	// The container runs as root, and root ignores directory permissions.
 	'FileReservationTest::testReturnsNullForUnwritableDirectory',
@@ -41,6 +42,18 @@ foreach ($xml->xpath('//testcase[skipped]') as $case) {
 	$method = preg_replace('/ with data set .*$/', '', $name);
 	if (!in_array($method, $allowed, true)) {
 		$unexpected[] = "$name ({$case['file']})";
+	}
+}
+
+// A class whose setUpBeforeClass() skips (CharacterizationTestCase does this when
+// SALDI_CHAR_PGPASS is missing) gets no <testcase> elements, so the loop above never
+// sees its tests. PHPUnit 11 also never closes that class's <testsuite> properly: it
+// has no tests="" count, and in a full run the next classes' test cases end up nested
+// inside it. The missing count is the reliable sign; every class that ran has one.
+foreach ($xml->xpath('//testsuite[@file][not(@tests)]') as $suite) {
+	$class = (string) $suite['name'];
+	if (!in_array($class, $allowed, true)) {
+		$unexpected[] = "$class, the whole class ({$suite['file']})";
 	}
 }
 
