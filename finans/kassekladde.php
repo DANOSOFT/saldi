@@ -203,6 +203,9 @@
 // 20261028 CL/LH "<bilag>+N" put its N empty lines at the bottom of the journal on the render after the save: the post-save
 //                order (MB-41) only knew the ids the form posted, and lines inserted by indsaet_linjer() sorted after them.
 //                indsaet_linjer() now returns the new id and the order places those lines right under the row they came from.
+//                The date a row was drawn with (transdate[]) is matched by line id, not screen row, since those lines shift the rows
+//                below them; by row a debtor line could take another line's date and lose a due date typed by hand.
+//                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -1083,6 +1086,10 @@ if ($_POST) {
 	#$momsfri       = if_isset($_POST['momsfri']);
 	$id            = if_isset($_POST['id']);
 	$gl_transdate  = if_isset($_POST['transdate']);
+	$gl_transdate_by_id = array(); // line id => the date it was drawn with; the post-save render can draw it on another row
+	foreach ((array) $gl_transdate as $kkRow => $kkDrawnDate) {
+		if (!empty($id[$kkRow])) $gl_transdate_by_id[(int) $id[$kkRow]] = $kkDrawnDate;
+	}
 	if ($kladde_id) {
 	#		if ($r=db_fetch_array(db_select("select id from kladdeliste where bogfort='S' and id='$kladde_id'",__FILE__ . " linje " . __LINE__))) {
 	#			 $alerttekst= findtekst('1417|Annullerer simulering for denne kladde', $sprog_id);
@@ -3496,8 +3503,7 @@ if ($kladde_id) {
 				$kredittext[$x] = '';
 			$tmpffdato = forfaldsdag($transdate[$x], $row2['betalingsbet'], $row2['betalingsdage']);
 		}
-		if (!isset($gl_transdate[$x]))
-			$gl_transdate[$x] = NULL;
+		$gl_transdate[$x] = $gl_transdate_by_id[(int) $id[$x]] ?? NULL;
 		if ((($d_type[$x] == 'D' && $debet[$x]) || ($k_type[$x] == 'K' && $kredit[$x])) && !$fejl && $gl_transdate[$x] && (!$forfaldsdato[$x] || $gl_transdate[$x] != $transdate[$x])) { #20140624
 			$forfaldsdato[$x] = $tmpffdato;
 		}
@@ -4654,7 +4660,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 		$kladde_id = (int)$kladde_id;
 		transaktion('begin');
-		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag);
+		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, array_merge(array(), ...array_values($GLOBALS['kk_plus_line_ids'])));
 
 		$forfaldsdate = NULL;
 		$valutakode = '0';
