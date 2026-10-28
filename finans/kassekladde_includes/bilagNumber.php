@@ -314,6 +314,7 @@ function bilagStagedNumbersWillBeSaved($kladde_id) {
  * @param array $held Numbers the staged lines will be saved under (bilagStagedNumbersWillBeSaved()).
  * @param array $used Replacements already handed out in this save.
  * @param int   $from The series start: the journal's next number, read once per save.
+ * @param array $handed Numbers this save has already allocated, in that order.
  * @return int The number to use, or 0 when the column cannot hold one.
  */
 function bilagNextNumberSkipping($held, $used, $from) {
@@ -339,7 +340,7 @@ function bilagNextNumberSkipping($held, $used, $from) {
  * @param array<int, int> $replacements What bilagReplaceTakenProposals() returned.
  * @return int The voucher number to allocate, or 0 when the column cannot hold the next one.
  */
-function bilagNextNumberReserved($kladde_id, $replacements, $from = 0) {
+function bilagNextNumberReserved($kladde_id, $replacements, $from = 0, $handed = array()) {
 	# SST-888 (review) the series start is the journal's next number as it stood when the save began:
 	# a line this save has already inserted must not drag the next number along behind it
 	if ((int)$from <= 0) {
@@ -353,7 +354,9 @@ function bilagNextNumberReserved($kladde_id, $replacements, $from = 0) {
 	}
 	# SST-888 (review) the number a staged line holds is skipped, not passed: journal max 3 with a
 	# staged 4 offers 4 to a line without a number once 4 is not held, and 5 when it is
-	return bilagNextNumberSkipping(bilagStagedNumbersWillBeSaved($kladde_id), array_values($replacements), $from);
+	# the numbers handed out earlier in this save are taken too, or two unnumbered lines get the same one
+	$used = array_merge(array_values($replacements), array_map('intval', (array)$handed));
+	return bilagNextNumberSkipping(bilagStagedNumbersWillBeSaved($kladde_id), $used, $from);
 }
 
 /**

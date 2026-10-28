@@ -129,6 +129,9 @@ bilagTestJournal(5, array('10'));
 bilagCheck(bilagNextNumberReserved(1, array(), 6) === 6,
 	'a journal at 5 with a staged 10 still offers 6, whoever is allocated first' . "\n");
 bilagCheck(bilagNextNumberReserved(1, array()) === 6, 'and a run of held numbers is walked past, one by one' . "\n");
+bilagTestJournal(3, array());
+bilagCheck(bilagNextNumberReserved(1, array(), 4, array(4)) === 5,
+	'a number this save already handed out is skipped, so two unnumbered lines get 4 and 5, not both 4' . "\n");
 bilagTestJournal(2147483647, array());
 bilagCheck(bilagNextNumberReserved(1, array()) === 0,
 	'a journal at the column maximum has no storable number left: the allocator says 0');

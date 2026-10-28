@@ -4727,6 +4727,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		# SST-888 (review) one series start for the whole save: read before the first insert, so a line the
 		# save is writing does not pull the next number up behind it
 		$kk_bilag_fra = bilagNextNumberForJournal($kladde_id);
+		# SST-888 (review) and every number this save hands out: the next unnumbered line must not get it again
+		$kk_bilag_givet = array();
 		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, $kk_bilag_fra);
 
 		$forfaldsdate = NULL;
@@ -4805,7 +4807,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
 					# writing the 0 back; a positive number the user entered is kept as it is.
 					if ($bilag <= 0) {
-						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra);
+						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+						if ($bilag > 0) {
+							$kk_bilag_givet[] = (int)$bilag;
+						}
 						# SST-888 (review) no storable number is left: refuse the line rather than write one
 						# the column cannot hold
 						if ($bilag <= 0) {
@@ -4849,7 +4854,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# next one instead of 0, so a balanced line advances the series and no number is
 						# reused while the journal is open.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							if ($insert_bilag > 0) {
+								$kk_bilag_givet[] = (int)$insert_bilag;
+							}
 							# SST-888 (review) no storable number is left: refuse the line rather than write one
 							# the column cannot hold
 							if ($insert_bilag <= 0) {
@@ -4888,7 +4896,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						} elseif ($bilag_tjek['replaced']) {
 							# reserve the replacement through the same allocator a line without a number uses,
 							# so it cannot take a number a staged line already proposes
-							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat, $kk_bilag_fra);
+							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat, $kk_bilag_fra, $kk_bilag_givet);
+							if ($bilag_tjek['bilag'] > 0) {
+								$kk_bilag_givet[] = (int)$bilag_tjek['bilag'];
+							}
 							if (!bilagNumberFits((string)$bilag_tjek['bilag'])) $bilag_tjek['bilag'] = 0;
 							$bilag_erstat[$bilag_noegle] = $bilag_tjek['bilag'];
 						}
@@ -4907,7 +4918,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							if ($insert_bilag > 0) {
+								$kk_bilag_givet[] = (int)$insert_bilag;
+							}
 							# SST-888 (review) no storable number is left: refuse the line rather than write one
 							# the column cannot hold
 							if ($insert_bilag <= 0) {
