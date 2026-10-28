@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- lap 4.0.5 --- 2022.02.09 ---
+// --- api/varesync_pos8.php --- ver 5.1.0 --- 2026.10.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 
 // 2018.04.24 Omskrevet variant delen så det inditificeres på variant_id i stedet for på stregkode så det er muligt at ændre stregkode på shop.
@@ -32,12 +32,14 @@
 // 2021-03-12 PHR filenames for products is now randomized to avoid same caches file to be fetched. 
 // 2022-02-09 PHR added kostpris; 
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261028 CL/SZ MB-120 Fixed the PHP 8 fatals: arrays only filled inside loops now start as array(), and count($newItems) is count($newItemsId).
+//                variant_id/parent_id use (int) and variant stock uses (float) instead of *1, so an empty value no longer throws.
 
 function varesync($valg) {
 	global $brugernavn,$db;
 
 	$showtxt=NULL;
-	$newItemsId=$vnrtjek=array();
+	$newItemsId=$vnrtjek=$stockItemNo=array();
 	db_modify("update shop_varer set saldi_variant='0' where saldi_variant is NULL",__FILE__ . " linje " . __LINE__);
 	db_modify("update shop_varer set shop_variant='0' where shop_variant is NULL",__FILE__ . " linje " . __LINE__);
 	$x=0;
@@ -70,6 +72,7 @@ function varesync($valg) {
 		$lagerfil.=$tmparray[$x]."/";
 	}
 	$x=0;
+	$varBarCode = array();
 	$qtxt="select variant_stregkode from variant_varer";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -226,7 +229,7 @@ function varesync($valg) {
 			$qtxt="select id from varer where varenr='$varenr[$y]'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$vare_id[$y]=$r['id'];
-			$n=count($newItems);
+			$n=count($newItemsId);
 			$newItemsNo[$n]=$varenr[$y];
 			$newItemsId[$n]=$vare_id[$y];
 			if ($shop_id[$y]) {	
@@ -246,7 +249,7 @@ function varesync($valg) {
 
 	############################# Varianter #########################
 	$shop_encode = NULL;
-	$s_variant_id=$strktjek=array();
+	$mangler = $s_variant_id = $strktjek = $var_id = $var_type = $vt_id = $vt_var = $variantVareId = $stockVariant = array();
 		$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='variant_varer' and column_name='variant_kostpris'";
 	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		db_modify("ALTER TABLE variant_varer add column	variant_kostpris numeric(15,3)",__FILE__ . " linje " . __LINE__);
@@ -313,7 +316,7 @@ function varesync($valg) {
 		$shop_id[$y]=0;		
 		if ($useQty) {
 			list($varenr[$y],$parent_id[$y],$variant_id[$y],$stregkode[$y],$variant[$y],$variant_type[$y],$variant_text[$y],$stock[$y])=explode(";",$linje[$y]);
-			$stock[$y]=trim($stock[$y],'"')*1;
+			$stock[$y]=(float)trim($stock[$y],'"');
 			$stockVariant[$y]=trim($stregkode[$y],'"');
 #if ($brugernavn=='phr') echo __line__." $varenr[$y],$parent_id[$y],$variant_id[$y],$stregkode[$y]<br>";
 		} else {
@@ -345,7 +348,7 @@ function varesync($valg) {
 		} else {
 			$strktjek[count($strktjek)]=$stregkode[$y];
 		}
-		$variant_id[$y]*=1;
+		$variant_id[$y] = (int)$variant_id[$y];
 		if (!$shop_encode) {
 			$tmp=$variant_text[$y];
 #			if (strpos($tmp,'æ') || strpos($tmp,'ø')  || strpos($tmp,'å')) $shop_encode='utf8';
@@ -359,7 +362,7 @@ function varesync($valg) {
 #if ($brugernavn=='phr') transaktion ('begin');	
 	$m=0;
 	for ($y=1;$y<count($linje);$y++) {
-		$parent_id[$y]*=1;
+		$parent_id[$y] = (int)$parent_id[$y];
 		$saldi_var_id[$y]=0;
 		if ($variant_type[$y] && !in_array($variant_type[$y],$var_type) && !in_array($variant_type[$y],$mangler)) {
 #			alert ("Varianten \"$variant_type[$y]\" ikke oprettet");
