@@ -199,8 +199,8 @@ final class AccountSearchShortTermGateTest extends TestCase
      */
     public function testTheTrigramMigrationSkipsMysqlBeforeProbing(): void
     {
-        $src = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
-        self::assertNotFalse($src, 'could not read includes/betweenUpdates.php');
+        $src = file_get_contents(__DIR__ . '/../../../includes/opdat_5.0.php');
+        self::assertNotFalse($src, 'could not read includes/opdat_5.0.php');
 
         $guard = strpos($src, "\$trgmIndexMysql = in_array(\$db_type, ['mysql', 'mysqli'], true);");
         self::assertNotFalse($guard, 'the trigram index block no longer checks the database type');
@@ -284,14 +284,14 @@ final class AccountSearchShortTermGateTest extends TestCase
     }
 
     /**
-     * The trigram index block of includes/betweenUpdates.php, read from the source.
+     * The trigram index block of includes/opdat_5.0.php, read from the source.
      *
      * @return string From the database-type guard to the brace closing its if.
      */
     private function trigramIndexBlock(): string
     {
-        $src = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
-        self::assertNotFalse($src, 'could not read includes/betweenUpdates.php');
+        $src = file_get_contents(__DIR__ . '/../../../includes/opdat_5.0.php');
+        self::assertNotFalse($src, 'could not read includes/opdat_5.0.php');
 
         $start = strpos($src, "\$trgmIndexMysql = in_array(");
         self::assertNotFalse($start, 'the trigram index block is gone');

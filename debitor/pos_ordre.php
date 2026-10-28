@@ -122,6 +122,8 @@
 // 20261002 CL/SZ SST-813: Load stockWarningPopup.js with a filemtime version, as ordre.php does, so POS terminals pick up the keyboard/focus fix instead of a cached copy.
 // 20261002 CL/SZ SST-813: function kundedisplayBoxLookup: CodeRabbit review - make the 2 s a total limit for the whole lookup (cURL CURLOPT_TIMEOUT_MS), since the stream wrapper's timeout is per read.
 //                The stream fallback without cURL now gives the read only the time left after opening.
+// 20261023 CL/LH MB-95: "på beløb" set item: opret_saet() was called with 6 of its 7 arguments (ArgumentCountError on PHP 8),
+//                the lager landing in $incl_moms. Pass usdecimal($pris_ny, 2), 'on', $lager_ny like the other POS opret_saet() call.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1101,7 +1103,7 @@ if ($vare_id) {
 				$qtxt .= " or stregkode='0$varenr_ny'";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			if ($r['samlevare']) {
-				opret_saet($id, $r['id'], $pris_ny, $momssats, $antal_ny, $lager_ny);
+				opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny); #20261023
 			} else
 				$linje_id = opret_ordrelinje($id, $r['id'], $varenr_ny, 1, '', usdecimal($pris_ny, 2), 0, 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226
 			if ($linje_id && $tilfravalgNy) {

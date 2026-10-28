@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -113,6 +113,13 @@
 // 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
 // 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
 // 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
+// 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
+//                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
+// 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
+//                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
+// 20261023 CL/MMR SD-774 A business card for a Danish customer with an EAN number shows a warning at the top when the CVR number is missing, as the receiver then rejects e-invoices to the customer.
+//                 It shows the same kind of warning when the stored CVR number is not valid.
+//                 The warning is decided on the saved values by debitorkortEinvoiceCvrBanner() in debitorkortIncludes/einvoiceCvrBanner.php and never blocks or changes the save.
 @session_start();
 $s_id = session_id();
 
@@ -131,6 +138,7 @@ include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
+include_once(__DIR__ . '/debitorkortIncludes/einvoiceCvrBanner.php');
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
@@ -1099,6 +1107,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 	}
 }
 
+$einvoiceCvrBanner = ''; # SD-774, set from the saved card below
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
@@ -1133,6 +1142,8 @@ if ($id > 0) {
 	$betalingsbet = trim($r['betalingsbet']);
 	$cvrnr = trim($r['cvrnr']);
 	$ean = trim($r['ean']);
+	// SD-774: decided on the saved values. The country goes in as stored, as $land above is HTML-escaped.
+	$einvoiceCvrBanner = debitorkortEinvoiceCvrBanner($kontotype, $ean, $cvrnr, (string)ifset($r, 'land', ''), $sprog_id, ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1');
 	$institution = htmlentities(trim($r['institution']), ENT_COMPAT, $charset);
 	$notes = htmlentities(trim($r['notes']), ENT_COMPAT, $charset);
 	$gruppe = trim($r['gruppe']);
@@ -1488,6 +1499,8 @@ print "<input type=hidden name=pbs_date value='$pbs_date'>\n";
 
 $bg = $bgcolor5;
 print "<input type=hidden name=gl_kontotype value='$kontotype'>\n";
+// SD-774: e-invoice CVR warning above the card fields, spanning its three columns.
+if ($einvoiceCvrBanner !== '') print "<tr><td colspan=3>$einvoiceCvrBanner</td></tr>\n";
 print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true;\">\n";
 if ($kontotype == 'privat') {
 
