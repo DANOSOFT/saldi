@@ -5113,6 +5113,16 @@
 5158	Forbindelsesfejl til EasyUBL:	Connection error to EasyUBL:	Tilkoblingsfeil til EasyUBL:
 5159	Kontrollér hos EasyUBL om dokumentet alligevel er modtaget, før du sender igen. Kontakt saldi.dk support med oplysningerne nedenfor.	Check with EasyUBL whether the document was received anyway before sending again. Contact saldi.dk support with the details below.	Sjekk hos EasyUBL om dokumentet likevel er mottatt før du sender på nytt. Kontakt saldi.dk support med opplysningene nedenfor.
 5160	Sidste digitale afsendelse af dette dokument fejlede. EasyUBL kan alligevel have modtaget det - kontrollér status hos EasyUBL før du sender igen. Send igen?	The last digital sending of this document failed. EasyUBL may have received it anyway - check the status at EasyUBL before sending again. Send again?	Siste digitale sending av dette dokumentet mislyktes. EasyUBL kan likevel ha mottatt det - sjekk status hos EasyUBL før du sender på nytt. Send på nytt?
+5161	CVR-nummer mangler	CVR number missing	CVR-nummer mangler
+5162	E-fakturaer til et EAN-nummer skal også have modtagerens CVR-nummer. Uden CVR-nummer bliver fakturaen afvist af modtageren.	E-invoices to an EAN number must also carry the receiver's CVR number. Without it, the receiver rejects the invoice.	E-fakturaer til et EAN-nummer må også ha mottakerens CVR-nummer. Uten CVR-nummer blir fakturaen avvist av mottakeren.
+5163	Slå CVR op i NemHandelsregisteret	Look up the CVR in the NemHandel register	Slå opp CVR i NemHandel-registeret
+5164	Gem også CVR-nummeret på debitorkortet	Also save the CVR number on the customer card	Lagre også CVR-nummeret på kundekortet
+5165	Erstat CVR-nummeret på debitorkortet	Replace the CVR number on the customer card	Erstatt CVR-nummeret på kundekortet
+5166	Fakturaen kan ikke sendes digitalt	The invoice cannot be sent digitally	Fakturaen kan ikke sendes digitalt
+5167	Modtageren har EAN-nummer %s, men der er ikke angivet noget CVR-nummer, eller CVR-feltet indeholder EAN-nummeret. E-fakturaer til et EAN-nummer skal have modtagerens CVR-nummer, ellers bliver de afvist. Indtast CVR-nummeret på ordren eller debitorkortet, og send igen.	The receiver has EAN number %s, but no CVR number is given, or the CVR field holds the EAN number. E-invoices to an EAN number must carry the receiver's CVR number, or they are rejected. Enter the CVR number on the order or the customer card, and send again.	Mottakeren har EAN-nummer %s, men det er ikke oppgitt noe CVR-nummer, eller CVR-feltet inneholder EAN-nummeret. E-fakturaer til et EAN-nummer må ha mottakerens CVR-nummer, ellers blir de avvist. Skriv inn CVR-nummeret på ordren eller kundekortet, og send på nytt.
+5168	Kunden har EAN-nummer, men intet CVR-nummer, eller CVR-feltet indeholder EAN-nummeret. E-fakturaer til kunden bliver afvist, indtil CVR-nummeret er udfyldt.	The customer has an EAN number but no CVR number, or the CVR field holds the EAN number. E-invoices to the customer are rejected until the CVR number is filled in.	Kunden har EAN-nummer, men ikke noe CVR-nummer, eller CVR-feltet inneholder EAN-nummeret. E-fakturaer til kunden blir avvist til CVR-nummeret er fylt ut.
+5169	CVR-nummeret er ikke gyldigt. Et dansk CVR-nummer har 8 cifre, og kontrolcifferet skal passe. Kunder i udlandet skal have momsnummer med landekode, fx SE232100025501.	The CVR number is not valid. A Danish CVR number has 8 digits, and the check digit must match. Customers abroad need a VAT number with a country code, e.g. SE232100025501.	CVR-nummeret er ikke gyldig. Et dansk CVR-nummer har 8 sifre, og kontrollsifferet må stemme. Kunder i utlandet må ha MVA-nummer med landskode, f.eks. SE232100025501.
+5170	CVR-nummeret kunne ikke gemmes. Genindlæs siden, og prøv igen.	The CVR number could not be saved. Reload the page and try again.	CVR-nummeret kunne ikke lagres. Last inn siden på nytt, og prøv igjen.
 5210	Ugyldig e-mailadresse	Invalid e-mail address	Ugyldig e-postadresse
 5211	Ugyldigt tegn	Invalid character	Ugyldig tegn
 5212	position	position	posisjon
@@ -5149,6 +5159,7 @@
 5280	Obs - Du har ikke gemt.	Note - You have not saved.	Obs - Du har ikke lagret.
 5281	Hvis du klikker OK mistes de sidste ændringer	If you click OK the latest changes will be lost	Hvis du klikker OK går de siste endringene tapt
 5282	Administrér bilag	Manage vouchers	Administrer bilag
+5468	Den nye linje er tom. Skriv linjen, og træk så bilaget hen på den igen.	The new line is empty. Fill in the line, then drag the document onto it again.	Den nye linjen er tom. Skriv linjen, og dra så bilaget over på den igjen.
 5283	Der er ikke længere et bilag på denne linje.	This line no longer has a voucher.	Det er ikke lenger et bilag på denne linjen.
 5284	Åbn i nyt vindue	Open in new window	Åpne i nytt vindu
 5285	F = finanskonto, D = debitor, K = kreditor	F = finance account, D = debtor, K = creditor	F = finanskonto, D = debitor, K = kreditor
