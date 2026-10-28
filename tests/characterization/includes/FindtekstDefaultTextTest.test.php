@@ -18,6 +18,8 @@ use PHPUnit\Framework\TestCase;
  * 20261026 CL/MMR Created (SST-890).
  * 20261026 CL/MMR Real locateDir.php from a page two levels down (Codex review, SST-890).
  * 20261027 CL/MMR CodeRabbit (PR #878): '|' inside the default, fallbacks cached per default text, default "0".
+ * 20261028 CL/MMR Fixture-only default texts are built with call(), not written as findtekst('id|text') literals that guardrails compare with the real tekster.csv.
+ * 20261028 CL/MMR A csv translation "0" is found, stored and cached (CodeRabbit, PR #878).
  */
 #[RunTestsInSeparateProcesses]
 final class FindtekstDefaultTextTest extends TestCase
@@ -30,6 +32,7 @@ final class FindtekstDefaultTextTest extends TestCase
             "1\tDansk\tEnglish\tNorsk",
             "4981\t\t\t",
             "4982\tBestiller\tOrdering\tBestiller",
+            "4983\t0\t0\t0",
             "",
         ]));
         $GLOBALS['__fixtureDir'] = $dir;
@@ -58,7 +61,7 @@ final class FindtekstDefaultTextTest extends TestCase
 
     /**
      * The 'id|default' argument for findtekst(). These tests read their own fixture tekster.csv
-     * (4981 empty, 4982 "Bestiller") and pass default texts on purpose that differ from the real
+     * (4981 empty, 4982 "Bestiller", 4983 "0") and pass default texts on purpose that differ from the real
      * importfiler/tekster.csv, so the argument is built here rather than written as a literal.
      */
     private static function call(int $id, string $default): string
@@ -163,6 +166,18 @@ final class FindtekstDefaultTextTest extends TestCase
         self::boot('UTF8');
         self::assertSame('Tekst nr: 4981', findtekst('4981', 1));
         self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
+    }
+
+    /** CodeRabbit (PR #878): a csv translation "0" is a real text: it wins over a default, is stored once and cached under the text id. */
+    public function testCsvTranslationZeroIsARealText(): void
+    {
+        self::boot('UTF8');
+        self::assertSame('0', findtekst(self::call(4983, 'Another label'), 1));
+        self::assertCount(1, $GLOBALS['__inserts'], 'a csv text "0" must be stored in tekster like any other text');
+        self::assertStringContainsString("values ('1','4983','0')", $GLOBALS['__inserts'][0]);
+        self::assertSame('0', $_SESSION['text_4983_1'] ?? null, 'a csv text "0" must be cached as the text, not as a fallback');
+        self::assertSame('0', findtekst('4983', 1));
+        self::assertCount(1, $GLOBALS['__inserts']);
     }
 
     public function testDefaultTextZeroIsKept(): void

@@ -14,6 +14,7 @@
 // 20261027 CL/MMR SST-890 CodeRabbit (PR #878): the default text is split off at the first '|' only, so a default that contains '|' is kept whole.
 //                  A default text or the "Tekst nr" placeholder is cached in the session per default text, so another call with the same id and a different default gets its own.
 //                  A default text "0" is shown as "0", not as the placeholder.
+// 20261028 CL/MMR SST-890 CodeRabbit (PR #878): a translation "0" in tekster.csv or egne_tekster.csv (or the tekster table) counts as found, so it is stored and shown instead of the default text or "Tekst nr".
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
@@ -115,11 +116,12 @@ if (!function_exists('findtekst')) {
 				fclose($fp);
 			}
 		}
-		if (!$tekst && $textId) { # 20210304
+		if (($tekst === null || $tekst === '') && $textId) { # 20210304
 			$newTxt = NULL;
 			if (file_exists("../importfiler/egne_tekster.csv")) {
 				$fp = fopen("../importfiler/egne_tekster.csv", "r");
-				while (!feof($fp) && !$newTxt) {
+				// A translation "0" is a text too, so presence is tested on null/'' and not on truthiness (SST-890)
+				while (!feof($fp) && ($newTxt === null || $newTxt === '')) {
 					if ($linje = trim(fgets($fp))) {
 						$a = explode("\t", $linje);
 						if ($a[0] == $textId) {
@@ -134,7 +136,7 @@ if (!function_exists('findtekst')) {
 			}
 			$fiE3E = locateDir("importfiler");
 			$fp = fopen("$fiE3E/tekster.csv", "r");
-			while (!feof($fp) && !$newTxt) {
+			while (!feof($fp) && ($newTxt === null || $newTxt === '')) {
 				if ($linje = trim(fgets($fp))) {
 					$a = explode("\t", $linje);
 					if ($a[0] == $textId) {
@@ -144,7 +146,7 @@ if (!function_exists('findtekst')) {
 				}
 			}
 		}
-		if ($db != $sqdb && $newTxt && $newTxt != '-') {
+		if ($db != $sqdb && $newTxt !== null && $newTxt !== '' && $newTxt !== '-') {
 			if ($db_encode != "UTF8") {
 				$newTxt = mb_convert_encoding($newTxt, 'ISO-8859-1', 'UTF-8');
 			}
