@@ -7,6 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 // 20261027 CL/MMR SST-904 Created. insert_shop_orderline() in api/rest_api.php decoded its finished SQL with chk4utf8(), so an apostrophe (O&#039;Brien) in a comment line or an item number broke the query.
 //                 It now decodes each shop value with shop_input_text() (SST-884, which covers insert_shop_order(); see ShopOrderHtmlEntityTest), escapes the text identifiers and casts the integer ids.
+//                 A found item's number and description no longer go through chk4utf8(), which garbled UTF-8 such as "€" (2026-10-28, CodeRabbit on PR #919).
 //                 shop_input_text() is lifted from api/rest_api.php (including the file connects to a database); the function's SQL is asserted on the source.
 final class ShopOrderLineSqlTest extends TestCase
 {
@@ -64,6 +65,8 @@ final class ShopOrderLineSqlTest extends TestCase
             self::assertDoesNotMatchRegularExpression('/\$qtxt\s*=\s*chk4utf8\s*\(\s*\$qtxt\s*\)/', $body,
                 "$fn decodes finished SQL again, so a decoded quote breaks it");
         }
+        // A found item's number and description are decoded with shop_input_text() too: chk4utf8() garbles UTF-8 like "€"
+        self::assertStringNotContainsString('chk4utf8(', $line, 'insert_shop_orderline() still decodes a shop value with chk4utf8()');
         self::assertStringContainsString('$shopVarenrSql = db_escape_string((string)shop_input_text($shop_varenr));', $line,
             'the item number lookups no longer escape the decoded value');
         self::assertStringContainsString('$shopVariantInt = (int)$shop_variant;', $line, 'shop_varer.shop_variant (integer) is no longer cast');

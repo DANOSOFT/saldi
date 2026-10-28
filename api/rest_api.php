@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- api/rest_api.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -92,6 +92,8 @@
 // 20261027 CL/MMR SST-904 insert_shop_orderline() decodes the shop's values with shop_input_text() (SST-884) before they are escaped, instead of decoding the finished SQL with chk4utf8().
 //                 A comment line or an item number with an apostrophe (O&#039;Brien) broke the SQL: the comment was lost silently and the shop got «Uforudset hændelse».
 //                 Every shop identifier it puts into SQL is escaped (item number, barcode), the integer ids are cast (order, item, variant, shop_varer.shop_id/shop_variant), and ordrefunc.php is included via __DIR__.
+// 20261028 CL/MMR SST-904 insert_shop_orderline() also decodes the item number and description of a found item with shop_input_text() instead of chk4utf8().
+//                 chk4utf8() took valid UTF-8 without a Danish letter for Latin-1, so "Pris 5 €" was stored garbled (CodeRabbit on PR #919).
 
 
 // ----------------------------------------------------------------------
@@ -756,8 +758,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		}
 		
 		$line_art = $ordre_art ? $ordre_art : 'DO';
-		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(chk4utf8($varenr)).",$antal,".db_escape_string(chk4utf8($beskrivelse)).",$pris,$rabat,'100','$line_art',$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,".__line__.")\n");
-		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100',$line_art,$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,__LINE__);
+		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(shop_input_text($varenr)).",$antal,".db_escape_string(shop_input_text($beskrivelse)).",$pris,$rabat,'100','$line_art',$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,".__line__.")\n");
+		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(shop_input_text($varenr)),$antal,db_escape_string(shop_input_text($beskrivelse)),$pris,$rabat,'100',$line_art,$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,__LINE__);
 		
 		fwrite($log,__line__." LineSum =  $lineSum\n");
 		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '" . (int)$vare_id . "'"; 
