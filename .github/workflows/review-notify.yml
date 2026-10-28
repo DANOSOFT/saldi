@@ -13,7 +13,8 @@ name: Review notify
 
 on:
   schedule:
-    # Times are UTC: 07:00-18:00 and 09:07 Danish winter time.
+    # Times are UTC: 06:00-17:50 and 08:07. In Danish winter time, these are  
+    # 07:00-18:50 and 09:07. In CEST, both run an hour later. 
     - cron: "*/10 6-17 * * 1-5"
     - cron: "7 8 * * 1-5"
   workflow_dispatch:
