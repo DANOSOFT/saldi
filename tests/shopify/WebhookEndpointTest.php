@@ -8,6 +8,7 @@
 //
 // History:
 // 20261027 CL/SZ SD-748: created.
+// 20261028 CL/SZ SD-748: a body over 10 MB gets 413; the worker command promotes a stored delivery.
 
 use PHPUnit\Framework\TestCase;
 
@@ -58,6 +59,7 @@ final class WebhookEndpointTest extends TestCase
             $this->markTestSkipped(self::$skip);
         }
         $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, 'DELETE FROM shopify_jobs');
         ShopifyEnv::rows($conn, 'DELETE FROM shopify_events');
         ShopifyEnv::rows($conn, 'DELETE FROM shopify_shops');
         ShopifyEnv::rows($conn, "DELETE FROM settings WHERE var_grp LIKE 'shopify:%'");
@@ -106,6 +108,41 @@ final class WebhookEndpointTest extends TestCase
         $this->assertSame([400, '{"status":"bad_request"}'], $this->post('../hml', $raw, self::headers($raw)));
         $this->assertSame([400, '{"status":"bad_request"}'], $this->request('POST', '/api/shopify/webhook.php', $raw, self::headers($raw)));
         $this->assertSame([404, '{"status":"unknown_shop"}'], $this->post('brand9', $raw, self::headers($raw)));
+        $this->assertSame([], $this->events());
+    }
+
+    public function testTheWorkerCommandTurnsAStoredDeliveryIntoAQueuedJob(): void
+    {
+        $raw = rtrim((string)file_get_contents(__DIR__ . '/fixtures/webhooks/orders_paid.json'), "\n");
+        $this->assertSame([200, '{"status":"stored"}'], $this->post('hml', $raw, self::headers($raw)));
+
+        $dir = ShopifyEnv::repoRoot() . '/temp/' . self::$db;
+        $madeDir = !is_dir($dir);
+        $proc = proc_open([PHP_BINARY, ShopifyEnv::repoRoot() . '/tools/shopify_worker.php', 'run', '--db=' . self::$db, '--max-seconds=5'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, ShopifyEnv::repoRoot());
+        $stdout = (string)stream_get_contents($pipes[1]);
+        $stderr = (string)stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exit = proc_close($proc);
+        if ($madeDir) {
+            @unlink("$dir/.ht_shopify_worker.lock");
+            @rmdir($dir);
+        }
+
+        $this->assertSame(0, $exit, $stderr);
+        $summary = json_decode($stdout, true);
+        $this->assertSame(1, $summary['producers']['events']['queued'] ?? null, $stdout);
+        $this->assertSame('queued', $this->events()[0]['state']);
+        $conn = ShopifyEnv::connect(self::$db);
+        $jobs = ShopifyEnv::rows($conn, 'SELECT type, event_row_id FROM shopify_jobs');
+        pg_close($conn);
+        $this->assertSame([['order.import', (int)$this->events()[0]['id']]], array_map(fn(array $j): array => [$j['type'], (int)$j['event_row_id']], $jobs));
+    }
+
+    public function testABodyOverTenMegabytesGets413AndIsNotStored(): void
+    {
+        $raw = '{"id":5,"pad":"' . str_repeat('a', 10485760) . '"}';
+        $this->assertSame([413, '{"status":"payload_too_large"}'], $this->post('hml', $raw, self::headers($raw)));
         $this->assertSame([], $this->events());
     }
 

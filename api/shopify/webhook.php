@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/shopify/webhook.php --- ver 5.0.0 --- 2026.10.27
+// --- api/shopify/webhook.php --- ver 5.0.0 --- 2026.10.28
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,10 +28,14 @@
 // db parameter is refused.
 //
 // 20261027 CL/SZ SD-748: created (WP03-2).
+// 20261028 CL/SZ SD-748: the body is read up to 10 MB; a larger one gets 413 unread.
 
 // Legacy includes print HTML on their error paths (alert(), die()); the answer stays ours.
 ob_start();
-$shopifyWebhookRaw = (string)file_get_contents('php://input');
+// Shopify's webhook bodies are far smaller. post_max_size doesn't limit a JSON body, so the read
+// stops one byte past the limit and a larger body is refused before anything else.
+const SHOPIFY_WEBHOOK_MAX_BYTES = 10485760;
+$shopifyWebhookRaw = (string)stream_get_contents(fopen('php://input', 'rb'), SHOPIFY_WEBHOOK_MAX_BYTES + 1);
 // Until an answer is set, anything that ends the request (a die() in connect.php, an exit in
 // db_select()) leaves 503, so Shopify retries instead of taking it as received.
 http_response_code(503);
@@ -48,6 +52,9 @@ function shopify_webhook_respond(int $status, string $outcome): void {
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 	shopify_webhook_respond(405, 'method_not_allowed');
+}
+if (strlen($shopifyWebhookRaw) > SHOPIFY_WEBHOOK_MAX_BYTES) {
+	shopify_webhook_respond(413, 'payload_too_large');
 }
 if (array_key_exists('db', $_GET) || array_key_exists('db', $_POST) || array_key_exists('db', $_COOKIE)) {
 	shopify_webhook_respond(400, 'bad_request');

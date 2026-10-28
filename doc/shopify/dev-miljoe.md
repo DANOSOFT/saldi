@@ -53,6 +53,7 @@ The answer is JSON, `{"status": ...}`:
 | 200 | `anomaly` | Same key with another body, or no usable topic or event id: stored as `anomaly` and alarmed (by the worker's next run if the alarm can't be raised at once) |
 | 401 | `bad_signature`, `shop_mismatch` | Wrong HMAC, or `X-Shopify-Shop-Domain` isn't this shop's; logged, nothing stored |
 | 400 / 404 / 405 | `bad_request`, `unknown_shop`, `method_not_allowed` | Not a delivery for this install |
+| 413 | `payload_too_large` | Body over 10 MB (far above any Shopify webhook); not read further, nothing stored |
 | 503 / 500 | `unavailable`, `not_configured`, `database_failed`, `failed` | Saldi can't take it now; Shopify retries |
 
 Every HMAC-valid delivery gets 200, so Shopify never retries one that was received (it deletes a subscription that keeps failing). The deduplication key is `(shop_id, topic, event_id)`, never `X-Shopify-Webhook-Id`, which changes on every retry. Rejected deliveries are logged to the PHP error log as `shopify_webhook <outcome> {...}`, without the body, the signature or the secret.
