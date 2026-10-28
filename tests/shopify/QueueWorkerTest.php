@@ -9,6 +9,7 @@
 // History:
 // 20261026 Sawaneh SD-737: created.
 // 20261027 Sawaneh SD-737 review: a producer that leaves a transaction open, and a leaked transaktion() depth.
+// 20261028 Sawaneh SD-738: job and producer errors are stored and reported without the token.
 
 use PHPUnit\Framework\TestCase;
 
@@ -113,7 +114,7 @@ final class QueueWorkerTest extends TestCase
         $this->assertSame([60, 300, 900, 3600, 3600], $r['fail']['waits'], 'retries after 1, 5, 15, 60 minutes, then hourly');
         $this->assertSame('queued', $r['fail']['state']);
         $this->assertSame(5, $r['fail']['attempts']);
-        $this->assertStringStartsWith('boom 5', $r['fail']['last_error']);
+        $this->assertSame('boom 5 [redacted]', $r['fail']['last_error'], 'a token in a job error is never stored');
         $this->assertSame(7, $r['retry_after'], 'a Retry-After overrides the backoff');
         $this->assertSame('dead', $r['dead_after_max']);
         $this->assertSame(1, $r['recover']['recovered']);
@@ -175,7 +176,7 @@ final class QueueWorkerTest extends TestCase
     {
         $r = $this->runMode('run');
         $this->assertSame(['events', 'stock_dirty'], $r['producer_calls'], 'producers run in order; a broken one does not stop the rest');
-        $this->assertSame(['error' => 'RuntimeException: producer down'], $r['summary']['producers']['broken']);
+        $this->assertSame(['error' => 'RuntimeException: producer down [redacted]'], $r['summary']['producers']['broken'], 'a token in a producer error is redacted');
         $this->assertSame('refused', $r['dup_register']);
         $this->assertSame('import', $r['order'][0], 'priority 10 first');
         $position = array_flip($r['order']);
@@ -188,6 +189,7 @@ final class QueueWorkerTest extends TestCase
         $this->assertSame(0, $s['order.tags']['attempts'], 'a yield gives its attempt back');
         $this->assertSame('queued', $s['stock.push']['state'], 'a thrown error is a failed attempt, retried later');
         $this->assertStringContainsString('RuntimeException: fail', $s['stock.push']['error']);
+        $this->assertStringNotContainsString('shpat_', $s['stock.push']['error'], 'the stored job error is redacted');
         $this->assertSame('dead', $s['order.move']['state'], 'ShopifyDbMisuse is never retried');
         $this->assertStringContainsString('ShopifyDbMisuse', $s['order.move']['error']);
         $this->assertSame('dead', $s['order.note']['state'], 'a handler without a valid outcome is dead');
@@ -212,8 +214,9 @@ final class QueueWorkerTest extends TestCase
         $this->assertSame('dead', $results['order.tags'], 'a handler that leaves a transaction open did not finish cleanly');
 
         $conn = ShopifyEnv::connect(self::$db);
-        $states = array_column(ShopifyEnv::rows($conn, 'SELECT type, state FROM shopify_jobs ORDER BY id'), 'state', 'type');
+        $states = array_column(ShopifyEnv::rows($conn, "SELECT type, state FROM shopify_jobs WHERE type <> 'mail.alert' ORDER BY id"), 'state', 'type');
         $this->assertSame(['order.import' => 'dead', 'order.tags' => 'dead'], $states, 'the dead state is committed, not lost with the open transaction');
+        $this->assertSame('2', ShopifyEnv::one($conn, "SELECT count(*) AS n FROM shopify_jobs WHERE type = 'mail.alert'")['n'], 'each dead job alarms');
         ShopifyEnv::rows($conn, "UPDATE shopify_jobs SET locked_until = now() - interval '1 second' WHERE state = 'running'");
         pg_close($conn);
 

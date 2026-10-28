@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-10-08 ---
+// --- index/login.php --- ver 5.0.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,7 @@
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
+// 20261028 Sawaneh SD-738: Shopify worker watchdog: a heartbeat older than 10 minutes alarms support and starts a run.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -926,6 +927,11 @@ if(!isset($afbryd)){
 			include("../includes/betweenUpdates.php");
 		}
 		hent_shop_ordrer(0,'');
+		$shopifyHeartbeat = __DIR__ . "/../temp/$db/.ht_shopify_worker.heartbeat";
+		if (is_file($shopifyHeartbeat) && filemtime($shopifyHeartbeat) < time() - 600) {
+			require_once(__DIR__ . '/../includes/shopify/errors.php');
+			shopify_watchdog(array('db' => $db));
+		}
 if (!$sag_rettigheder && !$rettigheder && $brugernavn == 'kds?') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/kds/\">";
 if (!$sag_rettigheder&&$rettigheder) {
 

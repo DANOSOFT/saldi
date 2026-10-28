@@ -3,25 +3,26 @@
 //
 // Child-process runner for the webhook inbox and event promotion (SD-748). Bootstraps the
 // tenant like run_config.php and runs one mode:
-//   receive  <deliveries.json> [alarm_fails|no_alarm]  shopify_receive_webhook() for each {shop_key, raw_b64, headers}
-//   promote  <limit> [fail_type|alarm_fails|sql_error|misuse|real_queue]  shopify_promote_events();
+//   receive  <deliveries.json> [alarm_fails|real]  shopify_receive_webhook() for each {shop_key, raw_b64, headers}
+//   promote  <limit> [fail_type|alarm_fails|sql_error|misuse|real_queue|real]  shopify_promote_events();
 //            enqueue of fail_type throws before writing; with sql_error the order.import enqueue
 //            writes its job and then fails in SQL; with misuse every enqueue sends COMMIT itself;
 //            with real_queue the enqueue is SD-737's own includes/shopify/queue.php
 // Prints JSON on stdout: the results, or the error that ended the run.
 //
-// S02c's shopify_error_open() is not on hml/shopify yet; this runner stands in for it, and for
-// S02b's queue unless real_queue is given (the failure modes need a queue that can fail on
-// cue). Both stand-ins work on the real tables, so their writes commit and roll back
+// This runner stands in for S02c's shopify_error_open() and S02b's queue, because the failure
+// modes need an alarm and a queue that fail on cue. With real_queue the queue is SD-737's own;
+// with real neither is a stand-in, and events.php loads S02c's includes/shopify/errors.php. Both stand-ins work on the real tables, so their writes commit and roll back
 // with the caller's transaction: shopify_error_open() opens (or counts again) an unresolved row
 // in shopify_errors, and shopify_queue_enqueue() inserts into shopify_jobs under the table's own
 // unique index on (type, dedupe_key) for queued and running jobs, which is the contract's "an
 // equal job still queued or running is returned with created=false". With alarm_fails every
-// alarm throws; with no_alarm shopify_error_open() isn't defined at all, as on hml/shopify today.
+// alarm throws.
 //
 // History:
 // 20261027 CL/SZ SD-748: created.
 // 20261027 CL/SZ SD-748: real_queue runs promotion on SD-737's queue (#918) instead of the stand-in.
+// 20261028 CL/SZ SD-748: no_alarm replaced by real, S02c's error list and SD-737's queue (#948).
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_events.php <receive|promote> <test_db> <deliveries.json|limit> [fail_type]\n");
@@ -47,8 +48,8 @@ function out(array $data, int $exit = 0): void
 
 $failType = $argv[4] ?? '';
 
-// With no_alarm the stand-in is not defined: the include chain the endpoint has today.
-if ($failType !== 'no_alarm') {
+// With real the stand-in is not defined: events.php loads S02c's errors.php.
+if ($failType !== 'real') {
 function shopify_error_open(?int $shopId, string $kind, string $ref, string $message, string $severity = 'error', array $correlation = []): int
 {
     global $failType;
@@ -64,8 +65,8 @@ function shopify_error_open(?int $shopId, string $kind, string $ref, string $mes
 }
 }
 
-// With real_queue the stand-in is not defined: shopify_promote_events() loads queue.php itself.
-if ($failType !== 'real_queue') {
+// With real_queue or real the stand-in is not defined: queue.php is loaded instead.
+if ($failType !== 'real_queue' && $failType !== 'real') {
 function shopify_queue_enqueue(string $type, ?int $shopId, string $dedupeKey, array $payload, int $priority, ?DateTimeImmutable $runAt = null, array $correlation = []): array
 {
     global $failType;

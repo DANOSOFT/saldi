@@ -31,6 +31,7 @@
 // Usage: php tools/shopify_worker.php run --db=<tenant> [--max-seconds=50]
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
+// 20261028 Sawaneh SD-738: the alarm mail (mail.alert) and the call-log purge (runtime.purge) are wired in.
 // 20261028 CL/SZ SD-748: the events producer promotes stored webhook events into jobs.
 
 if (php_sapi_name() !== 'cli') {
@@ -60,6 +61,8 @@ function shopify_worker_wiring(): array {
 			return shopify_promote_events();
 		},
 	);
+	shopify_worker_register($registry, 'mail.alert', 'shopify_mail_alert_job');
+	shopify_worker_register($registry, 'runtime.purge', 'shopify_runtime_purge_job');
 	return array('registry' => $registry, 'producers' => $producers);
 }
 

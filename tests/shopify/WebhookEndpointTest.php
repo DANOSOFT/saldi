@@ -10,6 +10,7 @@
 // 20261027 CL/SZ SD-748: created.
 // 20261028 CL/SZ SD-748: a body over 10 MB gets 413; the worker command promotes a stored delivery.
 // 20261028 CL/SZ SD-748 review: no fiscal-year check in the receiver; a legacy die() answers our 503.
+// 20261028 CL/SZ SD-748: the worker test looks only at event jobs; S02c's worker also schedules runtime.purge.
 
 use PHPUnit\Framework\TestCase;
 
@@ -135,7 +136,7 @@ final class WebhookEndpointTest extends TestCase
         $this->assertSame(1, $summary['producers']['events']['queued'] ?? null, $stdout);
         $this->assertSame('queued', $this->events()[0]['state']);
         $conn = ShopifyEnv::connect(self::$db);
-        $jobs = ShopifyEnv::rows($conn, 'SELECT type, event_row_id FROM shopify_jobs');
+        $jobs = ShopifyEnv::rows($conn, 'SELECT type, event_row_id FROM shopify_jobs WHERE event_row_id IS NOT NULL');
         pg_close($conn);
         $this->assertSame([['order.import', (int)$this->events()[0]['id']]], array_map(fn(array $j): array => [$j['type'], (int)$j['event_row_id']], $jobs));
     }

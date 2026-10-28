@@ -19,6 +19,7 @@
 // History:
 // 20261026 Sawaneh SD-737: created.
 // 20261027 Sawaneh SD-737 review: a producer that leaves a transaction open, and a leaked transaktion() depth.
+// 20261028 Sawaneh SD-738: the broken producer's message carries a token, which the summary must redact.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_worker.php <queue|hold|claim|run|backlog|misuse_replay|busy_yield> <test_db> [arg]\n");
@@ -218,7 +219,7 @@ try {
                     return ['promoted' => 0];
                 },
                 'broken' => function () {
-                    throw new RuntimeException('producer down');
+                    throw new RuntimeException('producer down shpat_producer1');
                 },
                 'stock_dirty' => function () use (&$producerCalls) {
                     $producerCalls[] = 'stock_dirty';

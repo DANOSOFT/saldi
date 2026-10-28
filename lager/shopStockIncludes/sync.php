@@ -1,11 +1,15 @@
 <?php
-// --- lager/shopStockIncludes/sync.php --- 2026-10-05 ---
+// --- lager/shopStockIncludes/sync.php --- 2026-10-28 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261005 CDX/PHR Add resumable total-stock synchronization without price or warehouse updates.
 // 20261005 CDX/PHR Allow retrying an individual failed item/shop without advancing the queue.
 // 20261006 CL/NTR Documented why webshop requests deliberately follow customer-controlled redirects.
 // 20261006 CL/NTR Documented that a batch may exceed its 8 s budget by one cURL timeout.
+// 20261027 CL/SZ SD-778: a slot closed for legacy outbound (shopify_legacy settings) is not offered or sent to.
+// 20261028 CL/SZ SD-778: a closed slot is skipped before the URL check and deduplication; a cutover in progress says try again.
+
+require_once(__DIR__ . '/../../includes/shopify/coexistence.php');
 
 class ShopStockException extends RuntimeException {}
 
@@ -20,7 +24,12 @@ function shopStockRows($sql)
 	return $rows;
 }
 
-/** @return array<int, string> Configured, deduplicated shop endpoints keyed by API slot. */
+/**
+ * @return array<int, string> Configured, deduplicated shop endpoints keyed by API slot (1-3 for
+ *   box4-box6), without the slots closed for legacy outbound (SD-778). The switch is per slot, as
+ *   in sync_shop_vare(): a closed slot is skipped before deduplication, so an open slot with the
+ *   same URL keeps it.
+ */
 function shopStockEndpoints()
 {
 	$rows = shopStockRows("SELECT box4,box5,box6 FROM grupper WHERE art='API' ORDER BY id");
@@ -28,7 +37,7 @@ function shopStockEndpoints()
 	foreach ($rows as $row) {
 		foreach (array(1 => 'box4', 2 => 'box5', 3 => 'box6') as $slot => $column) {
 			$url = trim((string) ifset($row, $column, ''));
-			if ($url !== '' && !in_array($url, $endpoints, true) && !isset($endpoints[$slot])) {
+			if ($url !== '' && !in_array($url, $endpoints, true) && !isset($endpoints[$slot]) && shopStockOutboundOpen($slot)) {
 				if (shopApiUrl($url) === '') {
 					throw new ShopStockException('Webshop ' . $slot . ' har en ugyldig API-adresse.');
 				}
@@ -37,6 +46,24 @@ function shopStockEndpoints()
 		}
 	}
 	return $endpoints;
+}
+
+/**
+ * Whether API slot $slot (1-3, legacy slot box4-box6) is open for legacy outbound (SD-778). Like
+ * the other outbound reads, it takes the slot's shared lock for the request, so a cutover waits
+ * for a batch that is still sending; while a cutover holds it, the page says try again.
+ *
+ * @param int $slot API slot 1-3
+ * @return bool false when the slot is closed for legacy outbound
+ * @throws ShopStockException while a cutover holds the slot's lock
+ */
+function shopStockOutboundOpen($slot)
+{
+	global $db;
+	if (shopify_legacy_shared(array('db' => $db), $slot + 3) === false) {
+		throw new ShopStockException('Webshoppen er ved at blive skiftet. Prøv igen om lidt.');
+	}
+	return shopify_legacy_enabled(array('db' => $db), $slot + 3, 'outbound');
 }
 
 /** @return array{products: array, parts: array, quantities: array, variants: array, bindings: array} */

@@ -33,6 +33,7 @@
 // 20261027 CL/SZ SD-748: created (WP03-2).
 // 20261028 CL/SZ SD-748: a failed anomaly alarm is logged and retried next run instead of stopping promotion.
 // 20261028 CL/SZ SD-748 review: a failed event alarm too; compliance topics are ignored whatever the flow.
+// 20261028 CL/SZ SD-748: alarms go through S02c's includes/shopify/errors.php (SD-738).
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -453,16 +454,15 @@ function shopify_event_time(?string $value): ?DateTimeImmutable {
 }
 
 /**
- * Raises an alarm through WP02's shopify_error_open() (S02c), inside the caller's transaction,
- * so the alarm and the state it reports are stored together; a failing alarm throws and rolls
- * both back. Without shopify_error_open() loaded it throws too, so nothing is ever marked as
- * alarmed without an alarm: anomalies stay pending, and a promotion run rolls back.
+ * Raises an alarm through WP02's shopify_error_open() (S02c, includes/shopify/errors.php), inside
+ * the caller's transaction, so the alarm and the state it reports are stored together; a failing
+ * alarm throws and rolls both back. errors.php is loaded here unless it already is.
  *
- * @throws RuntimeException when the alarm can't be raised
+ * @throws Exception when the alarm can't be raised
  */
 function shopify_event_alarm(?int $shopId, string $kind, string $ref, string $message, array $correlation = array()): void {
 	if (!function_exists('shopify_error_open')) {
-		throw new RuntimeException('shopify_error_open() is not loaded (S02c); the alarm is not raised');
+		require_once __DIR__ . '/errors.php';
 	}
 	shopify_error_open($shopId, $kind, $ref, $message, 'error', $correlation);
 }
