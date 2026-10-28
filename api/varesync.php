@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- lap 4.1.0 --- 2024.03.18 ---
+// --- api/varesync.php --- ver 5.1.0 --- 2026.10.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2018.04.24 Omskrevet variant delen så det inditificeres på variant_id i stedet for på stregkode så det er muligt at ændre stregkode på shop.
@@ -34,6 +34,7 @@
 // 2024-03-18	PHR Speed optimation.
 // 2024-03-27 PHR Some improvemnets
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261028 CL/SZ MB-119 $svSaldiId starts as an empty array, so 'Opdater fra shop' no longer dies in in_array() when shop_varer is empty.
 
 
 function varesync($valg) {
@@ -73,6 +74,7 @@ function varesync($valg) {
 	fclose($plf);
 
 	$i = 0;
+	$svSaldiId = array();
 	$qtxt="select * from shop_varer order by saldi_id";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
