@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261020 ASR CRM redesign (prototype_crm.html v1.1): schema, the data behind debitor/crm.php and the actions
 //              of debitor/crmApi.php.
+// 20261028 ASR The UI calls deals "sager" (tab Sager, Ny sag); code and tables keep the name deal.
 //
 // Data model (existing unless marked new):
 //   historik     konto_id (customer), ansat_id (our employee = owner), kontakt_id (customer's contact person, ansatte),
@@ -39,7 +40,7 @@
 // Which customers the page loads (crm_customer_scope): those with a status in one of the status groups, a CRM entry,
 // an open deal or a next-contact date - at most CRM_MAX_CUSTOMERS, the most recently active first. In most companies
 // every customer has a status, so without the cap the page would load the whole customer file. Customers outside
-// the loaded set are reached through the server-side search (Ny opfølgning / Ny handel).
+// the loaded set are reached through the server-side search (Ny opfølgning / Ny sag).
 //
 // Open follow-up: kontaktes set and completed false. Rows written by the old pages have completed NULL; such a row
 // counts as open only while it is the customer's newest row WITH a date (the old model kept one "next contact" per
@@ -235,11 +236,11 @@ function crm_text_ids(): array
 		7310 => 'Mail',
 		7311 => 'Møde',
 		7312 => 'Status',
-		7313 => 'Handel',
+		7313 => 'Sag',
 		7314 => 'Kunne ikke gemme (%s). Prøv igen.',
 		7315 => 'Opfølgning',
 		7316 => '%s forsinket',
-		7317 => 'Pipeline',
+		7317 => 'Sager',
 		7318 => 'Kalender',
 		7319 => 'Kunder',
 		7320 => 'Aktivitet',
@@ -266,12 +267,12 @@ function crm_text_ids(): array
 		7341 => 'ny',
 		7342 => '%s år',
 		7343 => '%s d',
-		7344 => '%s åbne handler',
+		7344 => '%s åbne sager',
 		7345 => 'Ingen opfølgning',
 		7346 => 'I %s siden %s',
 		7347 => 'Ingen statusser at vise',
 		7349 => '%s kunder',
-		7350 => 'åbne handler %s',
+		7350 => 'åbne sager %s',
 		7351 => '%s med forsinket opfølgning',
 		7352 => '%s uden opfølgning',
 		7353 => 'Statusgruppe',
@@ -319,7 +320,7 @@ function crm_text_ids(): array
 		7396 => 'Kunde %s',
 		7397 => 'ansvarlig: %s',
 		7398 => 'Luk (Esc)',
-		7399 => 'Opret handel',
+		7399 => 'Opret sag',
 		7400 => 'Opret tilbud',
 		7401 => 'Opret ordre',
 		7402 => 'Debitorkort',
@@ -328,7 +329,7 @@ function crm_text_ids(): array
 		7405 => 'Åbne poster',
 		7406 => '%s forfalden',
 		7407 => 'Historik',
-		7408 => 'Handler og ordrer',
+		7408 => 'Sager og ordrer',
 		7409 => 'Kontaktpersoner',
 		7410 => 'forsinket',
 		7411 => 'Ingen historik endnu',
@@ -339,11 +340,11 @@ function crm_text_ids(): array
 		7416 => 'forventet lukket %s',
 		7417 => 'Vundet %s',
 		7418 => 'Tabt %s',
-		7419 => 'Ingen handler',
-		7420 => '+ Ny handel',
+		7419 => 'Ingen sager',
+		7420 => '+ Ny sag',
 		7421 => 'Åbne tilbud og ordrer',
 		7422 => 'delvist leveret',
-		7423 => 'handel: %s',
+		7423 => 'sag: %s',
 		7424 => 'Ingen åbne tilbud eller ordrer.',
 		7425 => '+ Opret tilbud',
 		7426 => '+ Opret ordre',
@@ -364,29 +365,29 @@ function crm_text_ids(): array
 		7441 => 'tilbud',
 		7442 => 'Brug beløbet fra tilbuddet: %s',
 		7443 => 'Brug beløbet fra ordren: %s',
-		7444 => 'Ordren er faktureret – markér handlen som vundet',
-		7445 => 'Intet tilbud eller ordre til handlen endnu',
-		7446 => 'Ret handel',
-		7447 => 'Ny handel',
+		7444 => 'Ordren er faktureret – markér sagen som vundet',
+		7445 => 'Intet tilbud eller ordre til sagen endnu',
+		7446 => 'Ret sag',
+		7447 => 'Ny sag',
 		7448 => 'Titel',
 		7449 => 'Fx Saldi Plus, 3 brugere',
 		7451 => 'Forventet lukket',
 		7452 => 'Stadie',
 		7453 => 'Mig',
-		7454 => 'Slet handel',
+		7454 => 'Slet sag',
 		7455 => 'Annullér',
 		7457 => 'vundet',
 		7458 => 'tabt',
-		7459 => 'Handlen er gemt',
-		7460 => 'Handel oprettet i %s',
-		7461 => 'Hvilken kunde gælder handlen?',
+		7459 => 'Sagen er gemt',
+		7460 => 'Sag oprettet i %s',
+		7461 => 'Hvilken kunde gælder sagen?',
 		7462 => 'Pris',
 		7463 => 'Valgte en konkurrent',
 		7464 => 'Intet behov',
 		7465 => 'Forkert tidspunkt',
 		7466 => 'Ingen svar',
 		7467 => 'Hvorfor blev »%s« tabt?',
-		7468 => 'Valgfrit. Over tid viser det, hvorfor I taber handler.',
+		7468 => 'Valgfrit. Over tid viser det, hvorfor I taber sager.',
 		7469 => 'Bemærkning',
 		7470 => 'Spring over',
 		7471 => 'Markér som tabt',
@@ -406,29 +407,29 @@ function crm_text_ids(): array
 		7485 => 'Følg op – %s',
 		7486 => 'Opfølgning sat til %s',
 		7487 => 'Sæt %s som %s',
-		7488 => 'vundet handel',
+		7488 => 'vundet sag',
 		7490 => 'Gruppenavn',
 		7492 => 'Fortrudt',
 		7494 => 'Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.',
 		7495 => 'Ny gruppe',
 		7497 => '%s flyttet til %s',
-		7498 => 'Handel oprettet: »%s«',
+		7498 => 'Sag oprettet: »%s«',
 		7499 => 'genåbnet',
-		7500 => 'Handel »%s«: %s',
+		7500 => 'Sag »%s«: %s',
 		7503 => 'Søg',
 		7506 => 'Tilpas CRM',
-		7507 => 'Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.',
+		7507 => 'Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Sager (én tavle pr. gruppe). Gælder hele firmaet.',
 		7508 => '+ Tilføj statusgruppe',
 		7509 => 'Fortryd',
-		7510 => 'Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.',
+		7510 => 'Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny sag«.',
 		7511 => 'Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.',
 		// 7512 'CRM' is the bell type label (notif_types(), through findtekst)
 		7513 => 'Opfølgninger i dag',
 		7514 => '%s opfølgninger i dag · %s forsinkede',
 		7515 => 'Ny opfølgning til dig',
-		7516 => 'Handel tildelt dig',
-		7517 => 'Handel vundet',
-		7518 => 'Handel tabt',
+		7516 => 'Sag tildelt dig',
+		7517 => 'Sag vundet',
+		7518 => 'Sag tabt',
 		7519 => 'fra %s',
 		7520 => 'Hvis opfølgninger og kunder',
 		7521 => 'Alle opfølgninger og kunder i regnskabet',
@@ -440,7 +441,7 @@ function crm_text_ids(): array
 		7534 => 'Ny status',
 		7535 => 'Statusnavn',
 		7536 => '%s i brug',
-		7537 => 'Bruges af %s kunder og handler – kan ikke slettes',
+		7537 => 'Bruges af %s kunder og sager – kan ikke slettes',
 		7538 => 'Slet status',
 		7539 => 'Slet gruppe',
 		7540 => 'Der er ingen kundestatusser endnu.',
@@ -460,12 +461,12 @@ function crm_text_ids(): array
 		7553 => 'Ikke nu',
 		7554 => '%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort',
 		7555 => 'slettet',
-		7556 => 'Slet handlen »%s«?',
-		7557 => 'Handlen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.',
+		7556 => 'Slet sagen »%s«?',
+		7557 => 'Sagen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.',
 		7558 => 'Kunden står ikke på tavlen – sæt status til %s',
 		7559 => 'Opsæt statusser først (tandhjulet øverst til højre).',
-		7560 => 'Markér %s åbne handler som %s',
-		7561 => 'Flyt også handlen til %s',
+		7560 => 'Markér %s åbne sager som %s',
+		7561 => 'Flyt også sagen til %s',
 		7562 => '– vælg –',
 		7563 => 'Vælg, hvem opfølgningen er til.',
 		7564 => 'Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.',
@@ -473,9 +474,9 @@ function crm_text_ids(): array
 		7566 => 'ekskl. moms',
 		7567 => 'Søg blandt alle kunder',
 		7568 => 'Fundet uden for listen',
-		7569 => 'Markér handlen som %s',
+		7569 => 'Markér sagen som %s',
 		7570 => 'Mandag',
-		7571 => 'Handel »%s« slettet',
+		7571 => 'Sag »%s« slettet',
 		7572 => 'Genåbn',
 		7573 => '%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.',
 		7574 => 'Ansvarlig: %s → %s',
@@ -488,15 +489,15 @@ function crm_text_ids(): array
 		7581 => 'Forhandling',
 		7582 => 'Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.',
 		7583 => 'Henvendelse',
-		7584 => 'Hver gruppe bliver en tavle under Pipeline. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.',
-		7585 => 'Hvilken handel gælder ordren?',
-		7586 => 'Hvilken handel gælder tilbuddet?',
-		7587 => 'Ingen handel',
+		7584 => 'Hver gruppe bliver en tavle under Sager. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.',
+		7585 => 'Hvilken sag gælder ordren?',
+		7586 => 'Hvilken sag gælder tilbuddet?',
+		7587 => 'Ingen sag',
 		7588 => 'Ingen kontakt endnu',
 		7589 => 'Ingen opfølgninger matcher »%s«.',
 		7590 => 'Ingen statusgrupper endnu.',
-		7591 => 'Knyt til handel',
-		7592 => 'Knyttet til handlen »%s«',
+		7591 => 'Knyt til sag',
+		7592 => 'Knyttet til sagen »%s«',
 		7593 => 'Luk',
 		7594 => 'Opfølgningerne er flyttet',
 		7595 => 'Opsæt statusgrupper',
@@ -520,7 +521,7 @@ function crm_text_ids(): array
 		7613 => 'Flyt opfølgningen til %s',
 		7614 => '1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.',
 		7615 => 'Din opfølgning er flyttet til %s',
-		7616 => 'Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en handel. Søg efter andre kunder med søgefeltet.',
+		7616 => 'Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en sag. Søg efter andre kunder med søgefeltet.',
 		7618 => 'lukket',
 		7619 => '(lukket kontakt)',
 		7620 => '(tidligere medarbejder)',
@@ -556,7 +557,8 @@ function crm_texts(?int $lang = null): array
 		return $cache[$lang];
 	}
 	$ids = crm_text_ids();
-	$cacheKey = 'crm_txt_' . $lang . '_' . count($ids) . '_' . max(array_keys($ids));
+	// The Danish texts are part of the key, so a reworded text is picked up without logging in again.
+	$cacheKey = 'crm_txt_' . $lang . '_' . md5(implode("\n", $ids));
 	if (isset($_SESSION[$cacheKey]) && is_array($_SESSION[$cacheKey])) {
 		return $cache[$lang] = $_SESSION[$cacheKey];
 	}
@@ -712,7 +714,7 @@ function crm_notify_followup(int $hid, int $cid, int $owner, string $due, string
 	crm_notify($owner, 'crm:fu:' . $hid, $moved ? crm_t('Din opfølgning er flyttet til %s', date('d-m-Y', strtotime($due))) : crm_t('Ny opfølgning til dig'), $body, '/debitor/crm.php?tab=follow&drawer=' . $cid, date('Y-m-d', strtotime($due . ' +30 days')));
 }
 
-/** "Handel tildelt dig" / "Handel vundet" / "Handel tabt" for the deal's owner. */
+/** "Sag tildelt dig" / "Sag vundet" / "Sag tabt" for the deal's owner. */
 function crm_notify_deal(array $d, string $what): void
 {
 	$id = (int) $d['id'];
@@ -721,7 +723,7 @@ function crm_notify_deal(array $d, string $what): void
 	$amount = round((float) $d['amount']);
 	$body = crm_out((string) $d['title']) . ' · ' . crm_out($c ? (string) $c['firmanavn'] : '')
 		. ($amount ? ' · ' . crm_t('%s kr', number_format($amount, 0, ',', '.')) : '') . ' · ' . crm_t('fra %s', crm_actor_name());
-	$title = $what === 'won' ? crm_t('Handel vundet') : ($what === 'lost' ? crm_t('Handel tabt') : crm_t('Handel tildelt dig'));
+	$title = $what === 'won' ? crm_t('Sag vundet') : ($what === 'lost' ? crm_t('Sag tabt') : crm_t('Sag tildelt dig'));
 	crm_notify((int) $d['ansat_id'], "crm:deal:$id:$what", $title, $body, '/debitor/crm.php?tab=pipe&drawer=' . $cid . '&dtab=deals', date('Y-m-d', strtotime('+30 days')));
 }
 
@@ -1391,7 +1393,7 @@ function crm_action(string $action, array $in): array
 			if ((int) $d['ordre_id'] > 0) return array('error' => 'linked');
 			db_modify("update crm_deals set ordre_id = $oid where id = $id", __FILE__ . " linje " . __LINE__);
 			$doc = crm_t((int) $o['status'] === 0 ? 'Tilbud %s' : 'Ordre %s', (int) $o['ordrenr']);
-			$hid = crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel »%s«: %s', crm_out($d['title']), $doc), null);
+			$hid = crm_insert_entry($cid, 'deal', $me, 0, crm_t('Sag »%s«: %s', crm_out($d['title']), $doc), null);
 			return array('id' => $id, 'hid' => $hid);
 
 		case 'unlink_doc':
@@ -1502,7 +1504,7 @@ function crm_action(string $action, array $in): array
 				db_modify("insert into crm_deals (konto_id, title, amount, stage, expected_close, ansat_id, state, stage_since, created) values "
 					. "($cid, '$title', $amount, '$stage', $closeSql, $own, 'open', '$today', '$today')", __FILE__ . " linje " . __LINE__);
 				$id = crm_last_id('crm_deals', $cid);
-				crm_insert_entry($cid, 'deal', $me, 0, crm_t('Handel oprettet: »%s«', trim((string) $in['t'])), null);
+				crm_insert_entry($cid, 'deal', $me, 0, crm_t('Sag oprettet: »%s«', trim((string) $in['t'])), null);
 				$prevOwn = 0;
 			}
 			if ($own !== $prevOwn) crm_notif_drop("crm:deal:$id:owner");
@@ -1533,7 +1535,7 @@ function crm_action(string $action, array $in): array
 				db_modify("update crm_deals set stage = '$stage', stage_since = '$today' where id = $id", __FILE__ . " linje " . __LINE__);
 				$label = crm_status_name((string) $d['stage']) . ' → ' . crm_status_name($stage);
 			}
-			$hid = crm_insert_entry((int) $d['konto_id'], 'deal', $me, 0, crm_t('Handel »%s«: %s', crm_out($d['title']), $label), null);
+			$hid = crm_insert_entry((int) $d['konto_id'], 'deal', $me, 0, crm_t('Sag »%s«: %s', crm_out($d['title']), $label), null);
 			return array('id' => $id, 'hid' => $hid, 'before' => $before);
 
 		case 'restore_deal':
@@ -1561,7 +1563,7 @@ function crm_action(string $action, array $in): array
 			$before = array('stage' => $d['stage'], 'state' => $d['state'], 'stage_since' => $d['stage_since'], 'closed' => $d['closed'], 'lost_reason' => crm_out($d['lost_reason']));
 			db_modify("update crm_deals set state = 'deleted', closed = '" . date('Y-m-d') . "' where id = $id", __FILE__ . " linje " . __LINE__);
 			crm_notif_drop("crm:deal:$id:%");
-			$hid = crm_insert_entry((int) $d['konto_id'], 'deal', $me, 0, crm_t('Handel »%s«: %s', crm_out($d['title']), crm_t('slettet')), null);
+			$hid = crm_insert_entry((int) $d['konto_id'], 'deal', $me, 0, crm_t('Sag »%s«: %s', crm_out($d['title']), crm_t('slettet')), null);
 			return array('id' => $id, 'hid' => $hid, 'before' => $before);
 
 		case 'customer':

@@ -6804,11 +6804,11 @@
 7310	Mail	Email	E-post
 7311	Møde	Meeting	Møte
 7312	Status	Status	Status
-7313	Handel	Deal	Salg
+7313	Sag	Case	Sak
 7314	Kunne ikke gemme (%s). Prøv igen.	Could not save (%s). Please try again.	Kunne ikke lagre (%s). Prøv igjen.
 7315	Opfølgning	Follow-up	Oppfølging
 7316	%s forsinket	%s overdue	%s forsinket
-7317	Pipeline	Pipeline	Pipeline
+7317	Sager	Cases	Saker
 7318	Kalender	Calendar	Kalender
 7319	Kunder	Customers	Kunder
 7320	Aktivitet	Activity	Aktivitet
@@ -6835,12 +6835,12 @@
 7341	ny	new	ny
 7342	%s år	%s yr	%s år
 7343	%s d	%s d	%s d
-7344	%s åbne handler	%s open deals	%s åpne salg
+7344	%s åbne sager	%s open cases	%s åpne saker
 7345	Ingen opfølgning	No follow-up	Ingen oppfølging
 7346	I %s siden %s	In %s since %s	I %s siden %s
 7347	Ingen statusser at vise	No statuses to show	Ingen statuser å vise
 7349	%s kunder	%s customers	%s kunder
-7350	åbne handler %s	open deals %s	åpne salg %s
+7350	åbne sager %s	open cases %s	åpne saker %s
 7351	%s med forsinket opfølgning	%s with an overdue follow-up	%s med forsinket oppfølging
 7352	%s uden opfølgning	%s without a follow-up	%s uten oppfølging
 7353	Statusgruppe	Status group	Statusgruppe
@@ -6888,7 +6888,7 @@
 7396	Kunde %s	Customer %s	Kunde %s
 7397	ansvarlig: %s	owner: %s	ansvarlig: %s
 7398	Luk (Esc)	Close (Esc)	Lukk (Esc)
-7399	Opret handel	Create deal	Opprett salg
+7399	Opret sag	Create case	Opprett sak
 7400	Opret tilbud	Create quote	Opprett tilbud
 7401	Opret ordre	Create order	Opprett ordre
 7402	Debitorkort	Customer card	Kundekort
@@ -6897,7 +6897,7 @@
 7405	Åbne poster	Open items	Åpne poster
 7406	%s forfalden	%s overdue	%s forfalt
 7407	Historik	History	Historikk
-7408	Handler og ordrer	Deals and orders	Salg og ordrer
+7408	Sager og ordrer	Cases and orders	Saker og ordrer
 7409	Kontaktpersoner	Contact persons	Kontaktpersoner
 7410	forsinket	overdue	forsinket
 7411	Ingen historik endnu	No history yet	Ingen historikk ennå
@@ -6908,11 +6908,11 @@
 7416	forventet lukket %s	expected to close %s	forventet lukket %s
 7417	Vundet %s	Won %s	Vunnet %s
 7418	Tabt %s	Lost %s	Tapt %s
-7419	Ingen handler	No deals	Ingen salg
-7420	+ Ny handel	+ New deal	+ Nytt salg
+7419	Ingen sager	No cases	Ingen saker
+7420	+ Ny sag	+ New case	+ Ny sak
 7421	Åbne tilbud og ordrer	Open quotes and orders	Åpne tilbud og ordrer
 7422	delvist leveret	partly delivered	delvis levert
-7423	handel: %s	deal: %s	salg: %s
+7423	sag: %s	case: %s	sak: %s
 7424	Ingen åbne tilbud eller ordrer.	No open quotes or orders.	Ingen åpne tilbud eller ordrer.
 7425	+ Opret tilbud	+ Create quote	+ Opprett tilbud
 7426	+ Opret ordre	+ Create order	+ Opprett ordre
@@ -6933,29 +6933,29 @@
 7441	tilbud	quote	tilbud
 7442	Brug beløbet fra tilbuddet: %s	Use the amount from the quote: %s	Bruk beløpet fra tilbudet: %s
 7443	Brug beløbet fra ordren: %s	Use the amount from the order: %s	Bruk beløpet fra ordren: %s
-7444	Ordren er faktureret – markér handlen som vundet	The order is invoiced – mark the deal as won	Ordren er fakturert – merk salget som vunnet
-7445	Intet tilbud eller ordre til handlen endnu	No quote or order for this deal yet	Ingen tilbud eller ordre til salget ennå
-7446	Ret handel	Edit deal	Rediger salg
-7447	Ny handel	New deal	Nytt salg
+7444	Ordren er faktureret – markér sagen som vundet	The order is invoiced – mark the case as won	Ordren er fakturert – merk saken som vunnet
+7445	Intet tilbud eller ordre til sagen endnu	No quote or order for this case yet	Ingen tilbud eller ordre til saken ennå
+7446	Ret sag	Edit case	Rediger sak
+7447	Ny sag	New case	Ny sak
 7448	Titel	Title	Tittel
 7449	Fx Saldi Plus, 3 brugere	E.g. Saldi Plus, 3 users	F.eks. Saldi Plus, 3 brukere
 7451	Forventet lukket	Expected close	Forventet lukket
 7452	Stadie	Stage	Fase
 7453	Mig	Me	Meg
-7454	Slet handel	Delete deal	Slett salg
+7454	Slet sag	Delete case	Slett sak
 7455	Annullér	Cancel	Avbryt
 7457	vundet	won	vunnet
 7458	tabt	lost	tapt
-7459	Handlen er gemt	The deal is saved	Salget er lagret
-7460	Handel oprettet i %s	Deal created in %s	Salg opprettet i %s
-7461	Hvilken kunde gælder handlen?	Which customer is the deal for?	Hvilken kunde gjelder salget?
+7459	Sagen er gemt	The case is saved	Saken er lagret
+7460	Sag oprettet i %s	Case created in %s	Sak opprettet i %s
+7461	Hvilken kunde gælder sagen?	Which customer is the case for?	Hvilken kunde gjelder saken?
 7462	Pris	Price	Pris
 7463	Valgte en konkurrent	Chose a competitor	Valgte en konkurrent
 7464	Intet behov	No need	Intet behov
 7465	Forkert tidspunkt	Wrong timing	Feil tidspunkt
 7466	Ingen svar	No reply	Ikke noe svar
 7467	Hvorfor blev »%s« tabt?	Why was “%s” lost?	Hvorfor ble «%s» tapt?
-7468	Valgfrit. Over tid viser det, hvorfor I taber handler.	Optional. Over time it shows why you lose deals.	Valgfritt. Over tid viser det hvorfor dere taper salg.
+7468	Valgfrit. Over tid viser det, hvorfor I taber sager.	Optional. Over time it shows why you lose cases.	Valgfritt. Over tid viser det hvorfor dere taper saker.
 7469	Bemærkning	Remark	Merknad
 7470	Spring over	Skip	Hopp over
 7471	Markér som tabt	Mark as lost	Merk som tapt
@@ -6975,29 +6975,29 @@
 7485	Følg op – %s	Follow up – %s	Følg opp – %s
 7486	Opfølgning sat til %s	Follow-up set to %s	Oppfølging satt til %s
 7487	Sæt %s som %s	Set %s to %s	Sett %s som %s
-7488	vundet handel	won deal	vunnet salg
+7488	vundet sag	won case	vunnet sak
 7490	Gruppenavn	Group name	Gruppenavn
 7492	Fortrudt	Undone	Angret
 7494	Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.	There are no employees under Settings → Master data, so follow-ups cannot be assigned.	Det finnes ingen ansatte under Innstillinger → Stamdata, så oppfølginger kan ikke fordeles.
 7495	Ny gruppe	New group	Ny gruppe
 7497	%s flyttet til %s	%s moved to %s	%s flyttet til %s
-7498	Handel oprettet: »%s«	Deal created: “%s”	Salg opprettet: «%s»
+7498	Sag oprettet: »%s«	Case created: “%s”	Sak opprettet: «%s»
 7499	genåbnet	reopened	gjenåpnet
-7500	Handel »%s«: %s	Deal “%s”: %s	Salg «%s»: %s
+7500	Sag »%s«: %s	Case “%s”: %s	Sak «%s»: %s
 7503	Søg	Search	Søk
 7506	Tilpas CRM	Customise CRM	Tilpass CRM
-7507	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.	Status groups control the filter, the status line under Customers and the boards under Pipeline (one board per group). Applies to the whole company.	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlene under Pipeline (én tavle per gruppe). Gjelder hele firmaet.
+7507	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Sager (én tavle pr. gruppe). Gælder hele firmaet.	Status groups control the filter, the status line under Customers and the boards under Cases (one board per group). Applies to the whole company.	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlene under Saker (én tavle per gruppe). Gjelder hele firmaet.
 7508	+ Tilføj statusgruppe	+ Add status group	+ Legg til statusgruppe
 7509	Fortryd	Undo	Angre
-7510	Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.	Showing the %s most recently active customers. Other customers can be found with the search under “New follow-up” and “New deal”.	Viser de %s sist aktive kundene. Andre kunder finnes med søket under «Ny oppfølging» og «Nytt salg».
+7510	Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny sag«.	Showing the %s most recently active customers. Other customers can be found with the search under “New follow-up” and “New case”.	Viser de %s sist aktive kundene. Andre kunder finnes med søket under «Ny oppfølging» og «Ny sak».
 7511	Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.	The customer may not be among the %s shown. Search via “New follow-up”.	Kunden er kanskje ikke blant de %s viste. Søk via «Ny oppfølging».
 7512	CRM	CRM	CRM
 7513	Opfølgninger i dag	Follow-ups today	Oppfølginger i dag
 7514	%s opfølgninger i dag · %s forsinkede	%s follow-ups today · %s overdue	%s oppfølginger i dag · %s forsinkede
 7515	Ny opfølgning til dig	New follow-up for you	Ny oppfølging til deg
-7516	Handel tildelt dig	Deal assigned to you	Salg tildelt deg
-7517	Handel vundet	Deal won	Salg vunnet
-7518	Handel tabt	Deal lost	Salg tapt
+7516	Sag tildelt dig	Case assigned to you	Sak tildelt deg
+7517	Sag vundet	Case won	Sak vunnet
+7518	Sag tabt	Case lost	Sak tapt
 7519	fra %s	from %s	fra %s
 7520	Hvis opfølgninger og kunder	Whose follow-ups and customers	Hvem sine oppfølginger og kunder
 7521	Alle opfølgninger og kunder i regnskabet	All follow-ups and customers in the accounts	Alle oppfølginger og kunder i regnskapet
@@ -7009,7 +7009,7 @@
 7534	Ny status	New status	Ny status
 7535	Statusnavn	Status name	Statusnavn
 7536	%s i brug	%s in use	%s i bruk
-7537	Bruges af %s kunder og handler – kan ikke slettes	Used by %s customers and deals – cannot be deleted	Brukes av %s kunder og salg – kan ikke slettes
+7537	Bruges af %s kunder og sager – kan ikke slettes	Used by %s customers and cases – cannot be deleted	Brukes av %s kunder og saker – kan ikke slettes
 7538	Slet status	Delete status	Slett status
 7539	Slet gruppe	Delete group	Slett gruppe
 7540	Der er ingen kundestatusser endnu.	There are no customer statuses yet.	Det finnes ingen kundestatuser ennå.
@@ -7037,12 +7037,12 @@
 7553	Ikke nu	Not now	Ikke nå
 7554	%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort	%s follow-ups from the old CRM (more than 90 days overdue) marked as done	%s oppfølginger fra det gamle CRM (mer enn 90 dager forsinket) merket som gjort
 7555	slettet	deleted	slettet
-7556	Slet handlen »%s«?	Delete the deal “%s”?	Slette avtalen «%s»?
-7557	Handlen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.	The deal, its amount and its link to a quote or order disappear from the CRM. You can undo from the message at the bottom.	Avtalen, beløpet og koblingen til tilbud eller ordre forsvinner fra CRM. Du kan angre fra meldingen nederst.
+7556	Slet sagen »%s«?	Delete the case “%s”?	Slette saken «%s»?
+7557	Sagen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.	The case, its amount and its link to a quote or order disappear from the CRM. You can undo from the message at the bottom.	Saken, beløpet og koblingen til tilbud eller ordre forsvinner fra CRM. Du kan angre fra meldingen nederst.
 7558	Kunden står ikke på tavlen – sæt status til %s	The customer is not on the board – set the status to %s	Kunden står ikke på tavlen – sett status til %s
 7559	Opsæt statusser først (tandhjulet øverst til højre).	Set up statuses first (the gear at the top right).	Sett opp statuser først (tannhjulet øverst til høyre).
-7560	Markér %s åbne handler som %s	Mark %s open deals as %s	Merk %s åpne avtaler som %s
-7561	Flyt også handlen til %s	Also move the deal to %s	Flytt også avtalen til %s
+7560	Markér %s åbne sager som %s	Mark %s open cases as %s	Merk %s åpne saker som %s
+7561	Flyt også sagen til %s	Also move the case to %s	Flytt også saken til %s
 7562	– vælg –	– choose –	– velg –
 7563	Vælg, hvem opfølgningen er til.	Choose who the follow-up is for.	Velg hvem oppfølgingen er til.
 7564	Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.	Your login is not linked to an employee: “Mine” does not work, your notes get no author, and you must choose who each follow-up is for. Ask an administrator to link the login under Settings → Users.	Brukeren din er ikke knyttet til en ansatt: «Mine» virker ikke, notatene dine får ingen avsender, og du må selv velge hvem en oppfølging er til. Be en administrator knytte brukeren under Innstillinger → Brukere.
@@ -7050,9 +7050,9 @@
 7566	ekskl. moms	excl. VAT	ekskl. mva.
 7567	Søg blandt alle kunder	Search all customers	Søk blant alle kunder
 7568	Fundet uden for listen	Found outside the list	Funnet utenfor listen
-7569	Markér handlen som %s	Mark the deal as %s	Merk avtalen som %s
+7569	Markér sagen som %s	Mark the case as %s	Merk saken som %s
 7570	Mandag	Monday	Mandag
-7571	Handel »%s« slettet	Deal “%s” deleted	Avtale «%s» slettet
+7571	Sag »%s« slettet	Case “%s” deleted	Sak «%s» slettet
 7572	Genåbn	Reopen	Gjenåpne
 7573	%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	%s customers have a status that is not in a status group and are therefore not shown in the CRM.	%s kunder har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
 7574	Ansvarlig: %s → %s	Responsible: %s → %s	Ansvarlig: %s → %s
@@ -7065,15 +7065,15 @@
 7581	Forhandling	Negotiation	Forhandling
 7582	Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.	Suggestion: a sales board with Enquiry › Quote sent › Negotiation, where Won gives the status Customer and Lost gives the status Lost.	Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, der Vunnet gir status Kunde og Tapt gir status Tapt.
 7583	Henvendelse	Enquiry	Henvendelse
-7584	Hver gruppe bliver en tavle under Pipeline. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.	Each group becomes a board under Pipeline. Won → and Lost → are the status the customer gets when its card is dragged to Won or Lost.	Hver gruppe blir en tavle under Pipeline. Vunnet → og Tapt → er statusen kunden får når kortet dras til Vunnet eller Tapt.
-7585	Hvilken handel gælder ordren?	Which deal is the order for?	Hvilken avtale gjelder ordren?
-7586	Hvilken handel gælder tilbuddet?	Which deal is the quote for?	Hvilken avtale gjelder tilbudet?
-7587	Ingen handel	No deal	Ingen avtale
+7584	Hver gruppe bliver en tavle under Sager. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.	Each group becomes a board under Cases. Won → and Lost → are the status the customer gets when its card is dragged to Won or Lost.	Hver gruppe blir en tavle under Saker. Vunnet → og Tapt → er statusen kunden får når kortet dras til Vunnet eller Tapt.
+7585	Hvilken sag gælder ordren?	Which case is the order for?	Hvilken sak gjelder ordren?
+7586	Hvilken sag gælder tilbuddet?	Which case is the quote for?	Hvilken sak gjelder tilbudet?
+7587	Ingen sag	No case	Ingen sak
 7588	Ingen kontakt endnu	No contact yet	Ingen kontakt ennå
 7589	Ingen opfølgninger matcher »%s«.	No follow-ups match “%s”.	Ingen oppfølginger samsvarer med «%s».
 7590	Ingen statusgrupper endnu.	No status groups yet.	Ingen statusgrupper ennå.
-7591	Knyt til handel	Link to deal	Knytt til avtale
-7592	Knyttet til handlen »%s«	Linked to the deal “%s”	Knyttet til avtalen «%s»
+7591	Knyt til sag	Link to case	Knytt til sak
+7592	Knyttet til sagen »%s«	Linked to the case “%s”	Knyttet til saken «%s»
 7593	Luk	Close	Lukk
 7594	Opfølgningerne er flyttet	The follow-ups have been moved	Oppfølgingene er flyttet
 7595	Opsæt statusgrupper	Set up status groups	Sett opp statusgrupper
@@ -7097,7 +7097,7 @@
 7613	Flyt opfølgningen til %s	Move the follow-up to %s	Flytt oppfølgingen til %s
 7614	1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	1 customer has a status that is not in a status group and is therefore not shown in the CRM.	1 kunde har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
 7615	Din opfølgning er flyttet til %s	Your follow-up has been moved to %s	Oppfølgingen din er flyttet til %s
-7616	Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en handel. Søg efter andre kunder med søgefeltet.	Customers appear in the CRM when they have a status in a status group, a note or a deal. Find other customers with the search box.	Kunder kommer med i CRM når de har en status i en statusgruppe, et notat eller en avtale. Søk etter andre kunder med søkefeltet.
+7616	Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en sag. Søg efter andre kunder med søgefeltet.	Customers appear in the CRM when they have a status in a status group, a note or a case. Find other customers with the search box.	Kunder kommer med i CRM når de har en status i en statusgruppe, et notat eller en sak. Søk etter andre kunder med søkefeltet.
 7617	Kunden har handler i CRM og kan ikke slettes.	The customer has deals in the CRM and cannot be deleted.	Kunden har avtaler i CRM og kan ikke slettes.
 7618	lukket	closed	lukket
 7619	(lukket kontakt)	(closed contact)	(lukket kontakt)

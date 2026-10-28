@@ -22,7 +22,7 @@
 //
 // Copyright (c) 2026 saldi.dk aps
 // ----------------------------------------------------------------------
-// 20261020 ASR CRM redesign after prototype_crm.html v1.1: Opfølgning, Pipeline (customers or deals), Kalender,
+// 20261020 ASR CRM redesign after prototype_crm.html v1.1: Opfølgning, Pipeline (now Sager), Kalender,
 //              Kunder and Aktivitet in one page plus the customer drawer. Replaces crmkalender.php, crmopret.php,
 //              crmvisning.php and historikkort.php as the CRM entry (those pages are left in place).
 //              The page renders the data as JSON; javascript/crm.js draws it and posts changes to crmApi.php.
@@ -76,13 +76,13 @@ $data['api'] = 'crmApi.php';
         <button class="gear-btn" id="gearBtn" aria-label="<?= crm_h('Tilpas CRM') ?>" title="<?= crm_h('Tilpas CRM') ?>" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         <div class="panel" id="panel" role="dialog" aria-label="<?= crm_h('Tilpas CRM') ?>">
           <div class="ph"><?= crm_h('Tilpas CRM') ?></div>
-          <div class="pi"><?= crm_h('Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Pipeline (én tavle pr. gruppe). Gælder hele firmaet.') ?></div>
+          <div class="pi"><?= crm_h('Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Sager (én tavle pr. gruppe). Gælder hele firmaet.') ?></div>
           <h4><?= crm_h('Statusser') ?></h4>
           <div class="pi"><?= crm_h('Statusserne er de samme som feltet Status på debitorkortet. Rækkefølgen her er rækkefølgen på tavlen.') ?></div>
           <div id="stList"></div>
           <button type="button" class="paddl" id="stAdd"><?= crm_h('+ Tilføj status') ?></button>
           <h4><?= crm_h('Statusgrupper') ?></h4>
-          <div class="pi"><?= crm_h('Hver gruppe bliver en tavle under Pipeline. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.') ?></div>
+          <div class="pi"><?= crm_h('Hver gruppe bliver en tavle under Sager. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.') ?></div>
           <div id="sgList"></div>
           <button type="button" class="paddl" id="sgAdd"><?= crm_h('+ Tilføj statusgruppe') ?></button>
           <div class="pf"><button type="button" id="sgCancel" class="pbtn pbtn-ghost"><?= crm_h('Annullér') ?></button><button id="sgSave" class="pbtn"><?= crm_h('Gem') ?></button></div>
@@ -103,5 +103,5 @@ $data['api'] = 'crmApi.php';
 <div class="scrim" id="scrim"><div class="dlg" id="dlg" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastX"></button><button id="toastU"><?= crm_h('Fortryd') ?></button></div>
 <script type="application/json" id="crm-data"><?= json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
-<script src="../javascript/crm.js?v=21" charset="utf-8"></script>
+<script src="../javascript/crm.js?v=22" charset="utf-8"></script>
 </body></html>

@@ -11,6 +11,7 @@
 //              confirms delete with undo, parses amounts by locale (R29, R30, R41), board/deal suggestions (R26-R28),
 //              plain error texts and rollback of optimistic UI (R75), no duplicate creates or stale datasets (R76),
 //              server search from the main search box (R77).
+// 20261028 ASR Pipeline -> Sager and handel -> sag in the texts (tekster.csv); ids, tab key 'pipe' and actions unchanged.
 (function () {
 'use strict';
 
@@ -164,7 +165,7 @@ const ICON = {
 	status: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>',
 	deal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
 };
-const TYPE_N = {note: t('Note'), opkald: t('Opkald'), mail: t('Mail'), moede: t('Møde'), status: t('Status'), deal: t('Handel')};
+const TYPE_N = {note: t('Note'), opkald: t('Opkald'), mail: t('Mail'), moede: t('Møde'), status: t('Status'), deal: t('Sag')};
 const COMPOSE_TYPES = ['opkald', 'mail', 'moede', 'note'];
 const SV = {
 	check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
@@ -264,7 +265,7 @@ function renderTabs() {
 	const custs = C.filter(c => custOk(c) && (!S.mine || c.own === ME) && custMatch(c)).length;
 	const tabs = [
 		['follow', t('Opfølgning'), `<span class="n ${late ? 'late' : ''}">${open.length}${late ? ' · ' + t('%s forsinket', late) : ''}</span>`],
-		['pipe', t('Pipeline'), ''],
+		['pipe', t('Sager'), ''],
 		['cal', t('Kalender'), ''],
 		['cust', t('Kunder'), `<span class="n">${custs}</span>`],
 		['act', t('Aktivitet'), '']
@@ -346,7 +347,7 @@ function custCard(c) {
 	const invoiced = deals.some(d => d.doc && d.doc.st >= 3);   // R32: an invoiced deal still open
 	return `<button class="card" draggable="${DATA.canWrite}" data-card="${c.id}" data-open="${c.id}"${invoiced ? ' data-deal="1"' : ''}>
 		<div class="l1"><b>${esc(c.n)}</b>${sum ? `<span class="val" title="${deals.map(d => esc(d.t)).join(', ')}">${num(sum)}</span>` : ''}</div>
-		<div class="l2">${invoiced ? `<span class="inv">${t('Faktureret – markér vundet?')}</span>` : deals.length ? (deals.length === 1 ? esc(deals[0].t) : t('%s åbne handler', deals.length)) : c.ppl.length ? esc(c.ppl[0].n) + (c.ppl.length > 1 ? ` +${c.ppl.length - 1}` : '') : esc(c.by || c.nr)}</div>
+		<div class="l2">${invoiced ? `<span class="inv">${t('Faktureret – markér vundet?')}</span>` : deals.length ? (deals.length === 1 ? esc(deals[0].t) : t('%s åbne sager', deals.length)) : c.ppl.length ? esc(c.ppl[0].n) + (c.ppl.length > 1 ? ` +${c.ppl.length - 1}` : '') : esc(c.by || c.nr)}</div>
 		<div class="l3">${nx ? `<span class="due ${n < 0 ? 'late' : n === 0 ? 'today' : ''}" title="${esc(nx.note)}">${n < -1 ? fmt(nx.due) : rel(nx.due)}</span>` : `<span class="nofu">${t('Ingen opfølgning')}</span>`}
 			<span>${esc(empFirst(c.own))}</span>
 			<span class="age ${age > 14 ? 'stale' : ''}" title="${esc(t('I %s siden %s', stName(c.st), fmtY(c.stSince)))}">${ageTxt(age)}</span></div>
@@ -363,7 +364,7 @@ function renderPipe() {
 	const late = base.filter(c => { const nx = openFor(c.id)[0]; return nx && diff(nx.due) < 0; }).length;
 	const none = base.filter(c => !openFor(c.id).length).length;
 	const dealSum = base.reduce((a, c) => a + openDeals(c.id).reduce((x, d) => x + d.v, 0), 0);
-	const sum = t('%s kunder', `<b>${base.length}</b>`) + (dealSum ? ' · ' + t('åbne handler %s', `<b>${kr(dealSum)}</b>`) : '') + (late ? ` · <span class="late">${t('%s med forsinket opfølgning', late)}</span>` : '') + (none || S.noFu ? ` · <button type="button" class="linkbtn" data-nofu="1">${S.noFu ? t('Vis alle') : t('%s uden opfølgning', none)}</button>` : '');
+	const sum = t('%s kunder', `<b>${base.length}</b>`) + (dealSum ? ' · ' + t('åbne sager %s', `<b>${kr(dealSum)}</b>`) : '') + (late ? ` · <span class="late">${t('%s med forsinket opfølgning', late)}</span>` : '') + (none || S.noFu ? ` · <button type="button" class="linkbtn" data-nofu="1">${S.noFu ? t('Vis alle') : t('%s uden opfølgning', none)}</button>` : '');
 	const cols = g.s.map(id => {
 		const list = base.filter(c => c.st === id).sort(cardSort);
 		const colSum = list.reduce((a, c) => a + openDeals(c.id).reduce((x, d) => x + d.v, 0), 0);
@@ -456,7 +457,7 @@ function renderCust() {
 			<span class="r num ${c.rev ? '' : 'c3'}">${c.rev ? kr(c.rev) : '–'}</span>
 		</div>`;
 	}).join('');
-	if (!list.length) html += `<div class="empty"><b>${t('Ingen kunder')}</b>` + (C.length ? t('Ingen kunder matcher filtrene.') + (DATA.truncated && S.q ? ' ' + t('Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.', num(DATA.max)) : '') : t('Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en handel. Søg efter andre kunder med søgefeltet.')) + srvSearchBtn() + '</div>';
+	if (!list.length) html += `<div class="empty"><b>${t('Ingen kunder')}</b>` + (C.length ? t('Ingen kunder matcher filtrene.') + (DATA.truncated && S.q ? ' ' + t('Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.', num(DATA.max)) : '') : t('Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en sag. Søg efter andre kunder med søgefeltet.')) + srvSearchBtn() + '</div>';
 	$('#v-cust').innerHTML = html;
 }
 
@@ -557,15 +558,15 @@ function renderDrawer() {
 	const nx = prevFor(c, draft('c', c.id)), lc = lastContact(c.id);
 	const deals = DEALS.filter(d => d.cid === c.id);
 	const ret = encodeURIComponent('crm.php');
-	const back = backTo(c.id); // back from the order to this customer's drawer, on Handler og ordrer
+	const back = backTo(c.id); // back from the order to this customer's drawer, on Sager og ordrer
 	$('#drawer').innerHTML = `<div class="dh">
 			<div class="t"><div><h2 id="dTitle" tabindex="-1">${esc(c.n)}${c.closed ? ` <span class="c3">(${t('lukket')})</span>` : ''}</h2><div class="sub2">${t('Kunde %s', esc(c.nr))}${c.by ? ' · ' + esc(c.by) : ''}${DATA.canWrite && DATA.emps.length ? ` · <label class="ownlbl">${t('Ansvarlig')} <select class="inl" id="ownSel" aria-label="${t('Ansvarlig')}"><option value="0" ${!c.own ? 'selected' : ''}>${t('Ingen')}</option>${DATA.emps.map(e => `<option value="${e.id}" ${e.id === c.own ? 'selected' : ''}>${esc(e.n)}</option>`).join('')}</select></label>` : c.own ? ' · ' + t('ansvarlig: %s', esc(empLow(c.own))) : ''}</div></div>
 				<span class="x"></span>
 				<span class="stwrap" style="--c:${stColor(c.st)}"><select class="stsel" id="stSel" aria-label="${t('Status')}" ${DATA.canWrite ? '' : 'disabled'}>${c.st && !ST[c.st] ? `<option value="${esc(c.st)}" selected>${esc(c.st)}</option>` : ''}<option value="" ${!c.st ? 'selected' : ''}>${t('Ingen status')}</option>${ST_ORDER.map(id => `<option value="${esc(id)}" ${id === c.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></span>
 				<button class="ibtn" id="dClose" aria-label="${t('Luk (Esc)')}">${SV.x}</button></div>
-			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}${t('Opret handel')}</a>${DATA.quick ? '' : `<a data-mkdoc="0" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}${t('Opret tilbud')}</a>`}<a data-mkdoc="1" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}${t('Opret ordre')}</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}${t('Debitorkort')}</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}${t('Jobkort')}</a>` : ''}</div>
+			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}${t('Opret sag')}</a>${DATA.quick ? '' : `<a data-mkdoc="0" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}${t('Opret tilbud')}</a>`}<a data-mkdoc="1" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}${t('Opret ordre')}</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}${t('Debitorkort')}</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}${t('Jobkort')}</a>` : ''}</div>
 			<div class="kv"><div><span>${t('Kunde siden')}</span><b>${c.since ? fmtY(c.since) : '–'}</b></div><div><span>${t('Seneste kontakt')}</span><b>${lc ? rel(lc) : '–'}</b></div><div><span>${t('Omsætning i år')} <small class="c3">${t('ekskl. moms')}</small></span><b>${kr(c.rev || 0)}</b></div><div><span>${t('Åbne poster')}</span><b class="${c.late ? 'late' : ''}">${c.bal ? kr(c.bal) + (c.late ? ' · ' + t('%s forfalden', c.late) : '') : '0'}</b></div></div>
-			<div class="dtabs"><button data-dtab="tl" class="${S.dtab === 'tl' ? 'on' : ''}">${t('Historik')} <span class="c3">${hist.length}</span></button><button data-dtab="deals" class="${S.dtab === 'deals' ? 'on' : ''}">${t('Handler og ordrer')} <span class="c3">${deals.length + c.docs.length}</span></button><button data-dtab="ppl" class="${S.dtab === 'ppl' ? 'on' : ''}">${t('Kontaktpersoner')} <span class="c3">${c.ppl.length}</span></button></div>
+			<div class="dtabs"><button data-dtab="tl" class="${S.dtab === 'tl' ? 'on' : ''}">${t('Historik')} <span class="c3">${hist.length}</span></button><button data-dtab="deals" class="${S.dtab === 'deals' ? 'on' : ''}">${t('Sager og ordrer')} <span class="c3">${deals.length + c.docs.length}</span></button><button data-dtab="ppl" class="${S.dtab === 'ppl' ? 'on' : ''}">${t('Kontaktpersoner')} <span class="c3">${c.ppl.length}</span></button></div>
 		</div>
 		<div class="db">${S.dtab === 'deals' ? dealsTab(c, deals) : S.dtab === 'tl' ? `
 			${nx ? `<div class="next ${diff(nx.due) < 0 ? 'late' : ''}"><div><div class="lbl">${t('Næste opfølgning')} · ${diff(nx.due) < 0 ? t('forsinket') + ', ' : ''}${rel(nx.due)} · ${esc(empLow(nx.by))}</div><p>${esc(nx.note)}</p></div>
@@ -583,12 +584,12 @@ function dealsTab(c, list) {
 	const free = list.filter(d => d.state === 'open' && !d.doc);
 	return `<div class="deals">${list.map(d => `<div class="d" data-editdeal="${d.id}"><b>${esc(d.t)}</b><span class="num">${kr(d.v)}</span>
 		${d.state === 'open' && d.doc && d.doc.st >= 3 && DATA.canWrite ? `<button type="button" class="ddsug inl" data-wondeal="${d.id}">${t('Faktureret – markér vundet?')}</button>` : ''}
-		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · ' + t('forventet lukket %s', fmt(d.close)) : ''}` : d.state === 'won' ? t('Vundet %s', fmtY(d.closed)) : t('Tabt %s', fmtY(d.closed)) + (d.reason ? ' – ' + esc(d.reason) : '')} · ${esc(empLow(d.own))}${d.doc ? ` · ${esc(docName(d.doc))} (${docState(d.doc)})` : ''}</small></div>`).join('') || `<div class="empty" style="padding:32px"><b>${t('Ingen handler')}</b></div>`}</div>
-		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">${t('+ Ny handel')}</button>` : ''}
+		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · ' + t('forventet lukket %s', fmt(d.close)) : ''}` : d.state === 'won' ? t('Vundet %s', fmtY(d.closed)) : t('Tabt %s', fmtY(d.closed)) + (d.reason ? ' – ' + esc(d.reason) : '')} · ${esc(empLow(d.own))}${d.doc ? ` · ${esc(docName(d.doc))} (${docState(d.doc)})` : ''}</small></div>`).join('') || `<div class="empty" style="padding:32px"><b>${t('Ingen sager')}</b></div>`}</div>
+		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">${t('+ Ny sag')}</button>` : ''}
 		<h4 class="dsub">${t('Åbne tilbud og ordrer')}</h4>
 		<div class="deals">${c.docs.map(o => { const dl = DEALS.find(d => d.doc && d.doc.id === o.id);
 			return `<div class="d doc"><a href="ordre.php?id=${o.id}&returside=${backTo(c.id)}"><b>${esc(docName(o))}</b></a><span class="num">${kr(o.sum)}</span>
-			<small>${fmtY(o.date)}${o.st === 2 ? ' · ' + t('delvist leveret') : ''}${dl ? ' · ' + t('handel: %s', esc(dl.t)) : ''}${!dl && free.length && DATA.canWrite ? ` · <button type="button" class="linkbtn" data-linkdoc="${o.id}" data-cid="${c.id}">${t('Knyt til handel')}</button>` : ''}</small></div>`; }).join('') || `<div class="c3" style="padding:8px 0 4px">${t('Ingen åbne tilbud eller ordrer.')}</div>`}</div>
+			<small>${fmtY(o.date)}${o.st === 2 ? ' · ' + t('delvist leveret') : ''}${dl ? ' · ' + t('sag: %s', esc(dl.t)) : ''}${!dl && free.length && DATA.canWrite ? ` · <button type="button" class="linkbtn" data-linkdoc="${o.id}" data-cid="${c.id}">${t('Knyt til sag')}</button>` : ''}</small></div>`; }).join('') || `<div class="c3" style="padding:8px 0 4px">${t('Ingen åbne tilbud eller ordrer.')}</div>`}</div>
 		${c.docs.length >= 10 ? `<div class="c3" style="font-size:12.5px;margin-top:6px">${t('Viser de 10 nyeste.')}</div>` : ''}
 		${DATA.canWrite ? `<div class="docbtns">${DATA.quick ? '' : `<a class="addp" data-mkdoc="0" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&returside=${backTo(c.id)}">${t('+ Opret tilbud')}</a>`}<a class="addp" data-mkdoc="1" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${backTo(c.id)}">${t('+ Opret ordre')}</a></div>` : ''}
 		${DATA.quick && DATA.canWrite ? `<div class="c3" style="font-size:12.5px;margin-top:6px">${t('Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).')}</div>` : ''}`;
@@ -691,10 +692,10 @@ function dealDocBox(deal, c) {
 		const diffSum = o.sum && Math.abs(o.sum - deal.v) >= 0.005;
 		return `<div class="dealdoc"><div class="dd1"><span>${ICON.note}<b>${esc(docName(o))}</b> · ${kr(o.sum)} <span class="c3">${t('ekskl. moms')}</span> · ${docState(o)}</span><a href="ordre.php?id=${o.id}&returside=${back}">${t('Åbn')}</a></div>
 			${diffSum && deal.state === 'open' ? `<button type="button" class="ddsug" id="dUseSum" data-v="${esc(fmtAmt(o.sum))}">${t(o.st === 0 && !DATA.quick ? 'Brug beløbet fra tilbuddet: %s' : 'Brug beløbet fra ordren: %s', kr(o.sum))}</button>` : ''}
-			${o.st >= 3 && deal.state === 'open' ? `<button type="button" class="ddsug" id="dWonDoc">${t('Ordren er faktureret – markér handlen som vundet')}</button>` : ''}</div>`;
+			${o.st >= 3 && deal.state === 'open' ? `<button type="button" class="ddsug" id="dWonDoc">${t('Ordren er faktureret – markér sagen som vundet')}</button>` : ''}</div>`;
 	}
 	if (deal.state !== 'open' || !DATA.canWrite) return '';
-	return `<div class="dealdoc"><div class="dd1"><span class="c3">${t('Intet tilbud eller ordre til handlen endnu')}</span><span class="ddl">${DATA.quick ? '' : `<a href="ordre.php?konto_id=${c.id}&crm_deal=${deal.id}&returside=${back}">${t('Opret tilbud')}</a>`}<a href="ordre.php?konto_id=${c.id}&crm_deal=${deal.id}&ordrestatus=1&returside=${back}">${t('Opret ordre')}</a></span></div></div>`;
+	return `<div class="dealdoc"><div class="dd1"><span class="c3">${t('Intet tilbud eller ordre til sagen endnu')}</span><span class="ddl">${DATA.quick ? '' : `<a href="ordre.php?konto_id=${c.id}&crm_deal=${deal.id}&returside=${back}">${t('Opret tilbud')}</a>`}<a href="ordre.php?konto_id=${c.id}&crm_deal=${deal.id}&ordrestatus=1&returside=${back}">${t('Opret ordre')}</a></span></div></div>`;
 }
 // Deal stages come from the group holding the deal's stage, else the first status group (Salg).
 const dealGroup = st => GROUPS.find(x => x.s.includes(st)) || GROUPS[0] || boardGroup();
@@ -704,7 +705,7 @@ function dealDialog(deal, cid, stage) {
 		// a new deal starts in the customer's own status when that is on the board (R33); never the first employee (R6)
 		const g = dealGroup(deal ? deal.st : (stage || c.st));
 		const d = deal || {t: '', v: 0, st: stage || (g.s.includes(c.st) ? c.st : g.s[0]) || '', close: key(D(30)), own: c.own || ME || 0};
-		openDlg(`<h3>${deal ? t('Ret handel') : t('Ny handel')}</h3><div class="pick"><b>${esc(c.n)}</b><span class="c3">${esc(c.nr)}</span>${deal ? '' : `<button id="back">${t('Skift kunde')}</button>`}</div>
+		openDlg(`<h3>${deal ? t('Ret sag') : t('Ny sag')}</h3><div class="pick"><b>${esc(c.n)}</b><span class="c3">${esc(c.nr)}</span>${deal ? '' : `<button id="back">${t('Skift kunde')}</button>`}</div>
 			<div class="fgrid">
 				<label class="wide">${t('Titel')}<input id="dT" value="${esc(d.t)}" placeholder="${esc(t('Fx Saldi Plus, 3 brugere'))}" maxlength="120"></label>
 				<label>${t('Beløb (kr, ekskl. moms)')}<input id="dV" inputmode="decimal" value="${esc(fmtAmt(d.v))}" placeholder="0"></label>
@@ -713,7 +714,7 @@ function dealDialog(deal, cid, stage) {
 				<label>${t('Ansvarlig')}<select id="dO">${(d.own && !EMP[d.own] ? [`<option value="${d.own}" selected>${t('(tidligere medarbejder)')}</option>`] : d.own ? [] : [`<option value="0" selected>${t('– vælg –')}</option>`]).concat(DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.own ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`)).join('') || '<option value="0">–</option>'}</select></label>
 			</div>
 			${deal ? dealDocBox(deal, c) : ''}
-			<div class="ft">${deal ? `<button class="left" id="dDel">${t('Slet handel')}</button>` : ''}${deal && deal.state !== 'open' ? `<button id="dReopen">${t('Genåbn')}</button>` : ''}${deal && deal.state === 'open' ? `<button id="dWon">${t('Vundet')}</button><button id="dLost">${t('Tabt')}</button>` : ''}<button id="dNo">${t('Annullér')}</button><button class="primary" id="dYes">${deal ? t('Gem') : t('Opret handel')}</button></div>`);
+			<div class="ft">${deal ? `<button class="left" id="dDel">${t('Slet sag')}</button>` : ''}${deal && deal.state !== 'open' ? `<button id="dReopen">${t('Genåbn')}</button>` : ''}${deal && deal.state === 'open' ? `<button id="dWon">${t('Vundet')}</button><button id="dLost">${t('Tabt')}</button>` : ''}<button id="dNo">${t('Annullér')}</button><button class="primary" id="dYes">${deal ? t('Gem') : t('Opret sag')}</button></div>`);
 		if (!DATA.canWrite) {
 			// read-only: the deal is shown, nothing can be changed (R72)
 			$('#dlg').querySelectorAll('input,select').forEach(x => { x.disabled = true; });
@@ -736,9 +737,9 @@ function dealDialog(deal, cid, stage) {
 		$('#dNo').onclick = closeDlg;
 		if ($('#dDel')) $('#dDel').onclick = () => {
 			// confirmed, undoable and logged (R30)
-			openDlg(`<h3>${t('Slet handlen »%s«?', esc(deal.t))}</h3><div class="pi">${t('Handlen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.')}</div><div class="ft"><button id="cNo">${t('Annullér')}</button><button class="danger" id="cYes">${t('Slet')}</button></div>`, 'confirm');
+			openDlg(`<h3>${t('Slet sagen »%s«?', esc(deal.t))}</h3><div class="pi">${t('Sagen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.')}</div><div class="ft"><button id="cNo">${t('Annullér')}</button><button class="danger" id="cYes">${t('Slet')}</button></div>`, 'confirm');
 			$('#cNo').onclick = () => dealDialog(deal, cid, stage);
-			$('#cYes').onclick = async () => { const r = await api('delete_deal', {id: deal.id}); closeDlg(); toast(t('Handel »%s« slettet', deal.t), () => api('restore_deal', {id: deal.id, before: r.before, remove: r.hid})); };
+			$('#cYes').onclick = async () => { const r = await api('delete_deal', {id: deal.id}); closeDlg(); toast(t('Sag »%s« slettet', deal.t), () => api('restore_deal', {id: deal.id, before: r.before, remove: r.hid})); };
 		};
 		const won = async () => { if (!(await saveIfChanged())) return; closeDlg(); moveDeal(DEALS.find(x => x.id === deal.id) || deal, {state: 'won'}, t('vundet')); };
 		if ($('#dWon')) $('#dWon').onclick = won;
@@ -760,17 +761,17 @@ function dealDialog(deal, cid, stage) {
 			const fresh = cust(c.id) || c;
 			// the customer is not in the column the deal was put in: offer the status, never set it (R27, R26)
 			const offBoard = f.st && fresh.st !== f.st && g.s.includes(f.st) && !isWon(f.st) && !isLost(f.st);
-			toast(deal ? t('Handlen er gemt') : t('Handel oprettet i %s', stName(f.st)), null,
+			toast(deal ? t('Sagen er gemt') : t('Sag oprettet i %s', stName(f.st)), null,
 				offBoard ? {label: t('Kunden står ikke på tavlen – sæt status til %s', stName(f.st)), fn: () => setStatus(fresh, f.st)} : null);
 		};
 		setTimeout(() => $('#dT').focus(), 30);
 	};
-	if (cid) go(cust(cid)); else customerPicker(t('Ny handel'), t('Hvilken kunde gælder handlen?'), go);
+	if (cid) go(cust(cid)); else customerPicker(t('Ny sag'), t('Hvilken kunde gælder sagen?'), go);
 }
 
 function lostDialog(d, done) {
 	const reasons = [t('Pris'), t('Valgte en konkurrent'), t('Intet behov'), t('Forkert tidspunkt'), t('Ingen svar')];
-	openDlg(`<h3>${t('Hvorfor blev »%s« tabt?', esc(d.t))}</h3><div class="pi">${t('Valgfrit. Over tid viser det, hvorfor I taber handler.')}</div>
+	openDlg(`<h3>${t('Hvorfor blev »%s« tabt?', esc(d.t))}</h3><div class="pi">${t('Valgfrit. Over tid viser det, hvorfor I taber sager.')}</div>
 		<div class="reasons">${reasons.map(r => `<button type="button" data-r="${esc(r)}">${esc(r)}</button>`).join('')}</div>
 		<div class="fgrid"><label class="wide">${t('Bemærkning')}<input id="rTxt" maxlength="200"></label></div>
 		<div class="ft"><button id="rSkip">${t('Spring over')}</button><button class="primary" id="rOk">${t('Markér som tabt')}</button></div>`);
@@ -850,9 +851,9 @@ function makeDoc(a) {
 	const cid = +a.dataset.cid, free = openDeals(cid).filter(d => !d.doc), order = a.dataset.mkdoc === '1';
 	const go = deal => { const href = a.getAttribute('href') + (deal ? '&crm_deal=' + deal : ''); sendPlace().finally(() => { location.href = href; }); };
 	if (!free.length) { go(0); return; }
-	openDlg(`<h3>${order ? t('Hvilken handel gælder ordren?') : t('Hvilken handel gælder tilbuddet?')}</h3>
+	openDlg(`<h3>${order ? t('Hvilken sag gælder ordren?') : t('Hvilken sag gælder tilbuddet?')}</h3>
 		<div class="res">${free.map(d => `<button type="button" data-mkdeal="${d.id}"><b>${esc(d.t)}</b><small>${kr(d.v)} · ${esc(stName(d.st))}</small></button>`).join('')}
-		<button type="button" data-mkdeal="0"><b>${t('Ingen handel')}</b></button></div>`);
+		<button type="button" data-mkdeal="0"><b>${t('Ingen sag')}</b></button></div>`);
 	$('#dlg').querySelectorAll('[data-mkdeal]').forEach(b => b.onclick = () => { closeDlg(); go(+b.dataset.mkdeal); });
 }
 // an existing quote/order attached to one of the customer's deals without a document (R31)
@@ -860,10 +861,10 @@ function linkDoc(oid, cid) {
 	const free = openDeals(cid).filter(d => !d.doc);
 	const link = async deal => {
 		const r = await api('link_doc', {cid, deal: deal.id, doc: oid});
-		toast(t('Knyttet til handlen »%s«', deal.t), () => api('unlink_doc', {cid, deal: deal.id, remove: r.hid}));
+		toast(t('Knyttet til sagen »%s«', deal.t), () => api('unlink_doc', {cid, deal: deal.id, remove: r.hid}));
 	};
 	if (free.length === 1) { link(free[0]); return; }
-	openDlg(`<h3>${t('Knyt til handel')}</h3><div class="res">${free.map(d => `<button type="button" data-lk="${d.id}"><b>${esc(d.t)}</b><small>${kr(d.v)} · ${esc(stName(d.st))}</small></button>`).join('')}</div>`);
+	openDlg(`<h3>${t('Knyt til sag')}</h3><div class="res">${free.map(d => `<button type="button" data-lk="${d.id}"><b>${esc(d.t)}</b><small>${kr(d.v)} · ${esc(stName(d.st))}</small></button>`).join('')}</div>`);
 	$('#dlg').querySelectorAll('[data-lk]').forEach(b => b.onclick = () => { closeDlg(); link(free.find(d => d.id === +b.dataset.lk)); });
 }
 async function startBoard() {
@@ -912,14 +913,14 @@ function dropOnBoard(c, g, col, end) {
 	const deals = openDeals(c.id);
 	if (end) {
 		const to = end === 'won' ? g.won : g.lost, lbl = end === 'won' ? t('vundet') : t('tabt');
-		const extra = deals.length ? {label: deals.length === 1 ? t('Markér handlen som %s', lbl) : t('Markér %s åbne handler som %s', deals.length, lbl), fn: () => {
+		const extra = deals.length ? {label: deals.length === 1 ? t('Markér sagen som %s', lbl) : t('Markér %s åbne sager som %s', deals.length, lbl), fn: () => {
 			if (end === 'won') { deals.forEach(d => moveDeal(d, {state: 'won'}, t('vundet'))); return; }
 			lostDialog(deals.length === 1 ? deals[0] : {t: c.n}, reason => deals.forEach(d => moveDeal(d, {state: 'lost', reason}, t('tabt') + (reason ? ' – ' + reason : ''))));
 		}} : null;
 		return setStatus(c, to, lbl, extra);
 	}
 	const behind = deals.filter(d => d.st !== col);
-	const extra = behind.length ? {label: t('Flyt også handlen til %s', stName(col)), fn: () => behind.forEach(d => api('move_deal', {id: d.id, st: col}))} : null;
+	const extra = behind.length ? {label: t('Flyt også sagen til %s', stName(col)), fn: () => behind.forEach(d => api('move_deal', {id: d.id, st: col}))} : null;
 	return setStatus(c, col, '', extra);
 }
 async function moveDeal(d, patch, label) {
@@ -927,7 +928,7 @@ async function moveDeal(d, patch, label) {
 	const g = dealGroup(d.st), c = cust(d.cid);
 	const suggestWon = patch.state === 'won' && g.won && c && c.st !== g.won;
 	toast(`${d.t}: ${label}`, () => api('restore_deal', {id: d.id, before: r.before, remove: r.hid}),
-		suggestWon ? {label: t('Sæt %s som %s', c.n, stName(g.won)), fn: () => setStatus(c, g.won, t('vundet handel'))} : null);
+		suggestWon ? {label: t('Sæt %s som %s', c.n, stName(g.won)), fn: () => setStatus(c, g.won, t('vundet sag'))} : null);
 }
 
 /* ================= statusgrupper (tandhjul) ================= */
@@ -946,7 +947,7 @@ function renderGroupEditor() {
 	const arrows = (i, n, up, down) => DATA.canWrite ? `<button type="button" class="parr" ${up}="${i}" ${i === 0 ? 'disabled' : ''} title="${t('Flyt op')}" aria-label="${t('Flyt op')}">▲</button><button type="button" class="parr" ${down}="${i}" ${i === n - 1 ? 'disabled' : ''} title="${t('Flyt ned')}" aria-label="${t('Flyt ned')}">▼</button>` : '';
 	$('#stList').innerHTML = SDRAFT.map((s, i) => `<div class="strow" data-si="${i}"><input type="text" value="${esc(s.n)}" maxlength="60" aria-label="${t('Statusnavn')}" placeholder="${esc(t('Ny status'))}" data-sf="n" ${ro}>
 		<span class="use">${s.used ? t('%s i brug', s.used) : ''}</span>${arrows(i, SDRAFT.length, 'data-sup', 'data-sdown')}
-		${DATA.canWrite ? `<button type="button" class="ptrash" data-dels="${i}" ${s.used ? 'disabled' : ''} title="${esc(s.used ? t('Bruges af %s kunder og handler – kan ikke slettes', s.used) : t('Slet status'))}" aria-label="${esc(t('Slet status'))}">${TRASH}</button>` : ''}</div>`).join('')
+		${DATA.canWrite ? `<button type="button" class="ptrash" data-dels="${i}" ${s.used ? 'disabled' : ''} title="${esc(s.used ? t('Bruges af %s kunder og sager – kan ikke slettes', s.used) : t('Slet status'))}" aria-label="${esc(t('Slet status'))}">${TRASH}</button>` : ''}</div>`).join('')
 		|| `<div class="pi">${t('Der er ingen kundestatusser endnu.')}</div>`;
 	const opts = sel => '<option value="">–</option>' + SDRAFT.map(s => `<option value="${esc(s.id)}" ${s.id === sel ? 'selected' : ''}>${esc(sdName(s.id))}</option>`).join('');
 	$('#sgList').innerHTML = (!GDRAFT.length && !GROUPS.length && DATA.canWrite ? `<div class="pi">${t('Ingen statusgrupper endnu.')} ${t('Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.')} <button type="button" class="linkbtn" data-starter="1">${t('Start med en salgstavle')}</button></div>` : '')
@@ -981,7 +982,7 @@ function renderAll() {
 	const nb = $('#noteBar'), notes = [];
 	if (!ME) notes.push(esc(t('Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.')));
 	if (!DATA.emps.length) notes.push(esc(t('Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.')));
-	if (DATA.truncated) notes.push(esc(t('Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny handel«.', num(DATA.max))));
+	if (DATA.truncated) notes.push(esc(t('Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny sag«.', num(DATA.max))));
 	// follow-ups from the old CRM, long overdue: offered closed in one click, never done by itself (R23)
 	const old = H.filter(h => h.due && !h.done && diff(h.due) < -90).length;
 	if (old >= 3 && DATA.canWrite && localStorage.getItem('crm-oldlate') !== DATA.today) {
@@ -1069,9 +1070,9 @@ $('#drawer').addEventListener('change', e => {
 	if (e.target.id === 'ownSel') setOwner(cust(S.drawer), +e.target.value);
 });
 $('#scrim').onclick = e => { if (e.target.id === 'scrim') closeDlg(); };
-// The new-button follows the tab (also key N): Opfølgning/Kalender -> follow-up, Pipeline -> deal,
+// The new-button follows the tab (also key N): Opfølgning/Kalender -> follow-up, Sager -> deal (sag),
 // Kunder -> new customer card, Aktivitet -> note. Offers and orders are made from the customer's drawer.
-const NEW_FOR = {follow: 'Ny opfølgning', cal: 'Ny opfølgning', pipe: 'Ny handel', cust: 'Ny kunde', act: 'Ny note'};
+const NEW_FOR = {follow: 'Ny opfølgning', cal: 'Ny opfølgning', pipe: 'Ny sag', cust: 'Ny kunde', act: 'Ny note'};
 function drawNewBtn() {
 	const k = NEW_FOR[S.tab] || 'Ny opfølgning';
 	$('#newLbl').textContent = t(k);
@@ -1168,7 +1169,7 @@ $('#sgSave').onclick = async e => {
 	renderGroups(); $('#panel').classList.remove('open'); toast(t('Statusser og statusgrupper er gemt'));
 };
 
-/* træk og slip: kalender (opfølgninger) og tavle (kunder/handler) */
+/* træk og slip: kalender (opfølgninger) og tavle (kunder/sager) */
 let dragEv = null, dragCard = null;
 document.addEventListener('dragstart', e => {
 	const ev = e.target.closest && e.target.closest('[data-ev]'), card = e.target.closest && e.target.closest('[data-card]');
