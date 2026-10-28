@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 //                dispatch on include), so the functions are lifted out by token and evaluated in a
 //                namespace whose db_* stubs record the SQL; the INSERT is then read back the way
 //                PostgreSQL reads quoted literals.
+// 20261028 CL/SZ Sync of master into hml/shopify: insert_shop_order() there also calls shopify_legacy_effective_afd() (SD-750), so the fixture gets a stub with the same body as includes/shopify/coexistence.php.
 final class ShopOrderHtmlEntityTest extends TestCase
 {
 	private const NS = 'ShopOrderHtmlEntityFixture';
@@ -288,6 +289,9 @@ final class ShopOrderHtmlEntityTest extends TestCase
 		}
 		function get_ip() {
 			return '127.0.0.1';
+		}
+		function shopify_legacy_effective_afd($afd, $ip) {
+			return $ip === '172.105.246.144' ? 4 : (int)$afd;
 		}
 		function usdecimal($value) {
 			return str_replace(',', '.', $value);
