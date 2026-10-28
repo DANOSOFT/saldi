@@ -104,9 +104,9 @@ $kopier=ifset($_GET, ['kopier']);
 #$title= findtekst('30|Tilbage', $sprog_id); #20210818
 
 if($_POST) {
-	$tekstantal=ifset($_POST, ['tekstantal']); 
-	$id=ifset($_POST, ['id']); 
-	$tekst=ifset($_POST, ['tekst']); 
+	$tekstantal=ifset($_POST, ['tekstantal']);
+	$id=ifset($_POST, ['id']);
+	$tekst=ifset($_POST, ['tekst']);
 	$ny_tekst=ifset($_POST, ['ny_tekst']);
 	for ($x=1;$x<=$tekstantal;$x++) {
 		// 20261028 CL/NTR Only the text is editable. Rows are updated by their own id, which works the same
