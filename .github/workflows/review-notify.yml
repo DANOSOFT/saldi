@@ -1,0 +1,61 @@
+# Telegram nudges for PRs that wait on their author: a DM when a person
+# requests changes, a reminder after one working day, and a daily digest of
+# PRs waiting 2+ working days. Logic and secret format:
+# tools/review-notify/review-notify.mjs.
+#
+# It runs on a schedule instead of on pull_request_review: this repository is
+# public, and review events on fork PRs get no secrets.
+#
+# Secrets (repository): TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_MAP. Without the
+# token the script only prints what it would do.
+
+name: Review notify
+
+on:
+  schedule:
+    # Times are UTC: 07:00-18:00 and 09:07 Danish winter time.
+    - cron: "*/10 6-17 * * 1-5"
+    - cron: "7 8 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [notify, remind]
+        default: notify
+      dry_run:
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: review-notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/review-notify
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Notify authors
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_MAP: ${{ secrets.TELEGRAM_CHAT_MAP }}
+          MODE: ${{ github.event.schedule == '7 8 * * 1-5' && 'remind' || inputs.mode || 'notify' }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: node tools/review-notify/review-notify.mjs
