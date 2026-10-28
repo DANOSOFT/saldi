@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/bootstrap.php --- ver 5.0.0 --- 2026.10.23
+// --- includes/shopify/bootstrap.php --- ver 5.0.0 --- 2026.10.28
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20261022 Sawaneh SD-734 review: cli shims follow the SAPI, closure date lukkes honoured, deleted RA rows
 //                 ignored, newest open year chosen chronologically; kodenr as the last sort key (review).
 // 20261023 CDX/LH Initialize base currency and paired business time zones; reject timestamp-deleted fiscal years.
+// 20261028 CL/SZ SD-748: $fiscalYear false skips the fiscal-year lookup, for the webhook receiver.
 
 /**
  * Injected by includes/connect.php (master connection and credentials):
@@ -54,6 +55,8 @@ final class ShopifyBootstrapError extends RuntimeException
  * accepted under cli only; without it the tenant comes from SALDI_SHOPIFY_DB or
  * includes/shopify/.ht_shopify_db (webhook and document endpoints, cron without an argument).
  * The tenant must exist in master regnskab and be open, by the same rule as includes/online.php.
+ * With $fiscalYear false the fiscal year is not looked up and $regnaar is null: the webhook
+ * receiver never uses it, and a ledger mistake must not turn its deliveries into 503s.
  *
  * Globals set: $db, $db_id, $db_skriv_id, $regnskab, $regnaar, $brugernavn ('shopify'),
  * $bruger_id (0), $sprog_id (1), $rettigheder (''), $s_id (''), $webservice (true) and the
@@ -65,10 +68,11 @@ final class ShopifyBootstrapError extends RuntimeException
  * legacy functions; this bootstrap does not initialize or reset it.
  *
  * @param string|null $cliDb tenant database name given on the command line
- * @return array{db: string, regnskab_id: int, regnskab: string, regnaar: int, brugernavn: string, sapi: string}
+ * @param bool $fiscalYear whether to look up the fiscal year
+ * @return array{db: string, regnskab_id: int, regnskab: string, regnaar: int|null, brugernavn: string, sapi: string}
  * @throws ShopifyBootstrapError when the tenant cannot be resolved, is closed, cannot be connected or has no single fiscal year
  */
-function shopify_bootstrap(?string $cliDb = null): array {
+function shopify_bootstrap(?string $cliDb = null, bool $fiscalYear = true): array {
 	global $db_type, $sqhost, $squser, $sqpass, $sqdb, $connection;
 	global $db, $db_id, $db_skriv_id, $regnskab, $regnaar, $brugernavn, $bruger_id, $sprog_id, $rettigheder, $s_id, $webservice;
 	global $baseCurrency, $timezone;
@@ -118,7 +122,7 @@ function shopify_bootstrap(?string $cliDb = null): array {
 	db_select("SELECT set_config('TimeZone', '" . db_escape_string($timezone) . "', false)", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'baseCurrency'", __FILE__ . " linje " . __LINE__));
 	$baseCurrency = $r && $r['var_value'] ? $r['var_value'] : 'DKK';
-	$regnaar = shopify_bootstrap_fiscal_year();
+	$regnaar = $fiscalYear ? shopify_bootstrap_fiscal_year() : null;
 
 	return array(
 		'db' => $db,
