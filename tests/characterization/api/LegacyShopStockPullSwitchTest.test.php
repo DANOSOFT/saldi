@@ -7,9 +7,12 @@
 // LegacyShopStockPullCharacterizationTest pins them. Pinned here:
 //
 // - lager/webshopStock.php: a slot closed for outbound is not offered and gets nothing, the
-//   others get the same payload; a URL shared with a closed slot stays with it (nobody gets it);
-//   a job whose slot closes stops before sending.
-// - api/updateShopCostPrice.php: nothing is sent while slot 4 is closed for outbound.
+//   others get the same payload; the switch is per slot, so an open slot keeps a URL it shares
+//   with a closed one, and a closed slot's invalid URL doesn't block the page; a job whose slot
+//   closes stops before sending; while a cutover holds a slot the page says "try again", sends
+//   nothing, and the job continues once the cutover is done.
+// - api/updateShopCostPrice.php: nothing is sent while slot 4 is closed for outbound, or while a
+//   cutover holds it (then it answers 'legacy busy').
 // - api/varesync.php and api/varesync_pos8.php: with slot 4 closed for intake nothing is fetched
 //   or written, and the page says why; while a cutover holds slot 4 they say "try again";
 //   slot 4 closed for outbound only still fetches, and the new items' push skips slot 4.
@@ -18,6 +21,7 @@
 //
 // History:
 // 20261027 CL/SZ Created (SD-778, sub-task of SD-750).
+// 20261028 CL/SZ SD-778 review: per-slot shared URL, invalid URL on a closed slot, busy stock page and cost price.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -92,7 +96,7 @@ final class LegacyShopStockPullSwitchTest extends CharacterizationTestCase
 		self::rows('DELETE FROM varer WHERE id = $1', [$item['id']]);
 	}
 
-	public function testAUrlSharedWithAClosedSlotDoesNotMoveToTheLaterSlot(): void
+	public function testTheSwitchIsPerSlotSoAnOpenSlotKeepsAUrlItSharesWithAClosedOne(): void
 	{
 		$this->setSlots('a', 'a', 'c');
 		$this->setting(4, 'outbound_enabled', 'nej');
@@ -100,8 +104,48 @@ final class LegacyShopStockPullSwitchTest extends CharacterizationTestCase
 
 		[$offered] = $this->runStockJob();
 
-		$this->assertSame(['3'], $offered, 'box5 repeats the closed box4, so it is not offered either');
-		$this->assertSame(['/c/'], $this->stockPaths($item['varenr']));
+		$this->assertSame(['2', '3'], $offered, 'box5 repeats the closed box4 and is open, like in sync_shop_vare()');
+		$this->assertSame(['/a/', '/c/'], $this->stockPaths($item['varenr']));
+		self::rows('DELETE FROM varer WHERE id = $1', [$item['id']]);
+	}
+
+	public function testAnInvalidUrlInAClosedSlotDoesNotBlockTheOpenSlots(): void
+	{
+		self::rows("UPDATE grupper SET box4 = 'ftp://old.invalid/api' WHERE art = 'API'");
+		$this->setting(4, 'outbound_enabled', 'off');
+		$item = self::$fx->item(['salgspris' => 200.0, 'kostpris' => 80.0]);
+
+		[$offered, $job] = $this->runStockJob();
+
+		$this->assertSame(['2', '3'], $offered);
+		$this->assertSame('done', $job['status']);
+		$this->assertSame(['/b/', '/c/'], $this->stockPaths($item['varenr']));
+		self::rows('DELETE FROM varer WHERE id = $1', [$item['id']]);
+	}
+
+	public function testWhileACutoverHoldsASlotTheStockPageSaysTryAgainAndTheJobGoesOnAfterwards(): void
+	{
+		$item = self::$fx->item(['salgspris' => 200.0, 'kostpris' => 80.0]);
+		$page = $this->page('lager/webshopStock.php', []);
+		preg_match('/const csrf = "([0-9a-f]{64})"/', $page, $csrf);
+		$job = json_decode($this->page('lager/webshopStock.php', [], ['action' => 'start', 'csrf' => $csrf[1], 'shops' => ['1', '2', '3']]), true)['job'];
+
+		$lock = fopen(self::tempDir() . '/.ht_shopify_legacy_4.lock', 'c');
+		$this->assertTrue(flock($lock, LOCK_EX | LOCK_NB), 'the test holds the cutover lock');
+		try {
+			$batch = json_decode($this->page('lager/webshopStock.php', [], ['action' => 'batch', 'csrf' => $csrf[1], 'job' => $job['id']]), true);
+		} finally {
+			flock($lock, LOCK_UN);
+			fclose($lock);
+		}
+		$this->assertSame(self::BUSY, $batch['error'] ?? null);
+		$this->assertSame([], $this->stockPaths($item['varenr']));
+
+		for ($i = 0; $i < 20 && $job['status'] === 'paused'; $i++) {
+			$job = json_decode($this->page('lager/webshopStock.php', [], ['action' => 'batch', 'csrf' => $csrf[1], 'job' => $job['id']]), true)['job'];
+		}
+		$this->assertSame('done', $job['status'], 'the same job goes on once the cutover is done');
+		$this->assertSame(['/a/', '/b/', '/c/'], $this->stockPaths($item['varenr']));
 		self::rows('DELETE FROM varer WHERE id = $1', [$item['id']]);
 	}
 
@@ -134,6 +178,23 @@ final class LegacyShopStockPullSwitchTest extends CharacterizationTestCase
 		self::$shop->reset();
 		$this->setting(4, 'outbound_enabled', 'off');
 		$this->assertSame('legacy outbound closed', $this->call(['call' => 'cost', 'id' => (string)$item['id']]));
+		$this->assertSame([], self::$shop->waitFor(0, 0, 1.0));
+		self::rows('DELETE FROM varer WHERE id = $1', [$item['id']]);
+	}
+
+	public function testWhileACutoverHoldsSlot4TheCostPriceAnswersBusyAndSendsNothing(): void
+	{
+		$item = self::$fx->item(['salgspris' => 200.0, 'kostpris' => 80.0]);
+		$lock = fopen(self::tempDir() . '/.ht_shopify_legacy_4.lock', 'c');
+		$this->assertTrue(flock($lock, LOCK_EX | LOCK_NB), 'the test holds the cutover lock');
+		try {
+			$result = $this->call(['call' => 'cost', 'id' => (string)$item['id']]);
+		} finally {
+			flock($lock, LOCK_UN);
+			fclose($lock);
+		}
+
+		$this->assertSame('legacy busy', $result, 'slot 4 is open; it is busy, not closed');
 		$this->assertSame([], self::$shop->waitFor(0, 0, 1.0));
 		self::rows('DELETE FROM varer WHERE id = $1', [$item['id']]);
 	}

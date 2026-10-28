@@ -20,6 +20,7 @@
 //
 // History:
 // 20261026 CL/SZ Created (SD-750).
+// 20261028 CL/SZ SD-778 review: accepts any manifest version (#922 moved it to 2).
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -46,7 +47,7 @@ final class LegacyIntakeSwitchTest extends CharacterizationTestCase
 			self::fail("$temp is not writable by this user; set SALDI_CHAR_TEST_DB to a tenant name without one");
 		}
 		$schema = self::runChild('run_legacy_shop_schema.php', []);
-		if (!str_contains($schema['stdout'], '"version":1')) {
+		if (!preg_match('/"version":[1-9]/', $schema['stdout'])) {
 			self::fail("Shopify schema not installed on the clone.\nstdout: {$schema['stdout']}\nstderr: {$schema['stderr']}");
 		}
 		self::$shop = new LegacyShopStub();

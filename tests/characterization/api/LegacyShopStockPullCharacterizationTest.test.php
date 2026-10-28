@@ -21,6 +21,7 @@
 //
 // History:
 // 20261027 CL/SZ Created (SD-778, sub-task of SD-750).
+// 20261028 CL/SZ SD-778 review: the pos8 test moves a tenant item with varenr 'varenr' aside while it runs.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -175,8 +176,17 @@ final class LegacyShopStockPullCharacterizationTest extends CharacterizationTest
 		$this->serveProducts([[903, $item['varenr'], '5700000000031', '259.00', '95.00', 'Pos8 navn']]);
 		// Without a variant barcode it stops even earlier, at its first item (line 177).
 		self::rows("INSERT INTO variant_varer (vare_id, variant_stregkode) VALUES (0, 'CHARTEST-VB')");
+		// pos8 reads the CSV header row as an item with varenr 'varenr'; on a tenant that has one it
+		// dies on SQL before the fatal pinned here, so such an item is moved aside for the run.
+		$aside = self::rows("UPDATE varer SET varenr = 'varenr-chartest-aside' WHERE varenr = 'varenr' RETURNING id");
 
-		$run = $this->runPage('tests/characterization/support/legacy_shop_call.php', ['call' => 'pos8', 'valg' => '2']);
+		try {
+			$run = $this->runPage('tests/characterization/support/legacy_shop_call.php', ['call' => 'pos8', 'valg' => '2']);
+		} finally {
+			foreach ($aside as $row) {
+				self::rows("UPDATE varer SET varenr = 'varenr' WHERE id = $1", [$row['id']]);
+			}
+		}
 
 		$this->assertSame(255, $run['exit']);
 		$this->assertStringContainsString('Unsupported operand types: string * int in ' . CharacterizationEnv::repoRoot() . '/api/varesync_pos8.php', $run['stderr']);
