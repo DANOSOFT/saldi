@@ -147,6 +147,11 @@
 //                  systemdata/labels.php); labels() stays only for the old page, which now redirects.
 // 20261011 Sawaneh The include of sys_div_func_includes/chooseProvision.php removed: the file left with 4a on 2 October
 //                  (provision lives in Organisation » Provision) and the include has warned on every load since.
+// 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
+//                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
+//                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
+//                (Merge into redesign 23/10: that Diverse valg block is gone here - the settings page's masked 'secret' control replaces it.)
+
 include_once("../includes/connect.php"); 
 include_once(__DIR__ . "/../includes/labelTemplates.php");
 
