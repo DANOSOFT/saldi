@@ -8,14 +8,9 @@
 // (bogfor.php:751/757 accumulate $b_diff from the raw $dkkamount) but writes
 // each leg to the ledger rounded to two decimals. kassekladde.amount is
 // numeric(15,3), so the two can disagree: a voucher whose lines cancel out
-// exactly at three decimals passes the check and then posts legs that do not
-// cancel out at two.
-//
-// The tests below PIN that behavior rather than assert the invariant, because
-// the invariant does not currently hold - see
-// test_voucher_balanced_at_three_decimals_posts_an_unbalanced_ledger_entry.
-// If someone fixes the rounding, that test fails and should be rewritten to
-// assert balance; that is the point of pinning it.
+// exactly at three decimals can post legs that do not cancel out at two.
+// Until #674 that posted silently out of balance; now the posting is rolled
+// back, and the sub-ore tests below assert that nothing reaches the ledger.
 //
 // Requires the docker-compose stack - skips cleanly otherwise.
 //

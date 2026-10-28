@@ -105,9 +105,7 @@ final class DunningCharacterizationTest extends CharacterizationTestCase
     }
 
     /**
-     * The cutoff really is "today": an invoice that is not yet due is not
-     * dunned. This bounds the defect above - dunning is one day early
-     * relative to the setting, not arbitrary.
+     * An invoice that is not yet due is not dunned.
      */
     public function test_an_invoice_not_yet_due_is_not_dunned(): void
     {

@@ -25,6 +25,13 @@ if ($xml === false) {
 	exit(2);
 }
 
+// A report with no test cases means discovery ran nothing; that is not a pass.
+$cases = count($xml->xpath('//testcase'));
+if ($cases === 0) {
+	fwrite(STDERR, "check-skips: $file has no test cases\n");
+	exit(1);
+}
+
 $skipped = 0;
 $unexpected = [];
 foreach ($xml->xpath('//testcase[skipped]') as $case) {
@@ -45,4 +52,4 @@ if ($unexpected) {
 	fwrite(STDERR, "Pass the settings they need in .github/workflows/tests.yml, or add them to the allowlist in tools/ci/check-skips.php with the reason.\n");
 	exit(1);
 }
-echo "check-skips: $skipped skipped, all on the allowlist\n";
+echo "check-skips: $cases tests, $skipped skipped, all on the allowlist\n";
