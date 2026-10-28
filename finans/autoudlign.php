@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------ver 5.0.0--------2026.10.02----------
+// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.10.28----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,8 @@
 //                  value on this page - normalized and escaped them the same way.
 // 20261002 CL/NTR  Moved the page's local UTF-8 findtekst() wrapper to includes/stdFunc/findTxtUtf8.php
 //                  as findtekst_utf8() and use it for the $uiText array as well (keyed ids, one call).
+// 20261028 CL/LH   The account selector also offers "Alle debitorer" / "Alle kreditorer", groups the
+//                  accounts by ledger and remembers the ledger choice between entries.
 
 ob_start();
 @session_start();
@@ -167,10 +169,12 @@ if ($entry) {
     }
     $query = db_select("SELECT id, kontonr, art, firmanavn FROM adresser WHERE $accountWhere ORDER BY firmanavn, kontonr", __FILE__ . ' line ' . __LINE__);
     while ($account = db_fetch_array($query)) {
-        $accountOptions[] = $account;
+        $accountOptions[trim($account['art'])][] = $account;
         if ($entryContext['account'] !== '') $selectedAccountId = (string)$account['id'];
     }
 }
+$ledgerLabels = ['D' => findtekst_utf8('7652', $sprog_id), 'K' => findtekst_utf8('7653', $sprog_id)];
+$ledgerAllLabels = ['D' => findtekst_utf8('7650', $sprog_id), 'K' => findtekst_utf8('7651', $sprog_id)];
 
 $amount_fmt = $entry
     ? number_format($entry['resolved_amount'], 2, ',', '.')
@@ -779,14 +783,23 @@ print "</tbody></table></td></tr></tbody></table>";
       <div class="search-row">
         <label for="accountSelect"><?= findtekst('592', $sprog_id) ?></label>
         <select id="accountSelect" class="search-input" <?= $entryContext['account'] !== '' ? 'disabled' : '' ?>>
-          <option value=""><?= findtekst('5324', $sprog_id) ?></option>
-          <?php foreach ($accountOptions as $account): ?>
-          <option value="<?= (int)$account['id'] ?>"
-            data-account="<?= htmlspecialchars($account['kontonr'], ENT_QUOTES, 'UTF-8') ?>"
-            data-type="<?= htmlspecialchars($account['art'], ENT_QUOTES, 'UTF-8') ?>"
-            <?= (string)$account['id'] === $selectedAccountId ? 'selected' : '' ?>>
-            <?= htmlspecialchars($account['art'] . ' ' . $account['kontonr'] . ' — ' . $account['firmanavn'], ENT_QUOTES, 'UTF-8') ?>
-          </option>
+          <option value=""><?= htmlspecialchars(findtekst_utf8('5324', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
+          <?php foreach ($ledgerAllLabels as $type => $label): ?>
+          <option value="<?= $type ?>" data-type="<?= $type ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
+          <?php endforeach; ?>
+          <?php foreach ($ledgerLabels as $type => $label): ?>
+          <?php if (!empty($accountOptions[$type])): ?>
+          <optgroup label="<?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>">
+            <?php foreach ($accountOptions[$type] as $account): ?>
+            <option value="<?= (int)$account['id'] ?>"
+              data-account="<?= htmlspecialchars($account['kontonr'], ENT_QUOTES, 'UTF-8') ?>"
+              data-type="<?= $type ?>"
+              <?= (string)$account['id'] === $selectedAccountId ? 'selected' : '' ?>>
+              <?= htmlspecialchars($type . ' ' . $account['kontonr'] . ' — ' . $account['firmanavn'], ENT_QUOTES, 'UTF-8') ?>
+            </option>
+            <?php endforeach; ?>
+          </optgroup>
+          <?php endif; ?>
           <?php endforeach; ?>
         </select>
       </div>
@@ -1274,6 +1287,7 @@ print "</tbody></table></td></tr></tbody></table>";
 
   accountSelect.addEventListener('change', () => {
     clearTimeout(debounceTimer);
+    rememberLedger();
     fetchCandidates(searchInput.value, 1);
   });
 
@@ -1310,7 +1324,23 @@ print "</tbody></table></td></tr></tbody></table>";
     } catch(_) { return s; }
   }
 
+  /* ── Ledger choice (all / customers / suppliers) ─────────── */
+  // A bookkeeper usually works one ledger at a time, so "Alle debitorer" / "Alle kreditorer"
+  // carries over to the next entry. A specific account is per entry and is not remembered.
+  const LEDGER_KEY = 'saldi.autoudlign.ledger';
+  function rememberLedger() {
+    if (!['', 'D', 'K'].includes(accountSelect.value)) return;
+    try { window.localStorage.setItem(LEDGER_KEY, accountSelect.value); } catch (_) {}
+  }
+  function restoreLedger() {
+    if (accountSelect.disabled) return;
+    let saved = '';
+    try { saved = window.localStorage.getItem(LEDGER_KEY) || ''; } catch (_) {}
+    if (saved === 'D' || saved === 'K') accountSelect.value = saved;
+  }
+
   /* ── Boot ────────────────────────────────────────────────── */
+  restoreLedger();
   // Fetch across accounts unless the journal line or user supplies an account filter.
   // Using the raw description as a literal filter hides the real matches.
   fetchCandidates('', 1);

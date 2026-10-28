@@ -3,6 +3,7 @@
 // Run: php tests/test_auto_settlement.php (pdo_sqlite; no application bootstrap).
 // Optional isolated Postgres: SALDI_CHAR_DSN, SALDI_CHAR_PGUSER, SALDI_CHAR_PGPASS.
 // Fixtures use connection-local temporary tables only.
+// 20261028 CL/LH Cover the type-only (all customers / all suppliers) search filter.
 
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -87,7 +88,8 @@ foreach ([['1009','K',[101,105]], ['1009','D',[102]], ['2000','K',[103]], ['404'
 }
 
 foreach ([['','',[101,102,103,105]], ['1009','K',[101,105]], ['1009','d',[102]],
-    ['1009','',[]], ['','D',[]], ['1009','F',[]], ['', 'F', []],
+    ['','D',[102]], ['','k',[101,103,105]], [' ',' K ',[101,103,105]],
+    ['1009','',[]], ['1009','F',[]], ['', 'F', []], ['', "D' OR 1=1 --", []],
     [[], '', []], ['', [], []], [null, '', []], ["1009' OR 1=1 --",'K',[]]] as [$number,$type,$expected]) {
     $db = fixture();
     $where = autoSettlementSearchWhere($number, $type);

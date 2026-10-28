@@ -1,10 +1,12 @@
 <?php
-// finans/kassekladde_includes/autoSettlement.php --- 2026-09-22
+// finans/kassekladde_includes/autoSettlement.php --- 2026-10-28
 // Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Scope automatic settlement to the chosen account and validate live rows before saving.
 // 20260922 CDX/PHR Allow unfiltered suggestions without broadening malformed account filters.
 // 20260922 CL/NTR Add autoSettlementCandidateSignalWhere() so the unfiltered open_post search
 //                 can bound its SQL fetch without dropping any row the ranking could select.
+// 20261028 CL/LH  autoSettlementSearchWhere() accepts a type without an account, so the Udlign
+//                 screen can list all customers or all suppliers only.
 
 /**
  * Identify the customer/supplier side, or the empty side of an imported bank line.
@@ -53,13 +55,16 @@ function autoSettlementAccountWhere($account, $type) {
     return "openpost.konto_nr = '$account' AND adresser.kontonr = '$account' AND adresser.art = '$type'";
 }
 
-/** @return string SQL predicate for an optional customer/supplier search filter. */
+/** @return string SQL predicate for an optional customer/supplier search filter: one account, one ledger (type only) or both. */
 function autoSettlementSearchWhere($account, $type) {
     if (!is_string($account) || !is_string($type)) return '1 = 0';
     $account = trim($account);
     $type = strtoupper(trim($type));
     if ($account === '' && $type === '') {
         return "adresser.art IN ('D', 'K') AND openpost.konto_nr = adresser.kontonr";
+    }
+    if ($account === '' && in_array($type, ['D', 'K'], true)) {
+        return "adresser.art = '$type' AND openpost.konto_nr = adresser.kontonr";
     }
     return autoSettlementAccountWhere($account, $type);
 }

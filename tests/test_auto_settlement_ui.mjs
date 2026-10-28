@@ -1,6 +1,8 @@
 // 20260908 CDX/LH Exercise the actual settlement-page JavaScript with an isolated DOM and transport.
 // 20260911 Sawaneh Cover the payment ID column in the candidate list.
 // 20260923 CL/SZ Add the T (findtekst()) fixture the page now passes alongside the others.
+// 20261028 CL/LH Read the $uiText map from its findtekst_utf8([...]) form; cover the
+//                 "Alle debitorer" / "Alle kreditorer" choice and remembering it between entries.
 // Run: node tests/test_auto_settlement_ui.mjs
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -19,9 +21,9 @@ const values = {KLADDE_ID:99, ENTRY_ID:1, TOKEN:'fixture-session', SNAPSHOT:'fix
 // 20260923 CL/SZ (CodeRabbit): assert the PHP $uiText keys against the T fixture above -
 // without this, a missing/renamed key in PHP would leave the fixture's extra key silently
 // covering for it and the test would keep passing with an incomplete real T object.
-const uiTextSource = page.match(/\$uiText\s*=\s*\[([\s\S]*?)\];/)?.[1];
+const uiTextSource = page.match(/\$uiText\s*=\s*findtekst_utf8\(\[([\s\S]*?)\]/)?.[1];
 assert.ok(uiTextSource, 'Missing PHP $uiText map');
-const phpTKeys = [...uiTextSource.matchAll(/['"]([^'"]+)['"]\s*=>\s*findtekst\(/g)]
+const phpTKeys = [...uiTextSource.matchAll(/['"]([^'"]+)['"]\s*=>\s*['"]\d+['"]/g)]
   .map(([, key]) => key)
   .sort();
 assert.deepEqual(phpTKeys, Object.keys(values.T).sort(), 'PHP T keys differ from fixture');
@@ -30,7 +32,7 @@ script = script.replace(/(const|let)\s+(\w+)\s*=\s*<\?= .*? \?>;/g, (_,kind,name
   return `${kind} ${name} = ${JSON.stringify(values[name])};`;
 });
 
-function boot(initialAccount = '', used = []) {
+function boot(initialAccount = '', used = [], storage = new Map(), locked = false) {
   const nodes = new Map();
   const listeners = {};
   const requests = [];
@@ -56,21 +58,24 @@ function boot(initialAccount = '', used = []) {
   ['accountSelect','searchInput','candidateBody','udlignBtn','skipBtn','selectionInfo','matchHint','pageInfo','paginationBar','prevBtn','nextBtn'].forEach(element);
   nodes.get('udlignBtn').disabled = true;
   const account = nodes.get('accountSelect');
+  const options = new Map([['',{}],['D',{type:'D'}],['K',{type:'K'}],['29',{account:'1009',type:'K'}]]);
+  Object.defineProperty(account, 'selectedOptions', {get:() => [{dataset:options.get(account.value) || {}}]});
   function choose(id, number = '1009', type = 'K') {
+    if (!options.has(id)) options.set(id, {account:number,type});
     account.value = id;
-    account.selectedOptions = [{dataset:id ? {account:number,type} : {}}];
     account.dispatch('change');
   }
   account.value = initialAccount;
-  if (initialAccount) account.selectedOptions = [{dataset:{account:'1009',type:'K'}}];
+  account.disabled = locked;
+  const localStorage = {getItem:key=>storage.has(key) ? storage.get(key) : null, setItem:(key,value)=>storage.set(key,String(value))};
   const location = {pathname:'/finans/autoudlign.php', href:''};
-  const context = {URLSearchParams,FormData,console,window:{location},alert:message=>alerts.push(message),
+  const context = {URLSearchParams,FormData,console,window:{location,localStorage},alert:message=>alerts.push(message),
     document:{getElementById:id=>nodes.get(id),addEventListener:(name,fn)=>{listeners[name]=fn;}},
     setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),
     fetch:(url,options)=>new Promise((resolve,reject)=>requests.push({url,options,resolve,reject}))};
   vm.runInNewContext(script.replace('const BRUGT = [];', 'const BRUGT = ' + JSON.stringify(used) + ';'), context, {filename:'autoudlign-page.js'});
   const key = (key,target=nodes.get('searchInput')) => listeners.keydown({key,target,preventDefault(){}});
-  return {nodes,requests,choose,key,location,alerts,timers};
+  return {nodes,requests,choose,key,location,alerts,timers,storage};
 }
 const candidate = (id=101, amountMatch=true) => ({id,konto_id:29,kontonr:'1009',art:'K',faktnr:`REF-${id}`,firmanavn:'Alcar',amount:amountMatch?500:1991.50,amountMatch,transdate:'2026-09-01'});
 async function respond(request, results, metadata = {}) {
@@ -188,4 +193,32 @@ await respond(ui.requests[0],[{...candidate(),betalings_id:'000521422'},{...cand
 assert.match(ui.nodes.get('candidateBody').innerHTML,/000521422/,'Payment ID from the order was not rendered in the candidate list');
 assert.doesNotMatch(ui.nodes.get('candidateBody').innerHTML,/undefined|null/,'Blank payment ID rendered as a literal');
 
-console.log('PASS: account choice, typed search parameters, keyboard confirmation, ambiguous/partial/no matches, duplicate submit guard, save errors, stale responses and payment ID column.');
+const searchParams = request => new URL(request.url,'https://fixture.invalid').searchParams;
+ui=boot();
+ui.choose('D');
+query = searchParams(ui.requests[1]);
+assert.equal(query.get('account'),'','All customers must not send an account number');
+assert.equal(query.get('accountType'),'D','All customers must filter on the customer ledger');
+assert.equal(ui.storage.get('saldi.autoudlign.ledger'),'D','Ledger choice was not remembered');
+ui.choose('31','2000','K');
+assert.equal(ui.storage.get('saldi.autoudlign.ledger'),'D','A specific account replaced the remembered ledger');
+ui.choose('K');
+assert.equal(searchParams(ui.requests[3]).get('accountType'),'K');
+ui.choose('');
+assert.equal(ui.storage.get('saldi.autoudlign.ledger'),'','Back to both ledgers was not remembered');
+
+ui=boot('',[],new Map([['saldi.autoudlign.ledger','K']]));
+assert.equal(ui.nodes.get('accountSelect').value,'K','Remembered ledger was not restored on the next entry');
+query = searchParams(ui.requests[0]);
+assert.equal(query.get('account'),'');
+assert.equal(query.get('accountType'),'K','First fetch ignored the remembered ledger');
+
+ui=boot('29',[],new Map([['saldi.autoudlign.ledger','D']]),true);
+query = searchParams(ui.requests[0]);
+assert.equal(query.get('account'),'1009','Remembered ledger overrode the account on the journal line');
+assert.equal(query.get('accountType'),'K');
+
+ui=boot('',[],new Map([['saldi.autoudlign.ledger','X']]));
+assert.equal(searchParams(ui.requests[0]).get('accountType'),'','Unknown remembered value was applied');
+
+console.log('PASS: ledger choice (all/customers/suppliers) and remembering it, account choice, typed search parameters, keyboard confirmation, ambiguous/partial/no matches, duplicate submit guard, save errors, stale responses and payment ID column.');

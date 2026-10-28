@@ -5192,6 +5192,10 @@
 5322	Bedste match	Best matches	Beste treff
 5323	Andre åbne posteringer	Other open entries	Andre åpne posteringer
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
+7650	Alle debitorer	All customers	Alle debitorer
+7651	Alle kreditorer	All suppliers	Alle kreditorer
+7652	Debitorer	Customers	Debitorer
+7653	Kreditorer	Suppliers	Kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
 5327	Kontokort med u-bogført	General ledger with unposted entries	Kontokort med ikke-bokførte
