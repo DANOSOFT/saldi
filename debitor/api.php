@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- debitor/api.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,8 @@
 // 20261026 CL/MMR SD-774 An order or card CVR field holding the EAN/GLN, or no real number such as "-" or "N/A", is not used as the CVR (einvoice_cvr_present()), so the card's real CVR is sent, or the send is blocked when neither has one.
 //                 A Danish receiver on a GLN scheme like "GLN:5798..." without a CVR gets the same explanation instead of the old alert, and a missing card row no longer raises warnings.
 // 20261026 CL/MMR SD-774 easyUblCvrMissing() takes the database, encoding and language as parameters instead of globals; sendInvoice() gets them from its caller in $context.
+// 20261028 CL/MMR SST-905 An EAN written with the Peppol scheme 0088 ("0088:7350043510008") is sent as a GLN, like a plain EAN, and companyId comes from the order's or card's CVR.
+//                 0088 is the GS1 GLN; it was mapped to the Swedish organisation number (SE:ORGNR) and sent as "SE<gln>", also as companyId (MEDSHOP faktura 238877, Error 2026-07-07).
 
     @session_start();
     $s_id=session_id();
@@ -554,11 +556,13 @@
             // Change === true to !== false
             $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
             $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
-            if(is_numeric($endpointType)){
+            if($endpointType === "0088"){
+                // SST-905: ICD 0088 is the GS1 GLN, so "0088:<gln>" is routed like a plain EAN, and companyId comes from the CVR below
+                $endpointType = "GLN";
+            } else if(is_numeric($endpointType)){
                 $peppolSchemes = [
                     "0184" => ["prefix" => "DK", "type" => "DK:CVR"],
                     "0007" => ["prefix" => "SE", "type" => "SE:ORGNR"],
-                    "0088" => ["prefix" => "SE", "type" => "SE:ORGNR"],
                     "9908" => ["prefix" => "NO", "type" => "NO:ORGNR"],
                     "0192" => ["prefix" => "NO", "type" => "NO:ORG"],
                     "0037" => ["prefix" => "FI", "type" => "FI:OVT"],
