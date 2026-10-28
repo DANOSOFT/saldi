@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- api/rest_api.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -83,8 +83,14 @@
 // 20261026 CL/LH Ported the 20260917/20260922 fetch_from_table() production hotfix from live into master.
 // 20261026 CL/SZ SD-750 insert_shop_order for a shop whose legacy slot is closed for intake answers 410 before
 //                anything is written (503 while a cutover runs); the afd-4 IP rule moved to shopify_legacy_effective_afd().
+// 20261027 CL/LH SST-884 insert_shop_order decodes HTML entities in each shop value before escaping it (shop_input_text()), and no longer runs its queries through chk4utf8().
+//                chk4utf8()'s html_entity_decode() on the escaped SQL turned &#39; back into a bare ', so O&#39;Brien broke the insert and dropped the order.
 // 20261027 CL/NTR fetch_from_table(): return 'query failed' when db_select() fails instead of
 //                reading field metadata from a false result (CodeRabbit).
+// 20261027 CL/SZ insert_shop_order: an order without 'gruppe' takes the debtor's own group (a new
+//                debtor gets the first DG group), and keeps the shop's momssats if no group is
+//                found, instead of an SQL error on kodenr = '' and momssats 0 (MB-116)
+// 20261027 CL/SZ insert_shop_order: initialise $ktonr so a tenant with no debtors gets account 1000 instead of a PHP 8 TypeError (MB-115).
 
 
 // ----------------------------------------------------------------------
@@ -190,6 +196,23 @@ function shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean) {
 	return array($cvrnr, $ean);
 }
 
+/**
+ * SST-884: a value the shop sent, as the plain UTF-8 text to store. Bytes that are not valid UTF-8
+ * are read as Windows-1252 (as db_escape_string() does) and HTML entities are decoded, so
+ * O&#39;Brien becomes O'Brien. Run it before db_escape_string(), never on finished SQL: decoding
+ * after escaping turns &#39; back into a bare ' inside a quoted value.
+ *
+ * @param mixed $value Value from the shop request; null becomes ''.
+ * @return string
+ */
+function shop_input_text($value) {
+	$value = (string)$value;
+	if (!mb_check_encoding($value, 'UTF-8')) {
+		$value = mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
+	}
+	return html_entity_decode($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8');
+}
+
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
 	global $db,$db_skriv_id;
@@ -197,7 +220,19 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	global $webservice;
 	global $regnaar;
 
+	// SST-884: decode the shop's text once, before any of it is escaped into SQL. The queries below
+	// no longer pass through chk4utf8(), which decoded entities after escaping.
+	$shop_text_fields = array(
+		'shop_fakturanr','saldi_kontonr','firmanavn','addr1','addr2','postnr','bynavn','land','cvrnr','ean',
+		'tlf','email','udskriv_til','ref','kontakt','lev_firmanavn','lev_addr1','lev_addr2','lev_postnr',
+		'lev_bynavn','lev_land','lev_tlf','lev_email','lev_kontakt','betalingsbet','betalings_id','ordredate',
+		'valuta','gruppe','ekstra1','ekstra2','ekstra3','ekstra4','ekstra5','shop_status','notes','sprog','art'
+	);
+	foreach ($shop_text_fields as $shop_text_field) {
+		$$shop_text_field = shop_input_text($$shop_text_field);
+	}
 	$betalingsdage=(int)$betalingsdage;
+	$gruppe=(int)$gruppe;
 	// Route this customer's shop orders to the replacement warehouse.
 	if ($db === 'pos_50') {
 		$lager = 4;
@@ -336,7 +371,6 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			$qtxt="select id,kontonr from adresser where art = 'D' and "; 
 			$qtxt.="tlf='".db_escape_string((string)$tlf)."'";
 			fwrite($log,__line__." $qtxt\n");
-			$qtxt=chk4utf8($qtxt);
 			if ($r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$saldi_addr_id=$r['id']*1;
 				$kontonr=$saldi_kontonr=$r['kontonr']; #20190822
@@ -356,6 +390,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 					fwrite($log,__line__." kontonr $kontonr\n");
 				} elseif (!$kontonr) { 
 					$x=0;
+					$ktonr=array();
 					$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
 					fwrite($log,__line__." $qtxt\n");
 					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -368,6 +403,11 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 					while(in_array($kontonr,$ktonr)) $kontonr++;
 				}
 				fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
+				if (!$gruppe) {
+					$qtxt = "select kodenr from grupper where art='DG' order by fiscal_year desc, kodenr limit 1";
+					if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $gruppe=(int)$r['kodenr'];
+					fwrite($log,__line__." No gruppe sent, new debtor gets gruppe $gruppe\n");
+				}
 				$qtxt = "insert into adresser";
 				$qtxt.= "(kontonr,firmanavn,addr1,addr2,";
 				$qtxt.= "postnr,bynavn,land,cvrnr,ean,email,tlf,";
@@ -384,7 +424,6 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 				$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
 				$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
 				fwrite($log,__line__." $qtxt\n");
-				$qtxt=chk4utf8($qtxt);
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$r=db_fetch_array(db_select("select id from adresser where kontonr='".db_escape_string((string)$kontonr)."' and art = 'D'",__FILE__ . " linje " . __LINE__));
 				$saldi_addr_id=$r['id'];
@@ -403,15 +442,26 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	fwrite($log,__line__." cvrnr '$cvrnr' ean '$ean'\n");
 	$ordrenr = get_next_order_number("DO");
 	$projektnr=0;
-	$qtxt = "select box1 from grupper where art='DG' and kodenr = '".db_escape_string((string)$gruppe)."' ";
-	$qtxt.= "order by fiscal_year desc limit 1";
-	fwrite($log,__line__." $qtxt\n");
-	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-	$momsgruppe=str_replace('S','',$r['box1']);
-	$qtxt = "select box2 from grupper where art='SM' and kodenr = '".db_escape_string((string)$momsgruppe)."' ";
-	$qtxt.= "order by fiscal_year desc limit 1";
-	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-	$momssats=$r['box2']*1;
+	if (!$gruppe && $saldi_addr_id) {
+		$qtxt = "select gruppe from adresser where id = '".(int)$saldi_addr_id."'";
+		fwrite($log,__line__." $qtxt\n");
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $gruppe=(int)$r['gruppe'];
+	}
+	// The shop's momssats is only kept when no debtor group is found
+	$momssats=(float)$momssats;
+	if ($gruppe) {
+		$qtxt = "select box1 from grupper where art='DG' and kodenr = '".db_escape_string((string)$gruppe)."' ";
+		$qtxt.= "order by fiscal_year desc limit 1";
+		fwrite($log,__line__." $qtxt\n");
+		if ($r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__))) {
+			$momsgruppe=(int)substr($r['box1'],1);
+			$qtxt = "select box2 from grupper where art='SM' and kodenr = '".db_escape_string((string)$momsgruppe)."' ";
+			$qtxt.= "order by fiscal_year desc limit 1";
+			$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
+			$momssats=($r) ? $r['box2']*1 : 0;
+		}
+	}
+	fwrite($log,__line__." gruppe $gruppe momssats $momssats\n");
 	if (!$valuta)$valuta='DKK';
 	if ($valuta=='DKK') {
 		$valutakurs=100;
@@ -448,7 +498,6 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','".db_escape_string((string)$shop_status)."',";
 	$qtxt.= "'".db_escape_string((string)$shopOrderId)."','".db_escape_string($notes)."','".db_escape_string((string)$sprog)."')";
 	fwrite($log,__line__." $qtxt\n");
-	$qtxt=chk4utf8 ($qtxt);
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="select id from ordrer where ordrenr='".db_escape_string((string)$ordrenr)."' and kontonr='".db_escape_string((string)$kontonr)."'";
 	fwrite($log,__line__." $qtxt\n");
