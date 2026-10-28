@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-03-20---
+//------------index/install.php----lap 5.0.0---2026-10-23---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,7 @@
 //                   missing write access stops the wizard with a message instead of an exception after the DB is created.
 // 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
 // 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
+// 20261023 CL/NTR Added tekst_key to tekster table, and added an index on (sprog_id, tekst_key) for faster lookups. This is needed for the new translation system to work properly.
 
 session_start();
 ob_start(); //Starter output buffering

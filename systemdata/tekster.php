@@ -138,7 +138,7 @@ if ($kopier) {
 		$tekst_key[$x]=ifset($r, 'tekst_key', '');
 		$tekst[$x]=$r['tekst'];
 	}
-}
+}	
 $tekstantal=$x;
 for($x=1; $x<=$tekstantal; $x++){
 	// 20261028 CL/NTR Match the target row by tekst_id, or by tekst_key for rows that have no tekst_id.
