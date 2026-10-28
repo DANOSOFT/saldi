@@ -3,31 +3,39 @@
 //                  betweenUpdates.php: Postgres idempotency, the MySQL GET_LOCK/recheck idiom,
 //                  lock-acquisition failure, concurrent creation and DDL-error lock release.
 // 20261028 CDX/NTR Expect the index lock when an existing column still needs its index.
+// 20261028 CDX/NTR Cover the same migration running against the master database.
 
 namespace Saldi\Tests\TekstKeyMigration;
 
 use PHPUnit\Framework\TestCase;
 
-function db_select($sql, $location)
+function db_select($sql, $location, $global = false)
 {
     $state = $GLOBALS['tekstKeyMigration'];
     $state->queries[] = $sql;
+    $state->queryTargets[] = ['sql' => $sql, 'global' => $global];
     if (strpos($sql, 'GET_LOCK(') !== false) {
         // A rival login may add the column while this connection waits on the lock.
-        if ($state->rivalCreatesColumn) {
+        if (!$global && $state->rivalCreatesColumn) {
             $state->columnExists = true;
         }
         return ['acquired' => $state->lockResult];
     }
     if (strpos($sql, 'RELEASE_LOCK(') !== false) {
-        $state->released = true;
+        if ($global) {
+            $state->masterReleased = true;
+        } else {
+            $state->released = true;
+        }
         return [];
     }
     if (strpos($sql, 'information_schema.statistics') !== false) {
-        return $state->indexExists ? ['index_name' => 'idx_tekster_sprog_key'] : false;
+        $exists = $global ? $state->masterIndexExists : $state->indexExists;
+        return $exists ? ['index_name' => 'idx_tekster_sprog_key'] : false;
     }
     // information_schema.columns existence probe for tekst_key.
-    return $state->columnExists ? ['column_name' => 'tekst_key'] : false;
+    $exists = $global ? $state->masterColumnExists : $state->columnExists;
+    return $exists ? ['column_name' => 'tekst_key'] : false;
 }
 
 function db_fetch_array($result)
@@ -35,17 +43,26 @@ function db_fetch_array($result)
     return $result;
 }
 
-function db_modify($sql, $location)
+function db_modify($sql, $location, $global = false)
 {
     $state = $GLOBALS['tekstKeyMigration'];
     $state->writes[] = $sql;
+    $state->writeTargets[] = ['sql' => $sql, 'global' => $global];
     if ($state->writeError !== null) {
         throw $state->writeError;
     }
     if (strpos($sql, 'ALTER TABLE') !== false) {
-        $state->columnExists = true;
+        if ($global) {
+            $state->masterColumnExists = true;
+        } else {
+            $state->columnExists = true;
+        }
     } elseif (strpos($sql, 'CREATE INDEX') !== false) {
-        $state->indexExists = true;
+        if ($global) {
+            $state->masterIndexExists = true;
+        } else {
+            $state->indexExists = true;
+        }
     }
 }
 
@@ -53,21 +70,28 @@ final class TekstKeyMigrationTest extends TestCase
 {
     protected function setUp(): void
     {
+        $GLOBALS['db'] = 'tenant';
+        $GLOBALS['sqdb'] = 'tenant';
         $GLOBALS['tekstKeyMigration'] = (object) [
             'columnExists' => false,
             'indexExists' => false,
+            'masterColumnExists' => false,
+            'masterIndexExists' => false,
             'rivalCreatesColumn' => false,
             'lockResult' => '1',
             'released' => false,
+            'masterReleased' => false,
             'writeError' => null,
             'queries' => [],
+            'queryTargets' => [],
             'writes' => [],
+            'writeTargets' => [],
         ];
     }
 
     protected function tearDown(): void
     {
-        unset($GLOBALS['tekstKeyMigration']);
+        unset($GLOBALS['db'], $GLOBALS['sqdb'], $GLOBALS['tekstKeyMigration']);
     }
 
     public function testPostgresAddsColumnAndIndexIdempotently(): void
@@ -132,6 +156,33 @@ final class TekstKeyMigrationTest extends TestCase
         self::assertSame([], $state->writes);
         foreach ($state->queries as $q) {
             self::assertStringNotContainsString('GET_LOCK(', $q);
+        }
+    }
+
+    public function testMigrationAlsoUpdatesMasterDatabase(): void
+    {
+        foreach (['postgresql', 'mysqli'] as $driver) {
+            $this->setUp();
+            $GLOBALS['sqdb'] = 'master';
+            $this->migrate($driver);
+            $state = $GLOBALS['tekstKeyMigration'];
+
+            self::assertTrue($state->columnExists);
+            self::assertTrue($state->indexExists);
+            self::assertTrue($state->masterColumnExists);
+            self::assertTrue($state->masterIndexExists);
+
+            $tenantWrites = array_values(array_filter($state->writeTargets, static fn ($write) => !$write['global']));
+            $masterWrites = array_values(array_filter($state->writeTargets, static fn ($write) => $write['global']));
+            self::assertCount(2, $tenantWrites);
+            self::assertCount(2, $masterWrites);
+
+            if ($driver === 'mysqli') {
+                $masterLocks = array_filter($state->queryTargets, static fn ($query) => $query['global'] && strpos($query['sql'], 'GET_LOCK(') !== false);
+                $masterReleases = array_filter($state->queryTargets, static fn ($query) => $query['global'] && strpos($query['sql'], 'RELEASE_LOCK(') !== false);
+                self::assertCount(2, $masterLocks);
+                self::assertCount(2, $masterReleases);
+            }
         }
     }
 

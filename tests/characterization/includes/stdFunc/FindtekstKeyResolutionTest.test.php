@@ -2,6 +2,7 @@
 // 20261023 CL/NTR Cover findtekst() string-key resolution: key-row translation, the placeholder
 //                  rule (tekst == tekst_key and the '-' sentinel), legacy content-match fallthrough,
 //                  self-heal insert/update, unchanged numeric-id lookups and pre-column safety.
+// 20261028 CDX/NTR Cover pipe fallback when an unresolved key cannot self-heal.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -110,6 +111,13 @@ final class FindtekstKeyResolutionTest extends TestCase
         self::assertStringContainsString('insert into tekster(sprog_id,tekst_key,tekst)', $writes[0]);
         self::assertStringContainsString("'brand.newkey'", $writes[0]);
         self::assertStringContainsString("'Hello'", $writes[0]);
+    }
+
+    public function testUnknownKeyReturnsPipeFallbackWhenSelfHealIsUnavailable(): void
+    {
+        $GLOBALS['sqdb'] = $GLOBALS['db'];
+        self::assertSame('Hello', findtekst('brand.newkey|Hello', 2));
+        self::assertSame([], $GLOBALS['findtekstStub']->writes);
     }
 
     public function testNumericIdLookupIsUnchanged(): void

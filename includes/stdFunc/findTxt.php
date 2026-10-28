@@ -1,17 +1,18 @@
 <?php
 
  // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
- // 20250829 PHR Returns textId if table tekster doeesn't exist
- // 20250909 LOE checks first that db functions exist and error log added
- // 20260320 LOE Updated $sessionVar to only allow values that won't corrupt the session array.
- // 20260512 PHR CL/PHR Enabled cache.
- // 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
- // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
- // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
- // 20261022 CL/NTR findtekst() now accepts descriptive string keys (tekst_key) alongside numeric tekst_id, with key-first resolution, self-heal insert and a placeholder rule. See doc/ai/convention_findtekst_keys.md.
- // 20261028 CL/NTR Schema-scoped the tekst_key column probe; $db_type pulled in via global.
- // 20261028 CL/NTR Session cache key moved to findtekst_session_var() so editors can clear it after a change.
- // 20261028 CL/NTR findtekst_session_var() no longer lets different tokens collapse to one key after sanitizing.
+// 20250829 PHR Returns textId if table tekster doeesn't exist
+// 20250909 LOE checks first that db functions exist and error log added
+// 20260320 LOE Updated $sessionVar to only allow values that won't corrupt the session array.
+// 20260512 PHR CL/PHR Enabled cache.
+// 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
+// 20260825 NTR fixed indentation and block bracket convention. (no logic change)
+// 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
+// 20261022 CL/NTR findtekst() now accepts descriptive string keys (tekst_key) alongside numeric tekst_id, with key-first resolution, self-heal insert and a placeholder rule. See doc/ai/convention_findtekst_keys.md.
+// 20261028 CL/NTR Schema-scoped the tekst_key column probe; $db_type pulled in via global.
+// 20261028 CL/NTR Session cache key moved to findtekst_session_var() so editors can clear it after a change.
+// 20261028 CL/NTR findtekst_session_var() no longer lets different tokens collapse to one key after sanitizing.
+// 20261028 CDX/NTR Return the pipe fallback when an unresolved key cannot self-heal.
 
 
 if (!function_exists('findtekst_session_var')) {
@@ -180,6 +181,12 @@ if (!function_exists('findtekst')) {
 		}
 
 		if (!preg_match('/^[0-9]+$/', $textId)) {
+			if ($b !== null && $b !== '') {
+				if ($db_encode != 'UTF8') {
+					$b = mb_convert_encoding($b, 'ISO-8859-1', 'UTF-8');
+				}
+				return $b;
+			}
 			return $textId; # If other characters than digits in textID then return textID - used when developing # 20230224
 		}
 		#echo "L $languageID B $bruger_id<br>";
