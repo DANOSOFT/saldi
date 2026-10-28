@@ -762,7 +762,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(shop_input_text($varenr)),$antal,db_escape_string(shop_input_text($beskrivelse)),$pris,$rabat,'100',$line_art,$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,__LINE__);
 		
 		fwrite($log,__line__." LineSum =  $lineSum\n");
-		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '" . (int)$vare_id . "'"; 
+		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '" . (int)$vare_id . "'";
 		fwrite($log,__line__." $qtxt\n");
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $linje_id = $r['id'];
 		else $linje_id = 0;
