@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -164,10 +164,14 @@
 // 20261023 CL/MMR SD-774 A popup asks for the receiver's CVR when an invoice is to be sent Digitalt to an EAN and neither the order nor the debitor card has a CVR.
 //                 It opens on load when Udskriv til is Digitalt, and on an open order also when Digitalt is chosen in the list.
 //                 Its Gem saves the CVR on the order and, when ticked, on the debitor card (orderIncludes/einvoiceCvr.php, javascript/einvoiceCvrPopup.js).
+// 20261023 CL/MMR SST-889 A samlet pris typed in "I alt" right after adding an item left the line without a price field, so the next save stored the price as 0 kr.
+//                  The hidden price is now only left out when an enabled visible price field carries it.
 // 20261026 CL/MMR SD-774 The popup saves the CVR through debitor/einvoiceCvrSave.php (AJAX) instead of posting the order form, so this page has no save path or redirect of its own for it.
 // 20261027 CL/LH PR #681 (NTR): the credit-limit lookup and the Kreditloft warning only run when the order has a
 //                konto_id, and kreditmax is read with floatval(ifset($r, 'kreditmax', 0)). if_isset($r['kreditmax']) * 1
 //                read the offset before the call, so it warned when there was no konto_id or no adresser row.
+// 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
+//                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
 
 @session_start();
 $s_id = session_id();
@@ -6158,6 +6162,8 @@ function ordreside($id, $regnskab)
 				list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', $r['id'], '0', '99', $rvnr, $r['beskrivelse'], '', $r['lager'], $r['pris'], $r['rabat'], 'percent', '100', '1', '0', '0', $r['vare_id'], '', '0', '0', $momssats, '', '', '', '', '', '', '', '', '', '', '', '', '0', '', '0', '0', $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
 			}
 		}
+		// SST-902: the unrounded net (lines at 3 decimals), from which the moms below is computed as the invoice does it
+		$sumBeforeRounding = $sum;
 		$sum = afrund($sum, 2);
 		$moms = afrund($moms, 2);
 
@@ -6290,13 +6296,17 @@ function ordreside($id, $regnskab)
 				if ($art != 'OT') print "<td></td>\n"; #20140716
 				print "</tr>\n";
 				$sum += $tillag;
+				$sumBeforeRounding += $tillag;
 				$dbsum += $tillag;
 				$moms += $tillag / 100 * $momssats;
 			}
 
 			print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">\n";
 
-			if (!$blandet_moms && !$incl_moms) $moms = $sum * $momssats / 100; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
+			// SST-902: from the unrounded net and rounded to øre, like momsupdat() in includes/ordrefunc.php does when the order is invoiced.
+			// This line runs after a save (the global $momssats that ordrelinjer() compares with is only set by the POST handling);
+			// with the rounded $sum, 2 x 139,648 showed and stored moms 69,825 (69,83 / 349,13) while the invoice is 69,82 / 349,12.
+			if (!$blandet_moms && !$incl_moms) $moms = afrund($sumBeforeRounding * $momssats / 100, 2); #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 			$moms = afrund($moms * 1, 3);
 
 			$kostpris[0] *= 1;
@@ -6892,7 +6902,9 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$hidden_inputs .= "<input type=\"hidden\" name=\"lager[$x]\" value=\"$lager\">\n";
 	#  if ($art=='OT' || $saetnr || ($rvnr && $rabat)) { // Når input fields er 'disabled' bliver de ikke opdateret, derfor tilføjes hidden fields
 	$hidden_inputs .= "<input type=\"hidden\" name=\"beskrivelse$x\" value=\"$beskrivelse\">\n";
-	if ($fokus != "pris$x") $hidden_inputs .= "<input type=\"hidden\" name=\"pris$x\" value=\"$dkpris\">\n";
+	// The hidden price may only give way to an enabled visible price field, or the price is saved as 0
+	$priceFieldShown = !$disabled && (($saet && $samlevare) || (!$saet && !$saetnr && !$rvnr));
+	if ($fokus != "pris$x" || !$priceFieldShown) $hidden_inputs .= "<input type=\"hidden\" name=\"pris$x\" value=\"$dkpris\">\n";
 	$hidden_inputs .= "<input type=\"hidden\" name=\"raba$x\" value=\"$dkrabat\">\n";
 	$hidden_inputs .= "<input type=\"hidden\" name=\"vare$x\" value=\"$varenr\">\n"; #Tilføjet 20161011 Hvis fjernes fungerer "samlet pris ikke"
 	$hidden_inputs .= "<input type=\"hidden\" name=\"posn$x\" value=\"$ny_pos\">\n";

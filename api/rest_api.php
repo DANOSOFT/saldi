@@ -85,6 +85,10 @@
 //                chk4utf8()'s html_entity_decode() on the escaped SQL turned &#39; back into a bare ', so O&#39;Brien broke the insert and dropped the order.
 // 20261027 CL/NTR fetch_from_table(): return 'query failed' when db_select() fails instead of
 //                reading field metadata from a false result (CodeRabbit).
+// 20261027 CL/SZ insert_shop_order: an order without 'gruppe' takes the debtor's own group (a new
+//                debtor gets the first DG group), and keeps the shop's momssats if no group is
+//                found, instead of an SQL error on kodenr = '' and momssats 0 (MB-116)
+// 20261027 CL/SZ insert_shop_order: initialise $ktonr so a tenant with no debtors gets account 1000 instead of a PHP 8 TypeError (MB-115).
 
 
 // ----------------------------------------------------------------------
@@ -226,6 +230,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		$$shop_text_field = shop_input_text($$shop_text_field);
 	}
 	$betalingsdage=(int)$betalingsdage;
+	$gruppe=(int)$gruppe;
 	// Route this customer's shop orders to the replacement warehouse.
 	if ($db === 'pos_50') {
 		$lager = 4;
@@ -385,6 +390,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 					fwrite($log,__line__." kontonr $kontonr\n");
 				} elseif (!$kontonr) { 
 					$x=0;
+					$ktonr=array();
 					$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
 					fwrite($log,__line__." $qtxt\n");
 					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -397,6 +403,11 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 					while(in_array($kontonr,$ktonr)) $kontonr++;
 				}
 				fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
+				if (!$gruppe) {
+					$qtxt = "select kodenr from grupper where art='DG' order by fiscal_year desc, kodenr limit 1";
+					if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $gruppe=(int)$r['kodenr'];
+					fwrite($log,__line__." No gruppe sent, new debtor gets gruppe $gruppe\n");
+				}
 				$qtxt = "insert into adresser";
 				$qtxt.= "(kontonr,firmanavn,addr1,addr2,";
 				$qtxt.= "postnr,bynavn,land,cvrnr,ean,email,tlf,";
@@ -431,15 +442,26 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	fwrite($log,__line__." cvrnr '$cvrnr' ean '$ean'\n");
 	$ordrenr = get_next_order_number("DO");
 	$projektnr=0;
-	$qtxt = "select box1 from grupper where art='DG' and kodenr = '".db_escape_string((string)$gruppe)."' ";
-	$qtxt.= "order by fiscal_year desc limit 1";
-	fwrite($log,__line__." $qtxt\n");
-	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-	$momsgruppe=str_replace('S','',$r['box1']);
-	$qtxt = "select box2 from grupper where art='SM' and kodenr = '".db_escape_string((string)$momsgruppe)."' ";
-	$qtxt.= "order by fiscal_year desc limit 1";
-	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-	$momssats=$r['box2']*1;
+	if (!$gruppe && $saldi_addr_id) {
+		$qtxt = "select gruppe from adresser where id = '".(int)$saldi_addr_id."'";
+		fwrite($log,__line__." $qtxt\n");
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $gruppe=(int)$r['gruppe'];
+	}
+	// The shop's momssats is only kept when no debtor group is found
+	$momssats=(float)$momssats;
+	if ($gruppe) {
+		$qtxt = "select box1 from grupper where art='DG' and kodenr = '".db_escape_string((string)$gruppe)."' ";
+		$qtxt.= "order by fiscal_year desc limit 1";
+		fwrite($log,__line__." $qtxt\n");
+		if ($r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__))) {
+			$momsgruppe=(int)substr($r['box1'],1);
+			$qtxt = "select box2 from grupper where art='SM' and kodenr = '".db_escape_string((string)$momsgruppe)."' ";
+			$qtxt.= "order by fiscal_year desc limit 1";
+			$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
+			$momssats=($r) ? $r['box2']*1 : 0;
+		}
+	}
+	fwrite($log,__line__." gruppe $gruppe momssats $momssats\n");
 	if (!$valuta)$valuta='DKK';
 	if ($valuta=='DKK') {
 		$valutakurs=100;
