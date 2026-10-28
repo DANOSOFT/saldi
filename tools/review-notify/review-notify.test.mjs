@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LABEL, digestText, parseChatMap, plan, recipientFor, workingDaysBetween } from "./review-notify.mjs";
+import { LABEL, chunkText, digestText, parseChatMap, plan, recipientFor, workingDaysBetween } from "./review-notify.mjs";
 
 const map = parseChatMap(JSON.stringify({
   users: { alice: 1, lui: 2 },
@@ -19,6 +19,7 @@ function pr(over = {}) {
     isDraft: false,
     author: "alice",
     labels: [],
+    labelledAt: "2026-10-26T14:05:00Z",
     requested: [],
     changeRequests: [{ reviewer: "nicolai", submittedAt: "2026-10-26T14:00:00Z", comments: 2 }],
     lastCommitAt: "2026-10-26T10:00:00Z",
@@ -75,7 +76,8 @@ test("an approved or dismissed change request clears the label", () => {
 });
 
 test("a fresh change request after a re-request notifies before the label is cleared", () => {
-  // Author re-requested nicolai, but bob now asks for changes: bob still waits, so no clear.
+  // Author re-requested nicolai, but bob now asks for changes: bob still waits, so no clear,
+  // and bob's request is newer than the label, so the author hears about it.
   const p = plan([pr({
     labels: [LABEL],
     requested: ["nicolai"],
@@ -85,6 +87,29 @@ test("a fresh change request after a re-request notifies before the label is cle
     ],
   })], { mode: "notify", now: tuesday, map });
   assert.equal(p.removeLabel.length, 0);
+  assert.equal(p.messages.length, 1);
+  assert.equal(p.messages[0].type, "notify");
+  assert.match(p.messages[0].text, /By bob\./);
+  assert.doesNotMatch(p.messages[0].text, /nicolai/);
+  assert.deepEqual(p.addLabel.map((x) => x.number), [1]);
+});
+
+test("a second request while the label is on notifies once, then not again", () => {
+  const two = [
+    { reviewer: "nicolai", submittedAt: "2026-10-26T14:00:00Z", comments: 1 },
+    { reviewer: "bob", submittedAt: "2026-10-27T09:00:00Z", comments: 0 },
+  ];
+  const before = plan([pr({ labels: [LABEL], changeRequests: two })], { mode: "notify", now: tuesday, map });
+  assert.equal(before.messages.length, 1);
+  assert.match(before.messages[0].text, /By bob\./);
+  // After the run re-applies the label, its time is past both requests.
+  const after = plan([pr({ labels: [LABEL], labelledAt: "2026-10-27T09:10:00Z", changeRequests: two })], { mode: "notify", now: tuesday, map });
+  assert.equal(after.messages.length, 0);
+});
+
+test("a label with no known time never re-notifies", () => {
+  const p = plan([pr({ labels: [LABEL], labelledAt: null })], { mode: "notify", now: wednesday, map });
+  assert.equal(p.messages.length, 0);
 });
 
 test("agent PRs go to the sponsor", () => {
@@ -120,11 +145,53 @@ test("notify mode never sends reminders", () => {
   assert.equal(p.messages.length, 0);
 });
 
+test("reminder age and names come from requests still waiting, not re-requested ones", () => {
+  // nicolai asked on Monday and still waits; bob asked on Tuesday but was re-requested.
+  const p = plan([pr({
+    labels: [LABEL],
+    labelledAt: "2026-10-27T09:10:00Z",
+    requested: ["bob"],
+    changeRequests: [
+      { reviewer: "nicolai", submittedAt: "2026-10-26T14:00:00Z", comments: 1 },
+      { reviewer: "bob", submittedAt: "2026-10-27T09:00:00Z", comments: 0 },
+    ],
+  })], { mode: "remind", now: wednesday, map });
+  assert.equal(p.messages.length, 1);
+  assert.match(p.messages[0].text, /nicolai requested changes 2 working days ago/);
+  assert.doesNotMatch(p.messages[0].text, /bob/);
+  assert.deepEqual(p.overdue.map((o) => [o.pr.number, o.days, o.reviewers]), [[1, 2, ["nicolai"]]]);
+});
+
+test("with several waiting requests the age counts from the oldest", () => {
+  const p = plan([pr({
+    labels: [LABEL],
+    labelledAt: "2026-10-28T07:00:00Z",
+    changeRequests: [
+      { reviewer: "bob", submittedAt: "2026-10-28T06:00:00Z", comments: 0 },
+      { reviewer: "nicolai", submittedAt: "2026-10-26T14:00:00Z", comments: 1 },
+    ],
+  })], { mode: "remind", now: wednesday, map });
+  assert.equal(p.overdue[0].days, 2);
+  assert.match(p.messages[0].text, /bob, nicolai requested changes 2 working days ago/);
+});
+
 test("digest lists overdue PRs and unreachable people", () => {
-  const text = digestText([{ pr: pr({ number: 7 }), days: 3 }], ["bob", "bob"], map);
+  const text = digestText([{ pr: pr({ number: 7 }), days: 3, reviewers: ["nicolai"] }], ["bob", "bob"], map);
   assert.match(text, /^PRs waiting on their author for 2\+ working days:\n#7 alice, 3 working days \(nicolai\): Fix posting/);
   assert.match(text, /Not reachable on Telegram .*: bob$/);
   assert.equal(digestText([], [], map), "");
+});
+
+test("a long digest is split into pieces Telegram accepts, losing nothing", () => {
+  const overdue = Array.from({ length: 120 }, (_, i) => ({ pr: pr({ number: i + 1, title: "x".repeat(60) }), days: 2, reviewers: ["nicolai"] }));
+  const text = digestText(overdue, [], map);
+  assert.ok(text.length > 4096);
+  const parts = chunkText(text);
+  assert.ok(parts.length > 1);
+  for (const part of parts) assert.ok(part.length <= 4096);
+  assert.equal(parts.join("\n"), text);
+  assert.deepEqual(chunkText("short"), ["short"]);
+  assert.deepEqual(chunkText("y".repeat(9000)).map((c) => c.length), [4000, 4000, 1000]);
 });
 
 test("an empty chat map parses", () => {

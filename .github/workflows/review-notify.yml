@@ -31,9 +31,11 @@ permissions:
   issues: write
   pull-requests: write
 
+# One run at a time. queue: max keeps every waiting run (the default keeps only
+# one, so a 08:10 notify run would cancel a waiting 08:07 remind run).
 concurrency:
   group: review-notify
-  cancel-in-progress: false
+  queue: max
 
 jobs:
   notify:

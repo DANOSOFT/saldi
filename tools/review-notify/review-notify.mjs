@@ -4,8 +4,8 @@
 //
 // Every run (notify mode):
 //   - a person (not a bot) requested changes and the PR has no `needs-author`
-//     label yet: DM the author, or the human sponsor of an agent account, and
-//     add the label;
+//     label yet, or the request is newer than the label: DM the author, or the
+//     human sponsor of an agent account, and (re)apply the label;
 //   - the PR has the label but no open change request remains, or every
 //     reviewer who asked for changes has been re-requested: remove the label.
 // Once a day (remind mode) also:
@@ -14,7 +14,8 @@
 //   - send the escalation contact a digest of PRs waiting 2+ working days and
 //     of authors the bot cannot reach.
 //
-// The label is the only state, so no database is needed. Run from
+// The label is the only state, so no database is needed: its presence means the
+// author was told, and the time it was last applied says which requests were. Run from
 // .github/workflows/review-notify.yml. Without TELEGRAM_BOT_TOKEN, or with
 // DRY_RUN=1, it only prints what it would do.
 //
@@ -42,12 +43,13 @@ const BOT_LOGINS = new Set(["coderabbitai", "copilot-pull-request-reviewer", "gi
  * @typedef {{ reviewer: string, submittedAt: string, comments: number }} ChangeRequest
  * @typedef {{
  *   number: number, title: string, url: string, isDraft: boolean,
- *   author: string, labels: string[],
+ *   author: string, labels: string[], labelledAt: string | null,
  *   requested: string[], changeRequests: ChangeRequest[], lastCommitAt: string | null
  * }} Pr
  * @typedef {{ users: Record<string, number>, sponsors: Record<string, string>, escalate?: string }} ChatMap
  * @typedef {{ type: "notify" | "remind", pr: Pr, to: string, text: string }} Message
- * @typedef {{ messages: Message[], addLabel: Pr[], removeLabel: Pr[], overdue: { pr: Pr, days: number }[] }} Plan
+ * @typedef {{ pr: Pr, days: number, reviewers: string[] }} Overdue
+ * @typedef {{ messages: Message[], addLabel: Pr[], removeLabel: Pr[], overdue: Overdue[] }} Plan
  */
 
 /** @param {string} login */
@@ -87,9 +89,9 @@ export function recipientFor(pr, map) {
   return map.sponsors[author] ?? author;
 }
 
-/** @param {Pr} pr @param {string} to */
-function notifyText(pr, to) {
-  const who = pr.changeRequests.map((c) => `${c.reviewer}${c.comments ? ` (${c.comments} comment${c.comments === 1 ? "" : "s"})` : ""}`).join(", ");
+/** @param {Pr} pr @param {ChangeRequest[]} requests @param {string} to */
+function notifyText(pr, requests, to) {
+  const who = requests.map((c) => `${c.reviewer}${c.comments ? ` (${c.comments} comment${c.comments === 1 ? "" : "s"})` : ""}`).join(", ");
   const agent = normalizeLogin(pr.author) === to ? "" : ` It was opened by ${normalizeLogin(pr.author)}, which you run.`;
   return [
     `Changes requested on PR #${pr.number}: ${clip(pr.title, 90)}`,
@@ -99,22 +101,25 @@ function notifyText(pr, to) {
   ].join("\n");
 }
 
-/** @param {Pr} pr @param {number} days */
-function remindText(pr, days) {
-  const latest = latestRequest(pr);
-  const pushedSince = pr.lastCommitAt !== null && Date.parse(pr.lastCommitAt) > Date.parse(latest.submittedAt);
+/** @param {Pr} pr @param {ChangeRequest[]} waiting @param {number} days */
+function remindText(pr, waiting, days) {
+  const oldest = oldestRequest(waiting);
+  const pushedSince = pr.lastCommitAt !== null && Date.parse(pr.lastCommitAt) > Date.parse(oldest.submittedAt);
   const state = pushedSince
     ? "You have pushed since. Re-request review when it is ready."
     : "There is no new commit since.";
   return [
-    `Reminder: PR #${pr.number} still waits on you. ${latest.reviewer} requested changes ${days} working day${days === 1 ? "" : "s"} ago. ${state}`,
+    `Reminder: PR #${pr.number} still waits on you. ${waiting.map((c) => c.reviewer).join(", ")} requested changes ${days} working day${days === 1 ? "" : "s"} ago. ${state}`,
     pr.url,
   ].join("\n");
 }
 
-/** @param {Pr} pr */
-function latestRequest(pr) {
-  return pr.changeRequests.reduce((a, b) => (Date.parse(b.submittedAt) > Date.parse(a.submittedAt) ? b : a));
+/**
+ * The PR has waited on its author since the oldest request nobody has re-requested.
+ * @param {ChangeRequest[]} requests
+ */
+function oldestRequest(requests) {
+  return requests.reduce((a, b) => (Date.parse(b.submittedAt) < Date.parse(a.submittedAt) ? b : a));
 }
 
 /**
@@ -134,26 +139,29 @@ export function plan(prs, { mode, now, map }) {
     }
     if (waiting.length === 0 || pr.isDraft) continue;
     const to = recipientFor(pr, map);
-    if (!labelled) {
-      out.messages.push({ type: "notify", pr, to, text: notifyText(pr, to) });
+    // A request newer than the label has not been announced; without a label time, assume it was.
+    const labelTime = pr.labelledAt === null ? Infinity : Date.parse(pr.labelledAt);
+    const fresh = labelled ? waiting.filter((c) => Date.parse(c.submittedAt) > labelTime) : waiting;
+    if (fresh.length) {
+      out.messages.push({ type: "notify", pr, to, text: notifyText(pr, fresh, to) });
       out.addLabel.push(pr);
       continue;
     }
     if (mode !== "remind") continue;
-    const days = workingDaysBetween(new Date(latestRequest(pr).submittedAt), now);
-    if (days >= 1) out.messages.push({ type: "remind", pr, to, text: remindText(pr, days) });
-    if (days >= 2) out.overdue.push({ pr, days });
+    const days = workingDaysBetween(new Date(oldestRequest(waiting).submittedAt), now);
+    if (days >= 1) out.messages.push({ type: "remind", pr, to, text: remindText(pr, waiting, days) });
+    if (days >= 2) out.overdue.push({ pr, days, reviewers: waiting.map((c) => c.reviewer) });
   }
   return out;
 }
 
-/** @param {{ pr: Pr, days: number }[]} overdue @param {string[]} unreachable @param {ChatMap} map */
+/** @param {Overdue[]} overdue @param {string[]} unreachable @param {ChatMap} map */
 export function digestText(overdue, unreachable, map) {
   const lines = [];
   if (overdue.length) {
     lines.push("PRs waiting on their author for 2+ working days:");
-    for (const { pr, days } of overdue.sort((a, b) => b.days - a.days)) {
-      lines.push(`#${pr.number} ${recipientFor(pr, map)}, ${days} working days (${latestRequest(pr).reviewer}): ${clip(pr.title, 60)}`);
+    for (const { pr, days, reviewers } of overdue.sort((a, b) => b.days - a.days)) {
+      lines.push(`#${pr.number} ${recipientFor(pr, map)}, ${days} working days (${reviewers.join(", ")}): ${clip(pr.title, 60)}`);
     }
   }
   if (unreachable.length) {
@@ -161,6 +169,33 @@ export function digestText(overdue, unreachable, map) {
     lines.push(`Not reachable on Telegram (no mapping, or the bot was never started): ${[...new Set(unreachable)].join(", ")}`);
   }
   return lines.join("\n");
+}
+
+/**
+ * Split on line breaks into pieces Telegram accepts (sendMessage takes at most
+ * 4096 characters); a single longer line is cut.
+ * @param {string} text @param {number} [limit]
+ */
+export function chunkText(text, limit = 4000) {
+  /** @type {string[]} */
+  const chunks = [];
+  let current = "";
+  for (const line of text.split("\n")) {
+    const candidate = current ? `${current}\n${line}` : line;
+    if (candidate.length <= limit) {
+      current = candidate;
+      continue;
+    }
+    if (current) chunks.push(current);
+    let rest = line;
+    while (rest.length > limit) {
+      chunks.push(rest.slice(0, limit));
+      rest = rest.slice(limit);
+    }
+    current = rest;
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }
 
 // ---------------------------------------------------------------- I/O ---
@@ -173,6 +208,7 @@ const QUERY = `query($owner: String!, $name: String!, $cursor: String) {
         number title url isDraft
         author { login __typename }
         labels(first: 50) { nodes { name } }
+        timelineItems(itemTypes: [LABELED_EVENT], last: 30) { nodes { ... on LabeledEvent { createdAt label { name } } } }
         reviewRequests(first: 30) { nodes { requestedReviewer { __typename ... on User { login } ... on Bot { login } } } }
         latestOpinionatedReviews(first: 30) { nodes { state submittedAt author { login __typename } comments { totalCount } } }
         commits(last: 1) { nodes { commit { committedDate } } }
@@ -211,6 +247,9 @@ export async function fetchOpenPrs(token, repo) {
         isDraft: n.isDraft,
         author: n.author?.login ?? "ghost",
         labels: n.labels.nodes.map((/** @type {{ name: string }} */ l) => l.name),
+        labelledAt: n.timelineItems.nodes
+          .filter((/** @type {any} */ e) => e.label?.name === LABEL)
+          .reduce((/** @type {string | null} */ at, /** @type {any} */ e) => (at === null || e.createdAt > at ? e.createdAt : at), null),
         requested: n.reviewRequests.nodes.map((/** @type {any} */ r) => r.requestedReviewer?.login).filter(Boolean),
         changeRequests: n.latestOpinionatedReviews.nodes
           .filter((/** @type {any} */ r) => r.state === "CHANGES_REQUESTED" && !isBot(r.author))
@@ -286,7 +325,11 @@ async function main() {
     if (result === "unreachable") unreachable.push(m.to);
     console.log(`${m.type} #${m.pr.number} -> ${m.to}: ${result}`);
     if (dryRun) console.log(m.text.replace(/^/gm, "    "));
-    if (m.type === "notify" && result !== "failed" && !dryRun) await setLabel(ghToken, repo, m.pr.number, "add");
+    if (m.type === "notify" && result !== "failed" && !dryRun) {
+      // Re-applying moves the label's time to now, which marks these requests as announced.
+      if (m.pr.labels.includes(LABEL)) await setLabel(ghToken, repo, m.pr.number, "remove");
+      await setLabel(ghToken, repo, m.pr.number, "add");
+    }
   }
   for (const pr of p.removeLabel) {
     console.log(`clear #${pr.number}`);
@@ -298,8 +341,10 @@ async function main() {
     const to = map.escalate;
     if (text && to) {
       const chatId = map.users[to];
-      const result = dryRun ? "dry-run" : chatId ? await sendTelegram(botToken, chatId, text) : "unreachable";
-      console.log(`digest -> ${to}: ${result}`);
+      for (const part of chunkText(text)) {
+        const result = dryRun ? "dry-run" : chatId ? await sendTelegram(botToken, chatId, part) : "unreachable";
+        console.log(`digest -> ${to}: ${result}`);
+      }
       if (dryRun) console.log(text.replace(/^/gm, "    "));
     }
   }
