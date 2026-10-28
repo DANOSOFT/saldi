@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -84,11 +84,6 @@
 // 20260903 Sawaneh find_dublet() now also warns when a matching line is already posted: secondary lookup
 //                  in transaktioner (fiscal-year constrained, limit 1) pairing the voucher's debit/credit
 //                  rows; return extended backwards-compatibly with a source field; params SQL-escaped.
-// 20261027 LOE SST-888 (review) A save that refuses a line no longer reports the whole save as done: the refused
-//                  row stays staged for the re-rendered form and only the other lines are collected. An exact resend of that save
-//                  keeps the staged rows instead of staging its lines again, so a line that was committed is not written twice.
-// 20261027 LOE SST-888 (review) A save that refused every line no longer records a resend fingerprint, so an
-//                  unchanged retry can still save the line it kept; opdater() counts the rows it writes to tell them apart.
 // 20260903 Sawaneh Browser autofill disabled on the journal form and account fields (autocomplete=off) so
 //                  only the blue lookup panel opens; two new per-user checkboxes in the settings box select
 //                  which panel sections (suggestions/lookup) are shown, via window.saldiAutocompleteOptions.
@@ -205,7 +200,16 @@
 //                rendered by a save and dropped unsaved changes.
 //                The clip drag uses the copy effect instead of link: Chrome on a Wayland desktop cancelled every drop of
 //                a link drag (Wayland has no link action), so nothing happened when a clip was released on another clip.
+// 20261027 LOE SST-888 (review) A save that refuses a line no longer reports the whole save as done: the refused
+//                  row stays staged for the re-rendered form and only the other lines are collected. An exact resend of that save
+//                  keeps the staged rows instead of staging its lines again, so a line that was committed is not written twice.
+// 20261027 LOE SST-888 (review) A save that refused every line no longer records a resend fingerprint, so an
+//                  unchanged retry can still save the line it kept; opdater() counts the rows it writes to tell them apart.
 // 20261027 LOE SST-888 (review) the three other allocations refuse the line when no storable number is left.
+// 20261028 LOE SST-888 (review) A refused line is never offered or written under a number the column cannot hold:
+//                  the taken-number query skips values that do not fit, the grid offers the next number (not the
+//                  fiscal year's highest) and offers nothing at all when there is none, a page load no longer
+//                  clears the line a refusal kept, and the refusal now says the fiscal year's series is used up.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -1933,7 +1937,11 @@ if (!$fejl && $kladde_id) {
 				if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
 				$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
 			}
-			db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+			# SST-888 (review) only the request that staged these rows may clear them: a journal opened
+			# again while a refused line is waiting must keep it, or the operator loses that line on a reload
+			if (!empty($kkStaged)) {
+				db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+			}
 			unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 		}
 	} else {
@@ -3573,10 +3581,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	$kladde_id_sql = (int)$kladde_id;
 	$qtxt = "select id from kassekladde where kladde_id = '$kladde_id_sql' limit 1";
 	$kk_has_saved_lines = ($kladde_id && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? true : false;
-	if (!$kk_has_saved_lines) {
-		$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-		if ($row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $last_bilag = $row['bilag'];
-	}
+	# SST-888 (review) the fiscal year's highest voucher is no longer read here: the first line of a
+	# journal without numbered rows is offered the next number further down, not the highest one
 	$kk_doc_source_ids = array();
 	$kk_line_ids = array_filter(array_map('intval', is_array($id) ? $id : array()));
 	if ($kk_line_ids) {
@@ -3731,9 +3737,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$title = NULL;
 			$color = NULL;
 		}
-		// get last bilagsnr from database but check if the row already has asigned bilagnr
+		// SST-888 (review) a journal without numbered rows used to offer the fiscal year's HIGHEST
+		// number here, so the first line of a new journal defaulted to a number another journal already
+		// holds - and at 2147483647 to the column maximum itself. Offer the next number instead, and
+		// nothing at all when the column cannot hold it.
 		if (!$kk_has_saved_lines && $y == 1) {
-			$bilag[$y] = $last_bilag;
+			$kk_last_bilag_next = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+			if (!bilagNumberFits((string)$kk_last_bilag_next)) {
+				$kk_last_bilag_next = '';
+			}
+			$bilag[$y] = $kk_last_bilag_next;
 		}
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'>";
 		if (!$id[$y] && !empty($kkForslag[$y])) print "<input type='hidden' name='bilf$y' value='" . (int)$kkForslag[$y] . "'>";
@@ -3906,6 +3919,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		# 20260928 LOE SST-817 Same allocation as the line rendered below: the journal's highest used
 		# number + 1, or the fiscal year's when this journal has no numbered row yet.
 		$bilag[$x] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+		# SST-888 (review) never offer a number the column cannot hold: at 2147483647 the next number
+		# is 2147483648, and offering it only earns a refusal after the operator has typed it
+		if (!bilagNumberFits((string)$bilag[$x])) {
+			$bilag[$x] = '';
+		}
 	}
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
@@ -3914,6 +3932,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	# number + 1), not from the row above it. A journal whose last row is an empty row used to offer no
 	# number at all there, the line typed on it was stored as bilag 0, and the series restarted at 1.
 	$kk_next_bilag = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+	# SST-888 (review) no proposal for a number the column cannot hold either
+	if (!bilagNumberFits((string)$kk_next_bilag)) {
+		$kk_next_bilag = 0;
+	}
 	# The blank line at the end is where the next line gets typed, so it is rendered after any save
 	# that created a line - including a line that carries only a description, which has no
 	# debit/credit and so used to leave the user with no row to type in and no field to focus. It now
@@ -4780,7 +4802,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						if ($bilag <= 0) {
 							$fejl = 1;
 							$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
-							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							alert(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id));
 							continue;
 						}
 					}
@@ -4789,6 +4811,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$qtxt .= "amount = '$amount', debetvat = '$debetvat', kreditvat = '$kreditvat', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
 					$qtxt .= "valuta= '$valutakode' where id = '$r[id]'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					# SST-888 (review) an updated line is a row this save wrote as well
+					$GLOBALS['kk_committed']++;
 					if ($forfaldsdate) {
 						$qtxt = "update kassekladde set forfaldsdate='$forfaldsdate', betal_id='$betal_id' where id = '$r[id]'";
 					} else
@@ -4818,7 +4842,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							if ($insert_bilag <= 0) {
 								$fejl = 1;
 								$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
-								alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+								alert(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id));
 								continue;
 							}
 						}
@@ -4859,7 +4883,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							# the journal is already at 2147483647: no number left to offer, so this line is skipped
 							$fejl = 1;
 							$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
-							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							alert(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id));
 							continue;
 						} elseif ($bilag_tjek['replaced']) {
 							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
@@ -4876,7 +4900,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							if ($insert_bilag <= 0) {
 								$fejl = 1;
 								$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
-								alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+								alert(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id));
 								continue;
 							}
 						}

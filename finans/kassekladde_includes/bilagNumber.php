@@ -36,6 +36,8 @@
 // 20261027 LOE SST-888 (review) the staged-row test now mirrors the save branch for branch: the outer guard,
 //                the update of an existing line, and the insert that needs a due date or a number with something on it.
 //                A zero in a numeric column is no value there, while a zero in the description is not a zero at all.
+// 20261028 LOE SST-888 (review) the query that asks whether a proposed number is taken is never given a value
+//                the column cannot hold: asking made the save die on a value-out-of-range error instead of refusing it.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -134,7 +136,12 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
 	$own_ids = array_filter(array_map('intval', $own_ids));
 	$not_own = $own_ids ? " AND id NOT IN (" . implode(',', $own_ids) . ")" : '';
 	foreach (array_keys($kept) as $bilag) {
-		$taken = db_fetch_array(db_select("SELECT id FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag'$not_own LIMIT 1", __FILE__ . " linje " . __LINE__));
+		# SST-888 (review) a number the column cannot hold is never taken, and asking the integer
+		# column about it made the whole save die on a value-out-of-range error instead of being repaired
+		if (!bilagNumberFits((string)$bilag)) {
+			continue;
+		}
+		$taken = db_fetch_array(db_select("SELECT id FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag' LIMIT 1", __FILE__ . " linje " . __LINE__));
 		if ($taken) {
 			// Past the journal, past every number this save brings, and past a number already handed out here
 			$replacements[$bilag] = max(bilagNextNumberForJournal($kladde_id), $staged_max + 1, $replacements ? max($replacements) + 1 : 0);

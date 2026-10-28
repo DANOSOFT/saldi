@@ -1,5 +1,5 @@
 <?php
-// --- tests/test_bilag_safe_number.php --- 2026-10-23 ---
+// --- tests/test_bilag_safe_number.php --- 2026-10-28 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261023 LOE Cover SST-888: a voucher number that does not fit kassekladde.bilag is rejected
@@ -13,6 +13,8 @@
 // 20261027 LOE Cover SST-888 (review): the staged-row test mirrors the save branch for branch, so a dated row
 //                 with nothing on it, a zero amount in either notation, and a description-only line all read as the save
 //                 reads them.
+// 20261028 LOE Cover SST-888 (review): the taken-number query, the offered number, the staging clear and the
+//                 first line of a new journal are all pinned, so a number the column cannot hold cannot reach any of them.
 //
 //   php tests/test_bilag_safe_number.php
 //
@@ -124,7 +126,7 @@ bilagTestJournal(3, array('2147483646'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 2147483647,
 	'one below the maximum still yields a storable number');
 $kassekladde = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
-	bilagCheck(substr_count($kassekladde, 'alert(findtekst("5454|') === 4,
+	bilagCheck(substr_count($kassekladde, 'alert(findtekst("7636|') === 4,
 	'every allocation that finds no storable number refuses its line with the exhaustion alert');
 bilagTestJournalEmptyLines(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4,
@@ -179,6 +181,16 @@ bilagCheck($refusedAt !== false && $rememberAt !== false && $refusedAt < $rememb
 	'the caller checks for a refused line before recording the save as successful');
 bilagCheck(strpos($kassekladde2, "and lobenr not in (") !== false,
 	'and keeps the refused rows staged while the saved ones are cleared');
+bilagCheck(strpos($kassekladde2, 'only the request that staged these rows may clear them') !== false,
+	'and a page opened again does not clear the line a refusal left waiting' . "\n");
+bilagCheck(strpos($bilagHelper, 'a number the column cannot hold is never taken') !== false,
+	'and the taken-number query is never asked about a value the column cannot hold' . "\n");
+bilagCheck(substr_count($kassekladde2, 'never offer a number the column cannot hold') === 1,
+	'and the page never proposes a number the column cannot hold' . "\n");
+bilagCheck(substr_count($kassekladde2, 'no proposal for a number the column cannot hold') === 1,
+	'neither for the blank line at the end of the grid' . "\n");
+bilagCheck(strpos($kassekladde2, 'used to offer the fiscal year\'s HIGHEST') !== false,
+	'and the first line of a new journal is offered the next number, not the fiscal year maximum' . "\n");
 bilagCheck(strpos($kassekladde2, "if (!\$fejl && \$submit == 'save' && \$kkAfterSave !== '')") !== false,
 	'no document prompt is opened for a save that refused a line');
 
@@ -236,8 +248,8 @@ bilagCheck(bilagStagedRowWillBeSaved(array('bilag' => '9', 'transdate' => date('
 # ---- a save that committed nothing may be retried (SST-888 review) -----------------------------
 bilagCheck(strpos($kassekladde2, "if (isset(\$kk_payload) && !empty(\$GLOBALS['kk_committed']))") !== false,
 	'the replay fingerprint is recorded only when the save wrote a row' . "\n");
-bilagCheck(strpos($kassekladde2, "\$GLOBALS['kk_committed']++;") !== false,
-	'and opdater() counts the rows it writes' . "\n");
+bilagCheck(substr_count($kassekladde2, "\$GLOBALS['kk_committed']++;") === 2,
+	'and opdater() counts the rows it writes, both the insert and the update' . "\n");
 bilagCheck(strpos($kassekladde2, "\$GLOBALS['kk_committed'] = 0;") !== false,
 	'starting from nothing on every save' . "\n");
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
