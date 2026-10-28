@@ -12,6 +12,7 @@
 // History:
 // 20261027 CL/SZ SD-748: created.
 // 20261027 CL/SZ SD-748: the promotion test also runs on SD-737's real queue (#918).
+// 20261028 CL/SZ SD-748: an anomaly whose alarm fails no longer stops promotion.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -213,7 +214,7 @@ final class WebhookInboxTest extends TestCase
         $this->assertNotNull($this->events()[1]['processed_at']);
     }
 
-    public function testWithoutS02cLoadedAnAnomalyStaysPendingInsteadOfMarkedAlarmed(): void
+    public function testWithoutS02cLoadedAnAnomalyStaysPendingAndTheEventsBehindItArePromoted(): void
     {
         $raw = self::body('orders_paid');
         $this->receive([self::delivery('hml', 'orders/paid', 'ev-n', $raw)]);
@@ -223,8 +224,12 @@ final class WebhookInboxTest extends TestCase
 
         $this->assertSame([[200, 'anomaly']], self::answers($run));
         $this->assertStringContainsString('shopify_error_open() is not loaded', $run['stderr']);
-        $this->assertSame(1, $promoteWithout['exit'], 'a promotion run without the alarm changes nothing');
-        $this->assertSame([['received', null], ['anomaly', null]], array_map(fn(array $e): array => [$e['state'], $e['processed_at']], $this->events()));
+        $this->assertSame(0, $promoteWithout['exit'], $promoteWithout['stderr'] . $promoteWithout['stdout']);
+        $this->assertSame(0, $promoteWithout['result']['result']['alarmed']);
+        $this->assertStringContainsString('shopify_webhook alarm_deferred', $promoteWithout['stderr']);
+        $this->assertSame(['queued', 'anomaly'], array_column($this->events(), 'state'), 'the paid order behind the anomaly is promoted');
+        $this->assertNull($this->events()[1]['processed_at'], 'the anomaly stays pending, not marked alarmed');
+        $this->assertSame([], $this->alarms());
 
         $this->assertSame(1, $this->promote(10)['result']['alarmed'], 'alarmed once the alarm is there');
         $this->assertSame(['webhook.anomaly'], array_column($this->alarms(), 'kind'));

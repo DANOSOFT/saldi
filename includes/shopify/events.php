@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/events.php --- ver 5.0.0 --- 2026.10.27
+// --- includes/shopify/events.php --- ver 5.0.0 --- 2026.10.28
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // Never logged: the body, the signature and the secret.
 //
 // 20261027 CL/SZ SD-748: created (WP03-2).
+// 20261028 CL/SZ SD-748: a failed anomaly alarm is logged and retried next run instead of stopping promotion.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -282,8 +283,10 @@ function shopify_route_event(array $event, array $payload): ?array {
  * 'error' with an alarm, so it never holds up the events behind it; setting it back to
  * 'received' replays it. Events of a shop whose flow (orders or customers) is off stay
  * 'received' until it is switched on. It also raises the alarm of every anomaly the receiver
- * could not alarm. Each event's state change and alarm are stored together; an alarm that fails
- * rolls back the whole run. Concurrent runs skip each other's rows.
+ * could not alarm; an anomaly alarm that fails is logged and left pending for the next run, so
+ * it never holds up the events behind it. Each event's state change and alarm are stored
+ * together; an event alarm that fails rolls back the whole run. Concurrent runs skip each
+ * other's rows.
  *
  * @return array{queued: int, ignored: int, error: int, failed: int, alarmed: int, events: list<array{id: int, topic: string, state: string, job_id: int|null}>}
  *   error: bodies that can't be routed; failed: events whose enqueue failed (both in state
@@ -298,7 +301,14 @@ function shopify_promote_events(int $limit = 100): array {
 		$out = array('queued' => 0, 'ignored' => 0, 'error' => 0, 'failed' => 0, 'alarmed' => 0, 'events' => array());
 		$anomalies = shopify_db_rows("SELECT id FROM shopify_events WHERE state = 'anomaly' AND processed_at IS NULL ORDER BY id LIMIT $1 FOR UPDATE SKIP LOCKED", array(max(1, $limit)));
 		foreach ($anomalies as $anomaly) {
-			$out['alarmed'] += shopify_event_raise_anomaly_alarm((int)$anomaly['id']) ? 1 : 0;
+			try {
+				// Own savepoint: a failed alarm rolls back to it and the anomaly stays pending.
+				$out['alarmed'] += shopify_event_raise_anomaly_alarm((int)$anomaly['id']) ? 1 : 0;
+			} catch (ShopifyDbMisuse $e) {
+				throw $e;
+			} catch (Exception $e) {
+				shopify_event_log('alarm_deferred', array('event_row_id' => (int)$anomaly['id'], 'error' => get_class($e) . ': ' . $e->getMessage()));
+			}
 		}
 		$events = shopify_db_rows(
 			"SELECT e.id, e.shop_id, e.topic, e.event_id, e.payload_b64, s.shop_key FROM shopify_events e JOIN shopify_shops s ON s.id = e.shop_id"
