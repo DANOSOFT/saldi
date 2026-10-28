@@ -37,6 +37,7 @@ services:
         condition: service_healthy
     environment:
       SALDI_SHOPIFY_DB: ${SALDI_SHOPIFY_DB:-}
+      SALDI_SHOPIFY_WEBHOOK_BASE_URL: ${SALDI_SHOPIFY_WEBHOOK_BASE_URL:-}
     command: ["sh", "tools/shopify_worker_loop.sh", "${SALDI_SHOPIFY_DB:-saldi_shopify_test}"]
     restart: unless-stopped
 

@@ -26,7 +26,8 @@
 // delivery is stored once in shopify_events, keyed (shop_id, topic, event_id), and answered
 // 200, duplicates and conflicting bodies included, so Shopify never retries a delivery that
 // was received. The receiver does no business work; shopify_promote_events() (run-loop step 3)
-// turns stored events into queued jobs, ORDERS_PAID first.
+// turns stored events into queued jobs, ORDERS_PAID first. Registration (WP03-3) keeps each
+// shop's webhook subscriptions pointed at the receiver; replay feeds recorded webhooks back in.
 //
 // Never logged: the body, the signature and the secret.
 //
@@ -35,9 +36,11 @@
 // 20261028 CL/SZ SD-748 review: a failed event alarm too; compliance topics are ignored whatever the flow.
 // 20261028 CL/SZ SD-748: alarms go through S02c's includes/shopify/errors.php (SD-738).
 // 20261028 CL/SZ SD-748 review: deferred events go behind fresh ones; a failed route alarm keeps its kind.
+// 20261028 CL/SZ SD-749: webhook registration, the hourly webhook.health job and fixture replay (WP03-3).
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/client.php';
 
 /** Name of the per-shop secret (settings group shopify:<shop_key>) that signs the shop's webhooks. */
 const SHOPIFY_WEBHOOK_SECRET = 'webhook_secret';
@@ -490,4 +493,272 @@ function shopify_event_alarm(?int $shopId, string $kind, string $ref, string $me
 /** One line in the PHP error log; never the body, the signature or the secret. */
 function shopify_event_log(string $what, array $entry): void {
 	error_log('shopify_webhook ' . $what . ' ' . json_encode($entry, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR));
+}
+
+/**
+ * Topics subscribed on every shop (plan P:306-344). INVENTORY_LEVELS_UPDATE is left out in P1:
+ * Saldi's own stock pushes would flood the inbox.
+ */
+const SHOPIFY_WEBHOOK_TOPICS = array(
+	'ORDERS_CREATE', 'ORDERS_PAID', 'ORDERS_UPDATED', 'ORDERS_CANCELLED', 'ORDERS_FULFILLED',
+	'CUSTOMERS_CREATE', 'CUSTOMERS_UPDATE', 'FULFILLMENTS_CREATE', 'FULFILLMENTS_UPDATE', 'REFUNDS_CREATE',
+);
+
+/** The receiver below the install's base URL; a subscription to it, for the shop's key, is ours. */
+const SHOPIFY_WEBHOOK_PATH = '/api/shopify/webhook.php';
+
+/** Tenant setting (settings group shopify) with the base URL register-webhooks last used. */
+const SHOPIFY_WEBHOOK_BASE_SETTING = 'webhook_base_url';
+
+const SHOPIFY_WEBHOOK_LIST_QUERY = 'query webhookSubscriptions($topics: [WebhookSubscriptionTopic!], $after: String) {
+	webhookSubscriptions(first: 100, topics: $topics, after: $after) {
+		nodes { id topic uri }
+		pageInfo { hasNextPage endCursor }
+	}
+}';
+
+const SHOPIFY_WEBHOOK_CREATE_MUTATION = 'mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $webhookSubscription: WebhookSubscriptionInput!) {
+	webhookSubscriptionCreate(topic: $topic, webhookSubscription: $webhookSubscription) {
+		webhookSubscription { id topic uri }
+		userErrors { field message }
+	}
+}';
+
+const SHOPIFY_WEBHOOK_UPDATE_MUTATION = 'mutation webhookSubscriptionUpdate($id: ID!, $webhookSubscription: WebhookSubscriptionInput!) {
+	webhookSubscriptionUpdate(id: $id, webhookSubscription: $webhookSubscription) {
+		webhookSubscription { id topic uri }
+		userErrors { field message }
+	}
+}';
+
+/**
+ * Reconciles the shop's webhook subscriptions with SHOPIFY_WEBHOOK_TOPICS at $baseUrl (plan
+ * P:171-177, P:306-344). Per topic, a subscription at the wanted URI is kept; one of ours at
+ * another base URL (a tunnel that changed) is moved to the wanted URI; otherwise one is created.
+ * Subscriptions to any other URI are left alone, so a second run sends nothing. Shopify lists
+ * only this app's subscriptions; on a custom app that two developers share, the last run's base
+ * URL wins. With opts restore_only (the hourly health job) only missing topics are created: one
+ * of ours at another base URL is kept as it is (topic state 'elsewhere', counted as unchanged), so
+ * two installs that share an app don't move each other's subscriptions every hour.
+ *
+ * @param array<string, mixed> $shop shopify_shops row
+ * @param string $baseUrl https URL of the Saldi install, e.g. https://ssl12.saldi.dk/sz
+ * @param array<string, mixed> $opts restore_only, and the rest passed on to shopify_graphql():
+ *   deadline, correlation, test seams
+ * @return array{created: int, updated: int, unchanged: int, failed: int, topics: array<string, string>, errors: list<string>}
+ * @throws RuntimeException when the subscriptions can't be read; nothing is changed then
+ */
+function shopify_register_webhooks(array $shop, string $baseUrl, array $opts = array()): array {
+	$base = shopify_webhook_base_url_check($baseUrl);
+	if ($base === null) {
+		throw new InvalidArgumentException('the webhook base URL must be an https URL without query or fragment');
+	}
+	$restoreOnly = !empty($opts['restore_only']);
+	unset($opts['restore_only']);
+	$shopKey = (string)$shop['shop_key'];
+	$wanted = shopify_webhook_uri($base, $shopKey);
+	$ours = array();
+	foreach (shopify_webhook_subscriptions($shop, SHOPIFY_WEBHOOK_TOPICS, $opts) as $sub) {
+		if (shopify_webhook_owned((string)$sub['uri'], $shopKey)) {
+			$ours[(string)$sub['topic']][] = $sub;
+		}
+	}
+	$input = array('uri' => $wanted, 'format' => 'JSON');
+	$out = array('created' => 0, 'updated' => 0, 'unchanged' => 0, 'failed' => 0, 'topics' => array(), 'errors' => array());
+	foreach (SHOPIFY_WEBHOOK_TOPICS as $topic) {
+		$mine = $ours[$topic] ?? array();
+		if (in_array($wanted, array_column($mine, 'uri'), true)) {
+			$out['unchanged']++;
+			$out['topics'][$topic] = 'unchanged';
+			continue;
+		}
+		if ($mine && $restoreOnly) {
+			$out['unchanged']++;
+			$out['topics'][$topic] = 'elsewhere';
+			continue;
+		}
+		if ($mine) {
+			$state = 'updated';
+			$result = shopify_graphql($shop, 'webhookSubscriptionUpdate', SHOPIFY_WEBHOOK_UPDATE_MUTATION,
+				array('id' => $mine[0]['id'], 'webhookSubscription' => $input), array('retry_mode' => 'idempotent') + $opts);
+		} else {
+			$state = 'created';
+			// A create that may have reached Shopify is looked up before anything is sent again.
+			$reconcile = function (array $attempt) use ($shop, $topic, $wanted, $opts): array {
+				foreach (shopify_webhook_subscriptions($shop, array($topic), array('deadline' => $attempt['deadline']) + $opts) as $sub) {
+					if ($sub['uri'] === $wanted) {
+						return array('state' => 'applied', 'data' => array('webhookSubscriptionCreate' => array('webhookSubscription' => $sub, 'userErrors' => array())));
+					}
+				}
+				return array('state' => 'absent');
+			};
+			$result = shopify_graphql($shop, 'webhookSubscriptionCreate', SHOPIFY_WEBHOOK_CREATE_MUTATION,
+				array('topic' => $topic, 'webhookSubscription' => $input), array('retry_mode' => 'reconcile', 'reconcile' => $reconcile) + $opts);
+		}
+		if (!$result['ok']) {
+			$state = 'failed';
+			$messages = array_column(array_merge($result['user_errors'], $result['errors']), 'message');
+			$out['errors'][] = "$topic: " . ($messages ? implode('; ', $messages) : (string)$result['error']);
+		}
+		$out[$state]++;
+		$out['topics'][$topic] = $state;
+	}
+	return $out;
+}
+
+/**
+ * This app's subscriptions for the given topics, every page.
+ *
+ * @return list<array{id: string, topic: string, uri: string}>
+ */
+function shopify_webhook_subscriptions(array $shop, array $topics, array $opts): array {
+	$subs = array();
+	$after = null;
+	for ($page = 0; $page < 20; $page++) {
+		$result = shopify_graphql($shop, 'webhookSubscriptions', SHOPIFY_WEBHOOK_LIST_QUERY,
+			array('topics' => $topics, 'after' => $after), array('retry_mode' => 'read') + $opts);
+		$connection = $result['data']['webhookSubscriptions'] ?? null;
+		if (!$result['ok'] || !is_array($connection)) {
+			throw new RuntimeException('webhook subscriptions of ' . $shop['shop_key'] . ' could not be read: ' . ($result['error'] ?? 'no data'));
+		}
+		foreach ($connection['nodes'] as $node) {
+			$subs[] = $node;
+		}
+		if (empty($connection['pageInfo']['hasNextPage'])) {
+			return $subs;
+		}
+		$after = (string)$connection['pageInfo']['endCursor'];
+	}
+	throw new RuntimeException('more than 20 pages of webhook subscriptions on ' . $shop['shop_key'] . '; nothing reconciled');
+}
+
+/** The base URL without a trailing slash; null unless it is https without credentials, query or fragment. */
+function shopify_webhook_base_url_check(string $url): ?string {
+	$url = rtrim(trim($url), '/');
+	$parts = parse_url($url);
+	if ($parts === false || ($parts['scheme'] ?? '') !== 'https' || ($parts['host'] ?? '') === ''
+		|| isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+		return null;
+	}
+	return $url;
+}
+
+/** The receiver URI Shopify posts a shop's webhooks to. */
+function shopify_webhook_uri(string $baseUrl, string $shopKey): string {
+	return $baseUrl . SHOPIFY_WEBHOOK_PATH . '?shop=' . rawurlencode($shopKey);
+}
+
+/** Whether $uri is this receiver for this shop, under any base URL. */
+function shopify_webhook_owned(string $uri, string $shopKey): bool {
+	$parts = parse_url($uri);
+	if ($parts === false || !str_ends_with((string)($parts['path'] ?? ''), SHOPIFY_WEBHOOK_PATH)) {
+		return false;
+	}
+	parse_str((string)($parts['query'] ?? ''), $query);
+	return ($query['shop'] ?? null) === $shopKey;
+}
+
+/** The base URL register-webhooks stored for the tenant, null when it never ran. */
+function shopify_webhook_base_url(): ?string {
+	$rows = shopify_db_rows("SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = $1 LIMIT 1", array(SHOPIFY_WEBHOOK_BASE_SETTING));
+	return isset($rows[0]['var_value']) ? shopify_webhook_base_url_check((string)$rows[0]['var_value']) : null;
+}
+
+/** Stores the tenant's webhook base URL for the webhook.health job. */
+function shopify_save_webhook_base_url(string $url): void {
+	$base = shopify_webhook_base_url_check($url);
+	if ($base === null) {
+		throw new InvalidArgumentException('the webhook base URL must be an https URL without query or fragment');
+	}
+	shopify_db_transaction(function () use ($base) {
+		// settings has no unique key: serialized like shopify_save_secret(), one row in the end
+		shopify_db_rows('SELECT pg_advisory_xact_lock(hashtext($1))', array('shopify_setting:' . SHOPIFY_WEBHOOK_BASE_SETTING));
+		$updated = shopify_db_rows("UPDATE settings SET var_value = $2 WHERE var_grp = 'shopify' AND var_name = $1 RETURNING id", array(SHOPIFY_WEBHOOK_BASE_SETTING, $base));
+		if ($updated === array()) {
+			shopify_db_rows("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ($1, 'shopify', $2, 'Shopify webhook base URL (register-webhooks)')", array(SHOPIFY_WEBHOOK_BASE_SETTING, $base));
+		}
+	});
+}
+
+/**
+ * Handler of the hourly webhook.health job (scheduler slot webhook.health, priority 40): re-creates
+ * the job's shop's subscriptions that Shopify deleted after repeated failed deliveries (NF-5),
+ * with the base URL register-webhooks stored; moving subscriptions stays with that command.
+ * Without a stored base URL it does nothing. A failure is logged and the job still ends done:
+ * the next hour's job is the retry, so failing jobs never pile up.
+ *
+ * @param array<string, mixed> $job claimed shopify_jobs row
+ * @param array<string, mixed> $opts passed on to shopify_graphql() (test seams)
+ * @return array{outcome: string}
+ */
+function shopify_webhook_health_job(array $job, float $deadline, callable $heartbeat, array $opts = array()): array {
+	$base = shopify_webhook_base_url();
+	$shop = shopify_db_rows('SELECT * FROM shopify_shops WHERE id = $1', array((int)$job['shop_id']))[0] ?? null;
+	if ($base === null || $shop === null) {
+		shopify_event_log('health_skipped', array('job_id' => $job['id'] ?? null, 'reason' => $base === null ? 'no webhook base URL; run register-webhooks' : 'shop not found'));
+		return array('outcome' => 'done');
+	}
+	try {
+		$result = shopify_register_webhooks($shop, $base, array('restore_only' => true, 'deadline' => $deadline, 'correlation' => array('job_id' => $job['id'] ?? null)) + $opts);
+	} catch (RuntimeException $e) {
+		$result = array('created' => 0, 'failed' => 1, 'errors' => array($e->getMessage()));
+	}
+	if ($result['created'] > 0) {
+		shopify_event_log('subscriptions_restored', array('shop' => $shop['shop_key'], 'topics' => array_keys($result['topics'], 'created', true)));
+	}
+	if ($result['failed'] > 0) {
+		shopify_event_log('health_failed', array('shop' => $shop['shop_key'], 'errors' => $result['errors']));
+	}
+	return array('outcome' => 'done');
+}
+
+/**
+ * Replays a recorded day of webhooks for $shop through the normal receiver,
+ * shopify_receive_webhook(), each delivery signed at run time with the shop's webhook secret
+ * (plan P:983, P:1006). The day file is JSON under tests/shopify/fixtures/:
+ * {"deliveries": [{"topic": "orders/paid", "event_id": "...", "triggered_at": "...", "body": "<file beside it>"}]}.
+ * A delivery received before answers duplicate, so replaying a day twice changes nothing.
+ *
+ * @param array<string, mixed> $shop shopify_shops row
+ * @param array{promote?: bool} $opts promote: run shopify_promote_events() afterwards
+ * @return array{stored: int, duplicate: int, anomaly: int, rejected: int, results: list<array{event_id: string, status: int, outcome: string}>, promoted: array|null}
+ */
+function shopify_replay_fixture(array $shop, string $path, array $opts = array()): array {
+	$root = realpath(__DIR__ . '/../../tests/shopify/fixtures');
+	$inFixtures = fn($file): bool => $root !== false && $file !== false && is_file($file) && strncmp($file, $root . DIRECTORY_SEPARATOR, strlen($root) + 1) === 0;
+	$file = realpath($path);
+	if (!$inFixtures($file)) {
+		throw new InvalidArgumentException('replay reads day files under tests/shopify/fixtures/ only');
+	}
+	$day = json_decode((string)file_get_contents($file), true);
+	if (!is_array($day) || !is_array($day['deliveries'] ?? null)) {
+		throw new InvalidArgumentException('the day file has no deliveries list');
+	}
+	$secret = shopify_secret((string)$shop['shop_key'], SHOPIFY_WEBHOOK_SECRET);
+	if ($secret === null || $secret === '') {
+		throw new RuntimeException('shop ' . $shop['shop_key'] . ' has no webhook secret');
+	}
+	$out = array('stored' => 0, 'duplicate' => 0, 'anomaly' => 0, 'rejected' => 0, 'results' => array(), 'promoted' => null);
+	foreach ($day['deliveries'] as $i => $delivery) {
+		$body = realpath(dirname($file) . '/' . (string)($delivery['body'] ?? ''));
+		if (!$inFixtures($body)) {
+			throw new InvalidArgumentException("delivery $i: its body file is not under tests/shopify/fixtures/");
+		}
+		$raw = rtrim((string)file_get_contents($body), "\n");
+		$answer = shopify_receive_webhook($shop, $raw, array(
+			'X-Shopify-Topic' => (string)($delivery['topic'] ?? ''),
+			'X-Shopify-Hmac-Sha256' => base64_encode(hash_hmac('sha256', $raw, $secret, true)),
+			'X-Shopify-Shop-Domain' => (string)$shop['domain'],
+			'X-Shopify-Event-Id' => (string)($delivery['event_id'] ?? ''),
+			'X-Shopify-Webhook-Id' => 'replay-' . bin2hex(random_bytes(8)),
+			'X-Shopify-Triggered-At' => (string)($delivery['triggered_at'] ?? ''),
+			'X-Shopify-API-Version' => (string)$shop['api_version'],
+		));
+		$out[$answer['status'] === 200 ? $answer['outcome'] : 'rejected']++;
+		$out['results'][] = array('event_id' => (string)($delivery['event_id'] ?? ''), 'status' => $answer['status'], 'outcome' => $answer['outcome']);
+	}
+	if (!empty($opts['promote'])) {
+		$out['promoted'] = shopify_promote_events();
+	}
+	return $out;
 }

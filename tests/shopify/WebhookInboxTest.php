@@ -15,6 +15,7 @@
 // 20261028 CL/SZ SD-748 review: nor does an event whose alarm fails; compliance topics are ignored with the flow off.
 // 20261028 CL/SZ SD-748: S02c is on hml/shopify; no_alarm tests use alarm_fails, and one runs on the real error list.
 // 20261028 CL/SZ SD-748 review: deferred events go behind new ones (limit 1); a failed route alarm keeps its kind.
+// 20261028 CL/SZ SD-749: the webhook.health job restores a deleted subscription.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -68,7 +69,7 @@ final class WebhookInboxTest extends TestCase
         foreach (['shopify_events', 'shopify_jobs', 'shopify_errors', 'shopify_shops'] as $table) {
             ShopifyEnv::rows($conn, "DELETE FROM $table");
         }
-        ShopifyEnv::rows($conn, "DELETE FROM settings WHERE var_grp LIKE 'shopify:%'");
+        ShopifyEnv::rows($conn, "DELETE FROM settings WHERE var_grp LIKE 'shopify:%' OR (var_grp = 'shopify' AND var_name = 'webhook_base_url')");
         ShopifyEnv::rows($conn, "DELETE FROM grupper WHERE art = 'RA'");
         ShopifyEnv::rows($conn, "INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, box3, box4, box5) VALUES ('RA', 1, 'RA', '01', $1, '12', $1, 'on')", [date('Y')]);
         self::$hml = (int)ShopifyEnv::one($conn, "INSERT INTO shopify_shops (shop_key, domain, is_primary, orders_enabled, customers_enabled) VALUES ('hml', 'hml-test.myshopify.com', true, true, true) RETURNING id")['id'];
@@ -469,6 +470,35 @@ final class WebhookInboxTest extends TestCase
     }
 
     // ---- helpers ---------------------------------------------------------------------------
+
+    // ---- webhook.health (SD-749) ------------------------------------------------------------
+
+    public function testTheHealthJobRestoresADeletedSubscriptionAndWaitsForABaseUrl(): void
+    {
+        $without = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_events.php', ['health', self::$db, '-']));
+        $this->assertSame(0, $without['exit'], $without['stderr'] . $without['stdout']);
+        $this->assertSame(['outcome' => 'done'], $without['result']['result']);
+        $this->assertSame([], $without['result']['ops'], 'nothing is sent before register-webhooks stored a base URL');
+        $this->assertStringContainsString('shopify_webhook health_skipped', $without['stderr']);
+
+        $with = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_events.php', ['health', self::$db, 'https://dev-sz.example.dk/sz/']));
+        $this->assertSame(0, $with['exit'], $with['stderr'] . $with['stdout']);
+        $this->assertSame(['outcome' => 'done'], $with['result']['result']);
+        $this->assertSame(['list', 'create'], $with['result']['ops'], 'only the deleted topic is created');
+        $this->assertSame(['https://dev-sz.example.dk/sz/api/shopify/webhook.php?shop=hml'], $with['result']['topics']['ORDERS_PAID']);
+        $this->assertSame(['https://other-install.example.dk/sz/api/shopify/webhook.php?shop=hml'], $with['result']['topics']['REFUNDS_CREATE'],
+            'ours at another install is not moved by the hourly job');
+        $this->assertStringContainsString('shopify_webhook subscriptions_restored {"shop":"hml","topics":["ORDERS_PAID"]}', $with['stderr']);
+
+        $failing = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_events.php', ['health', self::$db, '-', 'fail_create']));
+        $this->assertSame(0, $failing['exit'], $failing['stderr'] . $failing['stdout']);
+        $this->assertSame(['outcome' => 'done'], $failing['result']['result'], 'a failure ends the job; the next hour retries');
+        $this->assertStringContainsString('shopify_webhook health_failed', $failing['stderr']);
+        $conn = ShopifyEnv::connect(self::$db);
+        $stored = ShopifyEnv::rows($conn, "SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = 'webhook_base_url'");
+        pg_close($conn);
+        $this->assertSame([['var_value' => 'https://dev-sz.example.dk/sz']], $stored);
+    }
 
     private static function body(string $fixture): string
     {

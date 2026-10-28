@@ -12,6 +12,9 @@
 // 20261028 CL/SZ SD-748 review: no fiscal-year check in the receiver; a legacy die() answers our 503.
 // 20261028 CL/SZ SD-748: the worker test looks only at event jobs; S02c's worker also schedules runtime.purge.
 // 20261028 CL/SZ SD-748 review: the die() test loads its db_connect() through the router, not auto_prepend_file.
+// 20261028 CL/SZ SD-749: the replay command, twice; the worker run also schedules webhook.health;
+//                  register-webhooks refuses a tenant the endpoint doesn't serve.
+// 20261028 CL/SZ SD-749: rebased on #911; the worker test leaves out runtime.purge, due from 07:15.
 
 use PHPUnit\Framework\TestCase;
 
@@ -121,25 +124,67 @@ final class WebhookEndpointTest extends TestCase
 
         $dir = ShopifyEnv::repoRoot() . '/temp/' . self::$db;
         $madeDir = !is_dir($dir);
-        $proc = proc_open([PHP_BINARY, ShopifyEnv::repoRoot() . '/tools/shopify_worker.php', 'run', '--db=' . self::$db, '--max-seconds=5'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, ShopifyEnv::repoRoot());
-        $stdout = (string)stream_get_contents($pipes[1]);
-        $stderr = (string)stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $exit = proc_close($proc);
+        $run = $this->tool(['run', '--db=' . self::$db, '--max-seconds=20']);
         if ($madeDir) {
             @unlink("$dir/.ht_shopify_worker.lock");
             @rmdir($dir);
         }
 
-        $this->assertSame(0, $exit, $stderr);
-        $summary = json_decode($stdout, true);
-        $this->assertSame(1, $summary['producers']['events']['queued'] ?? null, $stdout);
+        $this->assertSame(0, $run['exit'], $run['stderr']);
+        $summary = json_decode($run['stdout'], true);
+        $this->assertSame(1, $summary['producers']['events']['queued'] ?? null, $run['stdout']);
         $this->assertSame('queued', $this->events()[0]['state']);
+        // runtime.purge (S02c) is also due from 07:15 to midnight; it isn't this test's business.
+        $jobs = array_values(array_filter($this->jobs(), fn(array $j): bool => $j['type'] !== 'runtime.purge'));
+        $this->assertSame([['order.import', 'queued', (int)$this->events()[0]['id']], ['webhook.health', 'done', 0]],
+            array_map(fn(array $j): array => [$j['type'], $j['state'], (int)$j['event_row_id']], $jobs),
+            'webhook.health is scheduled for a shop with orders on, and skips without a stored base URL');
+    }
+
+    public function testReplayingAFixtureDayTwiceLeavesTheInboxAndJobsUnchanged(): void
+    {
+        $day = ['replay', '--db=' . self::$db, '--shop=hml', '--file=tests/shopify/fixtures/webhooks/days/2026-10-27.json', '--promote=1'];
+
+        $first = $this->tool($day);
+        $events = $this->events();
+        $jobs = $this->jobs();
+        $second = $this->tool($day);
+
+        $this->assertSame(0, $first['exit'], $first['stderr']);
+        $one = json_decode($first['stdout'], true);
+        $this->assertSame([5, 0, 0, 0], [$one['stored'], $one['duplicate'], $one['anomaly'], $one['rejected']]);
+        $this->assertSame(4, $one['promoted']['queued'], 'customers/create waits: the customers flow is off');
+        $this->assertCount(4, $jobs);
+        $this->assertSame(0, $second['exit'], $second['stderr']);
+        $two = json_decode($second['stdout'], true);
+        $this->assertSame([0, 5, 0, 0], [$two['stored'], $two['duplicate'], $two['anomaly'], $two['rejected']]);
+        $this->assertSame(0, $two['promoted']['queued']);
+        $this->assertSame($events, $this->events(), 'the inbox is unchanged');
+        $this->assertSame($jobs, $this->jobs(), 'the jobs are unchanged');
+    }
+
+    public function testReplayReadsOnlyFixtureFilesIntoTestTenants(): void
+    {
+        $outside = $this->tool(['replay', '--db=' . self::$db, '--shop=hml', '--file=/etc/hostname']);
+        $real = $this->tool(['replay', '--db=saldi_1', '--shop=hml', '--file=tests/shopify/fixtures/webhooks/days/2026-10-27.json', '--promote=1']);
+
+        $this->assertSame(2, $outside['exit']);
+        $this->assertStringContainsString('under tests/shopify/fixtures/ only', $outside['stderr']);
+        $this->assertSame(2, $real['exit']);
+        $this->assertStringContainsString('test tenants (saldi_shopify_test_*) only', $real['stderr']);
+        $this->assertSame([], $this->events());
+    }
+
+    public function testRegisterWebhooksRefusesATenantTheEndpointDoesNotServe(): void
+    {
+        $other = $this->tool(['register-webhooks', '--db=' . self::$db, '--base-url=https://dev-sz.example.dk/sz'], ['SALDI_SHOPIFY_DB' => 'saldi_shopify_test_other']);
+
+        $this->assertSame(2, $other['exit']);
+        $this->assertStringContainsString("webhook endpoint serves saldi_shopify_test_other, not " . self::$db, $other['stderr']);
         $conn = ShopifyEnv::connect(self::$db);
-        $jobs = ShopifyEnv::rows($conn, 'SELECT type, event_row_id FROM shopify_jobs WHERE event_row_id IS NOT NULL');
+        $stored = ShopifyEnv::rows($conn, "SELECT 1 FROM settings WHERE var_grp = 'shopify' AND var_name = 'webhook_base_url'");
         pg_close($conn);
-        $this->assertSame([['order.import', (int)$this->events()[0]['id']]], array_map(fn(array $j): array => [$j['type'], (int)$j['event_row_id']], $jobs));
+        $this->assertSame([], $stored, 'nothing is stored');
     }
 
     public function testABodyOverTenMegabytesGets413AndIsNotStored(): void
@@ -236,6 +281,27 @@ final class WebhookEndpointTest extends TestCase
         $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $this->assertIsString($response, curl_error($ch));
         return [$status, $response];
+    }
+
+    /** @return array{exit: int, stdout: string, stderr: string} tools/shopify_worker.php with $args and extra environment */
+    private function tool(array $args, array $env = []): array
+    {
+        $proc = proc_open(array_merge([PHP_BINARY, ShopifyEnv::repoRoot() . '/tools/shopify_worker.php'], $args), [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, ShopifyEnv::repoRoot(), $env + getenv());
+        $stdout = (string)stream_get_contents($pipes[1]);
+        $stderr = (string)stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        return ['exit' => proc_close($proc), 'stdout' => $stdout, 'stderr' => $stderr];
+    }
+
+    private function jobs(): array
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        try {
+            return ShopifyEnv::rows($conn, 'SELECT * FROM shopify_jobs ORDER BY type, id');
+        } finally {
+            pg_close($conn);
+        }
     }
 
     private function events(): array
