@@ -4729,7 +4729,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kk_bilag_fra = bilagNextNumberForJournal($kladde_id);
 		# SST-888 (review) and every number this save hands out: the next unnumbered line must not get it again
 		$kk_bilag_givet = array();
-		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, $kk_bilag_fra);
+		# MB-126 the "<bilag>+N" lines this save inserted never take a proposal back, so they are passed along
+		$kk_egne_linjer = isset($GLOBALS['kk_plus_line_ids']) ? array_merge(array(), ...array_values($GLOBALS['kk_plus_line_ids'])) : array();
+		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, $kk_bilag_fra, $kk_egne_linjer);
 
 		$forfaldsdate = NULL;
 		$valutakode = '0';

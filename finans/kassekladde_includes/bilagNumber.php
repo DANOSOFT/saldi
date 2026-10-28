@@ -110,17 +110,19 @@ function bilagNextNumberForJournal($kladde_id, $regnstart = null, $regnslut = nu
  *
  * @param int             $kladde_id Journal (kladdeliste.id).
  * @param array<int, int> $proposed  Line number (tmpkassekl.lobenr) => the number the page proposed on that line.
+ * @param int             $from      Series start: the journal's next number, read once per save.
  * @param array<int, int> $own_ids   Lines this save already inserted ("<bilag>+N"), which never take a proposal.
  * @return array<int, int> Taken proposal => the number the line is saved under instead; empty when none was taken.
  */
-function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0) {
-	if ((int)$from <= 0) {
-		$from = bilagNextNumberForJournal($kladde_id);
-	}
+function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0, $own_ids = array()) {
 	$kladde_id = (int)$kladde_id;
 	$replacements = array();
 	if ($kladde_id <= 0 || !$proposed) {
 		return $replacements;
+	}
+	# SST-888 (review) the series start is the journal's next number as it stood when the save began
+	if ((int)$from <= 0) {
+		$from = bilagNextNumberForJournal($kladde_id);
 	}
 	$kept = array();
 	$held = bilagStagedNumbersWillBeSaved($kladde_id);
@@ -135,6 +137,7 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0) {
 			$kept[$bilag] = true;
 		}
 	}
+	# MB-126 the "<bilag>+N" lines this save inserted itself never take a proposal back
 	$own_ids = array_filter(array_map('intval', $own_ids));
 	$not_own = $own_ids ? " AND id NOT IN (" . implode(',', $own_ids) . ")" : '';
 	foreach (array_keys($kept) as $bilag) {
@@ -143,9 +146,9 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0) {
 		if (!bilagNumberFits((string)$bilag)) {
 			continue;
 		}
-		$taken = db_fetch_array(db_select("SELECT id FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag' LIMIT 1", __FILE__ . " linje " . __LINE__));
+		$taken = db_fetch_array(db_select("SELECT id FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag'$not_own LIMIT 1", __FILE__ . " linje " . __LINE__));
 		if ($taken) {
-			// Past the journal, and past every number this save already holds - walked, not jumped over
+			# SST-888 (review) the replacement walks past the numbers this save already holds
 			$replacements[$bilag] = bilagNextNumberSkipping($held, array_values($replacements), $from);
 			if ($replacements[$bilag] <= 0) {
 				unset($replacements[$bilag]);   # no storable number left: the line is refused, not saved past the column
