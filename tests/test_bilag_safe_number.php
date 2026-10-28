@@ -145,7 +145,7 @@ bilagTestJournal(2147483647, array('2147483647'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 0,
 	'while a journal and a staged line both at the maximum leave nothing storable' . "\n");
 $kassekladde = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
-	bilagCheck(substr_count($kassekladde, 'alert(findtekst("7636|') === 4,
+	bilagCheck(substr_count($kassekladde, 'alert(addslashes(findtekst("7636|') === 4,
 	'every allocation that finds no storable number refuses its line with the exhaustion alert');
 bilagTestJournalEmptyLines(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4,

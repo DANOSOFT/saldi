@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-28 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -206,6 +206,12 @@
 // 20261027 LOE SST-888 (review) A save that refused every line no longer records a resend fingerprint, so an
 //                  unchanged retry can still save the line it kept; opdater() counts the rows it writes to tell them apart.
 // 20261027 LOE SST-888 (review) the three other allocations refuse the line when no storable number is left.
+// 20261028 CL/LH "<bilag>+N" put its N empty lines at the bottom of the journal on the render after the save: the post-save
+//                order (MB-41) only knew the ids the form posted, and lines inserted by indsaet_linjer() sorted after them.
+//                indsaet_linjer() now returns the new id and the order places those lines right under the row they came from.
+//                The date a row was drawn with (transdate[]) is matched by line id, not screen row, since those lines shift the rows
+//                below them; by row a debtor line could take another line's date and lose a due date typed by hand.
+//                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
 // 20261028 LOE SST-888 (review) A refused line is never offered or written under a number the column cannot hold:
 //                  the taken-number query skips values that do not fit, the grid offers the next number (not the
 //                  fiscal year's highest) and offers nothing at all when there is none, a page load no longer
@@ -4818,7 +4824,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						if ($bilag <= 0) {
 							$fejl = 1;
 							$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
-							alert(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id));
+							alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
 							continue;
 						}
 					}
@@ -4865,7 +4871,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							if ($insert_bilag <= 0) {
 								$fejl = 1;
 								$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
-								alert(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id));
+								alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
 								continue;
 							}
 						}
@@ -4909,7 +4915,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							# the journal is already at 2147483647: no number left to offer, so this line is skipped
 							$fejl = 1;
 							$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
-							alert(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id));
+							alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
 							continue;
 						} elseif ($bilag_tjek['replaced']) {
 							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
@@ -4929,7 +4935,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							if ($insert_bilag <= 0) {
 								$fejl = 1;
 								$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
-								alert(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id));
+								alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
 								continue;
 							}
 						}
