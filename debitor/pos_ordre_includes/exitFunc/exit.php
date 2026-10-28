@@ -34,6 +34,8 @@
 // 20261006 CL/LH SST-839: Reach LAN print servers (private/reserved IPs, localhost, .local, single-label names) over HTTP
 //                 again (the mini-PCs do not serve HTTPS); other hosts still default to HTTPS and may not use HTTP.
 // 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
+// 20261027 CL/LH afslut(): the 9th parameter is $receipt_id (was the unused $line), so the payment reference
+//                pos_ordre.php passes on reaches settlePOS.php and is stored in pos_betalinger.receipt_id.
 
 /**
  * True for a print server on the shop's own network: a private or reserved IP (10/8,
@@ -90,7 +92,7 @@ function cashDrawerPrintOrigin($printserver) {
 	return $scheme . '://' . $host . (isset($parts['port']) ? ':' . $parts['port'] : '');
 }
 
-function afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$line=null) {
+function afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id=null) {
 
 print "\n<!-- Function afslut (start)-->\n";
 	global $afd;

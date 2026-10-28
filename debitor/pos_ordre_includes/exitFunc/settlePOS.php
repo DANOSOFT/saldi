@@ -36,6 +36,8 @@
 //              see also ordrefunc.php & productLines.php  
 // 20240227	PK Altered eventtype from 11999 to 12999
 // 20240519 PHR Corrected error in '$rabatgruppe' update when using percent discount
+// 20261027 CL/LH receipt_id is escaped as a string instead of cast to int, which stored 0 in the varchar
+//                pos_betalinger.receipt_id for every reference (MobilePay 'ordreid-<id>-<time>', Vibrant).
 
 $x = 0;
 if ($status < 3) {
@@ -330,7 +332,7 @@ if ($status < 3) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	setcookie("saldi_bet", '', time() - 3600);
 	$ms = afrund($sum + $moms, 3);
-	$receipt_id = (int) $receipt_id;
+	$receipt_id = db_escape_string((string) $receipt_id);
 	$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$id'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$leftToPay = $_POST['sum'] - $r['paid'];

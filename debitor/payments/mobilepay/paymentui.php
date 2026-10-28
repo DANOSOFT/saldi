@@ -1,4 +1,43 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- debitor/payments/mobilepay/paymentui.php --- ver 5.0.0 --- 2026-10-27 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2024-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261027 CL/LH Added this header. A completed payment now sends its Vipps reference to pos_ordre.php
+//                as receipt_id, so it is stored in pos_betalinger. Added mobilepay_api_base().
+
+if (!function_exists('mobilepay_api_base')) {
+	/**
+	 * Base url of the Vipps MobilePay API used by mobilepay.php and mobilepayListen.php.
+	 *
+	 * Guarded by function_exists() so a test can define it first and point the pages at a
+	 * local stub (tests/characterization/debitor/MobilepayPaymentFlowTest.test.php).
+	 *
+	 * @return string Base url without a trailing slash.
+	 */
+	function mobilepay_api_base() {
+		return 'https://api.vipps.no';
+	}
+}
 
 function ui_output($pretty_amount, $status_text, $status_color, $raw_amount = null, $indbetaling = null, $ordre_id = null, $ident = null) {
 	if ($status_color === "red") {
@@ -16,7 +55,7 @@ function ui_output($pretty_amount, $status_text, $status_color, $raw_amount = nu
 	} else if ($status_color === "green") {
 		$amount = (int) $raw_amount;
 		$amount = $amount / 100;
-		header("Location: ../pos_ordre.php?id=$ordre_id&godkendt=OK&indbetaling=$indbetaling&amount=$amount&betaling=mobilepay");
+		header("Location: ../pos_ordre.php?id=$ordre_id&godkendt=OK&indbetaling=$indbetaling&amount=$amount&betaling=mobilepay&receipt_id=" . urlencode((string) $ident));
 		exit;
 	}else if ($status_color === "yellow") {
 		$bg = "#ff0";
