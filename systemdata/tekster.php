@@ -1,5 +1,5 @@
 <?php
-// ----------------------------- systemdata/tekster.php ----------------- ver 5.0.0 -- 2026-10-22 --
+// ----------------------------- systemdata/tekster.php ----------------- ver 5.0.0 -- 2026-10-28 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,11 +15,20 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210818 LOE Updated some line here
 // 20210819 Added some blocks of codes and added an option to download edited text as csv file
 // 20261022 CL/NTR Added an editable Key (tekst_key) column; key edits propagate across all language rows of the text.
+// 20261028 CL/NTR Key is now shown in the Id column for rows without a tekst_id, and only the text is editable.
+//                  Copying a language matches rows by tekst_id or tekst_key.
+// 20261028 CL/NTR Saving or copying a text clears its findtekst() session cache entry.
+//                  Texts are HTML-escaped so quotes and angle brackets no longer break the table.
+
+/**
+ * Injected by ../includes/connect.php, included below:
+ * @var string $db_encode
+ */
 
 @session_start();
 $s_id=session_id();
@@ -84,37 +93,32 @@ if ($menu=='T') {
 
 // }
 
-
-if ($ryd=if_isset($_GET['ryd'])) {
+if ($ryd=ifset($_GET, ['ryd'])) {
 	db_modify("delete from tekster where sprog_id='$sprog_id'",__FILE__ . " linje " . __LINE__);
 }
 $sort=if_isset($_GET['sort']);
 if (!$sort) $sort="tekst";
 
-$sprog_id=if_isset($_GET['sprog_id']);
-$kopier=if_isset($_GET['kopier']);
+$sprog_id=ifset($_GET, ['sprog_id']);
+$kopier=ifset($_GET, ['kopier']);
 #$title= findtekst('30|Tilbage', $sprog_id); #20210818
 
 if($_POST) {
-	$tekstantal=if_isset($_POST['tekstantal']); 
-	$id=if_isset($_POST['id']); 
-	$tekst=if_isset($_POST['tekst']); 
-	$ny_tekst=if_isset($_POST['ny_tekst']);
-	$tekst_id_post=if_isset($_POST['tekst_id']);
-	$key=if_isset($_POST['key']);
-	$ny_key=if_isset($_POST['ny_key']);
+	$tekstantal=ifset($_POST, ['tekstantal']); 
+	$id=ifset($_POST, ['id']); 
+	$tekst=ifset($_POST, ['tekst']); 
+	$ny_tekst=ifset($_POST, ['ny_tekst']);
 	for ($x=1;$x<=$tekstantal;$x++) {
+		// 20261028 CL/NTR Only the text is editable. Rows are updated by their own id, which works the same
+		// for numeric tekst_id rows and tekst_key rows.
 		$tmp=db_escape_string(trim($ny_tekst[$x]));
-		if ($id[$x] && $tmp && $tekst[$x]!=$ny_tekst[$x]) db_modify("update tekster set tekst='$tmp' where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
-		// 20261022 CL/NTR save tekst_key, propagating it across all language rows of the text.
-		$nyKey=trim(ifset($ny_key, $x, ''));
-		if ($id[$x] && $nyKey!=trim(ifset($key, $x, ''))) {
-			$keyEsc=db_escape_string($nyKey);
-			$tid=ifset($tekst_id_post, $x, '');
-			if (preg_match('/^[0-9]+$/', (string)$tid)) {
-				db_modify("update tekster set tekst_key='$keyEsc' where tekst_id='".intval($tid)."'",__FILE__ . " linje " . __LINE__);
-			} else {
-				db_modify("update tekster set tekst_key='$keyEsc' where id='".intval($id[$x])."'",__FILE__ . " linje " . __LINE__);
+		if ($id[$x] && $tmp && $tekst[$x]!=$ny_tekst[$x]) {
+			db_modify("update tekster set tekst='$tmp' where id='".intval($id[$x])."'",__FILE__ . " linje " . __LINE__);
+			// Drop findtekst()'s session cache entry so the new text shows straight away.
+			$r=db_fetch_array(db_select("select sprog_id,tekst_id,tekst_key from tekster where id='".intval($id[$x])."'",__FILE__ . " linje " . __LINE__));
+			if ($r) {
+				$token=is_numeric($r['tekst_id']) ? $r['tekst_id'] : ifset($r, 'tekst_key', '');
+				unset($_SESSION[findtekst_session_var($token, $r['sprog_id'])]);
 			}
 		}
 	}
@@ -126,24 +130,44 @@ if (!$sprog_id) echo "Sprog_id not found"; #20210818
 
 $x=0;
 if ($kopier) {
-	$q = db_select("select * from tekster where sprog_id=$kopier order by tekst",__FILE__ . " linje " . __LINE__);
+	$q = db_select("select * from tekster where sprog_id='".intval($kopier)."' order by tekst",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$id[$x]=$r['id'];
 		$tekst_id[$x]=$r['tekst_id'];
+		$tekst_key[$x]=ifset($r, 'tekst_key', '');
 		$tekst[$x]=$r['tekst'];
 	}
-}	
+}
 $tekstantal=$x;
 for($x=1; $x<=$tekstantal; $x++){
-	if (!$r=db_fetch_array(db_select("select id from tekster where sprog_id=$sprog_id and tekst_id=$tekst_id[$x] order by $sort",__FILE__ . " linje " . __LINE__))){
-		db_modify("insert into tekster (sprog_id,tekst_id,tekst)values('$sprog_id','$tekst_id[$x]','$tekst[$x]')"); 
+	// 20261028 CL/NTR Match the target row by tekst_id, or by tekst_key for rows that have no tekst_id.
+	$tekstEsc=db_escape_string($tekst[$x]);
+	if (is_numeric($tekst_id[$x])) {
+		$match="tekst_id='".intval($tekst_id[$x])."'";
+		$insertCols="tekst_id";
+		$insertVal="'".intval($tekst_id[$x])."'";
+		$token=$tekst_id[$x];
+	} elseif ($tekst_key[$x] !== '' && $tekst_key[$x] !== null) {
+		$keyEsc=db_escape_string($tekst_key[$x]);
+		$match="tekst_key='$keyEsc'";
+		$insertCols="tekst_key";
+		$insertVal="'$keyEsc'";
+		$token=$tekst_key[$x];
 	} else {
-		db_modify("update tekster set tekst='$tekst[$x]' where id='$r[id]'",__FILE__ . " linje " . __LINE__);
+		continue;
 	}
+	if (!$r=db_fetch_array(db_select("select id from tekster where sprog_id='".intval($sprog_id)."' and $match",__FILE__ . " linje " . __LINE__))){
+		db_modify("insert into tekster (sprog_id,$insertCols,tekst)values('".intval($sprog_id)."',$insertVal,'$tekstEsc')",__FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("update tekster set tekst='$tekstEsc' where id='".intval($r['id'])."'",__FILE__ . " linje " . __LINE__);
+	}
+	unset($_SESSION[findtekst_session_var($token, $sprog_id)]);
 }
 $x=0;
-$q = db_select("select * from tekster where sprog_id=$sprog_id order by $sort",__FILE__ . " linje " . __LINE__);
+// 20261028 CL/NTR Whitelist the sort column; key rows have no tekst_id, so they sort by key within the Id order.
+$orderBy = ($sort == 'tekst_id') ? 'tekst_id, tekst_key' : 'tekst';
+$q = db_select("select * from tekster where sprog_id='".intval($sprog_id)."' order by $orderBy",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	$x++;
 	$id[$x]=$r['id'];
@@ -162,19 +186,21 @@ print "<form name=\"tekster\" action=\"tekster.php?sprog_id=$sprog_id&sort=$sort
  print "<table class='dataTable2'><tbody>";
 #print "<tr><td><a href=tekster.php?sprog_id=$sprog&sort=tekst_id>Id</a></td>";
 print "<tr><td><a href=tekster.php?sprog_id=$sprog_id&sort=tekst_id>Id</a></td>"; #20210819
-print "<td><a href=tekster.php?sprog_id=$sprog_id&sort=tekst_key>Key</a></td>"; #20261022 CL/NTR
 #print "<td width=400><a href=tekster.php?sprog_id=$sprog&sort=tekst>".findtekst('31|Nuværende tekst', $sprog_id)."</a></td>";
 print "<td width=400><a href=tekster.php?sprog_id=$sprog_id&sort=tekst>".findtekst('31|Nuværende tekst', $sprog_id)."</a></td>"; 
 print "<td title=\"".findtekst('33|Skriv nyt tekstforslag', $sprog_id)."\">".findtekst('32|Ny tekst', $sprog_id)."</td>";
+// 20261028 CL/NTR Texts may contain quotes and angle brackets, so escape them in the HTML (in the database encoding).
+$htmlCharset = ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1';
 for($x=1; $x<=$tekstantal; $x++){
+	$tekstHtml = htmlspecialchars((string)$tekst[$x], ENT_QUOTES, $htmlCharset);
 	print "<input type=hidden name=id[$x] value=\"$id[$x]\">";
-	print "<input type=hidden name=tekst_id[$x] value=\"$tekst_id[$x]\">"; #20261022 CL/NTR
-	print "<input type=hidden name=key[$x] value=\"".ifset($tekst_key, $x, '')."\">"; #20261022 CL/NTR
 	#print "<input type=hidden name=tekst[$x] value=\"$tekst[$x]\">";
-	print "<tr><td><input type=hidden name=tekst[$x] value=\"$tekst[$x]\"></td>"; #20210819 Without adding the td tags...it breaks the page
-	print "<tr><td>$tekst_id[$x]</td><td><input type=text class=\"inputbox\" name=\"ny_key[$x]\" size=\"20\" value=\"".ifset($tekst_key, $x, '')."\"></td><td>$tekst[$x]</td>";
+	print "<tr><td><input type=hidden name=tekst[$x] value=\"$tekstHtml\"></td>"; #20210819 Without adding the td tags...it breaks the page
+	// 20261028 CL/NTR A key row has no tekst_id, so the Id column shows its tekst_key instead. Neither is editable.
+	$visId = is_numeric($tekst_id[$x]) ? $tekst_id[$x] : htmlspecialchars((string)$tekst_key[$x], ENT_QUOTES, $htmlCharset);
+	print "<tr><td>$visId</td><td>$tekstHtml</td>";
 #	print "<td><textarea class=\"inputbox\" name=\"ny_tekst[$x]\" rows=\"3\" cols=\"85\">$tekst[$x]</textarea></td>";
-	print "<td><input type=text class=\"inputbox\" name=\"ny_tekst[$x]\" size=\"90\" value=\"$tekst[$x]\"></td>";
+	print "<td><input type=text class=\"inputbox\" name=\"ny_tekst[$x]\" size=\"90\" value=\"$tekstHtml\"></td>";
 	//fputcsv($csv, [$tekst_id[$x], $tekst[$x]]);
 }
 print "<tr><td colspan=3 align=center><input class='button blue medium' type=submit accesskey=\"o\" value=\"OK\" name=\"submit\"></td></tr>";

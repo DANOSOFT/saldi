@@ -9,6 +9,25 @@
  // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
  // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
  // 20261022 CL/NTR findtekst() now accepts descriptive string keys (tekst_key) alongside numeric tekst_id, with key-first resolution, self-heal insert and a placeholder rule. See doc/ai/convention_findtekst_keys.md.
+ // 20261028 CL/NTR Schema-scoped the tekst_key column probe; $db_type pulled in via global.
+ // 20261028 CL/NTR Session cache key moved to findtekst_session_var() so editors can clear it after a change.
+
+
+if (!function_exists('findtekst_session_var')) {
+	/**
+	 * The $_SESSION key findtekst() caches a text under.
+	 *
+	 * Unset this key after changing a text so the editing user sees the new value straight away.
+	 *
+	 * @param string|int $textId    Numeric tekst_id or tekst_key, without any '|fallback' suffix.
+	 * @param int        $languageID Language id ($sprog_id).
+	 * @return string The session key.
+	 */
+	function findtekst_session_var($textId, $languageID) {
+		return preg_replace('/[^a-zA-Z0-9_]/', '_', 'text_' . $textId . '_' . $languageID);
+	}
+}
+
 if (!function_exists('findtekst')) {
 	/**
 	 * Look up a translated text for a language.
@@ -30,7 +49,7 @@ if (!function_exists('findtekst')) {
 	 */
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
-		global $db, $db_encode;
+		global $db, $db_encode, $db_type;
 		global $sqdb;
 		global $webservice;
 		$id = 0;
@@ -42,8 +61,7 @@ if (!function_exists('findtekst')) {
 			$textId = $a;
 		}
 		
-		$sessionVar = 'text_'. $textId .'_'. $languageID;
-		$sessionVar = preg_replace('/[^a-zA-Z0-9_]/','_','text_'. $textId .'_'. $languageID); 
+		$sessionVar = findtekst_session_var($textId, $languageID);
 		if (isset($_SESSION[$sessionVar])) {
 			return ($_SESSION[$sessionVar]);
 		}
@@ -67,6 +85,7 @@ if (!function_exists('findtekst')) {
 		static $hasKeyColumn = null;
 		if ($hasKeyColumn === null) {
 			$colq = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster' AND column_name='tekst_key'";
+			$colq .= in_array($db_type, ['mysql', 'mysqli'], true) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
 			$hasKeyColumn = (bool) db_fetch_array(db_select($colq, __FILE__ . " linje " . __LINE__));
 		}
 
@@ -124,7 +143,7 @@ if (!function_exists('findtekst')) {
 
 			// 4. Still an unresolved key: self-heal so it surfaces in the admin UI for translation.
 			//    Store the pipe fallback text when given, otherwise the key itself as a placeholder.
-			if ($hasKeyColumn && $db != $sqdb && !preg_match('/^[0-9]+$/', $textId)) {
+			if ($hasKeyColumn && $db != $sqdb && !preg_match('/^[0-9]+$/', $textId) && preg_match('/^[a-z0-9][a-z0-9_.-]{0,189}$/', $textId)) {
 				$candidate = ($b !== null && $b !== '') ? $b : $textId;
 				if ($db_encode != "UTF8") {
 					$candidate = mb_convert_encoding($candidate, 'ISO-8859-1', 'UTF-8');

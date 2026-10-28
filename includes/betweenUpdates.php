@@ -1476,13 +1476,24 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	}
 }
 // Composite index for findtekst() key lookups (WHERE tekst_key = ... AND sprog_id = ...).
-if ($tekstKeyMysql) {
-	$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_name='tekster' AND index_name='idx_tekster_sprog_key' AND table_schema = DATABASE()";
-	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		db_modify("CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__);
-	}
-} else {
-	db_modify("CREATE INDEX IF NOT EXISTS idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__);
+if ($tekstKeyMysql) {  
+    $qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_name='tekster' AND index_name='idx_tekster_sprog_key' AND table_schema = DATABASE()";  
+    if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {  
+        $tekstKeyIdxLock = "CONCAT('saldi:tekst_key_idx:', MD5(DATABASE()))";  
+        $idxLockResult = db_fetch_array(db_select("SELECT GET_LOCK($tekstKeyIdxLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));  
+        if ((int) ($idxLockResult['acquired'] ?? 0) !== 1) {  
+            throw new RuntimeException('Could not acquire the tekst_key index migration lock.');  
+        }  
+        try {  
+            if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {  
+                db_modify("CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__);  
+            }  
+        } finally {  
+            db_select("SELECT RELEASE_LOCK($tekstKeyIdxLock)", __FILE__ . " linje " . __LINE__);  
+        }  
+    }  
+} else {  
+    db_modify("CREATE INDEX IF NOT EXISTS idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__);  
 }
 
 ?>
