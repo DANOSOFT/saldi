@@ -13,6 +13,7 @@
 // 20261028 CL/NTR Session cache key moved to findtekst_session_var() so editors can clear it after a change.
 // 20261028 CL/NTR findtekst_session_var() no longer lets different tokens collapse to one key after sanitizing.
 // 20261028 CDX/NTR Return the pipe fallback when an unresolved key cannot self-heal.
+// 20261028 CDX/NTR Check every CSV language column during legacy literal-text resolution.
 
 
 if (!function_exists('findtekst_session_var')) {
@@ -151,8 +152,10 @@ if (!function_exists('findtekst')) {
 					$texts = explode("\t",$txtlines[$i]);
 					if (in_array($textId,$texts)) {
 						for ($i2 = 1; $i2 < count($texts); $i2++) {
-							if ($textId == $texts[$i2]) $textId = $texts[0];
-							break 2;
+							if ($textId == $texts[$i2]) {
+								$textId = $texts[0];
+								break 2;
+							}
 						}
 					}
 				}

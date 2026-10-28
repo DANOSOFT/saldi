@@ -3,6 +3,7 @@
 //                  rule (tekst == tekst_key and the '-' sentinel), legacy content-match fallthrough,
 //                  self-heal insert/update, unchanged numeric-id lookups and pre-column safety.
 // 20261028 CDX/NTR Cover pipe fallback when an unresolved key cannot self-heal.
+// 20261028 CDX/NTR Cover legacy CSV literal matches in every language column.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -103,6 +104,16 @@ final class FindtekstKeyResolutionTest extends TestCase
         self::assertSame('Current text', findtekst('Current text', 1));
     }
 
+    public function testLegacyCsvContentMatchChecksEveryLanguageColumn(): void
+    {
+        $GLOBALS['findtekstStub']->numericRow = ['id' => '1', 'tekst' => 'Resolved text'];
+
+        foreach ([1 => 'Dansk', 2 => 'English', 3 => 'Norsk'] as $languageID => $literal) {
+            self::assertSame('Resolved text', findtekst($literal, $languageID));
+            self::assertTrue($this->queriesContain("where tekst_id='1' and sprog_id = '$languageID'"));
+        }
+    }
+
     public function testUnknownKeySelfHealsWithPipeFallback(): void
     {
         self::assertSame('Hello', findtekst('brand.newkey|Hello', 2));
@@ -139,5 +150,15 @@ final class FindtekstKeyResolutionTest extends TestCase
         foreach ($GLOBALS['findtekstStub']->queries as $q) {
             self::assertStringNotContainsString('where tekst_key=', $q);
         }
+    }
+
+    private function queriesContain(string $needle): bool
+    {
+        foreach ($GLOBALS['findtekstStub']->queries as $query) {
+            if (str_contains($query, $needle)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
