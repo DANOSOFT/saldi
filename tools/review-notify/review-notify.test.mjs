@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LABEL, chunkText, digestText, parseChatMap, plan, recipientFor, workingDaysBetween } from "./review-notify.mjs";
+import { chunkText, deliver, digestText, LABEL, parseChatMap, plan, recipientFor, workingDaysBetween } from "./review-notify.mjs";
 
 const map = parseChatMap(JSON.stringify({
   users: { alice: 1, lui: 2 },
@@ -196,4 +196,64 @@ test("a long digest is split into pieces Telegram accepts, losing nothing", () =
 
 test("an empty chat map parses", () => {
   assert.deepEqual(parseChatMap(undefined), { users: {}, sponsors: {} });
+});
+
+/**
+ * Fakes that record the order of label and send calls.
+ * @param {{ labelFails?: boolean, sendResult?: "sent" | "unreachable" | "failed" }} [opts]
+ */
+function fakes({ labelFails = false, sendResult = "sent" } = {}) {
+  /** @type {string[]} */
+  const calls = [];
+  return {
+    calls,
+    label: async (/** @type {"add" | "remove"} */ op) => {
+      calls.push(op);
+      if (labelFails && op === "add") throw new Error("422");
+    },
+    send: async () => {
+      calls.push("send");
+      return sendResult;
+    },
+  };
+}
+
+const notifyMsg = (labels = /** @type {string[]} */ ([])) => ({ type: /** @type {const} */ ("notify"), pr: pr({ labels }), to: "alice", text: "x" });
+
+test("deliver labels before sending a notify DM", async () => {
+  const f = fakes();
+  assert.equal(await deliver(notifyMsg(), { chatId: 1, ...f }), "sent");
+  assert.deepEqual(f.calls, ["add", "send"]);
+});
+
+test("deliver re-applies an existing label before the DM", async () => {
+  const f = fakes();
+  await deliver(notifyMsg([LABEL]), { chatId: 1, ...f });
+  assert.deepEqual(f.calls, ["remove", "add", "send"]);
+});
+
+test("a label that fails means no DM, so the next run does not repeat one", async () => {
+  const f = fakes({ labelFails: true });
+  assert.equal(await deliver(notifyMsg(), { chatId: 1, ...f }), "label-failed");
+  assert.deepEqual(f.calls, ["add"]);
+});
+
+test("a DM that does not arrive takes the label off so the next run retries", async () => {
+  for (const sendResult of /** @type {const} */ (["unreachable", "failed"])) {
+    const f = fakes({ sendResult });
+    assert.equal(await deliver(notifyMsg(), { chatId: 1, ...f }), sendResult);
+    assert.deepEqual(f.calls, ["add", "send", "remove"]);
+  }
+});
+
+test("someone without a chat id is left alone: no label, no send", async () => {
+  const f = fakes();
+  assert.equal(await deliver(notifyMsg(), { chatId: undefined, ...f }), "unreachable");
+  assert.deepEqual(f.calls, []);
+});
+
+test("reminders never touch the label", async () => {
+  const f = fakes({ sendResult: "failed" });
+  await deliver({ type: "remind", pr: pr({ labels: [LABEL] }), to: "alice", text: "x" }, { chatId: 1, ...f });
+  assert.deepEqual(f.calls, ["send"]);
 });

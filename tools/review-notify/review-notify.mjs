@@ -4,8 +4,10 @@
 //
 // Every run (notify mode):
 //   - a person (not a bot) requested changes and the PR has no `needs-author`
-//     label yet, or the request is newer than the label: DM the author, or the
-//     human sponsor of an agent account, and (re)apply the label;
+//     label yet, or the request is newer than the label: (re)apply the label,
+//     then DM the author, or the human sponsor of an agent account. A DM that
+//     does not arrive takes the label off again so the next run retries, and
+//     someone not connected to the bot is left alone until they connect;
 //   - the PR has the label but no open change request remains, or every
 //     reviewer who asked for changes has been re-requested: remove the label.
 // Once a day (remind mode) also:
@@ -273,6 +275,62 @@ async function setLabel(token, repo, number, op) {
 }
 
 /**
+ * Send one message and keep the label in step with what the author was told.
+ *
+ * notify: the label goes on first, so a label that fails never leads to a DM the
+ * next run would repeat; a DM that did not arrive takes the label off again, so
+ * the next run retries. Someone without a chat id is left alone: their PR gets no
+ * label until they connect, which also keeps the PR timeline free of label churn.
+ *
+ * @param {Message} m
+ * @param {{
+ *   chatId: number | undefined,
+ *   label: (op: "add" | "remove") => Promise<void>,
+ *   send: (chatId: number, text: string) => Promise<"sent" | "unreachable" | "failed">
+ * }} deps
+ * @returns {Promise<"sent" | "unreachable" | "failed" | "label-failed">}
+ */
+export async function deliver(m, { chatId, label, send }) {
+  if (!chatId) return "unreachable";
+  if (m.type === "notify") {
+    try {
+      // Re-applying moves the label's time to now, which marks these requests as announced.
+      if (m.pr.labels.includes(LABEL)) await label("remove");
+      await label("add");
+    } catch {
+      return "label-failed";
+    }
+  }
+  const result = await send(chatId, m.text);
+  if (m.type === "notify" && result !== "sent") {
+    try {
+      await label("remove");
+    } catch {
+      // The request then counts as announced; the next working day's reminder still reaches the author.
+    }
+  }
+  return result;
+}
+
+/**
+ * Create the label if the repository does not have it yet.
+ * @param {string} token @param {string} repo
+ */
+async function ensureLabel(token, repo) {
+  const headers = { authorization: `bearer ${token}`, accept: "application/vnd.github+json" };
+  const res = await fetch(`https://api.github.com/repos/${repo}/labels/${encodeURIComponent(LABEL)}`, { headers });
+  if (res.ok) return;
+  if (res.status !== 404) throw new Error(`label lookup failed: ${res.status}`);
+  const created = await fetch(`https://api.github.com/repos/${repo}/labels`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ name: LABEL, color: "d93f0b", description: "Changes requested; waiting on the PR author (set by review-notify)" }),
+  });
+  // 422: another run created it in the meantime.
+  if (!created.ok && created.status !== 422) throw new Error(`label create failed: ${created.status}`);
+}
+
+/**
  * @param {string} botToken @param {number} chatId @param {string} text
  * @returns {Promise<"sent" | "unreachable" | "failed">}
  */
@@ -319,21 +377,34 @@ async function main() {
 
   /** @type {string[]} */
   const unreachable = [];
+  let failures = 0;
+  if (!dryRun && p.messages.some((m) => m.type === "notify")) await ensureLabel(ghToken, repo);
   for (const m of p.messages) {
     const chatId = map.users[m.to];
-    const result = dryRun ? "dry-run" : chatId ? await sendTelegram(botToken, chatId, m.text) : "unreachable";
-    if (result === "unreachable") unreachable.push(m.to);
-    console.log(`${m.type} #${m.pr.number} -> ${m.to}: ${result}`);
-    if (dryRun) console.log(m.text.replace(/^/gm, "    "));
-    if (m.type === "notify" && result !== "failed" && !dryRun) {
-      // Re-applying moves the label's time to now, which marks these requests as announced.
-      if (m.pr.labels.includes(LABEL)) await setLabel(ghToken, repo, m.pr.number, "remove");
-      await setLabel(ghToken, repo, m.pr.number, "add");
+    if (dryRun) {
+      if (!chatId) unreachable.push(m.to);
+      console.log(`${m.type} #${m.pr.number} -> ${m.to}: dry-run${chatId ? "" : " (not connected)"}`);
+      console.log(m.text.replace(/^/gm, "    "));
+      continue;
     }
+    const result = await deliver(m, {
+      chatId,
+      label: (op) => setLabel(ghToken, repo, m.pr.number, op),
+      send: (id, text) => sendTelegram(botToken, id, text),
+    });
+    if (result === "unreachable") unreachable.push(m.to);
+    if (result === "failed" || result === "label-failed") failures++;
+    console.log(`${m.type} #${m.pr.number} -> ${m.to}: ${result}`);
   }
   for (const pr of p.removeLabel) {
     console.log(`clear #${pr.number}`);
-    if (!dryRun) await setLabel(ghToken, repo, pr.number, "remove");
+    if (dryRun) continue;
+    try {
+      await setLabel(ghToken, repo, pr.number, "remove");
+    } catch (err) {
+      failures++;
+      console.log(`clear #${pr.number} failed: ${err instanceof Error ? err.message : err}`);
+    }
   }
 
   if (mode === "remind") {
@@ -349,6 +420,10 @@ async function main() {
     }
   }
   if (p.messages.length === 0 && p.removeLabel.length === 0) console.log("Nothing to do.");
+  if (failures) {
+    console.error(`${failures} send or label step(s) failed; see above. They are retried on the next run.`);
+    process.exitCode = 1;
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
