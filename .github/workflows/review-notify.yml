@@ -13,7 +13,8 @@ name: Review notify
 
 on:
   schedule:
-    # Times are UTC: 07:00-18:00 and 09:07 Danish winter time.
+    # Times are UTC: 07:00-18:00 and 09:07 Danish winter time. In summer time
+    # (CEST) both run an hour later; move them by an hour each spring and autumn.
     - cron: "*/10 6-17 * * 1-5"
     - cron: "7 8 * * 1-5"
   workflow_dispatch:
