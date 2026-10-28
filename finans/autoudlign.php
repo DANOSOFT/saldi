@@ -1223,20 +1223,22 @@ print "</tbody></table></td></tr></tbody></table>";
   }
 
   /* ── SD-785: keep "Alle debitorer" / "Alle kreditorer" for the next entry ── */
-  // The choice made earlier in the journal is kept through an entry with an account of its own
-  // (selector disabled) and through a single account picked for this entry. Only choosing
-  // "Alle debitorer og kreditorer" again clears it.
-  function kontotypeParam() {
+  // journalType is the last type chosen in this journal: carried in from the previous entry and
+  // updated by rememberJournalType() whenever "Alle debitorer", "Alle kreditorer" or "Alle debitorer
+  // og kreditorer" is chosen. Picking a single account, or an entry with its own account (selector
+  // disabled), leaves it as it is.
+  let journalType = KONTOTYPE;
+  function rememberJournalType() {
     const option = accountSelect.selectedOptions[0];
-    let type = KONTOTYPE;
-    if (!accountSelect.disabled && option) {
-      if (option.value.startsWith('type:')) {
-        type = option.dataset.type || '';
-      } else if (option.value === '') {
-        type = '';
-      }
+    if (accountSelect.disabled || !option) return;
+    if (option.value.startsWith('type:')) {
+      journalType = option.dataset.type || '';
+    } else if (option.value === '') {
+      journalType = '';
     }
-    return type ? '&kontotype=' + encodeURIComponent(type) : '';
+  }
+  function kontotypeParam() {
+    return journalType ? '&kontotype=' + encodeURIComponent(journalType) : '';
   }
 
   /* ── Pagination ──────────────────────────────────────────── */
@@ -1304,6 +1306,7 @@ print "</tbody></table></td></tr></tbody></table>";
   });
 
   accountSelect.addEventListener('change', () => {
+    rememberJournalType();
     clearTimeout(debounceTimer);
     fetchCandidates(searchInput.value, 1);
   });

@@ -50,6 +50,7 @@ final class AutoSettlementTypeFilterTest extends TestCase
         self::assertStringContainsString('<option value="type:D" data-account="" data-type="D"', $page, '"Alle debitorer" is gone from the Konto selector');
         self::assertStringContainsString('<option value="type:K" data-account="" data-type="K"', $page, '"Alle kreditorer" is gone from the Konto selector');
         self::assertSame(2, substr_count($page, 'kontotypeParam();'), 'the type choice is no longer carried to the next entry on Udlign and on Spring over');
-        self::assertStringContainsString('let type = KONTOTYPE;', $page, 'an entry with its own account (disabled selector) drops the type chosen earlier in the journal');
+        self::assertStringContainsString('let journalType = KONTOTYPE;', $page, 'the type chosen earlier in the journal is no longer the starting point on the next entry');
+        self::assertStringContainsString('rememberJournalType();', $page, 'a type chosen on this entry is no longer remembered when a single account is picked afterwards');
     }
 }
