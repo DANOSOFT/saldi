@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/einvoiceCvr.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- includes/stdFunc/einvoiceCvr.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261026 CL/MMR SD-774 A CVR field without a digit other than 0 counts as no CVR, such as "-", "N/A", "0" or a name (einvoice_cvr_present()).
 //                 MEDSHOP has cards with such values, and they let a Danish GLN invoice through without a CVR.
 //                 A 13-digit EAN/GLN with a "DK" in front counts as an EAN/GLN too.
+// 20261028 CL/MMR SST-905 einvoice_is_gln_endpoint() counts "0088:<gln>" as a GLN endpoint, as sendInvoice() now routes it, so a Danish receiver on it without a CVR is stopped like one on a plain EAN.
 
 include_once(__DIR__ . '/countryCode.php');
 
@@ -132,9 +133,9 @@ if (!function_exists('einvoice_cvr_input_problem')) {
 if (!function_exists('einvoice_is_gln_endpoint')) {
 	/**
 	 * Whether sendInvoice() routes this EAN field as a GLN, mirroring its branches: a plain
-	 * EAN (no colon) or a "scheme:value" with a non-numeric scheme such as "GLN:5798000000000".
-	 * A numeric scheme ("0184:12345678", "0007:...") already carries the party's id and is not
-	 * a GLN endpoint for this purpose.
+	 * EAN (no colon), a "scheme:value" with a non-numeric scheme such as "GLN:5798000000000", or
+	 * the GS1 GLN scheme 0088 (SST-905). Another numeric scheme ("0184:12345678", "0007:...")
+	 * already carries the party's id and is not a GLN endpoint for this purpose.
 	 *
 	 * @param string|null $ean The EAN field (order, or the card when the order has none).
 	 * @return bool
@@ -148,7 +149,7 @@ if (!function_exists('einvoice_is_gln_endpoint')) {
 			return true;
 		}
 		$scheme = trim(explode(':', $ean, 2)[0]);
-		return !is_numeric($scheme);
+		return !is_numeric($scheme) || $scheme === '0088';
 	}
 }
 
