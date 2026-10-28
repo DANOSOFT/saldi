@@ -13,6 +13,7 @@
 // 20261027 CL/SZ SD-748: created.
 // 20261027 CL/SZ SD-748: the promotion test also runs on SD-737's real queue (#918).
 // 20261028 CL/SZ SD-748: an anomaly whose alarm fails no longer stops promotion.
+// 20261028 CL/SZ SD-748 review: nor does an event whose alarm fails; compliance topics are ignored with the flow off.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -291,7 +292,7 @@ final class WebhookInboxTest extends TestCase
 
         $this->assertSame([['ORDERS_PAID', 'error'], ['ORDERS_PAID', 'error'], ['PRODUCTS_UPDATE', 'ignored']], self::promoted($run));
         $this->assertSame([], $this->jobs());
-        $this->assertSame(['queued' => 0, 'ignored' => 1, 'error' => 2, 'failed' => 0, 'alarmed' => 0], array_diff_key($run['result'], ['events' => 0]));
+        $this->assertSame(['queued' => 0, 'ignored' => 1, 'error' => 2, 'failed' => 0, 'deferred' => 0, 'alarmed' => 0], array_diff_key($run['result'], ['events' => 0]));
         $this->assertSame([['webhook.route', 'hml:ORDERS_PAID:ev-x', 'the webhook body is not a JSON object'], ['webhook.route', 'hml:ORDERS_PAID:ev-y', 'ORDERS_PAID without an order id']],
             array_map(fn(array $a): array => [$a['kind'], $a['ref'], $a['message']], $this->alarms()));
     }
@@ -302,6 +303,7 @@ final class WebhookInboxTest extends TestCase
             self::delivery('brand2', 'orders/paid', 'ev-b1', self::body('orders_paid'), [], self::$brandSecret),
             self::delivery('brand2', 'customers/create', 'ev-b2', self::body('customers_create'), [], self::$brandSecret),
             self::delivery('brand2', 'products/update', 'ev-b3', '{"id":1}', [], self::$brandSecret),
+            self::delivery('brand2', 'customers/redact', 'ev-b4', '{"customer":{"id":1}}', [], self::$brandSecret),
         ]);
 
         $off = $this->promote(10);
@@ -310,9 +312,9 @@ final class WebhookInboxTest extends TestCase
         pg_close($conn);
         $ordersOn = $this->promote(10);
 
-        $this->assertSame([['PRODUCTS_UPDATE', 'ignored']], self::promoted($off), 'a topic without a flow is not held back');
+        $this->assertSame([['PRODUCTS_UPDATE', 'ignored'], ['CUSTOMERS_REDACT', 'ignored']], self::promoted($off), 'a topic without a job is not held back by its flow');
         $this->assertSame([['ORDERS_PAID', 'queued']], self::promoted($ordersOn), 'customers stay off');
-        $this->assertSame(['queued', 'received', 'ignored'], array_column($this->events(), 'state'));
+        $this->assertSame(['queued', 'received', 'ignored', 'ignored'], array_column($this->events(), 'state'));
     }
 
     public function testAFailedEnqueueMakesTheEventAnErrorWithAnAlarmAndTheBatchGoesOn(): void
@@ -325,7 +327,7 @@ final class WebhookInboxTest extends TestCase
         $failing = $this->promote(10, 'order.import');
         $after = $this->promote(10);
 
-        $this->assertSame(['queued' => 1, 'ignored' => 0, 'error' => 0, 'failed' => 1, 'alarmed' => 0], array_diff_key($failing['result'], ['events' => 0]));
+        $this->assertSame(['queued' => 1, 'ignored' => 0, 'error' => 0, 'failed' => 1, 'deferred' => 0, 'alarmed' => 0], array_diff_key($failing['result'], ['events' => 0]));
         $this->assertSame([['ORDERS_PAID', 'error'], ['CUSTOMERS_CREATE', 'queued']], self::promoted($failing), 'the failing event holds nothing up');
         $this->assertSame([['webhook.promote', 'hml:ORDERS_PAID:ev-f1', 'enqueue failed: RuntimeException: enqueue of order.import failed (test)']],
             array_map(fn(array $a): array => [$a['kind'], $a['ref'], $a['message']], $this->alarms()));
@@ -348,21 +350,53 @@ final class WebhookInboxTest extends TestCase
         $this->assertStringContainsString('ShopifyDbError', $this->alarms()[0]['message']);
     }
 
-    public function testWhenAnAlarmFailsTheWholeRunIsRolledBack(): void
+    public function testAnEventWhoseAlarmFailsWaitsForTheNextRunAndTheRestArePromoted(): void
     {
         $this->receive([
             self::delivery('hml', 'orders/paid', 'ev-r1', self::body('orders_paid')),
             self::delivery('hml', 'orders/create', 'ev-r2', 'not json'),
         ]);
 
-        $run = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_events.php', ['promote', self::$db, '10', 'alarm_fails']));
+        $failing = $this->promote(10, 'alarm_fails');
 
-        $this->assertSame(1, $run['exit'], $run['stdout']);
-        $this->assertSame('alarm webhook.promote failed (test)', $run['result']['error']['message']);
-        $this->assertSame([['ev-r1', 'received', null], ['ev-r2', 'received', null]], array_map(fn(array $e): array => [$e['event_id'], $e['state'], $e['job_id']], $this->events()),
-            'the paid order queued before the failing alarm is rolled back with it');
-        $this->assertSame([], $this->jobs());
+        $this->assertSame(['queued' => 1, 'ignored' => 0, 'error' => 0, 'failed' => 0, 'deferred' => 1, 'alarmed' => 0], array_diff_key($failing['result'], ['events' => 0]));
+        $this->assertSame([['ev-r1', 'queued'], ['ev-r2', 'received']], array_map(fn(array $e): array => [$e['event_id'], $e['state']], $this->events()),
+            'the paid order is kept; the event without its alarm is not stored as an error');
+        $this->assertStringContainsString('shopify_webhook alarm_deferred', $failing['stderr']);
+        $this->assertStringContainsString('the webhook body is not a JSON object', $failing['stderr'], 'the route problem stays in the log');
         $this->assertSame([], $this->alarms());
+
+        $after = $this->promote(10);
+
+        $this->assertSame([['ORDERS_CREATE', 'error']], self::promoted($after), 'routed again once the alarm works');
+        $this->assertSame([['webhook.route', 'hml:ORDERS_CREATE:ev-r2', 'the webhook body is not a JSON object']],
+            array_map(fn(array $a): array => [$a['kind'], $a['ref'], $a['message']], $this->alarms()));
+    }
+
+    public function testAPaidEventWhoseAlarmFailsDoesNotHoldUpThePaidEventsBehindIt(): void
+    {
+        $this->receive([
+            self::delivery('hml', 'orders/paid', 'ev-bad', '{"note":"no order id"}'),
+            self::delivery('hml', 'orders/paid', 'ev-good', self::body('orders_paid')),
+        ]);
+
+        $runs = [];
+        for ($i = 0; $i < 2; $i++) {
+            $runs[] = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_events.php', ['promote', self::$db, '10', 'no_alarm']));
+        }
+
+        foreach ($runs as $run) {
+            $this->assertSame(0, $run['exit'], $run['stderr'] . $run['stdout']);
+        }
+        $this->assertSame([['ORDERS_PAID', 'received'], ['ORDERS_PAID', 'queued']], self::promoted($runs[0]['result']));
+        $this->assertSame([['ORDERS_PAID', 'received']], self::promoted($runs[1]['result']), 'the bad event is tried again, the good one is not');
+        $this->assertSame([['ev-bad', 'received'], ['ev-good', 'queued']], array_map(fn(array $e): array => [$e['event_id'], $e['state']], $this->events()));
+        $this->assertSame(['order.import'], array_column($this->jobs(), 'type'));
+
+        $this->promote(10);
+
+        $this->assertSame('error', $this->events()[0]['state']);
+        $this->assertSame([['webhook.route', 'ORDERS_PAID without an order id']], array_map(fn(array $a): array => [$a['kind'], $a['message']], $this->alarms()));
     }
 
     public function testAnEnqueueThatEndsTheTransactionItselfStopsTheRun(): void

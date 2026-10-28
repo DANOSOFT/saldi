@@ -32,6 +32,7 @@
 //
 // 20261027 CL/SZ SD-748: created (WP03-2).
 // 20261028 CL/SZ SD-748: a failed anomaly alarm is logged and retried next run instead of stopping promotion.
+// 20261028 CL/SZ SD-748 review: a failed event alarm too; compliance topics are ignored whatever the flow.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -150,7 +151,6 @@ function shopify_receive_webhook(array $shop, string $raw, array $headers): arra
 		'api_version' => shopify_event_header($h, 'x-shopify-api-version'),
 		'payload_b64' => base64_encode($raw),
 	);
-	$ref = "$shopKey:$topic:$eventId";
 
 	try {
 		if ($state === 'anomaly') {
@@ -283,14 +283,14 @@ function shopify_route_event(array $event, array $payload): ?array {
  * 'error' with an alarm, so it never holds up the events behind it; setting it back to
  * 'received' replays it. Events of a shop whose flow (orders or customers) is off stay
  * 'received' until it is switched on. It also raises the alarm of every anomaly the receiver
- * could not alarm; an anomaly alarm that fails is logged and left pending for the next run, so
- * it never holds up the events behind it. Each event's state change and alarm are stored
- * together; an event alarm that fails rolls back the whole run. Concurrent runs skip each
- * other's rows.
+ * could not alarm. Each event's state change and alarm are stored together. An alarm that fails,
+ * of an anomaly or an event, is logged (alarm_deferred) and its row is left as it was for the
+ * next run, so it never holds up the rows behind it. Concurrent runs skip each other's rows.
  *
- * @return array{queued: int, ignored: int, error: int, failed: int, alarmed: int, events: list<array{id: int, topic: string, state: string, job_id: int|null}>}
+ * @return array{queued: int, ignored: int, error: int, failed: int, deferred: int, alarmed: int, events: list<array{id: int, topic: string, state: string, job_id: int|null}>}
  *   error: bodies that can't be routed; failed: events whose enqueue failed (both in state
- *   'error'); alarmed: anomalies alarmed by this run
+ *   'error'); deferred: events left 'received' because their alarm failed; alarmed: anomalies
+ *   alarmed by this run
  */
 function shopify_promote_events(int $limit = 100): array {
 	// The worker has loaded the queue already; loaded here only when it hasn't.
@@ -298,7 +298,7 @@ function shopify_promote_events(int $limit = 100): array {
 		require_once __DIR__ . '/queue.php';
 	}
 	return shopify_db_transaction(function () use ($limit) {
-		$out = array('queued' => 0, 'ignored' => 0, 'error' => 0, 'failed' => 0, 'alarmed' => 0, 'events' => array());
+		$out = array('queued' => 0, 'ignored' => 0, 'error' => 0, 'failed' => 0, 'deferred' => 0, 'alarmed' => 0, 'events' => array());
 		$anomalies = shopify_db_rows("SELECT id FROM shopify_events WHERE state = 'anomaly' AND processed_at IS NULL ORDER BY id LIMIT $1 FOR UPDATE SKIP LOCKED", array(max(1, $limit)));
 		foreach ($anomalies as $anomaly) {
 			try {
@@ -312,7 +312,8 @@ function shopify_promote_events(int $limit = 100): array {
 		}
 		$events = shopify_db_rows(
 			"SELECT e.id, e.shop_id, e.topic, e.event_id, e.payload_b64, s.shop_key FROM shopify_events e JOIN shopify_shops s ON s.id = e.shop_id"
-			. " WHERE e.state = 'received' AND CASE WHEN e.topic LIKE 'CUSTOMERS\\_%' THEN s.customers_enabled"
+			. " WHERE e.state = 'received' AND CASE WHEN e.topic IN ('" . implode("', '", SHOPIFY_EVENT_NOT_ROUTED) . "') THEN true"
+			. " WHEN e.topic LIKE 'CUSTOMERS\\_%' THEN s.customers_enabled"
 			. " WHEN e.topic LIKE 'ORDERS\\_%' OR e.topic LIKE 'FULFILLMENTS\\_%' OR e.topic LIKE 'REFUNDS\\_%' THEN s.orders_enabled ELSE true END"
 			. " ORDER BY (e.topic = 'ORDERS_PAID') DESC, e.received_at, e.id LIMIT $1 FOR UPDATE OF e SKIP LOCKED",
 			array(max(1, $limit))
@@ -329,11 +330,19 @@ function shopify_promote_events(int $limit = 100): array {
 				throw $e;
 			} catch (Exception $e) {
 				$message = 'enqueue failed: ' . get_class($e) . ': ' . $e->getMessage();
-				shopify_db_transaction(function () use ($event, $id, $ref, $message) {
-					shopify_db_rows("UPDATE shopify_events SET state = 'error', processed_at = now() WHERE id = $1", array($id));
-					shopify_event_alarm((int)$event['shop_id'], 'webhook.promote', $ref, $message, array('event_row_id' => $id));
-				});
-				$done = array('state' => 'error', 'job_id' => null, 'count' => 'failed');
+				try {
+					shopify_db_transaction(function () use ($event, $id, $ref, $message) {
+						shopify_db_rows("UPDATE shopify_events SET state = 'error', processed_at = now() WHERE id = $1", array($id));
+						shopify_event_alarm((int)$event['shop_id'], 'webhook.promote', $ref, $message, array('event_row_id' => $id));
+					});
+					$done = array('state' => 'error', 'job_id' => null, 'count' => 'failed');
+				} catch (ShopifyDbMisuse $e) {
+					throw $e;
+				} catch (Exception $e) {
+					// Own savepoint: the event stays 'received', and is tried again next run.
+					shopify_event_log('alarm_deferred', array('event_row_id' => $id, 'cause' => $message, 'error' => get_class($e) . ': ' . $e->getMessage()));
+					$done = array('state' => 'received', 'job_id' => null, 'count' => 'deferred');
+				}
 			}
 			$out[$done['count']]++;
 			$out['events'][] = array('id' => $id, 'topic' => $event['topic'], 'state' => $done['state'], 'job_id' => $done['job_id']);
@@ -358,7 +367,14 @@ function shopify_promote_event(array $event, int $id, string $ref): array {
 	}
 	if ($problem !== null) {
 		shopify_db_rows("UPDATE shopify_events SET state = 'error', processed_at = now() WHERE id = $1", array($id));
-		shopify_event_alarm((int)$event['shop_id'], 'webhook.route', $ref, $problem, array('event_row_id' => $id));
+		try {
+			shopify_event_alarm((int)$event['shop_id'], 'webhook.route', $ref, $problem, array('event_row_id' => $id));
+		} catch (ShopifyDbMisuse $e) {
+			throw $e;
+		} catch (Exception $e) {
+			// Re-thrown with the route problem, so the caller's log keeps it.
+			throw new RuntimeException("$problem; its alarm failed: " . get_class($e) . ': ' . $e->getMessage(), 0, $e);
+		}
 		return array('state' => 'error', 'job_id' => null, 'count' => 'error');
 	}
 	if ($route === null) {

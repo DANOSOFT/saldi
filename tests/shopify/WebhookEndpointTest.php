@@ -9,6 +9,7 @@
 // History:
 // 20261027 CL/SZ SD-748: created.
 // 20261028 CL/SZ SD-748: a body over 10 MB gets 413; the worker command promotes a stored delivery.
+// 20261028 CL/SZ SD-748 review: no fiscal-year check in the receiver; a legacy die() answers our 503.
 
 use PHPUnit\Framework\TestCase;
 
@@ -161,6 +162,29 @@ final class WebhookEndpointTest extends TestCase
         $this->assertSame([], $this->events());
     }
 
+    public function testAFiscalYearMistakeInTheLedgerDoesNotStopDeliveries(): void
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, box3, box4, box5) VALUES ('RA', 2, 'RA', '01', $1, '12', $1, 'on')", [date('Y')]);
+        pg_close($conn);
+        $raw = '{"id":5,"admin_graphql_api_id":"gid://shopify/Order/5"}';
+
+        $this->assertSame([200, '{"status":"stored"}'], $this->post('hml', $raw, self::headers($raw)), 'two RA years contain today');
+        $this->assertSame([['ev-http-1', 'received']], array_map(fn(array $r): array => [$r['event_id'], $r['state']], $this->events()));
+    }
+
+    public function testALegacyDieAnswersOur503WithoutTheLegacyOutput(): void
+    {
+        $dying = self::startServer(['SALDI_SHOPIFY_DB' => self::$db], ['auto_prepend_file=' . __DIR__ . '/support/webhook_die_prepend.php']);
+        try {
+            $raw = '{"id":5}';
+            $this->assertSame([503, '{"status":"unavailable"}'], $this->request('POST', '/api/shopify/webhook.php?shop=hml', $raw, self::headers($raw), $dying['port']));
+        } finally {
+            self::stopServer($dying);
+        }
+        $this->assertSame([], $this->events());
+    }
+
     // ---- helpers ---------------------------------------------------------------------------
 
     /** Null when includes/connect.php can serve the endpoint against ShopifyEnv's master. */
@@ -223,13 +247,18 @@ final class WebhookEndpointTest extends TestCase
     }
 
     /** @return array{proc: resource, pipes: array<int, resource>, port: int, log: string} */
-    private static function startServer(array $env): array
+    private static function startServer(array $env, array $ini = []): array
     {
         $probe = stream_socket_server('tcp://127.0.0.1:0');
         $port = (int)substr(strrchr(stream_socket_get_name($probe, false), ':'), 1);
         fclose($probe);
         $log = (string)tempnam(sys_get_temp_dir(), 'sd748-server');
-        $cmd = [PHP_BINARY, '-S', "127.0.0.1:$port", '-t', ShopifyEnv::repoRoot(), __DIR__ . '/support/webhook_router.php'];
+        $cmd = [PHP_BINARY];
+        foreach ($ini as $setting) {
+            $cmd[] = '-d';
+            $cmd[] = $setting;
+        }
+        array_push($cmd, '-S', "127.0.0.1:$port", '-t', ShopifyEnv::repoRoot(), __DIR__ . '/support/webhook_router.php');
         $baseEnv = ['PATH' => (string)getenv('PATH')];
         $proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes, ShopifyEnv::repoRoot(), $baseEnv + $env);
         if (!is_resource($proc)) {

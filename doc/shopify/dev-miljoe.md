@@ -17,17 +17,19 @@ The tenant must be registered and open in master `regnskab`. Without one, every 
 
 ### The shop and its webhook secret
 
-The shop needs a `shopify_shops` row, and its webhook secret is stored as `webhook_secret` in the settings group `shopify:<shop_key>`. For a Shopify app that is the app's client secret, which signs every webhook. Save it through the module, never with `db_modify()` (that would put it in the modify log). From the repo root:
+The shop needs a `shopify_shops` row, and its webhook secret is stored as `webhook_secret` in the settings group `shopify:<shop_key>`. For a Shopify app that is the app's client secret, which signs every webhook. Save it through the module, never with `db_modify()` (that would put it in the modify log). An empty secret deletes the setting, so the snippet stops when `HML_WEBHOOK_SECRET` isn't set. From the repo root:
 
 ```sh
 cd tools && php -r '
 include "../includes/connect.php";
 require "../includes/shopify/bootstrap.php";
 require "../includes/shopify/config.php";
+$secret = getenv("HML_WEBHOOK_SECRET");
+if ($secret === false || $secret === "") { fwrite(STDERR, "HML_WEBHOOK_SECRET is not set\n"); exit(1); }
 shopify_bootstrap("saldi_shopify_test_xx");
-shopify_db_transaction(function () {
+shopify_db_transaction(function () use ($secret) {
     shopify_save_shop(["shop_key" => "hml", "domain" => "hml-test.myshopify.com", "is_primary" => true]);
-    shopify_save_secret("hml", "webhook_secret", getenv("HML_WEBHOOK_SECRET"));
+    shopify_save_secret("hml", "webhook_secret", $secret);
 });'
 ```
 

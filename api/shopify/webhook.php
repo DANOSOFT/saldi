@@ -29,6 +29,7 @@
 //
 // 20261027 CL/SZ SD-748: created (WP03-2).
 // 20261028 CL/SZ SD-748: the body is read up to 10 MB; a larger one gets 413 unread.
+// 20261028 CL/SZ SD-748 review: legacy output from a die() is replaced by our 503; no fiscal-year check.
 
 // Legacy includes print HTML on their error paths (alert(), die()); the answer stays ours.
 ob_start();
@@ -50,6 +51,14 @@ function shopify_webhook_respond(int $status, string $outcome): void {
 	exit;
 }
 
+// PHP flushes open buffers at shutdown, so a die() would still send the legacy HTML under the
+// 503. shopify_webhook_respond() leaves no buffer open, so after an answer this does nothing.
+register_shutdown_function(function (): void {
+	if (ob_get_level() > 0 && !headers_sent()) {
+		shopify_webhook_respond(503, 'unavailable');
+	}
+});
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 	shopify_webhook_respond(405, 'method_not_allowed');
 }
@@ -69,7 +78,8 @@ require_once(__DIR__ . '/../../includes/shopify/bootstrap.php');
 require_once(__DIR__ . '/../../includes/shopify/events.php');
 
 try {
-	shopify_bootstrap();
+	// No fiscal year: the inbox doesn't use it, and a ledger mistake must not cost webhooks.
+	shopify_bootstrap(null, false);
 	$shopifyWebhookShop = shopify_shop($shopifyWebhookKey);
 } catch (ShopifyBootstrapError | ShopifyDbError $e) {
 	shopify_event_log('unavailable', array('shop' => $shopifyWebhookKey, 'error' => $e->getMessage()));
