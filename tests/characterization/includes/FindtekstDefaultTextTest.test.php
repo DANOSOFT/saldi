@@ -56,6 +56,16 @@ final class FindtekstDefaultTextTest extends TestCase
         require dirname(__DIR__, 3) . '/includes/stdFunc/findTxt.php';
     }
 
+    /**
+     * The 'id|default' argument for findtekst(). These tests read their own fixture tekster.csv
+     * (4981 empty, 4982 "Bestiller") and pass default texts on purpose that differ from the real
+     * importfiler/tekster.csv, so the argument is built here rather than written as a literal.
+     */
+    private static function call(int $id, string $default): string
+    {
+        return $id . '|' . $default;
+    }
+
     public function testEmptyCsvLineFallsBackToTheCallsDefaultText(): void
     {
         self::boot('UTF8');
@@ -66,7 +76,7 @@ final class FindtekstDefaultTextTest extends TestCase
     public function testCsvTextStillWinsAndIsStored(): void
     {
         self::boot('UTF8');
-        self::assertSame('Bestiller', findtekst('4982|Something else', 1));
+        self::assertSame('Bestiller', findtekst(self::call(4982, 'Something else'), 1));
         self::assertCount(1, $GLOBALS['__inserts']);
         self::assertStringContainsString("insert into tekster", $GLOBALS['__inserts'][0]);
     }
@@ -104,7 +114,7 @@ final class FindtekstDefaultTextTest extends TestCase
     public function testLatin9TenantGetsTheDefaultTextInIso88591(): void
     {
         self::boot('LATIN9');
-        self::assertSame(mb_convert_encoding('Udløbsdato', 'ISO-8859-1', 'UTF-8'), findtekst('4981|Udløbsdato', 1));
+        self::assertSame(mb_convert_encoding('Udløbsdato', 'ISO-8859-1', 'UTF-8'), findtekst(self::call(4981, 'Udløbsdato'), 1));
     }
 
     public function testRealLocateDirIsIncludedWhateverTheWorkingDirectory(): void
@@ -116,7 +126,7 @@ final class FindtekstDefaultTextTest extends TestCase
         @mkdir($page, 0777, true);
         chdir($page);
         try {
-            self::assertSame('Bestiller', findtekst('4982|Something else', 1));
+            self::assertSame('Bestiller', findtekst(self::call(4982, 'Something else'), 1));
             self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
         } finally {
             chdir($cwd);
@@ -136,14 +146,14 @@ final class FindtekstDefaultTextTest extends TestCase
     public function testDefaultTextKeepsAPipe(): void
     {
         self::boot('UTF8');
-        self::assertSame('A | B', findtekst('4981|A | B', 1));
+        self::assertSame('A | B', findtekst(self::call(4981, 'A | B'), 1));
     }
 
     public function testEachCallKeepsItsOwnDefaultText(): void
     {
         self::boot('UTF8');
         self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
-        self::assertSame('Another label', findtekst('4981|Another label', 1));
+        self::assertSame('Another label', findtekst(self::call(4981, 'Another label'), 1));
         self::assertSame('Tekst nr: 4981', findtekst('4981', 1));
         self::assertSame('Autoudfyld', findtekst('4981|Autoudfyld', 1));
     }
@@ -158,6 +168,6 @@ final class FindtekstDefaultTextTest extends TestCase
     public function testDefaultTextZeroIsKept(): void
     {
         self::boot('UTF8');
-        self::assertSame('0', findtekst('4981|0', 1));
+        self::assertSame('0', findtekst(self::call(4981, '0'), 1));
     }
 }

@@ -8,12 +8,12 @@
  // 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
  // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
  // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
- // 20261026 CL/MMR SST-890 Use the call's default text ('4981|Autoudfyld') when the text is missing in tekster and tekster.csv, instead of "Tekst nr: 4981".
- //                  An empty tekster.csv line no longer raises "Undefined array key" (trim() strips its tabs).
- //                  locateDir.php is included via __DIR__, so it is found whatever the caller's working directory.
- // 20261027 CL/MMR SST-890 CodeRabbit (PR #878): the default text is split off at the first '|' only, so a default that contains '|' is kept whole.
- //                  A default text or the "Tekst nr" placeholder is cached in the session per default text, so another call with the same id and a different default gets its own.
- //                  A default text "0" is shown as "0", not as the placeholder.
+// 20261026 CL/MMR SST-890 Use the call's default text ('4981|Autoudfyld') when the text is missing in tekster and tekster.csv, instead of "Tekst nr: 4981".
+//                  An empty tekster.csv line no longer raises "Undefined array key" (trim() strips its tabs).
+//                  locateDir.php is included via __DIR__, so it is found whatever the caller's working directory.
+// 20261027 CL/MMR SST-890 CodeRabbit (PR #878): the default text is split off at the first '|' only, so a default that contains '|' is kept whole.
+//                  A default text or the "Tekst nr" placeholder is cached in the session per default text, so another call with the same id and a different default gets its own.
+//                  A default text "0" is shown as "0", not as the placeholder.
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
