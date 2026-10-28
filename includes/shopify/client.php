@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/client.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- includes/shopify/client.php --- ver 5.0.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 //                their metadata when a value isn't valid UTF-8 (SD-747, #862 review).
 // 20261026 CL/SZ Retry-After and X-Request-Id come from the final response only; an interim
 //                "100 Continue" block no longer carries over (SD-747, #862 CodeRabbit).
+// 20261028 Sawaneh SD-738: the attempt entry carries the requested and actual cost and the restore rate for the call log.
 
 const SHOPIFY_API_VERSION = '2026-07';
 const SHOPIFY_MAX_RETRIES = 3;
@@ -204,6 +205,8 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
 			'curl_errno' => $resp['errno'], 'curl_error' => $resp['error'] ?: null, 'ms' => (int) round(($clock() - $started) * 1000),
 			'cost' => $parsed['cost']['actualQueryCost'] ?? $parsed['cost']['requestedQueryCost'] ?? null,
 			'available' => $parsed['cost']['throttleStatus']['currentlyAvailable'] ?? null,
+			'cost_requested' => $parsed['cost']['requestedQueryCost'] ?? null, 'cost_actual' => $parsed['cost']['actualQueryCost'] ?? null,
+			'cost_restore_rate' => $parsed['cost']['throttleStatus']['restoreRate'] ?? null,
 			'correlation' => $correlation, 'direction' => 'out', 'request_id' => $resp['request_id'] ?? null,
 		] + shopify_client_logged_bodies($redact, ['query' => $query, 'variables' => $vars], $resp['body'], [$token]));
 

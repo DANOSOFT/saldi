@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/worker.php --- ver 5.0.0 --- 2026.10.27
+// --- includes/shopify/worker.php --- ver 5.0.0 --- 2026.10.28
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,11 +31,14 @@
 // 20261026 Sawaneh SD-737 review: a transaction left open by a handler is rolled back before the job is
 //                 finished, so the terminal state always commits; a yield waits until after the pass.
 // 20261027 Sawaneh SD-737 review: the same for a producer; the legacy transaktion() depth is always reset.
+// 20261028 Sawaneh SD-738: a failed job alarms from its third attempt on (and when dead, a crash included) and
+//                 its error is resolved once it succeeds; a producer's error is redacted.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/queue.php';
 require_once __DIR__ . '/scheduler.php';
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/errors.php';
 
 /** A job is not claimed with less than this many seconds of the budget left. */
 const SHOPIFY_WORKER_MIN_SLICE = 5;
@@ -73,7 +76,10 @@ function shopify_worker_run(array $ctx, array $registry, array $producers, int $
 	$summary = array('recovered' => 0, 'scheduled' => 0, 'producers' => array(), 'claimed' => 0, 'done' => 0,
 		'yielded' => 0, 'failed' => 0, 'dead' => 0, 'lost' => 0, 'jobs' => array(), 'stopped' => 'empty', 'ms' => 0);
 
-	$summary['recovered'] = shopify_queue_recover_expired();
+	$summary['recovered'] = shopify_queue_recover_expired(100, $recovered);
+	foreach ($recovered as $job) {
+		shopify_worker_alarm($job, $job['state'] === 'dead' ? 'dead' : 'failed', 'lease expired (the run crashed or was killed)');
+	}
 	$types = array_keys($registry);
 	$summary['scheduled'] = shopify_schedule_insert($now(), $ctx['shops'] ?? shopify_shops(), $types);
 	foreach ($producers as $name => $producer) {
@@ -81,7 +87,7 @@ function shopify_worker_run(array $ctx, array $registry, array $producers, int $
 		try {
 			$summary['producers'][$name] = $producer($ctx, $end);
 		} catch (Throwable $e) {
-			$summary['producers'][$name] = array('error' => get_class($e) . ': ' . $e->getMessage());
+			$summary['producers'][$name] = array('error' => shopify_redact(get_class($e) . ': ' . $e->getMessage()));
 			$threw = true;
 		}
 		if (shopify_worker_close_transaction() && !$threw) {
@@ -126,25 +132,47 @@ function shopify_worker_execute(array $job, callable $handler, float $deadline):
 		$outcome = $handler($job, $deadline, $heartbeat);
 	} catch (LogicException $e) {
 		shopify_worker_close_transaction();
-		return shopify_queue_dead($id, $token, get_class($e) . ': ' . $e->getMessage()) ? 'dead' : 'lost';
+		$err = get_class($e) . ': ' . $e->getMessage();
+		return shopify_worker_alarm($job, shopify_queue_dead($id, $token, $err) ? 'dead' : 'lost', $err);
 	} catch (Throwable $e) {
 		shopify_worker_close_transaction();
 		$dead = $job['attempts'] >= $job['max_attempts'];
-		return shopify_queue_fail($id, $token, get_class($e) . ': ' . $e->getMessage()) ? ($dead ? 'dead' : 'failed') : 'lost';
+		$err = get_class($e) . ': ' . $e->getMessage();
+		return shopify_worker_alarm($job, shopify_queue_fail($id, $token, $err) ? ($dead ? 'dead' : 'failed') : 'lost', $err);
 	}
 	if (shopify_worker_close_transaction()) {
-		return shopify_queue_dead($id, $token, 'handler returned with a transaction open; its uncommitted work was rolled back') ? 'dead' : 'lost';
+		$err = 'handler returned with a transaction open; its uncommitted work was rolled back';
+		return shopify_worker_alarm($job, shopify_queue_dead($id, $token, $err) ? 'dead' : 'lost', $err);
 	}
 	$kind = is_array($outcome) ? ($outcome['outcome'] ?? null) : null;
 	if ($kind === 'done') {
-		return shopify_queue_complete($id, $token) ? 'done' : 'lost';
+		return shopify_worker_alarm($job, shopify_queue_complete($id, $token) ? 'done' : 'lost', '');
 	}
 	if ($kind === 'yield') {
 		$checkpoint = is_array($outcome['checkpoint'] ?? null) ? $outcome['checkpoint'] : array();
 		$afterThisPass = max(1, (int)ceil($deadline - microtime(true)));
 		return shopify_queue_yield($id, $token, $checkpoint, max((int)($outcome['run_after'] ?? 0), $afterThisPass)) ? 'yielded' : 'lost';
 	}
-	return shopify_queue_dead($id, $token, 'handler returned no outcome done or yield') ? 'dead' : 'lost';
+	$err = 'handler returned no outcome done or yield';
+	return shopify_worker_alarm($job, shopify_queue_dead($id, $token, $err) ? 'dead' : 'lost', $err);
+}
+
+/**
+ * Raises the error of a failed or dead job (shopify_error_job_failed()), or resolves it when the
+ * job is done, and returns $result. An error row that can't be stored is logged and never changes
+ * the job's committed outcome.
+ */
+function shopify_worker_alarm(array $job, string $result, string $err): string {
+	if (!in_array($result, array('failed', 'dead', 'done'), true)) {
+		return $result;
+	}
+	try {
+		$result === 'done' ? shopify_error_job_done($job) : shopify_error_job_failed($job, $result, $err);
+	} catch (Throwable $e) {
+		shopify_worker_close_transaction();
+		error_log("shopify worker: the alarm for job {$job['id']} was not stored: " . get_class($e));
+	}
+	return $result;
 }
 
 /**

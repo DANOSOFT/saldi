@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/queue.php --- ver 5.0.0 --- 2026.10.26
+// --- includes/shopify/queue.php --- ver 5.0.0 --- 2026.10.28
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,8 @@
 // dead after max_attempts (52, about 48 hours).
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
+// 20261028 Sawaneh SD-738: a stored job error is redacted (shopify_redact(), loaded by the worker); recovery
+//                 reports the jobs it recovered, so a crash can alarm.
 
 require_once __DIR__ . '/db.php';
 
@@ -178,9 +180,10 @@ function shopify_queue_extend(int $id, string $token, int $leaseSeconds = 120): 
  * Returns running jobs whose lease expired (a crashed or killed run) to the queue, or makes
  * them dead when that crash used their last attempt. Their old token can no longer finish them.
  *
+ * @param list<array<string, mixed>>|null $jobs receives the recovered jobs, with their new state
  * @return int number of jobs recovered
  */
-function shopify_queue_recover_expired(int $limit = 100): int {
+function shopify_queue_recover_expired(int $limit = 100, ?array &$jobs = null): int {
 	$rows = shopify_db_rows(
 		"UPDATE shopify_jobs SET
 			state = CASE WHEN attempts >= max_attempts THEN 'dead' ELSE 'queued' END,
@@ -191,9 +194,10 @@ function shopify_queue_recover_expired(int $limit = 100): int {
 			SELECT id FROM shopify_jobs WHERE state = 'running' AND locked_until < now()
 			ORDER BY locked_until LIMIT $1 FOR UPDATE SKIP LOCKED
 		 )
-		 RETURNING id",
+		 RETURNING *",
 		array(max(1, $limit))
 	);
+	$jobs = array_map(fn(array $row): array => shopify_queue_job($row) + array('state' => $row['state']), $rows);
 	return count($rows);
 }
 
@@ -322,6 +326,7 @@ function shopify_queue_json(array $value): string {
 	return $value === array() ? '{}' : (string)json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
+/** The stored error text: redacted whenever logging.php is loaded, as it is in every worker run. */
 function shopify_queue_error_text(string $err): string {
-	return mb_substr($err, 0, SHOPIFY_QUEUE_ERROR_LENGTH);
+	return mb_substr(function_exists('shopify_redact') ? (string)shopify_redact($err) : $err, 0, SHOPIFY_QUEUE_ERROR_LENGTH);
 }

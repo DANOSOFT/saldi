@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.0.0 --- 2026.10.26
+// --- tools/shopify_worker.php --- ver 5.0.0 --- 2026.10.28
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // Usage: php tools/shopify_worker.php run --db=<tenant> [--max-seconds=50]
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
+// 20261028 Sawaneh SD-738: the alarm mail (mail.alert) and the call-log purge (runtime.purge) are wired in.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -53,6 +54,8 @@ function shopify_worker_commands(): array {
 function shopify_worker_wiring(): array {
 	$registry = array();
 	$producers = array();
+	shopify_worker_register($registry, 'mail.alert', 'shopify_mail_alert_job');
+	shopify_worker_register($registry, 'runtime.purge', 'shopify_runtime_purge_job');
 	return array('registry' => $registry, 'producers' => $producers);
 }
 
