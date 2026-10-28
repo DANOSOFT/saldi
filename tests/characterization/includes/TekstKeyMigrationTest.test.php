@@ -2,6 +2,7 @@
 // 20261023 CL/NTR Cover the tekster.tekst_key column + idx_tekster_sprog_key migration in
 //                  betweenUpdates.php: Postgres idempotency, the MySQL GET_LOCK/recheck idiom,
 //                  lock-acquisition failure, concurrent creation and DDL-error lock release.
+// 20261028 CDX/NTR Expect the index lock when an existing column still needs its index.
 
 namespace Saldi\Tests\TekstKeyMigration;
 
@@ -106,14 +107,17 @@ final class TekstKeyMigrationTest extends TestCase
         }
     }
 
-    public function testMysqlExistingColumnSkipsLockButStillCreatesMissingIndex(): void
+    public function testMysqlExistingColumnSkipsColumnLockButLocksMissingIndex(): void
     {
         $GLOBALS['tekstKeyMigration']->columnExists = true;
         $this->migrate('mysqli');
         $state = $GLOBALS['tekstKeyMigration'];
-        foreach ($state->queries as $q) {
-            self::assertStringNotContainsString('GET_LOCK(', $q);
-        }
+        $getLocks = array_values(array_filter($state->queries, static fn ($q) => strpos($q, 'GET_LOCK(') !== false));
+        $releaseLocks = array_values(array_filter($state->queries, static fn ($q) => strpos($q, 'RELEASE_LOCK(') !== false));
+        self::assertCount(1, $getLocks);
+        self::assertStringContainsString('saldi:tekst_key_idx:', $getLocks[0]);
+        self::assertCount(1, $releaseLocks);
+        self::assertStringContainsString('saldi:tekst_key_idx:', $releaseLocks[0]);
         self::assertSame([], array_values(array_filter($state->writes, static fn ($w) => strpos($w, 'ALTER TABLE') !== false)));
         self::assertTrue($state->indexExists);
         self::assertCount(1, array_filter($state->writes, static fn ($w) => strpos($w, 'CREATE INDEX') !== false));
