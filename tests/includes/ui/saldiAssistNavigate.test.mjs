@@ -8,13 +8,15 @@
 // 20261002 CDX/LH Cover F1 integration behavior and regression cases.
 // 20261002 CDX/LH Cover companion screens and refuse action parameters.
 // 20261012 CL/LH Ported to master with the bridge (Guide tier); bare admin/backup.php only.
+// 20261027 CL/LH Exact allowlist: every listed screen exists, nothing else passes.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 
-const source = readFileSync(fileURLToPath(new URL('../../../javascript/saldi-assist-navigate.js', import.meta.url)), 'utf8')
+const root = fileURLToPath(new URL('../../../', import.meta.url))
+const source = readFileSync(root + 'javascript/saldi-assist-navigate.js', 'utf8')
 
 function load (withShell = true) {
   const calls = []
@@ -24,84 +26,85 @@ function load (withShell = true) {
   return { navigate: window.SaldiAssistNavigate, calls, window }
 }
 
-test('typed SaldiScreens links and bare manifest paths are accepted', () => {
+test('listed screens are accepted and opened through update_iframe', () => {
   const { navigate, calls } = load()
-  for (const screen of [
-    'finans/kassekladde.php?kladde_id=12',
+  const screens = [
     'finans/kladdeliste.php',
-    'debitor/ordre.php?id=7',
-    'kreditor/ordre.php?id=7',
-    'debitor/debitorkort.php?id=1234567890',
-    'kreditor/kreditorkort.php?id=3',
-    'lager/varekort.php?id=44',
-    'inbox/index.php?item=12',
-    'finans/pulje_review.php',
-    'debitor/rykker.php',
-    'debitor/rapport.php?rapportart=openpost',
-    'debitor/rykker.php?rykker_id=12',
-    'systemdata/assistent.php',
-    'systemdata/assistent_rapport.php',
-    'finans/rapport.php',
-    'finans/moms_periode.php',
-    'debitor/ordreliste.php',
+    'systemdata/kontoplan.php',
+    'debitor/debitor.php?valg=debitor',
     'debitor/ordreliste.php?valg=ordrer',
-    'systemdata/diverse.php?sektion=posoptions',
-    'systemdata/diverse.php?sektion=a-b',
-    'debitor/ordreliste.php?valg=' + 'a'.repeat(40),
+    'systemdata/diverse.php?sektion=sprog',
+    'systemdata/stamkort.php',
     'admin/backup.php'
-  ]) {
+  ]
+  for (const screen of screens) {
     assert.equal(navigate(screen), true, screen)
   }
-  assert.deepEqual(calls.slice(0, 2), ['/finans/kassekladde.php?kladde_id=12', '/finans/kladdeliste.php'])
+  assert.deepEqual(calls, screens.map((screen) => '/' + screen))
+})
+
+test('every listed screen is a page in this repository', () => {
+  const { navigate } = load()
+  assert.ok(navigate.screens.length > 50)
+  for (const screen of navigate.screens) {
+    assert.ok(existsSync(root + screen.split('?')[0]), screen)
+    assert.doesNotMatch(screen, /logud|slet|delete|luk\.php|^admin\/(?!backup\.php$)/, screen)
+  }
 })
 
 test('everything else is refused and never navigates', () => {
   const { navigate, calls } = load()
   for (const screen of [
-    'javascript:alert(1)',
-    'https://evil.example/x.php',
-    '//evil.example/x.php',
-    '/finans/kladdeliste.php',
+    // Pages that write on a plain GET.
+    'lager/lagerstatusmail.php',
+    'api/v2/setup_api_key.php',
+    'bank_integration/login.php',
+    // Deliberately left out of the list.
     'index/logud.php',
-    'debitor/sletordre.php',
-    'lager/delete.php',
-    'finans/luk.php',
-    'admin/index.php',
-    'admin/backup.php?backup=1',
-    'admin/backup.php?valg=x',
     'admin/admin_settings.php',
-    'admin/nested/read.php',
-    'index/logud.php?valg=read',
-    'admin/index.php?sektion=read',
-    '../index/logud.php',
-    'finans/../index/logud.php',
-    'finans//kladdeliste.php',
-    './finans/kladdeliste.php',
-    'finans/kassekladde.php?id=12',
-    'finans/kassekladde.php?kladde_id=12&slet=1',
-    'finans/kassekladde.php?kladde_id=abc',
-    'finans/kassekladde.php?kladde_id=12345678901',
-    'finans/kassekladde.php?kladde_id=',
-    'finans/kladdeliste.php?x=1',
+    'debitor/pos_ordre.php',
+    'produktion/ordreliste.php',
+    // Real pages that are not navigation destinations.
+    'debitor/debitorkort.php',
+    'lager/varekort.php',
+    'constructor.php',
+    // Typed record links and companion screens of the full Assist (not on master).
+    'finans/kassekladde.php?kladde_id=12',
+    'debitor/ordre.php?id=7',
+    'inbox/index.php?item=12',
+    'finans/pulje_review.php',
+    'debitor/rapport.php?rapportart=openpost',
+    'systemdata/assistent.php',
+    // Variants of listed screens.
+    'admin/backup.php?backup=1',
     'debitor/ordreliste.php?valg=ordrer&slet=1',
     'debitor/ordreliste.php?valg=Ordrer',
     'debitor/ordreliste.php?valg=',
-    'systemdata/diverse.php?sektion=' + 'a'.repeat(41),
-    'systemdata/diverse.php?sektion=a.b',
-    'systemdata/diverse.php?sektion=a%2Db',
-    'finans/kassekladde.php?slet=1',
-    'inbox/action.php?item=1',
-    'debitor/rykker.php?id=12',
-    'debitor/rapport.php?rapportart=openpost&slet=1',
-    'debitor/rapport.php?rapportart=delete',
-    'debitor/rykker.php?rykker_id=12&inkasso=1',
-    'finans/pulje_review.php?source_id=3',
-    'systemdata/assistent.php?set=1',
+    'debitor/ordreliste.php',
+    'systemdata/diverse.php?sektion=sprog#x',
+    'finans/kladdeliste.php?x=1',
     'FINANS/kladdeliste.php',
-    'finans/kladdeliste.php#x',
+    'finans/kladdeliste.php ',
+    'finans/kladdeliste.php\n',
+    '/finans/kladdeliste.php',
+    './finans/kladdeliste.php',
+    'finans//kladdeliste.php',
+    'finans/../finans/kladdeliste.php',
+    'finans%2fkladdeliste.php',
+    // Not screens at all.
+    'javascript:alert(1)',
+    'https://evil.example/x.php',
+    '//evil.example/x.php',
+    '__proto__',
+    'constructor',
+    'hasOwnProperty',
+    'toString',
     '',
     null,
+    undefined,
     12,
+    {},
+    ['finans/kladdeliste.php'],
     'a'.repeat(300) + '.php'
   ]) {
     assert.equal(navigate(screen), false, String(screen))
@@ -111,12 +114,14 @@ test('everything else is refused and never navigates', () => {
 
 test('without the shell function the hash is used', () => {
   const { navigate, window } = load(false)
-  assert.equal(navigate('inbox/index.php?item=3'), true)
-  assert.equal(window.location.hash, '/inbox/index.php?item=3')
+  assert.equal(navigate('finans/kladdeliste.php'), true)
+  assert.equal(window.location.hash, '/finans/kladdeliste.php')
 })
 
-test('isAllowed is exposed for the inbox bridge', () => {
+test('isAllowed and the list are exposed, and the list is a copy', () => {
   const { navigate } = load()
-  assert.equal(navigate.isAllowed('finans/kassekladde.php?kladde_id=1'), true)
-  assert.equal(navigate.isAllowed('finans/kassekladde.php?kladde_id=1&a=b'), false)
+  assert.equal(navigate.isAllowed('systemdata/kontoplan.php'), true)
+  assert.equal(navigate.isAllowed('systemdata/kontoplan.php?x=1'), false)
+  navigate.screens.push('lager/lagerstatusmail.php')
+  assert.equal(navigate.isAllowed('lager/lagerstatusmail.php'), false)
 })
