@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- api/rest_api.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -89,6 +89,8 @@
 //                debtor gets the first DG group), and keeps the shop's momssats if no group is
 //                found, instead of an SQL error on kodenr = '' and momssats 0 (MB-116)
 // 20261027 CL/SZ insert_shop_order: initialise $ktonr so a tenant with no debtors gets account 1000 instead of a PHP 8 TypeError (MB-115).
+// 20261028 CL/MMR SST-905 shop_order_cvr_ean_from_card() treats a CVR or EAN of only non-breaking spaces (&nbsp; from the shop) as blank, so the customer card's value is used.
+//                 trim() keeps U+00A0, so such an order kept a blank-looking CVR and its e-invoice went out without one.
 
 
 // ----------------------------------------------------------------------
@@ -181,14 +183,15 @@ function fetch_from_table($select, $from, $where, $order_by, $limit) {
  * @return array{0: string, 1: string} [cvrnr, ean]
  */
 function shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean) {
-	$cvrnr = trim((string)$cvrnr);
-	$ean = trim((string)$ean);
+	// SST-905: a non-breaking space (&nbsp; from the shop) counts as blank too; trim() leaves it
+	$cvrnr = trim(str_replace("\xC2\xA0", ' ', (string)$cvrnr));
+	$ean = trim(str_replace("\xC2\xA0", ' ', (string)$ean));
 	$saldi_addr_id = (int)$saldi_addr_id;
 	if ($saldi_addr_id && ($cvrnr === '' || $ean === '')) {
 		$qtxt = "select cvrnr, ean from adresser where id = '$saldi_addr_id'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			if ($cvrnr === '') $cvrnr = trim((string)$r['cvrnr']);
-			if ($ean === '') $ean = trim((string)$r['ean']);
+			if ($cvrnr === '') $cvrnr = trim(str_replace("\xC2\xA0", ' ', (string)$r['cvrnr']));
+			if ($ean === '') $ean = trim(str_replace("\xC2\xA0", ' ', (string)$r['ean']));
 		}
 	}
 	return array($cvrnr, $ean);
