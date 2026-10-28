@@ -46,6 +46,7 @@
 //                  output before json_encode(), localize the selected-entry
 //                  invoice label, and set <html lang> from $sprog_id.
 // 20260922 CDX/PHR Restore cross-account suggestions while retaining validated journal assignment.
+// 20260922 CDX/PHR Limit the optional account selector to accounts with eligible open invoices.
 // 20260925 CL/SZ   (CodeRabbit): escape the save-success notice's findtekst() text for HTML
 //                  output, matching the search placeholder's UTF-8-normalize-then-escape pattern.
 // 20261001 CL/SZ   (CodeRabbit): the header row's "Tilbage" button label and the "Udlign — Kladde N"
@@ -156,6 +157,13 @@ if ($entry) {
         $number = db_escape_string($entryContext['account']);
         $type = db_escape_string($entryContext['accountType']);
         $accountWhere = "kontonr = '$number' AND art = '$type'";
+    } else {
+        $accountWhere .= " AND EXISTS (
+            SELECT 1 FROM openpost
+            WHERE openpost.konto_id=adresser.id AND openpost.konto_nr=adresser.kontonr
+                AND (openpost.udlignet!='1' OR openpost.udlignet IS NULL)
+                AND TRIM(COALESCE(openpost.faktnr,''))!=''
+        )";
     }
     $query = db_select("SELECT id, kontonr, art, firmanavn FROM adresser WHERE $accountWhere ORDER BY firmanavn, kontonr", __FILE__ . ' line ' . __LINE__);
     while ($account = db_fetch_array($query)) {

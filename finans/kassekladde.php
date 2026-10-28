@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-22 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -192,6 +192,14 @@
 // 20261022 CL/NTR The kredit genvej alert built its text from $txt1/$txt2 (only set in the debet branch), so an undefined
 //                 genvej letter in Kredit printed just the account and the bilag number with a space. It now uses this
 //                 branch's own $alert1/$alert2, matching the debet alert.
+// 20261026 CL/LH A paper-clip dragged onto the new line at the bottom failed with "Missing source or target ID", since that
+//                line has no id until it is saved. The drop now saves the journal like that line's own clip does
+//                (kkAfterSave=new) and the save links the documents to the line inserted from the dropped-on row (kkLinkFrom,
+//                kkLinkRow, kk_new_line_rows, linkLineDocuments()).
+//                A link to a saved line updates the clip in place instead of location.reload(), which re-posted a journal
+//                rendered by a save and dropped unsaved changes.
+//                The clip drag uses the copy effect instead of link: Chrome on a Wayland desktop cancelled every drop of
+//                a link drag (Wayland has no link action), so nothing happened when a clip was released on another clip.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -209,16 +217,21 @@ require_once __DIR__ . '/kassekladde_includes/sorting.php';
 # that did the insert (see the caller), never inferred with MAX(id), which another session's insert
 # could win.
 $kk_new_line_ids = array();
+$kk_new_line_rows = array(); // form row (tmpkassekl.lobenr) => id of the line inserted from it
 
 /**
  * Remember a line this request created, so the render can place it last and the focus can follow it.
  * The id comes from the connection that did the insert (see the caller in opdater()) - never from
  * MAX(id), which a concurrent insert in another session could win.
+ *
+ * @param int $id  Id of the inserted kassekladde line
+ * @param int $row Form row the line was typed in (tmpkassekl.lobenr), 0 when unknown
  */
-function kk_note_new_line($id) {
-	global $kk_new_line_ids;
+function kk_note_new_line($id, $row = 0) {
+	global $kk_new_line_ids, $kk_new_line_rows;
 	$id = (int) $id;
 	if ($id) $kk_new_line_ids[] = $id;
+	if ($id && (int) $row) $kk_new_line_rows[(int) $row] = $id;
 }
 
 ob_start(); //Starter output buffering
@@ -257,6 +270,7 @@ $control_bal_fetched = FALSE;
 $control_bal_last = $control_next_date = $control_record_daet = $titletxt = NULL;
 $fejl = $kontrolsaldo = $kontrolsum = $x = $y = 0;
 $kkAfterSave = ''; // SD-716: set when the paper-clip saved first (clipSaveThenPool)
+$kkLinkFrom = $kkLinkRow = 0; // set when a clip was dropped on the new line (clipSaveThenLink)
 
 
 if (!isset($kontrolmoms))
@@ -1035,6 +1049,9 @@ if ($_POST) {
 	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
 	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool)
 	$kkAfterSave   = (string)ifset($_POST, 'kkAfterSave', '');
+	// A clip dropped on the new line: link that line's documents to the line the save inserts from form row kkLinkRow
+	$kkLinkFrom    = (int)ifset($_POST, 'kkLinkFrom', 0);
+	$kkLinkRow     = (int)ifset($_POST, 'kkLinkRow', 0);
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
 	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
@@ -1863,7 +1880,8 @@ if (!$fejl && $kladde_id) {
 	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 	unset($_SESSION['kk_lookup_staged'][$kladde_id]);
-	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now
+	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now.
+	// A clip dropped on the new line comes here too, with kkLinkFrom set.
 	if ($submit == 'save' && $kkAfterSave !== '') {
 		$kkPoolLine = 0;
 		if ($kkAfterSave === 'new') {
@@ -1874,13 +1892,27 @@ if (!$fejl && $kladde_id) {
 			$r = db_fetch_array(db_select("select id from kassekladde where id = '" . (int)$kkAfterSave . "' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
 			if ($r) $kkPoolLine = (int)$r['id'];
 		}
-		$kkPoolUrl = "../includes/documents.php?source=kassekladde&sourceId=$kkPoolLine&kladde_id=" . (int)$kladde_id . "&fokus=&openPool=1";
-		if ($kkPoolLine) {
-			$r = db_fetch_array(db_select("select bilag from kassekladde where id = '$kkPoolLine'", __FILE__ . " linje " . __LINE__));
-			if ($r) $kkPoolUrl .= "&bilag=" . (int)$r['bilag'];
+		if ($kkLinkFrom) {
+			// A clip was dropped on the new line (clipSaveThenLink): link its documents there and stay in the journal
+			// The target is the line inserted from the row the clip was dropped on, not the last one inserted:
+			// the user may have filled more rows below it in the same save
+			$kkLinkTo = (int)($GLOBALS['kk_new_line_rows'][$kkLinkRow] ?? 0);
+			$r = db_fetch_array(db_select("select id from kassekladde where id = '$kkLinkFrom' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
+			if ($kkLinkTo && $r) {
+				include_once(__DIR__ . '/../includes/docsIncludes/linkDocuments.php');
+				linkLineDocuments($kkLinkFrom, $kkLinkTo, 'kassekladde', $bruger_id);
+			} elseif (!$kkLinkTo) {
+				alert(findtekst('5468|Den nye linje er tom. Skriv linjen, og træk så bilaget hen på den igen.', $sprog_id));
+			}
+		} else {
+			$kkPoolUrl = "../includes/documents.php?source=kassekladde&sourceId=$kkPoolLine&kladde_id=" . (int)$kladde_id . "&fokus=&openPool=1";
+			if ($kkPoolLine) {
+				$r = db_fetch_array(db_select("select bilag from kassekladde where id = '$kkPoolLine'", __FILE__ . " linje " . __LINE__));
+				if ($r) $kkPoolUrl .= "&bilag=" . (int)$r['bilag'];
+			}
+			// After the journal has loaded, so its pagehide handler releases the lock as on a normal click
+			print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
 		}
-		// After the journal has loaded, so its pagehide handler releases the lock as on a normal click
-		print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
 	}
 }
 /*
@@ -3865,7 +3897,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&sum="         . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+				print "<td class='clip-cell' data-source-id='0' data-row='$x' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
 	            print "<span onclick=\"clipSaveThenPool('$href', 'new')\" style='cursor:pointer;display:inline-block;'>";
 	            print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;'></span></td>\n";
 	        	// print "</tr>";
@@ -4587,7 +4619,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	 */
 	function opdater($kladde_id, $bilagForslag = array())
 	{
-		global $baseCurrency,$egen_kto_id,$sprog_id;
+		global $baseCurrency, $egen_kto_id, $sprog_id, $fejl;
 
 		$kladde_id = (int)$kladde_id;
 		transaktion('begin');
@@ -4712,6 +4744,34 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+
+						# SST-888 The two branches above each carry this check; this one did not, so a
+						# voucher number that does not fit kassekladde.bilag reached the insert.
+						$bilag_tjek = bilagSafeNumber(if_isset($r, '', 'bilag'), $kladde_id);
+						# one replacement per original number: the staged update below rewrites every line
+						# that carries it, so the next line of the same group must get the same number
+						if (!isset($bilag_erstat)) $bilag_erstat = array();
+						$bilag_noegle = 'x' . $bilag_tjek['original'];
+						if (isset($bilag_erstat[$bilag_noegle])) {
+							$bilag_tjek['bilag'] = $bilag_erstat[$bilag_noegle];
+						} elseif ($bilag_tjek['replaced']) {
+							# reserve the replacement through the same allocator a line without a number uses,
+							# so it cannot take a number a staged line already proposes
+							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat);
+							if (!bilagNumberFits((string)$bilag_tjek['bilag'])) $bilag_tjek['bilag'] = 0;
+							$bilag_erstat[$bilag_noegle] = $bilag_tjek['bilag'];
+						}
+						if ($bilag_tjek['replaced'] && $bilag_tjek['bilag'] <= 0) {
+							# the journal is already at 2147483647: no number left to offer, so this line is skipped
+							$fejl = 1;
+							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							continue;
+						} elseif ($bilag_tjek['replaced']) {
+							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
+							# the staged line keeps the bad number as text, so the next open would try it again
+							db_modify("update tmpkassekl set bilag = '" . db_escape_string($bilag_tjek["bilag"]) . "' where kladde_id = '" . db_escape_string($kladde_id) . "' and bilag = '" . db_escape_string($bilag_tjek["original"]) . "'", __FILE__ . " linje " . __LINE__);
+						}
+						$insert_bilag = $bilag_tjek['bilag'];
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {
@@ -4750,7 +4810,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							}
 							# A failed insert, or an install whose id is not auto generated, only means the
 							# pin and the focus do not fire - never a broken save.
-							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id);
+							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id, $r['lobenr']);
 							unset($kk_insert_id);
 						}
 					}
@@ -5691,7 +5751,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 		// Keep text/bilag just in case, but text/plain JSON is primary
 		event.dataTransfer.setData('text/bilag', sourceBilag);
-		event.dataTransfer.effectAllowed = 'link';
+		// 'copy', not 'link': Wayland's drag and drop has no link action (only copy/move/ask), so Chrome on a
+		// Wayland desktop cancelled every drop of a 'link' drag without a drop event
+		event.dataTransfer.effectAllowed = 'copy';
 		console.log('clipDragStart - dataTransfer set. text/plain:', event.dataTransfer.getData('text/plain'), 'text/bilag:', event.dataTransfer.getData('text/bilag'));
 
 		// Add visual feedback
@@ -5725,8 +5787,8 @@ document.addEventListener('DOMContentLoaded', function() {
 				cell.classList.add('drag-over-file');
 				cell.classList.remove('drag-over', 'drag-over-invalid');
 			} else {
-				// Clip-to-clip drag
-				event.dataTransfer.dropEffect = 'link';
+				// Clip-to-clip drag (copy, see clipDragStart)
+				event.dataTransfer.dropEffect = 'copy';
 				console.log('clipDragOver - targetId:', targetId, 'targetBilag:', targetBilag, 'sourceId:', clipDragSourceId);
 				// Don't allow dropping on itself
 				if (targetId == clipDragSourceId) {
@@ -5820,12 +5882,66 @@ document.addEventListener('DOMContentLoaded', function() {
 			return;
 		}
 
+		// The new line at the bottom has no id until it is saved, so the save links the documents to it
+		if (targetSourceId == 0) {
+			clipSaveThenLink(sourceId, cell ? cell.dataset.row : '');
+			return;
+		}
 		console.log('clipDrop - user confirmed, calling linkDocumentsBetweenLines');
 		// Make AJAX call to link documents
-		linkDocumentsBetweenLines(sourceId, targetSourceId);
+		linkDocumentsBetweenLines(sourceId, targetSourceId, targetBilag);
 	}
 
-	function linkDocumentsBetweenLines(fromSourceId, toSourceId) {
+	// Saves the journal like the new line's own clip does (clipSaveThenPool); the save then links the
+	// documents of line fromSourceId to the line it inserts from form row targetRow and shows the journal again
+	function clipSaveThenLink(fromSourceId, targetRow) {
+		const save = document.querySelector('input[name="save"]');
+		if (!save || !save.form) return;
+		for (const [name, value] of [['kkAfterSave', 'new'], ['kkLinkFrom', String(fromSourceId)], ['kkLinkRow', String(targetRow || '')]]) {
+			let input = save.form.querySelector('input[name="' + name + '"]');
+			if (!input) {
+				input = document.createElement('input');
+				input.type = 'hidden';
+				input.name = name;
+				save.form.appendChild(input);
+			}
+			input.value = value;
+		}
+		docChange = false;
+		if (typeof save.form.requestSubmit === 'function') save.form.requestSubmit(save); else save.click();
+	}
+
+	// Shows a line's clip as having a document, without reloading the page: a reload of a journal
+	// rendered by a save re-posts the form, and unsaved changes on the page would be lost
+	function clipShowDocument(sourceId, kladdeId, bilag) {
+		const clipCell = document.querySelector('.clip-cell[data-source-id="' + sourceId + '"]');
+		if (!clipCell) return false;
+		const img = clipCell.querySelector('img.clip-icon');
+		if (img) {
+			img.src = img.src.replace('clip.png', 'paper.png');
+			img.style.cursor = 'grab';
+		}
+		const span = clipCell.querySelector('span');
+		if (span && !span.draggable) {
+			const docHref = '../includes/documents.php?source=kassekladde&sourceId=' + sourceId + '&kladde_id=' + kladdeId + '&bilag=' + encodeURIComponent(bilag);
+			span.onclick = function() { openBilagTab(docHref); };
+			span.draggable = true;
+			span.addEventListener('dragstart', function(e) {
+				clipDragStart(e, sourceId, bilag);
+			});
+		}
+		clipCell.classList.remove('clip-no-doc');
+		clipCell.classList.add('clip-has-doc');
+		// As rendered for a line with a document: it cannot be deleted until the document is removed
+		const deleteBtn = document.querySelector('.delete-line-btn[data-id="' + sourceId + '"]');
+		if (deleteBtn) {
+			deleteBtn.disabled = true;
+			deleteBtn.title = 'Remove attached document first';
+		}
+		return true;
+	}
+
+	function linkDocumentsBetweenLines(fromSourceId, toSourceId, toBilag) {
 	console.log('Linking:', fromSourceId, 'to', toSourceId);
 		const formData = new FormData();
 		formData.append('action', 'linkDocuments');
@@ -5840,9 +5956,9 @@ document.addEventListener('DOMContentLoaded', function() {
 		.then(response => response.json())
 		.then(data => {
 			if (data.success) {
-				alert('Bilag linket succesfuldt! (' + data.count + ' dokument(er))');
-				// Refresh the page to show updated document links
-				location.reload();
+				if (!clipShowDocument(toSourceId, clipKladdeId, toBilag || '')) {
+					window.location.replace(window.location.pathname + '?kladde_id=' + encodeURIComponent(clipKladdeId));
+				}
 			} else {
 				alert('Fejl: ' + (data.message || 'Kunne ikke linke bilag'));
 			}
@@ -5907,26 +6023,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				// Any reload (location.reload or href=href) on a POST-rendered page risks
 				// replaying the form, which submits auto-balance pre-filled blank rows and
 				// inserts them as real kassekladde entries.
-				const bilag = data.bilag || '';
-				const clipCell = document.querySelector('.clip-cell[data-source-id="' + data.sourceId + '"]');
-				if (clipCell) {
-					const img = clipCell.querySelector('img.clip-icon');
-					if (img) {
-						img.src = img.src.replace('clip.png', 'paper.png');
-						img.style.cursor = 'grab';
-					}
-					const span = clipCell.querySelector('span');
-					if (span) {
-						const docHref = '../includes/documents.php?source=kassekladde&sourceId=' + data.sourceId + '&kladde_id=' + data.kladde_id + '&bilag=' + encodeURIComponent(bilag);
-						span.onclick = function() { openBilagTab(docHref); };
-						span.draggable = true;
-						span.addEventListener('dragstart', function(e) {
-							clipDragStart(e, data.sourceId, bilag);
-						});
-					}
-					clipCell.classList.remove('clip-no-doc');
-					clipCell.classList.add('clip-has-doc');
-				} else {
+				if (!clipShowDocument(data.sourceId, data.kladde_id, data.bilag || '')) {
 					// Fallback: clip cell not in DOM (edge case) — use GET navigation
 					window.location.replace(window.location.pathname + window.location.search);
 				}
