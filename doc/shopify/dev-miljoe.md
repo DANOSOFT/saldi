@@ -60,7 +60,7 @@ The answer is JSON, `{"status": ...}`:
 
 Every HMAC-valid delivery gets 200, so Shopify never retries one that was received (it deletes a subscription that keeps failing). The deduplication key is `(shop_id, topic, event_id)`, never `X-Shopify-Webhook-Id`, which changes on every retry. Rejected deliveries are logged to the PHP error log as `shopify_webhook <outcome> {...}`, without the body, the signature or the secret.
 
-The worker turns `received` events into jobs, `ORDERS_PAID` first. An event it can't route, or whose job can't be queued, gets state `error` and an alarm; after fixing the cause, set it back to `received` to replay it.
+The worker turns `received` events into jobs, `ORDERS_PAID` first. An event it can't route, or whose job can't be queued, gets state `error` and an alarm; after fixing the cause, set it back to `received` with `processed_at` NULL to replay it. An event whose alarm can't be raised stays `received` with `processed_at` set, and is tried again after the new events.
 
 Look at the inbox with `SELECT id, topic, event_id, state, job_id FROM shopify_events ORDER BY id DESC LIMIT 20;`.
 

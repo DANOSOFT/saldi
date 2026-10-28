@@ -11,6 +11,7 @@
 // 20261028 CL/SZ SD-748: a body over 10 MB gets 413; the worker command promotes a stored delivery.
 // 20261028 CL/SZ SD-748 review: no fiscal-year check in the receiver; a legacy die() answers our 503.
 // 20261028 CL/SZ SD-748: the worker test looks only at event jobs; S02c's worker also schedules runtime.purge.
+// 20261028 CL/SZ SD-748 review: the die() test loads its db_connect() through the router, not auto_prepend_file.
 
 use PHPUnit\Framework\TestCase;
 
@@ -176,7 +177,7 @@ final class WebhookEndpointTest extends TestCase
 
     public function testALegacyDieAnswersOur503WithoutTheLegacyOutput(): void
     {
-        $dying = self::startServer(['SALDI_SHOPIFY_DB' => self::$db], ['auto_prepend_file=' . __DIR__ . '/support/webhook_die_prepend.php']);
+        $dying = self::startServer(['SALDI_SHOPIFY_DB' => self::$db, 'SALDI_SHOPIFY_TEST_DIE' => '1']);
         try {
             $raw = '{"id":5}';
             $this->assertSame([503, '{"status":"unavailable"}'], $this->request('POST', '/api/shopify/webhook.php?shop=hml', $raw, self::headers($raw), $dying['port']));
@@ -248,18 +249,13 @@ final class WebhookEndpointTest extends TestCase
     }
 
     /** @return array{proc: resource, pipes: array<int, resource>, port: int, log: string} */
-    private static function startServer(array $env, array $ini = []): array
+    private static function startServer(array $env): array
     {
         $probe = stream_socket_server('tcp://127.0.0.1:0');
         $port = (int)substr(strrchr(stream_socket_get_name($probe, false), ':'), 1);
         fclose($probe);
         $log = (string)tempnam(sys_get_temp_dir(), 'sd748-server');
-        $cmd = [PHP_BINARY];
-        foreach ($ini as $setting) {
-            $cmd[] = '-d';
-            $cmd[] = $setting;
-        }
-        array_push($cmd, '-S', "127.0.0.1:$port", '-t', ShopifyEnv::repoRoot(), __DIR__ . '/support/webhook_router.php');
+        $cmd = [PHP_BINARY, '-S', "127.0.0.1:$port", '-t', ShopifyEnv::repoRoot(), __DIR__ . '/support/webhook_router.php'];
         $baseEnv = ['PATH' => (string)getenv('PATH')];
         $proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes, ShopifyEnv::repoRoot(), $baseEnv + $env);
         if (!is_resource($proc)) {

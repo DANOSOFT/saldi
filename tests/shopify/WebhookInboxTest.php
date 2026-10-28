@@ -14,6 +14,7 @@
 // 20261028 CL/SZ SD-748: an anomaly whose alarm fails no longer stops promotion.
 // 20261028 CL/SZ SD-748 review: nor does an event whose alarm fails; compliance topics are ignored with the flow off.
 // 20261028 CL/SZ SD-748: S02c is on hml/shopify; no_alarm tests use alarm_fails, and one runs on the real error list.
+// 20261028 CL/SZ SD-748 review: deferred events go behind new ones (limit 1); a failed route alarm keeps its kind.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -397,6 +398,36 @@ final class WebhookInboxTest extends TestCase
 
         $this->assertSame('error', $this->events()[0]['state']);
         $this->assertSame([['webhook.route', 'ORDERS_PAID without an order id']], array_map(fn(array $a): array => [$a['kind'], $a['message']], $this->alarms()));
+    }
+
+    public function testDeferredEventsGoBehindTheEventsNotTriedYet(): void
+    {
+        $this->receive([
+            self::delivery('hml', 'orders/paid', 'ev-bad', '{"note":"no order id"}'),
+            self::delivery('hml', 'orders/paid', 'ev-good', self::body('orders_paid')),
+            self::delivery('hml', 'customers/create', 'ev-c', self::body('customers_create')),
+        ]);
+
+        $runs = [];
+        for ($i = 0; $i < 4; $i++) {
+            $runs[] = self::promoted($this->promote(1, 'alarm_fails'));
+        }
+
+        $this->assertSame([[['ORDERS_PAID', 'received']], [['ORDERS_PAID', 'queued']], [['CUSTOMERS_CREATE', 'queued']], [['ORDERS_PAID', 'received']]], $runs,
+            'with limit 1 the deferred paid event never holds up the new ones, and is tried again when they are done');
+        $this->assertSame([['ev-bad', 'received'], ['ev-good', 'queued'], ['ev-c', 'queued']], array_map(fn(array $e): array => [$e['event_id'], $e['state']], $this->events()));
+    }
+
+    public function testWhenOnlyTheRouteAlarmFailsTheEventKeepsItsRouteAlarm(): void
+    {
+        $this->receive([self::delivery('hml', 'orders/paid', 'ev-o', '{"note":"no order id"}')]);
+
+        $run = $this->promote(10, 'alarm_fails_once');
+
+        $this->assertSame(['queued' => 0, 'ignored' => 0, 'error' => 1, 'failed' => 0, 'deferred' => 0, 'alarmed' => 0], array_diff_key($run['result'], ['events' => 0]));
+        $this->assertSame([['webhook.route', 'hml:ORDERS_PAID:ev-o', 'ORDERS_PAID without an order id']],
+            array_map(fn(array $a): array => [$a['kind'], $a['ref'], $a['message']], $this->alarms()));
+        $this->assertSame('error', $this->events()[0]['state']);
     }
 
     public function testAlarmsGoThroughS02csErrorListAndQueueAMailAlert(): void

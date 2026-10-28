@@ -34,6 +34,7 @@
 // 20261028 CL/SZ SD-748: a failed anomaly alarm is logged and retried next run instead of stopping promotion.
 // 20261028 CL/SZ SD-748 review: a failed event alarm too; compliance topics are ignored whatever the flow.
 // 20261028 CL/SZ SD-748: alarms go through S02c's includes/shopify/errors.php (SD-738).
+// 20261028 CL/SZ SD-748 review: deferred events go behind fresh ones; a failed route alarm keeps its kind.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -282,11 +283,13 @@ function shopify_route_event(array $event, array $payload): ?array {
  * then oldest first. Each promoted event gets state 'queued' and its job_id; a topic without a
  * job becomes 'ignored'. A body that can't be routed, or an enqueue that fails, makes the event
  * 'error' with an alarm, so it never holds up the events behind it; setting it back to
- * 'received' replays it. Events of a shop whose flow (orders or customers) is off stay
+ * 'received' with processed_at NULL replays it. Events of a shop whose flow (orders or customers) is off stay
  * 'received' until it is switched on. It also raises the alarm of every anomaly the receiver
  * could not alarm. Each event's state change and alarm are stored together. An alarm that fails,
- * of an anomaly or an event, is logged (alarm_deferred) and its row is left as it was for the
- * next run, so it never holds up the rows behind it. Concurrent runs skip each other's rows.
+ * of an anomaly or an event, is logged (alarm_deferred) and its row is left for the next run. A
+ * deferred event stays 'received' with processed_at set, and is taken after every event not tried
+ * yet, so deferred events never fill the batch ahead of new ones. Concurrent runs skip each
+ * other's rows.
  *
  * @return array{queued: int, ignored: int, error: int, failed: int, deferred: int, alarmed: int, events: list<array{id: int, topic: string, state: string, job_id: int|null}>}
  *   error: bodies that can't be routed; failed: events whose enqueue failed (both in state
@@ -316,7 +319,7 @@ function shopify_promote_events(int $limit = 100): array {
 			. " WHERE e.state = 'received' AND CASE WHEN e.topic IN ('" . implode("', '", SHOPIFY_EVENT_NOT_ROUTED) . "') THEN true"
 			. " WHEN e.topic LIKE 'CUSTOMERS\\_%' THEN s.customers_enabled"
 			. " WHEN e.topic LIKE 'ORDERS\\_%' OR e.topic LIKE 'FULFILLMENTS\\_%' OR e.topic LIKE 'REFUNDS\\_%' THEN s.orders_enabled ELSE true END"
-			. " ORDER BY (e.topic = 'ORDERS_PAID') DESC, e.received_at, e.id LIMIT $1 FOR UPDATE OF e SKIP LOCKED",
+			. " ORDER BY (e.processed_at IS NULL) DESC, e.processed_at, (e.topic = 'ORDERS_PAID') DESC, e.received_at, e.id LIMIT $1 FOR UPDATE OF e SKIP LOCKED",
 			array(max(1, $limit))
 		);
 		foreach ($events as $event) {
@@ -330,17 +333,23 @@ function shopify_promote_events(int $limit = 100): array {
 			} catch (ShopifyDbMisuse $e) {
 				throw $e;
 			} catch (Exception $e) {
-				$message = 'enqueue failed: ' . get_class($e) . ': ' . $e->getMessage();
+				if ($e instanceof ShopifyEventRouteAlarmFailed) {
+					list($kind, $message, $count) = array('webhook.route', $e->problem, 'error');
+				} else {
+					list($kind, $message, $count) = array('webhook.promote', 'enqueue failed: ' . get_class($e) . ': ' . $e->getMessage(), 'failed');
+				}
 				try {
-					shopify_db_transaction(function () use ($event, $id, $ref, $message) {
+					shopify_db_transaction(function () use ($event, $id, $ref, $kind, $message) {
 						shopify_db_rows("UPDATE shopify_events SET state = 'error', processed_at = now() WHERE id = $1", array($id));
-						shopify_event_alarm((int)$event['shop_id'], 'webhook.promote', $ref, $message, array('event_row_id' => $id));
+						shopify_event_alarm((int)$event['shop_id'], $kind, $ref, $message, array('event_row_id' => $id));
 					});
-					$done = array('state' => 'error', 'job_id' => null, 'count' => 'failed');
+					$done = array('state' => 'error', 'job_id' => null, 'count' => $count);
 				} catch (ShopifyDbMisuse $e) {
 					throw $e;
 				} catch (Exception $e) {
-					// Own savepoint: the event stays 'received', and is tried again next run.
+					// Own savepoint: the event stays 'received' and is tried again next run, after the
+					// events not tried yet (processed_at set).
+					shopify_db_rows('UPDATE shopify_events SET processed_at = now() WHERE id = $1', array($id));
 					shopify_event_log('alarm_deferred', array('event_row_id' => $id, 'cause' => $message, 'error' => get_class($e) . ': ' . $e->getMessage()));
 					$done = array('state' => 'received', 'job_id' => null, 'count' => 'deferred');
 				}
@@ -350,6 +359,17 @@ function shopify_promote_events(int $limit = 100): array {
 		}
 		return $out;
 	});
+}
+
+/** The alarm of an event whose body can't be routed failed; carries the route problem. */
+final class ShopifyEventRouteAlarmFailed extends RuntimeException
+{
+	public string $problem;
+
+	public function __construct(string $problem, Throwable $previous) {
+		parent::__construct("$problem; its alarm failed: " . get_class($previous) . ': ' . $previous->getMessage(), 0, $previous);
+		$this->problem = $problem;
+	}
 }
 
 /**
@@ -373,8 +393,8 @@ function shopify_promote_event(array $event, int $id, string $ref): array {
 		} catch (ShopifyDbMisuse $e) {
 			throw $e;
 		} catch (Exception $e) {
-			// Re-thrown with the route problem, so the caller's log keeps it.
-			throw new RuntimeException("$problem; its alarm failed: " . get_class($e) . ': ' . $e->getMessage(), 0, $e);
+			// Re-thrown with the route problem, so the caller keeps its kind and message.
+			throw new ShopifyEventRouteAlarmFailed($problem, $e);
 		}
 		return array('state' => 'error', 'job_id' => null, 'count' => 'error');
 	}

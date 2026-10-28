@@ -4,7 +4,7 @@
 // Child-process runner for the webhook inbox and event promotion (SD-748). Bootstraps the
 // tenant like run_config.php and runs one mode:
 //   receive  <deliveries.json> [alarm_fails|real]  shopify_receive_webhook() for each {shop_key, raw_b64, headers}
-//   promote  <limit> [fail_type|alarm_fails|sql_error|misuse|real_queue|real]  shopify_promote_events();
+//   promote  <limit> [fail_type|alarm_fails|alarm_fails_once|sql_error|misuse|real_queue|real]  shopify_promote_events();
 //            enqueue of fail_type throws before writing; with sql_error the order.import enqueue
 //            writes its job and then fails in SQL; with misuse every enqueue sends COMMIT itself;
 //            with real_queue the enqueue is SD-737's own includes/shopify/queue.php
@@ -17,12 +17,13 @@
 // in shopify_errors, and shopify_queue_enqueue() inserts into shopify_jobs under the table's own
 // unique index on (type, dedupe_key) for queued and running jobs, which is the contract's "an
 // equal job still queued or running is returned with created=false". With alarm_fails every
-// alarm throws.
+// alarm throws; with alarm_fails_once only the first one does.
 //
 // History:
 // 20261027 CL/SZ SD-748: created.
 // 20261027 CL/SZ SD-748: real_queue runs promotion on SD-737's queue (#918) instead of the stand-in.
 // 20261028 CL/SZ SD-748: no_alarm replaced by real, S02c's error list and SD-737's queue (#948).
+// 20261028 CL/SZ SD-748 review: alarm_fails_once.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_events.php <receive|promote> <test_db> <deliveries.json|limit> [fail_type]\n");
@@ -53,7 +54,9 @@ if ($failType !== 'real') {
 function shopify_error_open(?int $shopId, string $kind, string $ref, string $message, string $severity = 'error', array $correlation = []): int
 {
     global $failType;
-    if ($failType === 'alarm_fails') {
+    static $calls = 0;
+    $calls++;
+    if ($failType === 'alarm_fails' || ($failType === 'alarm_fails_once' && $calls === 1)) {
         throw new RuntimeException("alarm $kind failed (test)");
     }
     $rows = shopify_db_rows(
