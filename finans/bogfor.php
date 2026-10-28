@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-10-19 ---
+// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -74,6 +74,8 @@
 //                The settlement date is the later of invoice and payment date, not the invoice date.
 // 20261023 CL/LH MB-72: openpost() trims the project before matching and storing it, and a payment settling
 //                several invoices gives every row of the group the group's latest date.
+// 20261028 CL/LH MB-72: openpost() settles a payment naming several invoices ("A;B") only when they and the payment
+//                net to zero, and writes the payment row once instead of once per settled invoice.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -1181,39 +1183,44 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		
 # 20121122 >>and projekt='$projekt'<< indsat herunder.
 		if ($udlign_date<$transdate) $udlign_date=$transdate;
-		$groupMatches = 0;
+		// Every invoice the Faktura field names is looked up before anything is settled. Keyed by id, so a
+		// reference listed twice ("A;A") is one post.
+		$matches = array();
+		$matchedSum = 0;
 		$groupDate = $transdate;
 		for ($x=0;$x<count($invoices);$x++) {
-			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and $projektMatch and udlignet!='1' and ";
+			$qtxt = "select id,transdate,amount from openpost where konto_id='$konto_id' and $projektMatch and udlignet!='1' and ";
 			$qtxt.= " faktnr='$invoices[$x]'";
 			if (count($invoices) == 1) $qtxt.= " and amount >= '$min' and amount < '$max'";  
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($r = db_fetch_array($q)) {
+			if (($r = db_fetch_array($q)) && !isset($matches[(int)$r['id']])) {
+				$matches[(int)$r['id']] = true;
+				$matchedSum += (float)$r['amount'];
 # $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
-				$udlign_date = max($transdate, (string)$r['transdate']); # The later of invoice and payment date
-				$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
-				$qtxt.= "where id = '$r[id]'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				// 20230626 -->
-				$qtxt = "insert into openpost
-				(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
-				if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
-				$qtxt.= "transdate,udlign_id,bilag_id,valuta,valutakurs,projekt) "; 
-				$qtxt.= "values ";
-				$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id',";
-				if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-				$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projektSql')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$udlignet=1;
-				// <-- 20230626
-				$groupMatches++;
-				$groupDate = max($groupDate, $udlign_date);
+				$groupDate = max($groupDate, (string)$r['transdate']); # The later of invoice and payment date
 			}
 		}
-		// A payment settling several invoices gives them one udlign_id; the whole group gets its latest date.
-		if ($groupMatches > 1) {
-			$qtxt = "update openpost set udlign_date = '" . db_escape_string($groupDate) . "' where udlign_id = '" . (int)$udlign_id . "'";
+		// The invoices settle only when they and the payment net to zero, within half an øre as for a single
+		// invoice. A short or excess "A;B" payment leaves every post open, so the unpaid rest stays listed.
+		if ($matches && $matchedSum >= $min && $matchedSum < $max) {
+			$groupDateSql = db_escape_string($groupDate);
+			// One udlign_id and the group's latest date for the invoices and the payment.
+			$qtxt = "update openpost set udlignet = '1',udlign_date= '$groupDateSql',udlign_id='$udlign_id' ";
+			$qtxt.= "where id in (" . implode(',', array_keys($matches)) . ")";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			// 20230626 -->
+			// The payment row is written once per payment, not once per settled invoice.
+			$qtxt = "insert into openpost
+			(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
+			if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
+			$qtxt.= "transdate,udlign_id,bilag_id,valuta,valutakurs,projekt) ";
+			$qtxt.= "values ";
+			$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$groupDateSql','$kladde_id',";
+			if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
+			$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projektSql')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$udlignet=1;
+			// <-- 20230626
 		}
 	}
 	if ($udlignet<1) {
