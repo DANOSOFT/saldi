@@ -52,6 +52,10 @@ function shopStockEndpoints()
  * Whether API slot $slot (1-3, legacy slot box4-box6) is open for legacy outbound (SD-778). Like
  * the other outbound reads, it takes the slot's shared lock for the request, so a cutover waits
  * for a batch that is still sending; while a cutover holds it, the page says try again.
+ *
+ * @param int $slot API slot 1-3
+ * @return bool false when the slot is closed for legacy outbound
+ * @throws ShopStockException while a cutover holds the slot's lock
  */
 function shopStockOutboundOpen($slot)
 {

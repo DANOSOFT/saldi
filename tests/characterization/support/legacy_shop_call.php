@@ -11,23 +11,27 @@
 //
 // History:
 // 20261027 CL/SZ Created (SD-778, sub-task of SD-750).
+// 20261028 CL/SZ SD-778 review: 404 unless run from the CLI (the web root is a full checkout); __DIR__ includes.
+
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 
 @session_start();
 $s_id = session_id();
-chdir(dirname(__DIR__, 3) . '/api');
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
+$root = dirname(__DIR__, 3);
+chdir($root . '/api');
+include($root . '/includes/connect.php');
+include($root . '/includes/online.php');
+include($root . '/includes/std_func.php');
 
 $call = $_GET['call'] ?? '';
 if ($call === 'cost') {
-	include('updateShopCostPrice.php');
+	include($root . '/api/updateShopCostPrice.php');
 	echo 'RESULT ' . updateShopCostPrice((int)($_GET['id'] ?? 0));
 } elseif ($call === 'pos8') {
-	include('varesync_pos8.php');
+	include($root . '/api/varesync_pos8.php');
 	echo 'RESULT ' . var_export(varesync($_GET['valg'] ?? '1'), true);
 } elseif ($call === 'qty') {
-	include('shopQty2saldi.php');
+	include($root . '/api/shopQty2saldi.php');
 	echo 'RESULT ' . var_export(varesync(), true);
 } else {
 	echo 'RESULT unknown call';
