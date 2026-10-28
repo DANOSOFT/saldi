@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.07 ---
+// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,6 +130,10 @@
 // 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
 //                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
 //                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
+// 20261027 CL/MMR SD-780 The SMTP password on Kontoindstillinger is a password field (was clear text) with a "Vis" box to show it.
+//                 The value is still posted unchanged, so Skift works without retyping it.
+//                 The two includes in kontoindstillinger() use __DIR__ now (include-path convention for an edited block).
+//                 The brugerantal lookup between them sits at function level (was indented one tab too far).
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -155,17 +159,17 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	$disabled  = "";
 	@session_start();
 	$s_id = session_id();
-	include("../includes/connect.php");
-		$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
-		$result = db_select($query, __FILE__ . " linje " . __LINE__);
-	
-		if ($result) {
-			if (db_num_rows($result) > 0) {
-				$row = db_fetch_array($result);
-				$max_users = (int)$row['brugerantal'];
-			}
+	include(__DIR__ . '/../includes/connect.php');
+	$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
+	$result = db_select($query, __FILE__ . " linje " . __LINE__);
+
+	if ($result) {
+		if (db_num_rows($result) > 0) {
+			$row = db_fetch_array($result);
+			$max_users = (int)$row['brugerantal'];
 		}
-	include("../includes/online.php");
+	}
+	include(__DIR__ . '/../includes/online.php');
 	if($masterDb == "gratis" || $masterDb == "mini") {
 		$disabled = "disabled";
 	}
@@ -231,7 +235,10 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		$tekst1 = findtekst('750|Adgangskode til SMTP serveren, hvis krævet', $sprog_id);
 		$tekst2 = findtekst('324|Adgangskode', $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 750-->$tekst2<!--tekst 324--></td>";
-		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtppass' value='$r[felt_3]'></td></tr>";
+		// SD-780: the SMTP password is a password field; the "Vis" box shows it while checked.
+		$tekst3 = findtekst('1133|Vis', $sprog_id);
+		print "<td title='$tekst1'><input class='inputbox' type='password' style='width:200px' name='smtppass' value='$r[felt_3]' autocomplete='new-password'>";
+		print " <label style='white-space:nowrap'><input type='checkbox' onclick=\"this.form.elements['smtppass'].type = this.checked ? 'text' : 'password';\"> $tekst3<!--tekst 1133--></label></td></tr>";
 		$tekst1 = findtekst('751|Krypteringsmetode til SMTP serveren, hvis krævet', $sprog_id);
 		$tekst2 = findtekst('748|Kryptering', $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 751-->$tekst2<!--tekst 748--></td>";
