@@ -25,6 +25,8 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261028 CL/LH MB-72: The settlement date is the later of invoice and payment date; an "A;B" payment is stored once.
+//                A short "A;B" payment leaves the invoices and the payment open.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -211,11 +213,11 @@ final class OpenPostSettlementCharacterizationTest extends CharacterizationTestC
     }
 
     /**
-     * Settlement stamps the settlement date from the ORIGINAL post's
-     * transaction date, not the payment's - so an invoice paid months later
-     * is recorded as settled on the day it was raised.
+     * The settlement date is the later of the invoice date and the payment
+     * date (MB-72), so an invoice paid months later is recorded as settled on
+     * the day it was paid, not on the day it was raised.
      */
-    public function test_settlement_date_comes_from_the_invoice_not_the_payment(): void
+    public function test_settlement_date_is_the_later_of_invoice_and_payment_date(): void
     {
         $debtor = self::$fx->debtor();
         $faktura = self::nextInvoiceNo();
@@ -244,10 +246,113 @@ final class OpenPostSettlementCharacterizationTest extends CharacterizationTestC
         foreach ($posts as $p) {
             $this->assertSame('1', trim((string)$p['udlignet']), 'the old invoice is settled');
             $this->assertSame(
-                $invoiceDate,
+                date('Y-m-d'),
                 substr((string)$p['udlign_date'], 0, 10),
-                'udlign_date is taken from the invoice, not from the payment (bogfor.php:1100)'
+                'udlign_date is the payment date, the later of the two'
             );
         }
+    }
+
+    /**
+     * An open invoice stored the way order invoicing stores it: projekt '0',
+     * while a journal line without a project carries ''.
+     */
+    private function insertOrderInvoice(array $debtor, string $faktnr, float $amount, string $date): void
+    {
+        self::rows(
+            "INSERT INTO openpost (konto_id, konto_nr, faktnr, amount, beskrivelse, udlignet,
+                                   transdate, forfaldsdate, valuta, valutakurs, projekt)
+             VALUES ($1, $2, $3, $4, $5, '0', $6, $6, 'DKK', 100, '0')",
+            [$debtor['id'], $debtor['kontonr'], $faktnr, $amount, Fixtures::TAG . ' faktura ' . $faktnr, $date]
+        );
+    }
+
+    /** Post one journal payment from the debtor whose Faktura field is $faktura (e.g. "A;B"). */
+    private function postPaymentOn(array $debtor, float $amount, string $faktura, string $date): void
+    {
+        $accounts = self::$fx->plainAccounts(2);
+        $kladdeId = self::$fx->kladde([
+            [
+                'bilag' => 1,
+                'd_type' => 'F',
+                'debet' => $accounts[1],
+                'k_type' => 'D',
+                'kredit' => (int)$debtor['kontonr'],
+                'amount' => $amount,
+                'faktura' => $faktura,
+                'transdate' => $date,
+                'tekst' => 'betaling ' . $faktura,
+            ],
+        ], 'payment ' . $faktura);
+        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::SESSION_ID]);
+    }
+
+    /**
+     * A payment whose Faktura lists several invoices ("A;B") settles them as
+     * one group and is stored once, with its own amount. MB-72: before, the
+     * payment row was written once per settled invoice, so the customer
+     * statement showed the payment twice. The invoices carry projekt '0', as
+     * order invoices do; the journal line has no project.
+     */
+    public function test_a_payment_settling_two_invoices_is_stored_once(): void
+    {
+        $debtor = self::$fx->debtor();
+        $first = self::nextInvoiceNo();
+        $second = self::nextInvoiceNo();
+        $secondDate = date('Y-m-d', strtotime('-5 days'));
+
+        $this->insertOrderInvoice($debtor, $first, 200.00, date('Y-m-d', strtotime('-20 days')));
+        $this->insertOrderInvoice($debtor, $second, 300.00, $secondDate);
+        $this->postPaymentOn($debtor, 500.00, $first . ';' . $second, date('Y-m-d', strtotime('-10 days')));
+
+        $posts = $this->postsFor($debtor);
+        $payments = array_values(array_filter($posts, static fn($p) => (float)$p['amount'] < 0));
+        $this->assertCount(1, $payments, 'the payment is stored once, not once per invoice');
+        $this->assertEqualsWithDelta(-500.00, (float)$payments[0]['amount'], 0.005, 'with its own amount');
+        $this->assertCount(3, $posts, 'two invoices and one payment');
+        $this->assertEqualsWithDelta(0.0, self::sumOf($posts, 'amount'), 0.005, 'the settled group nets to zero');
+        foreach ($posts as $p) {
+            $this->assertSame('1', trim((string)$p['udlignet']), 'every row of the group is settled');
+            $this->assertSame(
+                trim((string)$payments[0]['udlign_id']),
+                trim((string)$p['udlign_id']),
+                'one udlign_id for the whole group'
+            );
+            $this->assertSame(
+                $secondDate,
+                substr((string)$p['udlign_date'], 0, 10),
+                'every row gets the group\'s latest date'
+            );
+        }
+    }
+
+    /**
+     * An "A;B" payment that does not cover the invoices it names settles
+     * nothing: the invoices and the payment all stay open, so the unpaid
+     * rest stays on the open-post list and matches the customer statement.
+     * A single invoice behaves the same way (the half-ore window above).
+     * MB-72: with the no-project match, a short payment used to close order
+     * invoices as a settled group that did not net to zero.
+     */
+    public function test_a_short_payment_against_two_invoices_leaves_every_post_open(): void
+    {
+        $debtor = self::$fx->debtor();
+        $first = self::nextInvoiceNo();
+        $second = self::nextInvoiceNo();
+
+        $this->insertOrderInvoice($debtor, $first, 200.00, date('Y-m-d', strtotime('-20 days')));
+        $this->insertOrderInvoice($debtor, $second, 300.00, date('Y-m-d', strtotime('-5 days')));
+        $this->postPaymentOn($debtor, 400.00, $first . ';' . $second, date('Y-m-d', strtotime('-10 days')));
+
+        $posts = $this->postsFor($debtor);
+        $this->assertCount(3, $posts, 'two invoices and one payment');
+        foreach ($posts as $p) {
+            $this->assertNotSame('1', trim((string)$p['udlignet']), 'no post is settled by a short payment');
+            $this->assertNull($p['udlign_date'], 'and none gets a settlement date');
+        }
+        $payments = array_values(array_filter($posts, static fn($p) => (float)$p['amount'] < 0));
+        $this->assertCount(1, $payments, 'the payment is stored once');
+        $this->assertEqualsWithDelta(-400.00, (float)$payments[0]['amount'], 0.005, 'with its own amount');
+        $this->assertEqualsWithDelta(100.00, self::sumOf($posts, 'amount'), 0.005, 'the unpaid 100 stays outstanding');
     }
 }
