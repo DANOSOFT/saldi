@@ -43,6 +43,7 @@
 // 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
 // 20261012 CL/LH SALDI Assist Guide: SALDI_ASSIST_GUIDE loads the v2 widget (help and navigation, no access to the books).
+// 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
 @session_start();
 $s_id = session_id();
 
@@ -658,7 +659,6 @@ function brightenColor($color, $amount = 0.2) {
 /* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
    endpointet ligger i includes/saldi_assist_token.php. SALDI_ASSIST_WIDGET_URL
    kan saettes i webserverens miljoe til en test-instans; standard er produktion. */
-$assistWidgetUrl = getenv('SALDI_ASSIST_WIDGET_URL') ?: 'https://wuweiworkai.com/chaty-v2/widget.js';
 $assistVersion = isset($version) ? (string)$version : '';
 // Guide (v2-widgeten uden adgang til regnskabets tal), se includes/saldi_assist_guide.php.
 require_once __DIR__ . '/../includes/saldi_assist_guide.php';
@@ -667,6 +667,7 @@ $assistGuide = saldi_assist_guide_enabled(
   $assistGuideMode,
   $assistGuideMode === 'pilot' ? saldi_assist_guide_tenant_setting() : null
 );
+$assistWidgetUrl = saldi_assist_widget_url((string)getenv('SALDI_ASSIST_WIDGET_URL'), $assistGuide);
 ?>
 <script src="../javascript/saldi-assist-navigate.js"></script>
 <script>
