@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -200,6 +200,9 @@
 //                rendered by a save and dropped unsaved changes.
 //                The clip drag uses the copy effect instead of link: Chrome on a Wayland desktop cancelled every drop of
 //                a link drag (Wayland has no link action), so nothing happened when a clip was released on another clip.
+// 20261028 CL/LH "<bilag>+N" put its N empty lines at the bottom of the journal on the render after the save: the post-save
+//                order (MB-41) only knew the ids the form posted, and lines inserted by indsaet_linjer() sorted after them.
+//                indsaet_linjer() now returns the new id and the order places those lines right under the row they came from.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -218,6 +221,7 @@ require_once __DIR__ . '/kassekladde_includes/sorting.php';
 # could win.
 $kk_new_line_ids = array();
 $kk_new_line_rows = array(); // form row (tmpkassekl.lobenr) => id of the line inserted from it
+$kk_plus_line_ids = array(); // form row => ids of the lines "<bilag>+N" inserted under it
 
 /**
  * Remember a line this request created, so the render can place it last and the focus can follow it.
@@ -232,6 +236,20 @@ function kk_note_new_line($id, $row = 0) {
 	$id = (int) $id;
 	if ($id) $kk_new_line_ids[] = $id;
 	if ($id && (int) $row) $kk_new_line_rows[(int) $row] = $id;
+}
+
+/**
+ * Id of the kassekladde line the last insert on this connection created, 0 when it cannot be read.
+ * It is read from this connection, so that a concurrent insert in another session cannot be picked up
+ * instead. db_modify() picks its query function from $db_type, so the same test is repeated here:
+ * mysqli_insert_id() for a MySQL/MySQLi install, currval() for Postgres, which needs a sequence.
+ */
+function kk_last_insert_id() {
+	if (isset($GLOBALS['db_type']) && ($GLOBALS['db_type'] == 'mysql' || $GLOBALS['db_type'] == 'mysqli')) {
+		return (int) mysqli_insert_id(db_query_connection(false));
+	}
+	$r = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kassekladde', 'id')) AS id", __FILE__ . " linje " . __LINE__));
+	return isset($r['id']) ? (int) $r['id'] : 0;
 }
 
 ob_start(); //Starter output buffering
@@ -1493,7 +1511,7 @@ if ($_POST) {
 				alert_ugyldigt_belob($belob[$x], $bilag[$x]);
 				$fejl = 1;
 			} elseif ($newLines == '=') {
-				indsaet_linjer(
+				$kk_plus_line_ids[$x][] = indsaet_linjer(
 					$kladde_id,
 					$bilag[$x],
 					$dato[$x],
@@ -1516,7 +1534,7 @@ if ($_POST) {
 			} else {
 				$newLines = (int) $newLines;
 				for ($nl = 0; $nl < $newLines; $nl++) {
-					indsaet_linjer(
+					$kk_plus_line_ids[$x][] = indsaet_linjer(
 						$kladde_id,
 						$bilag[$x],
 						$dato[$x],
@@ -3302,21 +3320,34 @@ if ($kladde_id) {
 	################### 
 		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
 		// Lines saved in this request are pinned to the end of the list, whatever it is sorted by.
+		// The lines "<bilag>+N" inserted under such a line are pinned with it.
 		$kk_new_last = '';
-		if (!empty($GLOBALS['kk_new_line_ids'])) {
-			$kk_new_last = "CASE WHEN id IN (" . implode(',', array_map('intval', $GLOBALS['kk_new_line_ids'])) . ") THEN 1 ELSE 0 END, ";
+		$kk_pinned_ids = $GLOBALS['kk_new_line_ids'];
+		foreach ($GLOBALS['kk_plus_line_ids'] as $kkPlusRow => $kkPlusIds) {
+			if (isset($GLOBALS['kk_new_line_rows'][$kkPlusRow])) $kk_pinned_ids = array_merge($kk_pinned_ids, $kkPlusIds);
+		}
+		if (!empty($kk_pinned_ids)) {
+			$kk_new_last = "CASE WHEN id IN (" . implode(',', array_map('intval', $kk_pinned_ids)) . ") THEN 1 ELSE 0 END, ";
 		}
 		// The render that follows a save keeps the order the user was looking at, so nothing moves under
 		// them while they check what they changed - an edited amount would otherwise jump to its new place
 		// in the active sort, which is exactly the "where did it go?" the report is about. The submitted
 		// rows carry the on-screen order in their id[] hidden fields; anything not in that list (a line
-		// this save created) is NULL here and sorts last, where the user typed it. The sort itself is
-		// untouched and applies again on the next load.
+		// this save created) is NULL here and sorts last, where the user typed it. The lines "<bilag>+N"
+		// inserted are placed right under the row they were typed in. The sort itself is untouched and
+		// applies again on the next load.
 		$kk_post_order = '';
 		if (strstr((string) $submit, 'save') && !empty($_POST['id']) && is_array($_POST['id'])) {
 			$kk_order_ids = array();
-			foreach ($_POST['id'] as $kkPostedId) {
-				if ($kkPostedId !== '' && $kkPostedId !== NULL) $kk_order_ids[] = (int) $kkPostedId;
+			$kkRows = array_unique(array_merge(array_keys($_POST['id']), array_keys($GLOBALS['kk_new_line_rows']), array_keys($GLOBALS['kk_plus_line_ids'])));
+			sort($kkRows, SORT_NUMERIC);
+			foreach ($kkRows as $kkRow) {
+				$kkPostedId = $_POST['id'][$kkRow] ?? '';
+				if ($kkPostedId !== '' && $kkPostedId !== NULL && (int) $kkPostedId) $kk_order_ids[] = (int) $kkPostedId;
+				elseif (isset($GLOBALS['kk_new_line_rows'][$kkRow])) $kk_order_ids[] = (int) $GLOBALS['kk_new_line_rows'][$kkRow];
+				foreach ($GLOBALS['kk_plus_line_ids'][$kkRow] ?? array() as $kkPlusId) {
+					if ($kkPlusId) $kk_order_ids[] = (int) $kkPlusId;
+				}
 			}
 			if ($kk_order_ids) {
 				if (!isset($GLOBALS['db_type']) || ($GLOBALS['db_type'] != 'mysql' && $GLOBALS['db_type'] != 'mysqli')) {
@@ -4796,18 +4827,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# the caret where the user was. The generated id comes from this connection, so a
 						# concurrent insert in another session cannot be picked up instead.
 						if (stripos(trim($qtxt), 'insert') === 0) {
-							# The id has to be read from this connection, so that a concurrent insert in
-							# another session cannot be picked up instead. db_modify() picks its query
-							# function from $db_type, so the same test is repeated here: mysqli_insert_id()
-							# for a MySQL/MySQLi install, currval() for Postgres, which needs a sequence.
-							$kk_insert_id = 0;
-							if (isset($GLOBALS['db_type']) && ($GLOBALS['db_type'] == 'mysql' || $GLOBALS['db_type'] == 'mysqli')) {
-								$kk_insert_id = mysqli_insert_id(db_query_connection(false));
-							} else {
-								$kkIdRow = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kassekladde', 'id')) AS id", __FILE__ . " linje " . __LINE__));
-								if (isset($kkIdRow['id'])) $kk_insert_id = $kkIdRow['id'];
-								unset($kkIdRow);
-							}
+							$kk_insert_id = kk_last_insert_id();
 							# A failed insert, or an install whose id is not auto generated, only means the
 							# pin and the focus do not fire - never a broken save.
 							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id, $r['lobenr']);
@@ -4923,6 +4943,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if (!$fokus)
 			$fokus = "ny_kladdenote";
+		return $fejl ? 0 : kk_last_insert_id();
 	}
 	######################################################################################################################################
 	function ompost($ompost)
