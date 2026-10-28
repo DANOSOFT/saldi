@@ -895,6 +895,7 @@ print "</tbody></table></td></tr></tbody></table>";
   const TOKEN       = <?= json_encode($_SESSION['autoudlign_token']) ?>;
   const SNAPSHOT    = <?= json_encode(autoSettlementSnapshot($entry)) ?>;
   const ENTRY_ID    = <?= json_encode((int)$entry['id']) ?>;
+  const KONTOTYPE   = <?= json_encode($kontotype) ?>; // SD-785: D/K carried in from the previous entry, '' for none
   const AMOUNT      = <?= json_encode((float)$entry['resolved_amount']) ?>;
   const BESKRIVELSE = <?= json_encode($entry['beskrivelse'] ?? '') ?>;
   const BRUGT       = <?= json_encode(array_values($brugt)) ?>;
@@ -1222,10 +1223,20 @@ print "</tbody></table></td></tr></tbody></table>";
   }
 
   /* ── SD-785: keep "Alle debitorer" / "Alle kreditorer" for the next entry ── */
+  // The choice made earlier in the journal is kept through an entry with an account of its own
+  // (selector disabled) and through a single account picked for this entry. Only choosing
+  // "Alle debitorer og kreditorer" again clears it.
   function kontotypeParam() {
     const option = accountSelect.selectedOptions[0];
-    if (!option || !option.value.startsWith('type:')) return '';
-    return '&kontotype=' + encodeURIComponent(option.dataset.type || '');
+    let type = KONTOTYPE;
+    if (!accountSelect.disabled && option) {
+      if (option.value.startsWith('type:')) {
+        type = option.dataset.type || '';
+      } else if (option.value === '') {
+        type = '';
+      }
+    }
+    return type ? '&kontotype=' + encodeURIComponent(type) : '';
   }
 
   /* ── Pagination ──────────────────────────────────────────── */
