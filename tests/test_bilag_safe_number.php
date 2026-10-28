@@ -105,7 +105,8 @@ bilagCheck(strpos($bilagHelper, 'unset($replacements[$replace_key])') !== false,
 
 # ---- a replacement never takes a number a staged line already holds (SST-888 review) --------
 bilagTestJournal(3, array('26126114721473', '4'));
-bilagCheck(bilagStagedMaxNumber(1) === 4, 'the staged maximum ignores the value the column cannot hold');
+bilagCheck(array_keys(bilagStagedNumbersWillBeSaved(1)) === array(4),
+	'only the number a savable staged line holds is held back, not a value the column cannot hold' . "\n");
 bilagCheck(bilagNextNumberReserved(1, array()) === 5,
 	'a journal at 3 with a staged 4 offers the replacement 5, not the 4 that line is about to take');
 bilagTestJournal(3, array('26126114721473'));
@@ -115,16 +116,31 @@ bilagCheck(bilagNextNumberReserved(1, array()) === 4, 'and with nothing staged t
 bilagTestJournal(3, array('abc', ''));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4, 'staged values the column cannot hold are ignored');
 bilagTestJournal(3, array('9', '4'));
-bilagCheck(bilagNextNumberReserved(1, array()) === 10, 'the highest staged number is passed, not only the last one read');
+bilagCheck(bilagNextNumberReserved(1, array()) === 5,
+	'a number a staged line holds is skipped, and the series does not jump past a number typed far above it' . "\n");
+bilagTestJournal(3, array('10'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'one staged line typed 10 does not drag the next number up to 11: 4 is offered, leaving no gap' . "\n");
+bilagTestJournal(3, array('4', '5'));
+bilagTestJournal(3, array('10'));
+bilagCheck(bilagNextNumberReserved(1, array(), 4) === 4,
+	'a series start read once per save keeps the gap fix even after the typed line is written' . "\n");
+bilagTestJournal(5, array('10'));
+bilagCheck(bilagNextNumberReserved(1, array(), 6) === 6,
+	'a journal at 5 with a staged 10 still offers 6, whoever is allocated first' . "\n");
+bilagCheck(bilagNextNumberReserved(1, array()) === 6, 'and a run of held numbers is walked past, one by one' . "\n");
 bilagTestJournal(2147483647, array());
 bilagCheck(bilagNextNumberReserved(1, array()) === 0,
 	'a journal at the column maximum has no storable number left: the allocator says 0');
 bilagTestJournal(3, array('2147483647'));
-bilagCheck(bilagNextNumberReserved(1, array()) === 0,
-	'and so does a staged line at the maximum, which would otherwise push the floor past it');
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'and a staged line at the maximum does not claim the journal is full: 4 is still free' . "\n");
 bilagTestJournal(3, array('2147483646'));
-bilagCheck(bilagNextNumberReserved(1, array()) === 2147483647,
-	'one below the maximum still yields a storable number');
+bilagCheck(bilagNextNumberReserved(1, array()) === 4,
+	'and one below the maximum is simply held, so the series still starts at the next number of the journal' . "\n");
+bilagTestJournal(2147483647, array('2147483647'));
+bilagCheck(bilagNextNumberReserved(1, array()) === 0,
+	'while a journal and a staged line both at the maximum leave nothing storable' . "\n");
 $kassekladde = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
 	bilagCheck(substr_count($kassekladde, 'alert(findtekst("7636|') === 4,
 	'every allocation that finds no storable number refuses its line with the exhaustion alert');
@@ -160,10 +176,13 @@ $GLOBALS['bilag_test']['transdate'] = '';
 bilagTestJournalEmptyLines(3, array('-'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4,
 	'a staged "-" row is skipped by the save, so its number cannot hold the allocator back');
-bilagCheck(strpos($bilagHelper, "/**\n * Highest voucher number a staged line that the save will take already holds.") !== false,
-	'both helpers carry the PHPDoc the convention asks for');
+bilagCheck(strpos($bilagHelper, "/**\n * The voucher numbers the journal's staged lines will be saved under.") !== false,
+	'and the set helper carries the PHPDoc the convention asks for');
 bilagTestJournal(3, array('4'));
-bilagCheck(bilagNextNumberReserved(1, array(4 => 7)) === 8, 'and a replacement already handed out in the same save is passed too');
+bilagCheck(bilagNextNumberReserved(1, array(4 => 7)) === 5,
+	'a replacement handed out further up does not drag the series with it' . "\n");
+bilagCheck(bilagNextNumberReserved(1, array(9 => 4)) === 5,
+	'and a replacement that took the candidate number is walked past' . "\n");
 
 
 # ---- a refused line is not recorded as a saved one (SST-888 review) --------------------------
@@ -181,8 +200,8 @@ bilagCheck($refusedAt !== false && $rememberAt !== false && $refusedAt < $rememb
 	'the caller checks for a refused line before recording the save as successful');
 bilagCheck(strpos($kassekladde2, "and lobenr not in (") !== false,
 	'and keeps the refused rows staged while the saved ones are cleared');
-bilagCheck(strpos($kassekladde2, 'only the request that staged these rows may clear them') !== false,
-	'and a page opened again does not clear the line a refusal left waiting' . "\n");
+bilagCheck(strpos($kassekladde2, 'the staged rows live for this request only') !== false,
+	'and the staged rows live for this request only, so a later page load cannot hide the journal lines' . "\n");
 bilagCheck(strpos($bilagHelper, 'a number the column cannot hold is never taken') !== false,
 	'and the taken-number query is never asked about a value the column cannot hold' . "\n");
 bilagCheck(substr_count($kassekladde2, 'never offer a number the column cannot hold') === 1,
