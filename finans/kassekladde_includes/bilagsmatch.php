@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
+// --- finans/kassekladde_includes/bilagsmatch.php --- ver 5.0.0 --- 2026-10-12 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -140,6 +140,10 @@
 //                   click-to-close it wires up) never called - the user was stuck looking at
 //                   a dimmed screen with no way out. Now renders the existing empty-result
 //                   state on failure instead of nothing.
+// 20261003 CL/SZ SD-723 The pinned preview, its "open in tab" and its download load the document through docFile.php (login and tenant checked) instead of its direct path.
+// 20261012 CL/SZ SD-730 "Match valgte" attached nothing: since SST-777 docPool.php needs the pool row's version
+//                   (poolAttachVersion), which AttachAll() didn't send. It now sends it (hidden column from fetchbilagsmatch.php),
+//                   and a refused attach is shown in an alert instead of disappearing in the reload.
 ?>
 
 <?php
@@ -323,6 +327,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
         ["pf. id - hidden", "pf_id", "style='display:none;'", "style='display:none;'", 'pf_id'],
         ["kl. id - hidden", "kladde_id", "style='display:none;'", "style='display:none;'", 'kladde_id'],
         ["filename - hidden", "filename", "style='display:none;'", "class='bilags-filename' style='display:none;'", 'filename'],
+        ["version - hidden", "version", "style='display:none;'", "style='display:none;'", 'version'],
         ["<?= $bm_col_type ?>", (row) => {
             // Pool filenames come from uploaded documents, not app-controlled strings -
             // a name containing a quote, &, or < would otherwise break out of these
@@ -390,6 +395,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
             groups.get(row.filename).push(row);
         }
 
+        const failed = [];
         for (const [filename, rows] of groups) {
             const primary = rows[0];
             const otherIds = rows.slice(1).map(r => r.kasse_id).join(',');
@@ -399,18 +405,32 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
                 sourceId:   primary.kasse_id,
                 openPool:   '1',
                 insertFile: '1',
+                poolAttachVersion: primary.version || '',
             });
             // poolFile[] (not poolFiles) so docPool.php takes the lossless-array branch -
             // a filename containing a comma would otherwise be split apart by the legacy
             // poolFiles=<comma-joined string> branch.
             body.append('poolFile[]', filename);
             if (otherIds) body.set('targetSourceIds', otherIds);
-            await fetch(`../includes/documents.php`, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body:    body.toString(),
-            });
+            // A refused attach (409 changed document, 422 account) or a failed request used to vanish in the reload;
+            // say which and why, and go on with the other documents
+            try {
+                const res = await fetch(`../includes/documents.php`, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    body.toString(),
+                });
+                if (!res.ok) {
+                    const page = new DOMParser().parseFromString(await res.text(), 'text/html');
+                    page.querySelectorAll('style, script').forEach(e => e.remove());
+                    const txt = (page.body ? page.body.textContent : '').replace(/\s+/g, ' ').trim();
+                    failed.push(filename + ': ' + txt.slice(-160));
+                }
+            } catch (err) {
+                failed.push(filename + ': ' + (err && err.message ? err.message : err));
+            }
         }
+        if (failed.length) alert(failed.join('\n'));
         location.replace(location.pathname + location.search);
     }
 
@@ -938,15 +958,8 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
 	// by bmClosePinnedPreview(). Used by the Esc handler and the background-dimmer click.
 	var bmPinnedOpen = false;
 
-    <?php
-
-    if (file_exists('../owncloud')) $docFolder = '../owncloud';
-    elseif (file_exists('../bilag')) $docFolder = '../bilag';
-    elseif (file_exists('../documents')) $docFolder = '../documents';
-    else $docFolder = '../bilag'; // Default fallback
-
-    $puljeFolder = "$docFolder/$db/pulje/";
-    ?>
+	// Pool documents are served by docFile.php, which checks the login and the tenant (SD-723)
+	var BM_POOL_FILE_URL = '../includes/docsIncludes/docFile.php?k=doc&f=pulje%2F';
 
 	// Pinned document preview labels (kravsspecifikation popup fast.pdf) - declared once
 	// here rather than inline in each template string below.
@@ -1144,7 +1157,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
 		// encodeURIComponent, not the raw filename - a name with a space, #, ?, % or quote
 		// would otherwise corrupt the URL or break out of the src="..." attribute below.
 		var ext = filename.split('.').pop().toLowerCase();
-		var filepath = "<?php echo $puljeFolder; ?>" + encodeURIComponent(filename);
+		var filepath = BM_POOL_FILE_URL + encodeURIComponent(filename);
 
 		// Probe existence first - a missing pool file would otherwise render the server's
 		// raw 404 HTML page inside the embed/img instead of a clean message (FR-22).
@@ -1181,7 +1194,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
 		bmPinnedCurrentFilename = filename;
 
 		var win = bmPinnedEl('bmPinnedPreview');
-		var filepath = "<?php echo $puljeFolder; ?>" + encodeURIComponent(filename);
+		var filepath = BM_POOL_FILE_URL + encodeURIComponent(filename);
 		bmPinnedEl('bmPinnedTitle').textContent = filename + (bilag ? ' · ' + BM_COL_BILAG + ' ' + bilag : '');
 		// FR-15: consistent open-in-tab/download affordances regardless of file type,
 		// rather than relying on the PDF viewer's own (image types have none at all).

@@ -115,11 +115,15 @@
 // 20260914 CL/SZ SST-744: function posbogfor: CodeRabbit review - embed the alert text via
 //             json_encode() instead of a manual string-replace, matching index/login.php's
 //             existing pattern for the same problem.
+// 20261002 CL/SZ SST-812: Hand the final focus() to javascript/posScanBuffer.js (inlined in the head by includes/online.php), which replays scanner keystrokes typed while a scan reloads the page.
+//                The final focus() call now escapes $fokus and falls back to varenr_ny when the named field is missing or hidden, instead of throwing and leaving no focus.
 // 20261002 CL/SZ SST-813: function kundedisplay: the saldi.dk box-IP lookup moved to kundedisplayBoxLookup() with a 2 s timeout, tried once per request and logged on failure.
 //                An unreachable saldi.dk no longer holds the POS request for the 60 s default socket timeout.
 // 20261002 CL/SZ SST-813: Load stockWarningPopup.js with a filemtime version, as ordre.php does, so POS terminals pick up the keyboard/focus fix instead of a cached copy.
 // 20261002 CL/SZ SST-813: function kundedisplayBoxLookup: CodeRabbit review - make the 2 s a total limit for the whole lookup (cURL CURLOPT_TIMEOUT_MS), since the stream wrapper's timeout is per read.
 //                The stream fallback without cURL now gives the read only the time left after opening.
+// 20261023 CL/LH MB-95: "på beløb" set item: opret_saet() was called with 6 of its 7 arguments (ArgumentCountError on PHP 8),
+//                the lager landing in $incl_moms. Pass usdecimal($pris_ny, 2), 'on', $lager_ny like the other POS opret_saet() call.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -877,7 +881,7 @@ if ($vare_id_ny && !$vare_id) {
 	$vare_id = $vare_id_ny;
 }
 $funktion = if_isset($_GET['funktion']);
-if ($funktion) {
+if (in_array($funktion, ['vareopslag'], true)) {
 	$sort = (int) if_isset($_GET['sort']);
 	$funktion('PO', $sort, $fokus, $id, "", "", "");
 }
@@ -1099,7 +1103,7 @@ if ($vare_id) {
 				$qtxt .= " or stregkode='0$varenr_ny'";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			if ($r['samlevare']) {
-				opret_saet($id, $r['id'], $pris_ny, $momssats, $antal_ny, $lager_ny);
+				opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny); #20261023
 			} else
 				$linje_id = opret_ordrelinje($id, $r['id'], $varenr_ny, 1, '', usdecimal($pris_ny, 2), 0, 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226
 			if ($linje_id && $tilfravalgNy) {
@@ -3711,9 +3715,12 @@ if ($obstxt)
 </html>
 
 <script language="javascript">
-
-document.pos_ordre.<?php echo $fokus ?>.focus();
-
+<?php $fokusJs = json_encode((string) $fokus, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
+if (window.PosScanBuffer) {
+	PosScanBuffer.focus(<?php echo $fokusJs ?>);
+} else if (document.pos_ordre && document.pos_ordre.elements[<?php echo $fokusJs ?>]) {
+	document.pos_ordre.elements[<?php echo $fokusJs ?>].focus();
+}
 </script>
 <!--
 <script type="text/javascript">
