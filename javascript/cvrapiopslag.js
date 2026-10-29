@@ -1,4 +1,4 @@
-// --- javascript/cvrapiopslag.js --- ver 5.0.0 --- 2026-10-26 ---
+// --- javascript/cvrapiopslag.js --- ver 5.1.0 --- 2026-10-29 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -38,6 +38,7 @@
 // The name is quoted in the selector because of the brackets.
 // 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
 //                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
+// 20261029 CL/MJ SST-892 applyFormFields() calls cvrEfterOpslag(data) when the page defines it; the debitor card uses it to switch a private card to Erhverv.
 
 
 var cvrFeltAlias = { email: ['email', 'kontakt_email_val[1]'] };
@@ -130,6 +131,8 @@ function applyFormFields(data) {
 		var el = $("[name='" + cvrFeltNavn(key) + "']");
 		if (el.length) el.val(data[key]);
 	}
+	// A page can react to the values it was given, e.g. the debitor card shows the company name.
+	if (typeof cvrEfterOpslag === 'function') cvrEfterOpslag(data);
 }
 
 function showConfirmOverlay(existingData, incomingData) {

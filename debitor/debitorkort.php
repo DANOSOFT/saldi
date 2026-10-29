@@ -118,6 +118,8 @@
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
 //                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
 // 20261023 CL/MMR SD-774 A business card for a Danish customer with an EAN number shows a warning at the top when the CVR number is missing, as the receiver then rejects e-invoices to the customer.
+// 20261029 CL/MJ SST-892 A new card drawn as private (most debitors are private) lost the company name from a CVR lookup: it went into a hidden field and Gem rebuilt it from the empty first and last name.
+//                 The company name is now a hidden row; choosing Erhverv shows it, a successful lookup chooses Erhverv, Gem keeps it, and the name check follows the chosen type.
 //                 It shows the same kind of warning when the stored CVR number is not valid.
 //                 The warning is decided on the saved values by debitorkortEinvoiceCvrBanner() in debitorkortIncludes/einvoiceCvrBanner.php and never blocks or changes the save.
 @session_start();
@@ -333,7 +335,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$rename_status = if_isset($_POST['rename_status']);
 
 		if ($gl_kontotype == 'privat') {
-			$firmanavn = trim($fornavn . " " . $efternavn);
+			// 20261029 CL/MJ SST-892 A private card switched to Erhverv (by hand or by a CVR lookup) keeps the
+			// company name that is now shown; the names only make up the name while the card stays private.
+			if ($kontotype == 'privat') $firmanavn = trim($fornavn . " " . $efternavn);
 			$lev_firmanavn = trim($lev_fornavn . " " . $lev_efternavn);
 		}
 		#		if (!$pbs) $pbs_nr=NULL;
@@ -1436,9 +1440,9 @@ if ($menu != 'T') {
 $js_alert_name = findtekst('346|Navn skal angives', $sprog_id);
 print "<script type=\"text/javascript\">
 function validateDebitorkort(form) {
-	var kontotype = form.gl_kontotype ? form.gl_kontotype.value : (form.kontotype ? form.kontotype.value : '');
+	var kontotype = form.kontotype ? form.kontotype.value : (form.gl_kontotype ? form.gl_kontotype.value : '');
 	var name = '';
-	if (kontotype == 'privat') {
+	if (kontotype == 'privat' && form.fornavn) {
 		var fn = form.fornavn ? form.fornavn.value.trim() : '';
 		var en = form.efternavn ? form.efternavn.value.trim() : '';
 		name = (fn + ' ' + en).trim();
@@ -1501,7 +1505,7 @@ $bg = $bgcolor5;
 print "<input type=hidden name=gl_kontotype value='$kontotype'>\n";
 // SD-774: e-invoice CVR warning above the card fields, spanning its three columns.
 if ($einvoiceCvrBanner !== '') print "<tr><td colspan=3>$einvoiceCvrBanner</td></tr>\n";
-print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true;\">\n";
+print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true; debitorkortVisKontotype(this.value);\">\n";
 if ($kontotype == 'privat') {
 
 	print "<option value=privat>" . findtekst('353|Privat', $sprog_id) . "<!--tekst 353--></option>\n";
@@ -1539,11 +1543,13 @@ if (!isset($stripe_fravalg)) $stripe_fravalg = NULL;
 if (!isset($notes)) $notes = NULL;
 
 if ($kontotype == 'privat') {
-	print "<input type=\"hidden\" name=\"firmanavn\" value=\"$firmanavn\">\n";
+	// 20261029 CL/MJ SST-892 The company name is a row of its own, hidden while the card is private, so choosing
+	// Erhverv or a CVR lookup can show it (debitorkortVisKontotype()) instead of filling a hidden field.
+	print "<tr id='debitorkort_firmanavn' style='display:none;'><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=fornavn value=\"$fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg id='debitorkort_fornavn'><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=fornavn value=\"$fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=efternavn value=\"$efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg id='debitorkort_efternavn'><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=efternavn value=\"$efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 } else {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
@@ -2689,6 +2695,26 @@ function split_navn($firmanavn)
 	return ($fornavn . "," . $efternavn);
 }
 
+// 20261029 CL/MJ SST-892 Choosing Erhverv on a card drawn as private shows the company name instead of the first and
+// last name. A CVR lookup that finds a company name on such a card makes that choice for the user (cvrEfterOpslag(),
+// called by cvrapiopslag.js), so the name is visible and saved.
+print "<script type=\"text/javascript\">
+function debitorkortVisKontotype(kontotype) {
+	var firma = document.getElementById('debitorkort_firmanavn');
+	if (!firma) return;
+	var erhverv = (kontotype == 'erhverv');
+	firma.style.display = erhverv ? '' : 'none';
+	document.getElementById('debitorkort_fornavn').style.display = erhverv ? 'none' : '';
+	document.getElementById('debitorkort_efternavn').style.display = erhverv ? 'none' : '';
+}
+function cvrEfterOpslag(data) {
+	var type = document.forms['debitorkort'] ? document.forms['debitorkort'].kontotype : null;
+	if (!type || type.value != 'privat' || !data.firmanavn) return;
+	type.value = 'erhverv';
+	docChange = true;
+	debitorkortVisKontotype('erhverv');
+}
+</script>\n";
 if (!$id || substr($cvrnr,0,1)  == '*') {
 	$cvrnr = trim($cvrnr,"*");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
