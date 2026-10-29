@@ -26,18 +26,22 @@
 // LN 20190312 Make functions that retrieve all type of payments and sold data to the report
 // 20210307 PHR Added $date to allmost all functions as it was countion all orders from day zero
 // 20261029 CL/MMR SST-896 calculateTurnover() and paymentMethods() count only register sales (reportOrderArtFilter()), indentation corrected.
+//                 productGroupDescription() lists only items from the report's own orders, so an invoice-only item group gets no zero line.
 //                 An ordinary invoice in a department with a register was added to the Z-report turnover.
 
 function productGroupDescription($kasse,$date) { # LN 20190212 Make varegrupper for the xRapport
 	$idArray = makeOrderIdArray($kasse,$date);
 	$itemId = $groupArray = array();
 	$x=0;
-	$qtxt = "select distinct(vare_id) as vare_id from ordrer,ordrelinjer where "; #added 20210307
-	$qtxt.= "ordrer.fakturadate = '$date' and ordrelinjer.ordre_id = ordrer.id";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$itemId[$x] = $r['vare_id'];
-		$x++;
+	// Only items sold on this report's own orders, so a group sold only on an excluded invoice gets no line.
+	if ($idArray) {
+		$qtxt = "select distinct(vare_id) as vare_id from ordrelinjer where "; #added 20210307
+		$qtxt.= "ordre_id in (" . implode(',', array_map('intval', $idArray)) . ")";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$itemId[$x] = $r['vare_id'];
+			$x++;
+		}
 	}
 	$query = db_select("select * from varer", __FILE__ . " linje " . __LINE__);
 	while ($product = db_fetch_array($query)) {
