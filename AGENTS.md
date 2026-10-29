@@ -12,7 +12,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | JavaScript a change touches still parses, including JS inside PHP (heredocs, `<script>` blocks) | guardrails `js-syntax` | |
 | `importfiler/tekster.csv` rows are `id<TAB>Dansk<TAB>English<TAB>Norsk`: numeric unique id, no CSV quoting, no empty language | guardrails `tekster` | |
 | `importfiler/tekster_keyed.tsv` rows are `tekst_key<TAB>Dansk<TAB>English<TAB>Norsk`: valid unique sorted key, no TSV quoting, no empty language | guardrails `tekster` | [convention_findtekst_keys](doc/ai/convention_findtekst_keys.md) |
-| `importfiler/egne_tekster_keyed.tsv` uses the same validated format and overrides matching standard keys; absent keys fall through | guardrails `tekster` | [convention_findtekst_keys](doc/ai/convention_findtekst_keys.md) |
+| `importfiler/egne_tekster_keyed.tsv` uses the same validated format and overrides matching standard keys; a new overlap purges the cached standard text with `deleteStaleTekst()`, while absent keys fall through | guardrails `tekster` | [convention_findtekst_keys](doc/ai/convention_findtekst_keys.md) |
 | New wording for an existing text id or key: use a new id/key, or purge the cached rows with `deleteStaleTekst()` at the end of `includes/betweenUpdates.php` | guardrails `tekster` | `includes/opdat_func/deleteStaleTekst.php` |
 | `findtekst('NNNN\|fallback')`: the fallback is id NNNN's text in one of the languages | guardrails `tekster` | |
 | `findtekst('descriptive.key\|fallback')`: the key exists in a keyed TSV and the fallback matches the effective custom-or-standard row | guardrails `tekster` | [convention_findtekst_keys](doc/ai/convention_findtekst_keys.md) |

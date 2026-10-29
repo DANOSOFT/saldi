@@ -24,6 +24,10 @@ stored in the `tekster` table. Historically each text was identified by a numeri
 - Installation-specific keyed translations use the same format in
   `importfiler/egne_tekster_keyed.tsv`. A matching key there overrides the
   standard keyed TSV; keys absent there fall through to `tekster_keyed.tsv`.
+  When adding a custom row for an existing standard key, also call
+  `deleteStaleTekst()` with that key and the old standard translations at the
+  end of `includes/betweenUpdates.php`. Otherwise a tenant's cached standard
+  database row wins before either TSV file is consulted.
 
 ## Behaviour to know
 

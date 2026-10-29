@@ -19,6 +19,7 @@
 // History:
 // 20261027 CL/LH Created.
 // 20261029 CDX/NTR Validate standard/custom descriptive-key TSVs and keyed fallbacks.
+// 20261029 CDX/NTR Require new custom overrides to purge standard translations already cached by tenants.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -183,6 +184,21 @@ function checkKeyedTsv(ctx, file, path, findings) {
         message:
           `key ${key}'s text changed, but tenants keep the old text: findtekst() prefers the row cached in their tekster table. ` +
           `Add deleteStaleTekst('${key}', <old text or texts>) at the end of ${UPDATES}.`,
+      });
+    }
+  }
+
+  if (path === CUSTOM_KEYED_TSV) {
+    const standard = rows(ctx.readHead(KEYED_TSV) ?? "").byId;
+    for (const [key, custom] of head.byId) {
+      const standardRow = standard.get(key);
+      if (!standardRow || base.byId.has(key) || purged.has(key)) continue;
+      findings.push({
+        path,
+        line: custom.line,
+        message:
+          `key ${key} overrides ${KEYED_TSV}, but tenants may already have its standard translation cached. ` +
+          `Add deleteStaleTekst('${key}', <the old standard translations>) at the end of ${UPDATES}.`,
       });
     }
   }
