@@ -3,14 +3,15 @@
     $bg = "nix";
     include("../includes/connect.php");
     include("../includes/std_func.php");
+    include_once(__DIR__ . "/../includes/publicTenantDb.php");
 
     $data = json_decode(file_get_contents('php://input'), true);
     $startDate = $data['start_date'];
     $endDate = $data['end_date'];
     $price = $data['price'];
-    $db = $data['db'];
-    $bookingId = $data['booking_id'];
-    $user = $data['user'];
+    $db = public_tenant_db($data['db'] ?? '');
+    $bookingId = (int)($data['booking_id'] ?? 0);
+    $user = (int)($data['user'] ?? 0);
 
     $connection = db_connect($sqhost, $squser, $sqpass, $db);
 
@@ -19,14 +20,16 @@
 
     $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
     $periodRow = db_fetch_array($query);
-    $query = db_select("SELECT * FROM rentalitems WHERE id = $periodRow[item_id]", __FILE__ . " linje " . __LINE__);
+    $itemId = $periodRow ? (int)$periodRow['item_id'] : 0;
+    $orderId = $periodRow ? (int)$periodRow['order_id'] : 0;
+    $query = db_select("SELECT * FROM rentalitems WHERE id = $itemId", __FILE__ . " linje " . __LINE__);
     $itemRow = db_fetch_array($query);
-    $query = db_select("SELECT * FROM ordrer WHERE id = $periodRow[order_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
     $orderRow = db_fetch_array($query);
     $query = db_select("SELECT * FROM adresser WHERE id = $user", __FILE__ . " linje " . __LINE__);
     $userRow = db_fetch_array($query);
     $userEmail = $userRow["email"];
-    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $periodRow[order_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
     // Calculate total including moms
     $total = $orderRow["sum"] + $orderRow["moms"];
 

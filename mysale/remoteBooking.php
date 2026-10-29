@@ -5,7 +5,7 @@
     $condition = $_GET['condition'];
     include ('../includes/connect.php');
     include ("../includes/std_func.php");
-    $query = db_select("SELECT db FROM mysale WHERE link = '$id'", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT db FROM mysale WHERE link = '" . db_escape_string((string)$id) . "'", __FILE__ . " linje " . __LINE__);
     $row = db_fetch_array($query);
     $db = $row['db'];
     $urlPrefix = "https://ssl8.saldi.dk/laja/mysale/mysale.php?id=";
