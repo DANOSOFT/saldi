@@ -4,7 +4,10 @@
   code (`*.test.php`, see the READMEs inside).
 - `restapi/` - PHPUnit suite for the REST API (`*Test.php`, see
   [restapi/README.md](restapi/README.md)).
-- `test_*.php` - older stand-alone scripts run directly with `php`.
+- `test_*.php`, `integration/` - older stand-alone scripts run directly with `php`.
+  CI never runs them, so add no new ones: the guardrails `test-discovery` check
+  rejects a new test file outside the suites `phpunit.xml` discovers. Helpers go
+  in a `support/` directory inside a suite.
 
 Run everything with `composer test` (PHPUnit discovery via `phpunit.xml`).
 
@@ -37,6 +40,7 @@ for the local stack come from env vars or the gitignored
 `includes/connect.php`, as documented per suite.
 
 <!-- 20260904 CL/NTR created. -->
+<!-- 20261027 CL/LH New tests only where CI runs them (guardrails test-discovery). -->
 
 
 ## SST-876 document stock synchronization
@@ -44,7 +48,7 @@ for the local stack come from env vars or the gitignored
 <!-- 20261023 CDX/MJ Track the fixes requested in SST-876 comment 22605 and their regression checks. -->
 <!-- 20261026 CDX/MJ Document outage recovery for sets in non-stock-managed groups. -->
 
-The document sender prepares current quantities, prioritizes the document's lines,
+The document sender refreshes quantities before each send round, prioritizes the document's lines,
 and sends up to ten payloads across the configured shops per round. Parent sets
 follow the lines. Old backlog gets at most five additional seconds within the
 shared request budget. Budget skips remain queued without increasing attempts;
@@ -53,19 +57,27 @@ Document warnings exclude sets and old backlog and identify deferred lines as
 pending an automatic retry on the next stock update. The unrelated empty
 `includes/documents_master.php` was removed.
 
-Run these scripts separately (they share fixture directory names):
+The PHPUnit-discovered `ShopSyncRegressionScriptsTest` runs the isolated scripts in
+separate child processes, including real loopback HTTP and set recovery. CI installs
+PHP cURL, the cURL executable, and Python for these checks. Run the suite with:
 
 ```bash
-php tests/test_sst876_configuration.php
-php tests/test_sst876_delivery_transaction.php
-php tests/test_sst876_transaction_recovery.php
-php tests/test_sst876_transport_http.php
-php tests/test_sst876_flush.php
-php tests/test_sst876_sync_queue.php
-php tests/test_sst876_item_fanout.php
-php tests/test_sst876_document_http.php
-php tests/test_sst876_set_recovery.php
-SALDI_SHOP_SET_RECOVERY_HTTP=1 php tests/test_sst876_set_recovery.php
+php vendor/bin/phpunit --filter ShopSyncRegressionScriptsTest
+```
+
+For individual diagnosis, run the scripts separately (they share fixture directory names):
+
+```bash
+php tests/characterization/includes/support/shopSync/test_sst876_configuration.php
+php tests/characterization/includes/support/shopSync/test_sst876_delivery_transaction.php
+php tests/characterization/includes/support/shopSync/test_sst876_transaction_recovery.php
+php tests/characterization/includes/support/shopSync/test_sst876_transport_http.php
+php tests/characterization/includes/support/shopSync/test_sst876_flush.php
+php tests/characterization/includes/support/shopSync/test_sst876_sync_queue.php
+php tests/characterization/includes/support/shopSync/test_sst876_item_fanout.php
+php tests/characterization/includes/support/shopSync/test_sst876_document_http.php
+php tests/characterization/includes/support/shopSync/test_sst876_set_recovery.php
+SALDI_SHOP_SET_RECOVERY_HTTP=1 php tests/characterization/includes/support/shopSync/test_sst876_set_recovery.php
 php tests/test_shop_stock_sync.php
 ```
 
@@ -110,3 +122,30 @@ to be repeated by the ticket tester.
 
 Do not point the test entity at customer shops. Background delivery and atomic
 queue/database transactions are separate outstanding reliability work.
+
+### SST-876 review follow-ups (2026-10-28)
+
+SOAP invoicing, remote booking, MySale, recurring invoicing, and the legacy debtor
+posting page now drain deferred updates after their outer commit succeeds. The
+screen callers also report document failures. The caller regression executes their
+post-commit code with transaction doubles, including write-error outcomes.
+
+Fresh queue work is processed before entries at the retry threshold. Exhausted
+markers are retained and rotate by attempt count; reaching the threshold is logged
+once. No failed update is removed merely because its attempt count is high. Backlog
+preparation stops when the shared HTTP budget cannot send another call.
+
+Document stock and set availability are re-read before each send batch. This narrows
+the concurrent-sale window; it does not serialize independent requests or provide
+cross-request delivery ordering. Marker-write failures now produce an error log.
+
+Receipts retain full price/SKU synchronization for adapter compatibility. Sales and
+stock adjustments keep stock-only sends. The deployed adapter implementations are
+outside this repository, so their cost-price behavior has not been independently
+verified here.
+
+Before deployment, repeat the saved six-line order and three-shop outage recovery
+in the application on this revision, and exercise POS, recurring invoicing, SOAP,
+remote booking, MySale, and the external paid-invoice service. A committed sale must
+send during the same request; a rollback or database write failure must not send.
+Confirm that an old backlog adds at most five seconds and cannot starve new items.

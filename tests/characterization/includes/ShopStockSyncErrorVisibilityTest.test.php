@@ -23,6 +23,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/shopApiRequest.php';
 //                  sync_shop_vare() and the pages that call it are legacy page-scope code
 //                  that opens sessions and needs a tenant database, so those parts are read
 //                  from the source or lifted and evaluated rather than executed.
+// 20261028 CDX/MJ SST-876 Document that receipts preserve full adapter metadata synchronization.
 final class ShopStockSyncErrorVisibilityTest extends TestCase
 {
     private const STD_FUNC = __DIR__ . '/../../../includes/std_func.php';
@@ -671,7 +672,7 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
     /**
      * A stock change sends the stock calls only.
      *
-     * A receipt, a sale and a regulation change the stock and nothing else, so update_price, sku
+     * Sales and regulations use stock-only mode, so update_price, sku
      * and the per-set costPrice call have nothing to say. Eight calls become three. The product
      * card keeps the default, because Gem is where a price actually changes.
      */

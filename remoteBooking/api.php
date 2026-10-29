@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- patch 4.1.0 --- 2024-05-29 ---
+// --- remoteBooking/api.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
-
+// 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 
 $header = "nix";
 $bg = "nix";
@@ -340,6 +340,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; do not report success (SD-595)
 		return "Database write failed while posting order $saldi_id";
 	}
+	shopSyncDrainQueue();
 	return($saldi_id);
 }
 

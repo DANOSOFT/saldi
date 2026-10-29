@@ -1,11 +1,12 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
 // 20261026 CDX/MJ SST-876 Reproduce and guard recovery of non-stock-managed sets after a shop outage.
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 
 $http = getenv('SALDI_SHOP_SET_RECOVERY_HTTP') === '1';
 if ($http) {
 	putenv('SALDI_SHOP_REAL_TRANSPORT=1');
-	$server = proc_open(array('python3', __DIR__ . '/support/shop_sync_mock.py'),
+	$server = proc_open(array('python3', dirname(__DIR__, 4) . '/support/shop_sync_mock.py'),
 		array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => STDERR), $pipes);
 	if (!is_resource($server)) {
 		throw new RuntimeException('Could not start the local recovery mock.');
@@ -34,7 +35,7 @@ if ($http) {
 	$SHOPS = array('box4' => $base . '/adapter-one.php', 'box5' => $base . '/adapter-two.php',
 		'box6' => $base . '/adapter-three.php');
 }
-$logPath = __DIR__ . '/../temp/' . $db . '/rest_api.log';
+$logPath = dirname(__DIR__, 5) . '/temp/' . $db . '/rest_api.log';
 
 /** @return array<int,string> Successful HTTP requests, or URLs handed to the healthy stub. */
 function set_recovery_urls($http, $logPath, $offset) {

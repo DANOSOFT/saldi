@@ -3,10 +3,11 @@
 // 20261023 CDX/MJ SST-876 Exercise the real cURL transport against a concurrent delayed HTTP mock.
 // 20261027 CDX/MJ SST-876 Exercise deferred delivery after commit without duplicate sends or pending correction markers.
 // Starts a loopback-only Python mock, or uses SALDI_SHOP_TEST_URL=http://127.0.0.1:<port>/shop.
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 
 $endpoint = getenv('SALDI_SHOP_TEST_URL');
 if (!$endpoint) {
-	$server = proc_open(array('python3', __DIR__ . '/support/shop_sync_mock.py'),
+	$server = proc_open(array('python3', dirname(__DIR__, 4) . '/support/shop_sync_mock.py'),
 		array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => STDERR), $pipes);
 	if (!is_resource($server)) {
 		throw new RuntimeException('Could not start the local mock shop.');
@@ -41,7 +42,7 @@ foreach ($document as $i => $id) {
 	$ITEMS[$id] = array('varenr' => 'ITEM' . $id, 'delvare' => 'on', 'gruppe' => 1, 'parents' => $parents);
 	shopSyncMark($id, 0, 4);
 }
-$logPath = __DIR__ . '/../temp/' . $db . '/rest_api.log';
+$logPath = dirname(__DIR__, 5) . '/temp/' . $db . '/rest_api.log';
 $offset = is_file($logPath) ? filesize($logPath) : 0;
 $start = microtime(true);
 $GLOBALS['db_transaktion_depth'] = 1;

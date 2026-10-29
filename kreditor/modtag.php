@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- ver 5.0.0 --- 2026.10.16 ---
+// --- kreditor/modtag.php --- ver 5.1.0 --- 2026.10.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,14 +49,15 @@
 //             so box9-only items already relied on this validation (MB-36).
 // 20260917 SZ Guard the box9 lookup above against a missing grupper row (CodeRabbit,
 //             PR #608) - degrades to "not tracked" instead of a PHP warning.
-// 20261022 CL/MJ SST-876 The receipt marks its lines and tells the webshops once, after the
-//                 goods are committed, rather than syncing inside the line loop.
 // 20261016 CL/MJ SST-876 A webshop that will not take the stock update is now named on screen
 //                  and in the log instead of passing unnoticed. Havemoebelland received
 //                  supplier orders for days while DirekteImport.dk and havemoebelland.dk
 //                  kept the old figures and Saldi reported nothing. The receipt itself is
 //                  correct either way, so this warns after the commit and never rolls back.
 //                  Also removed the dead second branch of the four warehouse lookups below.
+// 20261022 CL/MJ SST-876 The receipt marks its lines and tells the webshops once, after the
+//                 goods are committed, rather than syncing inside the line loop.
+// 20261028 CDX/MJ SST-876 Preserve receipt price and SKU adapter calls alongside batched stock updates.
 
 @session_start();
 $s_id=session_id();
@@ -301,7 +302,7 @@ if ($fejl==0) {
 			# SST-876: marked, not sent. The receipt sends once when every line is posted, so a
 			# receipt of thirteen lines is thirteen sends rather than thirteen times eight calls,
 			# and a set several of the lines belong to is sent once.
-			shopSyncMark($vare_id[$x],$variant_id[$x],$lager[$x],'stock');
+			shopSyncMark($vare_id[$x],$variant_id[$x],$lager[$x],'all');
 /*
 			$qtxt = "select box2 from grupper where art = 'DIV' and kodenr = '5'";
 echo "$qtxt<br>";

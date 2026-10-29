@@ -19,8 +19,10 @@
 // 13054, a component in 33 sets. On live it made 108 successful calls and then skipped everything
 // that followed, including item 107657.
 // 20261027 CDX/MJ SST-876 Allow the transaction regression to distinguish pending stock from committed stock.
+// 20261028 CDX/MJ SST-876 Model the per-round stock refresh against current fixture stock.
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 
-chdir(__DIR__);   // sync_shop_vare() opens ../temp/<db>/rest_api.log
+chdir(dirname(__DIR__, 4));   // sync_shop_vare() opens ../temp/<db>/rest_api.log
 
 $db        = 'sst876_test_fanout';
 $regnaar   = 2026;
@@ -70,6 +72,8 @@ function db_select($qtext, $spor = '', $global = false)
 			$rows[] = array('varenr' => $item['varenr'], 'varenr_alias' => '', 'kostpris' => '100',
 				'salgspris' => '200', 'm_type' => '', 'm_rabat' => '0', 'stock' => (string)($GLOBALS['fixtureStock'] ?? '67'));
 		}
+	} elseif (strpos($qtext, 'select beholdning from lagerstatus where ') !== false) {
+		$rows[] = array('beholdning' => (string)($GLOBALS['fixtureStock'] ?? '67'));
 	} elseif (strpos($qtext, 'sum(beholdning) as total_stock') !== false) {
 		$rows[] = array('total_stock' => (string)($GLOBALS['fixtureStock'] ?? '67'));
 	} elseif (preg_match("/select shop_id from shop_varer where saldi_id ?= ?'?(\d+)'?/", $qtext, $m)) {
@@ -152,10 +156,10 @@ if (!getenv('SALDI_SHOP_REAL_TRANSPORT')) {
 	}
 
 }
-require_once(__DIR__ . '/../includes/std_func.php');
+require_once(dirname(__DIR__, 5) . '/includes/std_func.php');
 
 ini_set('error_log', tempnam(sys_get_temp_dir(), 'sst876fanout'));
-@mkdir(__DIR__ . '/../temp/' . $db, 0700, true);
+@mkdir(dirname(__DIR__, 5) . '/temp/' . $db, 0700, true);
 
 function check($ok, $message)
 {
@@ -409,5 +413,5 @@ foreach (glob(shopSyncQueueDir() . '*') as $leftover) {
 	unlink($leftover);
 }
 @rmdir(shopSyncQueueDir(false));
-@rmdir(__DIR__ . '/../temp/' . $db);
+@rmdir(dirname(__DIR__, 5) . '/temp/' . $db);
 echo "\nAll checks passed.\n";

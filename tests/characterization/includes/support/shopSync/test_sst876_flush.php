@@ -10,6 +10,7 @@
 // ones that fail - none of which needs a database.
 // 20261026 CDX/MJ Model the queue structure lookup without a tenant database.
 // 20261027 CDX/MJ SST-876 Model the cached API configuration check in the flush fixture.
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 
 $GLOBALS['calls']   = array();   // every (vare_id, variant_id, lager, mode) the layer sent
 $GLOBALS['answers'] = array();   // vare_id => answer sync_shop_vare() should give
@@ -59,7 +60,7 @@ function db_fetch_array($row) {
 }
 
 $db = 'sst876_test_flush';
-require_once(__DIR__ . '/../includes/std_func.php');
+require_once(dirname(__DIR__, 5) . '/includes/std_func.php');
 
 // Every failure below is deliberate and shopSyncDrainQueue() reports a final one through
 // error_log(). That belongs in a log, not in the output of a passing test run.

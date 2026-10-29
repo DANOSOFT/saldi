@@ -1,5 +1,5 @@
 <?php
-// --- includes/stdFunc/shopSyncQueue.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- includes/stdFunc/shopSyncQueue.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 // 20261022 CL/MJ SST-876 Created.
 // 20261027 CDX/MJ SST-876 Refresh a delivery claim timestamp so old pending markers are not reclaimed during an active send.
 // 20261027 CDX/MJ SST-876 Retain retryable transport failures even when the shop sent HTTP 200 before disconnecting.
+// 20261028 CDX/MJ SST-876 Prioritize fresh queue work, rotate exhausted retries, and report the retry threshold once.
 
 if (!function_exists('shopSyncQueueDir')) {
 	/**
@@ -178,15 +179,16 @@ if (!function_exists('shopSyncQueueRead')) {
 
 if (!function_exists('shopSyncQueuePending')) {
 	/**
-	 * The undelivered updates, oldest first.
+	 * Undelivered updates, with exhausted retries after fresh work.
 	 *
 	 * Oldest first so an item that has been waiting since yesterday is not starved by the
 	 * ones this request just queued.
 	 *
-	 * @param int $limit  Most entries to return. 0 means every one of them.
+	 * @param int $limit Most entries to return. 0 means every one of them.
+	 * @param int $maxAttempts Failed attempts before an item moves to the lower-priority tier.
 	 * @return array<int, array>  Entries as shopSyncQueueRead() returns them.
 	 */
-	function shopSyncQueuePending($limit = 0) {
+	function shopSyncQueuePending($limit = 0, $maxAttempts = 5) {
 		$dir = shopSyncQueueDir(false);
 		if ($dir === '') {
 			return array();
@@ -219,7 +221,18 @@ if (!function_exists('shopSyncQueuePending')) {
 				$entries[] = $entry;
 			}
 		}
-		usort($entries, 'shopSyncQueueOldestFirst');
+		usort($entries, function ($a, $b) use ($maxAttempts) {
+			$aExhausted = $a['attempts'] >= $maxAttempts;
+			$bExhausted = $b['attempts'] >= $maxAttempts;
+			if ($aExhausted !== $bExhausted) {
+				return $aExhausted ? 1 : -1;
+			}
+			// Rotate repeatedly failing items rather than letting the oldest block that tier too.
+			if ($aExhausted && $a['attempts'] !== $b['attempts']) {
+				return $a['attempts'] <=> $b['attempts'];
+			}
+			return shopSyncQueueOldestFirst($a, $b);
+		});
 		if ($limit > 0 && count($entries) > $limit) {
 			$entries = array_slice($entries, 0, (int)$limit);
 		}
@@ -316,11 +329,16 @@ if (!function_exists('shopSyncQueueRelease')) {
 		$attempts = max($newer ? (int)$newer['attempts'] : 0, (int)$entry['attempts'] + ($countAttempt ? 1 : 0));
 		$mode     = ($entry['mode'] === 'all' || ($newer && $newer['mode'] === 'all')) ? 'all' : 'stock';
 		$first    = $newer ? min((int)$newer['first'], (int)$entry['first']) : (int)$entry['first'];
-		shopSyncQueueWrite($live, $mode, $attempts, $first);
+		if (!shopSyncQueueWrite($live, $mode, $attempts, $first)) {
+			// Keep the claim recoverable if persisting its retry marker failed.
+			error_log('saldi: cannot persist shop retry for ' . basename($live));
+			return false;
+		}
 		if (!empty($entry['claim'])) {
 			@unlink($entry['claim']);
 		}
-		return ($attempts >= (int)$maxAttempts);
+		return $countAttempt && (int)$entry['attempts'] < (int)$maxAttempts
+			&& (!$newer || (int)$newer['attempts'] < (int)$maxAttempts) && $attempts >= (int)$maxAttempts;
 	}
 }
 

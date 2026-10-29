@@ -7,8 +7,10 @@
 // in if (!function_exists(...)), so a stub defined first wins and the real sender runs against
 // it unchanged. Nothing here touches the network or a database.
 // 20261027 CDX/MJ SST-876 Verify an old marker becomes a fresh active claim and is not recovered by a second request.
+// 20261028 CDX/MJ SST-876 Cover retry fairness and one-time exhaustion reporting.
 
 // ---------------------------------------------------------------- the stubbed transport
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 $GLOBALS['sent']    = array();   // every batch of urls the sender handed to the transport
 $GLOBALS['answer']  = array();   // url substring => array(httpCode, body, errno)
 $GLOBALS['latency'] = 0.0;       // seconds every batch takes, however many urls are in it
@@ -39,8 +41,8 @@ function shopApiCurlMultiCall(array $urls, $timeout, $connect, $userAgent)
 	return $out;
 }
 
-require_once(__DIR__ . '/../includes/stdFunc/shopApiRequest.php');
-require_once(__DIR__ . '/../includes/stdFunc/shopSyncQueue.php');
+require_once(dirname(__DIR__, 5) . '/includes/stdFunc/shopApiRequest.php');
+require_once(dirname(__DIR__, 5) . '/includes/stdFunc/shopSyncQueue.php');
 
 set_error_handler(function ($severity, $message, $file, $line) {
 	if (!(error_reporting() & $severity)) {
@@ -164,7 +166,7 @@ check(count($state['degraded']) === 0, 'A 404 does not take the shop out for the
 
 // The fallback for an install without the multi handle is not exercised here - the extension is
 // present wherever these tests run - so it is pinned in the source instead.
-$src = file_get_contents(__DIR__ . '/../includes/stdFunc/shopApiRequest.php');
+$src = file_get_contents(dirname(__DIR__, 5) . '/includes/stdFunc/shopApiRequest.php');
 $at  = strpos($src, 'function shopApiRequestParallel(');
 check($at !== false && strpos(substr($src, $at, 1600), "!function_exists('curl_multi_init')") !== false,
 	'An install without curl_multi falls back to the single sender');
@@ -240,6 +242,29 @@ $final = shopSyncQueueRelease(shopSyncQueueClaim(shopSyncQueueRead($live)), 3);
 check($final === true, 'Reaching the attempt limit reports a final failure');
 check(is_file($live), 'A marker past the attempt limit is kept, so the update is not dropped');
 
+// Exhausted items remain recoverable, but must not occupy all 50 slots ahead of fresh work.
+$fairDir = $dir;
+$fairFiles = array();
+for ($i = 10000; $i < 10051; $i++) {
+	$path = $dir . shopSyncQueueKey($i, 0, 4);
+	shopSyncQueueWrite($path, 'stock', 5, time() - 7200);
+	$fairFiles[] = $path;
+}
+$freshPath = $dir . shopSyncQueueKey(11000, 0, 4);
+shopSyncQueueWrite($freshPath, 'stock', 0, time());
+$fairFiles[] = $freshPath;
+$firstPage = shopSyncQueuePending(50, 5);
+check(in_array(11000, array_column($firstPage, 'vare_id'), true), 'Fresh work is not starved by fifty exhausted markers');
+$claim = shopSyncQueueClaim(shopSyncQueueRead($fairFiles[0]));
+check(shopSyncQueueRelease($claim, 5) === false, 'An exhausted retry does not report the final-failure threshold repeatedly');
+$fair = array_values(array_filter(shopSyncQueuePending(0, 5), function ($entry) {
+	return $entry['vare_id'] >= 10000 && $entry['vare_id'] < 11000;
+}));
+check(end($fair)['vare_id'] === 10000, 'Exhausted retries rotate by attempts so one failed item cannot monopolize the tier');
+foreach ($fairFiles as $path) {
+	unlink($path);
+}
+
 // The item is queued again mid-delivery, standing in for another request posting a sale for it.
 // The delivery that is already running must not take that newer marker with it.
 $claim = shopSyncQueueClaim(shopSyncQueueRead($live));
@@ -279,7 +304,7 @@ file_put_contents($child, '<?php' . "
 "
 	. '$db = $argv[1];' . "
 "
-	. 'require ' . var_export(__DIR__ . '/../includes/stdFunc/shopSyncQueue.php', true) . ';' . "
+	. 'require ' . var_export(dirname(__DIR__, 5) . '/includes/stdFunc/shopSyncQueue.php', true) . ';' . "
 "
 	. '$entry = shopSyncQueueRead($argv[2]);' . "
 "

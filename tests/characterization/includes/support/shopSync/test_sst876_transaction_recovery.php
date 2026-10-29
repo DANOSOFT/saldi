@@ -1,6 +1,7 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-876 Verify commit/rollback stock visibility and recovery for direct transactional sends.
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 putenv('SALDI_SHOP_FIXTURE_ONLY=1');
 require __DIR__ . '/test_sst876_item_fanout.php';
 set_error_handler(function ($severity, $message, $file, $line) {

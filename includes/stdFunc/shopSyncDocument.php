@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/shopSyncDocument.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,8 @@
  *     vare_id:int,variant_id:int,lager:int,mode:string,label:string,parent:bool}>
  * }
  */
+// 20261028 CDX/MJ SST-876 Refresh stock before each send batch and skip backlog preparation when the HTTP budget is exhausted.
+
 function &shopSyncDocumentState() {
 	static $state = array('collecting' => false, 'backlog' => false, 'tasks' => array());
 	return $state;
@@ -174,6 +176,45 @@ function shopSyncCollectQueuedSet(array $entry) {
 }
 
 /**
+ * Refreshes quantities immediately before a batch is sent, narrowing the concurrent-sale window.
+ * Price-only payloads retain the collected metadata; sets rebuild their calculated availability.
+ *
+ * @param array $task Collected product/variant/set payload.
+ * @return array|null Refreshed task, or null when a set can no longer supply a payload.
+ */
+function shopSyncRefreshTask(array $task) {
+	if ($task['parent']) {
+		$payloads = shopSyncSetPayloads($task['vare_id'], $task['lager']);
+		if ($payloads === null) {
+			return null;
+		}
+		$task['params'] = isset($task['params']['update_stock']) ? $payloads['stock'] : $payloads['cost'];
+		return $task;
+	}
+	if (!isset($task['params']['update_stock'])) {
+		return $task;
+	}
+	$id = (int)$task['vare_id'];
+	$variant = (int)$task['variant_id'];
+	$warehouse = (int)$task['lager'];
+	if ($variant) {
+		$row = db_fetch_array(db_select("select beholdning from lagerstatus where variant_id='$variant' and lager='$warehouse'",
+			__FILE__ . ' line ' . __LINE__));
+		$stock = $row['beholdning'] ?? 0;
+		$query = "select sum(beholdning) as total_stock from lagerstatus where variant_id='$variant'";
+	} else {
+		$row = db_fetch_array(db_select("select beholdning from lagerstatus where vare_id='$id' and lager='$warehouse'",
+			__FILE__ . ' line ' . __LINE__));
+		$stock = $row['beholdning'] ?? 0;
+		$query = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$id'";
+	}
+	$row = db_fetch_array(db_select($query, __FILE__ . ' line ' . __LINE__));
+	$task['params']['stock'] = $stock;
+	$task['params']['totalStock'] = $row['total_stock'] ?? 0;
+	return $task;
+}
+
+/**
  * Prepares current figures, sends ten payloads per round, and resolves each item's own claim.
  * Parent sets and backlog failures never become document-line warnings.
  *
@@ -270,6 +311,14 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 		foreach (array_chunk($ordered, 10) as $batch) {
 			$urls = $contexts = $owners = array();
 			foreach ($batch as $i => $task) {
+				if ($budget - $apiState['spent'] >= 1 && (!$seconds || microtime(true) - $started < $seconds - 1)) {
+					$fresh = shopSyncRefreshTask($task);
+					if ($fresh === null) {
+						$groups[$task['key']]['failed'] = $groups[$task['key']]['retry'] = true;
+						continue;
+					}
+					$task = $fresh;
+				}
 				foreach ($task['targets'] as $slot => $endpoint) {
 					$index = $i . ':' . $slot;
 					$urls[$index] = shopApiUrl($endpoint, $task['params']);
@@ -285,6 +334,9 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 				if ($remaining < 1) {
 					$options['timeBudget'] = max(0.001, $apiState['spent']);
 				}
+			}
+			if (!$urls) {
+				continue;
 			}
 			$results = shopApiRequestParallel($urls, array(), $log, $options);
 			foreach ($results as $index => $res) {
@@ -350,8 +402,12 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
  */
 function shopSyncRunBacklog(array $entries, $seconds = 5, $maxAttempts = 5) {
 	$started = microtime(true);
+	$apiState = &shopApiSyncState();
 	$summary = array('failed' => 0, 'delivered' => 0, 'noApi' => false);
 	foreach (array_chunk($entries, 5) as $batch) {
+		if (30 - $apiState['spent'] < 1) {
+			break;
+		}
 		$remaining = $seconds - (microtime(true) - $started);
 		if ($remaining < 1) {
 			break;

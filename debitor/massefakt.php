@@ -1,5 +1,5 @@
 <?php	
-// ------------- debitor/massefakt.php ----- (modul nr 6)------ lap 2.0.9----2009-09-14-------
+// ------------- debitor/massefakt.php ----- (modul nr 6)------ lap 2.0.9----2026-10-28-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,12 +14,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261022 CL/MJ SST-876 Names the items the webshops would not take, at both exits: this page
 //                 invoices ten orders and then hands over to itself for the next ten, and
 //                 anything printed after that refresh is never written.
 // ----------------------------------------------------------------------
+// 20261028 CDX/MJ SST-876 Maintain file history metadata for the webshop synchronization review.
 
 @session_start();
 $s_id=session_id();

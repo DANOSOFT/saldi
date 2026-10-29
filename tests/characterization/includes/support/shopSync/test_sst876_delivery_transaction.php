@@ -2,7 +2,8 @@
 namespace Sst876DeliveryFixture;
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-876 Execute the delivery page with transaction doubles to verify post-commit retries and rollback isolation.
-require_once __DIR__ . '/../includes/std_func.php';
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
+require_once dirname(__DIR__, 5) . '/includes/std_func.php';
 $events = array();
 $depth = 0;
 $result = 'OK';
@@ -25,7 +26,7 @@ function shopSyncDrainQueue() {
 }
 function shopSyncAlertFailedItems() { $GLOBALS['events'][] = 'warning'; }
 function shopSyncClearFailedItems() { $GLOBALS['events'][] = 'clear'; }
-$src = file_get_contents(__DIR__ . '/../debitor/levering.php');
+$src = file_get_contents(dirname(__DIR__, 5) . '/debitor/levering.php');
 $src = preg_replace('/^[\t ]*include\("\.\.\/includes\/[^"\n]+"\);[\t ]*$/m', '', $src);
 $src = substr($src, strlen('<?php'));
 foreach (array('OK', 'Failed delivery') as $result) {

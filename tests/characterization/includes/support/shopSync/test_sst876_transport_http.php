@@ -1,16 +1,17 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-876 Verify actual parallel and shell-cURL transfer completion, including partial HTTP 200 responses.
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 set_exception_handler(function ($error) {
 	fwrite(STDERR, (string)$error . "\n");
 	exit(1);
 });
-require_once __DIR__ . '/../includes/stdFunc/shopApiRequest.php';
+require_once dirname(__DIR__, 5) . '/includes/stdFunc/shopApiRequest.php';
 if (!function_exists('curl_multi_init') || !function_exists('shell_exec')) {
 	echo "SKIP: the transport regression requires ext-curl and shell_exec.\n";
 	exit(0);
 }
-$server = proc_open(array('python3', __DIR__ . '/support/shop_sync_fault_mock.py'),
+$server = proc_open(array('python3', dirname(__DIR__, 4) . '/support/shop_sync_fault_mock.py'),
 	array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => STDERR), $pipes);
 if (!is_resource($server)) {
 	throw new RuntimeException('Could not start the loopback transfer mock.');

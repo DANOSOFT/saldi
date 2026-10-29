@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-876 Verify no-webshop requests avoid queue I/O and transactions defer backlog delivery.
 // 20261027 CDX/MJ SST-876 Assert document stock is deferred until commit rather than published inside the transaction.
+// 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
 	throw new ErrorException($message, 0, $severity, $file, $line);
@@ -38,7 +39,7 @@ function sync_shop_vare($id, $variant, $warehouse, $mode = 'all') {
 	return 'OK';
 }
 
-require_once __DIR__ . '/../includes/std_func.php';
+require_once dirname(__DIR__, 5) . '/includes/std_func.php';
 function check($ok, $message) {
 	if (!$ok) {
 		throw new RuntimeException($message);
