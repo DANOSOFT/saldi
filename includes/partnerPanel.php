@@ -377,10 +377,11 @@ function bp_ledger_user_create($reg, $un, $pw, $email, $tlf, $role) {
 	global $sqhost, $squser, $sqpass; $un = trim((string)$un);
 	if ($un === '' || strlen($pw) < 6) return array(0, bp_t('Brugernavn og adgangskode (mindst 6 tegn) er påkrævet','Username and password (at least 6 characters) are required'));
 	if (!bp_login_name_ok($un)) return array(0, bp_login_name_msg());
+	$max = bp_ledger_max_users($reg); # on master, before switching to the customer database
 	if (!$reg['db'] || !db_exists($reg['db']) || !@db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) return array(0, bp_t('Kunne ikke forbinde til regnskabet','Could not connect to the account'));
 	$fail = function($m) { include("../includes/connect.php"); return array(0, $m); };
 	if (db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($un)."'", __FILE__ . " linje " . __LINE__))) return $fail(bp_t('Brugernavnet findes allerede i regnskabet','The username already exists in the account'));
-	$max = bp_ledger_max_users($reg); if ($max !== null && (int)db_fetch_array(db_select("select count(*) as n from brugere", __FILE__ . " linje " . __LINE__))['n'] >= $max) return $fail(bp_t('Pakken har ikke flere brugere. Udskift en bruger, eller foreslå en større pakke.','The plan has no more users. Replace a user, or propose a larger plan.'));
+	if ($max !== null && (int)db_fetch_array(db_select("select count(*) as n from brugere", __FILE__ . " linje " . __LINE__))['n'] >= $max) return $fail(bp_t('Pakken har ikke flere brugere. Udskift en bruger, eller foreslå en større pakke.','The plan has no more users. Replace a user, or propose a larger plan.'));
 	$rights = str_repeat('1', 21); # Saldi has no read-only rights level; the customer's administrator narrows the rights per module
 	$ry = db_fetch_array(db_select("select max(kodenr) as k from grupper where art = 'RA'", __FILE__ . " linje " . __LINE__)); $aar = ($ry && $ry['k']) ? (int)$ry['k'] : 1;
 	$r = db_fetch_array(db_select("insert into brugere (brugernavn, kode, rettigheder, regnskabsaar, email, tlf) values ('".db_escape_string($un)."', '', '$rights', '$aar', '".db_escape_string(trim((string)$email))."', '".db_escape_string(trim((string)$tlf))."') returning id", __FILE__ . " linje " . __LINE__)); $nid = (int)$r['id'];
@@ -389,10 +390,11 @@ function bp_ledger_user_create($reg, $un, $pw, $email, $tlf, $role) {
 	bp_log('ledger.user_created', (int)$reg['id'], "$un (alle rettigheder)");
 	return array($nid, '');
 }
-// Users the customer's plan allows (null = no limit); the same number the card shows.
+// Users the customer's plan allows (null = no limit). Accounts without a plan keep the old behaviour: regnskab.brugerantal
+// was never enforced, and older accounts hold more users than it says.
 function bp_ledger_max_users($reg) {
 	if (!function_exists('ent_resolve')) include_once(__DIR__.'/entitlements.php');
-	$ent = ent_resolve((int)$reg['id']); return $ent['plan'] ? ($ent['limits']['max_users'] === null ? null : (int)$ent['limits']['max_users']) : ((int)$reg['brugerantal'] ?: null);
+	$ent = ent_resolve((int)$reg['id']); return ($ent['plan'] && $ent['limits']['max_users'] !== null) ? (int)$ent['limits']['max_users'] : null;
 }
 // Sign the firm's employees out of a customer account (they came in through the panel, so the session is marked revisor).
 function bp_end_partner_sessions($rdb, $pid, $bid = 0) {
