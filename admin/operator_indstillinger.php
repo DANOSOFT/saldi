@@ -76,9 +76,9 @@ if (isset($_POST['gem'])) {
 	$alertTextId = if_isset($_POST, NULL, 'alertTextId');
 	$alertText = if_isset($_POST, NULL, 'alertText');
 	$lang = if_isset($_POST, NULL, 'LanguageName'); //20210920
-	$languageId = (int)if_isset($_POST, 0, 'LanguageId'); //20210920
+	$langPosted = isset($_POST['LanguageId']); $languageId = (int)if_isset($_POST, 0, 'LanguageId'); //20210920
 	$newssnippet = if_isset($_POST, NULL, 'newssnippet');	
-	$sprog_id = (int)$languageId;
+	if ($langPosted) $sprog_id = (int)$languageId;
 /*
 	    $qtxt="select * from online where sprog ='$lang'and brugernavn = '$brugernavn'";  #20210921
 		if (!$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
@@ -86,44 +86,46 @@ if (isset($_POST['gem'])) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 */
-	if ($ps2pdfId) $qtxt="update settings set var_value='$ps2pdf' where id='$ps2pdfId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('ps2pdf','$ps2pdf','Program til konvertering af PostScript til PDF')";
+	if ($ps2pdfId) $qtxt="update settings set var_value='".db_escape_string((string)$ps2pdf)."' where id='".(int)$ps2pdfId."'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('ps2pdf','".db_escape_string((string)$ps2pdf)."','Program til konvertering af PostScript til PDF')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($weasyprintId) $qtxt="update settings set var_value='$weasyprint' where id='$weasyprintId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('weasyprint','$weasyprint','Program til konvertering af HTML til PDF')";
+	if ($weasyprintId) $qtxt="update settings set var_value='".db_escape_string((string)$weasyprint)."' where id='".(int)$weasyprintId."'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('weasyprint','".db_escape_string((string)$weasyprint)."','Program til konvertering af HTML til PDF')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($pdftkId) $qtxt="update settings set var_value='$pdftk' where id='$pdftkId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('pdftk','$pdftk','Program til sammenlægning af PDF filer')";
+	if ($pdftkId) $qtxt="update settings set var_value='".db_escape_string((string)$pdftk)."' where id='".(int)$pdftkId."'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('pdftk','".db_escape_string((string)$pdftk)."','Program til sammenlægning af PDF filer')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($ftpId) $qtxt="update settings set var_value='$ftp' where id='$ftpId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('ftp','$ftp','Program til FTP')";
+	if ($ftpId) $qtxt="update settings set var_value='".db_escape_string((string)$ftp)."' where id='".(int)$ftpId."'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('ftp','".db_escape_string((string)$ftp)."','Program til FTP')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($dbdumpId) $qtxt="update settings set var_value='$dbdump' where id='$dbdumpId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('dbdump','$dbdump','Program til databasedump')";
+	if ($dbdumpId) $qtxt="update settings set var_value='".db_escape_string((string)$dbdump)."' where id='".(int)$dbdumpId."'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('dbdump','".db_escape_string((string)$dbdump)."','Program til databasedump')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($zipId) $qtxt="update settings set var_value='$zip' where id='$zipId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('zip','$zip','Program til komprimering af filer')";
+	if ($zipId) $qtxt="update settings set var_value='".db_escape_string((string)$zip)."' where id='".(int)$zipId."'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('zip','".db_escape_string((string)$zip)."','Program til komprimering af filer')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($unzipId) $qtxt="update settings set var_value='$unzip' where id='$unzipId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('unzip','$unzip','Program til dekomprimering af filer')";
+	if ($unzipId) $qtxt="update settings set var_value='".db_escape_string((string)$unzip)."' where id='".(int)$unzipId."'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('unzip','".db_escape_string((string)$unzip)."','Program til dekomprimering af filer')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($tarId) $qtxt="update settings set var_value='$tar' where id='$tarId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('tar','$tar','Program til pakning af filer')";
+	if ($tarId) $qtxt="update settings set var_value='".db_escape_string((string)$tar)."' where id='".(int)$tarId."'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('tar','".db_escape_string((string)$tar)."','Program til pakning af filer')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	if ($alertTextId) {
-		$qtxt="delete from settings where var_name='alertText' and id!='$alertTextId'";
+		$qtxt="delete from settings where var_name='alertText' and id!='".(int)$alertTextId."'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt="update settings set var_value='$alertText' where id='$alertTextId'";
+		$qtxt="update settings set var_value='".db_escape_string((string)$alertText)."' where id='".(int)$alertTextId."'";
 	} else {
 		$qtxt="insert into settings (var_name,var_value,var_description) values ";
 		$qtxt.="('alertText','".db_escape_string($alertText)."','".db_escape_string('Alert text if: unpredicted event')."')";
 	}
 	update_settings_value("nyhed", "dashboard", $newssnippet, "The news snippet showen to all admin accounts on this system");
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt="update settings set var_value='$languageId' where var_name='languageId'";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt="update online set language_id='$languageId' where session_id = '$s_id'";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	// 20261013 CL/ASR Values escaped and ids cast (review #785); the language is only changed when the form posts it
+	//                  (this form has no language field, so every save used to set the installation language to 0).
+	if ($langPosted) {
+		db_modify("update settings set var_value='".(int)$languageId."' where var_name='languageId'",__FILE__ . " linje " . __LINE__);
+		db_modify("update online set language_id='".(int)$languageId."' where session_id = '".db_escape_string($s_id)."'",__FILE__ . " linje " . __LINE__);
+	}
 	vr_prg(array(findtekst('3|Gem', $sprog_id).': '.vr_t('indstillingerne er gemt','settings saved')));
 } else {
 	$ps2pdf=$weasyprint=$pdftk=$ftp=$dbdump=$zip=$unzip=$tar=$alertText=NULL;

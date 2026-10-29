@@ -42,7 +42,10 @@ $r=db_fetch_array(db_select("select * from online where session_id = '$s_id'",__
 if (isset($r['revisor'])) {
 	if ($db && $db!=$sqdb) {
 		db_modify("update online set db='$sqdb' where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
-		print "<meta http-equiv=\"refresh\" content=\"0;URL='../admin/vis_regnskaber.php'\">";
+		// 20261025 CL/ASR Saldi staff (admin flag 'on') return to the operator panel; everyone else to the account list as before.
+		$vr_r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
+		$vr_back = ($vr_r && explode(',', (string)$vr_r['rettigheder'])[0] == 'on' && file_exists('../admin/operator_panel.php')) ? '../admin/operator_panel.php' : '../admin/vis_regnskaber.php';
+		print "<meta http-equiv=\"refresh\" content=\"0;URL='$vr_back'\">";
 		exit;
 	}	
 }

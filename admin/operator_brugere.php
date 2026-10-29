@@ -92,7 +92,8 @@ if ($_POST) {
 		if ($row = db_fetch_array($query))
 		$kode=trim($row['kode']);
 	}
-	if ((strstr($submit,'Tilf'))&&($ret_bruger)&&($ret_bruger!="-")) {
+	if ((strstr($submit,'Tilf'))&&($ret_bruger)&&($ret_bruger!="-")&&!isset($insetKode)&&!$vr_alerts) $vr_alerts[] = vr_t('Angiv en adgangskode til den nye bruger','Enter a password for the new user');
+	if ((strstr($submit,'Tilf'))&&($ret_bruger)&&($ret_bruger!="-")&&!$vr_alerts) {
 		$query = db_select("select id from brugere where brugernavn = '".db_escape_string($ret_bruger)."'",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			$txt = findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id); 
@@ -106,8 +107,9 @@ if ($_POST) {
 			db_modify("update brugere set kode='$kode' where id=$r[id]",__FILE__ . " linje " . __LINE__);
 			$vr_done = vr_t('Brugeren','User')." $ret_bruger ".vr_t('er oprettet','created'); partner_log('master_user.created', null, null, "$ret_bruger ($rettigheder)");
 		}
-	} elseif ((strstr($submit,'Opdat'))&&($ret_bruger)&&($ret_bruger!="-")) {
-		db_modify("update brugere set brugernavn='".db_escape_string($ret_bruger)."',kode='".db_escape_string($kode)."',rettigheder='".db_escape_string($rettigheder)."' where id=".(int)$id,__FILE__ . " linje " . __LINE__);
+	} elseif ((strstr($submit,'Opdat'))&&($ret_bruger)&&($ret_bruger!="-")&&!$vr_alerts) {
+		// 20261013 CL/ASR Never write an empty password: a mismatching repeat or an empty field used to set kode='' (review #785).
+		db_modify("update brugere set brugernavn='".db_escape_string($ret_bruger)."',".($kode ? "kode='".db_escape_string($kode)."'," : "")."rettigheder='".db_escape_string($rettigheder)."' where id=".(int)$id,__FILE__ . " linje " . __LINE__);
 		$vr_done = vr_t('Brugeren','User')." $ret_bruger ".vr_t('er gemt','saved'); partner_log('master_user.updated', null, null, "$ret_bruger ($rettigheder)".(isset($insetKode) ? ', ny adgangskode' : ''));
 	}
 	elseif (($id)&&($ret_bruger=="-")) {

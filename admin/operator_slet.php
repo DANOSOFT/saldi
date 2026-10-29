@@ -96,7 +96,7 @@ if (isset($_POST['regnskabsantal'])) {
 		if (!file_exists($tmpmappe)) { $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet"; continue; }
 		$dump_filnavn = $tmpmappe."/".$dbn.".sql"; $dat_filnavn = $dbn."_".date("Ymd-Hi").".sdat";
 		if ($fp = fopen($tmpmappe."/backup.info", "w")) { fwrite($fp, date("YmdHis").chr(9).$dbn.chr(9).chr(9).$r['regnskab'].chr(9)."$db_encode".chr(9)."$db_type".chr(9)."$r[regnskab] slettet ".date("d-m-Y H:i")." af $brugernavn"); fclose($fp); }
-		if ($db_type == 'mysql') system("mysqldump -h ".escapeshellarg($sqhost)." -u ".escapeshellarg($squser)." --password=".escapeshellarg($sqpass)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn));
+		if ($db_type == 'mysql' || $db_type == 'mysqli') system("mysqldump -h ".escapeshellarg($sqhost)." -u ".escapeshellarg($squser)." --password=".escapeshellarg($sqpass)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn));
 		else system("export PGPASSWORD=".escapeshellarg($sqpass)."\npg_dump -h ".escapeshellarg($sqhost)." -U ".escapeshellarg($squser)." -f ".escapeshellarg($dump_filnavn)." ".escapeshellarg($dbn));
 		$dumpOk = file_exists($dump_filnavn) && filesize($dump_filnavn) > 0;
 		if ($dumpOk) system("cd ".escapeshellarg($mappe)."\ntar -pzcf ".escapeshellarg($dat_filnavn)." ".escapeshellarg($dbn));

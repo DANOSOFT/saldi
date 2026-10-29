@@ -179,7 +179,7 @@ function ent_resolve($rid) {
 	$q = db_select("select * from regnskab_overrides where regnskab_id = '$rid' and (expires_at is null or expires_at >= current_date) order by (kind = 'plan') desc, id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$out['overrides'][] = $r;
-		if ($r['kind'] == 'plan' && isset($c['plans'][$r['value']])) { $out['plan_key'] = $r['value']; $out['plan'] = $c['plans'][$r['value']]; $out['features'] = array_merge($c['features'][$r['value']], array_intersect_key($out['features'], array())); foreach ($out['addons'] as $ak => $ar) if (isset($c['addons'][$ak])) $out['features'][$c['addons'][$ak]['feature_key']] = 'included'; $pp = $out['plan']; $out['limits'] = array('included_users' => (int)$pp['included_users'], 'max_users' => $pp['max_users'] === null ? null : (int)$pp['max_users'], 'included_postings' => $pp['included_postings'] === null ? null : (int)$pp['included_postings'], 'max_items' => $pp['max_items'] === null ? null : (int)$pp['max_items'], 'max_webshops' => (int)$pp['included_webshops']); if (isset($out['addons']['webshop_simple']) || isset($out['addons']['webshop_advanced'])) $out['limits']['max_webshops'] = max(1, $out['limits']['max_webshops']); }
+		if ($r['kind'] == 'plan' && isset($c['plans'][$r['value']])) { $out['plan_key'] = $r['value']; $out['plan'] = $c['plans'][$r['value']]; $out['features'] = array_merge($c['features'][$r['value']], array_intersect_key($out['features'], array())); foreach ($out['addons'] as $ak => $ar) if (isset($c['addons'][$ak])) $out['features'][$c['addons'][$ak]['feature_key']] = 'included'; $pp = $out['plan']; $out['price_ore'] = $pp['price_ore'] === null ? null : (int)$pp['price_ore']; $out['extra_user_price_ore'] = $pp['extra_user_price_ore'] === null ? null : (int)$pp['extra_user_price_ore']; $out['interval'] = $pp['billing_interval']; $out['limits'] = array('included_users' => (int)$pp['included_users'], 'max_users' => $pp['max_users'] === null ? null : (int)$pp['max_users'], 'included_postings' => $pp['included_postings'] === null ? null : (int)$pp['included_postings'], 'max_items' => $pp['max_items'] === null ? null : (int)$pp['max_items'], 'max_webshops' => (int)$pp['included_webshops']); if (isset($out['addons']['webshop_simple']) || isset($out['addons']['webshop_advanced'])) $out['limits']['max_webshops'] = max(1, $out['limits']['max_webshops']); }
 		elseif ($r['kind'] == 'feature') $out['features'][$r['key']] = ($r['value'] == 'on') ? 'included' : 'none';
 		elseif ($r['kind'] == 'limit') $out['limits'][$r['key']] = ($r['value'] === '' || strtolower($r['value']) == 'ubegrænset' || $r['value'] == '*') ? null : (int)$r['value'];
 		elseif ($r['kind'] == 'addon') { $out['addons'][$r['key']] = array('addon_key' => $r['key'], 'quantity' => (int)$r['value'] ?: 1, 'source' => 'override', 'expires_at' => $r['expires_at']); if (isset($c['addons'][$r['key']])) $out['features'][$c['addons'][$r['key']]['feature_key']] = 'included'; }
@@ -242,10 +242,14 @@ function ent_remove_addon($rid, $addon_key) {
 // 20261012 CL/ASR Validation split out so callers that replace an active override can check BEFORE expiring the old one
 //                  (an invalid replacement used to remove the active override). The grandfather/overgangsordning
 //                  exemption from the expiry date now applies to plan overrides only (the parentheses were wrong).
+// 20261013 CL/ASR Expiry must be a real date, today or later; a plan override also carries its plan's price (review #785).
 function ent_override_error($kind, $reason, $expires) {
 	if (!in_array($kind, array('plan','feature','limit','addon'), true)) return 'Ugyldig type';
 	if (trim((string)$reason) === '') return 'Begrundelse mangler';
-	$hasEx = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$expires);
+	$hasEx = (bool)preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', (string)$expires, $m);
+	if (!$hasEx && trim((string)$expires) !== '') return 'Ugyldig udløbsdato'; # a malformed date is an error, not "no expiry"
+	if ($hasEx && !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) return 'Ugyldig udløbsdato';
+	if ($hasEx && $expires < date('Y-m-d')) return 'Udløbsdatoen er overskredet – vælg i dag eller senere';
 	if (!$hasEx && !($kind == 'plan' && (stripos($reason, 'grandfather') !== false || stripos($reason, 'overgangsordning') !== false))) return 'Udløbsdato er påkrævet (undtagen overgangsordning)';
 	return '';
 }

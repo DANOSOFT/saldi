@@ -5,6 +5,11 @@ $s_id=session_id();
 // --- admin/partnere.php --- ver 5.1.0 --- 2026.10.10 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261020 CL/ASR Review #785: new ids from INSERT … RETURNING (max(id) could return another session's row); an
+//                  employee's customer scope is explicit (partner_users.scope all|selected, from partnerScope.php), so
+//                  removing or moving the last selected customer leaves the employee with none instead of all; emp_remove
+//                  and emp_scope only act on the partner's own employees and active customer links. 'all' is stored only
+//                  when "Alle" is chosen; an empty selection means no customers (21/10).
 // 20261012 CL/ASR Post/Redirect/Get after every action (vr_prg), so the card is drawn from fresh data.
 // 20261011 CL/ASR Groups and larger customers: per-ledger plan/usage/payment columns on the Kunder tab, group totals,
 //                  billing mode (individual/consolidated) with a billing ledger, per-ledger payer, move to another
@@ -50,8 +55,7 @@ if (isset($_POST['vr_action'])) {
 		$cvr = trim(if_isset($_POST, '', 'cvr')); $home = (int) if_isset($_POST, 0, 'home_regnskab_id');
 		if (!$name) $notes[] = vr_t('Navn mangler','Name missing');
 		else {
-			db_modify("insert into partners (kind, name, cvr, home_regnskab_id, can_create, created_by) values ('$kind', '".db_escape_string($name)."', '".db_escape_string($cvr)."', ".($home ? "'$home'" : "NULL").", ".(isset($_POST['can_create']) ? 'true' : 'false').", '".(int)$me['id']."')", __FILE__ . " linje " . __LINE__);
-			$r = db_fetch_array(db_select("select max(id) as id from partners", __FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("insert into partners (kind, name, cvr, home_regnskab_id, can_create, created_by) values ('$kind', '".db_escape_string($name)."', '".db_escape_string($cvr)."', ".($home ? "'$home'" : "NULL").", ".(isset($_POST['can_create']) ? 'true' : 'false').", '".(int)$me['id']."') returning id", __FILE__ . " linje " . __LINE__));
 			$pid = (int)$r['id'];
 			partner_log('partner.created', null, $pid, "$kind: $name");
 			$notes[] = vr_t('Partneren er oprettet','Partner created');
@@ -99,8 +103,7 @@ if (isset($_POST['vr_action'])) {
 				if (db_fetch_array(db_select("select 1 from brugere where brugernavn = '".db_escape_string($newname)."'", __FILE__ . " linje " . __LINE__))) $notes[] = vr_t('Brugernavnet findes allerede','Username already exists');
 				elseif (strlen($kode) < 6) $notes[] = vr_t('Adgangskoden skal være mindst 6 tegn','Password must be at least 6 characters');
 				else {
-					db_modify("insert into brugere (brugernavn, rettigheder, status) values ('".db_escape_string($newname)."', ',,,', true)", __FILE__ . " linje " . __LINE__);
-					$r = db_fetch_array(db_select("select max(id) as id from brugere", __FILE__ . " linje " . __LINE__)); $bid = (int)$r['id'];
+					$r = db_fetch_array(db_select("insert into brugere (brugernavn, rettigheder, status) values ('".db_escape_string($newname)."', ',,,', true) returning id", __FILE__ . " linje " . __LINE__)); $bid = (int)$r['id'];
 					db_modify("update brugere set kode = '".db_escape_string(saldikrypt($bid, $kode))."' where id = '$bid'", __FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -110,16 +113,22 @@ if (isset($_POST['vr_action'])) {
 			}
 		} elseif ($act == 'emp_remove') {
 			$bid = (int) if_isset($_POST, 0, 'bruger_id');
-			db_modify("delete from partner_users where bruger_id = '$bid' and partner_id = '$pid'", __FILE__ . " linje " . __LINE__);
-			db_modify("delete from partner_user_access where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
-			partner_log('partner.employee_removed', null, $pid, "bruger $bid"); $notes[] = vr_t('Medarbejder fjernet','Employee removed');
+			if (db_fetch_array(db_select("select 1 from partner_users where bruger_id = '$bid' and partner_id = '$pid'", __FILE__ . " linje " . __LINE__))) {
+				db_modify("delete from partner_users where bruger_id = '$bid' and partner_id = '$pid'", __FILE__ . " linje " . __LINE__);
+				db_modify("delete from partner_user_access where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
+				partner_log('partner.employee_removed', null, $pid, "bruger $bid"); $notes[] = vr_t('Medarbejder fjernet','Employee removed');
+			}
 		} elseif ($act == 'emp_scope') {
 			$bid = (int) if_isset($_POST, 0, 'bruger_id');
 			if (db_fetch_array(db_select("select 1 from partner_users where bruger_id = '$bid' and partner_id = '$pid'", __FILE__ . " linje " . __LINE__))) {
-				db_modify("delete from partner_user_access where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
 				$sel = if_isset($_POST, array(), 'scope'); $sel = is_array($sel) ? array_map('intval', $sel) : array();
-				foreach ($sel as $rid) if ($rid) db_modify("insert into partner_user_access (bruger_id, regnskab_id) values ('$bid', '$rid')", __FILE__ . " linje " . __LINE__);
-				partner_log('partner.employee_access_changed', null, $pid, "bruger $bid: ".($sel ? implode(',', $sel) : 'alle'));
+				$linked = array(); $q = db_select("select regnskab_id from regnskab_partners where partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $linked[] = (int)$r['regnskab_id'];
+				$all = in_array(0, $sel, true); # 'all' only when "Alle" itself is chosen; nothing chosen (or nothing left after the filter) = no customers
+				$sel = $all ? array() : array_values(array_intersect(array_unique($sel), $linked)); # only the partner's own customers
+				db_modify("delete from partner_user_access where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
+				foreach ($sel as $rid) db_modify("insert into partner_user_access (bruger_id, regnskab_id) values ('$bid', '$rid')", __FILE__ . " linje " . __LINE__);
+				db_modify("update partner_users set scope = '".($all ? 'all' : 'selected')."' where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
+				partner_log('partner.employee_access_changed', null, $pid, "bruger $bid: ".($all ? 'alle' : ($sel ? implode(',', $sel) : 'ingen')));
 				$notes[] = vr_t('Adgang gemt','Access saved');
 			}
 		}
@@ -227,8 +236,10 @@ if ($tab == 'oversigt') {
 	foreach ($emps as $e) {
 		$sc = array(); $q = db_select("select regnskab_id from partner_user_access where bruger_id = '".(int)$e['bruger_id']."'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $sc[] = (int)$r['regnskab_id'];
 		print "<tr><td class=\"vr-nm\"><a>".vr_h($e['brugernavn'])."</a></td><td class=\"vr-mut\">".($e['email'] ? vr_h($e['email']) : '–')."</td><td>".($e['partner_role']=='owner' ? vr_t('Ejer','Owner') : vr_t('Medarbejder','Employee'))."</td><td class=\"vr-mut\">";
-		if ($isOwner) { print "<form method=\"post\" class=\"vr-inline\"><input type=\"hidden\" name=\"vr_action\" value=\"emp_scope\"><input type=\"hidden\" name=\"bruger_id\" value=\"".(int)$e['bruger_id']."\"><select name=\"scope[]\" multiple size=\"3\" class=\"vr-sel\"><option value=\"0\"".(!$sc ? " selected" : "").">".vr_t('Alle','All')."</option>"; foreach ($links as $l) if (isset($regNames[(int)$l['regnskab_id']])) print "<option value=\"".(int)$l['regnskab_id']."\"".(in_array((int)$l['regnskab_id'], $sc) ? " selected" : "").">".vr_h($regNames[(int)$l['regnskab_id']]['regnskab'])."</option>"; print "</select><button type=\"submit\" class=\"vr-btn vr-quiet\">".vr_t('Gem','Save')."</button></form>"; }
-		else print ($sc ? count($sc).' '.strtolower($KU) : vr_t('Alle','All'));
+		$scAll = (($e['scope'] ?? 'all') != 'selected');
+		if ($isOwner) { print "<form method=\"post\" class=\"vr-inline\"><input type=\"hidden\" name=\"vr_action\" value=\"emp_scope\"><input type=\"hidden\" name=\"bruger_id\" value=\"".(int)$e['bruger_id']."\"><select name=\"scope[]\" multiple size=\"3\" class=\"vr-sel\"><option value=\"0\"".($scAll ? " selected" : "").">".vr_t('Alle','All')."</option>"; foreach ($links as $l) if (isset($regNames[(int)$l['regnskab_id']])) print "<option value=\"".(int)$l['regnskab_id']."\"".(in_array((int)$l['regnskab_id'], $sc) ? " selected" : "").">".vr_h($regNames[(int)$l['regnskab_id']]['regnskab'])."</option>"; print "</select><button type=\"submit\" class=\"vr-btn vr-quiet\">".vr_t('Gem','Save')."</button></form>"; }
+		else print ($scAll ? vr_t('Alle','All') : count($sc).' '.strtolower($KU));
+		if (!$scAll && !$sc) print " <span class=\"vr-mut2\">".vr_t('ingen kunder valgt','no customers selected')."</span>";
 		print "</td><td class=\"vr-r\">".($isOwner && (int)$e['bruger_id'] != (int)$me['id'] ? "<form method=\"post\" style=\"display:inline\"><input type=\"hidden\" name=\"vr_action\" value=\"emp_remove\"><input type=\"hidden\" name=\"bruger_id\" value=\"".(int)$e['bruger_id']."\"><button type=\"submit\" class=\"vr-link\" onclick=\"return confirm('".vr_t('Fjern medarbejderen fra firmaet?','Remove the employee from the firm?')."')\">".vr_t('Fjern','Remove')."</button></form>" : "")."</td></tr>";
 	}
 	if (!$emps) print "<tr><td colspan=\"5\" class=\"vr-mut\">".vr_t('Ingen medarbejdere endnu','No employees yet')."</td></tr>";
