@@ -23,9 +23,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240626 PHR Added 'fiscal_year' in queries
-// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato
-//              (text 7636) instead of sharing text 886 with sales orders, where it keeps
-//              reading Dato for levering.
+// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 7636) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
 // 20261029 CL/MJ Use free translation ids after rebasing onto current master; preserve cached voucher texts.
 
 print "<table cellpadding='1' cellspacing='0' bordercolor='#ffffff' border='1' valign = 'top' width = '100'><tbody>";

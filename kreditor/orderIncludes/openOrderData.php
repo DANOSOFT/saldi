@@ -42,9 +42,7 @@
 // 20260924 CL/SZ Left-join grupper instead of inner-joining it (CodeRabbit, PR #608): an item
 //                 with has_due_date=TRUE but no current-year VG group row was still being
 //                 dropped by the join before the has_due_date check ran.
-// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato
-//              (text 7636) instead of sharing text 886 with sales orders, where it keeps
-//              reading Dato for levering.
+// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 7636) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
 // 20261029 CL/MJ Use free translation ids after rebasing onto current master; preserve cached voucher texts.
 
 /*

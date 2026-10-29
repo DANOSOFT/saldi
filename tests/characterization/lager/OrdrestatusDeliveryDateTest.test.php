@@ -1,9 +1,7 @@
 <?php
 
-// 20261013 CL/MJ Pins the Indkoebsordre hover box on ordrer.levdate. Two halves: the four
-//              comma-separated lists the SQL builds, run against a real Postgres because
-//              STRING_AGG(... ORDER BY ... NULLS LAST) has no sqlite equivalent, and
-//              renderColumn() itself, lifted from the page and run with stubs.
+// 20261013 CL/MJ Pins the Indkoebsordre hover box on ordrer.levdate.
+//                Two halves: the four comma-separated lists the SQL builds, run against a real Postgres because STRING_AGG(... ORDER BY ... NULLS LAST) has no sqlite equivalent, and renderColumn() itself, lifted from the page and run with stubs.
 //
 // strict_types is deliberately off. renderColumn() is lifted out of a legacy page script and
 // eval'd here, and eval'd code inherits the calling file's strict_types - the lifted code passes

@@ -27,9 +27,8 @@
 // 20260807 CL/MS Converted hardcoded Danish UI text to findtekst() calls for multi-language support
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260923 CDX/PHR Generate warehouse columns and joins once per warehouse across fiscal years.
-// 20261013 CL/MJ The Indkoebsordre hover box dates its orders by the expected delivery date
-//              (ordrer.levdate) instead of the order date, and says so in the column header.
-//              An order without a delivery date is still listed, with a dash for the date.
+// 20261013 CL/MJ The Indkoebsordre hover box dates its orders by the expected delivery date (ordrer.levdate) instead of the order date, and says so in the column header.
+//                An order without a delivery date is still listed, with a dash for the date.
 // 20261029 CL/MJ Use free translation ids after rebasing onto current master; preserve cached voucher texts.
 
 @session_start();
