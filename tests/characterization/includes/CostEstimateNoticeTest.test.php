@@ -18,6 +18,7 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261029 CL/MMR Created (SD-786).
+ * 20261029 CL/MMR A difference of exactly 0,005 shows the message, in both directions and on converted/discounted prices (Codex round 1).
  */
 #[RunTestsInSeparateProcesses]
 final class CostEstimateNoticeTest extends TestCase
@@ -121,6 +122,44 @@ final class CostEstimateNoticeTest extends TestCase
             '5314349: 88.100,93 fra varekortet. Der er ingen åben indkøbsordre, så prisen kan være forældet',
         ], self::lines($r['printed']));
         self::assertStringContainsString('source varer.kostpris', $r['log']);
+    }
+
+    /** @return array<string, array{float, float, bool}> cost used, item card price, message shown */
+    public static function boundaries(): array
+    {
+        return [
+            'exactly 0,005 above the item card' => [100.005, 100.000, true],
+            'exactly 0,005 below the item card' => [100.000, 100.005, true],
+            'just under 0,005'                   => [10.004, 10.000, false],
+            'just over 0,005'                    => [10.006, 10.000, true],
+            'large price, exactly 0,005'         => [124874.995, 124875.000, true],
+            'large price, under 0,005'           => [124874.996, 124875.000, false],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('boundaries')]
+    public function testThePriceDifferenceBoundaryIsInclusive(float $kostpris, float $varekortpris, bool $shown): void
+    {
+        self::boot('on', []);
+        self::assertSame($shown, deficit_cost_notice_relevant(44001, 'salg fra negativ lagerbeholdning', false, ['ordrenr' => '1'], $kostpris, $varekortpris));
+    }
+
+    /** @return array<string, array{array<string, string>, string, bool}> purchase line, item card price, message shown */
+    public static function convertedPurchaseLines(): array
+    {
+        return [
+            'EUR line converted to exactly 0,005 above'   => [['pris' => '13.334', 'valutakurs' => '750.000'], '100.000', true],
+            'discounted line 0,0053 above'                => [['pris' => '111.117', 'rabat' => '10.000', 'valutakurs' => '100.000'], '100.000', true],
+            'discounted line 0,0044 above'                => [['pris' => '111.116', 'rabat' => '10.000', 'valutakurs' => '100.000'], '100.000', false],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('convertedPurchaseLines')]
+    public function testConvertedAndDiscountedPurchaseLinesUseTheSameBoundary(array $line, string $varekortpris, bool $shown): void
+    {
+        self::boot('on', [$line + self::PO_LINE], $varekortpris);
+        $r = self::deliver();
+        self::assertSame($shown, $r['printed'] !== '');
     }
 
     public function testCreditNoteBranchShowsNothing(): void

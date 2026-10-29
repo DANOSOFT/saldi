@@ -165,7 +165,7 @@ if (!function_exists('deficit_cost_notice_relevant')) {
 	 *   soapserver/invoice.php emit JSON or XML, which printed markup would invalidate;
 	 * - it is not linjeopdat()'s negative-sale/credit-note branch (the label it passes as $kontekst);
 	 * - the price is worth a look: it came from the item card (no open purchase line), or from an open
-	 *   purchase line whose price differs from the item card (the Den-Tec case, SST-795/796);
+	 *   purchase line whose price differs from the item card by 0,005 or more (the Den-Tec case, SST-795/796);
 	 * - it is not a POS sale (ordrer.art 'PO'): the message held back the receipt redirect (SST-907).
 	 *
 	 * @param int|string        $linje_id     The order line being priced.
@@ -181,7 +181,10 @@ if (!function_exists('deficit_cost_notice_relevant')) {
 		if ($webservice || $kontekst === 'negativt salg/kreditnota') {
 			return false;
 		}
-		if ($kostkilde && abs((float) $kostpris - (float) $varekortpris) < 0.005) {
+		// Compared in thousandths, the precision ordrelinjer.kostpris and batch_kob.pris are stored with
+		// (numeric(15,3)): a float difference of 100.005 - 100.000 is 0.00499999…, which would hide a
+		// difference of exactly 0,005.
+		if ($kostkilde && abs((int) round((float) $kostpris * 1000) - (int) round((float) $varekortpris * 1000)) < 5) {
 			return false;   // the open purchase line agrees with the item card: nothing to look at
 		}
 		if (get_settings_value("showCostEstimateNotice", "ordre", "off") !== "on") {
