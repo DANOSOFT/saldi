@@ -1,5 +1,5 @@
 <?php
-// --- includes/partnerScope.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- includes/partnerScope.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice.
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
@@ -14,36 +14,19 @@
 //                  (partner_users.rights: work,create,users,prices,subscription), a responsible employee and the payer
 //                  per customer link (regnskab_partners.responsible_bruger_id, payer customer|partner), and new ids come
 //                  from INSERT … RETURNING. Columns are added to the layer's own tables only (partner_cols_ensure).
+// 20261029 CL/ASR No tables are created here any more: they come from the update chain (operatorPanelSchema.php).
+//                partner_layer_ready() lets pages treat everyone as a non-partner user until the tables exist.
 
 if (!function_exists('partner_tables_ensure')) {
 
 function partner_tables_ensure() {
-	static $done = false;
-	if ($done) return;
-	$done = true;
-	$r = db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'partner_log'", __FILE__ . " linje " . __LINE__));
-	if ($r) { partner_cols_ensure(); return; }
-	$sql = array(
-		"CREATE TABLE IF NOT EXISTS partners (id SERIAL PRIMARY KEY, kind varchar(10) NOT NULL DEFAULT 'bogholder', name varchar(120) NOT NULL, cvr varchar(20), home_regnskab_id int, status varchar(10) NOT NULL DEFAULT 'active', can_create boolean NOT NULL DEFAULT false, can_manage_features boolean NOT NULL DEFAULT true, can_manage_users boolean NOT NULL DEFAULT true, created timestamp NOT NULL DEFAULT now(), created_by int)",
-		"CREATE TABLE IF NOT EXISTS partner_users (bruger_id int PRIMARY KEY, partner_id int NOT NULL, partner_role varchar(20) NOT NULL DEFAULT 'employee', created timestamp NOT NULL DEFAULT now())",
-		"CREATE TABLE IF NOT EXISTS regnskab_partners (id SERIAL PRIMARY KEY, regnskab_id int NOT NULL, partner_id int NOT NULL, access varchar(10) NOT NULL DEFAULT 'full', since timestamp NOT NULL DEFAULT now(), until timestamp, created_by int, note text)",
-		"CREATE UNIQUE INDEX IF NOT EXISTS regnskab_partners_active ON regnskab_partners(regnskab_id, partner_id) WHERE until IS NULL",
-		"CREATE UNIQUE INDEX IF NOT EXISTS regnskab_partners_owner ON regnskab_partners(regnskab_id) WHERE until IS NULL AND access = 'owner'",
-		"CREATE TABLE IF NOT EXISTS partner_user_access (bruger_id int NOT NULL, regnskab_id int NOT NULL, PRIMARY KEY (bruger_id, regnskab_id))",
-		"CREATE TABLE IF NOT EXISTS partner_log (id SERIAL PRIMARY KEY, ts timestamp NOT NULL DEFAULT now(), actor_bruger_id int, actor_partner_id int, impersonated_by int, regnskab_id int, partner_id int, action varchar(60) NOT NULL, details text)",
-	);
-	foreach ($sql as $q) db_modify($q, __FILE__ . " linje " . __LINE__);
-	partner_cols_ensure();
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 // 20261012 CL/ASR Columns the accountant panel needs on the layer's own tables (idempotent, cheap information_schema checks).
 function partner_cols_ensure() {
-	static $d = false; if ($d) return; $d = true;
-	$has = fn($t, $c) => (bool)db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = '$t' AND column_name = '$c'", __FILE__ . " linje " . __LINE__));
-	if (!$has('partner_users', 'rights')) {
-		db_modify("ALTER TABLE partner_users ADD COLUMN rights text, ADD COLUMN scope varchar(10) NOT NULL DEFAULT 'all', ADD COLUMN active boolean NOT NULL DEFAULT true, ADD COLUMN name varchar(120), ADD COLUMN last_seen timestamp", __FILE__ . " linje " . __LINE__);
-		db_modify("UPDATE partner_users SET scope = 'selected' WHERE bruger_id IN (SELECT bruger_id FROM partner_user_access)", __FILE__ . " linje " . __LINE__); # existing selections stay selections
-	}
-	if (!$has('regnskab_partners', 'responsible_bruger_id')) db_modify("ALTER TABLE regnskab_partners ADD COLUMN responsible_bruger_id int, ADD COLUMN payer varchar(10) NOT NULL DEFAULT 'customer'", __FILE__ . " linje " . __LINE__);
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 // Rights an employee of a partner can hold (owners hold all). key => [label da, label en, description da, description en]
 function partner_rights_all() {
@@ -73,9 +56,8 @@ function partner_link($regnskab_id, $pid = null) {
 // 20261011 CL/ASR Group billing on the partner (own table): 'individual' (each ledger pays) or 'consolidated' (billed via
 //                  billing_regnskab_id, default the home ledger). Per-ledger exceptions live in regnskab_billing.payer_regnskab_id.
 function partner_billing_cols_ensure() {
-	static $d = false; if ($d) return; $d = true;
-	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'partners' AND column_name = 'billing_mode'", __FILE__ . " linje " . __LINE__)))
-		db_modify("ALTER TABLE partners ADD COLUMN billing_mode varchar(12) NOT NULL DEFAULT 'individual', ADD COLUMN billing_regnskab_id int", __FILE__ . " linje " . __LINE__);
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 // Move a ledger from one partner to another: the old link gets an end date, a new one starts. Nothing on the ledger
 // (lifecycle, snapshots, log, entitlements) is touched, so history stays with the ledger.
@@ -90,6 +72,15 @@ function partner_move_ledger($rid, $from_pid, $to_pid, $access, $note) {
 	return '';
 }
 
+// 20261029 CL/ASR True when the partner layer's tables exist in the master database. Between a deploy and the first login
+//                  to an account (which runs betweenUpdates.php) they may not yet; callers then treat everyone as a
+//                  non-partner user, so the existing pages keep working.
+function partner_layer_ready() {
+	static $ready = null;
+	if ($ready === null) $ready = (bool)db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'partner_users' AND column_name = 'rights'", __FILE__ . " linje " . __LINE__));
+	return $ready;
+}
+
 // The master user row of the current session.
 function partner_current_user() {
 	global $brugernavn;
@@ -101,7 +92,7 @@ function partner_current_user() {
 	list($u['admin'], $u['oprette'], $u['slette'], $tmp) = array_pad(explode(",", $u['rettigheder'], 4), 4, '');
 	$u['adgang_til'] = array_filter(array_map('trim', explode(",", $tmp)));
 	$u['is_operator'] = ($u['admin'] == 'on');
-	$p = db_fetch_array(db_select("select pu.partner_id, pu.partner_role, pu.rights, pu.scope, pu.active, pu.name as user_name, p.kind, p.name, p.cvr, p.can_create, p.can_manage_features, p.can_manage_users, p.home_regnskab_id from partner_users pu join partners p on p.id = pu.partner_id where pu.bruger_id = '" . (int)$u['id'] . "' and p.status = 'active'", __FILE__ . " linje " . __LINE__));
+	$p = !partner_layer_ready() ? null : db_fetch_array(db_select("select pu.partner_id, pu.partner_role, pu.rights, pu.scope, pu.active, pu.name as user_name, p.kind, p.name, p.cvr, p.can_create, p.can_manage_features, p.can_manage_users, p.home_regnskab_id from partner_users pu join partners p on p.id = pu.partner_id where pu.bruger_id = '" . (int)$u['id'] . "' and p.status = 'active'", __FILE__ . " linje " . __LINE__));
 	if ($p) $p['active'] = ($p['active'] === 't' || $p['active'] === true || $p['active'] === '1' || $p['active'] === null);
 	$u['partner'] = $p ? $p : null;
 	return $u;

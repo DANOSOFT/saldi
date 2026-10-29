@@ -1,5 +1,5 @@
 <?php
-// --- includes/entitlements.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- includes/entitlements.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in
@@ -11,6 +11,7 @@
 //                  the recurring order is the truth for the plan; spec §6's per-installation Stripe webhook is dropped);
 //                  the resolver (§5.2) is the same either way. Every change is written to partner_log as
 //                  entitlement.* (the stage 2 audit_log mirrors it when it exists).
+// 20261029 CL/ASR ent_tables_ensure() no longer creates tables (update chain); it only seeds the catalogue.
 
 if (!function_exists('ent_tables_ensure')) {
 
@@ -76,22 +77,9 @@ function ent_addon_defs() { # addon_key => [name, feature_key, quantity_based, p
 }
 
 function ent_tables_ensure() {
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
 	static $done = false; if ($done) return; $done = true;
-	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'regnskab_plan_changes'", __FILE__ . " linje " . __LINE__))) return;
-	$sql = array(
-		"CREATE TABLE IF NOT EXISTS catalog_versions (id SERIAL PRIMARY KEY, name text NOT NULL, valid_from date NOT NULL, is_default boolean NOT NULL DEFAULT false, created_at timestamp DEFAULT now())",
-		"CREATE TABLE IF NOT EXISTS plans (id SERIAL PRIMARY KEY, catalog_version_id int NOT NULL, plan_key varchar(30) NOT NULL, name text NOT NULL, sort int NOT NULL, stripe_price_id varchar(255), varenr varchar(30), included_users int NOT NULL, max_users int, included_postings int, max_items int, included_webshops int NOT NULL DEFAULT 0, extra_user_stripe_price_id varchar(255), extra_user_varenr varchar(30), price_ore int, billing_interval varchar(10) NOT NULL DEFAULT 'month', extra_user_price_ore int, UNIQUE (catalog_version_id, plan_key))",
-		"CREATE TABLE IF NOT EXISTS plan_features (plan_id int NOT NULL, feature_key varchar(50) NOT NULL, level varchar(10) NOT NULL, PRIMARY KEY (plan_id, feature_key))",
-		"CREATE TABLE IF NOT EXISTS addons (id SERIAL PRIMARY KEY, catalog_version_id int NOT NULL, addon_key varchar(50) NOT NULL, name text NOT NULL, feature_key varchar(50) NOT NULL, quantity_based boolean NOT NULL DEFAULT false, stripe_price_id varchar(255), varenr varchar(30), available_on text NOT NULL, price_ore int, UNIQUE (catalog_version_id, addon_key))",
-		"CREATE TABLE IF NOT EXISTS posting_tiers (catalog_version_id int NOT NULL, from_count int NOT NULL, to_count int, unit_centiore int NOT NULL, varenr varchar(30))",
-		"CREATE TABLE IF NOT EXISTS regnskab_entitlements (regnskab_id int PRIMARY KEY, catalog_version_id int, plan_key varchar(30), source varchar(20) NOT NULL DEFAULT 'manual', stripe_customer_id varchar(255), stripe_subscription_id varchar(255), subscription_status varchar(30), current_period_end timestamp, enforcement varchar(10) NOT NULL DEFAULT 'observe', valid_from date, synced_at timestamp, updated_at timestamp DEFAULT now())",
-		"CREATE TABLE IF NOT EXISTS regnskab_addons (regnskab_id int NOT NULL, addon_key varchar(50) NOT NULL, quantity int NOT NULL DEFAULT 1, source varchar(20) NOT NULL DEFAULT 'manual', stripe_subscription_item_id varchar(255), expires_at date, PRIMARY KEY (regnskab_id, addon_key))",
-		"CREATE TABLE IF NOT EXISTS regnskab_overrides (id SERIAL PRIMARY KEY, regnskab_id int NOT NULL, kind varchar(20) NOT NULL, key varchar(50) NOT NULL, value text NOT NULL, reason text NOT NULL, expires_at date, created_by text NOT NULL, created_at timestamp DEFAULT now())",
-		"CREATE TABLE IF NOT EXISTS usage_snapshots (id SERIAL PRIMARY KEY, regnskab_id int NOT NULL, taken_at date NOT NULL, postings_12m int, postings_month int, users_active int, users_invited int, items int, webshops int, pos_tills int, pos_locations int, warehouses int, billable_postings int, billable_users int, UNIQUE (regnskab_id, taken_at))",
-		"CREATE TABLE IF NOT EXISTS regnskab_plan_changes (id SERIAL PRIMARY KEY, regnskab_id int NOT NULL, plan_key varchar(30) NOT NULL, effective_from date NOT NULL, reason text, created_by text NOT NULL, created_at timestamp DEFAULT now(), applied_at timestamp, cancelled_at timestamp)",
-	);
-	foreach ($sql as $q) db_modify($q, __FILE__ . " linje " . __LINE__);
-	ent_seed();
+	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'catalog_versions'", __FILE__ . " linje " . __LINE__))) ent_seed(); # catalogue rows on first use (data, not schema)
 }
 function ent_seed() {
 	if (db_fetch_array(db_select("select 1 from catalog_versions", __FILE__ . " linje " . __LINE__))) return;
@@ -278,7 +266,7 @@ function ent_usage_collect($reg) {
 	$one = function($q) { $r = @db_fetch_array(@db_select($q, __FILE__ . " linje " . __LINE__)); return $r ? $r : array(); };
 	$cols = function($t) { $c = array(); $q = db_select("select column_name from information_schema.columns where table_name = '$t'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $c[] = $r['column_name']; return $c; };
 	if (tbl_exists('brugere')) {
-		$bc = $cols('brugere'); $w = array(); if (in_array('revisor', $bc)) $w[] = "revisor is not true"; 
+		$bc = $cols('brugere'); $w = array(); if (in_array('revisor', $bc)) $w[] = "revisor is not true";
 		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_total'] = (int)($r['n'] ?? 0);
 		if (in_array('status', $bc)) { $st = $one("select data_type from information_schema.columns where table_name = 'brugere' and column_name = 'status'"); $w[] = (($st['data_type'] ?? '') == 'boolean') ? "(status is true or status is null)" : "(status is null or lower(status::text) in ('t','true','1','on',''))"; } # older ledgers store status as text
 		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_active'] = (int)($r['n'] ?? 0);

@@ -5,7 +5,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/operator_indstillinger.php --- patch 5.0.0 --- 2026.03.26 ---
+// --------------- admin/operator_indstillinger.php --- patch 5.0.0 --- 2026.10.29 ---
 // 20261012 CL/ASR Operator copy of admin/admin_settings.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -35,6 +35,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 // 20260320 PHR cleanup (pdftk)
 // 20260326 PHR Fixed error in weasyprint
 // 20261010 CL/ASR Rendered in the admin-layer shell; save logic unchanged. Missing programs are shown as a notice.
+// 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds. Fallback text of findtekst 534 matches tekster.csv.
 
 @session_start();
 $s_id=session_id();
@@ -77,7 +78,7 @@ if (isset($_POST['gem'])) {
 	$alertText = if_isset($_POST, NULL, 'alertText');
 	$lang = if_isset($_POST, NULL, 'LanguageName'); //20210920
 	$langPosted = isset($_POST['LanguageId']); $languageId = (int)if_isset($_POST, 0, 'LanguageId'); //20210920
-	$newssnippet = if_isset($_POST, NULL, 'newssnippet');	
+	$newssnippet = if_isset($_POST, NULL, 'newssnippet');
 	if ($langPosted) $sprog_id = (int)$languageId;
 /*
 	    $qtxt="select * from online where sprog ='$lang'and brugernavn = '$brugernavn'";  #20210921
@@ -194,7 +195,7 @@ if (!$dbdump) {
 if (!$zip) $zip=system("which gzip");
 if (!$unzip) $unzip=system("which gunzip");
 if (!$tar) $tar=system("which tar");
-if (!$alertText) $alertText=findtekst('534|Uforudset hændelse, kontakt salditeamet på telefon 4690 2208', $sprog_id); #20210917
+if (!$alertText) $alertText=findtekst('534|Uforudset hændelse, kontakt Saldi-teamet på telefon 4690 2208', $sprog_id); #20210917
 $newssnippet = get_settings_value("nyhed", "dashboard", "");
 
 #include("../includes/languages.php"); #20210920

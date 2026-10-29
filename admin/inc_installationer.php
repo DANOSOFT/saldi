@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_installationer.php --- ver 5.1.0 --- 2026.10.12 ---
+// --- admin/inc_installationer.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. "Egne installationer": customers who run Saldi themselves (open source) and have a support
@@ -8,12 +8,12 @@
 //                  price, and the billing-ledger customer; payments come from the billing ledger through the same
 //                  REST API as for hosted ledgers (bill_fetch/bill_classify), cached for the list and overview.
 //                  Shown as a tab on operator_panel.php (ltab=egne) with a card per installation (?inst_id=N).
+// 20261029 CL/ASR self_hosted is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 
 if (!function_exists('inst_tables_ensure')) {
 function inst_tables_ensure() {
-	static $d = false; if ($d) return; $d = true;
-	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'self_hosted'", __FILE__ . " linje " . __LINE__))) return;
-	db_modify("CREATE TABLE IF NOT EXISTS self_hosted (id SERIAL PRIMARY KEY, name varchar(120) NOT NULL, cvr varchar(20), contact_name varchar(120), contact_email varchar(120), contact_phone varchar(40), url varchar(255), version varchar(20), support_level varchar(20), support_from date, support_to date, price_ore int, billing_interval varchar(10) NOT NULL DEFAULT 'year', billing_kontonr varchar(30), note text, status varchar(10) NOT NULL DEFAULT 'active', pay_status varchar(12), outstanding_ore bigint, overdue_n int, oldest_due date, last_invoice date, last_paid date, checked_at timestamp, created timestamp NOT NULL DEFAULT now(), created_by text, updated_at timestamp)", __FILE__ . " linje " . __LINE__);
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 function inst_levels() { return array('basis' => vr_t('Basis','Basic'), 'udvidet' => vr_t('Udvidet','Extended'), 'premium' => 'Premium', 'andet' => vr_t('Andet','Other')); }
 function inst_states() { return array('active' => vr_t('Aktiv aftale','Active agreement'), 'paused' => vr_t('Sat på pause','Paused'), 'ended' => vr_t('Ophørt','Ended')); }

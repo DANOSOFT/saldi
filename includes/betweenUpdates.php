@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.28
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
 // 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
+// 20261029 CL/ASR SD-731: the operator panel's master-database tables (includes/opdat_func/operatorPanelSchema.php).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -70,5 +71,11 @@ if (!$udlignDateBackfilled) {
 		__FILE__ . " linje " . __LINE__
 	);
 }
+
+
+// 20261029 CL/ASR SD-731 operator panel: its tables live in the master database. operator_panel_schema() uses the master
+// connection ($global = true) and runs once per master (settings flag 'operator_panel_schema'); later logins only read the flag.
+include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
+operator_panel_schema();
 
 ?>

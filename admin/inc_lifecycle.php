@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_lifecycle.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- admin/inc_lifecycle.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 4 "Administration af regnskaber": lifecycle of a ledger as explicit states –
@@ -12,12 +12,12 @@
 // 20261012 CL/ASR Payment model B1 (12/10-2026): a cancellation is recorded here and schedules the closing; the
 //                  recurring invoicing order in the billing ledger must still be stopped by hand until the billing
 //                  ledger's API can do it (invoice-mail spec, stage S4).
+// 20261029 CL/ASR regnskab_lifecycle is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 
 if (!function_exists('lc_tables_ensure')) {
 function lc_tables_ensure() {
-	static $d = false; if ($d) return; $d = true;
-	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'regnskab_lifecycle'", __FILE__ . " linje " . __LINE__))) return;
-	db_modify("CREATE TABLE IF NOT EXISTS regnskab_lifecycle (id SERIAL PRIMARY KEY, regnskab_id int NOT NULL, state varchar(12) NOT NULL, reason text, effective_from date NOT NULL, applied_at timestamp, cancelled_at timestamp, created_by text NOT NULL, created_at timestamp DEFAULT now())", __FILE__ . " linje " . __LINE__);
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 // Current state: last applied lifecycle row, else derived from regnskab.lukket
 function lc_state($rid, $reg) {

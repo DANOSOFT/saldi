@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_special.php --- ver 5.1.0 --- 2026.10.12 ---
+// --- admin/inc_special.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. Specialtilpasninger: separate notes on custom development made for one customer (a ledger or a
@@ -7,13 +7,12 @@
 //                  Each item: title, type, description, reference (ticket/PR/branch), delivered date, "vigtigt for
 //                  support" flag, status active/retired. Shown on the Abonnement tab (full), on Oversigt and in the card
 //                  header (counts / important items) and as a marker in the ledger list. Changes are logged.
+// 20261029 CL/ASR customizations is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 
 if (!function_exists('sp_tables_ensure')) {
 function sp_tables_ensure() {
-	static $d = false; if ($d) return; $d = true;
-	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'customizations'", __FILE__ . " linje " . __LINE__))) return;
-	db_modify("CREATE TABLE IF NOT EXISTS customizations (id SERIAL PRIMARY KEY, regnskab_id int, self_hosted_id int, title varchar(160) NOT NULL, category varchar(20), description text, reference varchar(255), delivered date, important boolean NOT NULL DEFAULT false, status varchar(10) NOT NULL DEFAULT 'active', created timestamp NOT NULL DEFAULT now(), created_by text, updated timestamp, updated_by text)", __FILE__ . " linje " . __LINE__);
-	db_modify("CREATE INDEX IF NOT EXISTS customizations_regnskab ON customizations (regnskab_id)", __FILE__ . " linje " . __LINE__);
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 function sp_categories() { return array('funktion' => vr_t('Funktion','Feature'), 'integration' => vr_t('Integration','Integration'), 'rapport' => vr_t('Rapport/udskrift','Report/print'), 'opsaetning' => vr_t('Opsætning/data','Setup/data'), 'andet' => vr_t('Andet','Other')); }
 function sp_owner_sql($rid, $iid) { return $iid ? "self_hosted_id = '".(int)$iid."'" : "regnskab_id = '".(int)$rid."'"; }
