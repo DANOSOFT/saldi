@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.07 ---
+// --- systemdata/sys_div_func.php --- ver 5.1.0 -- 2026.10.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,6 +130,12 @@
 // 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
 //                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
 //                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
+// 20261027 CL/MMR SD-780 The SMTP password on Kontoindstillinger is a password field (was clear text) with a "Vis" box to show it.
+//                 The value is still posted unchanged, so Skift works without retyping it.
+//                 The two includes in kontoindstillinger() use __DIR__ now (include-path convention for an edited block).
+//                 The brugerantal lookup between them sits at function level (was indented one tab too far).
+// 20261029 CL/MJ SST-885 ordre_valg(): new checkbox "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL, off by default).
+
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -155,17 +161,17 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	$disabled  = "";
 	@session_start();
 	$s_id = session_id();
-	include("../includes/connect.php");
-		$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
-		$result = db_select($query, __FILE__ . " linje " . __LINE__);
-	
-		if ($result) {
-			if (db_num_rows($result) > 0) {
-				$row = db_fetch_array($result);
-				$max_users = (int)$row['brugerantal'];
-			}
+	include(__DIR__ . '/../includes/connect.php');
+	$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
+	$result = db_select($query, __FILE__ . " linje " . __LINE__);
+
+	if ($result) {
+		if (db_num_rows($result) > 0) {
+			$row = db_fetch_array($result);
+			$max_users = (int)$row['brugerantal'];
 		}
-	include("../includes/online.php");
+	}
+	include(__DIR__ . '/../includes/online.php');
 	if($masterDb == "gratis" || $masterDb == "mini") {
 		$disabled = "disabled";
 	}
@@ -231,7 +237,10 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		$tekst1 = findtekst('750|Adgangskode til SMTP serveren, hvis krævet', $sprog_id);
 		$tekst2 = findtekst('324|Adgangskode', $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 750-->$tekst2<!--tekst 324--></td>";
-		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtppass' value='$r[felt_3]'></td></tr>";
+		// SD-780: the SMTP password is a password field; the "Vis" box shows it while checked.
+		$tekst3 = findtekst('1133|Vis', $sprog_id);
+		print "<td title='$tekst1'><input class='inputbox' type='password' style='width:200px' name='smtppass' value='$r[felt_3]' autocomplete='new-password'>";
+		print " <label style='white-space:nowrap'><input type='checkbox' onclick=\"this.form.elements['smtppass'].type = this.checked ? 'text' : 'password';\"> $tekst3<!--tekst 1133--></label></td></tr>";
 		$tekst1 = findtekst('751|Krypteringsmetode til SMTP serveren, hvis krævet', $sprog_id);
 		$tekst2 = findtekst('748|Kryptering', $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 751-->$tekst2<!--tekst 748--></td>";
@@ -1821,6 +1830,7 @@ function ordre_valg() {
 
 	// SD-657: while this is on, users without the Indstillinger right are kept out of turnover and Finans.
 	$hideRevenue = (get_settings_value('hideRevenue', 'finans', 'off') === 'on') ? 'checked' : '';
+	$sendOrderNote = (get_settings_value('sendOrderNote', 'easyUBL', 'off') === 'on') ? 'checked' : ''; #20261029
 	$rabatvareid = (int)$grupper_data['box2'];
 	($grupper_data['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
 	($grupper_data['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
@@ -1954,6 +1964,8 @@ function ordre_valg() {
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 	print "<tr><td title='".findtekst('5247|Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.', $sprog_id)."'>".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."</td><td><INPUT title='".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."' class='inputbox' type='checkbox' name='hideRevenue' $hideRevenue></td></tr>";
+	$sendOrderNoteTitle = htmlspecialchars(findtekst('8401|Afmærkes feltet, sendes teksten i "Bemærkning til ordre" med som bemærkning på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet bruges ofte til interne noter, så det er slået fra som standard. PDF-fakturaen er uændret.', $sprog_id), ENT_QUOTES); #20261029
+	print "<tr><td title='$sendOrderNoteTitle'>".htmlspecialchars(findtekst('8400|Send "Bemærkning til ordre" med på e-fakturaer', $sprog_id), ENT_QUOTES)."</td><td><INPUT title='$sendOrderNoteTitle' class='inputbox' type='checkbox' name='sendOrderNote' $sendOrderNote></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";

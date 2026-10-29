@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-04-29 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-09-18 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ------------------------------------------------------------------------------
 //
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0' 
@@ -38,8 +38,27 @@
 // 20260512 NTR Merged Live/POS into prod_test.
 // 20260513 PK Fixed style on csv button.
 // 20260915 CDX/PHR Paginate posted and simulated VAT rows together, including the final date.
+// 20260916 CDX/PHR Show opening balances, including balance accounts without VAT or period entries.
+// 20260918 CDX/PHR Print all VAT ledger rows and totals while paginating only the screen view.
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 50) {
+	print <<<'HTML'
+<style>
+@media screen {
+    #datapg .ledger-print-only { display: none; }
+}
+@media print {
+    html, body, .ledger-scroll {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    #datapg .ledger-print-only { display: table-row !important; }
+    .ledger-pagination { display: none !important; }
+    .ledger-heading, #datapg thead { position: static !important; }
+}
+</style>
+HTML;
 
 	global $afd_navn,$ansatte,$ansatte_id;
 	global $bgcolor,$bgcolor4,$bgcolor5;
@@ -136,7 +155,7 @@ function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	if ($momsq) $momsq.=")";
 	$momsantal=$x;
 	include("../includes/topline_settings.php");
-	print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: #eeeef0;\">";
+	print "<div class='ledger-heading' style=\"position: sticky; top: 0; z-index: 100; background-color: #eeeef0;\">";
 		#########
 		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 		#########
@@ -240,8 +259,9 @@ print "</table>";
 	}
 	###########
 	 // Pagination tracking (cross-account, same pattern as kontokort)
-    $rows_to_skip = ($page - 1) * $per_page;
-    $rows_printed = 0;
+    $first_screen_row = ($page - 1) * $per_page;
+    $last_screen_row = $first_screen_row + $per_page;
+    $rows_seen = 0;
     $total_rows   = 0;
 
 	#########
@@ -263,7 +283,7 @@ print "</table>";
 	$qtxt="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
 	$q= db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
-		if (!in_array($row['kontonr'],$kontonr) && (trim($row['moms']) || $simulering)) {
+		if (!in_array($row['kontonr'],$kontonr) && (trim($row['moms']) || $simulering || $row['kontotype'] == 'S')) {
 			$x++;
 			$kontonr[$x]=(int)$row['kontonr'];
 			$kontobeskrivelse[$x]=$row['beskrivelse'];
@@ -272,8 +292,9 @@ print "</table>";
 			$kontokurs[$x]=$row['valutakurs'];
 			if (!$dim && $row['kontotype']=="S") $primo[$x]=afrund($row['primo'],2);
 			else $primo[$x]=0;
-			if ($primo[$x] && $kontovaluta[$x]) {
-				for ($y=0;$y<=count($valkode);$y++){
+			$primokurs[$x] = 100;
+			if ($kontovaluta[$x]) {
+				for ($y=0;$y<count($valkode);$y++){
 					if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnstart) {
 						$primokurs[$x]=$valkurs[$y];
 						break 1;
@@ -311,7 +332,7 @@ print "</table>";
 	#############
 	print "</tbody></table>";
 	print "</div>"; // closes sticky wrapper
-	print "<div style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
+	print "<div class='ledger-scroll' style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
 	print "<table width='100%' cellpadding='0' cellspacing='0' border='0' id='datapg' style='table-layout: fixed; border-collapse: collapse;'>";
 	print "<thead style='position: sticky; top: 0; background: white; z-index: 10;'>";
 	print "<tr>";
@@ -327,34 +348,41 @@ print "</table>";
 	#############
 	fwrite($csv, "Dato;Bilag;Tekst;". mb_convert_encoding('Beløb', 'ISO-8859-1', 'UTF-8') .";Moms;Incl. moms\n");
 
-	$accountRows = array();
+	$accountRows = $openingBalances = $periodRows = array();
 	$tables = $simulering ? array('transaktioner', 'simulering') : array('transaktioner');
 	for ($x = 1; $x <= $kontoantal; $x++) {
-		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
-			$accountRows[$x] = 0;
-			foreach ($tables as $table) {
-				$qtxt = "SELECT COUNT(*) as c FROM $table WHERE kontonr=" . intval($kontonr[$x]);
-				$qtxt .= " AND transdate>='" . db_escape_string($regnstart) . "'";
-				$qtxt .= " AND transdate<='" . db_escape_string($regnslut) . "' $dim";
-				$cnt = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$accountRows[$x] += (int)$cnt['c'];
+		$openingBalances[$x] = $primo[$x];
+		$periodRows[$x] = 0;
+		foreach ($tables as $table) {
+			$qtxt = "SELECT debet, kredit FROM $table WHERE kontonr=" . intval($kontonr[$x]);
+			$qtxt .= " AND transdate>='" . db_escape_string($regnaarstart) . "'";
+			$qtxt .= " AND transdate<'" . db_escape_string($regnstart) . "' $dim";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($row = db_fetch_array($q)) {
+				$openingBalances[$x] += afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 			}
-			$total_rows += $accountRows[$x];
+			$qtxt = "SELECT COUNT(*) as c FROM $table WHERE kontonr=" . intval($kontonr[$x]);
+			$qtxt .= " AND transdate>='" . db_escape_string($regnstart) . "'";
+			$qtxt .= " AND transdate<='" . db_escape_string($regnslut) . "' $dim";
+			$cnt = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$periodRows[$x] += (int)$cnt['c'];
 		}
+		// An account with only an opening balance occupies one row in pagination.
+		$accountRows[$x] = $periodRows[$x] ?: ($openingBalances[$x] != 0 ? 1 : 0);
+		$total_rows += $accountRows[$x];
 	}
 	$total_pages = max(1, ceil($total_rows / $per_page));
 
 	for ($x = 1; $x <= $kontoantal; $x++) {
 		$linjebg = $bgcolor5;
-		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+		if ($accountRows[$x]) {
 			$acct_cnt = $accountRows[$x];
-            if ($rows_to_skip >= $acct_cnt) {
-                $rows_to_skip -= $acct_cnt;
-                continue;
-            }
-			print "<tr><td colspan=6><hr></td></tr>";
+            $account_class = ($rows_seen + $acct_cnt <= $first_screen_row || $rows_seen >= $last_screen_row)
+                ? 'ledger-print-only' : '';
 
-			print "<tr bgcolor=\"$bgcolor5\">
+			print "<tr class='$account_class'><td colspan=6><hr></td></tr>";
+
+			print "<tr class='$account_class' bgcolor=\"$bgcolor5\">
 					<td></td>
 					<td></td>
 					<td colspan=4>
@@ -373,12 +401,18 @@ print "</table>";
 				) . "\n"
 			);
 
-			print "<tr><td colspan=6><hr></td></tr>";
+			print "<tr class='$account_class'><td colspan=6><hr></td></tr>";
 	#		fwrite($csv, ";;;;;;;");
 			$xMomsSum=$momsSum=0;
-			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
-			while ($row = db_fetch_array($query)){
-			 	$kontosum+=afrund($row['debet'],2)-afrund($row['kredit'],2);
+			$kontosum = $openingBalances[$x];
+			$openingAmount = $primokurs[$x] ? $kontosum * 100 / $primokurs[$x] : $kontosum;
+			$openingText = dkdecimal($openingAmount, 2);
+			print "<tr class='$account_class' bgcolor=\"$linjebg\"><td></td><td></td><td>Primosaldo</td>";
+			print "<td align=right>$openingText</td><td></td><td align=right>$openingText</td></tr>";
+			fwrite($csv, ";;Primosaldo;\"$openingText\";;\"$openingText\"\n");
+			if (!$periodRows[$x]) {
+				$rows_seen++;
+				continue;
 			}
 
 			$rows = array();
@@ -429,15 +463,13 @@ print "</table>";
                 $debet_val  = afrund($debet[$tr], 2);
                 $kredit_val = afrund($kredit[$tr], 2);
 
-                if ($rows_to_skip > 0) {
-                    $kontosum += $debet_val - $kredit_val;
-                    $rows_to_skip--;
-                    continue;
-                }
-                if ($rows_printed >= $per_page) break;
+                $kontosum += $debet_val - $kredit_val;
+                $row_class = ($rows_seen < $first_screen_row || $rows_seen >= $last_screen_row)
+                    ? 'ledger-print-only' : '';
+                $rows_seen++;
 
 				($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-				print "<tr bgcolor=\"$linjebg\"><td>".dkdato($transdate[$tr])."</td>";
+				print "<tr class='$row_class' bgcolor=\"$linjebg\"><td>".dkdato($transdate[$tr])."</td>";
 				if ($kladde_id[$tr]) {
 					print "<td onMouseOver=\"this.style.cursor = 'pointer'\"; ";
 					print "onClick=\"javascript:kassekladde=window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&returside=../includes/luk.php',";
@@ -470,13 +502,11 @@ print "</table>";
 				$mmoms=$xmoms+$moms[$tr];
 				print "<td align=right>".dkdecimal($mmoms,2)."</td></tr>";
 				fwrite($csv, "\"".dkdecimal($mmoms,2)."\"\n");
-				$rows_printed++;
 
 			}
-			if ($rows_printed >= $per_page) break; // stop processing further accounts
 		#cho __line__." $xMomsSum<br>";
-				if ($rows_printed > 0 || $xMomsSum != 0) { // only print summary if we actually rendered rows
-				print "<tr><td colspan='2'></td><td><b>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</b></td>";
+				if ($periodRows[$x] > 0) { // Totals include every row, independently of the screen page.
+				print "<tr class='$account_class'><td colspan='2'></td><td><b>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</b></td>";
 				fwrite($csv, "Sum;;". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') .";");
 				print "<td align='right'><b>". dkdecimal($xMomsSum,2) ."</b></td>";
 				fwrite($csv, "".dkdecimal($xMomsSum,2).";");
@@ -547,7 +577,7 @@ print "</table>";
     print "</div>"; // closes scrollable div — MUST be before the fixed bar
 
     echo "
-    <div style='position:fixed; bottom:0; left:0; width:100%; background:#f4f4f4;
+    <div class='ledger-pagination' style='position:fixed; bottom:0; left:0; width:100%; background:#f4f4f4;
                 border-top:2px solid #ddd; z-index:200; box-shadow:0 -2px 6px rgba(0,0,0,0.1);'>
         <div id='footer-box' style='display:flex; align-items:center; gap:10px;
                                     justify-content:flex-end; padding:6px 16px;'>

@@ -1,5 +1,5 @@
 <?php
-// --- finans/kassekladde_includes/bilagNumber.php --- 20260928 LOE SST-817 ---
+// --- finans/kassekladde_includes/bilagNumber.php --- 20261028 LOE SST-817 ---
 //
 // Voucher number (bilag) allocation for the cash journal.
 //
@@ -27,6 +27,7 @@
 //
 // 20261020 CL/SZ MB-81 (CodeRabbit) A line saved without a number in the same save gets one past the moved proposals
 // (bilagNextNumberReserved()), and an existing line renumbered in that save counts toward the numbers it brings.
+// 20261028 CL/LH MB-126 The "<bilag>+N" lines a save inserts before this check no longer count as another user taking the proposal.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -99,9 +100,10 @@ function bilagNextNumberForJournal($kladde_id, $regnstart = null, $regnslut = nu
  *
  * @param int             $kladde_id Journal (kladdeliste.id).
  * @param array<int, int> $proposed  Line number (tmpkassekl.lobenr) => the number the page proposed on that line.
+ * @param array<int, int> $own_ids   Lines this save already inserted ("<bilag>+N"), which never take a proposal.
  * @return array<int, int> Taken proposal => the number the line is saved under instead; empty when none was taken.
  */
-function bilagReplaceTakenProposals($kladde_id, $proposed) {
+function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
 	$kladde_id = (int)$kladde_id;
 	$replacements = array();
 	if ($kladde_id <= 0 || !$proposed) {
@@ -121,8 +123,10 @@ function bilagReplaceTakenProposals($kladde_id, $proposed) {
 			$kept[$bilag] = true;
 		}
 	}
+	$own_ids = array_filter(array_map('intval', $own_ids));
+	$not_own = $own_ids ? " AND id NOT IN (" . implode(',', $own_ids) . ")" : '';
 	foreach (array_keys($kept) as $bilag) {
-		$taken = db_fetch_array(db_select("SELECT id FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag' LIMIT 1", __FILE__ . " linje " . __LINE__));
+		$taken = db_fetch_array(db_select("SELECT id FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag'$not_own LIMIT 1", __FILE__ . " linje " . __LINE__));
 		if ($taken) {
 			// Past the journal, past every number this save brings, and past a number already handed out here
 			$replacements[$bilag] = max(bilagNextNumberForJournal($kladde_id), $staged_max + 1, $replacements ? max($replacements) + 1 : 0);
