@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/helperMethods/helperFuncII.php --- patch 4.1.1 --- 2025-09-26 ---
+// --- debitor/pos_ordre_includes/helperMethods/helperFuncII.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,16 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2019-2025 Saldi.dk ApS
+// Copyright (c) 2019-2026 Danosoft ApS
 // -------------------------------------------------------------------------------------------------
 //
 // 20190312 LN Make various helper functions for the pos_ordre and the report files
 // 20190319 LN Added new function to return a unque box id
 // 20200211	PHR	function getUniqueBoxId. Corrected function as it destroyed the global $db var.
 // 20250926 PHR Updated function getVatArray
+// 20261029 CL/MMR SST-896 makeOrderIdArray() selects only register sales, as posbogfor() and findBoxSale() do.
+//                 An ordinary invoice gets the register number in felt_5 when its department has a register, so the X/Z-report counted it in turnover, VAT and item groups.
+//                 New reportOrderArtFilter() holds the shared art condition; debtor orders still count when sets are enabled.
 
 function getVatArray($id) {
 	// called from debitor/pos_ordre_includes/posTxtPrint/postTxtPrintFunc.php
@@ -54,9 +57,28 @@ function getVatArray($id) {
 	return $vatRate;
 }
 
+/**
+ * SQL condition limiting ordrer to the sales a register report covers.
+ *
+ * Matches posbogfor() in pos_ordre.php and findBoxSale(): POS orders only, plus debtor orders
+ * handed in at the register when sets are enabled (POS kodenr 2 box12, vis_saet).
+ *
+ * @param string $alias Table alias or name to prefix the column with, '' for none.
+ * @return string Condition starting with "and ".
+ */
+function reportOrderArtFilter($alias = '') {
+	global $regnaar;
+	$col = ($alias ? $alias . '.' : '') . 'art';
+	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '" . (int)$regnaar . "'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$includeDebtorOrders = $r && trim((string)$r['box12']) !== '';
+	return $includeDebtorOrders ? " and ($col = 'PO' or $col like 'D%')" : " and $col = 'PO'";
+}
+
 function makeOrderIdArray($kasse,$date) {
 	$ordreIdArr = array();
-	$qtxt = "select id from ordrer where felt_5 = '$kasse' and fakturadate = '$date'"; 
+	$qtxt = "select id from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'";
+	$qtxt.= reportOrderArtFilter();
 	$orderQuery = db_select($qtxt, __FILE__ . "linje" . __LINE__);
 	while ($order = db_fetch_array($orderQuery)) {
 		$ordreIdArr[] = $order['id'];

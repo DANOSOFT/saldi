@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/report/rapportData.php --- lap 4.0.0 --- 2021.03.07 ---
+// --- debitor/pos_ordre_includes/report/rapportData.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2021 saldi.dk aps
+// Copyright (c) 2019-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make functions that retrieve all type of payments and sold data to the report
 // 20210307 PHR Added $date to allmost all functions as it was countion all orders from day zero
+// 20261029 CL/MMR SST-896 calculateTurnover() and paymentMethods() count only register sales (reportOrderArtFilter()).
+//                 An ordinary invoice in a department with a register was added to the Z-report turnover.
 
 function productGroupDescription($kasse,$date) { # LN 20190212 Make varegrupper for the xRapport
 	$idArray = makeOrderIdArray($kasse,$date);
@@ -83,7 +85,8 @@ function paymentMethods($kasse,$date) {
 	$payment='';
 	$paymentArray[$payment]=array();
 	$total = 0;
-	$orderQuery = db_select("select * from ordrer where felt_5='$kasse' and fakturadate = '$date'", __FILE__ . " linje " . __LINE__);
+	$qtxt = "select * from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'" . reportOrderArtFilter();
+	$orderQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($order = db_fetch_array($orderQuery)) {
 		$payment = $order['felt_1'];
 		if ($payment != '') {
@@ -141,7 +144,7 @@ function drawCount($kasse)
 
 function calculateTurnover($kasse,$date) {
 		$turnover=$totalVat=0;
-		$qtxt = "select * from ordrer where felt_5 ='$kasse' and fakturadate = '$date'";
+		$qtxt = "select * from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'" . reportOrderArtFilter();
     $ordreQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     while ($order = db_fetch_array($ordreQuery)) {
       $tempOrdreId = $order['id'];
