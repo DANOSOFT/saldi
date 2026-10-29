@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.10.28----------
+// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.10.29----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,6 +56,8 @@
 //                  as findtekst_utf8() and use it for the $uiText array as well (keyed ids, one call).
 // 20261028 CL/MMR SD-785 The Konto selector also offers "Alle debitorer" and "Alle kreditorer", which show only customers' or only suppliers' open posts.
 //                  The choice is carried to the next entry (kontotype in the URL), so it is made once per journal.
+// 20261029 CL/MMR SD-785 The two texts moved to 7650 and 7651, as 7636 is also used by another change.
+//                  The restart link URL-encodes kontotype like kladde_id next to it.
 
 ob_start();
 @session_start();
@@ -207,7 +209,7 @@ $progress_done  = $settled + $skipped;
 $progress_total = $total_unsettled + $settled; // total that needed settling when we started
 
 // Restart URL: go back to id=0 with skipped/settled reset
-$restart_url = 'autoudlign.php?kladde_id=' . urlencode($kladde_id) . '&id=0&skipped=0&settled=0' . ($kontotype !== '' ? '&kontotype=' . $kontotype : '');
+$restart_url = 'autoudlign.php?kladde_id=' . urlencode($kladde_id) . '&id=0&skipped=0&settled=0' . ($kontotype !== '' ? '&kontotype=' . urlencode($kontotype) : '');
 
 $htmlLang = ['1' => 'da', '2' => 'en', '3' => 'no'][(string)$sprog_id] ?? 'da';
 ?>
@@ -788,8 +790,8 @@ print "</tbody></table></td></tr></tbody></table>";
         <select id="accountSelect" class="search-input" <?= $entryContext['account'] !== '' ? 'disabled' : '' ?>>
           <option value=""><?= findtekst('5324', $sprog_id) ?></option>
           <?php if ($entryContext['account'] === ''): ?>
-          <option value="type:D" data-account="" data-type="D" <?= $kontotype === 'D' ? 'selected' : '' ?>><?= htmlspecialchars(findtekst_utf8('7636|Alle debitorer', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
-          <option value="type:K" data-account="" data-type="K" <?= $kontotype === 'K' ? 'selected' : '' ?>><?= htmlspecialchars(findtekst_utf8('7637|Alle kreditorer', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
+          <option value="type:D" data-account="" data-type="D" <?= $kontotype === 'D' ? 'selected' : '' ?>><?= htmlspecialchars(findtekst_utf8('7650|Alle debitorer', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
+          <option value="type:K" data-account="" data-type="K" <?= $kontotype === 'K' ? 'selected' : '' ?>><?= htmlspecialchars(findtekst_utf8('7651|Alle kreditorer', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
           <?php endif; ?>
           <?php foreach ($accountOptions as $account): ?>
           <option value="<?= (int)$account['id'] ?>"
