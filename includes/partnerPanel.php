@@ -10,6 +10,9 @@
 //                  pool, company details from the customer database, refreshed every 10 minutes) and provisional
 //                  volume pricing for the bookkeeper scheme. Nothing here changes the operator panel or the customer
 //                  pages; the operator's includes (entitlements, proposals, trials) are read through their own functions.
+// 20261029 CL/ASR Group mode (partners.kind = 'koncern', addendum 29/10): the group owns its companies (access 'owner'),
+//                  companies are invoiced via the parent by default and may pay themselves, the group changes plans
+//                  directly without a proposal, and each group employee counts as one ERP user across all companies.
 
 if (!function_exists('bp_tables_ensure')) {
 
@@ -57,6 +60,28 @@ function bp_can($right) {
 function bp_partner() { static $p = null; if ($p === null) { bp_tables_ensure(); $p = db_fetch_array(db_select("select * from partners where id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__)) ?: array(); } return $p; }
 function bp_kind_label() { $p = bp_partner(); return $p ? vr_kind($p['kind']) : bp_t('Bogholder', 'Bookkeeper'); }
 function bp_cust_word($plural = true) { $p = bp_partner(); $k = $p ? $p['kind'] : 'bogholder'; return $k == 'koncern' ? ($plural ? bp_t('selskaber','companies') : bp_t('selskab','company')) : ($plural ? bp_t('kunder','customers') : bp_t('kunde','customer')); }
+function bp_is_group() { $p = bp_partner(); return $p && $p['kind'] == 'koncern'; }
+function bp_panel_name() { return bp_is_group() ? bp_t('Koncernpanel','Group panel') : bp_t('Bogholderpanel','Accountant panel'); }
+// Group pricing: monthly price of the companies invoiced via the parent + one ERP user per active employee.
+// [companies[], plans_ore, unpriced_n, users_n, user_price_ore, users_ore, total_ore]
+function bp_group_price() {
+	$rows = array_filter(bp_customers(false), fn($r) => !$r['closed'] && ($r['is_home'] || $r['payer'] == 'partner'));
+	$plans = 0; $unpriced = 0; $list = array();
+	foreach ($rows as $r) { $e = ent_resolve((int)$r['id']); $m = null; if ($e['plan'] && $e['price_ore'] !== null) $m = ($e['interval'] == 'year') ? (int)round($e['price_ore'] / 12) : (int)$e['price_ore']; if ($m === null) $unpriced++; else $plans += $m; $list[] = array($r, $e['plan'] ? $e['plan']['name'] : '', $m); }
+	$users = count(array_filter(bp_employees(), fn($e) => $e['active']));
+	$c = ent_catalog(); $up = isset($c['plans']['erp']) && $c['plans']['erp']['extra_user_price_ore'] !== null ? (int)$c['plans']['erp']['extra_user_price_ore'] : 22900;
+	return array($list, $plans, $unpriced, $users, $up, $users * $up, $plans + $users * $up);
+}
+// Group: change a company's plan directly (no proposal). Same downgrade guard as the operator panel.
+function bp_group_set_plan($reg, $plan_key, $date, $reason, $force) {
+	if (!bp_is_group() || !bp_can('subscription')) return bp_t('Handlingen kræver retten Ændre abonnementer','The action requires the right Change subscriptions');
+	$l = partner_link((int)$reg['id']); if (!$l || $l['access'] != 'owner') return bp_t('Koncernen ejer ikke selskabet','The group does not own the company');
+	$c = ent_catalog(); if (!isset($c['plans'][$plan_key])) return bp_t('Ukendt pakke','Unknown plan');
+	if (function_exists('ent_live_usage_quick') && !$force) { $conf = ent_conflicts($plan_key, ent_live_usage_quick($reg)); if ($conf) return bp_t('Pakken er ikke skiftet, fordi selskabet bruger mere, end den nye pakke tillader:','The plan was not changed because the company uses more than the new plan allows:').' '.implode(' ', $conf); }
+	$e = ent_set_plan((int)$reg['id'], $plan_key, $date, trim($reason).' ('.bp_t('skiftet af koncernen','changed by the group').': '.bp_display_name().')'); if ($e) return $e;
+	bp_mail(bp_saldi_mail(), '[Koncernpanel] Pakkeskift: '.$reg['regnskab'], bp_mail_wrap('Pakkeskift i koncern', array(bp_h(bp_partner()['name']).' har skiftet '.bp_h($reg['regnskab']).' (id '.(int)$reg['id'].') til '.bp_h($c['plans'][$plan_key]['name']).' fra '.bp_h($date ?: date('Y-m-d')).'. Opdatér genfaktureringen.')));
+	return '';
+}
 function bp_url($page, $params = array()) { # absolute link to a page in admin/ (for mails)
 	$host = isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] ? $_SERVER['SERVER_NAME'] : 'saldi.dk';
 	$dir = rtrim(dirname((string)($_SERVER['PHP_SELF'] ?? '/admin/x.php')), '/'); if (basename($dir) != 'admin') $dir = preg_replace('#/[^/]*$#', '', $dir).'/admin';
@@ -253,8 +278,9 @@ function bp_access_request_create($rid, $message) {
 	return array((int)$r['id'], $to == $reg['email'] ? '' : bp_t('Regnskabet har ingen e-mail – anmodningen er sendt til Saldi, som godkender på kundens vegne.','The account has no e-mail – the request went to Saldi, who approves on the customer\'s behalf.'));
 }
 function bp_access_request_mail($id) {
-	$a = db_fetch_array(db_select("select a.*, p.name as pname, p.cvr as pcvr, r.regnskab from partner_access_requests a join partners p on p.id = a.partner_id join regnskab r on r.id = a.regnskab_id where a.id = '".(int)$id."'", __FILE__ . " linje " . __LINE__)); if (!$a) return;
+	$a = db_fetch_array(db_select("select a.*, p.name as pname, p.cvr as pcvr, p.kind as pkind, r.regnskab from partner_access_requests a join partners p on p.id = a.partner_id join regnskab r on r.id = a.regnskab_id where a.id = '".(int)$id."'", __FILE__ . " linje " . __LINE__)); if (!$a) return;
 	$url = bp_url('bogholder_godkend.php', array('t' => $a['token']));
+	if ($a['pkind'] == 'koncern') { bp_mail($a['sent_to'], bp_t('Tilknytning af','Linking').' '.$a['regnskab'].' '.bp_t('til','to').' '.$a['pname'], bp_mail_wrap(bp_h($a['regnskab']).' '.bp_t('tilknyttes koncernen','joins the group').' '.bp_h($a['pname']), array(bp_h($a['pname']).' '.bp_t('vil tilknytte regnskabet','wants to link the account').' <b>'.bp_h($a['regnskab']).'</b> '.bp_t('som et selskab i koncernen. Godkender I, ejer koncernen regnskabet i Saldi og kan styre brugere og pakke. Betalingen ændres ikke, før koncernen vælger det.','as a company in the group. If you approve, the group owns the account in Saldi and can manage users and plan. Payment does not change until the group chooses so.'), $a['message'] ? '<i>'.bp_h($a['message']).'</i>' : '', bp_t('Linket virker til','The link works until').' '.bp_date($a['expires_at']).'.'), bp_t('Se anmodningen','View the request'), $url)); return; }
 	$html = bp_mail_wrap(bp_h($a['pname']).' '.bp_t('beder om adgang til','requests access to').' '.bp_h($a['regnskab']), array(bp_h($a['pname']).($a['pcvr'] ? ' (CVR '.bp_h($a['pcvr']).')' : '').' '.bp_t('vil gerne arbejde i jeres regnskab','would like to work in your account').' <b>'.bp_h($a['regnskab']).'</b> '.bp_t('i Saldi. Giver du adgang, kan deres medarbejdere åbne og bogføre i regnskabet. Pakke, betaling og andre bogholderes adgang ændres ikke.','in Saldi. If you approve, their employees can open and post in the account. Plan, payment and other bookkeepers\' access are not changed.'), $a['message'] ? '<i>'.bp_h($a['message']).'</i>' : '', bp_t('Du kan altid fjerne adgangen igen. Linket virker til','You can always remove the access again. The link works until').' '.bp_date($a['expires_at']).'.'), bp_t('Se anmodningen','View the request'), $url);
 	bp_mail($a['sent_to'], bp_t('Anmodning om adgang til','Access request for').' '.$a['regnskab'], $html);
 }
@@ -267,8 +293,10 @@ function bp_access_request_decide($token, $accept, $by) {
 	if ($a['expires_at'] < date('Y-m-d')) { db_modify("update partner_access_requests set status = 'expired', decided_at = now() where id = '".(int)$a['id']."'", __FILE__ . " linje " . __LINE__); return bp_t('Anmodningen er udløbet','The request has expired'); }
 	$rid = (int)$a['regnskab_id']; $pid = (int)$a['partner_id'];
 	if ($accept && !db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__))) {
-		db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note, payer) values ('$rid', '$pid', 'full', ".((int)$a['requested_by'] ?: 'NULL').", 'godkendt af $by', 'customer')", __FILE__ . " linje " . __LINE__);
-		partner_log('partner.link_added', $rid, $pid, $a['pname'].' (full) – '.bp_t('adgang godkendt af','access approved by').' '.$by);
+		$kind = db_fetch_array(db_select("select kind from partners where id = '$pid'", __FILE__ . " linje " . __LINE__));
+		$acc = ($kind && $kind['kind'] == 'koncern' && !db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and access = 'owner' and until is null", __FILE__ . " linje " . __LINE__))) ? 'owner' : 'full'; # a group owns the companies it takes in
+		db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note, payer) values ('$rid', '$pid', '$acc', ".((int)$a['requested_by'] ?: 'NULL').", 'godkendt af $by', 'customer')", __FILE__ . " linje " . __LINE__);
+		partner_log('partner.link_added', $rid, $pid, $a['pname']." ($acc) – ".bp_t('adgang godkendt af','access approved by').' '.$by);
 	}
 	db_modify("update partner_access_requests set status = '".($accept ? 'approved' : 'rejected')."', decided_at = now(), decided_by = '".db_escape_string($by)."' where id = '".(int)$a['id']."'", __FILE__ . " linje " . __LINE__);
 	partner_log($accept ? 'partner.access_approved' : 'partner.access_rejected', $rid, $pid, $by);
@@ -310,11 +338,15 @@ function bp_request_decide($token, $accept, $by) {
 // Set who pays on the link (the panel's own flag) and mirror it to the operator's payer where possible.
 function bp_set_payer($rid, $pid, $payer, $by) {
 	db_modify("update regnskab_partners set payer = '".($payer == 'partner' ? 'partner' : 'customer')."' where regnskab_id = '".(int)$rid."' and partner_id = '".(int)$pid."' and until is null", __FILE__ . " linje " . __LINE__);
-	if (function_exists('bill_set_payer')) { $p = db_fetch_array(db_select("select home_regnskab_id from partners where id = '".(int)$pid."'", __FILE__ . " linje " . __LINE__)); bill_set_payer((int)$rid, ($payer == 'partner' && $p && $p['home_regnskab_id']) ? (int)$p['home_regnskab_id'] : 0); }
-	partner_log('partner.payer_changed', (int)$rid, (int)$pid, ($payer == 'partner' ? 'bogholderfirmaet betaler' : 'kunden betaler selv').' – '.$by);
+	$p = db_fetch_array(db_select("select * from partners where id = '".(int)$pid."'", __FILE__ . " linje " . __LINE__));
+	if (function_exists('bill_set_payer')) { bill_set_payer((int)$rid, ($payer == 'partner' && $p && $p['home_regnskab_id']) ? (int)$p['home_regnskab_id'] : 0);
+		if ($payer != 'partner' && $p && ($p['billing_mode'] ?? '') == 'consolidated') db_modify("update regnskab_billing set payer_regnskab_id = '".(int)$rid."' where regnskab_id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__); } # the company itself, overriding the partner's consolidated model
+	$isK = ($p && $p['kind'] == 'koncern');
+	partner_log('partner.payer_changed', (int)$rid, (int)$pid, ($payer == 'partner' ? ($isK ? 'faktureres via hovedselskabet' : 'bogholderfirmaet betaler') : ($isK ? 'selskabet betaler selv' : 'kunden betaler selv')).' – '.$by);
 }
 // An accepted upgrade proposed by the partner moves future payment to the customer (requirement: upgrade from Finans).
 function bp_sync_proposals() {
+	if (bp_is_group()) return;
 	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'partner_proposals'", __FILE__ . " linje " . __LINE__))) return;
 	$pid = bp_pid(); $q = db_select("select pp.id, pp.regnskab_id, pp.key from partner_proposals pp join regnskab_partners rp on rp.regnskab_id = pp.regnskab_id and rp.partner_id = pp.partner_id and rp.until is null where pp.partner_id = '$pid' and pp.kind = 'plan' and pp.status = 'accepted' and rp.payer = 'partner'", __FILE__ . " linje " . __LINE__);
 	$rows = array(); while ($r = db_fetch_array($q)) $rows[] = $r;
@@ -436,7 +468,7 @@ function bp_action_label($a) {
 		'partner.invite_sent' => bp_t('Invitation sendt','Invitation sent'), 'partner.invite_resent' => bp_t('Invitation gensendt','Invitation resent'), 'partner.invite_revoked' => bp_t('Invitation tilbagekaldt','Invitation revoked'), 'partner.invite_accepted' => bp_t('Invitation accepteret','Invitation accepted'),
 		'partner.access_requested' => bp_t('Adgang anmodet','Access requested'), 'partner.access_request_resent' => bp_t('Anmodning gensendt','Request resent'), 'partner.access_request_cancelled' => bp_t('Anmodning tilbagekaldt','Request cancelled'), 'partner.access_approved' => bp_t('Adgang godkendt','Access approved'), 'partner.access_rejected' => bp_t('Adgang afvist','Access rejected'),
 		'partner.request_created' => bp_t('Anmodning sendt','Request sent'), 'partner.request_cancelled' => bp_t('Anmodning annulleret','Request cancelled'), 'partner.request_approved' => bp_t('Anmodning godkendt','Request approved'), 'partner.request_rejected' => bp_t('Anmodning afvist','Request rejected'), 'partner.payer_changed' => bp_t('Betaler ændret','Payer changed'), 'partner.responsible_set' => bp_t('Ansvarlig medarbejder sat','Responsible employee set'),
-		'partner.updated' => bp_t('Firmaoplysninger ændret','Firm details updated'), 'partner.created' => bp_t('Firma oprettet','Firm created'),
+		'partner.updated' => bp_t('Firmaoplysninger ændret','Firm details updated'), 'partner.company_detached' => bp_t('Selskab udskilt fra koncernen','Company detached from the group'), 'partner.created' => bp_t('Firma oprettet','Firm created'),
 		'ledger.user_created' => bp_t('Bruger oprettet i regnskabet','User created in the account'), 'ledger.user_locked' => bp_t('Bruger lukket','User locked'), 'ledger.user_unlocked' => bp_t('Bruger genåbnet','User unlocked'), 'ledger.user_replaced' => bp_t('Kundebruger udskiftet','Customer user replaced'), 'ledger.company_updated' => bp_t('Virksomhedsoplysninger ændret','Company details updated'), 'ledger.created' => bp_t('Regnskab oprettet','Account created'), 'ledger.opened' => bp_t('Regnskab åbnet','Account opened'),
 		'entitlement.override_added' => bp_t('Funktion ændret','Feature changed'), 'entitlement.override_expired' => bp_t('Funktion følger pakken igen','Feature follows the plan again'), 'entitlement.plan_changed' => bp_t('Pakke ændret','Plan changed'), 'entitlement.plan_scheduled' => bp_t('Pakkeskift planlagt','Plan change scheduled'), 'entitlement.plan_applied' => bp_t('Planlagt pakkeskift gennemført','Scheduled plan change applied'), 'entitlement.trial_started' => bp_t('Prøveperiode startet','Trial started'), 'entitlement.subscription_cancelled' => bp_t('Abonnement opsagt','Subscription cancelled'), 'entitlement.subscription_resumed' => bp_t('Abonnement genoptaget','Subscription resumed'),
 		'proposal.created' => bp_t('Opgradering foreslået','Upgrade proposed'), 'proposal.accepted' => bp_t('Opgradering godkendt','Upgrade approved'), 'proposal.rejected' => bp_t('Opgradering afvist','Upgrade rejected'), 'proposal.expired' => bp_t('Forslag udløbet','Proposal expired'),
