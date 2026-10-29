@@ -60,10 +60,16 @@
 // 20261027 CL/NTR db_select_database(): also select on $db_type 'mysql', which db_connect()
 //                serves with a mysqli connection too (still supported, not actively used).
 // 20261029 CDX/NTR Use shared permissions for database logs and tenant temporary directories.
+// 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
 
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
+    /**
+     * Derive the application-relative prefix from the current request path.
+     *
+     * @return string Parent-directory prefix for runtime paths.
+     */
     function get_relative() {
         $url = $_SERVER['REQUEST_URI'];
         $questionMarkPos = strpos($url, '?');
@@ -348,6 +354,14 @@ if (!function_exists('db_modify')) {
 }
 
 if (!function_exists('db_select')) {
+	/**
+	 * Execute a SELECT against the tenant or master connection and log query errors.
+	 *
+	 * @param string $qtext SQL whose external values have already been escaped.
+	 * @param string $spor Caller context recorded in error logs.
+	 * @param bool $global Whether to use the master connection.
+	 * @return mysqli_result|\PgSql\Result|bool Database result or failure.
+	 */
 	function db_select($qtext, $spor, $global = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
