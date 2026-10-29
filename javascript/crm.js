@@ -308,7 +308,7 @@ function followRow(h, done) {
 		<span class="cust"><b>${esc(c.n)}</b>${h.to ? `<small>${esc(ppl(c, h.to))}</small>` : ''}</span>
 		<span class="note">${isMeet(h) ? `<span class="mt">${ICON.moede}${t('Møde')} ${tspan(h)}</span> ` : ''}${esc(h.note)}</span>
 		<span class="dot c2" style="--c:${stColor(c.st)}">${esc(stName(c.st))}</span>
-		<span class="who ${isMine(h) ? 'me' : ''}">${esc(empName(h.by))}${(h.with || []).length ? ` <span class="c3" title="${esc(peopleTxt(h))}">+${h.with.length}</span>` : ''}</span>
+		<span class="who ${isMine(h) ? 'me' : ''}">${esc(empName(h.by))}${(h.with || []).length ? ` <span class="c3" title="${esc(cap(peopleTxt(h)))}">+${h.with.length}</span>` : ''}</span>
 		<span class="due ${cls}" title="${fmtY(h.due)}">${n < -1 ? fmt(h.due) : rel(h.due)}${isMeet(h) ? ' ' + h.tm : ''}</span>
 		<span class="acts">${done || !DATA.canWrite ? '' : `<button class="mini" data-snooze="${h.id}">${SV.clock}${t('Udsæt')}</button>`}<button class="mini" data-open="${c.id}">${t('Åbn')}</button></span>
 	</div>`;
@@ -401,9 +401,9 @@ function renderPipe() {
 function evHtml(h, big) {
 	const c = cust(h.cid), late = !h.done && diff(h.due) < 0, drag = DATA.canWrite && !h.done;
 	const meet = isMeet(h);
-	if (big) return `<button class="wcard ${late ? 'late' : ''} ${h.done ? 'done' : ''} ${meet ? 'meet' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}">${meet ? `<span class="tm">${tspan(h)}</span>` : ''}<b>${esc(c.n)}</b><p>${esc(h.note)}</p><small>${esc(meet ? peopleTxt(h) : empName(h.by))}${h.to ? ' → ' + esc(ppl(c, h.to)) : ''}</small></button>`;
+	if (big) return `<button class="wcard ${late ? 'late' : ''} ${h.done ? 'done' : ''} ${meet ? 'meet' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}">${meet ? `<span class="tm">${tspan(h)}</span>` : ''}<b>${esc(c.n)}</b><p>${esc(h.note)}</p><small>${esc(meet ? cap(peopleTxt(h)) : empName(h.by))}${h.to ? ' → ' + esc(ppl(c, h.to)) : ''}</small></button>`;
 	const ini = (meet ? people(h) : [h.by]).map(initials).filter(Boolean).slice(0, 3).join(' ');
-	return `<button class="ev ${late ? 'late' : ''} ${h.done ? 'done' : ''} ${meet ? 'meet' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}" title="${meet ? esc(t('Møde')) + ' ' + tspan(h) + ' – ' : ''}${esc(c.n)} – ${esc(h.note)}${ini ? ' · ' + esc(meet ? peopleTxt(h) : empName(h.by)) : ''}">${meet ? `<i class="tm">${h.tm}</i>` : ''}<span>${esc(c.n)}</span>${ini ? `<small class="ini">${esc(ini)}</small>` : ''}</button>`;
+	return `<button class="ev ${late ? 'late' : ''} ${h.done ? 'done' : ''} ${meet ? 'meet' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}" title="${meet ? esc(t('Møde')) + ' ' + tspan(h) + ' – ' : ''}${esc(c.n)} – ${esc(h.note)}${ini ? ' · ' + esc(meet ? cap(peopleTxt(h)) : empName(h.by)) : ''}">${meet ? `<i class="tm">${h.tm}</i>` : ''}<span>${esc(c.n)}</span>${ini ? `<small class="ini">${esc(ini)}</small>` : ''}</button>`;
 }
 function isoWeek(d) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - y) / 864e5 + 1) / 7); }
 function mondayOf(k) { const d = fromKey(k); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return key(d); }
