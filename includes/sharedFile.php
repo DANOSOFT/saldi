@@ -48,7 +48,7 @@ function sharedFileTrustedParent(string $path): bool
         }
         $mode = $stat['mode'];
         $last = $index === count($parts) - 1;
-        $stickyAncestor = !$last && ($mode & 01000) !== 0;
+        $stickyAncestor = !$last && ($mode & 01002) === 01002;
         if (($mode & 0170000) !== 0040000
             || (($mode & 0002) !== 0 && !$stickyAncestor)
             || (($mode & 0020) !== 0 && $stat['gid'] !== $gid && !$stickyAncestor)) {

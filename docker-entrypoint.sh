@@ -52,6 +52,8 @@ fi
 
 # 20261029 CDX/NTR Share runtime directories with www-data and migrate logs before starting workers.
 # Ensure required writable directories exclude unrelated local accounts.
+# The base PHP image makes this ancestor sticky and writable by everyone.
+chmod o-w /var/www/html
 shared_runtime_group="${SALDI_SHARED_FILE_GROUP:-www-data}"
 for dir in includes logolib temp bank_integration restapi; do
     mkdir -p /var/www/html/saldi/$dir
