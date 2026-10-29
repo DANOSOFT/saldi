@@ -1,13 +1,14 @@
 <?php
 
- // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
- // 20250829 PHR Returns textId if table tekster doeesn't exist
- // 20250909 LOE checks first that db functions exist and error log added
- // 20260320 LOE Updated $sessionVar to only allow values that won't corrupt the session array.
- // 20260512 PHR CL/PHR Enabled cache.
- // 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
- // 20260825 NTR fixed indentation and block bracket convention. (no logic change)
- // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250829 PHR Returns textId if table tekster doeesn't exist
+// 20250909 LOE checks first that db functions exist and error log added
+// 20260320 LOE Updated $sessionVar to only allow values that won't corrupt the session array.
+// 20260512 PHR CL/PHR Enabled cache.
+// 20260518 CL/PHR Session-cache genaktiveret for findtekst() for bedre performance.
+// 20260825 NTR fixed indentation and block bracket convention. (no logic change)
+// 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
+// 20261029 CL/NTR findtekst() now accepts descriptive string keys (tekst_key) as well as legacy numeric tekst_id. A key may be suffixed with '|fallback text' to provide a default when no translation is found. See doc/ai/convention_findtekst_keys.md.
 if (!function_exists('findtekst')) {
 	/**
 	 * Look up a translated text for a language.
