@@ -120,4 +120,5 @@ html[data-theme="dark"] .vr{
 .vr-toast.vr-on{opacity:1;transform:translate(-50%,0)}
 
 @media (max-width:900px){.vr{padding:16px 16px 120px}.vr-hint{display:none}.vr-save{padding:0 12px 12px}}
+@media (max-width:600px){.vr-save>div{flex-wrap:wrap}.vr-save kbd{display:none}} /* the Save button stays on screen; Ctrl S is keyboard-only */
 @media (prefers-reduced-motion:reduce){.vr *{transition:none!important}}

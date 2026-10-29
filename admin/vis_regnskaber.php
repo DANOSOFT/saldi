@@ -39,6 +39,8 @@ $s_id=session_id();
 // 20261020 CL/ASR Review fixes: LATIN9-safe JSON for the page script, the hidden save bar is inert, the table scrolls
 //                  sideways on narrow windows, saving keeps sort and Vis lukkede, sort links and Vis lukkede ask before
 //                  dropping unsaved changes, tall dialogs scroll.
+// 20261029 CL/ASR "Sidst aktiv" rounds the day count (DST), the recalculation dialog says it covers the listed accounts, and the
+//                  save bar wraps on phone widths.
 // 20261023 CL/ASR Ret/Lås, Vis lukkede and Genberegn keep the sort direction the page was opened with (they carried the
 //                  toggled value and flipped the order when sorted on one column); rows lose the pointer cursor in edit mode.
 // 20261008 CL/ASR New page layout aligned with the settings/front-page redesign (one card, search,
@@ -168,7 +170,7 @@ function vr_t($da, $en) {
 }
 function vr_rel($ts) { # relative "sidst aktiv" text; $ts is unix time
 	if (!$ts) return '–';
-	$days = (int) floor((strtotime(date('Y-m-d')) - strtotime(date('Y-m-d', $ts))) / 86400);
+	$days = (int) round((strtotime(date('Y-m-d')) - strtotime(date('Y-m-d', $ts))) / 86400); # round: a span across the DST change is 23 or 25 hours
 	if ($days <= 0) return vr_t('i dag', 'today');
 	if ($days == 1) return vr_t('i går', 'yesterday');
 	if ($days < 7)   return $days.' '.vr_t('dage siden', 'days ago');
@@ -320,7 +322,7 @@ $vr_toggleClosed = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$vr_desc0, 'r
 $vr_toggleEdit   = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$vr_desc0, 'showClosed'=>$showClosed, 'rediger'=>$rediger ? NULL : 'on']);
 $vr_recalcUrl    = vr_url(['sort'=>$sort, 'sort2'=>$sort2, 'desc'=>$vr_desc0, 'showClosed'=>$showClosed, 'beregn'=>1]);
 
-print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=20261020\">\n";
+print "<link rel=\"stylesheet\" href=\"../css/vis_regnskaber.css?v=20261029\">\n";
 print "<div class=\"vr\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
 
 // ---------- page head ----------
@@ -416,7 +418,7 @@ print "</div>\n</section>\n";
 // ---------- dialogs and toast ----------
 print "<div class=\"vr-scrim\" id=\"vrScrim\"></div>\n";
 if ($admin && !$rediger) {
-	print "<div class=\"vr-dlg\" id=\"vrDlgRecalc\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgRecalcT\"><h3 id=\"vrDlgRecalcT\">".vr_t('Genberegn posteringer for alle regnskaber?', 'Recalculate entries for all accounts?')."</h3><p>".vr_t('Saldi tæller posteringer de seneste 12 måneder og finder seneste aktivitet i hvert regnskabs database. Det kan tage et øjeblik, og regnskaber uden database bliver oprettet undervejs.', 'Saldi counts entries in the last 12 months and finds the latest activity in each account database. It may take a moment, and accounts without a database are created on the way.')."</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>".findtekst('5|Annullér', $sprog_id)."</button><a class=\"vr-btn vr-primary\" href=\"".vr_h($vr_recalcUrl)."\">".vr_t('Genberegn', 'Recalculate')."</a></div></div>\n";
+	print "<div class=\"vr-dlg\" id=\"vrDlgRecalc\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgRecalcT\"><h3 id=\"vrDlgRecalcT\">".vr_t('Genberegn posteringer for de viste regnskaber?', 'Recalculate entries for the listed accounts?')."</h3><p>".vr_t('Saldi tæller posteringer de seneste 12 måneder og finder seneste aktivitet i hvert regnskabs database. Det kan tage et øjeblik, og regnskaber uden database bliver oprettet undervejs. Lukkede regnskaber kommer kun med, når Vis lukkede er slået til.', 'Saldi counts entries in the last 12 months and finds the latest activity in each account database. It may take a moment, and accounts without a database are created on the way. Closed accounts are only included when Show closed is on.')."</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>".findtekst('5|Annullér', $sprog_id)."</button><a class=\"vr-btn vr-primary\" href=\"".vr_h($vr_recalcUrl)."\">".vr_t('Genberegn', 'Recalculate')."</a></div></div>\n";
 }
 if ($vr_warnOpen) {
 	print "<div class=\"vr-dlg\" id=\"vrDlgWarn\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgWarnT\"><h3 id=\"vrDlgWarnT\">Du er ved at åbne et live-regnskab fra master</h3><div class=\"vr-ls\" id=\"vrWarnList\"></div><p id=\"vrWarnText\">Åbner du et live-regnskab fra master, kan du ændre databasestrukturen, så den bliver inkompatibel med live-versionen, eller forhindre at fremtidige opdateringer migrerer korrekt.</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>Annullér</button><a class=\"vr-btn vr-primary\" id=\"vrWarnGo\" href=\"#\">Åbn alligevel</a></div></div>\n";
