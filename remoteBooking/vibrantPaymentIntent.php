@@ -1,4 +1,5 @@
 <?php
+// 20261006 CL/LH SST-842: Poll the production API (same key/host as the payment link) and URL-encode the intent id.
 require_once "../includes/connect.php";
 
 $customerData = json_decode(file_get_contents("php://input"), true);
@@ -11,7 +12,7 @@ $apiKey = $res["apikey"];
 
 $ch = curl_init();
 
-curl_setopt($ch, CURLOPT_URL, "https://pos-api.sandbox.vibrant.app/pos/v1/payment_intents/$_GET[id]");
+curl_setopt($ch, CURLOPT_URL, "https://pos.api.vibrant.app/pos/v1/payment_intents/" . rawurlencode((string)($_GET["id"] ?? "")));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
 $headers = array();
