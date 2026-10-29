@@ -5344,5 +5344,7 @@
 7633	Vis PBS-kunder	Show PBS customers	Vis PBS-kunder
 7634	Viser alle %s konti	Showing all %s accounts	Viser alle %s kontoer
 7635	Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).	One selected account has an overdue balance, so Remind all only creates a reminder for it (like Create reminder).	Det er avmerket 1 konto med forfalt beløp, så Påminn alle oppretter bare en påminnelse for den (som Opprett påminnelse).
+7650	Alle debitorer	All customers	Alle debitorer
+7651	Alle kreditorer	All suppliers	Alle kreditorer
 8400	Send "Bemærkning til ordre" med på e-fakturaer	Include "Order note" on e-invoices	Send "Ordrenotat" med på e-fakturaer
 8401	Afmærkes feltet, sendes teksten i "Bemærkning til ordre" med som bemærkning på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet bruges ofte til interne noter, så det er slået fra som standard. PDF-fakturaen er uændret.	When ticked, the text in "Order note" is sent as the note on e-invoices, e-credit notes and e-orders. The field is often used for internal notes, so this is off by default. The PDF invoice is unchanged.	Når feltet er avkrysset, sendes teksten i "Ordrenotat" med som merknad på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet brukes ofte til interne notater, så det er slått av som standard. PDF-fakturaen er uendret.
