@@ -1,5 +1,5 @@
 <?php
-// --- includes/saldiBillingApi.php --- ver 5.1.0 --- 2026.10.23 ---
+// --- includes/saldiBillingApi.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR Moved unchanged from admin/admin_panel.php so the nightly job and the operator overview can
@@ -8,6 +8,7 @@
 //                  old constant as default, so nothing hardcodes the billing ledger (owner's decision 12/10-2026);
 //                  the customer-side invoice overview (billing overview spec) reuses this client and these settings.
 //                  TLS certificates are now verified (verification was off; the billing ledger has a valid certificate).
+// 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
 if (!defined('SALDI_API_BASE')) {
 // ---- REST API Configuration for the billing ledger (default ssl3.saldi.dk) ----
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_base' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
@@ -82,14 +83,14 @@ function get_saldi_api_token() {
     // Check for cached token
     $cached = saldi_api_token_cache_read();
     if ($cached !== null) return $cached;
-    
+
     $url = SALDI_API_BASE . '/auth/login.php';
     $postData = json_encode([
         'username' => SALDI_API_USER,
         'password' => SALDI_API_PASS,
         'account_name' => SALDI_API_ACCOUNT
     ]);
-    
+
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
@@ -100,21 +101,21 @@ function get_saldi_api_token() {
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2
     ]);
-    
+
     $response = curl_exec($ch);
     $curlError = curl_error($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     if (!$response || $httpCode !== 200) return null;
-    
+
     $data = json_decode($response, true);
     if (!$data || !$data['success'] || !isset($data['data']['access_token'])) return null;
-    
+
     $token = $data['data']['access_token'];
-    
+
     saldi_api_token_cache_write($token); // a cache that cannot be written safely is simply not used
-    
+
     return $token;
 }
 
@@ -124,7 +125,7 @@ function get_saldi_api_token() {
 function fetch_saldi_api($endpoint, $token, $params = []) {
     $url = SALDI_API_BASE . $endpoint;
     if ($params) $url .= '?' . http_build_query($params);
-    
+
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_HTTPHEADER => [
@@ -136,16 +137,16 @@ function fetch_saldi_api($endpoint, $token, $params = []) {
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2
     ]);
-    
+
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     if ($httpCode !== 200 || !$response) return null;
-    
+
     $data = json_decode($response, true);
     if (!$data || !$data['success']) return null;
-    
+
     return $data['data'];
 }
 
@@ -155,38 +156,38 @@ function fetch_saldi_api($endpoint, $token, $params = []) {
 function fetch_customer_invoices($search_term) {
     $token = get_saldi_api_token();
     if (!$token) return ['error' => 'Kunne ikke logge ind på Saldi API'];
-    
+
     // First, search for the customer
     $customers = fetch_saldi_api('/debitor/customers/index.php', $token, [
         'search' => $search_term,
         'limit' => 1
     ]);
-    
+
     if ($customers === null) {
         return ['error' => 'Kunne ikke hente kunde fra API'];
     }
-    
+
     if (!is_array($customers) || count($customers) === 0 || !isset($customers[0]['kontonr'])) {
         return ['error' => 'Ingen kunde fundet for "' . htmlspecialchars($search_term) . '"'];
     }
-    
+
     $customer_id = $customers[0]['kontonr'];
-    
+
     // Fetch recent invoices for this customer
     $invoices = fetch_saldi_api('/debitor/invoices/index.php', $token, [
         'customer' => $customer_id,
         'limit' => 50,
         'page' => 1
     ]);
-    
+
     if ($invoices === null) return ['error' => 'Kunne ikke hente fakturaer fra API'];
     if (!is_array($invoices) || count($invoices) === 0) return ['error' => 'Ingen fakturaer fundet for "' . htmlspecialchars($search_term) . '"'];
-    
+
     // Sort by invoiceDate DESC
     usort($invoices, function($a, $b) {
         return strcmp($b['invoiceDate'] ?? '', $a['invoiceDate'] ?? '');
     });
-    
+
     return ['invoices' => $invoices];
 }
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-08 ---
+// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-12 ---
 // 20261012 CL/ASR Access check, same rule as the account list (see below).
 // 20261012 CL/ASR Accountant panel: users who belong to a bookkeeper/auditor/group are checked through the partner layer
 //                  (partner_can + the employee right "work"); a read-only link gives read-only rights in the ledger; ?goto=

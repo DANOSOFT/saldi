@@ -5,7 +5,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -- systemdata/operator_brugere.php ------------- lap 4.0.8 -- 2023-02-27 --
+// -- systemdata/operator_brugere.php ------------- lap 4.0.8 -- 2026-10-29 --
 // 20261012 CL/ASR Operator copy of admin/admin_brugere.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -30,6 +30,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 // 20230227 CA  Add missing parameters on some calls to db_select & db_modify
 // 20230323 PBLM Fixed some minor errors
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
+// 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
 
 @session_start();
 $s_id=session_id();
@@ -59,7 +60,7 @@ if ($_POST && !$vr_isAdm && ((int)if_isset($_POST, 0, 'id') != (int)$vr_meRow['i
 $vr_done = '';
 if ($_POST) {
 	$submit=$_POST['submit'];
-	$id=$_POST['id'];	
+	$id=$_POST['id'];
 	$tmp=$_POST['random'];
 	$ret_bruger=trim($_POST[$tmp]);
 	$kode=trim($_POST['kode']);
@@ -96,7 +97,7 @@ if ($_POST) {
 	if ((strstr($submit,'Tilf'))&&($ret_bruger)&&($ret_bruger!="-")&&!$vr_alerts) {
 		$query = db_select("select id from brugere where brugernavn = '".db_escape_string($ret_bruger)."'",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
-			$txt = findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id); 
+			$txt = findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id);
 			$alerttext="$txt: $ret_bruger!";
 			$vr_alerts[] = $alerttext;
 #			print "<tr><td align=center>Der findes allerede en bruger med brugenavn: $ret_bruger!</td></tr>\n";

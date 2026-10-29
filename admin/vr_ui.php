@@ -1,11 +1,12 @@
 <?php
-// --- admin/vr_ui.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- admin/vr_ui.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Shared view helpers for the admin-layer pages that use the new page layout
 //                  (vis_regnskaber.php, regnskab.php, partnere.php): escaping that follows the database charset,
 //                  number/date formatting, da/en texts without the uncached findtekst('plain text') path,
 //                  and the page frame (head/tabs/foot).
+// 20261029 CL/ASR vr_require_operator() shows a short notice until the update chain has created the panel's tables.
 
 if (!function_exists('vr_h')) {
 function vr_cs() { global $db_encode; return ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1'; }
@@ -39,7 +40,14 @@ function vr_kind($kind) { return $kind == 'koncern' ? vr_t('Koncern', 'Group') :
 //                  this shell calls vr_require_operator() and sends anyone else back to the existing menu.
 function vr_require_operator() {
 	partner_tables_ensure();
-	if (partner_current_user()['is_operator']) return;
+	if (partner_current_user()['is_operator']) {
+		// 20261029 CL/ASR The panel's tables come from the update chain; until the first login to an account after a deploy they may be missing.
+		if (!db_fetch_array(db_select("SELECT 1 FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__))) {
+			while (ob_get_level()) ob_end_clean();
+			print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">".vr_t('Panelet er ved at blive klar','The panel is being prepared')."</h1><p>".vr_t('Panelets tabeller oprettes ved næste login i et regnskab efter opdateringen. Log ind i et vilkårligt regnskab, og prøv igen.','The panel\'s tables are created at the next login to any account after the update. Log in to any account and try again.')."</p><p><a href=\"../index/admin_menu.php?klassisk=1\">".vr_t('Til den klassiske menu','To the classic menu')."</a></p></body></html>"; exit;
+		}
+		return;
+	}
 	while (ob_get_level()) ob_end_clean();
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/admin_menu.php\">"; exit;
 }

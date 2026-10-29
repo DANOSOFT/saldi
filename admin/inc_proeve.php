@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_proeve.php --- ver 5.1.0 --- 2026.10.12 ---
+// --- admin/inc_proeve.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. Trial follow-up for the operator panel: tabs "Nye kunder" (ledgers still in the 30-day trial, with
@@ -11,13 +11,13 @@
 //                      last 60 days. Older ledgers are treated as existing customers and never enter the lists.
 //                  Paid = marked paid here, billing status 'paid' (own or payer's, see bill_payer) or "Betalt til" set
 //                  after the trial start. Closed ledgers and bookkeeper/group home ledgers are not listed. All changes are logged.
+// 20261029 CL/ASR regnskab_trial is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 
 if (!function_exists('tr_tables_ensure')) {
 define('TR_DAYS', 30);
 function tr_tables_ensure() {
-	static $d = false; if ($d) return; $d = true;
-	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'regnskab_trial'", __FILE__ . " linje " . __LINE__))) return;
-	db_modify("CREATE TABLE IF NOT EXISTS regnskab_trial (regnskab_id int PRIMARY KEY, started date NOT NULL, ends date NOT NULL, source varchar(10), followup varchar(12) NOT NULL DEFAULT 'open', note text, contacted date, resolved varchar(10), resolved_at timestamp, updated_at timestamp, updated_by text)", __FILE__ . " linje " . __LINE__);
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 function tr_followups() { return array('open' => vr_t('Ikke kontaktet','Not contacted'), 'contacted' => vr_t('Kontaktet','Contacted'), 'promised' => vr_t('Lovet betaling','Payment promised'), 'closing' => vr_t('Skal lukkes','To be closed')); }
 // Register a new ledger (called from operator_opret.php).

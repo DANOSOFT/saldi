@@ -5,7 +5,7 @@ ob_start();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-03-05 ---
+// --- admin/operator_panel.php --- ver 5.1.0 --- 2026-10-29 ---
 // 20261012 CL/ASR Operator copy of admin/admin_panel.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -33,6 +33,8 @@ ob_start();
 //                  Betalinger (Saldi API, unchanged), Indstillinger, Bogholdere and Log. Operators only.
 //                  Backend (API helpers, POST actions, ajax endpoints) kept as before; license_features bulk
 //                  update stays reachable under Indstillinger until the entitlement layer replaces it (E0).
+// 20261029 CL/ASR regnskab.lukkes_kommentar is added by the update chain, not at request time.
+//                  Trailing whitespace removed from the lines this panel adds.
 
 @session_start();
 $s_id = session_id();
@@ -59,16 +61,11 @@ include("inc_proeve.php");
 partner_tables_ensure();
 ent_tables_ensure();
 
-// ---- Ensure lukkes_kommentar column exists on regnskab ----
-$_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema='public'", __FILE__ . " linje " . __LINE__));
-if (!$_col_check) {
-    db_modify("ALTER TABLE regnskab ADD COLUMN lukkes_kommentar text", __FILE__ . " linje " . __LINE__);
-}
 
 include("../includes/saldiBillingApi.php");
 // Security check
 if ($db != $sqdb) {
-    print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">"; 
+    print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">";
     print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
     exit;
 }
@@ -89,32 +86,32 @@ $message_type = 'success';
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = if_isset($_POST['action'], '');
-    
+
     // --- License bulk update ---
     if ($action === 'bulk_update') {
         $regnskab_id = (int)$_POST['regnskab_id'];
-        
+
         foreach ($available_features as $feature_key => $feature_name) {
             $enabled = isset($_POST['feature_' . $feature_key]) ? 'true' : 'false';
             $expires_at = $_POST['expires_' . $feature_key] ? "'" . db_escape_string($_POST['expires_' . $feature_key]) . "'" : 'NULL';
-            
+
             $qtxt = "SELECT id FROM license_features WHERE regnskab_id = $regnskab_id AND feature_key = '$feature_key'";
             $existing = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-            
+
             if ($existing) {
-                $qtxt = "UPDATE license_features SET enabled = $enabled, expires_at = $expires_at, updated_at = NOW() 
+                $qtxt = "UPDATE license_features SET enabled = $enabled, expires_at = $expires_at, updated_at = NOW()
                          WHERE regnskab_id = $regnskab_id AND feature_key = '$feature_key'";
             } else {
-                $qtxt = "INSERT INTO license_features (regnskab_id, feature_key, enabled, expires_at) 
+                $qtxt = "INSERT INTO license_features (regnskab_id, feature_key, enabled, expires_at)
                          VALUES ($regnskab_id, '$feature_key', $enabled, $expires_at)";
             }
             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
         }
-        
+
         $message = "Licenser opdateret!";
         partner_log('license.updated', $regnskab_id, null, 'license_features via adminpanel');
     }
-    
+
     // --- Account settings update ---
     if ($action === 'update_settings') {
         $regnskab_id = (int)$_POST['regnskab_id'];
@@ -144,15 +141,15 @@ if (isset($_GET['ajax_license_toggle']) && $_SERVER['REQUEST_METHOD'] === 'POST'
     $input = json_decode(file_get_contents('php://input'), true);
     $reg_id = (int)($input['regnskab_id'] ?? 0);
     $feature = if_isset($input['feature_key'], '');
-    
+
     if (!$reg_id || !$feature) {
         echo json_encode(['error' => 'Mangler parametre']);
         exit;
     }
-    
+
     $qtxt = "SELECT id, enabled FROM license_features WHERE regnskab_id = $reg_id AND feature_key = '" . db_escape_string($feature) . "'";
     $existing = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-    
+
     if ($existing) {
         $is_on = ($existing['enabled'] && $existing['enabled'] != 'f' && $existing['enabled'] != '0');
         $new_state = $is_on ? 'false' : 'true';
@@ -177,15 +174,15 @@ if (isset($_GET['ajax_invoice_id'])) {
         echo json_encode(['error' => 'Kunne ikke logge ind på Saldi API']);
         exit;
     }
-    
+
     // Fetch single invoice by passing 'id' as param
     $invoice_details = fetch_saldi_api('/debitor/invoices/index.php', $token, ['id' => $invoice_id]);
-    
+
     if ($invoice_details === null) {
         echo json_encode(['error' => 'Invoice not fundet fra API']);
         exit;
     }
-    
+
     echo json_encode(['invoice' => $invoice_details]);
     exit;
 }
@@ -195,7 +192,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
     while (ob_get_level()) { ob_end_clean(); }
     header('Content-Type: application/json');
     $reg_id = (int)$_GET['regnskab_id'];
-    
+
     // Get client DB name
     $qtxt = "SELECT db FROM regnskab WHERE id = $reg_id";
     $reg_row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -209,9 +206,9 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         echo json_encode(['error' => 'Kunne ikke forbinde til klient-database: ' . $client_db]);
         exit;
     }
-    
+
     $user_action = if_isset($_GET['user_action'], 'list');
-    
+
     if ($user_action === 'list') {
         $users = [];
         $hasRev = (bool)db_fetch_array(db_select("select 1 from information_schema.columns where table_name = 'brugere' and column_name = 'revisor'", __FILE__ . " linje " . __LINE__));
@@ -226,7 +223,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         echo json_encode(['users' => $users]);
         exit;
     }
-    
+
     if ($user_action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') { // 20261011 CL/ASR create a user in the customer db
         $input = json_decode(file_get_contents('php://input'), true);
         $un = trim((string)($input['brugernavn'] ?? '')); $pw = (string)($input['password'] ?? ''); $role = (($input['role'] ?? 'all') === 'readonly') ? 'readonly' : 'all';
@@ -247,7 +244,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         $input = json_decode(file_get_contents('php://input'), true);
         $user_id = (int)($input['user_id'] ?? 0);
         if (!$user_id) { echo json_encode(['error' => 'Mangler bruger-ID']); exit; }
-        
+
         $sets = [];
         if (isset($input['password']) && $input['password'] !== '' && strpos($input['password'], '****') === false) {
             $encrypted = saldikrypt($user_id, $input['password']);
@@ -266,7 +263,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         if (isset($input['ip_address'])) {
             $sets[] = "ip_address='" . db_escape_string(trim($input['ip_address'])) . "'";
         }
-        
+
         if (count($sets) > 0) {
             $qtxt = "UPDATE brugere SET " . implode(', ', $sets) . " WHERE id = $user_id";
             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -277,12 +274,12 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         echo json_encode(['success' => true]);
         exit;
     }
-    
+
     if ($user_action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $input = json_decode(file_get_contents('php://input'), true);
         $user_id = (int)($input['user_id'] ?? 0);
         if (!$user_id) { echo json_encode(['error' => 'Mangler bruger-ID']); exit; }
-        
+
         // Check if user has ansat_id, close the employee
         $r = db_fetch_array(db_select("SELECT ansat_id FROM brugere WHERE id = $user_id", __FILE__ . " linje " . __LINE__));
         if ($r && $r['ansat_id']) {
@@ -290,28 +287,28 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         }
         $vr_un = db_fetch_array(db_select("SELECT brugernavn FROM brugere WHERE id = $user_id", __FILE__ . " linje " . __LINE__));
         db_modify("DELETE FROM brugere WHERE id = $user_id", __FILE__ . " linje " . __LINE__);
-        
+
         // Reconnect master
         include("../includes/connect.php");
         partner_log('ledger.user_deleted', $reg_id, null, ($vr_un ? $vr_un['brugernavn'] : 'ukendt')." (id $user_id)"); // 20261012 CL/ASR
         echo json_encode(['success' => true]);
         exit;
     }
-    
+
     if ($user_action === 'clear_datatables' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $input = json_decode(file_get_contents('php://input'), true);
         $user_id = (int)($input['user_id'] ?? 0);
         if (!$user_id) { echo json_encode(['error' => 'Mangler bruger-ID']); exit; }
-        
+
         db_modify("DELETE FROM datatables WHERE user_id = $user_id", __FILE__ . " linje " . __LINE__);
-        
+
         // Reconnect master
         include("../includes/connect.php");
         partner_log('ledger.user_tables_reset', $reg_id, null, "bruger $user_id"); // 20261012 CL/ASR
         echo json_encode(['success' => true]);
         exit;
     }
-    
+
     echo json_encode(['error' => 'Ukendt handling']);
     exit;
 }

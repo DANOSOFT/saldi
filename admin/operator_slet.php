@@ -5,7 +5,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------/admin/operator_slet.php-----patch 3.8.9------2020.02.27--------
+// -------------/admin/operator_slet.php-----patch 3.8.9------2026.10.29--------
 // 20261012 CL/ASR Operator copy of admin/slet_regnskab.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -13,26 +13,27 @@ ob_start(); # for the redirect after an action (vr_prg)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg.
 // Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
+//
 // Programmet må ikke uden forudgående skriftlig aftale anvendes
 // i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
-// 
+//
 // Programmet er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
-// 
+//
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
 // Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
-// 2020.02.27 PHR Check if db exist before dropping 20200227 
+// 2020.02.27 PHR Check if db exist before dropping 20200227
 // 20261010 CL/ASR Rendered in the admin-layer shell; deletion logic unchanged. Duplicate doctype removed; the
 //                  deleted-ledger message and list use the shared components.
+// 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
 
 @session_start();
 $s_id=session_id();
- 
+
 $title="Slet regnskaber";
 $css="../css/standard.css";
 
@@ -56,7 +57,7 @@ $modulnr=103;
 <!--
 function Slet_Regnskab()
 {
- var agree=confirm("Slet de valgte regnskaber?"); 
+ var agree=confirm("Slet de valgte regnskaber?");
 	if (agree)
 		return true ;
 	else
@@ -65,7 +66,7 @@ function Slet_Regnskab()
 // -->
 </script>
 <?php
-		
+
 if (!$font) $font="Helvetica, Arial, sans-serif";
 if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 0pt 1px;\" align=\"center\" background=\"../img/knap_bg.gif\";";
 ?>
@@ -122,7 +123,7 @@ while ($r1=db_fetch_array($q1)) {
 	if ($vr_scope === null || in_array((int)$r1['id'],$vr_scope)) {
 		$x++;
 		$id[$x]=$r1['id'];
-		$regnskab[$x]=$r1['regnskab'];	
+		$regnskab[$x]=$r1['regnskab'];
 		$db_navn[$x]=$r1['db'];
 	}
 }

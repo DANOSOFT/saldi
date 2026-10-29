@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_forslag.php --- ver 5.1.0 --- 2026.10.11 ---
+// --- admin/inc_forslag.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261011 CL/ASR New. Purchase proposals (tilkøb): the operator (or later a partner) proposes a plan or an add-on;
@@ -7,12 +7,12 @@
 //                  payable until they approve. The operator sees open proposals on the customer card and may approve
 //                  on the customer's behalf (e.g. agreed by phone) or reject. Proposals expire after 30 days.
 //                  Table partner_proposals from the panels spec §4, plus token / sent_to / expires_at.
+// 20261029 CL/ASR partner_proposals is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 
 if (!function_exists('fs_tables_ensure')) {
 function fs_tables_ensure() {
-	static $d = false; if ($d) return; $d = true;
-	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'partner_proposals'", __FILE__ . " linje " . __LINE__)))
-		db_modify("CREATE TABLE IF NOT EXISTS partner_proposals (id SERIAL PRIMARY KEY, regnskab_id int NOT NULL, partner_id int, proposed_by text NOT NULL, kind varchar(10) NOT NULL, key varchar(50) NOT NULL, reason text, status varchar(10) NOT NULL DEFAULT 'open', decided_by varchar(60), decided_at timestamp, created timestamp NOT NULL DEFAULT now(), token varchar(64), sent_to varchar(120), expires_at date)", __FILE__ . " linje " . __LINE__);
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 function fs_price_text($kind, $key) {
 	$c = ent_catalog();

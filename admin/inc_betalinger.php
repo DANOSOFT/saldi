@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_betalinger.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- admin/inc_betalinger.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card. Everything comes from the
@@ -18,19 +18,16 @@
 //                  (regnskab_billing.billing_kontonr) is the coupling the customer's own invoice overview (billing
 //                  overview spec F1) needs: it is stored automatically when the API lookup matches the ledger's CVR,
 //                  or with one click from the lookup result.
+// 20261029 CL/ASR regnskab_billing and its columns are created by the update chain (operatorPanelSchema.php).
 
 if (!function_exists('bill_tables_ensure')) {
 function bill_tables_ensure() {
-	static $d = false; if ($d) return; $d = true;
-	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'regnskab_billing'", __FILE__ . " linje " . __LINE__))) return;
-	db_modify("CREATE TABLE IF NOT EXISTS regnskab_billing (regnskab_id int PRIMARY KEY, billing_kontonr varchar(30), channel varchar(20), payer_name varchar(120), payer_email varchar(120), note text, updated_by text, updated_at timestamp DEFAULT now())", __FILE__ . " linje " . __LINE__);
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
-function bill_cache_ensure() { # cached payment summary (filled when the tab is viewed and by the nightly job)
-	static $d = false; if ($d) return; $d = true; bill_tables_ensure();
-	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'regnskab_billing' AND column_name = 'pay_status'", __FILE__ . " linje " . __LINE__)))
-		db_modify("ALTER TABLE regnskab_billing ADD COLUMN pay_status varchar(12), ADD COLUMN outstanding_ore bigint, ADD COLUMN overdue_n int, ADD COLUMN oldest_due date, ADD COLUMN last_invoice date, ADD COLUMN checked_at timestamp", __FILE__ . " linje " . __LINE__);
-	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'regnskab_billing' AND column_name = 'payer_regnskab_id'", __FILE__ . " linje " . __LINE__)))
-		db_modify("ALTER TABLE regnskab_billing ADD COLUMN payer_regnskab_id int", __FILE__ . " linje " . __LINE__);
+function bill_cache_ensure() {
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	return;
 }
 // Who is invoiced for this ledger: own ledger, or another ledger (parent) via the partner's consolidated billing or a per-ledger choice.
 // Returns array(payer_regnskab_id|null, source text). null = the ledger itself.
