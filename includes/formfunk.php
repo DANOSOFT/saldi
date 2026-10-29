@@ -305,10 +305,12 @@ if (!function_exists('skriv')) {
 								if ($variabel == 'creditedinvoice') {
 									$qtxt = "select k.fakturanr as creditedinvoice from ordrer o left join ordrer k on k.id = o.kred_ord_id where o.id=$id";
 								} else {
-									if ($variabel == "rykkerdate")
+									if ($variabel == "rykkerdate") {
 										$variabel = "fakturadate";
-									if ($variabel == "tlf")
+									}
+									if ($variabel == "tlf") {
 										$variabel = "phone";
+									}
 									$qtxt = "select $variabel from ordrer where id=$id";
 								}
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);

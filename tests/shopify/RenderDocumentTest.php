@@ -11,6 +11,7 @@
 // History:
 // 20261029 CL/SZ SD-751: created.
 // 20261029 CL/SZ SD-751: a brand without a letterhead of its own renders without one.
+// 20261029 CL/SZ SD-751 review: the refused-brand tests use brands no template has.
 
 use PHPUnit\Framework\TestCase;
 
@@ -222,24 +223,24 @@ final class RenderDocumentTest extends TestCase
 
     public function testABrandWithoutItsOwnLayoutIsRefusedNotPrintedInAnother(): void
     {
-        $doc = $this->posted('DO', 'English');
+        $doc = $this->posted('DO', 'Klingon'); // a brand no template has layouts for
 
         $out = $this->render($doc['id']);
 
-        $this->assertSame(['class' => 'DocumentRenderError', 'message' => 'no layout for formular 4 in brand english', 'code' => 0], $out['error']);
+        $this->assertSame(['class' => 'DocumentRenderError', 'message' => 'no layout for formular 4 in brand klingon', 'code' => 0], $out['error']);
     }
 
     public function testABrandWithOnlyTheGeneralLayoutRowIsRefusedToo(): void
     {
         $conn = ShopifyEnv::connect(self::$db);
-        ShopifyEnv::rows($conn, "INSERT INTO formularer (formular, art, beskrivelse, xa, ya, xb, sprog) SELECT formular, art, beskrivelse, xa, ya, xb, 'Svensk'"
+        ShopifyEnv::rows($conn, "INSERT INTO formularer (formular, art, beskrivelse, xa, ya, xb, sprog) SELECT formular, art, beskrivelse, xa, ya, xb, 'Vulcan'"
             . " FROM formularer WHERE formular = 4 AND art = 3 AND beskrivelse = 'generelt' AND lower(sprog) = 'dansk'");
         pg_close($conn);
-        $doc = $this->posted('DO', 'Svensk');
+        $doc = $this->posted('DO', 'Vulcan');
 
         $out = $this->render($doc['id']);
 
-        $this->assertSame(['class' => 'DocumentRenderError', 'message' => 'no layout for formular 4 in brand svensk', 'code' => 0], $out['error']);
+        $this->assertSame(['class' => 'DocumentRenderError', 'message' => 'no layout for formular 4 in brand vulcan', 'code' => 0], $out['error']);
     }
 
     public function testAnUnpostedOrderAndAnOrderThatIsNoInvoiceAreRefused(): void

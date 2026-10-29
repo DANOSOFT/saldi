@@ -31,6 +31,7 @@
 //
 // 20261029 CL/SZ SD-751: created (WP11-1).
 // 20261029 CL/SZ SD-751: a brand without a letterhead of its own renders without one, never on another brand's letterhead.
+// 20261029 CL/SZ SD-751 review: $levNr reaches formularprint()'s global $lev_nr; docblock says which data a stored PDF freezes.
 
 require_once __DIR__ . '/../stdFunc/renderPrintBatch.php';
 
@@ -49,18 +50,21 @@ final class DocumentRenderError extends RuntimeException
  * The order's art decides between the two, as in formularprint(). The brand is the order's sprog
  * (empty is dansk); a brand without its own layout is refused, never printed in another brand's
  * layout, and a form-editor language lock does not apply. The letterhead is the brand's own; a brand
- * without one renders without a letterhead, not on the default one. A PDF already rendered for the same order
- * data, document number, brand and layout rows is returned as is; a changed letterhead file is not
- * noticed (temp/<db>/.ht_doc_* can be deleted to render again).
+ * without one renders without a letterhead, not on the default one (and so without the EPS logo,
+ * which formularprint() leaves out whenever the company has a PDF letterhead). A PDF already rendered for the same order
+ * data, document number, brand and layout rows is returned as is: a posted document stays as first
+ * rendered. The key holds the order's customer, date and totals and the layout rows; a later change to
+ * the company's Stamdata (eget_*, e.g. the bank account), the order's address or att fields, the
+ * employee (ansat_*) or a letterhead file is not noticed (temp/<db>/.ht_doc_* can be deleted to render again).
  *
  * Needs the tenant connection and legacy globals ($db, $db_id, $regnaar, ...), e.g. from
  * shopify_bootstrap() or the REST API's connect. The working directory is restored afterwards.
  *
  * @param int $ordreId ordrer.id
  * @param int $formular 4 (invoice) or 5 (credit note)
- * @param int|null $levNr delivery number (part of the key; formularprint() reads its global $lev_nr)
- * @param array<string, mixed> $opts pdftk and ps2pdf (commands; default: the global, else the master
- *   settings, else pdftk / $exec_path/ps2pdf)
+ * @param int|null $levNr delivery number, set as formularprint()'s global $lev_nr for the print (part of the key)
+ * @param array<string, mixed> $opts pdftk and ps2pdf (commands). pdftk defaults to the global $pdftk, else
+ *   the master setting, else pdftk; ps2pdf to the master setting, else $exec_path/ps2pdf
  * @return array{
  *   path: string,      Absolute path of temp/<db>/.ht_doc_<sha>.pdf.
  *   filename: string,  Download name with the document's own number, e.g. fakt1042.pdf or kn1043.pdf.
@@ -73,7 +77,7 @@ final class DocumentRenderError extends RuntimeException
  */
 function render_document(int $ordreId, int $formular, ?int $levNr = null, array $opts = []): array
 {
-	global $db, $db_id, $exec_path, $pdftk;
+	global $db, $db_id, $exec_path, $lev_nr, $pdftk;
 
 	if ($formular !== 4 && $formular !== 5) {
 		throw new InvalidArgumentException("render_document renders invoices (4) and credit notes (5), not formular $formular");
@@ -147,7 +151,9 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 	}
 	$cwd = getcwd();
 	$globalPdftk = $pdftk;
+	$globalLevNr = $lev_nr;
 	$pdftk = $tool; // formularprint() reads it
+	$lev_nr = $levNr; // formularprint() replaces its $lev_nr argument with this global
 	$work = "$dir/.ht_doc_$sha." . bin2hex(random_bytes(6)) . '.work';
 	try {
 		clearstatcache(true, $path);
@@ -187,6 +193,7 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 			chdir($cwd);
 		}
 		$pdftk = $globalPdftk;
+		$lev_nr = $globalLevNr;
 		if (is_dir($work)) {
 			foreach (scandir($work) as $file) {
 				if ($file !== '.' && $file !== '..') {

@@ -219,10 +219,15 @@ class InvoicesEndpoint extends BaseEndpoint
             return;
         }
         
-        // The print code finds temp/<db>/ and logolib/<db_id>/ through the legacy globals.
+        // The print code finds temp/<db>/ and logolib/<db_id>/ through the legacy globals. db_id is the
+        // account the request is for, as JWTAuth::getTenantDatabase() resolves it: two accounts can share a database.
         $db = $this->db;
-        $r = db_fetch_array(db_select("select id from regnskab where db = '" . db_escape_string($db) . "'", __FILE__ . " linje " . __LINE__, true));
-        $db_id = $r ? (int)$r['id'] : 0;
+        $payload = JWTAuth::validateToken();
+        $db_id = (int)($payload['tenant_id'] ?? 0);
+        if (!$db_id) {
+            $headers = array_change_key_case(getallheaders() ?: [], CASE_LOWER);
+            $db_id = (int)($headers['x-tenant-id'] ?? 0);
+        }
         try {
             $document = render_document($id, 4);
         } catch (DocumentRenderError $e) {
