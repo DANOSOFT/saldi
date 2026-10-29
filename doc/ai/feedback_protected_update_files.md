@@ -14,3 +14,5 @@ Claude and Codex may both inspect/read `includes/opdat_*.php` files when needed,
 **Why:** These files are sensitive update/backup paths, and accidental changes or even casual inspection can pull work into the wrong ownership area.
 
 **How to apply:** When searching or editing, exclude `includes/betweenUpdates2.php` unless the user's current request names it directly. `includes/opdat_*.php` may be read for context, but exclude it from edits unless the user explicitly requests changes there.
+
+**Enforced by:** `tools/guardrails` check `migrations` fails any change to these files; a version cut carries an exception (tools/guardrails/README.md).

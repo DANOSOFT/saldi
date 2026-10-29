@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-09-30 ---
+// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,6 +67,15 @@
 // 20260930 CL/SZ SD-699: Moved get_saved_vat_override(), momsberegning() and gruppeopslag() to
 //                  bogfor_includes/postingRules.php, shared with the "Kontokort med u-bogført" report.
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
+// 20261019 CL/LH MB-71: Simulation and posting are refused, naming the vouchers, while a saved row has text, amount or invoice number but no debit or credit account (unfinishedJournalVouchers()).
+//                Such rows are no longer deleted silently; only rows without any content are still dropped.
+// 20261023 CL/LH MB-71: The refusal alert text goes through jsString(), so it is no longer empty when $db_encode isn't UTF8.
+// 20261019 CL/LH MB-72: openpost() treats an empty, '0' and NULL project as the same, so a journal payment settles an invoice without a project.
+//                The settlement date is the later of invoice and payment date, not the invoice date.
+// 20261023 CL/LH MB-72: openpost() trims the project before matching and storing it, and a payment settling
+//                several invoices gives every row of the group the group's latest date.
+// 20261028 CL/LH MB-72: openpost() settles a payment naming several invoices ("A;B") only when they and the payment
+//                net to zero, and writes the payment row once instead of once per settled invoice.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -122,6 +131,14 @@ if ($kladde_id) {
 		exit;
 	}
 	$kladdenote_vis = htmlentities(stripslashes(trim((string)$row['kladdenote'])), ENT_QUOTES, $charset);
+	// A saved row with text, amount or invoice number but no account must be completed or deleted by the
+	// user; neither the preview (Simuler/confirm) nor posting may start, and nothing is deleted.
+	$unfinishedVouchers = unfinishedJournalVouchers($kladde_id);
+	if ($unfinishedVouchers) {
+		print "<script>alert(" . jsString(array(unfinishedJournalMessage($unfinishedVouchers))) . ");</script>";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
+		exit;
+	}
 }
 if ($funktion=='bogfor') {
 	$overskrift = findtekst('2209|Bogfør kassekladde', $sprog_id).", ".findtekst('1087|Kladde', $sprog_id)." $kladde_id";
@@ -292,6 +309,7 @@ $valutaposter=0;
 $dkkamount=array();
 if ($kladde_id) {
 	$posteringer=0;
+	// A row with an amount but no account was refused at the top of the page, so the preview never deletes rows.
 	$query = db_select("select * from kassekladde where kladde_id = $kladde_id and amount !=0 order by bilag",__FILE__ . " linje " . __LINE__);
 	while ($row =	db_fetch_array($query)){
 		if ($row['debet']||$row['kredit']) {
@@ -327,7 +345,7 @@ if ($kladde_id) {
 				$tjeksum[$y]=afrund($tjeksum[$y]-$dkkamount[$posteringer],3);
 				$kreditsum=$kreditsum+$dkkamount[$posteringer];
 			}
-		} else db_modify("delete from kassekladde where id='$row[id]'",__FILE__ . " linje " . __LINE__); 
+		}
 	}	
 } else {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
@@ -741,6 +759,9 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 		return("Kladden er allerede bogført");
 		exit;
 	}
+	// Refuse before anything is written: an unfinished row would otherwise be skipped and lost.
+	$unfinishedVouchers = unfinishedJournalVouchers($kladde_id);
+	if ($unfinishedVouchers) return unfinishedJournalMessage($unfinishedVouchers);
 
 	$d_momsart=array(); $k_momsart=array();
 	if ($kladdenote) db_modify("update kladdeliste set kladdenote = '$kladdenote' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
@@ -855,7 +876,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			$logtime=date("H:i");
 			list ($x, $month, $x)=explode('-', $transdate[$y]);
 			if (!$afd[$y]){$afd[$y]=0;}
-		} elseif (!$row['debet'] && !$row['kredit'] && $row['id']) { #20170516
+		} elseif ($row['id'] && !journalRowHasContent($row)) { #20170516 - only rows without any content are dropped
 			db_modify("delete from kassekladde where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -1095,8 +1116,6 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			$qtxt="update kladdeliste set bogfort = 'S', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} else {
-			$qtxt="delete from kassekladde where debet='0' and kredit='0' and kladde_id='$kladde_id'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="update kladdeliste set bogfort = 'V', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			for ($x=1; $x<=$transtjek; $x++) {
@@ -1138,6 +1157,15 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	$udlignet=0;
 	$udlign_date=$transdate;
 	$dato=date("Y-m-d");
+	// No project is stored as '' on journal lines but as '0' (or NULL) on invoices; all three mean no project.
+	// Trimmed once, so the stored value is the one matched here.
+	$projekt = trim((string)$projekt);
+	$projektSql = db_escape_string($projekt);
+	if (in_array($projekt, array('', '0'), true)) {
+		$projektMatch = "(projekt is null or projekt = '' or projekt = '0')";
+	} else {
+		$projektMatch = "projekt = '$projektSql'";
+	}
 	$belob=$amount*-1;
 	$debet=str_replace(" ","",$debet);
 	$qtxt = "select id from adresser where kontonr = '$debet' and art ='$art'";
@@ -1155,30 +1183,44 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		
 # 20121122 >>and projekt='$projekt'<< indsat herunder.
 		if ($udlign_date<$transdate) $udlign_date=$transdate;
+		// Every invoice the Faktura field names is looked up before anything is settled. Keyed by id, so a
+		// reference listed twice ("A;A") is one post.
+		$matches = array();
+		$matchedSum = 0;
+		$groupDate = $transdate;
 		for ($x=0;$x<count($invoices);$x++) {
-			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and projekt='$projekt' and udlignet!='1' and ";
+			$qtxt = "select id,transdate,amount from openpost where konto_id='$konto_id' and $projektMatch and udlignet!='1' and ";
 			$qtxt.= " faktnr='$invoices[$x]'";
 			if (count($invoices) == 1) $qtxt.= " and amount >= '$min' and amount < '$max'";  
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($r = db_fetch_array($q)) {
+			if (($r = db_fetch_array($q)) && !isset($matches[(int)$r['id']])) {
+				$matches[(int)$r['id']] = true;
+				$matchedSum += (float)$r['amount'];
 # $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
-				$udlign_date=$r['transdate'];
-				$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
-				$qtxt.= "where id = '$r[id]'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				// 20230626 -->
-				$qtxt = "insert into openpost
-				(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
-				if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
-				$qtxt.= "transdate,udlign_id,bilag_id,valuta,valutakurs,projekt) "; 
-				$qtxt.= "values ";
-				$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id',";
-				if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-				$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projekt')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$udlignet=1;
-				// <-- 20230626
+				$groupDate = max($groupDate, (string)$r['transdate']); # The later of invoice and payment date
 			}
+		}
+		// The invoices settle only when they and the payment net to zero, within half an øre as for a single
+		// invoice. A short or excess "A;B" payment leaves every post open, so the unpaid rest stays listed.
+		if ($matches && $matchedSum >= $min && $matchedSum < $max) {
+			$groupDateSql = db_escape_string($groupDate);
+			// One udlign_id and the group's latest date for the invoices and the payment.
+			$qtxt = "update openpost set udlignet = '1',udlign_date= '$groupDateSql',udlign_id='$udlign_id' ";
+			$qtxt.= "where id in (" . implode(',', array_keys($matches)) . ")";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			// 20230626 -->
+			// The payment row is written once per payment, not once per settled invoice.
+			$qtxt = "insert into openpost
+			(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
+			if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
+			$qtxt.= "transdate,udlign_id,bilag_id,valuta,valutakurs,projekt) ";
+			$qtxt.= "values ";
+			$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$groupDateSql','$kladde_id',";
+			if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
+			$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projektSql')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$udlignet=1;
+			// <-- 20230626
 		}
 	}
 	if ($udlignet<1) {
@@ -1188,7 +1230,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		$qtxt.= "bilag_id,valuta,valutakurs,projekt)";
 		$qtxt.= " values ('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','0','$transdate','$kladde_id',";
 		if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projekt')";
+		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projektSql')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 }
@@ -1212,6 +1254,57 @@ function valutaopslag($amount, $valuta, $transdate)
 	$diffkonto=$r['box3'];
 	
 	return array($amount,$diffkonto,$kurs); # 3'die parameter tilfojet 2009.02.10
+}
+######################################################################################################################################
+/**
+ * Whether a saved journal row holds anything typed besides its date and voucher number: a text, an amount
+ * or an invoice number. The date alone does not count, because saving the journal stamps a date on every
+ * row (opdater() in kassekladde.php), so a row the user has cleared still has one.
+ *
+ * @param array $row A kassekladde row.
+ * @return bool
+ */
+function journalRowHasContent($row) {
+	return trim((string)$row['beskrivelse']) !== '' || (float)$row['amount'] != 0 || trim((string)$row['faktura']) !== '';
+}
+######################################################################################################################################
+/**
+ * Voucher numbers of saved journal rows that have content but neither a debit nor a credit account.
+ * Posting skips such rows, so they must be completed or deleted before the journal is simulated or posted.
+ * The account test is the same one bogfor() uses to decide whether it posts a row.
+ *
+ * @param int|string $kladde_id Journal id (kladdeliste.id).
+ * @return int[] Distinct voucher numbers in ascending order, empty when no row is unfinished.
+ */
+function unfinishedJournalVouchers($kladde_id) {
+	$vouchers = array();
+	$qtxt = "select bilag, debet, kredit, amount, beskrivelse, faktura from kassekladde ";
+	$qtxt.= "where kladde_id = " . (int)$kladde_id . " order by bilag";
+	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (!$r['debet'] && !$r['kredit'] && journalRowHasContent($r) && !in_array((int)$r['bilag'], $vouchers)) {
+			$vouchers[] = (int)$r['bilag'];
+		}
+	}
+	return $vouchers;
+}
+######################################################################################################################################
+/**
+ * Message refusing simulation/posting because of unfinished rows, in the database encoding like findtekst().
+ * Inside a <script> block print it through jsString(), which also converts it from a non-UTF8 database.
+ * bogfor() returns it as well and the posting branch prints that inside onLoad="...", so it holds no
+ * double quotes or line breaks.
+ *
+ * @param int[] $vouchers Voucher numbers from unfinishedJournalVouchers().
+ * @return string
+ */
+function unfinishedJournalMessage($vouchers) {
+	global $sprog_id;
+
+	$txt = findtekst('5440|Kladden kan ikke bogføres. Følgende bilag har tekst eller beløb, men hverken debet- eller kreditkonto', $sprog_id);
+	$txt.= ': ' . implode(', ', $vouchers) . '. ';
+	$txt.= findtekst('5441|Udfyld kontoen, eller slet linjen ved at skrive - i bilagsfeltet.', $sprog_id);
+	return $txt;
 }
 ######################################################################################################################################
 
