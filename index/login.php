@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-10-08 ---
+// --- index/login.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,7 @@
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
+// 20261029 CDX/NTR Share online log permissions with the web server.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -81,6 +82,7 @@ include("../includes/db_query.php");
 include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 require_once(__DIR__ . '/../includes/locatorClient.php');
+require_once __DIR__ . '/../includes/sharedFile.php';
 
 #print "<!--";
 $timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
@@ -864,9 +866,8 @@ if(!isset($afbryd)){
 	$db_skriv_id = NULL;
 	$dbLocation = loginLocatorInstallation($_SERVER);
 	
-	$fp=fopen("../temp/.ht_online.log","a");
-	fwrite($fp,date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n"); #20210902
-	fclose($fp);
+	sharedFilePutContents(__DIR__ . "/../temp/.ht_online.log",
+		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n", true);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";
