@@ -5,8 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
-// 20261029 CL/MMR SST-911 Created. default_invoice_date() in debitor/orderIncludes/defaultInvoiceDate.php gives the
-//                 date an invoice gets when Fakturér is pressed with an empty Fakt. dato.
+// 20261029 CL/MMR SST-911 Created. default_invoice_date() in debitor/orderIncludes/defaultInvoiceDate.php gives the date an invoice gets when Fakturér is pressed with an empty Fakt. dato.
 //                 Since SST-802 every webshop order got its order date, which MEDshop did not want.
 //                 The order date is now only used when the regnskab has ticked it under Ordrerelaterede valg.
 //                 The database and the setting are stubbed, each test in its own process.

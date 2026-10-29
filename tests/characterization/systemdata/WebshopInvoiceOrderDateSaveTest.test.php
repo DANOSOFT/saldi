@@ -5,10 +5,9 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
-// 20261029 CL/MMR SST-911 Created. save_webshop_invoice_order_date() (systemdata/diverseIncludes/webshopInvoiceOrderDate.php)
-//                 saves "Fakturér webshopordrer med ordredato" when Ordrerelaterede valg is posted.
-//                 An unticked checkbox is not posted, so the hidden webshopInvoiceOrderDateShown field decides
-//                 whether the form had the checkbox at all. update_settings_value() is stubbed.
+// 20261029 CL/MMR SST-911 Created. save_webshop_invoice_order_date() (systemdata/diverseIncludes/webshopInvoiceOrderDate.php) saves "Fakturér webshopordrer med ordredato" when Ordrerelaterede valg is posted.
+//                 An unticked checkbox is not posted, so the hidden webshopInvoiceOrderDateShown field decides whether the form had the checkbox at all.
+//                 update_settings_value() is stubbed.
 #[RunTestsInSeparateProcesses]
 final class WebshopInvoiceOrderDateSaveTest extends TestCase
 {

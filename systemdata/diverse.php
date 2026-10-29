@@ -112,8 +112,8 @@
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
-// 20261029 CL/MMR SST-911 Save "Fakturér webshopordrer med ordredato" from Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate)
-//                 with save_webshop_invoice_order_date(), called before the page prints anything.
+// 20261029 CL/MMR SST-911 Save "Fakturér webshopordrer med ordredato" from Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate).
+//                 The save_webshop_invoice_order_date() handler runs before page output.
 
 @session_start();
 $s_id = session_id();

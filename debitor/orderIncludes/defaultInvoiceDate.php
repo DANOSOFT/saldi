@@ -24,8 +24,8 @@
 // Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261006 CL/LH SST-802: Default invoice date for manual invoicing; webshop orders keep their order date.
-// 20261029 CL/MMR SST-911 Webshop orders only get their order date when the regnskab has chosen it under
-//                 Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate). Otherwise today's date, as before SST-802.
+// 20261029 CL/MMR SST-911 Webshop orders only get their order date when the regnskab has chosen it under Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate).
+//                 Otherwise they get today's date, as before SST-802.
 
 /**
  * Invoice date to use when "Fakturér" is pressed with an empty Fakturadato field.
