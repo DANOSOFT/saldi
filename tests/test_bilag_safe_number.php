@@ -121,13 +121,13 @@ bilagCheck(bilagNextNumberReserved(1, array()) === 5,
 bilagTestJournal(3, array('10'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4,
 	'one staged line typed 10 does not drag the next number up to 11: 4 is offered, leaving no gap' . "\n");
-bilagTestJournal(3, array('4', '5'));
 bilagTestJournal(3, array('10'));
 bilagCheck(bilagNextNumberReserved(1, array(), 4) === 4,
 	'a series start read once per save keeps the gap fix even after the typed line is written' . "\n");
 bilagTestJournal(5, array('10'));
 bilagCheck(bilagNextNumberReserved(1, array(), 6) === 6,
 	'a journal at 5 with a staged 10 still offers 6, whoever is allocated first' . "\n");
+bilagTestJournal(3, array('4', '5'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 6, 'and a run of held numbers is walked past, one by one' . "\n");
 bilagTestJournal(3, array());
 bilagCheck(bilagNextNumberReserved(1, array(), 4, array(4)) === 5,

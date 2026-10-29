@@ -317,7 +317,6 @@ function bilagStagedNumbersWillBeSaved($kladde_id) {
  * @param array $held Numbers the staged lines will be saved under (bilagStagedNumbersWillBeSaved()).
  * @param array $used Replacements already handed out in this save.
  * @param int   $from The series start: the journal's next number, read once per save.
- * @param array $handed Numbers this save has already allocated, in that order.
  * @return int The number to use, or 0 when the column cannot hold one.
  */
 function bilagNextNumberSkipping($held, $used, $from) {
@@ -341,6 +340,9 @@ function bilagNextNumberSkipping($held, $used, $from) {
  *
  * @param int             $kladde_id    Journal (kladdeliste.id).
  * @param array<int, int> $replacements What bilagReplaceTakenProposals() returned.
+ * @param int             $from        The series start: the journal's next number, read once per save
+ *                                    (0 reads it now, before the save writes anything).
+ * @param array<int, int> $handed      Numbers this save has already allocated, in that order.
  * @return int The voucher number to allocate, or 0 when the column cannot hold the next one.
  */
 function bilagNextNumberReserved($kladde_id, $replacements, $from = 0, $handed = array()) {

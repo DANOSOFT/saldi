@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -205,22 +205,14 @@
 //                a link drag (Wayland has no link action), so nothing happened when a clip was released on another clip.
 // 20261027 CL/LH (review) lookupVat() drops an answer for a momskode the field no longer holds (data-lookup-key or the code
 //                changed since it asked), so "Fortryd" after an invoice pick keeps the code it puts back; accountAutocomplete.js?v= bumped.
-// 20261027 LOE SST-888 (review) A save that refuses a line no longer reports the whole save as done: the refused
-//                  row stays staged for the re-rendered form and only the other lines are collected. An exact resend of that save
-//                  keeps the staged rows instead of staging its lines again, so a line that was committed is not written twice.
-// 20261027 LOE SST-888 (review) A save that refused every line no longer records a resend fingerprint, so an
-//                  unchanged retry can still save the line it kept; opdater() counts the rows it writes to tell them apart.
-// 20261027 LOE SST-888 (review) the three other allocations refuse the line when no storable number is left.
 // 20261028 CL/LH "<bilag>+N" put its N empty lines at the bottom of the journal on the render after the save: the post-save
 //                order (MB-41) only knew the ids the form posted, and lines inserted by indsaet_linjer() sorted after them.
 //                indsaet_linjer() now returns the new id and the order places those lines right under the row they came from.
 //                The date a row was drawn with (transdate[]) is matched by line id, not screen row, since those lines shift the rows
 //                below them; by row a debtor line could take another line's date and lose a due date typed by hand.
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
-// 20261028 LOE SST-888 (review) A refused line is never offered or written under a number the column cannot hold:
-//                  the taken-number query skips values that do not fit, the grid offers the next number (not the
-//                  fiscal year's highest) and offers nothing at all when there is none, a page load no longer
-//                  clears the line a refusal kept, and the refusal now says the fiscal year's series is used up.
+// 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated,
+//                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -3770,7 +3762,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			$bilag[$y] = $kk_last_bilag_next;
 		}
-		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'>";
+		# SST-888 (review) a line without a number shows an empty voucher field, not a 0 the user reads as a number
+		$kk_bila_vaerdi = ((int)$bilag[$y] > 0) ? (int)$bilag[$y] : '';
+		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$kk_bila_vaerdi\" onchange='javascript:docChange = true;'>";
 		if (!$id[$y] && !empty($kkForslag[$y])) print "<input type='hidden' name='bilf$y' value='" . (int)$kkForslag[$y] . "'>";
 		print "</td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -4028,8 +4022,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
 		// MB-81 bilf$x carries the proposal, so the save can tell it from a number the user typed
+		# SST-888 (review) and the new line shows an empty field when no number is offered, not a 0
+		$kk_next_vaerdi = ((int)$next > 0) ? (int)$next : '';
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
-		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'>";
+		name='bila$x' $de_fok value =\"$kk_next_vaerdi\" onchange='javascript:docChange = true;'>";
 		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_next_bilag . "'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
 		name='dato$x' $de_fok value =\"$dato[$x]\" onchange='javascript:docChange = true;'></td>\n";
@@ -4817,15 +4813,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						$transdate = date("Y-m-d");
 					$bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 					if ($bilag > 2147483647) {
-						$r_max = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
-						$new_bilag = (int)$r_max['next_bilag'];
-						# SST-888 (review) MAX(bilag) + 1 is not storable at the ceiling: hand out nothing and let
-						# the allocation below refuse the line instead
-						if (!bilagNumberFits((string)$new_bilag)) {
-							$new_bilag = 0;
+						# SST-888 (review) the replacement comes from the same allocator as every other site, so it
+						# skips this save's own numbers and cannot pick one the column cannot hold
+						$bilag_for_stort = $bilag;
+						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+						if ($bilag > 0) {
+							$kk_bilag_givet[] = (int)$bilag;
+							alert("Bilagsnummer $bilag_for_stort er for stort (maks 2147483647) og er erstattet med $bilag.");
 						}
-						alert("Bilagsnummer $bilag er for stort (maks 2147483647) og er erstattet med $new_bilag.");
-						$bilag = $new_bilag;
 					}
 					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
 					# writing the 0 back; a positive number the user entered is kept as it is.
@@ -4864,14 +4859,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if ($forfaldsdate) {
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 						if ($insert_bilag > 2147483647) {
-							$r_max2 = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
-							$new_bilag2 = (int)$r_max2['next_bilag'];
-							# SST-888 (review) same rule in the insert branch: nothing storable means refuse, not write
-							if (!bilagNumberFits((string)$new_bilag2)) {
-								$new_bilag2 = 0;
+							# SST-888 (review) same rule in the insert branch: the allocator hands out the replacement,
+							# so it skips this save's own numbers and never picks one the column cannot hold
+							$insert_for_stort = $insert_bilag;
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							if ($insert_bilag > 0) {
+								$kk_bilag_givet[] = (int)$insert_bilag;
+								alert("Bilagsnummer $insert_for_stort er for stort (maks 2147483647) og er erstattet med $insert_bilag.");
 							}
-							alert("Bilagsnummer $insert_bilag er for stort (maks 2147483647) og er erstattet med $new_bilag2.");
-							$insert_bilag = $new_bilag2;
 						}
 						# 20260928 LOE SST-817 A line saved without a voucher number is given the journal's
 						# next one instead of 0, so a balanced line advances the series and no number is
