@@ -1,6 +1,6 @@
 <?php
 
-// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250130 PHR migrate utf8_en-/decode() to mb_convert_encoding
 // 20250829 PHR Returns textId if table tekster doeesn't exist
 // 20250909 LOE checks first that db functions exist and error log added
 // 20260320 LOE Updated $sessionVar to only allow values that won't corrupt the session array.
