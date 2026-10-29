@@ -7,6 +7,8 @@
 //                  number/date formatting, da/en texts without the uncached findtekst('plain text') path,
 //                  and the page frame (head/tabs/foot).
 // 20261029 CL/ASR vr_require_operator() shows a short notice until the update chain has created the panel's tables.
+// 20261029 CL/ASR Hooks for a panel's own shell (menu, home link, label, shell class, logo, topbar controls, guide link
+//                  and version line); without them the operator panel's shell is unchanged.
 
 if (!function_exists('vr_h')) {
 function vr_cs() { global $db_encode; return ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1'; }

@@ -17,6 +17,7 @@ include("../includes/partnerScope.php");
 include("../includes/partnerPanel.php");
 $brugernavn = 'gæst'; $sprog_id = 1;
 bp_tables_ensure();
+if (!bp_ready()) { print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto\"><h1 style=\"font-size:20px\">Saldi er lige blevet opdateret</h1><p>Prøv linket igen om et øjeblik.</p></body></html>"; exit; } # 20261029 CL/ASR tables not created yet
 $t = preg_replace('/[^a-f0-9]/', '', (string)if_isset($_REQUEST, '', 't'));
 $kind = ''; $row = null;
 if (strlen($t) == 48) {

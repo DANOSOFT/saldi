@@ -10,8 +10,7 @@ $s_id=session_id();
 //                  - Opret kunderegnskab: a new account in the customer's name with company details, the payment
 //                    model (the firm pays Finans in the bookkeeper scheme, or the customer pays a chosen plan with a
 //                    30-day trial), the customer's first user (create now, invite by e-mail, or later) and the
-//                    responsible employee. The database itself is created by opret() from operator_opret.php, which is
-//                    included for its functions only (VR_OPRET_FUNCTIONS_ONLY), so the two pages share one creation.
+//                    responsible employee. The account is created by create_regnskab() from includes/opretfunc.php.
 //                  - Tilknyt eksisterende regnskab: look up by number, name or known CVR and send an access request
 //                    that the customer approves by e-mail (or Saldi, when the account has no e-mail). Nothing about
 //                    the customer's plan, payer or other bookkeepers changes.
@@ -34,8 +33,7 @@ include("vr_ui.php");
 include("inc_betalinger.php");
 include("inc_proeve.php");
 include("bogholder_ui.php");
-define('VR_OPRET_FUNCTIONS_ONLY', true);
-include("operator_opret.php"); # opret() and forside() only; its page code returns at the top
+include(__DIR__ . "/../includes/opretfunc.php"); // create_regnskab(), shared with admin/opret.php, operator_opret.php and the sign-up API
 $me = bp_require_partner();
 ent_tables_ensure(); tr_tables_ensure();
 $notes = vr_flash(); $pid = bp_pid(); $p = bp_partner(); $custWord = bp_cust_word();
@@ -71,17 +69,18 @@ if (isset($_POST['bp_action'])) {
 		elseif ($f['userMode'] != 'none') $err[] = bp_t('Vælg, hvordan kundens bruger oprettes','Choose how the customer user is created');
 		if ($resp && !bp_employee($resp)) $resp = 0;
 		if ($err) { $_SESSION['bp_opret_form'] = $f + array('responsible' => $resp); vr_prg($err, 'bogholder_opret.php', 'warn'); }
-		// ---- create, like operator_opret.php does
+		// ---- create the account with create_regnskab() (includes/opretfunc.php), as admin/opret.php and operator_opret.php do
 		@set_time_limit(600);
-		$regnskab = db_escape_string($f['regnskab']); $email = db_escape_string($f['email']);
-		transaktion('begin');
-		db_modify("insert into regnskab (regnskab,dbhost,dbuser,brugerantal,posteringer,email,bilag,lukket) values ('$regnskab','$sqhost','$squser','0','0','$email','0','')", __FILE__ . " linje " . __LINE__);
-		$row = db_fetch_array(db_select("select id from regnskab where regnskab='$regnskab' and dbhost='$sqhost' and dbuser='$squser' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
-		$db_id = (int)$row['id']; $newdb = $sqdb."_".$db_id;
-		db_modify("update regnskab set db='$newdb' where id=$db_id", __FILE__ . " linje " . __LINE__);
-		transaktion('commit');
-		// plan, payer, trial follow-up
 		$cvrClean = preg_replace('/\D/', '', $f['cvrnr']);
+		$adminUser = $f['userMode'] == 'now' ? $f['brugernavn'] : 'kunde'; $adminPw = $f['userMode'] == 'now' ? $f['kode'] : bin2hex(random_bytes(12));
+		$company = array('kontakt' => db_escape_string($f['kontakt']), 'firmanavn' => db_escape_string($f['firmanavn'] !== '' ? $f['firmanavn'] : $f['regnskab']), 'addr1' => db_escape_string($f['addr1']), 'addr2' => '', 'postnr' => db_escape_string($f['postnr']), 'bynavn' => db_escape_string($f['bynavn']), 'tlf' => db_escape_string($f['tlf']), 'email' => db_escape_string($f['email']), 'cvrnr' => db_escape_string($cvrClean));
+		$ws = $GLOBALS['webservice'] ?? null; $GLOBALS['webservice'] = 1; # like the sign-up API: no master user gets the account added to an adgang_til list because it shares the administrator's name
+		ob_start(); $res = create_regnskab(db_escape_string($f['regnskab']), db_escape_string($adminUser), db_escape_string($adminPw), db_escape_string($f['email']), 0, 0, $std ? 'on' : NULL, $company); ob_end_clean();
+		$GLOBALS['webservice'] = $ws; $db = $sqdb;
+		if (!$res['ok']) vr_prg(array(bp_t('Regnskabet kunne ikke oprettes','The account could not be created').($res['error'] == 'exists' ? ': '.bp_t('navnet findes allerede','the name already exists') : '')), 'bogholder_opret.php', 'warn');
+		$db_id = (int)$res['db_id']; $newdb = $res['db'];
+		db_modify("update regnskab set lukket = '' where id = '$db_id' and lukket is null", __FILE__ . " linje " . __LINE__);
+		// plan, payer, trial follow-up
 		if ($grp) { ent_write_plan($db_id, $f['plan'], date('Y-m-d'), 'manual'); db_modify("insert into regnskab_trial (regnskab_id, started, ends, source, resolved, resolved_at, updated_by) values ('$db_id', current_date, current_date, 'opret', 'exempt', now(), '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__); } # a group company has no trial
 		elseif ($f['model'] == 'partner') { ent_write_plan($db_id, 'finans', date('Y-m-d'), 'manual'); db_modify("insert into regnskab_trial (regnskab_id, started, ends, source, resolved, resolved_at, updated_by) values ('$db_id', current_date, current_date, 'opret', 'exempt', now(), '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__); }
 		else { if ($f['plan'] == 'finans') ent_write_plan($db_id, 'finans', date('Y-m-d'), 'manual'); else ent_start_trial($db_id, $f['plan'], 30); tr_register($db_id); }
@@ -89,11 +88,6 @@ if (isset($_POST['bp_action'])) {
 		partner_log('ledger.created', $db_id, $pid, $f['regnskab'].' – '.($grp ? ent_plan_name($f['plan']).', '.($f['model'] == 'partner' ? 'faktureres via hovedselskabet' : 'betaler selv') : ($f['model'] == 'partner' ? 'firmaet betaler Finans (ordning)' : 'kunden betaler: '.$f['plan'])).($cvrClean ? " – CVR $cvrClean" : ''));
 		partner_log('partner.link_added', $db_id, $pid, $p['name'].' ('.($grp ? 'owner' : 'full').') – ved oprettelse');
 		if ($f['model'] == 'partner') bp_set_payer($db_id, $pid, 'partner', bp_t('ved oprettelse','at creation'));
-		// the database with chart of accounts, company details and the first user (opret() from operator_opret.php)
-		$fra_formular = 1; $firmanavn = db_escape_string($f['firmanavn'] !== '' ? $f['firmanavn'] : $f['regnskab']); $addr1 = db_escape_string($f['addr1']); $addr2 = ''; $postnr = db_escape_string($f['postnr']); $bynavn = db_escape_string($f['bynavn']); $kontakt = db_escape_string($f['kontakt']); $tlf = db_escape_string($f['tlf']); $cvrnr = db_escape_string($cvrClean);
-		$adminUser = $f['userMode'] == 'now' ? $f['brugernavn'] : 'kunde'; $adminPw = $f['userMode'] == 'now' ? $f['kode'] : bin2hex(random_bytes(12));
-		ob_start(); opret($sqhost, $squser, $sqpass, $newdb, db_escape_string($adminUser), db_escape_string($adminPw), $std ? 'on' : NULL); ob_end_clean();
-		include("../includes/connect.php"); $db = $sqdb;
 		// company details and work counts into the panel's cache right away
 		$one = array($db_id => array('id' => $db_id, 'db' => $newdb, 'closed' => false, 'cache' => null)); bp_cache_refresh($one, true);
 		$done = array(bp_t('Regnskabet','The account').' '.$f['regnskab'].' '.bp_t('er oprettet','was created').($grp ? ' – '.ent_plan_name($f['plan']).', '.($f['model'] == 'partner' ? bp_t('faktureres via hovedselskabet','invoiced via the parent') : bp_t('betaler selv','pays itself')) : ($f['model'] == 'partner' ? ' – '.bp_t('Finans i bogholderordningen','Finans in the scheme') : ' – '.bp_t('kunden betaler','the customer pays').' '.ent_plan_name($f['plan']).($f['plan'] != 'finans' ? ' ('.bp_t('30 dages prøve','30-day trial').')' : ''))));

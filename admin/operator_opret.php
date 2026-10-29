@@ -29,7 +29,6 @@
 // 20261029 CL/ASR The account is now created by create_regnskab() from includes/opretfunc.php instead of a copy of
 //                  opret(), so the page keeps only the form, the account type, plan/trial and partner choices.
 
-if (defined('VR_OPRET_FUNCTIONS_ONLY')) return; # 20261012 CL/ASR bogholder_opret.php includes this file for opret()/forside() only (declared at compile time; the page code below is skipped)
 @session_start();
 $s_id=session_id();
 

@@ -35,6 +35,10 @@ function bp_menu() {
 // Guard: partner users only. Returns the current user; never returns for anyone else.
 function bp_require_partner() {
 	bp_tables_ensure();
+	if (!bp_ready()) { # 20261029 CL/ASR the update chain creates the panel's tables at the next login to any account after a deploy
+		while (ob_get_level()) ob_end_clean();
+		print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">".bp_t('Panelet er ved at blive klar','The panel is being prepared')."</h1><p>".bp_t('Saldi er lige blevet opdateret. Prøv igen om et øjeblik.','Saldi has just been updated. Please try again in a moment.')."</p><p><a href=\"../index/logud.php\">".bp_t('Log ud','Log out')."</a></p></body></html>"; exit;
+	}
 	$u = partner_current_user();
 	if (!$u['partner']) {
 		while (ob_get_level()) ob_end_clean();

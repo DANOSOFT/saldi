@@ -1,5 +1,5 @@
 <?php
-// --- includes/partnerPanel.php --- ver 5.1.0 --- 2026.10.12 ---
+// --- includes/partnerPanel.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice.
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
@@ -13,6 +13,7 @@
 // 20261029 CL/ASR Group mode (partners.kind = 'koncern', addendum 29/10): the group owns its companies (access 'owner'),
 //                  companies are invoiced via the parent by default and may pay themselves, the group changes plans
 //                  directly without a proposal, and each group employee counts as one ERP user across all companies.
+// 20261029 CL/ASR Group mode (koncern); the tables are created by the update chain (includes/opdat_func/partnerPanelSchema.php).
 
 if (!function_exists('bp_tables_ensure')) {
 
@@ -22,24 +23,13 @@ define('BP_PRICING_PROVISIONAL', true); # the volume tiers are placeholders unti
 
 // ---------- tables ----------
 function bp_tables_ensure() {
-	static $done = false; if ($done) return; $done = true;
-	partner_tables_ensure(); partner_cols_ensure();
-	$has = fn($t, $c) => (bool)db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = '$t' AND column_name = '$c'", __FILE__ . " linje " . __LINE__));
-	$tbl = fn($t) => (bool)db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = '$t'", __FILE__ . " linje " . __LINE__));
-	if (!$has('partners', 'contact_name')) db_modify("ALTER TABLE partners ADD COLUMN contact_name varchar(120), ADD COLUMN contact_email varchar(120), ADD COLUMN contact_phone varchar(40), ADD COLUMN address varchar(120), ADD COLUMN zip varchar(10), ADD COLUMN city varchar(60), ADD COLUMN billing_email varchar(120), ADD COLUMN billing_ref varchar(60)", __FILE__ . " linje " . __LINE__);
-	if (!$tbl('partner_pricing_tiers')) {
-		db_modify("CREATE TABLE IF NOT EXISTS partner_invites (id SERIAL PRIMARY KEY, partner_id int NOT NULL, kind varchar(16) NOT NULL, regnskab_id int, name varchar(120), email varchar(120) NOT NULL, partner_role varchar(20), rights text, scope text, role varchar(16), message text, token varchar(64) NOT NULL, status varchar(12) NOT NULL DEFAULT 'sent', created_by int, created timestamp NOT NULL DEFAULT now(), sent_at timestamp, expires_at date NOT NULL, accepted_at timestamp, result_user_id int, replaces_user_id int)", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE TABLE IF NOT EXISTS partner_access_requests (id SERIAL PRIMARY KEY, partner_id int NOT NULL, regnskab_id int NOT NULL, requested_by int, message text, token varchar(64) NOT NULL, sent_to varchar(120), status varchar(12) NOT NULL DEFAULT 'open', created timestamp NOT NULL DEFAULT now(), sent_at timestamp, expires_at date NOT NULL, decided_at timestamp, decided_by varchar(60))", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE TABLE IF NOT EXISTS partner_requests (id SERIAL PRIMARY KEY, partner_id int NOT NULL, regnskab_id int NOT NULL, kind varchar(24) NOT NULL, details text, effective_from date, token varchar(64), sent_to varchar(120), status varchar(12) NOT NULL DEFAULT 'open', created_by int, created timestamp NOT NULL DEFAULT now(), decided_at timestamp, decided_by varchar(60), note text)", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE TABLE IF NOT EXISTS partner_favorites (bruger_id int NOT NULL, regnskab_id int NOT NULL, added timestamp NOT NULL DEFAULT now(), PRIMARY KEY (bruger_id, regnskab_id))", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE TABLE IF NOT EXISTS partner_recent (bruger_id int NOT NULL, regnskab_id int NOT NULL, opened_at timestamp NOT NULL DEFAULT now(), PRIMARY KEY (bruger_id, regnskab_id))", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE TABLE IF NOT EXISTS partner_ledger_cache (regnskab_id int PRIMARY KEY, firma varchar(120), cvr varchar(20), email varchar(120), tlf varchar(40), addr1 varchar(120), postnr varchar(10), bynavn varchar(60), kontakt varchar(120), open_journals int, journal_lines int, pool_docs int, users_active int, checked_at timestamp)", __FILE__ . " linje " . __LINE__);
-		db_modify("CREATE TABLE IF NOT EXISTS partner_pricing_tiers (id SERIAL PRIMARY KEY, min_count int NOT NULL, max_count int, discount_pct numeric(5,2) NOT NULL DEFAULT 0, note text)", __FILE__ . " linje " . __LINE__);
-		foreach (array(array(1, 4, 0), array(5, 9, 10), array(10, 24, 15), array(25, 49, 20), array(50, null, 25)) as $t) db_modify("INSERT INTO partner_pricing_tiers (min_count, max_count, discount_pct, note) VALUES ('$t[0]', ".($t[1] === null ? 'NULL' : "'$t[1]'").", '$t[2]', 'foreløbig sats')", __FILE__ . " linje " . __LINE__);
-	}
+	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/partnerPanelSchema.php via betweenUpdates.php).
+	return;
 }
 
 // ---------- small helpers (work with or without admin/vr_ui.php) ----------
+// 20261029 CL/ASR True once the update chain has created the accountant panel's tables (settings flag on the master).
+function bp_ready() { static $r = null; if ($r === null) $r = (bool)db_fetch_array(db_select("SELECT 1 FROM settings WHERE var_grp = 'system' AND var_name = 'partner_panel_schema'", __FILE__ . " linje " . __LINE__)); return $r; }
 function bp_h($s) { return function_exists('vr_h') ? vr_h($s) : htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function bp_t($da, $en) { return function_exists('vr_t') ? vr_t($da, $en) : $da; }
 function bp_date($d) { return $d ? date('d-m-Y', strtotime(substr((string)$d, 0, 10))) : '–'; }

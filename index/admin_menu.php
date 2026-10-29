@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------ admin/admin_menu --------------- ver 4.0.4 --- 2026-10-12 ---
+// ------------ admin/admin_menu --------------- ver 4.0.4 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20180131 
 // 20210916 LOE translated some texts 
 // 20261012 CL/ASR Saldi staff (admin flag 'on') go to the operator panel; everyone else sees this menu unchanged.
+// 20261029 CL/ASR Users who belong to a bookkeeper, auditor or group (partner_users) go to the accountant panel.
 
 @session_start();  # Skal angives oeverst i filen??!!
 $s_id=session_id();
