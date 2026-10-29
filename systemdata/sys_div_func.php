@@ -131,10 +131,11 @@
 //                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
 //                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
 // 20261027 CL/MMR SD-780 The SMTP password on Kontoindstillinger is a password field (was clear text) with a "Vis" box to show it.
-// 20261029 CL/MJ SST-885 ordre_valg(): new checkbox "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL, off by default).
 //                 The value is still posted unchanged, so Skift works without retyping it.
 //                 The two includes in kontoindstillinger() use __DIR__ now (include-path convention for an edited block).
 //                 The brugerantal lookup between them sits at function level (was indented one tab too far).
+// 20261029 CL/MJ SST-885 ordre_valg(): new checkbox "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL, off by default).
+
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
