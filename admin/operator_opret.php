@@ -27,7 +27,9 @@
 // 20261012 CL/ASR Operator copy of admin/opret.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // 20261029 CL/ASR The account is now created by create_regnskab() from includes/opretfunc.php instead of a copy of
-//                  opret(), so the page keeps only the form, the account type, plan/trial and partner choices.
+//                  opret(), so the page keeps only the form, the account type, plan/trial and partner choices. Company
+//                  details posted with fra_formular are passed on, as admin/opret.php does, and the administrator's
+//                  password is hashed as typed (an apostrophe was hashed escaped and the login failed).
 
 @session_start();
 $s_id=session_id();
@@ -135,7 +137,8 @@ if ($_POST){
 	} else {
 		// 20261029 CL/ASR The account is created by create_regnskab() in includes/opretfunc.php, shared with admin/opret.php
 		//                  and the sign-up API (it rolls back on failure and leaves the connection on the master database).
-		$res = create_regnskab($regnskab, $brugernavn, $passwd, $email, (int)$posteringer, (int)$brugerantal, $std_kto_plan);
+		$companyFields = $fra_formular ? array('kontakt' => $kontakt, 'firmanavn' => $firmanavn, 'addr1' => $addr1, 'addr2' => $addr2, 'postnr' => $postnr, 'bynavn' => $bynavn, 'tlf' => $tlf, 'email' => $email, 'cvrnr' => $cvrnr) : array();
+		$res = create_regnskab($regnskab, $brugernavn, trim($_POST['passwd']), $email, (int)$posteringer, (int)$brugerantal, $std_kto_plan, $companyFields); # the raw password: it is hashed, and the login page hashes what was typed
 		if (!$res['ok']) {
 			print "<BODY onLoad=\"javascript:alert('".vr_t('Regnskabet','The account')." $regnskab ".vr_t('kunne ikke oprettes','could not be created')."')\">";
 			forside($regnskab,$brugernavn);

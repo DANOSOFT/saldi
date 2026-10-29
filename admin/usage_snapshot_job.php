@@ -1,5 +1,5 @@
 <?php
-// --- admin/usage_snapshot_job.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- admin/usage_snapshot_job.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Nightly usage snapshot (entitlements spec §7.3 step 1 / panels spec §5.5): for every open
@@ -8,6 +8,7 @@
 //                  CLI only:  cd admin && php usage_snapshot_job.php [limit]
 //                  Cron (owner's decision 10/10-2026: 02:00 every night), as the web server user:
 //                    0 2 * * * cd /var/www/html/<map>/admin && /usr/bin/php usage_snapshot_job.php >> ../temp/usage_snapshot.log 2>&1
+// 20261029 CL/ASR Exits quietly until the update chain has created the panel's tables (operator_panel_schema flag).
 if (php_sapi_name() !== 'cli') { http_response_code(403); exit("cli only\n"); }
 chdir(__DIR__);
 include("../includes/connect.php");
@@ -21,6 +22,7 @@ include("../includes/saldiBillingApi.php");
 include("inc_betalinger.php");
 include("inc_installationer.php");
 $brugernavn = 'cron'; $sprog_id = 1;
+if (!db_fetch_array(db_select("SELECT 1 FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__))) exit("operator panel tables not created yet (next login to any account does it); nothing to do\n");
 ent_tables_ensure(); partner_tables_ensure();
 $limit = isset($argv[1]) ? (int)$argv[1] : 0;
 $due = lc_apply_due(); # lifecycle first, so the list of open ledgers below reflects today's changes

@@ -29,9 +29,12 @@
 //                  from index/install.php (new installs). It runs once per master: a settings flag records the
 //                  schema version, so later logins only read that flag. All statements use the master connection
 //                  (db_modify/db_select with $global = true), so it works from an account login and from install.php.
+//                  An advisory lock lets one login apply it at a time, and the flag is only set once every table and
+//                  column is there.
 
 if (!function_exists('operator_panel_schema')) {
 	define('OPERATOR_PANEL_SCHEMA', '1');
+	define('OPERATOR_PANEL_SCHEMA_LOCK', 731001); # pg advisory lock key (SD-731)
 
 	/**
 	 * Create or complete the operator panel's tables in the master database. Idempotent.
@@ -41,6 +44,14 @@ if (!function_exists('operator_panel_schema')) {
 	function operator_panel_schema() {
 		$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__, true));
 		if ($flag && $flag['var_value'] >= OPERATOR_PANEL_SCHEMA) return false;
+		// Two logins at the same moment: only one applies the schema, the other carries on and the next login sees the flag.
+		$lock = db_fetch_array(db_select("SELECT CASE WHEN pg_try_advisory_lock(".OPERATOR_PANEL_SCHEMA_LOCK.") THEN 1 ELSE 0 END AS ok", __FILE__ . " linje " . __LINE__, true));
+		if (empty($lock['ok'])) return false;
+		$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__, true));
+		if ($flag && $flag['var_value'] >= OPERATOR_PANEL_SCHEMA) {
+			db_select("SELECT pg_advisory_unlock(".OPERATOR_PANEL_SCHEMA_LOCK.")", __FILE__ . " linje " . __LINE__, true);
+			return false;
+		}
 		$tables = array(
 		"CREATE TABLE IF NOT EXISTS partners (id SERIAL PRIMARY KEY, kind varchar(10) NOT NULL DEFAULT 'bogholder', name varchar(120) NOT NULL, cvr varchar(20), home_regnskab_id int, status varchar(10) NOT NULL DEFAULT 'active', can_create boolean NOT NULL DEFAULT false, can_manage_features boolean NOT NULL DEFAULT true, can_manage_users boolean NOT NULL DEFAULT true, created timestamp NOT NULL DEFAULT now(), created_by int)",
 		"CREATE TABLE IF NOT EXISTS partner_users (bruger_id int PRIMARY KEY, partner_id int NOT NULL, partner_role varchar(20) NOT NULL DEFAULT 'employee', created timestamp NOT NULL DEFAULT now())",
@@ -83,8 +94,22 @@ if (!function_exists('operator_panel_schema')) {
 			db_modify($c[2], __FILE__ . " linje " . __LINE__, true);
 			if (!empty($c[3])) db_modify($c[3], __FILE__ . " linje " . __LINE__, true);
 		}
+		// db_modify() only logs and mails a failed statement here (includes/opdat), so check the result before the flag
+		// is set; with something missing the flag stays unset and the next login tries again.
+		$missing = 0;
+		foreach ($tables as $qtxt) {
+			if (preg_match('/^CREATE TABLE IF NOT EXISTS (\w+)/', $qtxt, $m) && !db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = '$m[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
+		}
+		foreach ($columns as $c) {
+			if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = '$c[0]' AND column_name = '$c[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
+		}
+		if ($missing) {
+			db_select("SELECT pg_advisory_unlock(".OPERATOR_PANEL_SCHEMA_LOCK.")", __FILE__ . " linje " . __LINE__, true);
+			return false;
+		}
 		if ($flag) db_modify("UPDATE settings SET var_value = '".OPERATOR_PANEL_SCHEMA."' WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__, true);
 		else db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('operator_panel_schema', 'system', '".OPERATOR_PANEL_SCHEMA."', 'Schema version of the operator panel tables (includes/opdat_func/operatorPanelSchema.php)')", __FILE__ . " linje " . __LINE__, true);
+		db_select("SELECT pg_advisory_unlock(".OPERATOR_PANEL_SCHEMA_LOCK.")", __FILE__ . " linje " . __LINE__, true);
 		return true;
 	}
 }
