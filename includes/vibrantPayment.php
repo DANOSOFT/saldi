@@ -26,6 +26,7 @@
 // 20261029 CL/MMR SST-841: New. Server-side Vibrant payment check for the login-free booking pages.
 //                 updateBooking is a named handler with a pure decision function; approve and delete are atomic.
 //                 A failed invoice keeps the booking approved and is retried once per call, under a lock.
+//                 Cancelling deletes only on the payment binding it checked; links bind only to open bookings.
 //
 
 include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
@@ -175,10 +176,13 @@ function update_booking_payment($db, $data, $invoice) {
 		return array('status' => 'approved');
 	}
 	if ($decision === 'delete') {
-		$deleted = db_fetch_array(db_select("DELETE FROM rentalperiod WHERE id = $bookingId AND expiry_time IS NOT NULL RETURNING order_id", __FILE__ . " linje " . __LINE__));
+		// only the binding the decision was made on: a payment bound meanwhile keeps the booking
+		$checked = db_escape_string((string)$booking['payment_id']);
+		$qtxt = "DELETE FROM rentalperiod WHERE id = $bookingId AND expiry_time IS NOT NULL AND COALESCE(payment_id, '') = '$checked' RETURNING order_id";
+		$deleted = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (!$deleted) {
-			$still = db_fetch_array(db_select("SELECT id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
-			return array('status' => $still ? 'approved' : 'deleted');
+			$still = db_fetch_array(db_select("SELECT expiry_time FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
+			return array('status' => !$still ? 'deleted' : ($still['expiry_time'] ? 'pending' : 'approved'));
 		}
 		db_modify("DELETE FROM ordrer WHERE id = " . (int)$deleted['order_id'], __FILE__ . " linje " . __LINE__);
 		return array('status' => 'deleted');
