@@ -1,0 +1,15 @@
+# CodeRabbit settings for DANOSOFT/saldi. Anything not set here comes from the
+# organisation settings in CodeRabbit (inheritance: true).
+#
+# CodeRabbit reviews and comments on every PR, but it no longer requests changes
+# or approves. Its "changes requested" blocked merging exactly like a person's,
+# and on 28 Oct ten open PRs were held only by it, with nobody nudged to act.
+# A person now decides whether a finding matters; the author still fixes or
+# answers each one.
+inheritance: true
+reviews:
+  auto_approvals:
+    # Off: no change requests for blocking findings and no automatic approval.
+    enabled: false
+    # Authors cannot ask CodeRabbit to approve their own PR.
+    allow_author_approval: false

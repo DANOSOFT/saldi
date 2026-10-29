@@ -1438,6 +1438,14 @@
 1438	Klik for at genberegne DB/DG	Click to recalculate DB / DG	Klikk for å beregne DB / DG på nytt
 1439	Klik her for at importere en csv fil	Click here to import a csv file	Klikk her for å importere en csv-fil
 1440	Klik her for at fakturere alle ordrer på listen	Click here to invoice all orders in the list	Klikk her for å fakturere alle bestillinger i listen
+5460	Antal skal være et tal, f.eks. 2 eller 1,5	Quantity must be a number, e.g. 2 or 1.5	Antall må være et tall, f.eks. 2 eller 1,5
+5461	Varemodtagelsen er afbrudt: lageret på indkøbsordrelinjen findes ikke	Goods receipt cancelled: the warehouse on the purchase order line does not exist	Varemottaket er avbrutt: lageret på innkjøpsordrelinjen finnes ikke
+5462	Varemodtagelsen er afbrudt: varianten på indkøbsordrelinjen findes ikke	Goods receipt cancelled: the variant on the purchase order line does not exist	Varemottaket er avbrutt: varianten på innkjøpsordrelinjen finnes ikke
+5463	Varemodtagelsen er afbrudt: varen har flere lagerstatus-linjer for samme lager	Goods receipt cancelled: the item has more than one stock row for the same warehouse	Varemottaket er avbrutt: varen har flere lagerstatus-linjer for samme lager
+5464	Varemodtagelsen er afbrudt: der modtages mere, end der er åbent på indkøbsordrerne	Goods receipt cancelled: more is received than is open on the purchase orders	Varemottaket er avbrutt: det mottas mer enn det som er åpent på innkjøpsordrene
+5465	Varemodtagelsen er afbrudt: lager og batch kunne ikke gemmes. Intet er bogført	Goods receipt cancelled: stock and batches could not be saved. Nothing was booked	Varemottaket er avbrutt: lager og batch kunne ikke lagres. Ingenting er bokført
+5466	Varemodtagelsen er afbrudt: en linje har ugyldigt varenummer eller antal	Goods receipt cancelled: a line has an invalid item number or quantity	Varemottaket er avbrutt: en linje har ugyldig varenummer eller antall
+5467	Varemodtagelsen er afbrudt: modtagelseslisten findes ikke eller er tom	Goods receipt cancelled: the receipt list does not exist or is empty	Varemottaket er avbrutt: mottakslisten finnes ikke eller er tom
 1441	Klik her for at hente nye ordrer fra shop	Click here to pick up new orders from shop	Klikk her for å hente nye bestillinger fra butikken
 1442	Ikke udlignet	Not settled	Ikke avgjort
 1443	Hold musen over de respektive ordrenumre for at se beholdninger mm	Hold the mouse over the respective order numbers to see stocks etc.	Hold musen over respektive bestillingsnummer for å se aksjer etc.
@@ -5290,6 +5298,10 @@
 5450	Ukendt betalingstype	Unknown payment type	Ukjent betalingstype
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+7640	Udfyldt fra faktura	Filled in from invoice	Fylt ut fra faktura
+7641	Afviger fra fakturaen	Differs from the invoice	Avviker fra fakturaen
+7642	Brug fakturaens værdier	Use the invoice values	Bruk fakturaens verdier
+7643	linjen	the line	linjen
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
@@ -5334,3 +5346,5 @@
 7635	Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).	One selected account has an overdue balance, so Remind all only creates a reminder for it (like Create reminder).	Det er avmerket 1 konto med forfalt beløp, så Påminn alle oppretter bare en påminnelse for den (som Opprett påminnelse).
 7636	Alle debitorer	All customers	Alle debitorer
 7637	Alle kreditorer	All suppliers	Alle kreditorer
+8400	Send "Bemærkning til ordre" med på e-fakturaer	Include "Order note" on e-invoices	Send "Ordrenotat" med på e-fakturaer
+8401	Afmærkes feltet, sendes teksten i "Bemærkning til ordre" med som bemærkning på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet bruges ofte til interne noter, så det er slået fra som standard. PDF-fakturaen er uændret.	When ticked, the text in "Order note" is sent as the note on e-invoices, e-credit notes and e-orders. The field is often used for internal notes, so this is off by default. The PDF invoice is unchanged.	Når feltet er avkrysset, sendes teksten i "Ordrenotat" med som merknad på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet brukes ofte til interne notater, så det er slått av som standard. PDF-fakturaen er uendret.

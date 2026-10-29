@@ -27,6 +27,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/countryCode.php';
 // 20261023 CL/MMR SD-774 testSendingIsStillAllowedWithoutACvr no longer says that a customer with only a GLN is never blocked: sendInvoice() now stops a Danish GLN receiver without any CVR before the payload is built, so the two exemptions pinned there only let foreign GLN receivers through.
 //                 The file requires includes/stdFunc/countryCode.php itself, because the lifted resolution block calls countryCodeIso2() since SST-870 and five tests errored when this file ran alone.
 // 20261026 CL/MMR SD-774 testSendingIsStillAllowedWithoutACvr also accepts the first guard with "&& !einvoice_cvr_missing(...)", which sends a Danish receiver on another non-numeric scheme on to easyUblCvrMissing().
+// 20261028 CL/MMR SST-905 "0088:<gln>" is now a GLN endpoint with companyId from the CVR field; the known-defect test is replaced, and 0007/0192/9908/0184 are pinned as unchanged.
 final class PeppolCustomerCompanyIdTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -224,21 +225,43 @@ final class PeppolCustomerCompanyIdTest extends TestCase
     }
 
     /**
-     * Characterization, NOT desired behaviour: ISO 6523 ICD 0088 is the GS1 GLN, and the
-     * Swedish organisation number is 0007. api.php maps 0088 to SE:ORGNR and prefixes the
-     * value with SE, so an EAN entered as "0088:<gln>" is transmitted as a Swedish org
-     * number and the country code flips to SE with it. This records today's behaviour so
-     * that fixing it is a deliberate change and this test has to be updated with it.
-     * Flagged on PR for SST-860 as its own follow-up; Den-Tec's EAN has no prefix, so this
-     * is not their cause.
+     * SST-905: ICD 0088 is the GS1 GLN. "0088:<gln>" is routed like a plain EAN (endpoint type
+     * GLN, the 13 digits), and companyId comes from the CVR field, not from the GLN. It was
+     * mapped to SE:ORGNR and sent as "SE<gln>" (MEDSHOP faktura 238877, Error 2026-07-07).
      */
-    public function testKnownDefectZeroZeroEightEightIsTreatedAsSwedish(): void
+    public function testZeroZeroEightEightIsAGln(): void
     {
         $out = $this->resolve('0088:5798009003553', '');
+        self::assertSame('GLN', $out['endpointIdType'], '0088 is the GS1 GLN scheme, not a Swedish organisation number');
+        self::assertSame('5798009003553', $out['endpointId']);
+        self::assertArrayNotHasKey('companyId', $out['party'], 'a GLN is no legal-entity id; without a CVR no companyId is sent');
+        self::assertSame('DK', $out['countryCode']);
 
-        self::assertSame('SE:ORGNR', $out['endpointIdType'],
-            '0088 handling changed - if it was fixed to GLN, update this test and close the follow-up');
-        self::assertSame('SE5798009003553', $out['endpointId']);
+        $out = $this->resolve('0088:7350043510008', 'SE202100297301');
+        self::assertSame('GLN', $out['endpointIdType']);
+        self::assertSame('7350043510008', $out['endpointId']);
+        self::assertSame('SE202100297301', $out['party']['companyId'], 'companyId must come from the CVR field, not from the GLN');
         self::assertSame('SE', $out['countryCode']);
+    }
+
+    /** @return array<string, array{string, string, string, string, string}> */
+    public static function otherNumericSchemes(): array
+    {
+        return [
+            '0007 Swedish org. no.'            => ['0007:5566196399', 'SE556619639901', 'SE:ORGNR', 'SE5566196399', 'SE5566196399'],
+            '0192 Norwegian org. no.'          => ['0192:993467049', '993467049', 'NO:ORG', 'NO993467049', 'NO993467049'],
+            '9908 Norwegian org. no. (old)'    => ['9908:919149795', '', 'NO:ORGNR', 'NO919149795', 'NO919149795'],
+            '0184 Danish CVR'                  => ['0184:12345674', '', 'DK:CVR', 'DK12345674', 'DK12345674'],
+        ];
+    }
+
+    /** SST-905: the other numeric schemes are unchanged; their value is the party's id and stays companyId. */
+    #[DataProvider('otherNumericSchemes')]
+    public function testOtherNumericSchemesKeepTheirMapping(string $ean, string $cvr, string $type, string $endpoint, string $companyId): void
+    {
+        $out = $this->resolve($ean, $cvr);
+        self::assertSame($type, $out['endpointIdType']);
+        self::assertSame($endpoint, $out['endpointId']);
+        self::assertSame($companyId, $out['party']['companyId'] ?? null);
     }
 }
