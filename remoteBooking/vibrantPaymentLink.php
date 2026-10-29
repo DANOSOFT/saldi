@@ -1,8 +1,8 @@
 <?php
 // 20261006 CL/LH SST-842: Use the tenant's own Vibrant key against the production API; the hardcoded sandbox key is gone; booking id int-cast.
 // 20261023 CL/LH SST-842: Read rentalpayment.apikey as vibrantPaymentIntent.php does (no trim), so the link and the status poll use the same key.
-// 20261029 CL/MMR SST-840: The account name from the request is validated before connecting; the order id is int-cast.
-require_once "../includes/connect.php";
+// 20261029 CL/MMR SST-840: The account name from the request is validated before connecting; the order id is int-cast; the include uses __DIR__.
+require_once __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 $customerData = json_decode(file_get_contents("php://input"), true);
 

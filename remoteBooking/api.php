@@ -24,16 +24,17 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
+//                 The includes in the entry block now use __DIR__.
 //
 
 
 $header = "nix";
 $bg = "nix";
-include("../includes/connect.php");
-include("../includes/std_func.php");
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 $db = public_tenant_db(ifset($_GET, "id", ""));
-include("../includes/ordrefunc.php");
+include(__DIR__ . "/../includes/ordrefunc.php");
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);

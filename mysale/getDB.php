@@ -1,5 +1,5 @@
 <?php
-include "../includes/connect.php";
+include __DIR__ . "/../includes/connect.php";
 
 $id = db_escape_string((string)($_GET['id'] ?? ''));
 $query = db_select("SELECT db, deb_id FROM mysale WHERE link = '$id'", __FILE__ . " linje " . __LINE__);

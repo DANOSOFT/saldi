@@ -1,8 +1,8 @@
 <?php
     $header = "nix";
     $bg = "nix";
-    include("../includes/connect.php");
-    include("../includes/std_func.php");
+    include(__DIR__ . "/../includes/connect.php");
+    include(__DIR__ . "/../includes/std_func.php");
     include_once(__DIR__ . "/../includes/publicTenantDb.php");
 
     $data = json_decode(file_get_contents('php://input'), true);
@@ -40,7 +40,7 @@
     include("new-email.php");
 
     // autoload phpmailer through composer
-    require '../../vendor/autoload.php';
+    require __DIR__ . '/../../vendor/autoload.php';
     use PHPMailer\PHPMailer\PHPMailer;
     use PHPMailer\PHPMailer\SMTP;
     use PHPMailer\PHPMailer\Exception;

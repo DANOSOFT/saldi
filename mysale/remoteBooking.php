@@ -3,8 +3,8 @@
     $s_id=session_id();
     $id = $_GET['id'];
     $condition = $_GET['condition'];
-    include ('../includes/connect.php');
-    include ("../includes/std_func.php");
+    include (__DIR__ . '/../includes/connect.php');
+    include (__DIR__ . "/../includes/std_func.php");
     $query = db_select("SELECT db FROM mysale WHERE link = '" . db_escape_string((string)$id) . "'", __FILE__ . " linje " . __LINE__);
     $row = db_fetch_array($query);
     $db = $row['db'];

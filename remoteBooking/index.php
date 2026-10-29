@@ -1,6 +1,6 @@
 <?php
-include("../includes/connect.php");
-include("../includes/std_func.php");
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 $db = public_tenant_db(ifset($_GET, "db", ""));
 $connection = db_connect($sqhost, $squser, $sqpass, $db);

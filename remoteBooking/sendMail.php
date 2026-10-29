@@ -8,8 +8,8 @@
 
     $header = "nix";
     $bg = "nix";
-    include("../includes/connect.php");
-    include("../includes/std_func.php");
+    include(__DIR__ . "/../includes/connect.php");
+    include(__DIR__ . "/../includes/std_func.php");
     include_once(__DIR__ . "/../includes/publicTenantDb.php");
     $db = public_tenant_db($db);
 
@@ -30,7 +30,7 @@
     $query = db_select("SELECT * FROM adresser WHERE id = $cust_id", __FILE__ . " linje " . __LINE__);
     $userRow = db_fetch_array($query);
     $userEmail = $userRow["email"];
-    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);    
+    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
     // Calculate total including moms
     $total = $orderRow["sum"] + $orderRow["moms"];
 
@@ -42,7 +42,7 @@
 
 
     // autoload phpmailer through composer
-    require '../../vendor/autoload.php';
+    require __DIR__ . '/../../vendor/autoload.php';
     use PHPMailer\PHPMailer\PHPMailer;
     use PHPMailer\PHPMailer\Exception;
     use PHPMailer\PHPMailer\SMTP;

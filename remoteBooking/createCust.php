@@ -1,5 +1,5 @@
 <?php
-include "../includes/connect.php";
+include __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 
 // get post data

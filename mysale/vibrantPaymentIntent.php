@@ -1,7 +1,7 @@
 <?php
 // 20261006 CL/LH SST-842: Poll the production API (same key/host as the payment link) and URL-encode the intent id.
-// 20261029 CL/MMR SST-840: The account name from the request is validated before connecting.
-require_once "../includes/connect.php";
+// 20261029 CL/MMR SST-840: The account name from the request is validated before connecting; the include uses __DIR__.
+require_once __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 
 $customerData = json_decode(file_get_contents("php://input"), true);
