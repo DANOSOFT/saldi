@@ -43,7 +43,7 @@
 //   same item on two lines is never counted twice.
 // - A set is one BOM level (HML has no sets inside sets nor variant-controlled components, P:492).
 //
-// 20261028 Sawaneh SD-739: created (WP07-1).
+// 20261028 CL/SS SD-788: created (WP07-1).
 
 require_once __DIR__ . '/../schema.php';
 
