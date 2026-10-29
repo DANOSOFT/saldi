@@ -14,6 +14,7 @@
 // 20261028 CL/NTR findtekst_session_var() no longer lets different tokens collapse to one key after sanitizing.
 // 20261028 CDX/NTR Return the pipe fallback when an unresolved key cannot self-heal.
 // 20261028 CDX/NTR Check every CSV language column during legacy literal-text resolution.
+// 20261029 CDX/NTR Resolve descriptive keys from egne_tekster_keyed.tsv then tekster_keyed.tsv before the legacy literal-text fallback.
 
 
 if (!function_exists('findtekst_session_var')) {
@@ -46,6 +47,47 @@ if (!function_exists('findtekst_session_var')) {
 	}
 }
 
+if (!function_exists('findtekst_keyed_seed')) {
+	/**
+	 * Look up one descriptive key in importfiler/egne_tekster_keyed.tsv, then tekster_keyed.tsv.
+	 *
+	 * The parsed key index is retained for the request so multiple uncached lookups do not repeatedly
+	 * read and scan the complete seed file.
+	 *
+	 * @param string $textId    Descriptive tekst_key.
+	 * @param int    $languageID Language column: 1=da, 2=en, 3=no.
+	 * @return string|null Seeded translation, or null when the key/language is absent.
+	 */
+	function findtekst_keyed_seed($textId, $languageID) {
+		static $seedFiles = null; //lives for 1 request, so multiple lookups don't re-read the TSVs
+		if ($seedFiles === null) {
+			$seedFiles = array();
+			$fileNames = array("../importfiler/egne_tekster_keyed.tsv", "../importfiler/tekster_keyed.tsv");
+			foreach ($fileNames as $fileName) {
+				$seedRows = array();
+				if (file_exists($fileName)) {
+					$lines = file($fileName, FILE_IGNORE_NEW_LINES);
+					if ($lines !== false) {
+						foreach ($lines as $line) {
+							$texts = explode("\t", rtrim($line, "\r"));
+							if (($texts[0] ?? '') !== '') {
+								$seedRows[$texts[0]] = $texts;
+							}
+						}
+					}
+				}
+				$seedFiles[] = $seedRows;
+			}
+		}
+		foreach ($seedFiles as $seedRows) {
+			if (isset($seedRows[$textId][$languageID])) {
+				return $seedRows[$textId][$languageID];
+			}
+		}
+		return null;
+	}
+}
+
 if (!function_exists('findtekst')) {
 	/**
 	 * Look up a translated text for a language.
@@ -56,8 +98,8 @@ if (!function_exists('findtekst')) {
 	 *   - either of the above suffixed with '|fallback text' (the left side is the lookup token,
 	 *     the right side is fallback text used when nothing is translated yet).
 	 *
-	 * Key resolution order: tekst_key row -> legacy tekst-content match -> CSV seed files ->
-	 * self-heal (insert the key so it surfaces for translation in systemdata/tekster.php).
+	 * Key resolution order: tekst_key row -> legacy tekst-content match -> custom/standard keyed TSV seed ->
+	 * legacy numeric CSV literal match -> self-heal insert.
 	 * A row whose tekst equals its tekst_key is a not-yet-translated placeholder and is never
 	 * returned as an authoritative translation.
 	 *
@@ -72,8 +114,10 @@ if (!function_exists('findtekst')) {
 		global $webservice;
 		$id = 0;
 		$b = null;
+		$keyedText = null;
+		$textId = (string)$textId;
 
-		if (strpos($textId,'|')) {
+		if (strpos($textId,'|') !== false) {
 			// Left of the pipe is the lookup token (numeric id or string key); right is fallback text.
 			list($a,$b) = explode('|',$textId,2);
 			$textId = $a;
@@ -107,19 +151,18 @@ if (!function_exists('findtekst')) {
 			$hasKeyColumn = (bool) db_fetch_array(db_select($colq, __FILE__ . " linje " . __LINE__));
 		}
 
-		if (!preg_match('/^[0-9]+$/', $textId)) {
+		if (!ctype_digit((string)$textId)) {
 			$lang = (!$languageID || $languageID > 3) ? 1 : $languageID;
 			$placeholderId = 0;
 
 			// 1. Resolve as a tekst_key. A row whose tekst equals its key (or is '-') is a
-			//    not-yet-translated placeholder and must not be returned as a real translation.
+			//    not-yet-translated placeholder.
 			if ($hasKeyColumn) {
 				$keyEsc = db_escape_string($textId);
 				$qtxt = "select id,tekst from tekster where tekst_key='$keyEsc' and sprog_id='$lang'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					if ($r['tekst'] === '-') {
-						$_SESSION[$sessionVar] = '';
-						return '';
+						return ($b !== null && $b !== '') ? $b : $textId;
 					}
 					if ($r['tekst'] !== '' && $r['tekst'] !== null && $r['tekst'] !== $textId) {
 						$_SESSION[$sessionVar] = $r['tekst'];
@@ -142,29 +185,35 @@ if (!function_exists('findtekst')) {
 				$matched = true;
 			}
 
-			// 3. Legacy fallback: look the token up in the CSV seed files.
+			// 3. Resolve a descriptive key from the keyed TSV seed file. Column 0 is
+			//    always a tekst_key; columns 1-3 are Danish, English and Norwegian.
 			if (!$matched) {
-				$txtlines = array();
-				if (file_exists("../importfiler/egnetekster.csv")) $fileName = "../importfiler/egnetekster.csv";
-				else $fileName = "../importfiler/tekster.csv";
-				$txtlines = explode("\n",file_get_contents($fileName));
+				$keyedText = findtekst_keyed_seed($textId, $lang);
+			}
+
+			// 4. Legacy fallback: a caller may pass literal translated text. The token is
+			//    nonnumeric and column 0 is integer-only, so a strict row match can only be
+			//    in translation columns 1-3; resolve it to the id in column 0.
+			if (!$matched && $keyedText === null) {
+				if (file_exists("../importfiler/egnetekster.csv")) {
+					$fileName = "../importfiler/egnetekster.csv";
+				} else {
+					$fileName = "../importfiler/tekster.csv";
+				}
+				$txtlines = explode("\n", file_get_contents($fileName));
 				for ($i = 0; $i < count($txtlines); $i++) {
-					$texts = explode("\t",$txtlines[$i]);
-					if (in_array($textId,$texts)) {
-						for ($i2 = 1; $i2 < count($texts); $i2++) {
-							if ($textId == $texts[$i2]) {
-								$textId = $texts[0];
-								break 2;
-							}
-						}
+					$texts = explode("\t", rtrim($txtlines[$i], "\r"));
+					if (in_array($textId, $texts, true)) {
+						$textId = $texts[0];
+						break;
 					}
 				}
 			}
 
-			// 4. Still an unresolved key: self-heal so it surfaces in the admin UI for translation.
-			//    Store the pipe fallback text when given, otherwise the key itself as a placeholder.
-			if ($hasKeyColumn && $db != $sqdb && !preg_match('/^[0-9]+$/', $textId) && preg_match('/^[a-z0-9][a-z0-9_.-]{0,189}$/', $textId)) {
-				$candidate = ($b !== null && $b !== '') ? $b : $textId;
+			// 5. Still an unresolved key: self-heal so it surfaces in the admin UI for translation.
+			//    Prefer the keyed TSV translation, then the pipe fallback, then a key placeholder.
+			if ($hasKeyColumn && $db != $sqdb && !ctype_digit((string)$textId) && preg_match('/^[a-z0-9][a-z0-9_.-]{0,189}$/', $textId)) {
+				$candidate = $keyedText ?? (($b !== null && $b !== '') ? $b : $textId);
 				if ($db_encode != "UTF8") {
 					$candidate = mb_convert_encoding($candidate, 'ISO-8859-1', 'UTF-8');
 				}
@@ -178,17 +227,19 @@ if (!function_exists('findtekst')) {
 				} else {
 					db_modify("insert into tekster(sprog_id,tekst_key,tekst) values ('$lang','$keyEsc','$candEsc')", __FILE__ . " linje " . __LINE__);
 				}
-				$_SESSION[$sessionVar] = $candidate;
-				return $candidate;
+				$resolvedText = ($candidate === '-') ? '' : $candidate;
+				$_SESSION[$sessionVar] = $resolvedText;
+				return $resolvedText;
 			}
 		}
 
-		if (!preg_match('/^[0-9]+$/', $textId)) {
-			if ($b !== null && $b !== '') {
+		if (!ctype_digit((string)$textId)) {
+			$candidate = $keyedText ?? $b;
+			if ($candidate !== null && $candidate !== '') {
 				if ($db_encode != 'UTF8') {
-					$b = mb_convert_encoding($b, 'ISO-8859-1', 'UTF-8');
+					$candidate = mb_convert_encoding($candidate, 'ISO-8859-1', 'UTF-8');
 				}
-				return $b;
+				return ($candidate === '-') ? '' : $candidate;
 			}
 			return $textId; # If other characters than digits in textID then return textID - used when developing # 20230224
 		}
@@ -200,7 +251,7 @@ if (!function_exists('findtekst')) {
 			$languageID = 1;
 			$qtxt = "update brugere set language_id = '$languageID' where id = '$bruger_id'";
 		}
-		if (!is_numeric($textId)){
+		if (!ctype_digit((string)$textId)) {
 			$textId = 0;
 		}
 		$qtxt = "select id,tekst from tekster where tekst_id='$textId' and sprog_id = '$languageID'";
@@ -213,10 +264,12 @@ if (!function_exists('findtekst')) {
 				$tmp = array();
 				while (!feof($fp)) {
 					if ($linje = trim(fgets($fp))) {
-						if (strpos($linje, chr(9)))
+						if (strpos($linje, chr(9))) {
 							$tmp = explode(chr(9), $linje);
-						if ($textId == $tmp[0])
+						}
+						if ($textId == $tmp[0]) {
 							$newTxt = $tmp[$languageID]; # Linjen efter 1. tab. 
+						}
 					}
 				}
 				fclose($fp);
@@ -257,10 +310,11 @@ if (!function_exists('findtekst')) {
 			}
 			$newTxt = str_replace('\n\n', "\n\n", $newTxt);
 			$tmp = db_escape_string($newTxt); #20140505
-			if ($id)
+			if ($id) {
 				$qtxt = "update tekster set tekst='$tmp' where id=$id";
-			else
+			} else {
 				$qtxt = "insert into tekster(sprog_id,tekst_id,tekst) values ('$languageID','$textId','$tmp')";
+			}
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$tekst = $newTxt;
 		} elseif ($db == $sqdb) {

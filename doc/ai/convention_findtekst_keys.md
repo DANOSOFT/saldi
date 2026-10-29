@@ -17,16 +17,27 @@ stored in the `tekster` table. Historically each text was identified by a numeri
 - Pass a fallback after a pipe while a key is new: `findtekst('common.accept|Accept', $sprog_id)`.
   The left side is the lookup token (key or id), the right side is the text shown
   (and self-healed into the table) until a translator fills it in.
-- When seeding keys into `importfiler/tekster.csv`, keep them in alphanumeric
-  order by key so the file stays scannable.
+- Seed keys in `importfiler/tekster_keyed.tsv` as raw tab-separated rows in the
+  form `tekst_key<TAB>Dansk<TAB>English<TAB>Norsk`. Keep them in alphanumeric
+  order by key so the file stays scannable. `importfiler/tekster.csv` remains
+  exclusively for numeric `tekst_id` rows.
+- Installation-specific keyed translations use the same format in
+  `importfiler/egne_tekster_keyed.tsv`. A matching key there overrides the
+  standard keyed TSV; keys absent there fall through to `tekster_keyed.tsv`.
 
 ## Behaviour to know
 
 - Resolution order for a key: `tekst_key` row → legacy `tekst`-content match →
-  CSV seed files → self-heal insert. A requested key missing everywhere is
-  inserted so it shows up in `systemdata/tekster.php` for translation.
+  exact column-zero match in `egne_tekster_keyed.tsv` → exact column-zero match
+  in `tekster_keyed.tsv` → legacy literal-text match in the language columns of
+  the numeric seed files → self-heal insert. A requested key missing everywhere
+  is inserted so it shows up in `systemdata/tekster.php` for translation.
 - A row whose `tekst` equals its `tekst_key` is a not-yet-translated placeholder;
   `findtekst()` never returns it as a finished translation.
+- `findtekst()` caches seeded translations in each tenant's `tekster` table. When
+  changing an existing keyed TSV translation, call `deleteStaleTekst()` with the
+  key and old text at the end of `includes/betweenUpdates.php`, so unchanged
+  tenant rows are reseeded while customer edits remain intact.
 - Existing numeric `tekst_id` calls keep working unchanged — do **not** mass-migrate
   the ~8,400 call sites. Convert to keys opportunistically when you touch a page.
 
