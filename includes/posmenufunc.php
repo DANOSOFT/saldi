@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/posmenufunc.php --- ver 5.0.0 --- 2026.10.20 ---
+//--- includes/posmenufunc.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,6 +56,8 @@
 // 20260925 CDX/PHR Cast table IDs before SQL lookup and handle missing selections and empty table plans with findtekst.
 // 20261020 LOE SST-878 The finished-sale menu no longer dies when "Tidsfrist for udskrift" is
 //                 empty, so Udskriv, Find bon and Korrektion are drawn again.
+// 20261029 CL/MJ SD-783 tastatur(): a company without table plans leaves $bord an empty array instead of NULL,
+//                 so the count($bord) for the table buttons no longer stops the POS keypad with a TypeError on PHP 8.
 
 include(__DIR__ . "/posmenufunc_includes/buttonFunc.php");
 require_once __DIR__ . '/stdFunc/navStack.php';
@@ -722,7 +724,7 @@ if (!function_exists('tastatur')) {
 		$terminal_ip = strtolower(trim($tmp[$x]));
 		$tmp = explode(chr(9), $r['box10']); #20140820
 		$koekkenprint = strtolower(trim($tmp[$x]));
-		($r['box7']) ? $bord = explode(chr(9), $r['box7']) : $bord = NULL; #20140508
+		($r['box7']) ? $bord = explode(chr(9), $r['box7']) : $bord = array(); #20140508 #20261029
 
 		($vare_id && $vare_id_ny) ? $disabled = "disabled=\"disabled\"" : $disabled = NULL;
 

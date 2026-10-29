@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -120,6 +120,9 @@
 // 20261023 CL/MMR SD-774 A business card for a Danish customer with an EAN number shows a warning at the top when the CVR number is missing, as the receiver then rejects e-invoices to the customer.
 //                 It shows the same kind of warning when the stored CVR number is not valid.
 //                 The warning is decided on the saved values by debitorkortEinvoiceCvrBanner() in debitorkortIncludes/einvoiceCvrBanner.php and never blocks or changes the save.
+// 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
+//                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
+//                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
 @session_start();
 $s_id = session_id();
 
@@ -159,6 +162,9 @@ db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 #if (isset($_SESSION['debitorId'])) $_SESSION['debitorId'] = NULL;
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
+print "<script src=\"../javascript/Sortable.min.js\"></script>\n";
+print "<script src=\"../javascript/kontaktSortable.js\" defer></script>\n";
+print "<style>.kontakt-drag-handle{cursor:move;user-select:none;padding:0 4px 0 0;color:#15488f;} #kontaktpersoner .sortable-ghost{opacity:.5;}</style>\n";
 $_private = if_isset($_GET, NULL, 'privat');
 $_business = if_isset($_GET, NULL, 'erhverv');
 
@@ -1459,7 +1465,7 @@ function validateDebitorkort(form) {
 }
 </script>\n";
 
-print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
+print "<form name=debitorkort id='debitorkortForm' action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
@@ -2515,19 +2521,27 @@ if ($kontotype == 'erhverv') {
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 
+		// Own tbody so javascript/kontaktSortable.js can drag the rows; the hidden ans_id/kontakt
+		// inputs sit inside the row so they travel with it. The card's <form> is closed by the HTML
+		// parser long before this table (it has no DOM children), so the rows are only form-associated
+		// through the parser; a moved row loses that, hence the explicit form='debitorkortForm'.
+		$dragTitle = htmlentities(findtekst('5455|Træk for at ændre rækkefølgen. Husk at gemme kortet bagefter', $sprog_id), ENT_COMPAT, $charset);
+		print "<tbody id='kontaktpersoner'>\n";
 		while ($r) {
 			$x++;
 			($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 			print "<tr bgcolor=$bg>\n";
-			print "<td width=10><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\"></td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
-			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td></td><td></td></tr>\n";
-			print "<input class='inpPasswordutbox' type=hidden name=ans_id[$x] value=$r[id]>\n";
+			print "<td width=10 nowrap><span class='kontakt-drag-handle' title=\"$dragTitle\">&#x2630;</span><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\" form='debitorkortForm'>";
+			print "<input type=hidden name=ans_id[$x] value=$r[id] form='debitorkortForm'>";
 			if ($x == 1) {
-				print "<input class='inputbox' type=hidden name=kontakt value='$r[navn]'>";
+				print "<input type=hidden name=kontakt value=\"" . htmlentities($r['navn'], ENT_QUOTES, $charset) . "\" form='debitorkortForm'>";
 			}
+			print "</td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td><td></td></tr>\n";
 			//fetch next
 			$r = db_fetch_array($q);
 		}
+		print "</tbody>\n";
 		print "<tr><td colspan='2' width='20%'><br></td></tr>\n";
 	}
 }
