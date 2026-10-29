@@ -12,6 +12,10 @@
 //              plain error texts and rollback of optimistic UI (R75), no duplicate creates or stale datasets (R76),
 //              server search from the main search box (R77).
 // 20261028 ASR Pipeline -> Sager and handel -> sag in the texts (tekster.csv); ids, tab key 'pipe' and actions unchanged.
+// 20261029 ASR Meetings with colleagues: Nyt møde (Kalender's button, the drawer, a week day's +) with time, length,
+//              colleagues and the customer's contact; a warning when someone is busy then, with the next free time
+//              offered; calendar invitations only when ticked; colleagues on a sag; "Mine" includes what the user is
+//              a colleague on; a personal calendar feed (Kalender -> Abonnér).
 (function () {
 'use strict';
 
@@ -120,6 +124,19 @@ const empLow = id => id && id === ME ? t('dig') : empName(id);   // inside a sen
 const ppl = (c, id) => { const p = c && c.ppl.find(p => p.id === id); return p ? p.n : ''; };
 const isLost = id => GROUPS.some(g => g.lost === id);
 const isWon = id => GROUPS.some(g => g.won === id);
+// Meetings: h.tm 'HH:MM', h.dur minutes, h.with = the colleagues, h.inv = invitations sent (1 colleagues, 2 contact).
+const isMeet = h => !!(h && h.tm);
+const people = h => [h.by].concat(h.with || []).filter((v, i, a) => v && a.indexOf(v) === i);
+const isMine = h => h.by === ME || (h.with || []).includes(ME);
+const hhmm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const toMin = s => { const p = String(s).split(':').map(Number); return p[0] * 60 + (p[1] || 0); };
+const tspan = h => h.tm + '–' + hhmm(toMin(h.tm) + (h.dur || 60));
+const byTime = (a, b) => (a.tm || '99').localeCompare(b.tm || '99');
+const initials = id => EMP[id] ? (EMP[id].i || EMP[id].n.split(' ').map(x => x.charAt(0)).join('').slice(0, 3)) : '';
+const peopleTxt = h => people(h).map(empLow).filter(Boolean).join(', ');
+// "Mine": what the user is responsible for or a colleague on - a customer also when the user is on one of its open sager
+const dealMine = d => d.own === ME || (d.with || []).includes(ME);
+const custMine = c => c.own === ME || DEALS.some(d => d.cid === c.id && d.state === 'open' && dealMine(d));
 
 /* ================= tilstand ================= */
 const S = {tab: 'follow', mine: localStorage.getItem('crm-mine') === '1', grp: 'all', q: '', stF: 'all', calMode: 'month', calY: 0, calM: 0,
@@ -178,7 +195,8 @@ const SV = {
 	clip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></svg>',
 	left: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m15 6-6 6 6 6"/></svg>',
 	right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>',
-	search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'
+	search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+	cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>'
 };
 
 /* ================= server ================= */
@@ -252,17 +270,17 @@ function custMatch(c) {
 }
 // The main search only knows the loaded customers; with no hit the server search covers them all (R77).
 const srvSearchBtn = () => S.q ? `<br><button type="button" class="linkbtn" data-srvsearch="1">${t('Søg blandt alle kunder')}</button>` : '';
-const follows = incDone => H.filter(h => h.due && (incDone || !h.done) && custOk(cust(h.cid)) && !cust(h.cid).closed && (!S.mine || h.by === ME) && match(h));
-const openFor = cid => H.filter(h => h.cid === cid && h.due && !h.done).sort((a, b) => a.due.localeCompare(b.due));
+const follows = incDone => H.filter(h => h.due && (incDone || !h.done) && custOk(cust(h.cid)) && !cust(h.cid).closed && (!S.mine || isMine(h)) && match(h));
+const openFor = cid => H.filter(h => h.cid === cid && h.due && !h.done).sort((a, b) => a.due.localeCompare(b.due) || byTime(a, b));
 const lastContact = cid => { const c = cust(cid); return H.filter(h => h.cid === cid && h.type !== 'status' && h.type !== 'deal').map(h => h.date).concat(c && c.last ? [c.last] : []).sort().pop(); };
 // customers on a status group's board (not on a won/lost status) without an open follow-up (R14)
-const noFollowUp = () => C.filter(c => !c.closed && GROUPS.some(g => g.s.includes(c.st)) && !isWon(c.st) && !isLost(c.st) && custOk(c) && (!S.mine || c.own === ME) && custMatch(c) && !openFor(c.id).length);
+const noFollowUp = () => C.filter(c => !c.closed && GROUPS.some(g => g.s.includes(c.st)) && !isWon(c.st) && !isLost(c.st) && custOk(c) && (!S.mine || custMine(c)) && custMatch(c) && !openFor(c.id).length);
 const NCOLS = '28px minmax(170px,1.25fr) minmax(160px,1fr) 130px 118px 170px';
 
 /* ================= faner ================= */
 function renderTabs() {
 	const open = follows(false), late = open.filter(h => diff(h.due) < 0).length;
-	const custs = C.filter(c => custOk(c) && (!S.mine || c.own === ME) && custMatch(c)).length;
+	const custs = C.filter(c => custOk(c) && (!S.mine || custMine(c)) && custMatch(c)).length;
 	const tabs = [
 		['follow', t('Opfølgning'), `<span class="n ${late ? 'late' : ''}">${open.length}${late ? ' · ' + t('%s forsinket', late) : ''}</span>`],
 		['pipe', t('Sager'), ''],
@@ -288,15 +306,15 @@ function followRow(h, done) {
 	return `<div class="row body-row ${done ? 'done-row' : ''}" style="--cols:${FCOLS}" tabindex="0" data-open="${c.id}" data-h="${h.id}">
 		${DATA.canWrite ? `<button class="tick ${h.done ? 'on' : ''}" data-tick="${h.id}" title="${h.done ? t('Markér som ikke gjort') : t('Markér som gjort')}" aria-label="${t('Gjort')}">${SV.check}</button>` : '<span></span>'}
 		<span class="cust"><b>${esc(c.n)}</b>${h.to ? `<small>${esc(ppl(c, h.to))}</small>` : ''}</span>
-		<span class="note">${esc(h.note)}</span>
+		<span class="note">${isMeet(h) ? `<span class="mt">${ICON.moede}${t('Møde')} ${tspan(h)}</span> ` : ''}${esc(h.note)}</span>
 		<span class="dot c2" style="--c:${stColor(c.st)}">${esc(stName(c.st))}</span>
-		<span class="who ${h.by === ME ? 'me' : ''}">${esc(empName(h.by))}</span>
-		<span class="due ${cls}" title="${fmtY(h.due)}">${n < -1 ? fmt(h.due) : rel(h.due)}</span>
+		<span class="who ${isMine(h) ? 'me' : ''}">${esc(empName(h.by))}${(h.with || []).length ? ` <span class="c3" title="${esc(peopleTxt(h))}">+${h.with.length}</span>` : ''}</span>
+		<span class="due ${cls}" title="${fmtY(h.due)}">${n < -1 ? fmt(h.due) : rel(h.due)}${isMeet(h) ? ' ' + h.tm : ''}</span>
 		<span class="acts">${done || !DATA.canWrite ? '' : `<button class="mini" data-snooze="${h.id}">${SV.clock}${t('Udsæt')}</button>`}<button class="mini" data-open="${c.id}">${t('Åbn')}</button></span>
 	</div>`;
 }
 function renderFollow() {
-	const list = follows(false).sort((a, b) => a.due.localeCompare(b.due) || a.cid - b.cid);
+	const list = follows(false).sort((a, b) => a.due.localeCompare(b.due) || byTime(a, b) || a.cid - b.cid);
 	let html = `<div class="row thead" style="--cols:${FCOLS}"><span></span><span>${t('Kunde · kontakt')}</span><span>${t('Opfølgning')}</span><span>${t('Status')}</span><span>${t('Ansvarlig')}</span><span>${t('Dato')}</span><span></span></div>`;
 	if (!list.length) html += `<div class="empty"><b>${t('Ingen åbne opfølgninger')}</b>${S.mine || S.grp !== 'all' ? t('Prøv at fjerne filtrene.') : S.q ? t('Ingen opfølgninger matcher »%s«.', esc(S.q)) + srvSearchBtn() : DATA.canWrite ? t('Opret en med »Ny opfølgning« eller fra en kunde.') : ''}</div>`;
 	BUCKETS.forEach((b, i) => {
@@ -360,7 +378,7 @@ function renderPipe() {
 		$('#v-pipe').innerHTML = (GROUPS.length > 1 ? `<div class="pipehead"><div class="seg" role="tablist" aria-label="${t('Statusgruppe')}">${GROUPS.map(x => `<button data-bgrp="${x.id}" class="${x.id === g.id ? 'on' : ''}">${esc(x.n)}</button>`).join('')}</div></div>` : '') + `<div class="empty"><b>${t('Ingen statusser at vise')}</b>${t('Opsæt statusser og statusgrupper under tandhjulet.')}${starter ? `<br>${t('Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.')}<br>${starter}` : ''}</div>`;
 		return;
 	}
-	const base = C.filter(c => !c.closed && g.s.includes(c.st) && (!S.mine || c.own === ME) && custMatch(c) && (!S.noFu || !openFor(c.id).length));
+	const base = C.filter(c => !c.closed && g.s.includes(c.st) && (!S.mine || custMine(c)) && custMatch(c) && (!S.noFu || !openFor(c.id).length));
 	const late = base.filter(c => { const nx = openFor(c.id)[0]; return nx && diff(nx.due) < 0; }).length;
 	const none = base.filter(c => !openFor(c.id).length).length;
 	const dealSum = base.reduce((a, c) => a + openDeals(c.id).reduce((x, d) => x + d.v, 0), 0);
@@ -382,16 +400,17 @@ function renderPipe() {
 /* ================= 3. kalender ================= */
 function evHtml(h, big) {
 	const c = cust(h.cid), late = !h.done && diff(h.due) < 0, drag = DATA.canWrite && !h.done;
-	if (big) return `<button class="wcard ${late ? 'late' : ''} ${h.done ? 'done' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}"><b>${esc(c.n)}</b><p>${esc(h.note)}</p><small>${esc(empName(h.by))}${h.to ? ' → ' + esc(ppl(c, h.to)) : ''}</small></button>`;
-	const ini = EMP[h.by] ? (EMP[h.by].i || EMP[h.by].n.split(' ').map(x => x.charAt(0)).join('').slice(0, 3)) : '';
-	return `<button class="ev ${late ? 'late' : ''} ${h.done ? 'done' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}" title="${esc(c.n)} – ${esc(h.note)}${ini ? ' · ' + esc(empName(h.by)) : ''}"><span>${esc(c.n)}</span>${ini ? `<small class="ini">${esc(ini)}</small>` : ''}</button>`;
+	const meet = isMeet(h);
+	if (big) return `<button class="wcard ${late ? 'late' : ''} ${h.done ? 'done' : ''} ${meet ? 'meet' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}">${meet ? `<span class="tm">${tspan(h)}</span>` : ''}<b>${esc(c.n)}</b><p>${esc(h.note)}</p><small>${esc(meet ? peopleTxt(h) : empName(h.by))}${h.to ? ' → ' + esc(ppl(c, h.to)) : ''}</small></button>`;
+	const ini = (meet ? people(h) : [h.by]).map(initials).filter(Boolean).slice(0, 3).join(' ');
+	return `<button class="ev ${late ? 'late' : ''} ${h.done ? 'done' : ''} ${meet ? 'meet' : ''}" draggable="${drag}" data-ev="${h.id}" data-open="${c.id}" title="${meet ? esc(t('Møde')) + ' ' + tspan(h) + ' – ' : ''}${esc(c.n)} – ${esc(h.note)}${ini ? ' · ' + esc(meet ? peopleTxt(h) : empName(h.by)) : ''}">${meet ? `<i class="tm">${h.tm}</i>` : ''}<span>${esc(c.n)}</span>${ini ? `<small class="ini">${esc(ini)}</small>` : ''}</button>`;
 }
 function isoWeek(d) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - y) / 864e5 + 1) / 7); }
 function mondayOf(k) { const d = fromKey(k); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return key(d); }
 function renderCal() {
 	const byDay = {};
 	follows(true).forEach(h => (byDay[h.due] = byDay[h.due] || []).push(h));
-	Object.values(byDay).forEach(a => a.sort((x, y) => x.done - y.done));
+	Object.values(byDay).forEach(a => a.sort((x, y) => x.done - y.done || byTime(x, y)));
 	let head, body = '';
 	if (S.calMode === 'month') {
 		head = `${MOL[S.calM]} ${S.calY}`;
@@ -414,7 +433,7 @@ function renderCal() {
 		for (let i = 0; i < 7; i++) {
 			const d = new Date(ws); d.setDate(ws.getDate() + i);
 			const k = key(d), ev = byDay[k] || [];
-			body += `<div class="wcol ${k === DATA.today ? 'today' : ''}" data-day="${k}"><h3><b>${d.getDate()}</b>${WDL[d.getDay()]}</h3>${ev.map(h => evHtml(h, true)).join('')}</div>`;
+			body += `<div class="wcol ${k === DATA.today ? 'today' : ''}" data-day="${k}"><h3><b>${d.getDate()}</b>${WDL[d.getDay()]}${DATA.canWrite ? `<button class="add" data-newmeet="${k}" title="${esc(t('Nyt møde %s', fmt(k)))}">${SV.plus}</button>` : ''}</h3>${ev.map(h => evHtml(h, true)).join('')}</div>`;
 		}
 		body += '</div>';
 	}
@@ -423,6 +442,7 @@ function renderCal() {
 		<h2>${head}</h2><button class="ghost" id="calToday">${t('I dag')}</button>
 		<span class="legend"><span class="dot" style="--c:var(--saldi-blue)">${t('Åben')}</span><span class="dot" style="--c:var(--bad)">${t('Forsinket')}</span><span class="dot" style="--c:${OFF}">${t('Gjort')}</span>${DATA.canWrite ? `<span class="c3">${t('Træk for at flytte')}</span>` : ''}</span>
 		<div class="seg"><button data-mode="month" class="${S.calMode === 'month' ? 'on' : ''}">${t('Måned')}</button><button data-mode="week" class="${S.calMode === 'week' ? 'on' : ''}">${t('Uge')}</button></div>
+		<button class="ghost calsub" id="calSub" title="${esc(t('Se dine møder i Google Kalender, Outlook eller Apple Kalender'))}">${SV.cal}${DATA.ical ? t('Abonnement') : t('Abonnér')}</button>
 	</div>` + body;
 	syncUrl();
 }
@@ -430,9 +450,9 @@ function renderCal() {
 /* ================= 4. kunder ================= */
 const KCOLS = 'minmax(190px,1.4fr) minmax(130px,1fr) 140px 118px 128px 150px 110px';
 function renderCust() {
-	const base = C.filter(c => custOk(c) && (!S.mine || c.own === ME) && custMatch(c));
+	const base = C.filter(c => custOk(c) && (!S.mine || custMine(c)) && custMatch(c));
 	// Line 1 = the status groups, always shown (the way back to "Alle"). Line 2 = the chosen group's statuses as a funnel.
-	const all = C.filter(c => (!S.mine || c.own === ME) && custMatch(c));
+	const all = C.filter(c => (!S.mine || custMine(c)) && custMatch(c));
 	const rest = all.filter(c => !GROUPS.some(g => g.s.includes(c.st))).length;
 	let strip = `<div class="strip">` +
 		`<button class="${S.grp === 'all' && S.stF !== 'rest' ? 'on' : ''}" data-grp="all">${t('Alle')} <span class="n">${all.length}</span></button>` +
@@ -465,7 +485,11 @@ function renderCust() {
 function itemHtml(h, withCust, actions) {
 	const c = cust(h.cid) || {n: '?', id: h.cid, ppl: []};
 	let fu = '';
-	if (h.due) {
+	if (h.due && isMeet(h)) {
+		const n = diff(h.due);
+		const what = t('Møde %s kl. %s', rel(h.due), tspan(h)) + ' · ' + esc(peopleTxt(h)) + (h.inv ? ' · ' + t('invitation sendt') : '');
+		fu = h.done ? `<span class="fu done">${SV.check}${t('Møde %s · gjort', fmt(h.due))}</span>` : `<span class="fu ${n < 0 ? 'late' : ''}">${ICON.moede}${what}</span>`;
+	} else if (h.due) {
 		const n = diff(h.due);
 		fu = h.done ? (actions && DATA.canWrite ? `<button type="button" class="fu done linkfu" data-tick="${h.id}" title="${t('Markér som ikke gjort')}">${SV.check}${t('Opfølgning %s · gjort', fmt(h.due))}</button>` : `<span class="fu done">${SV.check}${t('Opfølgning %s · gjort', fmt(h.due))}</span>`)
 			: `<span class="fu ${n < 0 ? 'late' : ''}">${SV.clock}${t('Opfølgning %s', rel(h.due))} · ${esc(empLow(h.by))}</span>`;
@@ -481,7 +505,7 @@ function itemHtml(h, withCust, actions) {
 	</div>`;
 }
 function renderAct() {
-	const list = H.filter(h => custOk(cust(h.cid)) && (!S.mine || h.by === ME || (h.au || h.by) === ME) && match(h)).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 300);
+	const list = H.filter(h => custOk(cust(h.cid)) && (!S.mine || isMine(h) || (h.au || h.by) === ME) && match(h)).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 300);
 	let html = '<div class="feed">', last = '';
 	list.forEach(h => {
 		if (h.date !== last) { last = h.date; const n = diff(h.date);
@@ -564,12 +588,12 @@ function renderDrawer() {
 				<span class="x"></span>
 				<span class="stwrap" style="--c:${stColor(c.st)}"><select class="stsel" id="stSel" aria-label="${t('Status')}" ${DATA.canWrite ? '' : 'disabled'}>${c.st && !ST[c.st] ? `<option value="${esc(c.st)}" selected>${esc(c.st)}</option>` : ''}<option value="" ${!c.st ? 'selected' : ''}>${t('Ingen status')}</option>${ST_ORDER.map(id => `<option value="${esc(id)}" ${id === c.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></span>
 				<button class="ibtn" id="dClose" aria-label="${t('Luk (Esc)')}">${SV.x}</button></div>
-			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}${t('Opret sag')}</a>${DATA.quick ? '' : `<a data-mkdoc="0" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}${t('Opret tilbud')}</a>`}<a data-mkdoc="1" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}${t('Opret ordre')}</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}${t('Debitorkort')}</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}${t('Jobkort')}</a>` : ''}</div>
+			<div class="links">${c.tlf ? `<a href="tel:${esc(c.tlf.replace(/ /g, ''))}">${ICON.opkald}${esc(c.tlf)}</a>` : ''}${c.mail ? `<a href="mailto:${esc(c.mail)}">${ICON.mail}${esc(c.mail)}</a>` : ''}${DATA.canWrite ? `<a href="#" data-addmeet="" data-cid="${c.id}">${ICON.moede}${t('Book møde')}</a><a href="#" data-adddeal="" data-cid="${c.id}">${ICON.deal}${t('Opret sag')}</a>${DATA.quick ? '' : `<a data-mkdoc="0" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&returside=${back}">${ICON.note}${t('Opret tilbud')}</a>`}<a data-mkdoc="1" data-cid="${c.id}" href="ordre.php?konto_id=${c.id}&ordrestatus=1&returside=${back}">${ICON.note}${t('Opret ordre')}</a>` : ''}<a href="debitorkort.php?id=${c.id}&returside=${ret}">${SV.ext}${t('Debitorkort')}</a>${DATA.jobs ? `<a href="jobliste.php?kontonr=${encodeURIComponent(c.nr)}&konto_id=${c.id}&returside=${ret}">${SV.ext}${t('Jobkort')}</a>` : ''}</div>
 			<div class="kv"><div><span>${t('Kunde siden')}</span><b>${c.since ? fmtY(c.since) : '–'}</b></div><div><span>${t('Seneste kontakt')}</span><b>${lc ? rel(lc) : '–'}</b></div><div><span>${t('Omsætning i år')} <small class="c3">${t('ekskl. moms')}</small></span><b>${kr(c.rev || 0)}</b></div><div><span>${t('Åbne poster')}</span><b class="${c.late ? 'late' : ''}">${c.bal ? kr(c.bal) + (c.late ? ' · ' + t('%s forfalden', c.late) : '') : '0'}</b></div></div>
 			<div class="dtabs"><button data-dtab="tl" class="${S.dtab === 'tl' ? 'on' : ''}">${t('Historik')} <span class="c3">${hist.length}</span></button><button data-dtab="deals" class="${S.dtab === 'deals' ? 'on' : ''}">${t('Sager og ordrer')} <span class="c3">${deals.length + c.docs.length}</span></button><button data-dtab="ppl" class="${S.dtab === 'ppl' ? 'on' : ''}">${t('Kontaktpersoner')} <span class="c3">${c.ppl.length}</span></button></div>
 		</div>
 		<div class="db">${S.dtab === 'deals' ? dealsTab(c, deals) : S.dtab === 'tl' ? `
-			${nx ? `<div class="next ${diff(nx.due) < 0 ? 'late' : ''}"><div><div class="lbl">${t('Næste opfølgning')} · ${diff(nx.due) < 0 ? t('forsinket') + ', ' : ''}${rel(nx.due)} · ${esc(empLow(nx.by))}</div><p>${esc(nx.note)}</p></div>
+			${nx ? `<div class="next ${diff(nx.due) < 0 ? 'late' : ''}"><div><div class="lbl">${isMeet(nx) ? t('Næste møde') : t('Næste opfølgning')} · ${diff(nx.due) < 0 ? t('forsinket') + ', ' : ''}${rel(nx.due)}${isMeet(nx) ? ' ' + tspan(nx) + ' · ' + esc(peopleTxt(nx)) : ' · ' + esc(empLow(nx.by))}</div><p>${esc(nx.note)}</p></div>
 				${DATA.canWrite ? `<div class="ac"><button class="mini" data-snooze="${nx.id}">${SV.clock}${t('Udsæt')}</button><button class="mini" data-tick="${nx.id}">${SV.check}${t('Gjort')}</button></div>` : ''}</div>` : ''}
 			${DATA.canWrite ? composer(c, 'c') : ''}
 			<div class="tl">${hist.map(h => itemHtml(h, false, true)).join('') || `<div class="empty"><b>${t('Ingen historik endnu')}</b>${DATA.canWrite ? t('Skriv den første note ovenfor.') : ''}</div>`}</div>` : `
@@ -584,7 +608,7 @@ function dealsTab(c, list) {
 	const free = list.filter(d => d.state === 'open' && !d.doc);
 	return `<div class="deals">${list.map(d => `<div class="d" data-editdeal="${d.id}"><b>${esc(d.t)}</b><span class="num">${kr(d.v)}</span>
 		${d.state === 'open' && d.doc && d.doc.st >= 3 && DATA.canWrite ? `<button type="button" class="ddsug inl" data-wondeal="${d.id}">${t('Faktureret – markér vundet?')}</button>` : ''}
-		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · ' + t('forventet lukket %s', fmt(d.close)) : ''}` : d.state === 'won' ? t('Vundet %s', fmtY(d.closed)) : t('Tabt %s', fmtY(d.closed)) + (d.reason ? ' – ' + esc(d.reason) : '')} · ${esc(empLow(d.own))}${d.doc ? ` · ${esc(docName(d.doc))} (${docState(d.doc)})` : ''}</small></div>`).join('') || `<div class="empty" style="padding:32px"><b>${t('Ingen sager')}</b></div>`}</div>
+		<small>${d.state === 'open' ? `<span class="dot" style="--c:${stColor(d.st)}">${esc(stName(d.st))}</span>${d.close ? ' · ' + t('forventet lukket %s', fmt(d.close)) : ''}` : d.state === 'won' ? t('Vundet %s', fmtY(d.closed)) : t('Tabt %s', fmtY(d.closed)) + (d.reason ? ' – ' + esc(d.reason) : '')} · ${esc([d.own].concat(d.with || []).map(empLow).filter(Boolean).join(', '))}${d.doc ? ` · ${esc(docName(d.doc))} (${docState(d.doc)})` : ''}</small></div>`).join('') || `<div class="empty" style="padding:32px"><b>${t('Ingen sager')}</b></div>`}</div>
 		${DATA.canWrite ? `<button class="addp" data-adddeal="" data-cid="${c.id}">${t('+ Ny sag')}</button>` : ''}
 		<h4 class="dsub">${t('Åbne tilbud og ordrer')}</h4>
 		<div class="deals">${c.docs.map(o => { const dl = DEALS.find(d => d.doc && d.doc.id === o.id);
@@ -683,6 +707,146 @@ function newFollowUp(dateKey, asNote) {
 	});
 }
 
+/* ================= møder ================= */
+// Colleague chips for a meeting or a sag: everyone but the responsible (not); W is changed in place.
+function colleagueChips(sel, W, not) {
+	const box = $(sel); if (!box) return;
+	for (let i = W.length - 1; i >= 0; i--) if (W[i] === not) W.splice(i, 1);
+	box.innerHTML = DATA.emps.filter(e => e.id !== not).map(e => `<button type="button" class="pchip ${W.includes(e.id) ? 'on' : ''}" aria-pressed="${W.includes(e.id)}" data-pw="${e.id}" ${DATA.canWrite ? '' : 'disabled'}>${e.id === ME ? t('Mig') : esc(e.n)}</button>`).join('')
+		|| `<span class="c3">${t('Ingen andre medarbejdere')}</span>`;
+	box.onclick = e => {
+		const b = e.target.closest('[data-pw]'); if (!b) return;
+		const id = +b.dataset.pw, i = W.indexOf(id);
+		if (i >= 0) W.splice(i, 1); else W.push(id);
+		b.classList.toggle('on', i < 0); b.setAttribute('aria-pressed', String(i < 0));
+		box.dispatchEvent(new Event('change'));
+	};
+}
+// "· 3 invitationer sendt", or that the mail setup failed (the server answers result.mail after the commit)
+function mailTxt(r) {
+	const m = r && r.mail; if (!m) return '';
+	if (m.failed) return ' · ' + t('%s invitationer kunne ikke sendes – tjek mailopsætningen under Indstillinger', m.failed);
+	return ' · ' + (m.sent === 1 ? t('1 invitation sendt') : t('%s invitationer sendt', m.sent));
+}
+const mailToast = (r, head) => toast((head || t('Gemt')) + mailTxt(r));
+// After a meeting with invitations out was moved: new invitations are offered, never sent by the move itself.
+const resendOffer = (hid, r) => r && r.inv ? {label: t('Send ændringen til deltagerne'), fn: async () => mailToast(await api('send_invites', {id: hid}), t('Ændringen er sendt'))} : null;
+const DURS = [15, 30, 45, 60, 90, 120, 180, 240];
+const durTxt = n => n < 60 ? t('%s min', n) : t('%s t', (n / 60).toLocaleString(LOC));
+// the next whole hour today (within 8-16), else 10:00
+const startFor = k => { if (k !== DATA.today) return '10:00'; const h = new Date().getHours() + 1; return h >= 8 && h <= 16 ? hhmm(h * 60) : '10:00'; };
+
+// Nyt møde / Ret møde: a follow-up of type Møde with a time. Who is busy then is shown, with the next free time as a
+// suggestion; nothing is moved or sent by itself - invitations go out only when the box is ticked.
+function meetingDialog(h, cid, dateKey) {
+	const go = c => {
+		const m = h ? {note: h.note, date: h.due, start: h.tm, dur: h.dur || 60, owner: h.by, to: h.to, inv: h.inv || 0}
+			: {note: '', date: dateKey || roll(1), start: startFor(dateKey || roll(1)), dur: 60, owner: ME || c.own || 0, to: 0, inv: 0};
+		const W = h ? (h.with || []).slice() : [];
+		const ro = DATA.canWrite ? '' : 'disabled';
+		const durs = DURS.includes(m.dur) ? DURS : DURS.concat(m.dur).sort((a, b) => a - b);
+		openDlg(`<h3>${h ? t('Ret møde') : t('Nyt møde')}</h3><div class="pick"><b>${esc(c.n)}</b><span class="c3">${esc(c.nr)}${c.by ? ' · ' + esc(c.by) : ''}</span>${h ? '' : `<button id="back">${t('Skift kunde')}</button>`}</div>
+			<div class="fgrid">
+				<label class="wide">${t('Emne')}<textarea id="mN" placeholder="${esc(t('Fx gennemgang af tilbuddet'))}" ${ro}>${esc(m.note)}</textarea></label>
+				<label>${t('Dato')}<input type="date" id="mD" value="${esc(m.date)}" ${ro}></label>
+				<div class="fpair"><label>${t('Fra')}<input type="time" id="mS" value="${esc(m.start)}" step="900" ${ro}></label>
+					<label>${t('Varighed')}<select id="mL" ${ro}>${durs.map(n => `<option value="${n}" ${n === m.dur ? 'selected' : ''}>${durTxt(n)}</option>`).join('')}</select></label></div>
+				<label>${t('Ansvarlig')}<select id="mO" ${ro}>${m.owner && !EMP[m.owner] ? `<option value="${m.owner}" selected>${t('(tidligere medarbejder)')}</option>` : m.owner ? '' : `<option value="0" selected>${t('– vælg –')}</option>`}${DATA.emps.map(e => `<option value="${e.id}" ${e.id === m.owner ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`).join('')}</select></label>
+				<label>${t('Kontaktperson')}<select id="mK" ${ro}><option value="0">${t('(ingen)')}</option>${m.to && !c.ppl.some(p => p.id === m.to) ? `<option value="${m.to}" selected>${t('(lukket kontakt)')}</option>` : ''}${c.ppl.map(p => `<option value="${p.id}" ${p.id === m.to ? 'selected' : ''}>${esc(p.n)}</option>`).join('')}</select></label>
+				${DATA.emps.length > 1 ? `<div class="wide fld"><span class="flbl">${t('Kolleger')}</span><div class="pchips" id="mW"></div></div>` : ''}
+			</div>
+			<div class="busy" id="mBusy" hidden></div>
+			${DATA.canWrite ? `<div class="minvs"><label class="minv"><input type="checkbox" id="mI"> <span id="mIt"></span></label><span class="c3 mix" id="mIx"></span>
+				<label class="minv" id="mKl" hidden><input type="checkbox" id="mKI"> <span id="mKt"></span></label></div>` : ''}
+			<div class="ft">${h && DATA.canWrite ? `<button class="left" id="mDel">${t('Slet møde')}</button>` : ''}<button id="mNo">${DATA.canWrite ? t('Annullér') : t('Luk')}</button>${DATA.canWrite ? `<button class="primary" id="mYes">${h ? t('Gem') : t('Book møde')}</button>` : ''}</div>`);
+		$('#mNo').onclick = closeDlg;
+		if ($('#back')) $('#back').onclick = () => meetingDialog(null, null, dateKey);
+		const owner = () => +$('#mO').value;
+		const everyone = () => [owner()].concat(W).filter((v, i, a) => v && a.indexOf(v) === i);
+		const contact = () => c.ppl.find(p => p.id === +$('#mK').value);
+		let touched = false;   // the user changed the invitation box: no more pre-ticking
+		const drawInvite = () => {
+			if (!$('#mI')) return;
+			const all = everyone(), withMail = all.filter(id => EMP[id] && EMP[id].m), noMail = all.filter(id => !(EMP[id] && EMP[id].m));
+			$('#mIt').textContent = m.inv & 1 ? t('Send ændringen til deltagerne på mail') : t('Send kalenderinvitation til deltagerne på mail');
+			$('#mI').disabled = !withMail.length;
+			// pre-ticked when colleagues other than the user are on it (or it was invited before); the user decides
+			if (!touched) $('#mI').checked = !!withMail.length && (!!(m.inv & 1) || all.some(id => id !== ME));
+			$('#mIx').textContent = noMail.length ? t('Uden mailadresse: %s', noMail.map(empName).join(', ')) : '';
+			const k = contact();
+			$('#mKl').hidden = !(k && k.mail);
+			if (k && k.mail) $('#mKt').textContent = t('Send også invitation til %s (%s)', k.n, k.mail);
+			else $('#mKI').checked = false;
+		};
+		// who is busy then (all meetings in the company, from the server); the free time is only a suggestion
+		let bt = null, bseq = 0;
+		const busy = () => { clearTimeout(bt); bt = setTimeout(async () => {
+			const my = ++bseq, date = $('#mD') && $('#mD').value, start = $('#mS') && $('#mS').value, dur = $('#mL') ? +$('#mL').value : 60;
+			if (!date || !/^\d{2}:\d{2}$/.test(start)) { if ($('#mBusy')) $('#mBusy').hidden = true; return; }
+			const r = await apiRead('busy', {date, start, dur, ids: everyone(), except: h ? h.id : 0});
+			if (my !== bseq || !$('#mBusy')) return;
+			if (!r || !r.conflicts.length) { $('#mBusy').hidden = true; return; }
+			$('#mBusy').innerHTML = `<b>${t('Optaget på det tidspunkt')}</b>` + r.conflicts.map(x => `<div>${x.who === ME ? t('Du har et møde %s–%s (%s)', x.s, x.e, esc(x.n)) : t('%s har et møde %s–%s (%s)', esc(empName(x.who) || t('(tidligere medarbejder)')), x.s, x.e, esc(x.n))}</div>`).join('')
+				+ (r.free && r.free !== start ? `<button type="button" class="linkbtn" id="mFree" data-t="${r.free}">${t('Brug %s, hvor alle er ledige', r.free)}</button>` : r.free ? '' : `<div class="c3">${t('Ingen ledig tid senere samme dag for alle.')}</div>`);
+			$('#mBusy').hidden = false;
+			if ($('#mFree')) $('#mFree').onclick = () => { $('#mS').value = $('#mFree').dataset.t; busy(); };
+		}, 250); };
+		if ($('#mW')) { colleagueChips('#mW', W, owner()); $('#mW').addEventListener('change', () => { drawInvite(); busy(); }); }
+		$('#mO').addEventListener('change', () => { if ($('#mW')) colleagueChips('#mW', W, owner()); drawInvite(); busy(); });
+		['#mD', '#mS', '#mL'].forEach(s => $(s).addEventListener('change', busy));
+		$('#mS').addEventListener('input', busy);
+		$('#mK').addEventListener('change', drawInvite);
+		if ($('#mI')) $('#mI').addEventListener('change', () => { touched = true; });
+		drawInvite(); busy();
+		if (!DATA.canWrite) return;
+		if ($('#mDel')) $('#mDel').onclick = () => confirmDel(h.id);
+		$('#mYes').onclick = async () => {
+			const btn = $('#mYes'); if (btn.disabled) return;   // no duplicates from a double click
+			const f = {note: $('#mN').value.trim(), date: $('#mD').value, start: $('#mS').value, dur: +$('#mL').value, owner: owner(), with: W.filter(x => x !== owner()), to: +$('#mK').value,
+				invite: !!($('#mI') && $('#mI').checked && !$('#mI').disabled), inviteContact: !!($('#mKI') && $('#mKI').checked)};
+			if (!f.date) { $('#mD').focus(); return; }
+			if (!/^\d{2}:\d{2}$/.test(f.start)) { $('#mS').focus(); return; }
+			if (!f.owner) { toast(t('Vælg, hvem der er ansvarlig for mødet.')); $('#mO').focus(); return; }
+			btn.disabled = true;
+			let r;
+			try { r = await api('save_meeting', Object.assign({id: h ? h.id : 0, cid: c.id}, f)); } catch (e) { btn.disabled = false; return; }
+			closeDlg();
+			const head = h ? t('Mødet er gemt') : t('Møde booket %s kl. %s', fmt(f.date), f.start);
+			// undo: the old meeting back (and to the calendars, if this save sent invitations) / the new one deleted (cancelled, if invited)
+			const sent = !!(r.mail && r.mail.sent);
+			const undo = h ? () => api('save_meeting', {id: h.id, cid: c.id, note: m.note, date: m.date, start: m.start, dur: m.dur, owner: m.owner, with: (h.with || []).slice(), to: m.to, invite: sent})
+				: () => api('delete_entry', {id: r.id, cancel: sent});
+			toast(head + mailTxt(r), undo);
+		};
+		setTimeout(() => $('#mN').focus(), 30);
+	};
+	if (cid) go(cust(cid)); else customerPicker(t('Nyt møde'), (dateKey ? cap(fmt(dateKey)) + '. ' : '') + t('Hvilken kunde er mødet med?'), go);
+}
+
+// Kalender -> Abonnér: the user's own secret feed link (api/crm/ical.php) for Google, Outlook or Apple.
+function icalDialog() {
+	const draw = url => {
+		DATA.ical = url;
+		openDlg(`<h3>${t('Se dine møder i din egen kalender')}</h3>
+			<div class="pi">${t('Med et personligt link kan Google Kalender, Outlook eller Apple Kalender vise dine møder fra CRM – dem, du er ansvarlig for eller deltager i. Kalenderen henter selv ændringerne; Google kan være op til et døgn om det.')}</div>
+			${!ME ? `<div class="pi">${t('Din bruger er ikke knyttet til en medarbejder, så der er ingen møder at vise. Bed en administrator knytte brugeren under Indstillinger → Brugere.')}</div>` : url ? `<div class="icurl"><input id="icU" readonly value="${esc(url)}" aria-label="${esc(t('Dit kalenderlink'))}"><button type="button" class="pbtn" id="icCopy">${t('Kopiér')}</button></div>
+			<ul class="ich"><li><b>Google:</b> ${t('Andre kalendere → + → Fra webadresse, indsæt linket.')}</li><li><b>Outlook:</b> ${t('Tilføj kalender → Abonner fra nettet, indsæt linket.')}</li><li><b>Apple:</b> ${t('Arkiv → Nyt kalenderabonnement, indsæt linket.')} <a href="${esc(url.replace(/^https?:/, 'webcal:'))}">${t('Åbn direkte')}</a></li></ul>
+			<div class="pi">${t('Linket er personligt: den, der har det, kan se dine møder. Er det kommet ud, så lav et nyt – det gamle holder op med at virke.')}</div>` : ''}
+			<div class="ft">${url ? `<button class="left" id="icOff">${t('Slå fra')}</button><button id="icNew">${t('Lav nyt link')}</button>` : ''}<button id="icNo">${t('Luk')}</button>${ME && !url ? `<button class="primary" id="icMake">${t('Lav mit link')}</button>` : ''}</div>`);
+		$('#icNo').onclick = closeDlg;
+		const set = async mode => { const r = await apiRead('ical', {mode}); if (!r) { toast(t('Kunne ikke gemme. Prøv igen.')); return; } draw(r.url); if (S.tab === 'cal') renderCal(); };
+		if ($('#icMake')) $('#icMake').onclick = () => set('new');
+		if ($('#icNew')) $('#icNew').onclick = () => set('new');
+		if ($('#icOff')) $('#icOff').onclick = () => set('off');
+		if ($('#icCopy')) $('#icCopy').onclick = async () => {
+			const u = $('#icU'); u.select();
+			try { await navigator.clipboard.writeText(u.value); } catch (e) { try { document.execCommand('copy'); } catch (e2) { /* the field stays selected */ } }
+			toast(t('Linket er kopieret'));
+		};
+	};
+	draw(DATA.ical || '');
+}
+
 // An offer/order linked to a deal (crm_deals.ordre_id): name, state and the suggestions it gives.
 const docName = o => o.st >= 3 ? t('Faktura %s', o.fnr || o.nr) : t(o.st === 0 && !DATA.quick ? 'Tilbud %s' : 'Ordre %s', o.nr);
 const docState = o => o.st >= 3 ? t('faktureret') : o.st === 2 ? t('delvist leveret') : o.st === 1 || DATA.quick ? t('ordre') : t('tilbud');
@@ -712,6 +876,7 @@ function dealDialog(deal, cid, stage) {
 				<label>${t('Forventet lukket')}<input id="dC" type="date" value="${esc(d.close || '')}"></label>
 				<label>${t('Stadie')}<select id="dS" ${deal && deal.state !== 'open' ? 'disabled' : ''}>${(deal && !g.s.includes(d.st) ? [d.st] : []).concat(g.s).map(id => `<option value="${esc(id)}" ${id === d.st ? 'selected' : ''}>${esc(stName(id))}</option>`).join('')}</select></label>
 				<label>${t('Ansvarlig')}<select id="dO">${(d.own && !EMP[d.own] ? [`<option value="${d.own}" selected>${t('(tidligere medarbejder)')}</option>`] : d.own ? [] : [`<option value="0" selected>${t('– vælg –')}</option>`]).concat(DATA.emps.map(e => `<option value="${e.id}" ${e.id === d.own ? 'selected' : ''}>${e.id === ME ? t('Mig') : esc(e.n)}</option>`)).join('') || '<option value="0">–</option>'}</select></label>
+				${DATA.emps.length > 1 ? `<div class="wide fld"><span class="flbl">${t('Kolleger på sagen')}</span><div class="pchips" id="dW"></div></div>` : ''}
 			</div>
 			${deal ? dealDocBox(deal, c) : ''}
 			<div class="ft">${deal ? `<button class="left" id="dDel">${t('Slet sag')}</button>` : ''}${deal && deal.state !== 'open' ? `<button id="dReopen">${t('Genåbn')}</button>` : ''}${deal && deal.state === 'open' ? `<button id="dWon">${t('Vundet')}</button><button id="dLost">${t('Tabt')}</button>` : ''}<button id="dNo">${t('Annullér')}</button><button class="primary" id="dYes">${deal ? t('Gem') : t('Opret sag')}</button></div>`);
@@ -722,14 +887,19 @@ function dealDialog(deal, cid, stage) {
 			$('#dNo').textContent = t('Luk'); $('#dNo').onclick = closeDlg;
 			return;
 		}
-		const fields = () => ({t: $('#dT').value.trim(), v: parseAmt($('#dV').value), st: $('#dS').value, close: $('#dC').value, own: +$('#dO').value});
+		// colleagues on the sag (not the responsible); the server tells the ones added in their bell
+		const W = (d.with || []).slice();
+		const drawW = () => colleagueChips('#dW', W, +$('#dO').value);
+		drawW();
+		$('#dO').addEventListener('change', drawW);
+		const fields = () => ({t: $('#dT').value.trim(), v: parseAmt($('#dV').value), st: $('#dS').value, close: $('#dC').value, own: +$('#dO').value, with: W.filter(x => x !== +$('#dO').value)});
 		const badAmount = () => { toast(t('Beløbet kunne ikke læses – skriv fx 12.500,50.')); $('#dV').focus(); };
 		// Vundet/Tabt/markér vundet first save what was edited in the dialog, incl. "Brug beløbet" (R29)
 		const saveIfChanged = async () => {
 			const f = fields();
 			if (f.v === null) { badAmount(); return false; }
-			if (f.t && (f.t !== deal.t || +f.v !== +deal.v || f.close !== (deal.close || '') || f.own !== deal.own)) {
-				await api('save_deal', {id: deal.id, cid: c.id, t: f.t, v: f.v, st: f.st, close: f.close, own: f.own});
+			if (f.t && (f.t !== deal.t || +f.v !== +deal.v || f.close !== (deal.close || '') || f.own !== deal.own || f.with.join() !== (deal.with || []).join())) {
+				await api('save_deal', {id: deal.id, cid: c.id, t: f.t, v: f.v, st: f.st, close: f.close, own: f.own, with: f.with});
 			}
 			return true;
 		};
@@ -754,7 +924,7 @@ function dealDialog(deal, cid, stage) {
 			if (f.v === null) { badAmount(); return; }
 			btn.disabled = true;
 			try {
-				await api('save_deal', {id: deal ? deal.id : 0, cid: c.id, t: f.t, v: f.v, st: f.st, close: f.close, own: f.own});
+				await api('save_deal', {id: deal ? deal.id : 0, cid: c.id, t: f.t, v: f.v, st: f.st, close: f.close, own: f.own, with: f.with});
 				if (deal && deal.state === 'open' && f.st !== deal.st) await api('move_deal', {id: deal.id, st: f.st});
 			} catch (e) { btn.disabled = false; return; }
 			closeDlg();
@@ -783,6 +953,7 @@ function lostDialog(d, done) {
 
 function editDialog(hid) {
 	const h = H.find(x => x.id === hid), c = cust(h.cid);
+	if (isMeet(h)) { meetingDialog(h, h.cid); return; }
 	openDlg(`<h3>${t('Ret %s fra %s', TYPE_N[h.type].toLowerCase(), fmtY(h.date))}</h3>
 		<div class="fgrid">
 			<label>${t('Type')}<select id="eT">${COMPOSE_TYPES.map(t => `<option value="${t}" ${t === h.type ? 'selected' : ''}>${TYPE_N[t]}</option>`).join('')}</select></label>
@@ -806,9 +977,19 @@ function editDialog(hid) {
 
 function confirmDel(hid) {
 	const h = H.find(x => x.id === hid);
-	openDlg(`<h3>${t('Slet %s fra %s?', (TYPE_N[h.type] || TYPE_N.note).toLowerCase(), fmtY(h.date))}</h3><div class="pi">${esc(h.note.slice(0, 160))}${h.note.length > 160 ? '…' : ''}</div><div class="ft"><button id="cNo">${t('Annullér')}</button><button class="danger" id="cYes">${t('Slet')}</button></div>`, 'confirm');
+	// a meeting with invitations out: a cancellation is offered (pre-ticked); undo restores it and invites again
+	const cancel = isMeet(h) && h.inv;
+	openDlg(`<h3>${isMeet(h) ? t('Slet mødet %s kl. %s?', fmt(h.due), h.tm) : t('Slet %s fra %s?', (TYPE_N[h.type] || TYPE_N.note).toLowerCase(), fmtY(h.date))}</h3><div class="pi">${esc(h.note.slice(0, 160))}${h.note.length > 160 ? '…' : ''}</div>
+		${cancel ? `<label class="minv"><input type="checkbox" id="cCancel" checked> ${t('Send aflysning til dem, der fik en invitation')}</label>` : ''}<div class="ft"><button id="cNo">${t('Annullér')}</button><button class="danger" id="cYes">${t('Slet')}</button></div>`, 'confirm');
 	$('#cNo').onclick = closeDlg;
-	$('#cYes').onclick = async () => { const r = await api('delete_entry', {id: h.id}); closeDlg(); toast(t('Slettet'), () => api('restore_entry', {row: r.row})); };
+	$('#cYes').onclick = async () => {
+		const r = await api('delete_entry', {id: h.id, cancel: !!(cancel && $('#cCancel').checked)}); closeDlg();
+		const sent = r.row.mt && r.row.mt.cancelled;
+		toast(t('Slettet') + (sent ? ' · ' + t('aflysning sendt') : ''), async () => {
+			const back = await api('restore_entry', {row: r.row});
+			if (sent && back && back.id) mailToast(await api('send_invites', {id: back.id}), t('Mødet er tilbage'));
+		});
+	};
 	setTimeout(() => $('#cYes').focus(), 30);
 }
 
@@ -890,7 +1071,7 @@ function snoozeMenu(hid, anchor) {
 	const r = anchor.getBoundingClientRect();
 	m.style.left = Math.min(r.left, innerWidth - 220) + 'px'; m.style.top = Math.min(r.bottom + 4, innerHeight - 260) + 'px';
 	m.classList.add('open');
-	const go = async to => { const old = h.due; m.classList.remove('open'); await api('set_due', {id: hid, due: to}); toast(t('Udsat til %s', fmt(to)), () => api('set_due', {id: hid, due: old})); };
+	const go = async to => { const old = h.due; m.classList.remove('open'); const r = await api('set_due', {id: hid, due: to}); toast(t('Udsat til %s', fmt(to)), () => api('set_due', {id: hid, due: old}), resendOffer(hid, r)); };
 	m.querySelectorAll('[data-to]').forEach(b => b.onclick = e => { e.stopPropagation(); go(b.dataset.to); });
 	$('#snDate').onchange = e => go(e.target.value);
 	$('#snDate').onclick = e => e.stopPropagation();
@@ -1024,6 +1205,9 @@ document.addEventListener('click', e => {
 	if ((b = t.closest('[data-grp]'))) { S.grp = b.dataset.grp; S.stF = b.dataset.stf || 'all'; renderGroups(); renderAll(); return; }
 	if ((b = t.closest('[data-stf]'))) { S.stF = b.dataset.stf; renderCust(); return; }
 	if ((b = t.closest('[data-bgrp]'))) { S.bgrp = b.dataset.bgrp; renderPipe(); syncUrl(); return; }
+	if ((b = t.closest('[data-addmeet]'))) { e.stopPropagation(); e.preventDefault(); meetingDialog(null, b.dataset.cid ? +b.dataset.cid : null); return; }
+	if ((b = t.closest('[data-newmeet]'))) { e.stopPropagation(); meetingDialog(null, null, b.dataset.newmeet); return; }
+	if (t.closest('#calSub')) { icalDialog(); return; }
 	if ((b = t.closest('[data-adddeal]'))) { e.stopPropagation(); e.preventDefault(); dealDialog(null, b.dataset.cid ? +b.dataset.cid : null, b.dataset.adddeal || null); return; }
 	if ((b = t.closest('[data-editdeal]'))) { const d = DEALS.find(x => x.id === +b.dataset.editdeal); if (d) dealDialog(d, d.cid); return; }
 	if ((b = t.closest('[data-mode]'))) { S.calMode = b.dataset.mode; if (S.calMode === 'week') S.weekStart = mondayOf(S.calY === TODAY.getFullYear() && S.calM === TODAY.getMonth() ? DATA.today : key(new Date(S.calY, S.calM, 1))); renderCal(); return; }
@@ -1070,9 +1254,9 @@ $('#drawer').addEventListener('change', e => {
 	if (e.target.id === 'ownSel') setOwner(cust(S.drawer), +e.target.value);
 });
 $('#scrim').onclick = e => { if (e.target.id === 'scrim') closeDlg(); };
-// The new-button follows the tab (also key N): Opfølgning/Kalender -> follow-up, Sager -> deal (sag),
+// The new-button follows the tab (also key N): Opfølgning -> follow-up, Kalender -> meeting, Sager -> deal (sag),
 // Kunder -> new customer card, Aktivitet -> note. Offers and orders are made from the customer's drawer.
-const NEW_FOR = {follow: 'Ny opfølgning', cal: 'Ny opfølgning', pipe: 'Ny sag', cust: 'Ny kunde', act: 'Ny note'};
+const NEW_FOR = {follow: 'Ny opfølgning', cal: 'Nyt møde', pipe: 'Ny sag', cust: 'Ny kunde', act: 'Ny note'};
 function drawNewBtn() {
 	const k = NEW_FOR[S.tab] || 'Ny opfølgning';
 	$('#newLbl').textContent = t(k);
@@ -1082,6 +1266,7 @@ function newForTab() {
 	if (S.tab === 'pipe') dealDialog(null, null, null);
 	else if (S.tab === 'cust') { const href = 'debitorkort.php?returside=' + encodeURIComponent('crm.php?' + placeParams({drawer: null})); sendPlace().finally(() => { location.href = href; }); }
 	else if (S.tab === 'act') newFollowUp(null, true);
+	else if (S.tab === 'cal') meetingDialog(null, null, S.calMode === 'week' && S.weekStart && diff(S.weekStart) > 0 ? S.weekStart : null);
 	else newFollowUp();
 }
 $('#newBtn').onclick = e => { e.stopPropagation(); newForTab(); };
@@ -1189,8 +1374,8 @@ document.addEventListener('drop', async e => {
 		const d = e.target.closest('[data-day]'); if (!d) return; e.preventDefault();
 		const h = H.find(x => x.id === dragEv), old = h.due; dragEv = null;
 		if (old === d.dataset.day) return renderCal();
-		await api('set_due', {id: h.id, due: d.dataset.day});
-		toast(t('%s flyttet til %s', cust(h.cid).n, fmt(d.dataset.day)), () => api('set_due', {id: h.id, due: old}));
+		const r = await api('set_due', {id: h.id, due: d.dataset.day});
+		toast(t('%s flyttet til %s', cust(h.cid).n, fmt(d.dataset.day)), () => api('set_due', {id: h.id, due: old}), resendOffer(h.id, r));
 		return;
 	}
 	if (dragCard === null) return;

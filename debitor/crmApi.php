@@ -26,6 +26,8 @@
 //              X-CSRF-Token. Answers {ok, result, data}; data is the whole dataset again (small for a CRM), so the
 //              page never drifts from the database. 'search' only reads and answers {ok, result}.
 // 20261020 ASR 'place' updates the CRM's entry in the navigation stack (Back from an order lands in the drawer).
+// 20261029 ASR 'busy' (who already has a meeting then) and 'ical' (the user's own calendar feed link) need read access;
+//              calendar invitations queued by an action are mailed after the commit (crm_flush_mail).
 
 @session_start();
 $s_id = session_id();
@@ -39,7 +41,7 @@ $permission_key = 'debitor.konti';
 // Reading actions (search, place) only need read access; everything else writes.
 $crmBody = (string) file_get_contents('php://input');
 $crmPeek = json_decode($crmBody, true);
-$crmReadActions = array('search', 'place', 'customer', 'data');
+$crmReadActions = array('search', 'place', 'customer', 'data', 'busy', 'ical');
 $permission_level = (is_array($crmPeek) && in_array($crmPeek['action'] ?? '', $crmReadActions, true)) ? 'read' : 'write';
 // 20261024 ASR review R71: the central gate (includes/permissions.php) counts every POST as a write unless the page says
 //              the POST only reads; without this a read-only user could not search or report the page's place.
@@ -96,6 +98,21 @@ if ($in['action'] === 'data') {
 	// the whole dataset again, read-only: the page refreshes itself when its tab is shown again (review R20)
 	crm_api_answer(array('ok' => true, 'data' => crm_dataset()));
 }
+if ($in['action'] === 'busy') {
+	// meetings of the chosen people that overlap the asked time, and the first free start that day
+	$date = crm_date($in['date'] ?? '');
+	$start = crm_time($in['start'] ?? '');
+	if (!$date || !$start) {
+		crm_api_answer(array('ok' => false, 'error' => 'fields'), 400);
+	}
+	$ids = array_values(array_filter(array_map('intval', (array) ($in['ids'] ?? array()))));
+	crm_api_answer(array('ok' => true, 'result' => crm_busy($date, $start, max(5, min(720, (int) ($in['dur'] ?? 60))), $ids, (int) ($in['except'] ?? 0))));
+}
+if ($in['action'] === 'ical') {
+	// the user's own feed link: 'new' makes one (an older one stops working), 'off' removes it
+	$mode = in_array($in['mode'] ?? '', array('new', 'off'), true) ? $in['mode'] : '';
+	crm_api_answer(array('ok' => true, 'result' => array('url' => $mode ? crm_ical_set($mode) : crm_ical_url())));
+}
 if ($in['action'] === 'customer') {
 	// one customer with its history (a drawer on a customer outside the loaded set); read access is enough
 	$one = crm_action('customer', $in);
@@ -109,4 +126,8 @@ if (!empty($result['error'])) {
 	crm_api_answer(array('ok' => false, 'error' => $result['error']), 400);
 }
 transaktion('commit');
+// invitations go out only now that the change is saved
+if (!empty($GLOBALS['crm_mail_queue'])) {
+	$result['mail'] = crm_flush_mail();
+}
 crm_api_answer(array('ok' => true, 'result' => $result, 'data' => crm_dataset()));

@@ -25,6 +25,9 @@
 // 20261020 ASR CRM redesign (prototype_crm.html v1.1): schema, the data behind debitor/crm.php and the actions
 //              of debitor/crmApi.php.
 // 20261028 ASR The UI calls deals "sager" (tab Sager, Ny sag); code and tables keep the name deal.
+// 20261029 ASR Meetings with colleagues: a time and a length, colleagues on a meeting or a deal (bell items for them),
+//              a warning when a colleague already has a meeting then (with the next free time offered), calendar
+//              invitations by mail (.ics, sent only when the user ticks it) and a personal calendar feed.
 //
 // Data model (existing unless marked new):
 //   historik     konto_id (customer), ansat_id (our employee = owner), kontakt_id (customer's contact person, ansatte),
@@ -36,6 +39,10 @@
 //                box3 status a customer is offered when a deal is won, box4 when lost (new use, optional)
 //   crm_deals    new table: deals per customer (title, amount, stage = a status id, expected close, owner, state,
 //                ordre_id = the offer/order made from the deal); shown on the customer's card and in the drawer
+//   crm_meetings new table (20261029): a follow-up of type moede with a time - start_time 'HH:MM', duration in
+//                minutes, seq (the calendar invitation's SEQUENCE), invite_team / invite_contact (invitations sent)
+//   crm_participants new table: the colleagues on a meeting (kind 'h', ref_id = historik.id) or a deal ('d')
+//   crm_ical     new table: a user's secret calendar feed link (api/crm/ical.php)
 //
 // Which customers the page loads (crm_customer_scope): those with a status in one of the status groups, a CRM entry,
 // an open deal or a next-contact date - at most CRM_MAX_CUSTOMERS, the most recently active first. In most companies
@@ -129,6 +136,25 @@ function crm_ensure_schema(): void
 	} elseif (!db_fetch_array(db_select("show index from historik where Key_name = 'historik_konto_idx'", __FILE__ . " linje " . __LINE__))) {
 		db_modify("CREATE INDEX historik_konto_idx ON historik (konto_id)", __FILE__ . " linje " . __LINE__);
 	}
+	// 20261029 ASR meetings: the start time and length of a follow-up of type moede (historik.kontaktes is its date),
+	// whether calendar invitations went out, the colleagues on a meeting ('h') or a deal ('d'), the personal calendar feed
+	if (!crm_col_exists('crm_meetings', 'historik_id')) {
+		db_modify("CREATE TABLE crm_meetings (historik_id integer NOT NULL PRIMARY KEY, start_time varchar(5) NOT NULL, duration integer NOT NULL DEFAULT 60, "
+			. "seq integer NOT NULL DEFAULT 0, invite_team integer NOT NULL DEFAULT 0, invite_contact integer NOT NULL DEFAULT 0)", __FILE__ . " linje " . __LINE__);
+	}
+	if (!crm_col_exists('crm_participants', 'ref_id')) {
+		if (crm_is_mysql()) {
+			db_modify("CREATE TABLE crm_participants (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, kind VARCHAR(1) NOT NULL, ref_id INT NOT NULL, ansat_id INT NOT NULL, "
+				. "INDEX crm_participants_ref_idx (kind, ref_id), INDEX crm_participants_ansat_idx (ansat_id))", __FILE__ . " linje " . __LINE__);
+		} else {
+			db_modify("CREATE TABLE crm_participants (id SERIAL PRIMARY KEY, kind varchar(1) NOT NULL, ref_id integer NOT NULL, ansat_id integer NOT NULL)", __FILE__ . " linje " . __LINE__);
+			db_modify("CREATE INDEX crm_participants_ref_idx ON crm_participants (kind, ref_id)", __FILE__ . " linje " . __LINE__);
+			db_modify("CREATE INDEX crm_participants_ansat_idx ON crm_participants (ansat_id)", __FILE__ . " linje " . __LINE__);
+		}
+	}
+	if (!crm_col_exists('crm_ical', 'token')) {
+		db_modify("CREATE TABLE crm_ical (bruger_id integer NOT NULL PRIMARY KEY, token varchar(64) NOT NULL, created date)", __FILE__ . " linje " . __LINE__);
+	}
 	crm_migrate_legacy_followups();
 }
 
@@ -211,7 +237,7 @@ function crm_ids(array $ids): string
 	return $ids ? implode(',', $ids) : '0';
 }
 
-// ------------------------------------------------------------------ texts (tekster.csv 7300-7509)
+// ------------------------------------------------------------------ texts (tekster.csv 7300-7693)
 
 /**
  * The CRM's texts: id => Danish text. The Danish text is the key the page and javascript/crm.js use; the user's
@@ -526,7 +552,78 @@ function crm_text_ids(): array
 		7619 => '(lukket kontakt)',
 		7620 => '(tidligere medarbejder)',
 		7621 => 'Indstillingerne er ændret af en anden. Genindlæs siden.',
-		7622 => 'Gem eller annullér ændringerne i tandhjulet først.'
+		7622 => 'Gem eller annullér ændringerne i tandhjulet først.',
+		7623 => '%s (Saldi)',
+		7624 => '%s har et møde %s–%s (%s)',
+		7625 => '%s har inviteret dig til et møde med %s.',
+		7626 => '%s invitationer kunne ikke sendes – tjek mailopsætningen under Indstillinger',
+		7627 => '%s invitationer sendt',
+		7628 => '%s min',
+		7629 => '%s t',
+		7630 => '1 invitation sendt',
+		7631 => 'Abonnement',
+		7632 => 'Abonnér',
+		7633 => 'Aflyst: møde med %s %s',
+		7634 => 'Andre kalendere → + → Fra webadresse, indsæt linket.',
+		7635 => 'Arkiv → Nyt kalenderabonnement, indsæt linket.',
+		7636 => 'Book møde',
+		7637 => 'Brug %s, hvor alle er ledige',
+		7638 => 'Deltagere: %s',
+		7639 => 'Din bruger er ikke knyttet til en medarbejder, så der er ingen møder at vise. Bed en administrator knytte brugeren under Indstillinger → Brugere.',
+		7640 => 'Dit kalenderlink',
+		7641 => 'Du er inviteret til et møde',
+		7642 => 'Du er sat på sagen »%s«',
+		7643 => 'Du har et møde %s–%s (%s)',
+		7644 => 'Emne',
+		7645 => 'Fra',
+		7646 => 'Fx gennemgang af tilbuddet',
+		7647 => 'Hvilken kunde er mødet med?',
+		7648 => 'Ingen andre medarbejdere',
+		7649 => 'Ingen ledig tid senere samme dag for alle.',
+		7650 => 'Invitation: møde med %s %s',
+		7651 => 'Kalenderabonnement slået fra',
+		7652 => 'Kalenderabonnement: nyt link',
+		7653 => 'Kolleger',
+		7654 => 'Kolleger på sagen',
+		7655 => 'Kontaktperson: %s',
+		7656 => 'Kopiér',
+		7657 => 'Lav mit link',
+		7658 => 'Lav nyt link',
+		7659 => 'Linket er kopieret',
+		7660 => 'Linket er personligt: den, der har det, kan se dine møder. Er det kommet ud, så lav et nyt – det gamle holder op med at virke.',
+		7661 => 'Med et personligt link kan Google Kalender, Outlook eller Apple Kalender vise dine møder fra CRM – dem, du er ansvarlig for eller deltager i. Kalenderen henter selv ændringerne; Google kan være op til et døgn om det.',
+		7662 => 'Møde %s kl. %s',
+		7663 => 'Møde %s · gjort',
+		7664 => 'Møde booket %s kl. %s',
+		7665 => 'Møde med %s',
+		7666 => 'Mødet er flyttet til %s',
+		7667 => 'Mødet er gemt',
+		7668 => 'Mødet er tilbage',
+		7669 => 'Mødet med %s %s er aflyst.',
+		7670 => 'Nyt møde',
+		7671 => 'Nyt møde %s',
+		7672 => 'Næste møde',
+		7673 => 'Optaget på det tidspunkt',
+		7674 => 'Ret møde',
+		7675 => 'Saldi CRM – %s',
+		7676 => 'Se dine møder i Google Kalender, Outlook eller Apple Kalender',
+		7677 => 'Se dine møder i din egen kalender',
+		7678 => 'Send aflysning til dem, der fik en invitation',
+		7679 => 'Send kalenderinvitation til deltagerne på mail',
+		7680 => 'Send også invitation til %s (%s)',
+		7681 => 'Send ændringen til deltagerne',
+		7682 => 'Send ændringen til deltagerne på mail',
+		7683 => 'Slet møde',
+		7684 => 'Slet mødet %s kl. %s?',
+		7685 => 'Slå fra',
+		7686 => 'Tilføj kalender → Abonner fra nettet, indsæt linket.',
+		7687 => 'Uden mailadresse: %s',
+		7688 => 'Varighed',
+		7689 => 'Vælg, hvem der er ansvarlig for mødet.',
+		7690 => 'aflysning sendt',
+		7691 => 'invitation sendt',
+		7692 => 'Åbn direkte',
+		7693 => 'Ændringen er sendt'
 	);
 }
 
@@ -745,7 +842,8 @@ function crm_notif_refresh(int $brugerId, string $rettigheder, int $sprogId): vo
 	// the same open rule as the page (crm_open_sql), closed customers left out as on the page; "today" without the overdue ones (review R63)
 	$r = db_fetch_array(db_select("select count(*) as n, sum(case when h.kontaktes < '$today' then 1 else 0 end) as late from historik h "
 		. "join adresser a on a.id = h.konto_id and (a.lukket is null or a.lukket != 'on') "
-		. "where h.ansat_id = $ansat and h.kontaktes <= '$today' and " . crm_open_sql('h'), __FILE__ . " linje " . __LINE__));
+		. "where (h.ansat_id = $ansat" . (tbl_exists('crm_participants') ? " or exists (select 1 from crm_participants p where p.kind = 'h' and p.ref_id = h.id and p.ansat_id = $ansat)" : '')
+		. ") and h.kontaktes <= '$today' and " . crm_open_sql('h'), __FILE__ . " linje " . __LINE__));
 	$n = $r ? (int) $r['n'] : 0;
 	if ($n <= 0) {
 		db_modify("delete from notification_read where notification_id in (select id from notifications where source_key = '$key' and user_id = $brugerId)", __FILE__ . " linje " . __LINE__);
@@ -875,9 +973,29 @@ function crm_employees(): array
 	$own = crm_own_id();
 	$q = db_select("select id, navn, initialer from ansatte where konto_id = $own and (lukket is null or lukket != 'on') order by navn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$out[] = array('id' => (int) $r['id'], 'n' => crm_out($r['navn']), 'i' => crm_out($r['initialer']));
+		// m: the employee has a mail address a calendar invitation can go to (the address itself stays on the server)
+		$out[] = array('id' => (int) $r['id'], 'n' => crm_out($r['navn']), 'i' => crm_out($r['initialer']), 'm' => crm_emp_mail((int) $r['id']) !== '');
 	}
 	return $out;
+}
+
+/** An employee's mail address: the employee's own, else the address of the user linked to the employee. */
+function crm_emp_mail(int $ansatId): string
+{
+	static $cache = array();
+	if ($ansatId <= 0) {
+		return '';
+	}
+	if (!isset($cache[$ansatId])) {
+		$r = db_fetch_array(db_select("select email from ansatte where id = $ansatId", __FILE__ . " linje " . __LINE__));
+		$m = $r ? trim((string) $r['email']) : '';
+		if (!filter_var($m, FILTER_VALIDATE_EMAIL)) {
+			$u = db_fetch_array(db_select("select email from brugere where ansat_id = $ansatId and email is not null and email != '' order by id limit 1", __FILE__ . " linje " . __LINE__));
+			$m = $u ? trim((string) $u['email']) : '';
+		}
+		$cache[$ansatId] = filter_var($m, FILTER_VALIDATE_EMAIL) ? $m : '';
+	}
+	return $cache[$ansatId];
 }
 
 /** A fingerprint of the statuses and status groups: a save made from an older view of them is refused (review R50). */
@@ -1105,6 +1223,42 @@ function crm_history(array $custIds, bool $all = false): array
 			'file' => crm_out($r['dokument']),
 		);
 	}
+	// meetings: time, length, colleagues and whether invitations went out (tm/dur/with/inv only on those rows)
+	$mt = crm_meetings_for(array_map(function ($h) { return $h['id']; }, $out));
+	foreach ($out as $k => $h) {
+		if (isset($mt[$h['id']])) {
+			$out[$k] += $mt[$h['id']];
+		}
+	}
+	return $out;
+}
+
+/**
+ * @param int[] $hids historik ids
+ * @return array<int, array{tm: string, dur: int, with: int[], inv: int, seq: int}> keyed by historik id
+ */
+function crm_meetings_for(array $hids): array
+{
+	$out = array();
+	if (!$hids || !tbl_exists('crm_meetings')) {
+		return $out;
+	}
+	foreach (array_chunk($hids, 2000) as $chunk) {
+		$ids = crm_ids($chunk);
+		$q = db_select("select historik_id, start_time, duration, seq, invite_team, invite_contact from crm_meetings where historik_id in ($ids)", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$out[(int) $r['historik_id']] = array('tm' => (string) $r['start_time'], 'dur' => (int) $r['duration'], 'with' => array(),
+				'inv' => ((int) $r['invite_team'] ? 1 : 0) + ((int) $r['invite_contact'] ? 2 : 0), 'seq' => (int) $r['seq']);
+		}
+		if ($out) {
+			$q = db_select("select ref_id, ansat_id from crm_participants where kind = 'h' and ref_id in ($ids) order by id", __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				if (isset($out[(int) $r['ref_id']])) {
+					$out[(int) $r['ref_id']]['with'][] = (int) $r['ansat_id'];
+				}
+			}
+		}
+	}
 	return $out;
 }
 
@@ -1131,7 +1285,21 @@ function crm_deals(int $cid = 0): array
 			'own' => (int) $r['ansat_id'], 'since' => (string) ($r['stage_since'] ?: $r['created']), 'closed' => (string) $r['closed'],
 			'reason' => crm_out($r['lost_reason']),
 			'doc' => $doc,
+			'with' => array(),
 		);
+	}
+	// the colleagues on each deal (20261029)
+	if ($out && tbl_exists('crm_participants')) {
+		$pos = array();
+		foreach ($out as $k => $d) {
+			$pos[$d['id']] = $k;
+		}
+		$q = db_select("select ref_id, ansat_id from crm_participants where kind = 'd' and ref_id in (" . crm_ids(array_keys($pos)) . ") order by id", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			if (isset($pos[(int) $r['ref_id']])) {
+				$out[$pos[(int) $r['ref_id']]]['with'][] = (int) $r['ansat_id'];
+			}
+		}
 	}
 	return $out;
 }
@@ -1179,6 +1347,7 @@ function crm_dataset(int $extraId = 0): array
 		'dealFrom'  => crm_deal_from(),
 		'today'     => date('Y-m-d'),
 		'me'        => (int) $ansat_id,
+		'ical'      => crm_ical_url(),
 		'canWrite'  => crm_can_write(),
 		'truncated' => $truncated,
 		'max'       => CRM_MAX_CUSTOMERS,
@@ -1193,6 +1362,482 @@ function crm_dataset(int $extraId = 0): array
 		'hist'      => crm_history(array_keys($customers)),
 		'deals'     => $deals,
 	);
+}
+
+// ------------------------------------------------------------------ meetings and colleagues (20261029)
+// A meeting is a follow-up of type moede (historik: kontaktes = the day, ansat_id = the responsible) with a row in
+// crm_meetings (time, length). The colleagues on a meeting or a deal are in crm_participants. Calendar invitations
+// are only sent when the user ticks it; they are queued during the action and sent by crm_flush_mail() after the
+// transaction is committed (debitor/crmApi.php), so a rolled back action never mails anyone.
+
+/** 'HH:MM' or null. */
+function crm_time($v): ?string
+{
+	return preg_match('/^([01]?\d|2[0-3]):([0-5]\d)$/', trim((string) $v), $m) ? sprintf('%02d:%02d', $m[1], $m[2]) : null;
+}
+
+function crm_min(string $hhmm): int
+{
+	$p = explode(':', $hhmm);
+	return (int) $p[0] * 60 + (int) ($p[1] ?? 0);
+}
+
+function crm_hhmm(int $min): string
+{
+	$min = max(0, min(24 * 60, $min));
+	return sprintf('%02d:%02d', intdiv($min, 60), $min % 60);
+}
+
+/** "30-10-2026 10:00-11:00" */
+function crm_meeting_when(string $date, string $start, int $dur): string
+{
+	return date('d-m-Y', strtotime($date)) . ' ' . $start . '–' . crm_hhmm(crm_min($start) + $dur);
+}
+
+/** Employee ids from the client, kept to the company's active employees; $not (the responsible) left out. */
+function crm_emp_ids($list, int $not = 0): array
+{
+	$valid = array();
+	foreach (crm_employees() as $e) {
+		$valid[$e['id']] = true;
+	}
+	$out = array();
+	foreach ((array) $list as $id) {
+		$id = (int) $id;
+		if ($id > 0 && $id !== $not && isset($valid[$id])) {
+			$out[$id] = $id;
+		}
+	}
+	return array_values($out);
+}
+
+/** @return int[] the colleagues on a meeting (kind 'h', historik id) or a deal ('d') */
+function crm_participants(string $kind, int $ref): array
+{
+	$kind = $kind === 'd' ? 'd' : 'h';
+	$out = array();
+	if (!tbl_exists('crm_participants')) {
+		return $out;
+	}
+	$q = db_select("select ansat_id from crm_participants where kind = '$kind' and ref_id = $ref order by id", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$out[] = (int) $r['ansat_id'];
+	}
+	return $out;
+}
+
+/** Replace the colleagues; returns [added, removed]. */
+function crm_set_participants(string $kind, int $ref, array $ids): array
+{
+	$kind = $kind === 'd' ? 'd' : 'h';
+	$old = crm_participants($kind, $ref);
+	$add = array_values(array_diff($ids, $old));
+	$del = array_values(array_diff($old, $ids));
+	if ($del) {
+		db_modify("delete from crm_participants where kind = '$kind' and ref_id = $ref and ansat_id in (" . crm_ids($del) . ")", __FILE__ . " linje " . __LINE__);
+	}
+	foreach ($add as $a) {
+		db_modify("insert into crm_participants (kind, ref_id, ansat_id) values ('$kind', $ref, " . (int) $a . ")", __FILE__ . " linje " . __LINE__);
+	}
+	return array($add, $del);
+}
+
+/** Everyone on a meeting: the responsible first, then the colleagues. */
+function crm_meeting_people(int $hid): array
+{
+	$r = db_fetch_array(db_select("select ansat_id from historik where id = $hid", __FILE__ . " linje " . __LINE__));
+	return array_values(array_unique(array_filter(array_merge(array($r ? (int) $r['ansat_id'] : 0), crm_participants('h', $hid)))));
+}
+
+/**
+ * The meetings that overlap [start, start + dur) on $date for any of $ids (responsible or colleague), not done and
+ * not $except - and the first start from the asked time on, in quarter hours until 18:00, when none of them is busy.
+ *
+ * @return array{conflicts: array<int, array{who: int, s: string, e: string, n: string}>, free: ?string}
+ */
+function crm_busy(string $date, string $start, int $dur, array $ids, int $except = 0): array
+{
+	$res = array('conflicts' => array(), 'free' => $start);
+	if (!$ids || !tbl_exists('crm_meetings')) {
+		return $res;
+	}
+	$rows = array();
+	$q = db_select("select h.id, h.ansat_id, m.start_time, m.duration, a.firmanavn from historik h join crm_meetings m on m.historik_id = h.id "
+		. "left join adresser a on a.id = h.konto_id where h.kontaktes = '$date' and (h.completed is null or h.completed = FALSE) and h.id <> $except", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$rows[(int) $r['id']] = $r;
+	}
+	if (!$rows) {
+		return $res;
+	}
+	$with = array();
+	$q = db_select("select ref_id, ansat_id from crm_participants where kind = 'h' and ref_id in (" . crm_ids(array_keys($rows)) . ")", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$with[(int) $r['ref_id']][] = (int) $r['ansat_id'];
+	}
+	$want = array_flip($ids);
+	$busy = array();
+	foreach ($rows as $hid => $r) {
+		$s = crm_min((string) $r['start_time']);
+		$e = $s + (int) $r['duration'];
+		foreach (array_unique(array_merge(array((int) $r['ansat_id']), isset($with[$hid]) ? $with[$hid] : array())) as $p) {
+			if (isset($want[$p])) {
+				$busy[] = array($s, $e, $p, crm_out($r['firmanavn']));
+			}
+		}
+	}
+	$s0 = crm_min($start);
+	$e0 = $s0 + $dur;
+	usort($busy, function ($a, $b) { return $a[0] - $b[0]; });
+	foreach ($busy as $b) {
+		if ($b[0] < $e0 && $s0 < $b[1]) {
+			$res['conflicts'][] = array('who' => $b[2], 's' => crm_hhmm($b[0]), 'e' => crm_hhmm($b[1]), 'n' => $b[3]);
+		}
+	}
+	$res['free'] = null;
+	$limit = max(18 * 60, $e0);
+	for ($t = $s0; $t + $dur <= $limit; $t = (intdiv($t, 15) + 1) * 15) {
+		$ok = true;
+		foreach ($busy as $b) {
+			if ($b[0] < $t + $dur && $t < $b[1]) {
+				$ok = false;
+				break;
+			}
+		}
+		if ($ok) {
+			$res['free'] = crm_hhmm($t);
+			break;
+		}
+	}
+	return $res;
+}
+
+/** "Du er inviteret til et møde" / "Mødet er flyttet til ..." in the bell of someone on a meeting (key crm:mt:<hid>:<ansat>). */
+function crm_notify_meeting(int $hid, int $ansat, bool $moved = false): void
+{
+	$h = db_fetch_array(db_select("select h.konto_id, h.notat, h.kontaktes, m.start_time, m.duration from historik h join crm_meetings m on m.historik_id = h.id where h.id = $hid", __FILE__ . " linje " . __LINE__));
+	if (!$h || !$h['kontaktes']) {
+		return;
+	}
+	$key = "crm:mt:$hid:$ansat";
+	include_once(__DIR__ . '/notifications.php');
+	$u = crm_user_for_ansat($ansat);
+	if ($moved && $u > 0 && function_exists('notif_ready') && notif_ready()) {
+		// a moved meeting is shown as unread again
+		db_modify("delete from notification_read where user_id = $u and notification_id in (select id from notifications where source_key = '$key')", __FILE__ . " linje " . __LINE__);
+	}
+	$cid = (int) $h['konto_id'];
+	$c = db_fetch_array(db_select("select firmanavn from adresser where id = $cid", __FILE__ . " linje " . __LINE__));
+	$when = crm_meeting_when((string) $h['kontaktes'], (string) $h['start_time'], (int) $h['duration']);
+	$body = crm_out($c ? (string) $c['firmanavn'] : '') . ': ' . mb_substr(trim(crm_out($h['notat'])), 0, 120) . ' · ' . $when . ' · ' . crm_t('fra %s', crm_actor_name());
+	crm_notify($ansat, $key, $moved ? crm_t('Mødet er flyttet til %s', $when) : crm_t('Du er inviteret til et møde'), $body,
+		'/debitor/crm.php?tab=cal&drawer=' . $cid, date('Y-m-d', strtotime($h['kontaktes'] . ' +30 days')));
+}
+
+/** "Du er sat på sagen »...«" for a colleague added to a deal (key crm:dm:<id>:<ansat>). */
+function crm_notify_deal_member(int $id, int $ansat): void
+{
+	$d = db_fetch_array(db_select("select d.title, d.konto_id, d.amount, a.firmanavn from crm_deals d left join adresser a on a.id = d.konto_id where d.id = $id", __FILE__ . " linje " . __LINE__));
+	if (!$d) {
+		return;
+	}
+	$amount = round((float) $d['amount']);
+	$body = crm_out((string) $d['title']) . ' · ' . crm_out((string) $d['firmanavn'])
+		. ($amount ? ' · ' . crm_t('%s kr', number_format($amount, 0, ',', '.')) : '') . ' · ' . crm_t('fra %s', crm_actor_name());
+	crm_notify($ansat, "crm:dm:$id:$ansat", crm_t('Du er sat på sagen »%s«', crm_out((string) $d['title'])), $body,
+		'/debitor/crm.php?tab=pipe&drawer=' . (int) $d['konto_id'] . '&dtab=deals', date('Y-m-d', strtotime('+30 days')));
+}
+
+// ------------------------------------------------------------------ calendar files (.ics)
+
+function crm_ics_text(string $s): string
+{
+	return str_replace(array('\\', ';', ',', "\r\n", "\n", "\r"), array('\\\\', '\;', '\,', '\n', '\n', ''), $s);
+}
+
+/** A content line folded at 75 octets (RFC 5545 3.1), never inside a UTF-8 character. */
+function crm_ics_line(string $line): string
+{
+	$out = '';
+	while (strlen($line) > 75) {
+		$cut = 75;
+		while ($cut > 0 && (ord($line[$cut]) & 0xC0) === 0x80) {
+			$cut--;
+		}
+		$out .= substr($line, 0, $cut) . "\r\n ";
+		$line = substr($line, $cut);
+	}
+	return $out . $line . "\r\n";
+}
+
+function crm_ics_cn(string $name): string
+{
+	return '"' . str_replace(array('"', "\r", "\n"), '', $name) . '"';
+}
+
+/** Local date + 'HH:MM' (+ minutes) as UTC, e.g. 20261030T090000Z. */
+function crm_ics_utc(string $date, string $hhmm, int $plus = 0): string
+{
+	$d = new DateTime($date . ' ' . $hhmm, new DateTimeZone(date_default_timezone_get()));
+	if ($plus) {
+		$d->modify('+' . $plus . ' minutes');
+	}
+	$d->setTimezone(new DateTimeZone('UTC'));
+	return $d->format('Ymd\THis\Z');
+}
+
+function crm_ics_uid(int $hid): string
+{
+	global $db;
+	return 'crm-' . preg_replace('/[^A-Za-z0-9_-]/', '', (string) $db) . '-' . $hid . '@saldi.dk';
+}
+
+/**
+ * One meeting as a VEVENT (UTF-8 lines). $h: historik row joined with crm_meetings and the customer's name;
+ * $att: email => name of the attendees listed in it.
+ */
+function crm_ics_event(array $h, int $seq, array $att, string $status, string $organizer): string
+{
+	$date = (string) $h['kontaktes'];
+	$start = (string) $h['start_time'];
+	$dur = (int) $h['duration'];
+	$firm = crm_out((string) $h['firmanavn']);
+	$note = trim(crm_out((string) $h['notat']));
+	$names = array();
+	foreach (crm_meeting_people((int) $h['id']) as $a) {
+		$names[] = crm_employee_name($a);
+	}
+	$desc = $note . "\n\n" . crm_t('Deltagere: %s', implode(', ', array_filter($names)));
+	if (!empty($h['kontakt_navn'])) {
+		$desc .= "\n" . crm_t('Kontaktperson: %s', crm_out((string) $h['kontakt_navn']));
+	}
+	$s = crm_ics_line('BEGIN:VEVENT')
+		. crm_ics_line('UID:' . crm_ics_uid((int) $h['id']))
+		. crm_ics_line('SEQUENCE:' . $seq)
+		. crm_ics_line('DTSTAMP:' . gmdate('Ymd\THis\Z'))
+		. crm_ics_line('DTSTART:' . crm_ics_utc($date, $start))
+		. crm_ics_line('DTEND:' . crm_ics_utc($date, $start, $dur))
+		. crm_ics_line('SUMMARY:' . crm_ics_text(crm_t('Møde med %s', $firm)))
+		. crm_ics_line('DESCRIPTION:' . crm_ics_text($desc))
+		. crm_ics_line('ORGANIZER;CN=' . crm_ics_cn($organizer) . ':mailto:kan_ikke_besvares@saldi.dk');
+	foreach ($att as $mail => $name) {
+		$s .= crm_ics_line('ATTENDEE;CN=' . crm_ics_cn($name) . ';ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:' . $mail);
+	}
+	return $s . crm_ics_line('STATUS:' . $status) . crm_ics_line('TRANSP:OPAQUE') . crm_ics_line('END:VEVENT');
+}
+
+function crm_meeting_row(int $hid): ?array
+{
+	$h = db_fetch_array(db_select("select h.id, h.konto_id, h.kontakt_id, h.ansat_id, h.notat, h.kontaktes, m.start_time, m.duration, m.seq, m.invite_team, m.invite_contact, "
+		. "a.firmanavn, k.navn as kontakt_navn, k.email as kontakt_mail from historik h join crm_meetings m on m.historik_id = h.id "
+		. "left join adresser a on a.id = h.konto_id left join ansatte k on k.id = h.kontakt_id and k.konto_id = h.konto_id where h.id = $hid", __FILE__ . " linje " . __LINE__));
+	return ($h && $h['kontaktes']) ? $h : null;
+}
+
+/**
+ * Calendar invitations for meeting $hid by mail: METHOD REQUEST (new or changed) or CANCEL. $team: the people on the
+ * meeting (or only $only, e.g. the colleagues just taken off); $contact: the customer's contact person. Queued here,
+ * sent by crm_flush_mail(). Every send raises the SEQUENCE, so the calendars replace the earlier version.
+ *
+ * @return int mails queued
+ */
+function crm_queue_invites(int $hid, string $method, bool $team, bool $contact, ?array $only = null): int
+{
+	$h = crm_meeting_row($hid);
+	if (!$h) {
+		return 0;
+	}
+	$method = $method === 'CANCEL' ? 'CANCEL' : 'REQUEST';
+	$to = array();
+	if ($team) {
+		foreach ($only === null ? crm_meeting_people($hid) : $only as $a) {
+			$m = crm_emp_mail((int) $a);
+			if ($m !== '') $to[strtolower($m)] = array($m, crm_employee_name((int) $a));
+		}
+	}
+	$km = trim((string) $h['kontakt_mail']);
+	if ($contact && filter_var($km, FILTER_VALIDATE_EMAIL)) {
+		$to[strtolower($km)] = array($km, crm_out((string) $h['kontakt_navn']));
+	}
+	if (!$to) {
+		return 0;
+	}
+	// the attendees: everyone on the meeting with an address (+ the contact when invited); a cancel lists its recipients
+	$att = array();
+	if ($method === 'REQUEST') {
+		foreach (crm_meeting_people($hid) as $a) {
+			$m = crm_emp_mail($a);
+			if ($m !== '') $att[$m] = crm_employee_name($a);
+		}
+		if (($contact || (int) $h['invite_contact']) && filter_var($km, FILTER_VALIDATE_EMAIL)) {
+			$att[$km] = crm_out((string) $h['kontakt_navn']);
+		}
+	}
+	foreach ($to as $r) {
+		$att[$r[0]] = $r[1];
+	}
+	$seq = (int) $h['seq'] + 1;
+	$flags = '';
+	if ($method === 'REQUEST') {
+		$flags = ($team && $only === null ? ', invite_team = 1' : '') . ($contact ? ', invite_contact = 1' : '');
+	}
+	db_modify("update crm_meetings set seq = $seq$flags where historik_id = $hid", __FILE__ . " linje " . __LINE__);
+	$actor = crm_actor_name();
+	$organizer = $actor !== '' ? crm_t('%s (Saldi)', $actor) : 'Saldi';
+	$ics = crm_ics_line('BEGIN:VCALENDAR') . crm_ics_line('PRODID:-//Saldi//CRM//DA') . crm_ics_line('VERSION:2.0')
+		. crm_ics_line('CALSCALE:GREGORIAN') . crm_ics_line('METHOD:' . $method)
+		. crm_ics_event($h, $seq, $att, $method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED', $organizer) . crm_ics_line('END:VCALENDAR');
+	$firm = crm_out((string) $h['firmanavn']);
+	$when = crm_meeting_when((string) $h['kontaktes'], (string) $h['start_time'], (int) $h['duration']);
+	if ($method === 'CANCEL') {
+		$subject = crm_t('Aflyst: møde med %s %s', $firm, $when);
+		$text = crm_t('Mødet med %s %s er aflyst.', $firm, $when);
+	} else {
+		$subject = crm_t('Invitation: møde med %s %s', $firm, $when);
+		$text = crm_t('%s har inviteret dig til et møde med %s.', $actor !== '' ? $actor : 'Saldi', $firm) . "\n" . $when . "\n\n" . trim(crm_out((string) $h['notat']));
+	}
+	foreach ($to as $r) {
+		$GLOBALS['crm_mail_queue'][] = array($r[0], $subject, $text, $ics);
+	}
+	return count($to);
+}
+
+/**
+ * Send the queued invitations through the company's mail setup (as includes/userFunctions.php user_send_mail()),
+ * the .ics as the text/calendar part Google, Outlook and Apple read as an invitation.
+ *
+ * @return array{sent: int, failed: int}
+ */
+function crm_flush_mail(): array
+{
+	global $charset;
+	$res = array('sent' => 0, 'failed' => 0);
+	$queue = isset($GLOBALS['crm_mail_queue']) ? $GLOBALS['crm_mail_queue'] : array();
+	$GLOBALS['crm_mail_queue'] = array();
+	if (!$queue) {
+		return $res;
+	}
+	$autoload = '';
+	foreach (array(__DIR__ . '/../../vendor/autoload.php', __DIR__ . '/../vendor/autoload.php') as $candidate) {
+		if (file_exists($candidate)) {
+			$autoload = $candidate;
+			break;
+		}
+	}
+	if ($autoload === '') {
+		$res['failed'] = count($queue);
+		return $res;
+	}
+	require_once $autoload;
+	$firm = db_fetch_array(db_select("select * from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
+	$firmName = $firm ? crm_out((string) $firm['firmanavn']) : 'Saldi';
+	$firmMail = $firm ? trim((string) $firm['email']) : '';
+	foreach ($queue as $m) {
+		list($to, $subject, $text, $ics) = $m;
+		try {
+			$mail = new PHPMailer\PHPMailer\PHPMailer();
+			$mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
+			$mail->IsSMTP();
+			$mail->CharSet = 'UTF-8';
+			$mail->Host = ($firm && $firm['felt_1']) ? (string) $firm['felt_1'] : 'localhost';
+			if ($firm && $firm['felt_2']) {
+				$mail->SMTPAuth = true;
+				$mail->Username = (string) $firm['felt_2'];
+				$mail->Password = (string) $firm['felt_3'];
+				if (!empty($firm['felt_4'])) {
+					$mail->SMTPSecure = strtolower((string) $firm['felt_4']);
+				}
+			} else {
+				$mail->SMTPAuth = false;
+			}
+			$mail->Timeout = 10;
+			$mail->From = 'kan_ikke_besvares@saldi.dk';
+			$mail->FromName = $firmName;
+			if ($firmMail !== '' && filter_var($firmMail, FILTER_VALIDATE_EMAIL)) {
+				$mail->AddReplyTo($firmMail, $firmName);
+			}
+			$mail->AddAddress($to);
+			$mail->IsHTML(true);
+			$mail->Subject = $subject;
+			$mail->Body = nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
+			$mail->AltBody = $text;
+			$mail->Ical = $ics;
+			$mail->Send() ? $res['sent']++ : $res['failed']++;
+		} catch (\Throwable $e) {
+			$res['failed']++;
+		}
+	}
+	return $res;
+}
+
+// ------------------------------------------------------------------ personal calendar feed (api/crm/ical.php)
+
+/** This company's id in the master database (regnskab.id), part of the feed link. */
+function crm_regnskab_id(): int
+{
+	global $db;
+	$r = db_fetch_array(db_select("select id from regnskab where db = '" . db_escape_string((string) $db) . "'", __FILE__ . " linje " . __LINE__, true));
+	return $r ? (int) $r['id'] : 0;
+}
+
+function crm_base_url(): string
+{
+	$https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+	$host = preg_replace('/[^A-Za-z0-9.:-]/', '', (string) (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : ''));
+	$dir = rtrim(str_replace('\\', '/', dirname(dirname((string) (isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '/x/x')))), '/');
+	return ($https ? 'https' : 'http') . '://' . $host . $dir;
+}
+
+/** The current user's secret feed link, '' when none is made. */
+function crm_ical_url(): string
+{
+	global $bruger_id;
+	if ((int) $bruger_id <= 0 || !tbl_exists('crm_ical')) {
+		return '';
+	}
+	$r = db_fetch_array(db_select("select token from crm_ical where bruger_id = " . (int) $bruger_id, __FILE__ . " linje " . __LINE__));
+	$rid = $r ? crm_regnskab_id() : 0;
+	return $rid ? crm_base_url() . '/api/crm/ical.php?r=' . $rid . '&k=' . (int) $bruger_id . '-' . $r['token'] : '';
+}
+
+/** 'new': a new link (an older one stops working), 'off': no link. Returns the link. */
+function crm_ical_set(string $mode): string
+{
+	global $bruger_id;
+	$u = (int) $bruger_id;
+	if ($u <= 0) {
+		return '';
+	}
+	db_modify("delete from crm_ical where bruger_id = $u", __FILE__ . " linje " . __LINE__);
+	if ($mode === 'new') {
+		db_modify("insert into crm_ical (bruger_id, token, created) values ($u, '" . bin2hex(random_bytes(24)) . "', '" . date('Y-m-d') . "')", __FILE__ . " linje " . __LINE__);
+	}
+	if (function_exists('audit_log')) {
+		audit_log('crm_ical', $mode === 'new' ? crm_t('Kalenderabonnement: nyt link') : crm_t('Kalenderabonnement slået fra'));
+	}
+	return crm_ical_url();
+}
+
+/** The feed: the meetings of employee $ansat (responsible or colleague) from 60 days back, as a calendar file. */
+function crm_ical_feed(int $ansat, string $company): string
+{
+	$from = date('Y-m-d', strtotime('-60 days'));
+	$q = db_select("select h.id from historik h join crm_meetings m on m.historik_id = h.id where h.kontaktes >= '$from' and (h.ansat_id = $ansat "
+		. "or exists (select 1 from crm_participants p where p.kind = 'h' and p.ref_id = h.id and p.ansat_id = $ansat)) order by h.kontaktes, m.start_time", __FILE__ . " linje " . __LINE__);
+	$ids = array();
+	while ($r = db_fetch_array($q)) {
+		$ids[] = (int) $r['id'];
+	}
+	$s = crm_ics_line('BEGIN:VCALENDAR') . crm_ics_line('PRODID:-//Saldi//CRM//DA') . crm_ics_line('VERSION:2.0') . crm_ics_line('CALSCALE:GREGORIAN')
+		. crm_ics_line('METHOD:PUBLISH') . crm_ics_line('X-WR-CALNAME:' . crm_ics_text(crm_t('Saldi CRM – %s', $company)))
+		. crm_ics_line('REFRESH-INTERVAL;VALUE=DURATION:PT1H') . crm_ics_line('X-PUBLISHED-TTL:PT1H');
+	foreach ($ids as $hid) {
+		$h = crm_meeting_row($hid);
+		if ($h) {
+			$s .= crm_ics_event($h, (int) $h['seq'], array(), 'CONFIRMED', 'Saldi');
+		}
+	}
+	return $s . crm_ics_line('END:VCALENDAR');
 }
 
 // ------------------------------------------------------------------ actions (debitor/crmApi.php)
@@ -1424,7 +2069,10 @@ function crm_action(string $action, array $in): array
 			db_modify("update historik set completed = " . ($done ? "TRUE, completed_at = '" . date('Y-m-d') . "'" : 'FALSE, completed_at = NULL') . " where id = $hid", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select konto_id from historik where id = $hid", __FILE__ . " linje " . __LINE__));
 			if ($r) crm_sync_customer((int) $r['konto_id']);
-			if ($done) crm_notif_drop('crm:fu:' . $hid);
+			if ($done) {
+				crm_notif_drop('crm:fu:' . $hid);
+				crm_notif_drop('crm:mt:' . $hid . ':%');
+			}
 			return array('id' => $hid);
 
 		case 'set_due':
@@ -1433,20 +2081,37 @@ function crm_action(string $action, array $in): array
 			if (!$due) return array('error' => 'date');
 			db_modify("update historik set kontaktes = '$due', completed = FALSE where id = $hid", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select konto_id, ansat_id, notat from historik where id = $hid", __FILE__ . " linje " . __LINE__));
+			$mt = crm_meetings_for(array($hid));
 			if ($r) {
 				crm_sync_customer((int) $r['konto_id']);
-				if ((int) $r['ansat_id'] !== $me) crm_notify_followup($hid, (int) $r['konto_id'], (int) $r['ansat_id'], $due, crm_out($r['notat']), true);
+				if (isset($mt[$hid])) {
+					// a meeting keeps its time; everyone on it sees the new day in the bell. New invitations are offered by the page (inv), never sent by a drag
+					foreach (crm_meeting_people($hid) as $p) crm_notify_meeting($hid, $p, true);
+				} elseif ((int) $r['ansat_id'] !== $me) {
+					crm_notify_followup($hid, (int) $r['konto_id'], (int) $r['ansat_id'], $due, crm_out($r['notat']), true);
+				}
 			}
-			return array('id' => $hid);
+			return array('id' => $hid, 'inv' => isset($mt[$hid]) ? $mt[$hid]['inv'] : 0);
 
 		case 'delete_entry':
 			$hid = (int) $in['id'];
 			$r = db_fetch_array(db_select("select * from historik where id = $hid", __FILE__ . " linje " . __LINE__));
 			if (!$r) return array('error' => 'gone');
+			$mt = crm_meetings_for(array($hid));
+			$mrow = null;
+			if (isset($mt[$hid])) {
+				$m = $mt[$hid];
+				// a cancellation only when the user ticked it in the confirmation (pre-ticked when invitations went out)
+				$cancelled = !empty($in['cancel']) && $m['inv'] ? crm_queue_invites($hid, 'CANCEL', (bool) ($m['inv'] & 1), (bool) ($m['inv'] & 2)) : 0;
+				$mrow = array('tm' => $m['tm'], 'dur' => $m['dur'], 'with' => $m['with'], 'inv' => $m['inv'], 'cancelled' => $cancelled);
+				db_modify("delete from crm_participants where kind = 'h' and ref_id = $hid", __FILE__ . " linje " . __LINE__);
+				db_modify("delete from crm_meetings where historik_id = $hid", __FILE__ . " linje " . __LINE__);
+				crm_notif_drop('crm:mt:' . $hid . ':%');
+			}
 			db_modify("delete from historik where id = $hid", __FILE__ . " linje " . __LINE__);
 			crm_sync_customer((int) $r['konto_id']);
 			crm_notif_drop('crm:fu:' . $hid);
-			return array('row' => array('cid' => (int) $r['konto_id'], 'type' => (string) $r['type'], 'by' => (int) $r['ansat_id'], 'au' => (int) $r['author_id'], 'to' => (int) $r['kontakt_id'],
+			return array('row' => array('mt' => $mrow, 'cid' => (int) $r['konto_id'], 'type' => (string) $r['type'], 'by' => (int) $r['ansat_id'], 'au' => (int) $r['author_id'], 'to' => (int) $r['kontakt_id'],
 				'note' => crm_out($r['notat']), 'due' => $r['kontaktes'], 'done' => ($r['completed'] === null || $r['completed'] === '') ? null : crm_bool($r['completed']),
 				'date' => (string) $r['kontaktet'], 'file' => crm_out($r['dokument'])));
 
@@ -1459,6 +2124,13 @@ function crm_action(string $action, array $in): array
 				$file = crm_in($row['file'] ?? '');
 				$doneSql = !isset($row['done']) || $row['done'] === null ? 'NULL' : (!empty($row['done']) ? 'TRUE' : 'FALSE');
 				db_modify("update historik set dokument = " . ($file !== '' ? "'$file'" : 'NULL') . ", completed = " . (crm_date($row['due'] ?? '') ? $doneSql : 'NULL') . " where id = $id", __FILE__ . " linje " . __LINE__);
+				$m = isset($row['mt']) && is_array($row['mt']) ? $row['mt'] : null;
+				if ($m && crm_time($m['tm'] ?? '') && crm_date($row['due'] ?? '')) {
+					$inv = (int) ($m['inv'] ?? 0);
+					db_modify("insert into crm_meetings (historik_id, start_time, duration, seq, invite_team, invite_contact) values ($id, '" . crm_time($m['tm']) . "', "
+						. max(5, min(720, (int) ($m['dur'] ?? 60))) . ", 0, " . ($inv & 1 ? 1 : 0) . ", " . ($inv & 2 ? 1 : 0) . ")", __FILE__ . " linje " . __LINE__);
+					crm_set_participants('h', $id, crm_emp_ids($m['with'] ?? array(), (int) $row['by']));
+				}
 			}
 			crm_sync_customer($cid);
 			return array('id' => $id);
@@ -1510,6 +2182,11 @@ function crm_action(string $action, array $in): array
 			if ($own !== $prevOwn) crm_notif_drop("crm:deal:$id:owner");
 			if ($own !== $me && $own !== $prevOwn) {
 				crm_notify_deal(array('id' => $id, 'konto_id' => $cid, 'title' => crm_in_raw($in['t'] ?? ''), 'amount' => $amount, 'ansat_id' => $own), 'owner');
+			}
+			if (array_key_exists('with', $in)) {
+				list($add, $del) = crm_set_participants('d', $id, crm_emp_ids($in['with'], $own));
+				foreach ($add as $a) if ($a !== $me) crm_notify_deal_member($id, $a);
+				foreach ($del as $a) crm_notif_drop("crm:dm:$id:$a");
 			}
 			return array('id' => $id);
 
@@ -1563,8 +2240,63 @@ function crm_action(string $action, array $in): array
 			$before = array('stage' => $d['stage'], 'state' => $d['state'], 'stage_since' => $d['stage_since'], 'closed' => $d['closed'], 'lost_reason' => crm_out($d['lost_reason']));
 			db_modify("update crm_deals set state = 'deleted', closed = '" . date('Y-m-d') . "' where id = $id", __FILE__ . " linje " . __LINE__);
 			crm_notif_drop("crm:deal:$id:%");
+			crm_notif_drop("crm:dm:$id:%");
 			$hid = crm_insert_entry((int) $d['konto_id'], 'deal', $me, 0, crm_t('Sag »%s«: %s', crm_out($d['title']), crm_t('slettet')), null);
 			return array('id' => $id, 'hid' => $hid, 'before' => $before);
+
+		case 'save_meeting':
+			// 20261029 a meeting with a time, colleagues and (when ticked) calendar invitations; $in['id'] edits one
+			$hid = (int) ($in['id'] ?? 0);
+			$cid = (int) ($in['cid'] ?? 0);
+			$date = crm_date($in['date'] ?? '');
+			$start = crm_time($in['start'] ?? '');
+			$dur = max(5, min(720, (int) ($in['dur'] ?? 60)));
+			$owner = (int) ($in['owner'] ?? 0) ?: $me;
+			if (!$cid || !$date || !$start || $owner <= 0) return array('error' => 'fields');
+			$with = crm_emp_ids($in['with'] ?? array(), $owner);
+			$to = (int) ($in['to'] ?? 0);
+			$note = trim((string) ($in['note'] ?? '')) !== '' ? (string) $in['note'] : crm_t('Møde');
+			$team = !empty($in['invite']);
+			$contact = !empty($in['inviteContact']) && $to > 0;
+			if ($hid) {
+				$old = db_fetch_array(db_select("select h.konto_id, h.ansat_id, h.kontaktes, m.start_time, m.duration from historik h join crm_meetings m on m.historik_id = h.id where h.id = $hid", __FILE__ . " linje " . __LINE__));
+				if (!$old) return array('error' => 'gone');
+				$cid = (int) $old['konto_id'];
+				$before = crm_meeting_people($hid);
+				db_modify("update historik set notat = '" . crm_in($note) . "', kontaktes = '$date', ansat_id = $owner, kontakt_id = $to, type = 'moede' where id = $hid", __FILE__ . " linje " . __LINE__);
+				db_modify("update crm_meetings set start_time = '$start', duration = $dur where historik_id = $hid", __FILE__ . " linje " . __LINE__);
+				crm_set_participants('h', $hid, $with);
+				$moved = (string) $old['kontaktes'] !== $date || (string) $old['start_time'] !== $start || (int) $old['duration'] !== $dur;
+				$now = crm_meeting_people($hid);
+				foreach ($now as $p) {
+					if (!in_array($p, $before, true)) crm_notify_meeting($hid, $p);
+					elseif ($moved) crm_notify_meeting($hid, $p, true);
+				}
+				$gone = array_values(array_diff($before, $now));
+				foreach ($gone as $p) crm_notif_drop("crm:mt:$hid:$p");
+				$mails = 0;
+				if ($team && $gone) $mails += crm_queue_invites($hid, 'CANCEL', true, false, $gone);
+				if ($team || $contact) $mails += crm_queue_invites($hid, 'REQUEST', $team, $contact);
+				crm_sync_customer($cid);
+				return array('id' => $hid, 'mails' => $mails);
+			}
+			crm_materialize_open($cid);
+			$hid = crm_insert_entry($cid, 'moede', $owner, $to, $note, $date, false, '', $me);
+			if (!$hid) return array('error' => 'fields');
+			db_modify("insert into crm_meetings (historik_id, start_time, duration, seq, invite_team, invite_contact) values ($hid, '$start', $dur, 0, 0, 0)", __FILE__ . " linje " . __LINE__);
+			crm_set_participants('h', $hid, $with);
+			crm_sync_customer($cid);
+			foreach (crm_meeting_people($hid) as $p) crm_notify_meeting($hid, $p);
+			$mails = ($team || $contact) ? crm_queue_invites($hid, 'REQUEST', $team, $contact) : 0;
+			return array('id' => $hid, 'mails' => $mails);
+
+		case 'send_invites':
+			// the invitations again after a move (offered in the page's message, never sent by the move itself)
+			$hid = (int) ($in['id'] ?? 0);
+			$mt = crm_meetings_for(array($hid));
+			if (!isset($mt[$hid])) return array('error' => 'gone');
+			$inv = $mt[$hid]['inv'] ?: 1;
+			return array('id' => $hid, 'mails' => crm_queue_invites($hid, 'REQUEST', (bool) ($inv & 1), (bool) ($inv & 2)));
 
 		case 'customer':
 			// one customer with its history, for a drawer on a customer outside the loaded set (picker hit, bell link; review R53/R77)

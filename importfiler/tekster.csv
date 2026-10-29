@@ -7104,3 +7104,74 @@
 7620	(tidligere medarbejder)	(former employee)	(tidligere ansatt)
 7621	Indstillingerne er ændret af en anden. Genindlæs siden.	The settings were changed by someone else. Reload the page.	Innstillingene er endret av en annen. Last siden på nytt.
 7622	Gem eller annullér ændringerne i tandhjulet først.	Save or cancel the changes in the gear first.	Lagre eller avbryt endringene i tannhjulet først.
+7623	%s (Saldi)	%s (Saldi)	%s (Saldi)
+7624	%s har et møde %s–%s (%s)	%s has a meeting %s–%s (%s)	%s har et møte %s–%s (%s)
+7625	%s har inviteret dig til et møde med %s.	%s has invited you to a meeting with %s.	%s har invitert deg til et møte med %s.
+7626	%s invitationer kunne ikke sendes – tjek mailopsætningen under Indstillinger	%s invitations could not be sent – check the mail setup under Settings	%s invitasjoner kunne ikke sendes – sjekk e-postoppsettet under Innstillinger
+7627	%s invitationer sendt	%s invitations sent	%s invitasjoner sendt
+7628	%s min	%s min	%s min
+7629	%s t	%s h	%s t
+7630	1 invitation sendt	1 invitation sent	1 invitasjon sendt
+7631	Abonnement	Subscription	Abonnement
+7632	Abonnér	Subscribe	Abonner
+7633	Aflyst: møde med %s %s	Cancelled: meeting with %s %s	Avlyst: møte med %s %s
+7634	Andre kalendere → + → Fra webadresse, indsæt linket.	Other calendars → + → From URL, paste the link.	Andre kalendere → + → Fra nettadresse, lim inn lenken.
+7635	Arkiv → Nyt kalenderabonnement, indsæt linket.	File → New Calendar Subscription, paste the link.	Arkiv → Nytt kalenderabonnement, lim inn lenken.
+7636	Book møde	Book meeting	Book møte
+7637	Brug %s, hvor alle er ledige	Use %s, when everyone is free	Bruk %s, når alle er ledige
+7638	Deltagere: %s	Attendees: %s	Deltakere: %s
+7639	Din bruger er ikke knyttet til en medarbejder, så der er ingen møder at vise. Bed en administrator knytte brugeren under Indstillinger → Brugere.	Your user is not linked to an employee, so there are no meetings to show. Ask an administrator to link the user under Settings → Users.	Brukeren din er ikke knyttet til en ansatt, så det er ingen møter å vise. Be en administrator knytte brukeren under Innstillinger → Brukere.
+7640	Dit kalenderlink	Your calendar link	Din kalenderlenke
+7641	Du er inviteret til et møde	You are invited to a meeting	Du er invitert til et møte
+7642	Du er sat på sagen »%s«	You have been added to the case “%s”	Du er satt på saken «%s»
+7643	Du har et møde %s–%s (%s)	You have a meeting %s–%s (%s)	Du har et møte %s–%s (%s)
+7644	Emne	Subject	Emne
+7645	Fra	From	Fra
+7646	Fx gennemgang af tilbuddet	E.g. going through the quote	F.eks. gjennomgang av tilbudet
+7647	Hvilken kunde er mødet med?	Which customer is the meeting with?	Hvilken kunde er møtet med?
+7648	Ingen andre medarbejdere	No other employees	Ingen andre ansatte
+7649	Ingen ledig tid senere samme dag for alle.	No free time later that day for everyone.	Ingen ledig tid senere samme dag for alle.
+7650	Invitation: møde med %s %s	Invitation: meeting with %s %s	Invitasjon: møte med %s %s
+7651	Kalenderabonnement slået fra	Calendar subscription turned off	Kalenderabonnement slått av
+7652	Kalenderabonnement: nyt link	Calendar subscription: new link	Kalenderabonnement: ny lenke
+7653	Kolleger	Colleagues	Kolleger
+7654	Kolleger på sagen	Colleagues on the case	Kolleger på saken
+7655	Kontaktperson: %s	Contact person: %s	Kontaktperson: %s
+7656	Kopiér	Copy	Kopier
+7657	Lav mit link	Make my link	Lag min lenke
+7658	Lav nyt link	Make a new link	Lag ny lenke
+7659	Linket er kopieret	The link is copied	Lenken er kopiert
+7660	Linket er personligt: den, der har det, kan se dine møder. Er det kommet ud, så lav et nyt – det gamle holder op med at virke.	The link is personal: whoever has it can see your meetings. If it has got out, make a new one – the old one stops working.	Lenken er personlig: den som har den, kan se møtene dine. Har den kommet ut, så lag en ny – den gamle slutter å virke.
+7661	Med et personligt link kan Google Kalender, Outlook eller Apple Kalender vise dine møder fra CRM – dem, du er ansvarlig for eller deltager i. Kalenderen henter selv ændringerne; Google kan være op til et døgn om det.	With a personal link, Google Calendar, Outlook or Apple Calendar can show your meetings from the CRM – the ones you are responsible for or attend. The calendar fetches the changes itself; Google can take up to a day.	Med en personlig lenke kan Google Kalender, Outlook eller Apple Kalender vise møtene dine fra CRM – dem du er ansvarlig for eller deltar i. Kalenderen henter selv endringene; Google kan bruke opptil et døgn.
+7662	Møde %s kl. %s	Meeting %s at %s	Møte %s kl. %s
+7663	Møde %s · gjort	Meeting %s · done	Møte %s · utført
+7664	Møde booket %s kl. %s	Meeting booked %s at %s	Møte booket %s kl. %s
+7665	Møde med %s	Meeting with %s	Møte med %s
+7666	Mødet er flyttet til %s	The meeting is moved to %s	Møtet er flyttet til %s
+7667	Mødet er gemt	The meeting is saved	Møtet er lagret
+7668	Mødet er tilbage	The meeting is back	Møtet er tilbake
+7669	Mødet med %s %s er aflyst.	The meeting with %s %s is cancelled.	Møtet med %s %s er avlyst.
+7670	Nyt møde	New meeting	Nytt møte
+7671	Nyt møde %s	New meeting %s	Nytt møte %s
+7672	Næste møde	Next meeting	Neste møte
+7673	Optaget på det tidspunkt	Busy at that time	Opptatt på det tidspunktet
+7674	Ret møde	Edit meeting	Rediger møte
+7675	Saldi CRM – %s	Saldi CRM – %s	Saldi CRM – %s
+7676	Se dine møder i Google Kalender, Outlook eller Apple Kalender	See your meetings in Google Calendar, Outlook or Apple Calendar	Se møtene dine i Google Kalender, Outlook eller Apple Kalender
+7677	Se dine møder i din egen kalender	See your meetings in your own calendar	Se møtene dine i din egen kalender
+7678	Send aflysning til dem, der fik en invitation	Send a cancellation to those who got an invitation	Send avlysning til dem som fikk en invitasjon
+7679	Send kalenderinvitation til deltagerne på mail	Send a calendar invitation to the attendees by email	Send kalenderinvitasjon til deltakerne på e-post
+7680	Send også invitation til %s (%s)	Also send an invitation to %s (%s)	Send også invitasjon til %s (%s)
+7681	Send ændringen til deltagerne	Send the change to the attendees	Send endringen til deltakerne
+7682	Send ændringen til deltagerne på mail	Send the change to the attendees by email	Send endringen til deltakerne på e-post
+7683	Slet møde	Delete meeting	Slett møte
+7684	Slet mødet %s kl. %s?	Delete the meeting %s at %s?	Slette møtet %s kl. %s?
+7685	Slå fra	Turn off	Slå av
+7686	Tilføj kalender → Abonner fra nettet, indsæt linket.	Add calendar → Subscribe from web, paste the link.	Legg til kalender → Abonner fra nettet, lim inn lenken.
+7687	Uden mailadresse: %s	No email address: %s	Uten e-postadresse: %s
+7688	Varighed	Duration	Varighet
+7689	Vælg, hvem der er ansvarlig for mødet.	Choose who is responsible for the meeting.	Velg hvem som er ansvarlig for møtet.
+7690	aflysning sendt	cancellation sent	avlysning sendt
+7691	invitation sendt	invitation sent	invitasjon sendt
+7692	Åbn direkte	Open directly	Åpne direkte
+7693	Ændringen er sendt	The change is sent	Endringen er sendt
