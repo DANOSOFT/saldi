@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/posmenufunc.php --- ver 4.0.5 --- 2026.09.25 ---
+//--- includes/posmenufunc.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,10 @@
 // 20220209 PHR  
 // 20260907 CDX/LH Preserve explicit popup context in POS navigation and close the correct window.
 // 20260925 CDX/PHR Cast table IDs before SQL lookup and handle missing selections and empty table plans with findtekst.
+// 20261020 LOE SST-878 The finished-sale menu no longer dies when "Tidsfrist for udskrift" is
+//                 empty, so Udskriv, Find bon and Korrektion are drawn again.
+// 20261029 CL/MJ SD-783 tastatur(): a company without table plans leaves $bord an empty array instead of NULL,
+//                 so the count($bord) for the table buttons no longer stops the POS keypad with a TypeError on PHP 8.
 
 include(__DIR__ . "/posmenufunc_includes/buttonFunc.php");
 require_once __DIR__ . '/stdFunc/navStack.php';
@@ -422,7 +426,7 @@ if (!function_exists('menubuttons')) {
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 							$r = db_fetch_array(db_select("select box13 from grupper where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
-							$timeout = $r['box13'] * 1;
+							$timeout = (int) ifset($r, 'box13', 0);
 							if ($timeout && !$bon) {
 								$r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
 								$brugervalg = $r['box1'];
@@ -720,7 +724,7 @@ if (!function_exists('tastatur')) {
 		$terminal_ip = strtolower(trim($tmp[$x]));
 		$tmp = explode(chr(9), $r['box10']); #20140820
 		$koekkenprint = strtolower(trim($tmp[$x]));
-		($r['box7']) ? $bord = explode(chr(9), $r['box7']) : $bord = NULL; #20140508
+		($r['box7']) ? $bord = explode(chr(9), $r['box7']) : $bord = array(); #20140508 #20261029
 
 		($vare_id && $vare_id_ny) ? $disabled = "disabled=\"disabled\"" : $disabled = NULL;
 

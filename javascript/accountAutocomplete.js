@@ -17,11 +17,20 @@
 // 20261003 CL/SZ SD-698: The card opens in a separate, reused tab (saldiKort) instead of leaving the journal, so unsaved
 //                  journal edits are kept; the card's Tilbage closes the tab. A blocked popup falls back to the old ask-and-leave.
 // 20261003 CL/SZ SD-716 window.closeAccountAutocomplete closes the panel, so Ctrl + arrow navigation (fieldNavigation.js) can move on from an open panel.
+// 20261003 CL/SZ SD-720 A search answer that arrives after the user left the field no longer opens the panel and takes the focus back.
+// 20261003 CL/SZ SD-721 A kreditor search that finds nothing offers "Opret kreditor", which opens kreditorFromCvr.js's dialog and puts the new kreditor in the field.
 // 20261005 CL/SZ SD-714 A Tab or Ctrl + arrow only keeps the panel closed for the focus change it makes. Before, a Tab that landed on a field without
 //                  the panel (Beløb, the type field) kept it closed for the next click into Debet or Kredit too.
+// 20261006 CL/SZ SD-720 The same for the invoice-number (Åbne Poster) and amount searches: a late answer put the cursor back in Fakturanr.
+//                while the user typed the amount, so the rest of the amount landed in the invoice number.
+// 20261006 CL/SZ SD-720 The same for the invoice-number (Åbne Poster) and amount searches: a late answer put the cursor back in Fakturanr.
+//                while the user typed the amount, so the rest of the amount landed in the invoice number.
 // 20261006 CL/SZ SD-714 window.focusAccountQuietly(input) puts the cursor in a field without opening the panel (the pool's new document), and a
 //                  click into a field that already has the cursor opens the panel, as the first click would.
 // 20261005 CL/SZ SD-714 A click in a document viewer (the pool's PDF) closes the panel; the click never reached the page, so the panel stayed open.
+// 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
+// 20261019 CL/SZ SD-721 A kreditor made with "Opret kreditor" advances the search token like any other selection (SST-814).
+// 20261015 CL/SZ SD-720 (CodeRabbit) A failed search for a field the user has left no longer closes the panel another field has opened.
 (function () {
     'use strict'; 
 
@@ -223,6 +232,30 @@
                     // Use the current input value for pagination
                     performSearchWithValue(input, input.value, page);
                 }
+                return;
+            }
+
+            const createBtn = e.target.closest('.account-autocomplete-create-kreditor');
+            if (createBtn) {
+                // SD-721: the dialog; the new kreditor goes into the field the search came from
+                e.preventDefault();
+                e.stopPropagation();
+                const search = createBtn.dataset.search || '';
+                const digits = search.replace(/\D/g, '');
+                closeDropdown();
+                window.kreditorFromCvr.openDialog({
+                    company: /^\d{8}$/.test(digits) && digits.length === search.replace(/\s/g, '').length ? { cvrnr: digits } : { firmanavn: search },
+                    returnFocus: input,
+                    onCreated: function (kreditor) {
+                        selectionMade = true;
+                        // Supersede any request already in flight, as a selection does (SST-814)
+                        searchSeq++;
+                        input.value = kreditor.kontonr;
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.focus();
+                        setTimeout(function () { selectionMade = false; }, 100);
+                    }
+                });
                 return;
             }
 
@@ -668,6 +701,8 @@
                     const data = JSON.parse(text);
                     const results = data.results || data;
                     const pagination = data.pagination || { page: 1, total: results.length, hasMore: false };
+                    // A late answer for a field the user has left must not open the panel and take the focus back (SD-720)
+                    if (document.activeElement !== input) return;
                     renderDropdown(input, results, searchType, searchValue, pagination);
                 } catch (e) {
                     console.error('JSON parse error:', e);
@@ -675,6 +710,7 @@
             })
             .catch(function (error) {
                 if (seq !== searchSeq) return;
+                if (document.activeElement !== input) return;
                 console.error('Account search error:', error);
                 closeDropdown();
             });
@@ -854,6 +890,8 @@
                     const data = JSON.parse(text);
                     const results = data.results || data;
                     const pagination = data.pagination || { page: 1, total: results.length, hasMore: false };
+                    // The same rule as the account search (SD-720): an answer for a field the user has left takes nothing back
+                    if (document.activeElement !== input) return;
                     renderInvoiceDropdown(input, results, searchValue, pagination);
                 } catch (e) {
                     console.error('JSON parse error:', e);
@@ -861,6 +899,7 @@
             })
             .catch(function (error) {
                 if (seq !== searchSeq) return;
+                if (document.activeElement !== input) return;
                 console.error('Invoice search error:', error);
                 closeDropdown();
             });
@@ -1050,10 +1089,12 @@
             .then(function (data) {
                 if (seq !== searchSeq) return;
                 const results = data.results || [];
+                if (document.activeElement !== input) return;
                 renderAmountDropdown(input, results, searchValue);
             })
             .catch(function (error) {
                 if (seq !== searchSeq) return;
+                if (document.activeElement !== input) return;
                 console.error('Amount search error:', error);
                 closeDropdown();
             });
@@ -1147,6 +1188,19 @@
 
 
     /**
+     * "Opret kreditor" under "no results" when a kreditor search finds nothing (SD-721), on pages that load kreditorFromCvr.js.
+     * @param {string} searchType  'finance', 'debitor' or 'kreditor'.
+     * @param {string} searchValue The text that found nothing.
+     * @returns {string} The button's HTML, or '' when it doesn't apply.
+     */
+    function createKreditorButton(searchType, searchValue) {
+        if (searchType !== 'kreditor' || searchValue === '' || !window.kreditorFromCvr || !window.saldiKreditorCvr) return '';
+        const label = (window.saldiKreditorCvr.texts && window.saldiKreditorCvr.texts.create) || 'Opret kreditor';
+        return ' <button type="button" class="account-autocomplete-create-kreditor" data-search="' + escapeHtml(searchValue) + '">' + escapeHtml(label) + '</button>';
+    }
+
+
+    /**
      * Fill and show the account popup (Vælg Konto / Debitor / Kreditor) for a field.
      * @param {HTMLInputElement} input                    The journal field the popup belongs to.
      * @param {Array<Object>}    results                  Accounts from accountSearch.php.
@@ -1168,7 +1222,7 @@
 
         if (!results || results.length === 0) {
             if ((currentSearchValueParam !== '' && panelOptions.showAccountLookup) || hasLastPostings) {
-                let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+                let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + createKreditorButton(searchType, currentSearchValueParam) + '</div>';
                 if (hasLastPostings) {
                     noResultHtml = '<div class="account-autocomplete-results">' +
                         '<table class="account-autocomplete-table">' +

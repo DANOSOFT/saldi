@@ -1,10 +1,13 @@
-// --- javascript/fieldNavigation.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/fieldNavigation.js --- ver 5.0.0 --- 2026-10-04 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: Ctrl + arrow keys between fields, shared by the journal and the document pool.
 //                Replaces jquery.formnavigation.js in the journal, which stopped at the first cell without an <input> (the VAT select after the account field).
 //                That plugin also listened on keyup, after the browser had already moved the cursor inside the field.
 //                Ctrl+→ / Ctrl+← move to the next / previous editable field of the line, Ctrl+↓ / Ctrl+↑ to the same field in the line below / above.
 //                The key is handled on keydown with the browser default suppressed, the field's content is selected, and lines added later are covered.
+// 20261004 CL/SZ SD-726 With "Gem og gå til næste/forrige" chosen in the gear box (window.saldiShortcuts.ctrl_arrow = 'save'), Ctrl+↓ / Ctrl+↑ go to the page's window.fieldNavigationSave().
+//                The journal saves and focuses the line below / above; the pool saves and opens the next / previous document.
+//                When the page has nothing to save, the keys move as before.
 //
 // Where it works: inside a table with class "formnavi" (the journal; a line is a <tr>), or inside an element with
 // data-field-nav (the pool; a line is an element with data-field-nav-row).
@@ -68,6 +71,11 @@
         return null;
     }
 
+    /** "Gem og gå til næste/forrige" is chosen and the page can save. Read on every key, so a change in the gear box applies at once. */
+    function saveMode() {
+        return !!(window.saldiShortcuts && window.saldiShortcuts.ctrl_arrow === 'save' && typeof window.fieldNavigationSave === 'function');
+    }
+
     function moveTo(target) {
         // After the other keydown listeners have seen the key: the lookup panel and the date picker
         // use it to keep themselves closed when focus arrives by keyboard
@@ -90,9 +98,13 @@
         e.preventDefault(); // no word jump inside the field, no option change in a select
         if (typeof window.closeAccountAutocomplete === 'function') window.closeAccountAutocomplete();
         var step = ARROWS[e.key];
-        var target = (e.key === 'ArrowLeft' || e.key === 'ArrowRight')
-            ? sideways(field, row, step)
-            : vertical(field, row, box, step);
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            var beside = sideways(field, row, step);
+            if (beside) moveTo(beside);
+            return;
+        }
+        var target = vertical(field, row, box, step);
+        if (saveMode() && window.fieldNavigationSave(field, target, step)) return;
         if (target) moveTo(target);
     }, true);
 })();
