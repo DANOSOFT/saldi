@@ -15,7 +15,7 @@
 //                  per customer link (regnskab_partners.responsible_bruger_id, payer customer|partner), and new ids come
 //                  from INSERT … RETURNING. Columns are added to the layer's own tables only (partner_cols_ensure).
 // 20261029 CL/ASR No tables are created here any more: they come from the update chain (operatorPanelSchema.php).
-//                partner_layer_ready() lets pages treat everyone as a non-partner user until the tables exist.
+//                  partner_layer_ready() lets pages treat everyone as a non-partner user until the tables exist.
 
 if (!function_exists('partner_tables_ensure')) {
 
