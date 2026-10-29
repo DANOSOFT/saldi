@@ -130,15 +130,19 @@ foreach ($tekstKeyTargets as $tekstKeyGlobal) {
 
 // 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url hold the Vibrant payment the server created for
 // a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
-// the columns; the login-free booking pages also ensure them themselves (includes/vibrantPayment.php).
+// the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
 if (isset($db) && is_string($db) && $db !== '') {
 	$rentalTable = db_fetch_array(db_select(
 		"SELECT table_name FROM information_schema.tables WHERE (table_schema = '" . db_escape_string($db) . "' OR table_catalog = '" . db_escape_string($db) . "') AND table_name = 'rentalperiod'",
 		__FILE__ . " linje " . __LINE__
 	));
 	if ($rentalTable) {
-		include_once(__DIR__ . '/vibrantPayment.php');
-		rental_payment_column($db);
+		include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
+		ensureTableAndColumns($db, 'rentalperiod', array(
+			'id' => 'SERIAL PRIMARY KEY', 'order_id' => 'INTEGER', 'rt_from' => 'numeric(15,0)', 'rt_to' => 'numeric(15,0)',
+			'item_id' => 'INTEGER', 'cust_id' => 'INTEGER', 'expiry_time' => 'TIMESTAMP', 'payment_id' => 'varchar(100)',
+			'payment_url' => 'varchar(500)'
+		));
 	}
 }
 

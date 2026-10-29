@@ -27,25 +27,23 @@
 //                 updateBooking is a named handler with a pure decision function; approve and delete are atomic.
 //                 A failed invoice keeps the booking approved and is retried once per call, under a lock.
 //                 Cancelling deletes only on the payment binding it checked; links bind only to open bookings.
+//                 No schema change at request time: betweenUpdates.php and opretfunc.php add the columns.
 //
 
-include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
-
-if (!function_exists('rental_payment_column')) {
+if (!function_exists('rental_payment_ready')) {
 /**
- * Makes sure rentalperiod has payment_id and payment_url: the Vibrant payment the server created for the booking.
- * The login-free booking pages never run includes/betweenUpdates.php, so they ensure the column themselves.
- * The full column list keeps a missing table complete (same list as includes/opdat_4.0.php).
+ * Whether rentalperiod already has payment_id and payment_url. Read only: the columns are added by
+ * includes/betweenUpdates.php at login and by includes/opretfunc.php for new accounts, never at request time.
  *
  * @param string $db  The account database, already validated by public_tenant_db().
- * @return void
+ * @return bool  true when both columns exist.
  */
-function rental_payment_column($db) {
-	ensureTableAndColumns($db, 'rentalperiod', array(
-		'id' => 'SERIAL PRIMARY KEY', 'order_id' => 'INTEGER', 'rt_from' => 'numeric(15,0)', 'rt_to' => 'numeric(15,0)',
-		'item_id' => 'INTEGER', 'cust_id' => 'INTEGER', 'expiry_time' => 'TIMESTAMP', 'payment_id' => 'varchar(100)',
-		'payment_url' => 'varchar(500)'
-	));
+function rental_payment_ready($db) {
+	$name = db_escape_string($db);
+	$qtxt = "SELECT count(*) AS n FROM information_schema.columns WHERE (table_schema = '$name' OR table_catalog = '$name')";
+	$qtxt.= " AND table_name = 'rentalperiod' AND column_name IN ('payment_id', 'payment_url')";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	return $r && (int)$r['n'] === 2;
 }
 }
 
@@ -151,12 +149,15 @@ if (!function_exists('update_booking_payment')) {
  * @param array    $data     The request body: id (booking id) and status.
  * @param callable $invoice  Invoices and mails an order id and returns it on success (fakturer_ordre()).
  * @return array{
- *   status: string,  "not_found", "approved", "invoice_failed", "deleted" or "pending".
+ *   status: string,  "not_found", "approved", "invoice_failed", "deleted", "pending", or "not_ready" before the
+ *                    account has the payment columns (someone logs in once).
  * }
  */
 function update_booking_payment($db, $data, $invoice) {
 	$bookingId = (int)($data['id'] ?? 0);
-	rental_payment_column($db);
+	if (!rental_payment_ready($db)) {
+		return array('status' => 'not_ready');
+	}
 	$booking = db_fetch_array(db_select("SELECT order_id, expiry_time, payment_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
 	$paymentState = null;
 	if ($booking && (string)$booking['payment_id'] !== '') {

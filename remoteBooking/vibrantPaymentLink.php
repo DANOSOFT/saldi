@@ -13,7 +13,11 @@ $customerData = json_decode(file_get_contents("php://input"), true);
 
 $db = public_tenant_db($customerData["db"] ?? '');
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
-rental_payment_column($db);
+if (!rental_payment_ready($db)) {
+    // the payment columns come with the login update; never alter the schema from this public page
+    echo json_encode(["error" => "Booking payments need the latest Saldi update: log in to Saldi once", "id" => $customerData["id"] ?? null]);
+    exit;
+}
 
 $bookingId = (int)($customerData["id"] ?? 0);
 $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
