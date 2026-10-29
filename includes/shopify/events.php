@@ -39,6 +39,7 @@
 // 20261028 CL/SZ SD-749: webhook registration, the hourly webhook.health job and fixture replay (WP03-3).
 // 20261029 CL/SZ SD-749 review: a shop with a wrong domain or API version kills the health job on purpose (doc).
 // 20261029 CL/SZ SD-749 review: a health job that can't restore raises it on the error list; the base URL's host is lower-cased.
+// 20261029 CL/SZ SD-749 review: a health job that restores everything resolves the shop's open webhook.health error.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -689,8 +690,8 @@ function shopify_save_webhook_base_url(string $url): void {
  * the job's shop's subscriptions that Shopify deleted after repeated failed deliveries (NF-5),
  * with the base URL register-webhooks stored; moving subscriptions stays with that command.
  * Without a stored base URL it does nothing. A failure is logged and raised on the error list
- * (kind webhook.health, one open row per shop, mailed at most once an hour), and the job still ends
- * done: the next hour's job is the retry, so failing jobs never pile up. A shop whose domain or API
+ * (kind webhook.health, one open row per shop, mailed at most once an hour; a later run without
+ * failures resolves it), and the job still ends done: the next hour's job is the retry, so failing jobs never pile up. A shop whose domain or API
  * version is wrong is left to throw (InvalidArgumentException): the job dies with an alarm, each
  * hour until the shop is fixed, as no retry can fix that.
  *
@@ -718,6 +719,9 @@ function shopify_webhook_health_job(array $job, float $deadline, callable $heart
 		// a lost token or access stops deliveries for good; the log line alone would hide it
 		shopify_event_alarm((int)$shop['id'], 'webhook.health', (string)$shop['shop_key'],
 			'webhook subscriptions could not be restored: ' . implode('; ', $result['errors']), array('job_id' => $job['id'] ?? null));
+	} else {
+		shopify_db_rows("UPDATE shopify_errors SET resolved_at = now() WHERE shop_id = $1 AND kind = 'webhook.health' AND ref = $2 AND resolved_at IS NULL",
+			array((int)$shop['id'], (string)$shop['shop_key']));
 	}
 	return array('outcome' => 'done');
 }

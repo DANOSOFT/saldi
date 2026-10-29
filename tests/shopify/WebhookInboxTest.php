@@ -17,6 +17,7 @@
 // 20261028 CL/SZ SD-748 review: deferred events go behind new ones (limit 1); a failed route alarm keeps its kind.
 // 20261028 CL/SZ SD-749: the webhook.health job restores a deleted subscription.
 // 20261029 CL/SZ SD-749 review: a health job that can't restore raises one error and one alarm mail.
+// 20261029 CL/SZ SD-749 review: the next run that restores everything resolves that error.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -502,6 +503,9 @@ final class WebhookInboxTest extends TestCase
         $this->assertSame(0, $again['exit'], $again['stderr'] . $again['stdout']);
         $this->assertSame(['2'], array_column($this->alarms(), 'occurrences'), 'the next hour counts on the open row');
         $this->assertSame(['mail.alert'], array_column($this->jobs(), 'type'), 'and mails no more than once an hour');
+        $fixed = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_events.php', ['health', self::$db, '-']));
+        $this->assertSame(0, $fixed['exit'], $fixed['stderr'] . $fixed['stdout']);
+        $this->assertNotNull($this->alarms()[0]['resolved_at'], 'a run that restores everything closes the error');
         $conn = ShopifyEnv::connect(self::$db);
         $stored = ShopifyEnv::rows($conn, "SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = 'webhook_base_url'");
         pg_close($conn);
