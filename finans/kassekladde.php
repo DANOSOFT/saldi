@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-13 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -156,6 +156,15 @@
 //                The pool opens for the clicked line, or for the line the save just created from the new line, so the document can't land on a duplicate line.
 //                If the save fails validation, the journal stays with its normal error.
 // 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
+// 20261003 CL/SZ SD-721 "Opret kreditor automatisk" in the gear box, per user, off by default; stored in box3 as kred_auto when on (save_kk_cols).
+//                kreditorFromCvr.js is loaded, so the lookup panel offers "Opret kreditor" when a kreditor search finds nothing; accountAutocomplete.js?v= bumped.
+// 20261003 CL/SZ SD-722 "Udfyld modkonto automatisk" in the gear box, per user, off by default; stored in box3 as modk_auto when on.
+//                On, the document pool writes the suggested contra account into Debet instead of showing it under the field.
+// 20261004 CL/SZ SD-726 "Ctrl + pil op/ned" in the gear box, per user: "Hop mellem linjer" (default) or "Gem og gå til næste/forrige".
+//                Stored with the gear box options as the first choice of the shortcut profile (shortcutProfile.php); the change takes effect without a reload.
+//                With "Gem og gå til næste/forrige", Ctrl+↓ / Ctrl+↑ save through the normal save and focus the same field in the line below / above (kkNavFocus).
+//                If the save fails validation, focus stays in the field and the normal error is shown.
+//                An unseen invoice-number warning takes the first Ctrl+↓ / Ctrl+↑, as it takes the first Enter; invoiceReuse.js?v= bumped.
 // 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
 //                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
 //                and the journal then refused every save.
@@ -171,6 +180,26 @@
 // 20261012 CL/SZ SD-730 The paper-clip on a journal that was never saved saves it first even with nothing typed; it opened the pool
 //                with kladde_id=0, where "Indsæt valgte" inserted nothing and came back to an empty journal.
 //                (Reported under SD-730; the fix is here because the save-first clip is SD-716's.)
+// 20261020 CL/SZ MB-81 Two users saving the same proposed voucher number no longer both get it. The blank line posts its proposal (bilfN),
+//                a save holds a per-journal lock (kkJournalLock()) from staging to cleanup, opdater() runs in one transaction, and a new
+//                line that kept a proposal another save took meanwhile is saved under the next free number with a notice.
+//                A typed number is kept as it is.
+// 20261020 CL/SZ MB-81 (CodeRabbit) The lock is held until the page has read and cleared tmpkassekl, and a page load takes it for
+//                that part too, so a render no longer deletes the lines another save is staging. A line saved without a number gets
+//                one past the numbers moved proposals got in the same save.
+// 20261021 CL/SZ MB-81 (CodeRabbit) The GET coming back from a lookup takes the journal lock before it updates the staged lines,
+//                and a lock that could not be taken stops the request.
+// 20261022 CL/NTR The kredit genvej alert built its text from $txt1/$txt2 (only set in the debet branch), so an undefined
+//                 genvej letter in Kredit printed just the account and the bilag number with a space. It now uses this
+//                 branch's own $alert1/$alert2, matching the debet alert.
+// 20261026 CL/LH A paper-clip dragged onto the new line at the bottom failed with "Missing source or target ID", since that
+//                line has no id until it is saved. The drop now saves the journal like that line's own clip does
+//                (kkAfterSave=new) and the save links the documents to the line inserted from the dropped-on row (kkLinkFrom,
+//                kkLinkRow, kk_new_line_rows, linkLineDocuments()).
+//                A link to a saved line updates the clip in place instead of location.reload(), which re-posted a journal
+//                rendered by a save and dropped unsaved changes.
+//                The clip drag uses the copy effect instead of link: Chrome on a Wayland desktop cancelled every drop of
+//                a link drag (Wayland has no link action), so nothing happened when a clip was released on another clip.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -178,6 +207,7 @@ require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
+require_once __DIR__ . '/kassekladde_includes/journalSaveLock.php';
 require_once __DIR__ . '/kassekladde_includes/sorting.php';
 
 # A line created during this request is rendered last, whatever the list is sorted by, so the line the
@@ -187,16 +217,21 @@ require_once __DIR__ . '/kassekladde_includes/sorting.php';
 # that did the insert (see the caller), never inferred with MAX(id), which another session's insert
 # could win.
 $kk_new_line_ids = array();
+$kk_new_line_rows = array(); // form row (tmpkassekl.lobenr) => id of the line inserted from it
 
 /**
  * Remember a line this request created, so the render can place it last and the focus can follow it.
  * The id comes from the connection that did the insert (see the caller in opdater()) - never from
  * MAX(id), which a concurrent insert in another session could win.
+ *
+ * @param int $id  Id of the inserted kassekladde line
+ * @param int $row Form row the line was typed in (tmpkassekl.lobenr), 0 when unknown
  */
-function kk_note_new_line($id) {
-	global $kk_new_line_ids;
+function kk_note_new_line($id, $row = 0) {
+	global $kk_new_line_ids, $kk_new_line_rows;
 	$id = (int) $id;
 	if ($id) $kk_new_line_ids[] = $id;
+	if ($id && (int) $row) $kk_new_line_rows[(int) $row] = $id;
 }
 
 ob_start(); //Starter output buffering
@@ -235,6 +270,7 @@ $control_bal_fetched = FALSE;
 $control_bal_last = $control_next_date = $control_record_daet = $titletxt = NULL;
 $fejl = $kontrolsaldo = $kontrolsum = $x = $y = 0;
 $kkAfterSave = ''; // SD-716: set when the paper-clip saved first (clipSaveThenPool)
+$kkLinkFrom = $kkLinkRow = 0; // set when a clip was dropped on the new line (clipSaveThenLink)
 
 
 if (!isset($kontrolmoms))
@@ -617,6 +653,9 @@ print "<script>
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
 print '<script src="../javascript/accountAutocomplete.js?v=4.1.13" defer></script>';
+// SD-721: "Opret kreditor" in the lookup panel when a kreditor search finds nothing
+include_once("../includes/kreditorFromCvr.php");
+print kreditorCvrClientScript($sprog_id, '1');
 print '<link rel="stylesheet" type="text/css" href="../css/invoiceReuse.css?v=1">';
 print '<script src="../javascript/invoiceReuse.js?v=3" defer></script>';
 // SD-715: the line being typed is checked too, not only the saved ones
@@ -713,6 +752,10 @@ $kk_toggle_cols = array(
 );
 // Panel-sektioner i det blaa kontoopslag - ikke tabelkolonner, men gemmes/fravaelges via samme mekanisme
 $kk_panel_opts = array('ac_forslag', 'ac_opslag');
+// Switches that are off by default and stored when on (SD-721: kred_auto, "Opret kreditor automatisk"; SD-722: modk_auto, "Udfyld modkonto automatisk")
+$kk_user_opts = array('kred_auto', 'modk_auto');
+// SD-726: the shortcut profile ("Ctrl + pil op/ned"), stored as sc.<choice>=<value> with the options above
+include_once(__DIR__ . '/kassekladde_includes/shortcutProfile.php');
 
 
 // (int)$bruger_id != 0: revisor/admin sessions have bruger_id = -1 (online.php) and must also
@@ -721,7 +764,7 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
     $parts = array_filter(array_map('trim', explode(',', (string)$_POST['save_kk_cols'])));
     $clean = array();
     foreach ($parts as $p) {
-        if (array_key_exists($p, $kk_toggle_cols) || in_array($p, $kk_panel_opts, true)) $clean[] = $p;
+        if (array_key_exists($p, $kk_toggle_cols) || in_array($p, $kk_panel_opts, true) || in_array($p, $kk_user_opts, true) || kkShortcutToken($p)) $clean[] = $p;
     }
     $cols_str = db_escape_string(implode(',', $clean));
     $exists = db_fetch_array(db_select("select id from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
@@ -738,6 +781,8 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
 
 $kk_hidden_cols = array();
 $kk_panel_hidden = array();
+$kk_opts_on = array();
+$kk_shortcuts = kkShortcutProfile('');
 if (isset($bruger_id) && (int)$bruger_id != 0) {
     $kk_r = db_fetch_array(db_select("select box3 from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
     if ($kk_r && trim((string)$kk_r['box3']) !== '') {
@@ -745,7 +790,9 @@ if (isset($bruger_id) && (int)$bruger_id != 0) {
             $c = trim($c);
             if (array_key_exists($c, $kk_toggle_cols)) $kk_hidden_cols[] = $c;
             elseif (in_array($c, $kk_panel_opts, true)) $kk_panel_hidden[] = $c;
+            elseif (in_array($c, $kk_user_opts, true)) $kk_opts_on[] = $c;
         }
+        $kk_shortcuts = kkShortcutProfile($kk_r['box3']);
     }
 }
 
@@ -950,6 +997,9 @@ if ($_GET) {
 		$qtxt = "select bogfort from kladdeliste where id = $kladde_id"; #echo __line__." $qtxt<br>";
 		$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($r['bogfort'] == '-' && ($id[$x]) || ($lobenr[$x] || ($x))) {
+			// MB-81 Back from a lookup, this request updates the staged lines and may save them (opdater()), so it takes
+			// the journal lock first; the render below keeps using it
+			kkJournalLock($kladde_id);
 			if ($id[$x]) {
 				$qtxt = "update tmpkassekl set beskrivelse='" . db_escape_string($beskrivelse[$x]) . "',d_type='$d_type[$x]', ";
 				$qtxt.= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
@@ -999,6 +1049,9 @@ if ($_POST) {
 	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
 	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool)
 	$kkAfterSave   = (string)ifset($_POST, 'kkAfterSave', '');
+	// A clip dropped on the new line: link that line's documents to the line the save inserts from form row kkLinkRow
+	$kkLinkFrom    = (int)ifset($_POST, 'kkLinkFrom', 0);
+	$kkLinkRow     = (int)ifset($_POST, 'kkLinkRow', 0);
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
 	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
@@ -1017,6 +1070,8 @@ if ($_POST) {
 	#			 $alerttekst= findtekst('1417|Annullerer simulering for denne kladde', $sprog_id);
 	#			 alert('a'.$alerttekst);
 	#		}
+		// MB-81 Another save of this journal finishes first: tmpkassekl is shared by the journal's saves
+		kkJournalLock($kladde_id);
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 		// This request stages the lines itself, so opdater() below may move them into the journal
 		$kkStaged = true;
@@ -1045,6 +1100,8 @@ if ($_POST) {
 		$bilag[$x] = trim(if_isset($_POST[$y], ''));
 		if (!$bilag[$x])
 			$bilag[$x] = '0'; # PHR 02.09.06
+		// MB-81 The number the page proposed on this line, so opdater() can tell a kept proposal from a typed number
+		$bilagForslag[$x] = (int)ifset($_POST, "bilf$x", 0);
 		$y = "dato" . $x;
 		$dato[$x] = trim(if_isset($_POST[$y], ''));
 		if (substr($dato[$x], 4, 1) == '-' && substr($dato[$x], 7, 1) == '-') {
@@ -1810,7 +1867,7 @@ if (!$fejl && $kladde_id) {
 	if (empty($kk_replay)) {
 		// Only lines this request staged and checked (kontroller()). What a refused save left in tmpkassekl must not
 		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
-		if (!empty($kkStaged)) opdater($kladde_id);
+		if (!empty($kkStaged)) opdater($kladde_id, $bilagForslag ?? array());
 		initializePositions($kladde_id);
 		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
 		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
@@ -1823,7 +1880,8 @@ if (!$fejl && $kladde_id) {
 	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 	unset($_SESSION['kk_lookup_staged'][$kladde_id]);
-	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now
+	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now.
+	// A clip dropped on the new line comes here too, with kkLinkFrom set.
 	if ($submit == 'save' && $kkAfterSave !== '') {
 		$kkPoolLine = 0;
 		if ($kkAfterSave === 'new') {
@@ -1834,13 +1892,27 @@ if (!$fejl && $kladde_id) {
 			$r = db_fetch_array(db_select("select id from kassekladde where id = '" . (int)$kkAfterSave . "' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
 			if ($r) $kkPoolLine = (int)$r['id'];
 		}
-		$kkPoolUrl = "../includes/documents.php?source=kassekladde&sourceId=$kkPoolLine&kladde_id=" . (int)$kladde_id . "&fokus=&openPool=1";
-		if ($kkPoolLine) {
-			$r = db_fetch_array(db_select("select bilag from kassekladde where id = '$kkPoolLine'", __FILE__ . " linje " . __LINE__));
-			if ($r) $kkPoolUrl .= "&bilag=" . (int)$r['bilag'];
+		if ($kkLinkFrom) {
+			// A clip was dropped on the new line (clipSaveThenLink): link its documents there and stay in the journal
+			// The target is the line inserted from the row the clip was dropped on, not the last one inserted:
+			// the user may have filled more rows below it in the same save
+			$kkLinkTo = (int)($GLOBALS['kk_new_line_rows'][$kkLinkRow] ?? 0);
+			$r = db_fetch_array(db_select("select id from kassekladde where id = '$kkLinkFrom' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
+			if ($kkLinkTo && $r) {
+				include_once(__DIR__ . '/../includes/docsIncludes/linkDocuments.php');
+				linkLineDocuments($kkLinkFrom, $kkLinkTo, 'kassekladde', $bruger_id);
+			} elseif (!$kkLinkTo) {
+				alert(findtekst('5468|Den nye linje er tom. Skriv linjen, og træk så bilaget hen på den igen.', $sprog_id));
+			}
+		} else {
+			$kkPoolUrl = "../includes/documents.php?source=kassekladde&sourceId=$kkPoolLine&kladde_id=" . (int)$kladde_id . "&fokus=&openPool=1";
+			if ($kkPoolLine) {
+				$r = db_fetch_array(db_select("select bilag from kassekladde where id = '$kkPoolLine'", __FILE__ . " linje " . __LINE__));
+				if ($r) $kkPoolUrl .= "&bilag=" . (int)$r['bilag'];
+			}
+			// After the journal has loaded, so its pagehide handler releases the lock as on a normal click
+			print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
 		}
-		// After the journal has loaded, so its pagehide handler releases the lock as on a normal click
-		print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
 	}
 }
 /*
@@ -2934,6 +3006,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		.kkVisRow:hover{background:#eef3fa;}
 		.kkVisRow input{margin:0;cursor:pointer;}
 		.kkVisRow input:not(:checked)+span{color:#99a;text-decoration:line-through;}
+		.kkVisRow input[type=radio]:not(:checked)+span{color:inherit;text-decoration:none;}
+		.kkVisGroup{padding:5px 6px 1px 6px;font-weight:bold;color:#15488f;}
 		.kkVisSplit{margin:4px 6px;border:none;border-top:1px solid #dde5f0;}
 		.kkVisFoot{border-top:1px solid #dde5f0;padding:7px 10px;text-align:right;}
 		.kkVisFoot button{background:none;border:none;padding:0;font:inherit;color:#15488f;cursor:pointer;text-decoration:underline;}
@@ -2970,6 +3044,26 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$checked = in_array($ckey, $kk_panel_hidden, true) ? '' : 'checked';
 			print "<label class='kkVisRow'><input type='checkbox' class='kk-col-toggle' data-col='" . htmlspecialchars($ckey, ENT_QUOTES, $charset) . "' $checked><span>" . htmlspecialchars($clabel, ENT_QUOTES, $charset) . "</span></label>";
 		}
+		print "<hr class='kkVisSplit'>";
+		// SD-721: on, a kreditor is created from the CVR register without asking when a pool document's supplier is unknown
+		$kkAutoKred = findtekst('5359|Opret kreditor automatisk', $sprog_id);
+		$checked = in_array('kred_auto', $kk_opts_on, true) ? 'checked' : '';
+		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle' data-opt='kred_auto' $checked><span>" . htmlspecialchars($kkAutoKred, ENT_QUOTES, $charset) . "</span></label>";
+		// SD-722: on, the document pool fills Debet with the contra account suggested from the kreditor's history
+		$kkAutoModk = findtekst('5390|Udfyld modkonto automatisk', $sprog_id);
+		$checked = in_array('modk_auto', $kk_opts_on, true) ? 'checked' : '';
+		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle' data-opt='modk_auto' $checked><span>" . htmlspecialchars($kkAutoModk, ENT_QUOTES, $charset) . "</span></label>";
+		// SD-726: what Ctrl+↓ / Ctrl+↑ do in the journal and the pool; the default isn't stored
+		print "<hr class='kkVisSplit'>";
+		print "<div class='kkVisGroup'>" . htmlspecialchars(findtekst('5395|Ctrl + pil op/ned', $sprog_id), ENT_QUOTES, $charset) . "</div>";
+		$kkCtrlArrow = array(
+			'lines' => findtekst('5396|Hop mellem linjer', $sprog_id),
+			'save'  => findtekst('5397|Gem og gå til næste/forrige', $sprog_id),
+		);
+		foreach ($kkCtrlArrow as $value => $label) {
+			$checked = $kk_shortcuts['ctrl_arrow'] === $value ? 'checked' : '';
+			print "<label class='kkVisRow'><input type='radio' name='kkScCtrlArrow' class='kk-sc-choice' data-sc='ctrl_arrow' data-default='lines' value='$value' $checked><span>" . htmlspecialchars($label, ENT_QUOTES, $charset) . "</span></label>";
+		}
 		print "</div>";
 		print "<div class='kkVisFoot'><button type='button' id='kkVisShowAll'>" . htmlspecialchars($kkVisShowAll, ENT_QUOTES, $charset) . "</button></div>";
 		print "</div>";
@@ -2992,11 +3086,21 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		function kkSaveCols(){
 			var hidden=[];
 			document.querySelectorAll('.kk-col-toggle').forEach(function(cb){if(!cb.checked) hidden.push(cb.getAttribute('data-col'));});
+			document.querySelectorAll('.kk-opt-toggle').forEach(function(cb){if(cb.checked) hidden.push(cb.getAttribute('data-opt'));});
+			document.querySelectorAll('.kk-sc-choice').forEach(function(rb){if(rb.checked && rb.value!==rb.getAttribute('data-default')) hidden.push('sc.'+rb.getAttribute('data-sc')+'='+rb.value);});
 			var fd=new FormData();fd.append('save_kk_cols',hidden.join(','));
 			// keepalive: a reload right after toggling must not cancel the save request
 			fetch(window.location.pathname+window.location.search,{method:'POST',body:fd,credentials:'same-origin',keepalive:true}).catch(function(){});
 		}
 		document.addEventListener('change',function(e){
+			if(e.target.classList.contains('kk-opt-toggle')){kkSaveCols();return;}
+			if(e.target.classList.contains('kk-sc-choice')){
+				// SD-726: takes effect at once (fieldNavigation.js reads it on every key)
+				window.saldiShortcuts=window.saldiShortcuts||{};
+				window.saldiShortcuts[e.target.getAttribute('data-sc')]=e.target.value;
+				kkSaveCols();
+				return;
+			}
 			if(!e.target.classList.contains('kk-col-toggle')) return;
 			kkApplyColToggle(e.target.getAttribute('data-col'),e.target.checked);
 			kkSaveCols();
@@ -3186,6 +3290,9 @@ if ($kladde_id) {
 
 		</script>";
 
+	// MB-81 The staged lines are read and cleared below, so no other save of the journal may stage meanwhile;
+	// a save that holds the lock since staging keeps it until here
+	kkJournalLock($kladde_id);
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($q)) {
@@ -3242,6 +3349,8 @@ if ($kladde_id) {
 		$bilag[$x] = $row['bilag'];
 		$forfaldsdato[$x] = NULL;
 		if ($fejl) {
+			// MB-81 A refused new line is shown again with the proposal it was posted with
+			$kkForslag[$x] = $bilagForslag[(int)$row['lobenr']] ?? 0;
 			$transdate[$x] = usdate($row['transdate']);
 			$dato[$x] = dkdato($transdate[$x]);
 			#echo __line__." $row[transdate] | transdate[$x] $transdate[$x] | dato[$x] $dato[$x]<br>";
@@ -3364,8 +3473,10 @@ if ($kladde_id) {
 		$betal_id[$x] = $row['betal_id'];
 		$pos[$x] = $row['pos'] ? $row['pos'] : 0;
 	}
-	if (!$fejl)
+	if (!$fejl) {
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+	}
+	kkJournalUnlock();
 }
 
 
@@ -3550,7 +3661,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!$kk_has_saved_lines && $y == 1) {
 			$bilag[$y] = $last_bilag;
 		}
-		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'></td>";
+		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'>";
+		if (!$id[$y] && !empty($kkForslag[$y])) print "<input type='hidden' name='bilf$y' value='" . (int)$kkForslag[$y] . "'>";
+		print "</td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$y' $de_fok value =\"$d_type[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -3700,6 +3813,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (strstr($submit, 'save') && !empty($GLOBALS['kk_new_line_ids']) && $x < 3000) {
 		$fokus = 'bila' . $x;
 	}
+	# SD-726: Ctrl+↓ / Ctrl+↑ with "Gem og gå til næste/forrige" ask for the same field in the line below / above.
+	# A save that failed validation keeps the focus in the field it came from, with the normal error.
+	$kkNavFocus = (string)ifset($_POST, 'kkNavFocus', '');
+	if ($submit == 'save' && !$fejl && preg_match('/^[a-z_]{3,4}\d+$/', $kkNavFocus)) {
+		$fokus = $kkNavFocus;
+	}
 	print "</tr>\n";
 
 	if (!isset($dato[$y]))         $dato[$y]        = NULL;
@@ -3778,7 +3897,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&sum="         . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+				print "<td class='clip-cell' data-source-id='0' data-row='$x' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
 	            print "<span onclick=\"clipSaveThenPool('$href', 'new')\" style='cursor:pointer;display:inline-block;'>";
 	            print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;'></span></td>\n";
 	        	// print "</tr>";
@@ -3790,8 +3909,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
+		// MB-81 bilf$x carries the proposal, so the save can tell it from a number the user typed
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
-		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
+		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'>";
+		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_next_bilag . "'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
 		name='dato$x' $de_fok value =\"$dato[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;'
@@ -3947,6 +4068,35 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	// SD-716: Ctrl + arrow keys between fields; works on the table with class formnavi, also for lines added later
 	$fieldNavVersion = @filemtime('../javascript/fieldNavigation.js') ?: 0;
 	?>
+	<script>
+	// SD-726: the user's shortcut profile; "save" makes Ctrl+↓ / Ctrl+↑ save and go to the line below / above
+	window.saldiShortcuts = window.saldiShortcuts || <?php echo json_encode($kk_shortcuts); ?>;
+	window.fieldNavigationSave = function (field, target, step) {
+		var save = document.querySelector('input[name="save"]');
+		var form = save && save.form;
+		if (!form || field.form !== form || !form.elements.fokus) return false;
+		// Nothing to save (a typed value counts before the field has fired change): just move
+		if (!docChange && !(field.tagName === 'INPUT' && field.value !== field.defaultValue)) return false;
+		// An unseen invoice-number warning takes the first key, as it takes the first Enter (invoiceReuse.js)
+		if (typeof window.invoiceReuseStopsSave === 'function' && window.invoiceReuseStopsSave(field)) return true;
+		var name = target && target.name ? target.name : '';
+		// No line below yet (the blank line): the save adds one, with the next number
+		if (!name && step > 0) name = field.name.replace(/\d+$/, function (n) { return String(parseInt(n, 10) + 1); });
+		if (!name || name === field.name) return false;
+		var next = form.querySelector('input[name="kkNavFocus"]');
+		if (!next) {
+			next = document.createElement('input');
+			next.type = 'hidden';
+			next.name = 'kkNavFocus';
+			form.appendChild(next);
+		}
+		next.value = name;
+		form.elements.fokus.value = field.name;
+		docChange = false;
+		if (typeof form.requestSubmit === 'function') form.requestSubmit(save); else save.click();
+		return true;
+	};
+	</script>
 	<script src="../javascript/fieldNavigation.js?v=<?php echo $fieldNavVersion; ?>"></script>
 	<?php
 
@@ -4228,7 +4378,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$alert1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$alert2 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
-					$alerttekst = addslashes($kredit . " " . $txt1 . " " . $bilag . $txt2); # 20230306 added spaces
+					$alerttekst = addslashes($kredit . " " . $alert1 . " " . $bilag . $alert2); # 20230306 added spaces
 					alert($alerttekst);
 					$fejl = 1;
 				}
@@ -4459,10 +4609,21 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	 * and a row whose bilag was set to "-" is deleted by kontroller() before this runs. Lines created
 	 * here are reported through kk_note_new_line() so the render can pin them last and move the focus
 	 * to the new blank line.
+	 *
+	 * Runs in one transaction, with kkJournalLock() held by the caller, so two saves of the same journal
+	 * take turns. A new line that kept the number the page proposed, and whose number another save has
+	 * taken since, is saved under the next free number instead and the user is told (MB-81).
+	 *
+	 * @param int             $kladde_id
+	 * @param array<int, int> $bilagForslag Line number => the voucher number the page proposed on that line.
 	 */
-	function opdater($kladde_id)
+	function opdater($kladde_id, $bilagForslag = array())
 	{
-		global $baseCurrency,$egen_kto_id;
+		global $baseCurrency, $egen_kto_id, $sprog_id, $fejl;
+
+		$kladde_id = (int)$kladde_id;
+		transaktion('begin');
+		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag);
 
 		$forfaldsdate = NULL;
 		$valutakode = '0';
@@ -4535,7 +4696,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
 					# writing the 0 back; a positive number the user entered is kept as it is.
 					if ($bilag <= 0) {
-						$bilag = bilagNextNumberForJournal($kladde_id);
+						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
@@ -4565,8 +4726,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# next one instead of 0, so a balanced line advances the series and no number is
 						# reused while the journal is open.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberForJournal($kladde_id);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 						}
+						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
 						// Find the highest pos of entries that should come before the new entry.
 						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
@@ -4582,11 +4744,40 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+
+						# SST-888 The two branches above each carry this check; this one did not, so a
+						# voucher number that does not fit kassekladde.bilag reached the insert.
+						$bilag_tjek = bilagSafeNumber(if_isset($r, '', 'bilag'), $kladde_id);
+						# one replacement per original number: the staged update below rewrites every line
+						# that carries it, so the next line of the same group must get the same number
+						if (!isset($bilag_erstat)) $bilag_erstat = array();
+						$bilag_noegle = 'x' . $bilag_tjek['original'];
+						if (isset($bilag_erstat[$bilag_noegle])) {
+							$bilag_tjek['bilag'] = $bilag_erstat[$bilag_noegle];
+						} elseif ($bilag_tjek['replaced']) {
+							# reserve the replacement through the same allocator a line without a number uses,
+							# so it cannot take a number a staged line already proposes
+							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat);
+							if (!bilagNumberFits((string)$bilag_tjek['bilag'])) $bilag_tjek['bilag'] = 0;
+							$bilag_erstat[$bilag_noegle] = $bilag_tjek['bilag'];
+						}
+						if ($bilag_tjek['replaced'] && $bilag_tjek['bilag'] <= 0) {
+							# the journal is already at 2147483647: no number left to offer, so this line is skipped
+							$fejl = 1;
+							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							continue;
+						} elseif ($bilag_tjek['replaced']) {
+							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
+							# the staged line keeps the bad number as text, so the next open would try it again
+							db_modify("update tmpkassekl set bilag = '" . db_escape_string($bilag_tjek["bilag"]) . "' where kladde_id = '" . db_escape_string($kladde_id) . "' and bilag = '" . db_escape_string($bilag_tjek["original"]) . "'", __FILE__ . " linje " . __LINE__);
+						}
+						$insert_bilag = $bilag_tjek['bilag'];
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberForJournal($kladde_id);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
 						}
+						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
 						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
 						$ins_pos_r = db_fetch_array($ins_pos_q);
@@ -4619,12 +4810,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							}
 							# A failed insert, or an install whose id is not auto generated, only means the
 							# pin and the focus do not fire - never a broken save.
-							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id);
+							if ($kk_insert_id > 0) kk_note_new_line($kk_insert_id, $r['lobenr']);
 							unset($kk_insert_id);
 						}
 					}
 				}
 			}
+		}
+		transaktion('commit');
+		foreach ($bilagErstat as $taget => $ny) {
+			alert(addslashes(sprintf(findtekst('5439|Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.', $sprog_id), $taget, $ny)));
 		}
 	}
 	######################################################################################################################################
@@ -5556,7 +5751,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 		// Keep text/bilag just in case, but text/plain JSON is primary
 		event.dataTransfer.setData('text/bilag', sourceBilag);
-		event.dataTransfer.effectAllowed = 'link';
+		// 'copy', not 'link': Wayland's drag and drop has no link action (only copy/move/ask), so Chrome on a
+		// Wayland desktop cancelled every drop of a 'link' drag without a drop event
+		event.dataTransfer.effectAllowed = 'copy';
 		console.log('clipDragStart - dataTransfer set. text/plain:', event.dataTransfer.getData('text/plain'), 'text/bilag:', event.dataTransfer.getData('text/bilag'));
 
 		// Add visual feedback
@@ -5590,8 +5787,8 @@ document.addEventListener('DOMContentLoaded', function() {
 				cell.classList.add('drag-over-file');
 				cell.classList.remove('drag-over', 'drag-over-invalid');
 			} else {
-				// Clip-to-clip drag
-				event.dataTransfer.dropEffect = 'link';
+				// Clip-to-clip drag (copy, see clipDragStart)
+				event.dataTransfer.dropEffect = 'copy';
 				console.log('clipDragOver - targetId:', targetId, 'targetBilag:', targetBilag, 'sourceId:', clipDragSourceId);
 				// Don't allow dropping on itself
 				if (targetId == clipDragSourceId) {
@@ -5685,12 +5882,66 @@ document.addEventListener('DOMContentLoaded', function() {
 			return;
 		}
 
+		// The new line at the bottom has no id until it is saved, so the save links the documents to it
+		if (targetSourceId == 0) {
+			clipSaveThenLink(sourceId, cell ? cell.dataset.row : '');
+			return;
+		}
 		console.log('clipDrop - user confirmed, calling linkDocumentsBetweenLines');
 		// Make AJAX call to link documents
-		linkDocumentsBetweenLines(sourceId, targetSourceId);
+		linkDocumentsBetweenLines(sourceId, targetSourceId, targetBilag);
 	}
 
-	function linkDocumentsBetweenLines(fromSourceId, toSourceId) {
+	// Saves the journal like the new line's own clip does (clipSaveThenPool); the save then links the
+	// documents of line fromSourceId to the line it inserts from form row targetRow and shows the journal again
+	function clipSaveThenLink(fromSourceId, targetRow) {
+		const save = document.querySelector('input[name="save"]');
+		if (!save || !save.form) return;
+		for (const [name, value] of [['kkAfterSave', 'new'], ['kkLinkFrom', String(fromSourceId)], ['kkLinkRow', String(targetRow || '')]]) {
+			let input = save.form.querySelector('input[name="' + name + '"]');
+			if (!input) {
+				input = document.createElement('input');
+				input.type = 'hidden';
+				input.name = name;
+				save.form.appendChild(input);
+			}
+			input.value = value;
+		}
+		docChange = false;
+		if (typeof save.form.requestSubmit === 'function') save.form.requestSubmit(save); else save.click();
+	}
+
+	// Shows a line's clip as having a document, without reloading the page: a reload of a journal
+	// rendered by a save re-posts the form, and unsaved changes on the page would be lost
+	function clipShowDocument(sourceId, kladdeId, bilag) {
+		const clipCell = document.querySelector('.clip-cell[data-source-id="' + sourceId + '"]');
+		if (!clipCell) return false;
+		const img = clipCell.querySelector('img.clip-icon');
+		if (img) {
+			img.src = img.src.replace('clip.png', 'paper.png');
+			img.style.cursor = 'grab';
+		}
+		const span = clipCell.querySelector('span');
+		if (span && !span.draggable) {
+			const docHref = '../includes/documents.php?source=kassekladde&sourceId=' + sourceId + '&kladde_id=' + kladdeId + '&bilag=' + encodeURIComponent(bilag);
+			span.onclick = function() { openBilagTab(docHref); };
+			span.draggable = true;
+			span.addEventListener('dragstart', function(e) {
+				clipDragStart(e, sourceId, bilag);
+			});
+		}
+		clipCell.classList.remove('clip-no-doc');
+		clipCell.classList.add('clip-has-doc');
+		// As rendered for a line with a document: it cannot be deleted until the document is removed
+		const deleteBtn = document.querySelector('.delete-line-btn[data-id="' + sourceId + '"]');
+		if (deleteBtn) {
+			deleteBtn.disabled = true;
+			deleteBtn.title = 'Remove attached document first';
+		}
+		return true;
+	}
+
+	function linkDocumentsBetweenLines(fromSourceId, toSourceId, toBilag) {
 	console.log('Linking:', fromSourceId, 'to', toSourceId);
 		const formData = new FormData();
 		formData.append('action', 'linkDocuments');
@@ -5705,9 +5956,9 @@ document.addEventListener('DOMContentLoaded', function() {
 		.then(response => response.json())
 		.then(data => {
 			if (data.success) {
-				alert('Bilag linket succesfuldt! (' + data.count + ' dokument(er))');
-				// Refresh the page to show updated document links
-				location.reload();
+				if (!clipShowDocument(toSourceId, clipKladdeId, toBilag || '')) {
+					window.location.replace(window.location.pathname + '?kladde_id=' + encodeURIComponent(clipKladdeId));
+				}
 			} else {
 				alert('Fejl: ' + (data.message || 'Kunne ikke linke bilag'));
 			}
@@ -5772,26 +6023,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				// Any reload (location.reload or href=href) on a POST-rendered page risks
 				// replaying the form, which submits auto-balance pre-filled blank rows and
 				// inserts them as real kassekladde entries.
-				const bilag = data.bilag || '';
-				const clipCell = document.querySelector('.clip-cell[data-source-id="' + data.sourceId + '"]');
-				if (clipCell) {
-					const img = clipCell.querySelector('img.clip-icon');
-					if (img) {
-						img.src = img.src.replace('clip.png', 'paper.png');
-						img.style.cursor = 'grab';
-					}
-					const span = clipCell.querySelector('span');
-					if (span) {
-						const docHref = '../includes/documents.php?source=kassekladde&sourceId=' + data.sourceId + '&kladde_id=' + data.kladde_id + '&bilag=' + encodeURIComponent(bilag);
-						span.onclick = function() { openBilagTab(docHref); };
-						span.draggable = true;
-						span.addEventListener('dragstart', function(e) {
-							clipDragStart(e, data.sourceId, bilag);
-						});
-					}
-					clipCell.classList.remove('clip-no-doc');
-					clipCell.classList.add('clip-has-doc');
-				} else {
+				if (!clipShowDocument(data.sourceId, data.kladde_id, data.bilag || '')) {
 					// Fallback: clip cell not in DOM (edge case) — use GET navigation
 					window.location.replace(window.location.pathname + window.location.search);
 				}

@@ -39,3 +39,5 @@ Only place a change earlier when it must run *before* another patch that is alre
 **Why:** `betweenUpdates.php` is the working/staging area for changes not yet tied to a released version. `opdat_<major>.<minor>.php` files are the permanent, per-version record of what a given release's updater applies — see [Protected update files](feedback_protected_update_files.md) for handling rules on these files.
 
 **How to apply:** For a normal DB structure/content change, edit `includes/betweenUpdates.php`. Only touch `includes/opdat_*.php` or `includes/version.php` when the user explicitly asks to cut/release a new version — do not do this transfer speculatively.
+
+**Enforced by:** `tools/guardrails` check `migrations` (schema changes outside the update chain, entries inserted above existing ones). For a version cut, mark the opdat file with an exception (tools/guardrails/README.md).
