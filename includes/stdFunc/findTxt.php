@@ -110,7 +110,7 @@ if (!function_exists('findtekst')) {
 						// Every line is split, also one without tabs (only the id), so the id compare never reads a missing column (SST-909)
 						$tmp = explode(chr(9), $linje);
 						if ($textId == $tmp[0]) {
-							$newTxt = $tmp[$languageID] ?? ''; # Linjen efter 1. tab. 
+							$newTxt = $tmp[$languageID] ?? ''; # Linjen efter 1. tab.
 						}
 					}
 				}

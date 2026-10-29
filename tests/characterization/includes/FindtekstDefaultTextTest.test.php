@@ -198,7 +198,9 @@ final class FindtekstDefaultTextTest extends TestCase
         }
         $cwd = (string) getcwd();
         $page = $GLOBALS['__fixtureDir'] . '/lager';
-        @mkdir($page, 0777, true);
+        if (!is_dir($page) && !mkdir($page, 0777, true)) {
+            self::fail("Could not create the fixture page directory $page");
+        }
         chdir($page);
         set_error_handler(static function (int $no, string $msg): bool { throw new \ErrorException($msg, 0, $no); });
         try {
