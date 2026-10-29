@@ -5,6 +5,13 @@ require_once '../../../core/BaseEndpoint.php';
 
 class ProductsEndpoint extends BaseEndpoint
 {
+    // 20261019 CL/LH Numeric body fields, checked by validateNumericFields() before the model is built (MB-76).
+    private const DECIMAL_FIELDS = [
+        'salesPrice', 'costPrice', 'minInventory', 'maxInventory',
+        'netweight', 'grossweight', 'length', 'width', 'height', 'colli_webfreight',
+    ];
+    private const INTEGER_FIELDS = ['group'];
+
     public function __construct()
     {
         parent::__construct();
@@ -27,17 +34,28 @@ class ProductsEndpoint extends BaseEndpoint
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
-                $limit = $_GET['limit'] ?? 20;
-                if($limit > 100 || $limit < 1) {
-                    $limit = 20; // Enforce a maximum limit
+                // 20261008 CL/LH: limit is capped at 200 as documented (was reset to 20 above 100),
+                // and offset / page (1-based) page through the list - before, every call returned id 1-20.
+                $limit = (int)($_GET['limit'] ?? 20);
+                if ($limit < 1) {
+                    $limit = 20;
+                } elseif ($limit > 200) {
+                    $limit = 200;
+                }
+                if (isset($_GET['offset'])) {
+                    $offset = max(0, (int)$_GET['offset']);
+                } else {
+                    $offset = (max(1, (int)($_GET['page'] ?? 1)) - 1) * $limit;
                 }
                 
-                if ($field && $value) {
+                // 20261008 CL/LH: presence, not truthiness - value=0 (e.g. group 0) was ignored and
+                // returned the unfiltered list. The filtered list is paged like the full one.
+                if (is_string($field) && $field !== '' && is_string($value) && $value !== '') {
                     // Search by specific field
-                    $products = VareModel::findBy($field, $value);
+                    $products = VareModel::findBy($field, $value, $orderBy, $orderDirection, $limit, $offset);
                 } else {
                     // Get all products
-                    $products = VareModel::getAllItems($orderBy, $orderDirection, $limit);
+                    $products = VareModel::getAllItems($orderBy, $orderDirection, $limit, $offset);
                 }
                 
                 $items = [];
@@ -56,6 +74,7 @@ class ProductsEndpoint extends BaseEndpoint
         try {
             // Validate required fields
             $this->validateData($data, ['sku', 'description']);
+            $this->validateNumericFields($data, self::DECIMAL_FIELDS, self::INTEGER_FIELDS);
             
             $product = new VareModel();
             
@@ -70,9 +89,10 @@ class ProductsEndpoint extends BaseEndpoint
             if (isset($data->notes)) $product->setNotes($data->notes);
             if (isset($data->serialNumber)) $product->setSerialNumber($data->serialNumber); // 20260812 CL/LH: setSerienr()/setSamlevare()/setGruppe() never existed on VareModel - undefined-method Error gave an empty HTTP 500
             if (isset($data->collectionOfItems)) $product->setCollectionOfItems($data->collectionOfItems);
-            if (isset($data->partialItem)) $product->setDelvare($data->partialItem);
-            if (isset($data->minInventory)) $product->setMinLager($data->minInventory);
-            if (isset($data->maxInventory)) $product->setMaxLager($data->maxInventory);
+            // 20261019 CL/LH setDelvare()/setMinLager()/setMaxLager()/setColliWebfragt() never existed on VareModel - sending these fields gave HTTP 500 (MB-76)
+            if (isset($data->partialItem)) $product->setPartialItem($data->partialItem);
+            if (isset($data->minInventory)) $product->setMinInventory($data->minInventory);
+            if (isset($data->maxInventory)) $product->setMaxInventory($data->maxInventory);
             if (isset($data->location)) $product->setLocation($data->location);
             if (isset($data->group)) $product->setGroup($data->group);
             
@@ -84,7 +104,7 @@ class ProductsEndpoint extends BaseEndpoint
             if (isset($data->length)) $product->setLength($data->length);
             if (isset($data->width)) $product->setWidth($data->width);
             if (isset($data->height)) $product->setHeight($data->height);
-            if (isset($data->colli_webfreight)) $product->setColliWebfragt($data->colli_webfreight);
+            if (isset($data->colli_webfreight)) $product->setColliWebfreight($data->colli_webfreight);
             
             $result = $product->save();
             
@@ -103,6 +123,7 @@ class ProductsEndpoint extends BaseEndpoint
         try {
             // Validate required fields
             $this->validateData($data, ['id']);
+            $this->validateNumericFields($data, self::DECIMAL_FIELDS, self::INTEGER_FIELDS);
             
             $product = new VareModel($data->id);
             if (!$product->getId()) {
@@ -121,9 +142,10 @@ class ProductsEndpoint extends BaseEndpoint
             if (isset($data->notes)) $product->setNotes($data->notes);
             if (isset($data->serialNumber)) $product->setSerialNumber($data->serialNumber); // 20260812 CL/LH: setSerienr()/setSamlevare()/setGruppe() never existed on VareModel - undefined-method Error gave an empty HTTP 500
             if (isset($data->collectionOfItems)) $product->setCollectionOfItems($data->collectionOfItems);
-            if (isset($data->partialItem)) $product->setDelvare($data->partialItem);
-            if (isset($data->minInventory)) $product->setMinLager($data->minInventory);
-            if (isset($data->maxInventory)) $product->setMaxLager($data->maxInventory);
+            // 20261019 CL/LH setDelvare()/setMinLager()/setMaxLager()/setColliWebfragt() never existed on VareModel - sending these fields gave HTTP 500 (MB-76)
+            if (isset($data->partialItem)) $product->setPartialItem($data->partialItem);
+            if (isset($data->minInventory)) $product->setMinInventory($data->minInventory);
+            if (isset($data->maxInventory)) $product->setMaxInventory($data->maxInventory);
             if (isset($data->location)) $product->setLocation($data->location);
             if (isset($data->group)) $product->setGroup($data->group);
             
@@ -135,7 +157,7 @@ class ProductsEndpoint extends BaseEndpoint
             if (isset($data->length)) $product->setLength($data->length);
             if (isset($data->width)) $product->setWidth($data->width);
             if (isset($data->height)) $product->setHeight($data->height);
-            if (isset($data->colli_webfreight)) $product->setColliWebfragt($data->colli_webfreight);
+            if (isset($data->colli_webfreight)) $product->setColliWebfreight($data->colli_webfreight);
             
             $result = $product->save();
             

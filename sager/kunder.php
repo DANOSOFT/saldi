@@ -62,7 +62,7 @@
 	elseif (isset($_POST['konto_id'])) $konto_id = (int)$_POST['konto_id'];
 	else $konto_id = (int)if_isset($_POST,0,'id');
 	$funktion = if_isset($_GET['funktion']);
-	if (!$funktion)$funktion="kundeliste";
+	if (!in_array($funktion, ['kundeliste', 'ret_kunde', 'ret_kunde_ansat'], true)) $funktion = "kundeliste";
 	
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
 	<html>

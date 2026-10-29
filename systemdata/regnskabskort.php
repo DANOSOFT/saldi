@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- lap 4.1.1 -- 2025-07-02 --
+// --- systemdata/regnskabskort.php --- ver 5.0.0 -- 2026-10-07 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 2013.02.10 Break ændret til break 1
 // 2015-01-02 Tilrettet til dynamisk lagerværdi. Søg find_lagervaerdi
@@ -36,6 +36,9 @@
 // 20231230 PHR - Added individual groups for each year.
 // 20250522	PHR	- (int)$id
 // 20250702 PHR - PHP8
+// 20261007 MJ SST-829 A new accounting year no longer copies the art='LG' rows.
+//                  Warehouses are not per-year data - stock is keyed on grupper.kodenr
+//                  - so each copy only added a duplicate to every warehouse list.
 
 @session_start();
 $s_id=session_id();
@@ -173,7 +176,13 @@ if ($_POST) {
 			$qtxt = "select id from grupper where fiscal_year = '$kodenr' and art != 'RA'";
 			if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$tmp =$kodenr - 1;
-				$qtxt = "select * from grupper where fiscal_year > '0' and fiscal_year = '$tmp' and art != 'RA'";
+				// 20261007 MJ SST-829 Warehouses are not tied to an accounting year - stock is
+				// keyed on grupper.kodenr, and the rest of the code reads art='LG' without
+				// fiscal_year. Copying them gave every warehouse an extra row per year, which
+				// every list that does not de-duplicate then showed twice. Only the copy is
+				// narrowed; the guard above asks whether this year was already populated, and
+				// changing what that counts could make a half-migrated tenant copy twice.
+				$qtxt = "select * from grupper where fiscal_year > '0' and fiscal_year = '$tmp' and art != 'RA' and art != 'LG'";
 				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					$qtxt = "CREATE TEMP TABLE tmp (like grupper)";

@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// ------ systemdata/importer_varelokationer.php ------------ lap 5.0.0 -- 2016-04-16 --
+// ------ systemdata/importer_varelokationer.php ------------ ver 5.0.0 -- 2026-10-15 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,10 +23,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2016 DANOSOFT ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260416 PHP8
+// 20261015 LOE SST-875 A location from the CSV file is stored without the file's line break, and an
+//                 empty field is stored empty instead of as a line break.
 
 @session_start();
 $s_id=session_id();
@@ -115,6 +117,18 @@ function upload($bilag){
 } # end function upload
 
 
+/**
+ * Reads a CSV file of item numbers and locations and stores the locations on the selected lager.
+ *
+ * One line is one item: the item number first, then the location, separated by the splitter the caller
+ * chose or the page detected. The line break that ends the line in the file is stripped first, so a
+ * location is stored exactly as the file spells it and an empty field is stored empty.
+ *
+ * @param string $filnavn The CSV file to read.
+ * @param string $lager The lager (warehouse) the locations belong to.
+ * @param string $charset The charset chosen for the file on the page.
+ * @return void
+ */
 function overfoer_data($filnavn,$lager,$charset) {
 	global $charset;
 
@@ -184,6 +198,9 @@ function overfoer_data($filnavn,$lager,$charset) {
 				$x++;
 				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
+				# the line break that ends the line in the file is not part of the last field: without this
+				# a location is stored with \r\n or \n at the end, and an empty field becomes a line break
+				$linje=rtrim($linje,"\r\n");
 				list($varenr,$lokation)=explode($splitter,$linje);
 				$vare_id=NULL;
 				$lok_id=NULL;

@@ -299,11 +299,12 @@ body {
    FILE LIST CONTAINER
    ============================================ */
 
+/* SD-719: the list keeps room for a few rows on a low screen; the upload box below gives way instead (#fixedCell) */
 #fileListContainer {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  min-height: 0;
+  min-height: 200px;
   margin: 0 0 0 8px;
   padding: 0;
   position: relative;
@@ -540,8 +541,12 @@ body {
    FIXED BOTTOM SECTION
    ============================================ */
 
+/* SD-719: shrinks down to its header when the list needs the room, and scrolls inside itself */
 #fixedCell {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-height: 64px;
+  overflow-y: auto;
+  overflow-x: hidden;
   width: 100%;
   margin: 0;
   padding: 0;
@@ -831,4 +836,167 @@ body {
     width: 100%;
     height: auto;
   }
+}
+
+/* ============================================
+   JOURNAL LINE: DEBET / KREDIT LOOKUP
+   ============================================ */
+
+.pool-account-inputs {
+  display: flex;
+  gap: 2px;
+}
+
+.pool-account-type {
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.pool-account-name {
+  max-width: 120px;
+  height: 13px;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 13px;
+  color: #555;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* MB-114: the account name hangs below the Debet/Kredit inputs into space the row reserves (13px name + 1px field gap),
+   so the Debet/Kredit cells are as tall as the other cells and their labels and inputs stay on the line of the others.
+   Not in a row with a pool suggestion or reason (poolCapture.js): that row is aligned to the top and keeps the name in the flow. */
+#kassebilagTopBar .topbar-fields-row:not(:has(.pool-suggest, .pool-capture-reason)):has(.pool-account-name:last-child) {
+  padding-bottom: 14px;
+}
+
+#kassebilagTopBar .topbar-fields-row:not(:has(.pool-suggest, .pool-capture-reason)) .pool-account-name:last-child {
+  margin-bottom: -14px;
+}
+
+.pool-account-vat {
+  margin-right: 4px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background-color: #e9ecef;
+  color: #333;
+}
+
+/* ============================================
+   GEM OG NÆSTE (SD-716)
+   ============================================ */
+
+/* Mandatory field left empty when "Gem og næste" was pressed */
+.kassebilag-entry .pool-mandatory {
+  border-color: #dc3545 !important;
+  background-color: #fff5f5 !important;
+}
+
+.pool-mandatory-text {
+  display: block;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #dc3545;
+}
+
+/* After the last document: "Ingen flere bilag i puljen" with the way back to the journal */
+.pool-done-note {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #b8daff;
+  border-radius: 6px;
+  background-color: #e8f4fd;
+  font-size: 13px;
+}
+
+/* SD-719: under the loaded rows while more exist ("50 af 497"); scrolling fetches the next page too */
+.pool-more {
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.pool-more button {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* SD-720: "Bilagsbalance" under the rows of a split bilag, green at 0,00 */
+.pool-split-balance {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 4px 0 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.pool-split-balance .pool-split-value {
+  font-weight: bold;
+}
+
+.pool-split-balance.pool-split-ok {
+  background-color: #e6f4ea;
+  color: #1e7e34;
+}
+
+.pool-split-balance.pool-split-off {
+  background-color: #fdecea;
+  color: #c82333;
+}
+
+.pool-split-warning {
+  font-weight: bold;
+}
+
+.pool-split-remove {
+  padding: 2px 8px;
+  color: #c82333;
+  font-size: 16px;
+  text-decoration: none;
+}
+
+/* SD-720: a saved split row is a journal line, deleted in the journal, not here */
+.kassebilag-entry[data-saved-line-id] .pool-split-remove {
+  display: none;
+}
+/* ============================================
+   DETACHED VIEWER (Åbn i nyt vindue)
+   ============================================ */
+
+#docViewerBar {
+  order: -1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 6px;
+  background-color: var(--docpool-bg-secondary);
+}
+
+#docViewerBar button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* While the document is shown in its own window, the list and entry fields take the full width */
+#docPoolMain.docWindowDetached #rightPanel,
+#docPoolMain.docWindowDetached #resizer {
+  display: none !important;
+}
+
+#docPoolMain.docWindowDetached #leftPanel {
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
 }
