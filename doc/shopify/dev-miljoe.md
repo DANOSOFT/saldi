@@ -72,7 +72,7 @@ Real deliveries from a Shopify store need a public HTTPS URL for the install and
 cloudflared tunnel --url http://localhost:5000   # prints https://<random>.trycloudflare.com
 ```
 
-The base URL is that host plus the install path, e.g. `https://<random>.trycloudflare.com/saldi`. The tenant must be the one the endpoint serves (`SALDI_SHOPIFY_DB` or `.ht_shopify_db`, see above); otherwise the command refuses. Register every shop's subscriptions (or one with `--shop=hml`):
+The base URL is that host plus the install path, e.g. `https://<random>.trycloudflare.com/saldi`. The tenant must be the one the endpoint serves (`SALDI_SHOPIFY_DB` or `.ht_shopify_db`, see above); otherwise the command refuses. It doesn't check that the base URL points at this install, so pass this install's URL. Register every shop's subscriptions (or one with `--shop=hml`):
 
 ```sh
 php tools/shopify_worker.php register-webhooks --db=saldi_shopify_test_xx --base-url=https://<random>.trycloudflare.com/saldi
@@ -83,7 +83,7 @@ php tools/shopify_worker.php register-webhooks --db=saldi_shopify_test_xx --base
 - Without `--base-url` it takes `SALDI_SHOPIFY_WEBHOOK_BASE_URL`, else the base URL stored by the last run (settings group `shopify`, `webhook_base_url`).
 - It prints one JSON line per shop and exits 1 when a topic failed.
 - **A custom app has one set of subscriptions.** If two developers share an app on one sandbox, the last run's URL wins. Use one custom app per developer per sandbox, or point a shared app at ssl12 staging and test locally with replay.
-- The hourly `webhook.health` job (shops with orders or customers on) re-creates, with the stored base URL, any topic Shopify deleted after failed deliveries, so it comes back within the hour. It never moves a subscription (that's `register-webhooks`), so two installs sharing an app don't move each other's every hour. Restored topics are logged as `shopify_webhook subscriptions_restored`, failures as `shopify_webhook health_failed` (the next hour tries again). Before the first `register-webhooks` it does nothing.
+- The hourly `webhook.health` job (shops with orders or customers on) re-creates, with the stored base URL, any topic Shopify deleted after failed deliveries, so it comes back within the hour. It never moves a subscription (that's `register-webhooks`), so two installs sharing an app don't move each other's every hour. Restored topics are logged as `shopify_webhook subscriptions_restored`, failures as `shopify_webhook health_failed` (the next hour tries again). For a shop with a wrong domain or API version the job dies with an alarm, each hour until the shop is fixed. Before the first `register-webhooks` it does nothing.
 
 Replay feeds a recorded day of webhooks back through the receiver, each delivery signed at run time with the shop's webhook secret. It runs on test tenants (`saldi_shopify_test_*`) only. Day files live under `tests/shopify/fixtures/` (synthetic or sanitized only, never test_12 data); see `tests/shopify/fixtures/webhooks/days/2026-10-27.json`:
 

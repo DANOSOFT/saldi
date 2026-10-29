@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.0.0 --- 2026.10.28
+// --- tools/shopify_worker.php --- ver 5.0.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,7 @@
 // 20261028 Sawaneh SD-738: the alarm mail (mail.alert) and the call-log purge (runtime.purge) are wired in.
 // 20261028 CL/SZ SD-748: the events producer promotes stored webhook events into jobs.
 // 20261028 CL/SZ SD-749: commands register-webhooks and replay; the webhook.health handler.
+// 20261029 CL/SZ SD-749 review: register-webhooks reports a misconfigured shop as failed and goes on.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -186,7 +187,8 @@ function shopify_worker_cmd_register_webhooks(array $opts): int {
 	foreach ($shops as $shop) {
 		try {
 			$result = shopify_register_webhooks($shop, $base);
-		} catch (RuntimeException $e) {
+		} catch (RuntimeException | InvalidArgumentException $e) {
+			// InvalidArgumentException: the shop's domain or API version is wrong; the next shops still run
 			$result = array('failed' => count(SHOPIFY_WEBHOOK_TOPICS), 'errors' => array($e->getMessage()));
 		}
 		$failed += $result['failed'];

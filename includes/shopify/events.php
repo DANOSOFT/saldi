@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/events.php --- ver 5.0.0 --- 2026.10.28
+// --- includes/shopify/events.php --- ver 5.0.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20261028 CL/SZ SD-748: alarms go through S02c's includes/shopify/errors.php (SD-738).
 // 20261028 CL/SZ SD-748 review: deferred events go behind fresh ones; a failed route alarm keeps its kind.
 // 20261028 CL/SZ SD-749: webhook registration, the hourly webhook.health job and fixture replay (WP03-3).
+// 20261029 CL/SZ SD-749 review: a shop with a wrong domain or API version kills the health job on purpose (doc).
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -685,7 +686,9 @@ function shopify_save_webhook_base_url(string $url): void {
  * the job's shop's subscriptions that Shopify deleted after repeated failed deliveries (NF-5),
  * with the base URL register-webhooks stored; moving subscriptions stays with that command.
  * Without a stored base URL it does nothing. A failure is logged and the job still ends done:
- * the next hour's job is the retry, so failing jobs never pile up.
+ * the next hour's job is the retry, so failing jobs never pile up. A shop whose domain or API
+ * version is wrong is left to throw (InvalidArgumentException): the job dies with an alarm, each
+ * hour until the shop is fixed, as no retry can fix that.
  *
  * @param array<string, mixed> $job claimed shopify_jobs row
  * @param array<string, mixed> $opts passed on to shopify_graphql() (test seams)

@@ -15,6 +15,7 @@
 // 20261028 CL/SZ SD-749: the replay command, twice; the worker run also schedules webhook.health;
 //                  register-webhooks refuses a tenant the endpoint doesn't serve.
 // 20261028 CL/SZ SD-749: rebased on #911; the worker test leaves out runtime.purge, due from 07:15.
+// 20261029 CL/SZ SD-749 review: register-webhooks goes on after a misconfigured shop; setUp clears the stored base URL.
 
 use PHPUnit\Framework\TestCase;
 
@@ -68,7 +69,7 @@ final class WebhookEndpointTest extends TestCase
         ShopifyEnv::rows($conn, 'DELETE FROM shopify_jobs');
         ShopifyEnv::rows($conn, 'DELETE FROM shopify_events');
         ShopifyEnv::rows($conn, 'DELETE FROM shopify_shops');
-        ShopifyEnv::rows($conn, "DELETE FROM settings WHERE var_grp LIKE 'shopify:%'");
+        ShopifyEnv::rows($conn, "DELETE FROM settings WHERE var_grp LIKE 'shopify:%' OR (var_grp = 'shopify' AND var_name = 'webhook_base_url')");
         ShopifyEnv::rows($conn, "DELETE FROM grupper WHERE art = 'RA'");
         ShopifyEnv::rows($conn, "INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, box3, box4, box5) VALUES ('RA', 1, 'RA', '01', $1, '12', $1, 'on')", [date('Y')]);
         ShopifyEnv::rows($conn, "INSERT INTO shopify_shops (shop_key, domain, is_primary, orders_enabled) VALUES ('hml', 'hml-test.myshopify.com', true, true)");
@@ -185,6 +186,22 @@ final class WebhookEndpointTest extends TestCase
         $stored = ShopifyEnv::rows($conn, "SELECT 1 FROM settings WHERE var_grp = 'shopify' AND var_name = 'webhook_base_url'");
         pg_close($conn);
         $this->assertSame([], $stored, 'nothing is stored');
+    }
+
+    public function testRegisterWebhooksReportsAMisconfiguredShopAndGoesOn(): void
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "UPDATE shopify_shops SET domain = 'hml.example.com' WHERE shop_key = 'hml'");
+        ShopifyEnv::rows($conn, "INSERT INTO shopify_shops (shop_key, domain, api_version) VALUES ('old', 'old-test.myshopify.com', '2020-01')");
+        pg_close($conn);
+
+        $run = $this->tool(['register-webhooks', '--db=' . self::$db, '--base-url=https://dev-sz.example.dk/sz'], ['SALDI_SHOPIFY_DB' => self::$db]);
+
+        $this->assertSame(1, $run['exit'], $run['stderr']);
+        $lines = array_map(fn(string $l): array => json_decode($l, true), explode("\n", trim($run['stdout'])));
+        $this->assertSame([['hml', 10], ['old', 10]], array_map(fn(array $r): array => [$r['shop'], $r['failed']], $lines), $run['stdout']);
+        $this->assertStringContainsString('not a *.myshopify.com domain', $lines[0]['errors'][0]);
+        $this->assertStringContainsString("API version '2020-01'", $lines[1]['errors'][0]);
     }
 
     public function testABodyOverTenMegabytesGets413AndIsNotStored(): void
