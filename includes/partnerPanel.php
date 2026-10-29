@@ -455,7 +455,7 @@ function bp_employee_active($bid, $on) {
 	$bid = (int)$bid; $e = bp_employee($bid); if (!$e) return bp_t('Medarbejderen hører ikke til firmaet','The employee does not belong to the firm');
 	if ($bid == (int)bp_me()['id']) return bp_t('Du kan ikke deaktivere dig selv','You cannot deactivate yourself');
 	db_modify("update partner_users set active = ".($on ? 'true' : 'false')." where bruger_id = '$bid' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__);
-	if (!$on) db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn']).' and (db = '".db_escape_string($GLOBALS['sqdb'])."' or revisor)", __FILE__ . " linje " . __LINE__);
+	if (!$on) db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn'])."' and (db = '".db_escape_string($GLOBALS['sqdb'])."' or revisor)", __FILE__ . " linje " . __LINE__);
 	bp_log($on ? 'partner.employee_activated' : 'partner.employee_deactivated', null, $e['brugernavn']); return '';
 }
 function bp_employee_remove($bid) {
@@ -464,7 +464,7 @@ function bp_employee_remove($bid) {
 	db_modify("delete from partner_users where bruger_id = '$bid' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__);
 	db_modify("delete from partner_user_access where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
 	db_modify("update regnskab_partners set responsible_bruger_id = NULL where responsible_bruger_id = '$bid' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__);
-	db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn']).' and (db = '".db_escape_string($GLOBALS['sqdb'])."' or revisor)", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn'])."' and (db = '".db_escape_string($GLOBALS['sqdb'])."' or revisor)", __FILE__ . " linje " . __LINE__);
 	bp_log('partner.employee_removed', null, $e['brugernavn']); return '';
 }
 // Create a master login + employee row directly (owner knows the password), or accept an invitation.
