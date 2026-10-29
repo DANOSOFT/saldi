@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-10-08------------
+// --- systemdata/diverse.php -----patch 5.1.0 ----2026-10-29------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -112,6 +112,7 @@
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261029 CL/MJ SST-885 ordre_valg saves "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL).
 
 @session_start();
 $s_id = session_id();
@@ -642,6 +643,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$vatPrivateCustomers  = if_isset($_POST['vatPrivateCustomers']);
 		$vatBusinessCustomers = if_isset($_POST['vatBusinessCustomers']);
 		$hideRevenue          = (ifset($_POST, 'hideRevenue') === 'on') ? 'on' : 'off'; #SD-657
+		$sendOrderNote        = (ifset($_POST, 'sendOrderNote') === 'on') ? 'on' : 'off'; #20261029 SST-885
 		$box2                 = if_isset($_POST['box2']); #Rabatvarenr
 		$box3                 = if_isset($_POST['box3']); #folge_s_tekst
 		$box4                 = if_isset($_POST['box4']); #hurtigfakt
@@ -732,6 +734,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("vatPrivateCustomers", "ordre", $vatPrivateCustomers, "Show VAT on orders for private customers");
 		update_settings_value("vatBusinessCustomers", "ordre", $vatBusinessCustomers, "Show VAT on orders for business customers");
 		update_settings_value("hideRevenue", "finans", $hideRevenue, "Keep turnover from users without access to Settings");
+		update_settings_value("sendOrderNote", "easyUBL", $sendOrderNote, "Send the order note (ordrer.notes) as the note on e-invoices and e-orders");
 		
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
