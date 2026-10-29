@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-841: New. Server-side Vibrant payment check for the login-free booking pages.
 //                 updateBooking is a named handler with a pure decision function; approve and delete are atomic.
+//                 A failed invoice keeps the booking approved and is retried once per call, under a lock.
 //
 
 include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
@@ -113,17 +114,43 @@ function booking_payment_decision($booking, $status, $paymentState) {
 }
 }
 
+if (!function_exists('booking_invoice_once')) {
+/**
+ * Invoices a booking's order unless it already has an invoice number. A PostgreSQL advisory lock per order makes
+ * concurrent calls wait for each other, so an order is never invoiced twice; a failed attempt can be repeated later.
+ *
+ * @param int      $orderId  ordrer.id of the booking.
+ * @param callable $invoice  Invoices and mails the order; returns the order id on success (fakturer_ordre()).
+ * @return bool  true when the order is invoiced (now or before), false when invoicing failed.
+ */
+function booking_invoice_once($orderId, $invoice) {
+	$orderId = (int)$orderId;
+	if ($orderId <= 0) {
+		return false;
+	}
+	db_select("SELECT pg_advisory_lock(841, $orderId)", __FILE__ . " linje " . __LINE__);
+	$order = db_fetch_array(db_select("SELECT fakturanr FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__));
+	$done = $order && !in_array(trim((string)$order['fakturanr']), array('', '0'), true);
+	if (!$done && $order) {
+		$done = (string)call_user_func($invoice, $orderId) === (string)$orderId;
+	}
+	db_select("SELECT pg_advisory_unlock(841, $orderId)", __FILE__ . " linje " . __LINE__);
+	return $done;
+}
+}
+
 if (!function_exists('update_booking_payment')) {
 /**
- * The updateBooking action of the login-free booking pages (remoteBooking/api.php, mysale/api.php). Approving
- * clears expiry_time and invoices in one claim, deleting removes the booking and then its order, both only while
- * the booking is still pending, so concurrent calls never invoice twice or delete an approved booking.
+ * The updateBooking action of the login-free booking pages (remoteBooking/api.php, mysale/api.php). A payment the
+ * server confirms with Vibrant approves the booking at once (so it is never cleared as expired) and then invoices
+ * it once; if invoicing fails, the booking stays approved and a later call tries the invoice again. Deleting removes
+ * the booking and then its order, only while the booking is still pending.
  *
  * @param string   $db       The account database, validated by public_tenant_db().
  * @param array    $data     The request body: id (booking id) and status.
- * @param callable $invoice  Invoices and mails an order id: the page's fakturer_ordre($orderId, "email", 0).
+ * @param callable $invoice  Invoices and mails an order id and returns it on success (fakturer_ordre()).
  * @return array{
- *   status: string,  "not_found", "approved", "deleted" or "pending".
+ *   status: string,  "not_found", "approved", "invoice_failed", "deleted" or "pending".
  * }
  */
 function update_booking_payment($db, $data, $invoice) {
@@ -131,15 +158,19 @@ function update_booking_payment($db, $data, $invoice) {
 	rental_payment_column($db);
 	$booking = db_fetch_array(db_select("SELECT order_id, expiry_time, payment_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
 	$paymentState = null;
-	if ($booking && $booking['expiry_time'] && (string)$booking['payment_id'] !== '') {
+	if ($booking && (string)$booking['payment_id'] !== '') {
 		$r = db_fetch_array(db_select("SELECT apikey FROM rentalpayment WHERE id = 1", __FILE__ . " linje " . __LINE__));
 		$paymentState = vibrant_payment_state($r ? (string)$r['apikey'] : '', (string)$booking['payment_id']);
 	}
 	$decision = booking_payment_decision($booking, (string)($data['status'] ?? ''), $paymentState);
+	$orderId = $booking ? (int)$booking['order_id'] : 0;
 	if ($decision === 'approve') {
-		$claimed = db_fetch_array(db_select("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId AND expiry_time IS NOT NULL RETURNING order_id", __FILE__ . " linje " . __LINE__));
-		if ($claimed) {
-			call_user_func($invoice, (int)$claimed['order_id']);
+		db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+		$decision = 'already_approved';
+	}
+	if ($decision === 'already_approved') {
+		if ($paymentState === 'succeeded' && !booking_invoice_once($orderId, $invoice)) {
+			return array('status' => 'invoice_failed');
 		}
 		return array('status' => 'approved');
 	}
@@ -152,6 +183,6 @@ function update_booking_payment($db, $data, $invoice) {
 		db_modify("DELETE FROM ordrer WHERE id = " . (int)$deleted['order_id'], __FILE__ . " linje " . __LINE__);
 		return array('status' => 'deleted');
 	}
-	return array('status' => $decision === 'already_approved' ? 'approved' : $decision);
+	return array('status' => $decision);
 }
 }

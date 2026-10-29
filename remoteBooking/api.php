@@ -367,7 +367,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 if(isset($_GET["updateBooking"])){
     $data = json_decode(file_get_contents("php://input"), true);
     echo json_encode(update_booking_payment($db, is_array($data) ? $data : array(), function ($orderId) {
-        fakturer_ordre($orderId, "email", 0);
+        return fakturer_ordre($orderId, "email", 0);
     }));
     exit;
 }
