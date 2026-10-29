@@ -1,11 +1,12 @@
 <?php
 include "../includes/connect.php";
+include_once(__DIR__ . "/../includes/publicTenantDb.php");
 
 // get post data
 $data = json_decode(file_get_contents('php://input'), true);
-$custId = $data['id'];
-$db = $data['db'];
-$email = $data['email'];
+$custId = (int)($data['id'] ?? 0);
+$db = public_tenant_db($data['db'] ?? '');
+$email = db_escape_string((string)($data['email'] ?? ''));
 
 $chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 $randomString = '';
@@ -22,5 +23,5 @@ $query = db_select("SELECT * FROM mysale WHERE deb_id = '$custId' AND db = '$db'
 if(db_num_rows($query) > 0){
     echo "Customer already exists";
 }else{
-    db_modify("INSERT INTO mysale (deb_id, db, email, link) VALUES ($custId, '$db', '$email', '$url')", __FILE__ . " linje " . __LINE__);
+    db_modify("INSERT INTO mysale (deb_id, db, email, link) VALUES ($custId, '$db', '$email', '" . db_escape_string($url) . "')", __FILE__ . " linje " . __LINE__);
 }

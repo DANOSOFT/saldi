@@ -1,7 +1,8 @@
 <?php
 include("../includes/connect.php");
 include("../includes/std_func.php");
-$db = $_GET["db"];
+include_once(__DIR__ . "/../includes/publicTenantDb.php");
+$db = public_tenant_db(ifset($_GET, "db", ""));
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 
 $query = db_select("SELECT trade_conditions FROM rentalpayment", __FILE__ . " linje " . __LINE__);

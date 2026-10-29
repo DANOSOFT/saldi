@@ -1,15 +1,17 @@
 <?php
 // 20261006 CL/LH SST-842: Use the tenant's own Vibrant key against the production API; the hardcoded sandbox key is gone; booking id int-cast.
 // 20261023 CL/LH SST-842: Read rentalpayment.apikey as vibrantPaymentIntent.php does (no trim), so the link and the status poll use the same key.
+// 20261029 CL/MMR SST-840: The account name from the request is validated before connecting; the order id is int-cast.
 require_once "../includes/connect.php";
+include_once(__DIR__ . "/../includes/publicTenantDb.php");
 $customerData = json_decode(file_get_contents("php://input"), true);
 
-$connection = db_connect($sqhost, $squser, $sqpass, $customerData["db"]);
+$connection = db_connect($sqhost, $squser, $sqpass, public_tenant_db($customerData["db"] ?? ''));
 
 $bookingId = (int)($customerData["id"] ?? 0);
 $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
 $res = db_fetch_array($query);
-$orderId = $res["order_id"];
+$orderId = $res ? (int)$res["order_id"] : 0;
 
 if($orderId == null || $orderId == 0) {
     echo json_encode(["error" => "No order id found", "id" => $customerData["id"]]);
