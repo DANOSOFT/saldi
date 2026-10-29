@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-09-30 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-10-26 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

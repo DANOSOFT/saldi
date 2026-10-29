@@ -23,6 +23,7 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261022 CL/NTR bootstrapTenantOnce() is guarded by $ownsTenant, so a teardown by one suite makes the next one re-clone.
 //                 runChild() collects stderr in a temp file so a chatty child cannot deadlock on a full pipe.
+// 20261029 CL/LH Dropped the deleted bank_integration/aiia_import.php from the MAX(id)+1 examples (#877).
 
 final class CharacterizationEnv
 {
