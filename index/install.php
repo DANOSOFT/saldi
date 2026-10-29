@@ -48,6 +48,7 @@
 // 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
 // 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
 // 20261029 CL/ASR SD-731: a new install also creates the operator panel's master tables (operator_panel_schema()).
+// 20261029 CL/ASR A new install also creates the accountant panel's master tables (partner_panel_schema()).
 
 session_start();
 ob_start(); //Starter output buffering
@@ -320,6 +321,8 @@ if (isset($_POST['opret'])){
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php"); # the operator panel's master tables (SD-731)
 	operator_panel_schema();
+	include_once(__DIR__ . "/../includes/opdat_func/partnerPanelSchema.php"); # the accountant panel's master tables
+	partner_panel_schema();
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
 	$qtxt.= "('timezone','globals','Europe/Copenhagen','Global Timezone','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);

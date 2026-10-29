@@ -26,6 +26,7 @@
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
 // 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
 // 20261029 CL/ASR SD-731: the operator panel's master-database tables (includes/opdat_func/operatorPanelSchema.php).
+// 20261029 CL/ASR The accountant panel's master-database tables (includes/opdat_func/partnerPanelSchema.php).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -77,5 +78,11 @@ if (!$udlignDateBackfilled) {
 // connection ($global = true) and runs once per master (settings flag 'operator_panel_schema'); later logins only read the flag.
 include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
 operator_panel_schema();
+
+
+// 20261029 CL/ASR Accountant panel (admin/bogholder_*.php): its tables live in the master database next to the operator
+// panel's (above, which must run first). partner_panel_schema() uses the master connection and runs once per master.
+include_once(__DIR__ . '/opdat_func/partnerPanelSchema.php');
+partner_panel_schema();
 
 ?>
