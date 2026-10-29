@@ -15,6 +15,8 @@
 //                  A default text or the "Tekst nr" placeholder is cached in the session per default text, so another call with the same id and a different default gets its own.
 //                  A default text "0" is shown as "0", not as the placeholder.
 // 20261028 CL/MMR SST-890 CodeRabbit (PR #878): a translation "0" in tekster.csv or egne_tekster.csv (or the tekster table) counts as found, so it is stored and shown instead of the default text or "Tekst nr".
+// 20261029 CL/MMR SST-909 A text found in egnetekster.csv is kept: egne_tekster.csv and tekster.csv are only read when it gave none (it was thrown away before).
+//                  An empty line in egnetekster.csv or egne_tekster.csv no longer raises "Undefined array key".
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		global $bruger_id;
@@ -105,18 +107,18 @@ if (!function_exists('findtekst')) {
 				$tmp = array();
 				while (!feof($fp)) {
 					if ($linje = trim(fgets($fp))) {
-						if (strpos($linje, chr(9))) {
-							$tmp = explode(chr(9), $linje);
-						}
+						// Every line is split, also one without tabs (only the id), so the id compare never reads a missing column (SST-909)
+						$tmp = explode(chr(9), $linje);
 						if ($textId == $tmp[0]) {
-							$newTxt = $tmp[$languageID]; # Linjen efter 1. tab. 
+							$newTxt = $tmp[$languageID] ?? ''; # Linjen efter 1. tab. 
 						}
 					}
 				}
 				fclose($fp);
 			}
 		}
-		if (($tekst === null || $tekst === '') && $textId) { # 20210304
+		// egnetekster.csv has precedence over egne_tekster.csv and tekster.csv: keep its text (SST-909)
+		if (($tekst === null || $tekst === '') && ($newTxt === null || $newTxt === '') && $textId) { # 20210304
 			$newTxt = NULL;
 			if (file_exists("../importfiler/egne_tekster.csv")) {
 				$fp = fopen("../importfiler/egne_tekster.csv", "r");
@@ -125,7 +127,7 @@ if (!function_exists('findtekst')) {
 					if ($linje = trim(fgets($fp))) {
 						$a = explode("\t", $linje);
 						if ($a[0] == $textId) {
-							$newTxt = $a[$languageID];
+							$newTxt = $a[$languageID] ?? '';
 						}
 					}
 				}

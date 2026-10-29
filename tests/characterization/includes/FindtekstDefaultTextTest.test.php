@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
  * 20261027 CL/MMR CodeRabbit (PR #878): '|' inside the default, fallbacks cached per default text, default "0".
  * 20261028 CL/MMR Fixture-only default texts are built with call(), not written as findtekst('id|text') literals that guardrails compare with the real tekster.csv.
  * 20261028 CL/MMR A csv translation "0" is found, stored and cached (CodeRabbit, PR #878).
+ * 20261029 CL/MMR SST-909: a text from egnetekster.csv is kept, and empty lines in egnetekster.csv/egne_tekster.csv raise no warning.
  */
 #[RunTestsInSeparateProcesses]
 final class FindtekstDefaultTextTest extends TestCase
@@ -184,5 +185,56 @@ final class FindtekstDefaultTextTest extends TestCase
     {
         self::boot('UTF8');
         self::assertSame('0', findtekst(self::call(4981, '0'), 1));
+    }
+
+    /**
+     * Runs $check from a page one level down, so findtekst()'s "../importfiler/egnetekster.csv" and
+     * "../importfiler/egne_tekster.csv" are the fixture's files (written by $files, name => lines).
+     */
+    private static function fromPage(array $files, callable $check): void
+    {
+        foreach ($files as $name => $lines) {
+            file_put_contents($GLOBALS['__fixtureDir'] . '/importfiler/' . $name, implode("\n", $lines) . "\n");
+        }
+        $cwd = (string) getcwd();
+        $page = $GLOBALS['__fixtureDir'] . '/lager';
+        @mkdir($page, 0777, true);
+        chdir($page);
+        set_error_handler(static function (int $no, string $msg): bool { throw new \ErrorException($msg, 0, $no); });
+        try {
+            $check();
+        } finally {
+            restore_error_handler();
+            chdir($cwd);
+        }
+    }
+
+    public function testEgneteksterTextIsKeptAndStored(): void
+    {
+        // SST-909: the egnetekster.csv match was thrown away before egne_tekster.csv/tekster.csv were read
+        self::boot('UTF8');
+        self::fromPage(['egnetekster.csv' => ["4981\tEgen tekst\tOwn text\tEgen tekst"]], static function (): void {
+            self::assertSame('Egen tekst', findtekst(self::call(4981, 'Standard'), 1));
+        });
+        self::assertCount(1, $GLOBALS['__inserts']);
+        self::assertStringContainsString("values ('1','4981','Egen tekst')", $GLOBALS['__inserts'][0]);
+    }
+
+    public function testEgneteksterTakesPrecedenceOverTeksterCsv(): void
+    {
+        self::boot('UTF8');
+        self::fromPage(['egnetekster.csv' => ["4982\tEgen bestiller\tOwn ordering\tEgen bestiller"]], static function (): void {
+            self::assertSame('Egen bestiller', findtekst('4982', 1));
+        });
+    }
+
+    public function testEmptyLinesInTheOwnTextFilesRaiseNoWarning(): void
+    {
+        // A line with only the id (trim() strips its tabs) has no language column
+        self::boot('UTF8');
+        self::fromPage(['egnetekster.csv' => ["4981"], 'egne_tekster.csv' => ["4982"]], static function (): void {
+            self::assertSame('Standard', findtekst(self::call(4981, 'Standard'), 1));
+            self::assertSame('Bestiller', findtekst('4982', 1));
+        });
     }
 }
