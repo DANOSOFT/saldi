@@ -67,17 +67,40 @@ try {
 	$turnover = calculateTurnover(2, $today);
 	checkZReport(abs($turnover['turnoverWithVat'] - 249) < 0.001, 'Turnover with VAT is the POS sale only (249, not 12.249)');
 	checkZReport(abs($turnover['turnoverWithoutVat'] - 199.2) < 0.001, 'Turnover without VAT is the POS sale only');
-	// vatPayments() adds to price keys that do not exist yet (legacy, unchanged here); tolerate only that notice.
-	set_error_handler(function($severity, $message, $file, $line) {
-		if (strpos($message, 'Undefined array key') === 0 && strpos($file, 'rapportData.php') !== false) return true;
+	// vatPayments() adds to a 'price' key that does not exist yet (legacy, not changed by SST-896). Only that exact
+	// warning from that function is allowed, and it is reported; any other warning still fails the test.
+	$vatSource = file_get_contents(__DIR__ . '/../debitor/pos_ordre_includes/report/rapportData.php');
+	$vatPriceLine = substr_count(substr($vatSource, 0, strpos($vatSource, "\$vatArray[\$vat]['price'] += \$price;")), "\n") + 1;
+	$knownWarnings = 0;
+	set_error_handler(function($severity, $message, $file, $line) use ($vatPriceLine, &$knownWarnings) {
+		if ($message === 'Undefined array key "price"' && basename($file) === 'rapportData.php' && $line === $vatPriceLine) {
+			$knownWarnings++;
+			return true;
+		}
 		throw new ErrorException($message, 0, $severity, $file, $line);
 	});
 	$vat = vatPayments(2, $today);
 	restore_error_handler();
+	echo "NOTE: vatPayments() raised the known legacy warning 'Undefined array key \"price\"' at rapportData.php:$vatPriceLine $knownWarnings time(s)\n";
 	checkZReport(!isset($vat['0']) && !isset($vat[0]), 'No 0 % VAT line from the invoice');
 	$payments = paymentMethods(2, $today);
 	checkZReport(abs($payments['sum']['price'] - 249) < 0.001 && isset($payments['Visa']), 'Payment total is the POS sale only');
 	checkZReport(makeOrderIdArray(1, $today) === array('3'), 'Register 1 is unaffected');
+
+	// Every value posbogfor() and findBoxSale() read as "sets off" must leave the invoice out too.
+	foreach (array("''", "'0'", "' 0 '", "'  '", 'NULL') as $off) {
+		pg_query($connection, "UPDATE grupper SET box12 = $off");
+		$turnover = calculateTurnover(2, $today);
+		checkZReport(makeOrderIdArray(2, $today) === array('1') && abs($turnover['turnoverWithVat'] - 249) < 0.001,
+			"Sets value $off counts as off: invoice left out, turnover 249");
+	}
+	pg_query($connection, "DELETE FROM grupper");
+	checkZReport(makeOrderIdArray(2, $today) === array('1'), 'Missing POS settings row counts as sets off');
+	pg_query($connection, "INSERT INTO grupper VALUES ('POS', '2', 10, '')");
+	// The setting is read for the given fiscal year only.
+	pg_query($connection, "INSERT INTO grupper VALUES ('POS', '2', 9, 'on')");
+	checkZReport(makeOrderIdArray(2, $today) === array('1'), 'Sets enabled in another fiscal year do not count');
+	pg_query($connection, "DELETE FROM grupper WHERE fiscal_year = 9");
 
 	// With sets enabled debtor orders are handed in at the register, so they count, as posbogfor() posts them.
 	pg_query($connection, "UPDATE grupper SET box12 = 'on'");

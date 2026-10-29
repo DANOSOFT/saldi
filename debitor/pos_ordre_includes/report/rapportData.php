@@ -25,7 +25,7 @@
 //
 // LN 20190312 Make functions that retrieve all type of payments and sold data to the report
 // 20210307 PHR Added $date to allmost all functions as it was countion all orders from day zero
-// 20261029 CL/MMR SST-896 calculateTurnover() and paymentMethods() count only register sales (reportOrderArtFilter()).
+// 20261029 CL/MMR SST-896 calculateTurnover() and paymentMethods() count only register sales (reportOrderArtFilter()), indentation corrected.
 //                 An ordinary invoice in a department with a register was added to the Z-report turnover.
 
 function productGroupDescription($kasse,$date) { # LN 20190212 Make varegrupper for the xRapport
@@ -82,10 +82,11 @@ function setCountAndTotal($description, $productId, $productGroup, $groupArray, 
 
 
 function paymentMethods($kasse,$date) {
+	global $regnaar;
 	$payment='';
 	$paymentArray[$payment]=array();
 	$total = 0;
-	$qtxt = "select * from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'" . reportOrderArtFilter();
+	$qtxt = "select * from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'" . reportOrderArtFilter($regnaar);
 	$orderQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($order = db_fetch_array($orderQuery)) {
 		$payment = $order['felt_1'];
@@ -97,11 +98,11 @@ function paymentMethods($kasse,$date) {
 		}
 	}
 
-    $paymentArray['sum']['payment'] = "SUM";
-    $paymentArray['sum']['price'] = $total;
+	$paymentArray['sum']['payment'] = "SUM";
+	$paymentArray['sum']['price'] = $total;
 
-    $paymentArray = subtractData("Payment method", $paymentArray);
-    return $paymentArray;
+	$paymentArray = subtractData("Payment method", $paymentArray);
+	return $paymentArray;
 }
 
 function vatPayments($kasse,$date) {
@@ -143,26 +144,27 @@ function drawCount($kasse)
 }
 
 function calculateTurnover($kasse,$date) {
-		$turnover=$totalVat=0;
-		$qtxt = "select * from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'" . reportOrderArtFilter();
-    $ordreQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-    while ($order = db_fetch_array($ordreQuery)) {
-      $tempOrdreId = $order['id'];
-      $price = 0;
-      $number = 0;
-      $qtxt = "select pris, antal, rabat, momssats from ordrelinjer where ordre_id='$tempOrdreId'";
-      $orderLineQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-      while ($orderLine = db_fetch_array($orderLineQuery)) {
-				$amount = $orderLine['pris'] * $orderLine['antal']-($orderLine['pris'] * $orderLine['antal'] * $orderLine['rabat'] / 100);
-        $turnover += $amount ;
-        $totalVat += ($amount * $orderLine['momssats']  / 100);
-#        $turnoverWithVat += ($batch['pris'] * $batch['antal']) + ($moms/100 * ($batch['pris'] * $batch['antal']));
-      }
-    }
- 		$turnoverWithVat = $turnover + $totalVat;
-#		return 	[$turnover,$turnoverWithVat];
-    return ["turnoverWithoutVat" => subtractTurnover($turnover, false), 
-            "turnoverWithVat" => subtractTurnover($turnoverWithVat, true)]; #reportSubtract.php
+	global $regnaar;
+	$turnover = $totalVat = 0;
+	$qtxt = "select * from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'" . reportOrderArtFilter($regnaar);
+	$ordreQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($order = db_fetch_array($ordreQuery)) {
+		$tempOrdreId = $order['id'];
+		$price = 0;
+		$number = 0;
+		$qtxt = "select pris, antal, rabat, momssats from ordrelinjer where ordre_id='$tempOrdreId'";
+		$orderLineQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($orderLine = db_fetch_array($orderLineQuery)) {
+			$amount = $orderLine['pris'] * $orderLine['antal']-($orderLine['pris'] * $orderLine['antal'] * $orderLine['rabat'] / 100);
+			$turnover += $amount ;
+			$totalVat += ($amount * $orderLine['momssats']  / 100);
+#			$turnoverWithVat += ($batch['pris'] * $batch['antal']) + ($moms/100 * ($batch['pris'] * $batch['antal']));
+		}
+	}
+	$turnoverWithVat = $turnover + $totalVat;
+#	return [$turnover,$turnoverWithVat];
+	return ["turnoverWithoutVat" => subtractTurnover($turnover, false),
+		"turnoverWithVat" => subtractTurnover($turnoverWithVat, true)]; #reportSubtract.php
 }
 
 ?>

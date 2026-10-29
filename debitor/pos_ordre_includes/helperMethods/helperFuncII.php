@@ -63,22 +63,24 @@ function getVatArray($id) {
  * Matches posbogfor() in pos_ordre.php and findBoxSale(): POS orders only, plus debtor orders
  * handed in at the register when sets are enabled (POS kodenr 2 box12, vis_saet).
  *
+ * @param int|string $regnaar Fiscal year whose POS settings decide whether sets are enabled.
  * @param string $alias Table alias or name to prefix the column with, '' for none.
  * @return string Condition starting with "and ".
  */
-function reportOrderArtFilter($alias = '') {
-	global $regnaar;
+function reportOrderArtFilter($regnaar, $alias = '') {
 	$col = ($alias ? $alias . '.' : '') . 'art';
 	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '" . (int)$regnaar . "'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$includeDebtorOrders = $r && trim((string)$r['box12']) !== '';
+	// Same truthiness as posbogfor() and findBoxSale(): '' and '0' both mean sets are off.
+	$includeDebtorOrders = $r && (bool)trim((string)$r['box12']);
 	return $includeDebtorOrders ? " and ($col = 'PO' or $col like 'D%')" : " and $col = 'PO'";
 }
 
 function makeOrderIdArray($kasse,$date) {
+	global $regnaar;
 	$ordreIdArr = array();
 	$qtxt = "select id from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'";
-	$qtxt.= reportOrderArtFilter();
+	$qtxt.= reportOrderArtFilter($regnaar);
 	$orderQuery = db_select($qtxt, __FILE__ . "linje" . __LINE__);
 	while ($order = db_fetch_array($orderQuery)) {
 		$ordreIdArr[] = $order['id'];
