@@ -113,8 +113,7 @@
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 // 20261029 CL/MMR SD-786 Save "Vis besked når kostprisen er anslået" (showCostEstimateNotice) under Ordrerelaterede valg.
-//                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast);
-//                 its alerts are shown after the save, escaped with jsString().
+//                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
 
 @session_start();
 $s_id = session_id();

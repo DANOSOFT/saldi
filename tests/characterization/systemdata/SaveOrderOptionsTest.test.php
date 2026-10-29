@@ -12,10 +12,11 @@ use PHPUnit\Framework\TestCase;
  * Pins what the save writes: the settings rows (update_settings_value()), grupper DIV 3 box2-box14,
  * grupper DIV 5 box6/box8 and orderNoteEnabled, plus the alerts for unknown item numbers. The database
  * layer is a double that records every statement; db_escape_string() is addslashes(), so escaping
- * shows up in the recorded SQL.
+ * shows up in the recorded SQL. ifset() is the real one from includes/std_func.php (convention_ifset).
  *
  * History:
  * 20261029 CL/MMR Created (SD-786, Codex round 2: characterize the extracted save).
+ * 20261029 CL/MMR The real ifset() from includes/std_func.php instead of a stub (Codex round 3).
  */
 #[RunTestsInSeparateProcesses]
 final class SaveOrderOptionsTest extends TestCase
@@ -36,10 +37,9 @@ final class SaveOrderOptionsTest extends TestCase
         $GLOBALS['__rows'] = ['div3' => $div3 ? '30' : null, 'div5' => $div5 ? '50' : null, 'note' => $note ? '70' : null];
         $GLOBALS['__modify'] = [];
         $GLOBALS['__settings'] = [];
+        // The doubles are declared first: includes/std_func.php only declares update_settings_value() and
+        // findtekst() when they do not exist yet, and it brings the real ifset() the handler uses.
         eval('
-            function ifset($arr, $key = null, $default = null) {
-                return (is_array($arr) && array_key_exists($key, $arr) && $arr[$key] !== null) ? $arr[$key] : $default;
-            }
             function db_escape_string($s) { return addslashes((string) $s); }
             function db_select($q, $where = "") {
                 if (preg_match("/from varer WHERE varenr = \'((?:[^\'\\\\\\\\]|\\\\\\\\.)*)\'/", $q, $m)) {
@@ -58,6 +58,7 @@ final class SaveOrderOptionsTest extends TestCase
             }
             function findtekst($key, $sprog_id) { return explode("|", $key, 2)[1]; }
         ');
+        require_once __DIR__ . '/../../../includes/std_func.php';
         require dirname(__DIR__, 3) . '/systemdata/diverseIncludes/saveOrderOptions.php';
     }
 

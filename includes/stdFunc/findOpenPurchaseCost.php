@@ -39,8 +39,7 @@
 //                 The alert sat in the same page as the receipt redirect, so the receipt only printed after OK, on every sale off negative stock.
 //                 The cost price and the order log line are unchanged.
 // 20261029 CL/MMR SD-786 The cost-price message is off unless "Vis besked når kostprisen er anslået" is ticked under Ordrerelaterede valg.
-//                 When on, it is only shown on an interactive delivery of an order (not POS, webshop/API or a negative line/credit note),
-//                 and only when the price came from the item card or from an open purchase line that differs from the item card.
+//                 When on, it is only shown on an interactive delivery of an order (not POS, webshop/API or a negative line/credit note), and only when the price came from the item card or from an open purchase line that differs from the item card.
 //                 It names each item, the price and where the price came from, all lines of a delivery in one message.
 //                 The cost price and the order log line are unchanged.
 

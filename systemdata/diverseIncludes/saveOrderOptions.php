@@ -23,10 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261029 CL/MMR SD-786 Created: the save of Diverse > Ordrerelaterede valg, moved out of systemdata/diverse.php
-//                 (controller/view convention) when "Vis besked når kostprisen er anslået" was added.
-//                 Posted values are read with ifset() and escaped or cast where they reach SQL;
-//                 update_settings_value() puts its value into the SQL as it is.
+// 20261029 CL/MMR SD-786 Created: the save of Diverse > Ordrerelaterede valg, moved out of systemdata/diverse.php (controller/view convention) when "Vis besked når kostprisen er anslået" was added.
+//                 Posted values are read with ifset() and escaped or cast where they reach SQL, because update_settings_value() puts its value into the SQL as it is.
 
 if (!function_exists('saveOrderOptions')) {
 	/**
