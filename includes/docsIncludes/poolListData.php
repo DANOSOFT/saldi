@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolListData.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- includes/docsIncludes/poolListData.php --- ver 5.0.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,19 +26,22 @@
 //                send the first page with the page itself (one request less before the list shows) and _docPoolData.php
 //                answers every later request with the same code. $q holds the request parameters ($_GET there).
 // 20261007 CL/SZ SD-727 An archived document carries the date it will be deleted (deletes), as _docPoolData.php sent it.
+// 20261029 CL/LH filesOnly with unscanned=1 lists only the files "Opdatér alle" still has to scan: never read by the extraction
+//                (no captured snapshot), no amount and not corrected by hand. It used to scan every file in the pool again.
 
 require_once __DIR__ . '/poolVendorMatcher.php';
 require_once __DIR__ . '/poolDuplicateMarker.php';
 require_once __DIR__ . '/poolMetadata.php';
 require_once __DIR__ . '/poolArchive.php';
 require_once __DIR__ . '/poolListQuery.php';
+require_once __DIR__ . '/poolCapture.php';
 
 if (!function_exists('poolListData')) {
 /**
  * The pool list as _docPoolData.php answers it: with limit one page {rows, total, offset, limit, matches, extra, currentIndex},
- * with filesOnly every file name, otherwise every row.
+ * with filesOnly every file name (with unscanned only those not yet read by the extraction), otherwise every row.
  *
- * @param array $q The request parameters (dir, params, poolParams, limit, offset, sort, order, q, sum, dato, current, toCurrent, include, archived, filesOnly).
+ * @param array $q The request parameters (dir, params, poolParams, limit, offset, sort, order, q, sum, dato, current, toCurrent, include, archived, filesOnly, unscanned).
  * @return array
  */
 function poolListData(array $q) {
@@ -67,7 +70,10 @@ function poolListData(array $q) {
         $archiveWhere = "WHERE " . poolArchiveActiveSql();
         $archiveOrder = "";
     }
-    $qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency, updated, manually_edited$vendorSelect$archiveSelect
+    // captured is set by the first extraction (SD-722); rows read before that column existed are told apart by their amount
+    $captureSelect = poolCaptureReady() ? ", captured" : "";
+    $unscanned = array();
+    $qtxt = "SELECT id, filename, subject, account, amount, file_date, invoice_number, description, currency, updated, manually_edited$vendorSelect$archiveSelect$captureSelect
              FROM pool_files $archiveWhere ORDER BY {$archiveOrder}file_date DESC, updated DESC";
     $result = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
@@ -119,6 +125,9 @@ function poolListData(array $q) {
         }
 
         $fil_nr++;
+        if (empty($row['captured']) && trim((string) $amount) === '' && !poolMetadataIsManual($row)) {
+            $unscanned[] = $file;
+        }
 
         // Build href - remove any existing poolFile from poolParams
         $cleanPoolParams = preg_replace('/&?poolFile=[^&]*/', '', $poolParams);
@@ -154,7 +163,7 @@ function poolListData(array $q) {
 
     // SD-719: one page of the list; everything that needs the full set is done before slicing
     if (isset($q['filesOnly'])) {
-        $data = array('files' => array_map(function ($row) { return $row['filename']; }, $data));
+        $data = array('files' => !empty($q['unscanned']) ? $unscanned : array_map(function ($row) { return $row['filename']; }, $data));
     } elseif (isset($q['limit'])) {
         $limit = max(1, min(200, (int)$q['limit']));
         $offset = max(0, (int)($q['offset'] ?? 0));
