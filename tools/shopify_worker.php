@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.0.0 --- 2026.10.28
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,10 +29,15 @@
 // and their handlers and producers to shopify_worker_wiring().
 //
 // Usage: php tools/shopify_worker.php run --db=<tenant> [--max-seconds=50]
+//        php tools/shopify_worker.php register-webhooks --db=<tenant> [--base-url=https://...] [--shop=<shop_key>]
+//        php tools/shopify_worker.php replay --db=<tenant> --shop=<shop_key> --file=<day file> [--promote=1]
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
 // 20261028 Sawaneh SD-738: the alarm mail (mail.alert) and the call-log purge (runtime.purge) are wired in.
 // 20261028 CL/SZ SD-748: the events producer promotes stored webhook events into jobs.
+// 20261028 CL/SZ SD-749: commands register-webhooks and replay; the webhook.health handler.
+// 20261029 CL/SZ SD-749 review: register-webhooks reports a misconfigured shop as failed and goes on.
+// 20261029 CL/SZ SD-749 review: register-webhooks and replay need no fiscal year; a tenant they can't use ends with a line and exit 2.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -44,6 +49,8 @@ if (php_sapi_name() !== 'cli') {
 function shopify_worker_commands(): array {
 	return array(
 		'run' => 'shopify_worker_cmd_run',
+		'register-webhooks' => 'shopify_worker_cmd_register_webhooks',
+		'replay' => 'shopify_worker_cmd_replay',
 	);
 }
 
@@ -55,6 +62,8 @@ function shopify_worker_commands(): array {
 function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/events.php';
 	$registry = array();
+	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
+	shopify_worker_register($registry, 'webhook.health', 'shopify_webhook_health_job');
 	$producers = array(
 		// SD-748: received webhook events become queued jobs, ORDERS_PAID first.
 		'events' => function (array $ctx, float $deadline): array {
@@ -105,6 +114,130 @@ function shopify_worker_cmd_run(array $opts): int {
 		flock($lock, LOCK_UN);
 		fclose($lock);
 	}
+}
+
+/**
+ * Bootstraps the tenant for a one-off command (no worker lock: it claims no jobs). False, with
+ * the reason on stderr, when the tenant can't be used.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_boot(array $opts, string $usage): bool {
+	global $db_type, $sqhost, $squser, $sqpass, $sqdb, $db_encode, $connection;
+	$db = $opts['db'] ?? '';
+	if (!preg_match('/^[a-z0-9_]{1,40}$/', $db)) {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
+		return false;
+	}
+	require_once __DIR__ . '/../includes/db_query.php';
+	require_once __DIR__ . '/../includes/connect.php';
+	require_once __DIR__ . '/../includes/shopify/bootstrap.php';
+	require_once __DIR__ . '/../includes/shopify/events.php';
+	try {
+		shopify_bootstrap($db, false); // the commands post nothing, so no fiscal year is needed
+	} catch (ShopifyBootstrapError $e) {
+		fwrite(STDERR, "shopify worker: $db can't be used: " . $e->getMessage() . "\n");
+		return false;
+	}
+	if (!shopify_schema_ready()) {
+		fwrite(STDERR, "shopify worker: schema not installed on $db; nothing run\n");
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Registers the webhook subscriptions of every shop, or of --shop, at --base-url (else
+ * SALDI_SHOPIFY_WEBHOOK_BASE_URL, else the stored one). A given URL is stored for the hourly
+ * webhook.health job. Refused when this install's webhook endpoint serves another tenant (or
+ * none), since the deliveries would land there. Prints one JSON line per shop; exits 1 when a
+ * topic failed.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_register_webhooks(array $opts): int {
+	$usage = 'register-webhooks --db=<tenant> [--base-url=https://...] [--shop=<shop_key>]';
+	require_once __DIR__ . '/../includes/shopify/events.php';
+	$given = $opts['base-url'] ?? (string)getenv('SALDI_SHOPIFY_WEBHOOK_BASE_URL');
+	if ($given !== '' && shopify_webhook_base_url_check($given) === null) {
+		fwrite(STDERR, "register-webhooks: the base URL must be https without query or fragment\n");
+		return 2;
+	}
+	if (!shopify_worker_boot($opts, $usage)) {
+		return 2;
+	}
+	try {
+		$served = shopify_bootstrap_configured_db();
+	} catch (ShopifyBootstrapError $e) {
+		$served = '';
+	}
+	if ($served !== $opts['db']) {
+		fwrite(STDERR, "register-webhooks: this install's webhook endpoint serves " . ($served === '' ? 'no tenant' : $served)
+			. ", not {$opts['db']}; set SALDI_SHOPIFY_DB or includes/shopify/.ht_shopify_db first\n");
+		return 2;
+	}
+	$shops = isset($opts['shop']) ? array_filter(array(shopify_shop($opts['shop']))) : shopify_shops();
+	if (!$shops) {
+		fwrite(STDERR, "register-webhooks: no shop to register\n");
+		return 2;
+	}
+	if ($given !== '') {
+		shopify_save_webhook_base_url($given);
+	}
+	$base = shopify_webhook_base_url();
+	if ($base === null) {
+		fwrite(STDERR, "register-webhooks: no base URL; pass --base-url=https://... once\n");
+		return 2;
+	}
+	$failed = 0;
+	foreach ($shops as $shop) {
+		try {
+			$result = shopify_register_webhooks($shop, $base);
+		} catch (RuntimeException | InvalidArgumentException $e) {
+			// InvalidArgumentException: the shop's domain or API version is wrong; the next shops still run
+			$result = array('failed' => count(SHOPIFY_WEBHOOK_TOPICS), 'errors' => array($e->getMessage()));
+		}
+		$failed += $result['failed'];
+		echo json_encode(array('shop' => $shop['shop_key']) + $result, JSON_UNESCAPED_SLASHES) . "\n";
+	}
+	return $failed > 0 ? 1 : 0;
+}
+
+/**
+ * Replays a recorded day of webhooks (tests/shopify/fixtures/) for --shop through the receiver,
+ * and with --promote=1 promotes the inbox afterwards. Test tenants (saldi_shopify_test_*) only,
+ * so synthetic orders never reach real books. Prints the counts; exits 1 when a delivery was
+ * rejected.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_replay(array $opts): int {
+	$usage = 'replay --db=<tenant> --shop=<shop_key> --file=<day file> [--promote=1]';
+	if (($opts['shop'] ?? '') === '' || ($opts['file'] ?? '') === '') {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
+		return 2;
+	}
+	if (strncmp($opts['db'] ?? '', 'saldi_shopify_test_', 19) !== 0) {
+		fwrite(STDERR, "replay: test tenants (saldi_shopify_test_*) only\n");
+		return 2;
+	}
+	if (!shopify_worker_boot($opts, $usage)) {
+		return 2;
+	}
+	$shop = shopify_shop($opts['shop']);
+	if ($shop === null) {
+		fwrite(STDERR, "replay: unknown shop {$opts['shop']}\n");
+		return 2;
+	}
+	$file = $opts['file'][0] === '/' ? $opts['file'] : dirname(__DIR__) . '/' . $opts['file'];
+	try {
+		$result = shopify_replay_fixture($shop, $file, array('promote' => ($opts['promote'] ?? '') === '1'));
+	} catch (InvalidArgumentException | RuntimeException $e) {
+		fwrite(STDERR, 'replay: ' . $e->getMessage() . "\n");
+		return 2;
+	}
+	echo json_encode($result, JSON_UNESCAPED_SLASHES) . "\n";
+	return $result['rejected'] > 0 ? 1 : 0;
 }
 
 /**
