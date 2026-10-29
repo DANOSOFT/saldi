@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------ admin/admin_menu --------------- ver 4.0.4 --- 2021-09-16 ---
+// ------------ admin/admin_menu --------------- ver 4.0.4 --- 2026-10-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20180131 
 // 20210916 LOE translated some texts 
+// 20261012 CL/ASR Saldi staff (admin flag 'on') go to the operator panel; everyone else sees this menu unchanged.
 
 @session_start();  # Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -54,6 +55,9 @@ if ($bruger_id=$r['id']) {
 	list($admin,$oprette,$slette,$tmp)=explode(",",$rettigheder,4);
 	$adgang_til=explode(",",$tmp);
 }
+// 20261012 CL/ASR Saldi staff (admin flag 'on') go to the operator panel; everyone else sees this menu unchanged.
+//                  ?klassisk=1 shows this menu to staff as well.
+if (isset($admin) && $admin == 'on' && !isset($_GET['klassisk'])) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/operator_overblik.php\">\n"; exit; }
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>\n";
