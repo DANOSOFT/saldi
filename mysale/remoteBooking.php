@@ -33,7 +33,7 @@ if (strpos($id, $urlPrefix) === 0) {
     </head>
     <body class="bg-gray-700">
         <?php
-        include_once("sidemenu.php");
+        include_once(__DIR__ . "/sidemenu.php");
         ?>
         <div class="p-4 lg:ml-64 h-screen">
             <div id="loading">

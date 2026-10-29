@@ -38,7 +38,7 @@
     $total = number_format($total, 2, ',', '');
 
     // include email template
-    include("new-email.php");
+    include(__DIR__ . '/new-email.php');
 
 
     // autoload phpmailer through composer
