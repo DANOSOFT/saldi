@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- lap 5.0.0 --- 2025-01-21 ---
+// --- debitor/ret_genfakt.php --- lap 5.0.0 --- 2026-10-25 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -40,6 +40,8 @@
 // 2017.05.30 Betalingsdage sættes til 0 hvis ikke sat. Søg 20170530
 // 20241216 PHR PHP8
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261025 CL/ASR Udskriv til 'Link' keeps mail_fakt (was cleared, so Link invoices were not mailed).
 
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -58,6 +60,7 @@ $title="Ret abonnementsordrer";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
@@ -223,7 +226,7 @@ if ($_GET['ordreliste']) {
 			$email[$x]=db_escape_string($email[$x]);
 			$fakturadate=usdate($fakturadato[$x]);
 			$nextfakt=usdate($genfakt[$x]);
-			($udskriv_til[$x]=='email')?$mail_fakt[$x]='on':$mail_fakt[$x]='';
+			($udskriv_til[$x]=='email' || $udskriv_til[$x]=='Link')?$mail_fakt[$x]='on':$mail_fakt[$x]='';
 			($udskriv_til[$x]=='PBS_BS' || $udskriv_til[$x]=='PBS_FI')?$pbs[$x]='on':$pbs[$x]='';
 			if ($udskriv_til[$x]=='oioubl') {
 				if($art=="DO") $oioubl='faktura';
@@ -312,7 +315,7 @@ if ($_GET['ordreliste']) {
 		$udskriv=NULL;
 		for ($x=0 ; $x<=$ordreantal ; $x++) {
 			if ($ordreliste[$x]) {
-				($udskriv_til[$x]=='email')?$mail_fakt[$x]='on':$mail_fakt[$x]='';  #20130117
+				($udskriv_til[$x]=='email' || $udskriv_til[$x]=='Link')?$mail_fakt[$x]='on':$mail_fakt[$x]='';  #20130117
 				(strstr($udskriv_til[$x],'PBS'))?$pbs[$x]='on':$pbs[$x]='';  #20130117
 				if ($udskriv_til[$x]=='oioubl') {
 					if($art=="DO") $oioubl='faktura';
@@ -415,7 +418,7 @@ for ($x=0;$x<$ordreantal;$x++) {
 		$email[$y]=$r['email'];
 		$projekt[$y]=$r['projekt'];
 		$procenttillag[$y]=(int)$r['procenttillag'];
-		if (!$email[$y] && $udskriv_til[$y]=='email') $udskriv_til[$y]='PDF';
+		if (!$email[$y] && ($udskriv_til[$y]=='email' || $udskriv_til[$y]=='Link')) $udskriv_til[$y]='PDF';
 		$qtxt = "select pbs_nr,pbs from adresser where id = '$konto_id[$y]'";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$pbs[$y]    = $r['pbs'];

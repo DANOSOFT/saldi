@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -146,7 +146,14 @@
 //             returned error now names the offending account and order instead of a bare generic string.
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
+// 20261006 Sawaneh WP-2.11-2.13: no stray ?id= on fokus; sag retursides stored plain and urlencoded in the Ny link; the menu-T
+//                  Tilbage uses the given returside (an ordre.php target gets the order's id) instead of always the order list.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh sidehoved(): the order heading is also the page's last breadcrumb level (page_title, addendum §5).
+// 20261008 Sawaneh The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261016 Sawaneh Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
+// 20261025 CL/ASR bogfor(): fee for manual payment of earlier invoices on DO orders (stripeManualFee.php; Stripe ledger only).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -1417,6 +1424,15 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		} else {
 			if (!$callerOwnsTransaction) transaktion('rollback');
 			return ('Manglende vare til procenttillæg -- ' . $procentvare);
+		}
+	}
+	// 20261025 CL/ASR fee for manual payment of the customer's earlier invoices (Stripe ledger only, see stripeManualFee.php)
+	if ($art == 'DO') {
+		include_once(__DIR__ . '/stripeIncludes/stripeManualFee.php');
+		$feeError = stripe_manual_fee_bogfor($id, $art, $momssats, $webservice, $genfakt);
+		if ($feeError !== '') {
+			if (!$callerOwnsTransaction) transaktion('rollback');
+			return $feeError;
 		}
 	}
 	#	$x=0;
@@ -3810,11 +3826,7 @@ function ansatopslag($sort, $fokus, $id)
 	$txt646 = findtekst(646, $sprog_id); // Navn
 
 
-	if ($menu == 'T') {
-		include_once '../includes/top_menu.php';
-	} else {
-
-	}
+	
 
 	if (!$id)
 		$id = '0';
@@ -3860,11 +3872,7 @@ function ansatopslag($sort, $fokus, $id)
 	}
 	print "</tbody></table></td></tr></tbody></table>";
 
-	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 	exit;
 }
 ######################################################################################################################################
@@ -4297,7 +4305,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				$varerabatgruppe = 0;
 			if (!isset($rabat))
 				$rabat = 0;
-			$qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+			$qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
 			if ($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$rabat = $r2['rabat'];
 				$rabatart = $r2['rabatart'];
@@ -4812,11 +4820,7 @@ function tekstopslag($sort, $id)
 	print "</body>\n";
 	print "</html>\n";
 
-	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 
 	exit;
 }
@@ -4838,6 +4842,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 	global $popup;
 
 	$title = $tekst;
+	if (function_exists('page_title')) print page_title($tekst);
 
 	$sag_id = if_isset($_GET,NULL,'sag_id');
 	$konto_id = if_isset($_GET,NULL,'konto_id');
@@ -4861,16 +4866,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 	$alerttekst = findtekst(154, $sprog_id);
 
 	include("../includes/topline_settings.php");
-	if ($menu == 'T' && !$sag_id) {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=../debitor/ordreliste.php accesskey=L title='Klik her for at komme tilbage til ordreliste' onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\"><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></div>";
-		print "<div class=\"headerTxt\">$tekst</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-		print "</div>";
-		print "<div class='content-noside'>";
-	} elseif ($sag_id) {
+	if ($sag_id) {
 		$bg = "nix";
 		$header = 'nix';
 
@@ -4957,7 +4953,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		else
 			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
-		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a></td>";
+		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=" . urlencode($returside) . "&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a></td>";
 		print "</tbody></table>";
 		print "</td></tr>\n";
 	}
@@ -5027,7 +5023,7 @@ function opret_ordre($sag_id, $konto_id)
 	$sag_id = if_isset($_GET['sag_id']);
 	$konto_id = if_isset($_GET['konto_id']);
 	$tilbud_id = if_isset($_GET['tilbud_id']);
-	$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
+	$returside = "../sager/sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id";
 	//if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 20080511
 	//$konto_id=$_GET['konto_id'];
 
@@ -5104,7 +5100,7 @@ function opret_ordre($sag_id, $konto_id)
 		$momssats = $r['box2'] * 1;
 	} elseif ($konto_id) {
 		print "<BODY onLoad=\"javascript:alert('Debitoren er ikke tilknyttet en debitorgruppe')\">\n";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus\">\n";
 		exit;
 	}
 	// Her oprettes tilbudsnr
@@ -5223,7 +5219,7 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	$konto_id = $_GET['konto_id'];
 	$sag_id = $_GET['sag_id'];
 	$ordre_id = $_GET['ordre_id'];
-	$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
+	$returside = "../sager/sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id";
 
 	$query = db_select("select * from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
@@ -5297,7 +5293,7 @@ function opret_ordre_kopi($sag_id, $konto_id)
 		$momssats = $r['box2'] * 1;
 	} elseif ($konto_id) {
 		print "<BODY onLoad=\"javascript:alert('Debitoren er ikke tilknyttet en debitorgruppe')\">\n";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus\">\n";
 		exit;
 	}
 	// Her oprettes tilbudsnr

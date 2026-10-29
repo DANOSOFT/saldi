@@ -188,7 +188,7 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 			$tp=date("H:i",$tidspunkt);
 			$mailtext.="Indtil den $dd kl. $tp kan anvendes adgangskoden: $tmp_kode<br><br>";
 			$mailtext.="Efter login kan adgangskoden ændres under \"Indstillinger -> Brugere\"<br><br>";
-			$tmp_kode=$tidspunkt."|".$tmp_kode;
+			$tmp_kode="reset|".$tidspunkt."|".$tmp_kode; # 20260929 Sawaneh common tmp_kode format
 			#$tmp_kode=$tidspunkt."_".$tmp_kode;
 			$i = 0;
 			$feltnavne=array();

@@ -140,6 +140,8 @@ print "<div class=\"leftmenu\">";
 			if ($vis!='aktivL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=aktivL\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2977|Aktive', $sprog_id))."</a></li>"; #Vis aktive
 			if ($vis!='afsluttedeL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=afsluttedeL\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2978|Afsluttede', $sprog_id))."</a></li>"; #Vis afsluttede
 			if ($vis!=NULL && $vis!='alleL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alleL\">".findtekst('636|Vis alle', $sprog_id)."</a></li>";
+			print "<li><hr></li>";
+			print "<li><a href=\"tjeklister.php\">".findtekst('796|Tjeklister', $sprog_id)."</a></li>"; // 20261009 Sawaneh checklists moved here from Indstillinger (4e)
 		}
 		print "</ul>";
 ################################## MENU DAGBOG ###############################

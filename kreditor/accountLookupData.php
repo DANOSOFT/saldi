@@ -24,6 +24,7 @@
 // -----------------------------------------------------------------------------------
 // 20260304 LOE Updated to work with grid framework (same pattern as debitor/accountLookupData.php)
 // 20260512 CL/PHR Fixed error in search
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 header('Content-Type: application/json');
 
@@ -32,6 +33,7 @@ try {
     $s_id = session_id();
 
     include_once('../includes/connect.php');
+    $permission_key = 'kreditor.ordre';
     include_once('../includes/online.php');
     global $bruger_id;
 

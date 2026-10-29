@@ -33,11 +33,17 @@
 //                  via FileReservation instead of file_exists() polling, closing the window in
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261018 Sawaneh Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
+
 // 20261004 CDX/LOE Share browser upload handling and redirect form uploads before rendering.
 // 20261002 CL/SZ SD-701 viewOnly=1 shows only the line's document, for the voucher tab the journal opens.
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
 // 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
 //                  instead of always the first regardless, so a missing first file no longer hides the others.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh Auto-extract on upload follows the personal setting (was the autoExtract cookie, settings redesign 4e).
+// 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -49,10 +55,14 @@ $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$
 $globalId = 0;
 
 include("../includes/connect.php");
+$docSource = isset($_POST['source']) ? (string) $_POST['source'] : (isset($_GET['source']) ? (string) $_GET['source'] : '');
+$permission_key = ($docSource === 'kassekladde') ? 'finans.kassekladde' : (($docSource === 'debitorOrdrer') ? 'debitor.ordre' : (($docSource === 'creditorOrder') ? 'kreditor.ordre' : 'debitor.konti|kreditor.konti'));
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
+include_once(__DIR__ . "/docsIncludes/FileReservation.php");
+include_once(__DIR__ . "/docsIncludes/docFileFunc.php");
 require_once __DIR__ . "/docsIncludes/poolUpload.php";
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
@@ -197,8 +207,9 @@ if (ifset($_GET, 'viewOnly') == '1' && $source && $sourceId) {
 if (!empty($_FILES['uploadedFile']['name'])) {
 	$isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
 		|| !empty($_POST['openPool']);
+	include_once(__DIR__ . "/settings/SettingsService.php");
 	$uploadResult = poolUploadFile($_FILES['uploadedFile'], "$docFolder/$db/pulje",
-		!isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0', $isAjax);
+		(bool) SettingsService::get('personal.documents.auto_extract', (int) $bruger_id), $isAjax);
 	if ($isAjax) {
 		while (ob_get_level()) {
 			ob_end_clean();
@@ -239,30 +250,7 @@ if (isset($_SESSION['poolUploadNotice'])) {
 }
 
 // Render the header before any content
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	
-	// Determine back URL based on source
-	if ($source == "kassekladde") {
-		$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
-	} elseif ($source == "debitorOrdrer") {
-		$backUrl = "../debitor/ordre.php?id=$sourceId&fokus=$fokus";
-	} elseif ($source == "creditorOrder") {
-		$backUrl = "../kreditor/ordre.php?id=$sourceId&fokus=$fokus";
-	} else {
-		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
-	}
-	
-	$headerTitle = findtekst('1408|Dokumenter', $sprog_id);
-	
-	print "<div id='header'>";
-	print "<div class='headerbtnLft headLink'><a href='$backUrl' accesskey='L' title='".findtekst('30|Tilbage', $sprog_id)."'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
-	print "<div class='headerTxt'>$headerTitle</div>";
-	print "<div class='headerbtnRght headLink'></div>";
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($source == 'kassekladde' || $source == 'creditorOrder' || $source == 'debitorOrdrer') {
+if ($source == 'kassekladde' || $source == 'creditorOrder' || $source == 'debitorOrdrer') {
 	// Don't render header here - docPool.php handles it for non-modern layouts
 } elseif ($menu == 'S') {
 	// Sidebar menu - use topLineDocuments.php matching the grid framework structure
@@ -509,7 +497,7 @@ if ($linkBilag && $source == 'kassekladde') {
 		// Build the file path for preview
 		$filePath = $docFolder . '/' . $db . '/' . $r['filepath'] . '/' . $r['filename'];
 		$filePath = str_replace('//', '/', $filePath);
-		$filePathEncoded = htmlspecialchars($filePath, ENT_QUOTES);
+		$filePathEncoded = htmlspecialchars(docFileUrl($filePath, $docFolder, $db), ENT_QUOTES);
 		
 		$linkUrl = "documents.php?doLink=1&linkDocId=$docId&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
 		
@@ -1056,9 +1044,6 @@ print "</td></tr>";
 print "</tbody></table>";
 
 // Close content div if using modern menu
-if ($menu == 'T') {
-	print "</div>"; // Close content-noside div
-}
 
 print "</body></html>";
 ?>

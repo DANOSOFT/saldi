@@ -1,6 +1,8 @@
 <?php
 // --- debitor/generalLedger.php --- patch 5.0.0 --- 2026-03-19 ---
 // 20260908 CDX/LH Restored the reconciled credit entry link for undoing reconciliation.
+// 20261006 Sawaneh WP-2.17: Luk falls back to the customer's card by id (kontonr alone gave a blank card), else rapport; returside sanitised.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 function debitorGeneralLedgerEscape($value)
 {
@@ -71,14 +73,16 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 		$regnslut = $tmpDay . "-" . trim($r['box3']) . "-" . trim($r['box4']);
 	}
 
-	$backUrl = if_isset($_GET['returside']);
+	$backUrl = nav_sanitize_returside(if_isset($_GET['returside']));
 	if (!$backUrl) {
 		if ($popup) {
 			$backUrl = "../includes/luk.php";
 		} elseif ($kilde == 'openpost') {
 			$backUrl = "rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kilde_kto_fra&konto_til=$kilde_kto_til";
 		} else {
-			$backUrl = "debitorkort.php?kontonr=$konto_fra";
+			// WP-2.17: the card needs its id - kontonr alone opened a blank new-customer form.
+			$cardRow = db_fetch_array(db_select("select id from adresser where art = 'D' and kontonr = '" . db_escape_string((string) $konto_fra) . "' order by id limit 1", __FILE__ . " linje " . __LINE__));
+			$backUrl = $cardRow ? "debitorkort.php?id=" . (int) $cardRow['id'] : "rapport.php";
 		}
 	}
 
@@ -268,25 +272,10 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 	$printTo = $todate ? $todate : $lastdate;
 	$emailUrl = "mail_kontoudtog.php?dato_fra=" . dkdato($printFrom) . "&dato_til=" . dkdato($printTo) . "&kontoantal=1&kontoliste=$accountId";
 
-	if ($menu == 'T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href='" . debitorGeneralLedgerEscape($backUrl) . "' accesskey='L' title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('2172|Luk', $sprog_id) . "</a></div>";
-		print "<div class=\"headerTxt\">" . debitorGeneralLedgerEscape($pageTitle) . "</div>";
-		print "<div class=\"headerbtnRght headLink\">";
-		print "<a href='javascript:void(0);' onclick=\"showLangModalKontoprint()\" title='" . debitorGeneralLedgerEscape($printLabel) . "'><i class='fa fa-print fa-lg'></i> " . debitorGeneralLedgerEscape($printLabel) . "</a>";
-		print "&nbsp;&nbsp;";
-		print "<a href='javascript:void(0);' onclick=\"window.open('" . debitorGeneralLedgerEscape($emailUrl) . "','kontomail','" . debitorGeneralLedgerEscape($jsvars) . "')\" title='Email'><i class='fa fa-envelope fa-lg'></i> " . findtekst('52|E-mail', $sprog_id) . "</a>";
-		print "</div>";
-		print "</div>";
-		print "<div class='content-noside debitor-ledger-page-shell'>";
-	} else {
-		include("../includes/oldDesign/header.php");
-		print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
-		include __DIR__ . "/generalLedgerTopLine.php";
-		print "<tr><td align='center' valign='top' width='100%'><div class='debitor-ledger-page-shell'>";
-	}
+	include("../includes/oldDesign/header.php");
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
+	include __DIR__ . "/generalLedgerTopLine.php";
+	print "<tr><td align='center' valign='top' width='100%'><div class='debitor-ledger-page-shell'>";
 
 	$openingBalance = 0;
 	$openingBalanceDkk = 0;
@@ -910,45 +899,9 @@ document.addEventListener("DOMContentLoaded", function() {
 	}
 	</style>";
 
-	if ($menu == 'T') {
-		print "<style>
-	/* Hide old top-menu navigation — sidebar lives in the outer shell */
-	.logobar, .navbar, #guideOverlayTop {
-		display: none !important;
-		height: 0 !important;
-	}
-	body {
-		display: flex;
-		flex-direction: column;
-	}
-	#header {
-		flex-shrink: 0;
-	}
-	.debitor-ledger-page-shell {
-		flex: 1 1 auto !important;
-		min-height: 0 !important;
-		height: auto !important;
-		max-height: none !important;
-		padding: 0 8px !important;
-		display: flex !important;
-		flex-direction: column !important;
-		overflow: hidden !important;
-	}
-	.debitor-ledger-page {
-		flex: 1 1 auto !important;
-		min-height: 0 !important;
-		height: auto !important;
-	}
-	</style>";
-	}
 
-	if ($menu == 'T') {
-		print "</div>";
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		print "</div></td></tr></tbody></table>";
-		include_once '../includes/oldDesign/footer.php';
-	}
+	print "</div></td></tr></tbody></table>";
+	include_once '../includes/oldDesign/footer.php';
 }
 
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- lager/lister/indkøb.php --- ver 5.0.0 --- 2026.10.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,15 +20,21 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
 // 20260909 CDX/LH SST-783: Return orders opened from Indkøb to the purchase tab.
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20261008 Sawaneh The list sits under the new page head (topLineVarer.php, page_bar): grid height adjusted.
+// 20261016 MJ SST-871 The four texts on the Bestil button and its alerts read ids 4982-4985,
+//                  which hold them, instead of 3389-3392, which SST-763 had already given to the
+//                  PBS resend. The list printed "Fakturaen har ikke været med i nogen PBS-leverance"
+//                  on a created order, and MEDSHOP read that as a failure and ordered again.
 
 @session_start();
 $s_id = session_id();
+$modulnr = 9;
 
 $css = "../../css/standard.css?v=20";
 
@@ -98,7 +104,7 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
         if (data.length > 0) {
             // Show loading state
             this.disabled = true;
-            this.innerHTML = '<?php echo findtekst("3389|Bestiller", $sprog_id) ?>...';
+            this.innerHTML = '<?php echo findtekst("4982|Bestiller", $sprog_id) ?>...';
             
             // Process each item with AJAX calls to orderapi.php
             processOrders(data).then(() => {
@@ -109,15 +115,15 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
                 inputs.forEach(input => {
                     input.value = '';
                 });
-                alert('<?php echo findtekst("3390|Bestillinger oprettet", $sprog_id) ?>!');
+                alert('<?php echo findtekst("4983|Bestillinger oprettet", $sprog_id) ?>!');
             }).catch((error) => {
                 // Reset button on error
                 this.disabled = false;
                 this.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg> <?php echo findtekst("2218|Bestil", $sprog_id) ?>';
-                alert('<?php echo findtekst("3391|Fejl ved oprettelse af bestillinger", $sprog_id) ?>!');
+                alert('<?php echo findtekst("4984|Fejl ved oprettelse af bestillinger", $sprog_id) ?>!');
             });
         } else {
-            alert('<?php echo findtekst("3392|Ingen værdier angivet", $sprog_id) ?>');
+            alert('<?php echo findtekst("4985|Ingen værdier angivet", $sprog_id) ?>');
         }
     });
 
@@ -158,7 +164,7 @@ $columns[] = array(
     "field" => "varenr",
     "headerName" => findtekst('917|Varenr.', $sprog_id),
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
 
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
@@ -170,7 +176,7 @@ $columns[] = array(
     "headerName" => findtekst('138|Navn', $sprog_id),
     "width" => "3",
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
 
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
@@ -768,7 +774,7 @@ ORDER BY {{SORT}}
 );
 
 
-print "<div style='width: 100%; height: calc(100vh - 30px - 34px - 16px);'>";
+print "<div style='width: 100%; height: calc(100vh - 142px);'>";
 create_datagrid("indkøb", $data);
 print "</div>";
 

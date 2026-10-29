@@ -54,6 +54,8 @@
 // 20260408 PHR Trimming $_POST & made a quickfix for missing or wrong 'tidspkt'
 // 20260509 PHR '$svis_saet' was fetched from 'kodenr' 1. Changed to kodenr 2 and added fiscal_year
 // 20260709 SZ Added Grid Framework sticky header to Kassespor report
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // 20261006 CL/LH SST-835: Round net sales to 2 decimals before the BA division so a sub-øre remainder on an exchange order shows 0 % instead of 23 million %.
 
 ob_start();
@@ -130,7 +132,7 @@ if ($submit= if_isset($_POST['submit'])){
 	$refs =  trim(if_isset($_POST['refs']));
 	$linjeantal = if_isset($_POST['linjeantal']);
 	$cookievalue="$sort;$nysort;$fakturadatoer;$logtimes;$afdelinger;$sort;$nysort;$idnumre;$fakturanumre;$summer;$betalinger;$betalinger2;$modtagelser;$modtagelser2;$kasser;$refs;$linjeantal;$borde;$status";
-	setcookie("saldi_kassespor", $cookievalue, time()+3600*24*365);
+	saldi_setcookie("saldi_kassespor", $cookievalue, time()+3600*24*365);
 } else {
 	list ($sort,$nysort,$fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$borde,$status) = array_pad(explode(";", $_COOKIE['saldi_kassespor']),19,NULL);
 	$beskrivelse=str_replace("semikolon",";",$beskrivelse);
@@ -194,29 +196,14 @@ if ($menu == 'S') {
 	// replaces an earlier, simpler position:sticky-in-a-<td> attempt — that only kept a single short
 	// row visible and let the whole page scroll natively, which doesn't match kontosaldo()'s actual
 	// internal-scroll behaviour or keep the column titles in view.
-	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	print "<div id='ksPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-	print "<td width='10%' align='left'><a href='rapport.php' accesskey=L style=\"text-decoration: none;\">";
-	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px; justify-content: flex-start; padding-left: 3px;' onMouseOver=\"this.style.cursor='pointer'\">";
-	print "$tilbage_icon " . findtekst(30,$sprog_id) . "</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>" . findtekst(455,$sprog_id) . "</td>";
-	print "<td width='10%' align='center' style='$topStyle'>&nbsp;</td>";
-	print "</tr></tbody></table>";
+	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => findtekst(455, $sprog_id), 'back' => 'rapport.php'));
 	print "</div>\n"; // close flex:0 header bar
 }
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=rapport.php  accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
-	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
 	// Header already printed above, before this table opened — see comment there. Wrapped in
 	// flex:0 0 auto (a second fixed sibling below the header bar, above the scrolling grid) so the
 	// prev/linjeantal/next controls row (filled in further below by the same shared code the
@@ -303,24 +290,7 @@ if (!isset($kontoid)) $kontoid = NULL;
 
 	print "<form name=bonliste action=kassespor.php method=post>";
 
-if ($menu=='T') {
-	print "<table width=100% class='dataTable'><tbody>";
-	if (!$linjeantal) $linjeantal=50;
-	$next=udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$start,'',$borde,$status);
-	if ($start>=$linjeantal) {
-		$tmp=$start-$linjeantal;
-		print "<td class='imgNoTextDeco'><a href='kassespor.php?sort=$sort&start=$tmp'><img class='imgInvert imgFade' src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>\n";
-	} else print  "<td></td>\n";
-	print "<td align=center valign=top style='width:90%'><span title= '".findtekst(1609, $sprog_id)."'><input class=\"inputbox\" type=text style=\"text-align:right;width:50px; text-align:center;\" name=\"linjeantal\" value=\"$linjeantal\"></td>\n";
-	$tmp=$start+$linjeantal;
-	if ($next>0) {
-		print "<td class='imgNoTextDeco' align=right><a href='kassespor.php?sort=$sort&start=$tmp'><img class='imgInvert imgFade' src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>\n";
-	} else {
-		print "<td></td>\n";
-	}
-	print "</tr>\n";
-	print "</tbody></table>";
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
 	if (!$linjeantal) $linjeantal=50;
 	$next=udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$start,'',$borde,$status);
 	if ($start>=$linjeantal) {
@@ -363,11 +333,7 @@ if ($menu=='T') {
 	print "</tbody></table>";
 }
 
-if ($menu=='T') {
-	print "<div class='dataTablediv'>";
-} else {
-	print "";
-}
+print "";
 
 if ($menu == 'S') {
 	// #ksGridTable's <thead> holds TWO rows (column titles, then the search/filter row right below
@@ -385,7 +351,7 @@ if ($menu == 'S') {
 }
 print "<table id='ksGridTable' cellpadding=1 cellspacing=1 border=0 valign = top class='dataTable' width='100%'>";
 
-if ($menu=='T' || $menu == 'S') {
+if ($menu == 'S') {
 	print "<thead>";
 } else {
 	print "<tbody>";
@@ -495,7 +461,7 @@ print "<th class='text-center'><span title= '".findtekst(1812, $sprog_id)."'><in
 print "<th></th><th width=5% class='text-center'><input class='button blue small' type=submit value=\"OK\" name=\"submit\"></th>\n";
 print "</form></tr>\n";
 
-if ($menu=='T' || $menu == 'S') {
+if ($menu == 'S') {
 	print "</thead><tbody>";
 } else {
 	print "";
@@ -503,7 +469,7 @@ if ($menu=='T' || $menu == 'S') {
 
 
 udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$start,'skriv',$borde,$status);
-if ($menu=='T' || $menu == 'S') {
+if ($menu == 'S') {
 	print "</tbody><tfoot>";
 } else {
 	print "<tr><td colspan=20><hr></td></tr>\n";
@@ -799,10 +765,7 @@ if (!isset ($y)) $y = NULL;
 
 <?php
 
-if ($menu=='T') {
-	print "</tfoor></table></div>";
-	include_once '../includes/topmenu/footer.php';
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
 	// Close the data <tfoot>/<table> (opened above), then #ksGridWrapper (opened right after the
 	// controls row), then #ksPageFlex (opened at the very top of the S-mode header block). The
 	// controls-row wrapper's own <center><table>...<td></tr></tbody></table> was already closed

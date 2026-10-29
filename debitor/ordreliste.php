@@ -67,10 +67,13 @@
 //                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
+// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
 // 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
 // 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
 // 20261005 LOE SD-687 Department names are escaped where the filter options are built.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The list sits under the new page head (page_bar): grid height adjusted.
 
 @session_start();
 $s_id = session_id();
@@ -384,6 +387,7 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $qtxt = "UPDATE settings SET var_value = '$valg' WHERE var_name = 'ordreliste_valg' AND var_grp = 'debitor' AND user_id = '$bruger_id'";
 } else {
     $qtxt = "INSERT INTO settings (var_name, var_value, var_grp, user_id) VALUES ('ordreliste_valg', '$valg', 'debitor', '$bruger_id')";
+    $qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
 }
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 #if ($valg=="ordrer" && $sort=="fakturanr") $sort="ordrenr";
@@ -537,8 +541,7 @@ if ($r = db_fetch_array(db_select("select distinct id from ordrer where projekt 
 
 
 
-if ($menu == 'T') include_once 'ordLstIncludes/topMenu.php';
-elseif ($menu == 'S') include_once 'ordLstIncludes/topLine.php';
+if ($menu == 'S') include_once 'ordLstIncludes/topLine.php';
 else include_once 'ordLstIncludes/oldTopLine.php';
 include(get_relative() . "includes/orderFuncIncludes/grid_order.php"); 
 include(get_relative() . "includes/orderFuncIncludes/dateRangeSearch.php"); 
@@ -2004,7 +2007,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+print "<div style='width: 100%; height: calc(100vh - 112px);'>";
 
 
 

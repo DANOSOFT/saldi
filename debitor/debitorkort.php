@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-07 ---
+// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,8 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20250911 LOE Create a contact employee if none exists for erhverv accounts 
@@ -112,8 +111,33 @@
 //             0. Skip the check when the field is blank, matching debitor/debkort_save.php's SD-513 fix
 // 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
 // 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
+// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261006 Sawaneh A new customer gets the company's own payment terms (Firmaoplysninger / onboarding step 4) while there are no customers.
+// 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20261006 Sawaneh WP-2.9/2.10: job list links carry an urlencoded returside with the card's id; Tilbage to an order hands it
+//                  returside=ordreliste.php instead of the order's own URL.
 // 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The card on the new page head (page_bar): title, Ny debitor as the primary button, tour kept for Assist.
+// 20261009 Sawaneh The record (kontonr + name, or Nyt debitorkort) as the last breadcrumb level (decision 22).
+// 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
+//                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
+// 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
+//                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
+// 20261022 CDX/LH Protect Afmeld with a session CSRF token before writes; display the saved card from payment rows.
+// 20261023 CDX/LH Merge fixed Stripe staff controls while retaining the redesign page header and navigation.
 @session_start();
+include_once(__DIR__ . '/../includes/stripeIncludes/stripeStaff.php');
+$stripeStaffInput = $_POST;
+$stripeStaffMethod = $_SERVER['REQUEST_METHOD'] ?? '';
+if (empty($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$stripeStaffToken = $_SESSION['csrf_token'];
+if (!empty($stripeStaffInput['stripe_afmeld']) && !stripe_staff_afmeld_allowed($stripeStaffMethod, $stripeStaffInput, $stripeStaffToken)) {
+	http_response_code(403);
+	exit('Ugyldig eller udløbet formular - genindlæs siden og prøv igen');
+}
 $s_id = session_id();
 
 $fokus = $katString = NULL;
@@ -132,7 +156,6 @@ include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
-if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
@@ -146,6 +169,7 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "insert into settings (var_name, var_grp, user_id, var_description) ";
 	$qtxt .= "values ";
 	$qtxt .= "('debitorId','debitor', '$bruger_id','Used to track debitor Id when orderlist is called from debitor card')";
+	$qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
 }
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -729,6 +753,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				if (!empty($stripeStaffInput['stripe_afmeld']) && (int)$id > 0) {
+					stripe_staff_unenrol((int)$id, $stripeStaffMethod, $stripeStaffInput, $stripeStaffToken);
+				}
 
 				// Only rewrite kontakt_emails and adresser.email when the form actually posted
 				// the email fields; a POST without them (stale tab, partial form) must leave
@@ -1140,6 +1167,9 @@ if ($id > 0) {
 	$bank_konto = trim($r['bank_konto']);
 	$bank_reg = trim($r['bank_reg']);
 	$swift = trim($r['swift']);
+	$stripe_status = isset($r['stripe']) ? trim((string)$r['stripe']) : '';
+	$stripe_date = isset($r['stripe_date']) ? trim((string)$r['stripe_date']) : '';
+	$stripe_saved_card = stripe_staff_saved_card($r);
 	$kontakt = htmlentities(trim($r['kontakt']), ENT_COMPAT, $charset);
 	if ($r['pbs'] == 'on') $pbs = "checked";
 	$pbs_nr = trim($r['pbs_nr']);
@@ -1257,6 +1287,14 @@ if ($id > 0) {
 	$bd = NULL;
 	$x = NULL;
 	$id = 0;
+	// The company's own payment terms (Firmaoplysninger, onboarding step 4) until there are customers to count.
+	if (!db_fetch_array(db_select("select id from adresser where art = 'D' limit 1", __FILE__ . " linje " . __LINE__))) {
+		$r = db_fetch_array(db_select("select betalingsbet, betalingsdage from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
+		if ($r && trim((string) $r['betalingsbet']) !== '') {
+			$maxbb = trim($r['betalingsbet']);
+			$maxbd = ($maxbb === 'Netto' || $maxbb === 'Lb. md.') ? (int) $r['betalingsdage'] : 0;
+		}
+	}
 	$betalingsbet = $maxbb;
 	$betalingsdage = $maxbd;
 	$kontoansvarlig = '0';
@@ -1323,87 +1361,32 @@ if (!isset($kontonr)) $kontonr = NULL;
 
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 $backSep = (strpos($returside, '?') !== false) ? '&' : '?';
+// WP-2.10: an order gets the order list as returside instead of its own URL.
+$backReturside = (strpos($returside, 'ordre.php') !== false) ? 'ordreliste.php' : $returside;
 $kontokortReturside = "../debitor/debitorkort.php?id=$id";
 if (strpos($returside, 'ordre.php') !== false && $ordre_id) {
 	$kontokortReturside = "../debitor/ordre.php?id=$ordre_id";
 	if ($fokus) $kontokortReturside .= "&fokus=" . rawurlencode($fokus);
 }
 $kontokortRetursideParam = rawurlencode($kontokortReturside);
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">";
-	## add onClick=\"JavaScript:opener.location.reload();\" but still get style from headlink MALENE
-	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a>";
-	if ($jobkort) {
-		print "&nbsp;&nbsp;";
-	} else {
-		print "";
-	}
-	print "</div>";
-	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=$kontokortRetursideParam' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
-	if (substr($rettigheder, 5, 1) == '1') {
-		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
-	} else {
-		print "";
-	}
-	if ($jobkort) {
-		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "' title='" . findtekst('38|Opgaveliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
-	} else {
-		print "";
-	}
-	print "</div></div>";
-	print "<div class='content-noside'>";
-	print  "<table border='0' cellspacing='1' class='dataTableForm' width='100%'>";
-} elseif ($menu == 'S') {
-	############################ 
-	$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-	$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
-	$add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
-
-	##########################
-	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
-	print "<tr><td align=\"center\" valign=\"top\">\n";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-
-	print "<td width='10%'>
-		<a href=\"$returside\" accesskey=L>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-
-	print "<td width='75%'  style='$topStyle' align='center'>" . findtekst('356|Debitorkort', $sprog_id) . "</td>\n";
-
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
-	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-	print $help_icon . findtekst('2564|Hjælp', $sprog_id) . "</button></td>";
-
-	print "<td width='5%'>
-		<a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
-
-	print "</tbody></table>"; # <- TABEL 1.1
-	print "</td></tr>\n"; # <- Close the table row and cell
-	print "</tbody></table>\n"; # <- TABEL 1
-?>
-	<style>
-		.headerbtn,
-		.center-btn {
-			display: flex;
-			align-items: center;
-			text-decoration: none;
-			gap: 5px;
-		}
-	</style>
-<?php
-
+if ($menu == 'S') {
+	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+	include_once("../includes/stdFunc/pageBar.php");
+	if (function_exists('page_record')) print page_record($id ? trim((string) $kontonr . ' ' . (string) $firmanavn) : findtekst('7024|Nyt debitorkort', $sprog_id));
+	page_bar(array(
+		'title' => findtekst('356|Debitorkort', $sprog_id),
+		'back' => $returside,
+		'help' => true,
+		'primary' => array(findtekst('7000|Ny debitor', $sprog_id), '#', 'accesskey' => 'N',
+			'onclick' => "confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst');"),
+	));
+	print "<style>a:link { text-decoration: none; }</style>\n";
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
-	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
+	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($backReturside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
+	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($backReturside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
 	print "<td width=\"80%\"$top_bund>" . findtekst('356|Debitorkort', $sprog_id) . "<!--tekst 356--></td>\n";
 	print "<td width=\"10%\"$top_bund><a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N><!--tekst 154-->" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></a></td>\n";
 	print "</tbody></table>"; # <- TABEL 1.1
@@ -1416,10 +1399,8 @@ if ($menu == 'T') {
 
 print "<div class='outer-datatable-wrapper'>";
 print "<div class='form-wrapper'>"; // CHANGED: specific class for form area
-if ($menu != 'T') {
-	// START A NEW TABLE with the same properties:
-	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" width=\"100%\"><tbody>\n"; # NEW TABEL 1.2 ->
-}
+// START A NEW TABLE with the same properties:
+print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" width=\"100%\"><tbody>\n"; # NEW TABEL 1.2 ->
 
 // JavaScript validation to prevent form submit (and page reload) when required fields are empty
 $js_alert_name = findtekst('346|Navn skal angives', $sprog_id);
@@ -1449,6 +1430,7 @@ function validateDebitorkort(form) {
 </script>\n";
 
 print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
+print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($stripeStaffToken, ENT_QUOTES, 'UTF-8') . "'>\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
@@ -1843,7 +1825,7 @@ if ($gruppe) {
 	$r = db_fetch_array(db_select("select beskrivelse from grupper where art='DG' and kodenr='$gruppe' and fiscal_year='$regnaar'", __FILE__ . " linje " . __LINE__));
 	print "<option>$gruppe:$r[beskrivelse]</option>\n";
 }
-$q = db_select("select * from grupper where art='DG' and kodenr!='$gruppe' AND fiscal_year='$regnaar' order by kodenr", __FILE__ . " linje " . __LINE__);
+$q = db_select("select * from grupper where art='DG' and kodenr!='$gruppe' AND fiscal_year='$regnaar' and coalesce(inaktiv, false) = false order by kodenr", __FILE__ . " linje " . __LINE__);
 
 while ($r = db_fetch_array($q)) {
 	print "<option>$r[kodenr]:$r[beskrivelse]</option>\n";
@@ -1953,6 +1935,19 @@ if ($new_status) {
 	if ($status) print "<option></option>\n";
 	print "<option value=\"new_status\">" . findtekst('495|Ny status', $sprog_id) . "<!--tekst 495--></option>\n";
 	print "</SELECT></td></tr>\n";
+}
+##################### STRIPE (kort på fil, 20261019 CL/ASR) #####################
+if (isset($r['stripe']) || isset($stripe_status)) {
+	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+	$stripeOn = (isset($stripe_status) && $stripe_status === 'on');
+	$stripeTxt = $stripeOn ? 'Tilmeldt automatisk kortbetaling' . ($stripe_date ? ' ' . dkdato($stripe_date) : '') : 'Ikke tilmeldt';
+	if ($stripeOn && !empty($stripe_saved_card)) {
+		$stripeTxt .= ' · ' . $stripe_saved_card;
+	}
+	print "<tr bgcolor=$bg><td title=\"Kort på fil hos Stripe. Kunden tilmelder sig på faktura- og betalingssiden; kortoplysninger ligger kun hos Stripe.\">Stripe</td><td>"
+		. "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:" . ($stripeOn ? '#15803d' : '#aab6cc') . "'></span>" . htmlspecialchars($stripeTxt, ENT_QUOTES, 'UTF-8')
+		. ($stripeOn ? " &nbsp; <label title=\"Stopper automatisk træk. Udskriv til sættes tilbage til e-mail, og næste faktura sendes som link-mail.\"><input class='inputbox' type=checkbox name=stripe_afmeld> Afmeld</label>" : '')
+		. "</td></tr>\n";
 }
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
@@ -2568,8 +2563,7 @@ print "</tbody></table></td></tr>"; # <- TABEL 1.2
 print "</div>"; // Close form-wrapper
 
 print "<tr><td align = 'center' valign = 'bottom'>\n";
-if ($menu == 'T') {
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
 
 ##############
 
@@ -2609,7 +2603,7 @@ if (substr($rettigheder, 5, 1) == '1') {
 
 // Stillingsliste button
 if ($jobkort) {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=" . urlencode("../debitor/debitorkort.php?id=$id") . "'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
 } else {
     $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
 }
@@ -2654,7 +2648,7 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 	$jobkort = $r['box7'];
 	if ($jobkort) {
 		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #Klik her for at åbne listen med arbejdskort
-		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></td>\n";
+		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href='jobliste.php?konto_id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "'>" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></td>\n";
 	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></span></td>\n";
 	print "<td width=\"25%\" $top_bund>&nbsp;</td>\n";
 	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3 
@@ -2981,11 +2975,7 @@ SCRIPT;
 
 ##################
 
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 $steps = array();
 $steps[] = array(

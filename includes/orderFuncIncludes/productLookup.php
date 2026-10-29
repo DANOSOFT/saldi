@@ -1,4 +1,5 @@
 <?php
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 {
 	global $afd, $afd_lager;
@@ -10,11 +11,7 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 	global $sprog_id;
 	$kundeordre = findtekst(1092, $sprog_id);  #20240416
 
-	if ($menu == 'T') {
-		include_once '../includes/top_menu.php';
-	} else {
-
-	}
+	
 
 	file_put_contents("../temp/$db/vareopslag.log", "vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find)\n", FILE_APPEND);
 
@@ -44,6 +41,7 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 			$qtxt = "insert into settings (var_name,var_grp,var_value,var_description,user_id)";
 			$qtxt .= " values ";
 			$qtxt .= " ('itemLookup','deb_order','$sort','Sorting when doing lookup from debitor order','$bruger_id')";
+			$qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
 		}
 	}
 	if ($qtxt)
@@ -371,7 +369,10 @@ function filterRows() {
 	print "</tbody></table>\n";
 	#	if ($findStr) print "<script language=\"javascript\">	document.vareopslag.varenr_ny.focus();</script>";
 #	else 
-	print "<body onload=\"document.links['opslag_1'].focus();\" >\n";
+	// With no matching items there is no opslag_1 link; focus the POS search field instead so a
+	// rescan can be typed straight in (SST-812), rather than throwing and leaving no focus.
+	print "<body onload=\"var l=document.links['opslag_1'],s=document.getElementById('opslag_0');";
+	print "if(l){l.focus();}else if(s){s.focus();s.select();}\" >\n";
 
 	#	print "<script language=\"javascript\">
 #		document.getElementById[\"opslag_1\"].focus();

@@ -25,11 +25,13 @@
 // ----------------------------------------------------------------------
 // Kommission view - separate file for better grid differentiation
 // 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The list sits under the new page head (debLstIncludes/topLine.php, page_bar): grid height adjusted.
 
 #ob_start();
 @session_start();
 $s_id=session_id();
-setcookie("mySalePw", $s_id,0,"/");
+saldi_setcookie("mySalePw", $s_id,0,"/");
 
 $adresseantal=$check_all=$hrefslut=$javascript=$kontoid=$linjebg=$linjetext=NULL;
 $nextpil=$ny_sort=$prepil=$skjul_lukkede=$tidspkt=$understreg=$udv2=NULL;
@@ -232,24 +234,9 @@ if (!$sort) $sort = "firmanavn";
 $sort=str_replace("adresser.","",$sort);
 $sortering=$sort;
 
-if ($menu=='T') {
-	$title= "".findtekst(909,$sprog_id)."";
-} else {
-	$title="Kommission";
-}
+$title="Kommission";
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";   
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">";
-	print "<a accesskey=V href='debitorvisning.php?valg=$valg' title='Ændre visning'><i class='fa fa-gear fa-lg'></i></a> &nbsp; ";
-	print "<a accesskey=N href='ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id' title='Opret nyt kundekort'><i class='fa fa-plus-square fa-lg'></i></a></div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
+if ($menu=='S') include_once 'debLstIncludes/topLine.php';
 else include_once 'debLstIncludes/oldTopLine.php';
 
 // Use grid system for kommission view
@@ -600,7 +587,7 @@ $data = array(
 $table_id = 'debitor_kommission';
 
 // Render grid
-print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+print "<div style='width: 100%; height: calc(100vh - 112px);'>";
 create_datagrid($table_id, $data);
 
 // Add form for kommission AFTER the wrapper div - only show when not in settings
@@ -646,10 +633,6 @@ $steps[] = array(
 include(__DIR__ . "/../includes/tutorial.php");
 create_tutorial("deblist", $steps);
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ?>

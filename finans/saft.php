@@ -28,7 +28,10 @@
 // included day 1.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
 // 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261002 NTR - Added null coalescing operator to $PostalCode to avoid undefined index notice when postnr is null.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id = session_id();
@@ -38,6 +41,7 @@ $title = "SAF-T Finance";
 
 include("../includes/var_def.php");
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include_once '../includes/topline_settings.php';
@@ -690,29 +694,8 @@ if (isset($_SESSION['fileName']) && isset($_SESSION['filePath'])) {
 
 if ($rapportart == "saft")
 	$newTitle = "SAF-T Financial Report";
-if ($menu == 'T') {
-	$title = "Rapport • $newTitle";
-
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	
+if ($menu == 'S') {
 	$backUrl = "rapport.php?rapportart=saft&regnaar=$regnaar&maaned_fra=$mf&aar_fra=$aar_fra&maaned_til=$mt&aar_til=$aar_til&dato_fra=$startdato&dato_til=$slutdato&konto_fra=$konto_fra&konto_til=$konto_til";
-	$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
-	$rightbutton = "";
-	
-	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
-	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
-	print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
-	print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
-	print "</div>";
-	print "</div>"; // close sticky header
-	print "<div class='content-noside'>";
-	print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
-} elseif ($menu == 'S') {
-	$backUrl = "rapport.php?rapportart=saft&regnaar=$regnaar&maaned_fra=$mf&aar_fra=$aar_fra&maaned_til=$mt&aar_til=$aar_til&dato_fra=$startdato&dato_til=$slutdato&konto_fra=$konto_fra&konto_til=$konto_til";
-	
-	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 	
 	// Get CVR number
 	$query = db_select("select cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
@@ -720,17 +703,9 @@ if ($menu == 'T') {
 		$cvrnr = $row['cvrnr'];
 	}
 	
-	// STICKY HEADER - Close button, title, empty space
-	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
-	print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='4' border='0'><tbody>";
-	print "<tr>";
-	print "<td width=\"5%\" align='center'><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style=\"text-decoration: none;\">";
-	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
-	print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='90%' align='center' style='$topStyle'>SAF-T Financial Reporting</td>";
-	print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
-	print "</tr>";
-	print "</tbody></table>";
+	include_once("../includes/stdFunc/pageBar.php");
+	print "<div class='pg-sticky' style=\"position: sticky; top: 0; z-index: 100; background-color: $bgcolor;\">";
+	page_bar(array('title' => 'SAF-T Financial Reporting', 'back' => "javascript:confirmClose('$backUrl','')"));
 	print "</div>";
 	
 	// Format dates
@@ -988,11 +963,7 @@ if ($standardKontoCheck != true) {
 	}
 </script>
 <?php
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 print "<!--Function regnskab slut-->\n";
 // }
 

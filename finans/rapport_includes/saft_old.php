@@ -23,6 +23,7 @@
 //
 // Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 //
 
 function saft($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart) // , $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev
@@ -370,19 +371,7 @@ function saft($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra,
 
 	if ($rapportart == "saft")
 		$newTitle = "SAF-T";
-	if ($menu == 'T') {
-		$title = "Rapport • $newTitle";
-
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>"; // &ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev
-		print "<div class=\"headerTxt\">$title</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-		print "</div>";
-		print "<div class='content-noside'>";
-		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
-	} elseif ($menu == 'S') {
+	if ($menu == 'S') {
 		include("../includes/sidemenu.php");
 	} else {
 		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
@@ -918,11 +907,7 @@ function saft($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra,
 	 * function that redirect back to index after create SAF-T rapport
 	 */
 
-	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 	print "<!--Function regnskab slut-->\n";
 }
 

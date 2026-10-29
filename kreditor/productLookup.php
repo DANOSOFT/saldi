@@ -23,6 +23,8 @@
 //
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // 20251210 LOE Moved from ordre.php and improved to use grid.php structure
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id = session_id();
@@ -32,6 +34,7 @@ $css = "../css/standard.css?v=27";
 $include_start = microtime(true);
 include("../includes/std_func.php");
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/stdFunc/dkDecimal.php");
 include("../includes/ordrefunc.php");
@@ -63,10 +66,6 @@ if (isset($_GET['vare_id'])) {
 }
 
 // Include header based on menu type
-if ($menu == 'T') {
-    include_once '../includes/top_header.php';
-    include_once '../includes/top_menu.php';
-}
 
 
 

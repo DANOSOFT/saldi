@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/webhook.php --- 2026.08.07
+// --- api/stripe/webhook.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,11 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: Stripe webhook receiver. Contract:
 //                doc/stripe/INTERFACE_CONTRACT.md.
 // 20260818 CL/LH Hardened claims, DB failures, and invoice identity.
+// 20261022 CDX/LH Route invoice events through retryable booking and manual refund/dispute handling.
+// 20261026 CL/NTR Multi-ledger: the endpoint URL carries the ledger (?r=<db>, verified by that ledger's own
+//                 webhook secret); events for objects tagged with another ledger (saldi_db) are acknowledged unrecorded.
 //
 // PILOT MODE OF RECORD = record-only: verify + dedupe + record + PDF + alert;
 // nothing is booked. The import path is gated behind the import_enabled
@@ -154,6 +157,23 @@ if (!is_array($event) || empty($event['id']) || empty($event['type']) || !isset(
 $eventId   = (string)$event['id'];
 $eventType = (string)$event['type'];
 $obj       = $event['data']['object'];
+
+// A Stripe account can serve several ledgers (a test ledger restored from a copy keeps the keys), so each
+// ledger's endpoint also receives the others' events. Ours are untagged (from before saldi_db) or tagged
+// with this ledger; anything else is acknowledged without a row, so it is neither processed nor retried.
+function stripe_wh_object_ledger($obj) {
+	$sources = array(
+		$obj['metadata'] ?? null,
+		$obj['parent']['subscription_details']['metadata'] ?? null,
+		$obj['subscription_details']['metadata'] ?? null,
+	);
+	foreach ($sources as $meta) {
+		if (is_array($meta) && isset($meta['saldi_db']) && (string)$meta['saldi_db'] !== '') return (string)$meta['saldi_db'];
+	}
+	return '';
+}
+$objectLedger = stripe_wh_object_ledger($obj);
+if ($objectLedger !== '' && $objectLedger !== $db) stripe_wh_respond(200, 'other_ledger');
 $mode      = stripe_setting('mode');
 $liveMode  = !empty($event['livemode']);
 if (!in_array($mode, ['test', 'live'], true)) {
@@ -384,6 +404,17 @@ if ($eventType === 'customer.subscription.deleted') {
 		. "tilbage på almindelig fakturering fra næste periode, ellers faktureres der slet ikke.",
 		'', 0);
 	stripe_wh_finish($rowId, 'processed', 200, 'ok', $orderId);
+}
+
+// Invoice intents/adjustments share a testable dispatcher; pilot handlers above stay intact.
+if (strpos($eventType, 'payment_intent.') === 0 || in_array($eventType, array('charge.refunded', 'charge.dispute.created'), true)) {
+	// Keep an abrupt DB-layer exit retryable too: never acknowledge unfinished invoice work.
+	http_response_code(500);
+	include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoiceWebhook.php');
+	if (file_exists(__DIR__ . '/../../includes/auditLog.php')) include_once(__DIR__ . '/../../includes/auditLog.php');
+	$response = stripe_invoice_webhook_dispatch($rowId, $eventType, $obj, $eventId);
+	if ($response !== null) stripe_wh_respond($response['code'], $response['message']);
+	http_response_code(200);
 }
 
 if ($eventType === 'charge.refunded') {

@@ -20,6 +20,8 @@
 // ----------------------------------------------------------------------
 //20230727 LOE file created from bilag.php //refer to uploadDoc.php
 //20230911 LOE Delete code modified
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261018 Sawaneh Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
 
 @session_start();
 $s_id=session_id();
@@ -29,6 +31,9 @@ $title="emailDoc";
 
 
 include("../includes/connect.php");
+// The key follows the source the page acts on: the posted one only together with a posted sourceId (as below).
+$docSource = (!empty($_POST['sourceId']) && isset($_POST['source'])) ? (string) $_POST['source'] : (isset($_GET['source']) ? (string) $_GET['source'] : '');
+$permission_key = ($docSource === 'kassekladde') ? 'finans.kassekladde' : (($docSource === 'debitorOrdrer') ? 'debitor.ordre' : (($docSource === 'creditorOrder') ? 'kreditor.ordre' : 'debitor.konti|kreditor.konti'));
 include("../includes/online.php");
 include("../includes/std_func.php");
 

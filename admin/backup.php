@@ -27,6 +27,7 @@
 // 2020.03.08 PHR SQL dump created on demand.
 // 20250427 LOE User can now delete backup file saved if they changed their minds.
 // 20250511 LOE Backupfile save a copy of current db on saldi
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id = session_id();
@@ -72,22 +73,7 @@ if (isset($_GET['backup']) && $_GET['backup']==1) {
 }
 
 print "<div align='center'>";
-if ($menu=='T') {
-#	print "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>";
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id='header'>";
-	print "<div class='headerbtnLft'></div>\n";
-#	print "<span class='headerTxt'>Systemsetup</span>\n";     
-#	print "<div class='headerbtnRght'><!--<a href='index.php?page=../debitor/debitorkort.php;title=debitor' class='button green small right'>Ny debitor</a>--></div>";       
-	print "</div><!-- end of header -->";
-	print "<div id='leftmenuholder'>";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class='maincontent'>\n";
-
-	print "<table border='0' cellspacing='0' id='dataTable' class='dataTable'><tbody>"; # -> 1
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	print "<tr><td align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
@@ -114,7 +100,7 @@ if ($menu=='T') {
 	print "</td></tr>";
 }
 
-if ($menu=='T' || $menu=='S') {
+if ($menu == 'S') {
 	$style = "";
 	$buttonStart = "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	$buttonEnd = "</button>";
@@ -234,10 +220,6 @@ print "</tbody></table></tbody></table>";
 print "</div></div>";
 
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ?>

@@ -55,6 +55,7 @@
 // 2020.04.08 PHR	- Added Vat to summary repport
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id = session_id();
@@ -171,25 +172,14 @@ function forside($date_from, $date_to, $varenr, $varenavn, $varegruppe, $detalje
 	#		if ($regnaar==$row['kodenr']){$aktiv=$x;}
 	#	}
 	#	$antal_regnaar=$x;
-	if ($menu == 'T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\"> 
-				<div class=\"headerbtnLft\"></div>
-				<span class=\"headerTxt\"></span>";
-		print "<div class=\"headerbtnRght\"></div>";
-		print "</div><!-- end of header -->
-			<div class=\"maincontentLargeHolder\">\n";
-	} else {
-		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
-		print "<tr><td width=100%>";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a href=$returside accesskey=L>Luk</a></td>";
-		print "<td width=\"80%\" $top_bund>Varerapport - forside</td>";
-		print "<td width=\"10%\" $top_bund><a href='../utils/batch_salg_rabat.php?bogfor=0&md=8' target='blank'>|</a></td></tr>";
-		print "</tbody></table></td></tr>"; #B slut
-		print "</tr><tr><td height=\"60%\" \"width=100%\" align=\"center\" valign=\"bottom\">";
-	}
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
+	print "<tr><td width=100%>";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+	print "<td width=\"10%\" $top_bund><a href=$returside accesskey=L>Luk</a></td>";
+	print "<td width=\"80%\" $top_bund>Varerapport - forside</td>";
+	print "<td width=\"10%\" $top_bund><a href='../utils/batch_salg_rabat.php?bogfor=0&md=8' target='blank'>|</a></td></tr>";
+	print "</tbody></table></td></tr>"; #B slut
+	print "</tr><tr><td height=\"60%\" \"width=100%\" align=\"center\" valign=\"bottom\">";
 	#	print "<form name=regnskabsaar action=rapport.php method=post>";
 	#	print "<table cellpadding=\"1\" cellspacing=\"5\" border=\"1\"><tbody>";
 	#	print "<tr><td align=center><h3>Rapporter<br></h3></td></tr>";
@@ -379,25 +369,12 @@ function varegruppe($date_from, $date_to, $varenr, $varenavn, $varegruppe, $deta
 	#	else 
 
 	$luk = "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$varegruppe&afd=$afd&lev=$lev&ref=$ref&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
-	if ($menu == 'T') {
-		include_once '../includes/top_menu.php';
-		include_once '../includes/top_header.php';
-		print "<div id=\"header\"> 
-		<div class=\"headerbtnLft\">$luk Luk</a></div>
-		<span class=\"headerTxt\">Rapport | Varesalg | " . dkdato($date_from) . " - " . dkdato($date_to);
-		"</span>";
-		print "<div class=\"headerbtnRght\"></div>";
-		print "</div><!-- end of header -->
-			<div class=\"maincontentLargeHolder\">\n";
-		print "<table class='dataTable' width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-	} else {
-		print "<table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	print "<table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 
-		print "<tr><td colspan=\"$cols\" height=\"9\">";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund>$luk Luk</a></td>";
-		print "<td width=\"80%\" $top_bund>Rapport | varesalg | " . dkdato($date_from) . " - " . dkdato($date_to);
-	}
+	print "<tr><td colspan=\"$cols\" height=\"9\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+	print "<td width=\"10%\" $top_bund>$luk Luk</a></td>";
+	print "<td width=\"80%\" $top_bund>Rapport | varesalg | " . dkdato($date_from) . " - " . dkdato($date_to);
 	if ($afd) {
 		$r = db_fetch_array(db_select("select beskrivelse from grupper where art = 'AFD' and kodenr = '$afd'", __FILE__ . " linje " . __LINE__));
 		print " | $r[beskrivelse]";
@@ -426,12 +403,9 @@ function varegruppe($date_from, $date_to, $varenr, $varenavn, $varegruppe, $deta
 		if (!$ref_navn) $ref_navn = $ref_brugernavn;
 		if ($ref_navn) print " | $ref_navn";
 	}
-	if ($menu == 'T') {
-	} else {
-		print "</td>";
-		print "<td width=\"10%\" $top_bund><a href='../temp/$db/salgsrapport.csv' target='_blank'>csv</a></td>";
-		print "</tbody></table>"; #B slut
-	}
+	print "</td>";
+	print "<td width=\"10%\" $top_bund><a href='../temp/$db/salgsrapport.csv' target='_blank'>csv</a></td>";
+	print "</tbody></table>"; #B slut
 	print "</td></tr>";
 	$lagergruppe = array();
 	if ($gruppenr) {

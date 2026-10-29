@@ -115,6 +115,10 @@
 // 20260914 CL/SZ SST-744: function posbogfor: CodeRabbit review - embed the alert text via
 //             json_encode() instead of a manual string-replace, matching index/login.php's
 //             existing pattern for the same problem.
+// 20260928 Sawaneh Declared $permission_key = 'pos.kasse' (point-of-sale access per role).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261002 CL/SZ SST-812: Hand the final focus() to javascript/posScanBuffer.js (inlined in the head by includes/online.php), which replays scanner keystrokes typed while a scan reloads the page.
+//                The final focus() call now escapes $fokus and falls back to varenr_ny when the named field is missing or hidden, instead of throwing and leaving no focus.
 // 20261002 CL/SZ SST-813: function kundedisplay: the saldi.dk box-IP lookup moved to kundedisplayBoxLookup() with a 2 s timeout, tried once per request and logged on failure.
 //                An unreachable saldi.dk no longer holds the POS request for the 60 s default socket timeout.
 // 20261002 CL/SZ SST-813: Load stockWarningPopup.js with a filemtime version, as ordre.php does, so POS terminals pick up the keyboard/focus fix instead of a cached copy.
@@ -124,6 +128,7 @@
 $s_id = session_id();
 ob_start();
 $modulnr = 5;
+$permission_key = 'pos.kasse';
 $title = "POS Ordre";
 $css = "../css/pos.css";
 $addRemove = $afd = $afslut = $antal_ny = $afd_lager = $afd_navn = NULL;
@@ -194,77 +199,6 @@ if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi
 	print "<meta name='viewport' content='width=$width, initial-scale=$zoom, maximum-scale=$zoom, user-scalable=0'>";
 }
 global $menu;
-if ($menu == 'T') {
-	if (!$bgcolor)
-		$bgcolor = "#000000";
-	print "<body bgcolor=\"$bgcolor\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\">\n";
-	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
-	<html>\n
-	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
-	<meta http-equiv=\"content-language\" content=\"da\">\n
-	<meta name=\"google\" content=\"notranslate\">\n";
-	global $meta_returside;
-	if ($meta_returside)
-		print "$meta_returside"; #20140502
-	if ($css)
-		print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
-	else
-		print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/saldimenu.css\"/>\n";
-	if (substr($title, 0, 3) == 'POS') { # 21071009
-		($title == 'POS_ordre' && isset($_COOKIE['saldi_pfs'])) ? $pfs = $_COOKIE['saldi_pfs'] : $pfs = 10;
-		print "<style> body {font-family: Arial, Helvetica, sans-serif;font-size: " . $pfs . "pt;} </style>";
-		print "<style> table {font-family: Arial, Helvetica, sans-serif;font-size: " . $pfs . "pt;} </style>";
-	}
-	print "<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>\n"; #20140502
-	print "<script type=\"text/javascript\" src=\"../javascript/jquery.autosize.js\"></script>\n"; #20140502
-	print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
-	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n"; #20140502
-#	print "<script src=\"../javascript/sweetalert.min.js\"></script>";
-#	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/sweetalert.css\">";
-
-	#print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/main.css\"/>\n";
-	print "
-	<script type=\"text/javascript\">
-	
-	var linje_id=0;
-	var vare_id=0;
-	var antal=0;
-	function serienummer(linje_id,antal){
-		window.open(\"serienummer.php?linje_id=\"+ linje_id,\"\",\"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no\")
-	}
-	function batch(linje_id,antal){
-		window.open(\"batch.php?linje_id=\"+ linje_id,\"\",\"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no\")
-	}
-	function stykliste(vare_id){
-		window.open(\"../lager/fuld_stykliste.php?id=\"+ vare_id,\"\",\"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no\")
-	}
-	
-	</script>";
-	#20140502 -->
-	?> 
-	
-	<script type="text/javascript">
-		// jQuery funktion til autosize på textarea 
-		$(document).ready(function () {
-
-			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize();
-		});
-		// jQuery funktion til ordrelinjer i ordre.php. Ved tryk på enter submitter formen og ved shift+enter laver den ny linje i textarea
-		$(function () {
-			$('textarea.comment').keyup(function (e) {
-				if (e.which == 13 && !e.shiftKey) {
-					$("#submit").click();
-				}
-			});
-		});
-		// $(document).on('focus', 'textarea', function(){
-		//            autosize($('textarea'));  //20201218
-		//});	
-	</script>
-	<?php
-	# <-- 20140502
-	print "</head>\n";
-}
 
 
 $receipt_id = if_isset($_GET['receipt_id'], 0);
@@ -380,9 +314,9 @@ if (isset($_GET['id']) && $_GET['id'])
 	$id = $_GET['id'];
 if (isset($_POST['kasse']) && $_POST['kasse']) {
 	$kasse = $_POST['kasse']; #20150402
-	setcookie('saldi_pos', $kasse, time() + 60 * 60 * 24 * 30, '/');
+	saldi_setcookie('saldi_pos', $kasse, time() + 60 * 60 * 24 * 30, '/');
 	if (isset($pfs) && $pfs)
-		setcookie('saldi_pfs', $pfs, time() - 60, '/');
+		saldi_setcookie('saldi_pfs', $pfs, time() - 60, '/');
 } elseif (!$kasse && isset($_COOKIE['saldi_pos']))
 	$kasse = $_COOKIE['saldi_pos'];
 $qtxt = "select box7 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
@@ -399,7 +333,7 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 		if (strstr(strtolower($bord[$i]), strtolower($brugernavn))) {
 			$bordnr = $i;
 			$konto_id = if_isset($_GET['konto_id']);
-			setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30); #20150505-2
+			saldi_setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30); #20150505-2
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}bordnr=$bordnr&konto_id=$konto_id\">\n"; #20150401
 			exit;
 			break 1;
@@ -495,7 +429,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 	if (isset($_GET['bordnr']))
 		$bordnr = $_GET['bordnr'];
 	if ($bordnr || $bordnr == '0') {
-		setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30);
+		saldi_setcookie("saldi_bordnr", $bordnr, time() + 60 * 60 * 24 * 30);
 	}
 	$qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name='pos_events'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -545,9 +479,9 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 /*
 if (isset($_POST['kasse']) && $_POST['kasse']) {
 	$kasse=$_POST['kasse']; #20150402
-	setcookie("saldi_pos",$kasse,time()+60*60*24*30);
-	setcookie($_COOKIE['saldi_pfs'],$pfs,time()-60);
-	setcookie($_COOKIE['saldi_pfs'],$pfs,time()-60,'/');
+	saldi_setcookie("saldi_pos",$kasse,time()+60*60*24*30);
+	saldi_setcookie($_COOKIE['saldi_pfs'],$pfs,time()-60);
+	saldi_setcookie($_COOKIE['saldi_pfs'],$pfs,time()-60,'/');
 }
 if (isset($_POST['id']) && $_POST['id']) $id=$_POST['id'];
 if (!$id && !$bordnr && $bordnr != '0') { #20150305
@@ -556,7 +490,7 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 		if (strstr(strtolower($bord[$i]),strtolower($brugernavn))) {
 			$bordnr=$i;
 			$konto_id=if_isset($_GET['konto_id']);
-			setcookie("saldi_bordnr",$bordnr,time()+60*60*24*30); #20150505-2
+			saldi_setcookie("saldi_bordnr",$bordnr,time()+60*60*24*30); #20150505-2
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?bordnr=$bordnr&konto_id=$konto_id\">\n"; #20150401
 			exit;
 			break 1;
@@ -658,7 +592,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 				$cookievalue .= chr(9) . $optval[$x];
 			}
 		}
-		setcookie("saldi_kasseoptael", $cookievalue, time() + 600);
+		saldi_setcookie("saldi_kasseoptael", $cookievalue, time() + 600);
 		$optalt = (int) $_POST['ore_10'] * 0.1 +
 			(int) $_POST['ore_20'] * 0.2 +
 			(int) $_POST['ore_50'] * 0.5 +
@@ -697,7 +631,7 @@ if (!$kasse || $kasse == "?")
 	$kasse = find_kasse($kasse);
 elseif ($kasse == "opdat") {
 	$kasse = $_POST['kasse'];
-	setcookie("saldi_pos", $kasse, time() + 60 * 60 * 24 * 30);
+	saldi_setcookie("saldi_pos", $kasse, time() + 60 * 60 * 24 * 30);
 }
 if (!isset($_COOKIE['saldi_pfs']) || !$_COOKIE['saldi_pfs'] || !$id) {
 	if (!$id)
@@ -707,8 +641,8 @@ if (!isset($_COOKIE['saldi_pfs']) || !$_COOKIE['saldi_pfs'] || !$id) {
 	$tmparray = explode(chr(9), $r['box2']);
 	if ($tmparray[$kasse - 1])
 		$pfs = $tmparray[$kasse - 1];
-	setcookie('saldi_pfs', $pfs, time() - 60);
-	setcookie('saldi_pfs', $pfs, time() + 60 * 60 * 24 * 365, '/');
+	saldi_setcookie('saldi_pfs', $pfs, time() - 60);
+	saldi_setcookie('saldi_pfs', $pfs, time() + 60 * 60 * 24 * 365, '/');
 	if ($pfs && $pfs != $old_pfs) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id\">\n"; # 20140424b
 	}
@@ -771,7 +705,7 @@ if ($godkendt == 'OK') { # 20131205
 	}
 
 	#} elseif ($godkendt) {
-#	setcookie("saldi_bet",$cookietxt,time()-3600);
+#	saldi_setcookie("saldi_bet",$cookietxt,time()-3600);
 #} elseif(!$godkendt && isset($_COOKIE['saldi_bet']) && $tmp=$_COOKIE['saldi_bet']){#
 	#print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 } elseif ($godkendt == 'afvist' || $godkendt == 'afbrudt' || $godkendt == 'Afstemning er ikke foretaget' || $godkendt == 'Terminal ikke startet' || strpos($godkendt, 'afbrudt')) {
@@ -877,7 +811,7 @@ if ($vare_id_ny && !$vare_id) {
 	$vare_id = $vare_id_ny;
 }
 $funktion = if_isset($_GET['funktion']);
-if ($funktion) {
+if (in_array($funktion, ['vareopslag'], true)) {
 	$sort = (int) if_isset($_GET['sort']);
 	$funktion('PO', $sort, $fokus, $id, "", "", "");
 }
@@ -1744,7 +1678,7 @@ if ($id && $betaling) {
 			exit;
 		}
 	} else {
-		setcookie('giftcard', '', time() - 3600);
+		saldi_setcookie('giftcard', '', time() - 3600);
 		if ($tracelog)
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kasse)\n");
 		$sum = betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, $kasse);
@@ -2217,7 +2151,7 @@ function opret_posordre($konto_id, $kasse) {
 	}
 */
 	if ($terminal_ip) {
-		setcookie("salditerm", $terminal_ip, time() + 3600, '/');
+		saldi_setcookie("salditerm", $terminal_ip, time() + 3600, '/');
 	}
 	if ($kasse && !$_GET['bordnr'] && !isset($_GET['flyt_til'])) {
 		$qtxt = "select box13 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
@@ -3078,7 +3012,7 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	transaktion('commit');
 	# <-- 20140709
-	setcookie("saldi_kasseoptael", NULL, time() - 10); #20200112
+	saldi_setcookie("saldi_kasseoptael", NULL, time() - 10); #20200112
 	$pfnavn = "../temp/" . $db . "/kasseopg" . str_replace("-", "", $kasse) . ".txt";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
 	return true;
@@ -3132,7 +3066,7 @@ function kasseoptalling( // Called from cashBalance.php
 	$udtages = if_isset($_POST['udtages']);
 	if ($udtages) {
 		$udtages = usdecimal($udtages);
-		setcookie("saldiPOSfromBox", $udtages, time() + 600);
+		saldi_setcookie("saldiPOSfromBox", $udtages, time() + 600);
 	} else
 		$udtages = if_isset($_COOKIE["saldiPOSfromBox"]);
 	$optplusbyt = if_isset($_POST['optplusbyt']);
@@ -3711,9 +3645,12 @@ if ($obstxt)
 </html>
 
 <script language="javascript">
-
-document.pos_ordre.<?php echo $fokus ?>.focus();
-
+<?php $fokusJs = json_encode((string) $fokus, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
+if (window.PosScanBuffer) {
+	PosScanBuffer.focus(<?php echo $fokusJs ?>);
+} else if (document.pos_ordre && document.pos_ordre.elements[<?php echo $fokusJs ?>]) {
+	document.pos_ordre.elements[<?php echo $fokusJs ?>].focus();
+}
 </script>
 <!--
 <script type="text/javascript">

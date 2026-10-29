@@ -1,4 +1,5 @@
 1	Dansk	English	Norsk
+// 20261022 CDX/LH Add Stripe master-port invoice, enrolment and independent signup settings texts.
 2	Vælg aktivt sprog	Select active language	Velg aktivt språk
 3	Gem	Save	Lagre
 4	Nyt sprog	New language	Nytt språk
@@ -5150,6 +5151,12 @@
 5281	Hvis du klikker OK mistes de sidste ændringer	If you click OK the latest changes will be lost	Hvis du klikker OK går de siste endringene tapt
 5282	Administrér bilag	Manage vouchers	Administrer bilag
 5283	Der er ikke længere et bilag på denne linje.	This line no longer has a voucher.	Det er ikke lenger et bilag på denne linjen.
+5284	Åbn i nyt vindue	Open in new window	Åpne i nytt vindu
+5285	F = finanskonto, D = debitor, K = kreditor	F = finance account, D = debtor, K = creditor	F = finanskonto, D = debitor, K = kreditor
+5286	Fakturanr. {nr} er allerede brugt på denne kreditor	Invoice no. {nr} has already been used for this creditor	Fakturanr. {nr} er allerede brukt på denne kreditoren
+5287	Kladde {kladde}, bilag {bilag}	Journal {kladde}, voucher {bilag}	Kladd {kladde}, bilag {bilag}
+5288	Bogført som bilag {bilag} den {dato}	Posted as voucher {bilag} on {dato}	Bokført som bilag {bilag} den {dato}
+5289	Andet bilag i puljen: {fil}	Other document in the pool: {fil}	Annet bilag i puljen: {fil}
 5300	Kladde	Journal	Kladd
 5301	Fremdrift	Progress	Fremdrift
 5302	Vælg debitor eller kreditor…	Choose customer or supplier…	Velg debitor eller kreditor…
@@ -5177,3 +5184,1673 @@
 5324	Alle debitorer og kreditorer	All customers and suppliers	Alle debitorer og kreditorer
 5325	Udskriv alle linjer	Print all lines	Skriv ut alle linjer
 5326	Udskrevet	Printed	Utskrevet
+5327	Kontokort med u-bogført	General ledger with unposted entries	Kontokort med ikke-bokførte
+5328	Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu	General ledger that also shows the entries from all journals that are not posted yet	Kontokort som også viser posteringene fra alle bilagsjournaler som ikke er bokført ennå
+5329	Poster i kursiv er ikke bogført endnu. De ligger i en kladde og påvirker kontoen, når kladden bogføres.	Entries in italics are not posted yet. They are in a journal and will affect the account when the journal is posted.	Poster i kursiv er ikke bokført ennå. De ligger i en bilagsjournal og påvirker kontoen når journalen bokføres.
+5330	Ikke bogført	Not posted	Ikke bokført
+5331	Kladdelinjer, der ikke er medtaget, fordi kontoopsætningen mangler:	Journal lines left out because the account setup is missing:	Bilagslinjer som ikke er tatt med fordi kontooppsettet mangler:
+5332	Gem og næste	Save and next	Lagre og neste
+5333	Spring over	Skip	Hopp over
+5334	Obligatorisk	Required	Obligatorisk
+5335	Ingen flere bilag i puljen	No more documents in the pool	Ingen flere bilag i puljen
+5336	Tilbage til kassekladden	Back to the cash journal	Tilbake til kassakladden
+5337	Arkivér	Archive	Arkiver
+5338	Vis arkiverede	Show archived	Vis arkiverte
+5339	Gendan	Restore	Gjenopprett
+5340	Arkivet er ikke klar. Log ud og ind igen.	The archive is not ready. Log out and in again.	Arkivet er ikke klart. Logg ut og inn igjen.
+5341	Arkivér valgte	Archive selected	Arkiver valgte
+5342	Gendan valgte	Restore selected	Gjenopprett valgte
+5343	Arkiveret	Archived	Arkivert
+5344	Ingen arkiverede bilag	No archived documents	Ingen arkiverte bilag
+5345	Ingen bilag valgt.	No documents selected.	Ingen bilag valgt.
+5346	af	of	av
+5347	Vis flere	Show more	Vis flere
+5405	Bilaget findes ikke på serveren	The voucher is not on the server	Bilaget finnes ikke på serveren
+5406	Filen kan være slettet eller flyttet. Har du åbnet et andet regnskab i en anden fane, så genindlæs siden.	The file may have been deleted or moved. If you opened another company in another tab, reload the page.	Filen kan være slettet eller flyttet. Har du åpnet et annet regnskap i en annen fane, last inn siden på nytt.
+5430	Dokumenter til kladden	Documents for the journal	Dokumenter til kladden
+5431	Vedhæft dokument til kladden, f.eks. kontoudtog fra banken	Attach a document to the journal, e.g. a bank statement	Legg ved dokument til kladden, f.eks. kontoutskrift fra banken
+5432	Gem kladden, før du vedhæfter dokumenter til den	Save the journal before attaching documents to it	Lagre kladden før du legger ved dokumenter til den
+5433	Kladden er bogført, og dokumentet er ældre end 24 timer	The journal is posted and the document is older than 24 hours	Kladden er bokført, og dokumentet er eldre enn 24 timer
+5434	Kun PDF, JPG og PNG kan vedhæftes	Only PDF, JPG and PNG can be attached	Kun PDF, JPG og PNG kan legges ved
+5435	Kladden har allerede et dokument med det navn	The journal already has a document with that name	Kladden har allerede et dokument med det navnet
+5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
+5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+5500	Personlige indstillinger	Personal settings	Personlige innstillinger
+5501	Hvem er online	Who is online	Hvem er pålogget
+5502	Notifikationer	Notifications	Varsler
+5503	Ingen notifikationer endnu	No notifications yet	Ingen varsler ennå
+5504	Guides	Guides	Guider
+5505	Regnskabsguide	Finance guide	Regnskapsguide
+5506	Stilladsguide	Scaffolding guide	Stillasguide
+5507	Skift regnskabsår	Switch financial year	Bytt regnskapsår
+5508	Udseende	Appearance	Utseende
+5509	Knapfarve	Button colour	Knappfarge
+5510	Tekstfarve på knapper	Button text colour	Tekstfarge på knapper
+5511	Sikkerhed	Security	Sikkerhet
+5512	Nuværende adgangskode	Current password	Nåværende passord
+5513	Ny adgangskode	New password	Nytt passord
+5514	Bekræft ny adgangskode	Confirm new password	Bekreft nytt passord
+5515	Tofaktor-login (kode via SMS eller e-mail)	Two-factor login (code by SMS or email)	Tofaktor-innlogging (kode via SMS eller e-post)
+5516	Tofaktor-login kræver et telefonnummer eller en e-mail	Two-factor login requires a phone number or an email address	Tofaktor-innlogging krever et telefonnummer eller en e-postadresse
+5517	Dine indstillinger er gemt	Your settings have been saved	Innstillingene dine er lagret
+5518	Adgangskoden er ændret	Your password has been changed	Passordet er endret
+5519	Den nuværende adgangskode er forkert	The current password is wrong	Det nåværende passordet er feil
+5520	De to nye adgangskoder er ikke ens	The two new passwords do not match	De to nye passordene er ikke like
+5521	Konto	Account	Konto
+5522	Gælder kun for dig, ikke for andre brugere i regnskabet	Applies only to you, not to other users in the company	Gjelder bare deg, ikke andre brukere i regnskapet
+5523	Bruges til tofaktor-koder	Used for two-factor codes	Brukes til tofaktorkoder
+5524	Vinduer og advarsler	Windows and warnings	Vinduer og advarsler
+5525	Lad felterne stå tomme for at beholde din adgangskode	Leave the fields empty to keep your password	La feltene stå tomme for å beholde passordet ditt
+5526	Farverne bruges i menuen og på knapper	The colours are used in the menu and on buttons	Fargene brukes i menyen og på knapper
+5527	Eksempel	Preview	Eksempel
+5528	Adgangskoden kan ikke ændres i demoversionen	The password cannot be changed in the demo version	Passordet kan ikke endres i demoversjonen
+5529	Åbn en guide i en ny fane	Open a guide in a new tab	Åpne en guide i en ny fane
+5530	Brugernavn	Username	Brukernavn
+5531	Navn	Name	Navn
+5532	Du har ændringer, der ikke er gemt	You have unsaved changes	Du har endringer som ikke er lagret
+5533	Personlige indstillinger findes kun for regnskabets egne brugere. Du er logget ind som revisor/administrator udefra.	Personal settings only exist for the company's own users. You are logged in as an external auditor/administrator.	Personlige innstillinger finnes bare for regnskapets egne brukere. Du er logget inn som revisor/administrator utenfra.
+5534	Aktivt	Active	Aktivt
+5535	Kontaktoplysninger, tofaktor-login og adgangskode hører til regnskabets egne brugere og kan ikke ændres her, da du er logget ind som revisor/administrator udefra.	Contact details, two-factor login and password belong to the company's own users and cannot be changed here, as you are logged in as an external auditor/administrator.	Kontaktopplysninger, tofaktor-innlogging og passord tilhører regnskapets egne brukere og kan ikke endres her, siden du er logget inn som revisor/administrator utenfra.
+5536	Brugere & roller	Users & roles	Brukere & roller
+5537	Integrationer	Integrations	Integrasjoner
+5538	SQL-værktøj	SQL tool	SQL-verktøy
+5539	Import & eksport	Import & export	Import & eksport
+5540	API-nøgler	API keys	API-nøkler
+5541	E-mail/SMTP	Email/SMTP	E-post/SMTP
+5542	Gendan sikkerhedskopi	Restore backup	Gjenopprett sikkerhetskopi
+5543	Bogholder	Bookkeeper	Regnskapsfører
+5544	Salg	Sales	Salg
+5545	Indkøb	Purchasing	Innkjøp
+5546	Ingen adgang	No access	Ingen tilgang
+5547	Fuld adgang	Full access	Full tilgang
+5548	Du har ikke adgang til denne funktion. Kontakt din administrator.	You do not have access to this function. Contact your administrator.	Du har ikke tilgang til denne funksjonen. Kontakt administratoren din.
+5549	Brugere	Users	Brukere
+5550	Roller	Roles	Roller
+5551	Log	Log	Logg
+5552	Søg bruger…	Search user…	Søk bruker…
+5553	Rolle	Role	Rolle
+5554	Ingen rolle	No role	Ingen rolle
+5555	Forslag	Suggested	Forslag
+5556	Sidst aktiv	Last active	Sist aktiv
+5557	Status	Status	Status
+5558	Aktiv	Active	Aktiv
+5559	Lukket	Closed	Stengt
+5560	Tildel rolle til valgte	Assign role to selected	Tildel rolle til valgte
+5561	%s brugere har endnu ingen rolle. Deres rettigheder er overført uændret, og der vises et forslag i listen.	%s users have no role yet. Their rights were carried over unchanged and a suggestion is shown in the list.	%s brukere har ennå ingen rolle. Rettighetene er overført uendret, og et forslag vises i listen.
+5562	Anvend foreslåede roller	Apply suggested roles	Bruk foreslåtte roller
+5563	Brugere med denne rolle	Users with this role	Brukere med denne rollen
+5564	Indbygget	Built-in	Innebygd
+5565	Ny rolle	New role	Ny rolle
+5566	Kopiér	Copy	Kopier
+5567	Rediger	Edit	Rediger
+5568	Beskrivelse	Description	Beskrivelse
+5569	Rettigheder	Permissions	Rettigheter
+5570	Tilladte IP-adresser	Allowed IP addresses	Tillatte IP-adresser
+5571	Denne bruger er regnskabets revisor	This user is the company's auditor	Denne brukeren er regnskapets revisor
+5572	Brugeren er gemt	User saved	Brukeren er lagret
+5573	Brugeren er slettet	User deleted	Brukeren er slettet
+5574	Rollen er gemt	Role saved	Rollen er lagret
+5575	Rollen er slettet	Role deleted	Rollen er slettet
+5576	Rollen kan ikke slettes, mens brugere har den	The role cannot be deleted while users hold it	Rollen kan ikke slettes mens brukere har den
+5577	Du kan ikke tildele flere rettigheder, end du selv har	You cannot grant more permissions than you hold yourself	Du kan ikke tildele flere rettigheter enn du selv har
+5578	Brugernavnet findes allerede	The username already exists	Brukernavnet finnes allerede
+5579	Du kan ikke slette din egen bruger	You cannot delete your own user	Du kan ikke slette din egen bruker
+5580	Rollerne er tildelt	Roles assigned	Rollene er tildelt
+5581	Tidspunkt	Time	Tidspunkt
+5582	Handling	Action	Handling
+5583	Detaljer	Details	Detaljer
+5584	Ingen hændelser endnu	No events yet	Ingen hendelser ennå
+5585	Slet bruger?	Delete user?	Slette bruker?
+5586	Slet rolle?	Delete role?	Slette rolle?
+5587	Kopi af	Copy of	Kopi av
+5588	Tilpasset	Custom	Tilpasset
+5589	Adgangskoden og gentagelsen er ikke ens	Password and repeat do not match	Passordet og gjentakelsen er ikke like
+5590	Adgangskode er påkrævet for en ny bruger	A password is required for a new user	Passord er påkrevd for en ny bruker
+5591	Brugere uden rolle beholder deres nuværende rettigheder, indtil en rolle tildeles.	Users without a role keep their current rights until a role is assigned.	Brukere uten rolle beholder sine nåværende rettigheter til en rolle tildeles.
+5592	Kun de seneste 200 hændelser vises	Only the latest 200 events are shown	Bare de siste 200 hendelsene vises
+5593	Ingen brugere fundet	No users found	Ingen brukere funnet
+5594	Farlige funktioner (kun administratorer som standard)	Dangerous functions (administrators only by default)	Farlige funksjoner (bare administratorer som standard)
+5595	Håndhævelse	Enforcement	Håndheving
+5596	Log kun (intet blokeres)	Log only (nothing is blocked)	Bare logg (ingenting blokkeres)
+5597	Afvis (standard-afvis er slået til)	Deny (default-deny is on)	Avvis (standard-avvis er slått på)
+5598	Sider uden rettighedsnøgle set i logperioden	Pages without a permission key seen during the logging period	Sider uten rettighetsnøkkel sett i loggperioden
+5599	Håndhævelsen er ændret	Enforcement changed	Håndhevingen er endret
+5600	Ville være afvist	Would have been denied	Ville blitt avvist
+5601	Skift til "Afvis" først, når listen over sider uden nøgle er tom, og alle "ville være afvist"-hændelser er forventede.	Switch to "Deny" only when the list of pages without a key is empty and every "would have been denied" event is expected.	Bytt til "Avvis" først når listen over sider uten nøkkel er tom, og alle "ville blitt avvist"-hendelser er forventet.
+5602	Print side	Print page	Skriv ut side
+5603	Skjul oversigt	Hide dashboard	Skjul oversikt
+5604	Vis oversigt	Show dashboard	Vis oversikt
+5605	Rediger oversigt	Edit dashboard	Rediger oversikt
+5606	Kassesystem	Point of sale	Kassesystem
+5607	Sagsstyring	Job management	Saksstyring
+5608	Flyt til sidebar	Move to sidebar	Flytt til sidepanel
+5609	Flyt til toppen	Move to top	Flytt til toppen
+5610	Placering af den globale bjælke	Global bar placement	Plassering av den globale linjen
+5611	Topbjælke	Top bar	Topplinje
+5612	dig	you	deg
+5613	Profil	Profile	Profil
+5614	Min adgang	My access	Min tilgang
+5615	Aktive sessioner	Active sessions	Aktive økter
+5616	Log andre enheder ud	Log out other devices	Logg ut andre enheter
+5617	Denne enhed	This device	Denne enheten
+5618	Indtast din nuværende adgangskode for at ændre e-mail, telefon, tofaktor eller adgangskode	Enter your current password to change email, phone, two-factor or password	Skriv inn nåværende passord for å endre e-post, telefon, tofaktor eller passord
+5619	Bekræft med din nuværende adgangskode	Confirm with your current password	Bekreft med nåværende passord
+5620	Regnskabets administratorer	The company's administrators	Regnskapets administratorer
+5621	Kontakt en administrator for at få ændret din adgang	Contact an administrator to change your access	Kontakt en administrator for å endre tilgangen din
+5622	Sidebar	Sidebar	Sidepanel
+5623	Andre enheder er logget ud	Other devices were logged out	Andre enheter er logget ut
+5624	Tofaktor-metode: SMS når et telefonnummer er angivet, ellers e-mail	Two-factor method: SMS when a phone number is set, otherwise email	Tofaktormetode: SMS når et telefonnummer er angitt, ellers e-post
+5625	Den nuværende adgangskode mangler eller er forkert – ændringer af e-mail, telefon, tofaktor og adgangskode blev ikke gemt	The current password is missing or wrong – changes to email, phone, two-factor and password were not saved	Nåværende passord mangler eller er feil – endringer av e-post, telefon, tofaktor og passord ble ikke lagret
+5626	Nyt i Saldi	News from Saldi	Nytt i Saldi
+5627	Intet aktivt regnskabsår	No active fiscal year	Intet aktivt regnskapsår
+5628	Opret det næste regnskabsår, før det nuværende slutter den %s	Create the next fiscal year before the current one ends on %s	Opprett neste regnskapsår før det nåværende slutter %s
+5629	Regnskabsåret slutter snart	The fiscal year ends soon	Regnskapsåret slutter snart
+5630	Varer med udløb	Expiring batches	Varer med utløp
+5631	%s batch(er) udløber inden for %s dage – %s er allerede udløbet	%s batch(es) expire within %s days – %s already expired	%s batch(er) utløper innen %s dager – %s er allerede utløpt
+5632	Bankintegration: forbindelsen er udløbet	Bank integration: the connection has expired	Bankintegrasjon: tilkoblingen er utløpt
+5633	Forny forbindelsen til banken, før nye posteringer kan hentes	Renew the bank connection before new entries can be fetched	Forny banktilkoblingen før nye posteringer kan hentes
+5634	Markér alle som læst	Mark all as read	Merk alle som lest
+5635	for %s min. siden	%s min ago	for %s min siden
+5636	for %s timer siden	%s hours ago	for %s timer siden
+5637	i går	yesterday	i går
+5638	for %s dage siden	%s days ago	for %s dager siden
+5639	Notifikationer	Notifications	Varsler
+5640	Nyheder	News	Nyheter
+5641	Advarsler	Warnings	Advarsler
+5642	Forslag	Suggestions	Forslag
+5643	System	System	System
+5644	Vælg hvilke notifikationer du vil se i klokken	Choose which notifications to show in the bell	Velg hvilke varsler du vil se i bjellen
+5645	lige nu	just now	akkurat nå
+5646	Aktivér et regnskabsår under Indstillinger » Virksomhed » Regnskabsår	Activate a fiscal year under Settings » Company » Fiscal year	Aktiver et regnskapsår under Innstillinger » Virksomhet » Regnskapsår
+5647	Tilbage	Back	Tilbake
+5648	Indstillingsområder	Settings areas	Innstillingsområder
+5649	Firma	Company	Firma
+5650	Varer & lager	Products & inventory	Varer og lager
+5651	Ansatte	Employees	Ansatte
+5653	Stamdata, regnskabsår, kontoindstillinger og sprog	Master data, fiscal years, account settings and language	Stamdata, regnskapsår, kontoinnstillinger og språk
+5654	Kontoplan, moms, valuta, øredifferencer og bilag	Chart of accounts, VAT, currency, rounding and vouchers	Kontoplan, mva, valuta, øreforskjeller og bilag
+5655	Debitorgrupper, rykkere, prislister, formularer og ordrer	Customer groups, reminders, price lists, forms and orders	Kundegrupper, purringer, prislister, skjemaer og ordrer
+5656	Kreditorgrupper	Supplier groups	Leverandørgrupper
+5657	Varegrupper, enheder, varianter, lagre og mærkater	Product groups, units, variants, warehouses and labels	Varegrupper, enheter, varianter, lagre og etiketter
+5658	Ansatte, afdelinger, projekter og provision	Employees, departments, projects and commission	Ansatte, avdelinger, prosjekter og provisjon
+5659	Brugere, roller, rettigheder og log	Users, roles, permissions and log	Brukere, roller, rettigheter og logg
+5660	Bank, API, Stripe, Docubizz og webshop	Bank, API, Stripe, Docubizz and webshop	Bank, API, Stripe, Docubizz og nettbutikk
+5661	Kassevalg og kassemenuer	Register options and register menus	Kassevalg og kassemenyer
+5662	Ind- og udlæsning af kontoplan, kunder, varer og formularer	Import and export of accounts, customers, products and forms	Inn- og utlesing av kontoplan, kunder, varer og skjemaer
+5663	Søg i indstillinger…	Search settings…	Søk i innstillinger…
+5664	Ingen indstillinger matcher søgningen	No settings match the search	Ingen innstillinger samsvarer med søket
+5665	Du har ikke adgang til nogen indstillinger. Kontakt en administrator.	You have no access to any settings. Contact an administrator.	Du har ikke tilgang til noen innstillinger. Kontakt en administrator.
+5666	Alle indstillinger	All settings	Alle innstillinger
+5667	Du har ændringer, der ikke er gemt. Vil du forlade siden?	You have unsaved changes. Leave the page?	Du har endringer som ikke er lagret. Vil du forlate siden?
+5668	Systemværktøjer	System tools	Systemverktøy
+5669	Virksomhed	Company	Virksomhet
+5670	Organisation	Organisation	Organisasjon
+5671	Dokumenter & e-mail	Documents & e-mail	Dokumenter og e-post
+5672	Kontoplan, moms, valuta, bilag og bank	Chart of accounts, VAT, currencies, vouchers and bank	Kontoplan, mva, valuta, bilag og bank
+5673	Debitorgrupper, ordrer, rykkere og rabatter	Debtor groups, orders, reminders and discounts	Debitorgrupper, ordrer, purringer og rabatter
+5674	Kreditorgrupper og leverandørprislister	Creditor groups and supplier price lists	Kreditorgrupper og leverandørprislister
+5675	Formularer, e-mail og afsendere	Forms, e-mail and senders	Skjemaer, e-post og avsendere
+5676	API, webshop, Stripe og app	API, webshop, Stripe and app	API, nettbutikk, Stripe og app
+5677	Adgangskoden er gemt og vises ikke	The password is stored and not shown	Passordet er lagret og vises ikke
+5678	Sat - skriv kun for at ændre	Set - type only to change	Satt - skriv kun for å endre
+5679	Ordrer & fakturering	Orders & invoicing	Ordrer og fakturering
+5680	Lagerstyring & kostpris	Stock control & cost price	Lagerstyring og kostpris
+5681	Debitorkort	Debtor card	Debitorkort
+5682	Købsordrer	Purchase orders	Innkjøpsordrer
+5683	Priser & moms	Prices & VAT	Priser og mva
+5684	Fakturering	Invoicing	Fakturering
+5685	Varenumre & konti	Item numbers & accounts	Varenumre og kontoer
+5686	Ordrevindue	Order window	Ordrevindu
+5687	Følgeseddel & plukliste	Packing slip & pick list	Følgeseddel og plukkliste
+5688	Lagerstyring	Stock control	Lagerstyring
+5689	Kostpris	Cost price	Kostpris
+5690	Lagerstatus-mail	Stock status e-mail	Lagerstatus-e-post
+5691	Varekort	Item card	Varekort
+5692	Bogføring	Posting	Bokføring
+5693	Vis priser inkl. moms på kundeordrer (private kunder)	Show prices incl. VAT on customer orders (private customers)	Vis priser inkl. mva på kundeordrer (privatkunder)
+5694	Vis priser inkl. moms på kundeordrer (erhvervskunder)	Show prices incl. VAT on customer orders (business customers)	Vis priser inkl. mva på kundeordrer (bedriftskunder)
+5695	Priserne på salgsordrer vises inkl. moms for denne kundetype	Prices on sales orders are shown incl. VAT for this customer type	Prisene på salgsordrer vises inkl. mva for denne kundetypen
+5696	Varenr. for porto	Item no. for postage	Varenr. for porto
+5697	Varen indsættes automatisk på nye ordrer	The item is added automatically to new orders	Varen settes automatisk inn på nye ordrer
+5698	Skjul dækningsbidrag	Hide contribution margin	Skjul dekningsbidrag
+5699	Dækningsbidraget vises ikke på ordresiden	The contribution margin is not shown on the order page	Dekningsbidraget vises ikke på ordresiden
+5700	Skjul dækningsgrad	Hide contribution ratio	Skjul dekningsgrad
+5701	Dækningsgraden vises ikke på ordresiden	The contribution ratio is not shown on the order page	Dekningsgraden vises ikke på ordresiden
+5702	Plukliste e-mail	Pick list e-mail	Plukkliste e-post
+5703	Pluklister sendes til denne adresse	Pick lists are sent to this address	Plukklister sendes til denne adressen
+5704	Anvend autosøgning på ordrer	Use autocomplete on orders	Bruk autosøk på ordrer
+5705	Slår autosøgning til på ordresider. Gælder kun for dig.	Turns on autocomplete on order pages. Applies only to you.	Slår på autosøk på ordresider. Gjelder kun for deg.
+5706	Gælder for alle i	Applies to everyone in	Gjelder for alle i
+5707	Ingen ændringer	No changes	Ingen endringer
+5708	Du har ugemte ændringer	You have unsaved changes	Du har ulagrede endringer
+5709	Gemt kl.	Saved at	Lagret kl.
+5710	Seneste ændringer	Recent changes	Siste endringer
+5711	Gendan	Restore	Gjenopprett
+5712	Ingen ændringer endnu	No changes yet	Ingen endringer ennå
+5713	ændret	changed	endret
+5714	Standard:	Default:	Standard:
+5715	til	on	på
+5716	fra	off	av
+5717	Nulstil til standard	Reset to default	Tilbakestill til standard
+5718	Link kopieret	Link copied	Lenke kopiert
+5719	Findes ikke	Not found	Finnes ikke
+5720	Dette lå før under	This used to be under	Dette lå før under
+5721	Det ligger nu her.	It is now here.	Det ligger nå her.
+5722	Vis mig hvor alt er flyttet hen	Show me where everything has moved	Vis meg hvor alt er flyttet
+5723	Tidligere:	Previously:	Tidligere:
+5724	Indstillingerne har fået ny struktur — det hele er her stadig. Søg, eller se hvor tingene er flyttet hen.	The settings have a new structure — everything is still here. Search, or see where things have moved.	Innstillingene har fått ny struktur — alt er her fortsatt. Søk, eller se hvor ting er flyttet.
+5725	Hvor er…?	Where is…?	Hvor er…?
+5726	Før	Before	Før
+5727	Nu	Now	Nå
+5728	gemte ændringer kl.	saved changes at	lagret endringer kl.
+5729	Genindlæs for at se dem — dine ændringer bevares i felterne.	Reload to see them — your changes are kept in the fields.	Last inn på nytt for å se dem — endringene dine beholdes i feltene.
+5730	Genindlæs	Reload	Last inn på nytt
+5731	Ret fejlene nedenfor. Intet er gemt.	Correct the errors below. Nothing was saved.	Rett feilene nedenfor. Ingenting er lagret.
+5732	Skal være et tal	Must be a number	Må være et tall
+5733	Ugyldig e-mailadresse	Invalid e-mail address	Ugyldig e-postadresse
+5734	Kontoen findes ikke i kontoplanen	The account does not exist in the chart of accounts	Kontoen finnes ikke i kontoplanen
+5735	Varenummeret findes ikke	The item number does not exist	Varenummeret finnes ikke
+5736	Kan ikke ændres, fordi en varegruppe bruger batchkontrol	Cannot be changed because an item group uses batch control	Kan ikke endres fordi en varegruppe bruker batchkontroll
+5737	Opdater kostpriser nu?	Update cost prices now?	Oppdatere kostpriser nå?
+5738	Kostprisen på alle lagervarer opdateres efter den valgte metode. Det kan ikke fortrydes.	The cost price of all stock items is updated using the chosen method. This cannot be undone.	Kostprisen på alle lagervarer oppdateres etter valgt metode. Dette kan ikke angres.
+5739	Genveje	Shortcuts	Snarveier
+5740	Kræver kasselicens — kontakt Saldi	Requires a POS licence — contact Saldi	Krever kasselisens — kontakt Saldi
+5741	Kopiér link	Copy link	Kopier lenke
+5742	Personlig	Personal	Personlig
+5743	Vis alle	Show all	Vis alle
+5744	Andres ændringer er indlæst. Dine egne rettelser er bevaret og markeret. Gem igen for at gennemføre dem.	The other changes have been loaded. Your own edits are kept and marked. Save again to apply them.	Andres endringer er lastet inn. Dine egne rettelser er beholdt og markert. Lagre igjen for å gjennomføre dem.
+5745	timer	hours	timer
+5746	Skjul	Dismiss	Skjul
+5747	Gendan værdien?	Restore the value?	Gjenopprette verdien?
+5748	Værdien sættes tilbage til:	The value is set back to:	Verdien settes tilbake til:
+5749	Ikke i registret	Not in the registry	Ikke i registeret
+5750	Ikke flyttet endnu	Not moved yet	Ikke flyttet ennå
+5751	Spring til formularen	Skip to the form	Hopp til skjemaet
+5752	Værdien er gendannet	The value has been restored	Verdien er gjenopprettet
+5753	Handlingen er startet	The action has started	Handlingen er startet
+5754	Sikkerhedstjekket fejlede. Prøv igen.	The security check failed. Please try again.	Sikkerhetssjekken feilet. Prøv igjen.
+5755	Du har kun læseadgang til disse indstillinger	You have read-only access to these settings	Du har kun lesetilgang til disse innstillingene
+5756	Luk bruger	Close user	Lukk bruker
+5757	Genåbn bruger	Reopen user	Gjenåpne bruker
+5758	Brugeren er lukket	The user is closed	Brukeren er lukket
+5759	Brugeren er genåbnet	The user has been reopened	Brukeren er gjenåpnet
+5760	Regnskabet skal have mindst én administrator.	The company must have at least one administrator.	Regnskapet må ha minst én administrator.
+5761	Du kan ikke ændre din egen rolle	You cannot change your own role	Du kan ikke endre din egen rolle
+5762	Brugeren har været logget ind og kan derfor kun lukkes, ikke slettes	The user has logged in before and can therefore only be closed, not deleted	Brukeren har vært logget inn og kan derfor bare lukkes, ikke slettes
+5763	Rollen er nulstillet til standard	The role has been reset to default	Rollen er tilbakestilt til standard
+5764	Luk valgte	Close selected	Lukk valgte
+5765	Genåbn valgte	Reopen selected	Gjenåpne valgte
+5766	Luk bruger?	Close user?	Lukke bruker?
+5767	Nulstil rollen til standard?	Reset the role to default?	Tilbakestille rollen til standard?
+5768	administratorer	administrators	administratorer
+5769	Brugerne er opdateret	The users have been updated	Brukerne er oppdatert
+5770	Lukkede brugere kan ikke logge ind og kan genåbnes senere.	Closed users cannot log in and can be reopened later.	Lukkede brukere kan ikke logge inn og kan gjenåpnes senere.
+5771	Vælg en rolle først	Choose a role first	Velg en rolle først
+5772	%s brugere blev sprunget over	%s users were skipped	%s brukere ble hoppet over
+5773	Invitation til %s i Saldi	Invitation to %s in Saldi	Invitasjon til %s i Saldi
+5774	%s har inviteret dig til regnskabet %s i Saldi.	%s has invited you to the company %s in Saldi.	%s har invitert deg til regnskapet %s i Saldi.
+5775	Vælg din adgangskode	Choose your password	Velg passordet ditt
+5776	Linket gælder i 72 timer.	The link is valid for 72 hours.	Lenken gjelder i 72 timer.
+5777	Tofaktor-login er slået til: du får en kode på SMS eller e-mail, hver gang du logger ind.	Two-factor login is on: you get a code by SMS or email every time you log in.	Tofaktor-innlogging er slått på: du får en kode på SMS eller e-post hver gang du logger inn.
+5778	Inviteret	Invited	Invitert
+5779	Inviter bruger	Invite user	Inviter bruker
+5780	Opret bruger	Create user	Opprett bruker
+5781	Send invitation igen	Resend invitation	Send invitasjon på nytt
+5782	Invitationen er sendt	The invitation has been sent	Invitasjonen er sendt
+5783	E-mailen kunne ikke sendes. Send dette link til brugeren.	The email could not be sent. Send this link to the user.	E-posten kunne ikke sendes. Send denne lenken til brukeren.
+5784	Linket er ikke længere gyldigt. Bed din administrator sende invitationen igen.	The link is no longer valid. Ask your administrator to resend the invitation.	Lenken er ikke lenger gyldig. Be administratoren din sende invitasjonen på nytt.
+5785	Adgangskoden skal være på mindst 8 tegn	The password must be at least 8 characters	Passordet må være på minst 8 tegn
+5786	En gyldig e-mail er påkrævet for at invitere	A valid email is required to invite	En gyldig e-post kreves for å invitere
+5787	inviterede	invited	inviterte
+5788	Brugeren får en e-mail med et link og vælger selv sin adgangskode.	The user gets an email with a link and chooses their own password.	Brukeren får en e-post med en lenke og velger selv passordet sitt.
+5789	Fortsæt	Continue	Fortsett
+5790	Adgangskoden er gemt	The password has been saved	Passordet er lagret
+5791	Du bliver nu logget ind.	You are now being logged in.	Du blir nå logget inn.
+5792	Invitationen kan ikke bruges	The invitation cannot be used	Invitasjonen kan ikke brukes
+5793	Til login	To login	Til innlogging
+5794	Brugeren har allerede valgt en adgangskode	The user has already chosen a password	Brukeren har allerede valgt et passord
+5795	Send invitation	Send invitation	Send invitasjon
+5796	Audit-log	Audit log	Revisjonslogg
+5797	Fra	From	Fra
+5798	Til	To	Til
+5799	Alle brugere	All users	Alle brukere
+5800	Alle handlinger	All actions	Alle handlinger
+5801	Alle objekter	All objects	Alle objekter
+5802	Søg i brugernavn og objekt…	Search username and object…	Søk i brukernavn og objekt…
+5803	Filtrér	Filter	Filtrer
+5804	Nulstil filtre	Clear filters	Nullstill filtre
+5805	Eksportér CSV	Export CSV	Eksporter CSV
+5806	Objekt	Object	Objekt
+5807	Ældre	Older	Eldre
+5808	Nyere	Newer	Nyere
+5809	Du har ikke adgang til dette	You do not have access to this	Du har ikke tilgang til dette
+5810	Login og logud	Login and logout	Innlogging og utlogging
+5811	Sessioner	Sessions	Økter
+5812	Rettigheder og sikkerhed	Permissions and security	Rettigheter og sikkerhet
+5813	Logget ind	Logged in	Logget inn
+5814	Login afvist	Login refused	Innlogging avvist
+5815	Forkert tofaktor-kode	Wrong two-factor code	Feil tofaktorkode
+5816	IP-adresse afvist	IP address refused	IP-adresse avvist
+5817	Logget ud	Logged out	Logget ut
+5818	Regnskab åbnet fra admin	Company opened from admin	Regnskap åpnet fra admin
+5819	Bruger logget ud af en anden	User logged out by another	Bruker logget ut av en annen
+5820	Bruger oprettet	User created	Bruker opprettet
+5821	Bruger ændret	User changed	Bruker endret
+5822	Bruger lukket	User closed	Bruker lukket
+5823	Bruger genåbnet	User reopened	Bruker gjenåpnet
+5824	Bruger slettet	User deleted	Bruker slettet
+5825	Brugerens rolle skiftet	User's role changed	Brukerens rolle byttet
+5826	Bruger inviteret	User invited	Bruker invitert
+5827	Invitation sendt igen	Invitation resent	Invitasjon sendt på nytt
+5828	Adgangskode valgt	Password chosen	Passord valgt
+5829	Adgangskode ændret	Password changed	Passord endret
+5830	Tofaktor-login ændret	Two-factor login changed	Tofaktorinnlogging endret
+5831	Kontaktoplysninger ændret	Contact details changed	Kontaktopplysninger endret
+5832	Personlige indstillinger ændret	Personal settings changed	Personlige innstillinger endret
+5833	Rolle oprettet	Role created	Rolle opprettet
+5834	Rolle ændret	Role changed	Rolle endret
+5835	Rolle slettet	Role deleted	Rolle slettet
+5836	Rolle nulstillet	Role reset	Rolle nullstilt
+5837	Side uden rettighedsnøgle	Page without permission key	Side uten rettighetsnøkkel
+5838	Adgang afvist	Access refused	Tilgang avvist
+5839	Ugyldig formular (CSRF)	Invalid form (CSRF)	Ugyldig skjema (CSRF)
+5840	Indstilling ændret	Setting changed	Innstilling endret
+5841	Indstillingshandling udført	Settings action run	Innstillingshandling utført
+5842	Revisor valgt	Auditor chosen	Revisor valgt
+5843	Revisor fjernet	Auditor removed	Revisor fjernet
+5844	Audit-log eksporteret	Audit log exported	Revisjonslogg eksportert
+5845	Viser %s–%s	Showing %s–%s	Viser %s–%s
+5846	Du kan ikke lukke din egen bruger.	You cannot close your own user.	Du kan ikke lukke din egen bruker.
+5847	Invitationen sendes kun igen til brugere med status Inviteret.	The invitation is only resent to users with status Invited.	Invitasjonen sendes bare på nytt til brukere med status Invitert.
+5848	%s af %s brugere er opdateret.	%s of %s users updated.	%s av %s brukere er oppdatert.
+5849	%s brugere er lukket.	%s users closed.	%s brukere er lukket.
+5850	%s brugere er genåbnet.	%s users reopened.	%s brukere er gjenåpnet.
+5851	%s invitationer er sendt igen.	%s invitations resent.	%s invitasjoner er sendt på nytt.
+5852	%s brugere har fået ny rolle.	%s users got a new role.	%s brukere har fått ny rolle.
+5853	Ingen brugere blev ændret.	No users were changed.	Ingen brukere ble endret.
+5854	%s var allerede lukket.	%s were already closed.	%s var allerede lukket.
+5855	%s var allerede aktive.	%s were already active.	%s var allerede aktive.
+5856	%s havde allerede rollen.	%s already had the role.	%s hadde allerede rollen.
+5857	%s er ikke inviteret og fik ingen invitation.	%s are not invited and got no invitation.	%s er ikke invitert og fikk ingen invitasjon.
+5858	%s invitationer kunne ikke sendes. Åbn brugeren for at få linket.	%s invitations could not be sent. Open the user to get the link.	%s invitasjoner kunne ikke sendes. Åpne brukeren for å få lenken.
+5859	Midlertidig adgangskode til %s i Saldi	Temporary password for %s in Saldi	Midlertidig passord til %s i Saldi
+5860	%s har bedt om en ny adgangskode til dig i regnskabet %s.	%s has requested a new password for you in the company %s.	%s har bedt om et nytt passord til deg i regnskapet %s.
+5861	Midlertidig adgangskode	Temporary password	Midlertidig passord
+5862	Den gælder til %s. Vælg derefter en ny adgangskode under Personlige indstillinger.	It is valid until %s. Then choose a new password under Personal settings.	Det gjelder til %s. Velg deretter et nytt passord under Personlige innstillinger.
+5863	En midlertidig adgangskode er sendt til brugerens e-mail	A temporary password has been sent to the user's email	Et midlertidig passord er sendt til brukerens e-post
+5864	Brugeren har ingen gyldig e-mail	The user has no valid email	Brukeren har ingen gyldig e-post
+5865	E-mailen kunne ikke sendes. Tjek e-mailopsætningen under Indstillinger.	The email could not be sent. Check the email setup under Settings.	E-posten kunne ikke sendes. Sjekk e-postoppsettet under Innstillinger.
+5866	Brugeren er lukket. Genåbn brugeren først.	The user is closed. Reopen the user first.	Brukeren er lukket. Gjenåpne brukeren først.
+5867	Send en midlertidig adgangskode til brugerens e-mail?	Send a temporary password to the user's email?	Sende et midlertidig passord til brukerens e-post?
+5868	Nulstil adgangskode	Reset password	Nullstill passord
+5869	Adgangskode nulstillet	Password reset	Passord nullstilt
+5870	Forrige	Previous	Forrige
+5871	Næste	Next	Neste
+5872	%s–%s af %s	%s–%s of %s	%s–%s av %s
+5873	Med 2FA	With 2FA	Med 2FA
+5874	Uden 2FA	Without 2FA	Uten 2FA
+5875	Alle roller	All roles	Alle roller
+5876	Klik for at sortere	Click to sort	Klikk for å sortere
+5877	Tilpasset rolle %s	Custom role %s	Tilpasset rolle %s
+5878	Oprettet ved overgangen til roller ud fra de gamle rettigheder: %s	Created when moving to roles, from the old rights: %s	Opprettet ved overgangen til roller ut fra de gamle rettighetene: %s
+5879	Saldi har oversat jeres %s brugere til roller. %s har fuld adgang som Administrator, %s fik en tilpasset rolle. Gennemgå fordelingen.	Saldi has translated your %s users to roles. %s have full access as Administrator, %s got a custom role. Review the distribution.	Saldi har oversatt deres %s brukere til roller. %s har full tilgang som Administrator, %s fikk en tilpasset rolle. Gå gjennom fordelingen.
+5880	Gennemgå	Review	Gå gjennom
+5881	Skjul	Hide	Skjul
+5882	Migreret, ikke bekræftet	Migrated, not confirmed	Migrert, ikke bekreftet
+5883	Ikke bekræftet	Not confirmed	Ikke bekreftet
+5884	Rollen er sat automatisk ud fra brugerens gamle rettigheder. Forslag: %s.	The role was set automatically from the user's old rights. Suggestion: %s.	Rollen er satt automatisk ut fra brukerens gamle rettigheter. Forslag: %s.
+5885	Brug forslaget	Use the suggestion	Bruk forslaget
+5886	Behold %s	Keep %s	Behold %s
+5887	Anvend forslag på valgte	Apply suggestion to selected	Bruk forslag på valgte
+5888	%s brugere er bekræftet.	%s users confirmed.	%s brukere er bekreftet.
+5889	Rollen er bekræftet	The role is confirmed	Rollen er bekreftet
+5890	Rolle bekræftet	Role confirmed	Rolle bekreftet
+5891	Vælg en rolle	Choose a role	Velg en rolle
+5892	Gennemgå roller	Review roles	Gå gjennom roller
+5893	læs	read	les
+5894	%s var allerede bekræftet.	%s were already confirmed.	%s var allerede bekreftet.
+5895	%s brugere har fået en rolle automatisk og venter på at blive bekræftet.	%s users were given a role automatically and are waiting to be confirmed.	%s brukere har fått en rolle automatisk og venter på å bli bekreftet.
+5896	Brugerens rolle er allerede bekræftet	The user's role is already confirmed	Brukerens rolle er allerede bekreftet
+5897	Alt, inkl. brugere, roller, integrationer og sikkerhedskopi.	Everything, incl. users, roles, integrations and backup.	Alt, inkl. brukere, roller, integrasjoner og sikkerhetskopi.
+5898	Finans, kassekladde, rapporter, moms og betalinger. Ingen brugeradministration.	Finance, cash journal, reports, VAT and payments. No user administration.	Finans, kassekladd, rapporter, mva og betalinger. Ingen brukeradministrasjon.
+5899	Debitorordrer, kunder og fakturering. Ingen finans eller indstillinger.	Sales orders, customers and invoicing. No finance or settings.	Salgsordrer, kunder og fakturering. Ingen finans eller innstillinger.
+5900	Kreditorordrer, leverandører og varemodtagelse.	Purchase orders, suppliers and goods receipt.	Innkjøpsordrer, leverandører og varemottak.
+5901	Varer, lager og produktion.	Items, stock and production.	Varer, lager og produksjon.
+5902	Læseadgang til alle moduler.	Read access to all modules.	Lesetilgang til alle moduler.
+5903	Læseadgang til finans, kontoplan og rapporter.	Read access to finance, chart of accounts and reports.	Lesetilgang til finans, kontoplan og rapporter.
+5904	Hver bruger har én rolle. Rollen bestemmer, hvad brugeren kan se og ændre.	Every user has one role. The role decides what the user can see and change.	Hver bruker har én rolle. Rollen bestemmer hva brukeren kan se og endre.
+5905	Aldrig	Never	Aldri
+5906	En eller flere IP-adresser er ugyldige	One or more IP addresses are invalid	En eller flere IP-adresser er ugyldige
+5907	Der er ikke plads til så mange IP-adresser (højst 45 tegn)	There is no room for that many IP addresses (45 characters at most)	Det er ikke plass til så mange IP-adresser (maks. 45 tegn)
+5908	markeret	selected	markert
+5909	Ryd	Clear	Tøm
+5910	Tildel rolle	Assign role	Tildel rolle
+5912	Genåbn	Reopen	Gjenåpne
+5913	Anvend forslag	Apply suggestion	Bruk forslag
+5914	Viser %s af %s brugere	Showing %s of %s users	Viser %s av %s brukere
+5915	Alle statusser	All statuses	Alle statuser
+5917	Søg navn, brugernavn eller e-mail	Search name, username or email	Søk navn, brukernavn eller e-post
+5918	Bekræft rolle for %s	Confirm role for %s	Bekreft rolle for %s
+5919	Saldi foreslår %s: den standardrolle med færrest ekstra rettigheder, der dækker alt, brugeren havde før.	Saldi suggests %s: the standard role with the fewest extra rights that covers everything the user had before.	Saldi foreslår %s: standardrollen med færrest ekstra rettigheter som dekker alt brukeren hadde før.
+5920	Behold nuværende	Keep current	Behold nåværende
+5921	Tildel %s	Assign %s	Tildel %s
+5923	Kan ikke ændres senere.	Cannot be changed later.	Kan ikke endres senere.
+5924	Kan ikke ændres.	Cannot be changed.	Kan ikke endres.
+5925	Kun roller inden for dine egne rettigheder kan vælges.	Only roles within your own rights can be chosen.	Bare roller innenfor dine egne rettigheter kan velges.
+5926	Sidste administrator. Regnskabet skal have mindst én.	Last administrator. The company must have at least one.	Siste administrator. Regnskapet må ha minst én.
+5927	Kobling til ansat	Linked employee	Kobling til ansatt
+5928	Tofaktor	Two-factor	Tofaktor
+5929	Til	On	På
+5930	Fra	Off	Av
+5931	IP-begrænsning	IP restriction	IP-begrensning
+5932	Én adresse pr. linje. Tom = ingen begrænsning.	One address per line. Empty = no restriction.	Én adresse per linje. Tom = ingen begrensning.
+5933	Adgang fra rollen	Access from the role	Tilgang fra rollen
+5935	Sæt ny adgangskode	Set a new password	Sett nytt passord
+5936	Luk %s?	Close %s?	Lukk %s?
+5937	Brugeren kan ikke logge ind og tæller ikke i abonnementet. Historik og kontrolspor bevares, og brugeren kan genåbnes.	The user cannot log in and does not count in the subscription. History and audit trail are kept, and the user can be reopened.	Brukeren kan ikke logge inn og teller ikke i abonnementet. Historikk og kontrollspor bevares, og brukeren kan gjenåpnes.
+5938	Brugeren har aldrig logget ind og kan derfor også slettes helt.	The user has never logged in and can therefore also be deleted completely.	Brukeren har aldri logget inn og kan derfor også slettes helt.
+5939	Slet helt	Delete completely	Slett helt
+5940	Annullér	Cancel	Avbryt
+5942	Egen	Custom	Egen
+5943	Standardrolle · navn låst	Built-in role · name locked	Standardrolle · navn låst
+5944	Bruges af %s brugere. Ændringer gælder fra deres næste sidevisning.	Used by %s users. Changes apply from their next page view.	Brukes av %s brukere. Endringer gjelder fra deres neste sidevisning.
+5945	Ingen brugere har denne rolle.	No users have this role.	Ingen brukere har denne rollen.
+5946	Sæt alle til skriv	Set all to write	Sett alle til skriv
+5948	%s bruges af %s brugere	%s is used by %s users	%s brukes av %s brukere
+5949	Flyt brugerne til en anden rolle først.	Move the users to another role first.	Flytt brukerne til en annen rolle først.
+5950	Flyt til	Move to	Flytt til
+5951	Flyt og slet	Move and delete	Flytt og slett
+5952	Opret	Create	Opprett
+5954	Saldi har oversat jeres brugere til roller	Saldi has translated your users to roles	Saldi har oversatt brukerne deres til roller
+5955	%s har fuld adgang som Administrator, %s fik en tilpasset rolle. Gennemgå fordelingen, så kun de rigtige har alt.	%s have full access as Administrator, %s got a custom role. Review the distribution so only the right people have everything.	%s har full tilgang som Administrator, %s fikk en tilpasset rolle. Gå gjennom fordelingen, så bare de riktige har alt.
+5959	Vis	Show	Vis
+5960	%s brugere · %s administratorer · %s inviterede · %s lukkede	%s users · %s administrators · %s invited · %s closed	%s brukere · %s administratorer · %s inviterte · %s lukkede
+5961	Send mig en daglig opsummering af ulæste notifikationer	Send me a daily summary of unread notifications	Send meg en daglig oppsummering av uleste varsler
+5962	Sendes én gang om dagen til %s, kun når der er noget nyt.	Sent once a day to %s, only when there is something new.	Sendes én gang om dagen til %s, bare når det er noe nytt.
+5963	Tilføj en e-mail under Profil for at få opsummeringen.	Add an email under Profile to get the summary.	Legg til en e-post under Profil for å få oppsummeringen.
+5964	Du har %s ulæste notifikationer i %s:	You have %s unread notifications in %s:	Du har %s uleste varsler i %s:
+5965	Log ind i Saldi og åbn klokken for at se dem.	Log in to Saldi and open the bell to see them.	Logg inn i Saldi og åpne klokken for å se dem.
+5966	Du får denne mail, fordi du har slået den daglige opsummering til under Personlige indstillinger → Notifikationer.	You get this email because you switched on the daily summary under Personal settings → Notifications.	Du får denne e-posten fordi du har slått på den daglige oppsummeringen under Personlige innstillinger → Varsler.
+5967	Daglig opsummering fra %s	Daily summary from %s	Daglig oppsummering fra %s
+5968	Du kan ikke ændre brugere med flere rettigheder end dig selv	You cannot change users with more rights than yourself	Du kan ikke endre brukere med flere rettigheter enn deg selv
+5969	Siden var for gammel til at gemme. Prøv igen.	The page was too old to save. Please try again.	Siden var for gammel til å lagre. Prøv igjen.
+5970	Administrator-rollen skal altid have skriveadgang til brugere og roller	The Administrator role must always have write access to users and roles	Administrator-rollen må alltid ha skrivetilgang til brukere og roller
+5971	Administrator-rollen beholder altid adgang til brugere og roller	The Administrator role always keeps access to users and roles	Administrator-rollen beholder alltid tilgang til brukere og roller
+5972	Ikke aktiveret	Not activated	Ikke aktivert
+5973	Aktiv	Active	Aktiv
+5974	Aktivér	Activate	Aktiver
+5975	Kommissionsvarer	Consignment items	Kommisjonsvarer
+5976	Emballage (producentansvar)	Packaging (producer responsibility)	Emballasje (produsentansvar)
+5977	%s brugere · %s administratorer	%s users · %s administrators	%s brukere · %s administratorer
+5978	%s kasser	%s tills	%s kasser
+5979	Regnskabsår %s aktivt	Fiscal year %s active	Regnskapsår %s aktivt
+5980	%s aktive	%s active	%s aktive
+5981	Moduler	Modules	Moduler
+5982	1 kasse	1 till	1 kasse
+5983	Kassekladde & betalinger	Cash journal & payments	Kassekladde & betalinger
+5984	Betalingsfrist	Payment terms	Betalingsfrist
+5985	Debitorer	Debtors	Debitorer
+5986	Mit salg	My sales	Mitt salg
+5987	Deaktiver labels for kunder	Disable labels for customers	Deaktiver etiketter for kunder
+5988	Kun ejeren kan oprette labels; kunderne kan ikke.	Only the owner can create labels; customers cannot.	Bare eieren kan opprette etiketter; kundene kan ikke.
+5989	Maksimal længde på labels	Maximum label length	Maksimal lengde på etiketter
+5990	Vis tidspunkter i Mit salg	Show times in My sales	Vis tidspunkter i Mitt salg
+5991	Salgstidspunktet vises sammen med datoen i kundens oversigt.	The time of sale is shown with the date in the customer's overview.	Salgstidspunktet vises sammen med datoen i kundens oversikt.
+5992	Labels	Labels	Etiketter
+5993	Udskrift	Print	Utskrift
+5994	Printeren skal være oprettet på Saldi-serveren, og din router skal sende port 9100 videre til printeren. Kontakt Saldi for hjælp.	The printer must be set up on the Saldi server, and your router must forward port 9100 to the printer. Contact Saldi for help.	Skriveren må være opprettet på Saldi-serveren, og ruteren din må videresende port 9100 til skriveren. Kontakt Saldi for hjelp.
+5995	Anvend emballagemodul (producentansvar)	Use packaging module (producer responsibility)	Bruk emballasjemodul (produsentansvar)
+5996	Aktiverer emballagemodulet på varekort og i rapporter.	Activates the packaging module on item cards and in reports.	Aktiverer emballasjemodulen på varekort og i rapporter.
+5997	Standard provisionssats på varekort	Default commission rate on item card	Standard provisjonssats på varekort
+5998	Satsen foreslås på nye varer.	The rate is suggested on new items.	Satsen foreslås på nye varer.
+5999	Vis provision på varekort	Show commission on item card	Vis provisjon på varekort
+6000	Provisionsfeltet vises på varekortet.	The commission field is shown on the item card.	Provisjonsfeltet vises på varekortet.
+6001	Referenceperson	Reference person	Referanseperson
+6002	Faktureret: provision beregnes på fakturerede ordrer. Betalt: kun på betalte ordrer.	Invoiced: commission is calculated on invoiced orders. Paid: only on paid orders.	Fakturert: provisjon beregnes på fakturerte ordrer. Betalt: bare på betalte ordrer.
+6003	Begge: den kundeansvarlige, hvis der er en, ellers referencepersonen på ordren.	Both: the customer-responsible if there is one, otherwise the reference person on the order.	Begge: den kundeansvarlige hvis det finnes en, ellers referansepersonen på ordren.
+6004	Indkøbspris: varens reelle indkøbspris. Varekort: kostprisen fra varekortet.	Purchase price: the item's actual purchase price. Item card: the cost price from the item card.	Innkjøpspris: varens reelle innkjøpspris. Varekort: kostprisen fra varekortet.
+6005	Konverterer varer oprettet til Mit salg, hvor kostprisen blev brugt som kommissionsprocent: varer med varenummer kb/kn, salgspris 0 og kostpris mellem 0,10 og 0,50 får kostpris 1 − sats, og kommissionssatsen sættes. Kontakt os gerne først: +45 4690 2208.	Converts items created for My sales where the cost price was used as the commission percentage: items numbered kb/kn with sales price 0 and cost price between 0.10 and 0.50 get cost price 1 − rate, and the commission rate is set. Feel free to contact us first: +45 4690 2208.	Konverterer varer opprettet for Mitt salg der kostprisen ble brukt som provisjonsprosent: varer med varenummer kb/kn, salgspris 0 og kostpris mellom 0,10 og 0,50 får kostpris 1 − sats, og provisjonssatsen settes. Kontakt oss gjerne først: +45 4690 2208.
+6006	Varerne ændres med det samme og kan ikke fortrydes. Fortsæt?	The items are changed immediately and cannot be undone. Continue?	Varene endres med en gang og kan ikke angres. Fortsett?
+6007	Udskriv til lokal printer	Print to local printer	Skriv ut til lokal skriver
+6008	Udskrifter sendes til den printer, der er sat op under Dokumenter → Udskrift. Gælder kun for dig.	Printouts go to the printer set up under Documents → Print. Applies only to you.	Utskrifter sendes til skriveren som er satt opp under Dokumenter → Utskrift. Gjelder bare deg.
+6010	Ugyldig dato (dd-mm-åååå)	Invalid date (dd-mm-yyyy)	Ugyldig dato (dd-mm-åååå)
+6013	%s varer konverteret	%s items converted	%s varer konvertert
+6014	Dette modul er ikke aktiveret i regnskabet.	This module is not activated in the company.	Denne modulen er ikke aktivert i regnskapet.
+6015	Du er her	You are here	Du er her
+6016	Kræver opmærksomhed	Needs attention	Krever oppmerksomhet
+6017	Virksomhed & regnskab	Company & accounts	Virksomhet & regnskap
+6018	Handel	Trade	Handel
+6019	Data & forbindelser	Data & connections	Data & forbindelser
+6020	Gælder for alle i %s. Dine personlige valg finder du under dit navn øverst til højre.	Applies to everyone in %s. Your personal choices are under your name at the top right.	Gjelder for alle i %s. Dine personlige valg finner du under navnet ditt øverst til høyre.
+6021	Ny struktur	New structure	Ny struktur
+6022	Indstillingerne er samlet i færre, tydeligere grupper. Alt er her stadig – søg efter det gamle menunavn, så finder du det nye sted.	The settings are gathered in fewer, clearer groups. Everything is still here – search for the old menu name to find its new place.	Innstillingene er samlet i færre, tydeligere grupper. Alt er her fortsatt – søk etter det gamle menynavnet, så finner du det nye stedet.
+6023	Hvor er de gamle menupunkter?	Where are the old menu items?	Hvor er de gamle menypunktene?
+6024	Tastaturgenveje	Keyboard shortcuts	Tastatursnarveier
+6025	Afsender-e-mail mangler	Sender e-mail is missing	Avsender-e-post mangler
+6026	Tilføj afsender	Add sender	Legg til avsender
+6027	Mangler afsender	Sender missing	Mangler avsender
+6028	%s brugere venter på rollegennemgang	%s users await role review	%s brukere venter på rollegjennomgang
+6029	MobilePay: webhook er ikke forbundet	MobilePay: webhook is not connected	MobilePay: webhook er ikke tilkoblet
+6030	Betalinger registreres ikke automatisk	Payments are not registered automatically	Betalinger registreres ikke automatisk
+6031	Du har læseadgang	You have read access	Du har lesetilgang
+6032	Du kan se indstillingerne, men ikke ændre dem. Kontakt en administrator.	You can see the settings but not change them. Contact an administrator.	Du kan se innstillingene, men ikke endre dem. Kontakt en administrator.
+6033	%s momskoder	%s VAT codes	%s mva-koder
+6034	%s ansatte	%s employees	%s ansatte
+6035	%s lagre	%s warehouses	%s lagre
+6036	%s brugere	%s users	%s brukere
+6037	%s aktivt	%s active	%s aktivt
+6038	%s fejl	%s error(s)	%s feil
+6039	Søg – fx moms, GLS eller et gammelt menunavn	Search – e.g. VAT, GLS or an old menu name	Søk – f.eks. mva, GLS eller et gammelt menynavn
+6040	%s resultater	%s results	%s resultater
+6041	Se fejl	See error	Se feil
+6042	Ingen resultater. Prøv et andet ord, eller se "Hvor er de gamle menupunkter?"	No results. Try another word, or see "Where are the old menu items?"	Ingen resultater. Prøv et annet ord, eller se "Hvor er de gamle menypunktene?"
+6043	%s ugemte ændringer	%s unsaved changes	%s ulagrede endringer
+6044	1 ugemt ændring	1 unsaved change	1 ulagret endring
+6045	Gem ændringer	Save changes	Lagre endringer
+6046	Hele audit-loggen	The full audit log	Hele audit-loggen
+6047	Udføres med det samme og gemmes ikke med Gem-knappen.	Run immediately and are not saved with the Save button.	Utføres med en gang og lagres ikke med Lagre-knappen.
+6048	Farezone	Danger zone	Faresone
+6049	Alt findes stadig. Listen viser, hvor hvert punkt i den gamle menu ligger nu.	Everything is still here. The list shows where each item of the old menu is now.	Alt finnes fortsatt. Listen viser hvor hvert punkt i den gamle menyen ligger nå.
+6050	Filtrér – fx Diverse valg	Filter – e.g. Diverse valg	Filtrer – f.eks. Diverse valg
+6051	Anvend batch- og udløbsdatostyring	Use batch and expiry date handling	Bruk batch- og utløpsdatostyring
+6052	Viser felterne til udløbsdato på varekortet. Varegruppen skal desuden have batchkontrol	Shows the expiry date fields on the product card. The product group must also have batch control	Viser feltene for utløpsdato på varekortet. Varegruppen må også ha batchkontroll
+6053	Nulstil og slet regnskab (farezone)	Reset and delete company (danger zone)	Nullstill og slett regnskap (faresone)
+6054	Følsomme medarbejderfelter (CPR og løn)	Sensitive employee fields (CPR and salary)	Sensitive ansattfelter (fødselsnummer og lønn)
+6055	API & webshop	API & webshop	API og nettbutikk
+6056	Fragt	Shipping	Frakt
+6057	E-faktura & app	E-invoicing & app	E-faktura og app
+6058	Betalingsudbydere	Payment providers	Betalingsleverandører
+6059	Lad webshop og andre systemer hente og oprette data	Let your webshop and other systems read and create data	La nettbutikk og andre systemer hente og opprette data
+6060	Skriv IP-adresser adskilt af komma, eller * for alle	Enter IP addresses separated by commas, or * for all	Skriv IP-adresser atskilt med komma, eller * for alle
+6061	API-klient til varesynkronisering	API client for item sync	API-klient for varesynkronisering
+6062	Send faktura til kunden pr. e-mail ved oprettelse via API	E-mail the invoice to the customer when it is created through the API	Send faktura til kunden på e-post ved opprettelse via API
+6063	Gælder fakturaer, der oprettes af webshoppen eller andre systemer via REST API	Applies to invoices created by the webshop or other systems through the REST API	Gjelder fakturaer som opprettes av nettbutikken eller andre systemer via REST API
+6064	Generér ny API-nøgle	Generate new API key	Generer ny API-nøkkel
+6065	Den gamle nøgle holder op med at virke med det samme. Den nye vises én gang	The old key stops working immediately. The new one is shown once	Den gamle nøkkelen slutter å virke med en gang. Den nye vises én gang
+6066	Generér ny API-nøgle?	Generate a new API key?	Generere ny API-nøkkel?
+6067	Webshop og andre systemer, der bruger den nuværende nøgle, mister adgang, indtil de får den nye	Your webshop and other systems using the current key lose access until they get the new one	Nettbutikk og andre systemer som bruker den nåværende nøkkelen mister tilgang til de får den nye
+6068	Webshop-synkronisering	Webshop sync	Nettbutikk-synkronisering
+6069	Varer, lager og ordrer mellem Saldi og jeres shop	Items, stock and orders between Saldi and your shop	Varer, lager og ordrer mellom Saldi og butikken deres
+6070	Shop-URL	Shop URL	Butikk-URL
+6071	Adressen på shoppens Saldi-klient. Kan indeholde opdat_status=1, shop_fakt=1 og betaling=kort	The address of the shop's Saldi client. May contain opdat_status=1, shop_fakt=1 and betaling=kort	Adressen til butikkens Saldi-klient. Kan inneholde opdat_status=1, shop_fakt=1 og betaling=kort
+6072	Tegnsæt i shoppen	Shop character set	Tegnsett i butikken
+6073	Kortbetaling ved tilmelding via webshop	Card payment at sign-up through the webshop	Kortbetaling ved påmelding via nettbutikk
+6074	Aftale-id	Agreement id	Avtale-id
+6075	Aftale-id fra QuickPay	Agreement id from QuickPay	Avtale-id fra QuickPay
+6076	Merchant-nr.	Merchant no.	Merchant-nr.
+6077	MD5-nøgle	MD5 secret	MD5-nøkkel
+6078	Krypteringsnøglen fra QuickPay	The encryption key from QuickPay	Krypteringsnøkkelen fra QuickPay
+6079	Opret pakkelabels direkte fra ordren	Create parcel labels straight from the order	Opprett pakkelapper direkte fra ordren
+6080	Bestil fragt og afhentning fra ordren	Book freight and pick-up from the order	Bestill frakt og henting fra ordren
+6081	Godsbeskrivelse som standard	Goods description by default	Godsbeskrivelse som standard
+6082	Afhentningsadresser	Pick-up addresses	Hentesteder
+6083	Flere afhentningsadresser og deres egne DFM-oplysninger redigeres stadig under Diverse valg	Several pick-up addresses with their own DFM details are still edited under Diverse valg	Flere hentesteder med egne DFM-opplysninger redigeres fortsatt under Diverse valg
+6084	E-faktura (NemHandel)	E-invoicing (NemHandel)	E-faktura (NemHandel)
+6085	Send og modtag OIOUBL-fakturaer	Send and receive OIOUBL invoices	Send og motta OIOUBL-fakturaer
+6086	easyUBL API-nøgle	easyUBL API key	easyUBL API-nøkkel
+6087	Nøglen fra easyUBL, som Saldi sender e-fakturaer med	The key from easyUBL that Saldi sends e-invoices with	Nøkkelen fra easyUBL som Saldi sender e-fakturaer med
+6088	Styres af Saldi-installationen og kan ikke ændres her	Managed by the Saldi installation and cannot be changed here	Styres av Saldi-installasjonen og kan ikke endres her
+6089	easyUBL virksomheds-id	easyUBL company id	easyUBL virksomhets-id
+6090	Virksomhedens id hos easyUBL. Udfyldes automatisk ved tilmelding	The company's id at easyUBL. Filled in automatically at sign-up	Virksomhetens id hos easyUBL. Fylles ut automatisk ved påmelding
+6091	App-login (QR)	App login (QR)	App-innlogging (QR)
+6092	Log ind i Saldi-appen ved at scanne en kode	Log in to the Saldi app by scanning a code	Logg inn i Saldi-appen ved å skanne en kode
+6093	App API-nøgle	App API key	App API-nøkkel
+6094	Nøglen Saldi-appen og bilagsgenkendelsen bruger	The key the Saldi app and voucher recognition use	Nøkkelen Saldi-appen og bilagsgjenkjenningen bruker
+6095	Vis QR-kode til app-login	Show QR code for app login	Vis QR-kode for app-innlogging
+6096	Betaling i kassen og via betalingslink	Payment at the till and by payment link	Betaling i kassen og via betalingslenke
+6097	Client ID	Client ID	Client ID
+6098	Fra MobilePay/Vipps' udviklerportal	From the MobilePay/Vipps developer portal	Fra MobilePay/Vipps' utviklerportal
+6099	Client secret	Client secret	Client secret
+6100	Subscription key	Subscription key	Subscription key
+6101	Merchant Serial Number (MSN)	Merchant Serial Number (MSN)	Merchant Serial Number (MSN)
+6102	Webhook ikke forbundet	Webhook not connected	Webhook ikke tilkoblet
+6103	Aktiv · webhook forbundet	Active · webhook connected	Aktiv · webhook tilkoblet
+6104	Forbind webhook	Connect webhook	Koble til webhook
+6105	Forbind webhook?	Connect the webhook?	Koble til webhook?
+6106	Saldi registrerer en webhook hos MobilePay med de gemte oplysninger, så betalinger registreres automatisk	Saldi registers a webhook at MobilePay with the stored details, so payments are registered automatically	Saldi registrerer en webhook hos MobilePay med de lagrede opplysningene, slik at betalinger registreres automatisk
+6107	Se QR-kode	View QR code	Vis QR-kode
+6108	Opret QR-koder til kasserne	Create QR codes for the tills	Opprett QR-koder for kassene
+6109	Én QR-kode pr. kasse, som kunden scanner for at betale. Kasser, der allerede har en kode, springes over	One QR code per till that the customer scans to pay. Tills that already have a code are skipped	Én QR-kode per kasse som kunden skanner for å betale. Kasser som allerede har en kode hoppes over
+6110	Opret QR-koder?	Create QR codes?	Opprette QR-koder?
+6111	Saldi henter en QR-kode hos MobilePay for hver kasse uden kode	Saldi fetches a QR code from MobilePay for every till without one	Saldi henter en QR-kode hos MobilePay for hver kasse uten kode
+6112	Kortterminal til kassen	Card terminal for the till	Kortterminal for kassen
+6113	Flatpay-login	Flatpay login	Flatpay-innlogging
+6114	Brugernavn og adgangskode bruges kun til at hente jeres Flatpay-ID og gemmes ikke	The username and password are only used to fetch your Flatpay ID and are not stored	Brukernavn og passord brukes bare til å hente Flatpay-ID-en deres og lagres ikke
+6115	Adgangskode	Password	Passord
+6116	Hent Flatpay-ID	Fetch Flatpay ID	Hent Flatpay-ID
+6117	Kortterminal på mobilen	Card terminal on the phone	Kortterminal på mobilen
+6118	Navn	Name	Navn
+6119	E-mail	E-mail	E-post
+6120	Aktiv	Active	Aktiv
+6121	Ikke aktiveret	Not activated	Ikke aktivert
+6122	Indstil	Configure	Still inn
+6123	Aktivér	Activate	Aktiver
+6124	Ret	Fix	Rett
+6125	Opsætningen gælder for hele regnskabet. Ændringer logges	The setup applies to the whole company. Changes are logged	Oppsettet gjelder hele regnskapet. Endringer logges
+6126	Forbindelser til webshop, fragt, e-faktura og betaling	Connections to webshop, shipping, e-invoicing and payment	Tilkoblinger til nettbutikk, frakt, e-faktura og betaling
+6127	nøgle sat	key set	nøkkel satt
+6128	Luk	Close	Lukk
+6129	Ny API-nøgle	New API key	Ny API-nøkkel
+6130	Kopiér den nu – den vises ikke igen	Copy it now – it is not shown again	Kopier den nå – den vises ikke igjen
+6131	Webhook forbundet	Webhook connected	Webhook tilkoblet
+6132	Webhook kunne ikke forbindes	The webhook could not be connected	Webhook kunne ikke kobles til
+6133	%s QR-koder oprettet	%s QR codes created	%s QR-koder opprettet
+6134	Flatpay-ID hentet og gemt	Flatpay ID fetched and stored	Flatpay-ID hentet og lagret
+6135	Login blev afvist	The login was rejected	Innloggingen ble avvist
+6136	Vibrant-login oprettet	Vibrant login created	Vibrant-innlogging opprettet
+6137	Skift	Change	Endre
+6138	Ikke sat	Not set	Ikke satt
+6139	sat	set	satt
+6140	Kommer senere	Coming later	Kommer senere
+6141	Bankforbindelse	Bank connection	Bankforbindelse
+6142	Hent posteringer automatisk	Fetch transactions automatically	Hent posteringer automatisk
+6143	Vis	View	Vis
+6144	Ugemte ændringer	Unsaved changes	Ulagrede endringer
+6145	Lukker du nu, mistes det, du ikke har gemt	If you close now, what you have not saved is lost	Lukker du nå, mistes det du ikke har lagret
+6146	Luk uden at gemme	Close without saving	Lukk uten å lagre
+6147	Saldi DB	Saldi DB	Saldi DB
+6148	Saldi URL	Saldi URL	Saldi URL
+6149	Swagger-dokumentation	Swagger documentation	Swagger-dokumentasjon
+6150	Terminal-login	Terminal login	Terminal-innlogging
+6151	Kontoen oprettes hos Vibrant og gemmes her. Adgangskoden vises aldrig igen	The account is created at Vibrant and stored here. The password is never shown again	Kontoen opprettes hos Vibrant og lagres her. Passordet vises aldri igjen
+6152	Gem Vibrant API-nøglen først	Save the Vibrant API key first	Lagre Vibrant API-nøkkelen først
+6153	Anden API-klient	Second API client	Andre API-klient
+6154	Tredje API-klient	Third API client	Tredje API-klient
+6155	Bruges af den samlede varesynkronisering til flere shops	Used by the full item sync to several shops	Brukes av den samlede varesynkroniseringen til flere butikker
+6156	Kunne ikke oprettes: %s	Could not be created: %s	Kunne ikke opprettes: %s
+6157	Åbn	Open	Åpne
+6158	Ingen kasser er sat op endnu	No tills are set up yet	Ingen kasser er satt opp ennå
+6159	QR-kode kasse %s	QR code till %s	QR-kode kasse %s
+6160	Vent…	Please wait…	Vent…
+6161	Varegruppe til QuickPay-varer	Item group for QuickPay items	Varegruppe for QuickPay-varer
+6162	Varer i denne gruppe kan betales ved tilmelding via QuickPay	Items in this group can be paid at sign-up through QuickPay	Varer i denne gruppen kan betales ved påmelding via QuickPay
+6163	QR-koder til kasserne	QR codes for the tills	QR-koder for kassene
+6164	Nøglen vises kun her, mens den er ny. Gem den i din API-klient med det samme	The key is only shown here while it is new. Store it in your API client right away	Nøkkelen vises bare her mens den er ny. Lagre den i API-klienten din med en gang
+6165	Afhentningsadresser redigeres under Diverse valg, indtil de får deres egen liste	Pick-up addresses are edited under Diverse valg until they get their own list	Hentesteder redigeres under Diverse valg til de får sin egen liste
+6166	E-mail	E-mail	E-post
+6167	Udgående server	Outgoing server	Utgående server
+6168	Afsender pr. sprog	Sender per language	Avsender per språk
+6169	Mailtekster	Mail texts	E-posttekster
+6170	SMTP-server	SMTP server	SMTP-server
+6171	Ingen	None	Ingen
+6172	Afsender-e-mail	Sender e-mail	Avsender-e-post
+6173	Bruges som afsender på dokumenter i dette sprog. Tom: virksomhedens e-mail fra Stamdata	Used as the sender on documents in this language. Empty: the company e-mail from master data	Brukes som avsender på dokumenter på dette språket. Tom: virksomhetens e-post fra stamdata
+6174	Afsendernavn	Sender name	Avsendernavn
+6175	Navnet modtageren ser som afsender. Tom: virksomhedens navn	The name the recipient sees as sender. Empty: the company name	Navnet mottakeren ser som avsender. Tomt: virksomhetens navn
+6176	Emne – mail til kunder	Subject – mail to customers	Emne – e-post til kunder
+6177	Tekst – mail til kunder	Text – mail to customers	Tekst – e-post til kunder
+6178	Emne – invitation til Mit Salg	Subject – invitation to My Sales	Emne – invitasjon til Mitt salg
+6179	Tekst – invitation til Mit Salg	Text – invitation to My Sales	Tekst – invitasjon til Mitt salg
+6180	Tekst – afregning til kommissionskunder	Text – settlement to commission customers	Tekst – avregning til kommisjonskunder
+6181	Sendes fra betalingslisten. $navn, $kontonr, $sum, $antal, $start og $slut erstattes. Tom: Saldis standardtekst	Sent from the payment list. $navn, $kontonr, $sum, $antal, $start and $slut are replaced. Empty: Saldi's standard text	Sendes fra betalingslisten. $navn, $kontonr, $sum, $antal, $start og $slut erstattes. Tom: Saldis standardtekst
+6182	Tom: Saldis standardtekst bruges	Empty: Saldi's standard text is used	Tom: Saldis standardtekst brukes
+6183	Standard (dansk og sprog uden egen afsender)	Default (Danish and languages without their own sender)	Standard (dansk og språk uten egen avsender)
+6184	Serverens adresse, evt. med port efter kolon, fx smtp.gmail.com:465. Tom: Saldis egen mailserver	The server's address, port after a colon if needed, e.g. smtp.gmail.com:465. Empty: Saldi's own mail server	Serverens adresse, eventuelt med port etter kolon, f.eks. smtp.gmail.com:465. Tom: Saldis egen e-postserver
+6185	Teksterne $kunde og $link erstattes af kundens navn og linket til kundens salg. HTML kan bruges	The texts $kunde and $link are replaced by the customer's name and the link to the customer's sales. HTML can be used	Tekstene $kunde og $link erstattes av kundens navn og lenken til kundens salg. HTML kan brukes
+6186	Rykkeransvarlig	Reminder manager	Purreansvarlig
+6187	Påmindelser	Notifications	Påminnelser
+6188	Inkasso	Debt collection	Inkasso
+6189	Rykkergebyr og rente	Reminder fee and interest	Purregebyr og rente
+6190	Betalingsbetingelser & rykkere	Payment terms & reminders	Betalingsbetingelser og purringer
+6191	Brugeren adviseres ved login, når der er fakturaer at rykke for. Alle: alle brugere adviseres	The user is notified at login when invoices need a reminder. All: every user is notified	Brukeren varsles ved innlogging når det er fakturaer å purre på. Alle: alle brukere varsles
+6192	Er adressen udfyldt, sendes der en mail hertil, når der er fakturaer at rykke for (når nogen logger ind)	When filled in, a mail is sent here when invoices need a reminder (when anyone logs in)	Er adressen fylt ut, sendes en e-post hit når det er fakturaer å purre på (når noen logger inn)
+6193	Inkassoadvokat	Debt collection lawyer	Inkassoadvokat
+6194	Kreditoren der sendes til, når en rykker overgives til inkasso	The creditor sent to when a reminder is handed over for collection	Kreditoren det sendes til når en purring overleveres til inkasso
+6195	Rykker %s	Reminder %s	Purring %s
+6196	Gebyrvare	Fee item	Gebyrvare
+6197	Varen, hvis salgspris lægges på som rykkergebyr	The item whose sales price is added as the reminder fee	Varen hvis salgspris legges til som purregebyr
+6198	Rentevare	Interest item	Rentevare
+6199	En vare med salgspris 0, som rentebeløbet bogføres på	An item with sales price 0 that the interest amount is posted on	En vare med salgspris 0 som rentebeløpet bokføres på
+6200	Rentesats	Interest rate	Rentesats
+6201	Procent pr. påbegyndt måned	Percent per month or part of a month	Prosent per påbegynt måned
+6202	Rykkere sendes ikke automatisk. Påmindelserne går til den rykkeransvarlige	Reminders are not sent automatically. The notifications go to the reminder manager	Purringer sendes ikke automatisk. Påminnelsene går til den purreansvarlige
+6203	Rykkergebyr og rente sættes under Indstillinger » Salg » Betalingsbetingelser & rykkere	Reminder fee and interest are set under Settings » Sales » Payment terms & reminders	Purregebyr og rente settes under Innstillinger » Salg » Betalingsbetingelser og purringer
+6204	Ukendt kreditor	Unknown creditor	Ukjent kreditor
+6205	Bilagsopbevaring	Document storage	Bilagsoppbevaring
+6206	Opbevaring	Storage	Oppbevaring
+6207	Visning	Viewing	Visning
+6208	Test forbindelsen	Test the connection	Test tilkoblingen
+6209	Logger ind med de gemte oplysninger, opretter mapperne og skriver og læser en testfil	Logs in with the stored details, creates the folders and writes and reads a test file	Logger inn med de lagrede opplysningene, oppretter mappene og skriver og leser en testfil
+6210	Test FTP-forbindelsen?	Test the FTP connection?	Teste FTP-tilkoblingen?
+6211	Saldi forbinder til jeres FTP-server med de gemte oplysninger. Gem først, hvis du har ændret noget	Saldi connects to your FTP server with the stored details. Save first if you changed anything	Saldi kobler til FTP-serveren deres med de lagrede opplysningene. Lagre først hvis du har endret noe
+6212	FTP-serveren svarer, og testfilen kunne skrives og læses	The FTP server answers, and the test file could be written and read	FTP-serveren svarer, og testfilen kunne skrives og leses
+6213	FTP-serveren kunne ikke nås, eller testfilen kunne ikke skrives	The FTP server could not be reached, or the test file could not be written	FTP-serveren kunne ikke nås, eller testfilen kunne ikke skrives
+6214	Intern: Saldi opbevarer bilagene, og scannede bilag kan mailes ind. Egen FTP: bilagene lægges på jeres egen server	Internal: Saldi stores the documents, and scanned documents can be mailed in. Own FTP: the documents go to your own server	Intern: Saldi oppbevarer bilagene, og skannede bilag kan sendes inn på e-post. Egen FTP: bilagene legges på deres egen server
+6215	Fx ftp.example.dk eller ftp.example.dk:2121/sti	E.g. ftp.example.dk or ftp.example.dk:2121/path	F.eks. ftp.example.dk eller ftp.example.dk:2121/sti
+6216	Mail-adresse til bilag	Mail address for documents	E-postadresse for bilag
+6217	Scannede bilag, der mailes hertil, lander i bilagspuljen	Scanned documents mailed here land in the document pool	Skannede bilag som sendes hit, havner i bilagspuljen
+6218	Mappe på FTP-serveren. Oprettes, hvis den mangler	Folder on the FTP server. Created if missing	Mappe på FTP-serveren. Opprettes hvis den mangler
+6219	Leverandørprislister	Supplier price lists	Leverandørprislister
+6220	Prisfiler fra jeres leverandører, som varer kan hentes fra i ordren	Price files from your suppliers that items can be fetched from in the order	Prisfiler fra leverandørene deres som varer kan hentes fra i ordren
+6221	Tilføj prisliste	Add price list	Legg til prisliste
+6222	Ny prisliste	New price list	Ny prisliste
+6223	Prisfil (URL)	Price file (URL)	Prisfil (URL)
+6224	Fuld adresse til en CSV-fil, fx https://leverandor.dk/varer.csv	Full address of a CSV file, e.g. https://supplier.dk/items.csv	Full adresse til en CSV-fil, f.eks. https://leverandor.no/varer.csv
+6225	Skilletegn	Delimiter	Skilletegn
+6226	Komma	Comma	Komma
+6227	Semikolon	Semicolon	Semikolon
+6228	Tabulator	Tab	Tabulator
+6229	Tegnsæt	Character set	Tegnsett
+6230	Varegruppe	Item group	Varegruppe
+6231	Varer fra listen oprettes i denne gruppe	Items from the list are created in this group	Varer fra listen opprettes i denne gruppen
+6232	Leverandør	Supplier	Leverandør
+6233	I brug	In use	I bruk
+6234	Ikke i brug	Not in use	Ikke i bruk
+6235	Brug denne prisliste	Use this price list	Bruk denne prislisten
+6236	Ordren henter varer fra denne liste. Kun én liste er i brug ad gangen	The order fetches items from this list. Only one list is in use at a time	Ordren henter varer fra denne listen. Bare én liste er i bruk om gangen
+6237	Brug denne prisliste?	Use this price list?	Bruke denne prislisten?
+6238	Den liste, der er i brug nu, stopper med at blive brugt i ordren	The list in use now stops being used in the order	Listen som er i bruk nå, slutter å bli brukt i ordren
+6239	Hent prisfilen og vis kolonnerne og antal linjer. Intet gemmes	Fetch the price file and show its columns and number of lines. Nothing is saved	Hent prisfilen og vis kolonnene og antall linjer. Ingenting lagres
+6240	Test prisfilen?	Test the price file?	Teste prisfilen?
+6241	Saldi henter filen fra den gemte adresse. Gem først, hvis du har ændret noget	Saldi fetches the file from the stored address. Save first if you changed anything	Saldi henter filen fra den lagrede adressen. Lagre først hvis du har endret noe
+6242	Slet prislisten	Delete the price list	Slett prislisten
+6243	Listen fjernes. Varer, der allerede er hentet ind, bliver	The list is removed. Items already fetched stay	Listen fjernes. Varer som allerede er hentet inn, blir
+6244	Slet prislisten?	Delete the price list?	Slette prislisten?
+6245	Prislisten slettes og kan ikke hentes tilbage	The price list is deleted and cannot be restored	Prislisten slettes og kan ikke hentes tilbake
+6246	Prisfilen kunne hentes: %s linjer. Kolonner: %s	The price file could be fetched: %s lines. Columns: %s	Prisfilen kunne hentes: %s linjer. Kolonner: %s
+6247	Prisfilen kunne ikke hentes fra adressen	The price file could not be fetched from the address	Prisfilen kunne ikke hentes fra adressen
+6248	Skriv en fuld adresse, der starter med http:// eller https:// og ender på .csv	Enter a full address starting with http:// or https:// and ending in .csv	Skriv en full adresse som starter med http:// eller https:// og slutter på .csv
+6249	Prislisten er slettet	The price list was deleted	Prislisten er slettet
+6250	Ingen prislister endnu	No price lists yet	Ingen prislister ennå
+6251	Test prisfilen	Test the price file	Test prisfilen
+6252	Skal udfyldes	Required	Må fylles ut
+6253	Kvittering & print	Receipt & print	Kvittering og utskrift
+6254	Skærm & mobil	Screen & mobile	Skjerm og mobil
+6255	Knapper i kassen	Buttons at the till	Knapper i kassen
+6256	Ekspedition	Serving	Ekspedisjon
+6257	Visning	Display	Visning
+6258	Køkken (KDS)	Kitchen (KDS)	Kjøkken (KDS)
+6259	Køkkenskærm	Kitchen screen	Kjøkkenskjerm
+6260	Køkkenprint	Kitchen print	Kjøkkenutskrift
+6261	Køkkenskærm (KDS) aktiveret	Kitchen screen (KDS) activated	Kjøkkenskjerm (KDS) aktivert
+6262	Ordrer fra kassen vises på køkkenskærmen	Orders from the till are shown on the kitchen screen	Ordrer fra kassen vises på kjøkkenskjermen
+6263	Køkkenprint aktiveret	Kitchen print activated	Kjøkkenutskrift aktivert
+6264	Ordrer fra kassen udskrives på køkkenprinteren	Orders from the till are printed on the kitchen printer	Ordrer fra kassen skrives ut på kjøkkenskriveren
+6265	Antal kolonner på køkkenskærmen	Number of columns on the kitchen screen	Antall kolonner på kjøkkenskjermen
+6266	Linjehøjde på køkkenskærmen	Line height on the kitchen screen	Linjehøyde på kjøkkenskjermen
+6267	Udskriv bon automatisk	Print receipt automatically	Skriv ut kvittering automatisk
+6268	Varenummer for sæt	Item number for sets	Varenummer for sett
+6269	Den vare, sætprisen bogføres på	The item the set price is posted on	Varen settprisen bokføres på
+6270	Sekunder	Seconds	Sekunder
+6271	Gælder alle kasser og alle regnskabsår	Applies to all tills and all fiscal years	Gjelder alle kasser og alle regnskapsår
+6272	Gælder alle kasser. Kasser, konti, betalingskort og per-kasse-valg findes stadig under PoS-valg	Applies to all tills. Tills, accounts, payment cards and per-till options are still under PoS-valg	Gjelder alle kasser. Kasser, kontoer, betalingskort og valg per kasse finnes fortsatt under PoS-valg
+6273	Bonen udskrives automatisk efter hver handel. Fra: bonen udskrives manuelt	The receipt is printed automatically after each sale. Off: the receipt is printed manually	Kvitteringen skrives ut automatisk etter hvert salg. Av: kvitteringen skrives ut manuelt
+6274	Giver en særlig pris på en gruppe varer. Varerne samles på bonen uden enkeltpriser, og sætprisen vises under dem	Gives a special price for a group of items. The items are grouped on the receipt without single prices, and the set price is shown below them	Gir en spesialpris på en gruppe varer. Varene samles på kvitteringen uten enkeltpriser, og settprisen vises under dem
+6275	Kasser & konti	Tills & accounts	Kasser og kontoer
+6276	Hver kasse med afdeling, konti, printer og betalingsterminal	Each till with department, accounts, printer and payment terminal	Hver kasse med avdeling, kontoer, skriver og betalingsterminal
+6277	Tilføj kasse	Add till	Legg til kasse
+6278	Kasse %s	Till %s	Kasse %s
+6279	Kontantkonto	Cash account	Kontantkonto
+6280	Mellemkonto	Interim account	Mellomkonto
+6281	Konto for beløb, der tages ud af kassen ved dagsafslutning	Account for amounts taken out of the till at day end	Konto for beløp som tas ut av kassen ved dagsavslutning
+6282	Differencekonto	Difference account	Differansekonto
+6283	Konto for kassedifferencer ved dagsafslutning	Account for cash differences at day end	Konto for kassedifferanser ved dagsavslutning
+6284	IP-adresse til printserveren, hvis bonprinteren ikke er sluttet direkte til kassen	IP address of the print server, if the receipt printer is not connected to the till directly	IP-adresse til printserveren, hvis kvitteringsskriveren ikke er koblet direkte til kassen
+6285	Terminal-IP eller -ID	Terminal IP or ID	Terminal-IP eller -ID
+6286	IP-adresse eller ID på den integrerede betalingsterminal	IP address or ID of the integrated payment terminal	IP-adresse eller ID på den integrerte betalingsterminalen
+6287	Køkkenprinter-IP	Kitchen printer IP	Kjøkkenskriver-IP
+6288	IP-adressen på køkkenprinteren, hvis der bruges en	IP address of the kitchen printer, if one is used	IP-adressen til kjøkkenskriveren, hvis en brukes
+6289	Standardbord	Default table	Standardbord
+6290	Bordet vælges, når der ikke er valgt andet bord	This table is selected when no other table is chosen	Bordet velges når ikke noe annet bord er valgt
+6291	Skriftstørrelse	Font size	Skriftstørrelse
+6292	Bogfør hvert salg straks	Post each sale immediately	Bokfør hvert salg med en gang
+6293	Mobil kasse	Mobile till	Mobil kasse
+6294	Skærmbredde	Screen width	Skjermbredde
+6295	Byt hoved- og undermenu	Swap main and sub menu	Bytt hoved- og undermeny
+6296	Fjern denne kasse	Remove this till	Fjern denne kassen
+6297	Kun den sidste kasse kan fjernes. Dens opsætning bliver gemt, hvis den tilføjes igen	Only the last till can be removed. Its setup is kept if it is added again	Bare den siste kassen kan fjernes. Oppsettet beholdes hvis den legges til igjen
+6298	Fjern kassen?	Remove the till?	Fjerne kassen?
+6299	Kassen kan ikke længere bruges til salg	The till can no longer be used for sales	Kassen kan ikke lenger brukes til salg
+6300	Konti	Accounts	Kontoer
+6301	Udstyr	Equipment	Utstyr
+6302	Kassen	The till	Kassen
+6303	Kasseoptælling	Cash counting	Kassetelling
+6304	Kassebeholdning ved dagens start	Opening cash float	Kassebeholdning ved dagens start
+6305	Hjælp til optælling	Counting assistance	Hjelp til telling
+6306	Optællingen viser felter for antal mønter og sedler	The count shows fields for the number of coins and notes	Tellingen viser felter for antall mynter og sedler
+6307	Ingen kasser endnu	No tills yet	Ingen kasser ennå
+6308	Kasser, rabatvare og kasseoptælling	Tills, discount item and cash counting	Kasser, rabattvare og kassetelling
+6309	Indstilling gendannet	Setting restored	Innstilling gjenopprettet
+6310	Indstillingsrække oprettet	Setting row created	Innstillingsrad opprettet
+6311	Indstillingsrække slettet	Setting row deleted	Innstillingsrad slettet
+6312	Betalingskort & terminaler	Payment cards & terminals	Betalingskort og terminaler
+6313	Betalingsmåderne på kassen: navn, konto, om kortet går via terminalen, om det er et gavekort, og om det vises på kasseskærmen. Terminaltypen vælges på hver kasse under Kasser	The payment methods on the till: name, account, whether the card goes through the terminal, whether it is a gift card, and whether it is shown on the till screen. The terminal type is chosen per till under Tills	Betalingsmåtene på kassen: navn, konto, om kortet går via terminalen, om det er et gavekort, og om det vises på kasseskjermen. Terminaltypen velges på hver kasse under Kasser
+6314	Navn på betalingsmåde	Payment method name	Navn på betalingsmåte
+6315	Navnet kassen viser, f.eks. Dankort eller MobilePay	The name the till shows, e.g. Dankort or MobilePay	Navnet kassen viser, f.eks. Dankort eller MobilePay
+6316	Kort %s	Card %s	Kort %s
+6317	Nyt kort	New card	Nytt kort
+6318	Tilføj betalingsmåde	Add payment method	Legg til betalingsmåte
+6319	Flyt op	Move up	Flytt opp
+6320	Flyt ned	Move down	Flytt ned
+6321	Fjern betalingsmåde	Remove payment method	Fjern betalingsmåte
+6322	Kortet fjernes fra kassen. Bogførte betalinger ændres ikke.	The card is removed from the till. Posted payments are not changed.	Kortet fjernes fra kassen. Bokførte betalinger endres ikke.
+6323	Fjern betalingsmåden?	Remove the payment method?	Fjerne betalingsmåten?
+6324	Fælles for alle kort	Shared by all cards	Felles for alle kort
+6325	Kortsummer kan rettes ved kasseoptælling	Card totals can be corrected at the cash count	Kortsummer kan rettes ved kasseopptelling
+6326	Ved kasseoptællingen kan beløbet pr. kort rettes, hvis terminalens total afviger.	At the cash count the amount per card can be corrected when the terminal total differs.	Ved kasseopptellingen kan beløpet per kort rettes hvis terminalens total avviker.
+6327	Varenr. til gavekort / tilgodebevis	Item no. for gift card / voucher	Varenr. for gavekort / tilgodebevis
+6328	Varen der sælges, når kassen udsteder et gavekort eller tilgodebevis med denne betalingsmåde	The item sold when the till issues a gift card or voucher with this payment method	Varen som selges når kassen utsteder et gavekort eller tilgodebevis med denne betalingsmåten
+6329	Betalingsudbydere	Payment providers	Betalingsleverandører
+6330	Nøgler og forbindelser sættes op under Integrationer	Keys and connections are set up under Integrations	Nøkler og tilkoblinger settes opp under Integrasjoner
+6331	Åbn Integrationer	Open Integrations	Åpne Integrasjoner
+6332	Ingen betalingsmåder endnu	No payment methods yet	Ingen betalingsmåter ennå
+6333	Move3500 brugernavn	Move3500 username	Move3500 brukernavn
+6334	Move3500 adgangskode	Move3500 password	Move3500 passord
+6335	Login til Nets Move3500-terminalen på denne kasse	Login for the Nets Move3500 terminal on this till	Innlogging for Nets Move3500-terminalen på denne kassen
+6336	Valuta %s	Currency %s	Valuta %s
+6337	Konto for betalinger i valutaen på denne kasse, indtil de afstemmes	Account for payments in this currency on this till until they are reconciled	Konto for betalinger i valutaen på denne kassen til de avstemmes
+6338	Konto for kursdifferencer i valutaen på denne kasse	Account for exchange differences in this currency on this till	Konto for kursdifferanser i valutaen på denne kassen
+6339	Konto for andre kort og rettelse af kortsummer	Account for other cards and correction of card totals	Konto for andre kort og retting av kortsummer
+6340	Borde & bordplaner	Tables & floor plans	Bord og bordplaner
+6341	Bordene kassen kan vælge mellem, og bordplanerne i bordplanlæggeren.	The tables the till can choose between, and the floor plans in the floor planner.	Bordene kassen kan velge mellom, og bordplanene i bordplanleggeren.
+6342	Sættes tallet op, får de nye borde navnet Bord n. Sættes det ned, fjernes de sidste borde.	If the number goes up, the new tables are named Table n. If it goes down, the last tables are removed.	Settes tallet opp, får de nye bordene navnet Bord n. Settes det ned, fjernes de siste bordene.
+6343	Bord %s	Table %s	Bord %s
+6344	Bordplaner	Floor plans	Bordplaner
+6345	Antal bordplaner	Number of floor plans	Antall bordplaner
+6346	Sættes tallet ned, fjernes de sidste bordplaner i bordplanlæggeren.	If the number goes down, the last floor plans in the floor planner are removed.	Settes tallet ned, fjernes de siste bordplanene i bordplanleggeren.
+6347	Bordplan %s	Floor plan %s	Bordplan %s
+6348	Bordplanlægger	Floor planner	Bordplanlegger
+6349	Åbn bordplanlæggeren	Open the floor planner	Åpne bordplanleggeren
+6350	Borde og deres placering på hver bordplan tegnes i bordplanlæggeren.	Tables and their position on each floor plan are drawn in the floor planner.	Bord og plasseringen deres på hver bordplan tegnes i bordplanleggeren.
+6351	Farver efter ventetid	Colours by waiting time	Farger etter ventetid
+6352	Efter minutter	After minutes	Etter minutter
+6353	Fra dette antal minutter får ordren farven på køkkenskærmen. Rækker uden minutter eller farve fjernes.	From this many minutes the order gets the colour on the kitchen screen. Rows without minutes or colour are removed.	Fra dette antallet minutter får ordren fargen på kjøkkenskjermen. Rader uten minutter eller farge fjernes.
+6354	Farve %s	Colour %s	Farge %s
+6355	Print terminalkvittering fra Saldi (Flatpay)	Print terminal receipt from Saldi (Flatpay)	Skriv ut terminalkvittering fra Saldi (Flatpay)
+6356	Til: Saldi printer terminalens kvittering på bonprinteren. Fra: terminalen printer den selv.	On: Saldi prints the terminal receipt on the receipt printer. Off: the terminal prints it itself.	På: Saldi skriver ut terminalens kvittering på bongskriveren. Av: terminalen skriver den ut selv.
+6357	Betalingsmåden går via betalingsterminalen (kun med integreret terminal)	The payment method goes through the payment terminal (only with an integrated terminal)	Betalingsmåten går via betalingsterminalen (bare med integrert terminal)
+6358	Vises på kasseskærmen. Inaktive kort bruges kun til genkendelse fra terminal og webshop.	Shown on the till screen. Inactive cards are only used for recognition from the terminal and webshop.	Vises på kasseskjermen. Inaktive kort brukes bare til gjenkjenning fra terminal og nettbutikk.
+6359	Konto for kort, som terminalen melder, men som ikke er oprettet ovenfor. Bruges kun når en kasse har en terminal-IP.	Account for cards the terminal reports that are not set up above. Only used when a till has a terminal IP.	Konto for kort som terminalen melder, men som ikke er opprettet ovenfor. Brukes bare når en kasse har en terminal-IP.
+6360	Inaktivt	Inactive	Inaktivt
+6361	Farven skal angives som #rrggbb	The colour must be given as #rrggbb	Fargen må angis som #rrggbb
+6362	Rækkefølgen på kasseskærmen	The order on the till screen	Rekkefølgen på kasseskjermen
+6363	Kassen viser kortet et trin tidligere	The till shows the card one step earlier	Kassen viser kortet ett trinn tidligere
+6364	Kassen viser kortet et trin senere	The till shows the card one step later	Kassen viser kortet ett trinn senere
+6365	Terminal	Terminal	Terminal
+6366	Decimaler på rabat	Discount decimals	Desimaler på rabatt
+6367	Antal decimaler i rabatfelterne på ordrelinjer	Number of decimals in the discount fields on order lines	Antall desimaler i rabattfeltene på ordrelinjer
+6368	Vis betalingslink på ordrer	Show payment link on orders	Vis betalingslenke på ordrer
+6369	Ordrer, der betales med et terminalkort, får et link til betalingsterminalen på denne kasse	Orders paid with a terminal card get a link to the payment terminal on this till	Ordrer som betales med et terminalkort får en lenke til betalingsterminalen på denne kassen
+6370	Gælder også varemodtagelse på købsordrer; indstillingen ligger under Lager	Also applies to goods receipt on purchase orders; the setting lives under Stock	Gjelder også varemottak på innkjøpsordrer; innstillingen ligger under Lager
+6371	Åbn Lagerstyring	Open Stock control	Åpne Lagerstyring
+6372	Kommando til PDF (ps2pdf)	PDF command (ps2pdf)	Kommando for PDF (ps2pdf)
+6373	Sti til programmet, der laver PDF af udskrifter, f.eks. /usr/bin/ps2pdf. Tom: serverens standard.	Path of the program that turns printouts into PDF, e.g. /usr/bin/ps2pdf. Empty: the server default.	Sti til programmet som lager PDF av utskrifter, f.eks. /usr/bin/ps2pdf. Tom: serverens standard.
+6374	NemHandel	NemHandel	NemHandel
+6375	Oprettet i NemHandel	Registered in NemHandel	Opprettet i NemHandel
+6376	Ikke oprettet endnu – sker automatisk, første gang en faktura sendes digitalt	Not registered yet – happens automatically the first time an invoice is sent digitally	Ikke opprettet ennå – skjer automatisk første gang en faktura sendes digitalt
+6377	Vis bankstatus i kassekladden	Show bank status in the cash journal	Vis bankstatus i kassekladden
+6378	Et ikon i kassekladden viser, om bankforbindelsen er aktiv	An icon in the cash journal shows whether the bank connection is active	Et ikon i kassekladden viser om bankforbindelsen er aktiv
+6379	Afhentningsadresser	Pickup addresses	Hentesteder
+6380	Adresser, Danske Fragtmænd henter gods fra. Hver adresse får en knap på ordresiden.	Addresses Danske Fragtmænd collects goods from. Each address gets a button on the order page.	Adresser Danske Fragtmænd henter gods fra. Hver adresse får en knapp på ordresiden.
+6381	Tilføj afhentningsadresse	Add pickup address	Legg til hentested
+6382	Ny afhentningsadresse	New pickup address	Nytt hentested
+6383	Slet afhentningsadresse	Delete pickup address	Slett hentested
+6384	Adressen og dens knap fjernes fra ordresiden. Afsendte forsendelser ændres ikke.	The address and its button are removed from the order page. Shipments already sent are not changed.	Adressen og knappen fjernes fra ordresiden. Sendte forsendelser endres ikke.
+6385	Slet afhentningsadressen?	Delete the pickup address?	Slette hentestedet?
+6386	Ingen afhentningsadresser endnu – hovedadressen bruges	No pickup addresses yet – the main address is used	Ingen hentesteder ennå – hovedadressen brukes
+6387	Egen DFM-aftale for denne adresse (valgfrit)	Own DFM agreement for this address (optional)	Egen DFM-avtale for dette hentestedet (valgfritt)
+6388	Udfyldes kun, hvis adressen bruger en anden Danske Fragtmænd-aftale end den fælles	Fill in only when this address uses a different Danske Fragtmænd agreement than the shared one	Fylles bare ut hvis hentestedet bruker en annen Danske Fragtmænd-avtale enn den felles
+6389	Afhentningsadresse %s	Pickup address %s	Hentested %s
+6390	Åbn afhentningsadresser	Open pickup addresses	Åpne hentesteder
+6391	Påvirker %s varer	Affects %s items	Påvirker %s varer
+6392	Indstillinger for denne side	Settings for this page	Innstillinger for denne siden
+6393	Vis alle (%s)	Show all (%s)	Vis alle (%s)
+6394	Afdelinger	Departments	Avdelinger
+6395	Afdelingerne, ordrer, ansatte og kasser kan høre til. Nummeret bruges i posteringer og kan ikke ændres, når det er i brug.	The departments that orders, employees and tills can belong to. The number is used in postings and cannot be changed once in use.	Avdelingene som ordrer, ansatte og kasser kan høre til. Nummeret brukes i posteringer og kan ikke endres når det er i bruk.
+6396	Tilføj afdeling	Add department	Legg til avdeling
+6397	Ingen afdelinger endnu	No departments yet	Ingen avdelinger ennå
+6398	Standardlager	Default warehouse	Standardlager
+6399	Lagre	Warehouses	Lagre
+6400	Lagrene varer kan ligge på. Et lager kan kun slettes, når intet ligger på det.	The warehouses items can be kept in. A warehouse can only be deleted when nothing is kept in it.	Lagrene varer kan ligge på. Et lager kan bare slettes når ingenting ligger på det.
+6401	Tilføj lager	Add warehouse	Legg til lager
+6402	Ingen lagre endnu – alle varer ligger på lager 0	No warehouses yet – all items are in warehouse 0	Ingen lagre ennå – alle varer ligger på lager 0
+6403	Projekterne, posteringer og ordrer kan mærkes med.	The projects postings and orders can be tagged with.	Prosjektene posteringer og ordrer kan merkes med.
+6404	Tilføj projekt	Add project	Legg til prosjekt
+6405	Ingen projekter endnu	No projects yet	Ingen prosjekter ennå
+6406	Projektnummerets opdeling, f.eks. 4|2|3|4: fire grupper med 4, 2, 3 og 4 tegn. Tom: ingen opdeling.	How the project number is split, e.g. 4|2|3|4: four groups of 4, 2, 3 and 4 characters. Empty: no split.	Prosjektnummerets inndeling, f.eks. 4|2|3|4: fire grupper med 4, 2, 3 og 4 tegn. Tom: ingen inndeling.
+6407	Enheder & materialer	Units & materials	Enheter og materialer
+6408	Enhederne varer sælges i (stk, kg, timer) og materialerne med deres densitet.	The units items are sold in (pcs, kg, hours) and the materials with their density.	Enhetene varer selges i (stk, kg, timer) og materialene med tettheten deres.
+6409	Tilføj enhed	Add unit	Legg til enhet
+6410	Ingen enheder endnu	No units yet	Ingen enheter ennå
+6411	Materialer	Materials	Materialer
+6412	Tilføj materiale	Add material	Legg til materiale
+6413	Ingen materialer endnu	No materials yet	Ingen materialer ennå
+6414	%s kan ikke slettes	%s cannot be deleted	%s kan ikke slettes
+6415	Bruges af %s.	Used by %s.	Brukes av %s.
+6416	Slet %s?	Delete %s?	Slette %s?
+6417	Rækken slettes. Historikken i audit-loggen bevares.	The row is deleted. The history in the audit log is kept.	Raden slettes. Historikken i audit-loggen beholdes.
+6418	Nummeret er allerede i brug	The number is already in use	Nummeret er allerede i bruk
+6419	Skal udfyldes	Required	Må fylles ut
+6420	Nummeret kan ikke ændres, fordi rækken er i brug	The number cannot be changed because the row is in use	Nummeret kan ikke endres fordi raden er i bruk
+6421	Enter flytter ned, Tab til højre – rækker kan indsættes fra et regneark.	Enter moves down, Tab to the right – rows can be pasted from a spreadsheet.	Enter flytter ned, Tab til høyre – rader kan limes inn fra et regneark.
+6422	%s ordrer	%s orders	%s ordrer
+6423	%s posteringer	%s postings	%s posteringer
+6424	%s ansatte	%s employees	%s ansatte
+6425	%s kasser	%s tills	%s kasser
+6426	%s varer på lager	%s items in stock	%s varer på lager
+6427	%s varer	%s items	%s varer
+6428	%s lagre	%s warehouses	%s lagre
+6429	Nyt	New	Ny
+6430	Slettet: %s	Deleted: %s	Slettet: %s
+6431	Nummeret skal være et tal	The number must be numeric	Nummeret må være et tall
+6432	Vis inaktive	Show inactive	Vis inaktive
+6433	Markér inaktiv	Mark inactive	Merk inaktiv
+6434	Aktivér igen	Activate again	Aktiver igjen
+6435	%s er markeret inaktiv og vises ikke i valglister fremover.	%s is marked inactive and no longer offered in lists.	%s er merket inaktiv og vises ikke i valglister fremover.
+6436	Fortryd	Undo	Angre
+6437	%s er aktiv igen.	%s is active again.	%s er aktiv igjen.
+6438	%s kan ikke slettes, fordi den er i brug. Markér den inaktiv i stedet.	%s cannot be deleted because it is in use. Mark it inactive instead.	%s kan ikke slettes fordi den er i bruk. Merk den inaktiv i stedet.
+6439	Gælder regnskabsåret	Applies to the fiscal year	Gjelder regnskapsåret
+6440	Kopiér fra %s	Copy from %s	Kopier fra %s
+6441	Ingen rækker i %s endnu	No rows in %s yet	Ingen rader i %s ennå
+6442	Enhed	Unit	Enhet
+6443	Søg i Saldi	Search Saldi	Søk i Saldi
+6444	Søg efter sider, kunder, bilag, varer …	Search pages, customers, vouchers, items …	Søk etter sider, kunder, bilag, varer …
+6445	Senest besøgt	Recently visited	Nylig besøkt
+6446	Sider	Pages	Sider
+6447	Bilag og fakturaer	Vouchers and invoices	Bilag og fakturaer
+6448	Ordre %s	Order %s	Ordre %s
+6449	Faktura %s	Invoice %s	Faktura %s
+6450	Kassekladde %s	Cash journal %s	Kassekladd %s
+6451	Ingen resultater	No results	Ingen resultater
+6452	Indkøbsordre %s	Purchase order %s	Innkjøpsordre %s
+6453	Spørg Assist om %s	Ask Assist about %s	Spør Assist om %s
+6454	Spørg Assist	Ask Assist	Spør Assist
+6455	Rundvisning af siden	Tour of the page	Omvisning på siden
+6456	God nat	Good night	God natt
+6457	Godmorgen	Good morning	God morgen
+6458	God formiddag	Good morning	God formiddag
+6459	God eftermiddag	Good afternoon	God ettermiddag
+6460	God aften	Good evening	God kveld
+6461	opdateret for et øjeblik siden	updated a moment ago	oppdatert for et øyeblikk siden
+6462	opdateret for %s min. siden	updated %s min. ago	oppdatert for %s min. siden
+6463	%s konti	%s accounts	%s kontoer
+6464	%s grupper	%s groups	%s grupper
+6465	%s kunder	%s customers	%s kunder
+6466	%s leverandører	%s suppliers	%s leverandører
+6467	Kan ikke ændres, mens rækken er i brug	Cannot be changed while the row is in use	Kan ikke endres mens raden er i bruk
+6468	Momskoderne og de konti, momsrapporten bygger på. Gælder pr. regnskabsår.	The VAT codes and the accounts the VAT report is built on. Per fiscal year.	Mva-kodene og kontoene mva-rapporten bygger på. Gjelder per regnskapsår.
+6469	Tilføj momskode	Add VAT code	Legg til mva-kode
+6470	Ingen momskoder endnu	No VAT codes yet	Ingen mva-koder ennå
+6471	Land (OSS)	Country (OSS)	Land (OSS)
+6472	Momskoden skal være et ciffer fra 1 til 9	The VAT code must be a digit from 1 to 9	Mva-koden må være et siffer fra 1 til 9
+6473	Rubrik A1 – EU-varekøb	Box A1 – EU goods purchases	Rubrikk A1 – EU-varekjøp
+6474	Rubrik A2 – EU-ydelseskøb	Box A2 – EU service purchases	Rubrikk A2 – EU-tjenestekjøp
+6475	Tilføj debitorgruppe	Add debtor group	Legg til debitorgruppe
+6476	Tilføj kreditorgruppe	Add creditor group	Legg til kreditorgruppe
+6477	Tilføj varegruppe	Add item group	Legg til varegruppe
+6478	Ingen debitorgrupper endnu	No debtor groups yet	Ingen debitorgrupper ennå
+6479	Ingen kreditorgrupper endnu	No creditor groups yet	Ingen kreditorgrupper ennå
+6480	Ingen varegrupper endnu	No item groups yet	Ingen varegrupper ennå
+6481	Rabat %	Discount %	Rabatt %
+6482	Rabatsats for kundegruppen på ordrer; bruges også som provisionsprocent	Discount rate for the customer group on orders; also used as the commission rate	Rabattsats for kundegruppen på ordrer; brukes også som provisjonsprosent
+6483	B2B	B2B	B2B
+6484	EU-zone	EU zone	EU-sone
+6485	Lagertilgang	Stock in	Lagertilgang
+6486	Lagertræk	Stock out	Lageruttak
+6487	Varekøb	Purchases	Varekjøp
+6488	Varesalg	Sales	Varesalg
+6489	Varer/ydelser	Goods/services	Varer/tjenester
+6490	Momsfri	VAT-free	Mva-fri
+6491	Lagerført	Stock-managed	Lagerført
+6492	Batchkontrol	Batch control	Batchkontroll
+6493	Operation (Sager/løn)	Operation (cases/payroll)	Operasjon (saker/lønn)
+6494	Alt. varekøbskonto i EU (lagerværdi)	Alt. purchase account in the EU (stock value)	Alt. varekjøpskonto i EU (lagerverdi)
+6495	Alt. varekøbskonto uden for EU (lagerværdi)	Alt. purchase account outside the EU (stock value)	Alt. varekjøpskonto utenfor EU (lagerverdi)
+6496	Ekstra varekøbskonto til beregning af lagerværdi. Hed tidligere "Køb i EU".	Extra purchase account for the stock value. Formerly "Køb i EU".	Ekstra varekjøpskonto for lagerverdi. Het tidligere "Køb i EU".
+6497	Ekstra varekøbskonto til beregning af lagerværdi. Hed tidligere "Køb uden for EU".	Extra purchase account for the stock value. Formerly "Køb uden for EU".	Ekstra varekjøpskonto for lagerverdi. Het tidligere "Køb uden for EU".
+6498	Batchkontrol kræver lagerførte varer	Batch control requires stock-managed items	Batchkontroll krever lagerførte varer
+6499	Lagertilgang og lagertræk udfyldes begge eller ingen af dem	Stock in and stock out are both filled in or neither	Lagertilgang og lageruttak fylles begge ut eller ingen av dem
+6500	S.moms grp skal udfyldes, når OB er afmærket	S.VAT group is required when reverse charge is ticked	S.mva-gruppe må fylles ut når OB er avmerket
+6501	Ydelser	Services	Tjenester
+6502	Samlekontoen kan ikke ændres her, mens gruppen har konti – flytning med bogføring sker indtil videre på den gamle side.	The control account cannot be changed here while the group has accounts – moving it with postings is done on the old page for now.	Samlekontoen kan ikke endres her mens gruppen har kontoer – flytting med bokføring gjøres foreløpig på den gamle siden.
+6503	Flyt samlekonto	Move control account	Flytt samlekonto
+6504	Åbn den gamle side	Open the old page	Åpne den gamle siden
+6505	Debitorgruppernes momsgruppe, samlekonto, valuta, sprog og rabat. Gælder pr. regnskabsår.	The debtor groups' VAT group, control account, currency, language and discount. Per fiscal year.	Debitorgruppenes mva-gruppe, samlekonto, valuta, språk og rabatt. Gjelder per regnskapsår.
+6506	Kreditorgruppernes momsgruppe, samlekonto, valuta og omvendt betalingspligt. Gælder pr. regnskabsår.	The creditor groups' VAT group, control account, currency and reverse charge. Per fiscal year.	Kreditorgruppenes mva-gruppe, samlekonto, valuta og omvendt avgiftsplikt. Gjelder per regnskapsår.
+6507	Varegruppernes konti for køb, salg og lager. Gælder pr. regnskabsår.	The item groups' accounts for purchases, sales and stock. Per fiscal year.	Varegruppenes kontoer for kjøp, salg og lager. Gjelder per regnskapsår.
+6508	Prisgrupper, tilbudsgrupper og rabatgrupper	Price groups, offer groups and discount groups	Prisgrupper, tilbudsgrupper og rabattgrupper
+6509	Ligger indtil videre på den gamle side	Remain on the old page for now	Ligger foreløpig på den gamle siden
+6510	Virksomhedens navn, adresse, CVR, kontakt og bank. Bruges på fakturaer, i e-fakturaer og i Betalingsservice.	The company's name, address, CVR, contact and bank. Used on invoices, in e-invoices and in Betalingsservice.	Firmaets navn, adresse, org.nr., kontakt og bank. Brukes på fakturaer, i e-fakturaer og i Betalingsservice.
+6511	Teksten er for lang	The text is too long	Teksten er for lang
+6512	Kopi af ordremails til sælger	Copy of order e-mails to the salesperson	Kopi av ordre-e-poster til selger
+6513	Landekonfiguration	Country configuration	Landkonfigurasjon
+6514	Styrer moms- og rapportregler. Ændres kun af Saldi.	Controls VAT and report rules. Changed only by Saldi.	Styrer mva- og rapportregler. Endres bare av Saldi.
+6515	Åbn databehandleraftalen	Open the data-processing agreement	Åpne databehandleravtalen
+6516	Ansattes rækkefølge og kontaktoplysninger ligger indtil videre på den gamle Stamdata-side	The employees' order and contact details remain on the old Master data page for now	Ansattes rekkefølge og kontaktopplysninger ligger foreløpig på den gamle Stamdata-siden
+6517	BS-løsning	BS type	BS-løsning
+6518	BS-debitorgruppe	BS debtor group	BS-debitorgruppe
+6519	E-mail til dataansvarlig	E-mail of the data controller	E-post til behandlingsansvarlig
+6520	Virksomhed	Company	Firma
+6521	Bank og betaling	Bank and payment	Bank og betaling
+6522	Kontakt	Contact	Kontakt
+6523	Persondata	Personal data	Persondata
+6524	Lokalisering	Localisation	Lokalisering
+6525	Basisvaluta, land, tidszone, talformat og standardsprog for regnskabet.	Base currency, country, time zone, number format and default language of the ledger.	Basisvaluta, land, tidssone, tallformat og standardspråk for regnskapet.
+6526	Basisvaluta	Base currency	Basisvaluta
+6527	Valutaen regnskabet føres i. Ændres kun på et nyt regnskab.	The currency the ledger is kept in. Change only on a new ledger.	Valutaen regnskapet føres i. Endres bare på et nytt regnskap.
+6528	Styrer landespecifikke regler, f.eks. CVR-opslag og momsrubrikker.	Controls country-specific rules, e.g. CVR lookups and VAT boxes.	Styrer landspesifikke regler, f.eks. org.nr.-oppslag og mva-rubrikker.
+6529	Bruges til tidsstempler i regnskabet, når serveren står i en anden tidszone.	Used for timestamps in the ledger when the server is in another time zone.	Brukes til tidsstempler i regnskapet når serveren står i en annen tidssone.
+6530	Talformat	Number format	Tallformat
+6531	Tusindtals- og decimaltegn i tal, der vises og importeres.	Thousands and decimal separators in numbers shown and imported.	Tusen- og desimaltegn i tall som vises og importeres.
+6532	Systemsprog	System language	Systemspråk
+6533	Standardsprog for nye brugere og for sider uden brugervalg.	Default language for new users and for pages without a user choice.	Standardspråk for nye brukere og for sider uten brukervalg.
+6534	Oversættelser	Translations	Oversettelser
+6535	Ret de tekster, Saldi viser, for det sprog du er logget ind med.	Edit the texts Saldi shows, for the language you are logged in with.	Rett tekstene Saldi viser, for språket du er logget inn med.
+6536	Rediger oversættelser	Edit translations	Rediger oversettelser
+6537	Kunder og leverandører uden aktivitet i 3 år	Customers and suppliers with no activity for 3 years	Kunder og leverandører uten aktivitet på 3 år
+6538	Konti uden ordrer, åbne poster, notater eller jobkort i de seneste 3 år. Kontakter og historik slettes med.	Accounts with no orders, open items, notes or job cards in the last 3 years. Contacts and history are deleted with them.	Kontoer uten ordrer, åpne poster, notater eller jobbkort de siste 3 årene. Kontakter og historikk slettes med.
+6539	Slet inaktive kunder og leverandører	Delete inactive customers and suppliers	Slett inaktive kunder og leverandører
+6540	Slet inaktive kunder og leverandører?	Delete inactive customers and suppliers?	Slette inaktive kunder og leverandører?
+6541	Kontiene slettes med kontakter, notater og jobkort. Kan ikke fortrydes. Tag en backup først.	The accounts are deleted with contacts, notes and job cards. Cannot be undone. Take a backup first.	Kontoene slettes med kontakter, notater og jobbkort. Kan ikke angres. Ta en sikkerhetskopi først.
+6542	Slettet: %s kunder og %s leverandører	Deleted: %s customers and %s suppliers	Slettet: %s kunder og %s leverandører
+6543	Ingen kunder eller leverandører uden aktivitet i 3 år	No customers or suppliers without activity for 3 years	Ingen kunder eller leverandører uten aktivitet på 3 år
+6544	Din adgangskode	Your password	Passordet ditt
+6545	Forkert adgangskode – intet er ændret	Wrong password – nothing was changed	Feil passord – ingenting er endret
+6546	Bekræft med din adgangskode	Confirm with your password	Bekreft med passordet ditt
+6547	Periode, bogføring og status for hvert regnskabsår. Et nyt år oprettes i forlængelse af det seneste.	Period, posting and status of each fiscal year. A new year is created right after the latest one.	Periode, bokføring og status for hvert regnskapsår. Et nytt år opprettes i forlengelsen av det siste.
+6548	Nr.	No.	Nr.
+6549	Periode	Period	Periode
+6550	Bogføring tilladt	Posting allowed	Bokføring tillatt
+6551	Status	Status	Status
+6552	Slettet	Deleted	Slettet
+6553	Dit aktive år	Your active year	Ditt aktive år
+6554	Åben for bogføring	Open for posting	Åpen for bokføring
+6555	Sæt aktivt for alle	Set active for everyone	Sett aktivt for alle
+6556	Åbningsbalance	Opening balance	Åpningsbalanse
+6557	Slet med data	Delete with data	Slett med data
+6558	Forslaget starter lige efter det seneste regnskabsår. Kontoplan og år-afhængige indstillinger kopieres fra det seneste år; bagefter gennemgår du åbningsbalancen.	The suggestion starts right after the latest fiscal year. The chart of accounts and year-dependent settings are copied from it; then you review the opening balance.	Forslaget starter rett etter det siste regnskapsåret. Kontoplan og årsavhengige innstillinger kopieres fra det; deretter går du gjennom åpningsbalansen.
+6559	Start	Start	Start
+6560	Første regnskabsår: vælg den måned og det år, regnskabet starter. Bagefter indtaster du åbningsbalancen.	First fiscal year: choose the month and year the accounts start. Then you enter the opening balance.	Første regnskapsår: velg måneden og året regnskapet starter. Deretter legger du inn åpningsbalansen.
+6561	Slut skal ligge efter start	The end must be after the start	Slutt må ligge etter start
+6562	Måned skal være mellem 1 og 12	Month must be between 1 and 12	Måned må være mellom 1 og 12
+6563	Året skal ligge mellem %s og %s	The year must be between %s and %s	Året må ligge mellom %s og %s
+6564	Regnskabsår %s er oprettet og er nu dit aktive år – gennemgå åbningsbalancen	Fiscal year %s has been created and is now your active year – review the opening balance	Regnskapsår %s er opprettet og er nå ditt aktive år – gå gjennom åpningsbalansen
+6565	Ingen regnskabsår endnu	No fiscal years yet	Ingen regnskapsår ennå
+6566	%s kassekladdelinjer	%s cash journal lines	%s kassekladdelinjer
+6567	%s brugere har året som aktivt	%s users have the year as active	%s brukere har året som aktivt
+6568	%s åbne poster	%s open items	%s åpne poster
+6569	det er dit aktive år	it is your active year	det er ditt aktive år
+6570	et senere regnskabsår findes	a later fiscal year exists	et senere regnskapsår finnes
+6571	Slet regnskabsår %s med alle data?	Delete fiscal year %s with all data?	Slette regnskapsår %s med alle data?
+6572	Posteringer, kassekladder, ordrer og fakturaer til og med periodens slutning slettes; åbne poster samles i én primopost pr. konto. Det kan ikke fortrydes – tag en sikkerhedskopi først.	Postings, cash journals, orders and invoices up to the end of the period are deleted; open items are combined into one opening item per account. This cannot be undone – take a backup first.	Posteringer, kassekladder, ordrer og fakturaer til og med periodens slutt slettes; åpne poster samles i én primopost per konto. Det kan ikke angres – ta en sikkerhetskopi først.
+6573	Regnskabsår %s er slettet	Fiscal year %s has been deleted	Regnskapsår %s er slettet
+6574	Regnskabsår %s er nu aktivt for alle brugere	Fiscal year %s is now active for all users	Regnskapsår %s er nå aktivt for alle brukere
+6575	Regnskabsår %s er nu dit aktive år	Fiscal year %s is now your active year	Regnskapsår %s er nå ditt aktive år
+6576	Kan ikke slettes: %s	Cannot be deleted: %s	Kan ikke slettes: %s
+6577	Regnskabsåret kan først slettes 5 år efter periodens slutning	The fiscal year can only be deleted 5 years after the end of the period	Regnskapsåret kan først slettes 5 år etter periodens slutt
+6578	Det ældste regnskabsår skal slettes først	The oldest fiscal year must be deleted first	Det eldste regnskapsåret må slettes først
+6579	Forrige regnskabsår er slettet, så åbningsbalancen vises, som den står, og kan ikke overføres igen.	The previous fiscal year has been deleted, so the opening balance is shown as it stands and cannot be transferred again.	Forrige regnskapsår er slettet, så åpningsbalansen vises som den står og kan ikke overføres igjen.
+6580	Valutaer med kursdifferencekonto og visning i kassen. Kurserne pr. dato står nedenfor.	Currencies with exchange-difference account and display in the till. The rates per date are below.	Valutaer med kursdifferansekonto og visning i kassen. Kursene per dato står nedenfor.
+6581	Valutakode	Currency code	Valutakode
+6582	Kursdifferencekonto	Exchange-difference account	Kursdifferansekonto
+6583	Vis i kassen	Show in the till	Vis i kassen
+6584	Aktuel kurs	Current rate	Aktuell kurs
+6585	Tilføj valuta	Add currency	Legg til valuta
+6586	Ingen valutaer endnu	No currencies yet	Ingen valutaer ennå
+6587	Kurser	Rates	Kurser
+6588	Kursen er værdien i %s af 100 enheder af valutaen. En kursændring tilføjes som en ny kurs med den dato, den gælder fra.	The rate is the value in %s of 100 units of the currency. A rate change is added as a new rate with the date it applies from.	Kursen er verdien i %s av 100 enheter av valutaen. En kursendring legges til som en ny kurs med datoen den gjelder fra.
+6589	Kurs	Rate	Kurs
+6590	Tilføj kurs	Add rate	Legg til kurs
+6591	Ingen kurser for valutaen endnu	No rates for the currency yet	Ingen kurser for valutaen ennå
+6592	Ugyldig dato	Invalid date	Ugyldig dato
+6593	Basisvalutaen kan ikke oprettes som valuta	The base currency cannot be created as a currency	Basisvalutaen kan ikke opprettes som valuta
+6594	Kontoen skal være en driftskonto	The account must be a profit and loss account	Kontoen må være en driftskonto
+6595	Der er bogført i valutaen efter denne dato – brug en senere dato	There are postings in the currency after this date – use a later date	Det er bokført i valutaen etter denne datoen – bruk en senere dato
+6596	Valutaen mangler en kursdifferencekonto	The currency has no exchange-difference account	Valutaen mangler en kursdifferansekonto
+6597	Gemmes kursen, bogføres disse kursdifferencer:	Saving the rate posts these exchange differences:	Lagres kursen, bokføres disse kursdifferansene:
+6598	Konto %s: %s kr. (modkonto %s)	Account %s: %s (contra account %s)	Konto %s: %s kr. (motkonto %s)
+6599	Bogfør og gem	Post and save	Bokfør og lagre
+6600	Posteringerne får teksten "Kursændring" og kan ses på kontokortene.	The postings get the text "Kursændring" and can be seen on the account cards.	Posteringene får teksten "Kursændring" og kan ses på kontokortene.
+6601	%s konti	%s accounts	%s kontoer
+6602	%s kurser	%s rates	%s kurser
+6603	%s åbne poster justeres hos kunder og leverandører	%s open items of customers and suppliers are adjusted	%s åpne poster justeres hos kunder og leverandører
+6604	Kursen skal være større end 0	The rate must be greater than 0	Kursen må være større enn 0
+6605	Alle brugere får dette regnskabsår som aktivt, også ved næste login.	All users get this fiscal year as active, also at their next login.	Alle brukere får dette regnskapsåret som aktivt, også ved neste innlogging.
+6606	Virksomhedens medarbejdere med stamdata, ansættelse, løn og den bruger, de er koblet til. Rækkefølgen her er også rækkefølgen i listerne	The company's employees with master data, employment, pay and the user they are linked to. The order here is also the order in the lists	Virksomhetens medarbeidere med stamdata, ansettelse, lønn og brukeren de er koblet til. Rekkefølgen her er også rekkefølgen i listene
+6607	Ingen medarbejdere endnu	No employees yet	Ingen medarbeidere ennå
+6608	Person	Person	Person
+6609	Ansættelse	Employment	Ansettelse
+6610	Løn og CPR	Pay and CPR	Lønn og personnummer
+6611	Ekstra felter	Extra fields	Ekstra felt
+6612	Bruger	User	Bruker
+6613	Tilføj medarbejder	Add employee	Legg til medarbeider
+6614	Ny medarbejder	New employee	Ny medarbeider
+6615	Slet medarbejder	Delete employee	Slett medarbeider
+6617	Medarbejderen slettes med sine ekstra felter. Det kan ikke fortrydes; en medarbejder, der er i brug, markeres i stedet som fratrådt.	The employee is deleted with their extra fields. This cannot be undone; an employee in use is marked as resigned instead.	Medarbeideren slettes med sine ekstra felt. Det kan ikke angres; en medarbeider som er i bruk, markeres i stedet som fratrådt.
+6618	%s kan ikke slettes – bruges af %s. Markér medarbejderen som fratrådt i stedet.	%s cannot be deleted – used by %s. Mark the employee as resigned instead.	%s kan ikke slettes – brukes av %s. Merk medarbeideren som fratrådt i stedet.
+6619	Flyt op	Move up	Flytt opp
+6620	Flyt ned	Move down	Flytt ned
+6621	Koblet til brugeren %s	Linked to the user %s	Koblet til brukeren %s
+6622	Ingen bruger er koblet til medarbejderen	No user is linked to the employee	Ingen bruker er koblet til medarbeideren
+6623	Åbn i Brugere & roller	Open in Users & roles	Åpne i Brukere og roller
+6624	Medarbejdernummeret er allerede i brug	The employee number is already in use	Medarbeidernummeret er allerede i bruk
+6625	%s brugere	%s users	%s brukere
+6626	%s provisionssatser	%s commission rates	%s provisjonssatser
+6627	Når slutdatoen er passeret, markeres medarbejderen som fratrådt ved næste gem.	Once the end date has passed, the employee is marked as resigned at the next save.	Når sluttdatoen er passert, merkes medarbeideren som fratrådt ved neste lagring.
+6628	Den formularbaggrund, brugeren udskriver med.	The form background the user prints with.	Skjemabakgrunnen brukeren skriver ut med.
+6629	Rækkefølgen bruges i lister over medarbejdere.	The order is used in lists of employees.	Rekkefølgen brukes i lister over medarbeidere.
+6630	Abonnement & konto	Subscription & account	Abonnement og konto
+6631	Regnskabets navn og farezonen: nulstil eller slet regnskabet	The ledger's name and the danger zone: reset or delete the ledger	Regnskapets navn og faresonen: nullstill eller slett regnskapet
+6632	Regnskab	Ledger	Regnskap
+6633	Farezone	Danger zone	Faresone
+6634	Handlingerne her kan ikke fortrydes. De kræver din adgangskode og logges.	These actions cannot be undone. They require your password and are logged.	Handlingene her kan ikke angres. De krever passordet ditt og logges.
+6635	Regnskabets navn	Ledger name	Regnskapets navn
+6636	Navnet, der bruges ved login og i oversigten over regnskaber.	The name used at login and in the list of ledgers.	Navnet som brukes ved innlogging og i oversikten over regnskaper.
+6637	Der findes allerede et regnskab med det navn	A ledger with that name already exists	Det finnes allerede et regnskap med det navnet
+6638	Alle ordrer, fakturaer, posteringer og kassekladder slettes, og regnskabet starter forfra i ét regnskabsår. Brugere og deres personlige indstillinger beholdes. Tag en sikkerhedskopi først.	All orders, invoices, postings and cash journals are deleted and the ledger starts over in one fiscal year. Users and their personal settings are kept. Take a backup first.	Alle ordrer, fakturaer, posteringer og kassekladder slettes, og regnskapet starter på nytt i ett regnskapsår. Brukere og deres personlige innstillinger beholdes. Ta en sikkerhetskopi først.
+6639	%s posteringer de sidste 12 måneder	%s postings in the last 12 months	%s posteringer de siste 12 månedene
+6640	Regnskabet er nulstillet	The ledger has been reset	Regnskapet er nullstilt
+6641	Regnskabet blev ikke nulstillet: %s	The ledger was not reset: %s	Regnskapet ble ikke nullstilt: %s
+6642	Sletter ordrer, fakturaer og posteringer. Kunder, leverandører og varer kan beholdes.	Deletes orders, invoices and postings. Customers, suppliers and items can be kept.	Sletter ordrer, fakturaer og posteringer. Kunder, leverandører og varer kan beholdes.
+6643	Regnskabet lukkes, og alle brugere logges ud. Saldi gemmer en sikkerhedskopi i 5 år jf. bogføringsloven.	The ledger is closed and all users are logged out. Saldi keeps a backup for 5 years as the Bookkeeping Act requires.	Regnskapet lukkes, og alle brukere logges ut. Saldi beholder en sikkerhetskopi i 5 år etter bokføringsloven.
+6644	Aktivitet	Activity	Aktivitet
+6645	Flyttet til	Moved to	Flyttet til
+6646	Hent data ud som en fil, eller læs data ind fra en fil	Download data as a file, or load data from a file	Hent data ut som en fil, eller les inn data fra en fil
+6648	Kunder og leverandører	Customers and suppliers	Kunder og leverandører
+6649	Eksportér kontoplan	Export chart of accounts	Eksporter kontoplan
+6650	En sikkerhedskopi af hele regnskabet, som du kan gemme, og indlæsning af en tidligere kopi	A backup of the whole ledger that you can save, and loading an earlier copy	En sikkerhetskopi av hele regnskapet som du kan lagre, og innlesing av en tidligere kopi
+6651	Indlæsning overskriver hele regnskabet. Alle brugere skal være logget ud. Tag en sikkerhedskopi først.	Loading overwrites the whole ledger. All users must be logged out. Take a backup first.	Innlesing overskriver hele regnskapet. Alle brukere må være logget ut. Ta en sikkerhetskopi først.
+6652	Importér kontoplan	Import chart of accounts	Importer kontoplan
+6653	Eksportér kunder og leverandører	Export customers and suppliers	Eksporter kunder og leverandører
+6654	Importér kunder og leverandører	Import customers and suppliers	Importer kunder og leverandører
+6655	Eksportér varer	Export items	Eksporter varer
+6656	Importér varer	Import items	Importer varer
+6657	Eksportér variantvarer	Export variant items	Eksporter variantvarer
+6658	Importér variantvarer	Import variant items	Importer variantvarer
+6659	Importér varelokationer	Import item locations	Importer varelokasjoner
+6660	Eksportér formularer	Export forms	Eksporter skjemaer
+6661	Importér formularer	Import forms	Importer skjemaer
+6662	Seneste sikkerhedskopi	Latest backup	Siste sikkerhetskopi
+6663	Danner en sikkerhedskopi af hele regnskabet, som du kan gemme på din computer.	Makes a backup of the whole ledger that you can save on your computer.	Lager en sikkerhetskopi av hele regnskapet som du kan lagre på datamaskinen.
+6664	Vælg en sikkerhedskopi (.sdat) og bekræft, før regnskabet overskrives.	Choose a backup (.sdat) and confirm before the ledger is overwritten.	Velg en sikkerhetskopi (.sdat) og bekreft før regnskapet overskrives.
+6665	Sikkerhedskopi	Backup	Sikkerhetskopi
+6666	Erstatter kontoplanen for det nyeste regnskabsår.	Replaces the chart of accounts of the latest fiscal year.	Erstatter kontoplanen for det nyeste regnskapsåret.
+6667	Der er ikke taget en sikkerhedskopi her endnu	No backup has been taken here yet	Det er ikke tatt noen sikkerhetskopi her ennå
+6668	Hent	Download	Last ned
+6671	Baggrunde	Backgrounds	Bakgrunner
+6672	Formularernes baggrunde (sprog) og de PDF-filer, der bruges som brevpapir og bilag	The forms' backgrounds (languages) and the PDF files used as letterhead and attachments	Skjemaenes bakgrunner (språk) og PDF-filene som brukes som brevpapir og vedlegg
+6673	Baggrunds- og bilagsfiler	Background and attachment files	Bakgrunns- og vedleggsfiler
+6674	Standard (Dansk) findes altid. En baggrund kan vælges på kunder, leverandører og ordrer.	The default (Danish) always exists. A background can be chosen on customers, suppliers and orders.	Standard (dansk) finnes alltid. En bakgrunn kan velges på kunder, leverandører og ordrer.
+6675	Tilføj baggrund	Add background	Legg til bakgrunn
+6676	Kun standardbaggrunden findes	Only the default background exists	Bare standardbakgrunnen finnes
+6677	Navnet kan ikke ændres bagefter, fordi formularerne bruger det.	The name cannot be changed later because the forms use it.	Navnet kan ikke endres senere fordi skjemaene bruker det.
+6678	Kopiér fra	Copy from	Kopier fra
+6679	Den baggrund, hvis formularer kopieres til den nye.	The background whose forms are copied to the new one.	Bakgrunnen som skjemaene kopieres fra.
+6680	Upload PDF-baggrunde for tilbud, ordrer og fakturaer og PDF-bilag til mails - pr. baggrund og afdeling.	Upload PDF backgrounds for quotes, orders and invoices and PDF attachments for e-mails - per background and department.	Last opp PDF-bakgrunner for tilbud, ordrer og fakturaer og PDF-vedlegg til e-post - per bakgrunn og avdeling.
+6681	Åbn	Open	Åpne
+6682	%s kunder og leverandører	%s customers and suppliers	%s kunder og leverandører
+6683	Dansk er standardbaggrunden og findes altid	Danish is the default background and always exists	Dansk er standardbakgrunnen og finnes alltid
+6684	Navnet er allerede i brug	The name is already in use	Navnet er allerede i bruk
+6685	Velkommen	Welcome	Velkommen
+6686	Kort intro	Short intro	Kort intro
+6687	Hvem er du?	Who are you?	Hvem er du?
+6688	Ny virksomhed eller skifter du system?	New company or switching systems?	Ny virksomhet eller bytter du system?
+6689	Virksomhed og udtryk	Company and look	Virksomhet og uttrykk
+6690	CVR, firmaoplysninger, logo og farve	CVR, company details, logo and colour	Org.nr., firmaopplysninger, logo og farge
+6691	Regnskabsår og moms	Fiscal year and VAT	Regnskapsår og mva.
+6692	Startdato og momsperiode	Start date and VAT period	Startdato og mva.-periode
+6693	Din faktura	Your invoice	Din faktura
+6694	Bank, betalingsbetingelser og forhåndsvisning	Bank, payment terms and preview	Bank, betalingsbetingelser og forhåndsvisning
+6695	Inviter kolleger	Invite colleagues	Inviter kolleger
+6696	Bogholder, ejer eller medarbejdere	Accountant, owner or staff	Regnskapsfører, eier eller ansatte
+6697	Færdig	Done	Ferdig
+6698	Opsummering	Summary	Oppsummering
+6699	Opsætning	Setup	Oppsett
+6700	Du kan altid lukke og fortsætte senere. Intet går tabt.	You can always close and continue later. Nothing is lost.	Du kan alltid lukke og fortsette senere. Ingenting går tapt.
+6701	Trin %s af %s	Step %s of %s	Trinn %s av %s
+6702	Luk og fortsæt senere	Close and continue later	Lukk og fortsett senere
+6703	Kom i gang	Get started	Kom i gang
+6704	Tilbage	Back	Tilbake
+6705	Spring over	Skip	Hopp over
+6706	Næste	Next	Neste
+6707	Hej, og velkommen til Saldi	Hi, and welcome to Saldi	Hei, og velkommen til Saldi
+6708	Lad os få dig godt og trygt i gang, så du får en god oplevelse. Det tager ca. 10 minutter, og du kan til enhver tid lukke og fortsætte senere.	Let us get you started safely and comfortably so you have a good experience. It takes about 10 minutes, and you can close and continue later at any time.	La oss få deg godt og trygt i gang, så du får en god opplevelse. Det tar ca. 10 minutter, og du kan når som helst lukke og fortsette senere.
+6709	Dit firma og logo	Your company and logo	Ditt firma og logo
+6710	Dine kolleger	Your colleagues	Dine kolleger
+6711	To hurtige spørgsmål, så guiden kan tilpasse sig dig.	Two quick questions so the guide can adapt to you.	To raske spørsmål, så guiden kan tilpasse seg deg.
+6712	Din situation	Your situation	Din situasjon
+6713	Ny virksomhed	New company	Ny virksomhet
+6714	Vi starter fra en ren tavle med Saldis standardopsætning.	We start from a clean slate with Saldi's standard setup.	Vi starter med blanke ark og Saldis standardoppsett.
+6715	Skifter fra et andet system	Switching from another system	Bytter fra et annet system
+6716	Vi hjælper med nummerserier og, i næste del, import af dine data.	We help with number series and, in the next part, importing your data.	Vi hjelper med nummerserier og, i neste del, import av dataene dine.
+6717	Hvilket system kommer du fra?	Which system are you coming from?	Hvilket system kommer du fra?
+6718	Din rolle	Your role	Din rolle
+6719	Jeg driver virksomheden	I run the company	Jeg driver virksomheten
+6720	Vi foreslår at invitere din bogholder senere.	We suggest inviting your accountant later.	Vi foreslår å invitere regnskapsføreren din senere.
+6721	Jeg er bogholder/revisor for virksomheden	I am the company's accountant/auditor	Jeg er regnskapsfører/revisor for virksomheten
+6722	Vi foreslår at invitere ejeren senere.	We suggest inviting the owner later.	Vi foreslår å invitere eieren senere.
+6723	Din virksomhed og dit udtryk	Your company and your look	Din virksomhet og ditt uttrykk
+6724	Slå dit CVR-nummer op, så udfylder vi det meste. Du kan rette alt.	Look up your CVR number and we fill in most of it. You can change everything.	Slå opp organisasjonsnummeret, så fyller vi ut det meste. Du kan endre alt.
+6725	Slå op	Look up	Slå opp
+6726	Henter navn og adresse fra CVR-registret.	Fetches name and address from the CVR register.	Henter navn og adresse fra registeret.
+6727	Træk dit logo hertil eller klik for at vælge	Drag your logo here or click to choose	Dra logoen hit eller klikk for å velge
+6728	png eller jpg	png or jpg	png eller jpg
+6729	Farve	Colour	Farge
+6730	Egen farve	Own colour	Egen farge
+6731	Farven bruges i menuen og på knapperne. Du ser det med det samme.	The colour is used in the menu and on the buttons. You see it straight away.	Fargen brukes i menyen og på knappene. Du ser det med en gang.
+6732	Logo og farve kan altid ændres under Indstillinger.	Logo and colour can always be changed under Settings.	Logo og farge kan alltid endres under Innstillinger.
+6733	De to ting, der er besværlige at ændre, når du først har bogført. Tag dem nu, hvis du kan.	The two things that are hard to change once you have posted. Do them now if you can.	De to tingene som er vanskelige å endre når du først har bokført. Ta dem nå hvis du kan.
+6734	Regnskabsåret starter	The fiscal year starts	Regnskapsåret starter
+6735	Regnskabsåret slutter	The fiscal year ends	Regnskapsåret slutter
+6736	Er virksomheden momsregistreret?	Is the company VAT registered?	Er virksomheten mva.-registrert?
+6737	Ja	Yes	Ja
+6738	Nej	No	Nei
+6739	Momsperiode	VAT period	Mva.-periode
+6740	Månedlig	Monthly	Månedlig
+6741	Kvartalsvis	Quarterly	Kvartalsvis
+6742	Halvårlig	Half-yearly	Halvårlig
+6743	Står på din registreringsbekræftelse fra Skattestyrelsen.	Stated on your registration confirmation from the Danish Tax Agency.	Står på registreringsbekreftelsen fra Skatteetaten.
+6744	Hvorfor nu?	Why now?	Hvorfor nå?
+6745	Regnskabsår og momsperiode styrer, hvordan alle posteringer grupperes. Springer du over, markerer tjeklisten trinnet som Vigtigt.	The fiscal year and VAT period control how all postings are grouped. If you skip, the checklist marks the step as Important.	Regnskapsår og mva.-periode styrer hvordan alle posteringer grupperes. Hopper du over, merker sjekklisten trinnet som Viktig.
+6746	Regnskabet har allerede et regnskabsår med posteringer. Det ændres under Regnskabsår.	The ledger already has a fiscal year with postings. Change it under Fiscal years.	Regnskapet har allerede et regnskapsår med posteringer. Det endres under Regnskapsår.
+6747	Åbn Regnskabsår	Open Fiscal years	Åpne Regnskapsår
+6748	Kom godt i gang	Getting started	Kom godt i gang
+6749	Et par korte trin, så Saldi ser ud som dit firma og er klar til din første faktura.	A few short steps so Saldi looks like your company and is ready for your first invoice.	Noen korte trinn, så Saldi ser ut som firmaet ditt og er klar for den første fakturaen.
+6750	%s af %s trin færdige	%s of %s steps done	%s av %s trinn ferdige
+6751	Start opsætning	Start setup	Start oppsett
+6752	Fortsæt: %s	Continue: %s	Fortsett: %s
+6753	Skjul tjekliste	Hide checklist	Skjul sjekkliste
+6754	Vigtigt	Important	Viktig
+6755	Kommer snart	Coming soon	Kommer snart
+6756	Opsætningen er ikke færdig – bed administrator om at gøre den færdig.	Setup is not finished – ask the administrator to complete it.	Oppsettet er ikke ferdig – be administratoren fullføre det.
+6757	Alt er sat op. Godt gået!	Everything is set up. Well done!	Alt er satt opp. Godt jobbet!
+6758	Gennemse opsætning	Review setup	Gå gjennom oppsettet
+6759	Del 2	Part 2	Del 2
+6760	Kontoplan	Chart of accounts	Kontoplan
+6761	Åbningsbalance	Opening balance	Åpningsbalanse
+6762	Debitorer og kreditorer	Customers and suppliers	Kunder og leverandører
+6763	Varer og lager	Items and stock	Varer og lager
+6764	Slutdatoen skal ligge efter startdatoen.	The end date must be after the start date.	Sluttdatoen må ligge etter startdatoen.
+6765	Logoet skal være en png- eller jpg-fil på højst 5 MB.	The logo must be a png or jpg file of at most 5 MB.	Logoen må være en png- eller jpg-fil på maks. 5 MB.
+6766	Ugyldig dato	Invalid date	Ugyldig dato
+6767	Firmanavn skal udfyldes	Company name is required	Firmanavn må fylles ut
+6768	Behold standard, vælg skabelon eller importér	Keep the standard, choose a template or import	Behold standard, velg mal eller importer
+6769	Saldobalance og åbne poster	Trial balance and open items	Saldobalanse og åpne poster
+6770	Importér kunder og leverandører	Import customers and suppliers	Importer kunder og leverandører
+6771	Importér varer og beholdning	Import items and stock	Importer varer og beholdning
+6772	Regneark	Spreadsheet	Regneark
+6773	Andet	Other	Annet
+6774	Skjul	Hide	Skjul
+6775	Opsætning færdig	Setup complete	Oppsett ferdig
+6776	Logoet kunne ikke gemmes. Prøv igen.	The logo could not be saved. Try again.	Logoen kunne ikke lagres. Prøv igjen.
+6778	Betalingsfrist	Payment period	Betalingsfrist
+6779	Bruges som standard på nye kunder. Kan ændres pr. kunde.	Used as the default on new customers. Can be changed per customer.	Brukes som standard på nye kunder. Kan endres per kunde.
+6780	Vis tjekliste på oversigten	Show the checklist on the dashboard	Vis sjekklisten på oversikten
+6781	Netto %s dage	Net %s days	Netto %s dager
+6782	Løbende måned + %s dage	End of month + %s days	Løpende måned + %s dager
+6783	Egen SMTP-server sættes op under Indstillinger → E-mail.	Your own SMTP server is set up under Settings → E-mail.	Egen SMTP-server settes opp under Innstillinger → E-post.
+6784	Bundtekst (valgfri)	Footer text (optional)	Bunntekst (valgfri)
+6785	Tilpas layout i formulareditoren	Customise the layout in the form editor	Tilpass oppsettet i skjemaredigereren
+6786	Det, en faktura skal indeholde for at være korrekt. Layoutet kan tilpasses senere i formulareditoren.	What an invoice must contain to be correct. The layout can be customised later in the form editor.	Det en faktura må inneholde for å være korrekt. Oppsettet kan tilpasses senere i skjemaredigereren.
+6787	Sælger du til udlandet?	Do you sell abroad?	Selger du til utlandet?
+6788	Standard betalingsbetingelse	Default payment terms	Standard betalingsbetingelse
+6789	Næste fakturanummer	Next invoice number	Neste fakturanummer
+6790	Fortsæt din nummerrække fra %s.	Continue your number sequence from %s.	Fortsett nummerserien fra %s.
+6791	det gamle system	the old system	det gamle systemet
+6792	Opdateres live	Updates live	Oppdateres live
+6793	Kunde A/S	Customer Ltd	Kunde AS
+6794	Konsulentydelse	Consulting	Konsulenttjeneste
+6795	Tak for handlen	Thank you for your business	Takk for handelen
+6796	Fakturanummeret skal være et helt tal og mindst %s.	The invoice number must be a whole number and at least %s.	Fakturanummeret må være et heltall og minst %s.
+6797	Bed din administrator om at invitere kolleger	Ask your administrator to invite colleagues	Be administratoren om å invitere kolleger
+6798	Skriv et navn	Enter a name	Skriv et navn
+6799	Invitation sendt til %s	Invitation sent to %s	Invitasjon sendt til %s
+6800	Testfakturaen kunne ikke laves. Tjek fakturaformularen under Indstillinger.	The test invoice could not be made. Check the invoice form under Settings.	Testfakturaen kunne ikke lages. Sjekk fakturaskjemaet under Innstillinger.
+6801	Din testfaktura fra Saldi	Your test invoice from Saldi	Din testfaktura fra Saldi
+6802	Her er en testfaktura med din fakturaformular. Den er ikke bogført eller gemt.	Here is a test invoice with your invoice form. It has not been posted or saved.	Her er en testfaktura med fakturaskjemaet ditt. Den er ikke bokført eller lagret.
+6803	Testfakturaen er sendt til %s.	The test invoice has been sent to %s.	Testfakturaen er sendt til %s.
+6804	Åbn testfakturaen (PDF)	Open the test invoice (PDF)	Åpne testfakturaen (PDF)
+6805	Har du en bogholder eller revisor? Inviter dem nu, så de kan hjælpe med resten.	Do you have an accountant or auditor? Invite them now so they can help with the rest.	Har du en regnskapsfører eller revisor? Inviter dem nå, så de kan hjelpe med resten.
+6806	Inviter ejeren, så de kan følge med og godkende.	Invite the owner so they can follow along and approve.	Inviter eieren, så de kan følge med og godkjenne.
+6807	De får en mail og vælger selv kodeord.	They get an e-mail and choose their own password.	De får en e-post og velger passord selv.
+6808	Navn	Name	Navn
+6809	Rolle	Role	Rolle
+6810	Din bogholder	Your accountant	Din regnskapsfører
+6811	Ejeren	The owner	Eieren
+6812	Bogholder = finans, kassekladde og rapporter. Revisor = kun læseadgang. Administrator = alt, inkl. brugere.	Accountant = finance, cash journal and reports. Auditor = read only. Administrator = everything, including users.	Regnskapsfører = finans, kassekladd og rapporter. Revisor = kun lesetilgang. Administrator = alt, inkl. brukere.
+6813	Flere brugere, egne roller og finjustering under Indstillinger → Brugere & roller. Du kan ikke give en rolle med flere rettigheder end din egen.	More users, your own roles and fine-tuning under Settings → Users & roles. You cannot give a role with more rights than your own.	Flere brukere, egne roller og finjustering under Innstillinger → Brukere og roller. Du kan ikke gi en rolle med flere rettigheter enn din egen.
+6814	Sådan, du er i gang	There you go, you are up and running	Sånn, du er i gang
+6815	Her er, hvad vi har sat op. Alt kan ændres under Indstillinger.	Here is what we have set up. Everything can be changed under Settings.	Her er det vi har satt opp. Alt kan endres under Innstillinger.
+6816	Fortsæt	Continue	Fortsett
+6817	Næste skridt: dine data fra %s.	Next step: your data from %s.	Neste steg: dataene dine fra %s.
+6818	Import af kontoplan, åbningsbalance, kunder, leverandører og varer kommer i næste del og ligger klar i tjeklisten på din oversigt.	Importing the chart of accounts, opening balance, customers, suppliers and items comes in the next part and is ready in the checklist on your dashboard.	Import av kontoplan, åpningsbalanse, kunder, leverandører og varer kommer i neste del og ligger klar i sjekklisten på oversikten.
+6819	Send en testfaktura til mig	Send a test invoice to me	Send en testfaktura til meg
+6820	Gå til Saldi	Go to Saldi	Gå til Saldi
+6821	Din opsætning af Saldi venter	Your Saldi setup is waiting	Oppsettet ditt i Saldi venter
+6822	Du er nået %s af %s trin i opsætningen af %s. Fortsæt, hvor du slap – det tager kun et par minutter.	You have done %s of %s steps in setting up %s. Continue where you left off – it only takes a few minutes.	Du har gjort %s av %s trinn i oppsettet av %s. Fortsett der du slapp – det tar bare noen minutter.
+6823	Log ind og vælg Fortsæt på kortet "Kom godt i gang" på din oversigt.	Log in and choose Continue on the "Getting started" card on your dashboard.	Logg inn og velg Fortsett på kortet "Kom godt i gang" på oversikten.
+6824	Opret dansk standardsæt	Create the Danish standard set	Opprett dansk standardsett
+6825	Tilføj selv	Add your own	Legg til selv
+6826	Standardsættet er indsat – ret det til, og gem.	The standard set has been inserted – adjust it and save.	Standardsettet er satt inn – juster det og lagre.
+6827	Varianter som farve og størrelse, og de værdier en vare kan have. Værdierne vælges på varekortet.	Variants such as colour and size, and the values an item can have. The values are chosen on the item card.	Varianter som farge og størrelse, og verdiene en vare kan ha. Verdiene velges på varekortet.
+6828	Varianttyper	Variant types	Varianttyper
+6829	Værdier	Values	Verdier
+6830	Fx Farve eller Størrelse. Sletter du en variant, slettes dens værdier også.	E.g. Colour or Size. Deleting a variant also deletes its values.	F.eks. Farge eller Størrelse. Sletter du en variant, slettes også verdiene.
+6831	Tilføj variant	Add variant	Legg til variant
+6832	Ingen varianter endnu	No variants yet	Ingen varianter ennå
+6833	Variant	Variant	Variant
+6834	Navnet findes allerede	The name already exists	Navnet finnes allerede
+6835	Vælg en variant for at se og rette dens værdier, fx Rød og Blå.	Choose a variant to see and edit its values, e.g. Red and Blue.	Velg en variant for å se og endre verdiene, f.eks. Rød og Blå.
+6836	Tilføj værdi	Add value	Legg til verdi
+6837	Ingen værdier for denne variant endnu	No values for this variant yet	Ingen verdier for denne varianten ennå
+6838	Værdi	Value	Verdi
+6839	Importér varianter fra CSV	Import variants from CSV	Importer varianter fra CSV
+6840	Varianttyper (én pr. linje) eller værdier (variant;værdi).	Variant types (one per line) or values (variant;value).	Varianttyper (én per linje) eller verdier (variant;verdi).
+6841	%s variantvarer	%s variant items	%s variantvarer
+6842	(+%s)	(+%s)	(+%s)
+6843	Importeret: %s varianttyper. Sprunget over, da de findes allerede: %s.	Imported: %s variant types. Skipped because they already exist: %s.	Importert: %s varianttyper. Hoppet over fordi de finnes allerede: %s.
+6844	Importeret: %s værdier. Sprunget over, da de findes allerede: %s. Variant ikke fundet: %s.	Imported: %s values. Skipped because they already exist: %s. Variant not found: %s.	Importert: %s verdier. Hoppet over fordi de finnes allerede: %s. Variant ikke funnet: %s.
+6845	Varianttyper	Variant types	Varianttyper
+6846	Én variant pr. linje.	One variant per line.	Én variant per linje.
+6847	Én værdi pr. linje: variant;værdi. Varianten skal findes i forvejen.	One value per line: variant;value. The variant must already exist.	Én verdi per linje: variant;verdi. Varianten må finnes fra før.
+6851	Rabatter & prisgrupper	Discounts & price groups	Rabatter og prisgrupper
+6852	Anvend på varer	Apply to items	Bruk på varer
+6853	Gruppens priser skrives på alle varer i gruppen. Tomme felter ændrer ikke varerne.	The group's prices are written to every item in the group. Empty fields do not change the items.	Gruppens priser skrives på alle varer i gruppen. Tomme felt endrer ikke varene.
+6854	Prisgrupper, tilbudsgrupper og mængderabatter, som varer tilknyttes på varekortet. Gem ændrer ikke varernes priser – det gør »Anvend på varer«.	Price groups, campaign groups and quantity discounts that items are linked to on the item card. Saving does not change item prices – "Apply to items" does.	Prisgrupper, tilbudsgrupper og mengderabatter som varer knyttes til på varekortet. Lagre endrer ikke varenes priser – det gjør «Bruk på varer».
+6855	Mængderabatter	Quantity discounts	Mengderabatter
+6856	Kost-, salgs-, vejledende og B2B-pris for varerne i gruppen.	Cost, sales, recommended and B2B price for the items in the group.	Kost-, salgs-, veiledende og B2B-pris for varene i gruppen.
+6857	Tilføj gruppe	Add group	Legg til gruppe
+6858	Ingen grupper endnu	No groups yet	Ingen grupper ennå
+6859	Kostpris	Cost price	Kostpris
+6860	Salgspris	Sales price	Salgspris
+6861	Vejl. pris	Recommended price	Veil. pris
+6862	B2B-pris	B2B price	B2B-pris
+6863	Varer	Items	Varer
+6864	Kampagnepris og -kostpris med en periode.	Campaign price and cost with a period.	Kampanjepris og -kostpris med en periode.
+6865	Kampagnepris	Campaign price	Kampanjepris
+6866	Fra	From	Fra
+6867	Til	To	Til
+6868	Rabat pr. stk. fra et antal stk. Flere trin adskilles med semikolon.	Discount per unit from a quantity. Several steps are separated by semicolons.	Rabatt per stk. fra et antall. Flere trinn skilles med semikolon.
+6869	Type	Type	Type
+6870	Procent	Percent	Prosent
+6871	Beløb	Amount	Beløp
+6872	Flere trin adskilles med semikolon, fx 5;10.	Several steps are separated by semicolons, e.g. 5;10.	Flere trinn skilles med semikolon, f.eks. 5;10.
+6873	Gruppens værdier er skrevet på %s varer.	The group's values have been written to %s items.	Gruppens verdier er skrevet på %s varer.
+6874	Under Salg » Rabatter & prisgrupper.	Under Sales » Discounts & price groups.	Under Salg » Rabatter og prisgrupper.
+6875	Rabatmatrix	Discount matrix	Rabattmatrise
+6876	Rabatten skal være et tal, og en procentrabat højst 100.	The discount must be a number, and a percentage at most 100.	Rabatten må være et tall, og en prosentrabatt høyst 100.
+6877	%s rabatter	%s discounts	%s rabatter
+6878	Debitorrabatgrupper	Customer discount groups	Kunderabattgrupper
+6879	Vare-rabatgrupper	Item discount groups	Vare-rabattgrupper
+6880	kr/stk	per unit	kr/stk
+6881	Egne rabatgrupper til kunder; vælges på debitorkortet. Uden dem bruger matrixen debitorgrupperne.	Your own discount groups for customers, chosen on the customer card. Without them the matrix uses the debtor groups.	Egne rabattgrupper for kunder; velges på kundekortet. Uten dem bruker matrisen kundegruppene.
+6882	Egne rabatgrupper til varer; vælges på varekortet. Uden dem bruger matrixen varegrupperne.	Your own discount groups for items, chosen on the item card. Without them the matrix uses the item groups.	Egne rabattgrupper for varer; velges på varekortet. Uten dem bruker matrisen varegruppene.
+6883	Rabat pr. kundegruppe og varegruppe på ordrer. Typen gælder hele rækken. Gem nye grupper først, så kommer de med i matrixen.	Discount per customer group and item group on orders. The type applies to the whole row. Save new groups first, then they appear in the matrix.	Rabatt per kundegruppe og varegruppe på ordrer. Typen gjelder hele raden. Lagre nye grupper først, så kommer de med i matrisen.
+6885	Åbne poster for %s kr. flyttes fra samlekonto %s til den nye konto med en postering i dag. Det kan ikke fortrydes.	Open items of %s are moved from control account %s to the new account with a posting today. This cannot be undone.	Åpne poster for %s kr. flyttes fra samlekonto %s til den nye kontoen med en postering i dag. Det kan ikke angres.
+6886	Ny samlekonto	New control account	Ny samlekonto
+6887	Samlekontoen er låst, mens gruppen har konti – brug »Flyt samlekonto«.	The control account is locked while the group has accounts – use "Move control account".	Samlekontoen er låst mens gruppen har kontoer – bruk «Flytt samlekonto».
+6888	Konto %s findes ikke i kontoplanen.	Account %s does not exist in the chart of accounts.	Konto %s finnes ikke i kontoplanen.
+6889	Vælg en anden konto end den nuværende.	Choose another account than the current one.	Velg en annen konto enn den nåværende.
+6890	Kontoens valuta findes ikke under Valuta. Intet er flyttet.	The account's currency does not exist under Currencies. Nothing has been moved.	Kontoens valuta finnes ikke under Valuta. Ingenting er flyttet.
+6891	Samlekontoen er flyttet til %s. Bogført: %s kr.	The control account has been moved to %s. Posted: %s.	Samlekontoen er flyttet til %s. Bokført: %s kr.
+6892	Samlekontoen er flyttet til %s.	The control account has been moved to %s.	Samlekontoen er flyttet til %s.
+6893	Hjælp til denne side	Help for this page	Hjelp til denne siden
+6894	Læs mere	Read more	Les mer
+6895	Momsregistreret	VAT registered	Mva-registrert
+6896	Vælg Nej, hvis virksomheden ikke er momsregistreret. Så skjules momsperioden, og påmindelser om moms slås fra.	Choose No if the company is not VAT registered. The VAT period is then hidden and VAT reminders are switched off.	Velg Nei hvis virksomheten ikke er mva-registrert. Da skjules mva-perioden, og påminnelser om mva slås av.
+6897	Bruges som standardperiode i momsangivelsen og på oversigten.	Used as the default period of the VAT return and on the dashboard.	Brukes som standardperiode i mva-meldingen og på oversikten.
+6898	Momsregistrering	VAT registration	Mva-registrering
+6899	Momsangivelse %s	VAT return %s	Mva-melding %s
+6900	Rabatter fra den gamle side	Discounts from the old page	Rabatter fra den gamle siden
+6901	Disse rabatter er sat op på den gamle side og gælder stadig, når matrixen ikke har en rabat for samme par. Overfør dem for at redigere dem her.	These discounts were set up on the old page and still apply when the matrix has no discount for the same pair. Transfer them to edit them here.	Disse rabattene ble satt opp på den gamle siden og gjelder fortsatt når matrisen ikke har en rabatt for samme par. Overfør dem for å redigere dem her.
+6902	Overfør	Transfer	Overfør
+6903	Rabatten er overført til rabatmatrixen.	The discount has been transferred to the discount matrix.	Rabatten er overført til rabattmatrisen.
+6904	Kan ikke overføres: de to grupper har allerede en rabat, eller kundegruppens rabatter er af en anden type.	Cannot be transferred: the two groups already have a discount, or the customer group's discounts are of another type.	Kan ikke overføres: de to gruppene har allerede en rabatt, eller kundegruppens rabatter er av en annen type.
+6905	HTML/CSS-layout	HTML/CSS layout	HTML/CSS-layout
+6906	Gælder kun HTML/CSS. Kontrollér en prøveudskrift efter ændring.	Applies to HTML/CSS only. Check a test print after changing it.	Gjelder bare HTML/CSS. Kontroller en prøveutskrift etter endring.
+6907	Bevar hidtidigt udseende	Keep the existing look	Behold tidligere utseende
+6908	Brug formularens skrifter og stregtykkelser	Use the form's fonts and line widths	Bruk skjemaets skrifter og strektykkelser
+6909	%s lagerbevægelser	%s stock movements	%s lagerbevegelser
+6910	%s afdelinger	%s departments	%s avdelinger
+6911	%s ordrelinjer	%s order lines	%s ordrelinjer
+6912	Sally hjælper dig videre herfra	Sally helps you from here	Sally hjelper deg videre herfra
+6913	Sally er Saldis assistent (knappen SALDI Assist øverst). Hun hjælper dig med at hente dine data fra %s og viser dig rundt i Saldi.	Sally is Saldi's assistant (the SALDI Assist button at the top). She helps you bring your data over from %s and shows you around Saldi.	Sally er Saldis assistent (knappen SALDI Assist øverst). Hun hjelper deg med å hente dataene dine fra %s og viser deg rundt i Saldi.
+6914	Sally er Saldis assistent (knappen SALDI Assist øverst). Hun viser dig rundt i Saldi og hjælper, når du går i stå.	Sally is Saldi's assistant (the SALDI Assist button at the top). She shows you around Saldi and helps when you get stuck.	Sally er Saldis assistent (knappen SALDI Assist øverst). Hun viser deg rundt i Saldi og hjelper når du står fast.
+6915	Få hjælp af Sally	Get help from Sally	Få hjelp av Sally
+6916	Sally hjælper med at hente dine data og viser dig rundt i Saldi.	Sally helps you bring your data over and shows you around Saldi.	Sally hjelper deg med å hente dataene dine og viser deg rundt i Saldi.
+6917	Lys	Light	Lys
+6918	Mørk	Dark	Mørk
+6919	Lys eller mørk visning. System følger din enheds indstilling.	Light or dark display. System follows your device setting.	Lys eller mørk visning. System følger enhetens innstilling.
+6920	Omsætning denne uge	Revenue this week	Omsetning denne uken
+6921	Omsætning denne måned	Revenue this month	Omsetning denne måneden
+6922	ex moms	ex VAT	eks. mva
+6923	Momsangivelse for perioden	VAT return for the period	Mva-melding for perioden
+6924	%s mere end samme uge sidste år	%s more than the same week last year	%s mer enn samme uke i fjor
+6925	%s mindre end samme uge sidste år	%s less than the same week last year	%s mindre enn samme uke i fjor
+6926	Frist %s	Due %s	Frist %s
+6927	Se angivelse	See the return	Se melding
+6928	Omsætning pr. måned	Revenue per month	Omsetning per måned
+6929	ekskl. moms	excl. VAT	ekskl. mva
+6930	Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.	I understand that the ledger will be overwritten with the backup.	Jeg forstår at regnskapet blir overskrevet med sikkerhetskopien.
+6931	Sæt flueben for at bekræfte, at regnskabet må overskrives.	Tick the box to confirm that the ledger may be overwritten.	Kryss av for å bekrefte at regnskapet kan overskrives.
+6932	Adgang nægtet	Access denied	Ingen tilgang
+6933	Regnskabets database findes ikke. Opret regnskabet, før en sikkerhedskopi indlæses.	The ledger's database does not exist. Create the ledger before loading a backup.	Regnskapets database finnes ikke. Opprett regnskapet før en sikkerhetskopi lastes inn.
+6934	Filen er en MySQL-sikkerhedskopi. Den kan kun indlæses som flytning fra MySQL i adminpanelet på et tomt regnskab.	The file is a MySQL backup. It can only be loaded as a move from MySQL in the admin panel, on an empty ledger.	Filen er en MySQL-sikkerhetskopi. Den kan bare lastes inn som flytting fra MySQL i adminpanelet på et tomt regnskap.
+6935	Flyt fra MySQL	Move from MySQL	Flytt fra MySQL
+6936	Til kunder, der flytter fra deres egen installation: MySQL-sikkerhedskopien indlæses, og dette tomme regnskab erstattes. Tag først en sikkerhedskopi af regnskabet.	For customers moving from their own installation: the MySQL backup is loaded and this empty ledger is replaced. Take a backup of the ledger first.	For kunder som flytter fra sin egen installasjon: MySQL-sikkerhetskopien lastes inn, og dette tomme regnskapet erstattes. Ta en sikkerhetskopi av regnskapet først.
+6937	Din adgangskode	Your password	Ditt passord
+6938	Forkert adgangskode - intet er ændret.	Wrong password - nothing has been changed.	Feil passord - ingenting er endret.
+6939	Flytning fra MySQL kan kun ske fra adminpanelet på et tomt regnskab (uden posteringer, ordrer og kassekladdelinjer).	A move from MySQL can only be done from the admin panel on an empty ledger (no postings, orders or journal lines).	Flytting fra MySQL kan bare gjøres fra adminpanelet på et tomt regnskap (uten posteringer, ordrer og bilagslinjer).
+6940	Formularen er udløbet. Hent siden igen, og prøv igen.	The form has expired. Reload the page and try again.	Skjemaet er utløpt. Last inn siden på nytt og prøv igjen.
+6941	Udfyld MySQL-database (kun bogstaver, tal og _) og MySQL-bruger.	Fill in the MySQL database (letters, digits and _ only) and the MySQL user.	Fyll ut MySQL-database (bare bokstaver, tall og _) og MySQL-bruker.
+6942	Filen er ikke en MySQL-sikkerhedskopi.	The file is not a MySQL backup.	Filen er ikke en MySQL-sikkerhetskopi.
+6943	Start flytning	Start the move	Start flytting
+6944	Vis som tabel	Show as table	Vis som tabell
+6945	Vis som graf	Show as chart	Vis som graf
+6946	%s mod %s	%s vs %s	%s mot %s
+6947	Kun %s	Only %s	Bare %s
+6948	(sidste år)	(last year)	(i fjor)
+6949	Bedste måned	Best month	Beste måned
+6950	Kunden har ingen jobkort. Vil du oprette et?	The customer has no job cards. Do you want to create one?	Kunden har ingen jobbkort. Vil du opprette et?
+6951	Kunder pr. time	Customers per hour	Kunder per time
+6952	%s dage	%s days	%s dager
+6953	Få	Few	Få
+6954	Mange	Many	Mange
+6955	Omsætning pr. dag	Revenue per day	Omsetning per dag
+6956	Uge %s	Week %s	Uke %s
+6957	Uge %s, %s	Week %s, %s	Uke %s, %s
+6958	Samme uge %s	Same week %s	Samme uke %s
+6959	Bedste dag	Best day	Beste dag
+6960	Omsætning pr. varegruppe	Revenue per item group	Omsetning per varegruppe
+6961	regnskabsåret	the fiscal year	regnskapsåret
+6962	Se alle %s	See all %s	Se alle %s
+6963	mio. kr i alt	million kr in total	mill. kr i alt
+6964	Øvrige (%s grupper)	Others (%s groups)	Øvrige (%s grupper)
+6965	Aktive inden for den sidste time	Active within the last hour	Aktive den siste timen
+6966	30 dage	30 days	30 dager
+6967	Gå til ordrer	Go to orders	Gå til ordrer
+6968	Forslag klar til bekræftelse	Suggestions ready to confirm	Forslag klare til bekreftelse
+6969	Notifikationer med forslag, der venter på dig	Notifications with suggestions waiting for you	Varsler med forslag som venter på deg
+6970	Gennemgå forslag	Review suggestions	Gjennomgå forslag
+6971	I år	This year	I år
+6972	Sidste år	Last year	I fjor
+6973	mod sidste år	vs last year	mot i fjor
+6974	Gns. kunder pr. time	Avg. customers per hour	Gj.sn. kunder per time
+6975	Andel	Share	Andel
+6976	Ændring	Change	Endring
+6977	Vælg, hvad du vil se på din forside. Ændringer vises og gemmes med det samme.	Choose what to show on your front page. Changes are shown and saved at once.	Velg hva du vil se på forsiden. Endringer vises og lagres med en gang.
+6978	Vis oversigten	Show the overview	Vis oversikten
+6979	Slå fra, hvis du hellere vil starte på en tom forside	Switch off to start on an empty front page instead	Slå av hvis du heller vil starte på en tom forside
+6980	Beløb og frist for perioden	Amount and deadline for the period	Beløp og frist for perioden
+6981	Hvem der har været aktive den sidste time	Who has been active in the last hour	Hvem som har vært aktive den siste timen
+6982	Ordrer fra de sidste 30 dage	Orders from the last 30 days	Ordrer fra de siste 30 dagene
+6983	Sammenlignet med sidste år	Compared with last year	Sammenlignet med i fjor
+6984	Ugen dag for dag	The week day by day	Uken dag for dag
+6985	Hvornår på ugen der er travlt	When in the week it is busy	Når i uken det er travelt
+6986	Fordeling i regnskabsåret	Split in the fiscal year	Fordeling i regnskapsåret
+6987	Omsætningskonti	Revenue accounts	Omsetningskontoer
+6988	Gælder hele regnskabet	Applies to the whole company	Gjelder hele regnskapet
+6989	Fra kontonr.	From account no.	Fra kontonr.
+6990	Til kontonr.	To account no.	Til kontonr.
+6991	Bestemmer, hvilke konti der tæller som omsætning i nøgletal og grafer. Er du i tvivl?	Decides which accounts count as revenue in key figures and charts. Not sure?	Bestemmer hvilke kontoer som teller som omsetning i nøkkeltall og grafer. Er du i tvil?
+6992	Se guiden	See the guide	Se guiden
+6993	Oversigten er skjult	The overview is hidden	Oversikten er skjult
+6994	Du kan altid slå den til igen.	You can always switch it on again.	Du kan alltid slå den på igjen.
+6995	Vis oversigt	Show overview	Vis oversikt
+6996	kl.	at	kl.
+6997	mio. kr	million kr	mill. kr
+6998	mio.	m	mill.
+6999	t.	k	t.
+7000	Ny debitor	New customer	Ny debitor
+7001	Nyt jobkort	New job card	Nytt jobbkort
+7002	Ny kreditor	New supplier	Ny kreditor
+7003	Ny vare	New item	Ny vare
+7004	Ny ordre	New order	Ny ordre
+7005	Ny modtagelse	New receipt	Nytt mottak
+7006	Ny konto	New account	Ny konto
+7007	Ny ansat	New employee	Ny ansatt
+7008	Importér varelokationer	Import stock locations	Importer varelokasjoner
+7009	Importér ordrer fra CSV	Import orders from CSV	Importer ordrer fra CSV
+7010	Eksport til Multiroute	Export to Multiroute	Eksport til Multiroute
+7011	OIOUBL import	OIOUBL import	OIOUBL-import
+7012	Formulareditor	Form editor	Skjemaredigering
+7013	Listeangivelse	EU sales list	Listeangivelse
+7014	Udskriftsvalg	Print options	Utskriftsvalg
+7015	Top postnumre i perioden	Top postcodes in the period	Topp postnumre i perioden
+7016	Posteringer pr. momskode	Entries per VAT code	Posteringer per mva-kode
+7017	OSS B2C EU-salg	OSS B2C EU sales	OSS B2C EU-salg
+7018	Nye bilag i dokumentpuljen læses automatisk for fakturadata. Gælder kun for dig.	New documents in the pool are read for invoice data automatically. Only for you.	Nye bilag i dokumentpoolen leses automatisk for fakturadata. Gjelder bare deg.
+7019	Sidemenu foldet sammen	Sidebar collapsed	Sidemeny slått sammen
+7020	Husker om du har foldet sidemenuen sammen.	Remembers whether you collapsed the sidebar.	Husker om du har slått sammen sidemenyen.
+7021	Tjeklister til sager: faser, grupper og tjekpunkter. Flyttet hertil fra Indstillinger.	Checklists for cases: phases, groups and check points. Moved here from Settings.	Sjekklister for saker: faser, grupper og sjekkpunkter. Flyttet hit fra Innstillinger.
+7022	Nyt tjekpunkt	New check point	Nytt sjekkpunkt
+7023	Året har %s lagerbevægelser. Sletning med data kræver en regel for genberegning af lageret, som kommer senere.	The year has %s stock movements. Deleting with data needs a stock re-basing rule, which comes later.	Året har %s lagerbevegelser. Sletting med data krever en regel for omberegning av lageret, som kommer senere.
+7024	Nyt debitorkort	New customer card	Nytt debitorkort
+7025	Nyt kreditorkort	New supplier card	Nytt kreditorkort
+7026	Nyt varekort	New item card	Nytt varekort
+7027	Kassekonto	Till account	Kassekonto
+7028	Finanskontoen for denne valuta i kassen. Bruges ved kasseoptælling.	The ledger account for this currency in the till. Used at cash count.	Finanskontoen for denne valutaen i kassen. Brukes ved kasseopptelling.
+7029	Normal	Normal	Normal
+7030	Større (+11 %)	Larger (+11 %)	Større (+11 %)
+7031	Gør al tekst ca. 11 % større. Browserens egen zoom virker oveni.	Makes all text about 11 % larger. The browser's own zoom works on top.	Gjør all tekst ca. 11 % større. Nettleserens egen zoom virker i tillegg.
+7032	Ubetalte salgsfakturaer	Unpaid sales invoices	Ubetalte salgsfakturaer
+7033	Ikke forfalden	Not due	Ikke forfalt
+7034	Forfalden 1–15 dage	Overdue 1–15 days	Forfalt 1–15 dager
+7035	Forfalden over 15 dage	Overdue more than 15 days	Forfalt over 15 dager
+7036	kr i alt	kr in total	kr i alt
+7037	Vis alle (%s)	Show all (%s)	Vis alle (%s)
+7042	%s dage over	%s days overdue	%s dager over
+7043	forfalder i dag	due today	forfaller i dag
+7044	om %s dage	in %s days	om %s dager
+7045	Ikke-udlignede indbetalinger og kreditnotaer: %s	Unapplied payments and credit notes: %s	Ikke-utlignede innbetalinger og kreditnotaer: %s
+7047	Ingen ubetalte salgsfakturaer	No unpaid sales invoices	Ingen ubetalte salgsfakturaer
+7048	%s fakturaer	%s invoices	%s fakturaer
+7049	1 faktura	1 invoice	1 faktura
+7050	Forfaldne beløb og hvilke fakturaer det er	Overdue amounts and the invoices behind them	Forfalte beløp og hvilke fakturaer det gjelder
+7051	Største ufakturerede	Largest uninvoiced	Største ufakturerte
+7052	og %s forslag mere	and %s more suggestions	og %s forslag til
+7053	Ingen omsætning endnu	No revenue yet	Ingen omsetning ennå
+7054	Indhold og rækkefølge	Content and order	Innhold og rekkefølge
+7055	Træk i ⋮⋮ for at flytte	Drag ⋮⋮ to move	Dra i ⋮⋮ for å flytte
+7056	Flyt %s. Alt+pil op/ned	Move %s. Alt+Up/Down	Flytt %s. Alt+pil opp/ned
+7057	%s flyttet til plads %s af %s	%s moved to position %s of %s	%s flyttet til plass %s av %s
+7058	%s af %s vises	%s of %s shown	%s av %s vises
+7059	Små tal	Small figures	Små tall
+7060	Medarbejdere, ordrer, forslag	Employees, orders, suggestions	Medarbeidere, ordrer, forslag
+7061	Omsætning og moms	Revenue and VAT	Omsetning og mva
+7062	Vis kort i %s	Show cards in %s	Vis kort i %s
+7063	1 dag over	1 day overdue	1 dag over
+7064	om 1 dag	in 1 day	om 1 dag
+7065	Åbn %s	Open %s	Åpne %s
+7066	Se Oversigt	See Overview	Se Oversikt
+7067	Batch-/udløbsadvarsel	Batch/expiry warning	Batch-/utløpsvarsel
+7068	Nyhedsbanner	News banner	Nyhetsbanner
+7069	Kræver Se Oversigt	Requires See Overview	Krever Se Oversikt
+7070	Brugeren kan se tallene her, men ikke åbne rapporten bag.	The user can see the figures here but not open the report behind them.	Brukeren kan se tallene her, men ikke åpne rapporten bak.
+7071	Sæt alle til læs	Set all to read	Sett alle til les
+7072	Leveret for over 14 dage siden	Delivered more than 14 days ago	Levert for over 14 dager siden
+7073	Klar til fakturering nu	Ready to invoice now	Klar til fakturering nå
+7074	Dymo 11354	Dymo 11354	Dymo 11354
+7075	Skabeloner til vareetiketter, der udskrives fra varekortet og varelisten.	Templates for item labels printed from the item card and the item list.	Maler for vareetiketter som skrives ut fra varekortet og varelisten.
+7076	Ny mærkat	New label	Ny etikett
+7077	Rækker	Rows	Rader
+7078	Topmargen	Top margin	Toppmarg
+7079	Venstre margen	Left margin	Venstre marg
+7080	Indhold	Content	Innhold
+7081	Varemærke	Brand	Merke
+7082	Egne tekstlinjer	Custom text lines	Egne tekstlinjer
+7083	Rå HTML	Raw HTML	Rå HTML
+7084	Visuel editor	Visual editor	Visuell editor
+7085	Mærkaten er gemt	The label has been saved	Etiketten er lagret
+7086	Mærkaten er oprettet	The label has been created	Etiketten er opprettet
+7087	Mærkaten er slettet	The label has been deleted	Etiketten er slettet
+7088	Der findes allerede en mærkat med det navn	A label with that name already exists	Det finnes allerede en etikett med det navnet
+7089	Slet mærkaten %s?	Delete the label %s?	Slette etiketten %s?
+7090	Mærkaten kan ikke længere vælges ved udskrift. Varer og ordrer berøres ikke.	The label can no longer be chosen when printing. Items and orders are not affected.	Etiketten kan ikke lenger velges ved utskrift. Varer og ordrer berøres ikke.
+7091	Layout	Layout	Oppsett
+7092	Mærkattype	Label type	Etikettype
+7093	Standardmærkaten kan ikke slettes.	The standard label cannot be deleted.	Standardetiketten kan ikke slettes.
+7094	Bogstaver a-z, tal og + . - , højst 40 tegn	Letters a-z, digits and + . - , at most 40 characters	Bokstaver a-z, tall og + . - , maks. 40 tegn
+7095	Navnet er ikke gyldigt	The name is not valid	Navnet er ikke gyldig
+7096	Grundopsætning mangler	Basic setup missing	Grunnoppsett mangler
+7097	Leverede ordrer, der ikke er faktureret	Delivered orders not yet invoiced	Leverte ordrer som ikke er fakturert
+7098	Laver testfaktura …	Making the test invoice …	Lager testfaktura …
+7099	Læseadgang håndhæves kun i "Afvis": i "Log kun" kan en bruger med læseadgang stadig ændre på de sider, der endnu bruger den gamle rettighedskontrol.	Read access is enforced only in "Deny": in "Log only" a user with read access can still change data on pages that still use the old rights check.	Lesetilgang håndheves bare i "Avvis": i "Bare logg" kan en bruker med lesetilgang fortsatt endre på sider som ennå bruker den gamle rettighetskontrollen.
+7100	Fakturaformat	Invoice format	Fakturaformat
+7101	Sådan sendes fakturaer	How invoices are sent	Slik sendes fakturaer
+7102	Gælder kunder med Udskriv til e-mail. Link kræver, at Stripe er sat op. PBS, NemHandel og print berøres ikke.	Applies to customers with Print to e-mail. Link requires Stripe to be set up. PBS, NemHandel and print are not affected.	Gjelder kunder med Skriv ut til e-post. Lenke krever at Stripe er satt opp. PBS, EHF og utskrift berøres ikke.
+7103	Klassisk (PDF vedhæftet)	Classic (PDF attached)	Klassisk (PDF vedlagt)
+7104	Link til faktura og betaling	Link to invoice and payment	Lenke til faktura og betaling
+7105	Tekst i link-mailen	Text in the link e-mail	Tekst i lenke-e-posten
+7106	Resten af mailen er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.	The rest of the e-mail is fixed. [Fornavn] is replaced by the contact person's first name. Empty = the default text.	Resten av e-posten er fast. [Fornavn] erstattes med kontaktpersonens fornavn. Tom = standardteksten.
+7107	Kortbetaling af fakturaer	Invoice card payments	Kortbetaling av fakturaer
+7108	Tillad link-mails og betaling på fakturasiden. Standard: fra.	Allow link emails and payments on the invoice page. Default: off.	Tillat lenke-e-post og betaling på fakturasiden. Standard: av.
+7109	Gem kort og betal automatisk	Save cards and pay automatically	Lagre kort og betal automatisk
+7110	Tillad korttilmelding og automatisk træk. Kræver kortbetaling af fakturaer. Standard: fra.	Allow card enrolment and automatic collection. Requires invoice card payments. Default: off.	Tillat kortregistrering og automatisk trekk. Krever kortbetaling av fakturaer. Standard: av.
+7111	Nye Stripe-abonnementer	New Stripe subscriptions	Nye Stripe-abonnementer
+7112	Tillad nye abonnementstilmeldinger. Eksisterende abonnementer fortsætter. Standard: til.	Allow new subscription signups. Existing subscriptions continue. Default: on.	Tillat nye abonnementer. Eksisterende abonnementer fortsetter. Standard: på.
+7113	Offentlig Stripe-nøgle	Stripe publishable key	Offentlig Stripe-nøkkel
+7114	pk_test_... eller pk_live_... fra samme Stripe-konto som den hemmelige nøgle.	pk_test_... or pk_live_... from the same Stripe account as the secret key.	pk_test_... eller pk_live_... fra samme Stripe-konto som den hemmelige nøkkelen.
+7115	Automatisk træk	Automatic collection	Automatisk trekk
+7116	Hvornår det daglige job trækker fakturaer med Udskriv til = Stripe.	When the daily job collects invoices with Print to = Stripe.	Når den daglige jobben trekker fakturaer med Skriv ut til = Stripe.
+7117	På forfaldsdatoen	On the due date	På forfallsdatoen
+7118	På fakturadatoen	On the invoice date	På fakturadatoen
+7119	Bogfør Stripe-kladden automatisk	Post the Stripe journal automatically	Bokfør Stripe-kladden automatisk
+7120	Reserveret, ikke aktiv endnu	Reserved, not active yet	Reservert, ikke aktiv ennå
+7121	Publishable key afvist: forventet pk_test_... eller pk_live_... (feltet er IKKE gemt)	Publishable key rejected: expected pk_test_... or pk_live_... (field NOT saved)	Offentlig nøkkel avvist: forventet pk_test_... eller pk_live_... (feltet er IKKE lagret)
+7122	Automatisk træk afvist: vælg forfaldsdato eller fakturadato	Automatic collection rejected: choose due date or invoice date	Automatisk trekk avvist: velg forfallsdato eller fakturadato
+7123	Fakturaformat afvist: vælg PDF eller link	Invoice format rejected: choose PDF or link	Fakturaformat avvist: velg PDF eller lenke
+7124	E-mail med link	E-mail with link	E-post med lenke
+7125	Mailen har en knap til faktura- og betalingssiden. Ingen PDF vedhæftet.	The e-mail has a button to the invoice and payment page. No PDF attached.	E-posten har en knapp til faktura- og betalingssiden. Ingen PDF vedlagt.
+7126	Standard for nye e-mailordrer	Default for new e-mail orders	Standard for nye e-postordrer
+7127	Hvad Udskriv til står på, når der oprettes en ordre til en kunde med e-mailfaktura. Kan ændres på den enkelte ordre: E-mail eller E-mail med link.	What Print to is set to when an order is created for a customer with e-mail invoices. Can be changed on each order: E-mail or E-mail with link.	Hva Skriv ut til står på når det opprettes en ordre til en kunde med e-postfaktura. Kan endres på den enkelte ordren: E-post eller E-post med lenke.
+7129	betalingssiden er ikke slået til i dette regnskab.	the payment page is not switched on in this ledger.	betalingssiden er ikke slått på i dette regnskapet.
+7130	kreditnotaer sendes altid som almindelig e-mail.	credit notes are always sent as a normal e-mail.	kreditnotaer sendes alltid som vanlig e-post.
+7131	kun fakturaer i DKK kan betales på betalingssiden.	only invoices in DKK can be paid on the payment page.	bare fakturaer i DKK kan betales på betalingssiden.
+7132	betalingsbetingelsen er kontant eller kreditkort, så fakturaen regnes som betalt.	the payment terms are cash or credit card, so the invoice counts as paid.	betalingsbetingelsen er kontant eller kredittkort, så fakturaen regnes som betalt.
+7133	kunden betaler via Betalingsservice.	the customer pays by direct debit (Betalingsservice).	kunden betaler via AvtaleGiro/Betalingsservice.
+7134	ordren har ingen kunde.	the order has no customer.	ordren har ingen kunde.
+7135	kunden har fravalgt kortbetaling.	the customer has opted out of card payment.	kunden har valgt bort kortbetaling.
+7136	kunden betaler via sit Stripe-abonnement.	the customer pays through their Stripe subscription.	kunden betaler via sitt Stripe-abonnement.
+7137	Sender fakturaen på mail med kort og trækdato. Beløbet trækkes automatisk på forfaldsdatoen.	Sends the invoice by e-mail with card and charge date. The amount is charged automatically on the due date.	Sender fakturaen på e-post med kort og trekkdato. Beløpet trekkes automatisk på forfallsdatoen.
+7138	Vælg Netto eller Lb. md. som betalingsbetingelse, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Choose Netto or Lb. md. as payment terms to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Velg Netto eller Lb. md. som betalingsbetingelse, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7139	Skift valuta til DKK, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Change the currency to DKK to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Bytt valuta til DKK, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7140	Fjern fravalget af kortbetaling på kundens debitorkort, så kan du vælge E-mail med link. Ellers sendes fakturaen som almindelig e-mail med PDF.	Remove the card payment opt-out on the customer card to use E-mail with link. Otherwise the invoice is sent as a normal e-mail with PDF.	Fjern bortvalget av kortbetaling på kundekortet, så kan du velge E-post med lenke. Ellers sendes fakturaen som vanlig e-post med PDF.
+7141	Vælg en kunde på ordren.	Choose a customer on the order.	Velg en kunde på ordren.
+7142	Fakturaen sendes som almindelig e-mail med PDF i stedet.	The invoice is sent as a normal e-mail with PDF instead.	Fakturaen sendes som vanlig e-post med PDF i stedet.
+7143	kræver Netto eller Lb. md.	requires Netto or Lb. md.	krever Netto eller Lb. md.
+7144	kun DKK	DKK only	kun DKK
+7145	ikke på kreditnotaer	not for credit notes	ikke for kreditnotaer
+7146	kunden betaler via PBS	customer pays by direct debit	kunden betaler via PBS
+7147	kræver en kunde	requires a customer	krever en kunde
+7148	kunden har fravalgt kort	customer opted out of cards	kunden har valgt bort kort
+7149	kunden har Stripe-abonnement	customer has a Stripe subscription	kunden har Stripe-abonnement
+7150	E-mail med link kan ikke bruges:	E-mail with link cannot be used:	E-post med lenke kan ikke brukes:
+7151	Eksisterende kunder	Existing customers	Eksisterende kunder
+7152	Kunder og tilbagevendende ordrer, der stadig står på E-mail fra før E-mail med link fandtes. Sæt hak og gem for at skifte dem til E-mail med link. Kontant/kreditkort, fremmed valuta og PBS ændres ikke.	Customers and recurring orders still set to E-mail from before E-mail with link existed. Tick and save to switch them to E-mail with link. Cash/card terms, foreign currency and PBS are not changed.	Kunder og gjentakende ordrer som fortsatt står på E-post fra før E-post med lenke fantes. Huk av og lagre for å bytte dem til E-post med lenke. Kontant/kort, fremmed valuta og PBS endres ikke.
+7153	Skift %kunder kunder og %ordrer tilbagevendende ordrer fra E-mail til E-mail med link	Switch %kunder customers and %ordrer recurring orders from E-mail to E-mail with link	Bytt %kunder kunder og %ordrer gjentakende ordrer fra E-post til E-post med lenke
+7290	Kan ikke slås til, fordi en varegruppe bruger batchkontrol. Det kan altid slås fra.	Cannot be switched on because an item group uses batch control. It can always be switched off.	Kan ikke slås på fordi en varegruppe bruker batchkontroll. Det kan alltid slås av.
+7160	Gebyr for manuel betaling (varenr.)	Fee for manual payment (item no.)	Gebyr for manuell betaling (varenr.)
+7161	Varenummeret på gebyrvaren, fx 129 kr. ekskl. moms. En faktura, der betales manuelt (bankoverførsel eller "Betal kun denne faktura" på betalingssiden), giver gebyret på kundens næste faktura. Automatisk kortbetaling og PBS er fritaget. Tom = slået fra.	Item number of the fee item, e.g. DKK 129 excl. VAT. An invoice paid manually (bank transfer or "Pay this invoice only" on the payment page) adds the fee to the customer's next invoice. Automatic card payment and PBS are exempt. Empty = off.	Varenummeret på gebyrvaren, f.eks. 129 kr. eks. mva. En faktura som betales manuelt (bankoverføring eller "Betal bare denne fakturaen" på betalingssiden) gir gebyret på kundens neste faktura. Automatisk kortbetaling og PBS er fritatt. Tom = slått av.
+7162	Gebyr fra fakturadato	Fee from invoice date	Gebyr fra fakturadato
+7163	Kun fakturaer med fakturadato fra og med denne dato kan give gebyr.	Only invoices dated on or after this date can give a fee.	Bare fakturaer med fakturadato fra og med denne datoen kan gi gebyr.
+7164	Gebyrvaren findes ikke (gebyret er IKKE gemt)	The fee item does not exist (the fee is NOT saved)	Gebyrvaren finnes ikke (gebyret er IKKE lagret)
+7165	Gebyr for manuel betaling: vælg en startdato (gebyret er IKKE gemt)	Fee for manual payment: choose a start date (the fee is NOT saved)	Gebyr for manuell betaling: velg en startdato (gebyret er IKKE lagret)
+7166	Kontakt-e-mail til kunder	Contact e-mail for customers	Kontakt-e-post til kunder
+7167	Vises på betalingssiden og i fakturamails og bruges som svaradresse. Tom = firmaets e-mail.	Shown on the payment page and in invoice mails and used as reply-to. Empty = the company e-mail.	Vises på betalingssiden og i fakturamailer og brukes som svaradresse. Tom = firmaets e-post.
+7168	Kontakt-telefon til kunder	Contact phone for customers	Kontakttelefon til kunder
+7169	Vises på betalingssiden. Tom = intet telefonnummer.	Shown on the payment page. Empty = no phone number.	Vises på betalingssiden. Tom = intet telefonnummer.
+7170	Kontakt-e-mail afvist: ugyldig e-mailadresse (IKKE gemt)	Contact e-mail rejected: invalid e-mail address (NOT saved)	Kontakt-e-post avvist: ugyldig e-postadresse (IKKE lagret)
+

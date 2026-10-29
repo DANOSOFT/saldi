@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontospec.php --- rev 4.1.1 --- 2025.12.03 ---
+// --- finans/kontospec.php --- ver 5.0.0 --- 2026.09.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20150218 Tilføjet funktion lagerbev.
 // 20210211 PHR some cleanup
@@ -29,6 +29,12 @@
 // 20251203 LOE Updated the file to use grid framework
 // 20260821 CL/SZ Faktura column now links to ordre.php/pos_ordre.php via ordre_id
 // 20260826 LOE Linked to debitor/ordre.php instead of finans/ordre.php
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261005 Sawaneh WP-4.6: order and journal drill-downs return to the same account and month (raw month).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20260929 CL/SZ SD-698: Optional returside; when set, Tilbage goes back there instead of regnskab.php (used by the kassekladde account lookup).
+// 20261019 Sawaneh Review 2 (PR #803): page_bar back link honours the optional returside again.
 
 
 $fakturanr = array();
@@ -46,6 +52,7 @@ $css = "../css/standard.css";
 global $menu;
     
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
@@ -58,8 +65,13 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.j
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
 $kontonr = if_isset($_GET, NULL, 'kontonr');
+$returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
+$backHref = htmlspecialchars($returside ? $returside : 'regnskab.php', ENT_QUOTES);
 $month = if_isset($_GET,NULL,'month');
 $bilag = if_isset($_GET,NULL,'bilag');
+// WP-4.6: the drill-downs return to this account and month; the raw month is taken before it is shifted to a
+// calendar month below, or a non-January fiscal year would come back one shift further on every return.
+$kontospecBack = '../finans/kontospec.php?kontonr=' . urlencode((string) $kontonr) . '&month=' . urlencode((string) $month) . ($bilag ? '&bilag=' . urlencode((string) $bilag) : '');
 
 $query = db_select("select * from grupper where art='RA' and kodenr='$regnaar'", __FILE__ . " linje " . __LINE__);
 if ($row = db_fetch_array($query)) {
@@ -111,38 +123,18 @@ $txt2131 = findtekst('2131|konto', $sprog_id);
 $txt2132 = findtekst('2132|bilag', $sprog_id);
 
 // Top navigation
-if ($menu == 'T') {
-    include_once '../includes/top_header.php';
-    include_once '../includes/top_menu.php';
-    print "<div id=\"header\">"; 
-    print "<div class=\"headerbtnLft headLink\"><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";     
-    print "<div class=\"headerTxt\">" . findtekst(1196, $sprog_id) . " ";
-    if ($kontonr) print "$txt2131: $kontonr";
-    if ($bilag) print "$txt2132: $bilag";
-    print "</div>";     
-    print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-    print "</div>";
-    print "<div class='content-noside'>";
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
     ############################
-     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-
     ##########################
 	$center = "";
 	$width = "width=10%";
+	$ksTitle = findtekst(1196, $sprog_id) . " ";
+	if ($kontonr) $ksTitle .= "$txt2131: $kontonr";
+	if ($bilag) $ksTitle .= "$txt2132: $bilag";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $ksTitle, 'back' => ($returside !== '' ? $returside : 'regnskab.php')));
 	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
 	print "<tr><td align='center' valign='top' height='1%'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
-
-    print "<td width='10%'><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'>
-           <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" .$icon_back  . findtekst(30, $sprog_id) . "</button></a></td>";
-
-    print "<td width='80%' align='center' style='$topStyle'>" . findtekst(1196, $sprog_id) . " ";
-    if ($kontonr) print "$txt2131: $kontonr";
-    if ($bilag) print "$txt2132: $bilag";
-
-    print " </td><td width='10%' align='center' style='$topStyle'><br></td>";
-    print "</tbody></table>";
     print "</td></tr>";
     print "<tr><td valign=\"top\">";
 	####
@@ -164,7 +156,7 @@ if ($menu == 'T') {
 } else {
     print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td height = \"25\" align=\"center\" valign=\"top\">";
     print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-    print "<td width=\"10%\" $top_bund><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'>" . findtekst(30, $sprog_id) . "</a></td>";
+    print "<td width=\"10%\" $top_bund><a href='$backHref' accesskey=L title='Klik for at komme tilbage til regnskab'>" . findtekst(30, $sprog_id) . "</a></td>";
     print "<td width=\"80%\" $top_bund>" . findtekst(1196, $sprog_id) . " ";
     if ($kontonr) print "$txt2131: $kontonr";
     if ($bilag) print "$txt2132: $bilag";
@@ -457,12 +449,12 @@ $columns = [
         'sortable' => true,
         'searchable' => true,
         'align' => 'right',
-        'render' => function($value, $row, $column) {
+        'render' => function($value, $row, $column) use ($kontospecBack) {
             $title = isset($row['ordrenr']) && $row['ordrenr'] ? "title='Ordrenr: {$row['ordrenr']}'" : '';
             $ordre_id = isset($row['ordre_id']) ? intval($row['ordre_id']) : 0;
             if ($value !== '' && $value !== null && $ordre_id > 0) {
                 $target = (isset($row['pos']) && $row['pos']) ? '../debitor/pos_ordre.php' : '../debitor/ordre.php';
-                return "<td align='right' $title><a href='{$target}?id={$ordre_id}&returside=../finans/kontospec.php' style='text-decoration: underline;'>$value</a></td>";
+                return "<td align='right' $title><a href='{$target}?id={$ordre_id}&returside=" . urlencode($kontospecBack) . "' style='text-decoration: underline;'>$value</a></td>";
             }
             return "<td align='right' $title>$value</td>";
         }
@@ -475,9 +467,9 @@ $columns = [
         'sortable' => true,
         'searchable' => true,
         'align' => 'right',
-        'render' => function($value, $row, $column) {
+        'render' => function($value, $row, $column) use ($kontospecBack) {
 			if ($value) {
-				return "<td align='right'><a href='kassekladde.php?kladde_id=" . urlencode($value) . "&returside=../finans/kontospec.php' style='text-decoration: underline;'>$value</a></td>";
+				return "<td align='right'><a href='kassekladde.php?kladde_id=" . urlencode($value) . "&returside=" . urlencode($kontospecBack) . "' style='text-decoration: underline;'>$value</a></td>";
 			}
 			return "<td align='right'></td>";
        }
@@ -852,11 +844,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
 print "</td></tr></tbody></table>";
 
 
-if ($menu == 'T') {
-    include_once '../includes/topmenu/footer.php';
-} else {
-    include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 ?>
 <style>
 

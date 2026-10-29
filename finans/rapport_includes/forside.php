@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- ver 4.1.1 -- 2026.03.09 ---
+// --- finans/rapport_includes/forside.php --- ver 5.0.0 -- 2026.09.30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190820 PHR Option 'medtag lagerbevægelser' removed if stock is locked in actual year.
@@ -47,6 +47,9 @@
 // 20260617 PK Placed projekt_fra and projekt_til in the same <td>
 // 20260915 CDX/PHR Handle stale financial years and empty charts of accounts on report entry.
 // 20260917 CL/LH Keep header, menu and footer when no financial year exists, and disable submit when the chart of accounts is empty.
+// 20261008 Sawaneh Choosing Momsangivelse selects the last completed VAT period (vat.period, settings decision 19).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20260930 CL/SZ SD-699: Added the report type "Kontokort med u-bogført" (kontokort_ubogfort) below "Kontokort med moms".
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -58,6 +61,7 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	global $revisor;
 	global $sprog_id;
 	global $top_bund;
+	$vatMonthsGiven = ((string) $maaned_fra !== '');
 	global $buttonColor;
 	global $buttonTxtColor;
 
@@ -104,18 +108,7 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	$antal_regnaar = $x;
 	include ("../includes/topline_settings.php");
 
-	if ($menu == 'T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
-		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";  
-		print "</div>";
-		print "<div class='content-noside'>";
-#	} elseif ($menu == 'S') {
-#		include("../includes/sidemenu.php");
-	} elseif ($menu == 'S') {
+	if ($menu == 'S') {
 
 		$title = findtekst('3359|Finansrapporter', $sprog_id);
 
@@ -138,28 +131,16 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	}
 	#	print "</tbody></table>"; #B slut
 	print "</tr><tr><td height=99%></td><td align='center' valign='top'>\n\n";
-	if ($menu == 'T') {
-		print "";
-	} else {
-		print "<table cellpadding = '1' cellspacing = '5' border = '1' align = 'center'><tbody>\n"; #C
-	}
+	print "<table cellpadding = '1' cellspacing = '5' border = '1' align = 'center'><tbody>\n"; #C
 
 	if (!$antal_regnaar) {
 		$txt = "Der er ikke oprettet et regnskabsår. Opret et regnskabsår under Indstillinger.";
-		if ($menu == 'T') {
-			print "<p>$txt</p>\n";
-		} else {
-			print "<tr><td colspan=3 align=center><br>$txt<br><br></td></tr>\n";
-		}
+		print "<tr><td colspan=3 align=center><br>$txt<br><br></td></tr>\n";
 		print "</td></tr>";
 		print "</tbody></table>\n"; #C slut
 		print "</td></tr>";
 		print "</tbody></table>\n"; #C slut
-		if ($menu == 'T') {
-			include_once '../includes/topmenu/footer.php';
-		} else {
-			include_once '../includes/oldDesign/footer.php';
-		}
+		include_once '../includes/oldDesign/footer.php';
 		return;
 	}
 	if (!isset($aktiv)) {
@@ -311,6 +292,8 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(509, $sprog_id) . "' value='kontokort'>" . findtekst(515, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "kontokort_moms")
 		print "<option title='" . findtekst(510, $sprog_id) . "' value='kontokort_moms'>" . findtekst(516, $sprog_id) . "</option>\n";
+	elseif ($rapportart == "kontokort_ubogfort")
+		print "<option title='" . findtekst('5328|Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu', $sprog_id) . "' value='kontokort_ubogfort'>" . findtekst('5327|Kontokort med u-bogført', $sprog_id) . "</option>\n";
 	elseif ($rapportart == "balance")
 		print "<option title='" . findtekst(511, $sprog_id) . "' value='balance'>" . findtekst(517, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "resultat")
@@ -346,6 +329,8 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(509, $sprog_id) . "' value='kontokort'>" . findtekst(515, $sprog_id) . "</option>\n";
 	if ($rapportart != "kontokort_moms")
 		print "><option title='" . findtekst(510, $sprog_id) . "' value='kontokort_moms'>" . findtekst(516, $sprog_id) . "</option>\n";
+	if ($rapportart != "kontokort_ubogfort")
+		print "<option title='" . findtekst('5328|Kontokort, der også viser posteringerne fra alle kladder, som ikke er bogført endnu', $sprog_id) . "' value='kontokort_ubogfort'>" . findtekst('5327|Kontokort med u-bogført', $sprog_id) . "</option>\n";
 	if ($rapportart != "balance")
 		print "<option title='" . findtekst(511, $sprog_id) . "' value='balance'>" . findtekst(517, $sprog_id) . "</option>\n";
 	if ($rapportart != "resultat")
@@ -531,6 +516,17 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option value='$x'>$x.</option>\n";
 	print "</select>";
 	print "</td></tr>\n";
+	$vatReg = vat_registration();
+	if ($vatReg['registered']) {
+		list($vatFrom, $vatTo) = vat_period_range($vatReg['period'], date('Y-m-d'), true);
+		$vatJs = json_encode(array('from' => (int) substr($vatFrom, 0, 4) . '|' . (int) substr($vatFrom, 5, 2), 'to' => (int) substr($vatTo, 0, 4) . '|' . (int) substr($vatTo, 5, 2), 'init' => $rapportart == 'momsangivelse' && !$vatMonthsGiven));
+		print "<script>(function (p) { var q = function (n) { return document.querySelector('select[name=' + n + ']'); }, f = q('maaned_fra'), art = q('rapportart');"
+			. " if (!f || !art) { return; } var has = function (s, v) { if (!s) { return 0; } for (var i = 0; i < s.options.length; i++) { if (s.options[i].value === v) { return i + 1; } } return 0; };"
+			. " var vat = function () { var t = q('maaned_til'), a = has(f, p.from), b = has(t, p.to); if (art.value !== 'momsangivelse' || !a || !b) { return; }"
+			. " f.selectedIndex = a - 1; t.selectedIndex = b - 1; var df = q('dato_fra'), dt = q('dato_til');"
+			. " if (has(df, '1')) { df.selectedIndex = has(df, '1') - 1; } if (has(dt, '31')) { dt.selectedIndex = has(dt, '31') - 1; } };"
+			. " art.addEventListener('change', vat); if (p.init) { vat(); } })(" . $vatJs . ");</script>\n";
+	}
 	#print "<tr><td> ".findtekst(900,$sprog_id)."</td><td colspan=2><select name=Konto (fra)\n";
 	print "<tr><td> " . findtekst(900, $sprog_id) . ":</td><td colspan=2><select name=konto_fra$kontiDisabled>\n"; #20210722
 	if ($antal_konti) {
@@ -567,33 +563,26 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	if (!$antal_konti) {
 		print "<tr><td colspan=3 align=center>Der er ingen konti i kontoplanen for dette regnskabsår.</td></tr>\n";
 	}
-	if ($menu == 'T') {
-		print "<tr><td colspan=3 align=center><input class='button green medium' type=submit value=' OK ' name='submit'$kontiDisabled> &nbsp;•&nbsp; <span title='Vilk&aring;rlig s&oslash;gning i transaktioner'><input class='button orange medium' type=submit value=" . findtekst(905, $sprog_id) . " name='kontrolspor'></span></td></tr>\n";
-		# &nbsp;•&nbsp; <span title='Rapport over medarbejdernes provisionsindtjening'>  <input class='button blue medium' type=submit value=".findtekst(906,$sprog_id)." name='provisionsrapport'></span>
-		print "</tbody></table>\n"; #D
-		print "</td></tr><tr>";
+	print "<tr><td colspan=3 align=center><br><br>
+	<input style = 'width:150px;' class='button green medium' type=submit value= 'OK' name='submit'$kontiDisabled>
+	</td></tr>\n";
+	print "</td></tr><tr>";
+	if ($popup) {
+		//else $kontrospor1= findtekst(905, $sprog_id);
+		print "<tr><td colspan=3 ALIGN=center onClick=\"javascript:kontrolspor=window.open('kontrolspor.php','kontrolspor','scrollbars=1,resizable=1');kontrolspor.focus();\"><span title='Vilk&aring;rlig s&oslash;gning i transaktioner'><input class='button orange medium' type=submit value=" . $kontrospor1[0] . " name='submit'></span></td></tr>";
+		#		print "<tr><td colspan=3 ALIGN=center onClick=\"javascript:provisionsrapport=window.open('provisionsrapport.php','provisionsrapport','scrollbars=1,resizable=1');provisionsrapport.focus();\"><span title='Rapport over medarbejdernes provisionsindtjening'><input class='button blue medium' type=submit value=".findtekst(906,$sprog_id)." name='submit'></span></td></tr>";
 	} else {
-		print "<tr><td colspan=3 align=center><br><br>
-		<input style = 'width:150px;' class='button green medium' type=submit value= 'OK' name='submit'$kontiDisabled>
-		</td></tr>\n";
-		print "</td></tr><tr>";
-		if ($popup) {
-			//else $kontrospor1= findtekst(905, $sprog_id);
-			print "<tr><td colspan=3 ALIGN=center onClick=\"javascript:kontrolspor=window.open('kontrolspor.php','kontrolspor','scrollbars=1,resizable=1');kontrolspor.focus();\"><span title='Vilk&aring;rlig s&oslash;gning i transaktioner'><input class='button orange medium' type=submit value=" . $kontrospor1[0] . " name='submit'></span></td></tr>";
-			#		print "<tr><td colspan=3 ALIGN=center onClick=\"javascript:provisionsrapport=window.open('provisionsrapport.php','provisionsrapport','scrollbars=1,resizable=1');provisionsrapport.focus();\"><span title='Rapport over medarbejdernes provisionsindtjening'><input class='button blue medium' type=submit value=".findtekst(906,$sprog_id)." name='submit'></span></td></tr>";
-		} else {
-			print "<tr><td colspan=3 ALIGN=center><br><hr><br>
-			<span title='Afstem bank efter kontoudtog (csv)'>
-			<input  style = 'width:150px;' class='button orange medium' type=submit value ='" . findtekst('2171|Afstem bank', $sprog_id) . "' name='bankReconcile'>
-			</span>
-			</td></tr>";
-			print "<tr><td colspan=3 ALIGN=center><br>
-			<span title='Vilk&aring;rlig s&oslash;gning i transaktioner'>
-			<input  style = 'width:150px;' class='button orange medium' type=submit value='" . findtekst('905|Kontrolspor', $sprog_id) . "' name='kontrolspor'>
-			</span>
-			</td></tr>";
-			#		print "<tr><td colspan=3 ALIGN=center><span title='Rapport over medarbejdernes provisionsindtjening'>  <input class='button blue medium' type=submit value=".findtekst(906,$sprog_id)." name='provisionsrapport'></span></td></tr>";
-		}
+		print "<tr><td colspan=3 ALIGN=center><br><hr><br>
+		<span title='Afstem bank efter kontoudtog (csv)'>
+		<input  style = 'width:150px;' class='button orange medium' type=submit value ='" . findtekst('2171|Afstem bank', $sprog_id) . "' name='bankReconcile'>
+		</span>
+		</td></tr>";
+		print "<tr><td colspan=3 ALIGN=center><br>
+		<span title='Vilk&aring;rlig s&oslash;gning i transaktioner'>
+		<input  style = 'width:150px;' class='button orange medium' type=submit value='" . findtekst('905|Kontrolspor', $sprog_id) . "' name='kontrolspor'>
+		</span>
+		</td></tr>";
+		#		print "<tr><td colspan=3 ALIGN=center><span title='Rapport over medarbejdernes provisionsindtjening'>  <input class='button blue medium' type=submit value=".findtekst(906,$sprog_id)." name='provisionsrapport'></span></td></tr>";
 	}
 
 	print "</form>\n";
@@ -623,11 +612,7 @@ print '<script src="../javascript/finans_forside.js?v=' . time() . '"></script>'
 
 
 
-	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 	
 }
 # endfunc forside

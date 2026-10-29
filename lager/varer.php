@@ -94,14 +94,14 @@ $vis_lev_felt = NULL;
 
 if (isset($_GET['sort'])) {
 	$sort=$_GET['sort'];
-	setcookie("saldi_vare_sort", $sort, time()+3600*24*12);
+	saldi_setcookie("saldi_vare_sort", $sort, time()+3600*24*12);
 } elseif(isset($_COOKIE['saldi_vare_sort'])) $sort=$_COOKIE['saldi_vare_sort'];
 else $sort = "varenr";
 
 
 if (isset($_GET['lev_kto_navn']) && $_GET['lev_kto_navn']) {
 	$lev_kto_navn=$_GET['lev_kto_navn'];
-#	setcookie("saldi_lkn", $lev_kto_navn, time()+3600*24*12);
+#	saldi_setcookie("saldi_lkn", $lev_kto_navn, time()+3600*24*12);
 } #elseif(isset($_COOKIE['saldi_lkn'])) $lev_kto_navn=$_COOKIE['saldi_lkn'];
 else $lev_kto_navn = "";
 
@@ -139,6 +139,8 @@ if ($menu == "S") {
 }
 	
 // 20260904 Sawaneh WP-1.3c: luk.php only when THIS window is a popup (popup=1 flag),
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // not on the user's popup preference — inline/iframe use otherwise ends on luk.php.
 $isPopupRequest = !empty($_GET['popup']);
 $returside = $isPopupRequest ? '../includes/luk.php' : nav_sanitize_returside($_GET['returside'] ?? null);
@@ -220,12 +222,12 @@ if (isset($_GET)) {
 	$linjeantal = $start = NULL;
 	if (isset($_GET['start'])) $start = $_GET['start'];
 	elseif (isset($_POST['start'])) $start = $_POST['start'];
-	if ($start)	setcookie("saldiProductListStart", $start);
+	if ($start)	saldi_setcookie("saldiProductListStart", $start);
 	elseif(isset($_COOKIE['saldiProductListStart'])) $start=$_COOKIE['saldiProductListStart'];
 	else $start=1;
 	if (isset($_GET['linjeantal'])) $linjeantal = $_GET['linjeantal'];
 	elseif (isset($_POST['linjeantal'])) $linjeantal = $_POST['linjeantal'];
-	if ($linjeantal)	setcookie("saldiProductListLines", $linjeantal);
+	if ($linjeantal)	saldi_setcookie("saldiProductListLines", $linjeantal);
 	elseif(isset($_COOKIE['saldiProductListLines'])) $linjeantal=$_COOKIE['saldiProductListLines'];
 	else $linjeantal=100;
 	$slut = if_isset($_GET['slut']);
@@ -437,68 +439,35 @@ $txt3102 = findtekst(3102,$sprog_id); # Opret en ny vare
 $txt3103 = findtekst(3103,$sprog_id); #Luk varelisten....
 $txt3105 = findtekst(3105,$sprog_id); #Opret indkøbsforslag /....
 $txt3101 = findtekst(3101,$sprog_id); #Vælg hvilke varegrupper.....
-if ($menu=='T') {
-#	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\"></div>\n";
-#	print "<span class=\"headerTxt\">Systemsetup</span>\n";     
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";       
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontent\">\n";
-	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\"><tbody>"; # -> 1
-
-} elseif ($menu == 'S') {
-	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
-	print "<tr><td height = '25' align='center' valign='top'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
-	print "<tr><td width='10%'><a href='$retursideHref' accesskey=L>
-		   <button style='$buttonStyle; width:100%' title='$backTitle' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
+if ($menu == 'S') {
+	$vlBase = "varer.php?{$listNavigationQuery}sort=$sort&start=$start&linjeantal=$linjeantal";
+	$vlActions = array();
 	if ($start<$linjeantal) {
 		if ($makeSuggestion) {
-			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>";
-			print "<button style='$buttonStyle; width:100%' title='$txt2113' onMouseOver=\"this.style.cursor='pointer'\">";
-			print "$txt159</button></a></td>\n";
+			$vlActions[] = array($txt159, $vlBase, 'bx-undo');
 		} else {
-			print "<td width='10%'>
-				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&find=$find'>
-				   <button style='$buttonStyle; width:100%' title='$txt3105'
-				   onMouseOver=\"this.style.cursor='pointer'\">
-				   $txt954</button></a></td>\n";
+			$vlActions[] = array($txt954, "$vlBase&forslag=ja&beskrivelse=$beskrivelse&find=$find", 'bx-cart');
+		}
+		if ($stock && !$makeSuggestion) {
+			$vlActions[] = array($txt30, $vlBase, 'bx-arrow-back');
+		} elseif ($stock && $makeSuggestion && !$alle_varer) {
+			$vlActions[] = array($txt955, "$vlBase&forslag=ja&beskrivelse=$beskrivelse&alle_varer=ja", 'bx-list-ul');
+		} elseif ($stock && $makeSuggestion && $alle_varer) {
+			$vlActions[] = array('Kun mangler', "$vlBase&forslag=ja&beskrivelse=$beskrivelse", 'bx-filter');
+		} else {
+			$vlActions[] = array($txt953, "$vlBase&beholdning=ja", 'bx-package');
 		}
 	}
-	print "<td style='$topStyle' align='center'> $txt957</td>\n";
-
-	if ($start<$linjeantal) {
-		if ($stock && !$makeSuggestion) {
-			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
-		} elseif ($stock && $makeSuggestion && !$alle_varer) {
-			print "<td width='10%'>
-				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Medtager alle varer fra valgte leverand&amp;oslash;rer, uanset ordrestatus'>$txt955</button></a></td>\n";
-		} elseif ($stock && $makeSuggestion && $alle_varer) {
-			print "<td width='10%'>
-				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Medtager kun varer fra valgte leverand&amp;oslash;rer, som vil komme under minimum udfra ordrer & tilbud'>Kun mangler</button></a></td>\n";
-		} else {
-			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Viser status for tilbud, salgsordrer og indk&oslash;bsordrer'>$txt953</button></a></td>\n";
-		}
-	} #else print "<td width='80%' $top_bund> Visning</td>\n";
-
-	print "<td width='5%'><a href='varevisning.php'>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$txt3101'>$txt813</button></a></td>";
-	print "<td width='5%'><a href='varekort.php?returside={$listReturnQuery}'>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Opret en ny vare'>Ny</button></a></td>";
-
-	print "</tr>\n";
-	print "</tbody></table>\n";
-
+	$vlActions[] = array($txt813, 'varevisning.php', 'bx-slider-alt');
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => $txt957,
+		'actions' => $vlActions,
+		'primary' => array(findtekst('7003|Ny vare', $sprog_id), "varekort.php?returside={$listReturnQuery}", 'accesskey' => 'N'),
+		'back' => $returside,
+	));
+	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
+	print "<tr><td height='1' align='center' valign='top'></td></tr>\n";
 } else {
 	print "<table style=\"width:100%;height:100%;\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";

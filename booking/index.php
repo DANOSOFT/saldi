@@ -62,6 +62,7 @@ if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$qtxt.= "'0',0,'". date('U') ."',FALSE,'1')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
+	$permission_key = 'any';
 	include ('../includes/online.php');
 	if ($username == 'booking') {
 		$qtxt = "select rettigheder from brugere where brugernavn = 'booking'";

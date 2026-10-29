@@ -50,13 +50,21 @@ $s_id=session_id();
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	// 20261018 Sawaneh Review 2 (PR #803): every POST on this page carries the session's token.
+	if (empty($_SESSION['csrf_token'])) {
+		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+	}
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		perm_require_post_csrf(false);
+	}
+	$csrfField = "<input type=\"hidden\" name=\"csrf_token\" value=\"" . htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES) . "\">";
 
 	if(isset($_GET['id'])) $id = $_GET['id'];
 	if(isset($_POST['id'])) $id = $_POST['id'];
 	$konto_id=if_isset($_GET['konto_id']);
 	if (!$konto_id) $konto_id = 0; 
 	$funktion=if_isset($_GET['funktion']);
-	if (!$funktion)$funktion="ansatliste";
+	if (!in_array($funktion, ['ansatliste', 'ret_ansat', 'brugergrupper', 'stamkort'], true)) $funktion = "ansatliste";
 	$vis=if_isset($_GET['vis']);
 	
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
@@ -241,7 +249,7 @@ function ansatliste() {
 
 	print "
 		<div class=\"contentsoeg\">
-		<form name=\"kundesoeg\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">
+		<form name=\"kundesoeg\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">{$GLOBALS['csrfField']}
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
@@ -364,12 +372,33 @@ function ret_ansat($id) {
 		} else $kode1=md5($kode1);
 		
 		if ($id) {
+			// 20261016 Sawaneh Review (PR #803): a password, a link or a rename only for a user the editor may manage
+			// (never an administrator from here). 20261018 Review 2: the same check on the link and the rename.
+			include_once(__DIR__ . "/../includes/userFunctions.php");
+			$mayManage = function ($userId) {
+				$u = db_fetch_array(db_select("select * from brugere where id = '" . (int) $userId . "'", __FILE__ . " linje " . __LINE__));
+				return $u && (!function_exists('user_may_manage') || user_may_manage($u));
+			};
+			$refused = false;
+			// 20261019 Review 2: a posted login id must be the login linked to this employee (the form only sends that one).
+			if ($brugere_id && !db_fetch_array(db_select("select id from brugere where id = '" . (int) $brugere_id . "' and ansat_id = '" . (int) $ansatId . "'", __FILE__ . " linje " . __LINE__))) {
+				$refused = true;
+				$brugere_id = 0;
+				$ret_kode = 0;
+				$brugere_navn = '';
+			}
 			if ($ret_kode && $brugere_id) {
-				db_modify("update brugere set kode = '".db_escape_string($kode1)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+				if ($mayManage($brugere_id)) {
+					db_modify("update brugere set kode = '".db_escape_string($kode1)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
+				} else {
+					$refused = true;
+				}
 			}
 			if ($brugere_navn && !$brugere_id) {
 				$r=db_fetch_array(db_select("select id,ansat_id from brugere where lower (brugernavn)='".db_escape_string(strtolower($brugere_navn))."'",__FILE__ . " linje " . __LINE__));
-				if (ifset($r, 'id') && !ifset($r, 'ansat_id')) {
+				if (ifset($r, 'id') && !ifset($r, 'ansat_id') && !$mayManage($r['id'])) {
+					$refused = true;
+				} elseif (ifset($r, 'id') && !ifset($r, 'ansat_id')) {
 					$brugere_id = (int)$r['id'];
 					db_modify("update brugere set ansat_id = '$ansatId' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
 				} else {
@@ -381,7 +410,9 @@ function ret_ansat($id) {
 				}
 			} elseif ($brugere_navn && $brugere_id) { #20170911
 				$r2=db_fetch_array(db_select("select id,brugernavn from brugere where id = '$brugere_id'",__FILE__ . " linje " . __LINE__));
-				if (ifset($r2, 'brugernavn') != $brugere_navn) {
+				if (ifset($r2, 'brugernavn') != $brugere_navn && !$mayManage($brugere_id)) {
+					$refused = true;
+				} elseif (ifset($r2, 'brugernavn') != $brugere_navn) {
 					$r3=db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($brugere_navn)."'",__FILE__ . " linje " . __LINE__));
 					if (ifset($r3, 'id') > 0 && $r3['id'] != $brugere_id) {
 						$alerttext=findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id).": $brugere_navn";
@@ -391,9 +422,12 @@ function ret_ansat($id) {
 					}
 				}
 			}
+			if ($refused) {
+				print "<BODY onLoad=\"javascript:alert('".findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', $sprog_id)."');\">";
+			}
 		}
 	}
-	print "<form name=\"ret_ansat\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">\n"; // #anchor $anchor
+	print "<form name=\"ret_ansat\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">{$GLOBALS['csrfField']}\n"; // #anchor $anchor
 	$x=0;
 	$q=db_select("select * from grupper where art='brgrp' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -552,7 +586,7 @@ function brugergrupper($id) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/ansatte.php?funktion=brugergrupper\">\n";
 	}
 	print "<div class=\"content\">\n";
-	print "<form name=\"brugergrupper\" action=\"ansatte.php?funktion=brugergrupper\" method=post>\n";
+	print "<form name=\"brugergrupper\" action=\"ansatte.php?funktion=brugergrupper\" method=post>{$GLOBALS['csrfField']}\n";
 	
 	print "<div style=\"float:left; width:828px;\">\n";
 	print "<h3>".findtekst('2968|Brugergrupper', $sprog_id)."</h3>\n";
@@ -727,7 +761,7 @@ function stamkort($id) {
 	
 	}
 	
-	print "<form name=\"stamkort\" action=\"ansatte.php?funktion=stamkort\" method=post>\n";
+	print "<form name=\"stamkort\" action=\"ansatte.php?funktion=stamkort\" method=post>{$GLOBALS['csrfField']}\n";
 	print "<div class=\"content\">";
 	print "<div class=\"contentBorder stamkort\">";
 	print "<table border=\"0\" cellspacing=\"0\" width=\"826\" style=\"font-size: 12px\"><thead>";

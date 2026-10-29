@@ -49,6 +49,7 @@
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 // 20261001 CDX/PHR Show each warehouse number once, preferring its current-year name, and reuse the list during item lookup.
 // 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id = session_id();
@@ -194,23 +195,17 @@ $vnr = $varenr;
 $loGridMode = ($menu == 'S');
 
 if ($loGridMode) {
-	$loTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	print "<div id='loPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
-
-	print "<td width='10%' align='left'><a href='$returside' accesskey=L>
-		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$loTilbageIcon" . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
-
-	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
-
-	print "<td width='10%' align='center'>";
-	($importer) ? print "<a href='optalling.php'><button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('81|Afbryd', $sprog_id) . "</button>"
-		: print "<a href='optalling.php?importer=1&lager=$lager&dato=$dato'><button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('1356|Importér', $sprog_id) . "</button>";
-	print "</a></td>";
-
-	print "</tr></tbody></table>\n";
+	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => $title,
+		'actions' => array($importer
+			? array(findtekst('81|Afbryd', $sprog_id), 'optalling.php', 'bx-x')
+			: array(findtekst('1356|Importér', $sprog_id), "optalling.php?importer=1&lager=$lager&dato=$dato", 'bx-upload')),
+		'back' => $returside,
+	));
 } else {
 	print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
 	print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->

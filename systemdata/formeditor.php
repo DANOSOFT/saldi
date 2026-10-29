@@ -23,6 +23,13 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20261005 Sawaneh Settings redesign G6.1: reset keeps the e-mail texts and fee/interest rows (FE2); print-language lock
+//                  and drafts in the settings table via includes/formEditorState.php (FE3); the background link opens
+//                  in the same window and the upload page returns here (FE5).
+// 20261006 Sawaneh Back link has accesskey L, so the shell's breadcrumb replaces it (breadcrumb step 2).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -66,86 +73,18 @@ if ($FE_API) {
 	}
 }
 
-$title = "Formulareditor";
+$title = findtekst('7012|Formulareditor', $sprog_id);
 $css   = "../css/standard.css";
 
 include("../includes/connect.php");
+$modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
+$permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include_once("../includes/formEditorState.php");
 
-// ---------------------------------------------------------------------------
-//  Background helpers (shared by the view and the logo compositor)
-// ---------------------------------------------------------------------------
-function fe_bg_candidates($db_id, $form_nr, $sprog) {
-	$sp   = ($sprog != 'Dansk') ? $sprog . '_' : '';
-	$slug = array(1=>'tilbud', 4=>'faktura');
-	$c = array();
-	if (isset($slug[$form_nr])) {
-		$c[] = "../logolib/$db_id/{$sp}{$slug[$form_nr]}_bg.pdf";
-		$c[] = "../logolib/$db_id/{$slug[$form_nr]}_bg.pdf";
-	}
-	$c[] = "../logolib/$db_id/{$sp}bg.pdf";
-	$c[] = "../logolib/$db_id/bg.pdf";
-	return $c;
-}
-function fe_active_bg($db_id, $form_nr, $sprog) {
-	foreach (fe_bg_candidates($db_id, $form_nr, $sprog) as $f) if (file_exists($f)) return $f;
-	return null;
-}
-// Stamp the placed logo onto the print background at Save & activate. Keeps a
-// clean "base" copy so re-saves never double-stamp; the editor shows the base.
-// Non-fatal: any tool failure just leaves the background untouched.
-function fe_composite_logo($db_id, $form_nr, $sprog) {
-	if (!function_exists('shell_exec')) return;
-	$dir  = "../logolib/$db_id";
-	$logo = "$dir/fe_logo.png";
-	if (!file_exists($logo)) return;                       // no logo -> nothing to do
-	$sp = db_escape_string($sprog);
-	$r = db_fetch_array(db_select("select xa,ya,xb,yb from formularer where formular=$form_nr and art=1 and beskrivelse='LOGO' and sprog='$sp'", __FILE__ . " linje " . __LINE__));
-	if (!$r) return;
-	$xa=(float)$r['xa']; $ya=(float)$r['ya']; $w=(float)$r['xb']; $h=(float)$r['yb'];
-	if ($w <= 0 || $h <= 0) return;                        // logo not sized -> skip
-
-	$base   = "$dir/fe_logobase.pdf";
-	$active = fe_active_bg($db_id, $form_nr, $sprog);
-	$out    = $active ? $active : "$dir/bg.pdf";
-	$metaF  = "$dir/fe_logo_meta.json";
-	$meta   = file_exists($metaF) ? json_decode(@file_get_contents($metaF), true) : array();
-	$activeMd5 = ($active && file_exists($active)) ? md5_file($active) : '';
-
-	if (!file_exists($base)) {
-		if ($active && file_exists($active)) @copy($active, $base);
-		else @shell_exec("convert -size 1654x2339 xc:white -units PixelsPerInch -density 200 " . escapeshellarg($base) . " 2>/dev/null");
-	} elseif ($activeMd5 !== '' && isset($meta['out_md5']) && $activeMd5 !== $meta['out_md5']) {
-		@copy($active, $base);   
-	}
-	if (!file_exists($base)) return;
-
-	$dpi = 200;
-	$A4W = 1654; $A4H = 2339;   // A4 @200dpi (210x297mm)
-	$basePng = "$dir/fe_basetmp-1.png";
-	@shell_exec("pdftoppm -png -r $dpi -f 1 -l 1 " . escapeshellarg($base) . " " . escapeshellarg("$dir/fe_basetmp") . " 2>/dev/null");
-	if (!file_exists($basePng)) return;
-
-	@shell_exec("convert " . escapeshellarg($basePng) . " -resize " . $A4W . "x" . $A4H . "! " . escapeshellarg($basePng) . " 2>/dev/null");
-
-	$xpx = (int) round($xa/25.4*$dpi);
-	$ypx = (int) round((297-$ya)/25.4*$dpi);
-	$wpx = max(1, (int) round($w/25.4*$dpi));
-	$hpx = max(1, (int) round($h/25.4*$dpi));
-	$logoRs  = "$dir/fe_logors.png";
-	$compPng = "$dir/fe_comptmp.png";
-	@shell_exec("convert " . escapeshellarg($logo) . " -resize " . escapeshellarg($wpx . 'x' . $hpx . '!') . " " . escapeshellarg($logoRs) . " 2>/dev/null");
-	@shell_exec("convert " . escapeshellarg($basePng) . " " . escapeshellarg($logoRs) . " -gravity NorthWest -geometry +$xpx+$ypx -composite " . escapeshellarg($compPng) . " 2>/dev/null");
-	if (file_exists($compPng)) {
-		@shell_exec("convert " . escapeshellarg($compPng) . " -units PixelsPerInch -density $dpi " . escapeshellarg($out) . " 2>/dev/null");
-		@file_put_contents($metaF, json_encode(array('active'=>$out, 'out_md5'=> file_exists($out) ? md5_file($out) : '')));
-		// bust the editor bg preview cache so the base re-renders next load
-		@array_map('unlink', glob("$dir/*_feprev.png") ?: array());
-	}
-	@unlink($basePng); @unlink($logoRs); @unlink($compPng);
-}
+// Background helpers and the logo compositor: includes/formEditorState.php (shared with the welcome guide).
 
 
 if ($fe_action === 'save') {
@@ -280,8 +219,8 @@ if ($fe_action === 'save') {
 
 	// Activating supersedes any draft for this form + variant.
 	$sprog_raw = (string) $payload['sprog'];
-	$sprog_safe = preg_replace('/[^A-Za-z0-9_]/', '_', $sprog_raw);
-	@unlink("../logolib/$db_id/fe_draft_{$form_nr}_{$sprog_safe}.json");
+	fe_state_delete(fe_draft_name($form_nr, $sprog_raw));
+	@unlink("../logolib/$db_id/fe_draft_{$form_nr}_" . preg_replace('/[^A-Za-z0-9_]/', '_', $sprog_raw) . ".json");
 
 	// Stamp the placed logo onto the print background (if any logo uploaded).
 	fe_composite_logo($db_id, $form_nr, $sprog_raw);
@@ -354,9 +293,24 @@ if ($fe_action === 'reset') {
 	// Refuse to wipe the form if we have no standard to put back.
 	if (!count($rows)) { print json_encode(array('ok' => false, 'error' => 'nostd')); exit; }
 
+	// G6.1 (audit FE2): the e-mail texts (art 5) and the reminder fee/interest rows (GEBYR/RENTE) are the user's own
+	// settings, not layout - a reset keeps them and only adds the standard ones that are missing.
+	$keepMail = array();
+	$q = db_select("select xa from formularer where formular=$form_nr and sprog='$sprog_db' and art=5", __FILE__ . " linje " . __LINE__);
+	while ($k = db_fetch_array($q)) {
+		$keepMail[(string) (float) $k['xa']] = true;
+	}
+	$keepFee = array();
+	$q = db_select("select upper(beskrivelse) as b from formularer where formular=$form_nr and sprog='$sprog_db' and upper(beskrivelse) in ('GEBYR','RENTE')", __FILE__ . " linje " . __LINE__);
+	while ($k = db_fetch_array($q)) {
+		$keepFee[(string) $k['b']] = true;
+	}
 	transaktion('begin');
-	db_modify("delete from formularer where formular=$form_nr and sprog='$sprog_db'", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from formularer where formular=$form_nr and sprog='$sprog_db' and art <> 5 and upper(coalesce(beskrivelse, '')) not in ('GEBYR','RENTE')", __FILE__ . " linje " . __LINE__);
 	foreach ($rows as $r) {
+		if (($r['art'] == 5 && isset($keepMail[(string) (float) $r['xa']])) || isset($keepFee[strtoupper(stripslashes($r['besk']))])) {
+			continue;
+		}
 		$qtxt  = "insert into formularer (formular,art,beskrivelse,xa,ya,xb,yb,justering,str,color,font,fed,kursiv,side,sprog) values (";
 		$qtxt .= "$form_nr,$r[art],'$r[besk]',$r[xa],$r[ya],$r[xb],$r[yb],'$r[just]',$r[str],$r[color],'$r[font]','$r[fed]','$r[kursiv]','$r[side]','$sprog_db')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -373,43 +327,12 @@ if ($fe_action === 'logo_upload') {
 	header('Content-Type: application/json; charset=utf-8');
 	if (empty($db_id)) { http_response_code(401); print json_encode(array('ok'=>false,'error'=>'session')); exit; }
 
-	if (empty($_FILES['logo']) || !is_uploaded_file($_FILES['logo']['tmp_name'])) {
-		http_response_code(400); print json_encode(array('ok'=>false,'error'=>'nofile')); exit;
+	$res = fe_logo_store($db_id, isset($_FILES['logo']['tmp_name']) ? (string) $_FILES['logo']['tmp_name'] : '', isset($_FILES['logo']['size']) ? (int) $_FILES['logo']['size'] : 0);
+	if (!$res['ok']) {
+		if ($res['error'] === 'nofile') http_response_code(400);
+		print json_encode(array('ok'=>false,'error'=>$res['error'])); exit;
 	}
-	$tmp = $_FILES['logo']['tmp_name'];
-	if ((int) $_FILES['logo']['size'] > 5 * 1024 * 1024) { print json_encode(array('ok'=>false,'error'=>'toobig')); exit; }
-	$info = @getimagesize($tmp);
-	if (!$info || !in_array($info['mime'], array('image/png','image/jpeg','image/jpg'), true)) {
-		print json_encode(array('ok'=>false,'error'=>'badtype')); exit;
-	}
-	$w = (int) $info[0]; $h = (int) $info[1];
-	if ($w < 1 || $h < 1) { print json_encode(array('ok'=>false,'error'=>'badimg')); exit; }
-
-	$dir = "../logolib/$db_id";
-	if (!is_dir($dir)) @mkdir($dir, 0775, true);
-	$png = "$dir/fe_logo.png";
-
-	// Re-encode via ImageMagick to strip any embedded scripts/metadata (NR-8),
-	// and cap the size. Fall back to a plain move if convert is unavailable.
-	$ok = false;
-	if (function_exists('shell_exec')) {
-		@shell_exec("convert " . escapeshellarg($tmp) . "[0] -strip -background none -resize '1500x1500>' " . escapeshellarg($png) . " 2>/dev/null");
-		if (file_exists($png)) $ok = true;
-	}
-	if (!$ok) { $ok = @move_uploaded_file($tmp, $png); }
-	if (!$ok || !file_exists($png)) { print json_encode(array('ok'=>false,'error'=>'store')); exit; }
-
-	// IMPORTANT: do NOT write ../logolib/logo_<db_id>.eps here. The print engine
-	// auto-stamps that file on every form without a background PDF, which would
-	// silently change printed output (e.g. orders). The uploaded logo stays
-	// editor-only until an explicit, opt-in compositing step is built. We also
-	// remove any stale EPS a previous version of this endpoint may have created,
-	// so existing printing is restored.
-	@unlink("../logolib/logo_$db_id.eps");
-	// refresh natural size from the normalised file
-	$ni = @getimagesize($png); if ($ni) { $w = (int) $ni[0]; $h = (int) $ni[1]; }
-
-	print json_encode(array('ok'=>true, 'w'=>$w, 'h'=>$h, 'url'=>"../logolib/$db_id/fe_logo.png?t=".time()));
+	print json_encode(array('ok'=>true, 'w'=>$res['w'], 'h'=>$res['h'], 'url'=>$res['url']));
 	exit;
 }
 
@@ -456,12 +379,10 @@ if ($fe_action === 'savedraft' || $fe_action === 'discarddraft') {
 	if (!in_array($form_nr, $valid_forms, true) || $sprog === '') {
 		http_response_code(400); print json_encode(array('ok'=>false,'error'=>'payload')); exit;
 	}
-	$dir = "../logolib/$db_id";
-	if (!is_dir($dir)) @mkdir($dir, 0775, true);
-	$sprog_safe = preg_replace('/[^A-Za-z0-9_]/', '_', $sprog);
-	$file = "$dir/fe_draft_{$form_nr}_{$sprog_safe}.json";
+	$file = "../logolib/$db_id/fe_draft_{$form_nr}_" . preg_replace('/[^A-Za-z0-9_]/', '_', $sprog) . ".json";
 
 	if ($fe_action === 'discarddraft') {
+		fe_state_delete(fe_draft_name($form_nr, $sprog));
 		@unlink($file);
 		print json_encode(array('ok'=>true));
 		exit;
@@ -470,8 +391,8 @@ if ($fe_action === 'savedraft' || $fe_action === 'discarddraft') {
 	$state = isset($payload['state']) ? $payload['state'] : null;
 	if ($state === null) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'payload')); exit; }
 	$doc = array('ts' => time(), 'form_nr' => $form_nr, 'sprog' => $sprog, 'state' => $state);
-	$ok = @file_put_contents($file, json_encode($doc)) !== false;
-	print json_encode($ok ? array('ok'=>true,'ts'=>$doc['ts']) : array('ok'=>false,'error'=>'store'));
+	fe_state_set(fe_draft_name($form_nr, $sprog), json_encode($doc));
+	print json_encode(array('ok'=>true,'ts'=>$doc['ts']));
 	exit;
 }
 
@@ -523,7 +444,6 @@ if ($fe_action === 'set_printlang') {
 	$form_nr = isset($payload['form_nr']) ? (int) $payload['form_nr'] : 0;
 	$valid_forms = array(1,2,3,4,5,6,7,8,9,11,12,13,14);
 	if (!in_array($form_nr, $valid_forms, true)) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'form')); exit; }
-	if (!is_dir("../logolib/$db_id")) @mkdir("../logolib/$db_id", 0775, true);
 	$file = "../logolib/$db_id/fe_printlang_$form_nr.json";
 	$lock = !empty($payload['lock']);
 	if ($lock) {
@@ -537,8 +457,10 @@ if ($fe_action === 'set_printlang') {
 			$ok_variant = ($r && $r['ok']);
 		}
 		if (!$ok_variant) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'sprog')); exit; }
-		@file_put_contents($file, json_encode(array('sprog'=>$sp)));
+		fe_state_set('printlang_' . $form_nr, json_encode(array('sprog'=>$sp)));
+		@unlink($file);
 	} else {
+		fe_state_delete('printlang_' . $form_nr);
 		@unlink($file);
 	}
 	print json_encode(array('ok'=>true, 'locked'=>$lock));
@@ -798,8 +720,7 @@ while ($rv = db_fetch_array($qv)) $variants[] = $rv['sprog'];
 
 // print-language lock: the sprog this form is forced to print in (or '')
 $fe_printlang = '';
-$_plf = "../logolib/$db_id/fe_printlang_$form_nr.json";
-if (@file_exists($_plf)) { $_pl = @json_decode(@file_get_contents($_plf), true); if (is_array($_pl) && !empty($_pl['sprog'])) $fe_printlang = (string) $_pl['sprog']; }
+$fe_printlang = fe_printlang_get($db_id, (int) $form_nr);
 
 // ---- e-mail text (art=5): xa 1=subject, 2=body, 3=attachment ---------------
 $fe_mail = array('subject'=>'', 'body'=>'', 'attach'=>'', 'has_attach'=>in_array($form_nr, array(1,2,4), true));
@@ -859,9 +780,9 @@ if (file_exists($logo_png)) {
 // existing draft for this form + variant (working state not yet activated)
 $fe_draft = null;
 $sprog_safe = preg_replace('/[^A-Za-z0-9_]/', '_', $sprog);
-$draft_file = "../logolib/$db_id/fe_draft_{$form_nr}_{$sprog_safe}.json";
-if (file_exists($draft_file)) {
-	$dj = json_decode(@file_get_contents($draft_file), true);
+$draft_json = fe_state_get_migrating(fe_draft_name((int) $form_nr, (string) $sprog), "../logolib/$db_id/fe_draft_{$form_nr}_{$sprog_safe}.json");
+if ($draft_json !== '') {
+	$dj = json_decode($draft_json, true);
 	if (is_array($dj) && isset($dj['state'])) $fe_draft = $dj;
 }
 
@@ -923,31 +844,10 @@ function fe_render_besk_labels($besk) {
 //  PAGE CHROME (modern top menu, mirrors formularkort.php / logoupload.php)
 // ---------------------------------------------------------------------------
 $menu = isset($menu) ? $menu : '';
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\">";
-	print "<a class='button gray small' href=\"" . htmlspecialchars($returside) . "\">" . findtekst('30|Tilbage', $sprog_id) . "</a> &nbsp;";
-	print "<a class='button blue small' href=\"formularkort.php\">" . findtekst('573|Formularkort', $sprog_id) . "</a>";
-	print "</div>";
-	print "<span class=\"headerTxt\">Formulareditor</span>\n";
-	print "<div class=\"headerbtnRght\"></div>";
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-} else {
-
-	print "<div id=\"fe-header\">";
-	print "<table width=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>";
-	print "<td width=\"170\"><a href=\"" . htmlspecialchars($returside) . "\" accesskey=\"L\"><button type=\"button\" style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td align=\"center\" style='$topStyle'>" . htmlspecialchars($title) . "<br></td>";
-	print "<td width=\"170\" style='$topStyle'><br></td>";
-	print "</tr></tbody></table>";
-	print "</div>";
-}
+print "<div id=\"fe-header\">";
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array('title' => $title, 'back' => $returside));
+print "</div>";
 ?>
 <style>
   #fe-wrap { font-family: Arial, Helvetica, sans-serif; }
@@ -1248,7 +1148,7 @@ if ($menu == 'T') {
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-design-open" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Vælg en færdig skabelon (Klassisk/Moderne/Minimal) og brand-farve/skrifttype','Pick a ready-made template (Classic/Modern/Minimal) and brand colour/font'); ?>">&#127912; <?php echo $T('Skabeloner','Templates'); ?></button>
     <?php $bg_label = $bg_url ? $T('Skift baggrund','Change background') : $T('Tilføj baggrund','Add background'); ?>
-    <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes" target="_blank" rel="noopener" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
+    <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes&amp;returside=<?php echo urlencode('formeditor.php?form_nr=' . (int) $form_nr . '&sprog=' . rawurlencode((string) $sprog)); ?>" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
     <button type="button" class="fe-btn" id="fe-mail-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Rediger e-mailteksten der sendes med PDF&apos;en','Edit the e-mail text sent with the PDF'); ?>">&#9993; <?php echo $T('E-mailtekst','Email text'); ?></button>
     <label id="fe-lang-toggle" title="<?php echo $T('Skift sproget på alle tekster','Switch the language of all captions'); ?>">&#127760;
       <select id="fe-lang-select" class="fe-lang-select"><option value="da">Dansk</option><option value="en">English</option></select></label>
@@ -4070,8 +3970,5 @@ if ($menu == 'T') {
 </script>
 
 <?php
-if ($menu == 'T') {
-	print "</div>\n"; // maincontentLargeHolder
-}
 print "</body></html>\n";
 ?>

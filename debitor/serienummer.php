@@ -21,6 +21,7 @@
 // 20230112 PHR Rewritten debitor creditnote section 
 // 20230206 PHR Some orher changes to avoid errors. 
 // 20260701 PHR (int)$sn_id[$x];
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -29,6 +30,7 @@ $title="serienummer";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

@@ -34,8 +34,12 @@
 // 20260219 PHR if ($row['valutakurs'] && $row['valutakurs'] != 100) changed to ($sum && $row['valutakurs'] && $row['valutakurs'] != 100)
 // 20260219 PHR orders with status 0 was not listet if $hurtigfakt was selected;
 // 20260605 Sawaneh Make the whole order line clickable (and right-clickable for "open in new tab/window"), not just the order number.
+// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
 // 20260908 SZ SST-755: replaced the blanket per-user lock sweep with an age-based one that
 //                  isn't scoped to the current user (see comment at its call site).
+// 20261008 Sawaneh WP-3.6: order rows and the row click return to ordreliste.php with valg and the creditor filter (encoded).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The list sits under the new page head (page_bar): grid height adjusted.
 
 
 ob_start();
@@ -43,7 +47,7 @@ ob_start();
 $s_id = session_id();
 
 $css = "../css/std.css";
-$modulnr = 5;
+$modulnr = 7;
 $title = "Leverandører • Ordreliste";
 
 include("../includes/connect.php");
@@ -74,6 +78,7 @@ if ($konto_id) {
         $qtxt = "UPDATE settings SET var_value = '$konto_id' WHERE var_name = 'kreditorId' AND var_grp = 'kreditor' AND user_id = '$bruger_id'";
     } else {
         $qtxt = "INSERT INTO settings (var_name, var_value, var_grp, user_id) VALUES ('kreditorId', '$konto_id', 'kreditor', '$bruger_id')";
+        $qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
     }
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } else {
@@ -120,8 +125,10 @@ if (!in_array($valg, ['forslag', 'ordrer', 'faktura'])) {
 ###############
 if (isset($valg)) {
     // Set the cookie to store the 'valg' value
-    setcookie("valg", $valg, time() + 3600 * 24, "/"); // Expires in 24 hours
+    saldi_setcookie("valg", $valg, time() + 3600 * 24, "/"); // Expires in 24 hours
 }
+// WP-3.6: an order opened from the list returns to the same tab and creditor filter (encoded, as luk.php passes it on).
+$rowReturside = urlencode("ordreliste.php?valg=" . urlencode((string) $valg) . ($konto_id ? "&konto_id=" . (int) $konto_id : ""));
 
 # >> Date picker scripts <<
 // Note: jQuery is already loaded by online.php - don't load again to avoid overwriting autosize plugin
@@ -135,12 +142,6 @@ include("../includes/datepkr.php");
 
 ##################
 
-// Check for paperflow setting
-$paperflow = NULL;
-$qtxt = "select var_value from settings where var_grp='creditor' and var_name='paperflow'";
-if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-    $paperflow = $r['var_value'];
-}
 
 // Check if project column should be visible
 $vis_projekt = 'off';
@@ -194,21 +195,7 @@ while ($r = db_fetch_array($q)) {
 ob_end_flush();
 
 // Render header
-if ($menu == 'T') {
-    include_once '../includes/top_header.php';
-    include_once '../includes/top_menu.php';
-    print "<div id=\"header\">";
-    print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
-    print "<div class=\"headerTxt\">$title</div>";
-    print "<div class=\"headerbtnRght headLink\">";
-    $ny_konto_param = ($konto_id) ? "&konto_id=$konto_id" : "";
-    print "<a accesskey=N href='ordre.php?returside=ordreliste.php$ny_konto_param' title='Opret ny ordre'><i class='fa fa-plus-square fa-lg'></i></a>";
-    print "</div>";
-    print "</div>";
-    print "<div class='content-noside'>";
-} else {
- include_once '../includes/kreditorOrderFuncIncludes/topLine.php';
-}
+include_once '../includes/kreditorOrderFuncIncludes/topLine.php';
 
 ////// Tutorial //////
 
@@ -259,7 +246,7 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            global $brugernavn;
+            global $brugernavn, $rowReturside;
             $in_use = '<span>';
 
             // Match the locking logic from ordre.php (snippet provided)
@@ -271,7 +258,7 @@ $custom_columns = array(
             }
             // 20260603 Sawaneh Real link so the whole line is clickable AND right-clickable
             // (open in new tab/window) via includes/order-row-clickable.js.php.
-            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=ordreliste.php";
+            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=$rowReturside";
             return "<td align='$column[align]'><a href='$href' style='display:block;color:inherit;text-decoration:underline;'>$in_use$value</span></a></td>";
         }
     ),
@@ -706,7 +693,7 @@ $grid_data = [
     'rowAttributes' => $rowAttributes
 ];
 
-print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+print "<div style='width: 100%; height: calc(100vh - 112px);'>";
 // Render the datagrid
 $rows = create_datagrid("kredorliste_$valg", $grid_data);
 
@@ -726,7 +713,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get the order ID from the data
             const orderId = row.dataset.orderId;
             if (orderId) {
-                window.location.href = 'ordre.php?tjek='+orderId+'&id='+orderId+'&returside=ordreliste.php';
+                window.location.href = 'ordre.php?tjek='+orderId+'&id='+orderId+'&returside={$rowReturside}';
             }
         });
     });
@@ -760,11 +747,7 @@ SCRIPT;
 
 ##################
 
-if ($menu == 'T') {
-    include_once '../includes/topmenu/footer.php';
-} else {
-    include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 ?>
 
 <script>

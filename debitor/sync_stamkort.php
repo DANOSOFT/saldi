@@ -23,11 +23,13 @@
 // Copyright (c) 2008-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20230123 PHR Replaced addslashes by db_escape_string
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

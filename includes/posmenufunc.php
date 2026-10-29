@@ -458,7 +458,7 @@ if (!function_exists('menubuttons')) {
 									if ($fp = fopen($filnavn, 'r')) {
 										$terminal_ip = trim(fgets($fp));
 										fclose($fp);
-										setcookie("salditerm", $terminal_ip, time() + 3600, '/');
+										saldi_setcookie("salditerm", $terminal_ip, time() + 3600, '/');
 									} else
 										$dis = " disabled='disabled' ";
 								}
@@ -762,7 +762,7 @@ if (!function_exists('tastatur')) {
 					fclose($fp);
 				}
 			} else {
-				setcookie("salditerm", $terminal_ip, time() + 3600, '/');
+				saldi_setcookie("salditerm", $terminal_ip, time() + 3600, '/');
 			}
 			$href = "http://$terminal_ip/pointd/point.php?url=$url&id=$id&kasse=$kasse";
 			print "<td width=\"$width\"><input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"Kort\n terminal\"></td>\n";

@@ -57,10 +57,12 @@
 ob_start();
 @session_start();
 $s_id = session_id();
+$permission_key = 'finans.kassekladde';
 
 #$css = "../css/standard.css";
 include(__DIR__ . "/../includes/connect.php");
 // 20260923 CL/SZ (CodeRabbit): online.php prints a legacy ISO-8859-1 <meta> charset
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // declaration before this page's own UTF-8 one - send the real header first so browsers
 // use it (a <meta> only wins when no HTTP charset header is present).
 header('Content-Type: text/html; charset=UTF-8');
@@ -662,20 +664,11 @@ $htmlLang = ['1' => 'da', '2' => 'en', '3' => 'no'][(string)$sprog_id] ?? 'da';
 <div class="system-header">
 <?php
 include("../includes/topline_settings.php");
-$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; # tabel 1
-print "<tr class='backBtn'><td colspan=\"2\" align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
-
-print "<td width=5% style='$buttonStyle'>
-	<a href=\"javascript:confirmClose('" . htmlspecialchars($returside, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>
-	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-	$icon_back ".htmlspecialchars(findtekst_utf8('30|Tilbage', $sprog_id), ENT_QUOTES, 'UTF-8')."</button></a></td>";
-   print " <td align='center' style='$topStyle' width'75%'>" . htmlspecialchars(findtekst_utf8('1066', $sprog_id), ENT_QUOTES, 'UTF-8') . " — " . htmlspecialchars(findtekst_utf8('5300', $sprog_id), ENT_QUOTES, 'UTF-8') . " $kladde_id<br></td>
-    <td width=\"5%\" style='$topStyle'><br></td></tr>
-    </tbody></table></td></tr>"; # <- tabel 1.1.1
-print "</tbody></table></td></tr></tbody></table>";
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array(
+	'title' => findtekst_utf8('1066', $sprog_id) . " — " . findtekst_utf8('5300', $sprog_id) . " $kladde_id",
+	'back' => "javascript:confirmClose('" . $returside . "','$tekst')",
+));
 ?>
 <style>
 	.headerbtn, .center-btn {

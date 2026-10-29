@@ -94,7 +94,7 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 		($r['box7'])?$bord=explode(chr(9),$r['box7']):$bord=array();
 		if (is_numeric($bordnr)) {
 #			$bordnavn=$bord[$bordnr];
-			setcookie("saldi_bordnr",$bordnr,time()+60*60*24*30);
+			saldi_setcookie("saldi_bordnr",$bordnr,time()+60*60*24*30);
 		}
 	}
 	if (!$bordnr) $bordnr=$_COOKIE['saldi_bordnr'];

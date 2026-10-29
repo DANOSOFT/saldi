@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-09-21 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -147,9 +147,26 @@
 // 20260918 CDX/PHR Store Udført af in performed_by independently of the system field hvem.
 // 20260919 CDX/PHR Preserve three-decimal unit prices when displaying and saving orders.
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261002 Sawaneh Print to local printer remembered as a personal setting (settings redesign G6.4) instead of a saldi.dk cookie.
+// 20261004 Sawaneh Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
+// 20261006 Sawaneh WP-2.11/2.12: no stray ?id= on fokus; a sag order's returside is stored plain and urlencoded only where it is
+//                  embedded (form actions, prev/next, view toggles, swap, print, hidden input escaped); old encoded rows are decoded.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
+// 20261008 Sawaneh The order heading has no dangling dash when there is nothing after the number (breadcrumb and page head).
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
+// 20261008 MJ SST-833 The batch-selection control on a sales line no longer uses the
+//                  serial-number icon and alt text. It opens batch(), not serienummer(),
+//                  and appeared on items with no serial number at all.
+// 20261011 MJ SST-828 The plukliste buttons now follow the order's own status instead of
+//                  $opValue ($_GET['valg']), which made them disappear entirely whenever
+//                  hurtigfakturering was on. They are shown on anything but a tilbud, so
+//                  nothing loses them, and the Send plukliste field in the button row
+//                  follows the same rule as the button beside it.
+// 20261022 CDX/LH Keep Stripe selected despite legacy mail/local-print flags and preserve it on partial saves.
+// 20261023 CDX/LH Preserve Stripe delivery on partial saves alongside the redesign per-user local-print preference.
+// 20261025 CL/ASR Udskriv til 'Link' (E-mail med link) next to e-mail: per-order choice, blocked with a reason when the order cannot use the payment page, Send label, mail fields.
 
 @session_start();
 $s_id = session_id();
@@ -187,6 +204,7 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
+include_once(__DIR__ . '/orderIncludes/orderDelivery.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -281,7 +299,7 @@ $title = findtekst('1092|Kundeordre', $sprog_id);
 $txt370 = findtekst('370|Kontant', $sprog_id);
 $txt283 = findtekst('283|Kreditkort', $sprog_id);
 
-$localPrint = if_isset($_COOKIE, NULL, 'localPrint');
+$localPrint = (get_settings_value('localPrint', 'print', '', (int) $bruger_id) === 'on') ? 'on' : if_isset($_COOKIE, NULL, 'localPrint'); #20261002 personal setting, cookie kept one release
 #print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
 #print "<script type=\"text/javascript\" src=\"https://code.jquery.com/jquery-latest.min.js\"></script>\n";
 #print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/arrowkey.js\"></script>\n";
@@ -793,7 +811,7 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 	} elseif ($konto_id) {
 		$alert1 = findtekst('1822|Debitoren er ikke tilknyttet en debitorgruppe', $sprog_id); #20210806
 		print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus\">\n";
 		exit;
 	}
 
@@ -968,13 +986,14 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		alert("" . findtekst('1825|telefonummer må maks være på 15 cifre', $sprog_id) . "");
 		$phone = substr($phone, 0, 15);
 	}
-	$udskriv_til = db_escape_string($_POST['udskriv_til']); // SD-639: reaches an UPDATE ordrer statement below unescaped
+	$udskriv_til = db_escape_string(orderDeliveryPostedValue($_POST, $id)); // SD-639: reaches an UPDATE ordrer statement below unescaped
+	// Remembered per user (settings redesign G6.4), no longer a cookie bound to saldi.dk.
 	if ($udskriv_til == 'localPrint') {
-		setcookie('localPrint', 'on', time() + 10000000000, '/', 'saldi.dk');
+		update_settings_value('localPrint', 'print', 'on', 'Print to local printer', (int) $bruger_id);
 		$localPrint = 'on';
 		$udskriv_til = 'PDF';
 	} else {
-		setcookie('localPrint', 'off', time() + 10, '/', 'saldi.dk');
+		update_settings_value('localPrint', 'print', '', 'Print to local printer', (int) $bruger_id);
 		$localPrint = NULL;
 	}
 	$formularsprog = db_escape_string(if_isset($_POST, ($current_user_sprog ? $current_user_sprog : 'Dansk'), 'sprog')); # 2022113 Tilføjet 'sprog # SD-639: reaches an UPDATE ordrer statement below unescaped
@@ -982,8 +1001,8 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$genfakt = if_isset($_POST, NULL, 'genfakt');
 	if ($genfakt == '') $genfakt = '-';
 	$ean = db_escape_string(trim($_POST['ean']));
-	if (strpos($email, "@") && strpos($email, ".") && strlen($email) > 5 && $udskriv_til == 'email') $mail_fakt = 'on';
-	elseif ($udskriv_til == 'email') {
+	if (strpos($email, "@") && strpos($email, ".") && strlen($email) > 5 && ($udskriv_til == 'email' || $udskriv_til == 'Link')) $mail_fakt = 'on';
+	elseif ($udskriv_til == 'email' || $udskriv_til == 'Link') {
 		$alert = findtekst('1826|e-mail ikke gyldig Faktura kan ikke sendes', $sprog_id);
 		print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
 		$udskriv_til = "PDF";
@@ -1003,6 +1022,16 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		$pbs = "BS";
 	}
 	if ($udskriv_til == 'oioubl') $oioubl = "on";
+	// 20261025 CL/ASR refuse "E-mail med link" when the order itself cannot use the payment page; say what to do instead
+	if ($udskriv_til == 'Link') {
+		$linkBlock = orderLinkBlockReason($id, array('betalingsbet' => $_POST['betalingsbet'] ?? null));
+		if (orderLinkHardBlock($linkBlock)) {
+			$linkOrder = db_fetch_array(db_select("select status from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
+			$alert = orderLinkBlockText($linkBlock, (int)($linkOrder['status'] ?? 0) >= 3);
+			print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars(json_encode($alert, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') . ")\">\n";
+			$udskriv_til = 'email';
+		}
+	}
 
 	// safety: ordrer.pbs / mail_fakt / mail_bilag are all varchar(2). Clamp any
 	// over-long value so a legacy/long code can't crash the write ("value too long
@@ -1800,7 +1829,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			} else {
 				$alert1 = findtekst('1822|Debitoren er ikke tilknyttet en debitorgruppe', $sprog_id);
 				print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus\">\n";
 				exit;
 			}
 		}
@@ -3383,11 +3412,6 @@ function ordreside($id, $regnskab)
 	
 
 
-	if ($menu == 'T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-	#  } else {
-	}
 
 	$dkb = 0; #dækningsbidrag;
 
@@ -3407,7 +3431,7 @@ function ordreside($id, $regnskab)
 
 	$sag_id = if_isset($r, NULL, 'sag_id') * 1; #20210719
 	if ($sag_id) {
-		$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
+		$returside = "../sager/sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id";
 	}
 	if (!$returside) {
 		if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
@@ -3508,7 +3532,7 @@ function ordreside($id, $regnskab)
 		if (isset($_REQUEST['gls_go'])) {  // BZ
 			db_modify("update ordrer set gls_label = true where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$tGrossWeight = $_POST['tGrossWeight'] * 1;
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'gls_id')   $gls_id   = $r['var_value'];
@@ -3527,7 +3551,7 @@ function ordreside($id, $regnskab)
 			$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = NULL;
 			$dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
 			
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if (!isset($r['var_name'])) continue;
@@ -3733,7 +3757,12 @@ function ordreside($id, $regnskab)
 			// Stored retursides were written with HTML-escaped separators (&amp;), which
 			// nav_sanitize_returside() rejects outright - decode them back to '&' first so
 			// legitimate multi-parameter return targets survive instead of being dropped.
-			$returside = nav_sanitize_returside(html_entity_decode($row['returside'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+			$storedReturside = html_entity_decode($row['returside'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+			// WP-2.12: sag orders used to store the address URL-encoded (..%2Fsager%2F...); stored plain from now on.
+			if (stripos($storedReturside, '%2F') !== false || stripos($storedReturside, '%3F') !== false) {
+				$storedReturside = rawurldecode($storedReturside);
+			}
+			$returside = nav_sanitize_returside($storedReturside);
 		}
 		$omkunde = if_isset($row, '', 'omvbet') ? 'on' : '';
 		$betalt = if_isset($row, 0, 'betalt');
@@ -3801,6 +3830,14 @@ function ordreside($id, $regnskab)
 	if ($status == 0) $tmp = "tilbud";
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
+	// 20261011 MJ SST-828 Decided from the order's own status, not from $opValue, which is
+	// $_GET['valg'] - the tab the user arrived from. With hurtigfakturering it could never be
+	// 'faktura' for an open order, so the buttons were hidden on every one of them.
+	// A plukliste belongs to anything that is not a tilbud. With hurtigfakturering there are
+	// no tilbud: ordreliste.php lists status 0 under 'ordrer' (line 531) and gives those rows
+	// the plukliste icon, so the only case left out is status 0 without hurtigfakturering.
+	// $tmp cannot serve here - the next line overwrites it with the navigation value.
+	$visPlukliste = $id && ($hurtigfakt == "on" || $status > 0);
 	$value_type = if_isset($_GET, 'ordrer', 'valg');
 	if($tmp != $value_type) $tmp = $value_type;
 	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
@@ -3830,8 +3867,7 @@ function ordreside($id, $regnskab)
 	} elseif ($krediteret) {
 		sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr ( krediteret p&aring; KN nr: $krediteret )");
 	} else {
-		if ($returside == "ordreliste.php") sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
-		else sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
+		sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr" . (trim((string) $temp) !== '' ? " - $temp" : ''));
 	}
 	// -- Stock-warning banner: sits between the title bar (rendered by sidehoved()) and the order form.
 	if ($id && function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
@@ -3890,9 +3926,9 @@ function ordreside($id, $regnskab)
 		$actionUrl = "ordre.php?id=$id";
 
 		if ($b_submit == 'Kopier' || isset($_POST['copy'])) {
-			$formAction = "ordre.php?sag_id=$sag_id&amp;returside=$returside";
+			$formAction = "ordre.php?sag_id=$sag_id&amp;returside=" . urlencode($returside);
 		} else {
-			$formAction = "ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside";
+			$formAction = "ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=" . urlencode($returside);
 		}
 		print "<form name=\"ordre\" id=\"1\" action=\"$formAction\" method=\"post\">\n";
 		
@@ -3925,7 +3961,7 @@ function ordreside($id, $regnskab)
 		}
 
 		// print "<form name=\"ordre\" id=\"$formId\" action=\"$formAction\" method=\"post\">\n";
-		// print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
+		// print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=" . urlencode($returside) . "\" method=\"post\">\n";
 
 		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
 		// print '<input type="hidden" name="invoice_dragdrop" value="10">';
@@ -3982,7 +4018,7 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"tilbudnr\" value=\"$tilbudnr\">";
 		print "<input type=\"hidden\" name=\"datotid\" value=\"$datotid\">";
 		print "<input type=\"hidden\" name=\"nr\" value=\"$nr\">";
-		print "<input type=\"hidden\" name=\"returside\" value=\"$returside\">";
+		print "<input type=\"hidden\" name=\"returside\" value=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\">";
 		print "<input type=\"hidden\" name=\"omkunde\" value=\"$omkunde\">";
 		print "<input type=\"hidden\" name=\"felt_1\" value=\"$felt_1\">";
 		print "<input type=\"hidden\" name=\"felt_3\" value=\"$felt_3\">";
@@ -4000,10 +4036,10 @@ function ordreside($id, $regnskab)
 		$alerttekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 		$spantekst = findtekst('198|Klik her for at skifte til forrige ordre på ordrelisten - husk at gemme eventuelle ændringer først.', $sprog_id);
 		print "<table cellpadding=\"0\" cellspacing=\"12\" border=\"0\" width=\"100%\" valign = \"top\"><tbody>\n"; #Tabel 1 ->
-		if ($prev_id)  print "<tr><td width=\"50%\" title=\"$spantekst\"><a href=\"javascript:confirmClose('ordre.php?id=$prev_id&returside=$returside','$alerttekst')\"><img src=\"../ikoner/left.png\" style=\"border: 0px solid; width: 15px; height: 15px;\"></a></span></td>\n";
+		if ($prev_id)  print "<tr><td width=\"50%\" title=\"$spantekst\"><a href=\"javascript:confirmClose('ordre.php?id=$prev_id&returside=" . urlencode($returside) . "','$alerttekst')\"><img src=\"../ikoner/left.png\" style=\"border: 0px solid; width: 15px; height: 15px;\"></a></span></td>\n";
 		else print "<tr><td width=\"50%\"></td>\n";
 		$spantekst = findtekst('199|Klik her for at skifte til næste ordre på ordrelisten - husk at gemme eventuelle ændringer først.', $sprog_id);
-		if ($next_id) print "<td width=\"50%\" align=\"right\" title=\"$spantekst\"><a href=\"javascript:confirmClose('ordre.php?id=$next_id&returside=$returside','$alerttekst')\"><img src=\"../ikoner/right.png\" style=\"border: 0px solid; width: 15px; height: 15px;\"></a></span></td></tr>\n";
+		if ($next_id) print "<td width=\"50%\" align=\"right\" title=\"$spantekst\"><a href=\"javascript:confirmClose('ordre.php?id=$next_id&returside=" . urlencode($returside) . "','$alerttekst')\"><img src=\"../ikoner/right.png\" style=\"border: 0px solid; width: 15px; height: 15px;\"></a></span></td></tr>\n";
 		else print "<tr><td width=\"50%\"></td>\n";
 		print "</tbody></table>\n"; # <- Tabel 1
 		##### pile ########
@@ -4058,13 +4094,11 @@ function ordreside($id, $regnskab)
 		#		if ($email)
 		#if(isset($levered)){$leveret = (int)$leveret;}else{$leveret=0;}print "<tr class='tableTexting2'><td title='".findtekst('1447|Vælg på hvilken måde dokumentet skal udskrives, gemmes eller sendes.', $sprog_id)."'><b>".findtekst('880|Udskriv', $sprog_id)." ".findtekst('904|til', $sprog_id)."</b></td>\n";
 
-		if ($mail_fakt) $udskriv_til = "email";
-		#    if ($oioxml) $udskriv_til="oioxml";
-		if ($oioubl) $udskriv_til = "oioubl";
-		if ($lev_pbs_nr) {
-			if ($pbs) $udskriv_til = "PBS";
-		}
-		if (!$udskriv_til) $udskriv_til = "PDF";
+		$udskriv_til = orderDeliveryValue($udskriv_til, $mail_fakt, $oioubl, $lev_pbs_nr && $pbs);
+		// 20261025 CL/ASR "E-mail med link" cannot be chosen when the invoice cannot use the payment page (e.g. Kontant)
+		$linkBlock = orderLinkBlockReason($id);
+		$linkChosen = $udskriv_til === 'Link';
+		if ($linkChosen && orderLinkHardBlock($linkBlock)) $udskriv_til = 'email';
 		print "<td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='this.form.submit()'>\n";
 		/*
 		print "<option>$udskriv_til</option>\n";
@@ -4073,7 +4107,12 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til!="oioxml" && strlen($ean)==13) print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n";
 		print "</SELECT></td></tr>\n";
 		*/
-		if ($showLocalPrint && $localPrint == 'on') {
+		if ($udskriv_til === 'Stripe') {
+			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		} elseif ($udskriv_til === 'Link') {
+			// 20261025 CL/ASR like Stripe, a stored Link wins over the per-user local printer preference
+			print orderLinkDeliveryOption('Link');
+		} elseif ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		} else print "<option>$udskriv_til</option>\n";
@@ -4081,8 +4120,12 @@ function ordreside($id, $regnskab)
 		if ($showLocalPrint && $localPrint != 'on') print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
+		if ($udskriv_til !== 'Link') print orderLinkDeliveryOption('', $linkBlock);
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
+		if ($udskriv_til !== 'Stripe') {
+			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		}
 		#		if ($udskriv_til!="ingen") print "<option>ingen</option>\n"; #PHR 20170501
 		if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803
 		if ($udskriv_til != "Digitalt") print "<option value='Digitalt' title='" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "'>" . findtekst('2532|Digitalt', $sprog_id) . "</option>\n"; #PBLM 12/06-2023
@@ -4099,7 +4142,7 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til != "historik" && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			print "<option title=\"" . findtekst('1453|Gem en kopi og vedhæft kundens historik', $sprog_id) . "\">" . findtekst('907|Historik', $sprog_id) . "</option>\n";
 		}
-		print "</SELECT></td></tr>";
+		print "</SELECT>" . orderLinkNotice($linkBlock, $linkChosen, true) . "</td></tr>";
 
 		/*
 		print "<tr><td><b>Fakt som mail</td><td><input class=\"inputbox\" type=\"checkbox\" name=\"mail_fakt\" $mail_fakt></td></tr>\n";
@@ -4192,7 +4235,7 @@ function ordreside($id, $regnskab)
 			print "<tr class='tableTexting'><td><b>$txt666</b></td><td>$lev_postnr $lev_bynavn</td></tr>\n";
 			print "<tr class='tableTexting2'><td><b>" . findtekst('2530|Att.', $sprog_id) . "</b></td><td colspan=\"2\">$lev_kontakt</td></tr>\n";
 			print "<tr><td colspan=\"2\"><b><hr></b></tr>\n";
-			print "<tr><td class='tableTexting' colspan=\"2\"><a href=\"ordre.php?id=$id&returside=$returside&vis_lev_addr=0\">" . findtekst('2533|Vis ekstrafelter', $sprog_id) . "</tr>\n";
+			print "<tr><td class='tableTexting' colspan=\"2\"><a href=\"ordre.php?id=$id&returside=" . urlencode($returside) . "&vis_lev_addr=0\">" . findtekst('2533|Vis ekstrafelter', $sprog_id) . "</tr>\n";
 		} else {
 			print "<tr class='tableTexting'><td colspan = '1'><b>" . findtekst('243|Ekstrafelter', $sprog_id) . "</b></td>";
 			print "<td align='center' colspan = '2'>$jobkort<br>$debitorkort</td></tr>\n";
@@ -4211,22 +4254,22 @@ function ordreside($id, $regnskab)
 			}
 			if ($betalings_id) print "<tr class='tableTexting2'><td><b>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td><td align=\"right\">&nbsp;$betalings_id</td></tr>";
 			print "<tr><td colspan=\"2\"><b><hr></b></tr>\n";
-			print "<tr class='tableTexting'><td colspan=\"2\"><a href=\"ordre.php?id=$id&returside=$returside&vis_lev_addr=1\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . "</td></tr>\n";
+			print "<tr class='tableTexting'><td colspan=\"2\"><a href=\"ordre.php?id=$id&returside=" . urlencode($returside) . "&vis_lev_addr=1\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . "</td></tr>\n";
 			// Plukliste buttons
 			// Plukliste buttons — not applicable when the order is viewed inside a scaffolding case.
 			if (!$sag_id) {
 				include("../includes/topline_settings.php");
 				// Merged conditions to avoid duplicate code for pluklisteEmail check
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud")) {
+				if ($visPlukliste) {
 					$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 					$printPopupQuery = nav_popup_query($_GET, $_POST);
-					$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
+					$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=" . urlencode($returside));
 					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
 					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					if ($pluklisteEmail && (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud"))) {
+					if ($pluklisteEmail) {
 						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
 						print "<input type='text' id='plukkommentar1' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
 						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar1').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
@@ -4249,7 +4292,7 @@ function ordreside($id, $regnskab)
 		}
 		if ($lev_max > 0) {
 			$printPopupQuery = nav_popup_query($_GET, $_POST);
-			$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
+			$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=" . urlencode($returside));
 			print "<tr class='tableTexting2'><td colspan=\"2\">&nbsp;</td></tr>\n";
 			for ($levnr = 1; $levnr <= $lev_max; $levnr++) {
 				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=$levnr&formular=3&returside=$printReturside'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
@@ -4271,7 +4314,7 @@ function ordreside($id, $regnskab)
 			($mail_text) ? $std_txt_title = $mail_text : $std_txt_title = str_replace("<br>", "\r\n", $std_txt_title);
 		}
 		print "</tbody></table></td></tr>\n"; # -< Tabel 2.3
-		if ($udskriv_til == 'email') {
+		if ($udskriv_til == 'email' || $udskriv_til == 'Link') { // 20261025 CL/ASR quotes/order confirmations of Link orders are classic mails
 			print "<tr><td align=\"center\" colspan=\"3\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\"><tbody>\n"; #Tabel 2.4 ->
 			print "<tr><td width=\"120px\">" . findtekst('1476|Mail emne', $sprog_id) . "</td><td><input class = 'inputbox' type = 'text' style=\"width:1000px;\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_subj\" placeholder=\"$std_subj\" value=\"$mail_subj\" onchange=\"javascript:docChange = true;\"></td>";
 			if ($bilag) {
@@ -4627,7 +4670,9 @@ function ordreside($id, $regnskab)
 			print "value=\"" . findtekst('1100||Kopier', $sprog_id) . "\" name=\"copy\" ";
 			print "title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog) . "\"></td>\n";
 		}
-		if ($mail_fakt) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id) . "\"";
+		// 20261025 CL/ASR "E-mail med link" and Stripe (pre-charge notice) also mail the customer: label Send like e-mail.
+		if ($art != 'DK' && ($udskriv_til == 'Link' || $udskriv_til == 'Stripe')) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst($udskriv_til == 'Link' ? '7125' : '7137', $sprog_id) . "\"";
+		else if ($mail_fakt) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id) . "\"";
 		else if ($udskriv_til == "Digitalt") $tmp = "value=\"Send\" title=\"" . findtekst('2539|Send faktura digitalt', $sprog_id) . "\"";
 		else $tmp = "value=\"" . findtekst('880|Udskriv', $sprog_id) . "\" title=\"" . findtekst('1461|Åbn et PDF-dokument, som kan gemmes eller viderebehandles på anden vis.', $sprog_id) . "\"";
 		print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" name=\"print\" $tmp></td>\n";
@@ -4711,7 +4756,7 @@ function ordreside($id, $regnskab)
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		($r['antal'] < 0) ? $dan_kn = 1 : $dan_kn = NULL;
 		print "<div class=\"ordreform\">\n";
-		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
+		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=" . urlencode($returside) . "\" method=\"post\">\n";
 		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
 			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 			if ($swTextsJson === false) $swTextsJson = '{}';
@@ -4805,19 +4850,14 @@ function ordreside($id, $regnskab)
 		$alerttekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 		$spantekst = findtekst('198|Klik her for at skifte til forrige ordre på ordrelisten - husk at gemme eventuelle ændringer først.', $sprog_id);
 
-		if ($menu == 'T') {
-			$widthTable = 'width=100%';
-			$styleTable = "class='dataTableForm'";
-		} else {
-			$widthTable = '';
-			$styleTable = "bordercolor=\"#FFFFFF\" border=\"1\"";
-		}
+		$widthTable = '';
+		$styleTable = "bordercolor=\"#FFFFFF\" border=\"1\"";
 		print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" valign = \"top\"><tbody>\n"; #Tabel 3 ->
 
-		if ($prev_id)  print "<tr><td width=\"50%\" title=\"$spantekst\" class='imgNoTextDeco' style='margin-left: 5px;'><a href=\"javascript:confirmClose('ordre.php?id=$prev_id&returside=$returside','$alerttekst')\"><img class='imgInvert imgFade' src=\"../ikoner/left.png\" style=\"border: 0px solid; width: 15px; height: 15px;\"></a></span></td>\n";
+		if ($prev_id)  print "<tr><td width=\"50%\" title=\"$spantekst\" class='imgNoTextDeco' style='margin-left: 5px;'><a href=\"javascript:confirmClose('ordre.php?id=$prev_id&returside=" . urlencode($returside) . "','$alerttekst')\"><img class='imgInvert imgFade' src=\"../ikoner/left.png\" style=\"border: 0px solid; width: 15px; height: 15px;\"></a></span></td>\n";
 		else print "<tr><td width=\"50%\"></td>\n";
 		$spantekst = findtekst('199|Klik her for at skifte til næste ordre på ordrelisten - husk at gemme eventuelle ændringer først.', $sprog_id);
-		if ($next_id) print "<td width=\"50%\" align=\"right\" title=\"$spantekst\" class='imgNoTextDeco' style='padding-right: 5px;'><a href=\"javascript:confirmClose('ordre.php?id=$next_id&returside=$returside','$alerttekst')\"><img class='imgInvert imgFade' src=\"../ikoner/right.png\" style=\"border: 0px solid; width: 15px; height: 15px;\"></a></span></td></tr>\n";
+		if ($next_id) print "<td width=\"50%\" align=\"right\" title=\"$spantekst\" class='imgNoTextDeco' style='padding-right: 5px;'><a href=\"javascript:confirmClose('ordre.php?id=$next_id&returside=" . urlencode($returside) . "','$alerttekst')\"><img class='imgInvert imgFade' src=\"../ikoner/right.png\" style=\"border: 0px solid; width: 15px; height: 15px;\"></a></span></td></tr>\n";
 		else print "<tr><td width=\"50%\"></td>\n";
 		print "</tbody></table>\n"; # <- Tabel 3
 		##### pile ########
@@ -4837,14 +4877,14 @@ function ordreside($id, $regnskab)
 				print "onfocus='document.forms[0].fokus.value=this.name;' placeholder='$kontonr' value=''>";
 				print "<input type='hidden' name='kontonr' value='$kontonr'>";
 				$title = findtekst('1463|Klik her for at skifte kunde på denne ordre', $sprog_id);
-				print "<a style='text-decoration: none' href='ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside&art=$art&swap_account=swap'>";
+				print "<a style='text-decoration: none' href='ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=" . urlencode($returside) . "&art=$art&swap_account=swap'>";
 				print "<input class='button gray small' type='submit' title='$title' value=" . findtekst('436|Skift', $sprog_id) . " style='$buttonStyle; width:50px;'>";
 				$fokus = 'newAccountNo';
 			} else {
 				print "<input class='inputbox' type='text' readonly='readonly' style='width:130px;background-color:#ddd;' name='kontonr'";
 				print "onfocus='document.forms[0].fokus.value=this.name;' value=\"$kontonr\">";
 				$title = findtekst('1463|Klik her for at skifte kunde på denne ordre', $sprog_id);
-				print "<a style='text-decoration: none' href='ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside&art=$art&swap_account=swap'>";
+				print "<a style='text-decoration: none' href='ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=" . urlencode($returside) . "&art=$art&swap_account=swap'>";
 				// print "<a style='text-decoration: none' href='ordre.php?id=$id&returside=$returside'>";
 				print "<button class='button gray small' type='button' title='$title' style='$buttonStyle; width:70px;'>" . findtekst('436|Skift', $sprog_id) . "";
 			}
@@ -4982,15 +5022,25 @@ function ordreside($id, $regnskab)
 		}
 		print "<td>&nbsp;</td><td>" . findtekst('880|Udskriv', $sprog_id) . " " . findtekst('904|til', $sprog_id) . "</td>\n";
 		if (!$udskriv_til) {
-			if ($mail_fakt) $udskriv_til = "email";
+			// 20261025 CL/ASR a new e-mail order gets the G6.3 default ("E-mail med link" or the classic e-mail)
+			if ($mail_fakt) $udskriv_til = orderLinkDefault() ? 'Link' : 'email';
 			#      if ($oio_fakt) $udskriv_til="oioxml";
 			if ($lev_pbs_nr) {
 				if ($pbs) $udskriv_til = "PBS";
 			}
 		}
+		// 20261025 CL/ASR "E-mail med link" cannot be chosen when the order cannot use the payment page (e.g. Kontant)
+		$linkBlock = orderLinkBlockReason($id);
+		$linkChosen = $udskriv_til === 'Link';
+		if ($linkChosen && orderLinkHardBlock($linkBlock)) $udskriv_til = 'email';
 		print "<td><select class = 'inputbox' style=\"width:130px\" name=\"udskriv_til\">\n";
 		if (!$udskriv_til) $udskriv_til = "PDF";
-		if ($showLocalPrint && $localPrint == 'on') {
+		if ($udskriv_til === 'Stripe') {
+			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		} elseif ($udskriv_til === 'Link') {
+			// 20261025 CL/ASR like Stripe, a stored Link wins over the per-user local printer preference
+			print orderLinkDeliveryOption('Link');
+		} elseif ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		} elseif ($udskriv_til == "PBS" && $lev_pbs != 'B') print "<option value=\"PBS\">PBS</option>\n";
@@ -4999,6 +5049,10 @@ function ordreside($id, $regnskab)
 		if ($showLocalPrint && $localPrint != 'on') print "<option value='localPrint'>" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "email") print "<option value='email' title=\"" . findtekst('1450|Sendes som PDF via e-mail', $sprog_id) . "\">" . findtekst('652|E-mail', $sprog_id) . "</option>\n";
+		if ($udskriv_til !== 'Link') print orderLinkDeliveryOption('', $linkBlock);
+		if ($udskriv_til !== 'Stripe') {
+			print orderStripeDeliveryOption($udskriv_til, $konto_id);
+		}
 		if ($udskriv_til != "ingen") print "<option value='ingen'>" . findtekst('2541|Ingen', $sprog_id) . "</option>\n"; #PHR 20170501
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		#if ($udskriv_til!="oioubl") print "<option value='oioubl' title=\"".findtekst('1451|Kun ved fakturering/kreditering.', $sprog_id)."\">oioubl</option>\n"; #PHR 20090803
@@ -5017,7 +5071,7 @@ function ordreside($id, $regnskab)
 				elseif ($tmp && $udskriv_til != "PBS" && $lev_pbs == 'B') print "<option title=\"" . findtekst('1452|Opkræves via betalingsservice', $sprog_id) . "\">PBS</option>\n";
 			}
 		}
-		print "</SELECT></td></tr>\n";
+		print "</SELECT>" . orderLinkNotice($linkBlock, $linkChosen, false) . orderLinkTermsScript($id, $linkChosen) . "</td></tr>\n";
 		if (db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
 			print "<tr><td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\">" . findtekst('571|Baggrund', $sprog_id) . "</span></td>\n";
 			print "<td><select class='inputbox' style=\"width:130px\" name=\"sprog\">\n";
@@ -5064,7 +5118,7 @@ function ordreside($id, $regnskab)
 		if ($std_bilag && !file_exists("../logolib/" . $db_id . "/" . $std_bilag . "_bilag.pdf")) $std_bilag = NULL;
 
 		($mail_bilag == 'on') ? $checked = "checked='checked'" : $checked = NULL;
-		if ($std_bilag && $udskriv_til == "email") {
+		if ($std_bilag && ($udskriv_til == "email" || $udskriv_til == "Link")) {
 			$titletext = findtekst('1466|Afmærk her for at medsende standard bilag', $sprog_id);
 			print "<tr><td title='$titletext'>" . findtekst('1467|Mail bilag', $sprog_id) . "</td><td title='$titletext'><input type=\"checkbox\" name=\"mail_bilag\" $checked></td>"; #20131122 Checkbox til mail_bilag
 		} else print "<tr><td colspan=\"2\"><input type=\"hidden\" name=\"mail_bilag\" value=\"$mail_bilag\"></td>";
@@ -5671,7 +5725,7 @@ function ordreside($id, $regnskab)
 		}
 		if ($lev_max > 0) {
 			$printPopupQuery = nav_popup_query($_GET, $_POST);
-			$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
+			$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=" . urlencode($returside));
 			print "<tr class='tableTexting2'><td colspan=\"2\">&nbsp;</td></tr>\n";
 			for ($levnr = 1; $levnr <= $lev_max; $levnr++) {
 				include("../includes/topline_settings.php");
@@ -5690,7 +5744,7 @@ function ordreside($id, $regnskab)
 			print "<tr><td colspan=\"3\" witdh=\"100%\" style=\"color: rgb(255,0,0)\">$notes</td></tr>\n";
 		}
 		*/
-		if ($udskriv_til == 'email') {
+		if ($udskriv_til == 'email' || $udskriv_til == 'Link') {
 			if (!$formularsprog) $formularsprog = 'Dansk';
 			($status < 1) ? $form_nr = 1 : $form_nr = 2;
 			if ($art == 'DK') $form_nr = 5;
@@ -6389,7 +6443,7 @@ function ordreside($id, $regnskab)
 				$dd = dkdato(default_invoice_date($id));
 
 				if ($art != 'DK' && !$dan_kn) {
-					if ($udskriv_til == 'email') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
+					if ($udskriv_til == 'email' || $udskriv_til == 'Link' || $udskriv_til == 'Stripe') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
 					elseif ($udskriv_til == 'PBS') $tmp = "onclick=\"return confirm('$confirm3')\"";
 					elseif ($udskriv_til == 'oioubl') $tmp = "onclick=\"return confirm('$confirm4')\"";
 					elseif (!$fakturadato) $tmp = "onclick=\"return confirm('$confirm5 $dd!')\"";
@@ -6447,7 +6501,7 @@ function ordreside($id, $regnskab)
 				elseif ($mail_fakt && $hurtigfakt && $status < 3) $tmp = "onclick=\"return confirm('$confirm15 $email')\"";
 				elseif ($mail_fakt && $status < 2) $tmp = "onclick=\"return confirm('$confirm16 $email')\"";
 				else $tmp = "";
-				if ($udskriv_til == 'email') {
+				if ($udskriv_til == 'email' || $udskriv_til == 'Link') { // 20261025 CL/ASR Stripe quotes/confirmations are not mailed: Udskriv
 					$b_name = 'send';
 					$txt  = findtekst('2310|Send', $sprog_id);
 				} else {
@@ -6482,12 +6536,13 @@ function ordreside($id, $regnskab)
 				include("../includes/topline_settings.php");
 				$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 				$printPopupQuery = nav_popup_query($_GET, $_POST);
-				$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=$returside");
-				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != 'tilbud')) {
+				$printReturside = urlencode("../debitor/ordre.php?id=$id&returside=" . urlencode($returside));
+				if ($visPlukliste) {
 					print "<td align=\"center\"><button type='button' onclick=\"window.location.href='udskriftsvalg.php?{$printPopupQuery}id=$id&valg=-1&formular=9&returside=$printReturside'\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;'>Print plukliste</button></td>\n";
 				}
-				// Writing field: only when this is a real order (sag_id null/0) and a plukliste email is configured.
-				if ($pluklisteEmail) {
+				// Writing field: same rule as the button beside it. Until SST-828 this was gated on
+				// the mail setting alone, so it showed on invoices and tilbud where the button did not.
+				if ($visPlukliste && $pluklisteEmail) {
 					print "<td align=\"center\" style=\"white-space:nowrap;\">";
 					print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:120px;margin-right:4px;padding:0.2rem;box-sizing:border-box;vertical-align:middle;' class='inputbox'>";
 					print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;border-radius:4px;padding:0.2rem;width:110px;vertical-align:middle;'>Send plukliste</button>";
@@ -6533,7 +6588,7 @@ function ordreside($id, $regnskab)
 	# Malene, dette er enden
 
 	# ADD LINK TO GLS!! 
-	$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+	$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['var_name'] == 'gls_id')    $gls_id    = $r['var_value'];
@@ -6641,7 +6696,7 @@ function ordreside($id, $regnskab)
 			print "<tr><td align=\"center\">\n";
 			print "<p style='font-weight:bold; font-size: 16px; text-align: center;'>" . findtekst('1057|Danske Fragtmænd', $sprog_id) . "</p><!--Danske Fragtmænd--><br />\n";
 
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'dfm_gooddes') $form_gooddes = $r['var_value'];
@@ -7103,7 +7158,10 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
 				print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
-				if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
+				// 20261008 MJ SST-833 This opens batch(), not serienummer(), so it no longer uses the
+				// serial-number icon and alt text. MEDSHOP read the serial icon on an item with no
+				// serial number as the feature misbehaving. 1496 is the text already on its title.
+				if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\" src=\"../ikoner/opslag.png\"></td>\n";
 				elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"" . findtekst('1501|Vælg serienr', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
 
 				if ($linje_id && $leveret != $tidl_lev) db_modify("update ordrelinjer set leveret=$tidl_lev where id=$linje_id", __FILE__ . " linje " . __LINE__);
@@ -7331,11 +7389,7 @@ if ($fokus) {
 
 
 
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ?>
 <!--  -->

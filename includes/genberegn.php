@@ -31,6 +31,8 @@
 // 20190321 PHR Added function equalizeMatchingRecords.
 // 20260210 PHR PHP8
 // 20260907 CDX/PHR Allow recalculation within the caller's tenant transaction and scope primo resets to one year.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261018 Sawaneh Review 2 (PR #803): the direct ?regnskabsaar= recompute needs finans.regnskab write instead of 'any'.
 
 @session_start();
 $s_id=session_id();
@@ -121,8 +123,11 @@ if (!function_exists('genberegn')) {
 	}
 } 
 
-if (isset($_GET['regnskabsaar']) && $regnskabsaar=$_GET['regnskabsaar']) {		
+if (isset($_GET['regnskabsaar']) && $regnskabsaar = (int) $_GET['regnskabsaar']) {
+	// Recomputing a whole fiscal year is a write in the ledger: finance write, not every logged-in user.
 	include("../includes/connect.php");
+	$permission_key = 'finans.regnskab';
+	$permission_level = 'write';
 	include("../includes/online.php");
 	print "Genberegner regnskabsaar $regnskabsaar<br>";
 	genberegn($regnskabsaar);

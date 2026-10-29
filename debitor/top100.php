@@ -25,6 +25,8 @@
 // 20170201	PHR Fjernet fejltekst i bunden.
 // 20190205 PHR $sum=dkdecimal(!isset ($r['totalsum'])) ændret til $sum=if_isset ($r['totalsum']); 
 // 20201121 PHR added valutakurs 
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id=session_id();
@@ -58,48 +60,21 @@ $from=usdate($fra);
 $to=usdate($til);
 $fra=dkdato($from);
 $til=dkdato($to);
-if ($menu=='T') {
-	print "<center><table width = 75% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
-} elseif ($menu != 'S') {
+if ($menu != 'S') {
 	print "<center><table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 }
-if ($menu=='T') {
-	$leftbutton="<a class='button red small' title=\"Klik her for at komme til startsiden\" href=\"../debitor/rapport.php\" accesskey=\"L\">Luk</a>";
-	$rightbutton=NULL;
-	$vejledning=NULL;
-	include("../includes/top_header.php");
-	include("../includes/top_menu.php");
-	print "<div id=\"header\"> 
-	<div class=\"headerbtnLft\">$leftbutton</div>
-	<span class=\"headerTxt\">Top 100</span>";     
-	print "<div class=\"headerbtnRght\"></div>";       
-	print "</div><!-- end of header -->";
-	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	$tekst = findtekst('2181|Klik her for at lukke Top100', $sprog_id);
-	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	print "<div id='t1PageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-	print "<table bgcolor='#eeeef0' width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
-	print "<tr><td colspan=\"3\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\" align='left' title='$tekst'><a href=../debitor/rapport.php accesskey=L>
-		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon"
-		   .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-	print "<td width='80%' style=$topStyle align=center>".findtekst('2225|Top 100 i perioden', $sprog_id).": $fra ".findtekst('904|til', $sprog_id)." $til</td>";
-
-	$tekst = findtekst('1813|Klik her for at vælge en anden periode', $sprog_id);
-	print "<td width='10%' align='center' title='$tekst' style='$topStyle'><a href=top100.php?periode=$periode&ret=on accesskey=P>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-		   .findtekst('899|Periode', $sprog_id)."</button></a></td>";
-
-	print "</tbody></table>";
-	print "</td></tr></tbody></table>";
+	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('2225|Top 100 i perioden', $sprog_id).": $fra ".findtekst('904|til', $sprog_id)." $til",
+		'actions' => array(array(findtekst('899|Periode', $sprog_id), "top100.php?periode=$periode&ret=on", 'bx-calendar', '', 'accesskey' => 'P')),
+		'back' => '../debitor/rapport.php',
+	));
 	print "</div>\n";
 
 	if (!$ret) {

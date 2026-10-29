@@ -27,15 +27,23 @@ $s_id=session_id();
 // 20260904 Sawaneh WP-1.7: delete the session's nav-stack file on logout (before
 //                  session_destroy, while session_id() is still valid) and sweep
 //                  stale nav files from sessions that never logged out.
+// 20260916 Sawaneh Logout written to audit_log while the company connection is still active.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 $title="logud";
 $css = "";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 if ($db && $db!=$sqdb) {
 	db_modify("update ordrer set tidspkt='' where hvem = '".db_escape_string($brugernavn)."' and status < '3'",__FILE__ . " linje " . __LINE__);
 	db_modify("update kladdeliste set tidspkt='' where hvem = '".db_escape_string($brugernavn)."' and bogfort != 'V'",__FILE__ . " linje " . __LINE__);
+}
+// Company connection is still active here: record the logout before switching to master.
+include_once("../includes/permissions.php");
+if (function_exists('audit_log') && isset($db) && isset($sqdb) && $db != $sqdb) {
+	audit_log('logout', $db, 'session', (string) $db);
 }
 include("../includes/connect.php");
 $r=db_fetch_array(db_select("select * from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__));

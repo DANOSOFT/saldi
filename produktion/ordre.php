@@ -16,6 +16,7 @@
 //
 // Copyright (c) 2004-2008 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20261008 Sawaneh sidehoved(): the order heading is also the page's last breadcrumb level (page_title, addendum §5).
 
 	@session_start();
 	$s_id=session_id();
@@ -934,7 +935,7 @@ function vareopslag($sort, $fokus, $id, $vis)
 			$levquery = db_select("select kontonr, firmanavn from adresser where id=$row2[lev_id]");
 			if ($levrow = db_fetch_array($levquery)){print "<td><small>$font $levrow[kontonr] - $levrow[firmanavn]</small></td>";}
 			else {print "<td></td>";}
-			print "<td align=right><a href=\"../lager/varekort.php?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus&id=$row[id]\">$font<small>Ret</a></td>";
+			print "<td align=right><a href=\"../lager/varekort.php?returside=../produktion/ordre.php&ordre_id=$id&fokus=$fokus&id=$row[id]\">$font<small>Ret</a></td>";
 			print "</tr>";
 			$vist=1;
 		}
@@ -948,7 +949,7 @@ function vareopslag($sort, $fokus, $id, $vis)
 			$kostpris=dkdecimal($row[kostpris]);
 			print "<td align=right><small>$font $kostpris<br></small></td>";
 			print "<td></td><td></td><td></td>";
-			print "<td align=right><a href=\"../lager/varekort.php?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus&id=$row[id]\">$font<small>Ret</a></td>";
+			print "<td align=right><a href=\"../lager/varekort.php?returside=../produktion/ordre.php&ordre_id=$id&fokus=$fokus&id=$row[id]\">$font<small>Ret</a></td>";
 			print "</tr>";
 		}
 	}
@@ -959,6 +960,7 @@ function vareopslag($sort, $fokus, $id, $vis)
 function sidehoved($id, $returside, $kort, $fokus, $tekst)
 {
 global $bgcolor2;
+	if (function_exists('page_title')) print page_title($tekst);
 
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>SALDI - ordre</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 	print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
@@ -971,7 +973,7 @@ global $bgcolor2;
 	else {print "<td width=\"25%\" bgcolor=\"$bgcolor2\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><small><a href=ordre.php?id=$id accesskey=L>Luk</a></small></td>";}
 	print "<td width=\"50%\" bgcolor=\"$bgcolor2\" align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><small>$tekst</small></td>";
 	if ($returside != "ordre.php") {print "<td width=\"25%\" bgcolor=\"$bgcolor2\" align=\"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><small><a href=ordre.php?returside=ordreliste.php accesskey=N>Ny</a></small></td>";}
-	else {print "<td width=\"25%\" bgcolor=\"$bgcolor2\" align=\"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><small><a href=$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus accesskey=N>Ny</a></small></td>";}
+	else {print "<td width=\"25%\" bgcolor=\"$bgcolor2\" align=\"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><small><a href=$kort?returside=../produktion/ordre.php&ordre_id=$id&fokus=$fokus accesskey=N>Ny</a></small></td>";}
 	print "</tbody></table>";
 	print "</td></tr>";
 	print "<tr><td valign=\"top\" align=center>";

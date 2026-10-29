@@ -27,11 +27,13 @@
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260911 Sawaneh Blank the literal "dummyvalue" sent for empty address fields (JOB-115)
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");

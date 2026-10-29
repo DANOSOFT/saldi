@@ -46,7 +46,7 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 	if (!isset($_COOKIE['giftcard']) || $_COOKIE['giftcard'] == true) {
 		#			$sum = betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, $kasse);
 	} else {
-		setcookie('giftcard', '', time() - 3600);
+		saldi_setcookie('giftcard', '', time() - 3600);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
 		exit(0);
 	}
@@ -87,7 +87,7 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 		}
 	}
 	if ($modtaget && (($terminal_ip && ($godkendt == 'OK' || !$betalingstype)) || !$terminal_ip)) { #20170109
-		setcookie("saldi_bet", $cookietxt, time() - 3600);
+		saldi_setcookie("saldi_bet", $cookietxt, time() - 3600);
 		$receipt_id = if_isset($_GET['receipt_id'], 0);
 		$qtxt = "select id from pos_betalinger where ordre_id=$id and betalingstype = '!'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -183,7 +183,7 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 
 				if ($payment == "mobilepay") {
 					$tmp="payments/mobilepay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-					setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+					saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 					exit;
 				} else {
@@ -192,22 +192,22 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					if ($r[0] == "Flatpay") {
 						$tmp="payments/flatpay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Lane3000") {
 						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Move3500") {
 						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling"; // Nets Connect@Cloud terminal, served by lane3000.php (SST-846)
-						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ("Vibrant" == substr($r[0], 0, 7)) {
 						$tmp="payments/vibrant.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					}
@@ -218,7 +218,7 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 				$tmp = "http://$terminal_ip/pointd/kvittering.php?url=$url&id=$id&server=$server&serverfile=$serverfile&";
 				$tmp .= "kommando=kortbetaling&pos_bet_id=$pos_bet_id&db=$db&belob=$belob&betaling=$betaling&betaling2=$betaling2&";
 				$tmp .= "modtaget=$modtaget&modtaget2=$modtaget2&indbetaling=$indbetaling&tidspkt=$tidspkt";
-				setcookie("saldi_bet", $tmp, time() + 60 * 60 * 24 * 7);
+				saldi_setcookie("saldi_bet", $tmp, time() + 60 * 60 * 24 * 7);
 				if ($tracelog)
 					fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls $terminal_ip/pointd/kvittering.php\n");
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";

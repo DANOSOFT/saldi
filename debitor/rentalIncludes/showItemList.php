@@ -23,6 +23,7 @@
 // Copyright (c) 2021 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20220901 MSC - Implementing new design
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 print "<div style='display: flex; flex-direction: column;'>";
 print "<div style='display: flex; flex-direction: row;'><div style=' width:10%;'>";
@@ -124,11 +125,7 @@ print "<tr><td><a href='rental.php?rtItemId=$rtItemId&newRt=1&customerId=$custom
 print "</tr>";
 print "</tbody></table></div></div></div>";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ?>
 

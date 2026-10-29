@@ -40,6 +40,7 @@
 // 20230918 PHR Check if db exists 
 // 20260915 CDX/PHR Resolve the shop from a logged-in Saldi session before customer lookup.
 // 20260915 CDX/PHR Customer logout returns to customer-number entry and preserves the staff session.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -55,7 +56,7 @@ if (($_POST['action'] ?? '') === 'logout_customer') {
 	}
 	include(__DIR__ . '/../includes/connect.php');
 	mySaleRemoveCustomerSession($s_id);
-	setcookie('mylabel', '', time() - 3600, '/');
+	saldi_setcookie('mylabel', '', time() - 3600, '/');
 	header('Location: mysale.php', true, 303);
 	exit;
 }
@@ -219,7 +220,7 @@ if (isset($_GET['st']) && $accountId && $db) {
 	}
 }
 if ($account && !$resetPW) {
-	setcookie("mylabel","$account|$db",time()-60,"/");
+	saldi_setcookie("mylabel","$account|$db",time()-60,"/");
 	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='online' and column_name='sprog'";
 	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		db_modify("ALTER table online ADD column sprog varchar(10)",__FILE__ . " linje " . __LINE__);
@@ -229,6 +230,7 @@ if ($account && !$resetPW) {
 	$qtxt.= "('$s_id','". db_escape_string($account) ."','". db_escape_string($db) ."','". db_escape_string($squser) ."',";
 	$qtxt.= "'0',0,'". date('U') ."',FALSE,'1')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$permission_key = 'any';
 	include ('../includes/online.php');
 
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' and ";
@@ -405,7 +407,7 @@ if ($account && !$resetPW) {
 					include ('../includes/connect.php');
 					if ($found) {
 						$qtxt = "select link from mysale where deb_id = '$accountId' and email = '$email' and db='$found'";
-#						setcookie("mySalePw", $s_id,0,"/");
+#						saldi_setcookie("mySalePw", $s_id,0,"/");
 						$_SESSION['mySalePw'] = $s_id;
 						$_SESSION['mySaleAcId'] = $accountId;
 						$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);

@@ -27,6 +27,7 @@
 // 20260807 CL/MS Converted hardcoded Danish UI text to findtekst() calls for multi-language support
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260923 CDX/PHR Generate warehouse columns and joins once per warehouse across fiscal years.
+// 20261008 Sawaneh The list sits under the new page head (topLineVarer.php, page_bar): grid height adjusted.
 
 @session_start();
 $s_id = session_id();
@@ -35,6 +36,7 @@ $css = "../../css/standard.css?v=20";
 
 include ("../../includes/std_func.php");
 include ("../../includes/connect.php");
+$permission_key = 'lager.varer';
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
 
@@ -72,7 +74,7 @@ $columns[] =    array(
     "headerName" => findtekst('138|Navn', $sprog_id),
     "width" => "3",
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/ordrestatus.php";
 
         $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
@@ -113,7 +115,7 @@ $columns[] = array(
         if ($value) {
             foreach (explode("\n", $value) as $lev) {
                 list($id, $kontonr, $name) = explode("\t", $lev);
-                $url = "../../kreditor/kreditorkort.php?id=$id&returside=../lager/lister/indkøb.php";
+                $url = "../../kreditor/kreditorkort.php?id=$id&returside=../lager/lister/ordrestatus.php";
                 $html .= "<span><a href='$url'>$kontonr</a> : $name</span><br>";
             }
         }
@@ -260,7 +262,7 @@ foreach ($warehouseRows as $row) {
                 return "<td align='$column[align]'>0,00</td>";
             }
             if ($value != "0,00") {
-                $url = "../lagerflyt.php?lager=$column[lagerId]&vare_id=$row[id]&returside=../lager/lister/vareliste.php";
+                $url = "../lagerflyt.php?lager=$column[lagerId]&vare_id=$row[id]&returside=../lager/lister/ordrestatus.php";
                 return "<td align='$column[align]'><a href='$url'>$value</a></td>";
             } else {
                 return "<td align='$column[align]'>$value</td>";
@@ -740,7 +742,7 @@ ORDER BY {{SORT}}
 );
 
 
-print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+print "<div style='width: 100%; height: calc(100vh - 112px);'>";
 create_datagrid("ordrestat", $data);
 print "</div>";
 

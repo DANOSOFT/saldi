@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- lap 4.1.1 -- 2025-07-02 --
+// --- systemdata/regnskabskort.php --- ver 5.0.0 -- 2026-10-07 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 2013.02.10 Break ændret til break 1
 // 2015-01-02 Tilrettet til dynamisk lagerværdi. Søg find_lagervaerdi
@@ -36,6 +36,15 @@
 // 20231230 PHR - Added individual groups for each year.
 // 20250522	PHR	- (int)$id
 // 20250702 PHR - PHP8
+// 20261005 Sawaneh Settings redesign G1.2: the year list and "create" live in Indstillinger » Virksomhed » Regnskabsår;
+//                  this page without an id redirects there and keeps the opening balance. Audit fixes: F4 (primo
+//                  transfer query built with = instead of .=), F5 (the previous year was tested as the year itself),
+//                  F7 (dead lock-stock redirect), F8 (aaben unchecked), F9 (posted values cast/escaped).
+// 20261006 Sawaneh Back link has accesskey L, so the shell's breadcrumb replaces it (breadcrumb step 2).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261007 MJ SST-829 A new accounting year no longer copies the art='LG' rows.
+//                  Warehouses are not per-year data - stock is keyed on grupper.kodenr
+//                  - so each copy only added a duplicate to every warehouse list.
 
 @session_start();
 $s_id=session_id();
@@ -52,61 +61,48 @@ include("../includes/std_func.php");
 include("../includes/genberegn.php");
 include("../includes/topline_settings.php");
 
+if (!(int) if_isset($_GET['id'], 0) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+	header('Location: settingsSection.php?s=company.fiscal_years&moved=regnskabskort#create');
+	exit;
+}
+
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
-if ($menu=='T') {
-		#	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=regnskabsaar.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
-		print "<div class=\"headerTxt\">$title</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-		print "</div>";
-		print "<div class='content-noside'>";
-		print "<div id=\"leftmenuholder\">";
-		include_once 'left_menu.php';
-		print "</div><!-- end of leftmenuholder -->\n";
-		print "<div class=\"maincontentLargeHolder\">\n";
-		print "<div class='divSys'>";
-		print "<table class='dataTableSys' cellpadding=0 cellspacing=0 border=1 width='100%' bordercolor='$bgcolor5'><tbody>\n"; ############################	##table 3b start
+include("top.php");
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
+	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>"; ####################table 1a start.
+	print "<tr><td align='center' valign=top>";
+	print "<a accesskey='L' href=\"javascript:confirmClose('regnskabsaar.php','". findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id) ."')\">";
+	if ($menu=='S') {
+		print "<button style = '$buttonStyle; width: 10%' onMouseOver=\"this.style.cursor='pointer'\">";
 	} else {
-		include("top.php");
-		print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
-		print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>"; ####################table 1a start.
-		print "<tr><td align='center' valign=top>";
-		print "<a href=\"javascript:confirmClose('regnskabsaar.php','". findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id) ."')\">";
-		if ($menu=='S') {
-			print "<button style = '$buttonStyle; width: 10%' onMouseOver=\"this.style.cursor='pointer'\">";
-		} else {
-			print "<button style = 'width: 80px;'>";
-		}
-		print findtekst('2172|Luk', $sprog_id)."</button></a>";
-		print "<table width=100% align='center' border=0 cellspacing=4 cellpadding=0><tbody>\n"; ##############table 2b start
-		print "<tr>\n";
-		print "</tbody></table>\n"; #####################################################table 2b slut.
-		print "</td></tr>\n";
-		print "<tr>\n";
-		print "<td align = center valign = center>";
-		print "<table class='dataTable2' cellpadding=0 cellspacing=0 border=1><tbody>\n"; ############################	##table 3b start
+		print "<button style = 'width: 80px;'>";
 	}
+	print findtekst('2172|Luk', $sprog_id)."</button></a>";
+	print "<table width=100% align='center' border=0 cellspacing=4 cellpadding=0><tbody>\n"; ##############table 2b start
+	print "<tr>\n";
+	print "</tbody></table>\n"; #####################################################table 2b slut.
+	print "</td></tr>\n";
+	print "<tr>\n";
+	print "<td align = center valign = center>";
+	print "<table class='dataTable2' cellpadding=0 cellspacing=0 border=1><tbody>\n"; ############################	##table 3b start
 
 $id=if_isset($_GET['id']);
 
 if ($_POST) {
 	$id = (int)if_isset($_POST['id'],0);
 	$beskrivelse = if_isset($_POST['beskrivelse']);
-	$kodenr = if_isset($_POST['kodenr']);
-	$kode=if_isset($_POST['kode']);
+	$kodenr = (int) if_isset($_POST['kodenr'], 0);
+	$kode = db_escape_string((string) if_isset($_POST['kode'], ''));
 	$startmd = if_isset($_POST['startmd']);
 	$startaar = if_isset($_POST['startaar']);
 	$slutmd = if_isset($_POST['slutmd']);
 	$slutaar = if_isset($_POST['slutaar']);
-	$aaben=trim($_POST['aaben']);
-	$fakt=if_isset($_POST['fakt'],0);
-	$modt=if_isset($_POST['modt'],0);
-	$no_faktbill=trim(if_isset($_POST['no_faktbill']));
-	$faktbill=trim(if_isset($_POST['faktbill']));
-	$modtbill=trim(if_isset($_POST['modtbill']));
+	$aaben = isset($_POST['aaben']) ? 'on' : '';
+	$fakt = (int) if_isset($_POST['fakt'], 0);
+	$modt = (int) if_isset($_POST['modt'], 0);
+	$no_faktbill = isset($_POST['no_faktbill']) ? 'on' : '';
+	$faktbill = isset($_POST['faktbill']) ? 'on' : '';
+	$modtbill = isset($_POST['modtbill']) ? 'on' : '';
 	$kontoantal = if_isset($_POST['kontoantal']);
 	$kontonr = if_isset($_POST['kontonr']);
 	$debet=if_isset($_POST['debet']);
@@ -173,7 +169,13 @@ if ($_POST) {
 			$qtxt = "select id from grupper where fiscal_year = '$kodenr' and art != 'RA'";
 			if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$tmp =$kodenr - 1;
-				$qtxt = "select * from grupper where fiscal_year > '0' and fiscal_year = '$tmp' and art != 'RA'";
+				// 20261007 MJ SST-829 Warehouses are not tied to an accounting year - stock is
+				// keyed on grupper.kodenr, and the rest of the code reads art='LG' without
+				// fiscal_year. Copying them gave every warehouse an extra row per year, which
+				// every list that does not de-duplicate then showed twice. Only the copy is
+				// narrowed; the guard above asks whether this year was already populated, and
+				// changing what that counts could make a half-migrated tenant copy twice.
+				$qtxt = "select * from grupper where fiscal_year > '0' and fiscal_year = '$tmp' and art != 'RA' and art != 'LG'";
 				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					$qtxt = "CREATE TEMP TABLE tmp (like grupper)";
@@ -213,7 +215,7 @@ if ($_POST) {
 			if ($preNo) {
 				$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				($r['box10'] == 'on')?$preDeleted = 1:$preDeleted = 0;
+				$preDeleted = trim((string) $r['box10']) !== '' ? 1 : 0;
 			}
 			$qtxt = "update grupper set beskrivelse = '".db_escape_string($beskrivelse)."', kodenr = '$kodenr', kode = '$kode', ";
 			$qtxt.= "box1 = '$startmd', box2 = '$startaar', box3 = '$slutmd', box4 = '$slutaar', box5 = '$aaben' where id = '$id'";
@@ -221,8 +223,8 @@ if ($_POST) {
 			if ($kodenr==1 || $preDeleted){
 				for ($x=1; $x<=$kontoantal; $x++) {
 					if ($saldo[$x] && $overfor_til[$x]) {
-						$qtxt = "update kontoplan set primo=primo+$saldo[$x],overfor_til=$overfor_til[$x] where ";
-						$qtxt = "kontonr='$kontonr[$x]' and regnskabsaar=$kodenr";
+						$qtxt = "update kontoplan set primo=primo+" . (float) $saldo[$x] . ",overfor_til=" . (int) $overfor_til[$x] . " where ";
+						$qtxt.= "kontonr='" . db_escape_string((string) $kontonr[$x]) . "' and regnskabsaar=$kodenr";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 				}
@@ -268,12 +270,6 @@ if ($_POST) {
 				}
 			}
 		}
-		if (isset($_POST['laas_lager']) && $_POST['laas_lager']) {
-			$fra=$startaar."-".$startmd."01";
-			$til=usdate("31-".$slutmd."-".$slutaar);
-			print "<meta http-equiv=\"refresh\" content=\"1;URL=laas_lager.php?fra=$fra&til=$til\">";
-
-		}
 		}
 		transaktion("commit");
 	}
@@ -292,11 +288,12 @@ if ($setFiscialYear) {
 if ($id > 0) {
 	$qtxt = "select kodenr from grupper where id = '$id' and art = 'RA'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$preNo = (int)$r['kodenr'];
+	$preNo = (int)$r['kodenr'] - 1;
+	$preDeleted = 0;
 	if ($preNo) {
 		$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		($r['box10'] == 'on')?$preDeleted = 1:$preDeleted = 0;
+		$preDeleted = trim((string) $r['box10']) !== '' ? 1 : 0;
 	}
 
 	$query = db_select("select * from grupper where id = '$id' and art = 'RA'",__FILE__ . " linje " . __LINE__);

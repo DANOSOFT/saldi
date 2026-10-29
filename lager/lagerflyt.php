@@ -27,6 +27,8 @@
 // 20260526 PHR Fixed bug. In rare cases qty was not removed from the giving stock but just added to the recieving stock
 // 20260603 PHR Fixed: $nyt_antal[$x] → $nyt_antal (array-access på scalar gav kun første ciffer → commit fejlede ved antal ≥ 10)
 // 20260923 CDX/PHR List each transfer destination once across fiscal years.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261006 Sawaneh WP-5.5: Luk goes to the returside the page was opened with (falls back to varer.php).
 /* 
 Ved flytning af varer fra et lager et andet nedskrives rest for disse i det nødvendige antal batch_kob linjer for 
 det lager der flyttes fra, 
@@ -41,11 +43,14 @@ $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
 
 $input=if_isset($_GET['input']);
+$returside = nav_sanitize_returside(if_isset($_GET['returside'])); // WP-5.5: Luk returns to the calling list
+if (!$returside) $returside = 'varer.php';
 if ($input) list($lager, $vare_id)=explode(":", $input);
 else {
 	$lager=if_isset($_GET['lager']);
@@ -217,7 +222,7 @@ print "<input type=hidden name='vare_id' value='$vare_id'>";
 print "<input type=hidden name='lager' value='$lager'>";
 print "<input type=hidden name='max_antal' value='$max_antal'>";
 print "<tr><td colspan='4'><hr></td></tr>";
-print "<tr><td colspan='4' align='center'><input style=\"width:100px;\" type=\"submit\" value=\"Opdater\" name=\"opdater\">&nbsp;&nbsp;<a href='varer.php'><input  style='width:100px;' type='button' Value='Luk'></a></td></tr>";  #<input type=submit value=\"Luk\" name=\"submit\">
+print "<tr><td colspan='4' align='center'><input style=\"width:100px;\" type=\"submit\" value=\"Opdater\" name=\"opdater\">&nbsp;&nbsp;<a href='" . htmlspecialchars($returside, ENT_QUOTES) . "'><input  style='width:100px;' type='button' Value='Luk'></a></td></tr>";  #<input type=submit value=\"Luk\" name=\"submit\">
 print "</form></tr>";
 print "</td></tr></tbody></table>";
 ?>

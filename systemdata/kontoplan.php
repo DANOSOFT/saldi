@@ -25,12 +25,15 @@
 // 20220607 MSC Implementing new design
 // 20260204 LOE Updated design with grid design format
 // 20260306 PHR Fixed error in call to dkdecimal
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The list on the new page head (page_bar): Kontoplan as the title, Ny konto as the primary button.
 
 @session_start();
 $s_id=session_id();
 $title="Kontoplan";
 $css="../css/standard.css";
 $modulnr="0";
+$permission_key = 'system.kontoplan'; // 20261019 Sawaneh Review 2 (PR #803): modulnr 0 is no key; the chart of accounts keeps its own
 $linjebg='';
 	
 include("../includes/connect.php");
@@ -46,33 +49,15 @@ $backUrl = isset($_GET['returside'])
 if ($popup) $returside="../includes/luk.php";
 else $returside=$backUrl;
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<div id=\"leftmenuholder\">\n";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"rightContent\">\n";
-} elseif ($menu=='S') {
+if ($menu=='S') {
+	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst(113, $sprog_id),
+		'primary' => array(findtekst('7006|Ny konto', $sprog_id), 'kontokort.php', 'accesskey' => 'N'),
+	));
 	print "<div align=\"center\">";
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height=\"25\" align=\"center\" valign=\"top\">";
-	print "<table id=\"topHeader\" width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\" align=\"left\"><a href=\"#\" onclick=\"return false;\"><button style='$buttonStyle; width:100%' >&nbsp;</button></a></td>";
-	print "<td width=\"80%\" style='$topStyle' align=\"center\">".findtekst(113, $sprog_id)."</td>";
-
-	print "<td width=\"10%\" align=\"right\"><a href=kontokort.php accesskey=N>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
-
-	print "</tbody></table>";
-	print "</td></tr>";
 	print "<tr><td valign=\"top\">";
 } else {
 	print "<div align=\"center\">";
@@ -446,16 +431,12 @@ print <<<PRINTBUTTON
 </script>
 PRINTBUTTON;
 
-if (!$menu == 'T') {
+if (!$menu) {
 	print "</td></tr>";
 	print "</tbody></table>";
 } else {
 	print "</div>";
 }
 
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 

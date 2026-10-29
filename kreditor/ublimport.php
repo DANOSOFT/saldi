@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// -------------kreditor/ublimport.php----------lap 3.6.6-----2016-12-07----
+// -------------kreditor/ublimport.php----------lap 5.0.0-----2016-12-07----
 //                           LICENSE
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,9 +25,13 @@
 //
 // Copyright (c) 2004-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 2013.02.10 Break ændret til break 1
 // 2013.09.16 Tilføjet import fra pulje
 // 2016-12-07 Rettet puljesti - søg nfs_mount
+// 20261020 CDX/NTR Replace shell system() calls with PHP file ops to close command injection via $_GET
 
 @session_start();
 $s_id=session_id();
@@ -35,9 +39,10 @@ $css="../css/standard.css";
 
 global $menu;
 
-$title="OIOUBL import";
+$title = findtekst('7011|OIOUBL import', $sprog_id);
 	
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
@@ -45,35 +50,12 @@ include("../includes/topline_settings.php");
 if (file_exists("../owncloud")) $nfs_mappe='owncloud';
 elseif (file_exists("../bilag")) $nfs_mappe='bilag';
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	if (isset($_POST['descfil']) || isset($_GET['funktion'])) print "<div class=\"headerbtnLft headLink\"><a href=ordreliste.php accesskey=L title='Klik her for at komme tilbage til forrige side'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
-	else print "<div class=\"headerbtnLft headLink\"><a href=ordre.php accesskey=L title='Klik her for at komme tilbage til forrige side'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>"; 
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<table width=\"100%\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class='dataTableSmall'><tbody>";
-
-} elseif ($menu=='S') {
+if ($menu=='S') {
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array('title' => $title, 'back' => (isset($_POST['descfil']) || isset($_GET['funktion'])) ? 'ordreliste.php' : 'ordre.php'));
 	print "<div align=\"center\">";
 	print "<table width=\"100%\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"3\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	if (isset($_POST['descfil']) || isset($_GET['funktion'])) {
-		print "<td width=\"10%\"><a href=ordreliste.php accesskey=L>
-			   <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
-	} else {
-		print "<td width=\"10%\"><a href=ordre.php accesskey=L>
-			   <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
-	}
-	print "<td width=\"80%\" align='center' style='$topStyle'>$title</td>";
-	print "<td width=\"10%\" align='center' style='$topStyle'><br></td>";
-
-	print "</tbody></table>";
 	print "</td></tr>";
 
 } else {
@@ -94,7 +76,7 @@ $funktion=if_isset($_GET['funktion']);
 
 
 if($_POST['hent'] || $_POST['importer'] || $_POST['opret'] || $_POST['tilknyt']) {
-#  $submit=$_POST['submit'];
+	#$submit=$_POST['submit'];
 	if (basename($_FILES['uploadedfile']['name'])) {
 		$filnavn="../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv";
 		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
@@ -152,7 +134,7 @@ print "</td></tr>";
 function importer($filnavn,$opret_lev,$opret_vare,$nfs_mappe){
 	$descfil=if_isset($_POST['descfil']);
 
-#	list($firmanavn,$kontonr,$vejnavn,$husnr,$postnr,$bynavn,$land,$cvrnr,$ordredate,$l_varenr,$l_pris,$l_tekst,$l_antal,$l_sum,$l_moms,$l_momssats,$l_posnr)=explode(chr(9),vis_oioubl($filnavn));
+	#list($firmanavn,$kontonr,$vejnavn,$husnr,$postnr,$bynavn,$land,$cvrnr,$ordredate,$l_varenr,$l_pris,$l_tekst,$l_antal,$l_sum,$l_moms,$l_momssats,$l_posnr)=explode(chr(9),vis_oioubl($filnavn));
 	global $firmanavn;
 	global $kontonr;
 	global $vejnavn;
@@ -267,7 +249,6 @@ function importer($filnavn,$opret_lev,$opret_vare,$nfs_mappe){
 						$vare_id[$x]=$r['id'];
 					}
 					db_modify("insert into vare_lev(posnr,lev_id,vare_id,lev_varenr,kostpris) values ('0','$konto_id','$vare_id[$x]','$l_varenr[$x]','$l_pris[$x]')",__FILE__ . " linje " . __LINE__);
-#					$x=$linjenr;
 					transaktion('commit');
 				}
 			}
@@ -282,7 +263,6 @@ function importer($filnavn,$opret_lev,$opret_vare,$nfs_mappe){
 					if ($r=db_fetch_array(db_select("select id,beskrivelse from varer where varenr='$opret_varenr' or lower(varenr)= '$low' or upper(varenr)='$up' or lower(stregkode)= '$low' or upper(stregkode)='$up'",__FILE__ . " linje " . __LINE__))) {
 						$vare_id[$x]=$r['id'];
 						db_modify("insert into vare_lev(posnr,lev_id,vare_id,lev_varenr,kostpris) values ('0','$konto_id','$vare_id[$x]','$l_varenr[$x]','$l_pris[$x]')",__FILE__ . " linje " . __LINE__);
-#						$x=$linjenr;
 					}
 				}
 			}
@@ -475,7 +455,7 @@ function vis_oioubl($filnavn,$nfs_mappe) {
 			if (strstr($tmp,"</cac:accountingsupplierparty>")) $accountingsupplierparty=0;
 		}
 
-#---------------- ordrelinjer -------------
+		#---------------- ordrelinjer -------------
 
 		if (strstr($tmp,"<cac:invoiceline") || $invoiceline) {
 			$invoiceline=1;
@@ -566,7 +546,7 @@ function vis_oioubl($filnavn,$nfs_mappe) {
 	print "<tr><td colspan=\"5\"><hr></td></tr>";
 	print "</tbody></table>";
 	print "</td></tr>";
-#	return($firmanavn.chr(9).$kontonr.chr(9).$vejnavn.chr(9).$husnr.chr(9).$postnr.chr(9).$bynavn.chr(9).$land.chr(9).$cvrnr.chr(9).$ordredate.chr(9).$l_varenr.chr(9).$l_pris.chr(9).$l_tekst.chr(9).$l_antal.chr(9).$l_sum.chr(9).$l_moms.chr(9).$l_momssats.chr(9).$l_posnr);
+	#	return($firmanavn.chr(9).$kontonr.chr(9).$vejnavn.chr(9).$husnr.chr(9).$postnr.chr(9).$bynavn.chr(9).$land.chr(9).$cvrnr.chr(9).$ordredate.chr(9).$l_varenr.chr(9).$l_pris.chr(9).$l_tekst.chr(9).$l_antal.chr(9).$l_sum.chr(9).$l_moms.chr(9).$l_momssats.chr(9).$l_posnr);
 }
 
 function find_var ($lowline,$line,$varname) {
@@ -594,7 +574,7 @@ if ($varname=="<sellersitemidentification") echo htmlentities($tmp)."<br>";
 			break 1;
 		}
 	}
-#$var="$pos - hest";
+	#$var="$pos - hest";
 	return ("$var"); 
 }
 
@@ -602,17 +582,19 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 	global $db;
 	
 	(isset($_POST['slet_bilag']) && $_POST['slet_bilag']=='Slet')?	$slet=1:$slet=0;
-	(isset($_POST['upload_bilag']) && $_POST['upload_bilag']=='inds&aelig;t')?	$indsaet=1:$inssaet=0;
+	(isset($_POST['upload_bilag']) && $_POST['upload_bilag']=='inds&aelig;t')?	$indsaet=1:$indsaet=0;
 	$descfil=if_isset($_POST['descfil']);
-	if (!$dsecfil) {
+	if (!$descfil) {
 		$descfil=if_isset($_GET['descfil']);
 		$slet=if_isset($_GET['slet']);
 	}
 
 	if ($descfil && $slet) {
-		$tmp=str_replace(" ","\\ ",$descfil);
 		echo "slettter ../temp/$db/pulje/$descfil*<br>";
-		system("rm ../".$nfs_mappe."/$db/pulje/$tmp*\n");
+		$pattern = "../" . $nfs_mappe . "/$db/pulje/" . basename($descfil) . "*";
+		foreach (glob($pattern) ?: [] as $f) {
+			unlink($f);
+		}
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ublimport.php?bilag=$bilag&kladde_id==$kilde_id&fokus=$fokus&funktion=gennemse\">";
 		exit;
 	}
@@ -621,7 +603,7 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 		exit;
 	}
 	
-	$r=db_fetch_array(db_select("select * from grupper where art='bilag'",__FILE__ . " linje " . __LINE__));
+	$r=db_fetch_array(db_select("select box7 from grupper where art='bilag'",__FILE__ . " linje " . __LINE__));
 	$google_docs=$r['box7'];
 
 	if ($bilag_id) {
@@ -656,7 +638,6 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 			}
 		} else echo "Dir eksisterer ikke<br>";
 	}
-#xit;
 	print "<form name=\"gennemse\" action=\"ublimport.php?funktion=gennemse&puljefil=$puljefil\" method=\"post\">\n";
 	print "<input type=\"hidden\" name=\"puljefil\" value=$puljefil>";
 	print "<input type=\"hidden\" name=\"filnavn\" value=$filnavn>";
@@ -682,9 +663,15 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 	}
 	
 	if ($puljefil) {
-		$tmp="../../../".$nfs_mappe."/$db/pulje/$puljefil";
-		if (!is_dir("../temp/$db/pulje")) mkdir("../temp/$db/pulje"); 
-		system("cd ../temp/$db/pulje\nrm *\ncp $tmp .\n");
+		$src = "../../../" . $nfs_mappe . "/$db/pulje/" . basename($puljefil);
+		$destDir = "../temp/$db/pulje";
+		if (!is_dir($destDir)) {
+			mkdir($destDir, 0755, true);
+		}
+		foreach (glob($destDir . "/*") ?: [] as $f) {
+			unlink($f);
+		}
+		copy($src, $destDir . "/" . basename($puljefil));
 	} else {
 		print "<BODY onLoad=\"javascript:alert('Ingen bilag af typen `.xml` eller `.fak` i pulje')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../kreditor/ordreliste.php\">";
@@ -696,13 +683,6 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 	print	"<tr><td width=100% align=center>";
 $tmp="../temp/$db/pulje/".$puljefil;
 	vis_oioubl($tmp,$nfs_mappe);
-	#	$tmp=$url.$puljefil;
-#	if ($puljefil) {
-#		if ($google_docs) $src="http://docs.google.com/viewer?url=$tmp&embedded=true";
-#		else $src=$tmp;
-#		print "X2<iframe style=\"width:100%;height:100%\" src=\"$src\" frameborder=\"0\">";
-#		print "</iframe></td></tr>";
-#	}
 	print "</tbody></table></td></tr>";
 	print "<tr><td height=\"100px\"><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid rgb(180, 180, 255); padding: 0pt 0pt 1px;\"><tbody>";
 	$descfil=NULL;
@@ -711,7 +691,7 @@ $tmp="../temp/$db/pulje/".$puljefil;
 		elseif (substr($puljefil,-4,1)==".") $descfil=substr($puljefil,0,strlen($puljefil)-4); 
 		else $descfil=NULL;
 	}
-/*
+	/*
 	if ($descfil) {
 		$tmp="../../".$dir."/".$descfil.".desc";
 		system("cd ../temp/$db/pulje\ncp $tmp .\n");
@@ -741,7 +721,7 @@ $tmp="../temp/$db/pulje/".$puljefil;
 	print "<tr><td>Sag</td><td><input type=\"text\" style=\"width:150px\" name=\"sag\" value=\"$sag\"</td></tr>";	
 	print "<tr><td>Afd</td><td><input type=\"text\" style=\"width:150px\" name=\"afd\" value=\"$afd\"</td></tr>";	
 	print "<tr><td>Projekt</td><td><input type=\"text\" style=\"width:150px\" name=\"projekt\" value=\"$projekt\"</td></tr>";	
-*/
+	*/
 	print "<tr><td colspan=\"2\"><input style=\"width:100%;height:50px;\" type=\"submit\" name=\"indsaet\" value=\"Inds&aelig;t\"</tr>";	
 	print "<tr><td colspan=\"2\"><input style=\"width:100%;height:50px;\" type=\"submit\" name=\"slet_bilag\" value=\"Slet\"</tr>";	
 	print "</tbody></table></td></tr>";

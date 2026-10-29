@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.07
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -74,17 +74,51 @@
 //                  Sager -> Ansatte created them without one, which broke every fiscal_year query for those users.
 // 20260928 CL/LH Widen int ordrer.shop_status to varchar(20) before creating the Stripe
 //                  paid-invoice index; the string predicate blocked login on int-typed tenants.
+// 20260928 CL/SZ SST-818: Indexes for the lookups finans/kassekladde.php runs for every line of an open journal (kassekladde by kladde_id and by account, documents by source line, adresser by kontonr).
 // 20260929 CDX/PHR Initialize the tenant HTML layout version without changing existing forms.
 // 20260930 CL/NTR The repeated tekster clean-ups now call deleteStaleTekst() (includes/opdat_func/),
 //                  and the texts reworded on the translation branch are cleaned up too.
 // 20260930 CL/SZ SST-777 (CodeRabbit): scoped the manually_edited column-existence check to
 //                  the current tenant's database/schema, matching the performed_by migration.
+// 20261001 MJ SST-814 Trigram indexes on adresser(firmanavn) and adresser(kontonr) so the
+//                  account lookup during invoice creation stops scanning the whole table on
+//                  every keystroke. Only created where pg_trgm exists.
+// 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
+// 20261003 CL/SZ SD-717: pool_files.archived and archived_by for the archive in the document pool, Postgres and MySQL.
+// 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
+// 20261002 CL/SZ SST-808: index ordrer (konto_id, fakturanr) and the open openpost rows so the
+//                  auto-udlign open-post search stops scanning ordrer once per open post.
+// 20261002 CL/SZ SST-808 (CodeRabbit): build those indexes CONCURRENTLY so login does not block
+//                  writes while they build, and rebuild one left INVALID by an interrupted build.
+// 20261002 MJ SST-814 Review: corrected the stated reason for not using CONCURRENTLY. There
+//                  is no enclosing transaction; the reason is that an interrupted
+//                  CONCURRENTLY build leaves an invalid index that IF NOT EXISTS would then
+//                  skip forever. The statements themselves are unchanged.
+// 20261003 CL/SZ SST-818: the kassekladde/documents/adresser indexes are built CONCURRENTLY (PostgreSQL) or with
+//                  LOCK=NONE (MySQL), so the one-time build at login does not block writes; an INVALID one is rebuilt.
+// 20261003 CL/SZ SD-724: create the shared audit_log table (roles stage 2 schema) if it does not exist, Postgres and MySQL.
+// 20261004 CL/SZ SD-724: audit_log as the roles stage 2 branch creates it (audit_log_for_SD-724.md §2): id serial, index audit_log_bruger_idx.
 // 20261004 LOE Add the original-upload hash column alongside the stored-file hash.
 // 20261005 LOE SST-857 Cached 1408 rows still saying Kassebillag are deleted, so findtekst()
 // 20261006 CL/LH SST-850: hash a clear-text rentalsettings.pass once (idempotent, table-guarded).
 //                  re-seeds the corrected csv text on the next call.
 // 20261007 CL/NTR Add ordrer.shop_status as varchar(20) when the column is missing entirely,
 //                  so the Stripe paid-invoice index no longer fails on those tenants.
+// 20261007 CL/SZ SST-808: a login that finds the index lock taken skips the build instead of waiting for it.
+//                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
+// 20261007 CL/SZ SST-818: a login that finds an index lock taken skips the build instead of waiting for it.
+//                  Waiting deadlocked with CREATE INDEX CONCURRENTLY, so one of two concurrent logins failed.
+// 20261012 CL/LH Add the stripe_events lease columns (claim_token, claimed_at, attempts, event_created)
+//                  ahead of the invoice-payment webhook, which needs them from its first request.
+// 20261013 CL/LH stripe_events columns: schema-scoped check, concurrent-login safe (CodeRabbit on #795).
+// 20261013 CL/SZ SST-808 (CodeRabbit): skip the auto-udlign index block on MySQL tenants.
+// 20261020 CL/NTR Convert brugere.ansat_id to integer (nullable, no default) on PostgreSQL and MySQL tenants where it is text/varchar.
+// 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
+//                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
+//                  so the one-time build no longer blocks writes to adresser during a login.
+// 20261022 CDX/LH Add durable Stripe collection and delivery schema at the end of pending updates.
+// 20261022 CDX/LH Repair individual missing Stripe invoice indexes on tenant login.
+// 20261023 CDX/LH Retain redesign migrations and append the fixed Stripe schema repairs in chronological order.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -302,6 +336,48 @@ db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kont
 # on a large item report this is the same "no index on the hot per-row lookup" issue as above.
 db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
 
+// 20260928 CL/SZ SST-818: finans/kassekladde.php looks up kassekladde, documents and adresser once per journal line;
+// none of these columns were indexed, so every lookup was a full table scan and a journal of a few hundred lines
+// took several seconds to open. MySQL has no CREATE INDEX IF NOT EXISTS and needs a prefix length on a text column.
+// 20261003 CL/SZ SST-818: built without blocking writes, as in SST-808: CONCURRENTLY on PostgreSQL (this file runs
+// outside any transaction), with an advisory lock against two logins building the same index and a rebuild of an
+// index an interrupted build left INVALID; ALGORITHM=INPLACE, LOCK=NONE on MySQL. All five took about 2 s together
+// on a 163k-row kassekladde / 135k-row adresser tenant.
+// 20261007 CL/SZ SST-818: a second login arriving during the build skips it instead of waiting for the advisory lock: waiting
+// deadlocked with CREATE INDEX CONCURRENTLY, so PostgreSQL aborted the build and that login got the error page (as in SST-808).
+$kkIndexMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$kkIndexes = array(
+	'kassekladde_kladde_id_idx'        => array('kassekladde', 'kladde_id', 'kladde_id'),
+	'kassekladde_debet_transdate_idx'  => array('kassekladde', 'debet, transdate, id', 'debet, transdate, id'),
+	'kassekladde_kredit_transdate_idx' => array('kassekladde', 'kredit, transdate, id', 'kredit, transdate, id'),
+	'documents_source_source_id_idx'   => array('documents', 'source, source_id', 'source, source_id'),
+	'adresser_kontonr_art_idx'         => array('adresser', 'kontonr, art', 'kontonr(30), art'),
+);
+foreach ($kkIndexes as $kkIndexName => list($kkIndexTable, $kkIndexColumns, $kkIndexColumnsMysql)) {
+	if ($kkIndexMysql) {
+		$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '$kkIndexTable' AND index_name = '$kkIndexName'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			db_modify("CREATE INDEX $kkIndexName ON $kkIndexTable ($kkIndexColumnsMysql) ALGORITHM=INPLACE LOCK=NONE", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$kkLock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$kkIndexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$kkLock || $kkLock['locked'] !== 't') continue;
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$kkIndexName' AND pg_namespace.nspname = current_schema()";
+		$kkExisting = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($kkExisting && $kkExisting['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $kkIndexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$kkExisting || $kkExisting['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $kkIndexName ON $kkIndexTable ($kkIndexColumns)", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$kkIndexName'))", __FILE__ . " linje " . __LINE__);
+	}
+}
+
 # 20260924 CL/NTR Two concurrent logins can both pass the pg_indexes existence check before
 #                  either has committed the CREATE UNIQUE INDEX, and the losing statement then
 #                  fails with unique_violation (23505) on pg_class_relname_nsp_index, not
@@ -330,6 +406,49 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 db_select("SELECT pg_advisory_unlock(hashtext('ordrer_stripe_paid_invoice_uidx'))", __FILE__ . " linje " . __LINE__);
+
+# 20261002 CL/SZ SST-808: finans/kassekladde_includes/invoiceSearch.php (auto-udlign) looks up
+#                the order payment ID with a correlated subquery on ordrer (konto_id, fakturanr)
+#                for every open post, and in the COUNT when the user types a search. ordrer had
+#                no index on either column, so each open post forced a full scan of ordrer: on a
+#                290k-row openpost / 70k-row ordrer tenant one typed search took 130-140 s.
+#                The partial openpost index covers the open-post filter every invoiceSearch.php
+#                query starts from, so they stop scanning all settled rows too.
+#                Same advisory lock as above, for the same concurrent-login race.
+# 20261002 CL/SZ SST-808 (CodeRabbit): built CONCURRENTLY so the one-time build at login does not
+#                block writes to ordrer/openpost on a live tenant (this file runs outside any
+#                transaction, which CONCURRENTLY requires). An interrupted concurrent build leaves
+#                an INVALID index behind under the same name, so validity is checked and an
+#                invalid one is dropped and rebuilt instead of being skipped forever.
+# 20261007 CL/SZ SST-808: a second login that arrives during the build no longer waits for the advisory lock.
+#                Waiting deadlocked with CREATE INDEX CONCURRENTLY (it waits for that login's open snapshot): PostgreSQL
+#                aborted the build, the login got the error page and the index was left INVALID. It now skips instead.
+# 20261013 CL/SZ SST-808 (CodeRabbit): advisory locks, pg_index and CONCURRENTLY are PostgreSQL-only, and a
+#                failed db_select() exits, so a MySQL tenant skips this block instead of failing its login.
+$sst808Mysql = in_array($db_type, ['mysql', 'mysqli'], true);
+if (!$sst808Mysql) {
+	$sst808Indexes = array(
+		'ordrer_konto_id_fakturanr_idx' => "ON ordrer (konto_id, fakturanr)",
+		'openpost_open_idx'             => "ON openpost (konto_id) WHERE udlignet != '1' OR udlignet IS NULL",
+	);
+	foreach ($sst808Indexes as $indexName => $indexDefinition) {
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$lock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$indexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$lock || $lock['locked'] !== 't') continue;
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$indexName' AND pg_namespace.nspname = current_schema()";
+		$existingIndex = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($existingIndex && $existingIndex['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $indexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$existingIndex || $existingIndex['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $indexName $indexDefinition", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$indexName'))", __FILE__ . " linje " . __LINE__);
+	}
+}
 
 #####
 
@@ -551,6 +670,44 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		received_at timestamp DEFAULT CURRENT_TIMESTAMP,
 		processed_at timestamp)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// 20261012 CL/LH Event leases for the Stripe webhook: who holds an event (claim_token/claimed_at),
+//                  how often it was retried (attempts) and Stripe's own event time (event_created).
+//                  Shipped before the webhook change, because a merge to master deploys /master at once.
+// 20261013 CL/LH (CodeRabbit) Scoped to the current schema/database and safe for concurrent logins, like
+//                  the lock_token migration: ADD COLUMN IF NOT EXISTS on PostgreSQL, GET_LOCK + recheck on MySQL.
+$stripeEventMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$stripeEventColumns = array('claim_token' => 'varchar(64)', 'claimed_at' => 'timestamp', 'attempts' => 'integer NOT NULL DEFAULT 0', 'event_created' => 'bigint');
+$stripeEventMissing = array();
+foreach ($stripeEventColumns as $stripeEventColumn => $stripeEventType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn'";
+	$qtxt .= $stripeEventMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$stripeEventMissing[] = $stripeEventColumn;
+	}
+}
+if ($stripeEventMissing) {
+	if ($stripeEventMysql) {
+		$stripeEventLock = "CONCAT('saldi:stripe_events:', MD5(DATABASE()))";
+		$stripeEventLockResult = db_fetch_array(db_select("SELECT GET_LOCK($stripeEventLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($stripeEventLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the stripe_events migration lock.');
+		}
+		try {
+			foreach ($stripeEventMissing as $stripeEventColumn) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'stripe_events' AND column_name = '$stripeEventColumn' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE stripe_events ADD COLUMN $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($stripeEventLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($stripeEventMissing as $stripeEventColumn) {
+			db_modify("ALTER TABLE stripe_events ADD COLUMN IF NOT EXISTS $stripeEventColumn {$stripeEventColumns[$stripeEventColumn]}", __FILE__ . " linje " . __LINE__);
+		}
+	}
 }
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -971,6 +1128,266 @@ foreach ($tekster_reworded_20260930 as $reworded) {
 	deleteStaleTekst($reworded[0], $reworded[2], $reworded[1]);
 }
 
+// 20261002 Sawaneh Text 5646 (no active fiscal year) named the old "System » Indstillinger" menu. Rows still holding the
+// old wording are removed so findtekst() re-seeds them from tekster.csv; edited texts are left alone.
+foreach (array('Aktivér et regnskabsår under System » Indstillinger » Regnskabsår', 'Activate a fiscal year under System » Settings » Fiscal year', 'Aktiver et regnskapsår under System » Innstillinger » Regnskapsår') as $gammel5646) {
+	db_modify("delete from tekster where tekst_id = '5646' and tekst = '" . db_escape_string($gammel5646) . "'", __FILE__ . " linje " . __LINE__);
+}
+
+// 20261016 Sawaneh Review (PR #803): every information_schema check of ours filters on the schema, as master's newer
+//                  blocks do: on MySQL the view spans every database the user can see, so the first tenant's tables
+//                  would hide the others' missing ones.
+$sawanehSchema = in_array($db_type, array('mysql', 'mysqli'), true) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+
+// 20260916 Sawaneh Roles & permissions (user/settings system spec, part 2): roles,
+// role_permissions, brugere.role_id and the audit log. Built-in roles are seeded and users
+// holding every legacy right get the Administrator role; see includes/permissions.php.
+$sawanehMysql = in_array($db_type, array('mysql', 'mysqli'), true);
+$sawanehId = $sawanehMysql ? 'id INT NOT NULL AUTO_INCREMENT PRIMARY KEY' : 'id SERIAL PRIMARY KEY NOT NULL';
+$sawanehNow = $sawanehMysql ? 'DATETIME DEFAULT CURRENT_TIMESTAMP' : 'timestamp DEFAULT now()';
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='roles'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE roles (
+		$sawanehId,
+		role_key varchar(30),
+		navn varchar(80) NOT NULL,
+		beskrivelse text,
+		system boolean DEFAULT false,
+		oprettet $sawanehNow)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='role_permissions'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE role_permissions (
+		role_id integer NOT NULL,
+		permission_key varchar(60) NOT NULL,
+		level varchar(5) NOT NULL,
+		PRIMARY KEY (role_id, permission_key))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='brugere' AND column_name='role_id'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE brugere ADD COLUMN role_id integer", __FILE__ . " linje " . __LINE__);
+}
+// 20261016 Sawaneh Review (PR #803): the table is created by master's SD-724 block just above (both engines, DATETIME on
+//                  MySQL); our create, Postgres-only, is gone. The column additions below still run on older tables.
+// 20261003 CL/SZ SD-724: the shared audit_log table with exactly the roles stage 2 schema (Requirements_roles_stage2_EN.md §3).
+// IF NOT EXISTS, so whichever of the document pool and roles stage 2 lands first creates it and the other's migration is a no-op.
+// Written through audit_log_write() in includes/auditLog.php; entries are never deleted.
+// MySQL uses DATETIME for tidspunkt, because its TIMESTAMP ends in 2038, inside the five-year retention.
+// id is serial (INT on MySQL) and the index names are the roles stage 2 branch's, so neither migration adds a second set of indexes.
+$auditLogMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = 'audit_log'";
+$qtxt .= $auditLogMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if ($auditLogMysql) {
+		db_modify("CREATE TABLE IF NOT EXISTS audit_log (
+			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			tidspunkt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			bruger_id INTEGER,
+			brugernavn VARCHAR(80),
+			handling VARCHAR(60) NOT NULL,
+			objekt_type VARCHAR(30),
+			objekt_id VARCHAR(60),
+			detaljer TEXT,
+			ip VARCHAR(45),
+			kilde VARCHAR(30),
+			INDEX audit_log_tidspunkt_idx (tidspunkt),
+			INDEX audit_log_bruger_idx (bruger_id),
+			INDEX audit_log_objekt_idx (objekt_type, objekt_id)
+		)", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("CREATE TABLE IF NOT EXISTS audit_log (
+			id SERIAL PRIMARY KEY,
+			tidspunkt TIMESTAMP NOT NULL DEFAULT now(),
+			bruger_id INTEGER,
+			brugernavn VARCHAR(80),
+			handling VARCHAR(60) NOT NULL,
+			objekt_type VARCHAR(30),
+			objekt_id VARCHAR(60),
+			detaljer TEXT,
+			ip VARCHAR(45),
+			kilde VARCHAR(30)
+		)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS audit_log_tidspunkt_idx ON audit_log (tidspunkt)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS audit_log_bruger_idx ON audit_log (bruger_id)", __FILE__ . " linje " . __LINE__);
+		db_modify("CREATE INDEX IF NOT EXISTS audit_log_objekt_idx ON audit_log (objekt_type, objekt_id)", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+include_once(__DIR__ . "/permissions.php");
+perm_ensure_default_roles();
+
+// 20260927 Sawaneh Notification center (topbar spec §3.2): notifications + per-user read state.
+// 20261002 Sawaneh Most companies already hold an older, unused table of the same name (id, msg, read_status; from
+// admin/opret.php and opdat_4.0.php, all its readers are commented out). The new table is recognised by its 'type'
+// column; the old one is kept under another name, so nothing is deleted.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='notifications' and column_name='type'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='notifications'" . $sawanehSchema;
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$legacyName = 'notifications_legacy';
+		if (db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='$legacyName'" . $sawanehSchema, __FILE__ . " linje " . __LINE__))) {
+			$legacyName .= '_' . date('YmdHis');
+		}
+		db_modify("ALTER TABLE notifications RENAME TO $legacyName", __FILE__ . " linje " . __LINE__);
+		if ($db_type != 'mysql' && $db_type != 'mysqli') {
+			// The old key and sequence keep the names the new table wants.
+			if (!$sawanehMysql) {
+				db_modify("ALTER INDEX IF EXISTS notifications_pkey RENAME TO {$legacyName}_pkey", __FILE__ . " linje " . __LINE__);
+				db_modify("ALTER SEQUENCE IF EXISTS notifications_id_seq RENAME TO {$legacyName}_id_seq", __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+	$qtxt = "CREATE TABLE notifications (
+		$sawanehId,
+		user_id integer,
+		type varchar(30) NOT NULL,
+		title text,
+		body text,
+		link text,
+		created $sawanehNow,
+		expires date,
+		source_key varchar(80))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	if ($db_type != 'mysql' && $db_type != 'mysqli') {
+		db_modify("DROP INDEX IF EXISTS notifications_user_idx", __FILE__ . " linje " . __LINE__);
+	}
+	db_modify("CREATE INDEX notifications_user_idx ON notifications (user_id, created)", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='notification_read'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE notification_read (
+		notification_id integer NOT NULL,
+		user_id integer NOT NULL,
+		read_at $sawanehNow,
+		PRIMARY KEY (notification_id, user_id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+// 20260928 Sawaneh Settings redesign spec, phase 4.0 (decisions 1 and 15): the saved SQL queries of the removed
+// data-extract tool are exported once to temp/<db>/saved_queries.csv (the table stays), and the three Paperflow
+// settings rows (incl. the bearer token) are deleted. Runs once per company, tracked in settings.
+$qtxt = "select id from settings where var_grp = 'system' and var_name = 'security_40'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='queries'" . $sawanehSchema;
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		// Outside the served tree (review, PR #803): temp/ is reachable without a login on some installs.
+		$dir = rtrim(sys_get_temp_dir(), '/') . "/saldi_saved_queries";
+		if (!is_dir($dir)) @mkdir($dir, 0700, true);
+		$fp = @fopen("$dir/" . preg_replace('/[^A-Za-z0-9_]/', '_', (string) $db) . ".csv", "w");
+		if ($fp) {
+			fputcsv($fp, array('id', 'query', 'description', 'user_id'), ';');
+			$q = db_select("select id, query, query_descrpition, user_id from queries order by id", __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				fputcsv($fp, array($r['id'], $r['query'], $r['query_descrpition'], $r['user_id']), ';');
+			}
+			fclose($fp);
+		}
+	}
+	db_modify("delete from settings where var_grp = 'creditor' and var_name in ('paperflow', 'paperflowId', 'paperflowBearer')", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description) values ('system', 'security_40', '" . date('Ymd') . "', 'Settings security phase 4.0 migration done')", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260929 Sawaneh Settings redesign phase 4a: the change history of a settings section (spec §8.12)
+// reads setting_key / section / old_value / new_value from audit_log, and the PoS licence becomes a
+// real flag (decision 9): set to 'on' where the installation has the PoS module today.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='setting_key'" . $sawanehSchema;
+// Each column guarded on its own (review, PR #803): a login that died after the first ALTER must not leave the rest out.
+foreach (array('setting_key' => 'varchar(120)', 'section' => 'varchar(80)', 'old_value' => 'text', 'new_value' => 'text') as $auditCol => $auditType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='$auditCol'" . $sawanehSchema;
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE audit_log ADD COLUMN $auditCol $auditType", __FILE__ . " linje " . __LINE__);
+		if ($auditCol === 'section') {
+			db_modify("CREATE INDEX audit_log_section_idx ON audit_log (section, id)", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+$qtxt = "select id from settings where var_grp = 'system' and var_name = 'pos_licence'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && file_exists(__DIR__ . "/../debitor/pos_ordre.php")) {
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('system', 'pos_licence', 'on', 'PoS licence flag, set by the operator', 0)", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260929 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §3): the audit log records what was
+// changed (objekt_type, objekt_id) and from where (kilde); brugere.status is taken into use (closed users).
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='objekt_type'" . $sawanehSchema;
+foreach (array('objekt_type' => 'varchar(30)', 'objekt_id' => 'varchar(60)', 'kilde' => 'varchar(30)') as $auditCol => $auditType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='$auditCol'" . $sawanehSchema;
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE audit_log ADD COLUMN $auditCol $auditType", __FILE__ . " linje " . __LINE__);
+		if ($auditCol === 'objekt_type') {
+			db_modify("CREATE INDEX audit_log_bruger_idx ON audit_log (bruger_id)", __FILE__ . " linje " . __LINE__);
+			db_modify("CREATE INDEX audit_log_objekt_idx ON audit_log (objekt_type, objekt_id)", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
+// 20261003 Sawaneh Aligned with the roles spec §3 so the document-pool work (SD-724) shares the table: handling 60 wide,
+// tidspunkt not null. Runs once; a table made by SD-724 already looks like this.
+$qtxt = "SELECT character_maximum_length AS character_maximum_length FROM information_schema.columns WHERE table_name='audit_log' and column_name='handling'" . $sawanehSchema;
+// PostgreSQL syntax: only a table from before SD-724 can be narrower, and such a table only exists on PostgreSQL.
+if (!$sawanehMysql && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && (int) $r['character_maximum_length'] > 0 && (int) $r['character_maximum_length'] < 60) {
+	db_modify("ALTER TABLE audit_log ALTER COLUMN handling TYPE varchar(60)", __FILE__ . " linje " . __LINE__);
+	db_modify("UPDATE audit_log SET tidspunkt = now() WHERE tidspunkt IS NULL", __FILE__ . " linje " . __LINE__);
+	db_modify("ALTER TABLE audit_log ALTER COLUMN tidspunkt SET NOT NULL", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='brugere' and column_name='status'" . $sawanehSchema;
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE brugere ADD COLUMN status boolean", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260930 Sawaneh Roles stage 2 (§6.2): every user without a role gets one; other rights patterns become
+// custom roles, kept for review on the dashboard. Last in the file, after the audit_log columns exist.
+perm_migrate_users();
+
+// 20260930 Sawaneh Audit log for administrators only (Adam 2026-09-30): the read level the built-in Bogholder and
+// Revisor roles got on 2026-09-30 is taken back once. Custom roles are left as their administrator set them.
+$qtxt = "select id from settings where var_grp = 'permissions' and var_name = 'audit_admin_only'";
+if (perm_tables_ready() && !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("delete from role_permissions where permission_key = 'settings.audit.read' and role_id in (select id from roles where role_key in ('bogholder', 'revisor'))", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('permissions', 'audit_admin_only', '" . date('Ymd') . "', 'Audit log read removed from Bogholder and Revisor', 0)", __FILE__ . " linje " . __LINE__);
+}
+
+// 20261001 Sawaneh Settings redesign §7.2: one row per setting. Duplicates are merged (removed rows kept in
+// settings_removed) and the unique index is added once; after that only the index lookup runs.
+include_once(__DIR__ . "/settings/uniqueIndex.php");
+settings_unique_migrate();
+
+// 20261002 Sawaneh Risk review R9: the same for the settings arts of grupper (removed rows kept in grupper_removed).
+include_once(__DIR__ . "/settings/grupperIndex.php");
+grupper_unique_migrate();
+
+// 20261003 Sawaneh G6.3 (05b bug 45): the payment-list mail text used its own spelling of the key; one spelling for all mail texts.
+// Read first, then update by id: MySQL refuses an UPDATE that selects from its own table (error 1093).
+if (!db_fetch_array(db_select("select id from settings where var_grp = 'paylist' and var_name = 'mailText'", __FILE__ . " linje " . __LINE__))) {
+	$q = db_select("select id from settings where var_grp = 'paylist' and var_name = 'mailtext'", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		db_modify("update settings set var_name = 'mailText' where id = " . (int) $r['id'], __FILE__ . " linje " . __LINE__);
+	}
+}
+
+// 20261002 Sawaneh Settings 4b (G5.7): the packaging tables are created here when the module is on, not when a page
+// renders (spec P5). G2.5: paymentDays was written under 'payment' but only read under 'payment_list'; copied once.
+// 20261005 Sawaneh Settings 4c (§8.2): grupper.inaktiv - rows that are in use are hidden from choice lists instead of deleted.
+if (!db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . $sawanehSchema, __FILE__ . " linje " . __LINE__))) {
+	db_modify("alter table grupper add column inaktiv boolean default false", __FILE__ . " linje " . __LINE__);
+}
+// 20261004 Sawaneh When the new settings first ran here (settings_ui/landed_at): the transition banner is shown to users
+//                  with activity from before that moment only (settings redesign §8.10).
+if (!db_fetch_array(db_select("select id from settings where var_grp = 'settings_ui' and var_name = 'landed_at'", __FILE__ . " linje " . __LINE__))) {
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('settings_ui', 'landed_at', '" . date('Y-m-d H:i:s') . "', 'First login after the settings redesign', 0)", __FILE__ . " linje " . __LINE__);
+}
+// 20261004 Sawaneh G9.2 (B-D5): the Danske Fragtmænd settings get their own group; debitor/ordre.php reads both until 4f.
+db_modify("update settings set var_grp = 'DFM' where var_grp = 'GLS' and var_name like 'dfm\\_%'", __FILE__ . " linje " . __LINE__);
+// 20261004 Sawaneh The packaging tables are created for every company (idempotent), so switching the module on in
+// settings only sets the flag (spec §7.5: no DDL in save handlers) and works before the next login.
+include_once(__DIR__ . "/emballage_schema.php");
+ensure_emballage_schema();
+if (!db_fetch_array(db_select("select id from settings where var_grp = 'payment_list' and var_name = 'paymentDays'", __FILE__ . " linje " . __LINE__))) {
+	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'payment' and var_name = 'paymentDays' and coalesce(var_value, '') <> ''", __FILE__ . " linje " . __LINE__));
+	if ($r) {
+		db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('payment_list', 'paymentDays', '" . db_escape_string((string) $r['var_value']) . "', 'Default payment days', 0)", __FILE__ . " linje " . __LINE__);
+	}
+}
 // 20260924 Sawaneh SST-757: Users created via Sager -> Ansatte were inserted without regnskabsaar. Checked with a
 // select first so logins with nothing to repair do not write, and skipped on tenants with no open fiscal year.
 if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null limit 1", __FILE__ . " linje " . __LINE__))) {
@@ -979,9 +1396,74 @@ if (db_fetch_array(db_select("select id from brugere where regnskabsaar is null 
 		db_modify("update brugere set regnskabsaar = '$newestFiscalYear' where regnskabsaar is null", __FILE__ . " linje " . __LINE__);
 	}
 }
+// 20261003 CL/SZ SD-717: archive in the document pool.
+// pool_files.archived (when) and archived_by (brugere.id, -1 for a revisor session); NULL means the document is in the normal list.
+// The file stays in the pool folder, so the folder sync neither deletes nor re-inserts the row.
+// archived_by last: includes/docsIncludes/poolArchive.php probes for it, so once it exists both do.
+$poolArchiveMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$poolArchiveSchema = $poolArchiveMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$poolArchiveColumns = array(
+	'archived' => $poolArchiveMysql ? 'DATETIME NULL' : 'TIMESTAMP NULL',
+	'archived_by' => 'INTEGER NULL',
+);
+if (db_fetch_array(db_select("SELECT table_name FROM information_schema.tables WHERE table_name = 'pool_files'$poolArchiveSchema", __FILE__ . " linje " . __LINE__))) {
+	$poolArchiveMissing = array();
+	foreach ($poolArchiveColumns as $poolArchiveColumn => $poolArchiveType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = '$poolArchiveColumn'$poolArchiveSchema";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$poolArchiveMissing[$poolArchiveColumn] = $qtxt;
+		}
+	}
+	if ($poolArchiveMissing) {
+		if ($poolArchiveMysql) {
+			// MySQL has no ADD COLUMN IF NOT EXISTS; serialize per tenant and recheck under the lock (same as the vendor columns)
+			$poolArchiveLock = "CONCAT('saldi:pool_files_archive:', MD5(DATABASE()))";
+			$poolArchiveLockResult = db_fetch_array(db_select("SELECT GET_LOCK($poolArchiveLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int) ($poolArchiveLockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the pool_files archive migration lock.');
+			}
+			try {
+				foreach ($poolArchiveMissing as $poolArchiveColumn => $poolArchiveProbe) {
+					if (!db_fetch_array(db_select($poolArchiveProbe, __FILE__ . " linje " . __LINE__))) {
+						db_modify("ALTER TABLE pool_files ADD COLUMN $poolArchiveColumn " . $poolArchiveColumns[$poolArchiveColumn], __FILE__ . " linje " . __LINE__);
+					}
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($poolArchiveLock)", __FILE__ . " linje " . __LINE__);
+			}
+		} else {
+			foreach ($poolArchiveMissing as $poolArchiveColumn => $poolArchiveProbe) {
+				db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $poolArchiveColumn " . $poolArchiveColumns[$poolArchiveColumn], __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+}
+
 // Preserve HTML users before the renderer changes; explicit choices survive later updates.
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
 initializeFormHtmlLayoutVersion($db_type);
+
+// 20261019 CL/ASR "Saldi invoices, Stripe collects": stripe_payments (one row per PaymentIntent,
+// partial unique index = at most one succeeded per invoice) and the card-on-file columns on
+// adresser (stripe, stripe_customer_id, stripe_pm_id, stripe_date). PostgreSQL only, like the
+// other stripe_* tables above; the same function is called lazily by the payment page.
+if ($db_type != 'mysql' && $db_type != 'mysqli') {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_payments' AND column_name='payment_intent_id'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("CREATE TABLE IF NOT EXISTS stripe_payments (id SERIAL PRIMARY KEY, ordre_id integer NOT NULL, fakturanr varchar(30),
+			stripe_customer_id varchar(255), payment_intent_id varchar(255) NOT NULL,
+			amount_ore integer NOT NULL, currency varchar(3) NOT NULL DEFAULT 'DKK',
+			status varchar(20) NOT NULL, source varchar(10) NOT NULL DEFAULT 'page',
+			save_card boolean NOT NULL DEFAULT false, pm_id varchar(255), pm_brand varchar(20), pm_last4 varchar(4),
+			attempt smallint NOT NULL DEFAULT 1, last_error text,
+			created_at timestamp DEFAULT CURRENT_TIMESTAMP, succeeded_at timestamp,
+			journal_line_id integer, confirmation_sent_at timestamp, last_event_id varchar(255))", __FILE__ . " linje " . __LINE__);
+	}
+	foreach (array('stripe' => 'varchar(2)', 'stripe_customer_id' => 'varchar(255)', 'stripe_pm_id' => 'varchar(255)', 'stripe_date' => 'date') as $stripeCol => $stripeType) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='$stripeCol'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) db_modify("ALTER TABLE adresser ADD COLUMN $stripeCol $stripeType", __FILE__ . " linje " . __LINE__);
+	}
+}
 
 // 20261006 CL/LH SST-850: rentalsettings.pass used to be stored in clear text. Hash a remaining
 // clear-text value once; only tenants with the rental module have the table, and a value that is
@@ -993,5 +1475,94 @@ if (db_fetch_array(db_select("select 1 from information_schema.tables where tabl
 		db_modify("update rentalsettings set pass = '$rentalHash'", __FILE__ . " linje " . __LINE__);
 	}
 }
+
+// 20261020 CL/NTR brugere.ansat_id must be integer (it references ansatte.id); older tenants have text/varchar.
+// Blank values become NULL so the conversion cannot fail on them. Idempotent: only runs while the column is still a text type.
+$ansatIdMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$ansatIdSchema = $ansatIdMysql ? " and table_schema = DATABASE()" : "";
+$ansatIdType = db_fetch_array(db_select("select data_type as data_type from information_schema.columns where table_name = 'brugere' and column_name = 'ansat_id'$ansatIdSchema", __FILE__ . " linje " . __LINE__));
+if ($ansatIdType && in_array(strtolower($ansatIdType['data_type']), ['text', 'character varying', 'varchar', 'char', 'tinytext', 'mediumtext', 'longtext'], true)) {
+	if ($ansatIdMysql) {
+		db_modify("UPDATE brugere SET ansat_id = NULL WHERE TRIM(ansat_id) = ''", __FILE__ . " linje " . __LINE__);
+		db_modify("ALTER TABLE brugere MODIFY ansat_id integer NULL DEFAULT NULL", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("ALTER TABLE \"brugere\" ALTER \"ansat_id\" TYPE integer USING NULLIF(trim(ansat_id), '')::integer, ALTER \"ansat_id\" DROP DEFAULT, ALTER \"ansat_id\" DROP NOT NULL", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+# 20261001 MJ SST-814 - the account field on debitor/ordre.php (javascript/ordreAutocomplete.js
+# -> finans/kassekladde_includes/accountSearch.php) searches adresser with ILIKE '%term%' on both
+# kontonr and firmanavn. A leading wildcard cannot use a B-tree index, and adresser had no index
+# at all beyond its primary key, so every keystroke scanned the whole table - twice, until the
+# redundant COUNT(*) was made opt-in in the same ticket. At Klunserkongen every rented stand is
+# another art='D' row, so the table grows steadily and the lookup slowed with it, which is why the
+# customer reported it as having "become" slow rather than always having been.
+# Measured on a synthetic 200,000-row adresser: a four-character stand number went from 177 ms to
+# 1.9 ms, and a six-character name from 184 ms to 35 ms.
+# pg_trgm is bootstrapped further up this file, but a tenant on managed hosting without superuser
+# may not have been permitted to create it - and that attempt is only made once, so it may never
+# be retried. Index only where the extension actually exists; everyone else keeps the unindexed
+# but still correct ILIKE path.
+# Built CONCURRENTLY, with the invalid-index recovery that makes it safe here. The first
+# version of this block used a plain CREATE INDEX IF NOT EXISTS and argued against
+# CONCURRENTLY, on the grounds that an interrupted concurrent build leaves an *invalid*
+# index behind which IF NOT EXISTS then matches on every later login, skipping the rebuild
+# forever and leaving an index the planner ignores while writes still maintain it. That trap
+# is real, but avoiding CONCURRENTLY is not how this repo answers it any more: SST-808 and
+# SST-818 both hit the same objection in review and solved it by checking pg_index.indisvalid
+# and dropping and rebuilding an invalid index, rather than by taking the write lock. SST-818
+# builds adresser_kontonr_art_idx on this very table that way. So the same shape is used here,
+# for the reason it was adopted there: a plain build locks out inserts, updates and deletes on
+# adresser for as long as it takes, and on a tenant large enough to need these indexes that is
+# a stall on order and account writes during someone else's login.
+# The advisory lock keeps two simultaneous logins from building the same index; the login that
+# would have to wait skips instead, because waiting deadlocks with CREATE INDEX CONCURRENTLY
+# (it waits in turn for the waiting login's open snapshot) - the failure SST-808 and SST-818
+# each had to fix after the fact.
+# Postgres only, and checked before the probe runs: pg_extension does not exist on MySQL, so
+# querying it there fails on every login. gin_trgm_ops, pg_index and CONCURRENTLY are Postgres
+# syntax regardless, so a MySQL tenant keeps the unindexed but correct ILIKE path, the same as
+# a tenant without the extension. Reported by ZaynSaul on PR #691; the pg_trgm bootstrap further
+# up this file has the same gap and is left alone here because it is not this ticket's code.
+$trgmIndexMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+if (!$trgmIndexMysql && db_fetch_array(db_select("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'", __FILE__ . " linje " . __LINE__))) {
+	$trgmIndexes = array(
+		'adresser_firmanavn_trgm_idx' => "ON adresser USING gin (firmanavn gin_trgm_ops)",
+		'adresser_kontonr_trgm_idx'   => "ON adresser USING gin (kontonr gin_trgm_ops)",
+	);
+	foreach ($trgmIndexes as $trgmIndexName => $trgmIndexDefinition) {
+		// Only the login that gets the lock builds; one that would wait skips, since waiting deadlocks with CONCURRENTLY
+		$trgmLock = db_fetch_array(db_select("SELECT pg_try_advisory_lock(hashtext('$trgmIndexName')) AS locked", __FILE__ . " linje " . __LINE__));
+		if (!$trgmLock || $trgmLock['locked'] !== 't') continue;
+		$qtxt = "SELECT pg_index.indisvalid FROM pg_index";
+		$qtxt.= " JOIN pg_class ON pg_class.oid = pg_index.indexrelid";
+		$qtxt.= " JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace";
+		$qtxt.= " WHERE pg_class.relname = '$trgmIndexName' AND pg_namespace.nspname = current_schema()";
+		$trgmExisting = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($trgmExisting && $trgmExisting['indisvalid'] !== 't') {
+			db_modify("DROP INDEX CONCURRENTLY $trgmIndexName", __FILE__ . " linje " . __LINE__);
+		}
+		if (!$trgmExisting || $trgmExisting['indisvalid'] !== 't') {
+			db_modify("CREATE INDEX CONCURRENTLY $trgmIndexName $trgmIndexDefinition", __FILE__ . " linje " . __LINE__);
+		}
+		db_select("SELECT pg_advisory_unlock(hashtext('$trgmIndexName'))", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+// 20261022 CDX/LH Stripe durable request identities, technical errors and enrolment delivery outbox.
+require_once __DIR__ . '/stripeIncludes/stripePaymentBooking.php';
+require_once __DIR__ . '/stripeIncludes/stripeChargeSchema.php';
+stripe_charge_schema_ensure();
+
+// 20261022 CDX/LH Repair each missing invoice payment index even when its table already exists.
+if ($db_type != 'mysql' && $db_type != 'mysqli') {
+	require_once __DIR__ . '/stripeIncludes/stripeInvoiceSchema.php';
+	stripe_payment_indexes_ensure();
+}
+
+// 20261025 CL/ASR adresser.udskriv_til is standard (admin/opret.php) but missing on some old ledgers; the invoice
+// & payment flow reads it (stripe_invoice_load) and enrolment writes it. Independent of the patches above.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='udskriv_til'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) db_modify("ALTER TABLE adresser ADD COLUMN udskriv_til varchar(10)", __FILE__ . " linje " . __LINE__);
 
 ?>

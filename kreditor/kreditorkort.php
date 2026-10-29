@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2026-05-01 ------
+// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-06 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20130224 Tilføjet kontofusion
 // 20140319 addslashes erstattet med db_escape_string
@@ -32,6 +32,21 @@
 //             (int)'' compared to '' is now a string comparison ("0" != ""), true, where PHP 7
 //             compared both as 0. Skip the check when the field is blank, same fix as
 //             debitor/debkort_save.php (SD-513)
+// 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20261008 Sawaneh WP-3.2/3.7: Tilbage goes to the plain returside (an order keeps id, fokus and the creditor), returside
+//                  sanitised and encoded, one confirm text for every Tilbage, the junk dialog text and the broken S-menu Ny link fixed.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The card on the new page head (page_bar): title, Ny kreditor as the primary button.
+// 20261009 Sawaneh The record (kontonr + name, or Nyt kreditorkort) as the last breadcrumb level (decision 22).
+// 20260928 CL/SZ SD-698: Tilbage glued "?returside=" onto a returside that already had a query string (e.g. kassekladde.php?kladde_id=5), producing a broken URL.
+//                The back link is now built once with the right separator, and returside is sanitized like debitorkort.php.
+// 20261001 CL/SZ SD-698: returside is URL-encoded wherever this card passes it on (Ny, contact person, kontofusion), so a returside with its own query string (kassekladde.php?tjek=..&kladde_id=..) keeps its kladde_id.
+//                The Ny links are javascript: hrefs, which the browser decodes once before running them, so returside is encoded twice there.
+//                The menu S Ny link used undefined $kort/$ny_id/$alerttekst; it now uses kreditorkort.php, $ordre_id and $tekst like the other Ny link.
+// 20261006 CL/SZ SD-698 (CodeRabbit) The Tilbage links no longer put the back address in a javascript: href: a returside with %27 passed the
+//                sanitizer and became a quote there. The address is an escaped data attribute that onclick hands to confirmClose().
+// 20261006 CL/SZ SD-698 (CodeRabbit) The Ny links go the same way, and ordre_id (an integer) and fokus (a field name) are cleaned where they are read,
+//                so a crafted fokus can't break out of the links, the hidden field or the kontofusion redirect either.
 
 
 @session_start();
@@ -61,10 +76,11 @@ if (isset($_GET['firmanavn'])) $firmanavn = $_GET['firmanavn'];
 if (isset($_GET['bank_reg'])) $bank_reg = $_GET['bank_reg'];
 if (isset($_GET['bank_konto'])) $bank_konto = $_GET['bank_konto'];
 
-if (isset($_GET['returside'])) {
-	$returside = $_GET['returside'];
-	$ordre_id  = if_isset($_GET['ordre_id'], 0);
-	$fokus     = if_isset($_GET['fokus'], 'kontonr');
+$returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
+if ($returside) {
+	$ordre_id  = (int)ifset($_GET, 'ordre_id', 0);
+	// A field name only: fokus is printed into links, a hidden field and the redirect to kontofusion.php
+	$fokus     = preg_replace('/[^A-Za-z0-9_]/', '', (string)ifset($_GET, 'fokus', 'kontonr'));
 } else {
 	if ($popup) $returside = "../includes/luk.php";
 	else $returside = "kreditor.php";
@@ -99,9 +115,9 @@ if ($_POST) {
 		$kreditmax = usdecimal($_POST['kreditmax']);
 		list($gruppe) = explode(':', $_POST['gruppe']);
 		$notes = db_escape_string(trim($_POST['notes']));
-		$ordre_id = $_POST['ordre_id'];
-		$returside = $_POST['returside'];
-		$fokus = $_POST['fokus'];
+		$ordre_id = (int)$_POST['ordre_id'];
+		$returside = nav_sanitize_returside(ifset($_POST, 'returside', ''));
+		$fokus = preg_replace('/[^A-Za-z0-9_]/', '', (string)$_POST['fokus']);
 		$posnr = isset($_POST['posnr']) ? $_POST['posnr'] : NULL;
 		$ans_id = isset($_POST['ans_id']) ? $_POST['ans_id'] : NULL;
 		$ans_ant = isset($_POST['ans_ant']) ? $_POST['ans_ant'] : NULL;
@@ -115,7 +131,7 @@ if ($_POST) {
 
 		if (substr($ny_kontonr, 0, 1) == "=") {
 			$ny_kontonr = str_replace("=", "", $ny_kontonr);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=kontofusion.php?returside=$returside&ordre_id=$ordre_id&id=$id&fokus=$fokus&kontonr=$ny_kontonr\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=kontofusion.php?returside=" . urlencode($returside) . "&ordre_id=$ordre_id&id=$id&fokus=$fokus&kontonr=$ny_kontonr\">\n";
 			exit;
 		}
 		######### Tjekker om kontonr er integer
@@ -194,83 +210,56 @@ if ($_POST) {
 	}
 }
 
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id') accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
-	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "
-	<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style='width:100%' class='dataTableSmall'><tbody>
-	<tr><td style='width:50%'>
-	<input type='button' style='width:150px;' onclick=\"location.href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(133, $sprog_id) . "'>
-	</td>
-	<td style='width:50%; text-align:right;'>
-	<input type='button' style='width:150px;' onclick=\"location.href='ordreliste.php?konto_id=$id&kontonumre=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(134, $sprog_id) . "'>
-	</td></tr>
-	</tbody>
-	</table>
-	";
-	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" class='dataTableForm' style='width:100%'><tbody>\n"; #tabel 1.2 start
-} elseif ($menu == 'S') {
-
-	################
-	$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-
-	$icon_kreditor = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"/></svg>';
-
-	$add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
-
-	################
-
+if (!$returside) $returside = $popup ? "../includes/luk.php" : "kreditor.php";
+// WP-3.2: Tilbage goes to the returside itself (no self-loop through kreditor.php); an order keeps its id, fokus and creditor.
+// A #fragment must stay last in the URL, so parameters are added before it and it is re-appended afterwards.
+$returFragment = '';
+$returBase = $returside;
+if (($fragPos = strpos($returside, '#')) !== false) {
+	$returFragment = substr($returside, $fragPos);
+	$returBase = substr($returside, 0, $fragPos);
+}
+$backHref = $returBase;
+if (strpos($returBase, 'ordre.php') !== false) {
+	$backHref .= (strpos($returBase, '?') === false ? '?' : '&') . "id=" . (int) $ordre_id . "&fokus=" . urlencode((string) $fokus) . "&konto_id=" . (int) $id;
+}
+$backHref .= $returFragment;
+$retursideParam = urlencode($returside);
+// The back link's address is data, not JavaScript: inside a javascript: href the browser decodes %27 to a quote before running it
+$confirmLinkAttr = function ($href, $text = '') {
+	return "href=\"#\" data-back=\"" . htmlspecialchars($href, ENT_QUOTES) . "\" data-text=\"" . htmlspecialchars((string)$text, ENT_QUOTES)
+		. "\" onclick=\"confirmClose(this.dataset.back, this.dataset.text); return false;\"";
+};
+$backLinkAttr = function ($text = '') use ($backHref, $confirmLinkAttr) {
+	return $confirmLinkAttr($backHref, $text);
+};
+// "Ny": the same card for a new kreditor, with this card's returside, ordre_id and fokus
+$newCardHref = 'kreditorkort.php?returside=' . urlencode($returside) . '&ordre_id=' . (int)$ordre_id . '&fokus=' . urlencode((string)$fokus);
+$tekst = findtekst(154, $sprog_id);
+if ($menu == 'S') {
+	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+	include_once("../includes/stdFunc/pageBar.php");
 	$tekst = findtekst(154, $sprog_id);
+	page_bar(array(
+		'title' => findtekst('1184|Kreditorkort', $sprog_id),
+		'back' => $backHref,
+		'back_onclick' => 'confirmClose(' . json_encode($backHref) . ', ' . json_encode($tekst) . '); return false;',
+		'primary' => array(findtekst('7002|Ny kreditor', $sprog_id), '#', 'accesskey' => 'N',
+			'onclick' => 'confirmClose(' . json_encode($newCardHref) . ', ' . json_encode($tekst) . '); return false;'),
+	));
 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel 1 start
-	print "<tr bgcolor=$bg><td colspan=\"3\" align=\"center\" valign=\"top\">\n";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n"; #tabel 1.1 start
-
-	print "<td width='5%'>
-		   <a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst -----------nopoooooooooooo')\" accesskey=L>
-		  <button class='center-btn'style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. $tilbage_icon . findtekst(30, $sprog_id) . "</button></a></td>\n";
-
-	print "<td width='75%' style='$topStyle' align='center'>SALDI - " . findtekst(1184, $sprog_id) . "</td>\n";
-
-	print "<td width=5% style='$buttonStyle'>
-	   <a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey='N'>
-	   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-	   $add_icon " . findtekst(39, $sprog_id) . "</button></a></td>";
-
-	print "</tbody></table>\n"; #tabel 1.1 slut
-	print "</td></tr>\n";
+	print "<tr bgcolor=$bg><td colspan=\"3\" align=\"center\" valign=\"top\"></td></tr>\n";
 	print "<td></td><td align = center valign = top>\n";
-
-?>
-	<style>
-		.headerbtn,
-		.center-btn {
-			display: flex;
-			align-items: center;
-			text-decoration: none;
-			gap: 5px;
-		}
-
-		a:link {
-			text-decoration: none;
-		}
-	</style>
-<?php
+	print "<style>a:link { text-decoration: none; }</style>\n";
 } else {
 	$tekst = findtekst(154, $sprog_id);
 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel 1 start
 	print "<tr bgcolor=$bg><td colspan=\"3\" align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n"; #tabel 1.1 start
-	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
-	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a " . $backLinkAttr($tekst) . " accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
+	else print "<td $top_bund><a " . $backLinkAttr($tekst) . " accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">SALDI - " . findtekst(1184, $sprog_id) . "</td>\n";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"javascript:confirmClose('kreditorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td>\n";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a " . $confirmLinkAttr($newCardHref . '&konto_id=' . urlencode((string)$id), $tekst) . " accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td>\n";
 	print "</tbody></table>\n"; #tabel 1.1 slut
 	print "</td></tr>\n";
 	print "<td></td><td align = center valign = top>\n";
@@ -279,18 +268,18 @@ if ($menu == 'T') {
 print "<div class='outer-datatable-wrapper'>";
 print "<div class='datatable-wrapper'>";
 
-if ($menu != 'T') {
-	// START A NEW TABLE with the same properties:
-	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" class='dataTableForm' style='width:100%'><tbody>\n"; #tabel 1.2 start
-
-}
+// START A NEW TABLE with the same properties:
+print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" class='dataTableForm' style='width:100%'><tbody>\n"; #tabel 1.2 start
 
 
+
+if ($menu == 'S' && $id <= 0 && function_exists('page_record')) print page_record(findtekst('7025|Nyt kreditorkort', $sprog_id));
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
 	$kontonr = trim($r['kontonr']);
 	$firmanavn = htmlentities(trim($r['firmanavn']), ENT_COMPAT, $charset);
+	if ($menu == 'S' && function_exists('page_record')) print page_record(trim($kontonr . ' ' . $firmanavn));
 	$addr1 = htmlentities(trim($r['addr1']), ENT_COMPAT, $charset);
 	$addr2 = htmlentities(trim($r['addr2']), ENT_COMPAT, $charset);
 	$postnr = trim($r['postnr']);
@@ -333,7 +322,7 @@ print "<form name=kreditorkort action=kreditorkort.php method=post>\n";
 print "<input type=hidden name=id value='$id'>\n";
 print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
-print "<input type=hidden name=returside value='$returside'>\n";
+print "<input type=hidden name=returside value='" . htmlspecialchars($returside, ENT_QUOTES) . "'>\n";
 print "<input type=hidden name=fokus value='$fokus'>\n";
 $bg = $bgcolor5;
 print "<tr bgcolor=$bg><td valign=\"top\" height=\"250px\"><table border=\"0\" width=\"100%\"><tbody>\n"; # tabel 1.2.1 ->
@@ -379,7 +368,7 @@ $q = db_select("select beskrivelse from grupper where art='KG' and kodenr='$grup
 $r = db_fetch_array($q);
 print "<td><SELECT NAME=gruppe value=\"$gruppe\"  onchange=\"javascript:docChange = true;\">\n";
 print "<option>$gruppe:$r[beskrivelse]</option>\n";
-$q = db_select("select * from grupper where art='KG' and kodenr!='$gruppe'  and fiscal_year = '$regnaar' order by kodenr", __FILE__ . " linje " . __LINE__);
+$q = db_select("select * from grupper where art='KG' and kodenr!='$gruppe'  and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false order by kodenr", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	print "<option>$r[kodenr]:$r[beskrivelse]</option>\n";
 }
@@ -450,13 +439,13 @@ if ($id) {
 	print "<tr bgcolor=$bg><td colspan=3><table width=\"100%\" border=0><tbody>\n"; #tabel 3.3.1 start
 	print "<tr bgcolor=$bg><td colspan=6><b>" . findtekst('392|Kontaktpersoner', $sprog_id) . "</b></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('394|Pos.', $sprog_id) . "</td><td>" . findtekst('398|Kontakt', $sprog_id) . "</td><td>" . findtekst('400|Direkte/lokal', $sprog_id) . "</td><td>" . findtekst('401|Mobil', $sprog_id) . "</td><td>" . findtekst('402|E-mail', $sprog_id) . "</td><td><a href='ansatte.php?ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&returside=$returside'><button type='button' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "</button></a></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('394|Pos.', $sprog_id) . "</td><td>" . findtekst('398|Kontakt', $sprog_id) . "</td><td>" . findtekst('400|Direkte/lokal', $sprog_id) . "</td><td>" . findtekst('401|Mobil', $sprog_id) . "</td><td>" . findtekst('402|E-mail', $sprog_id) . "</td><td><a href='ansatte.php?ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&returside=$retursideParam'><button type='button' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "</button></a></td></tr>\n";
 	$x = 0;
 	$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td width=10><input class=\"inputbox\" type=text size=2 name=posnr[$x] value=\"$x\"></td><td><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+		print "<tr bgcolor=$bg><td width=10><input class=\"inputbox\" type=text size=2 name=posnr[$x] value=\"$x\"></td><td><a href=ansatte.php?returside=$retursideParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
 		print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td><td></td></tr>\n";
 		print "<input type=hidden name=ans_id[$x] value=$r[id]>\n";
 		if ($x == 1) print "<input type=hidden name=kontakt value='$r[navn]'>\n";
@@ -475,25 +464,15 @@ if (db_fetch_array($q)) $slet = "NO";
 $q = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 if (db_fetch_array($q)) $slet = "NO";
 
-if ($menu == 'T') {
-	if ($slet == "NO") {
-		print "<tr><td colspan=3 align = center><input style='width:150px; border-radius:4px;' class='button green medium'  type=submit accesskey=\"g\" value=\"" . findtekst(471, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>\n";
-	} else {
-		print "<tr><td colspan=3 align = center><input style='width:150px; border-radius:4px;' class='button green medium'  type=submit accesskey=\"g\" value=\"" . findtekst(471, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\">&nbsp;&nbsp;&nbsp;<input style='border-radius:4px;' type=submit accesskey=\"s\" value=\"" . findtekst(1099, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>\n";
-	}
+if ($slet == "NO") {
+	print "<tr bgcolor=$bg><td colspan=3 align = center><input style='border-radius:4px;' type=submit accesskey=\"g\" value=\"" . findtekst(471, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>\n";
 } else {
-	if ($slet == "NO") {
-		print "<tr bgcolor=$bg><td colspan=3 align = center><input style='border-radius:4px;' type=submit accesskey=\"g\" value=\"" . findtekst(471, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>\n";
-	} else {
-		print "<tr bgcolor=$bg><td colspan=3 align = center><input style='border-radius:4px;' type=submit accesskey=\"g\" value=\"" . findtekst(471, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\">&nbsp;&nbsp;&nbsp;<input style='border-radius:4px;' type=submit accesskey=\"s\" value=\"" . findtekst(1099, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>\n";
-	}
+	print "<tr bgcolor=$bg><td colspan=3 align = center><input style='border-radius:4px;' type=submit accesskey=\"g\" value=\"" . findtekst(471, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\">&nbsp;&nbsp;&nbsp;<input style='border-radius:4px;' type=submit accesskey=\"s\" value=\"" . findtekst(1099, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>\n";
 }
 print	"</tbody></table>"; #tabel 1.2.3 slut
 print	"</td></tr>";
 print	"</tbody></table>"; #tabel 1.2 slut
-if ($menu == 'T') {
-	print "";
-} elseif ($menu == 'S') {
+if ($menu == 'S') {
 
 	print "<tr><td colspan='3'>";
 	print "<table width='100%' align='center' border='0' cellspacing='0' cellpadding='0'><tbody>"; #tabel 1.3. start
@@ -532,11 +511,7 @@ if (isset($_GET['cvrnr']) && $cvrnr) {
 }
 
 
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 ?>
 
 

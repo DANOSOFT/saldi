@@ -44,8 +44,10 @@ $s_id=session_id();
 // 20260304 PHR Costprice is from now only updated on positive qty og price.
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 // 20260908 CDX/LH Lock creditor orders before posting and update split purchase batches once (SST-765).
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

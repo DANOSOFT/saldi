@@ -50,6 +50,7 @@
 //                back-button style instead of a hardcoded link to
 //                diverse.php?sektion=pos_valg. See MB-23.
 // 20260827 CL/SZ Fixed pos_menu_location cookie write order (was
+// 20261004 Sawaneh Shown inside the settings frame (top.php) with the Kasse tab list and breadcrumb, instead of its own Close header.
 //                menu_id-ret_col-ret_row, callers read it as
 //                menu_id-ret_row-ret_col) and a $bud_id/$but_id typo that
 //                made a re-fetch guard always fire.
@@ -110,7 +111,7 @@ $copyFromCol = if_isset($_POST['copyFromCol']);
 $copyFromRow = if_isset($_POST['copyFromRow']);
 $folgevarer = if_isset($_POST['folgevarer']);
 
-setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_row]-$_GET[ret_col]", time() + (86400 * 30), "/");
+saldi_setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_row]-$_GET[ret_col]", time() + (86400 * 30), "/");
 
 if ($menu_id) {
 	if (!$beskrivelse)
@@ -380,17 +381,9 @@ if (!$radius)
 if (!$fontsize)
 	$fontsize = 20;
 
-print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
-print "<tr><td align='center' valign='top'>\n";
-print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>\n";
-print "<td width='10%'>
-	<a href='" . htmlspecialchars($returside, ENT_QUOTES) . "' accesskey='L'>
-	<button type='button' class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-	. $icon_back . findtekst('2172|Luk', $sprog_id) . "</button></a></td>\n";
-print "<td width='80%' style='$topStyle' align='center'>" . $title . "</td>\n";
-print "<td width='10%' style='$buttonStyle'></td>\n";
-print "</tr></tbody></table>\n";
-print "</td></tr></tbody></table>\n";
+// Inside the settings frame like the other old settings pages: tab list for Kasse, breadcrumb in the topbar.
+if (!isset($popup)) $popup = null;
+include("top.php");
 print "<style>.center-btn{display:flex;align-items:center;text-decoration:none;gap:5px;}</style>\n";
 
 print "<table border = '1'><tbody><tr><td>\n";
@@ -1173,7 +1166,8 @@ print "</div>";
 					if (isNaN(id) || id === '') {
 						alert('Ikke et validt varenummer.');
 					} else {
-					window.location.href = `../lager/varekort.php?id=${id}&returside=${encodeURI(window.location.href)}`;
+					// WP-5.14: a relative, fully encoded return (encodeURI left & and ? raw, and a full URL is refused by the sanitiser)
+					window.location.href = `../lager/varekort.php?id=${id}&returside=${encodeURIComponent('../systemdata/posmenuer.php' + window.location.search)}`;
 					}
 				})
   }

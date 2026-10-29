@@ -41,6 +41,9 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260525 CL/PHR - Debitor/kreditor bruger debet/kredit(konto) som fallback hvis feltet er tomt
 // 20260525 CL/PHR - Kolonnevalg gemmes nu også ved Flyt (ikke kun ved Vis)
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 
 @session_start();
 $s_id = session_id();
@@ -48,6 +51,7 @@ $css = "../css/standard.css";
 
 $title = "Import til kassekladde";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
@@ -78,35 +82,15 @@ if (($_GET) || ($_POST)) {
 		$datoformat = if_isset($_POST['datoformat']);
 		$fileCharSet = if_isset($_POST['fileCharSet']);
 	}
-	if ($menu=='T') {
-		print "<center><table width=\"75%\" height=\"auto\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	} else {
-		print "<center><table width=\"100%\" height=\"auto\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	}
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\"> 
-				<div class=\"headerbtnLft\"></div>
-				<span class=\"headerTxt\">" . findtekst(1074, $sprog_id) . " " . findtekst(904, $sprog_id) . " " . lcfirst(findtekst(105, $sprog_id)) . " (" . lcfirst(findtekst(105, $sprog_id)) . " $kladde_id)</span>";
-		print "<div class=\"headerbtnRght\"></div>";
-		print "</div><!-- end of header -->
-			<div class=\"maincontentLargeHolder\">\n";
-		print "<center><table border='0' cellspacing='1' width='75%'>";
-	} elseif ($menu=='S') {
+	print "<center><table width=\"100%\" height=\"auto\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	if ($menu=='S') {
+		include_once("../includes/stdFunc/pageBar.php");
+		page_bar(array(
+			'title' => findtekst(1074, $sprog_id)." ".findtekst(904, $sprog_id)." ".lcfirst(findtekst(105, $sprog_id))." (".lcfirst(findtekst(105, $sprog_id))." $kladde_id)",
+			'back' => "kassekladde.php?kladde_id=$kladde_id",
+		));
 		print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 		print "<tr><td height = '25' align='center' valign='top'>";
-		print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-
-		print "<td width='10%'><a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			   .findtekst(30, $sprog_id)."</button></a></td>";
-
-		print "<td width='80%' style='$topStyle' align='center'>".findtekst(1074, $sprog_id)." ".findtekst(904, $sprog_id)." ".lcfirst(findtekst(105, $sprog_id))." (".lcfirst(findtekst(105, $sprog_id))." $kladde_id)</td>";
-
-		print "<td width='10%' style='$topStyle' align='center'></td>";
-
-		print "</tbody></table>";
 		print "</td></tr>";
 	} else {
 		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
@@ -184,11 +168,7 @@ function upload($kladde_id, $bilag)
 {
 	global $charset, $menu, $sprog_id;
 
-	if ($menu == 'T') {
-		$hrlinje = "<hr width=100%>";
-	} else {
-		$hrlinje = "<hr width=30%>";
-	}
+	$hrlinje = "<hr width=30%>";
 
 	print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td width=100% align=center><b>" . findtekst(1074, $sprog_id) . " " . lcfirst(findtekst(1076, $sprog_id)) . "</b></td></tr>"; #20210629

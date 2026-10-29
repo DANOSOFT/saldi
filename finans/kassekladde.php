@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-10-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,8 +111,6 @@
 // 20260907 CL/LH  The replay fingerprint is recorded only after a successful save; recording it before
 //                  kontroller() turned a double-click on a failing save into a "replay" that skipped
 //                  validation, emptied tmpkassekl and showed neither the error nor the typed lines.
-// 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
-// 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
 // 20260908 SZ SST-755: every exit path (Tilbage/Luk/Ny) now releases the lock through
 //                  includes/luk.php instead of the dead/conditional exitDraft links, and an
 //                  unload/pagehide beacon was added (there was none before).
@@ -120,6 +118,7 @@
 //                  too, and the unload beacon checks sendBeacon()'s return value before
 //                  treating the lock as released, falling back to the sync XHR when it fails.
 // 20260914 CDX/LH Check completed form saves before creating journals; scope replays to tenant/user.
+// 20260918 LOE MB-41 Save/Enter continues on the new line, and that line renders last.
 // 20260923 SZ SST-755 (CodeRabbit): exit link and beacon now carry a per-render lockToken
 //                  instead of tidspkt, since tidspkt alone didn't distinguish two tabs open on
 //                  the same kladde before either one saved.
@@ -127,14 +126,59 @@
 //                  observed tidspkt, so a stale render can't overwrite a token a concurrent
 //                  tidspkt change has since replaced (unlockRecord.php's refresh_lock_token()
 //                  now requires it).
+// 20260928 LOE SST-817 Next voucher number comes from the journal's highest, and a line saved without one gets it.
+// 20260928 CL/SZ SST-818: The open journal ran one full-kladde select per line to check whether the kladde had saved lines, and two documents lookups per line; both are now done once per page.
+//                Saving reloaded the whole chart of accounts (and for D/K lines all of adresser) for every line and scanned it with in_array(); kontroller() now loads them once per request and checks with isset().
+// 20260929 CL/SZ SST-818: kk_finance_account_lookup() counts an account as closed only when lukket is 'on', the same test the account search uses.
 // 20260930 CL/SZ SD-701 Clicking an attached voucher opens it in a separate tab (reused per click), so it can sit
 //                  on a second screen while the journal, incl. unsaved values, stays open in the original tab.
 // 20261002 CL/SZ SD-701 The voucher tab is view-only; managing attachments goes back to the journal tab via openBilagManage().
 //                  The unsaved-changes prompt for the clip is translated (findtekst 5280/5281).
 // 20261005 LOE SST-856 Only a click on a header link may change the saved sorting: a form action
 //                  sent kksort without kkdir, which reset a descending choice to ascending.
+// 20261008 Sawaneh "Kassekladde <id>" is the page's last breadcrumb level (page_title, topbar addendum §5).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20260929 CL/SZ SD-698: The account lookup popup gets a card button on every line: a debtor opens the debitorkort, a creditor the kreditorkort, a finance account its kontospec.
+//                In a posted journal the debit/credit number itself links to the same page (resolved on click, no lookup per line), and each page's Tilbage returns to this journal.
+//                A returside pointing back at kassekladde.php is ignored so the journal's own Tilbage cannot loop.
+// 20261003 CL/SZ SD-698: accountAutocomplete.js version bumped; the card now opens in its own tab, so unsaved journal edits are kept.
+// 20261012 CL/SZ SD-730 Regnskabsår select in the header (fiscalYearSwitch.php): switches the active year and comes back to
+//                  the same journal. A clip next to Bemærkning opens the journal's own documents (journalDocuments.php).
+//                  Coming back from the open-posts page keeps the line's Forfaldsdato and Betalings-id (they were emptied).
+//                  Close on a journal opened with returside=kladdeliste.php (Ny) went to includes/kladdeliste.php (Not Found).
+// 20261013 CL/SZ SD-730 The Bemærkning field shrinks (up to 750px) so the header row fits a 1280px screen.
+//                  The "Genveje til Kassekladden" help link was pushed out of view (already on master; the new cells made it worse).
+// 20261006 CL/SZ SD-714 accountAutocomplete.js?v= bumped: a click into a field that already has the cursor opens the lookup panel.
+// 20261003 CL/SZ SD-715 Fakturanr. is marked when the same kreditor already has that invoice number in an open journal, a posted entry or the pool (invoiceReuse.php, one query per source for the whole page).
+//                The warning doesn't block saving or posting.
+// 20261006 CL/SZ SD-715 Fakturanr. is also checked while a line is typed (window.saldiInvoiceReuseJournal for invoiceReuse.js); invoiceReuse.js?v= bumped.
+// 20261003 CL/SZ SD-716 Ctrl + arrow keys use fieldNavigation.js instead of jquery.formnavigation.js, which stopped at the VAT select after the account field and let the cursor jump inside the field.
+//                accountAutocomplete.js version bumped for its new close function.
+// 20261003 CL/SZ SD-716 The paper-clip on a line without a document saves the journal first and then opens the pool, instead of "Obs - Du har ikke gemt".
+//                The pool opens for the clicked line, or for the line the save just created from the new line, so the document can't land on a duplicate line.
+//                If the save fails validation, the journal stays with its normal error.
+// 20261003 CL/SZ SD-720 accountAutocomplete.js?v= bumped for its late-answer fix.
+// 20261005 CL/SZ SD-716 Only a save moves the staged lines (tmpkassekl) into the journal. Opening the journal after a refused save
+//                (e.g. after the paper-clip save stopped at an unknown account) wrote the refused values into the line without the check,
+//                and the journal then refused every save.
+// 20261006 CL/SZ SD-720 accountAutocomplete.js?v= bumped again: the invoice-number and amount searches got the same late-answer rule.
+// 20261006 CL/SZ SD-716 With SD-701 from master: the paper icon of a line with a document opens it in its own tab (openBilagTab()); without one it
+//                still saves first and opens the pool (clipSaveThenPool()).
+// 20261006 CL/SZ SD-716 (CodeRabbit) After the paper-clip save, the pool opens on the line this save inserted (kk_new_line_ids) instead of the
+//                journal's highest id, which could be a line another session added at the same time.
+// 20261007 CL/SZ SD-716 The first save of a new journal keeps its lines again: the journal is created in that request, so its lines count as staged by it.
+// 20261012 CL/SZ SD-716 A pick on a lookup page (an invoice row, an account) is saved again; only a save had moved staged lines, so the
+//                lookup's GET back lost it. The lookup marks the journal in the session and only the GET coming back from it may
+//                move the lines. A later POST or a completed request clears the mark, so a refused save still never gets through.
+// 20261012 CL/SZ SD-730 The paper-clip on a journal that was never saved saves it first even with nothing typed; it opened the pool
+//                with kladde_id=0, where "Indsæt valgte" inserted nothing and came back to an empty journal.
+//                (Reported under SD-730; the fix is here because the save-first clip is SD-716's.)
+
+
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
+require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
+require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
 require_once __DIR__ . '/kassekladde_includes/sorting.php';
 
@@ -192,6 +236,7 @@ $vis_afd = $vis_ansat = $vis_bet_liste = $vis_forfald = $vis_projekt = $vis_valu
 $control_bal_fetched = FALSE;
 $control_bal_last = $control_next_date = $control_record_daet = $titletxt = NULL;
 $fejl = $kontrolsaldo = $kontrolsum = $x = $y = 0;
+$kkAfterSave = ''; // SD-716: set when the paper-clip saved first (clipSaveThenPool)
 
 
 if (!isset($kontrolmoms))
@@ -218,6 +263,10 @@ if ($kk_saved_journal !== null) {
 	exit;
 }
 include("../includes/std_func.php");
+// SD-730: ?aktiver_regnaar=<year> from the header's Regnskabsår select switches the year and comes back here
+require_once __DIR__ . '/kassekladde_includes/fiscalYearSwitch.php';
+require_once __DIR__ . '/kassekladde_includes/journalDocumentsFunc.php';
+if (!$_POST) fiscalYearSwitchHandle($_GET, $regnaar, $brugernavn, $bruger_id, $revisor, $db_id, session_id());
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
@@ -285,6 +334,61 @@ function is_account_number($value) {
         return false;
     }
     return ctype_digit(trim((string)$value));
+}
+
+/**
+ * Lookup key under which isset() finds what in_array()'s loose comparison found: numeric values
+ * compare as numbers ("01000" is account 1000), anything else as the exact string.
+ */
+function kk_account_key($value) {
+    return is_numeric($value) ? 'n' . ($value + 0) : 's' . $value;
+}
+
+/**
+ * The finance accounts kontroller() validates against, loaded once per request instead of once per line.
+ *
+ * @return array{
+ *   accounts: array<string, true>,  Accounts that are not headings or totals (H/Z), keyed by kk_account_key().
+ *   closed: array<string, true>,    The closed (lukket) ones among them, same keys.
+ * }
+ */
+function kk_finance_account_lookup($regnaar) {
+    static $cache = array();
+    $regnaar = (int)$regnaar;
+    if (!isset($cache[$regnaar])) {
+        $lookup = array('accounts' => array(), 'closed' => array());
+        $qtxt = "select kontonr,lukket from kontoplan where kontotype != 'H' and kontotype != 'Z' and regnskabsaar=$regnaar";
+        $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        while ($row = db_fetch_array($query)) {
+            $key = kk_account_key(trim($row['kontonr']));
+            $lookup['accounts'][$key] = true;
+            if ($row['lukket'] === 'on') $lookup['closed'][$key] = true;
+        }
+        $cache[$regnaar] = $lookup;
+    }
+    return $cache[$regnaar];
+}
+
+/**
+ * The debtor and creditor account numbers kontroller() validates against, loaded once per request.
+ *
+ * @return array{
+ *   D: array<string, true>,  Debtor account numbers, keyed by kk_account_key().
+ *   K: array<string, true>,  Creditor account numbers, same keys.
+ * }
+ */
+function kk_address_account_lookup() {
+    static $lookup = null;
+    if ($lookup === null) {
+        $lookup = array('D' => array(), 'K' => array());
+        $query = db_select("select kontonr, art from adresser", __FILE__ . " linje " . __LINE__);
+        while ($row = db_fetch_array($query)) {
+            $key = kk_account_key(trim((string)$row['kontonr']));
+            if (strstr((string)$row['art'], "D")) $lookup['D'][$key] = true;
+            if (strstr((string)$row['art'], "K")) $lookup['K'][$key] = true;
+        }
+    }
+    return $lookup;
 }
 
 function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_codes) {
@@ -457,6 +561,30 @@ print '<script>
 </script>';
 print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
+// SD-716: the paper-clip to the pool saves unsaved lines first. line is the line's id, or 'new' for the line typed at the bottom.
+print '<script>
+	function clipSaveThenPool(href, line) {
+		var save = document.querySelector(\'input[name="save"]\');
+		// A journal that was never saved has id 0 and the pool can\'t insert into it ("Ingen aktiv kassekladde"),
+		// so it is saved first even when nothing was typed: the save creates the journal and opens the pool on it.
+		var journalId = save && save.form ? save.form.querySelector(\'input[name="kladde_id"]\') : null;
+		var journalSaved = journalId && parseInt(journalId.value, 10) > 0;
+		if ((!docChange && journalSaved) || !save || !save.form) {
+			document.location = href;
+			return;
+		}
+		var after = save.form.querySelector(\'input[name="kkAfterSave"]\');
+		if (!after) {
+			after = document.createElement("input");
+			after.type = "hidden";
+			after.name = "kkAfterSave";
+			save.form.appendChild(after);
+		}
+		after.value = String(line);
+		docChange = false;
+		if (typeof save.form.requestSubmit === "function") save.form.requestSubmit(save); else save.click();
+	}
+</script>';
 // SD-701 Attached vouchers open in one named tab that later clicks reuse, so a tab moved to a second
 // screen keeps showing the current voucher. The journal is not left, so there is no unsaved-changes prompt,
 // unless the popup is blocked and the fallback navigates the journal tab.
@@ -489,8 +617,12 @@ print "<script>
 	}
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
-print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.4">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.6" defer></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.5">';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.13" defer></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/invoiceReuse.css?v=1">';
+print '<script src="../javascript/invoiceReuse.js?v=3" defer></script>';
+// SD-715: the line being typed is checked too, not only the saved ones
+print "<script>window.saldiInvoiceReuseJournal = { url: 'kassekladde_includes/invoiceReuseCheck.php' };</script>";
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -715,6 +847,9 @@ $r = db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' 
 ($r['box10']) ? $vis_bet_id = 1         : $vis_bet_id = 0;
 if ($_GET) {
 	$returside = if_isset($_GET, null, 'returside');
+	// A card opened from a journal row (SD-698) appends returside=<this journal> to its Tilbage link;
+	// as the journal's own back target that would loop, so fall back to the default.
+	if ($returside && basename((string)parse_url($returside, PHP_URL_PATH)) == 'kassekladde.php') $returside = null;
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
 	$sort            =       if_isset($_GET, 		null,   'sort');
@@ -742,6 +877,9 @@ if ($_GET) {
 	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
 	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
 	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	// SD-730: the open-posts links (an invoice row, Indsæt, Luk) carry these, so the line keeps them
+	if (isset($_GET['forfaldsdato'])) $forfaldsdato[$x] = db_escape_string(trim((string)$_GET['forfaldsdato']));
+	if (isset($_GET['betal_id']))     $betal_id[$x]     = db_escape_string(trim((string)$_GET['betal_id']));
 	$find            =       if_isset($_GET, 		'',		'find');
 	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
 	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
@@ -834,6 +972,9 @@ if ($_GET) {
 			}
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
+			// Back from a lookup page (an invoice row, Indsæt, an account). The lookup POST staged and checked the other lines and
+			// this line was checked just above, so this GET may move them into the journal like a save.
+			if (!empty($_SESSION['kk_lookup_staged'][$kladde_id])) $kkStaged = true;
 		}
 		if ($fejl)
 			$submit = 'save';
@@ -858,6 +999,8 @@ if ($_POST) {
 	else $submit   = trim(if_isset($_POST['submit'], ''));
 	$tidspkt       = if_isset($_POST['tidspkt']);
 	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
+	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool)
+	$kkAfterSave   = (string)ifset($_POST, 'kkAfterSave', '');
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
 	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
@@ -877,6 +1020,10 @@ if ($_POST) {
 	#			 alert('a'.$alerttekst);
 	#		}
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+		// This request stages the lines itself, so opdater() below may move them into the journal
+		$kkStaged = true;
+		// A lookup page opened before this request no longer returns to the lines it replaces (see 'lookup' below)
+		unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 		if (isset($_POST['cancelSimulation']) && $_POST['cancelSimulation']) {
 			db_modify("delete from simulering where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 			$qtxt = "update kladdeliste set bogfort = '-', bogforingsdate = NULL, bogfort_af = '' where id = '$kladde_id' and bogfort = 'S'";
@@ -1363,6 +1510,8 @@ if ($_POST) {
 			$kladdedate = date("Y-m-d");	# OBS I naeste linje indsaettes tidspkt fratrukket 1 sek. Ellers bliver 1. gemning afvist af	"Refresktjek"
 			db_modify("insert into kladdeliste (id, kladdenote, kladdedate, bogfort, hvem, oprettet_af, tidspkt) values ('$kladde_id', '$ny_kladdenote', '$kladdedate', '-', '$brugernavn', '$brugernavn', '$tidspkt')", __FILE__ . " linje " . __LINE__);
 			journalRememberCreation($_SESSION, $kk_form_key, (int)$kladde_id);
+			// The new journal's lines are staged by this request (below), so opdater() moves them into it (SD-716)
+			$kkStaged = true;
 			$tidspkt = microtime();
 		}
 		if ($kladde_id) {
@@ -1512,6 +1661,9 @@ if ($_POST) {
 				}
 			}
 			if ($submit === 'lookup') {
+				// Every other line was staged and checked above (a refused one never gets here), and the lookup page comes
+				// back with a GET that must save the chosen value, so that GET may run opdater() (see the GET path).
+				$_SESSION['kk_lookup_staged'][$kladde_id] = true;
 				if (isset($debet[$opslag_id])) {
 					if (strtoupper($debet[$opslag_id]) == "K") $d_type[$opslag_id] = "K";
 					elseif (strtoupper($debet[$opslag_id]) == "D") $d_type[$opslag_id] = "D";
@@ -1624,9 +1776,6 @@ if ($_POST) {
 			if ($submit == 'offset') {
 				print "<meta http-equiv='refresh' content='0;URL=../finans/autoudlign.php?kladde_id=$kladde_id'>";
 			}
-			if (strstr($submit, "DocuB")) {
-				print "<meta http-equiv='refresh' content='0;URL=../finans/docubizzimport.php?kladde_id=$kladde_id'>";
-			}
 		}
 	}
 } else { # endif ($_POST)
@@ -1658,7 +1807,9 @@ if (!$fejl && $kladde_id) {
 	// A replayed save (see $kk_replay above) must not move the staged lines into the journal
 	// again - that is exactly what produced the duplicate rows. Still clear the staging table.
 	if (empty($kk_replay)) {
-		opdater($kladde_id);
+		// Only lines this request staged and checked (kontroller()). What a refused save left in tmpkassekl must not
+		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
+		if (!empty($kkStaged)) opdater($kladde_id);
 		initializePositions($kladde_id);
 		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
 		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
@@ -1670,6 +1821,26 @@ if (!$fejl && $kladde_id) {
 		}
 	}
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+	unset($_SESSION['kk_lookup_staged'][$kladde_id]);
+	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now
+	if ($submit == 'save' && $kkAfterSave !== '') {
+		$kkPoolLine = 0;
+		if ($kkAfterSave === 'new') {
+			// The line typed at the bottom is the last one this save inserted, if it inserted one. The ids come from
+			// this request's own inserts (kk_note_new_line()), so a line another session adds meanwhile is never taken.
+			if (!empty($GLOBALS['kk_new_line_ids'])) $kkPoolLine = (int)max(array_map('intval', $GLOBALS['kk_new_line_ids']));
+		} else {
+			$r = db_fetch_array(db_select("select id from kassekladde where id = '" . (int)$kkAfterSave . "' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
+			if ($r) $kkPoolLine = (int)$r['id'];
+		}
+		$kkPoolUrl = "../includes/documents.php?source=kassekladde&sourceId=$kkPoolLine&kladde_id=" . (int)$kladde_id . "&fokus=&openPool=1";
+		if ($kkPoolLine) {
+			$r = db_fetch_array(db_select("select bilag from kassekladde where id = '$kkPoolLine'", __FILE__ . " linje " . __LINE__));
+			if ($r) $kkPoolUrl .= "&bilag=" . (int)$r['bilag'];
+		}
+		// After the journal has loaded, so its pagehide handler releases the lock as on a normal click
+		print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
+	}
 }
 /*
 if (strlen($kontrolkonto)==1) {
@@ -1727,6 +1898,9 @@ if (!$simuler) {
 	} else {
 		$backUrl = "../finans/kladdeliste.php";
 	}
+	// SD-730: Close goes through ../includes/luk.php, so a bare file name (returside=kladdeliste.php from Ny) has to point
+	// back into finans/; it ended on includes/kladdeliste.php (Not Found)
+	if (strpos($backUrl, '/') === false) $backUrl = "../finans/" . $backUrl;
 	if ($returside != "regnskab") {
 		$returside = "../finans/kladdeliste.php";
 	}
@@ -1735,24 +1909,10 @@ if (!$simuler) {
 	if ($udskriv) {
 		print "<div class='print-view'>";
 	}
-	if ($menu != 'T') {
-		#print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
-	}
+	#print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
 	if (!$udskriv) {
-		if ($menu == 'T') {
-			include_once '../includes/top_header.php';
-			include_once '../includes/top_menu.php';
-
-			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-			print "<div id='header'>";
-			$backTarget = $kladdeLukBase . "&returside=" . urlencode($backUrl);
-			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('" . htmlspecialchars($backTarget, ENT_QUOTES, $charset) . "','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
-			print "<div class='headerTxt'>$title &nbsp;•&nbsp; $kladde_id</div>";
-			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('" . htmlspecialchars($kladdeLukBase . "&returside=" . urlencode('../finans/kassekladde.php'), ENT_QUOTES, $charset) . "','$tekst')\" title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
-			print "</div>";
-			print "<div class='content-noside'>";
-
-		} elseif ($menu=='S') {
+		if (function_exists('page_title')) print page_title(findtekst('1072|Kassekladde', $sprog_id) . ' ' . $kladde_id);
+		if ($menu=='S') {
 			include_once 'kassekladde_includes/topLineKassekladde.php';
 		} else {
 			print "<tr><td height='1%' align='center' valign='top' class='top-header'>";
@@ -1808,6 +1968,24 @@ function build_kassekladde_query($kladde_id, $kksort) {
     return $query;
 }
 
+$kk_card_titles = array(
+	'F' => findtekst('1196|Specifikation for', $sprog_id) . ' ' . findtekst('2131|konto', $sprog_id),
+	'D' => findtekst('356|Debitorkort', $sprog_id),
+	'K' => findtekst('1184|Kreditorkort', $sprog_id),
+);
+// Card button on each line of the account lookup popup (javascript/accountAutocomplete.js); other pages
+// that load the popup script leave this unset and get no button
+print "<script>window.saldiAccountCard = " . json_encode(array(
+	'url'      => 'kassekladde_includes/openAccountCard.php',
+	'kladdeId' => (int)$kladde_id,
+	'titles'   => $kk_card_titles,
+	'unsaved'  => findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id),
+)) . ";</script>";
+print "<style>
+	a.kk-card-link{color:inherit;text-decoration:underline dotted;}
+	@media print{a.kk-card-link{text-decoration:none;}}
+</style>";
+
 // Define columns for the grid
 $columns = array(
     // Bilag clip column (if vis_bilag is enabled)
@@ -1844,7 +2022,7 @@ $columns = array(
 			$dropAttr = "";
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
-			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href', bilagUnsavedTxt)";
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "clipSaveThenPool('$href', " . (int)$id . ")";
 			return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
 				<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>
 				<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
@@ -1936,7 +2114,7 @@ $columns = array(
 			return $value;
 		},
 		// Add custom render function to include title
-		'render' => function($value, $row, $column) use ($regnaar) {
+		'render' => function($value, $row, $column) use ($regnaar, $kladde_id) {
 			global $regnaar;
 			$value = strip_tags($value);
 			$debettext = '';
@@ -1955,7 +2133,10 @@ $columns = array(
 				}
 			}
 
-			return "<td align='right' title='" . htmlspecialchars($debettext) . "'>" . htmlspecialchars($value) . "</td>";
+			$cardUrl = kk_account_card_link($row['d_type'], $value, $kladde_id);
+			$shown = htmlspecialchars($value);
+			if ($cardUrl) $shown = "<a class='kk-card-link' href='" . htmlspecialchars($cardUrl) . "'>$shown</a>";
+			return "<td align='right' title='" . htmlspecialchars($debettext) . "'>$shown</td>";
 		},
 		"generateSearch" => function ($column, $term) {
 			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
@@ -2024,7 +2205,7 @@ $columns = array(
 			return $value;
 		},
 		// Add custom render function to include title
-		'render' => function($value, $row, $column) use ($regnaar) {
+		'render' => function($value, $row, $column) use ($regnaar, $kladde_id) {
 			global $regnaar;
 			$value =strip_tags($value);
 			$kredittext = '';
@@ -2043,7 +2224,10 @@ $columns = array(
 				}
 			}
 
-			return "<td align='right' title='" . htmlspecialchars($kredittext) . "'>" . htmlspecialchars($value) . "</td>";
+			$cardUrl = kk_account_card_link($row['k_type'], $value, $kladde_id);
+			$shown = htmlspecialchars($value);
+			if ($cardUrl) $shown = "<a class='kk-card-link' href='" . htmlspecialchars($cardUrl) . "'>$shown</a>";
+			return "<td align='right' title='" . htmlspecialchars($kredittext) . "'>$shown</td>";
 		},
 		"generateSearch" => function ($column, $term) {
 			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
@@ -2638,9 +2822,12 @@ print "<tr><td width='100%' valign='top' height='1%' align='center' class='kasse
 print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
 print "<tr style='vertical-align: middle;'>"; # Added vertical-align
 print "<td width='14%' align='center'><span id='kk-balance-status'></span></td>";
-print "<td align='left' style='white-space: nowrap;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
-<input class='inputbox' type='text' style='width:750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
-onchange='javascript:docChange = true;'></td>";
+// The note field shrinks (up to 750px) so the row, help link included, fits a 1280px screen
+print "<td align='left' style='white-space: nowrap; width: 100%;'><div style='display: flex; align-items: center; gap: 4px;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
+<input class='inputbox' type='text' style='flex: 1 1 auto; min-width: 120px; max-width: 750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
+onchange='javascript:docChange = true;'></div></td>";
+print journalDocumentsClip($kladde_id, $sprog_id);
+print fiscalYearSwitchCell($regnaar, $kladde_id, $bogfort, $sprog_id);
 if ($bogfort == "-") {
 	$page_display = false;
     if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
@@ -2658,7 +2845,7 @@ $help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='$he
 print "<td width='2%' align='center' style='vertical-align: middle;'>
     <a href='javascript:void(0)' onclick='window.print(); return false;'>
     <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td>
-    <td width='12%' align='center' style='vertical-align: middle;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
+    <td width='12%' align='center' style='vertical-align: middle; white-space: nowrap;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
 print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 
@@ -3182,11 +3369,23 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	include_once("../includes/stdFunc/fiscalYear.php");
 	list($regnstart, $regnslut) = explode(":", fiscalYear($regnaar));
 
-	if ($menu == 'T') {
-		$de_fok = "";
-	} else {
-		$de_fok="onfocus=\"fokuser(this,'#000000','#EFEFEF');\" onblur=\"defokuser(this,'#000000','#FFFFFF');\"";
+	# Looked up once for the page: running these per line made a kladde of a few hundred lines take seconds.
+	$kladde_id_sql = (int)$kladde_id;
+	$qtxt = "select id from kassekladde where kladde_id = '$kladde_id_sql' limit 1";
+	$kk_has_saved_lines = ($kladde_id && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? true : false;
+	if (!$kk_has_saved_lines) {
+		$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+		if ($row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $last_bilag = $row['bilag'];
 	}
+	$kk_doc_source_ids = array();
+	$kk_line_ids = array_filter(array_map('intval', is_array($id) ? $id : array()));
+	if ($kk_line_ids) {
+		$qtxt = "select distinct source_id from documents where source = 'kassekladde' and source_id in (" . implode(',', $kk_line_ids) . ")";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($row = db_fetch_array($q)) $kk_doc_source_ids[(int)$row['source_id']] = true;
+	}
+
+	$de_fok="onfocus=\"fokuser(this,'#000000','#EFEFEF');\" onblur=\"defokuser(this,'#000000','#FFFFFF');\"";
 	if ($kontrolkonto) {
 		$control_next_date = '9999-12-31';
 		$kontrolkonto = $kontrolkonto * 1;
@@ -3213,6 +3412,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!isset($bilag[$x + 1])) $bilag[$x + 1] = 0;
 	if (!isset($dato[0]))       $dato[0]       = NULL;
 	if (!isset($dato[$x + 1]))  $dato[$x + 1]  = NULL;
+	// SD-715: kreditor + invoice number used before, whatever the date or amount; all lines in one go
+	$invoiceReuseChecks = array();
+	for ($y = 1; $y <= $x; $y++) {
+		if (!empty($id[$y]) && strtoupper((string)($k_type[$y] ?? '')) == 'K' && !empty($faktura[$y])) {
+			$invoiceReuseChecks[$y] = array('kontonr' => $kredit[$y] ?? '', 'faktura' => $faktura[$y], 'line_id' => $id[$y],
+				'kladde_id' => $kladde_id, 'bilag' => $bilag[$y] ?? '');
+		}
+	}
+	$invoiceReuseHits = invoice_reuse_find($invoiceReuseChecks);
 	for ($y = 1; $y <= $x; $y++) {
 		if (!isset($bilag[$y]))      $bilag[$y]      = 0;
 		if (!isset($dato[$y]))       $dato[$y]       = NULL;
@@ -3279,9 +3487,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		print "<tr>";
 		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
-			$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
-			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$hasDoc = (($dokument[$y] ?? null) || $docRow) ? true : false;
+			$hasDoc = (($dokument[$y] ?? null) || isset($kk_doc_source_ids[(int)$id[$y]])) ? true : false;
 			if ($hasDoc) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
@@ -3300,7 +3506,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
-			$onclick = $hasDoc ? "openBilagTab('$href')" : "confirmClose('$href', bilagUnsavedTxt)";
+			$onclick = $hasDoc ? "openBilagTab('$href')" : "clipSaveThenPool('$href', " . (int)$id[$y] . ")";
 			print "<span onclick=\"$onclick\" style='cursor:pointer;display:inline-block;' $dragAttr>";
 			#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
@@ -3322,15 +3528,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$color = NULL;
 		}
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
-		$qtxt = "select bilag from kassekladde WHERE kladde_id = '$kladde_id'";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		if (db_num_rows($q) == 0){
-			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
-			if ($y == 1) {
-				$bilag[$y] = $last_bilag;
-			}
+		if (!$kk_has_saved_lines && $y == 1) {
+			$bilag[$y] = $last_bilag;
 		}
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -3351,7 +3550,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' autocomplete='off' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
 		}
 		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset, lookup_account_vat_code($kredit[$y], $k_type[$y], $regnaar, $vat_codes)) . "</td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
+		if (!empty($invoiceReuseHits[$y])) {
+			$poolLinkBase = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=" . rawurlencode($bilag[$y]);
+			print "<td class='invoice-reuse-cell'><input class='inputbox invoice-reuse-field' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'>";
+			print "<span class='invoice-reuse-flag' tabindex='0' role='note' data-invoice-reuse='1'>&#9888;<span class='invoice-reuse-pop'>";
+			print invoice_reuse_html($invoiceReuseHits[$y], $faktura[$y], $poolLinkBase) . "</span></span></td>\n";
+		} else {
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
+		}
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
 		if ($valuta[$y] == $baseCurrency) $title = "";
 		else 	$title = "$baseCurrency: " . dkdecimal($dkkamount[$y], 2);
@@ -3431,8 +3637,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<button type='button' class='duplicate-line-btn' data-row='$y' data-id='$id[$y]' title='$plusTitle'>+</button>";
 
 		// Delete button - disabled if document attached
-		$qtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$id[$y]'";
-		$hasDoc = (($dokument[$y] ?? null) || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
+		$hasDoc = (($dokument[$y] ?? null) || isset($kk_doc_source_ids[(int)$id[$y]]));
 
 		if ($hasDoc) {
 			$deleteTitle = "Remove attached document first";
@@ -3555,7 +3760,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&fokus=bila$x&openPool=1";
 				########################
 				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-	            print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+	            print "<span onclick=\"clipSaveThenPool('$href', 'new')\" style='cursor:pointer;display:inline-block;'>";
 	            print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;'></span></td>\n";
 	        	// print "</tr>";
 			} else {
@@ -3719,24 +3924,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 ($udskriv) ? $div = '' : $div = '</div>';
 ?>
-	<script	src="../javascript/jquery.formnavigation.js"></script>
-	<script>
-	$(document).ready(function () {
-		$('.formnavi').formNavigation();
-	});
-	</script>
+	<?php
+	// SD-716: Ctrl + arrow keys between fields; works on the table with class formnavi, also for lines added later
+	$fieldNavVersion = @filemtime('../javascript/fieldNavigation.js') ?: 0;
+	?>
+	<script src="../javascript/fieldNavigation.js?v=<?php echo $fieldNavVersion; ?>"></script>
 	<?php
 
 	print "</tbody></table></center></div>";   # Tabel 1.3 <- Kladdelinjer
 	print "</td></tr>\n";
 	print "<div class='kassekladde-footer'>";
-	if ($menu == 'T') {
-		print "<table width='900px' border='0' cellspacing='0' cellpadding='1'><tbody><tr>"; # Tabel 1.4 -> Knapper
-	} else {
 	print "<table id='buttonTable' style='margin: 0 auto; width:800px;' border='0' cellspacing='0' cellpadding='1'><tbody>
        <tr>";
  	# Tabel 1.4 -> Knapper
-	}
 	if (!$udskriv) {
 		if ($bogfort == 'V') {
 			#		print "<input type=hidden name=ny_kladdenote value='$kladdenote'>";
@@ -3795,11 +3995,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 						print "<td align='center'><span title='" . findtekst('1548|Henter afsluttede ordrer fra ordreliste', $sprog_id) . "'><input type='submit' style='width:120px;float:left' accesskey='h' value='" . findtekst('1078|Hent', $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span></td>";
 					}
-				}
-				$qtxt = "select * from grupper where art = 'DIV' and kodenr = '2' and box6='on'";
-				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$confirm1 = findtekst('1576|Importer data fra DocuBizz?', $sprog_id);
-					print "<td align='center'><input type='submit' style='width:120px;float:left' accesskey='d' value='DocuBizz' name='submit' onclick='javascript:docChange = false;' onclick=\"return confirm('$confirm1')\"></td>"; #20210720
 				}
 				print "<td align='center'><span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
@@ -3863,8 +4058,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $aarstart;
 		global $aarslut;
 
-		$lukket = NULL;
-
 		if ($kladde_id) {
 			$qtxt = "select bogfort from kladdeliste where id = $kladde_id";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -3925,36 +4118,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			else $k_type = "F";
 			if (!$debet) $debet = 0;
 			if (!$kredit) $kredit = 0;
-			if (!$lukket) {
-				$lukket = array();
-				$y = 0;
-				$accountNumbers = array();
-				$query = db_select("select kontonr,lukket from kontoplan where kontotype != 'H' and kontotype != 'Z' and regnskabsaar=$regnaar", __FILE__ . " linje " . __LINE__);
-				while ($row = db_fetch_array($query)) {
-					$y++;
-					$accountNumbers[$y] = trim($row['kontonr']);
-					if ($row['lukket']) {
-						$lukket[$y] = $accountNumbers[$y];
-					}
-				}
-			}
+			# Loaded once per request and checked with isset(): reloading and scanning them for every line
+			# made saving a kladde of a few hundred lines take several seconds longer.
+			$financeLookup = kk_finance_account_lookup($regnaar);
+			$accountNumbers = $financeLookup['accounts'];
+			$lukket = $financeLookup['closed'];
 			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 			$kreditornr = array();
 			if (($d_type == "D") || ($k_type == "D") || ($d_type == "K") || ($k_type == "K")) {
-				$y = $z = 0;
-				$debitornr = $kreditornr = array();
-				$query = db_select("select kontonr, art from adresser", __FILE__ . " linje " . __LINE__);
-				while ($row = db_fetch_array($query)) {
-					if (strstr($row['art'], "D")) {
-						$z++;
-						$debitornr[$z] = trim($row['kontonr']);
-					}
-					if (strstr($row['art'], "K")) {
-						$y++;
-						$kreditornr[$y] = trim($row['kontonr']);
-					}
-				}
-
+				$addressLookup = kk_address_account_lookup();
+				$debitornr = $addressLookup['D'];
+				$kreditornr = $addressLookup['K'];
 			}
 			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 			if ($d_type == "F" && strlen($debet) == 1 && !is_numeric($debet) && $debet != '0') {
@@ -4033,7 +4207,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			if ((!$fejl) && ($d_type == "F") && ($debet > 0)) {
 				$alerttekst = '';
-				if (!in_array($debet, $accountNumbers)) {
+				if (!isset($accountNumbers[kk_account_key($debet)])) {
 					$alerttxt1 = findtekst('1589|Der er ingen finanskonti hvor', $sprog_id); // Der er ingen finanskonti hvor
 					$alerttxt2 = findtekst('1590|indgår (Bilag nr', $sprog_id); // indgår (Bilag nr
 					$alerttxt3 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
@@ -4042,11 +4216,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 
 					$hint = '';
-					if (isset($debitornr) && in_array($debet, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
-					elseif (isset($kreditornr) && in_array($debet, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					if (isset($debitornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Debitor (D)';
+					elseif (isset($kreditornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alerttxt1 . " '" . $debet . "' " . $alerttxt2 . " " . $bilag . $alerttxt3 . $hint); # 20230306 added ' and spaces
-				} elseif (in_array($debet, $lukket))
+				} elseif (isset($lukket[kk_account_key($debet)])) {
 					$alerttekst = addslashes($alerttxt4 . " " . $debet . " " . $alerttxt5 . " " . $bilag . $alerttxt3); # 20230306 added spaces
+				}
 				if ($alerttekst) {
 					alert("$alerttekst");
 					$fejl = 1;
@@ -4060,19 +4235,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
 
-				if (!in_array($kredit, $accountNumbers)) {
+				if (!isset($accountNumbers[kk_account_key($kredit)])) {
 					$hint = '';
-					if (isset($debitornr) && in_array($kredit, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
-					elseif (isset($kreditornr) && in_array($kredit, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					if (isset($debitornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Debitor (D)';
+					elseif (isset($kreditornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " '" . $kredit . "' " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} elseif (in_array($kredit, $lukket))
+				} elseif (isset($lukket[kk_account_key($kredit)])) {
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alerttxt4 . " " . $bilag . $alert4);
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($d_type == "D") && ($debet) && (!in_array($debet, $debitornr))) {
+			if ((!$fejl) && ($d_type == "D") && ($debet) && (!isset($debitornr[kk_account_key($debet)]))) {
 				$alerttekst = '';
 				$alert1 = findtekst('604|Debitor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4082,8 +4258,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$svar = find_kontonr($fokus, 'D', $debet, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $debet) {
 					$hint = '';
-					if (in_array($debet, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
-					elseif (isset($kreditornr) && in_array($debet, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					if (isset($accountNumbers[kk_account_key($debet)])) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($kreditornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} else
 					$debet = $svar;
@@ -4092,7 +4268,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($k_type == "D") && ($kredit) && (!in_array($kredit, $debitornr))) {
+			if ((!$fejl) && ($k_type == "D") && ($kredit) && (!isset($debitornr[kk_account_key($kredit)]))) {
 				$alerttekst = '';
 				$alert1 = findtekst('604|Debitor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4102,8 +4278,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$svar = find_kontonr($fokus, 'D', $kredit, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $kredit) {
 					$hint = '';
-					if (in_array($kredit, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
-					elseif (isset($kreditornr) && in_array($kredit, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					if (isset($accountNumbers[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($kreditornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} else
 					$kredit = $svar;
@@ -4112,7 +4288,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($d_type == "K") && ($debet) && (!in_array($debet, $kreditornr))) {
+			if ((!$fejl) && ($d_type == "K") && ($debet) && (!isset($kreditornr[kk_account_key($debet)]))) {
 				$alerttekst = '';
 				$alert1 = findtekst('1169|Kreditor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4121,8 +4297,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$svar = find_kontonr($fokus, 'K', $debet, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $debet) {
 					$hint = '';
-					if (in_array($debet, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
-					elseif (isset($debitornr) && in_array($debet, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
+					if (isset($accountNumbers[kk_account_key($debet)])) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($debitornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Debitor (D)';
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} else
 					$debet = $svar;
@@ -4131,7 +4307,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
-			if ((!$fejl) && ($k_type == "K") && ($kredit) && (!in_array($kredit, $kreditornr))) {
+			if ((!$fejl) && ($k_type == "K") && ($kredit) && (!isset($kreditornr[kk_account_key($kredit)]))) {
 				$alerttekst = '';
 				$alert1 = findtekst('1169|Kreditor', $sprog_id);
 				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
@@ -4140,8 +4316,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$svar = find_kontonr($fokus, 'K', $kredit, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $kredit) {
 					$hint = '';
-					if (in_array($kredit, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
-					elseif (isset($debitornr) && in_array($kredit, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
+					if (isset($accountNumbers[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($debitornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Debitor (D)';
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} else
 					$kredit = $svar;
@@ -4702,7 +4878,6 @@ document.addEventListener('DOMContentLoaded', function() {
         { rowId: '', buttonId: 'simulate-button', name: 'simulate' },
         { rowId: '', buttonId: 'doPost-button', name: 'doPost' },
         { rowId: '', buttonId: 'upload-button', name: 'upload' },
-        { rowId: '', buttonId: 'submitDocuBizz-button', name: 'submit' },
         { rowId: '', buttonId: 'import-button', name: 'import' },
         { rowId: '', buttonId: 'offset-button', name: 'offset' }
     ];

@@ -35,6 +35,9 @@
 // 2020.02.03 PHR - Critical '$vatAccount' was insertet instead of vat_account. 
 // 2020.02.20 PHR - $cvrnr set to '' if not valid; 
 // 20250815 PHR	Fiscal_year;
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261025 CL/ASR After a complete run, print/mail in the same window and return to the invoice list (no popup).
+// 20261027 CL/ASR A customer with automatic card payment gets the copy as Stripe (stripe_enrolled_copy_delivery).
 
 @session_start();
 $s_id=session_id();
@@ -52,6 +55,7 @@ if ($id==-1){	# Saa er der flere fakturaer
 }
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
@@ -147,7 +151,9 @@ if ($_POST) {
 			}
 		} 	
 	}
-	if ($udskriv && $komplet) print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=-1&ordre_antal=$udskriv_antal&skriv=$udskriv&formular=4' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";
+	// 20261025 CL/ASR Same window as the other mass actions (ret_genfakt.php, ordreliste.php): print/mail the new invoices,
+	// then return to the invoice list. A popup opened outside the new shell and left this page empty.
+	if ($udskriv && $komplet) print "<meta http-equiv=\"refresh\" content=\"0;URL=formularprint.php?id=-1&returside=" . urlencode('ordreliste.php?valg=faktura') . "&ordre_antal=$udskriv_antal&skriv=$udskriv&formular=4\">";
 	else {
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=ret_genfakt.php?ordreliste=$ny_liste\">";	
 	}
@@ -200,6 +206,10 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 		$email=db_escape_string($r['email']);
 		$udskriv_til=db_escape_string($r['udskriv_til']);
 		if (strstr($udskriv_til,'PBS')) $udskriv_til='PBS';
+		elseif (($udskriv_til == 'email' || $udskriv_til == 'Link') && is_file('../includes/stripeIncludes/stripeEnrol.php')) { #20261027
+			include_once('../includes/stripeIncludes/stripeEnrol.php');
+			$udskriv_til = stripe_enrolled_copy_delivery($r);
+		}
 		$procenttillag=db_escape_string($r['procenttillag']);
 		if ($r['nextfakt']) $tmp=$r['nextfakt'];
 		else $tmp=date("Y-m-d");			

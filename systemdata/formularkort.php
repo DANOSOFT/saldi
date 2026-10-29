@@ -57,11 +57,15 @@
 // 20260313 Sawaneh SD-420 Added ordre_email and ordre_tlf to form dropdown
 // 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 // 20260529 CL/PHR Rettet: manglende xa-records (mailtekst/bilag) for art=5 oprettes nu automatisk ved visning
+// 20261005 Sawaneh G6.2: background create/delete (nyt_sprog, slet_sprog) moved to Indstillinger » Dokumenter » Baggrunde.
 // 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 // 20260911 CDX/LH SD-186 Use the Danish Udført af label for the invoice field.
 // 20260921 CDX/MJ SST-745 Match VSPR sprog case-insensitively when saving et formularkort, so a
 //                          different capitalisation no longer creates a duplicate sprogrække.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 @session_start();
 $s_id=session_id();
 
@@ -69,6 +73,8 @@ $title="Formulareditor";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
+$permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
@@ -91,7 +97,14 @@ if (isset($_GET['upload']) && $_GET['upload']) {
 }
 */
 if (isset($_GET['nyt_sprog']) && $_GET['nyt_sprog']) {
-	$nyt_sprog = $_GET['nyt_sprog'];
+	// G6.2: backgrounds are created and deleted in the settings section (with a usage check).
+	$bgUrl = 'settingsSection.php?s=documents.backgrounds&moved=formularsprog';
+	if (!headers_sent()) {
+		header("Location: $bgUrl");
+	} else {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$bgUrl\">";
+	}
+	exit;
 }
 $id        = if_isset($_GET['id']);
 $returside = nav_back_url((isset($_GET['returside']) && $_GET['returside']) ? $_GET['returside'] : null);
@@ -99,30 +112,7 @@ $navn      = if_isset($_GET['navn']);
 
 if (isset($_POST) && $_POST) {
 
-       ######
-		if (isset($_POST['slet_sprog']) && $_POST['slet_sprog']) {
-			$slet_sprog = if_isset($_POST['slet_sprog']);
-			
-			// Don't allow deleting "Dansk"
-			if ($slet_sprog != 'Dansk') {
-				// Delete from formularer table
-				db_modify("delete from formularer where sprog = '$slet_sprog'",__FILE__ . " linje " . __LINE__);
-				
-				// Delete from grupper table
-				db_modify("delete from grupper where art = 'VSPR' and box1 = '$slet_sprog'",__FILE__ . " linje " . __LINE__);
-				
-				// Show confirmation message
-				print "<BODY onLoad=\"javascript:alert('$slet_sprog has been deleted!')\">";
-				
-				// Refresh the page
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=formularkort.php?nyt_sprog=yes\">";
-				exit;
-			} else {
-				$cannot_delete_default = str_replace('Dansk', bg_display_name('Dansk'), findtekst('2516|Dansk kan ikke slettes', $sprog_id));
-				print "<BODY onLoad=\"javascript:alert('" . $cannot_delete_default . ".')\">";
-			}
-		}
-	   #####
+	// 20261005 Sawaneh G6.2: deleting a background (slet_sprog, audit K1) is done in Indstillinger » Dokumenter » Baggrunde.
 
 
 	if ($nyt_sprog) {
@@ -213,38 +203,6 @@ if (isset($_POST) && $_POST) {
 		print "<BODY onLoad=\"javascript:alert('Logo, tekster og Streger er flyttet $op mm $otext og $hojre mm til $htext')\">";
 		$linjeantal=0; #
 	}
-	if ($submit=='Opdater' && $form_nr>=6 && $form_nr<=8 && $art_nr==2 && $gebyr) { #Rykkergebyr
-		$tmp=strtoupper($gebyr);
-		if ($r1=db_fetch_array(db_select("select id,varenr from varer where upper(varenr) = '$tmp'",__FILE__ . " linje " . __LINE__))) { 
-			$gebyr = $r1['varenr'];
-			$qtxt  = "select id from formularer where beskrivelse ='GEBYR' and formular='$form_nr' and art=2 and sprog='$formularsprog'";
-			if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				db_modify("update formularer set xb='$r1[id]' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
-			}	else {
-				$qtxt = "insert into formularer (beskrivelse, formular, art, xb, sprog) values ";
-				$qtxt.= "('GEBYR', '$form_nr', '2', '$r1[id]', '$formularsprog')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-		} else print "<BODY onLoad=\"javascript:alert('Varenummeret $gebyr findes ikke i varelisten')\">";
-	} elseif (($submit=='Opdater')&&($form_nr>=6)&&($form_nr<=8)&&($art_nr==2)&&(!$gebyr)) db_modify("delete from formularer where beskrivelse = 'GEBYR' and formular='$form_nr' and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__); #20140902
-	if ($submit=='Opdater' && $form_nr>=6 && $form_nr<=8 && $art_nr==2 && $rentevnr) { #Rykkerrenter
-		$tmp       = strtoupper($rentevnr);
-		$rentesats = usdecimal($rentesats);
-		if ($r1=db_fetch_array(db_select("select id, varenr from varer where upper(varenr) = '$tmp'",__FILE__ . " linje " . __LINE__))) { 
-			$rentevnr=$r['varenr'];
-			$qtxt = "select id from formularer where beskrivelse ='GEBYR' and formular='$form_nr' and art=2 and sprog='$formularsprog'";
-			if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				db_modify("update formularer set yb='$r1[id]', str='$rentesats' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
-			}	else {
-					$qtxt = "insert into formularer (beskrivelse, formular, art, yb, str, sprog) values ";
-					$qtxt.= "('GEBYR', '$form_nr', '2', '$r1[id]', '$rentesats', '$formularsprog')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-		} else print "<BODY onLoad=\"javascript:alert('Varenummeret $gebyr findes ikke i varelisten')\">";
-	} elseif (($submit=='Opdater')&&($form_nr==6)&&($art_nr==2)&&(!$gebyr)) {
-		$qtxt="delete from formularer where beskrivelse = 'GEBYR' and formular='$form_nr' and sprog='$formularsprog'";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__); #20140902
-	}
 	if (isset($_POST['streger']) && $_POST['streger']){
 		transaktion('begin');
 		for ($x=0; $x<=$linjeantal; $x++) {
@@ -321,55 +279,31 @@ if (isset($_POST) && $_POST) {
 	}
 }
 
-$fe_link = "formeditor.php?form_nr=".urlencode(($form_nr ?? '') ?: 4)."&amp;sprog=".urlencode(($formularsprog ?? '') ?: 'Dansk');
+$fe_link = "formeditor.php?form_nr=".urlencode(($form_nr ?? '') ?: 4)."&sprog=".urlencode(($formularsprog ?? '') ?: 'Dansk');
 $fe_label = ($sprog_id == 1) ? 'Visuel editor' : 'Visual editor';
 $fe_title = ($sprog_id == 1) ? 'Ny visuel formulareditor (træk og slip)' : 'New visual form editor (drag & drop)';
 
-if ($menu=='T') {  # 20150331 start
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\">";
-    print "<a title=\"$fe_title\" class='button green small left' href=\"$fe_link\">$fe_label</a> &nbsp;";
-    print "<a class='button blue small' class=\"button red small left\" href=\"formular_indlaes_std.php\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</a> &nbsp;";
-    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a> &nbsp;";
-    print "<a title=\"Email indstillinger for sprog\" class='button blue small' href=\"email_settings.php\" accesskey=\"e\">Email</a></div>\n";
-	print "<span class=\"headerTxt\"></span>\n";     
-	print "<div class=\"headerbtnRght\"><a title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\" class='button blue small' href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></div>";    
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<table border=\"1\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable2\"><tbody>";
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	print "<html>\n";
 	print "<head>\n";
 	print "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>\n";
 	print "<meta name='viewport' content='width=1024'>\n";
 	print "</head>\n";
 	print "<body>\n";
+	include_once("../includes/stdFunc/pageBar.php");
+	page_bar(array(
+		'title' => findtekst('573|Formularkort', $sprog_id),
+		'actions' => array(
+			array($fe_label, $fe_link, 'bx-edit'),
+			array('Bg.' . findtekst('646|Navn', $sprog_id), 'formularkort.php?nyt_sprog=yes', 'bx-globe', '', 'accesskey' => 's'),
+			array('Email', 'settingsSection.php?s=documents.email', 'bx-envelope', '', 'accesskey' => 'e'),
+			array(findtekst('571|Baggrund', $sprog_id), 'logoupload.php?upload=yes', 'bx-image', '', 'accesskey' => 'u'),
+		),
+		'back' => $returside,
+	));
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
 	print "<tr><td width='' height='1%' align='center' valign='top' collspan='2'>\n";
-	print "<table width='100%' height='1%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
-
-	print "<td width='12%'><a href=$returside accesskey='l'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-	print findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
-
-	print "<td width='12%'><a href=\"$fe_link\" title='$fe_title'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$fe_label</button></a></td>\n";
-
-	print "<td width='64%' align='center' style='$topStyle'>".findtekst('573|Formularkort', $sprog_id)."</td>\n";
-
-	print "<td width='6%'><span title='".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."'><a href=formularkort.php?nyt_sprog=yes accesskey='s'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></span></td>\n";
-
-	print "<td width='6%'><span title='Email indstillinger for sprog'><a href=email_settings.php accesskey='e'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></a></span></td>\n";
-
-	print "<td width='6%'><span title='".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."'><a href=logoupload.php?upload=yes accesskey='u'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804
-
-	print "</tbody></table></td></tr>\n";
+	print "</td></tr>\n";
 
 	$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
 	$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
@@ -403,22 +337,6 @@ if ($menu=='T') {  # 20150331 start
 	print "</tbody></table></td></tr>\n";
 }
 
-if ($form_nr >= 6 && $form_nr <= 8 && $art_nr == 2) {
-	$ltxt  = findtekst('1232|Opret', $sprog_id);
-	$title = "Åbner ny varekort i en ny fane";
-	$link  = "<a href='../lager/varekort.php?returside=../systemdata/formularkort.php' target='_blank' title='$title'>$ltxt</a>";
-	$txt1  = findtekst('3343|Rykkergebyr', $sprog_id);
-	$txt2  = findtekst('3344|Rentegebyr' , $sprog_id);
-	$txt3  = $link." ".findtekst('3345|en vare til rykkergebyret og angiv varenummeret her.', $sprog_id);
-	$txt4  = $link." ".findtekst('3346|en vare med salgspris 0 kr. og angiv varenummeret her. Rentesatsen (%) angives i feltet ved siden af.', $sprog_id);
-
-	print "<tr><td colspan=6 style='text-align:center;padding-right:0%;padding-top:20px;font-size:1em;color:#555;'>";
-	print "<div style='display:inline-block;text-align:left;'>";
-	print "<table cellspacing=0 cellpadding=2>";
-	print "<tr><td style='padding-right:5px;'><b>$txt1:</b></td><td>$txt3</td></tr>"; #Rykkergebyr:	Opret en vare til rykkergebyret og angiv varenummeret her.
-	print "<tr><td style='padding-right:5px;'><b>$txt2:</b></td><td>$txt4</td></tr>";  #Rentegebyr:	Opret en vare med salgspris 0 kr. og angiv varenummeret her. Rentesatsen (%) angives i feltet ved siden af.
-	print "</table></div></td></tr>\n";
-}
 if ($nyt_sprog) sprog($nyt_sprog,$skabelon,$handling);
 
 print "<tr><td align=center width=100%><table align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
@@ -538,18 +456,9 @@ if ($art_nr==1) {
 	}	 
 	$linjeantal=$x;
 } elseif ($art_nr==2) {
-	if ($form_nr>=6 && $form_nr<=9) {
-		$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="20px" fill="#114691"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
-		$gebyr     = '';$rentevnr='';
-		$r         = db_fetch_array(db_select("select xb,yb,str from formularer where beskrivelse ='GEBYR' and formular='$form_nr' and art='$art_nr' and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__));
-		$gebyr     = $r['xb']*1;$rentevnr=$r['yb']*1;$rentesats=dkdecimal($r['str'],2);
-		$r         = db_fetch_array(db_select("select varenr from varer where id ='$gebyr'",__FILE__ . " linje " . __LINE__));
-		$gebyr     = $r['varenr'];
-		print "<tr><td colspan=11 align=center style='padding:0px 0px 2px 0px;font-size:0.8em;color:#555;'><i>".sprintf(findtekst('3350|Hold musen over %s-ikonerne for uddybende forklaringer', $sprog_id), $help_icon).".</i></td></tr>";
-		print "<tr><td colspan=11 align=center title='".findtekst('1782|Skriv det varenummer der skal bruges til rykkergebyr.', $sprog_id)."'>$help_icon".findtekst('1783|Varenummer for rykkergebyr', $sprog_id)." <input class='inputbox' type='text' size=15 name=gebyr value=$gebyr></td></tr>";
-		$r         = db_fetch_array(db_select("select varenr from varer where id ='$rentevnr'",__FILE__ . " linje " . __LINE__)); 
-		$rentevnr  = $r['varenr'];
-		print "<tr><td colspan=11 align=center title='".findtekst('1784|Skriv det varenummer og rentesatsen som bruges ved renteberegning. Rentesatsen gælder pr påbegyndt måned', $sprog_id)."'>$help_icon".findtekst('1785|Varenummer/sats for rente', $sprog_id)." <input class='inputbox' type='text' size=15 name=rentevnr value=$rentevnr><input class='inputbox' type='text' size=1 name=rentesats value=$rentesats></td></tr>";
+	if ($form_nr>=6 && $form_nr<=8) {
+		// 20261003 Sawaneh G3.4: fee and interest are set in Settings (same GEBYR rows), not on the form card.
+		print "<tr><td colspan=11 align=center style='padding:6px 0;font-size:0.9em;color:#555;'><a href='settingsSection.php?s=sales.reminders#sub-fees'>".findtekst('6203|Rykkergebyr og rente sættes under Indstillinger » Salg » Betalingsbetingelser & rykkere', $sprog_id)."</a></td></tr>";
 		print "<tr><td colspan=11><hr></td></tr>";
 	}
 
@@ -1279,7 +1188,7 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 			drop_down($y,$form_nr,$art_nr,$formularsprog,$r['id'],$r['beskrivelse'],$r['xa'],$z,"2","-",$r['str'],$r['color'],$r['justering'],$r['font'],$r['fed'],$r['kursiv'],$r['side']);  
 			print "\n";
 		}
-		if (!$menu=='T') print "<tr><td colspan=11><hr></td></tr>";  # 20150331
+		if (!$menu) print "<tr><td colspan=11><hr></td></tr>";  # 20150331
 	 	print "</tbody></table></td></tr>";
 		$x=$x+$footer;
 	}
@@ -1302,18 +1211,16 @@ function kopier_alt($form_nr,$art_nr,$formularsprog,$kilde) {
 	}
 }
 
-if ($menu=='T') {
-	print "";
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	print "<tr><td width='100%' height='2.5%' align='center' valign='bottom'>\n";		
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
 
-	print "<td width='38%' align='center' style='$topStyle'></td>\n";
+	print "<td width='38%' align='center'></td>\n";
 
 	print "<td width='24%'><a href=\"formular_indlaes_std.php\">";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</button></a></td>\n";
 
-	print "<td width='24%' style='$topStyle'></td>\n";
+	print "<td width='24%'></td>\n";
 
 	print "<td width=\"7%\"><title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></td>\n";
@@ -1341,7 +1248,7 @@ print "onMouseOver=\"this.style.cursor = 'pointer'\" ><u>Slet logo</u></td> -->\
 print "</tbody></table>\n";
 print "</td></tr>\n";
 print "</tbody></table>\n";
-if ($menu=='T') print "</div>\n</div>\n";  # 20150331
+  # 20150331
 print "</body></html>\n";
 
 function get_background_file($form_type, $sprog) {

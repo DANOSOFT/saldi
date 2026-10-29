@@ -37,6 +37,7 @@
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20250207 PHR Corrected error in 'bogf_konto' as is used wrong account !
 // 20260908 CDX/LH Lock creditor orders before receipt validation and batch changes (SST-765).
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260914 CL/SZ Block receipt of a batch/expiry-tracked line whose batch_due_date or
 //                batch_batch_no is empty, mirroring the existing serial-number check; also
 //                escaped batch_due_date and fixed a "0" batch-no being treated as empty in
@@ -54,6 +55,7 @@
 $s_id=session_id();
 
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

@@ -37,6 +37,8 @@
 // 20220926 MSC Removed a 2 number in title for budget
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260601 PHR inserted (float) before Round()
+// 20261005 Sawaneh WP-4.2: the incoming returside is read (sanitised) instead of forced to NULL, and urlencoded in the links.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id=session_id();
@@ -45,12 +47,13 @@ $css="../css/standard.css";
 $modulnr=4;	
 $title="Budget";
 
-$linjebg=$returside=NULL;
+$linjebg=NULL;
 		
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
+$returside = nav_sanitize_returside(isset($_GET['returside']) ? $_GET['returside'] : '');
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 
@@ -114,32 +117,18 @@ while ($r=db_fetch_array($q)) {
 	if ($x && $md[$x]==$md[$x-1] && $kontonr[$x]==$kontonr[$x-1]) db_modify("delete from budget where id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
 	$x++;
 }
-print "<tr><td height='25' align='center' valign='top'>";
-print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
-
-print "<td width='200px' align='center'>
-    <a href='regnskab.php?returside=$returside'>
-    <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-    $icon_regnskab ".findtekst('849|Regnskab', $sprog_id)."
-    </button></a></td>";
-
-print "<td>&nbsp;</td>";
-
-print "<td width='200px' align='center'>
-    <button class='headerbtn' style='$butDownStyle; width:100%'>
-    $icon_budget Budget
-    </button></td>";
-
-print "</tbody></table></td>";
-
-print "<td id='tutorial-help' width='5%' style='$buttonStyle'>
-    <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-    $help_icon ".findtekst('2564|Hjælp', $sprog_id)."
-    </button></td>";
-
-print "</tbody></table></td></tr>";
-print "</tbody></table>";
+// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+// 20261008 Sawaneh The page on the new page head (page_bar): Regnskab / Budget as tabs, tour kept for the Assist menu.
+// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+include_once("../includes/stdFunc/pageBar.php");
+page_bar(array(
+	'title' => findtekst('1067|Budget', $sprog_id),
+	'tabs' => array(
+		array(findtekst('849|Regnskab', $sprog_id), 'regnskab.php?returside=' . urlencode(isset($returside) ? (string) $returside : ''), false),
+		array('Budget', 'budget.php', true),
+	),
+	'help' => true,
+));
 
 while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 #echo "$slutdato, $slutmaaned, $slutaar	";				
@@ -266,7 +255,7 @@ $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
 print "<style>
 .budget-wrapper {
-    height: calc(100vh - 50px);
+    height: calc(100vh - 128px);
     width: 100%;
     overflow: auto;
     position: relative;
@@ -309,7 +298,7 @@ print "<style>
 </style>";
 
 print "<div class='budget-wrapper' id='budget-wrapper'>";
-print "<form name=budget action='budget.php?regnaar=$regnaar&returside=$returside' method=post>";
+print "<form name=budget action='budget.php?regnaar=$regnaar&returside=" . urlencode($returside) . "' method=post>";
 print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top'>";
 print "<thead>";
 print "<tr><td><br></td><td colspan=15>".findtekst(806, $sprog_id)." ";
@@ -439,10 +428,6 @@ print "</tfoot>";
 print "</table>";
 print "</form>\n";
 print "</div>";
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 ?>
 

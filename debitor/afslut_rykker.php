@@ -25,6 +25,7 @@ $topniveau=NULL;
 $rykker_id=array();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/openpost.php");

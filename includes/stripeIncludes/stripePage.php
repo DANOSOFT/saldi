@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripePage.php --- 2026.08.20
+// --- includes/stripeIncludes/stripePage.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260820 CL/LH Created: shared customer-facing page shell for the Stripe
 //                subscription endpoints (subscribe.php/tak.php/afbrudt.php).
@@ -30,9 +30,12 @@
 //                values in $extraHtml; everything else is escaped here.
 //                Fonts are a local system stack on purpose: these are public
 //                EU-facing pages, so no Google Fonts (GDPR) and no CDNs.
+// 20261022 CL/LH S5 Footer identity can be overridden per request (invoice pages: invoicing company's name and e-mail).
+// 20261026 CL/NTR Comment only: the constant identity is the pinned ledger's default, not the only tenant.
 
-// The integration is pinned to one tenant (stripeConfigDb), so the page
-// identity is a constant: tak.php may not open a DB connection to look it up.
+// Default page identity (the pinned stripeConfigDb ledger) is a constant: tak.php
+// may not open a DB connection to look it up. Pages that know their ledger
+// override it through $GLOBALS['stripe_page_identity'].
 if (!defined('STRIPE_PAGE_SENDER'))  define('STRIPE_PAGE_SENDER', 'Danosoft ApS');
 if (!defined('STRIPE_PAGE_SUPPORT')) define('STRIPE_PAGE_SUPPORT', 'faktura@danosoft.dk');
 
@@ -75,9 +78,15 @@ tr.total td.r{font-size:16px;font-weight:700}
 </style></head><body><div class='page'>";
 		print "<img class='logo' src='../../img/SaldiMainLogo.png' alt='Saldi'>";
 		print "<div class='" . $cardClass . "'>" . $bodyHtml . "</div>";
-		print "<p class='site'>" . htmlspecialchars(STRIPE_PAGE_SENDER, ENT_QUOTES, 'UTF-8')
-			. " &middot; <a href='mailto:" . htmlspecialchars(STRIPE_PAGE_SUPPORT, ENT_QUOTES, 'UTF-8') . "'>"
-			. htmlspecialchars(STRIPE_PAGE_SUPPORT, ENT_QUOTES, 'UTF-8') . "</a></p>";
+		// The invoice endpoints set the invoicing company's identity; the subscription pages keep the pinned constants.
+		$identity = $GLOBALS['stripe_page_identity'] ?? array('name' => STRIPE_PAGE_SENDER, 'email' => STRIPE_PAGE_SUPPORT);
+		$site = array();
+		if (trim((string)($identity['name'] ?? '')) !== '') $site[] = htmlspecialchars(trim((string)$identity['name']), ENT_QUOTES, 'UTF-8');
+		if (filter_var(trim((string)($identity['email'] ?? '')), FILTER_VALIDATE_EMAIL)) {
+			$mail = htmlspecialchars(trim((string)$identity['email']), ENT_QUOTES, 'UTF-8');
+			$site[] = "<a href='mailto:" . $mail . "'>" . $mail . "</a>";
+		}
+		if ($site) print "<p class='site'>" . implode(' &middot; ', $site) . "</p>";
 		print "</div></body></html>";
 		exit;
 	}

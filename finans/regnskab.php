@@ -62,6 +62,9 @@
 // 20260902 CL/NTR Added tutorial steps + create_tutorial("regnskab") so the Hjælp button in the
 //                top bar works (it had no tutorial to restart); ids budget-link/csv-export added
 //                as anchors. Texts 3500-3503 added to importfiler/tekster.csv.
+// 20261005 Sawaneh WP-4.2/4.16: returside sanitised and urlencoded towards budget.php; a Luk (popup) or Tilbage
+//                  (opened with a returside) button again.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id=session_id();
@@ -82,9 +85,10 @@ include("../includes/row-hover-style.js.php");
 include("../includes/grid.php");
 
 print '<script src="../javascript/chart.js"></script>';
-$backUrl = isset($_GET['returside'])
-? $_GET['returside']
-: '../index/menu.php';
+$backUrl = nav_sanitize_returside(isset($_GET['returside']) ? $_GET['returside'] : '');
+if ($backUrl === '') {
+	$backUrl = '../index/menu.php';
+}
 $beregn_lager=if_isset($_POST, NULL, 'beregn_lager');
 include_once '../includes/oldDesign/header.php';
 include_once '../includes/topline_settings.php';
@@ -131,35 +135,23 @@ $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -
 // 	print "</td></tr> ";
 // }
 
-print "<div id='regnskab-topbar'>";
-print "<tr><td height='25' align='center' valign='top'>";
-print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
-
-print "<td width='200px' align='center'>
-    <button class='headerbtn' style='$butDownStyle; width:100%'>
-    ". $finans .findtekst('849|Regnskab', $sprog_id)."
-    </button></td>";
-
-print "<td>&nbsp;</td>";
-
-print "<td id='budget-link' width='200px' align='center'>
-    <a href='budget.php?returside=$backUrl'>
-    <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-    $icon_budget Budget
-    </button></a></td>";
-
-print "</tbody></table></td>";
-
-print "<td id='tutorial-help' width='5%' style='$buttonStyle'>
-    <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-    $help_icon ".findtekst('2564|Hjælp', $sprog_id)."
-    </button></td>";
-
-print "</tbody></table></td></tr>";
-
-print "</tbody></table>";
-print "</div>";
+// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
+// 20261008 Sawaneh The page on the new page head (page_bar): Regnskab / Budget as tabs, tour kept for the Assist menu.
+// 20261009 Sawaneh The inline chart takes its colours from the theme tokens (bars, budget line, axes) so it reads in dark mode.
+// 20261009 Sawaneh The inline chart draws its axis text in Inter at the fixed 0.78rem (front-page addendum 3).
+include_once("../includes/stdFunc/pageBar.php");
+// WP-4.16: a close control again - Luk in a popup window, Tilbage when the page was opened with a returside;
+// opened inline from the menu (no returside) it has none, as before.
+$lukHref = !empty($_GET['popup']) ? '../includes/luk.php' : (nav_sanitize_returside(isset($_GET['returside']) ? $_GET['returside'] : '') !== '' ? $backUrl : '');
+page_bar(array(
+	'title' => findtekst('849|Regnskab', $sprog_id),
+	'tabs' => array(
+		array(findtekst('849|Regnskab', $sprog_id), 'regnskab.php', true),
+		array('Budget', 'budget.php?returside=' . urlencode($backUrl), false),
+	),
+	'back' => $lukHref,
+	'help' => true,
+));
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
 
@@ -381,7 +373,7 @@ while ($row = db_fetch_array($query)){
 $cols+=$maanedantal;
 print "<style>
 .regnskab-wrapper {
-    height: calc(100vh - 50px);
+    height: calc(100vh - 128px);
     width: 100%;
     overflow: auto;
     position: relative;
@@ -588,11 +580,7 @@ print "</div>";
 fclose($csv);
 
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 // Tutorial setup - the help button in the top bar (#tutorial-help) does nothing without this
 $steps = array();
@@ -686,19 +674,27 @@ function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 	<canvas id='mixedChart<?php print $x; ?>'></canvas>
 	<script>
 		var ctx = document.getElementById('mixedChart<?php print $x; ?>').getContext('2d');
+		// Colours from the Saldi theme tokens (css/saldi-theme.css), so the chart reads in light and dark alike.
+		var cs = getComputedStyle(document.documentElement);
+		var tok = function (n, fb) { var v = cs.getPropertyValue(n).trim(); return v || fb; };
+		// Addendum 3 §3.1/§5.1: axis text in Inter at a fixed 0.78rem, whatever the chart width.
+		Chart.defaults.font.family = tok('--font-ui', 'Inter, system-ui, sans-serif');
+		Chart.defaults.font.size = Math.round(0.78 * (parseFloat(cs.fontSize) || 16));
 		var data = {
 			datasets: [
 				{
 					type: 'bar',
 					label: '<?php print $beskrivelse; ?>',
 					data: [<?php print implode(",", $konti_total); ?>].map((x) => (x*-1)),
+					backgroundColor: tok('--s1', '#4FA0EE') + 'aa',
+					borderColor: tok('--s1', '#4FA0EE'),
 					borderWidth: 2
 				},
 				{
 					type: 'line',
 					label: 'Budget',
 					data: [<?php print implode(",", $budget); ?>].map((x) => (x*-1)),
-					borderColor: 'rgba(54, 162, 235, 1)',
+					borderColor: tok('--s2', 'rgba(54, 162, 235, 1)'),
 					borderWidth: 2,
 					fill: false,
 					tension: 0.4 // Smoother line
@@ -716,8 +712,11 @@ function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 			},
 			maintainAspectRatio: false,
 			scales: {
+				x: { ticks: { color: tok('--text-2', '#5b6b85') }, grid: { color: tok('--grid', '#e9eef7') } },
 				y: {
 					beginAtZero: true,
+					ticks: { color: tok('--text-2', '#5b6b85') },
+					grid: { color: tok('--grid', '#e9eef7') }
 				}
 			},
 			plugins: {

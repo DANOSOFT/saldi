@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-09-24---
+// --- kreditor/ordre.php --- ver 5.0.0 --- 2026-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -87,6 +87,10 @@
 //                superseded MB-36's version of that save logic with Sawaneh's (already
 //                submitted-vs-not-submitted safe, plus date-format validation and a
 //                batch_batch_no length cap that MB-36's version lacked).
+// 20261008 Sawaneh WP-3.6: returside sanitised and urlencoded in the luk.php links; WP-3.4 Visning opens with popup=1.
+// 20261007 MJ SST-829 The Lager dropdown offers each warehouse once. Creating an
+//                  accounting year used to copy the art='LG' rows into it, so every
+//                  warehouse gained a row per year and this list showed them all.
 
 @session_start();
 $s_id=session_id();
@@ -127,10 +131,12 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
 // 20260923 SZ SST-755 (CodeRabbit): one random per-render token, reused by both sidehoved()'s
+// 20261008 Sawaneh sidehoved(): the order heading is also the page's last breadcrumb level (page_title, addendum §5).
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // exit link and the unload beacon further down (see refresh_lock_token() in unlockRecord.php).
 $sessionLockToken = bin2hex(random_bytes(16));
 
-$returside = if_isset($_GET,NULL,'returside');
+$returside = nav_sanitize_returside(if_isset($_GET,NULL,'returside'));
 ########
 if (isset($_COOKIE['valg'])) {
 	$valg = $_COOKIE['valg']; // coming from ordreliste
@@ -1376,8 +1382,20 @@ function ordreside($id) {
 	} else alert ("Stamdata mangler");
 	$x = 0;
 	$lager_nr = array();
-	$q=db_select("select kodenr,beskrivelse from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
+	// 20261007 MJ SST-829 One entry per warehouse. Creating an accounting year used to copy
+	// the LG rows into it, so a tenant with ten warehouses and two years had two rows for
+	// each and this dropdown offered every warehouse twice. Preferring the current year and
+	// then the newest row matches how Indstillinger picks the definition to edit
+	// (systemdata/syssetup.php). Keyed on kodenr alone: pairing it with beskrivelse, as
+	// productLookup.php does, still duplicates once a later year's copy has been renamed.
+	$qtxt = "select kodenr,beskrivelse from grupper where art='LG' ";
+	$qtxt.= "order by kodenr, case when fiscal_year = " . (int)$regnaar . " then 0 else 1 end, ";
+	$qtxt.= "coalesce(fiscal_year,0) desc, id desc";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$set_lagre = array();
 	while ($r=db_fetch_array($q)) {
+		if (isset($set_lagre[$r['kodenr']])) continue;
+		$set_lagre[$r['kodenr']] = 1;
 		$lager_nr[$x]=$r['kodenr'];
 		$lager_navn[$x]=$r['beskrivelse'];
 		$x++;
@@ -1445,10 +1463,6 @@ function ansatopslag($sort, $fokus, $id){
 	global $memu;
 	global $sprog_id;
 
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-	}
 
 	sidehoved($id, "../kreditor/ordre.php", "../kreditor/kreditorkort.php", $fokus, "Leverand&oslash;rordre $id");
 	# print"<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
@@ -1495,11 +1509,7 @@ function ansatopslag($sort, $fokus, $id){
 
 	print "</tbody></table></td></tr></tbody></table>";
 
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 
 	exit;
 }
@@ -1512,10 +1522,6 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 	global $menu;
 	global $sprog_id,$x; #20210716
 
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-	}
 
 	if ($find) $find=str_replace("*","%",$find);
 
@@ -1681,11 +1687,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 	</table>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	include_once '../includes/oldDesign/footer.php';
 
 	exit;
 }
@@ -1701,6 +1703,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $sessionLockToken;
 
 	$title= 'Leverandør ordre';
+	if (function_exists('page_title')) print page_title($tekst);
 	$alerttekst=findtekst(154,$sprog_id);
 
 	// 20260908 SZ SST-755: append the row's current tidspkt to every Luk link so
@@ -1722,42 +1725,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	include("../includes/topline_settings.php");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		if ($kort) print "<div class=\"headerbtnLft headLink\"><a href=../kreditor/ordre.php?id=$id&fokus=$fokus
-				accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i>
-				&nbsp;".findtekst(30,$sprog_id)."</a></div>";
-		else print "<div class=\"headerbtnLft headLink\"><a
-				href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\"
-				accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i>
-				&nbsp;".findtekst(30,$sprog_id)."</a></div>";
-		print "<div class=\"headerTxt\">$title</div>";
-		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
-			print "<div class=\"headerbtnRght
-				headLink\"><a accesskey=N
-				href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\"
-				title='Klik her for at lave ny ordre'><i class='fa fa-plus-square fa-lg'></i></a></div>";
-		} elseif (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {
-			print "<div
-				class=\"headerbtnRghtheadLink\"><a accesskey=N href=\"$kort?returside=$returside&ordre_id=$id\"
-				title='Klik her for at lave ny ordre'><i class='fa fa-plus-square fa-lg'></i></a></div>";
-		} elseif ($kort=="../kreditor/kreditorkort.php") {
-			print "<div class=\"headerbtnRght headLink\"><a accesskey=V href=kreditorvisning.php
-				title='Klik her for at ændre visning'><i class='fa fa-gear fa-lg'></i></a> &nbsp; <a accesskey=N
-				href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\"
-				title='Klik her for at lave ny ordre'><i class='fa fa-plus-square fa-lg'></i></a></div>";
-		}
-		elseif (($id)||($kort!="../lager/varekort.php")) {
-			print "<div class=\"headerbtnRght headLink\"><a accesskey=N
-				href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\"
-				title='Klik her for at lave ny ordre'><i class='fa fa-plus-square fa-lg'></i></a></div>";
-		} else {print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";}
-		print "</div>";
-		print "<div class='content-noside'>";
-
-	} elseif ($menu=='k') {
+	if ($menu=='k') {
 		print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst(547,$sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
 		print "<div align=\"center\">";
@@ -1768,7 +1736,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 			print "<td width=10%><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
 			       <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
 		} else {
-			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst') accesskey=L>
+			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=" . urlencode((string) $returside) . "&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst') accesskey=L>
 				   <button type='button' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" onclick=\"loacation.href('ordreliste.php')\">".findtekst(30, $sprog_id)."</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
@@ -1780,7 +1748,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 				print "<td width='10%'><a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>
 					   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a></td>";
 		} elseif ($kort=="../kreditor/kreditorkort.php") {
-			print "<td width='5%' onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\">
+			print "<td width='5%' onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php?popup=1','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\">
 				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='".findtekst(1521, $sprog_id)."'>"
 				   .findtekst(813, $sprog_id)."</button></td>"; #20210716
 			print "<td width='5%'>
@@ -1809,12 +1777,12 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 		#	if ($returside != "ordre.php") {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		#	else {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		if ($kort) print "<td width=\"10%\" $top_bund> $color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
-		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
+		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=" . urlencode((string) $returside) . "&tabel=ordrer&id=$id$sidehovedTidspktQs','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
 		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
 		else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
 		elseif ($kort=="../kreditor/kreditorkort.php") {
-			print "<td width=\"5%\"$top_bund onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='".findtekst(1521, $sprog_id)."'><u>".findtekst(813, $sprog_id)."</u></span></td>"; #20210716
+			print "<td width=\"5%\"$top_bund onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php?popup=1','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='".findtekst(1521, $sprog_id)."'><u>".findtekst(813, $sprog_id)."</u></span></td>"; #20210716
 			print "<td width=\"5%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";
 		}	elseif (($id)||($kort!="../lager/varekort.php")) {
 			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";
@@ -1887,10 +1855,6 @@ print "</tbody></table>
 </td></tr>
 </tbody></table>";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
-}
 
 ?>
 
