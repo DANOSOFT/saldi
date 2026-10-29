@@ -352,7 +352,13 @@ async function sendTelegram(botToken, chatId, text) {
 /** @param {string | undefined} raw @returns {ChatMap} */
 export function parseChatMap(raw) {
   if (!raw) return { users: {}, sponsors: {} };
-  const map = JSON.parse(raw);
+  let map;
+  try {
+    map = JSON.parse(raw);
+  } catch {
+    // JSON.parse's message quotes part of its input, and the job log is public.
+    throw new Error("TELEGRAM_CHAT_MAP is not valid JSON");
+  }
   /** @type {Record<string, string>} */
   const sponsors = {};
   for (const [k, v] of Object.entries(map.sponsors ?? {})) sponsors[normalizeLogin(k)] = String(v);

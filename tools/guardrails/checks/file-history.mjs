@@ -14,11 +14,14 @@
 //
 // History:
 // 20261027 CL/LH Created.
+// 20261028 CL/LH Accept history blocks that are indented like the rest of their file's block.
 
 import { splitLines } from "../lib/changeset.mjs";
 
 const HISTORY = /^\s*(\/\/|#)\s*(\d{8})\b/;
-const WELL_FORMED = /^\/\/ (\d{8})[ \t]+(?:(?:CL|CDX)\/)?[A-Z]{2,4}[ \t]+\S/;
+// Leading whitespace is allowed: about 20 files (includes/stdFunc/findTxt.php, includes/grid.php,
+// debitor/api.php, ...) indent their whole history block, and a new line matches its block.
+const WELL_FORMED = /^\s*\/\/ (\d{8})[ \t]+(?:(?:CL|CDX)\/)?[A-Z]{2,4}[ \t]+\S/;
 const PATH_LINE = /^\/\/.*\S+\.php\b.*?(\d{4})[-./](\d{2})[-./](\d{2})\D*$/;
 const COPYRIGHT = /copyright\s*\(c\)/i;
 

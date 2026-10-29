@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
+// 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
 // 20261028 CDX/NTR Apply the tekst_key schema migration to both tenant and master databases.
 
 /**
@@ -36,6 +37,40 @@
 // ===== call these helpers, and this file keeps needing them for the next release. =====
 include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
 // ===== END PROTECTED =====
+
+// 20261019 CL/LH MB-72: automatic settlement (equalizeMatchingRecords() and the journal's openpost())
+// closed open posts without a settlement date. Each settled group still missing one gets the latest
+// transaction date in the group, which is what both now write. A group is an account plus its
+// udlign_id, since autoudlign reuses small ids across accounts. Rows settled without an udlign_id
+// cannot be grouped and are left alone, as are groups where no row has a transaction date.
+// One-time, gated by a settings flag; the update only touches udlignet = '1' rows whose udlign_date
+// is NULL, so a second run (or a concurrent login) changes nothing.
+$udlignDateBackfilled = db_fetch_array(db_select(
+	"SELECT var_value FROM settings WHERE var_name = 'openpost_udlign_date_backfilled' AND var_grp = 'system'",
+	__FILE__ . " linje " . __LINE__
+));
+if (!$udlignDateBackfilled) {
+	$udlignGroups = "SELECT konto_id, udlign_id, MAX(transdate) AS max_date FROM openpost";
+	$udlignGroups.= " WHERE udlignet = '1' AND udlign_id > 0 GROUP BY konto_id, udlign_id";
+	$udlignGroups.= " HAVING MAX(transdate) IS NOT NULL AND COUNT(*) > COUNT(udlign_date)";
+	if (in_array($db_type, ['mysql', 'mysqli'], true)) {
+		// MySQL has no UPDATE ... FROM; the grouped derived table is materialized, so it may read openpost.
+		$qtxt = "UPDATE openpost JOIN ($udlignGroups) udlign_group";
+		$qtxt.= " ON openpost.konto_id = udlign_group.konto_id AND openpost.udlign_id = udlign_group.udlign_id";
+		$qtxt.= " SET openpost.udlign_date = udlign_group.max_date";
+		$qtxt.= " WHERE openpost.udlignet = '1' AND openpost.udlign_date IS NULL";
+	} else {
+		$qtxt = "UPDATE openpost SET udlign_date = udlign_group.max_date FROM ($udlignGroups) udlign_group";
+		$qtxt.= " WHERE openpost.konto_id = udlign_group.konto_id AND openpost.udlign_id = udlign_group.udlign_id";
+		$qtxt.= " AND openpost.udlignet = '1' AND openpost.udlign_date IS NULL";
+	}
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify(
+		"INSERT INTO settings (var_name, var_grp, var_value, var_description)
+		VALUES ('openpost_udlign_date_backfilled', 'system', 'yes', 'One-time backfill of openpost.udlign_date for settled groups that had none')",
+		__FILE__ . " linje " . __LINE__
+	);
+}
 
 // 20261022 CL/NTR tekster gets a descriptive string key (tekst_key) alongside the legacy numeric
 // tekst_id, so findtekst() can be called with keys like 'common.accept'. Nullable, added as a
