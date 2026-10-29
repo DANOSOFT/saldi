@@ -39,8 +39,10 @@ $s_id=session_id();
 // 20261020 CL/ASR Review fixes: LATIN9-safe JSON for the page script, the hidden save bar is inert, the table scrolls
 //                  sideways on narrow windows, saving keeps sort and Vis lukkede, sort links and Vis lukkede ask before
 //                  dropping unsaved changes, tall dialogs scroll.
-// 20261029 CL/ASR "Sidst aktiv" rounds the day count (DST), the recalculation dialog says it covers the listed accounts, and the
-//                  save bar wraps on phone widths.
+// 20261029 CL/ASR "Sidst aktiv" rounds the day count (DST), the recalculation dialog says it covers every account in the
+//                  list (search does not narrow it), the save bar wraps on phone widths, recalculation reconnects to
+//                  master after creating a missing database, unsaved edits are guarded on every way off the page, and
+//                  a late master warning response for an earlier click is ignored.
 // 20261023 CL/ASR Ret/Lås, Vis lukkede and Genberegn keep the sort direction the page was opened with (they carried the
 //                  toggled value and flipped the order when sorted on one column); rows lose the pointer cursor in edit mode.
 // 20261008 CL/ASR New page layout aligned with the settings/front-page redesign (one card, search,
@@ -284,10 +286,12 @@ if ($beregn && $admin) {
 			} else {
 				$vr_notes[] = vr_t('Opretter database', 'Creating database')." $db_navn[$x]";
 				db_create($db_navn[$x]);
+				include("../includes/connect.php"); # db_create leaves the connection on the new database
 			}
 		} else {
 			$vr_notes[] = vr_t('Opretter database', 'Creating database')." $db_navn[$x]";
 			db_create($db_navn[$x]);
+			include("../includes/connect.php");
 			$sidst[$x]=NULL;
 		}
 		if (!$sidst[$x]) $sidst[$x]=0;
@@ -418,7 +422,7 @@ print "</div>\n</section>\n";
 // ---------- dialogs and toast ----------
 print "<div class=\"vr-scrim\" id=\"vrScrim\"></div>\n";
 if ($admin && !$rediger) {
-	print "<div class=\"vr-dlg\" id=\"vrDlgRecalc\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgRecalcT\"><h3 id=\"vrDlgRecalcT\">".vr_t('Genberegn posteringer for de viste regnskaber?', 'Recalculate entries for the listed accounts?')."</h3><p>".vr_t('Saldi tæller posteringer de seneste 12 måneder og finder seneste aktivitet i hvert regnskabs database. Det kan tage et øjeblik, og regnskaber uden database bliver oprettet undervejs. Lukkede regnskaber kommer kun med, når Vis lukkede er slået til.', 'Saldi counts entries in the last 12 months and finds the latest activity in each account database. It may take a moment, and accounts without a database are created on the way. Closed accounts are only included when Show closed is on.')."</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>".findtekst('5|Annullér', $sprog_id)."</button><a class=\"vr-btn vr-primary\" href=\"".vr_h($vr_recalcUrl)."\">".vr_t('Genberegn', 'Recalculate')."</a></div></div>\n";
+	print "<div class=\"vr-dlg\" id=\"vrDlgRecalc\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgRecalcT\"><h3 id=\"vrDlgRecalcT\">".vr_t('Genberegn posteringer for alle regnskaber på listen?', 'Recalculate entries for all accounts in the list?')."</h3><p>".vr_t('Saldi tæller posteringer de seneste 12 måneder og finder seneste aktivitet i hvert regnskabs database. Det kan tage et øjeblik, og regnskaber uden database bliver oprettet undervejs. Søgefeltet afgrænser ikke genberegningen, og lukkede regnskaber kommer kun med, når Vis lukkede er slået til.', 'Saldi counts entries in the last 12 months and finds the latest activity in each account database. It may take a moment, and accounts without a database are created on the way. The search box does not narrow the recalculation, and closed accounts are only included when Show closed is on.')."</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>".findtekst('5|Annullér', $sprog_id)."</button><a class=\"vr-btn vr-primary\" href=\"".vr_h($vr_recalcUrl)."\">".vr_t('Genberegn', 'Recalculate')."</a></div></div>\n";
 }
 if ($vr_warnOpen) {
 	print "<div class=\"vr-dlg\" id=\"vrDlgWarn\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgWarnT\"><h3 id=\"vrDlgWarnT\">Du er ved at åbne et live-regnskab fra master</h3><div class=\"vr-ls\" id=\"vrWarnList\"></div><p id=\"vrWarnText\">Åbner du et live-regnskab fra master, kan du ændre databasestrukturen, så den bliver inkompatibel med live-versionen, eller forhindre at fremtidige opdateringer migrerer korrekt.</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>Annullér</button><a class=\"vr-btn vr-primary\" id=\"vrWarnGo\" href=\"#\">Åbn alligevel</a></div></div>\n";
@@ -501,7 +505,10 @@ print <<<JS
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && saveBar.classList.contains('vr-on')) { e.preventDefault(); form.querySelector('input[name=submit]').click(); }
 		});
 		var lock = document.getElementById('vrLock');
-		if (lock) Array.prototype.forEach.call(document.querySelectorAll('#vrLock, .vr-head a.vr-tog, #vrTable thead a'), function (a) { a.addEventListener('click', function (e) { if (changedRows() > 0 && !confirm(lock.getAttribute('data-confirm'))) e.preventDefault(); }); }); /* Lås, sort links and Vis lukkede all ask before dropping unsaved changes */
+		var leaving = false; /* set once the user has saved or already confirmed leaving */
+		form.addEventListener('submit', function () { leaving = true; });
+		if (lock) Array.prototype.forEach.call(document.querySelectorAll('#vrLock, .vr-head a.vr-tog, #vrTable thead a'), function (a) { a.addEventListener('click', function (e) { if (changedRows() > 0) { if (confirm(lock.getAttribute('data-confirm'))) leaving = true; else e.preventDefault(); } }); }); /* Lås, sort links and Vis lukkede all ask before dropping unsaved changes */
+		window.addEventListener('beforeunload', function (e) { if (!leaving && changedRows() > 0) { e.preventDefault(); e.returnValue = ''; } }); /* every other way off the page: account links, Tilbage, browser back */
 		update();
 		var saved = $vr_js_saved; if (saved) toast(saved);
 	}
@@ -518,7 +525,9 @@ print <<<JS
 
 	/* master@ssl3 only: intercept the click, fetch this regnskab's details and warn in a dialog */
 	if ($vr_js_warn) {
+		var warnSeq = 0;
 		window.vrWarnOpen = function (link) {
+			var seq = ++warnSeq;
 			var id = new URLSearchParams(link.search).get('db_id');
 			var dlg = document.getElementById('vrDlgWarn'), list = document.getElementById('vrWarnList'), go = document.getElementById('vrWarnGo');
 			var name = link.textContent;
@@ -528,11 +537,12 @@ print <<<JS
 			fetch('master_warning_info.php?db_id=' + encodeURIComponent(id), {credentials: 'same-origin'})
 				.then(function (r) { return r.json(); })
 				.then(function (d) {
+					if (seq !== warnSeq) return; /* another account was clicked while this one loaded */
 					if (d.error) { alert(d.error); return; }
 					list.appendChild(row('Database', d.db)); list.appendChild(row('Databasens version', d.dbver)); list.appendChild(row('Masters version', d.master));
 					openDlg(dlg);
 				})
-				.catch(function () { if (confirm($vr_js_fail)) window.location.href = link.href; });
+				.catch(function () { if (seq === warnSeq && confirm($vr_js_fail)) window.location.href = link.href; });
 			return false;
 		};
 	}
