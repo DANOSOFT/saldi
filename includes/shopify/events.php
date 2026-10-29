@@ -639,13 +639,12 @@ function shopify_webhook_subscriptions(array $shop, array $topics, array $opts):
  * returns); null unless it is https without credentials, query or fragment.
  */
 function shopify_webhook_base_url_check(string $url): ?string {
-	$url = rtrim(trim($url), '/');
-	$parts = parse_url($url);
+	$parts = parse_url(trim($url));
 	if ($parts === false || strtolower($parts['scheme'] ?? '') !== 'https' || ($parts['host'] ?? '') === ''
 		|| isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
 		return null;
 	}
-	return 'https://' . strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '') . ($parts['path'] ?? '');
+	return 'https://' . strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '') . rtrim($parts['path'] ?? '', '/');
 }
 
 /** The receiver URI Shopify posts a shop's webhooks to. */
