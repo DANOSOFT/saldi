@@ -7,7 +7,8 @@
 // --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-12 ---
 // 20261012 CL/ASR Access check, same rule as the account list (see below).
 // 20261012 CL/ASR Accountant panel: users who belong to a bookkeeper/auditor/group are checked through the partner layer
-//                  (partner_can + the employee right "work"); a read-only link gives read-only rights in the ledger; ?goto=
+//                  (partner_can + the employee right "work"); a read-only link does not open the ledger (Saldi has no
+//                  read-only rights level, '2' passes the module check), it is shown in the panel only; ?goto=
 //                  opens the ledger at the journal or the document pool instead of the menu.
 // LICENSE
 //
@@ -63,7 +64,7 @@ $tmp_db_id=if_isset($_GET,NULL,'db_id');
 $r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'", __FILE__ . " linje " . __LINE__));
 list($admin, , , $tmp) = array_pad(explode(",", (string)($r ? $r['rettigheder'] : ''), 4), 4, '');
 include("../includes/partnerScope.php"); partner_tables_ensure(); $vr_pu = partner_current_user(); $vr_readonly = false;
-if ($vr_pu['partner']) { $vr_ok = partner_can($tmp_db_id, 'open') && partner_user_can('work'); if ($vr_ok) { $vr_lk = partner_link($tmp_db_id); $vr_readonly = ($vr_lk && $vr_lk['access'] == 'readonly'); } }
+if ($vr_pu['partner']) { $vr_ok = partner_can($tmp_db_id, 'open') && partner_user_can('work'); if ($vr_ok) { $vr_lk = partner_link($tmp_db_id); $vr_readonly = ($vr_lk && $vr_lk['access'] == 'readonly'); if ($vr_readonly) $vr_ok = false; } }
 else $vr_ok = ($admin || in_array($tmp_db_id, explode(",", $tmp)));
 if (!$vr_ok) {
 	print "<center><br><br>".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."<br><br>";
@@ -141,7 +142,7 @@ if (if_isset($r, NULL, 'id') && ($_SERVER['SERVER_NAME'] != 'ssl12.saldi.dk')) {
 }
 
 $qtxt = "update online set db='$tmp_db', brugernavn='$brugernavn', regnskabsaar='$regnskabsaar', revisor='1',"; 
-$qtxt.= "rettigheder='".($vr_readonly ? str_repeat('2', 21) : str_repeat('1', 21))."' where session_id='$s_id'"; # read-only partner link = read-only rights
+$qtxt.= "rettigheder='111111111111111111111' where session_id='$s_id'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 include("../includes/online.php");
 if (!$regnskabsaar) {

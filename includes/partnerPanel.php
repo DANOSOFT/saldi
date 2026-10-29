@@ -13,6 +13,10 @@
 // 20261029 CL/ASR Group mode (partners.kind = 'koncern', addendum 29/10): the group owns its companies (access 'owner'),
 //                  companies are invoiced via the parent by default and may pay themselves, the group changes plans
 //                  directly without a proposal, and each group employee counts as one ERP user across all companies.
+// 20261029 CL/ASR Review fixes: group and scheme prices count the whole firm, invitations and their list follow the
+//                  employee's customer scope, expired invitations can be resent, no rights stays no rights, user seats
+//                  are checked on creation, the payer is always mirrored to billing, an accepted upgrade moves payment
+//                  once, a group taking in a company pays for it, sessions are ended only for the person concerned.
 // 20261029 CL/ASR Group mode (koncern); the tables are created by the update chain (includes/opdat_func/partnerPanelSchema.php).
 
 if (!function_exists('bp_tables_ensure')) {
@@ -55,7 +59,7 @@ function bp_panel_name() { return bp_is_group() ? bp_t('Koncernpanel','Group pan
 // Group pricing: monthly price of the companies invoiced via the parent + one ERP user per active employee.
 // [companies[], plans_ore, unpriced_n, users_n, user_price_ore, users_ore, total_ore]
 function bp_group_price() {
-	$rows = array_filter(bp_customers(false), fn($r) => !$r['closed'] && ($r['is_home'] || $r['payer'] == 'partner'));
+	$rows = array_filter(bp_customers(false, true), fn($r) => !$r['closed'] && ($r['is_home'] || $r['payer'] == 'partner'));
 	$plans = 0; $unpriced = 0; $list = array();
 	foreach ($rows as $r) { $e = ent_resolve((int)$r['id']); $m = null; if ($e['plan'] && $e['price_ore'] !== null) $m = ($e['interval'] == 'year') ? (int)round($e['price_ore'] / 12) : (int)$e['price_ore']; if ($m === null) $unpriced++; else $plans += $m; $list[] = array($r, $e['plan'] ? $e['plan']['name'] : '', $m); }
 	$users = count(array_filter(bp_employees(), fn($e) => $e['active']));
@@ -93,14 +97,19 @@ function bp_saldi_mail() { # where requests to Saldi go
 	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'admin' and var_name = 'partner_request_mail'", __FILE__ . " linje " . __LINE__));
 	return ($r && filter_var($r['var_value'], FILTER_VALIDATE_EMAIL)) ? $r['var_value'] : 'info@saldi.dk';
 }
+// A login name the login page keeps as typed (index/login.php sanitize_input() drops other characters, e.g. an apostrophe).
+function bp_login_name_ok($un) { return (bool)preg_match('/^[\p{L}\p{M}\p{N}\p{Sc} @._+\-!#%()*,:=?\[\]^{|}~`\/]+$/u', (string)$un); }
+function bp_login_name_msg() { return bp_t('Brugernavnet må kun indeholde bogstaver, tal, mellemrum og tegn som . _ - @ (ikke apostrof eller anførselstegn)','The username may only contain letters, digits, spaces and characters like . _ - @ (no apostrophe or quotes)'); }
 function bp_bool($v) { return $v === 't' || $v === true || $v === '1' || $v === 1; }
 function bp_log($action, $rid = null, $details = '') { partner_log($action, $rid, bp_pid() ?: null, $details); }
 
 // ---------- customers of the current partner ----------
 // Rows: regnskab + link + plan + trial + cache + responsible + open items. Scoped by partner_ledgers() (employee scope).
-function bp_customers($includeClosed = true) {
-	static $cache = array(); $k = $includeClosed ? 'all' : 'open'; if (isset($cache[$k])) return $cache[$k];
-	bp_tables_ensure(); $pid = bp_pid(); $ids = partner_ledgers(); if ($ids === null) $ids = array();
+function bp_customers($includeClosed = true, $wholeFirm = false) { # $wholeFirm: every linked ledger, also outside the employee's scope (firm-level prices)
+	static $cache = array(); $k = ($includeClosed ? 'all' : 'open').($wholeFirm ? '-firm' : ''); if (isset($cache[$k])) return $cache[$k];
+	bp_tables_ensure(); $pid = bp_pid();
+	if ($wholeFirm) { $ids = array(); if ($pid) { $hm = bp_partner(); if (!empty($hm['home_regnskab_id'])) $ids[] = (int)$hm['home_regnskab_id']; $q = db_select("select regnskab_id from regnskab_partners where partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $ids[] = (int)$r['regnskab_id']; $ids = array_values(array_unique($ids)); } }
+	else { $ids = partner_ledgers(); if ($ids === null) $ids = array(); }
 	$out = array(); if (!$ids) return $cache[$k] = $out;
 	$in = implode(',', array_map('intval', $ids));
 	$plans = function_exists('ent_plans_by_ledger') ? ent_plans_by_ledger() : array();
@@ -216,7 +225,7 @@ function bp_price_calc($n) {
 	foreach (bp_tiers() as $t) if ($n >= (int)$t['min_count'] && ($t['max_count'] === null || $n <= (int)$t['max_count'])) { $pct = (float)$t['discount_pct']; $tier = $t; }
 	$total = (int)round($n * $list * (1 - $pct / 100)); return array($n, $list, $pct, $total, $n ? (int)round($total / $n) : 0, $tier);
 }
-function bp_scheme_rows() { return array_filter(bp_customers(false), fn($r) => $r['payer'] == 'partner' && !$r['closed']); }
+function bp_scheme_rows() { return array_filter(bp_customers(false, true), fn($r) => $r['payer'] == 'partner' && !$r['closed']); }
 function bp_kr($ore) { return number_format($ore / 100, 0, ',', '.').' kr.'; }
 
 // ---------- invitations (employees and customer users) ----------
@@ -239,10 +248,15 @@ function bp_invite_mail($id) {
 	else $html = bp_mail_wrap(bp_t('Dit login til','Your login to').' '.$i['regnskab'].' '.bp_t('i Saldi','in Saldi'), array(bp_h($i['pname']).' '.bp_t('har oprettet adgang til dig i regnskabet','has set up access for you in the account').' <b>'.bp_h($i['regnskab']).'</b>. '.bp_t('Du vælger selv brugernavn og adgangskode.','You choose your own username and password.'), $i['message'] ? '<i>'.bp_h($i['message']).'</i>' : '', bp_t('Linket virker til','The link works until').' '.bp_date($i['expires_at']).'.'), bp_t('Opret dit login','Create your login'), $url);
 	bp_mail($i['email'], ($i['kind'] == 'employee' ? bp_t('Invitation til','Invitation to').' '.$i['pname'] : 'Saldi: '.$i['regnskab']), $html);
 }
-function bp_invite_resend($id) { $i = bp_invite_get($id); if (!$i || $i['status'] != 'sent') return bp_t('Invitationen er ikke åben','The invitation is not open'); db_modify("update partner_invites set expires_at = '".date('Y-m-d', strtotime('+'.BP_INVITE_DAYS.' days'))."', sent_at = now() where id = '".(int)$id."'", __FILE__ . " linje " . __LINE__); bp_invite_mail($id); bp_log('partner.invite_resent', $i['regnskab_id'] ?: null, $i['email']); return ''; }
+function bp_invite_resend($id) { $i = bp_invite_get($id); if (!$i || !in_array($i['status'], array('sent', 'expired'), true)) return bp_t('Invitationen er ikke åben','The invitation is not open'); db_modify("update partner_invites set status = 'sent', expires_at = '".date('Y-m-d', strtotime('+'.BP_INVITE_DAYS.' days'))."', sent_at = now() where id = '".(int)$id."'", __FILE__ . " linje " . __LINE__); bp_invite_mail($id); bp_log('partner.invite_resent', $i['regnskab_id'] ?: null, $i['email']); return ''; }
 function bp_invite_revoke($id) { $i = bp_invite_get($id); if (!$i || $i['status'] != 'sent') return bp_t('Invitationen er ikke åben','The invitation is not open'); db_modify("update partner_invites set status = 'revoked' where id = '".(int)$id."'", __FILE__ . " linje " . __LINE__); bp_log('partner.invite_revoked', $i['regnskab_id'] ?: null, $i['email']); return ''; }
-function bp_invite_get($id) { return db_fetch_array(db_select("select * from partner_invites where id = '".(int)$id."' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__)) ?: null; }
-function bp_invites($status = null) { bp_tables_ensure(); db_modify("update partner_invites set status = 'expired' where status = 'sent' and expires_at < current_date", __FILE__ . " linje " . __LINE__); $o = array(); $q = db_select("select i.*, r.regnskab, b.brugernavn as by_login from partner_invites i left join regnskab r on r.id = i.regnskab_id left join brugere b on b.id = i.created_by where i.partner_id = '".bp_pid()."'".($status ? " and i.status = '".db_escape_string($status)."'" : "")." order by i.id desc", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $o[] = $r; return $o; }
+// An employee invitation's scope: 'all', or 'sel:' + ledger ids (may be empty = no customers yet). Older rows hold the bare id list.
+function bp_invite_scope($s) {
+	if ($s === null || $s === 'all') return array('all', array());
+	return array('selected', array_values(array_filter(array_map('intval', explode(',', preg_replace('/^sel:/', '', (string)$s))))));
+}
+function bp_invite_get($id) { $i = db_fetch_array(db_select("select * from partner_invites where id = '".(int)$id."' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__)); return ($i && (!$i['regnskab_id'] || partner_can((int)$i['regnskab_id'], 'open'))) ? $i : null; }
+function bp_invites($status = null) { bp_tables_ensure(); db_modify("update partner_invites set status = 'expired' where status = 'sent' and expires_at < current_date", __FILE__ . " linje " . __LINE__); $o = array(); $q = db_select("select i.*, r.regnskab, b.brugernavn as by_login from partner_invites i left join regnskab r on r.id = i.regnskab_id left join brugere b on b.id = i.created_by where i.partner_id = '".bp_pid()."'".($status ? " and i.status = '".db_escape_string($status)."'" : "")." order by i.id desc", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) if (!$r['regnskab_id'] || partner_can((int)$r['regnskab_id'], 'open')) $o[] = $r; return $o; }
 
 // ---------- access requests to existing ledgers ----------
 // Find a ledger by number, name or (cached) CVR. Returns [row|null, note]
@@ -287,6 +301,7 @@ function bp_access_request_decide($token, $accept, $by) {
 		$acc = ($kind && $kind['kind'] == 'koncern' && !db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and access = 'owner' and until is null", __FILE__ . " linje " . __LINE__))) ? 'owner' : 'full'; # a group owns the companies it takes in
 		db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note, payer) values ('$rid', '$pid', '$acc', ".((int)$a['requested_by'] ?: 'NULL').", 'godkendt af $by', 'customer')", __FILE__ . " linje " . __LINE__);
 		partner_log('partner.link_added', $rid, $pid, $a['pname']." ($acc) – ".bp_t('adgang godkendt af','access approved by').' '.$by);
+		if ($acc == 'owner') bp_set_payer($rid, $pid, 'partner', bp_t('selskabet er optaget i koncernen','the company joined the group')); # group rule: invoiced via the parent unless changed
 	}
 	db_modify("update partner_access_requests set status = '".($accept ? 'approved' : 'rejected')."', decided_at = now(), decided_by = '".db_escape_string($by)."' where id = '".(int)$a['id']."'", __FILE__ . " linje " . __LINE__);
 	partner_log($accept ? 'partner.access_approved' : 'partner.access_rejected', $rid, $pid, $by);
@@ -329,7 +344,9 @@ function bp_request_decide($token, $accept, $by) {
 function bp_set_payer($rid, $pid, $payer, $by) {
 	db_modify("update regnskab_partners set payer = '".($payer == 'partner' ? 'partner' : 'customer')."' where regnskab_id = '".(int)$rid."' and partner_id = '".(int)$pid."' and until is null", __FILE__ . " linje " . __LINE__);
 	$p = db_fetch_array(db_select("select * from partners where id = '".(int)$pid."'", __FILE__ . " linje " . __LINE__));
-	if (function_exists('bill_set_payer')) { bill_set_payer((int)$rid, ($payer == 'partner' && $p && $p['home_regnskab_id']) ? (int)$p['home_regnskab_id'] : 0);
+	if (!function_exists('ent_actor')) include_once(__DIR__.'/entitlements.php');
+	if (!function_exists('bill_set_payer')) include_once(__DIR__.'/../admin/inc_betalinger.php');
+	{ bill_set_payer((int)$rid, ($payer == 'partner' && $p && $p['home_regnskab_id']) ? (int)$p['home_regnskab_id'] : 0);
 		if ($payer != 'partner' && $p && ($p['billing_mode'] ?? '') == 'consolidated') db_modify("update regnskab_billing set payer_regnskab_id = '".(int)$rid."' where regnskab_id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__); } # the company itself, overriding the partner's consolidated model
 	$isK = ($p && $p['kind'] == 'koncern');
 	partner_log('partner.payer_changed', (int)$rid, (int)$pid, ($payer == 'partner' ? ($isK ? 'faktureres via hovedselskabet' : 'bogholderfirmaet betaler') : ($isK ? 'selskabet betaler selv' : 'kunden betaler selv')).' – '.$by);
@@ -338,9 +355,9 @@ function bp_set_payer($rid, $pid, $payer, $by) {
 function bp_sync_proposals() {
 	if (bp_is_group()) return;
 	if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'partner_proposals'", __FILE__ . " linje " . __LINE__))) return;
-	$pid = bp_pid(); $q = db_select("select pp.id, pp.regnskab_id, pp.key from partner_proposals pp join regnskab_partners rp on rp.regnskab_id = pp.regnskab_id and rp.partner_id = pp.partner_id and rp.until is null where pp.partner_id = '$pid' and pp.kind = 'plan' and pp.status = 'accepted' and rp.payer = 'partner'", __FILE__ . " linje " . __LINE__);
+	$pid = bp_pid(); $q = db_select("select pp.id, pp.regnskab_id, pp.key from partner_proposals pp join regnskab_partners rp on rp.regnskab_id = pp.regnskab_id and rp.partner_id = pp.partner_id and rp.until is null where pp.partner_id = '$pid' and pp.kind = 'plan' and pp.status = 'accepted' and rp.payer = 'partner' and pp.decided_at >= rp.since and not exists (select 1 from partner_log l where l.action = 'partner.proposal_payer_applied' and l.details = 'proposal ' || pp.id)", __FILE__ . " linje " . __LINE__);
 	$rows = array(); while ($r = db_fetch_array($q)) $rows[] = $r;
-	foreach ($rows as $r) { bp_set_payer((int)$r['regnskab_id'], $pid, 'customer', 'godkendt opgradering til '.$r['key']); bp_mail(bp_saldi_mail(), '[Bogholderpanel] Opgradering godkendt – kunden betaler selv: regnskab '.(int)$r['regnskab_id'], bp_mail_wrap('Opgradering godkendt', array('Regnskab id '.(int)$r['regnskab_id'].' er opgraderet til '.bp_h($r['key']).' efter forslag fra bogholderen. Fremtidig betaling flyttes til kunden – opdatér faktureringen.'))); }
+	foreach ($rows as $r) { partner_log('partner.proposal_payer_applied', (int)$r['regnskab_id'], $pid, 'proposal '.(int)$r['id']); bp_set_payer((int)$r['regnskab_id'], $pid, 'customer', 'godkendt opgradering til '.$r['key']); bp_mail(bp_saldi_mail(), '[Bogholderpanel] Opgradering godkendt – kunden betaler selv: regnskab '.(int)$r['regnskab_id'], bp_mail_wrap('Opgradering godkendt', array('Regnskab id '.(int)$r['regnskab_id'].' er opgraderet til '.bp_h($r['key']).' efter forslag fra bogholderen. Fremtidig betaling flyttes til kunden – opdatér faktureringen.'))); }
 }
 
 // ---------- the customer's users (in the customer database) ----------
@@ -359,27 +376,39 @@ function bp_ledger_users($reg) {
 function bp_ledger_user_create($reg, $un, $pw, $email, $tlf, $role) {
 	global $sqhost, $squser, $sqpass; $un = trim((string)$un);
 	if ($un === '' || strlen($pw) < 6) return array(0, bp_t('Brugernavn og adgangskode (mindst 6 tegn) er påkrævet','Username and password (at least 6 characters) are required'));
+	if (!bp_login_name_ok($un)) return array(0, bp_login_name_msg());
 	if (!$reg['db'] || !db_exists($reg['db']) || !@db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) return array(0, bp_t('Kunne ikke forbinde til regnskabet','Could not connect to the account'));
 	$fail = function($m) { include("../includes/connect.php"); return array(0, $m); };
 	if (db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($un)."'", __FILE__ . " linje " . __LINE__))) return $fail(bp_t('Brugernavnet findes allerede i regnskabet','The username already exists in the account'));
-	$rights = str_repeat($role === 'readonly' ? '2' : '1', 21);
+	$max = bp_ledger_max_users($reg); if ($max !== null && (int)db_fetch_array(db_select("select count(*) as n from brugere", __FILE__ . " linje " . __LINE__))['n'] >= $max) return $fail(bp_t('Pakken har ikke flere brugere. Udskift en bruger, eller foreslå en større pakke.','The plan has no more users. Replace a user, or propose a larger plan.'));
+	$rights = str_repeat('1', 21); # Saldi has no read-only rights level; the customer's administrator narrows the rights per module
 	$ry = db_fetch_array(db_select("select max(kodenr) as k from grupper where art = 'RA'", __FILE__ . " linje " . __LINE__)); $aar = ($ry && $ry['k']) ? (int)$ry['k'] : 1;
 	$r = db_fetch_array(db_select("insert into brugere (brugernavn, kode, rettigheder, regnskabsaar, email, tlf) values ('".db_escape_string($un)."', '', '$rights', '$aar', '".db_escape_string(trim((string)$email))."', '".db_escape_string(trim((string)$tlf))."') returning id", __FILE__ . " linje " . __LINE__)); $nid = (int)$r['id'];
 	db_modify("update brugere set kode = '".db_escape_string(saldikrypt($nid, $pw))."' where id = '$nid'", __FILE__ . " linje " . __LINE__);
 	include("../includes/connect.php");
-	bp_log('ledger.user_created', (int)$reg['id'], "$un (".($role === 'readonly' ? 'kun læsning' : 'alle rettigheder').")");
+	bp_log('ledger.user_created', (int)$reg['id'], "$un (alle rettigheder)");
 	return array($nid, '');
 }
-// Lock = no module access (reversible, kept in the account); unlock = read-only, the customer's admin grants more.
+// Users the customer's plan allows (null = no limit); the same number the card shows.
+function bp_ledger_max_users($reg) {
+	if (!function_exists('ent_resolve')) include_once(__DIR__.'/entitlements.php');
+	$ent = ent_resolve((int)$reg['id']); return $ent['plan'] ? ($ent['limits']['max_users'] === null ? null : (int)$ent['limits']['max_users']) : ((int)$reg['brugerantal'] ?: null);
+}
+// Sign the firm's employees out of a customer account (they came in through the panel, so the session is marked revisor).
+function bp_end_partner_sessions($rdb, $pid, $bid = 0) {
+	if (!$rdb) return;
+	db_modify("delete from online where db = '".db_escape_string($rdb)."' and revisor and brugernavn in (select b.brugernavn from brugere b join partner_users pu on pu.bruger_id = b.id where pu.partner_id = '".(int)$pid."'".($bid ? " and pu.bruger_id = '".(int)$bid."'" : "").")", __FILE__ . " linje " . __LINE__);
+}
+// Lock = no module access (reversible, kept in the account); unlock = all rights again, the customer's admin narrows them.
 function bp_ledger_user_set($reg, $uid, $mode) {
 	global $sqhost, $squser, $sqpass; $uid = (int)$uid;
 	if (!$reg['db'] || !db_exists($reg['db']) || !@db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) return bp_t('Kunne ikke forbinde til regnskabet','Could not connect to the account');
 	$u = db_fetch_array(db_select("select brugernavn, rettigheder from brugere where id = '$uid'", __FILE__ . " linje " . __LINE__));
 	if (!$u) { include("../includes/connect.php"); return bp_t('Brugeren findes ikke','User not found'); }
-	$n = max(21, strlen((string)$u['rettigheder'])); db_modify("update brugere set rettigheder = '".str_repeat($mode == 'lock' ? '0' : '2', $n)."' where id = '$uid'", __FILE__ . " linje " . __LINE__);
+	$n = max(21, strlen((string)$u['rettigheder'])); db_modify("update brugere set rettigheder = '".str_repeat($mode == 'lock' ? '0' : '1', $n)."' where id = '$uid'", __FILE__ . " linje " . __LINE__);
 	include("../includes/connect.php"); # back on master before touching online (the $global flag only works when $db was switched)
 	if ($mode == 'lock') db_modify("delete from online where db = '".db_escape_string($reg['db'])."' and brugernavn = '".db_escape_string($u['brugernavn'])."'", __FILE__ . " linje " . __LINE__);
-	bp_log($mode == 'lock' ? 'ledger.user_locked' : 'ledger.user_unlocked', (int)$reg['id'], $u['brugernavn'].($mode == 'lock' ? '' : ' (kun læsning)'));
+	bp_log($mode == 'lock' ? 'ledger.user_locked' : 'ledger.user_unlocked', (int)$reg['id'], $u['brugernavn']);
 	return '';
 }
 function bp_ledger_company_save($reg, $f) {
@@ -410,21 +439,23 @@ function bp_employee_save_scope($bid, $scope, $ids) {
 	db_modify("delete from partner_user_access where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
 	if ($scope == 'selected') foreach ($ids as $rid) db_modify("insert into partner_user_access (bruger_id, regnskab_id) values ('$bid', '$rid')", __FILE__ . " linje " . __LINE__);
 	db_modify("update partner_users set scope = '".($scope == 'selected' ? 'selected' : 'all')."' where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
+	if ($scope == 'selected') db_modify("delete from online where brugernavn = '".db_escape_string(bp_employee($bid)['brugernavn'])."' and revisor and db != '".db_escape_string($GLOBALS['sqdb'])."'", __FILE__ . " linje " . __LINE__);
 	bp_log('partner.employee_access_changed', null, "bruger $bid: ".($scope == 'selected' ? count($ids).' udvalgte ('.implode(',', $ids).')' : 'alle')); return '';
 }
 function bp_employee_save($bid, $f) {
 	$bid = (int)$bid; $e = bp_employee($bid); if (!$e) return bp_t('Medarbejderen hører ikke til firmaet','The employee does not belong to the firm');
 	$rights = array_values(array_intersect(array_keys(partner_rights_all()), (array)($f['rights'] ?? array()))); $role = ($f['partner_role'] ?? 'employee') == 'owner' ? 'owner' : 'employee';
 	if ($e['partner_role'] == 'owner' && $role != 'owner' && (int)db_fetch_array(db_select("select count(*) as n from partner_users where partner_id = '".bp_pid()."' and partner_role = 'owner' and coalesce(active, true)", __FILE__ . " linje " . __LINE__))['n'] <= 1) return bp_t('Firmaet skal have mindst én ejer','The firm must keep at least one owner');
-	db_modify("update partner_users set name = '".db_escape_string(mb_substr(trim((string)($f['name'] ?? '')), 0, 120))."', partner_role = '$role', rights = '".implode(',', $rights)."' where bruger_id = '$bid' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__);
+	db_modify("update partner_users set name = '".db_escape_string(mb_substr(trim((string)($f['name'] ?? '')), 0, 120))."', partner_role = '$role', rights = '".(implode(',', $rights) ?: '-')."' where bruger_id = '$bid' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__);
 	if (isset($f['email'])) db_modify("update brugere set email = '".db_escape_string(trim((string)$f['email']))."' where id = '$bid'", __FILE__ . " linje " . __LINE__);
+	if ($role != 'owner' && !in_array('work', $rights, true)) db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn'])."' and revisor and db != '".db_escape_string($GLOBALS['sqdb'])."'", __FILE__ . " linje " . __LINE__); # out of the customer accounts now
 	bp_log('partner.employee_updated', null, $e['brugernavn'].": $role, ".implode(',', $rights)); return '';
 }
 function bp_employee_active($bid, $on) {
 	$bid = (int)$bid; $e = bp_employee($bid); if (!$e) return bp_t('Medarbejderen hører ikke til firmaet','The employee does not belong to the firm');
 	if ($bid == (int)bp_me()['id']) return bp_t('Du kan ikke deaktivere dig selv','You cannot deactivate yourself');
 	db_modify("update partner_users set active = ".($on ? 'true' : 'false')." where bruger_id = '$bid' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__);
-	if (!$on) db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn'])."'", __FILE__ . " linje " . __LINE__);
+	if (!$on) db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn']).' and (db = '".db_escape_string($GLOBALS['sqdb'])."' or revisor)", __FILE__ . " linje " . __LINE__);
 	bp_log($on ? 'partner.employee_activated' : 'partner.employee_deactivated', null, $e['brugernavn']); return '';
 }
 function bp_employee_remove($bid) {
@@ -433,18 +464,19 @@ function bp_employee_remove($bid) {
 	db_modify("delete from partner_users where bruger_id = '$bid' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__);
 	db_modify("delete from partner_user_access where bruger_id = '$bid'", __FILE__ . " linje " . __LINE__);
 	db_modify("update regnskab_partners set responsible_bruger_id = NULL where responsible_bruger_id = '$bid' and partner_id = '".bp_pid()."'", __FILE__ . " linje " . __LINE__);
-	db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn'])."'", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from online where brugernavn = '".db_escape_string($e['brugernavn']).' and (db = '".db_escape_string($GLOBALS['sqdb'])."' or revisor)", __FILE__ . " linje " . __LINE__);
 	bp_log('partner.employee_removed', null, $e['brugernavn']); return '';
 }
 // Create a master login + employee row directly (owner knows the password), or accept an invitation.
 function bp_employee_create($username, $password, $name, $email, $role, $rights, $scope, $ids, $viaInvite = 0) {
 	$username = trim((string)$username); if ($username === '' || is_input_too_long($username)) return array(0, bp_t('Brugernavnet mangler eller er for langt','Username missing or too long'));
+	if (!bp_login_name_ok($username)) return array(0, bp_login_name_msg());
 	if (strlen($password) < 8) return array(0, bp_t('Adgangskoden skal være mindst 8 tegn','The password must be at least 8 characters'));
 	if (!partner_login_free($username)) return array(0, bp_t('Brugernavnet er optaget – vælg et andet','The username is taken – choose another'));
 	$r = db_fetch_array(db_select("insert into brugere (brugernavn, rettigheder, status, email) values ('".db_escape_string($username)."', ',,,', true, '".db_escape_string(trim((string)$email))."') returning id", __FILE__ . " linje " . __LINE__)); $bid = (int)$r['id'];
 	db_modify("update brugere set kode = '".db_escape_string(saldikrypt($bid, $password))."' where id = '$bid'", __FILE__ . " linje " . __LINE__);
 	$rights = array_values(array_intersect(array_keys(partner_rights_all()), (array)$rights));
-	db_modify("insert into partner_users (bruger_id, partner_id, partner_role, rights, scope, name) values ('$bid', '".bp_pid()."', '".($role == 'owner' ? 'owner' : 'employee')."', '".implode(',', $rights)."', '".($scope == 'selected' ? 'selected' : 'all')."', '".db_escape_string(mb_substr(trim((string)$name), 0, 120))."')", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into partner_users (bruger_id, partner_id, partner_role, rights, scope, name) values ('$bid', '".bp_pid()."', '".($role == 'owner' ? 'owner' : 'employee')."', '".(implode(',', $rights) ?: '-')."', '".($scope == 'selected' ? 'selected' : 'all')."', '".db_escape_string(mb_substr(trim((string)$name), 0, 120))."')", __FILE__ . " linje " . __LINE__);
 	if ($scope == 'selected') foreach (array_map('intval', (array)$ids) as $rid) if ($rid) db_modify("insert into partner_user_access (bruger_id, regnskab_id) values ('$bid', '$rid')", __FILE__ . " linje " . __LINE__);
 	bp_log('partner.employee_added', null, "$username ($role; ".implode(',', $rights)."; ".($scope == 'selected' ? count((array)$ids).' udvalgte' : 'alle').")".($viaInvite ? " via invitation $viaInvite" : ''));
 	return array($bid, '');

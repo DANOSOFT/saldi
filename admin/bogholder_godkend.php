@@ -1,5 +1,5 @@
 <?php
-// --- admin/bogholder_godkend.php --- ver 5.1.0 --- 2026.10.12 ---
+// --- admin/bogholder_godkend.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. The accountant panel's one-time links (no login), like godkend.php for proposals:
@@ -10,6 +10,9 @@
 //                    access request (partner_access_requests);
 //                  - the customer accepts or rejects taking over payment (partner_requests, payer_to_customer).
 //                  Token = 48 hex chars from random_bytes; expired or decided items show a notice only.
+// 20261029 CL/ASR Review fixes: an invitation is claimed before anything is created (one acceptance only), a customer
+//                  invitation needs the firm's current full access and a free user seat, "selected customers" with none
+//                  selected stays none, only the replaced user is signed out, login names the login page keeps as typed.
 include("../includes/connect.php");
 if (!function_exists('db_select')) include("../includes/db_query.php");
 include("../includes/std_func.php");
@@ -33,30 +36,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $row) {
 	if ($kind == 'invite' && $row['status'] == 'sent') {
 		$un = trim((string)if_isset($_POST, '', 'brugernavn')); $pw = (string)if_isset($_POST, '', 'kode'); $pw2 = (string)if_isset($_POST, '', 'kode2');
 		if ($un === '' || is_input_too_long($un)) $msg = 'Skriv et brugernavn (højst 80 tegn).';
+		elseif (!bp_login_name_ok($un)) $msg = bp_login_name_msg();
 		elseif (strlen($pw) < 8) $msg = 'Adgangskoden skal være mindst 8 tegn.';
 		elseif ($pw !== $pw2) $msg = 'De to adgangskoder er ikke ens.';
+		elseif (!db_fetch_array(db_select("update partner_invites set status = 'accepting' where id = '".(int)$row['id']."' and status = 'sent' returning id", __FILE__ . " linje " . __LINE__))) $msg = 'Invitationen bliver allerede brugt. Prøv igen om et øjeblik.'; # one acceptance per invitation, also on a double click
 		elseif ($row['kind'] == 'employee') {
 			if (!partner_login_free($un)) $msg = 'Brugernavnet er optaget – vælg et andet.';
 			else {
 				$r = db_fetch_array(db_select("insert into brugere (brugernavn, rettigheder, status, email) values ('".db_escape_string($un)."', ',,,', true, '".db_escape_string($row['email'])."') returning id", __FILE__ . " linje " . __LINE__)); $bid = (int)$r['id'];
 				db_modify("update brugere set kode = '".db_escape_string(saldikrypt($bid, $pw))."' where id = '$bid'", __FILE__ . " linje " . __LINE__);
-				$scope = ($row['scope'] && $row['scope'] != 'all') ? 'selected' : 'all';
+				list($scope, $scopeIds) = bp_invite_scope($row['scope']);
 				db_modify("insert into partner_users (bruger_id, partner_id, partner_role, rights, scope, name) values ('$bid', '".(int)$row['partner_id']."', '".($row['partner_role'] == 'owner' ? 'owner' : 'employee')."', '".db_escape_string((string)$row['rights'])."', '$scope', '".db_escape_string((string)$row['name'])."')", __FILE__ . " linje " . __LINE__);
-				if ($scope == 'selected') foreach (array_filter(array_map('intval', explode(',', $row['scope']))) as $rid) db_modify("insert into partner_user_access (bruger_id, regnskab_id) values ('$bid', '$rid')", __FILE__ . " linje " . __LINE__);
+				if ($scope == 'selected') foreach ($scopeIds as $rid) db_modify("insert into partner_user_access (bruger_id, regnskab_id) values ('$bid', '$rid')", __FILE__ . " linje " . __LINE__);
 				db_modify("update partner_invites set status = 'accepted', accepted_at = now(), result_user_id = '$bid' where id = '".(int)$row['id']."'", __FILE__ . " linje " . __LINE__);
 				partner_log('partner.invite_accepted', null, (int)$row['partner_id'], "medarbejder $un (".$row['email'].")"); partner_log('partner.employee_added', null, (int)$row['partner_id'], "$un (".($row['partner_role'] == 'owner' ? 'owner' : 'employee')."; ".$row['rights']."; ".($scope == 'selected' ? 'udvalgte' : 'alle').") via invitation");
 				$done = "<h1>Dit login er oprettet</h1><p>Du er nu medarbejder hos <b>".bp_h($row['pname'])."</b> i Saldi. Log ind med brugernavnet <b>".bp_h($un)."</b> og din adgangskode.</p><p><a class=\"vr-btn vr-primary\" href=\"../index/index.php?regnskab=".rawurlencode($sqdb)."\">Gå til login</a></p>";
 			}
 		} else { # customer user in the customer account
 			global $sqhost, $squser, $sqpass;
-			if (!$row['rdb'] || !db_exists($row['rdb']) || !@db_connect($sqhost, $squser, $sqpass, $row['rdb'], __FILE__ . " linje " . __LINE__)) $msg = 'Regnskabet kunne ikke åbnes. Kontakt din bogholder.';
+			$lk = db_fetch_array(db_select("select access from regnskab_partners where regnskab_id = '".(int)$row['regnskab_id']."' and partner_id = '".(int)$row['partner_id']."' and until is null", __FILE__ . " linje " . __LINE__));
+			$regRow = db_fetch_array(db_select("select * from regnskab where id = '".(int)$row['regnskab_id']."'", __FILE__ . " linje " . __LINE__));
+			$maxU = $regRow ? bp_ledger_max_users($regRow) : null;
+			if (!$lk || $lk['access'] == 'readonly') $msg = $row['pname'].' har ikke længere adgang til at oprette brugere i regnskabet. Kontakt din bogholder.';
+			elseif (!$row['rdb'] || !db_exists($row['rdb']) || !@db_connect($sqhost, $squser, $sqpass, $row['rdb'], __FILE__ . " linje " . __LINE__)) $msg = 'Regnskabet kunne ikke åbnes. Kontakt din bogholder.';
 			else {
 				$ex = db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($un)."'", __FILE__ . " linje " . __LINE__));
 				$rep = (int)$row['replaces_user_id'];
+				$old = $rep ? db_fetch_array(db_select("select brugernavn from brugere where id = '$rep'", __FILE__ . " linje " . __LINE__)) : null;
 				if ($ex && (int)$ex['id'] != $rep) { include("../includes/connect.php"); $msg = 'Brugernavnet findes allerede i regnskabet – vælg et andet.'; }
+				elseif (!$old && $maxU !== null && (int)db_fetch_array(db_select("select count(*) as n from brugere", __FILE__ . " linje " . __LINE__))['n'] >= $maxU) { include("../includes/connect.php"); $msg = 'Regnskabet har ikke plads til flere brugere. Kontakt din bogholder.'; }
 				else {
-					$rights = str_repeat($row['role'] === 'readonly' ? '2' : '1', 21);
-					if ($rep && db_fetch_array(db_select("select 1 from brugere where id = '$rep'", __FILE__ . " linje " . __LINE__))) { # reuse the seat: the replaced/placeholder user becomes this user
+					$rights = str_repeat('1', 21); # Saldi has no read-only rights level
+					if ($old) { # reuse the seat: the replaced/placeholder user becomes this user
 						db_modify("update brugere set brugernavn = '".db_escape_string($un)."', kode = '".db_escape_string(saldikrypt($rep, $pw))."', rettigheder = '$rights', email = '".db_escape_string($row['email'])."' where id = '$rep'", __FILE__ . " linje " . __LINE__); $nid = $rep;
 					} else {
 						$ry = db_fetch_array(db_select("select max(kodenr) as k from grupper where art = 'RA'", __FILE__ . " linje " . __LINE__)); $aar = ($ry && $ry['k']) ? (int)$ry['k'] : 1;
@@ -64,14 +75,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $row) {
 						db_modify("update brugere set kode = '".db_escape_string(saldikrypt($nid, $pw))."' where id = '$nid'", __FILE__ . " linje " . __LINE__);
 					}
 					include("../includes/connect.php");
-					if ($rep) db_modify("delete from online where db = '".db_escape_string($row['rdb'])."'", __FILE__ . " linje " . __LINE__); # the replaced login is signed out
+					if ($old) db_modify("delete from online where db = '".db_escape_string($row['rdb'])."' and brugernavn = '".db_escape_string($old['brugernavn'])."'", __FILE__ . " linje " . __LINE__); # the replaced login is signed out
 					db_modify("update partner_invites set status = 'accepted', accepted_at = now(), result_user_id = '$nid' where id = '".(int)$row['id']."'", __FILE__ . " linje " . __LINE__);
 					partner_log('partner.invite_accepted', (int)$row['regnskab_id'], (int)$row['partner_id'], "kundebruger $un (".$row['email'].")");
-					partner_log($rep ? 'ledger.user_replaced' : 'ledger.user_created', (int)$row['regnskab_id'], (int)$row['partner_id'], "$un (".($row['role'] === 'readonly' ? 'kun læsning' : 'alle rettigheder').")".($rep ? " – overtog bruger $rep" : '').' via invitation');
+					partner_log($old ? 'ledger.user_replaced' : 'ledger.user_created', (int)$row['regnskab_id'], (int)$row['partner_id'], "$un (alle rettigheder)".($old ? " – overtog bruger $rep" : '').' via invitation');
 					$done = "<h1>Dit login er oprettet</h1><p>Du kan nu logge ind i regnskabet <b>".bp_h($row['regnskab'])."</b> med brugernavnet <b>".bp_h($un)."</b> og din adgangskode.</p><p><a class=\"vr-btn vr-primary\" href=\"../index/index.php?regnskab=".rawurlencode($row['regnskab'])."\">Gå til login</a></p>";
 				}
 			}
 		}
+		if ($msg) db_modify("update partner_invites set status = 'sent' where id = '".(int)$row['id']."' and status = 'accepting'", __FILE__ . " linje " . __LINE__); # give the invitation back after an error
 	} elseif ($kind == 'access' && $row['status'] == 'open' && isset($_POST['decision'])) {
 		$by = ($row['sent_to'] == bp_saldi_mail()) ? 'Saldi (link)' : 'kunde (link)';
 		$err = bp_access_request_decide($t, $_POST['decision'] == 'accept', $by); if ($err) $msg = $err; else $row['status'] = $_POST['decision'] == 'accept' ? 'approved' : 'rejected';
@@ -89,7 +101,7 @@ elseif ($kind == 'invite') {
 	elseif ($row['status'] == 'revoked') print "<h1>Invitationen er tilbagekaldt</h1><p>".$f($row['pname'])." har trukket invitationen tilbage.</p>";
 	elseif ($row['status'] == 'expired') print "<h1>Invitationen er udløbet</h1><p>Linket gjaldt til ".bp_date($row['expires_at']).". Bed ".$f($row['pname'])." om en ny.</p>";
 	else {
-		if ($row['kind'] == 'employee') print "<h1>Velkommen til ".$f($row['pname'])."</h1><p>Du er inviteret som ".($row['partner_role'] == 'owner' ? 'ejer' : 'medarbejder')." og får adgang til ".($row['scope'] && $row['scope'] != 'all' ? count(array_filter(explode(',', $row['scope']))).' udvalgte kunder' : 'alle firmaets kunder')." i Saldi. Vælg brugernavn og adgangskode.</p>";
+		if ($row['kind'] == 'employee') print "<h1>Velkommen til ".$f($row['pname'])."</h1><p>Du er inviteret som ".($row['partner_role'] == 'owner' ? 'ejer' : 'medarbejder')." og får adgang til ".(bp_invite_scope($row['scope'])[0] == 'selected' ? count(bp_invite_scope($row['scope'])[1]).' udvalgte kunder' : 'alle firmaets kunder')." i Saldi. Vælg brugernavn og adgangskode.</p>";
 		else print "<h1>Dit login til ".$f($row['regnskab'])."</h1><p>".$f($row['pname'])." har sat adgang op til dig i regnskabet. Vælg brugernavn og adgangskode.</p>";
 		if ($row['message']) print "<p><i>".$f($row['message'])."</i></p>";
 		print ($msg ? "<p class=\"err\">".$f($msg)."</p>" : "")."<form method=\"post\"><input type=\"hidden\" name=\"t\" value=\"".$f($t)."\"><label>Brugernavn<input class=\"vr-inp\" name=\"brugernavn\" maxlength=\"80\" value=\"".$f((string)if_isset($_POST, '', 'brugernavn'))."\" required autofocus></label><label>Adgangskode (mindst 8 tegn)<input class=\"vr-inp\" type=\"password\" name=\"kode\" minlength=\"8\" required></label><label>Gentag adgangskode<input class=\"vr-inp\" type=\"password\" name=\"kode2\" minlength=\"8\" required></label><p style=\"font-size:12.5px\">Linket gælder til ".bp_date($row['expires_at']).".</p><button type=\"submit\" class=\"vr-btn vr-primary\">Opret login</button></form>";

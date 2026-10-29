@@ -2,7 +2,7 @@
 ob_start(); # for the redirect after an action (vr_prg)
 @session_start();
 $s_id=session_id();
-// --- admin/bogholder_opret.php --- ver 5.1.0 --- 2026.10.12 ---
+// --- admin/bogholder_opret.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. "Opret og tilknyt" in the accountant panel (bogholderpanelet), for employees with the right
@@ -16,6 +16,8 @@ $s_id=session_id();
 //                    the customer's plan, payer or other bookkeepers changes.
 // 20261029 CL/ASR Group mode: a new company is owned by the group (access 'owner'), gets any plan without a trial and is
 //                  invoiced via the parent by default or pays itself; linking an existing company makes the group its owner.
+// 20261029 CL/ASR Review fixes: the chosen payer is written in both models, the creator and the responsible employee get
+//                  access when they only see selected customers, the password is hashed as typed, login names are checked.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";
@@ -64,7 +66,7 @@ if (isset($_POST['bp_action'])) {
 		if (!in_array($f['model'], array('partner','customer'), true)) $err[] = bp_t('Vælg betalingsmodel','Choose the payment model');
 		$grp = bp_is_group();
 		if (($f['model'] == 'customer' || $grp) && !($grp ? isset(ent_catalog()['plans'][$f['plan']]) : in_array($f['plan'], array('finans','professionel','business'), true))) $err[] = bp_t('Vælg pakke','Choose the plan');
-		if ($f['userMode'] == 'now') { if ($f['brugernavn'] === '' || is_input_too_long($f['brugernavn'])) $err[] = bp_t('Brugernavn til kundens administrator mangler','The customer administrator username is missing'); if (strlen($f['kode']) < 6) $err[] = bp_t('Adgangskoden skal være mindst 6 tegn','The password must be at least 6 characters'); if ($f['kode'] !== $f['kode2']) $err[] = bp_t('De to adgangskoder er ikke ens','The two passwords differ'); }
+		if ($f['userMode'] == 'now') { if ($f['brugernavn'] === '' || is_input_too_long($f['brugernavn'])) $err[] = bp_t('Brugernavn til kundens administrator mangler','The customer administrator username is missing'); elseif (!bp_login_name_ok($f['brugernavn'])) $err[] = bp_login_name_msg(); if (strlen($f['kode']) < 6) $err[] = bp_t('Adgangskoden skal være mindst 6 tegn','The password must be at least 6 characters'); if ($f['kode'] !== $f['kode2']) $err[] = bp_t('De to adgangskoder er ikke ens','The two passwords differ'); }
 		elseif ($f['userMode'] == 'invite') { if (!filter_var($f['uemail'], FILTER_VALIDATE_EMAIL)) $err[] = bp_t('Skriv en gyldig e-mail til kundens bruger','Enter a valid e-mail for the customer user'); }
 		elseif ($f['userMode'] != 'none') $err[] = bp_t('Vælg, hvordan kundens bruger oprettes','Choose how the customer user is created');
 		if ($resp && !bp_employee($resp)) $resp = 0;
@@ -75,7 +77,7 @@ if (isset($_POST['bp_action'])) {
 		$adminUser = $f['userMode'] == 'now' ? $f['brugernavn'] : 'kunde'; $adminPw = $f['userMode'] == 'now' ? $f['kode'] : bin2hex(random_bytes(12));
 		$company = array('kontakt' => db_escape_string($f['kontakt']), 'firmanavn' => db_escape_string($f['firmanavn'] !== '' ? $f['firmanavn'] : $f['regnskab']), 'addr1' => db_escape_string($f['addr1']), 'addr2' => '', 'postnr' => db_escape_string($f['postnr']), 'bynavn' => db_escape_string($f['bynavn']), 'tlf' => db_escape_string($f['tlf']), 'email' => db_escape_string($f['email']), 'cvrnr' => db_escape_string($cvrClean));
 		$ws = $GLOBALS['webservice'] ?? null; $GLOBALS['webservice'] = 1; # like the sign-up API: no master user gets the account added to an adgang_til list because it shares the administrator's name
-		ob_start(); $res = create_regnskab(db_escape_string($f['regnskab']), db_escape_string($adminUser), db_escape_string($adminPw), db_escape_string($f['email']), 0, 0, $std ? 'on' : NULL, $company); ob_end_clean();
+		ob_start(); $res = create_regnskab(db_escape_string($f['regnskab']), db_escape_string($adminUser), $adminPw, db_escape_string($f['email']), 0, 0, $std ? 'on' : NULL, $company); ob_end_clean();
 		$GLOBALS['webservice'] = $ws; $db = $sqdb;
 		if (!$res['ok']) vr_prg(array(bp_t('Regnskabet kunne ikke oprettes','The account could not be created').($res['error'] == 'exists' ? ': '.bp_t('navnet findes allerede','the name already exists') : '')), 'bogholder_opret.php', 'warn');
 		$db_id = (int)$res['db_id']; $newdb = $res['db'];
@@ -87,7 +89,8 @@ if (isset($_POST['bp_action'])) {
 		db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note, payer, responsible_bruger_id) values ('$db_id', '$pid', '".($grp ? 'owner' : 'full')."', '".(int)$me['id']."', '".($grp ? 'oprettet af koncernen' : 'oprettet af bogholder')."', '".($f['model'] == 'partner' ? 'partner' : 'customer')."', ".($resp ?: 'NULL').")", __FILE__ . " linje " . __LINE__);
 		partner_log('ledger.created', $db_id, $pid, $f['regnskab'].' – '.($grp ? ent_plan_name($f['plan']).', '.($f['model'] == 'partner' ? 'faktureres via hovedselskabet' : 'betaler selv') : ($f['model'] == 'partner' ? 'firmaet betaler Finans (ordning)' : 'kunden betaler: '.$f['plan'])).($cvrClean ? " – CVR $cvrClean" : ''));
 		partner_log('partner.link_added', $db_id, $pid, $p['name'].' ('.($grp ? 'owner' : 'full').') – ved oprettelse');
-		if ($f['model'] == 'partner') bp_set_payer($db_id, $pid, 'partner', bp_t('ved oprettelse','at creation'));
+		bp_set_payer($db_id, $pid, $f['model'] == 'partner' ? 'partner' : 'customer', bp_t('ved oprettelse','at creation'));
+		foreach (array_unique(array((int)$me['id'], (int)$resp)) as $sb) { $se = $sb ? bp_employee($sb) : null; if ($se && $se['scope'] == 'selected') db_modify("insert into partner_user_access (bruger_id, regnskab_id) values ('$sb', '$db_id')", __FILE__ . " linje " . __LINE__); } # the creator and the responsible employee can open it, also with selected customers only
 		// company details and work counts into the panel's cache right away
 		$one = array($db_id => array('id' => $db_id, 'db' => $newdb, 'closed' => false, 'cache' => null)); bp_cache_refresh($one, true);
 		$done = array(bp_t('Regnskabet','The account').' '.$f['regnskab'].' '.bp_t('er oprettet','was created').($grp ? ' – '.ent_plan_name($f['plan']).', '.($f['model'] == 'partner' ? bp_t('faktureres via hovedselskabet','invoiced via the parent') : bp_t('betaler selv','pays itself')) : ($f['model'] == 'partner' ? ' – '.bp_t('Finans i bogholderordningen','Finans in the scheme') : ' – '.bp_t('kunden betaler','the customer pays').' '.ent_plan_name($f['plan']).($f['plan'] != 'finans' ? ' ('.bp_t('30 dages prøve','30-day trial').')' : ''))));
