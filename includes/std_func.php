@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -124,6 +124,7 @@
 // 20261027 CDX/MJ SST-876 Skip queue filesystem work without a webshop and defer backlog processing until transactions have committed.
 // 20261027 CDX/MJ SST-876 Defer document sends until the outer transaction completes and send them before old backlog in the post-commit drain.
 // 20261028 CDX/MJ SST-876 Log marker persistence failures and prioritize new updates over exhausted retries.
+// 20261029 CDX/MJ SST-876 Include deferred item labels in the documented report state.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2559,7 +2560,7 @@ if (!function_exists('shopSyncReportState')) {
 	 * By reference and request scoped, so the posting can collect them while it works and the
 	 * page can report them once it has committed.
 	 *
-	 * @return array{failed: array<string, string>}
+	 * @return array{failed: array<string, string>, queued: array<string, string>}
 	 */
 	function &shopSyncReportState() {
 		static $state = array('failed' => array(), 'queued' => array());

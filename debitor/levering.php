@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-// --------------debitor/levering.php--------ver 5.0.0 ----2026-10-27-----
+// --------------debitor/levering.php--------ver 5.1.0 ----2026-10-29-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 2013.05.08 Tilf�jet "and status < 2" s� status ikke bliver sat tilbage ved klik p� tilbagenap p� mus.
 // 2016.09.13 Tilf�jet oioubl S�g 20160913
 // 20261027 CDX/MJ SST-876 Drain older webshop updates after the delivery transaction commits.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 
 $id=NULL;	
 if (isset($_GET['id'])) $id=($_GET['id']);

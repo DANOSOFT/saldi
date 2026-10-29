@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,6 +125,7 @@
 // 20261023 CL/LH MB-95: "på beløb" set item: opret_saet() was called with 6 of its 7 arguments (ArgumentCountError on PHP 8),
 //                the lager landing in $incl_moms. Pass usdecimal($pris_ny, 2), 'on', $lager_ny like the other POS opret_saet() call.
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 @session_start();
 $s_id = session_id();
 ob_start();

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,8 @@
 // 20261023 CDX/MJ SST-876 Prepare document updates before sending bounded batches, with document lines before sets.
 // 20261026 CDX/MJ SST-876 Recover queued sets through their original part path and retain claims when no payload was sent.
 // 20261027 CDX/MJ SST-876 Retain correction markers for any successful low-level send inside a transaction, including parent sets.
+// 20261028 CDX/MJ SST-876 Refresh stock before each send batch and skip backlog preparation when the HTTP budget is exhausted.
+// 20261029 CDX/MJ SST-876 Keep history contiguous with the file header.
 
 /**
  * Request-local payload collection; quantities are rebuilt on every delivery.
@@ -37,8 +39,6 @@
  *     vare_id:int,variant_id:int,lager:int,mode:string,label:string,parent:bool}>
  * }
  */
-// 20261028 CDX/MJ SST-876 Refresh stock before each send batch and skip backlog preparation when the HTTP budget is exhausted.
-
 function &shopSyncDocumentState() {
 	static $state = array('collecting' => false, 'backlog' => false, 'tasks' => array());
 	return $state;

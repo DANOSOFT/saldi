@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-10-27 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -155,6 +155,7 @@
 //                 second budget skipped everything after it.
 // 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
 // 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 

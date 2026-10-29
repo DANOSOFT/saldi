@@ -8,6 +8,7 @@
 // it unchanged. Nothing here touches the network or a database.
 // 20261027 CDX/MJ SST-876 Verify an old marker becomes a fresh active claim and is not recovered by a second request.
 // 20261028 CDX/MJ SST-876 Cover retry fairness and one-time exhaustion reporting.
+// 20261029 CDX/MJ SST-876 Start the competing claimant with the current PHP binary without a shell.
 
 // ---------------------------------------------------------------- the stubbed transport
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
@@ -318,7 +319,7 @@ file_put_contents($child, '<?php' . "
 ");
 shopSyncQueueWrite($live, 'stock', 0, time());
 $pipes = array();
-$proc = proc_open('php ' . escapeshellarg($child) . ' ' . escapeshellarg($db) . ' ' . escapeshellarg($live),
+$proc = proc_open(array(PHP_BINARY, $child, $db, $live),
 	array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
 check(is_resource($proc), 'A second process can be started');
 $said = fread($pipes[1], 200);

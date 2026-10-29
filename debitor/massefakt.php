@@ -1,5 +1,5 @@
 <?php	
-// ------------- debitor/massefakt.php ----- (modul nr 6)------ lap 2.0.9----2026-10-28-------
+// ------------- debitor/massefakt.php ----- (modul nr 6)------ ver 5.1.0----2026-10-29-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,6 +21,7 @@
 //                 anything printed after that refresh is never written.
 // ----------------------------------------------------------------------
 // 20261028 CDX/MJ SST-876 Maintain file history metadata for the webshop synchronization review.
+// 20261029 CDX/MJ SST-876 Match the header version to the mass-invoicing warning behavior.
 
 @session_start();
 $s_id=session_id();

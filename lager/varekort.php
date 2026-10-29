@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -144,6 +144,7 @@
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
 //
 // 20261027 CDX/MJ SST-876 Retain master read-only protections while merging SST-876 stock-sync warnings.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 ob_start(); //Starts output buffering
 
 @session_start();
