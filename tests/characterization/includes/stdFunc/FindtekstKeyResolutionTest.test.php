@@ -5,6 +5,7 @@
 // 20261028 CDX/NTR Cover pipe fallback when an unresolved key cannot self-heal.
 // 20261028 CDX/NTR Cover legacy CSV literal matches in every language column.
 // 20261029 CDX/NTR Cover custom/standard keyed TSV precedence, the dash sentinel and keyed stale-row purges.
+// 20261029 CDX/NTR Match database dash placeholders returning their pipe fallback or searchable key.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -120,10 +121,11 @@ final class FindtekstKeyResolutionTest extends TestCase
         self::assertStringContainsString("update tekster set tekst='Accept' where id='10'", $writes[0]);
     }
 
-    public function testDashSentinelKeyRowResolvesToEmptyString(): void
+    public function testDashPlaceholderKeyRowReturnsPipeFallbackOrSearchableKey(): void
     {
         $GLOBALS['findtekstStub']->keyRow = ['id' => '10', 'tekst' => '-'];
-        self::assertSame('', findtekst('common.hidden', 2));
+        self::assertSame('Searchable fallback', findtekst('common.hidden|Searchable fallback', 2));
+        self::assertSame('common.hidden', findtekst('common.hidden', 2));
         self::assertSame([], $GLOBALS['findtekstStub']->writes);
     }
 
