@@ -16,6 +16,7 @@
 //                  register-webhooks refuses a tenant the endpoint doesn't serve.
 // 20261028 CL/SZ SD-749: rebased on #911; the worker test leaves out runtime.purge, due from 07:15.
 // 20261029 CL/SZ SD-749 review: register-webhooks goes on after a misconfigured shop; setUp clears the stored base URL.
+// 20261029 CL/SZ SD-749 review: register-webhooks needs no fiscal year and stores the host lower-cased.
 
 use PHPUnit\Framework\TestCase;
 
@@ -202,6 +203,23 @@ final class WebhookEndpointTest extends TestCase
         $this->assertSame([['hml', 10], ['old', 10]], array_map(fn(array $r): array => [$r['shop'], $r['failed']], $lines), $run['stdout']);
         $this->assertStringContainsString('not a *.myshopify.com domain', $lines[0]['errors'][0]);
         $this->assertStringContainsString("API version '2020-01'", $lines[1]['errors'][0]);
+    }
+
+    public function testRegisterWebhooksNeedsNoFiscalYearAndLowerCasesTheHost(): void
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, box3, box4, box5) VALUES ('RA', 2, 'RA', '01', $1, '12', $1, 'on')", [date('Y')]);
+        ShopifyEnv::rows($conn, "UPDATE shopify_shops SET domain = 'hml.example.com' WHERE shop_key = 'hml'");
+        pg_close($conn);
+
+        $run = $this->tool(['register-webhooks', '--db=' . self::$db, '--base-url=HTTPS://Dev-SZ.Example.dk/sz/'], ['SALDI_SHOPIFY_DB' => self::$db]);
+
+        $this->assertSame(1, $run['exit'], 'two RA years contain today; only the misconfigured shop fails: ' . $run['stderr']);
+        $this->assertStringNotContainsString('ShopifyBootstrapError', $run['stderr']);
+        $conn = ShopifyEnv::connect(self::$db);
+        $stored = ShopifyEnv::rows($conn, "SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = 'webhook_base_url'");
+        pg_close($conn);
+        $this->assertSame([['var_value' => 'https://dev-sz.example.dk/sz']], $stored);
     }
 
     public function testABodyOverTenMegabytesGets413AndIsNotStored(): void

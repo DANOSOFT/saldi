@@ -16,6 +16,7 @@
 // 20261028 CL/SZ SD-748: S02c is on hml/shopify; no_alarm tests use alarm_fails, and one runs on the real error list.
 // 20261028 CL/SZ SD-748 review: deferred events go behind new ones (limit 1); a failed route alarm keeps its kind.
 // 20261028 CL/SZ SD-749: the webhook.health job restores a deleted subscription.
+// 20261029 CL/SZ SD-749 review: a health job that can't restore raises one error and one alarm mail.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -494,6 +495,13 @@ final class WebhookInboxTest extends TestCase
         $this->assertSame(0, $failing['exit'], $failing['stderr'] . $failing['stdout']);
         $this->assertSame(['outcome' => 'done'], $failing['result']['result'], 'a failure ends the job; the next hour retries');
         $this->assertStringContainsString('shopify_webhook health_failed', $failing['stderr']);
+        $this->assertSame([['webhook.health', 'hml']], array_map(fn(array $a): array => [$a['kind'], $a['ref']], $this->alarms()),
+            'a subscription that cannot be restored reaches the error list');
+        $this->assertSame(['mail.alert'], array_column($this->jobs(), 'type'), 'and is mailed');
+        $again = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_events.php', ['health', self::$db, '-', 'fail_create']));
+        $this->assertSame(0, $again['exit'], $again['stderr'] . $again['stdout']);
+        $this->assertSame(['2'], array_column($this->alarms(), 'occurrences'), 'the next hour counts on the open row');
+        $this->assertSame(['mail.alert'], array_column($this->jobs(), 'type'), 'and mails no more than once an hour');
         $conn = ShopifyEnv::connect(self::$db);
         $stored = ShopifyEnv::rows($conn, "SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = 'webhook_base_url'");
         pg_close($conn);

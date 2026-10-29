@@ -29,6 +29,7 @@
 // 20261028 CL/SZ SD-748: no_alarm replaced by real, S02c's error list and SD-737's queue (#948).
 // 20261028 CL/SZ SD-748 review: alarm_fails_once.
 // 20261028 CL/SZ SD-749: mode health.
+// 20261029 CL/SZ SD-749 review: health fail_create raises its alarm on S02c's real error list.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_events.php <receive|promote> <test_db> <deliveries.json|limit> [fail_type]\n");
@@ -54,8 +55,10 @@ function out(array $data, int $exit = 0): void
 
 $failType = $argv[4] ?? '';
 
-// With real the stand-in is not defined: events.php loads S02c's errors.php.
-if ($failType !== 'real') {
+// With real and with health's fail_create neither stand-in is defined: events.php loads S02c's errors.php,
+// which loads SD-737's queue.php.
+$realErrorList = $failType === 'real' || $failType === 'fail_create';
+if (!$realErrorList) {
 function shopify_error_open(?int $shopId, string $kind, string $ref, string $message, string $severity = 'error', array $correlation = []): int
 {
     global $failType;
@@ -73,8 +76,8 @@ function shopify_error_open(?int $shopId, string $kind, string $ref, string $mes
 }
 }
 
-// With real_queue or real the stand-in is not defined: queue.php is loaded instead.
-if ($failType !== 'real_queue' && $failType !== 'real') {
+// With real_queue (or a real error list) the stand-in is not defined: queue.php is loaded instead.
+if ($failType !== 'real_queue' && !$realErrorList) {
 function shopify_queue_enqueue(string $type, ?int $shopId, string $dedupeKey, array $payload, int $priority, ?DateTimeImmutable $runAt = null, array $correlation = []): array
 {
     global $failType;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/events.php --- ver 5.0.0 --- 2026.10.29
+// --- includes/shopify/events.php --- ver 5.1.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20261028 CL/SZ SD-748 review: deferred events go behind fresh ones; a failed route alarm keeps its kind.
 // 20261028 CL/SZ SD-749: webhook registration, the hourly webhook.health job and fixture replay (WP03-3).
 // 20261029 CL/SZ SD-749 review: a shop with a wrong domain or API version kills the health job on purpose (doc).
+// 20261029 CL/SZ SD-749 review: a health job that can't restore raises it on the error list; the base URL's host is lower-cased.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -633,15 +634,18 @@ function shopify_webhook_subscriptions(array $shop, array $topics, array $opts):
 	throw new RuntimeException('more than 20 pages of webhook subscriptions on ' . $shop['shop_key'] . '; nothing reconciled');
 }
 
-/** The base URL without a trailing slash; null unless it is https without credentials, query or fragment. */
+/**
+ * The base URL without a trailing slash, scheme and host lower-cased (so it compares with what Shopify
+ * returns); null unless it is https without credentials, query or fragment.
+ */
 function shopify_webhook_base_url_check(string $url): ?string {
 	$url = rtrim(trim($url), '/');
 	$parts = parse_url($url);
-	if ($parts === false || ($parts['scheme'] ?? '') !== 'https' || ($parts['host'] ?? '') === ''
+	if ($parts === false || strtolower($parts['scheme'] ?? '') !== 'https' || ($parts['host'] ?? '') === ''
 		|| isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
 		return null;
 	}
-	return $url;
+	return 'https://' . strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '') . ($parts['path'] ?? '');
 }
 
 /** The receiver URI Shopify posts a shop's webhooks to. */
@@ -685,8 +689,9 @@ function shopify_save_webhook_base_url(string $url): void {
  * Handler of the hourly webhook.health job (scheduler slot webhook.health, priority 40): re-creates
  * the job's shop's subscriptions that Shopify deleted after repeated failed deliveries (NF-5),
  * with the base URL register-webhooks stored; moving subscriptions stays with that command.
- * Without a stored base URL it does nothing. A failure is logged and the job still ends done:
- * the next hour's job is the retry, so failing jobs never pile up. A shop whose domain or API
+ * Without a stored base URL it does nothing. A failure is logged and raised on the error list
+ * (kind webhook.health, one open row per shop, mailed at most once an hour), and the job still ends
+ * done: the next hour's job is the retry, so failing jobs never pile up. A shop whose domain or API
  * version is wrong is left to throw (InvalidArgumentException): the job dies with an alarm, each
  * hour until the shop is fixed, as no retry can fix that.
  *
@@ -711,6 +716,9 @@ function shopify_webhook_health_job(array $job, float $deadline, callable $heart
 	}
 	if ($result['failed'] > 0) {
 		shopify_event_log('health_failed', array('shop' => $shop['shop_key'], 'errors' => $result['errors']));
+		// a lost token or access stops deliveries for good; the log line alone would hide it
+		shopify_event_alarm((int)$shop['id'], 'webhook.health', (string)$shop['shop_key'],
+			'webhook subscriptions could not be restored: ' . implode('; ', $result['errors']), array('job_id' => $job['id'] ?? null));
 	}
 	return array('outcome' => 'done');
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.0.0 --- 2026.10.29
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20261028 CL/SZ SD-748: the events producer promotes stored webhook events into jobs.
 // 20261028 CL/SZ SD-749: commands register-webhooks and replay; the webhook.health handler.
 // 20261029 CL/SZ SD-749 review: register-webhooks reports a misconfigured shop as failed and goes on.
+// 20261029 CL/SZ SD-749 review: register-webhooks and replay need no fiscal year; a tenant they can't use ends with a line and exit 2.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -132,7 +133,12 @@ function shopify_worker_boot(array $opts, string $usage): bool {
 	require_once __DIR__ . '/../includes/connect.php';
 	require_once __DIR__ . '/../includes/shopify/bootstrap.php';
 	require_once __DIR__ . '/../includes/shopify/events.php';
-	shopify_bootstrap($db);
+	try {
+		shopify_bootstrap($db, false); // the commands post nothing, so no fiscal year is needed
+	} catch (ShopifyBootstrapError $e) {
+		fwrite(STDERR, "shopify worker: $db can't be used: " . $e->getMessage() . "\n");
+		return false;
+	}
 	if (!shopify_schema_ready()) {
 		fwrite(STDERR, "shopify worker: schema not installed on $db; nothing run\n");
 		return false;
