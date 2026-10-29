@@ -23,6 +23,7 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261022 CL/NTR bootstrapTenantOnce() is guarded by $ownsTenant, so a teardown by one suite makes the next one re-clone.
 //                 runChild() collects stderr in a temp file so a chatty child cannot deadlock on a full pipe.
+// 20261029 CL/LH Dropped the deleted bank_integration/aiia_import.php from the MAX(id)+1 examples (#877).
 
 final class CharacterizationEnv
 {
@@ -240,7 +241,7 @@ final class CharacterizationEnv
      *
      * Saldi allocates several primary keys itself with "SELECT MAX(id)+1"
      * and inserts the id explicitly (finans/kassekladde.php:1045,
-     * admin/bankfordeling.php:516, bank_integration/aiia_import.php:69),
+     * admin/bankfordeling.php:516),
      * so the serial sequences behind those tables never advance and a clone
      * of a used tenant starts out with sequences far behind its data. Any
      * fixture that relies on the column default would then collide with an

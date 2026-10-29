@@ -211,6 +211,7 @@
 //                The date a row was drawn with (transdate[]) is matched by line id, not screen row, since those lines shift the rows
 //                below them; by row a debtor line could take another line's date and lose a due date typed by hand.
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
+// 20261026 CL/LH Removed the commented-out Aiia "Bank Import" button; bank_integration/aiia_import.php is gone.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -4228,13 +4229,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				}
 				print "<td align='center'><span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
-				/*
-				// Temporarily commented out
-				?>
-
-				<td align='center'><span title='<?= "Importer bankposteringer via Aiia" ?>'><button id='Aiia_Import' type='button' class='menu_button button' style='width:120px;' accesskey='z' onclick='window.location.href="../bank_integration/aiia_import.php?kladde_id=<?= intval($kladde_id) ?>"'><?= "Bank Import"	// findtekst('????|Bank Import', $sprog_id) ?></button></span></td>
-
-				<?php */
 			}
 		}
 		print "</form>";

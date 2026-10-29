@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.28
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
 // 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
 // 20261028 CDX/NTR Apply the tekst_key schema migration to both tenant and master databases.
+// 20261027 CL/LH #877 (CodeRabbit): delete the removed Aiia integration's OAuth Client ID and Client Secret rows from the master database's settings table.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -124,6 +125,22 @@ foreach ($tekstKeyTargets as $tekstKeyGlobal) {
 		}
 	} else {
 		db_modify("CREATE INDEX IF NOT EXISTS idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+	}
+}
+
+// 20261027 CL/LH #877: the Aiia bank integration is removed, so nothing reads its OAuth client
+// credentials any more. They are the 'Client ID' and 'Client Secret' rows with var_grp 'OAuth' in
+// the master database's settings table (the Aiia code read them with db_select(..., true)), so they
+// are deleted there. Only those two rows: the per-user 'oauth_data' rows and the 'bank_integration'
+// preference rows are left alone. The column check keeps a master database whose settings table has
+// no var_grp from failing the login, and looking for the rows first means later logins only read.
+$aiiaCredentialsMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name = 'settings' AND column_name = 'var_grp'";
+$qtxt.= $aiiaCredentialsMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true))) {
+	$aiiaCredentialsWhere = "var_grp = 'OAuth' AND var_name IN ('Client ID', 'Client Secret')";
+	if (db_fetch_array(db_select("SELECT id FROM settings WHERE $aiiaCredentialsWhere", __FILE__ . " linje " . __LINE__, true))) {
+		db_modify("DELETE FROM settings WHERE $aiiaCredentialsWhere", __FILE__ . " linje " . __LINE__, true);
 	}
 }
 

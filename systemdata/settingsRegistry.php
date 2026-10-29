@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-09-30 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-10-26 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,7 @@
 // 20260721 Sawaneh Added Opgaveliste/Brug jobkort (task list) search terms to div_valg entry
 // 20260930 CL/NTR Added HTML/CSS layout version search terms to div_valg entry.
 //                 Hid the admin_settings entry outside the master database ('masterDb' rule).
+// 20261026 CL/LH Removed the Aiia bank_integration entry; its settings section is gone.
 //
 // Hand-maintained index of Settings pages, used by settingsSearch.php.
 // Each entry:
@@ -137,8 +138,6 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'posOptions',            'url' => 'diverse.php?sektion=posOptions',           'category' => 'pos', 'textId' => 271, 'visibilityRule' => 'posModule',
 				'keywords' => array('pos settings','cash register settings','point of sale options','number of cash registers','number of card terminals','card payment accounts','cash accounts','department per register','vat group cash customers','discount item cash sale','receipt printing','print receipt automatically','disable receipt printing','bon print','cash drawer','opening float','starting cash amount','cash count assistance','coins and banknotes','interim account','cash difference account','table selection','restaurant table','number of tables','table name','font size pos','gift card numbers','gift card text','voucher numbers','active gift card','post each trade immediately','post immediately to finance','printer ip','receipt printer ip','card terminal ip','card terminal type','flatpay','move3500','lane3000','vibrant terminal','ip baseret terminal','payment terminal type','other payment cards','kitchen printer ip','mobile pos','screen width','zoom level','flip menu','reverse primary secondary menu','cash on amount button','account lookup button','deposit button','forced user selection','clerk selection before checkout','customer display','bundle price','set price','jump to price field','show stock in pos','show inventory in pos','larger order total','print timeout','kasseantal','kortkonti','kassekonti','kortterminal','køkkenprinter','kasseprimo',
 					'kassaapparat','avdeling','mva-gruppe','kredittkort','skriverens ip','kjøkken ip','terminaltype','kontantsaldo','kundedisplay','tvunget brukervalg','tabellvalg','antall bord')),
-			array('key' => 'bank_integration',      'url' => 'diverse.php?sektion=bank_integration',     'category' => 'integrations', 'labelDa' => 'Bank Integration', 'labelEn' => 'Bank integration', 'labelNo' => 'Bankintegrasjon',
-				'keywords' => array('bank feed','bank transaction import','bank statement import','show bank status','show status kassekladde','default date range bank import','date method','last quarter','this quarter','bank connection status')),
 			array('key' => 'barcodescan',           'url' => 'barcodescan.php',                          'category' => 'pos', 'labelDa' => 'App Barcode', 'labelEn' => 'Barcode scanning app', 'labelNo' => 'App-strekkode',
 				'keywords' => array('qr code login','app login','mobile app authentication','one time access qr','saldi app login','scan to login')),
 			array('key' => 'sprog',                 'url' => 'diverse.php?sektion=sprog',                'category' => 'company', 'textId' => 801,

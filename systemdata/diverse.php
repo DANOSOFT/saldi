@@ -113,6 +113,7 @@
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 // 20261029 CL/MJ SST-885 ordre_valg saves "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL).
+// 20261026 CL/LH Removed the Aiia bank integration settings section; Aiia is being replaced by Enable Banking.
 
 @session_start();
 $s_id = session_id();
@@ -131,9 +132,6 @@ $diffkto    = NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-if (is_file(__DIR__ . '/../bank_integration/includes/enabled.php')) {
-	include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
-}
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 
@@ -2226,13 +2224,6 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
 
-		if (function_exists('bankIntegrationEnabled') && bankIntegrationEnabled()) {
-			// TODO: findtekst. // TODO: Translation Tekst til bank integration
-			print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				   ."Bank Integration" ."</button></a></td></tr>\n";
-		}
-
 		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('170|Øredifferencer', $sprog_id)."</button></a><!--tekst 170--></td></tr>\n";
@@ -2325,7 +2316,6 @@ if ($sektion == "rykker_valg") rykker_valg();
 if ($sektion == "div_valg") div_valg(); # Kalder sys_div_valg.php
 if ($sektion == "docubizz") docubizz();
 if ($sektion == "bilag") bilag();
-if ($sektion == "bank_integration") include('diverseIncludes/bank_integration.php');
 //if ($sektion=="barcodescan") barcodescan();
 if ($sektion == "orediff") orediff($diffkto);
 if ($sektion == "massefakt") massefakt();

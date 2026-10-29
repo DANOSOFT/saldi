@@ -20,6 +20,7 @@
 //                (lager/lagerstatusmail.php, api/v2/setup_api_key.php, bank_integration/login.php).
 //                The typed record links and companion screens of the full Assist are not on
 //                master; that branch adds them back with its pages.
+// 20261029 CL/LH Dropped diverse.php?sektion=bank_integration: the Aiia settings section is removed (#877).
 (function (root) {
   // Every screen the assistant may open: the destinations of SALDI's own navigation, as
   // listed in the assistant's screen manifest (chaty data/screens/screen_manifest.json).
@@ -69,7 +70,6 @@
     'systemdata/brugere.php',
     'systemdata/diverse.php',
     'systemdata/diverse.php?sektion=api_valg',
-    'systemdata/diverse.php?sektion=bank_integration',
     'systemdata/diverse.php?sektion=bilag',
     'systemdata/diverse.php?sektion=div_io',
     'systemdata/diverse.php?sektion=div_valg',

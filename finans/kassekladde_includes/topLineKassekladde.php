@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/topLineKassekladde.php --- patch 5.0.0 --- 2026.01.26 ---
+// --- finans/kassekladde_includes/topLineKassekladde.php --- patch 5.0.0 --- 2026.10.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20260126 PHR fixed $exitDraft
 // 20260904 Sawaneh Gear button for the Customize view panel added next to 'Ny' (editable journals only);
 //                  the panel itself and its logic live in kassekladde.php.
 // 20260908 SZ SST-755: Back/Ny now release the lock through includes/luk.php unconditionally,
 //           instead of exitDraft (which only fired when the back target equaled kladdeliste.php).
+// 20261026 CL/LH Removed the Aiia bank login status icon.
 
 $border = 'border:1px';
 $TableBG = "bgcolor=$bgcolor";
@@ -62,26 +63,6 @@ print "<td width=5% style='$buttonStyle'>
 					<?php print $icon_kassekladde . findtekst('1072|Kassekladde', $sprog_id) . $kladde_id ?>
 				</button>
 			</div>
-			<?php if (
-				$bogfort == "-" // not yet bogfort
-				|| $bogfort == "" // new kassekladde
-				) { ?>
-			<style>
-				.auth-status-icon {
-					display: inline-flex;
-					align-items: center;
-					gap: 4px;
-					margin-left: auto;
-					padding: 6px;
-					color: white;
-				}
-				.auth-status-icon img {
-					width: 16px;
-					height: 16px;
-				}
-			</style>
-			<?php include(__DIR__ . '/../../bank_integration/includes/auth_check_icon.php'); ?>
-			<?php } // bogfort == "-" || $bogfort == "" ?>
 		</div>
 	</td>
 <?php
