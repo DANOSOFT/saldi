@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/findOpenPurchaseCost.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- includes/stdFunc/findOpenPurchaseCost.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,11 @@
 //                  variants of one item can be bought at different prices.
 // 20261028 CL/MMR SST-907 deficit_cost_price() no longer shows the cost-price alert on a POS sale (ordrer.art 'PO').
 //                 The alert sat in the same page as the receipt redirect, so the receipt only printed after OK, on every sale off negative stock.
+//                 The cost price and the order log line are unchanged.
+// 20261029 CL/MMR SD-786 The cost-price message is off unless "Vis besked når kostprisen er anslået" is ticked under Ordrerelaterede valg.
+//                 When on, it is only shown on an interactive delivery of an order (not POS, webshop/API or a negative line/credit note),
+//                 and only when the price came from the item card or from an open purchase line that differs from the item card.
+//                 It names each item, the price and where the price came from, all lines of a delivery in one message.
 //                 The cost price and the order log line are unchanged.
 
 if (!function_exists('find_open_purchase_cost')) {
@@ -150,14 +155,86 @@ if (!function_exists('deficit_cost_is_pos_line')) {
 	}
 }
 
+if (!function_exists('deficit_cost_notice_relevant')) {
+	/**
+	 * Whether the cost-price message is shown for this line (SD-786).
+	 *
+	 * Only when all of these hold, cheapest test first:
+	 * - "Vis besked når kostprisen er anslået" is ticked (settings showCostEstimateNotice, group ordre; off by default);
+	 * - it is not a webservice/API delivery: rest_api.php, mysale/api.php, remoteBooking/api.php and
+	 *   soapserver/invoice.php emit JSON or XML, which printed markup would invalidate;
+	 * - it is not linjeopdat()'s negative-sale/credit-note branch (the label it passes as $kontekst);
+	 * - the price is worth a look: it came from the item card (no open purchase line), or from an open
+	 *   purchase line whose price differs from the item card (the Den-Tec case, SST-795/796);
+	 * - it is not a POS sale (ordrer.art 'PO'): the message held back the receipt redirect (SST-907).
+	 *
+	 * @param int|string        $linje_id     The order line being priced.
+	 * @param string            $kontekst     linjeopdat()'s label for the calling branch.
+	 * @param bool|string       $webservice   Truthy on an API/SOAP delivery.
+	 * @param array|null        $kostkilde    find_open_purchase_cost()'s result, NULL when no line was open.
+	 * @param float             $kostpris     The cost price that was used.
+	 * @param float             $varekortpris varer.kostpris of the item.
+	 * @return bool
+	 */
+	function deficit_cost_notice_relevant($linje_id, $kontekst, $webservice, $kostkilde, $kostpris, $varekortpris)
+	{
+		if ($webservice || $kontekst === 'negativt salg/kreditnota') {
+			return false;
+		}
+		if ($kostkilde && abs((float) $kostpris - (float) $varekortpris) < 0.005) {
+			return false;   // the open purchase line agrees with the item card: nothing to look at
+		}
+		if (get_settings_value("showCostEstimateNotice", "ordre", "off") !== "on") {
+			return false;
+		}
+		return !deficit_cost_is_pos_line($linje_id);
+	}
+}
+
+if (!function_exists('deficit_cost_notice')) {
+	/**
+	 * Prints the cost-price message for one item (SD-786).
+	 *
+	 * All items of one request end up in a single alert: the first call prints the heading and an
+	 * onload handler, every call adds its own line. The texts go through jsString(), so an item number
+	 * or translation with a quote cannot break the script.
+	 *
+	 * @param string     $varenr       Item number shown to the user.
+	 * @param array|null $kostkilde    find_open_purchase_cost()'s result, NULL when the item card price was used.
+	 * @param float      $kostpris     The cost price that was used.
+	 * @param float      $varekortpris varer.kostpris of the item.
+	 * @param int|string $sprog_id     Language for the texts.
+	 * @return void
+	 */
+	function deficit_cost_notice($varenr, $kostkilde, $kostpris, $varekortpris, $sprog_id)
+	{
+		static $started = false;
+		if ($kostkilde) {
+			$line = sprintf(findtekst('7637|%s: %s fra åben indkøbsordre %s (varekortet: %s)', $sprog_id),
+				$varenr, dkdecimal($kostpris, 2), $kostkilde['ordrenr'], dkdecimal($varekortpris, 2));
+		} else {
+			$line = sprintf(findtekst('7638|%s: %s fra varekortet. Der er ingen åben indkøbsordre, så prisen kan være forældet', $sprog_id),
+				$varenr, dkdecimal($kostpris, 2));
+		}
+		if (!$started) {
+			$started = true;
+			$head = findtekst('7636|Kostprisen er anslået på disse varer, fordi der ikke var et købsparti at tage den fra:', $sprog_id);
+			print "<script>window.saldiCostNotice = [" . jsString(array($head)) . "];";
+			print "window.addEventListener('load', function () { alert(window.saldiCostNotice.join('\\n')); });</script>\n";
+		}
+		print "<script>window.saldiCostNotice.push(" . jsString(array($line)) . ");</script>\n";
+	}
+}
+
 if (!function_exists('deficit_cost_price')) {
 	/**
 	 * Cost price for a quantity that no batch_kob covers, for both of linjeopdat()'s deficit paths.
 	 *
 	 * Prefers an open purchase line (see find_open_purchase_cost()) and falls back to the static
 	 * varer.kostpris. Either way the choice is written to the order log so a stale cost price can be
-	 * traced afterwards instead of first surfacing on a customer's invoice, and the user is warned
-	 * once per delivery - not once per line, so a large order does not produce a row of dialogs.
+	 * traced afterwards instead of first surfacing on a customer's invoice. The user only gets a
+	 * message when the setting is ticked and the case is relevant (deficit_cost_notice_relevant()),
+	 * and then one message per delivery listing the items (deficit_cost_notice()), not one per line.
 	 *
 	 * Both callers reach their deficit branch only when there is no purchase reference to inherit a
 	 * cost from: the negative/credit-note branch zeroes its remainder whenever $kred_linje_id is set,
@@ -165,11 +242,12 @@ if (!function_exists('deficit_cost_price')) {
 	 * purchase line is the better estimate in both places and not just on the sale path.
 	 *
 	 * @param int|string   $vare_id  The item.
-	 * @param int|string   $linje_id The order line being priced, for the log only.
+	 * @param int|string   $linje_id The order line being priced, for the log and the POS check.
 	 * @param int|string   $variant_id Variant of the item, '' or 0 when it has none.
 	 * @param resource|null $fp      Open order log handle, or NULL when the caller has none.
-	 * @param int|string   $sprog_id Language for the warning text.
-	 * @param string       $kontekst Short label naming the calling branch, for the log.
+	 * @param int|string   $sprog_id Language for the message texts.
+	 * @param string       $kontekst Short label naming the calling branch, for the log; the credit-note
+	 *                            branch's label also keeps the message off.
 	 * @param bool|string  $webservice Truthy on an API/SOAP delivery, where the HTML warning must be
 	 *                            suppressed: those callers emit JSON or XML, and printed markup would
 	 *                            precede and invalidate the response. The log line is still written,
@@ -178,16 +256,15 @@ if (!function_exists('deficit_cost_price')) {
 	 */
 	function deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, $kontekst, $webservice = false)
 	{
-		// One warning per request. A delivery is a single request, so this is "once per delivery".
-		static $advaret = 0;
+		$vare         = db_fetch_array(db_select("select varenr, kostpris from varer where id = '" . (int) $vare_id . "'", __FILE__ . " linje " . __LINE__));
+		$varekortpris = $vare ? (float) $vare['kostpris'] : 0.0;
 
 		$kostkilde = find_open_purchase_cost($vare_id, $variant_id);
 		if ($kostkilde) {
 			$kostpris      = $kostkilde['pris'];
 			$kostkilde_txt = "open purchase line " . $kostkilde['linje_id'] . " on order " . $kostkilde['ordrenr'];
 		} else {
-			$r             = db_fetch_array(db_select("select kostpris from varer where id = '" . (int) $vare_id . "'", __FILE__ . " linje " . __LINE__));
-			$kostpris      = $r['kostpris'] * 1;
+			$kostpris      = $varekortpris;
 			$kostkilde_txt = "varer.kostpris";
 		}
 
@@ -195,19 +272,10 @@ if (!function_exists('deficit_cost_price')) {
 			fwrite($fp, date("Y-m-d H:i:s") . " SST-796 deficit cost price ($kontekst): vare_id $vare_id, linje_id $linje_id, source $kostkilde_txt, pris $kostpris\n");
 		}
 
-		// Non-blocking: the delivery goes through either way, but the user is told the cost price was
-		// estimated rather than taken from stock. Same alert idiom linjeopdat() already uses for its
-		// serial-number warning. There is nobody to show a dialog to on an API delivery, and the
-		// markup would corrupt the JSON/XML response, so the flag is left untouched as well - a later
-		// interactive delivery in the same request still gets its one warning.
-		// A POS sale is skipped the same way: the alert is printed in the page that then redirects
-		// to the printserver, so the customer's receipt waited for someone to click OK (SST-907).
-		if (!$webservice && !$advaret && !deficit_cost_is_pos_line($linje_id)) {
-			$advaret = 1;
-			$txt = $kostkilde
-				? findtekst('5249|Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager', $sprog_id)
-				: findtekst('5250|Kostprisen er anslået ud fra varekortet, da varen hverken var på lager eller på en åben indkøbsordre', $sprog_id);
-			print "<BODY onLoad=\"javascript:alert('" . str_replace("'", "\\'", $txt) . "')\">";
+		// SD-786: the message is off by default and, when ticked, only shown where it tells the user
+		// something. The delivery goes through either way, and the source is always in the order log.
+		if (deficit_cost_notice_relevant($linje_id, $kontekst, $webservice, $kostkilde, $kostpris, $varekortpris)) {
+			deficit_cost_notice(isset($vare['varenr']) ? $vare['varenr'] : (string) $vare_id, $kostkilde, $kostpris, $varekortpris, $sprog_id);
 		}
 
 		return $kostpris;
