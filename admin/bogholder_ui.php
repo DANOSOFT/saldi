@@ -17,7 +17,7 @@ function bp_shell_globals() {
 	// 20261013 CL/ASR Own look for the accountant panel, so users can tell it from Saldi itself: light grey sidebar with the
 	//                  Saldi logo in colour (css/bogholder_panel.css, .vr-app.bp-shell). The operator panel keeps its own shell.
 	$GLOBALS['vr_app_class'] = 'bp-shell';
-	$GLOBALS['vr_version_text'] = 'Saldi Bogholderpanel 2.0'; # 20261013 CL/ASR the panel's own version line at the bottom of the sidebar
+	$GLOBALS['vr_version_text'] = $k == 'koncern' ? 'Saldi Koncernpanel 2.0' : 'Saldi Bogholderpanel 2.0'; # 20261013 CL/ASR the panel's own version line at the bottom of the sidebar
 	$GLOBALS['vr_help'] = '../admin/bogholder_vejledning.php'; # 20261013 CL/ASR the sidebar guide link opens the panel's own guide
 	$GLOBALS['vr_logo'] = array('../img/saldi_logo_color.png', '../img/saldi_mark_color.png', 'Saldi', '../img/saldi_logo_white.png');
 	// 20261013 CL/ASR Light/dark theme for the panel: the choice is kept per browser (localStorage bpTheme: light|dark), the
@@ -59,7 +59,7 @@ function bp_close() { vr_close(); print "</body></html>"; }
 
 // ---------- renderers ----------
 function bp_status_html($r) { return "<span class=\"vr-st\"><span class=\"vr-dot ".$r['status'][2]."\"></span>".bp_h($r['status'][1])."</span>"; }
-function bp_payer_html($r) { if ($r['is_home']) return "<span class=\"vr-mut2\">".bp_t('eget regnskab','own account')."</span>"; return $r['payer'] == 'partner' ? bp_t('Firmaet','The firm')." <span class=\"vr-mut2\">· ".bp_t('ordning','scheme')."</span>" : bp_t('Kunden','The customer'); }
+function bp_payer_html($r) { if ($r['is_home']) return "<span class=\"vr-mut2\">".(bp_is_group() ? bp_t('hovedselskab','parent company') : bp_t('eget regnskab','own account'))."</span>"; if (bp_is_group()) return $r['payer'] == 'partner' ? bp_t('Hovedselskabet','The parent company') : bp_t('Selskabet selv','The company itself'); return $r['payer'] == 'partner' ? bp_t('Firmaet','The firm')." <span class=\"vr-mut2\">· ".bp_t('ordning','scheme')."</span>" : bp_t('Kunden','The customer'); }
 function bp_plan_html($r) { return $r['plan_name'] ? bp_h($r['plan_name']) : "<span class=\"vr-mut2\">".bp_t('ingen pakke','no plan')."</span>"; }
 // Work to do in the ledger, with deep links that open the ledger at that function.
 function bp_work_html($r, $compact = false) {

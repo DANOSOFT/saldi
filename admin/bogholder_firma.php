@@ -12,6 +12,8 @@ $s_id=session_id();
 //                  calculator that changes nothing), the firm's own Saldi invoices (billing ledger API, read-only)
 //                  and the firm-wide log. Replaces the "Mit firma" view that lived in partnere.php before the
 //                  operator panel was split out. Owners manage; employees see what their rights allow.
+// 20261029 CL/ASR Group mode: Priser shows the group's monthly price (companies invoiced via the parent + one ERP user per
+//                  employee) instead of the bookkeeper scheme's volume tiers.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";
@@ -86,7 +88,7 @@ if ($tab == 'oversigt') {
 		if (bp_can('users')) { print "<a class=\"vr-link\" href=\"bogholder_firma.php?tab=medarbejdere&ret=$bid#ret\">".bp_t('Redigér','Edit')."</a>"; if (!$isMe) print " · <form method=\"post\" style=\"display:inline\"><input type=\"hidden\" name=\"bp_action\" value=\"".($e['active'] ? 'emp_off' : 'emp_on')."\"><input type=\"hidden\" name=\"bruger_id\" value=\"$bid\"><button type=\"submit\" class=\"vr-link\">".($e['active'] ? bp_t('Deaktivér','Deactivate') : bp_t('Aktivér','Activate'))."</button></form>"; if ($owner && !$isMe) print " · <form method=\"post\" style=\"display:inline\" onsubmit=\"return confirm('".bp_t('Fjern medarbejderen fra firmaet? Loginet bevares, men mister al adgang.','Remove the employee from the firm? The login is kept but loses all access.')."')\"><input type=\"hidden\" name=\"bp_action\" value=\"emp_remove\"><input type=\"hidden\" name=\"bruger_id\" value=\"$bid\"><button type=\"submit\" class=\"vr-link\">".bp_t('Fjern','Remove')."</button></form>"; }
 		print "</td></tr>";
 	}
-	print "</tbody></table><div class=\"vr-foot\"><span>".bp_t('Medarbejdere tæller ikke i kundernes brugergrænser. Ejere har alle rettigheder.','Employees do not count against customer user limits. Owners hold all rights.')."</span></div></div></section>";
+	print "</tbody></table><div class=\"vr-foot\"><span>".(bp_is_group() ? bp_t('Hver medarbejder tæller som én ERP-bruger på tværs af alle selskaber og tæller ikke i det enkelte selskabs brugergrænse. Ejere har alle rettigheder.','Each employee counts as one ERP user across all companies and not against a single company\'s user limit. Owners hold all rights.') : bp_t('Medarbejdere tæller ikke i kundernes brugergrænser. Ejere har alle rettigheder.','Employees do not count against customer user limits. Owners hold all rights.'))."</span></div></div></section>";
 	if ($edit && bp_can('users') && ($e = bp_employee($edit))) {
 		$isOwnerRow = $e['partner_role'] == 'owner';
 		print "<section class=\"vr-sect\" id=\"ret\" style=\"margin-top:22px\"><h2>".bp_t('Redigér','Edit').": ".bp_h($e['name'] ?: $e['brugernavn'])."</h2><div class=\"vr-card\"><form method=\"post\" class=\"vr-form bp-wide\"><input type=\"hidden\" name=\"bp_action\" value=\"emp_save\"><input type=\"hidden\" name=\"bruger_id\" value=\"$edit\"><div class=\"bp-cols\"><label>".bp_t('Navn','Name')."<input class=\"vr-inp\" name=\"name\" value=\"".bp_h($e['name'])."\"></label><label>E-mail<input class=\"vr-inp\" type=\"email\" name=\"email\" value=\"".bp_h($e['email'])."\"></label></div>";
@@ -114,6 +116,15 @@ if ($tab == 'oversigt') {
 		if (!$reqs) print "<tr><td colspan=\"5\" class=\"vr-mut\" style=\"padding:20px\">".bp_t('Ingen anmodninger endnu.','No requests yet.')." <a href=\"bogholder_opret.php?tab=tilknyt\">".bp_t('Tilknyt et regnskab','Link an account')."</a></td></tr>";
 		print "</tbody></table></div></section>";
 	}
+
+} elseif ($tab == 'priser' && bp_is_group()) {
+	list($rows, $plans, $unpriced, $users, $up, $usersOre, $total) = bp_group_price();
+	print "<section class=\"vr-sect\"><h2>".bp_t('Koncernens månedspris','The group\'s monthly price')." <small>".bp_t('selskaber faktureret via hovedselskabet og koncernens brugere','companies invoiced via the parent and the group\'s users')."</small></h2><div class=\"vr-card\"><div class=\"bp-calc-out\" style=\"border-top:0\"><div class=\"bp-price\"><span>".bp_t('Selskaber på samlet faktura','Companies on the combined invoice')."</span><b>".count($rows)."</b></div><div class=\"bp-price\"><span>".bp_t('Pakker','Plans')."</span><b>".bp_kr($plans)."</b></div><div class=\"bp-price\"><span>".bp_t('Koncernbrugere','Group users')."</span><b>".bp_kr($usersOre)."<small>$users × ".bp_kr($up)."</small></b></div><div class=\"bp-price\"><span>".bp_t('Samlet pr. måned','Total per month')."</span><b>".bp_kr($total)."<small>".bp_t('ekskl. moms','excl. VAT')."</small></b></div></div>";
+	print "<div class=\"vr-foot\"><span>".bp_t('Hver aktiv medarbejder i koncernen tæller som én ERP-bruger, uanset hvor mange selskaber vedkommende arbejder i.','Each active employee in the group counts as one ERP user, however many companies they work in.').($unpriced ? ' '.$unpriced.' '.bp_t('selskab(er) har pris efter aftale og er ikke med i summen.','company/companies are priced by agreement and are not in the total.') : '')."</span></div></div></section>";
+	print "<section class=\"vr-sect\" style=\"margin-top:22px\"><h2>".bp_t('Selskaber på den samlede faktura','Companies on the combined invoice')." <small>".count($rows)."</small></h2><div class=\"vr-card\">";
+	foreach ($rows as $x) { list($r, $pn, $m) = $x; print "<div class=\"bp-row\"><div><b><a href=\"bogholder_panel.php?regnskab_id=".(int)$r['id']."\">".bp_h($r['regnskab'])."</a></b><small>".($pn ? bp_h($pn) : bp_t('ingen pakke','no plan')).($r['is_home'] ? ' · '.bp_t('hovedselskab','parent company') : '')."</small></div><div class=\"bp-acts\"><span class=\"vr-mut\">".($m === null ? bp_t('efter aftale','by agreement') : bp_kr($m).'/'.bp_t('md.','mo.'))."</span></div></div>"; }
+	if (!$rows) print "<div class=\"vr-empty\"><span>".bp_t('Ingen selskaber faktureres via hovedselskabet endnu.','No companies are invoiced via the parent yet.')."</span></div>";
+	print "<div class=\"vr-foot\"><span>".bp_t('Selskaber, der betaler selv, står ikke her. Betaleren ændres under selskabets Handlinger.','Companies that pay themselves are not listed. The payer is changed under the company\'s Actions.')."</span></div></div></section>";
 
 } elseif ($tab == 'priser') {
 	$scheme = bp_scheme_rows(); list($n, $list, $pct, $total, $avg, $tier) = bp_price_calc(count($scheme)); $calcN = max(0, (int)if_isset($_GET, $n, 'n'));
