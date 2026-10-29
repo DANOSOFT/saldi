@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/orderIncludes/defaultInvoiceDate.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- debitor/orderIncludes/defaultInvoiceDate.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,8 @@
 // Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261006 CL/LH SST-802: Default invoice date for manual invoicing; webshop orders keep their order date.
+// 20261029 CL/MMR SST-911 Webshop orders only get their order date when the regnskab has chosen it under
+//                 Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate). Otherwise today's date, as before SST-802.
 
 /**
  * Invoice date to use when "Fakturér" is pressed with an empty Fakturadato field.
@@ -35,6 +37,11 @@
  * and can land in a different accounting period. Orders created in Saldi itself keep
  * today's date as before.
  *
+ * SST-911: not every regnskab wants that. MEDshop invoices webshop orders when they are
+ * delivered and wants that day as invoice date, which is how it worked before SST-802. The
+ * order date is therefore only used when "Fakturér webshopordrer med ordredato" is ticked
+ * under Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate = 'on'). Default is today.
+ *
  * A part split off a webshop order with "Opdel ordre" has no shop_ordrer row of its own but keeps
  * the ordrenr and art of the original, so the mapping is looked up through those as well.
  *
@@ -45,7 +52,7 @@
  */
 function default_invoice_date($ordreId, $ordredate = '') {
 	$ordreId = (int)$ordreId;
-	if ($ordreId > 0) {
+	if ($ordreId > 0 && get_settings_value('webshopInvoiceOrderDate', 'ordre', 'off') === 'on') {
 		$qtxt = "select o.ordredate from ordrer o where o.id = '$ordreId' and exists (";
 		$qtxt .= "select 1 from shop_ordrer s, ordrer o2 where s.saldi_id = o2.id and o2.ordrenr = o.ordrenr and o2.art = o.art)";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));

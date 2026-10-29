@@ -5340,3 +5340,5 @@
 7633	Vis PBS-kunder	Show PBS customers	Vis PBS-kunder
 7634	Viser alle %s konti	Showing all %s accounts	Viser alle %s kontoer
 7635	Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).	One selected account has an overdue balance, so Remind all only creates a reminder for it (like Create reminder).	Det er avmerket 1 konto med forfalt beløp, så Påminn alle oppretter bare en påminnelse for den (som Opprett påminnelse).
+7694	Fakturér webshopordrer med ordredato	Invoice webshop orders with the order date	Fakturer nettbutikkordrer med ordredato
+7695	Hvis dette felt afmærkes, får en webshopordre ordredatoen som fakturadato, når Fakt. dato er tom ved fakturering. Ellers bruges dags dato.	If this box is ticked, a webshop order gets its order date as invoice date when Inv. date is empty at invoicing. Otherwise today's date is used.	Hvis dette feltet er avmerket, får en nettbutikkordre ordredatoen som fakturadato når Fakt. dato er tom ved fakturering. Ellers brukes dagens dato.

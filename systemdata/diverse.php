@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-10-08------------
+// --- systemdata/diverse.php -----ver 5.1.0 ----2026-10-29------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -112,6 +112,7 @@
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261029 CL/MMR SST-911 Save "Fakturér webshopordrer med ordredato" under Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate).
 
 @session_start();
 $s_id = session_id();
@@ -671,6 +672,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
 		
 		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
+		$webshopInvoiceOrderDate = (ifset($_POST, 'webshopInvoiceOrderDate') === 'on') ? 'on' : 'off'; #SST-911
 
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
@@ -684,6 +686,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("ourRefStockSwitch", "ordre", $ourRefStockSwitch, "Update order stock/warehouse from Our ref when the reference changes"); // Removed single quotes from description to avoid SQL syntax error
 		update_settings_value("stockWarningEnabled", "ordre", $stockWarningEnabled, "Show popup and require approval note when selling out-of-stock items (POS + Debtor/Order)");
 		update_settings_value("showBothAddrExtra", "ordre", $showBothAddrExtra, "Show both delivery address and extra fields simultaneously on open orders");
+		update_settings_value("webshopInvoiceOrderDate", "ordre", $webshopInvoiceOrderDate, "Webshop orders invoiced with an empty invoice date get the order date instead of today");
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
 		} elseif ($box2) {

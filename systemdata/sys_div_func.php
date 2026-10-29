@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.27 ---
+// --- systemdata/sys_div_func.php --- ver 5.1.0 -- 2026.10.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -134,6 +134,7 @@
 //                 The value is still posted unchanged, so Skift works without retyping it.
 //                 The two includes in kontoindstillinger() use __DIR__ now (include-path convention for an edited block).
 //                 The brugerantal lookup between them sits at function level (was indented one tab too far).
+// 20261029 CL/MMR SST-911 Ordrerelaterede valg has "Fakturér webshopordrer med ordredato" (settings ordre/webshopInvoiceOrderDate, default off).
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -1883,6 +1884,7 @@ function ordre_valg() {
 	$ourRefStockSwitch   = get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" ? "checked" : "";
 	$stockWarningEnabled = get_settings_value("stockWarningEnabled", "ordre", "off") === "on" ? "checked" : "";
 	$showBothAddrExtra   = get_settings_value("showBothAddrExtra", "ordre", "off") === "on" ? "checked" : "";
+	$webshopInvoiceOrderDate = get_settings_value("webshopInvoiceOrderDate", "ordre", "off") === "on" ? "checked" : ""; #SST-911
 
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
@@ -1959,6 +1961,8 @@ function ordre_valg() {
 	$stockWarningTitle = htmlspecialchars(findtekst('5037|Aktiverer popup-advarsel og krav om begrundelse ved salg af udsolgte varer i både POS og Debitor/Ordre. Godkendelsen logges på ordren.', $sprog_id), ENT_QUOTES);
 	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
+	$webshopInvoiceOrderDateTitle = htmlspecialchars(findtekst('7695|Hvis dette felt afmærkes, får en webshopordre ordredatoen som fakturadato, når Fakt. dato er tom ved fakturering. Ellers bruges dags dato.', $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$webshopInvoiceOrderDateTitle'>".findtekst('7694|Fakturér webshopordrer med ordredato', $sprog_id)."</td><td><INPUT title='$webshopInvoiceOrderDateTitle' class='inputbox' type='checkbox' name='webshopInvoiceOrderDate' $webshopInvoiceOrderDate></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 	print "<tr><td title='".findtekst('5247|Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.', $sprog_id)."'>".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."</td><td><INPUT title='".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."' class='inputbox' type='checkbox' name='hideRevenue' $hideRevenue></td></tr>";
 
