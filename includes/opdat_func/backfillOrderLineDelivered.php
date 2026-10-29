@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 Danosoft.ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261027 CL/LH MB-73 (review): the one-time leveret backfill from betweenUpdates.php, in id windows under a
 //                try-lock and a time budget per login, so a large tenant's first login no longer waits minutes.
