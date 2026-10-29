@@ -67,11 +67,13 @@
 //                  Simulated rows are left out in that mode, since simulated journals are among them.
 //                  Lines with an account setup error are listed once above the report instead of one alert each.
 //                  Unposted rows on a foreign-currency account use the account currency's rate, like posted rows.
+// 20261029 CL/LAH Show all lines by default: per_page 0 means "Alle" and is now the default, with
+//                  "Alle" first in Linjer pr. side. The prev/next arrows kept dropping per_page.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
                    $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,
-                   $simulering, $lagerbev, $page = 1, $per_page = 50, $udskriv = false){
+                   $simulering, $lagerbev, $page = 1, $per_page = 0, $udskriv = false){
 
 	global $afd_navn, $ansatte, $ansatte_id;
 	global $bgcolor, $bgcolor4, $bgcolor5;
@@ -94,7 +96,10 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	// renders the report in one pass instead, so the printout is the whole
 	// kontokort regardless of where the user was on screen.
 	$udskriv = $udskriv ? true : false;
-	if ($udskriv) {
+	// per_page 0 is "Alle", the default. Kept apart from $per_page, which the
+	// window maths below needs as a real row count.
+	$perPageChoice = max(0, (int) $per_page);
+	if ($udskriv || !$perPageChoice) {
 		$page     = 1;
 		$per_page = 1000000000;
 	}
@@ -1212,27 +1217,28 @@ print "<tbody>";
 
     $pageButtons = '';
     if ($startPage > 1) {
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page=1' class='navbutton'>1</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page=1' class='navbutton'>1</a>";
         if ($startPage > 2) $pageButtons .= "<span>...</span>";
     }
     for ($p = $startPage; $p <= $endPage; $p++) {
         $activeStyle = ($p === $page) ? "style='text-decoration:underline; font-weight:bold;'" : "";
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
     }
     if ($endPage < $total_pages) {
         if ($endPage < $total_pages - 1) $pageButtons .= "<span>...</span>";
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
     }
 
-    $prevUrl = $base_url . '&page=' . ($page - 1);
-    $nextUrl = $base_url . '&page=' . ($page + 1);
+    $prevUrl = $base_url . '&per_page=' . $perPageChoice . '&page=' . ($page - 1);
+    $nextUrl = $base_url . '&per_page=' . $perPageChoice . '&page=' . ($page + 1);
 
    // Build rows-per-page options
-    $rowCounts = [25, 50, 100, 250, 500];
+    $rowCounts = [0, 25, 50, 100, 250, 500];
     $rowCountOptions = '';
     foreach ($rowCounts as $count) {
-        $sel = ($count === $per_page) ? 'selected' : '';
-        $rowCountOptions .= "<option value='{$count}' {$sel}>{$count}</option>";
+        $sel = ($count === $perPageChoice) ? 'selected' : '';
+        $label = $count ? $count : findtekst('2498|Alle', $sprog_id);
+        $rowCountOptions .= "<option value='{$count}' {$sel}>{$label}</option>";
     }
 
     // SST-809 Screen only: this is the bar that printed as a meaningless footer.
