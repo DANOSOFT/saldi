@@ -20,6 +20,7 @@
 // 20261027 CL/LH Created.
 // 20261029 CDX/NTR Validate standard/custom descriptive-key TSVs and keyed fallbacks.
 // 20261029 CDX/NTR Require new custom overrides to purge standard translations already cached by tenants.
+// 20261029 CDX/NTR Check keyed TSV ordering when either adjacent row was added.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -152,10 +153,10 @@ function checkKeyedTsv(ctx, file, path, findings) {
   let previous = null;
   for (const row of head.byId.values()) {
     const key = row.fields[0];
-    if (previous !== null && key < previous && file.added.has(row.line)) {
+    if (previous !== null && key < previous.fields[0] && (file.added.has(previous.line) || file.added.has(row.line))) {
       findings.push({ path, line: row.line, message: `key ${key} is out of order; keep descriptive keys sorted alphabetically.` });
     }
-    previous = key;
+    previous = row;
   }
 
   for (const [line, text] of file.added) {
