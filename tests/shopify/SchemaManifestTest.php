@@ -10,6 +10,7 @@
 // 20261021 Sawaneh SD-733: created.
 // 20261027 Sawaneh SD-736: marker checks follow SHOPIFY_SCHEMA_VERSION (manifest v2); the primary-key repair
 //                 test uses shopify_lager, since shopify_stock_dirty is keyed on a serial id in v2.
+// 20261029 CL/SZ freshTenant() takes the Shopify schema off the clone, so a template at 5.1.0+ (CI's saldi_2) gives a first install.
 
 use PHPUnit\Framework\TestCase;
 
@@ -37,10 +38,45 @@ final class SchemaManifestTest extends TestCase
         }
     }
 
+    /**
+     * A clone of the template without the Shopify schema, as before the first install. A
+     * template at 5.1.0 or later already has it (the installer runs the manifest), so it is
+     * taken off the clone: the stock triggers, the manifest's tables and legacy columns, and
+     * the shopify settings with the marker.
+     */
     private function freshTenant(string $suffix): string
     {
         $db = ShopifyEnv::testDb($suffix);
         ShopifyEnv::cloneTenant($db);
+        $conn = ShopifyEnv::connect($db);
+        $sql = [];
+        foreach (array_keys(SHOPIFY_STOCK_TRIGGER_COLUMNS) as $table) {
+            $sql[] = "DROP TRIGGER IF EXISTS shopify_dirty_insdel ON $table";
+            $sql[] = "DROP TRIGGER IF EXISTS shopify_dirty_upd ON $table";
+        }
+        $sql[] = 'DROP FUNCTION IF EXISTS shopify_mark_stock_dirty()';
+        $sql[] = 'DROP INDEX IF EXISTS shopify_styklister_vare_idx';
+        foreach (array_keys(shopify_schema_catalog()) as $table) {
+            $sql[] = "DROP TABLE IF EXISTS $table CASCADE";
+        }
+        $legacy = [];
+        foreach (shopify_schema_legacy_columns() as $table => $columns) {
+            foreach (array_keys($columns) as $column) {
+                $sql[] = "ALTER TABLE $table DROP COLUMN IF EXISTS $column";
+                $legacy[] = "$table.$column";
+            }
+        }
+        $sql[] = "DELETE FROM settings WHERE var_grp = 'shopify' OR var_grp LIKE 'shopify:%'";
+        ShopifyEnv::rows($conn, 'BEGIN; ' . implode('; ', $sql) . '; COMMIT');
+        $left = ShopifyEnv::rows($conn, "SELECT relname AS name FROM pg_class WHERE relname LIKE 'shopify\\_%'"
+            . " UNION ALL SELECT tgname FROM pg_trigger WHERE tgname LIKE 'shopify\\_%'"
+            . " UNION ALL SELECT proname FROM pg_proc WHERE proname LIKE 'shopify\\_%'"
+            . " UNION ALL SELECT table_name || '.' || column_name FROM information_schema.columns WHERE table_schema = 'public'"
+            . " AND (table_name || '.' || column_name) = ANY ($1)"
+            . " UNION ALL SELECT var_grp || '.' || var_name FROM settings WHERE var_grp = 'shopify' OR var_grp LIKE 'shopify:%'",
+            ['{' . implode(',', $legacy) . '}']);
+        pg_close($conn);
+        $this->assertSame([], array_column($left, 'name'), 'the clone of the template still has Shopify schema');
         return $db;
     }
 
