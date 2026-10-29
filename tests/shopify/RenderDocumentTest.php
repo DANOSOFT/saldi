@@ -10,6 +10,7 @@
 //
 // History:
 // 20261029 CL/SZ SD-751: created.
+// 20261029 CL/SZ SD-751: a brand without a letterhead of its own renders without one.
 
 use PHPUnit\Framework\TestCase;
 
@@ -21,6 +22,7 @@ final class RenderDocumentTest extends TestCase
     private static string $db = '';
     private static string $ps2pdf = '';
     private static int $debtorId = 0;
+    private static int $dbId = 0;
     private static int $next = 9100;
 
     public static function setUpBeforeClass(): void
@@ -38,7 +40,7 @@ final class RenderDocumentTest extends TestCase
             self::$db = ShopifyEnv::testDb('_r');
             self::removeTempDir();
             ShopifyEnv::cloneTenant(self::$db);
-            ShopifyEnv::registerTenant(self::$db);
+            self::$dbId = ShopifyEnv::registerTenant(self::$db);
             $conn = ShopifyEnv::connect(self::$db);
             ShopifyEnv::rows($conn, "DELETE FROM grupper WHERE art = 'RA'");
             ShopifyEnv::rows($conn, "INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, box3, box4, box5) VALUES ('RA', 1, 'RA', '01', $1, '12', $1, 'on')", [date('Y')]);
@@ -56,6 +58,12 @@ final class RenderDocumentTest extends TestCase
     {
         if (self::$db !== '') {
             self::removeTempDir();
+        }
+        if (self::$dbId > 0) {
+            // formularprint() creates logolib/<db_id>/; the letterhead test writes files into it
+            $logolib = ShopifyEnv::repoRoot() . '/logolib/' . self::$dbId;
+            array_map('unlink', glob("$logolib/*.pdf") ?: []);
+            @rmdir($logolib);
         }
         ShopifyEnv::unregisterTenants();
         ShopifyEnv::dropOwnedTenants();
@@ -245,6 +253,42 @@ final class RenderDocumentTest extends TestCase
         $this->assertSame(['class' => 'DocumentRenderError', 'message' => "order {$draft['id']} is not posted", 'code' => 1], $unposted['error']);
         $this->assertSame(['class' => 'DocumentRenderError', 'message' => 'order 999999 is not an invoice or credit note', 'code' => 1], $missing['error']);
         $this->assertSame('InvalidArgumentException', $delivery['error']['class']);
+    }
+
+    public function testTheLetterheadIsTheBrandsOwnOrNone(): void
+    {
+        $conn = ShopifyEnv::connect(self::$db);
+        $cols = implode(', ', array_map(fn(array $r): string => $r['column_name'],
+            ShopifyEnv::rows($conn, "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'formularer' AND column_name NOT IN ('id', 'sprog')")));
+        ShopifyEnv::rows($conn, "INSERT INTO formularer ($cols, sprog) SELECT $cols, 'Norsk' FROM formularer WHERE formular = 4 AND lower(sprog) = 'dansk'");
+        pg_close($conn);
+        $logolib = ShopifyEnv::repoRoot() . '/logolib/' . self::$dbId;
+        if (!is_dir($logolib)) {
+            mkdir($logolib, 0777, true);
+        }
+        $pdf = "%PDF-1.4\n%%EOF\n";
+        file_put_contents("$logolib/faktura_bg.pdf", $pdf);
+        $log = tempnam(sys_get_temp_dir(), 'pdftk');
+        $background = function (array $doc) use ($log): ?string {
+            file_put_contents($log, '');
+            $out = $this->render($doc['id'], 4, ['FAKE_PDFTK_LOG' => $log]);
+            $this->assertArrayNotHasKey('error', $out, json_encode($out['error'] ?? null));
+            foreach (file($log, FILE_IGNORE_NEW_LINES) ?: [] as $call) {
+                if (preg_match('/ background (\S+) /', $call, $m)) {
+                    return $m[1];
+                }
+            }
+            return null;
+        };
+        try {
+            $this->assertSame('faktura_bg.pdf', $background($this->posted('DO', 'Dansk')), 'dansk gets the default letterhead');
+            $this->assertNull($background($this->posted('DO', 'Norsk')), 'a brand without its own letterhead gets none, not the dansk one');
+            file_put_contents("$logolib/norsk_bg.pdf", $pdf);
+            $this->assertSame('norsk_bg.pdf', $background($this->posted('DO', 'Norsk')), "a brand's own letterhead is used");
+        } finally {
+            unlink($log);
+            array_map('unlink', glob("$logolib/*.pdf") ?: []);
+        }
     }
 
     public function testConcurrentRendersOfOneDocumentRenderItOnceAndShareIt(): void

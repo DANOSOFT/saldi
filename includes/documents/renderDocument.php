@@ -30,6 +30,7 @@
 // of the same document produce it once and share it.
 //
 // 20261029 CL/SZ SD-751: created (WP11-1).
+// 20261029 CL/SZ SD-751: a brand without a letterhead of its own renders without one, never on another brand's letterhead.
 
 require_once __DIR__ . '/../stdFunc/renderPrintBatch.php';
 
@@ -47,7 +48,8 @@ final class DocumentRenderError extends RuntimeException
  * Renders a posted invoice (formular 4) or credit note (5) of the connected tenant to PDF.
  * The order's art decides between the two, as in formularprint(). The brand is the order's sprog
  * (empty is dansk); a brand without its own layout is refused, never printed in another brand's
- * layout, and a form-editor language lock does not apply. A PDF already rendered for the same order
+ * layout, and a form-editor language lock does not apply. The letterhead is the brand's own; a brand
+ * without one renders without a letterhead, not on the default one. A PDF already rendered for the same order
  * data, document number, brand and layout rows is returned as is; a changed letterhead file is not
  * noticed (temp/<db>/.ht_doc_* can be deleted to render again).
  *
@@ -71,7 +73,7 @@ final class DocumentRenderError extends RuntimeException
  */
 function render_document(int $ordreId, int $formular, ?int $levNr = null, array $opts = []): array
 {
-	global $db, $exec_path, $pdftk;
+	global $db, $db_id, $exec_path, $pdftk;
 
 	if ($formular !== 4 && $formular !== 5) {
 		throw new InvalidArgumentException("render_document renders invoices (4) and credit notes (5), not formular $formular");
@@ -79,7 +81,7 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 	if (!function_exists('db_select') || !is_string($db) || !preg_match('/^[a-z0-9_]+$/', $db)) {
 		throw new DocumentRenderError('no tenant connection');
 	}
-	$qtxt = "SELECT art, status, fakturanr, sprog, konto_id, firmanavn, fakturadate, sum, moms FROM ordrer WHERE id = $ordreId";
+	$qtxt = "SELECT art, status, fakturanr, sprog, afd, konto_id, firmanavn, fakturadate, sum, moms FROM ordrer WHERE id = $ordreId";
 	$order = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$order || !in_array($order['art'], array('DO', 'DK'), true)) {
 		throw new DocumentRenderError("order $ordreId is not an invoice or credit note", DocumentRenderError::NO_DOCUMENT);
@@ -167,6 +169,9 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 		if (!is_array($documents) || $documents === array()) {
 			throw new DocumentRenderError("order $ordreId: " . (is_string($documents) ? $documents : 'nothing was printed'));
 		}
+		foreach ($documents as $i => $document) {
+			$documents[$i]['background'] = render_document_letterhead((string)($document['background'] ?? ''), $brand, $formular, (int)$order['afd'], (int)$db_id, dirname($includes) . '/logolib');
+		}
 		try {
 			renderPrintBatch($work, $documents, 'document.pdf', $html, $psCommand, $tool, true);
 		} catch (RuntimeException $e) {
@@ -193,6 +198,38 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 		flock($lock, LOCK_UN);
 		fclose($lock);
 	}
+}
+
+/**
+ * The brand's own letterhead for a document, or '' for none. formularprint() takes the first letterhead
+ * it finds, and for a brand other than dansk that can be the department's or the company's default
+ * (dansk) letterhead; another brand's document is never printed on it.
+ *
+ * @param string $picked The letterhead formularprint() chose ('' for none).
+ * @param string $logolib Absolute path of logolib/.
+ */
+function render_document_letterhead(string $picked, string $brand, int $formular, int $afd, int $dbId, string $logolib): string
+{
+	if ($brand === 'dansk' || $brand === 'danish') {
+		return $picked; // formularprint() only looks at the unprefixed (dansk) letterheads for these
+	}
+	if ($picked !== '' && strpos(basename($picked), $brand . '_') === 0) {
+		return $picked;
+	}
+	$type = $formular === 5 ? 'kreditnota_bg' : 'faktura_bg';
+	$candidates = array();
+	if ($afd > 0) {
+		$candidates[] = "$logolib/$dbId/$afd/{$brand}_$type.pdf";
+		$candidates[] = "$logolib/$dbId/$afd/{$brand}_bg.pdf";
+	}
+	$candidates[] = "$logolib/$dbId/{$brand}_$type.pdf";
+	$candidates[] = "$logolib/$dbId/{$brand}_bg.pdf";
+	foreach ($candidates as $candidate) {
+		if (is_file($candidate)) {
+			return $candidate;
+		}
+	}
+	return '';
 }
 
 /** A tool path from the master settings (as includes/online.php reads them), else $default. */
