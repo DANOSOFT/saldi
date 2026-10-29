@@ -2,11 +2,15 @@
 // 20261006 CL/LH SST-842: Use the tenant's own Vibrant key against the production API; the hardcoded sandbox key is gone; booking id int-cast.
 // 20261023 CL/LH SST-842: Read rentalpayment.apikey as vibrantPaymentIntent.php does (table name, no trim), so the link and the status poll use the same key.
 // 20261029 CL/MMR SST-840: The account name from the request is validated before connecting; the order id is int-cast; the include uses __DIR__.
+// 20261029 CL/MMR SST-841: The payment intent Vibrant returns is stored on the booking, so only that payment can approve it.
+//                 SALDI_VIBRANT_API_BASE may point the call at a local mock in tests.
 require_once __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/vibrantPayment.php");
 $customerData = json_decode(file_get_contents("php://input"), true);
 
-$connection = db_connect($sqhost, $squser, $sqpass, public_tenant_db($customerData["db"] ?? ''));
+$db = public_tenant_db($customerData["db"] ?? '');
+$connection = db_connect($sqhost, $squser, $sqpass, $db);
 
 $bookingId = (int)($customerData["id"] ?? 0);
 $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
@@ -32,7 +36,7 @@ if ($apiKey === '') {
 
 $ch = curl_init();
 
-curl_setopt($ch, CURLOPT_URL, 'https://pos.api.vibrant.app/pos/v1/payment_link');
+curl_setopt($ch, CURLOPT_URL, rtrim(getenv('SALDI_VIBRANT_API_BASE') ?: 'https://pos.api.vibrant.app', '/') . '/pos/v1/payment_link');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_POST, 1);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array("amount" => $amount)));
@@ -51,4 +55,10 @@ curl_close($ch);
 $result = json_decode($result);
 $paymentIntentId = $result->paymentIntentId;
 $betalingsLink = $result->vibrantUrl;
+if (is_string($paymentIntentId) && $paymentIntentId !== '') {
+	rental_payment_column($db);
+	$qtxt = "UPDATE rentalperiod SET payment_id = '" . db_escape_string($paymentIntentId) . "'";
+	$qtxt.= " WHERE id = $bookingId AND (payment_id IS NULL OR payment_id = '')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 echo json_encode(["url" => $betalingsLink, "id" => $paymentIntentId]);

@@ -25,6 +25,8 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
+// 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant,
+//                 and deletes only a pending booking whose payment never started, failed or was cancelled.
 //
 
 
@@ -33,6 +35,7 @@ $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/vibrantPayment.php");
 $db = public_tenant_db(ifset($_GET, "id", ""));
 include(__DIR__ . "/../includes/ordrefunc.php");
 
@@ -361,26 +364,40 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 }
 
 if(isset($_GET["updateBooking"])){
+    // SST-841: only a payment the server itself confirms with Vibrant approves (and invoices) a booking. A pending
+    // booking is only deleted when no payment was started or Vibrant reports it failed or cancelled; anything else
+    // stays pending and expires as before. An approved booking (expiry_time cleared) is never invoiced or deleted again.
     $data = json_decode(file_get_contents("php://input"), true);
     if (!is_array($data)) $data = array();
     $status = ifset($data, "status", "");
     $bookingId = (int)ifset($data, "id", 0);
-    if($status != "approved"){
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
-        db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-        db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        echo json_encode(["status" => "deleted"]);
+    rental_payment_column($db);
+    $query = db_select("SELECT order_id, expiry_time, payment_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    $res = db_fetch_array($query);
+    if (!$res) {
+        echo json_encode(["status" => "not_found"]);
         exit;
-    }else{
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
+    }
+    if (!$res["expiry_time"]) {
+        echo json_encode(["status" => "approved"]);
+        exit;
+    }
+    $orderId = (int)$res["order_id"];
+    $paymentId = (string)$res["payment_id"];
+    $r = db_fetch_array(db_select("SELECT apikey FROM rentalpayment WHERE id = 1", __FILE__ . " linje " . __LINE__));
+    $paymentState = vibrant_payment_state($r ? (string)$r["apikey"] : "", $paymentId);
+    if ($paymentState === "succeeded") {
         db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
         fakturer_ordre($orderId, "email", 0);
         echo json_encode(["status" => "approved"]);
+    } elseif ($status != "approved" && ($paymentId === "" || in_array($paymentState, array("failed", "canceled", "cancelled"), true))) {
+        db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
+        db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+        echo json_encode(["status" => "deleted"]);
+    } else {
+        echo json_encode(["status" => "pending"]);
     }
+    exit;
 }
 
 if(isset($_GET["getOrder"])){

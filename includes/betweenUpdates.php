@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.28
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
 // 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
 // 20261028 CDX/NTR Apply the tekst_key schema migration to both tenant and master databases.
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url (the Vibrant payment the server created for a booking).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -124,6 +125,20 @@ foreach ($tekstKeyTargets as $tekstKeyGlobal) {
 		}
 	} else {
 		db_modify("CREATE INDEX IF NOT EXISTS idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+	}
+}
+
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url hold the Vibrant payment the server created for
+// a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
+// the columns; the login-free booking pages also ensure them themselves (includes/vibrantPayment.php).
+if (isset($db) && is_string($db) && $db !== '') {
+	$rentalTable = db_fetch_array(db_select(
+		"SELECT table_name FROM information_schema.tables WHERE (table_schema = '" . db_escape_string($db) . "' OR table_catalog = '" . db_escape_string($db) . "') AND table_name = 'rentalperiod'",
+		__FILE__ . " linje " . __LINE__
+	));
+	if ($rentalTable) {
+		include_once(__DIR__ . '/vibrantPayment.php');
+		rental_payment_column($db);
 	}
 }
 
