@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-07 ------
+// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-27 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,9 @@
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
 //                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
+// 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
+//                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
+//                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
 
 
 @session_start();
@@ -69,6 +72,9 @@ include("../includes/topline_settings.php");
 
 print "<script LANGUAGE=\"JavaScript\" type=\"text/javascript\" src=\"../javascript/overlib.js\"></script>";
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
+print "<script src=\"../javascript/Sortable.min.js\"></script>\n";
+print "<script src=\"../javascript/kontaktSortable.js\" defer></script>\n";
+print "<style>.kontakt-drag-handle{cursor:move;user-select:none;padding:0 4px 0 0;color:#15488f;} #kontaktpersoner .sortable-ghost{opacity:.5;}</style>\n";
 
 $id = isset($_GET['id']) ? $_GET['id'] : Null;
 
@@ -362,7 +368,7 @@ if ($id > 0) {
 
 
 $kreditmax = dkdecimal($kreditmax);
-print "<form name=kreditorkort action=kreditorkort.php method=post>\n";
+print "<form name=kreditorkort id='kreditorkortForm' action=kreditorkort.php method=post>\n";
 print "<input type=hidden name=id value='$id'>\n";
 print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
@@ -513,14 +519,24 @@ if ($id) {
 	print "<tr bgcolor=$bg><td>" . findtekst('394|Pos.', $sprog_id) . "</td><td>" . findtekst('398|Kontakt', $sprog_id) . "</td><td>" . findtekst('400|Direkte/lokal', $sprog_id) . "</td><td>" . findtekst('401|Mobil', $sprog_id) . "</td><td>" . findtekst('402|E-mail', $sprog_id) . "</td><td><a href='ansatte.php?ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&returside=$retursideParam'><button type='button' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "</button></a></td></tr>\n";
 	$x = 0;
 	$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
+	// Own tbody so javascript/kontaktSortable.js can drag the rows; the hidden ans_id/kontakt
+	// inputs sit inside the row so they travel with it. The card's <form> is closed by the HTML
+	// parser long before this table (it has no DOM children), so the rows are only form-associated
+	// through the parser; a moved row loses that, hence the explicit form='kreditorkortForm'.
+	$dragTitle = htmlentities(findtekst('5455|Træk for at ændre rækkefølgen. Husk at gemme kortet bagefter', $sprog_id), ENT_COMPAT, $charset);
+	print "<tbody id='kontaktpersoner'>\n";
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td width=10><input class=\"inputbox\" type=text size=2 name=posnr[$x] value=\"$x\"></td><td><a href=ansatte.php?returside=$retursideParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+		print "<tr bgcolor=$bg><td width=10 nowrap><span class='kontakt-drag-handle' title=\"$dragTitle\">&#x2630;</span><input class=\"inputbox\" type=text size=2 name=posnr[$x] value=\"$x\" form='kreditorkortForm'>";
+		print "<input type=hidden name=ans_id[$x] value=$r[id] form='kreditorkortForm'>";
+		if ($x == 1) {
+			print "<input type=hidden name=kontakt value=\"" . htmlentities($r['navn'], ENT_QUOTES, $charset) . "\" form='kreditorkortForm'>";
+		}
+		print "</td><td><a href=ansatte.php?returside=$retursideParam&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
 		print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td><td></td></tr>\n";
-		print "<input type=hidden name=ans_id[$x] value=$r[id]>\n";
-		if ($x == 1) print "<input type=hidden name=kontakt value='$r[navn]'>\n";
 	}
+	print "</tbody>\n";
 }
 print "<input type=hidden name=ans_ant value=$x>\n";
 print "</tbody></table>\n"; #tabel 1.3.1 slut

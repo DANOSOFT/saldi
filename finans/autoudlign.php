@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------ver 5.0.0--------2026.10.02----------
+// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.10.29----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,10 @@
 //                  value on this page - normalized and escaped them the same way.
 // 20261002 CL/NTR  Moved the page's local UTF-8 findtekst() wrapper to includes/stdFunc/findTxtUtf8.php
 //                  as findtekst_utf8() and use it for the $uiText array as well (keyed ids, one call).
+// 20261028 CL/MMR SD-785 The Konto selector also offers "Alle debitorer" and "Alle kreditorer", which show only customers' or only suppliers' open posts.
+//                  The choice is carried to the next entry (kontotype in the URL), so it is made once per journal.
+// 20261029 CL/MMR SD-785 The two texts moved to 7650 and 7651, as 7636 is also used by another change.
+//                  The restart link URL-encodes kontotype like kladde_id next to it.
 
 ob_start();
 @session_start();
@@ -73,6 +77,11 @@ $kladde_id = intval($_GET['kladde_id'] ?? 0);
 $id        = intval(if_isset($_GET, 0, ['id']));
 $skipped   = max(0, intval($_GET['skipped']  ?? 0));
 $settled   = max(0, intval($_GET['settled']  ?? 0));
+// SD-785: "Alle debitorer" (D) or "Alle kreditorer" (K) chosen in the Konto selector, carried from entry to entry
+$kontotype = strtoupper(trim((string)ifset($_GET, 'kontotype', '')));
+if ($kontotype !== 'D' && $kontotype !== 'K') {
+    $kontotype = '';
+}
 
 /* ---------------------------------------------------------------
    POST: persist the chosen settlement
@@ -200,7 +209,7 @@ $progress_done  = $settled + $skipped;
 $progress_total = $total_unsettled + $settled; // total that needed settling when we started
 
 // Restart URL: go back to id=0 with skipped/settled reset
-$restart_url = 'autoudlign.php?kladde_id=' . urlencode($kladde_id) . '&id=0&skipped=0&settled=0';
+$restart_url = 'autoudlign.php?kladde_id=' . urlencode($kladde_id) . '&id=0&skipped=0&settled=0' . ($kontotype !== '' ? '&kontotype=' . urlencode($kontotype) : '');
 
 $htmlLang = ['1' => 'da', '2' => 'en', '3' => 'no'][(string)$sprog_id] ?? 'da';
 ?>
@@ -780,6 +789,10 @@ print "</tbody></table></td></tr></tbody></table>";
         <label for="accountSelect"><?= findtekst('592', $sprog_id) ?></label>
         <select id="accountSelect" class="search-input" <?= $entryContext['account'] !== '' ? 'disabled' : '' ?>>
           <option value=""><?= findtekst('5324', $sprog_id) ?></option>
+          <?php if ($entryContext['account'] === ''): ?>
+          <option value="type:D" data-account="" data-type="D" <?= $kontotype === 'D' ? 'selected' : '' ?>><?= htmlspecialchars(findtekst_utf8('7650|Alle debitorer', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
+          <option value="type:K" data-account="" data-type="K" <?= $kontotype === 'K' ? 'selected' : '' ?>><?= htmlspecialchars(findtekst_utf8('7651|Alle kreditorer', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
+          <?php endif; ?>
           <?php foreach ($accountOptions as $account): ?>
           <option value="<?= (int)$account['id'] ?>"
             data-account="<?= htmlspecialchars($account['kontonr'], ENT_QUOTES, 'UTF-8') ?>"
@@ -884,6 +897,7 @@ print "</tbody></table></td></tr></tbody></table>";
   const TOKEN       = <?= json_encode($_SESSION['autoudlign_token']) ?>;
   const SNAPSHOT    = <?= json_encode(autoSettlementSnapshot($entry)) ?>;
   const ENTRY_ID    = <?= json_encode((int)$entry['id']) ?>;
+  const KONTOTYPE   = <?= json_encode($kontotype) ?>; // SD-785: D/K carried in from the previous entry, '' for none
   const AMOUNT      = <?= json_encode((float)$entry['resolved_amount']) ?>;
   const BESKRIVELSE = <?= json_encode($entry['beskrivelse'] ?? '') ?>;
   const BRUGT       = <?= json_encode(array_values($brugt)) ?>;
@@ -1191,7 +1205,8 @@ print "</tbody></table></td></tr></tbody></table>";
         '?kladde_id=' + encodeURIComponent(KLADDE_ID) +
         '&id='      + ENTRY_ID +
         '&settled=' + (SETTLED + 1) +
-        '&skipped=' + SKIPPED;
+        '&skipped=' + SKIPPED +
+        kontotypeParam();
     })
     .catch(error => {
       saving = false;
@@ -1205,7 +1220,27 @@ print "</tbody></table></td></tr></tbody></table>";
   function doSkip() {
     window.location.href = window.location.pathname +
       '?kladde_id=' + encodeURIComponent(KLADDE_ID) +
-      '&id=' + ENTRY_ID;
+      '&id=' + ENTRY_ID +
+      kontotypeParam();
+  }
+
+  /* ── SD-785: keep "Alle debitorer" / "Alle kreditorer" for the next entry ── */
+  // journalType is the last type chosen in this journal: carried in from the previous entry and
+  // updated by rememberJournalType() whenever "Alle debitorer", "Alle kreditorer" or "Alle debitorer
+  // og kreditorer" is chosen. Picking a single account, or an entry with its own account (selector
+  // disabled), leaves it as it is.
+  let journalType = KONTOTYPE;
+  function rememberJournalType() {
+    const option = accountSelect.selectedOptions[0];
+    if (accountSelect.disabled || !option) return;
+    if (option.value.startsWith('type:')) {
+      journalType = option.dataset.type || '';
+    } else if (option.value === '') {
+      journalType = '';
+    }
+  }
+  function kontotypeParam() {
+    return journalType ? '&kontotype=' + encodeURIComponent(journalType) : '';
   }
 
   /* ── Pagination ──────────────────────────────────────────── */
@@ -1273,6 +1308,7 @@ print "</tbody></table></td></tr></tbody></table>";
   });
 
   accountSelect.addEventListener('change', () => {
+    rememberJournalType();
     clearTimeout(debounceTimer);
     fetchCandidates(searchInput.value, 1);
   });
