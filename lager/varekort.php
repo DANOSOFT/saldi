@@ -131,7 +131,8 @@
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
-// 20261030 LOE MB-62 a read-only user is offered only the buttons that read, not the ones that write.
+// 20261030 LOE MB-62 a read-only user is offered only the buttons that read, not the ones that write,
+//                 and not the Ny control in either header layout: it opens the blank card the page refuses.
 //
 ob_start(); //Starts output buffering
 
@@ -1380,11 +1381,13 @@ if ($menu == 'T') {
         <a href=\"javascript:confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>
         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $icon_posmenu . "POS menuer" . "</button></a></td>\n";
         }
-        # Create new item
+        # Create new item: a read-only user is not offered the blank card it would be refused
         $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
-        print "<td width='10%' align='right'>
+        if (!$noEdit) {
+            print "<td width='10%' align='right'>
          <a href=\"javascript:confirmClose($confirmNewUrl,$confirmTekst)\" accesskey=N>
          <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
+        }
     }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
@@ -1404,8 +1407,8 @@ if ($menu == 'T') {
     if ($id)
         print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:console.log(getCookie('pos_menu_location'));confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>" . "POS menuer" . "</a>\n";
 
-    # Create new item
-    if ($id) {
+    # Create new item: a read-only user is not offered the blank card it would be refused
+    if ($id && !$noEdit) {
         print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
     }
     print "</td></tbody></table>\n";

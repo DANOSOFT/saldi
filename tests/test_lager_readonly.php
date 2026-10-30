@@ -128,7 +128,8 @@ lagerCheck($blankGate !== false && $blankLog !== false && $blankGate < $blankLog
 	'a blank card (a new item) is refused before the form is built');
 $list = lagerSource('/../lager/varer.php');
 lagerCheck(strpos($list, '$mb62_readonly = (') !== false, 'the item list decides read-only once, from module 9');
-lagerCheck(substr_count($list, 'if (!$mb62_readonly) print') === 2, 'and both of its Ny buttons are hidden for that user');
+lagerCheck(substr_count($list, 'if (!$mb62_readonly) print') === 3,
+	'and all three of its Ny controls — both list views and the popup view — are hidden for that user');
 
 # ---- a refused page offers a way back ----------------------------------------------------------
 foreach (array('/../lager/varekort.php' => 3, '/../lager/lagerflyt.php' => 1, '/../lager/ret_varenr.php' => 1, '/../lager/ret_varenralias.php' => 1) as $path => $count) {

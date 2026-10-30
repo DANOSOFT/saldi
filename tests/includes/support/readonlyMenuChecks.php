@@ -111,6 +111,36 @@ function readonly_menu_checks(): array
 	$tabCss = $source('/css/top_menu.css');
 	$check(strpos($tabCss, '.button[disabled]') !== false, 'so does the tab-view stylesheet');
 
+	# ---- no Ny control leads a read-only user to the blank card the page refuses ------------------
+	# Four entry points exist: the list's two views, the list's popup view, the card's two header
+	# layouts and the goods-list top line. A fifth one added later fails the count below.
+	$cardLines = preg_split('/\R/', $source('/lager/varekort.php'));
+	$cardNy = 0;
+	$cardNyGated = 0;
+	foreach ($cardLines as $lineNumber => $cardLine) {
+		if (strpos($cardLine, "findtekst('39|Ny'") === false) {
+			continue;
+		}
+		$cardNy++;
+		for ($back = 1; $back <= 8; $back++) {
+			$previous = $cardLines[$lineNumber - $back] ?? '';
+			if (preg_match('/if \(.*!\$noEdit\)/', $previous)) {
+				$cardNyGated++;
+				break;
+			}
+		}
+	}
+	$check($cardNy === 2 && $cardNyGated === 2,
+		'both item-card header layouts print Ny only for a user who may create an item');
+
+	$list = $source('/lager/varer.php');
+	$check(substr_count($list, 'if (!$mb62_readonly) print') >= 3,
+		'the item list prints none of its three Ny controls for a read-only user, the popup view included');
+
+	$topLine = $source('/lager/lister/topLineVarer.php');
+	$check(preg_match('/\$valg == "Vareliste" && substr\(\(string\)\(\$rettigheder \?\? \'\'\), 9, 1\) !== \'2\'/', $topLine) === 1,
+		'and the goods-list top line withholds Ny from a read-only user');
+
 	return array($checks, $failures);
 }
 
