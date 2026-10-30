@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.0.0 --- 2026-10-19 ---
+// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -97,6 +97,7 @@
 //                  every supplier that uses our own item numbers - so for those items the lookup
 //                  was skipped and the line fell back to varer.kostpris. samlevare() reads the
 //                  supplier's price per component for the same reason.
+// 20261030 CL/MJ SST-872 A supplier row whose price is 0 ("0.000" from the database) falls back to the item's cost price, on the typed line and in samlevare().
 
 @session_start();
 $s_id=session_id();
@@ -993,7 +994,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($konto_id) {
 							$qtxt = "select kostpris, lev_varenr from vare_lev where vare_id = '" . (int)$vare_id[0] . "' and lev_id = '" . (int)$konto_id . "'";
 							if ($r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-								if (!$pris[0]) $pris[0]=$r1['kostpris'];
+								if (!$pris[0] && (float)$r1['kostpris'] != 0) $pris[0]=$r1['kostpris']; # "0.000" from numeric(15,3) is true in PHP
 								// Guarded now: this used to be reached only with lev_varenr empty, so
 								// assigning unconditionally would overwrite a number typed on the line.
 								if (!$lev_varenr[0]) $lev_varenr[0]=db_escape_string($r1['lev_varenr']);
@@ -1886,7 +1887,7 @@ function samlevare($id,$art,$v_id,$leveres) {
 				if ($konto_id) {
 					$qtxt = "select kostpris from vare_lev where vare_id = '" . (int)$vare_id[$x] . "' and lev_id = '" . (int)$konto_id . "'";
 					if ($r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-						if ($r1['kostpris']) $pris = $r1['kostpris'];
+						if ((float)$r1['kostpris'] != 0) $pris = $r1['kostpris']; # "0.000" from numeric(15,3) is true in PHP
 					}
 				}
 				db_modify("insert into ordrelinjer (ordre_id,varenr,vare_id,beskrivelse,antal,leveres,pris,posnr,lager) values ('$id', '$r[varenr]', '$vare_id[$x]', '$r[beskrivelse]', '$stk_antal[$x]', '$stk_antal[$x]', '$pris','100',$lager)",__FILE__ . " linje " . __LINE__);

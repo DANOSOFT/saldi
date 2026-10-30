@@ -25,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 //                  include, so the decisions are lifted out of the source and run against stub
 //                  database functions - in this file's own namespace, so they cannot collide
 //                  with another test's, the way WarehouseDropdownTest does it.
+// 20261030 CL/MJ SST-872 A zero price as the database returns it ("0.000") falls back to the item's cost price.
 
 /** @var array<string, mixed> Rows the stubs answer with, keyed by what is being asked. */
 $GLOBALS['sst872Db'] = [];
@@ -224,6 +225,8 @@ final class CreditorOrderSupplierPriceTest extends TestCase
             'no price at all' => [0],
             'empty string'    => [''],
             'null'            => [null],
+            // vare_lev.kostpris is numeric(15,3): Postgres returns a zero as this string, which PHP treats as true
+            'zero from the database' => ['0.000'],
         ];
     }
 
