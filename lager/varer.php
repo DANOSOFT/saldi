@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---ver 5.0.0 ----2026-10-27--------------
+// --- lager/varer.php --- ver 5.1.0 --- 2026-10-30 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,7 @@
 //             query above it (status < 3) so drafts are included the same way.
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
+// 20260917 CL/LH Lager -> Varer reopens the goods tab the user last worked in (Havemoebelland).
 // 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
 //                  even when it already carried a wildcard, so "123*" and "*123" both searched
 //                  "contains" and never narrowed the list the price-tag print is built from.
@@ -86,6 +87,7 @@
 //             token to the fingerprint, switched to remembering a bounded set of recent submissions
 //             instead of just the last one, and genbestil() now reports success so only a fully
 //             successful submission is remembered.
+// 20261023 CL/LH MB-60: Lager -> Varer also reopens the Styklister tab.
 
 @session_start();
 $s_id=session_id();
@@ -136,7 +138,17 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 
 // Navigate to new lagersystem
 if ($menu == "S") {
-	header('Location: lister/vareliste.php');
+	// 20260917 CL/LH Reopen the goods tab the user last worked in; tabs the user may not see fall back to the item list.
+	$goodsTab = (int)$bruger_id > 0 ? get_settings_value('vareliste_valg', 'lager', 'vareliste', (int)$bruger_id) : 'vareliste';
+	$goodsTabPages = array(
+		'vareliste'    => 'vareliste.php',
+		'ordrestatus'  => substr($rettigheder, 5, 1) ? 'ordrestatus.php' : 'vareliste.php',
+		'indkob'       => substr($rettigheder, 7, 1) ? rawurlencode('indkøb') . '.php' : 'vareliste.php',
+		'serialnumber' => 'serialnumber.php',
+		'styklister'   => 'styklister.php',
+	);
+	$goodsTabPage = isset($goodsTabPages[$goodsTab]) ? $goodsTabPages[$goodsTab] : 'vareliste.php';
+	header('Location: lister/' . $goodsTabPage);
 	exit;
 }
 	
@@ -864,7 +876,7 @@ while ($r = db_fetch_array($q)) {
 //             off, so that ran for every matching row rather than the fifty on screen - measured at
 //             7,3 ms per item on a dev tenant loaded to Dyre-Loppen's volume, about 300 s for their
 //             41.381 varer. Both lookups are read-only and keyed by vare_id, so they are built once
-// 20261027 LOE MB-62 a read-only user is not offered the list's Ny button.
+// 20261030 LOE MB-62 a read-only user is not offered the list's Ny button.
 //             here instead. Behaviour is unchanged: same rows, same numbers, same page contents.
 $lagerSum = array();
 $lagerRow = array();

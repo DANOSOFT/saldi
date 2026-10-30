@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------index/menu.php------ ver 5.0.0 --- 2026-10-27 ---
+// -----------index/menu.php------ ver 5.1.0 --- 2026-10-30 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20180807 Corrected query to check if'kasse' is activated 20180807
 // 20210223 LOE replaced string Sikkerhedskopi with findtekst value
@@ -36,7 +36,8 @@
 // 20260904 Sawaneh WP-1.3: popup window.open links now carry popup=1 so the opened
 //                  window is treated as a popup by request, not by user preference.
 // 20260907 CDX/LH Mark the POS launcher as a popup when opening it in a new window.
-// 20261027 LOE MB-62 The Items button accepts read-only (2); the employee stock-list button stays for it.
+// 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
+// 20261030 LOE MB-62 The Items button accepts read-only (2); the employee stock-list button stays for it.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -234,8 +235,8 @@ function oldmenu() {
 	if ($vis_debitor) {
 		$tekst=findtekst(106,$sprog_id);
 		if (substr($rettigheder,5,1)=='1') {
-			if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer&returside=../includes/luk.php&popup=1','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
-			else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer&returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
+			if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?menu_entry=1&reset_context=1&returside=../includes/luk.php&popup=1','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
+			else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?menu_entry=1&reset_context=1&returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
 		} else {
 			print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(107,$sprog_id)."</td>\n";
 		}

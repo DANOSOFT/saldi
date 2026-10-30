@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.0.0 --- 2026.10.27 ---
+// ---- index/main.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,8 +40,11 @@
 //                 ordre.php?inframe=1 = empty new order. Track the shell-written hash explicitly and
 //                 ignore the inframe flag when deciding whether the iframe already shows the target.
 // 20260914 CDX/LH Removed the Guides sidebar entry and its popup.
+// 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
-// 20261027 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
+// 20261012 CL/LH SALDI Assist Guide: SALDI_ASSIST_GUIDE loads the v2 widget (help and navigation, no access to the books).
+// 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
+// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 @session_start();
 $s_id = session_id();
 
@@ -236,7 +239,7 @@ function brightenColor($color, $amount = 0.2) {
         <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(5))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';
@@ -657,8 +660,15 @@ function brightenColor($color, $amount = 0.2) {
 /* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
    endpointet ligger i includes/saldi_assist_token.php. SALDI_ASSIST_WIDGET_URL
    kan saettes i webserverens miljoe til en test-instans; standard er produktion. */
-$assistWidgetUrl = getenv('SALDI_ASSIST_WIDGET_URL') ?: 'https://wuweiworkai.com/chaty-v2/widget.js';
 $assistVersion = isset($version) ? (string)$version : '';
+// Guide (v2-widgeten uden adgang til regnskabets tal), se includes/saldi_assist_guide.php.
+require_once __DIR__ . '/../includes/saldi_assist_guide.php';
+$assistGuideMode = (string)getenv('SALDI_ASSIST_GUIDE');
+$assistGuide = saldi_assist_guide_enabled(
+  $assistGuideMode,
+  $assistGuideMode === 'pilot' ? saldi_assist_guide_tenant_setting() : null
+);
+$assistWidgetUrl = saldi_assist_widget_url((string)getenv('SALDI_ASSIST_WIDGET_URL'), $assistGuide);
 ?>
 <script src="../javascript/saldi-assist-navigate.js"></script>
 <script>
@@ -667,7 +677,7 @@ $assistVersion = isset($version) ? (string)$version : '';
   // (inkl. advarslen om ugemte aendringer).
   if (typeof update_iframe === 'function') { window.update_iframe = update_iframe; }
 </script>
-<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>"<?= $assistGuide ? ' data-assistant="v2"' : '' ?> defer></script>
 <script>window.SaldiAssist = { appVersion: <?= json_encode($assistVersion) ?>, correlationId: <?= json_encode($assist_correlation_id ?? null) ?>, errorCategory: <?= json_encode($assist_error_category ?? null) ?>, getContextToken: function (sessionHash) { return fetch('../includes/saldi_assist_token.php?embed_session=' + encodeURIComponent(sessionHash), {credentials:'same-origin'}).then(function (r) { return r.ok ? r.json() : null }).then(function (j) { return j && j.token ? j.token : null }) }, navigate: window.SaldiAssistNavigate };</script>
 <?php if (getenv('SALDI_ASSIST_RECORDS_ENABLED') === '1') { ?>
 <script src="../javascript/saldi-assist-records.js"></script>
