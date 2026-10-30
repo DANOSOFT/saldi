@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- patch 4.1.0 --- 2024-05-29 ---
+// --- debitor/ordreliste.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20240529 PHR Block for deleteting invoiced orders
@@ -29,6 +29,8 @@
 // 20261006 CL/LH SST-850: Settings password is verified server-side (checkPassword/settingsUnlocked) and never sent to the browser.
 //                Stored with password_hash(); legacy clear-text values are upgraded on first correct entry. The unlock is bound
 //                to the stored hash, and the endpoints behind the protected pages require it too.
+// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened, so an
+//                unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 
     @session_start();
     $s_id=session_id();
@@ -1725,8 +1727,10 @@
             ($webservice) ?$leveres=$antal:$leveres=0; 
             if ($id && is_numeric($posnr)) {
                 $momslog=fopen("../temp/$db/momslog.log","a");
-                fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-                fclose ($momslog);
+                if ($momslog) { #20261030
+                    fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
+                    fclose ($momslog);
+                }
                 if ($varemomssats && !$vatAccount) {
                     $alerttxt= __line__." Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
                     alert ($alerttxt);

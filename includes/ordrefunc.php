@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
+//--- includes/ordrefunc.php ---patch 5.1.0 ----2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -147,6 +147,8 @@
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261029 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened, so an
+//             unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -4330,8 +4332,10 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		($webservice) ? $leveres = $antal : $leveres = 0;
 		if ($id && is_numeric($posnr)) {
 			$momslog = fopen("../temp/$db/momslog.log", "a");
-			fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-			fclose($momslog);
+			if ($momslog) { #20261029
+				fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
+				fclose($momslog);
+			}
 			if ($varemomssats && !$vatAccount) {
 				$alerttxt = __LINE__ . " Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
 				alert($alerttxt);
