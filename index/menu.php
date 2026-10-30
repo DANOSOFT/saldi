@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------index/menu.php------ ver 4.1.1 --- 2025-08-15 ---
+// -----------index/menu.php------ ver 5.1.0 --- 2026-10-30 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20180807 Corrected query to check if'kasse' is activated 20180807
 // 20210223 LOE replaced string Sikkerhedskopi with findtekst value
@@ -37,6 +37,7 @@
 //                  window is treated as a popup by request, not by user preference.
 // 20260907 CDX/LH Mark the POS launcher as a popup when opening it in a new window.
 // 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
+// 20261030 LOE MB-62 The Items button accepts read-only (2); the employee stock-list button stays for it.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -260,10 +261,12 @@ function oldmenu() {
 		}
 		if ($vis_lager) {
 			$tekst=findtekst(109,$sprog_id);
-			if (substr($rettigheder,9,1)=='1') {
+			if (in_array(substr($rettigheder,9,1), array('1', '2'), true)) {
 				if ($popup) print "<td $stor_knap_bg onClick=\"javascript:lager=window.open('../lager/varer.php?returside=../includes/luk.php&popup=1','lager','".$jsvars."');lager.focus();\"	onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(609,$sprog_id)."</td>\n";
 				else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../lager/varer.php?returside=../index/menu.php\">".findtekst(609,$sprog_id)."</a></td>\n";
-			} else {
+			}
+			# MB-62 a read-only user keeps the stock list the employee branch offers, on top of the item list
+			if (substr($rettigheder,9,1) != '1') {
 				$row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
 				#if ($row[ansat_id]) {
 					if ($row['ansat_id']) {#20210817

@@ -1,9 +1,11 @@
 <?php
-// --- tests/test_lager_readonly.php --- 2026-10-23 ---
+// --- tests/test_lager_readonly.php --- 2026-10-30 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261026 LOE Cover MB-65: the item list and the stock move consult the Items right, and the item
 //                 card refuses a save from a read-only user whatever the button says.
+// 20261030 LOE MB-62: the move page is checked for hiding the form rather than drawing it disabled, and the
+//                 item card for offering only the controls that read.
 //
 //   php tests/test_lager_readonly.php
 //
@@ -74,14 +76,70 @@ $cycleDelete = strpos($guard, 'delete from styklister where id=', $cycleNote);
 $cycleGate = strpos($guard, 'if (!$noEdit) {', $cycleNote);
 lagerCheck($cycleNote !== false && $cycleGate !== false && $cycleDelete !== false && $cycleGate < $cycleDelete, 'a broken component reference is removed only for an editor');
 
-# ---- and the move form does not offer what the refusal will not take ------------------------
+
+# ---- and the move form is not drawn at all for a read-only user ------------------------------
 $movePage = lagerSource('/../lager/lagerflyt.php');
-$disable = strpos($movePage, "\$mb65_noedit = 'disabled'");
-lagerCheck($disable !== false, 'a read-only user gets disabled controls on the move page');
-lagerCheck($disable !== false && strpos($movePage, 'name=\"antal\"') > $disable, 'the flag is set before the form is drawn');
-lagerCheck(strpos($movePage, 'name=\"antal\" style=\"text-align:right\" value=\"0\" $mb65_noedit') !== false, 'the quantity field carries it');
-lagerCheck(strpos($movePage, 'name=\"opdater\" $mb65_noedit') !== false, 'and so does the Opdater button');
-lagerCheck(strpos($movePage, "REQUEST_METHOD'] === 'POST'") < $disable, 'while the server-side refusal stays, whatever the form says');
+$flag = strpos($movePage, '$mb65_readonly = (');
+lagerCheck($flag !== false, 'the move page decides once whether the user may move stock');
+lagerCheck($flag !== false && strpos($movePage, 'if ($mb65_readonly) {') > $flag, 'and decides before the form is drawn');
+lagerCheck($flag !== false && strpos($movePage, "REQUEST_METHOD'] === 'POST'") < $flag, 'with the server-side refusal still first');
+lagerCheck(strpos($movePage, 'if (!$mb65_readonly)') === false, 'the form is hidden rather than drawn disabled');
+lagerCheck(strpos($movePage, 'name=\"opdater\" $mb65_noedit') === false, 'so no disabled control is left in the page');
+lagerCheck(strpos($movePage, 'dkdecimal($max_antal,2)') !== false, 'while the stock figure is still shown to read-only');
+
+# ---- the card offers only the controls that read ----------------------------------------------
+$deleteGate = strpos($guard, 'if ($id && !$noEdit) {');
+$deleteAt = strpos($guard, 'name=\\"deleteItem\\"');
+lagerCheck($deleteGate !== false && $deleteAt !== false && $deleteGate < $deleteAt,
+	'the delete button is not drawn for a read-only user');
+$saveGate = strpos($guard, 'if (!$noEdit) {');
+$saveAt = strpos($guard, 'name=\\"saveItem\\"');
+lagerCheck($saveGate !== false && $saveAt !== false && $saveGate < $saveAt, 'so is the Save button');
+lagerCheck(substr_count($guard, 'if (!$noEdit) {') >= 3, 'and the copy, item-lookup and supplier-lookup cells');
+$stockAt = strpos($guard, "name='stockHistory'");
+lagerCheck($stockAt !== false, 'Lagerhistorik is still offered, because it only reads');
+foreach (array('saveItem', 'copy', 'supplierLookUp', 'deleteItem') as $name) {
+	$carries = false;
+	foreach (explode("\n", $guard) as $line) {
+		if (strpos($line, "name=\\\"$name\\\"") !== false && strpos($line, '$noEdit') !== false) $carries = true;
+	}
+	lagerCheck(!$carries, $name . ' carries no read-only attribute, because it is not drawn at all');
+}
+
+# ---- the category and variant controls are not offered to a read-only user ------------------
+$cats = lagerSource('/../lager/productCardIncludes/showCategories.php');
+lagerCheck(substr_count($cats, 'if ($noEdit) {') === 2, 'both category levels hide the rename and delete icons');
+	lagerCheck(strpos($cats, 'if ($noEdit) {') < strpos($cats, 'rename_category'),
+	'and the icons they hide are the ones that post rename_category and delete_category');
+$variants = lagerSource('/../lager/productCardIncludes/showVariantsInfo.php');
+lagerCheck(strpos($variants, 'if ($var_beh[$x] || $noEdit)') !== false, 'a read-only user gets no delete icon for a variant');
+lagerCheck(strpos($variants, 'delete_var_type') !== false, 'while the link behind it is still the one the gate refuses');
+
+# ---- the mass-import button is a write too ----------------------------------------------------
+$scanAt = strpos($guard, 'varescanimport.php');
+$scanGate = $scanAt === false ? false : strrpos(substr($guard, 0, $scanAt), 'if (!$noEdit) {');
+lagerCheck($scanAt !== false && $scanGate !== false && $scanAt - $scanGate < 250,
+	'"Masse vare scan" is not drawn for a read-only user');
+
+# ---- a read-only user is not offered a way to create an item ----------------------------------
+$blankGate = strpos($guard, 'if (!$id && $noEdit) {');
+$blankLog = strpos($guard, 'MB-62: item create refused');
+lagerCheck($blankGate !== false && $blankLog !== false && $blankGate < $blankLog,
+	'a blank card (a new item) is refused before the form is built');
+$list = lagerSource('/../lager/varer.php');
+lagerCheck(strpos($list, '$mb62_readonly = (') !== false, 'the item list decides read-only once, from module 9');
+lagerCheck(substr_count($list, 'if (!$mb62_readonly) print') === 3,
+	'and all three of its Ny controls — both list views and the popup view — are hidden for that user');
+
+# ---- a refused page offers a way back ----------------------------------------------------------
+foreach (array('/../lager/varekort.php' => 3, '/../lager/lagerflyt.php' => 1, '/../lager/ret_varenr.php' => 1, '/../lager/ret_varenralias.php' => 1) as $path => $count) {
+	$src = lagerSource($path);
+	lagerCheck(substr_count($src, "main.php#/lager/lister/vareliste.php?inframe=1") === $count,
+		basename($path) . ' sends a refused user back to the item list');
+	lagerCheck(substr_count($src, "target='_top'") === $count, basename($path) . ' names the top window, so no frame is left behind');
+	lagerCheck(substr_count($src, "findtekst('30|Tilbage', \$sprog_id) . \"</a></div>") === $count, basename($path) . ' labels it Tilbage, not Luk');
+	lagerCheck(substr_count($src, 'background:#1c7cb9') === $count, basename($path) . ' uses the Saldi blue, because the page does not load top_menu.css');
+}
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) echo "  FAILED: $failure\n";

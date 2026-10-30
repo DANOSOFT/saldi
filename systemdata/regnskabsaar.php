@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 5.0.0 --- 2026-07-30 --
+// --- systemdata/regnskabsaar.php --- ver 5.1.0 --- 2026-10-30 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20150327 CA  Topmenudesign tilføjet                             søg 20150327
 // 20161202 PHR Små designændringer
@@ -39,6 +39,7 @@
 // 20260801 MJ Sat begge knapper til samme bredde (200px)
 // 20260814 Sawaneh SST-705 Current fiscal year shows Lukket when bookkeeping is
 //                  not allowed (box5) and GET params are int-cast before SQL
+// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 
 @session_start();
 $s_id = session_id();
@@ -57,7 +58,7 @@ function check_permissions($permarr)
 {
   global $rettigheder;
   $filtered = array_filter($permarr, function ($item) use ($rettigheder) {
-    return (substr($rettigheder, $item, 1) == "1");
+    return in_array(substr($rettigheder, $item, 1), array('1', '2'), true);
   });
   return !empty($filtered);
 }

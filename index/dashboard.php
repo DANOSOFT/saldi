@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.1 --- 2025.08.13 ---
+// ---- index/dashboard.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2025 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20241004 MMK
 //20241018 LOE checks that some variables are set before using.
 //20250513 Sawaneh display number of users online.
 //20250805 LOE added close button to settings popup. and also added weekly graph snippet
+// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 @session_start();
 $s_id = session_id();
 
@@ -97,7 +98,7 @@ include ("dashboardIncludes/pos_row.php");
 function check_permissions($permarr) {
 	global $rettigheder;
 	$filtered = array_filter($permarr, function ($item) use ($rettigheder) {
-		return (substr($rettigheder, $item, 1) == "1");
+		return in_array(substr($rettigheder, $item, 1), array('1', '2'), true);
 	});
 	return !empty($filtered);
 }

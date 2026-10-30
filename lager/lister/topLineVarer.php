@@ -5,6 +5,8 @@
 
 	// 20260917 CL/LH Remember the goods tab the user last opened so Lager -> Varer reopens it (Havemoebelland).
 	// 20261023 CL/LH Styklister is remembered too.
+	// 20261030 LOE MB-62 the goods-list top line does not offer Ny to a read-only (2) user: it opens the
+	//                 blank item card, which refuses that request.
 	$goodsTabKeys = array('Vareliste' => 'vareliste', 'Ordrevisning' => 'ordrestatus', 'Indkøb' => 'indkob', 'Serienumre' => 'serialnumber', 'Styklister' => 'styklister');
 	if (isset($valg, $bruger_id) && isset($goodsTabKeys[$valg]) && (int)$bruger_id > 0) {
 		update_settings_value('vareliste_valg', 'lager', $goodsTabKeys[$valg], 'Last used tab in the goods list', (int)$bruger_id);
@@ -141,7 +143,8 @@
 	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print $help_icon;
 	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
-	if ($valg=="Vareliste") {
+	# a read-only (2) user is not offered the blank item card, which refuses that request
+	if ($valg == "Vareliste" && substr((string)($rettigheder ?? ''), 9, 1) !== '2') {
 		print "<td id='create-new' width=5% style='$buttonStyle'>
 			<a href=../varekort.php accesskey='L'>
 			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
