@@ -113,6 +113,8 @@
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 // 20261029 CL/MJ SST-885 ordre_valg saves "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL).
+// 20261029 CL/MMR SST-911 Save "Fakturér webshopordrer med ordredato" from Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate).
+//                 The save_webshop_invoice_order_date() handler runs before page output.
 // 20261029 CL/MMR SD-786 Save "Vis besked når kostprisen er anslået" (showCostEstimateNotice) under Ordrerelaterede valg.
 //                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
 // 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
@@ -139,6 +141,8 @@ if (is_file(__DIR__ . '/../bank_integration/includes/enabled.php')) {
 }
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
+include_once(__DIR__ . '/diverseIncludes/webshopInvoiceOrderDate.php');
+save_webshop_invoice_order_date((string)ifset($_SERVER, 'REQUEST_METHOD', ''), (string)ifset($_GET, 'sektion', ''), $_POST); #SST-911
 
 $defaultProvision = $sqlstreng = NULL;
 if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
