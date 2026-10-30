@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -211,6 +211,8 @@
 //                The date a row was drawn with (transdate[]) is matched by line id, not screen row, since those lines shift the rows
 //                below them; by row a debtor line could take another line's date and lose a due date typed by hand.
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
+// 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated,
+//                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -291,6 +293,8 @@ $kredit_ligslut = $kredit_ligstart = $kladde_id = $kladdenote = $kontrolkonto = 
 $lukket = $linjebg = $opslag_id = NULL;
 $restlig = NULL;
 $simuler = $sletrest = $sletstart = $sletslut = $submit = NULL;
+# SST-888 (review) the replay flag is read after the save block too, so it is defined for every request
+$kk_replay = false;
 $vis_afd = $vis_ansat = $vis_bet_liste = $vis_forfald = $vis_projekt = $vis_valuta = NULL;
 $control_bal_fetched = FALSE;
 $control_bal_last = $control_next_date = $control_record_daet = $titletxt = NULL;
@@ -1083,6 +1087,18 @@ if ($_POST) {
 	else $submit   = trim(if_isset($_POST['submit'], ''));
 	$tidspkt       = if_isset($_POST['tidspkt']);
 	$kladde_id     = journalSaveTarget($_SESSION, $kk_form_key, (int)ifset($_POST, 'kladde_id', 0));
+	# SST-888 (review) the replay is decided before the staging table is touched: an exact resend must not
+	# clear the lines a refused save left staged, or they would vanish from the form the resend renders.
+	$kk_replay = false;
+	# SST-888 (review) the payload is computed for every save: the journal a first save creates has no id
+	# yet, and without the payload a resend of that save was not recognised at all. The comparison needs
+	# the id, which journalSaveTarget() resolves from the session for exactly that resend.
+	if ($submit == 'save') {
+		$kk_payload = md5(serialize($_POST));
+		if ($kladde_id && isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
+			$kk_replay = true;
+		}
+	}
 	// SD-716: the paper-clip saved first and wants the pool afterwards (clipSaveThenPool)
 	$kkAfterSave   = (string)ifset($_POST, 'kkAfterSave', '');
 	// A clip dropped on the new line: link that line's documents to the line the save inserts from form row kkLinkRow
@@ -1112,11 +1128,13 @@ if ($_POST) {
 	#		}
 		// MB-81 Another save of this journal finishes first: tmpkassekl is shared by the journal's saves
 		kkJournalLock($kladde_id);
-		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
-		// This request stages the lines itself, so opdater() below may move them into the journal
-		$kkStaged = true;
-		// A lookup page opened before this request no longer returns to the lines it replaces (see 'lookup' below)
-		unset($_SESSION['kk_lookup_staged'][$kladde_id]);
+		if (!$kk_replay) {
+			db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+			// This request stages the lines itself, so opdater() below may move them into the journal
+			$kkStaged = true;
+			// A lookup page opened before this request no longer returns to the lines it replaces (see 'lookup' below)
+			unset($_SESSION['kk_lookup_staged'][$kladde_id]);
+		}
 		if (isset($_POST['cancelSimulation']) && $_POST['cancelSimulation']) {
 			db_modify("delete from simulering where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 			$qtxt = "update kladdeliste set bogfort = '-', bogforingsdate = NULL, bogfort_af = '' where id = '$kladde_id' and bogfort = 'S'";
@@ -1628,6 +1646,9 @@ if ($_POST) {
 			$ansat[$x] = db_escape_string(if_isset($ansat[$x], ''));
 			$valuta[$x] = db_escape_string(if_isset($valuta[$x], ''));
 			$forfaldsdato[$x] = db_escape_string(if_isset($forfaldsdato[$x], ''));
+			# SST-888 (review) a replay stages nothing: the lines it would write are already in the journal or
+			# already staged (the refused ones), and re-staging them is what duplicated rows before.
+			if (!$kk_replay) {
 			$qtxt = "insert into tmpkassekl ";
 			$qtxt.= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,debetvat,kreditvat,faktura,";
 			$qtxt.= "amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) ";
@@ -1637,8 +1658,9 @@ if ($_POST) {
 			$qtxt.= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
 			#cho __line__." $qtxt<br>";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
 
-			if ($x == $antal - 1 && $kladde_id) { // only after last line
+			if (!$kk_replay && $x == $antal - 1 && $kladde_id) { // only after last line, and never on a replay: the sum of the rows a refused save kept is not a form to balance
 				$sum_debet = 0;
 				$sum_kredit = 0;
 
@@ -1679,16 +1701,10 @@ if ($_POST) {
 	// check below never fires for an open journal (bogfort is '-' which is truthy), so detect the
 	// replay explicitly: the same session re-posting the exact same save payload for the same
 	// journal is a replay and must not touch the lines again. A stale tab with *different*
-	// content is not affected (different payload) and saves as before. The fingerprint is only
-	// compared here; it is recorded after opdater() below, once the save has actually succeeded,
-	// so a re-post of a save that failed validation is validated (and rejected) again.
-	$kk_replay = false;
-	if ($submit == 'save' && $kladde_id) {
-		$kk_payload = md5(serialize($_POST));
-		if (isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
-			$kk_replay = true;
-		}
-	}
+	// content is not affected (different payload) and saves as before. The fingerprint is compared
+	// where $kk_replay is decided, before anything is staged; it is recorded once the save has
+	// actually succeeded (or partially succeeded, SST-888), so a re-post of a save that failed
+	// validation is validated and rejected again.
 	if ($kladde_id) {
 		$row = db_fetch_array(db_select("select bogfort,tidspkt from kladdeliste where id=$kladde_id", __FILE__ . " linje " . __LINE__));
 		if (!$row['bogfort'] && $tidspkt == $row['tidspkt']) { #Refreshtjek"
@@ -1908,21 +1924,49 @@ if (!$fejl && $kladde_id) {
 		// Only lines this request staged and checked (kontroller()). What a refused save left in tmpkassekl must not
 		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
 		if (!empty($kkStaged)) opdater($kladde_id, $bilagForslag ?? array());
-		initializePositions($kladde_id);
-		journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
-		// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
-		// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
-		// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
-		if (isset($kk_payload)) {
-			if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
-			$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+		# SST-888 (review) opdater() can refuse a single line and still commit the rest: the refused
+		# rows stay staged, so the error re-render shows them and pressing Gem again saves them.
+		if ($fejl) {
+			# SST-888 (review) the fingerprint is recorded for a partial save too: a double-click or a browser
+			# resend of the same POST must not insert the lines that were committed again. Pressing Gem on the
+			# re-rendered page posts a different payload, so the refused line is still retried normally. But
+			# only once the save wrote a row: a save that refused every line has nothing a resend could
+			# duplicate, and caching its payload would turn an unchanged retry into a replay that never retries.
+			if (isset($kk_payload) && !empty($GLOBALS['kk_committed'])) {
+				if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+				$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+			}
+			$kk_refused = isset($GLOBALS['kk_refused_lobenr']) ? array_map('intval', $GLOBALS['kk_refused_lobenr']) : array();
+			if ($kk_refused) {
+				db_modify("delete from tmpkassekl where kladde_id=$kladde_id and lobenr not in (" . implode(',', $kk_refused) . ")", __FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+				unset($_SESSION['kk_lookup_staged'][$kladde_id]);
+			}
+		} else {
+			initializePositions($kladde_id);
+			journalRememberSave($_SESSION, $kk_request_key, (int)$kladde_id);
+			// 20260907 CL/LH  Record the replay fingerprint only now that the save went through. Recording
+			// it before kontroller() made the second POST of a double-clicked *failing* save a "replay":
+			// kontroller() was skipped, tmpkassekl deleted, and the operator saw no error and no lines.
+			if (isset($kk_payload)) {
+				if (!isset($_SESSION['kk_last_save']) || !is_array($_SESSION['kk_last_save'])) $_SESSION['kk_last_save'] = array();
+				$_SESSION['kk_last_save'][$kladde_id] = $kk_payload;
+			}
+			// SST-888 (review) the staged rows live for this request only: keeping them for later page
+			// loads hid the journal's own lines from the form and handed another session their contents
+			db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
+			unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 		}
+	} else {
+		# SST-888 (review) an exact resend leaves the staging table alone: it still holds the lines a refused
+		# save kept for the form, and this request has staged nothing of its own.
+		unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 	}
-	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
-	unset($_SESSION['kk_lookup_staged'][$kladde_id]);
 	// SD-716: the save came from the paper-clip of a line without a document, so open the pool for that line now.
 	// A clip dropped on the new line comes here too, with kkLinkFrom set.
-	if ($submit == 'save' && $kkAfterSave !== '') {
+	// SST-888 (review) but not when opdater() refused a line: there is no saved line to hang it on
+	if (!$fejl && $submit == 'save' && $kkAfterSave !== '') {
 		$kkPoolLine = 0;
 		if ($kkAfterSave === 'new') {
 			// The line typed at the bottom is the last one this save inserted, if it inserted one. The ids come from
@@ -3551,10 +3595,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	$kladde_id_sql = (int)$kladde_id;
 	$qtxt = "select id from kassekladde where kladde_id = '$kladde_id_sql' limit 1";
 	$kk_has_saved_lines = ($kladde_id && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? true : false;
-	if (!$kk_has_saved_lines) {
-		$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-		if ($row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $last_bilag = $row['bilag'];
-	}
+	# SST-888 (review) the fiscal year's highest voucher is no longer read here: the first line of a
+	# journal without numbered rows is offered the next number further down, not the highest one
 	$kk_doc_source_ids = array();
 	$kk_line_ids = array_filter(array_map('intval', is_array($id) ? $id : array()));
 	if ($kk_line_ids) {
@@ -3709,11 +3751,22 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$title = NULL;
 			$color = NULL;
 		}
-		// get last bilagsnr from database but check if the row already has asigned bilagnr
-		if (!$kk_has_saved_lines && $y == 1) {
-			$bilag[$y] = $last_bilag;
+		// SST-888 (review) a journal without numbered rows used to offer the fiscal year's HIGHEST
+		// number here, so the first line of a new journal defaulted to a number another journal already
+		// holds - and at 2147483647 to the column maximum itself. Offer the next number instead, and
+		// nothing at all when the column cannot hold it.
+		if (!$kk_has_saved_lines && $y == 1 && !$bilag[$y]) {
+			$kk_last_bilag_next = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+			if (!bilagNumberFits((string)$kk_last_bilag_next)) {
+				$kk_last_bilag_next = '';
+			}
+			$bilag[$y] = $kk_last_bilag_next;
 		}
-		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'>";
+		# SST-888 (review) a line without a number shows an empty voucher field, not a 0 the user reads as a number;
+		# anything else is escaped and printed as it was typed, so a rejected value ("abc", or one carrying a quote)
+		# comes back for correction without breaking out of the value attribute
+		$kk_bila_vaerdi = (isset($bilag[$y]) && !in_array((string)$bilag[$y], array('', '0'), true)) ? htmlspecialchars((string)$bilag[$y], ENT_QUOTES) : '';
+		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$kk_bila_vaerdi\" onchange='javascript:docChange = true;'>";
 		if (!$id[$y] && !empty($kkForslag[$y])) print "<input type='hidden' name='bilf$y' value='" . (int)$kkForslag[$y] . "'>";
 		print "</td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -3884,6 +3937,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		# 20260928 LOE SST-817 Same allocation as the line rendered below: the journal's highest used
 		# number + 1, or the fiscal year's when this journal has no numbered row yet.
 		$bilag[$x] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+		# SST-888 (review) never offer a number the column cannot hold: at 2147483647 the next number
+		# is 2147483648, and offering it only earns a refusal after the operator has typed it
+		if (!bilagNumberFits((string)$bilag[$x])) {
+			$bilag[$x] = '';
+		}
 	}
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
@@ -3892,6 +3950,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	# number + 1), not from the row above it. A journal whose last row is an empty row used to offer no
 	# number at all there, the line typed on it was stored as bilag 0, and the series restarted at 1.
 	$kk_next_bilag = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+	# SST-888 (review) no proposal for a number the column cannot hold either
+	if (!bilagNumberFits((string)$kk_next_bilag)) {
+		$kk_next_bilag = 0;
+	}
 	# The blank line at the end is where the next line gets typed, so it is rendered after any save
 	# that created a line - including a line that carries only a description, which has no
 	# debit/credit and so used to leave the user with no row to type in and no field to focus. It now
@@ -3962,8 +4024,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
 		// MB-81 bilf$x carries the proposal, so the save can tell it from a number the user typed
+		# SST-888 (review) and the new line shows an empty field when no number is offered, not a 0
+		$kk_next_vaerdi = ((int)$next > 0) ? (int)$next : '';
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
-		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'>";
+		name='bila$x' $de_fok value =\"$kk_next_vaerdi\" onchange='javascript:docChange = true;'>";
 		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_next_bilag . "'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
 		name='dato$x' $de_fok value =\"$dato[$x]\" onchange='javascript:docChange = true;'></td>\n";
@@ -4674,8 +4738,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $baseCurrency, $egen_kto_id, $sprog_id, $fejl;
 
 		$kladde_id = (int)$kladde_id;
+		# SST-888 (review) the caller keeps a refused line staged, so it must know which ones were refused
+		$GLOBALS['kk_refused_lobenr'] = array();
+		# SST-888 (review) and whether it wrote a row at all: a save that refused every line committed nothing
+		$GLOBALS['kk_committed'] = 0;
 		transaktion('begin');
-		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, array_merge(array(), ...array_values($GLOBALS['kk_plus_line_ids'])));
+		# SST-888 (review) one series start for the whole save: read before the first insert, so a line the
+		# save is writing does not pull the next number up behind it
+		$kk_bilag_fra = bilagNextNumberForJournal($kladde_id);
+		# SST-888 (review) and every number this save hands out: the next unnumbered line must not get it again
+		$kk_bilag_givet = array();
+		# MB-126 the "<bilag>+N" lines this save inserted never take a proposal back, so they are passed along
+		$kk_egne_linjer = isset($GLOBALS['kk_plus_line_ids']) ? array_merge(array(), ...array_values($GLOBALS['kk_plus_line_ids'])) : array();
+		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, $kk_bilag_fra, $kk_egne_linjer);
 
 		$forfaldsdate = NULL;
 		$valutakode = '0';
@@ -4740,21 +4815,38 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						$transdate = date("Y-m-d");
 					$bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 					if ($bilag > 2147483647) {
-						$r_max = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
-						$new_bilag = (int)$r_max['next_bilag'];
-						alert("Bilagsnummer $bilag er for stort (maks 2147483647) og er erstattet med $new_bilag.");
-						$bilag = $new_bilag;
+						# SST-888 (review) the replacement comes from the same allocator as every other site, so it
+						# skips this save's own numbers and cannot pick one the column cannot hold
+						$bilag_for_stort = $bilag;
+						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+						if ($bilag > 0) {
+							$kk_bilag_givet[] = (int)$bilag;
+							alert("Bilagsnummer $bilag_for_stort er for stort (maks 2147483647) og er erstattet med $bilag.");
+						}
 					}
 					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
 					# writing the 0 back; a positive number the user entered is kept as it is.
 					if ($bilag <= 0) {
-						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
+						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+						if ($bilag > 0) {
+							$kk_bilag_givet[] = (int)$bilag;
+						}
+						# SST-888 (review) no storable number is left: refuse the line rather than write one
+						# the column cannot hold
+						if ($bilag <= 0) {
+							$fejl = 1;
+							$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
+							alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
+							continue;
+						}
 					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
 					$qtxt .= "amount = '$amount', debetvat = '$debetvat', kreditvat = '$kreditvat', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
 					$qtxt .= "valuta= '$valutakode' where id = '$r[id]'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					# SST-888 (review) an updated line is a row this save wrote as well
+					$GLOBALS['kk_committed']++;
 					if ($forfaldsdate) {
 						$qtxt = "update kassekladde set forfaldsdate='$forfaldsdate', betal_id='$betal_id' where id = '$r[id]'";
 					} else
@@ -4769,16 +4861,31 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if ($forfaldsdate) {
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 						if ($insert_bilag > 2147483647) {
-							$r_max2 = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
-							$new_bilag2 = (int)$r_max2['next_bilag'];
-							alert("Bilagsnummer $insert_bilag er for stort (maks 2147483647) og er erstattet med $new_bilag2.");
-							$insert_bilag = $new_bilag2;
+							# SST-888 (review) same rule in the insert branch: the allocator hands out the replacement,
+							# so it skips this save's own numbers and never picks one the column cannot hold
+							$insert_for_stort = $insert_bilag;
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							if ($insert_bilag > 0) {
+								$kk_bilag_givet[] = (int)$insert_bilag;
+								alert("Bilagsnummer $insert_for_stort er for stort (maks 2147483647) og er erstattet med $insert_bilag.");
+							}
 						}
 						# 20260928 LOE SST-817 A line saved without a voucher number is given the journal's
 						# next one instead of 0, so a balanced line advances the series and no number is
 						# reused while the journal is open.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							if ($insert_bilag > 0) {
+								$kk_bilag_givet[] = (int)$insert_bilag;
+							}
+							# SST-888 (review) no storable number is left: refuse the line rather than write one
+							# the column cannot hold
+							if ($insert_bilag <= 0) {
+								$fejl = 1;
+								$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
+								alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
+								continue;
+							}
 						}
 						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
@@ -4809,14 +4916,18 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						} elseif ($bilag_tjek['replaced']) {
 							# reserve the replacement through the same allocator a line without a number uses,
 							# so it cannot take a number a staged line already proposes
-							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat);
+							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat, $kk_bilag_fra, $kk_bilag_givet);
+							if ($bilag_tjek['bilag'] > 0) {
+								$kk_bilag_givet[] = (int)$bilag_tjek['bilag'];
+							}
 							if (!bilagNumberFits((string)$bilag_tjek['bilag'])) $bilag_tjek['bilag'] = 0;
 							$bilag_erstat[$bilag_noegle] = $bilag_tjek['bilag'];
 						}
 						if ($bilag_tjek['replaced'] && $bilag_tjek['bilag'] <= 0) {
 							# the journal is already at 2147483647: no number left to offer, so this line is skipped
 							$fejl = 1;
-							alert(findtekst("5454|Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)", $sprog_id));
+							$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
+							alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
 							continue;
 						} elseif ($bilag_tjek['replaced']) {
 							alert(findtekst("5453|Bilagsnummer er for stort (maks 2147483647) og er erstattet med", $sprog_id) . " " . $bilag_tjek["bilag"] . ".");
@@ -4827,7 +4938,18 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0) {
-							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							if ($insert_bilag > 0) {
+								$kk_bilag_givet[] = (int)$insert_bilag;
+							}
+							# SST-888 (review) no storable number is left: refuse the line rather than write one
+							# the column cannot hold
+							if ($insert_bilag <= 0) {
+								$fejl = 1;
+								$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
+								alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
+								continue;
+							}
 						}
 						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
 						// Insert at the correct bilag/transdate position instead of always at the end.
@@ -4844,6 +4966,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 					if ($qtxt) {
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						# SST-888 (review) a row of the journal was written, so this save is not a no-op
+						$GLOBALS['kk_committed']++;
 						# Only an insert creates a row to pin and to move the focus to; an update must leave
 						# the caret where the user was. The generated id comes from this connection, so a
 						# concurrent insert in another session cannot be picked up instead.
