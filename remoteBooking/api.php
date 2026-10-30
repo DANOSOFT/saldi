@@ -23,9 +23,9 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261028 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
+// 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 //
 
 
