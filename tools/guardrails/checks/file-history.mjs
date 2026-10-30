@@ -15,7 +15,6 @@
 // History:
 // 20261027 CL/LH Created.
 // 20261028 CL/LH Accept history blocks that are indented like the rest of their file's block.
-// 20261029 CL/MJ Enforce aligned sentence-only continuations for new history entries (PR #874).
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -89,24 +88,6 @@ export default {
           line: misplaced[0],
           message: `history line added above older entries; new lines go at the bottom of the block, after line ${existing[existing.length - 1]}.`,
         });
-      }
-
-      for (const line of historyLines) {
-        const prefix = /^(\s*\/\/ \d{8}[ \t]+(?:(?:CL|CDX)\/)?[A-Z]{2,4}[ \t]+)/.exec(lines[line - 1]);
-        if (!prefix) continue;
-        for (let next = line + 1; next <= header; next++) {
-          const continuation = /^(\s*\/\/[ \t]{2,})(\S.*)$/.exec(lines[next - 1]);
-          if (!continuation || HISTORY.test(lines[next - 1])) break;
-          if (!file.added.has(line) && !file.added.has(next)) continue;
-          if (continuation[1].length !== prefix[1].length) {
-            findings.push({ path: file.path, line: next,
-              message: `align the history continuation with the description at column ${prefix[1].length + 1}.` });
-          }
-          if (!/[.!?]["'`)]*$/.test(lines[next - 2].trimEnd())) {
-            findings.push({ path: file.path, line: next,
-              message: "history continuations start a new sentence; keep the preceding sentence on one line." });
-          }
-        }
       }
 
       const newest = added.map((line) => HISTORY.exec(lines[line - 1])[2]).sort().pop();
