@@ -1,4 +1,5 @@
 // 20261029 CDX/MJ Pin the repeated PR #882 header-version and misplaced-history findings.
+// 20261030 CL/MJ Pin that history after a plain /* note inside the header (includes/grid.php) is not flagged.
 import test from "node:test";
 import assert from "node:assert/strict";
 import history from "../checks/file-history.mjs";
@@ -30,6 +31,12 @@ test("contiguous history retains the function PHPDoc", () => {
 test("runtime history comments are outside the leading-header rule", () => {
   const after = head + '// 20261029 CDX/MJ New entry.\nfunction example() {\n// 20261029 CDX/MJ Runtime explanation.\n}';
   assert.deepEqual(history.run(context(head,after,[5,7])), []);
+});
+test("history after a plain /* note inside the header is not misplaced (includes/grid.php)", () => {
+  const before = '<?php\n#..includes/grid.php\n####### Notice #######\n// What this file is for.\n/*\npages that use the grid\n*/\n// 20261028 CDX/MJ Existing behavior.\n####### EndNotice #######\n/**\n * Function documentation.\n */\nfunction example() {}';
+  const after = before.replace('// 20261028 CDX/MJ Existing behavior.\n', '// 20261028 CDX/MJ Existing behavior.\n// 20261029 CDX/MJ New entry.\n');
+  const findings = history.run(context(before, after, [9]));
+  assert(!findings.some(f => f.message.includes("outside the header")), JSON.stringify(findings));
 });
 const old = '<?php\n// example.php lap 2.0.9 2026-10-29\nfunction example() { return "a // b"; }';
 test("behavior changes require the application version", () => {

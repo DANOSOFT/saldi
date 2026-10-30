@@ -16,6 +16,7 @@
 // 20261027 CL/LH Created.
 // 20261028 CL/LH Accept history blocks that are indented like the rest of their file's block.
 // 20261029 CDX/MJ Reject newly added history after a leading PHPDoc instead of inside the header.
+// 20261030 CL/MJ Only a /** block counts as that PHPDoc, so history after a plain /* note in the header (includes/grid.php) is not flagged.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -55,19 +56,23 @@ export default {
       const historyLines = [];
       for (let line = 1; line <= header; line++) if (HISTORY.test(lines[line - 1])) historyLines.push(line);
       // A leading PHPDoc ends headerLength(), but is not executable code. Catch entries
-      // mistakenly placed between that PHPDoc and the first declaration as well.
-      let inDocblock = false;
+      // mistakenly placed between that PHPDoc and the first declaration as well. Only a
+      // /** block is a PHPDoc: some headers (includes/grid.php) keep a plain /* ... */ note
+      // inside the header and their history lines after it, and those are not misplaced.
+      let inComment = false;
+      let afterPhpDoc = false;
       for (let i = header; i < lines.length; i++) {
         const text = lines[i].trim();
-        if (inDocblock) {
-          if (text.includes("*/")) inDocblock = false;
+        if (inComment) {
+          if (text.includes("*/")) inComment = false;
           continue;
         }
         if (text.startsWith("/*")) {
-          inDocblock = !text.includes("*/");
+          if (text.startsWith("/**")) afterPhpDoc = true;
+          inComment = !text.includes("*/");
           continue;
         }
-        if (HISTORY.test(lines[i]) && file.added.has(i + 1)) {
+        if (afterPhpDoc && HISTORY.test(lines[i]) && file.added.has(i + 1)) {
           findings.push({ path: file.path, line: i + 1,
             message: "history entry is outside the header block; put it immediately after the existing // history lines, before PHPDoc." });
         }
