@@ -88,6 +88,7 @@
 //             instead of just the last one, and genbestil() now reports success so only a fully
 //             successful submission is remembered.
 // 20261023 CL/LH MB-60: Lager -> Varer also reopens the Styklister tab.
+// 20261030 LOE MB-62 a read-only user is not offered the list's Ny button.
 
 @session_start();
 $s_id=session_id();
@@ -876,7 +877,6 @@ while ($r = db_fetch_array($q)) {
 //             off, so that ran for every matching row rather than the fifty on screen - measured at
 //             7,3 ms per item on a dev tenant loaded to Dyre-Loppen's volume, about 300 s for their
 //             41.381 varer. Both lookups are read-only and keyed by vare_id, so they are built once
-// 20261030 LOE MB-62 a read-only user is not offered the list's Ny button.
 //             here instead. Behaviour is unchanged: same rows, same numbers, same page contents.
 $lagerSum = array();
 $lagerRow = array();
