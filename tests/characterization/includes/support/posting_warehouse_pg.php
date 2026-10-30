@@ -3,6 +3,7 @@
 // 20261027 CDX/MJ SST-883 Exercise the shipped posting writers against isolated PostgreSQL temporary tables.
 // Run with SALDI_TEST_PG_DSN or the standard PG* environment variables; no persistent data is changed.
 // 20261030 CL/MJ SST-883 Moved here from tests/integration/ so PostingWarehousePgTest runs it in CI's characterization suite.
+// 20261030 CL/MJ SST-883 An account without warehouses keeps the line's warehouse, including levering()'s default 1.
 require_once __DIR__ . '/../../../../includes/std_func.php';
 if (!extension_loaded('pgsql') || (!getenv('SALDI_TEST_PG_DSN') && !getenv('SALDI_TEST_PG'))) {
     echo "SKIP: set SALDI_TEST_PG=1 or SALDI_TEST_PG_DSN for PostgreSQL integration tests.\n";
@@ -68,7 +69,8 @@ try {
         ['valid line preserved', 4, 1, null, 4, true, 7, 1, [1,4]],
         ['empty line uses department', 0, 4, null, 4, true, 0, 1, [4]],
         ['no warehouses zero', 0, null, null, 0, true, 0, 1, []],
-        ['no warehouses removed line', 10, null, null, 0, true, 0, -1, []],
+        ['no warehouses keeps the line warehouse', 10, null, null, 10, true, 0, -1, []],
+        ['no warehouses keeps levering default 1', 1, null, null, 1, true, 0, 1, []],
     ];
     foreach ($scenarios as [$label, $requested, $primary, $legacy, $expected, $exists, $variant, $quantity, $defined]) {
         db_modify("DELETE FROM grupper WHERE art IN ('LG','AFD')");
@@ -112,7 +114,9 @@ try {
             }
             check((float) scalar("SELECT beholdning FROM lagerstatus WHERE vare_id=1 AND variant_id=$variant AND lager=$expected") === (float) ($targetBefore-$quantity), "$label/$writer: target balance must receive only the delta");
             check((float) scalar('SELECT SUM(beholdning) FROM lagerstatus') === (float) ($totalBefore-$quantity), "$label/$writer: warehouse total");
-            check((int) scalar('SELECT COUNT(*) FROM lagerstatus WHERE lager=10') === 0, "$label/$writer: removed warehouse recreated");
+            if ($expected !== 10) {   # an account without warehouses keeps 10 on purpose
+                check((int) scalar('SELECT COUNT(*) FROM lagerstatus WHERE lager=10') === 0, "$label/$writer: removed warehouse recreated");
+            }
             if ($otherStock) {
                 check((float) scalar("SELECT beholdning FROM lagerstatus WHERE lager=$otherWarehouse") === 10.0, "$label/$writer: unrelated warehouse changed");
             }

@@ -7,14 +7,16 @@
 //                  document posted later can name one that has since been taken out of use.
 // 20261027 CDX/MJ SST-883 Prefer the department warehouse mapping and validate both fallback mappings.
 // 20261030 CL/MJ SST-883 Header marker set to the release this behaviour ships in (5.1.0).
+// 20261030 CL/MJ SST-883 An account without any warehouses keeps every warehouse number, so levering()'s default warehouse 1 is not moved to 0 (CodeRabbit).
 
 if (!function_exists('warehouseIsDefined')) {
 	/**
 	 * Is $lager a warehouse this account still has?
 	 *
-	 * Warehouse 0 is always accepted. It is the implicit single warehouse: an account with no
-	 * grupper art='LG' rows at all posts everything to 0, and refusing it would stop stock
-	 * moving on every install that does not use warehouses.
+	 * Warehouse 0 is always accepted. An account with no grupper art='LG' rows at all accepts
+	 * every number: levering() posts an order line without a warehouse to 1, and such an account
+	 * has no warehouse columns where stock could go missing - only the total - so its postings
+	 * stay exactly as they were.
 	 *
 	 * The lookup is not filtered by fiscal_year, which matches every other art='LG' read in the
 	 * code - the warehouse columns on the item list (lager/lister/vareliste.php) and the rows on
@@ -32,7 +34,13 @@ if (!function_exists('warehouseIsDefined')) {
 		$r = db_fetch_array(db_select(
 			"select id from grupper where art='LG' and kodenr=$lager limit 1",
 			__FILE__ . " linje " . __LINE__));
-		return !empty($r);
+		if (!empty($r)) {
+			return true;
+		}
+		$r = db_fetch_array(db_select(
+			"select id from grupper where art='LG' limit 1",
+			__FILE__ . " linje " . __LINE__));
+		return empty($r);
 	}
 }
 

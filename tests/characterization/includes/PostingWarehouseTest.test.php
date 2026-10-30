@@ -30,11 +30,15 @@ use PHPUnit\Framework\TestCase;
 //                  Fixture only; no customer data. The warehouse numbers are the ones named in
 //                  the ticket: 4 is Havemøbelland's M, 10 is the «V» that was removed.
 // 20261027 CDX/MJ SST-883 Cover primary department mapping and removed fallback mappings.
+// 20261030 CL/MJ SST-883 An account without warehouses keeps levering()'s default warehouse 1.
 
 function db_select($sql, $location = '')
 {
 	$GLOBALS['pwQueries'][] = $sql;
 
+	if (strpos($sql, "from grupper where art='LG' limit 1") !== false) {
+		return $GLOBALS['pwDefined'] === array() ? false : array('id' => 100);
+	}
 	if (strpos($sql, "from grupper where art='LG' and kodenr=") !== false) {
 		if (preg_match('/kodenr=(-?\d+)/', $sql, $m)) {
 			$kodenr = (int) $m[1];
@@ -236,6 +240,24 @@ final class PostingWarehouseTest extends TestCase
 			'warehouse 0 is refused, which stops stock moving on an account without warehouses');
 		self::assertTrue(warehouseIsDefined('0'),
 			'warehouse 0 as text is refused');
+	}
+
+	/**
+	 * An account without any warehouses posts exactly as before.
+	 *
+	 * levering() gives an order line without a warehouse warehouse 1. With no art='LG' rows that
+	 * has always been where such an account's stock lives, and there are no warehouse columns for
+	 * stock to go missing from, so nothing may be redirected to 0 - or the stock splits.
+	 */
+	public function testAnAccountWithoutWarehousesKeepsItsWarehouseNumbers(): void
+	{
+		$GLOBALS['pwDefined'] = array();
+
+		self::assertTrue(warehouseIsDefined(1), "levering()'s default warehouse 1 is refused on an account without warehouses");
+		self::assertSame(1, resolvePostingWarehouse(1, 2003, 55),
+			'stock on an account without warehouses moved from warehouse 1 to 0');
+		self::assertSame(10, resolvePostingWarehouse(10, 2003, 55),
+			'an account without warehouses had a line warehouse redirected');
 	}
 
 	public function testThePredicateAnswersForRealAndRemovedWarehouses(): void
