@@ -41,6 +41,7 @@
 // 20261030 CDX/NTR Cast budget IDs to int and replace if_isset calls with ifset.
 //                  Read posted IDs safely and initialize the ID grid independently of duplicate cleanup, including when filling from last year's figures.
 // 20261030 CDX/NTR Reject saves with missing budget dimensions before any includes or database writes.
+// 20261030 CDX/NTR Keep the default Save button rendered off-screen for old Internet Explorer.
 
 if (!isset($_POST['udfyld']) && isset($_POST['gem']) && !isset($_POST['kontoantal'], $_POST['maanedantal'])) {
 	http_response_code(400);
@@ -317,8 +318,9 @@ print "<style>
 
 print "<div class='budget-wrapper' id='budget-wrapper'>";
 print "<form name=budget action='budget.php?regnaar=$regnaar&returside=$returside' method=post>";
-// The first submit button handles Enter in text fields, even when it is hidden.
-print "<button type='submit' name='gem' value='1' hidden></button>";
+// The first submit button makes Enter save the budget.
+// Keep it rendered off-screen for very old Internet Explorer versions, and out of the tab order.
+print "<button type='submit' name='gem' value='1' tabindex='-1' aria-hidden='true' style='position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;'></button>";
 print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top'>";
 print "<thead>";
 print "<tr><td><br></td><td colspan=15>".findtekst(806, $sprog_id)." ";
