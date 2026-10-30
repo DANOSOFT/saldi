@@ -5,9 +5,9 @@
 // browser does (see support/run_openpost_report.php).
 //
 //   1. The account grid of Åbne poster (includes/reportFunc/showOpenPosts.php)
-//      has nine columns, or ten when the company uses BS (Betalingsservice).
-//      The separator, action and pagination rows were hardcoded to span ten,
-//      so without BS they reached into a column the table does not have.
+//      has ten columns, or eleven when the company uses BS (Betalingsservice),
+//      including the not-yet-due column added by the updated aging grid.
+//      Every header, total, action and pagination row must match that width.
 //   2. The "skjul BS"/"vis BS" toggle kept the filters but dropped the report
 //      mode and the page size, and the BS choice was read from GET only, so
 //      the action buttons (a POST) showed the BS customers again.
@@ -21,6 +21,7 @@
 //
 // History:
 // 20261027 CL/LH PR #450: created.
+// 20261030 CDX/NTR Merge layout assertions with the six aging columns, sticky action bar and translated PBS toggle.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -29,7 +30,7 @@ final class OpenPostReportLayoutTest extends CharacterizationTestCase
     /** The smallest page the report allows, so a handful of accounts already paginates. */
     private const PAGE_SIZE = 25;
 
-    /** One page and a bit, so both pagination rows and the action row are printed. */
+    /** One page and a bit, so pagination and actions appear in the sticky bar. */
     private const ACCOUNTS = 30;
 
     private static int $faktnrSeq = 8500;
@@ -143,10 +144,11 @@ final class OpenPostReportLayoutTest extends CharacterizationTestCase
         $rows = $this->gridRows($html);
         $all = implode("\n", array_column($rows, 'html'));
         // The rows the bug was in must actually be on the page, or the test proves nothing.
-        $this->assertStringContainsString('Viser 1-' . self::PAGE_SIZE . ' af ' . self::ACCOUNTS, $all, 'the top pagination row is missing');
-        $this->assertStringContainsString('Side 1 af 2', $all, 'the bottom pagination row is missing');
+        $this->assertStringContainsString('Viser 1-' . self::PAGE_SIZE . ' af ' . self::ACCOUNTS, $all, 'pagination is missing');
+        $this->assertStringContainsString("class='op-actionbar'", $html, 'the sticky action bar is missing');
+        $this->assertStringContainsString('openpost_page=2', $all, 'the next-page link is missing');
         $this->assertStringContainsString('value="Mail kontoudtog"', $all, 'the action row is missing');
-        $this->assertStringContainsString('<hr>', $all, 'the separator rows are missing');
+        $this->assertStringContainsString('Ikke forfalden', $all, 'the not-yet-due column is missing');
 
         $this->assertSame($columns, $rows[0]['span'], 'the column header has the wrong number of columns');
         foreach ($rows as $row) {
@@ -159,16 +161,16 @@ final class OpenPostReportLayoutTest extends CharacterizationTestCase
         }
     }
 
-    public function test_without_bs_every_grid_row_spans_the_nine_columns(): void
+    public function test_without_bs_every_grid_row_spans_the_ten_columns(): void
     {
-        $this->assertEveryRowSpans(9, $this->report());
+        $this->assertEveryRowSpans(10, $this->report());
     }
 
-    public function test_with_bs_every_grid_row_spans_the_ten_columns(): void
+    public function test_with_bs_every_grid_row_spans_the_eleven_columns(): void
     {
         $this->useBs();
 
-        $this->assertEveryRowSpans(10, $this->report());
+        $this->assertEveryRowSpans(11, $this->report());
     }
 
     public function test_the_bs_toggle_keeps_the_report_mode_page_size_and_sort(): void
@@ -182,9 +184,9 @@ final class OpenPostReportLayoutTest extends CharacterizationTestCase
             'order_dir' => 'asc',
         ]);
 
-        $this->assertSame(1, preg_match("/<a href='([^']*)'>skjul BS<\\/a>/", $html, $m), 'the "skjul BS" link is missing');
+        $this->assertSame(1, preg_match("/<a class='op-filter' href='([^']*)' title='Skjul PBS-kunder'>/", $html, $m), 'the PBS hide link is missing');
         $this->assertSame(1, substr_count($m[1], 'showPBS='), 'the toggle carries showPBS more than once: ' . $m[1]);
-        parse_str((string)parse_url($m[1], PHP_URL_QUERY), $query);
+        parse_str((string)parse_url(html_entity_decode($m[1], ENT_QUOTES), PHP_URL_QUERY), $query);
         $this->assertSame('0', $query['showPBS'] ?? null, 'the toggle does not hide the BS customers');
         $this->assertSame('on', $query['kun_debet'] ?? null, 'the toggle drops the "Kun konti i debet" mode');
         $this->assertSame((string)self::PAGE_SIZE, $query['openpost_page_size'] ?? null, 'the toggle drops the page size');
@@ -216,8 +218,8 @@ final class OpenPostReportLayoutTest extends CharacterizationTestCase
             'openpost_page_size' => (string)self::PAGE_SIZE,
         ]);
 
-        $this->assertStringContainsString('>vis BS</a>', $html, 'the report came back with the BS customers shown again');
-        $this->assertStringNotContainsString('>skjul BS</a>', $html);
+        $this->assertStringContainsString("title='Vis PBS-kunder'", $html, 'the report came back with the BS customers shown again');
+        $this->assertStringNotContainsString("title='Skjul PBS-kunder'", $html);
     }
 
     /** One dunning (art R1) for a firm name, as debitor/ny_rykker.php leaves it. */
@@ -239,7 +241,7 @@ final class OpenPostReportLayoutTest extends CharacterizationTestCase
         $html = $this->report(['konto_fra' => Fixtures::TAG . " O'Brien*", 'vis_aaben_rykker' => 'on']);
 
         $this->assertStringContainsString('rykkerOverviewTable1', $html, 'the dunning overview is missing');
-        $this->assertStringContainsString('<td>' . Fixtures::TAG . " O'Brien ApS</td>", $html, "the dunning for O'Brien is not listed");
+        $this->assertStringContainsString('<td>' . htmlspecialchars(Fixtures::TAG . " O'Brien ApS", ENT_QUOTES) . '</td>', $html, "the dunning for O'Brien is not listed");
         $this->assertStringNotContainsString(Fixtures::TAG . ' Andersen ApS', $html);
     }
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- debitor/pos_ordre_includes/report/saveReport.php ---------- lap 3.7.4----2019.05.08-------
+// ------------- debitor/pos_ordre_includes/report/saveReport.php ---------- ver 5.0.0----2026.10.27-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,10 +23,15 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2019 saldi.dk aps
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190306 Save report to the database
+// 20261026 CL/MMR SST-897 writeToDatabase() resets the register's proforma counter instead of setting report_number on it.
+//                 That column does not exist on most installs, so the update stopped the Z-report with the generic database error alert before it was printed.
+//                 Values in its queries are now cast or escaped, so a description with an apostrophe no longer breaks the insert.
+// 20261027 CL/MMR SST-897 saveLastReport() takes the read proforma numbers off the counter once, after all report rows are written.
+//                 A proforma receipt printed while the report is saved stays on the counter for the next report.
 
 function saveLastReport($dataArray) {
 	global $kasse;
@@ -77,24 +82,35 @@ function saveLastReport($dataArray) {
             writeToDatabase($date, $type, $description, $count, $reportNumber, $total);
         }
     }
+    // proforma has one running counter row per register (id = register number, see proformaCount()) and, on most
+    // installs, no report_number column. Take exactly the numbers this report read off the counter, once, so a
+    // proforma receipt printed meanwhile is not lost but counted in the next report.
+    $proformaRead = $GLOBALS['proformaRead'] ?? null;
+    if ($proformaRead && $proformaRead['kasse'] === (int)$kasse && ($proformaRead['count'] || $proformaRead['price'])) {
+        $qtxt = "update proforma set count = count - " . (int)$proformaRead['count'] . ", price = price - " . round((float)$proformaRead['price'], 3);
+        $qtxt.= " where id = '" . (int)$kasse . "'";
+        db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+    }
+    unset($GLOBALS['proformaRead']);
     unset($_SESSION['reportNumber']);
 }
 
 function writeToDatabase($date, $type, $descr, $count, $repNr, $total) {
 	global $kasse;
 	if (!$total) $total = 0;
+	$kasseNr = (int)$kasse;
+	$repNr = (int)$repNr;
 	$qtxt = "INSERT INTO report (date, type, description, count, report_number, total) values ";
-  $qtxt.= "('$date', '$type', '$descr', $count, '$repNr', $total)";
+	$qtxt.= "('" . db_escape_string($date) . "', '" . db_escape_string($type) . "', '" . db_escape_string($descr) . "', ";
+	$qtxt.= (int)$count . ", '$repNr', " . (float)$total . ")";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "update corrections set report_number = '$repNr' where report_number = '0' and kasse = '$kasse'";
+	$qtxt = "update corrections set report_number = '$repNr' where report_number = '0' and kasse = '$kasseNr'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "update deleted_order set report_number = '$repNr' where report_number = '0' and kasse = '$kasse'";
+	$qtxt = "update deleted_order set report_number = '$repNr' where report_number = '0' and kasse = '$kasseNr'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "update price_correction set report_number = '$repNr' where report_number = '0' and kasse = '$kasse'";
+	$qtxt = "update price_correction set report_number = '$repNr' where report_number = '0' and kasse = '$kasseNr'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "update proforma set report_number = '$repNr' where report_number = '0' and kasse = '$kasse'";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "update returnings set report_number = '$repNr' where report_number = '0' and kasse = '$kasse'";
+	$qtxt = "update returnings set report_number = '$repNr' where report_number = '0' and kasse = '$kasseNr'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 
