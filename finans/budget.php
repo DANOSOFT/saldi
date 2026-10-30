@@ -38,6 +38,8 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260601 PHR inserted (float) before Round()
 // 20261030 CDX/PHR Make Enter save the budget instead of filling it with last year's figures.
+// 20261030 CDX/NTR Cast budget IDs to int and replace if_isset calls with ifset.
+//                  Read posted IDs safely and initialize the ID grid independently of duplicate cleanup, including when filling from last year's figures.
 
 @session_start();
 $s_id=session_id();
@@ -62,19 +64,17 @@ if (!isset($_POST['udfyld']) && isset($_POST['gem'])) {
 	$maanedantal=$_POST['maanedantal'];
 	$kontonr=$_POST['kontonr'];
 	$amount=$_POST['amount'];
-	$id=$_POST['id'];
 	for ($x=1;$x<=$kontoantal;$x++) {
 		for ($z=1;$z<=$maanedantal;$z++) {
 			if (!isset($amount[$x][$z])) $amount[$x][$z]=0;
-			if (!isset($id[$x][$z])) $id[$x][$z]=0;
-			$b_id=$id[$x][$z]*1;
+			$b_id=(int) ifset($_POST, ['id',$x,$z], 0);
 			if ($z==1 && substr($amount[$x][$z],-1)=='*') {
 				$setall[$x]=str_replace('*','',$amount[$x][$z]);
 			} elseif($z==1) $setall[$x]=NULL;
 			if ($setall[$x] || $setall[$x]=='0') $amount[$x][$z]=$setall[$x];
 			$tmp=substr($amount[$x][$z],-4);
 			if(strpos($tmp,",")) $amount[$x][$z]=usdecimal($amount[$x][$z]);
-			$tal=round((float)if_isset($amount,0,[$x,$z],0),0);
+			$tal=round((float)ifset($amount, [$x,$z], 0), 0);
 			if ($b_id) {
 				db_modify("update budget set amount='$tal' where id='$b_id'",__FILE__ . " linje " . __LINE__);
 			} elseif ($tal) {
@@ -89,9 +89,9 @@ $icon_regnskab = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox=
 $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
 $icon_budget = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M560-440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM280-320q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80h400q0-33 23.5-56.5T840-480v-160q-33 0-56.5-23.5T760-720H360q0 33-23.5 56.5T280-640v160q33 0 56.5 23.5T360-400Zm440 240H120q-33 0-56.5-23.5T40-240v-440h80v440h680v80ZM280-400v-320 320Z"/></svg>';
 
-$udfyld=if_isset($_POST['udfyld']);
-$procent=if_isset($_POST['procent']);
-$plusminus=if_isset($_POST['plusminus']);
+$udfyld=ifset($_POST, ['udfyld'], '');
+$procent=ifset($_POST, ['procent']);
+$plusminus=ifset($_POST, ['plusminus']);
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($query);
@@ -109,10 +109,10 @@ $x=0;
 $md=array(); #20140923
 $q=db_select("select id,amount,md,kontonr from budget where regnaar='$regnaar' order by kontonr,md,id",__FILE__ . " linje " . __LINE__); #20140909
 while ($r=db_fetch_array($q)) {
-	$id[$x]=$r['id'];
+	$b_id=(int) $r['id'];
 	$md[$x]=$r['md'];
 	$kontonr[$x]=$r['kontonr'];
-	if ($x && $md[$x]==$md[$x-1] && $kontonr[$x]==$kontonr[$x-1]) db_modify("delete from budget where id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
+	if ($x && $md[$x]==$md[$x-1] && $kontonr[$x]==$kontonr[$x-1]) db_modify("delete from budget where id = '$b_id'",__FILE__ . " linje " . __LINE__);
 	$x++;
 }
 print "<tr><td height='25' align='center' valign='top'>";
@@ -227,8 +227,8 @@ while ($r = db_fetch_array($q)) {
 
 $kontoantal=$x;
 
+$id=array();
 if (!$udfyld) {
-	$id=array(); #20141007
 	$amount=array(); #20141007
 }
 for ($x=1; $x<=$kontoantal; $x++) {
