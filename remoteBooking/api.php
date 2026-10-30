@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- remoteBooking/api.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- remoteBooking/api.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,10 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
+// 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant,
+//                 and deletes only a pending booking whose payment never started, failed or was cancelled.
+//                 The action is the named handler update_booking_payment() in includes/vibrantPayment.php.
+// 20261030 CL/MMR SST-913: CreateOrder() passes its VAT rate on to opret_ordrelinje(), and the order's VAT follows that rate.
 //
 
 
@@ -33,6 +37,7 @@ $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/vibrantPayment.php");
 $db = public_tenant_db(ifset($_GET, "id", ""));
 include(__DIR__ . "/../includes/ordrefunc.php");
 
@@ -362,25 +367,10 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 
 if(isset($_GET["updateBooking"])){
     $data = json_decode(file_get_contents("php://input"), true);
-    if (!is_array($data)) $data = array();
-    $status = ifset($data, "status", "");
-    $bookingId = (int)ifset($data, "id", 0);
-    if($status != "approved"){
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
-        db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-        db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        echo json_encode(["status" => "deleted"]);
-        exit;
-    }else{
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
-        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        fakturer_ordre($orderId, "email", 0);
-        echo json_encode(["status" => "approved"]);
-    }
+    echo json_encode(update_booking_payment($db, is_array($data) ? $data : array(), function ($orderId) {
+        return fakturer_ordre($orderId, "email", 0);
+    }));
+    exit;
 }
 
 if(isset($_GET["getOrder"])){
@@ -415,7 +405,7 @@ if(isset($_GET["getClosedDates"])){
 }
 
 function CreateOrder($data){
-    global $regnaar;
+    global $regnaar, $momssats; // opret_ordrelinje() takes the order's VAT rate from the global $momssats
     $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
     $currentYear = date('Y');
     $currentMonth = date('m');
@@ -542,7 +532,7 @@ function CreateOrder($data){
         }
     }
     $sum = ($product["price"] - $discountAmount);
-    $moms = ($product["price"] - $discountAmount) * 0.25;
+    $moms = ($product["price"] - $discountAmount) * $momssats / 100;
     $incMoms = $sum + $moms;
     $basePrice = $res["salgspris"];
     

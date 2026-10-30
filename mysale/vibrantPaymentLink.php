@@ -2,11 +2,23 @@
 // 20261006 CL/LH SST-842: Use the tenant's own Vibrant key against the production API; the hardcoded sandbox key is gone; booking id int-cast.
 // 20261023 CL/LH SST-842: Read rentalpayment.apikey as vibrantPaymentIntent.php does (table name, no trim), so the link and the status poll use the same key.
 // 20261029 CL/MMR SST-840: The account name from the request is validated before connecting; the order id is int-cast; the include uses __DIR__.
+// 20261029 CL/MMR SST-841: The payment intent Vibrant returns is stored on the booking, so only that payment can approve it;
+//                 a retry gets the link already bound to the booking;
+//                 no link is handed out for a booking cancelled meanwhile.
+//                 SALDI_VIBRANT_API_BASE may point the call at a local mock in tests.
+// 20261030 CL/MMR SST-913: The amount is the order's sum plus its VAT (not sum x 1.25), so VAT-free bookings are not overcharged.
 require_once __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/vibrantPayment.php");
 $customerData = json_decode(file_get_contents("php://input"), true);
 
-$connection = db_connect($sqhost, $squser, $sqpass, public_tenant_db($customerData["db"] ?? ''));
+$db = public_tenant_db($customerData["db"] ?? '');
+$connection = db_connect($sqhost, $squser, $sqpass, $db);
+if (!rental_payment_ready($db)) {
+    // the payment columns come with the login update; never alter the schema from this public page
+    echo json_encode(["error" => "Booking payments need the latest Saldi update: log in to Saldi once", "id" => $customerData["id"] ?? null]);
+    exit;
+}
 
 $bookingId = (int)($customerData["id"] ?? 0);
 $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
@@ -17,10 +29,15 @@ if($orderId == null || $orderId == 0) {
     echo json_encode(["error" => "No order id found", "id" => $customerData["id"]]);
     exit;
 }
+if ((string)$res["payment_id"] !== '' && (string)$res["payment_url"] !== '') {
+    // one payment per booking: a retry or reload gets the link the server already bound to it
+    echo json_encode(["url" => $res["payment_url"], "id" => $res["payment_id"]]);
+    exit;
+}
 
 $query = db_select("SELECT * FROM ordrer WHERE id = '$orderId'", __FILE__ . " linje " . __LINE__);
 $res = db_fetch_array($query);
-$amount = $res["sum"] * 1.25 * 100;
+$amount = (int)round(((float)$res["sum"] + (float)$res["moms"]) * 100);
 
 $query = db_select("SELECT apikey FROM rentalpayment WHERE id = 1", __FILE__ . " linje " . __LINE__);
 $res = db_fetch_array($query);
@@ -32,7 +49,7 @@ if ($apiKey === '') {
 
 $ch = curl_init();
 
-curl_setopt($ch, CURLOPT_URL, 'https://pos.api.vibrant.app/pos/v1/payment_link');
+curl_setopt($ch, CURLOPT_URL, rtrim(getenv('SALDI_VIBRANT_API_BASE') ?: 'https://pos.api.vibrant.app', '/') . '/pos/v1/payment_link');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_POST, 1);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array("amount" => $amount)));
@@ -51,4 +68,20 @@ curl_close($ch);
 $result = json_decode($result);
 $paymentIntentId = $result->paymentIntentId;
 $betalingsLink = $result->vibrantUrl;
+if (is_string($paymentIntentId) && $paymentIntentId !== '' && is_string($betalingsLink) && $betalingsLink !== '') {
+	$qtxt = "UPDATE rentalperiod SET payment_id = '" . db_escape_string($paymentIntentId) . "', payment_url = '" . db_escape_string($betalingsLink) . "'";
+	$qtxt.= " WHERE id = $bookingId AND expiry_time IS NOT NULL AND (payment_id IS NULL OR payment_id = '')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	$bound = db_fetch_array(db_select("SELECT payment_id, payment_url, expiry_time FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
+	if (!$bound || !$bound["expiry_time"] || (string)$bound["payment_id"] === '') {
+		// the booking was cancelled or closed while the link was made: hand out no payable link
+		echo json_encode(["error" => "Booking is no longer open", "id" => $customerData["id"]]);
+		exit;
+	}
+	if ((string)$bound["payment_id"] !== '') {
+		// a concurrent call bound its payment first: hand out that one, never a link the server will not check
+		$paymentIntentId = $bound["payment_id"];
+		$betalingsLink = $bound["payment_url"];
+	}
+}
 echo json_encode(["url" => $betalingsLink, "id" => $paymentIntentId]);
