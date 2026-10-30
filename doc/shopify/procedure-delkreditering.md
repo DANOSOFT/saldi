@@ -4,16 +4,16 @@
 **Status:** Udkast til godkendelse hos Havemøbellands bogholder
 **Version:** udkast 0.1, oktober 2026 · Udarbejdet af Danosoft
 
-> **Om udkastet.** Proceduren beskriver, hvordan I afstemmer delvise kreditnotaer mod kundens åbne poster og mod refunderinger, både i Shopify og i butikken. Kassekladde, "Udlign åbne poster" og rapporterne er Saldi, som I kender det i dag. Delen om Shopify og de nye valg på kreditnotaen beskriver funktioner, der er ved at blive bygget efter det aftalte design. De endelige detaljer, fx feltnavne, notens ordlyd og navnene på tags, bekræfter vi i overleveringstesten. Konti, der ikke er valgt endnu, står som [mellemregningskonto, aftales med jer]. Alle numre i eksemplerne er eksempler.
+> **Om udkastet.** Proceduren beskriver, hvordan I afstemmer delvise kreditnotaer mod kundens åbne poster og mod refunderinger, både i Shopify og i butikken. Kassekladde, "Udlign åbne poster" og rapporterne er Saldi, som I kender det i dag. Delen om Shopify og de nye valg på kreditnotaen beskriver funktioner, der er ved at blive bygget efter det aftalte design. De endelige detaljer, fx feltnavne, notens ordlyd og navnene på tags, bekræfter vi i overleveringstesten. Konti, der ikke er valgt endnu, står som [mellemregningskonto, aftales med jer]. Alle numre i eksemplerne er fiktive.
 
 ## 1. To slags delkreditering
 
 | | Dekort | Antalskreditering |
 |---|---|---|
 | Hvad krediteres | Et beløb eller en procentdel af én linje. Kunden beholder varen. | Et antal styk af en linje, fx 1 af 2 stole. |
-| Lager | Ingen lagerbevægelse. | Du vælger pr. linje, om varen lægges på lager igen (på det lager, den blev trukket fra), eller om der ikke sker nogen lagerbevægelse (fx en kasseret vare). |
+| Lager | Ingen lagerbevægelse. | I vælger pr. linje, om varen lægges på lager igen (på det lager, den blev trukket fra), eller om der ikke sker nogen lagerbevægelse (fx en kasseret vare). |
 
-- 10 % dekort betyder, at 10 % af linjebeløbet krediteres; kunden har altså betalt 90 %. Momsen krediteres med fakturaens sats: 10 % af 1.250,00 kr. = 125,00 kr. = 100,00 kr. + 25,00 kr. moms.
+- 10 % dekort betyder, at 10 % af linjebeløbet krediteres; kunden ender altså med at betale 90 %. Momsen krediteres med fakturaens sats: 10 % af 1.250,00 kr. = 125,00 kr. = 100,00 kr. + 25,00 kr. moms.
 - Der kan laves flere delkrediteringer på samme faktura. Saldi holder styr på, hvad der er krediteret, så der samlet ikke krediteres mere, end der er faktureret.
 
 **Nyt i forhold til i dag.** I Saldi i dag giver knappen "Kredit" kun én kreditnota pr. faktura, og en krediteret lagervare kommer altid tilbage på lager, også når kun prisen skulle sættes ned.
@@ -38,11 +38,13 @@ Al kreditering sker i Saldi, og kreditnotaen laves altid, før pengene betales t
 **Vej 2: Kreditnota, der venter på refundering i Shopify.** Kreditnotaen laves i Saldi fra fakturaen (Debitor → Ordre → "Kredit"). Shopify-noten siger "Kreditnota <nr>, <beløb>".
 *Regel:* Kundeservice refunderer præcis kreditnotaens beløb i Shopify og skriver kreditnotanummeret som begrundelse. Én kreditnota giver én refundering.
 
-Læg ikke varer på lager i Shopifys refunderingsbillede; lageret styres fra Saldi.
+**Annullering af en webordre.** En webordre er faktureret i Saldi, så snart den kommer ind. Skal den annulleres, laves kreditnotaen for hele ordren først i Saldi (vej 2), og derefter annullerer og refunderer kundeservice i Shopify. Shopify refunderer som standard hele beløbet, når en ordre annulleres.
+
+Shopify lægger som standard varerne på lager igen, når der refunderes eller annulleres. Fjern fluebenet ved "Restock items"; lageret styres fra Saldi.
 
 ## 4. Afstemning trin for trin
 
-En betalt webordre er bogført som betalt med kundens betalingsmetode og står ikke som åben post. Derfor afstemmes delkrediteringer af webordrer på en mellemregningskonto og ikke i "Åbne poster".
+Med integrationen bogføres en betalt webordre som betalt med kundens betalingsmetode, så den ikke står som åben post. Derfor bogføres en kreditnota på en webordre på en mellemregningskonto og afstemmes dér og ikke i "Åbne poster".
 
 | Situation | Åben post på kunden? | Her afstemmer I |
 |---|---|---|
@@ -50,7 +52,7 @@ En betalt webordre er bogført som betalt med kundens betalingsmetode og står i
 | Webordre, refunderet i butikken (vej 1) | Nej | Kassen: returneringen indgår i butikkens dagsafslutning |
 | Faktura med åben post, fx med betalingsfrist | Ja | "Åbne poster" og "Udlign åbne poster" |
 
-Kreditnotaer fra Debitor → Ordre får nummer i samme serie som fakturaer. En returnering i kassen får et bonnummer fra kassens egen serie; det er det nummer, Shopify-noten viser som kreditnotanummer. Overskriften på en ordre ("krediteret på KN nr", "kreditering af ordre nr") viser ordrenumre, så brug kreditnotanummeret fra kreditnotaen eller Shopify-noten.
+Kreditnotaer fra Debitor → Ordre får nummer i samme serie som fakturaer. En returnering i kassen får et bonnummer fra kassesystemets egen nummerserie; det er det nummer, Shopify-noten viser som kreditnotanummer. Overskriften på en ordre ("krediteret på KN nr", "kreditering af ordre nr") viser ordrenumre, så brug kreditnotanummeret fra kreditnotaen eller Shopify-noten.
 
 ### Eksempel A: 10 % dekort, refunderet i Shopify
 
@@ -58,7 +60,7 @@ Webordre HML1234, faktura 1001: et havebord til 1.250,00 kr. inkl. moms, betalt 
 
 1. Find faktura 1001 under Debitor → Ordre (søg på HML1234 eller fakturanummeret), og tryk "Kredit".
 2. Krediter kun bordets linje, og vælg dekort 10 %. Saldi viser 125,00 kr. (100,00 + 25,00 moms). Lageret ændres ikke.
-3. Tryk "Kreditér" (viser Saldi "Modtag", så tryk "Modtag" først). Kreditnota 1002 bogføres: debet salg 100,00, debet salgsmoms 25,00, kredit [mellemregningskonto] 125,00.
+3. Tryk "Kreditér". Viser Saldi knappen "Modtag", så tryk på den først. Kreditnota 1002 bogføres: debet salg 100,00, debet salgsmoms 25,00, kredit [mellemregningskonto] 125,00.
 4. Inden for fem minutter står "Kreditnota 1002, 125 kr." med dato, tag og link på HML1234.
 5. Kundeservice refunderer 125,00 kr. i Shopify med begrundelsen "Kreditnota 1002".
 6. Når refunderingen ses hos betalingsudbyderen, tjekker bogholderen beløbet og laver en linje i Kassekladde: Bilagstekst "Refundering kreditnota 1002, HML1234"; D/K "F", Debet [mellemregningskonto]; D/K "F", Kredit den konto, refunderingen er betalt fra (kortkontoen eller banken); Fakturanr. 1002; Beløb 125,00; ingen moms. Tryk "Bogfør".
@@ -96,7 +98,7 @@ Samme faktura 2001 og kreditnota 2002, men kunden har ikke betalt.
 
 1. Efter kreditnota 2002 står 1.250,00 ("Faktura - 2001") og −125,00 ("Kreditnota - 2002") åbne: kunden skylder 1.125,00. Saldi udligner dem ikke automatisk, og en faktura kan ikke deles op i "Udlign åbne poster".
 2. Kunden betaler 1.125,00. Kassekladde: D/K "F", Debet bankkontoen; D/K "D", Kredit kundenummeret; Fakturanr. 2001; Beløb 1.125,00. Betalingen bliver en åben post på −1.125,00, fordi beløbet ikke svarer til fakturaen. Saldo 0,00, men tre poster står åbne.
-3. Åbn kundens "Kontokort" (Debitor → Rapporter), og klik på et åbent beløb. I "Udlign åbne poster" sætter du flueben ved de to andre poster og trykker "Opdater". Når "Difference" er 0,00, vises knappen "Udlign"; tryk på den. Alle tre poster er udlignet.
+3. Åbn kundens "Kontokort" (Debitor → Rapporter), og klik på et åbent beløb. I "Udlign åbne poster" sætter I flueben ved de to andre poster og trykker "Opdater". Når "Difference" er 0,00, vises knappen "Udlign"; tryk på den. Alle tre poster er udlignet.
 
 "Udlign alle" i "Åbne poster" udligner alle kunder på siden, hvis poster går i nul. Brug den kun, når I har set posterne igennem.
 
@@ -106,7 +108,7 @@ Vi foreslår en fast kontrol, fx ugentligt: [mellemregningskonto] for kreditnota
 
 **Kreditnota uden refundering.** *Opdages:* ikke automatisk, men i den faste kontrol. *Gør:* Tjek Shopify-ordren. Mangler refunderingen, beder I kundeservice refundere. Er der refunderet, men ikke bogført, så bogfør som i eksempel A, trin 6.
 
-**Refundering uden kreditnota.** *Opdages:* automatisk. Saldi opretter en fejl i Shopify-fejllisten og giver alarm til Saldi-support, og I får en daglig oversigt, når der har været fejl. Det gælder også en ordre, der annulleres i Shopify. En refundering, der står som afventende eller fejlet, tæller ikke som refunderet. *Gør:* Tjek først, om ordren allerede er refunderet i butikken; så er det en dobbelt refundering (se nedenfor), og der laves ingen ny kreditnota. Ellers laver I kreditnotaen for det refunderede beløb, afstemmer som i eksempel A og lukker fejlen med "Markér som løst".
+**Refundering uden kreditnota.** *Opdages:* automatisk. Saldi opretter en fejl i Shopify-fejllisten og giver alarm til Saldi-support, og I får en daglig oversigt, når der har været fejl. Det gælder også en ordre, der annulleres i Shopify uden en kreditnota i Saldi; så laves en kreditnota for hele ordren. En refundering, der står som afventende eller fejlet, tæller ikke som refunderet. *Gør:* Tjek først, om ordren allerede er refunderet i butikken; så er det en dobbelt refundering (se nedenfor), og der laves ingen ny kreditnota. Ellers laver I kreditnotaen for det refunderede beløb, afstemmer som i eksempel A og lukker fejlen med "Markér som løst".
 
 **Beløbet passer ikke.** *Opdages:* manuelt, når I sammenligner refunderingen (på ordren i Saldi eller i udbetalingen) med kreditnotaen. Typisk er fragten refunderet, men ikke krediteret. *Gør:* Er der refunderet for meget efter aftale med kunden, laves en ekstra kreditnota for forskellen; er det sket ved en fejl, så gør som under "Refunderet begge steder". Er der refunderet for lidt, refunderer kundeservice resten. En bogført kreditnota kan ikke rettes, kun modposteres med et nyt bilag. Indtil da står forskellen på [mellemregningskonto].
 
@@ -120,7 +122,7 @@ Proceduren skal godkendes af jeres bogholder før overleveringstesten. Indtil da
 
 1. **Mellemregningskonto.** Hvilken konto skal kreditnotaer på webordrer bogføres på, indtil refunderingen er afstemt? Svar gerne inden overleveringstesten; ellers bruger vi en midlertidig konto i testen.
 2. **Refunderinger hos betalingsudbyderen.** Trækkes refunderinger fra i udbetalingerne, eller kommer de som særskilte træk? Det afgør kreditkontoen i eksempel A, trin 6.
-3. **Gavekort og tilgodebeviser.** Refunderer I nogensinde som gavekort eller tilgodebevis i stedet for penge, i Shopify eller i butikken? Det er ikke beskrevet endnu.
+3. **Gavekort og tilgodebeviser.** Refunderer I nogensinde som gavekort, tilgodebevis eller butikskredit ("Store credit" i Shopify) i stedet for penge, i Shopify eller i butikken? Det er ikke beskrevet endnu.
 4. **Indstillinger og salg på kredit.** Vi læser selv jeres indstillinger i Saldi før testen og retter proceduren til dem. Proceduren forudsætter, at "Omgående bogføring af salgsordrer" er slået til. Sender I fakturaer med betalingsfrist (så gælder eksempel C2 og D)? Sælger I på konto i butikkerne (så tilføjer vi et eksempel)?
 5. **Afdeling.** Skal en kreditnota på en webordre bogføres på webshoppens afdeling og en butiksreturnering på butikkens? Skal dekort og reklamationer på en særlig afdeling?
 6. **Fragt.** Skal fragten med på kreditnotaen, når kundeservice refunderer fragt i Shopify?
