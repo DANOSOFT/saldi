@@ -38,6 +38,7 @@
 // The name is quoted in the selector because of the brackets.
 // 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
 //                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
+// 20261029 CL/MJ SST-892 applyFormFields() calls cvrEfterOpslag(data) when the page defines it; the debitor card uses it to switch a private card to Erhverv.
 // 20261030 CL/MMR SST-916 Ticking "Auto-lookup CVR nr." after the CVR-nr. was typed now looks the number up straight away.
 //                 Before, the box was only read on a keystroke or when the field was left, so ticking it afterwards did nothing.
 
@@ -132,6 +133,8 @@ function applyFormFields(data) {
 		var el = $("[name='" + cvrFeltNavn(key) + "']");
 		if (el.length) el.val(data[key]);
 	}
+	// A page can react to the values it was given, e.g. the debitor card shows the company name.
+	if (typeof cvrEfterOpslag === 'function') cvrEfterOpslag(data);
 }
 
 function showConfirmOverlay(existingData, incomingData) {
