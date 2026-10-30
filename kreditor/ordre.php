@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -90,6 +90,14 @@
 // 20261007 MJ SST-829 The Lager dropdown offers each warehouse once. Creating an
 //                  accounting year used to copy the art='LG' rows into it, so every
 //                  warehouse gained a row per year and this list showed them all.
+// 20261019 CL/MJ SST-872 A line typed into a creditor order takes the supplier's purchase price
+//                  from the supplier list, not the item's general cost price. The lookup used to
+//                  sit inside if (!$lev_varenr[0]), and the block above it fills lev_varenr in
+//                  whenever the typed number is also the supplier's number - which it is for
+//                  every supplier that uses our own item numbers - so for those items the lookup
+//                  was skipped and the line fell back to varer.kostpris. samlevare() reads the
+//                  supplier's price per component for the same reason.
+// 20261030 CL/MJ SST-872 A supplier row whose price is 0 ("0.000" from the database) falls back to the item's cost price, on the typed line and in samlevare().
 
 @session_start();
 $s_id=session_id();
@@ -973,17 +981,27 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							alert ("Ulovlig værdi i \"Antal\" ($antal[0])");
 							$antal[0] = 1;
 						}
-						if (!$lev_varenr[0]) {
-							if (!$konto_id) {
-								if ($r1=db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art = 'K'",__FILE__ . " linje " . __LINE__))) {
-									$konto_id=$r1['id'];
-								}
-							}
-							if ($r1=db_fetch_array(db_select("select * from vare_lev where vare_id = '$vare_id[0]' and lev_id = '$konto_id'",__FILE__ . " linje " . __LINE__))) {
-								if (!$pris[0]) $pris[0]=$r1['kostpris'];
-								$lev_varenr[0]=db_escape_string($r1['lev_varenr']);
+						// 20261019 CL/MJ SST-872 Read whatever lev_varenr already holds: it is filled in
+						// a few lines above whenever the typed number is also the supplier's number,
+						// and gating this on it being empty is what sent MEDSHOP's orders out at the
+						// item's 1.390,00 instead of sound-wize's 900,00.
+						if (!$konto_id) {
+							$qtxt = "select id from adresser where kontonr = '" . db_escape_string($kontonr) . "' and art = 'K'";
+							if ($r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+								$konto_id=$r1['id'];
 							}
 						}
+						if ($konto_id) {
+							$qtxt = "select kostpris, lev_varenr from vare_lev where vare_id = '" . (int)$vare_id[0] . "' and lev_id = '" . (int)$konto_id . "'";
+							if ($r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+								if (!$pris[0] && (float)$r1['kostpris'] != 0) $pris[0]=$r1['kostpris']; # "0.000" from numeric(15,3) is true in PHP
+								// Guarded now: this used to be reached only with lev_varenr empty, so
+								// assigning unconditionally would overwrite a number typed on the line.
+								if (!$lev_varenr[0]) $lev_varenr[0]=db_escape_string($r1['lev_varenr']);
+							}
+						}
+						// Still the fallback, and still only when nothing above produced a price - a
+						// supplier that is not in the list, or is in it with no price of its own.
 						if (!$pris[0]) $pris[0]=$r0['kostpris'];
 						$pris[0]=$pris[0]*1;
 						if ($valuta && $valuta!='DKK') {
@@ -1855,10 +1873,24 @@ function samlevare($id,$art,$v_id,$leveres) {
 	if ($art=='KO') {
 		include ("../includes/fuld_stykliste.php");
 		list($vare_id,$stk_antal,$antal) = fuld_stykliste($v_id, '', 'basisvarer');
+		// 20261019 CL/MJ SST-872 The components go in at this supplier's own price where it has
+		// one, the same rule the typed line follows, instead of always the item's cost price. The
+		// supplier is read from the order because samlevare() is not told who it is.
+		$konto_id = 0;
+		if ($r=db_fetch_array(db_select("select konto_id from ordrer where id = '" . (int)$id . "'",__FILE__ . " linje " . __LINE__))) {
+			$konto_id = (int)$r['konto_id'];
+		}
 		for ($x=1; $x<=$antal; $x++) {
 			if ($r=db_fetch_array(db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__))) {
 				$stk_antal[$x]=$stk_antal[$x]*$leveres;
-				db_modify("insert into ordrelinjer (ordre_id,varenr,vare_id,beskrivelse,antal,leveres,pris,posnr,lager) values ('$id', '$r[varenr]', '$vare_id[$x]', '$r[beskrivelse]', '$stk_antal[$x]', '$stk_antal[$x]', '$r[kostpris]','100',$lager)",__FILE__ . " linje " . __LINE__);
+				$pris = $r['kostpris'];
+				if ($konto_id) {
+					$qtxt = "select kostpris from vare_lev where vare_id = '" . (int)$vare_id[$x] . "' and lev_id = '" . (int)$konto_id . "'";
+					if ($r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+						if ((float)$r1['kostpris'] != 0) $pris = $r1['kostpris']; # "0.000" from numeric(15,3) is true in PHP
+					}
+				}
+				db_modify("insert into ordrelinjer (ordre_id,varenr,vare_id,beskrivelse,antal,leveres,pris,posnr,lager) values ('$id', '$r[varenr]', '$vare_id[$x]', '$r[beskrivelse]', '$stk_antal[$x]', '$stk_antal[$x]', '$pris','100',$lager)",__FILE__ . " linje " . __LINE__);
 			}
 		}
 	} 
