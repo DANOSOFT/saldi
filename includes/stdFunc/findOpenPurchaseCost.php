@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/findOpenPurchaseCost.php --- patch 5.0.0 --- 2026-09-21 ---
+// --- includes/stdFunc/findOpenPurchaseCost.php --- ver 5.1.0 --- 2026-10-28 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260921 MJ SST-796 Added find_open_purchase_cost(): the real purchase price for an item that
 //                  is being sold off negative stock, taken from an open, unreceived kreditorordre
@@ -35,6 +35,9 @@
 //                  the batch_kob booked against the line - instead of ordrelinjer.leveret, which the
 //                  receipt path never writes on a kreditorordre. Also matches on variant, as two
 //                  variants of one item can be bought at different prices.
+// 20261028 CL/MMR SST-907 deficit_cost_price() no longer shows the cost-price alert on a POS sale (ordrer.art 'PO').
+//                 The alert sat in the same page as the receipt redirect, so the receipt only printed after OK, on every sale off negative stock.
+//                 The cost price and the order log line are unchanged.
 
 if (!function_exists('find_open_purchase_cost')) {
 	/**
@@ -132,6 +135,21 @@ if (!function_exists('find_open_purchase_cost')) {
 	}
 }
 
+if (!function_exists('deficit_cost_is_pos_line')) {
+	/**
+	 * Whether an order line belongs to a POS sale (ordrer.art 'PO').
+	 *
+	 * @param int|string $linje_id The order line being priced.
+	 * @return bool True for a line on a POS order.
+	 */
+	function deficit_cost_is_pos_line($linje_id)
+	{
+		$qtxt = "select o.art from ordrelinjer ol join ordrer o on o.id = ol.ordre_id where ol.id = '" . (int) $linje_id . "'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		return $r && $r['art'] === 'PO';
+	}
+}
+
 if (!function_exists('deficit_cost_price')) {
 	/**
 	 * Cost price for a quantity that no batch_kob covers, for both of linjeopdat()'s deficit paths.
@@ -182,7 +200,9 @@ if (!function_exists('deficit_cost_price')) {
 		// serial-number warning. There is nobody to show a dialog to on an API delivery, and the
 		// markup would corrupt the JSON/XML response, so the flag is left untouched as well - a later
 		// interactive delivery in the same request still gets its one warning.
-		if (!$webservice && !$advaret) {
+		// A POS sale is skipped the same way: the alert is printed in the page that then redirects
+		// to the printserver, so the customer's receipt waited for someone to click OK (SST-907).
+		if (!$webservice && !$advaret && !deficit_cost_is_pos_line($linje_id)) {
 			$advaret = 1;
 			$txt = $kostkilde
 				? findtekst('5249|Kostprisen er anslået ud fra en åben indkøbsordre, da varen ikke var på lager', $sprog_id)

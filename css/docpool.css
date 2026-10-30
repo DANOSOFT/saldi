@@ -854,12 +854,24 @@ body {
 
 .pool-account-name {
   max-width: 120px;
-  min-height: 13px;
+  height: 13px;
   overflow: hidden;
   font-size: 10px;
+  line-height: 13px;
   color: #555;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* MB-114: the account name hangs below the Debet/Kredit inputs into space the row reserves (13px name + 1px field gap),
+   so the Debet/Kredit cells are as tall as the other cells and their labels and inputs stay on the line of the others.
+   Not in a row with a pool suggestion or reason (poolCapture.js): that row is aligned to the top and keeps the name in the flow. */
+#kassebilagTopBar .topbar-fields-row:not(:has(.pool-suggest, .pool-capture-reason)):has(.pool-account-name:last-child) {
+  padding-bottom: 14px;
+}
+
+#kassebilagTopBar .topbar-fields-row:not(:has(.pool-suggest, .pool-capture-reason)) .pool-account-name:last-child {
+  margin-bottom: -14px;
 }
 
 .pool-account-vat {
@@ -918,6 +930,46 @@ body {
   font-size: 12px;
 }
 
+/* SD-720: "Bilagsbalance" under the rows of a split bilag, green at 0,00 */
+.pool-split-balance {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 4px 0 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.pool-split-balance .pool-split-value {
+  font-weight: bold;
+}
+
+.pool-split-balance.pool-split-ok {
+  background-color: #e6f4ea;
+  color: #1e7e34;
+}
+
+.pool-split-balance.pool-split-off {
+  background-color: #fdecea;
+  color: #c82333;
+}
+
+.pool-split-warning {
+  font-weight: bold;
+}
+
+.pool-split-remove {
+  padding: 2px 8px;
+  color: #c82333;
+  font-size: 16px;
+  text-decoration: none;
+}
+
+/* SD-720: a saved split row is a journal line, deleted in the journal, not here */
+.kassebilag-entry[data-saved-line-id] .pool-split-remove {
+  display: none;
+}
 /* ============================================
    DETACHED VIEWER (Åbn i nyt vindue)
    ============================================ */

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2024.02.27 ---
+// --- payments/lane3000-sim.php --- ver 5.0.0 --- 2026.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20261007 CL/SZ SST-843 Removed the unused get_api_key() and start_payment(); they printed the register's Nets
+//                Connect@Cloud username and password into the page although the simulation never calls them.
 
 @session_start();
 $s_id = session_id();
@@ -160,80 +162,6 @@ function leave(cardScheme) {
     }
 }
 
-// GET API KEY
-async function get_api_key(baseurl) {
-    const initialLogPromise = logToServer('Starting API key request', 'INFO');
-    document.getElementById('status').innerText = "Authorizer...";
-    
-    const data = {
-        "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
-        "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
-    }
-    console.log(data)
-    
-    try {
-        const fetchPromise = fetch(
-            `${baseurl}login`,
-            {
-                method: 'post',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
-            }
-        );
-        // Wait for both initial logging and fetch request
-        const [logResult, fetchResult] = await Promise.allSettled([initialLogPromise, fetchPromise]);
-        console.log(logResult, fetchResult);
-        // Check if initial logging failed
-        if (logResult.status === 'rejected') {
-            console.error('Initial logging failed:', logResult.reason);
-        }
-        
-        // Check if fetch failed
-        if (fetchResult.status === 'rejected') {
-            const errorMsg = `Network error: ${fetchResult.reason.message}`;
-            await Promise.allSettled([
-                logToServer(`API key request exception: ${fetchResult.reason.message}`, 'ERROR'),
-                Promise.resolve(fail(errorMsg))
-            ]);
-            return null;
-        }
-
-        const res = fetchResult.value;
-        const jsondata = await res.json();
-        
-        // Log the response (don't wait for it to complete)
-        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
-        
-        if (res.status != 200) {
-            // Wait for both error logging and fail function
-            await Promise.allSettled([
-                logToServer(`API key request failed - Status: ${res.status}, Error: ${jsondata.error}`, 'ERROR'),
-                Promise.resolve(fail(jsondata.error))
-            ]);
-            return null;
-        }
-
-        // Wait for both success logging and response logging to complete
-        await Promise.allSettled([
-            logToServer('API key retrieved successfully', 'INFO'),
-            responseLogPromise
-        ]);
-        
-        return jsondata.token;
-        
-    } catch (error) {
-        // Handle any unexpected errors
-        const errorMsg = `Network error: ${error.message}`;
-        await Promise.allSettled([
-            logToServer(`API key request exception: ${error.message}`, 'ERROR'),
-            Promise.resolve(fail(errorMsg))
-        ]);
-        return null;
-    }
-}
-
 async function print_str(baseurl, apikey, data) {
     const initialLogPromise = logToServer('Starting receipt printing', 'INFO');
     document.getElementById('status').innerText = "Printer...";
@@ -292,57 +220,6 @@ async function print_str(baseurl, apikey, data) {
         ]);
         // Continue anyway, don't fail the whole transaction
         finished = true;
-    }
-}
-
-// START PAYMENT ON TERMINAL
-async function start_payment(baseurl, apikey, amount) {
-    logToServer(`Starting payment on terminal - Amount: ${amount}`, 'INFO');
-    const data = {
-        "transactionType": "<?php print $type; ?>",
-        "amount": <?php print $amount; ?>
-    }
-    
-    try {
-        var res = await fetch(
-            `${baseurl}terminal/<?php print $terminal_id; ?>/transaction`,
-            {
-                method: 'post',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `bearer ${apikey}`
-                },
-                body: JSON.stringify(data),
-            }
-        );
-
-        counting = false;
-        var jsondata = await res.json();
-        
-        logToServer(`Payment response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
-        
-        if (res.status != 201) {
-            logToServer(`Payment failed - Status: ${res.status}, Error: ${jsondata.failure?.error || 'Unknown error'}`, 'ERROR');
-            fail(jsondata.failure?.error || 'Payment failed');
-        } else {
-            const cardScheme = jsondata.result[0].cardType;
-            logToServer(`Payment successful - Card type: ${cardScheme}`, 'INFO');
-            
-            jsondata.result[0].customerReceipt.replace("\r", "");
-            var lines = jsondata.result[0].customerReceipt.split("\r\n");
-            lines = lines.join("\n");
-
-            if (true) {
-                await print_str(baseurl, apikey, lines);
-            } else {
-                finished = true;
-            }
-            
-            leave(cardScheme);
-        }
-    } catch (error) {
-        logToServer(`Payment request exception: ${error.message}`, 'ERROR');
-        fail(`Network error: ${error.message}`);
     }
 }
 
