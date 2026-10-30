@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- includes/reportFunc/showOpenPosts.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -102,6 +102,10 @@
 // 20261001 CL/LAH Ryk alle's confirm uses a singular text for one ticked account.
 // 20261001 CL/LAH Aging buckets take the control sum's per-post amount, so zero-rate and '-' currency posts also add up to the kontokort figure.
 //                 vis_aabne_poster() can leave the footer to its caller, so openpost() prints it once after the rykker overview.
+// 20261006 SAW Every report-wide colspan is derived from the column count, so the footer and
+//                  pagination no longer span a phantom tenth column when there are no BS customers.
+//                  The BS toggle carries the same view state as the pagination links, and showPBS
+//                  is read from $_REQUEST and posted back.
 // 20261014 MJ SST-863 A historical-date report dates a settlement group by its last posting
 //                  rather than by each row's own udlign_date. udlign_date is not reliably the
 //                  date the group closed: includes/autoudlign.php stamps rows with their own
@@ -113,6 +117,8 @@
 //                 once, above the rows.
 // 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
 //                 collide with ids used by other open branches.
+// 20261030 CDX/NTR Merge the updated aging grid and actions while preserving request precedence and one shared column count.
+// 20261030 CDX/NTR Normalize the historical author tag to uppercase for file-history validation.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -781,8 +787,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	global $menu;
 	global $sprog_id;
 
-	// GET for links, POST for the aabenpost form below, so an action re-renders the same view.
-	$showPBS=(int)ifset($_GET, 'showPBS', ifset($_POST, 'showPBS', 1));
+	// $_REQUEST, not $_GET: the report's own form posts back to rapport.php, and reading the
+	// flag from GET alone made every action button ("Mail kontoudtog", "Ryk alle", ...) fall
+	// back to showing BS customers again.
+	$showPBS = (int)ifset($_REQUEST, 'showPBS', ifset($_POST, 'showPBS', 1));
 	$qtxt= "select id from adresser where art = 'S' and pbs_nr > '0'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $usePBS=1;
 	else {
@@ -929,7 +937,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$searchRow.=" title=\"".htmlspecialchars(findtekst('5123|Kontonr., interval (fra:til) eller firmanavn (* = jokertegn)',$sprog_id),ENT_QUOTES)."\"> ";
 	$searchRow.="<input type='submit' value=\"".htmlspecialchars(findtekst(913,$sprog_id),ENT_QUOTES)."\"></form>";
 	$searchRow.=" &nbsp; <input type='button' value=\"$csvLabel\" title=\"$csvTitle\" onclick=\"location.href='".htmlspecialchars($csvUrl,ENT_QUOTES)."';\">";
-	$headerColspan = $usePBS ? 11 : 10;
+	// Account number, company, aging buckets, total, checkbox and the optional PBS column.
+	$opColCount = count($buckets) + ($usePBS ? 5 : 4);
 
 	// Header checkbox that ticks every account of the page for Mail kontoudtog/Opret rykker.
 	$selectAllCell="";
@@ -982,8 +991,8 @@ function opToggleAll(box) {
 
 	if ($menu=='T') {
 		print "<tr><td><div class='dataTablediv'><table id='visAabnePosterTableT' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
-		print "<tr><th colspan='$headerColspan' style='font-weight:normal;'>$summaryHtml</th></tr>";
-		print "<tr><th colspan='$headerColspan' style='font-weight:normal;'>$searchRow</th></tr>";
+		print "<tr><th colspan='$opColCount' style='font-weight:normal;'>$summaryHtml</th></tr>";
+		print "<tr><th colspan='$opColCount' style='font-weight:normal;'>$searchRow</th></tr>";
 		print $groupRow;
 		print "<tr class='op-label-row'>$labelCells</tr>";
 		print "</thead><tbody>";
@@ -991,8 +1000,8 @@ function opToggleAll(box) {
 		// Summary and search are rows of the sticky thead, so the whole header block (summary, search,
 		// group and column labels) stays visible as one unit while #opGridWrapper scrolls.
 		print "<table id='visAabnePosterTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><thead>\n";
-		print "<tr class='op-head-row'><th colspan='$headerColspan'>$summaryHtml</th></tr>";
-		print "<tr class='op-head-row'><th colspan='$headerColspan'><div class='op-search'>$searchRow</div></th></tr>";
+		print "<tr class='op-head-row'><th colspan='$opColCount'>$summaryHtml</th></tr>";
+		print "<tr class='op-head-row'><th colspan='$opColCount'><div class='op-search'>$searchRow</div></th></tr>";
 		print $groupRow;
 		print "<tr class='op-label-row'>$labelCells</tr>";
 		print "</thead><tbody>\n";
@@ -1176,8 +1185,7 @@ function opToggleAll(box) {
 	}
 	// The T layout keeps its paging line above the rows; the grid layout shows it in the sticky action bar.
 	if ($showPagingBar && $menu=='T') {
-		$colspan = $usePBS ? 11 : 10;
-		print "<tr><td colspan='$colspan' align='center'>$pagingHtml</td></tr>\n";
+		print "<tr><td colspan='$opColCount' align='center'>$pagingHtml</td></tr>\n";
 	}
 	// Links that act on this page (0,00 settlement, customer card return target) come back to it.
 	$pageUrl=$basePageUrl."&openpost_page=$openpostPage";
@@ -1244,7 +1252,7 @@ function opToggleAll(box) {
 	}
 
 	if (!$renderedCount) {
-		print "<tr><td colspan='$headerColspan' align=center style='padding:6px;color:#555;'>".findtekst('2541|Ingen',$sprog_id)."</td></tr>\n";
+		print "<tr><td colspan='$opColCount' align=center style='padding:6px;color:#555;'>".findtekst('2541|Ingen',$sprog_id)."</td></tr>\n";
 	}
 	foreach ($bucketTotals as $key => $amount) {
 		$bucketTotals[$key]=afrund($amount,2);
@@ -1275,12 +1283,12 @@ function opToggleAll(box) {
 	print "<input type=hidden name=konto_fra value=\"$konto_fraHtml\">";
 	print "<input type=hidden name=konto_til value=\"$konto_tilHtml\">";
 	print "<input type=hidden name=kontoantal value=$formIndex>";
+	print "<input type=hidden name=showPBS value=\"" . (int)$showPBS . "\">";
 	print "<input type=hidden name=openpost_page value=$openpostPage>";
 	print "<input type=hidden name=openpost_page_size value=$openpostPageSize>";
 	print "<input type=hidden name=aging_bucket value=\"$agingBucket\">";
 	print "<input type=hidden name=order_by value=\"$orderBy\">";
 	print "<input type=hidden name=order_dir value=\"$orderDir\">";
-	if (!$showPBS) print "<input type=hidden name=showPBS value=0>";
 	print "<input type=hidden name=openpost_content value=1></td></tr>";
 
 	// The Mail kontoudtog/Opret rykker/Ryk alle buttons post back konto_id[] checkboxes from the
@@ -1330,10 +1338,10 @@ function opConfirmRykAlle() {
 		$actionsHtml.="<input type=submit value=\"Ryk alle\" name=\"submit\" title=\"$rykAlleTitle\" onclick=\"return opConfirmRykAlle();\">";
 	}
 	if ($menu=='T') {
-		if ($actionsHtml) print "<tr><td colspan='$headerColspan' align='center' class='border-hr-top'>$actionsHtml</td></tr>\n";
+		if ($actionsHtml) print "<tr><td colspan='$opColCount' align='center' class='border-hr-top'>$actionsHtml</td></tr>\n";
 	} elseif ($actionsHtml || $pagingHtml) {
 		// Sticky at the bottom of #opGridWrapper, so the actions and paging stay reachable while scrolling.
-		print "<tr class='op-actionbar'><td colspan='$headerColspan'><div class='op-actionbar-inner'><div>$actionsHtml</div><div>$pagingHtml</div></div></td></tr>\n";
+		print "<tr class='op-actionbar'><td colspan='$opColCount'><div class='op-actionbar-inner'><div>$actionsHtml</div><div>$pagingHtml</div></div></td></tr>\n";
 	}
 	print "</form>\n";
 
