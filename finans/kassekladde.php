@@ -3763,8 +3763,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$bilag[$y] = $kk_last_bilag_next;
 		}
 		# SST-888 (review) a line without a number shows an empty voucher field, not a 0 the user reads as a number;
-		# anything else is printed as it was typed, so a rejected value ("abc") comes back for correction
-		$kk_bila_vaerdi = (isset($bilag[$y]) && !in_array((string)$bilag[$y], array('', '0'), true)) ? $bilag[$y] : '';
+		# anything else is escaped and printed as it was typed, so a rejected value ("abc", or one carrying a quote)
+		# comes back for correction without breaking out of the value attribute
+		$kk_bila_vaerdi = (isset($bilag[$y]) && !in_array((string)$bilag[$y], array('', '0'), true)) ? htmlspecialchars((string)$bilag[$y], ENT_QUOTES) : '';
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$kk_bila_vaerdi\" onchange='javascript:docChange = true;'>";
 		if (!$id[$y] && !empty($kkForslag[$y])) print "<input type='hidden' name='bilf$y' value='" . (int)$kkForslag[$y] . "'>";
 		print "</td>";

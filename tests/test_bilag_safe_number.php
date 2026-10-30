@@ -39,7 +39,6 @@ function db_select($qtext, $spor = '', $global = false) {
 			# a staged line is saved when it has content, or an existing id, or a date other than today
 			$rows[] = array(
 				'lobenr' => count($rows) + 1,
-				'id' => 0,
 				'bilag' => $bilag,
 				'beskrivelse' => $GLOBALS['bilag_test']['content'] ? 'line text' : '',
 				'debet' => $GLOBALS['bilag_test']['content'] ? '100' : '',
