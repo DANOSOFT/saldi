@@ -38,7 +38,7 @@
     $total = number_format($total, 2, ',', '');
 
     // include email template
-    include(__DIR__ . '/new-email.php');
+    include(__DIR__ . '/new-mail.php');
 
 
     // autoload phpmailer through composer
@@ -53,9 +53,8 @@
         $mailRow = db_fetch_array($query);
         try{
             $mail = new PHPMailer();
-/*             $mail->SMTPDebug = SMTP::DEBUG_OFF;                      // Enable verbose debug output */
             $mail->isSMTP();                                            // Send using SMTP
-            $mail->SMTPDebug = 2;
+            $mail->SMTPDebug = SMTP::DEBUG_OFF;
             $mail->Host     = $mailRow["host"];                       // Set the SMTP server to send through                       
             $mail->Username = $mailRow["username"];           // SMTP username
             $mail->Password = $mailRow["password"];                    // SMTP password
@@ -79,9 +78,8 @@
     }else{
         try{
             $mail = new PHPMailer();
-/*             $mail->SMTPDebug = SMTP::DEBUG_OFF;                      // Enable verbose debug output */
             $mail->isSMTP();
-            $mail->SMTPDebug = 2;
+            $mail->SMTPDebug = SMTP::DEBUG_OFF;
             $mail->Host     = 'localhost';
             $mail->Port     = 25;                     
             //$mail->SMTPSecure = 'tls';         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` also accepted
