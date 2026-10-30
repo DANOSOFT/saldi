@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/selectOrder.php --- ver 5.1.0 --- 2026.10.29 ---
+// --- kreditor/orderIncludes/selectOrder.php --- ver 5.1.0 --- 2026.10.30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240626 PHR Added 'fiscal_year' in queries
-// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 7636) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
-// 20261029 CL/MJ Use free translation ids after rebasing onto current master; preserve cached voucher texts.
+// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 8407) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
+// 20261030 CL/MJ Text 7636 is now 8407: #921 also adds 7636, and findtekst() keeps the first text a tenant stores for an id.
 
 print "<table cellpadding='1' cellspacing='0' bordercolor='#ffffff' border='1' valign = 'top' width = '100'><tbody>";
 print "<tr><td width=33%><table cellpadding='0' cellspacing='0' border='0' width='100'>";
@@ -66,7 +66,7 @@ print "<td>".findtekst(770,$sprog_id)."</td><td><input class='inputbox' type='te
 print "onchange='javascript:docChange = true;'>%</td></tr>\n";
 print "<tr><td>".findtekst(881,$sprog_id)."</td><td><input class='inputbox' type='text' style='text-align:right;width:110px;' name='ordredato' value='$ordredato' ";
 print "onchange='javascript:docChange = true;'></td>";
-print "<td>".findtekst('7636|Forventet lev. dato',$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
+print "<td>".findtekst('8407|Forventet lev. dato',$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
 print "onchange='javascript:docChange = true;'></td></tr>\n";
 $list=array();
 $beskriv=array();

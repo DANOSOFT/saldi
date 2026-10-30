@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,8 +42,8 @@
 // 20260924 CL/SZ Left-join grupper instead of inner-joining it (CodeRabbit, PR #608): an item
 //                 with has_due_date=TRUE but no current-year VG group row was still being
 //                 dropped by the join before the has_due_date check ran.
-// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 7636) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
-// 20261029 CL/MJ Use free translation ids after rebasing onto current master; preserve cached voucher texts.
+// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 8407) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
+// 20261030 CL/MJ Text 7636 is now 8407: #921 also adds 7636, and findtekst() keeps the first text a tenant stores for an id.
 
 /*
 $attachId    = null;
@@ -108,7 +108,7 @@ print "<td>".findtekst(770,$sprog_id)."</td><td><input class='inputbox' type='te
 print "onchange='javascript:docChange = true;'>%</td></tr>\n";
 print "<tr><td>".findtekst(881,$sprog_id)."</td><td><input class='inputbox' type='text' style='text-align:right;width:110px;' name='ordredato' value='$ordredato' ";
 print "onchange='javascript:docChange = true;'></td>";
-print "<td>".findtekst('7636|Forventet lev. dato',$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
+print "<td>".findtekst('8407|Forventet lev. dato',$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
 print "onchange='javascript:docChange = true;'></td></tr>\n";
 $list=array();
 $beskriv=array();
