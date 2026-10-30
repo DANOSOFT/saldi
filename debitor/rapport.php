@@ -51,7 +51,7 @@
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
 // 20261001 CDX/LAH Validate settlement lists and show skipped reminders and blocked-popup links.
 // 20261001 CDX/LAH Encode sales-statistics redirects and use ifset for the reminder count lookup.
-// 20261006 Sawaneh Openpost GET filters are read once and raw; both DRV report-setting updates
+// 20261006 Saw Openpost GET filters are read once and raw; both DRV report-setting updates
 //                  (salgsstat and report submit) escape every value at the query instead.
 // 20261015 CL/LH PR #697 review: "Slet" deletes each reminder's lines and order inside one transaction,
 //                and autoudlign_liste() has a PHPDoc block.
