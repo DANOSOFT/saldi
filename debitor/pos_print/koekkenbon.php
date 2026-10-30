@@ -17,7 +17,7 @@ $convert = new ConvertCharset();
 
 $id=$_GET['id'];
 
-$filnavn="http://saldi.dk/kasse/K2_".$_SERVER['REMOTE_ADDR'].".ip";
+$filnavn="https://saldi.dk/kasse/K2_".$_SERVER['REMOTE_ADDR'].".ip";
 if ($fp=fopen($filnavn,'r')) {
 	$kpr=trim(fgets($fp));
 	fclose ($fp);

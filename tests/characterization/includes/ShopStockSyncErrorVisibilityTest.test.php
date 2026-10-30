@@ -23,6 +23,8 @@ require_once __DIR__ . '/../../../includes/stdFunc/shopApiRequest.php';
 //                  sync_shop_vare() and the pages that call it are legacy page-scope code
 //                  that opens sessions and needs a tenant database, so those parts are read
 //                  from the source or lifted and evaluated rather than executed.
+// 20261028 CDX/MJ SST-876 Document that receipts preserve full adapter metadata synchronization.
+// 20261030 CL/MJ SST-876 Pins that both webshop warnings are load listeners, not a BODY onLoad an earlier alert overrides.
 final class ShopStockSyncErrorVisibilityTest extends TestCase
 {
     private const STD_FUNC = __DIR__ . '/../../../includes/std_func.php';
@@ -442,8 +444,8 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
     /**
      * That one sentence is translated and cannot break out of the markup around it.
      *
-     * It carries item numbers, which are free text, and it is printed inside an onLoad
-     * attribute wrapping a JavaScript call - two layers that both need escaping.
+     * It carries item numbers, which are free text, and it is printed inside a script block
+     * as a JavaScript string literal.
      */
     public function testTheMessageIsTranslatedAndEscaped(): void
     {
@@ -455,28 +457,51 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
             'the message is not read through findtekst(), so it cannot be translated');
         self::assertStringContainsString('jsString(', $body,
             'the item numbers are not escaped for the JavaScript string');
-        self::assertStringContainsString('htmlspecialchars(', $body,
-            'the JavaScript literal is not escaped for the HTML attribute it sits in');
+        self::assertStringContainsString('shopSyncOnLoad(', $body,
+            'the warning is not printed through shopSyncOnLoad()');
+    }
+
+    /**
+     * Both webshop warnings survive another alert printed earlier on the same page.
+     *
+     * A browser keeps only the first onload a page declares. levering() prints
+     * <BODY onLoad="alert(...)"> when it estimates a cost price, and in the app the webshop
+     * warning printed after it as a second <BODY onLoad> was never shown. The warnings are
+     * now load listeners, which do not replace one another.
+     */
+    public function testTheWarningsDoNotDependOnBeingTheFirstOnload(): void
+    {
+        $src = self::source(self::STD_FUNC);
+        foreach (array('function shopSyncAlert(', 'function shopSyncAlertFailedItems(') as $name) {
+            $at = strpos($src, $name);
+            self::assertNotFalse($at, "$name is gone");
+            $end = strpos($src, "\n\t}\n", $at);
+            $body = substr($src, $at, ($end === false ? 1500 : $end - $at));
+            self::assertStringContainsString('shopSyncOnLoad(', $body, "$name does not print through shopSyncOnLoad()");
+            self::assertStringNotContainsStringIgnoringCase('onLoad="', $body,
+                "$name prints a BODY onLoad again, which an earlier alert on the page overrides");
+        }
+        $at = strpos($src, 'function shopSyncOnLoad(');
+        self::assertNotFalse($at, 'shopSyncOnLoad() is gone');
+        self::assertStringContainsString("addEventListener('load'", substr($src, $at, 400),
+            'shopSyncOnLoad() no longer adds a load listener');
     }
 
     /**
      * An item number cannot break out of the markup the warning is printed into.
      *
-     * It is printed as a BODY onLoad attribute wrapping a JavaScript call, and item numbers
-     * are free text. Checked against the real output in a browser with the item number
-     * DIB038BW"</script><x>&' - it arrived as literal text in the dialog. Two encoders do
-     * that: jsString()'s JSON_HEX_TAG and JSON_HEX_QUOT turn <, > and " into <, >
-     * and ", and htmlspecialchars() then protects the attribute. Both are load-bearing,
-     * and JSON_HEX_TAG is pinned where it lives because it is in a different file.
+     * It is printed inside a script block as a JavaScript string literal, and item numbers are
+     * free text: an item number like DIB038BW"</script><x>&' must arrive as literal text.
+     * jsString()'s JSON_HEX_TAG turns < and > into < and >, so it cannot close the
+     * script block, and json_encode() itself quotes the string. JSON_HEX_TAG is pinned where it
+     * lives because it is in a different file.
      */
     public function testAnItemNumberCannotBreakOutOfTheWarning(): void
     {
         $jsString = file_get_contents(__DIR__ . '/../../../includes/stdFunc/jsString.php');
         self::assertNotFalse($jsString, 'could not read includes/stdFunc/jsString.php');
         self::assertStringContainsString('JSON_HEX_TAG', $jsString,
-            'jsString() no longer encodes < and >, so an item number can close the element it sits in');
-        self::assertStringContainsString('JSON_HEX_QUOT', $jsString,
-            'jsString() no longer encodes the double quote the attribute is delimited with');
+            'jsString() no longer encodes < and >, so an item number can close the script block it sits in');
     }
 
     /** A shop refusing the update must never undo a receipt that is otherwise correct. */
@@ -671,7 +696,7 @@ final class ShopStockSyncErrorVisibilityTest extends TestCase
     /**
      * A stock change sends the stock calls only.
      *
-     * A receipt, a sale and a regulation change the stock and nothing else, so update_price, sku
+     * Sales and regulations use stock-only mode, so update_price, sku
      * and the per-set costPrice call have nothing to say. Eight calls become three. The product
      * card keeps the default, because Gem is where a price actually changes.
      */

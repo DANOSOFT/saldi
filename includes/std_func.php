@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -123,6 +123,10 @@
 //                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
 // 20261027 CDX/MJ SST-876 Skip queue filesystem work without a webshop and defer backlog processing until transactions have committed.
 // 20261027 CDX/MJ SST-876 Defer document sends until the outer transaction completes and send them before old backlog in the post-commit drain.
+// 20261028 CDX/MJ SST-876 Log marker persistence failures and prioritize new updates over exhausted retries.
+// 20261029 CDX/MJ SST-876 Include deferred item labels in the documented report state.
+// 20261030 CL/MJ SST-876 The webshop warnings are load listeners (shopSyncOnLoad()) instead of <BODY onLoad>.
+//                A browser keeps only the first onload, so the warning was lost after levering()'s cost-price alert.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2047,7 +2051,8 @@ if (!function_exists('sync_shop_vare')) {
 	 * @param int    $lager       Warehouse number the change belongs to.
 	 * @param string $mode        'all' sends the price and sku calls as well, which is what
 	 *                            Gem on the product card means. 'stock' sends only the stock
-	 *                            calls, which is all a receipt, a sale or a regulation changes:
+	 *                            calls for sales and stock adjustments. Receipts retain 'all'
+	 *                            for adapters that read cost prices only from SKU calls:
 	 *                            eight calls per item become three, and with the three shops
 	 *                            answered together it is one round. Default 'all', so a caller
 	 *                            that has not been told about the mode behaves as before.
@@ -2446,7 +2451,9 @@ if (!function_exists('shopSyncMark')) {
 		// committed and nothing is left to say the shops were never told. The marker costs
 		// one small file per item and the flush removes it as soon as the shops have the
 		// figure.
-		shopSyncQueueAdd($vare_id, $variant_id, $lager, $mode);
+		if (!shopSyncQueueAdd($vare_id, $variant_id, $lager, $mode)) {
+			error_log('saldi: cannot persist shop update for ' . shopSyncQueueKey($vare_id, $variant_id, $lager));
+		}
 	}
 }
 
@@ -2489,7 +2496,7 @@ if (!function_exists('shopSyncFlush')) {
 			return 'no api';
 		}
 		// Snapshot the old backlog: this document's newly deferred items wait for another request.
-		$backlog = $drain > 0 && empty($GLOBALS['db_transaktion_depth']) ? shopSyncQueuePending($drain) : array();
+		$backlog = $drain > 0 && empty($GLOBALS['db_transaktion_depth']) ? shopSyncQueuePending($drain, $maxAttempts) : array();
 		$keys = array();
 		foreach ($marked as $item) {
 			$keys[shopSyncQueueKey($item['vare_id'], $item['variant_id'], $item['lager'])] = true;
@@ -2514,11 +2521,11 @@ if (!function_exists('shopSyncDrainQueue')) {
 	/**
 	 * Tries to deliver the updates earlier requests could not.
 	 *
-	 * The figures come from the database as they stand now, never from the queue, so a stale
-	 * value cannot overwrite a newer one. A marker is dropped only once the shops have taken
-	 * the figure; past the attempt limit it stays on the queue and is reported, so an update
-	 * that cannot be delivered becomes something a person can act on rather than a retry that
-	 * goes on for ever.
+	 * Figures are read from the database before each batch, not stored in queue markers.
+	 * A marker is dropped only once the shops have taken
+	 * the figure or explicitly refused it. At the attempt limit a transport failure is logged
+	 * once and retained behind fresh work. Exhausted entries rotate by attempt count, so they
+	 * remain recoverable without starving newly queued updates.
 	 *
 	 * @param int $limit        Most old backlog items to attempt after any deferred document.
 	 * @param int $maxAttempts  Attempts after which an item counts as a final failure.
@@ -2540,7 +2547,7 @@ if (!function_exists('shopSyncDrainQueue')) {
 				$state = &shopSyncMarkState();
 				return $state['delivered'];
 			}
-			$result = shopSyncRunBacklog(shopSyncQueuePending($limit), 5, $maxAttempts);
+			$result = shopSyncRunBacklog(shopSyncQueuePending($limit, $maxAttempts), 5, $maxAttempts);
 			return $result['delivered'];
 		} finally {
 			$draining = false;
@@ -2555,7 +2562,7 @@ if (!function_exists('shopSyncReportState')) {
 	 * By reference and request scoped, so the posting can collect them while it works and the
 	 * page can report them once it has committed.
 	 *
-	 * @return array{failed: array<string, string>}
+	 * @return array{failed: array<string, string>, queued: array<string, string>}
 	 */
 	function &shopSyncReportState() {
 		static $state = array('failed' => array(), 'queued' => array());
@@ -2641,8 +2648,25 @@ if (!function_exists('shopSyncAlertFailedItems')) {
 		if ($queued) {
 			$text[] = findtekst('5443|Webshopopdateringen afventer og forsøges automatisk igen ved næste lageropdatering for', $sprogId) . ': ' . implode(', ', $queued);
 		}
-		print '<BODY onLoad="' . $handler . '(' . htmlspecialchars(jsString(array(implode("\n", $text))), ENT_QUOTES, 'UTF-8') . ')">' . "\n";
+		shopSyncOnLoad($handler, jsString(array(implode("\n", $text))));
 		return true;
+	}
+}
+
+if (!function_exists('shopSyncOnLoad')) {
+	/**
+	 * Calls $handler with a message once the page has loaded.
+	 *
+	 * A load listener rather than <BODY onLoad>: a browser keeps only the first onload a page
+	 * declares, so a webshop warning printed after another alert (levering() warns about an
+	 * estimated cost price) was never shown.
+	 *
+	 * @param string $handler  JavaScript function to call: alert, or fejltekst on pages that define it.
+	 * @param string $jsText   The message, already a JavaScript string literal from jsString().
+	 * @return void
+	 */
+	function shopSyncOnLoad($handler, $jsText) {
+		print "<script type=\"text/javascript\">window.addEventListener('load', function () { " . $handler . "(" . $jsText . "); });</script>\n";
 	}
 }
 
@@ -2669,8 +2693,8 @@ if (!function_exists('shopSyncAlert')) {
 	 *
 	 * Lives here rather than in the pages because three places need the same sentence: the
 	 * goods receipt and two save paths on the product card. The text goes through jsString()
-	 * and htmlspecialchars() because it carries item numbers, which are free text and would
-	 * otherwise be able to close the attribute and the script string around them.
+	 * because it carries item numbers, which are free text and would otherwise be able to
+	 * close the script string or the script block around them.
 	 *
 	 * @param string $items    Item numbers to name, already joined for reading.
 	 * @param int    $sprogId  Language id for findtekst().
@@ -2679,12 +2703,11 @@ if (!function_exists('shopSyncAlert')) {
 	 * @return void
 	 */
 	function shopSyncAlert($items, $sprogId, $handler = 'alert') {
-		$text = jsString(array(
+		shopSyncOnLoad($handler, jsString(array(
 			findtekst('5442|Lagertallet blev ikke opdateret i webshoppen for', $sprogId),
 			': ',
 			(string)$items,
-		));
-		print "<BODY onLoad=\"" . $handler . "(" . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . ")\">\n";
+		)));
 	}
 }
 

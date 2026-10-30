@@ -1,0 +1,98 @@
+# Mechanical review. Each check is a mistake reviewers kept correcting by hand;
+# the rules and what enforces each one are listed in AGENTS.md.
+#
+# The same command runs locally before a push:
+#   node tools/guardrails/check.mjs
+#
+# Unlike tests.yml this needs no stack, so it answers in about a minute.
+#
+# History:
+# 20261027 CL/LH Created.
+# 20261028 CL/LH Sync PRs (sync/* branches) run only the checks a merge can break.
+
+name: Guardrails
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guardrails-${{ github.event_name }}-${{ github.ref }}-${{ github.event.action == 'edited' }}
+  cancel-in-progress: true
+
+jobs:
+  change:
+    name: Change checks
+    # Editing the description changes no code; only the description job reruns.
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # The PR's own head, not GitHub's merge commit: line numbers match what
+          # the author sees, and the order checks judge where the author put
+          # things, not where a merge with newer master landed them.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2" # production runs 8.2
+          coverage: none
+          tools: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Guardrail regression tests
+        run: node --test tools/guardrails/tests/*.test.mjs
+
+      - name: Guardrails
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'sync/')
+        run: node tools/guardrails/check.mjs --base "origin/$BASE_REF"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+
+      - name: Guardrails on a sync PR
+        # A sync PR (master merged into a shared branch such as hml/shopify)
+        # carries master's own, already merged code, so the style checks would
+        # only flag master. What the merge itself can break is the same as after
+        # a merge to master.
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'sync/')
+        run: node tools/guardrails/check.mjs --base "origin/$BASE_REF" --only php-syntax,js-syntax,tekster
+        env:
+          BASE_REF: ${{ github.base_ref }}
+
+      - name: Guardrails after merge
+        # Only what two separately green PRs can break together: a merged file
+        # that no longer parses, or two branches that took the same text id.
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: node tools/guardrails/check.mjs --base "$BEFORE" --only php-syntax,js-syntax,tekster
+        env:
+          BEFORE: ${{ github.event.before }}
+
+  description:
+    name: PR description
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/guardrails
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Says what changed and how it was verified
+        run: printf '%s' "$PR_BODY" | node tools/guardrails/check.mjs --pr-body -
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
