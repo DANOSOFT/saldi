@@ -5298,11 +5298,16 @@
 5450	Ukendt betalingstype	Unknown payment type	Ukjent betalingstype
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+7640	Udfyldt fra faktura	Filled in from invoice	Fylt ut fra faktura
+7641	Afviger fra fakturaen	Differs from the invoice	Avviker fra fakturaen
+7642	Brug fakturaens værdier	Use the invoice values	Bruk fakturaens verdier
+7643	linjen	the line	linjen
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
 5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med
 5454	Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)	The document number cannot be saved: the journal has no free numbers left (max 2147483647)	Bilagsnummeret kan ikke lagres: det er ikke flere ledige numre i kladden (maks 2147483647)
+5455	Træk for at ændre rækkefølgen. Husk at gemme kortet bagefter	Drag to change the order. Remember to save the card afterwards	Dra for å endre rekkefølgen. Husk å lagre kortet etterpå
 
 7600	Ikke forfalden	Not yet due	Ikke forfalt
 7601	%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent beløb.	%s selected accounts were skipped because they have no positive overdue balance.	%s valgte kontoer ble hoppet over fordi de ikke har et positivt forfalt beløp.
@@ -5344,4 +5349,8 @@
 7637	%s: %s fra åben indkøbsordre %s (varekortet: %s)	%s: %s from open purchase order %s (item card: %s)	%s: %s fra åpen innkjøpsordre %s (varekortet: %s)
 7638	%s: %s fra varekortet. Der er ingen åben indkøbsordre, så prisen kan være forældet	%s: %s from the item card. There is no open purchase order, so the price may be out of date	%s: %s fra varekortet. Det finnes ingen åpen innkjøpsordre, så prisen kan være utdatert
 7639	Vis besked når kostprisen er anslået	Show a message when the cost price is estimated	Vis melding når kostprisen er anslått
+7650	Alle debitorer	All customers	Alle debitorer
+7651	Alle kreditorer	All suppliers	Alle kreditorer
+8400	Send "Bemærkning til ordre" med på e-fakturaer	Include "Order note" on e-invoices	Send "Ordrenotat" med på e-fakturaer
+8401	Afmærkes feltet, sendes teksten i "Bemærkning til ordre" med som bemærkning på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet bruges ofte til interne noter, så det er slået fra som standard. PDF-fakturaen er uændret.	When ticked, the text in "Order note" is sent as the note on e-invoices, e-credit notes and e-orders. The field is often used for internal notes, so this is off by default. The PDF invoice is unchanged.	Når feltet er avkrysset, sendes teksten i "Ordrenotat" med som merknad på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet brukes ofte til interne notater, så det er slått av som standard. PDF-fakturaen er uendret.
 8402	Afmærkes feltet, kommer der en besked ved levering af en ordre, når kostprisen på en vare er anslået, fordi der ikke var et købsparti at tage den fra, og prisen kommer fra varekortet eller fra en åben indkøbsordre med en anden pris end varekortet. Kostprisen beregnes ens, uanset om feltet er afmærket.	If ticked, delivering an order shows a message when an item's cost price was estimated because there was no purchase lot to take it from, and the price comes from the item card or from an open purchase order whose price differs from the item card. The cost price is calculated the same way whether or not this is ticked.	Hvis feltet er avkrysset, vises en melding ved levering av en ordre når kostprisen på en vare er anslått fordi det ikke fantes et innkjøpsparti å ta den fra, og prisen kommer fra varekortet eller fra en åpen innkjøpsordre med en annen pris enn varekortet. Kostprisen beregnes likt uansett om feltet er avkrysset.

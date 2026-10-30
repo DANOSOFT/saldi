@@ -112,6 +112,7 @@
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261029 CL/MJ SST-885 ordre_valg saves "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL).
 // 20261029 CL/MMR SD-786 Save "Vis besked når kostprisen er anslået" (showCostEstimateNotice) under Ordrerelaterede valg.
 //                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
 

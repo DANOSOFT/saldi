@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/saveOrderOptions.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- systemdata/diverseIncludes/saveOrderOptions.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,8 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SD-786 Created: the save of Diverse > Ordrerelaterede valg, moved out of systemdata/diverse.php (controller/view convention) when "Vis besked når kostprisen er anslået" was added.
 //                 Posted values are read with ifset() and escaped or cast where they reach SQL, because update_settings_value() puts its value into the SQL as it is.
+// 20261030 CL/MMR SD-786 Merge of master: "Send 'Bemærkning til ordre' med på e-fakturaer" (SST-885, settings sendOrderNote/easyUBL) is saved here too.
+//                 SST-885 had added it to the old ordre_valg save in diverse.php, which SD-786 moved into this function.
 
 if (!function_exists('saveOrderOptions')) {
 	/**
@@ -50,6 +52,7 @@ if (!function_exists('saveOrderOptions')) {
 		$vatPrivateCustomers    = ifset($post, 'vatPrivateCustomers');
 		$vatBusinessCustomers   = ifset($post, 'vatBusinessCustomers');
 		$hideRevenue            = (ifset($post, 'hideRevenue') === 'on') ? 'on' : 'off'; #SD-657
+		$sendOrderNote          = (ifset($post, 'sendOrderNote') === 'on') ? 'on' : 'off'; #SST-885
 		$box2                   = ifset($post, 'box2'); #Rabatvarenr
 		$box3                   = ifset($post, 'box3'); #folge_s_tekst
 		$box4                   = ifset($post, 'box4'); #hurtigfakt
@@ -135,6 +138,7 @@ if (!function_exists('saveOrderOptions')) {
 		update_settings_value("vatPrivateCustomers", "ordre", $sqlText($vatPrivateCustomers), "Show VAT on orders for private customers");
 		update_settings_value("vatBusinessCustomers", "ordre", $sqlText($vatBusinessCustomers), "Show VAT on orders for business customers");
 		update_settings_value("hideRevenue", "finans", $hideRevenue, "Keep turnover from users without access to Settings");
+		update_settings_value("sendOrderNote", "easyUBL", $sendOrderNote, "Send the order note (ordrer.notes) as the note on e-invoices and e-orders");
 
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))) {
 			$qtxt = "update grupper set box6='" . $sqlText($kostmetode) . "',box8='$saetvareid' WHERE id = '" . (int) $r['id'] . "'";

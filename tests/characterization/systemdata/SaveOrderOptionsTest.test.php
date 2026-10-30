@@ -17,6 +17,7 @@ use PHPUnit\Framework\TestCase;
  * History:
  * 20261029 CL/MMR Created (SD-786, Codex round 2: characterize the extracted save).
  * 20261029 CL/MMR The real ifset() from includes/std_func.php instead of a stub (Codex round 3).
+ * 20261030 CL/MMR sendOrderNote (SST-885, merged from master) is saved as 'on'/'off' in group easyUBL.
  */
 #[RunTestsInSeparateProcesses]
 final class SaveOrderOptionsTest extends TestCase
@@ -25,7 +26,7 @@ final class SaveOrderOptionsTest extends TestCase
     private const SETTINGS = [
         'debitoripad', 'pluklisteEmail', 'porto_varnr', 'showDB', 'showDG', 'lockedInvoiceButton', 'ordreAutocomplete',
         'gs1_parsing', 'ourRefStockSwitch', 'stockWarningEnabled', 'showBothAddrExtra', 'showCostEstimateNotice',
-        'vatPrivateCustomers', 'vatBusinessCustomers', 'hideRevenue', 'debitoripad',
+        'vatPrivateCustomers', 'vatBusinessCustomers', 'hideRevenue', 'sendOrderNote', 'debitoripad',
     ];
 
     /**
@@ -93,12 +94,14 @@ final class SaveOrderOptionsTest extends TestCase
             'orderNoteEnabled' => 'on', 'debitoripad' => 'on', 'portovarenr' => 'PORTO', 'showDB' => 'on', 'showDG' => 'on',
             'pluklisteEmail' => 'lager@example.dk', 'lockPayment' => 'on', 'ordreAutocomplete' => 'on', 'gs1_parsing' => 'on',
             'ourRefStockSwitch' => 'on', 'stockWarningEnabled' => 'on', 'showCostEstimateNotice' => 'on', 'showBothAddrExtra' => 'on',
+            'sendOrderNote' => 'on',
         ], 1, 7);
         self::assertSame([], $alerts);
         self::assertSame(self::SETTINGS, array_column($GLOBALS['__settings'], 0), 'only the known settings, in this order');
         $s = self::settings();
         self::assertSame('on', $s['showCostEstimateNotice']);
         self::assertSame('on', $s['hideRevenue']);
+        self::assertContains(['sendOrderNote', 'easyUBL', 'on', null], $GLOBALS['__settings'], 'SST-885 setting, group easyUBL');
         self::assertSame('lager@example.dk', $s['pluklisteEmail']);
         self::assertSame('PORTO', $s['porto_varnr']);
         self::assertContains(['ordreAutocomplete', 'ordre', 'on', 7], $GLOBALS['__settings'], 'ordreAutocomplete is per user');
@@ -118,6 +121,7 @@ final class SaveOrderOptionsTest extends TestCase
         $s = self::settings();
         self::assertSame('off', $s['showCostEstimateNotice'], 'the new box is stored as off');
         self::assertSame('off', $s['hideRevenue']);
+        self::assertSame('off', $s['sendOrderNote'], 'SST-885: an unticked box is stored as off');
         self::assertSame('', $s['showDB']);
         self::assertSame('', $s['vatPrivateCustomers']);
         self::assertSame(
