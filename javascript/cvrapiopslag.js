@@ -1,4 +1,4 @@
-// --- javascript/cvrapiopslag.js --- ver 5.1.0 --- 2026-10-29 ---
+// --- javascript/cvrapiopslag.js --- ver 5.1.0 --- 2026-10-30 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -39,6 +39,8 @@
 // 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
 //                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
 // 20261029 CL/MJ SST-892 applyFormFields() calls cvrEfterOpslag(data) when the page defines it; the debitor card uses it to switch a private card to Erhverv.
+// 20261030 CL/MMR SST-916 Ticking "Auto-lookup CVR nr." after the CVR-nr. was typed now looks the number up straight away.
+//                 Before, the box was only read on a keystroke or when the field was left, so ticking it afterwards did nothing.
 
 
 var cvrFeltAlias = { email: ['email', 'kontakt_email_val[1]'] };
@@ -335,6 +337,23 @@ function cvrBlurOpslag(e){
 
 cvrField('ny_kontonr').keyup(cvrKeyupOpslag).blur(cvrBlurOpslag);
 cvrField('cvrnr').keyup(cvrKeyupOpslag).blur(cvrBlurOpslag);
+
+// Ticking "Auto-lookup CVR nr." looks up a number that is already typed, as leaving the field would (SST-916).
+// The CVR field comes first; the customer no. only where 8 digits may be looked up there (cvrAutoFelter).
+// Unticking does nothing, and a number that was just looked up is not looked up again (cvrSidste).
+function cvrAutoMarkeret(){
+	if (!$(this).is(':checked')) return;
+	var navne = ['cvrnr', 'ny_kontonr'];
+	for (var i = 0; i < navne.length; i++) {
+		var felt = cvrField(navne[i]);
+		var vaerdi = (felt.val() || '').trim();
+		if (felt.length && cvrAutoOpslag(felt, vaerdi)) {
+			cvrOpslag(felt, vaerdi, 'vat');
+			return;
+		}
+	}
+}
+$(document).on('change', '[name=auto_lookup_cvr]', cvrAutoMarkeret);
 
 cvrField('tlf').keyup(function(e){
         var tlfnr = ($(e.target).val() || '').trim();
