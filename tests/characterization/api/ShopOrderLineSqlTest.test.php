@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 //                 It now decodes each shop value with shop_input_text() (SST-884, which covers insert_shop_order(); see ShopOrderHtmlEntityTest), escapes the text identifiers and casts the integer ids.
 //                 A found item's number and description no longer go through chk4utf8(), which garbled UTF-8 such as "€" (2026-10-28, CodeRabbit on PR #919).
 //                 shop_input_text() is lifted from api/rest_api.php (including the file connects to a database); the function's SQL is asserted on the source.
+// 20261030 CL/MMR SST-904 testOnlyRealIdsReachAnOrderOrAMapping: the order id guard takes digits only, and no shop_varer mapping is written for a variant that is not an id (review on PR #919).
 final class ShopOrderLineSqlTest extends TestCase
 {
     private const API = __DIR__ . '/../../../api/rest_api.php';
@@ -85,6 +86,28 @@ final class ShopOrderLineSqlTest extends TestCase
         }
         self::assertStringContainsString('include(__DIR__ . "/../includes/ordrefunc.php");', $line,
             'insert_shop_orderline() includes ordrefunc.php relative to the working directory again');
+    }
+
+    /**
+     * An order id that is_numeric() but not an id (22.9, 2e1, -5) was cast to another order, and a variant
+     * like 777abc was mapped as variant 777. A vare_id that is not an id still reaches the varenr fallback.
+     */
+    public function testOnlyRealIdsReachAnOrderOrAMapping(): void
+    {
+        $line = self::body(self::code(), 'insert_shop_orderline', 'fakturer_ordre');
+
+        $guard = [];
+        preg_match('/if \(\$ordre_id && (.+?)\) \{\s*\$ordre_id = \(int\)\$ordre_id;/', $line, $guard);
+        self::assertNotEmpty($guard, 'the order id guard is gone');
+        $isOrder = eval('return static function ($ordre_id) { return ' . $guard[1] . '; };');
+        foreach (['22' => true, '022' => true, ' 22 ' => true, '22.9' => false, '2e1' => false, '-5' => false, '0' => false, '22abc' => false] as $in => $ok) {
+            self::assertSame($ok, (bool)$isOrder((string)$in), "order id '$in'");
+        }
+
+        self::assertMatchesRegularExpression('/if \(\$vare_id && \$shop_vare_id && \$shopVareIdIsId && \(!\$shop_variant \|\| \$shopVariantIsId\)\) \{\s*if \(!\$saldi_variant\)/', $line,
+            'a shop_varer mapping is written for a variant that is not an id');
+        self::assertMatchesRegularExpression('/\} elseif \(\$shop_vare_id\) \{\s*if \(\$shopVareIdIsId\) \{/', $line,
+            'a vare_id that is not an id no longer reaches the varenr fallback');
     }
 
     /** The source without comments, so commented-out code does not count. */

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- api/rest_api.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -96,6 +96,9 @@
 //                 chk4utf8() took valid UTF-8 without a Danish letter for Latin-1, so "Pris 5 €" was stored garbled (CodeRabbit on PR #919).
 // 20261028 CL/MMR SST-905 shop_order_cvr_ean_from_card() treats a CVR or EAN of only non-breaking spaces (&nbsp; from the shop) as blank, so the customer card's value is used.
 //                 trim() keeps U+00A0, so such an order kept a blank-looking CVR and its e-invoice went out without one.
+// 20261030 CL/MMR SST-904 insert_shop_orderline() takes an order id of digits only, so 22.9, 2e1 or -5 no longer reach another order through the cast.
+//                 It writes no shop_varer mapping for a variant that is not an id, as (int)'777abc' would claim variant 777.
+//                 A vare_id that is not an id (an item number) again reaches the varenr fallback, only without the shop_varer query (review on PR #919).
 
 
 // ----------------------------------------------------------------------
@@ -578,7 +581,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
 	
 	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
-	if ($ordre_id && is_numeric($ordre_id)) {
+	// digits only: 22.9, 2e1 and -5 are is_numeric() but the cast would turn them into another order
+	if ($ordre_id && ctype_digit(trim((string)$ordre_id)) && (int)$ordre_id > 0) {
 		$ordre_id = (int)$ordre_id;
 		$qtxt="select status,momssats,valutakurs,art from ordrer where id='$ordre_id'";
 		fwrite($log,__line__." ".$qtxt."\n");
@@ -612,11 +616,16 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['id'];
-	} elseif ($shop_vare_id && $shopVareIdIsId) {
-		$qtxt="select saldi_id from shop_varer where shop_id='$shopVareIdInt'";
-		fwrite($log,__line__." $qtxt\n");
-		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$vare_id=$r['saldi_id'];
+	} elseif ($shop_vare_id) {
+		// a non-numeric id (an item number sent as vare_id) is not looked up in shop_varer; the varenr fallback below finds it
+		if ($shopVareIdIsId) {
+			$qtxt="select saldi_id from shop_varer where shop_id='$shopVareIdInt'";
+			fwrite($log,__line__." $qtxt\n");
+			$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$vare_id=$r['saldi_id'];
+		} else {
+			$vare_id=NULL;
+		}
 	} elseif ($beskrivelse) {
 		$vare_id='0';
 		$varenr='';
@@ -715,7 +724,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			$smlv='on';
 */
 		} elseif ($vare_id) fwrite($log,__line__." Vare $varenr eksisterer\n");
-		if ($vare_id && $shop_vare_id && $shopVareIdIsId) {
+		// no mapping for a variant that is not an id: (int)'777abc' would claim variant 777
+		if ($vare_id && $shop_vare_id && $shopVareIdIsId && (!$shop_variant || $shopVariantIsId)) {
 			if (!$saldi_variant) $saldi_variant=0; 	
 			if (!$shop_variant) $shop_variant=0; #20190104
 			$qtxt="insert into shop_varer(saldi_id,shop_id,saldi_variant,shop_variant)values('" . (int)$vare_id . "','$shopVareIdInt','" . (int)$saldi_variant . "','$shopVariantInt')";
