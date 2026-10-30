@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -131,7 +131,7 @@
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
-// 20261027 LOE MB-62 a read-only user is offered only the buttons that read, not the ones that write.
+// 20261030 LOE MB-62 a read-only user is offered only the buttons that read, not the ones that write.
 //
 ob_start(); //Starts output buffering
 

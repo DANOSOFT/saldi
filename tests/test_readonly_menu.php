@@ -1,8 +1,8 @@
 <?php
-// --- tests/test_readonly_menu.php --- 2026-10-27 ---
+// --- tests/test_readonly_menu.php --- 2026-10-30 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
-// 20261027 LOE Cover MB-62: "View only" (2) on Items counts as access in both menus, and the two
+// 20261030 LOE Cover MB-62: "View only" (2) on Items counts as access in both menus, and the two
 //                 renumbering pages, which write the item number into every table that carries it,
 //                 refuse a read-only user before they can rename or merge an item.
 //

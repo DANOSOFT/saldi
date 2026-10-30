@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----/lager/productCardIncludes/showVarianntsInfo.php----ver 5.0.0---2026-10-27-----
+// ----/lager/productCardIncludes/showVarianntsInfo.php----ver 5.1.0---2026-10-30-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 // 2023.08.30 PHR - Created this file from variant section of ../varekort.php
 // 2023.10.06 PHR - Added $variantVarerText[$x]
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
-// 20261027 LOE MB-62 a read-only user is not offered the delete icon for a variant.
+// 20261030 LOE MB-62 a read-only user is not offered the delete icon for a variant.
 /**
  * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
  * @var array<int, string> $warehouseNames

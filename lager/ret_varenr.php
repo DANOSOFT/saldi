@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------lager/ret_varenr.php-------------ver 5.0.0 -- 20261027 ----------
+// ----------lager/ret_varenr.php-------------ver 5.1.0 -- 2026-10-30 ----------
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2015.12.08 Tilføjet flet funtion til sammenlægning af varer.
 // 2018.05.15 Kontrol mod flet af styklister og vares som indgår.
 // 2020.06.12 PHR Added pattern match on item no (varenr).
-// 20261027 LOE MB-62 A read-only user may not rename or merge items.
+// 20261030 LOE MB-62 A read-only user may not rename or merge items.
 
 @session_start();
 $s_id=session_id();
