@@ -18,6 +18,8 @@
 // History:
 // 20260723 CL/LH SD-601: created.
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
+// 20261019 CL/LH MB-73: fast invoicing now records leveret; assert it instead of noting it is not stamped.
+// 20261027 CL/LH MB-73 (review): fast invoicing a line still NULL from before the migration keeps its earlier delivery.
 
 use PHPUnit\Framework\TestCase;
 
@@ -134,9 +136,11 @@ final class OrderInvoiceCharacterizationTest extends TestCase
         $this->assertNotEmpty($lines);
         foreach ($lines as $line) {
             // Observed: levering() consumes the pending quantity (leveres was
-            // set to antal before the call, and is 0 after); leveret is not
-            // stamped on this path.
+            // set to antal before the call, and is 0 after) and records it in
+            // leveret, even though the fixture inserts the line without one (MB-73).
             $this->assertEqualsWithDelta(0.0, (float)$line['leveres'], 0.001, 'pending delivery quantity consumed');
+            $this->assertNotNull($line['leveret'], 'delivered quantity recorded (MB-73)');
+            $this->assertEqualsWithDelta(2.0, (float)$line['leveret'], 0.001, 'delivered quantity equals the invoiced quantity');
             $this->assertEqualsWithDelta(2.0, (float)$line['antal'], 0.001, 'ordered quantity unchanged');
         }
     }
@@ -173,5 +177,61 @@ final class OrderInvoiceCharacterizationTest extends TestCase
         );
         $this->assertSame($fakturanr, (int)$second['fakturanr'], 'invoice number is unchanged');
         $this->assertSame('4', (string)$second['status'], 'status stays 4');
+    }
+
+    /**
+     * MB-73 review: a line from before ordrelinjer.leveret got DEFAULT 0 is still NULL until the login backfill
+     * (includes/opdat_func/backfillOrderLineDelivered.php) reaches its id window, and API deliveries never log in.
+     * Here 1 of 3 was delivered earlier (batch_salg) and fast invoicing delivers the other 2 first. leveret must be 3,
+     * as when the backfill runs first, and the backfill, which only fills NULL lines, must leave it at 3.
+     */
+    public function test_fast_invoicing_a_line_still_null_from_before_the_migration_keeps_its_earlier_delivery(): void
+    {
+        [$orderId] = $this->createOrderFixture();
+        $t = self::$tenant;
+        CharacterizationEnv::rows($t, 'UPDATE ordrer SET sum = 375, moms = 93.75 WHERE id = $1', [$orderId]);
+        $line = CharacterizationEnv::one(
+            $t,
+            'UPDATE ordrelinjer SET antal = 3, leveret = NULL WHERE ordre_id = $1 AND vare_id > 0 RETURNING id, vare_id',
+            [$orderId]
+        );
+        $lineId = (int)$line['id'];
+        CharacterizationEnv::rows(
+            $t,
+            "INSERT INTO batch_salg (batch_kob_id, vare_id, variant_id, linje_id, salgsdate, ordre_id, antal, pris, lev_nr, lager)
+             VALUES (0, $1, 0, $2, CURRENT_DATE, $3, 1, 125.00, 1, 1)",
+            [(int)$line['vare_id'], $lineId, $orderId]
+        );
+        // The backfill has not run on this tenant yet
+        CharacterizationEnv::rows($t, "DELETE FROM settings WHERE var_grp = 'system' AND var_name LIKE 'ordrelinjer_leveret%'");
+
+        $out = $this->runInvoice('invoice', $orderId);
+        $this->assertSame('OK', $out['levering'], 'levering reports OK');
+        $this->assertSame('OK', $out['bogfor'], 'bogfor reports OK');
+
+        $state = function () use ($t, $lineId): array {
+            return CharacterizationEnv::one(
+                $t,
+                'SELECT l.leveres, l.leveret, (SELECT sum(b.antal) FROM batch_salg b
+                  WHERE b.linje_id = l.id AND b.ordre_id = l.ordre_id AND b.vare_id = l.vare_id) AS delivered
+                 FROM ordrelinjer l WHERE l.id = $1',
+                [$lineId]
+            );
+        };
+        $after = $state();
+        $this->assertEqualsWithDelta(3.0, (float)$after['delivered'], 0.001, 'fast invoicing delivered the remaining 2');
+        $this->assertEqualsWithDelta(0.0, (float)$after['leveres'], 0.001, 'pending delivery quantity consumed');
+        $this->assertNotNull($after['leveret']);
+        $this->assertEqualsWithDelta(3.0, (float)$after['leveret'], 0.001, 'leveret counts the earlier delivery too');
+
+        // Then a login runs the backfill to the end
+        $res = CharacterizationEnv::runChild(
+            __DIR__ . '/../support/run_leveret_backfill.php',
+            [CharacterizationEnv::testDb(), 'function', 60, 20000]
+        );
+        $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
+        $backfill = $lines !== [] ? json_decode(end($lines), true) : null;
+        $this->assertSame(['status' => 'done'], $backfill, "backfill runner: {$res['stdout']} {$res['stderr']}");
+        $this->assertEqualsWithDelta(3.0, (float)$state()['leveret'], 0.001, 'the backfill leaves the delivered line at 3');
     }
 }

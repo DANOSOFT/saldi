@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 5.0.0 --- 2026-09-25---
+// --- lager/rapport.php --- patch 5.0.0 --- 2026-10-27---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -106,6 +106,9 @@
 // 20260925 CL/NTR Escape a Varenr./Varenavn search term's own '%'/'_' via the new
 //             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
 //             no longer matches (almost) the whole catalogue.
+// 20261027 CL/LH MB-73: 'Bestilt' (Ordered) counts purchase order lines only (ordrer.art = 'KO', as the
+//             product card's incoming list). It found open lines by leveret < antal alone, which NULL never
+//             matched, so open sales lines counted as ordered once leveret starts at 0.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -737,7 +740,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	$g=0;
 	$qtxt = "select ordrelinjer.vare_id,ordrelinjer.varenr,ordrelinjer.beskrivelse,sum(ordrelinjer.antal-ordrelinjer.leveret) as qty,";
 	$qtxt.= "varer.gruppe from ordrer,ordrelinjer,varer where ";
-	$qtxt.= "ordrer.status < '3' and ordrer.status > '0' and ordrelinjer.ordre_id = ordrer.id and ordrelinjer.vare_id = varer.id and ";
+	$qtxt.= "ordrer.art = 'KO' and ordrer.status < '3' and ordrer.status > '0' and ordrelinjer.ordre_id = ordrer.id and ordrelinjer.vare_id = varer.id and "; # 20261027 CL/LH MB-73 purchase orders only; open sales lines now have leveret 0, not NULL
 	if ($lev) $qtxt.= "ordrer.konto_id = '$lev' and "; #20260716 CL/SZ - R3: scope open POs to the actual supplier the order was placed with (ordrer.konto_id), not the vare_lev catalog association used to build $vare_id above - keeps the "per supplier" Ordered figures consistent with the "per item" view instead of silently excluding a new item's open PO just because nobody has added a vare_lev row for it yet
 	for ($g=0;$g<count($lagergruppe);$g++) {
 		($g)?$qtxt .= "or ":$qtxt .= "( ";
