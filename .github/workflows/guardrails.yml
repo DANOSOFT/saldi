@@ -8,6 +8,7 @@
 #
 # History:
 # 20261027 CL/LH Created.
+# 20261028 CL/LH Sync PRs (sync/* branches) run only the checks a merge can break.
 
 name: Guardrails
 
@@ -51,8 +52,18 @@ jobs:
           node-version: 22
 
       - name: Guardrails
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'sync/')
         run: node tools/guardrails/check.mjs --base "origin/$BASE_REF"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+
+      - name: Guardrails on a sync PR
+        # A sync PR (master merged into a shared branch such as hml/shopify)
+        # carries master's own, already merged code, so the style checks would
+        # only flag master. What the merge itself can break is the same as after
+        # a merge to master.
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'sync/')
+        run: node tools/guardrails/check.mjs --base "origin/$BASE_REF" --only php-syntax,js-syntax,tekster
         env:
           BASE_REF: ${{ github.base_ref }}
 
