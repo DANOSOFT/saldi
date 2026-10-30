@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- api/rest_api.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -89,8 +89,10 @@
 //                debtor gets the first DG group), and keeps the shop's momssats if no group is
 //                found, instead of an SQL error on kodenr = '' and momssats 0 (MB-116)
 // 20261027 CL/SZ insert_shop_order: initialise $ktonr so a tenant with no debtors gets account 1000 instead of a PHP 8 TypeError (MB-115).
+// 20261027 CDX/MJ SST-876 Drain webshop retry updates only after the outer invoice transaction commits.
 // 20261028 CL/MMR SST-905 shop_order_cvr_ean_from_card() treats a CVR or EAN of only non-breaking spaces (&nbsp; from the shop) as blank, so the customer card's value is used.
 //                 trim() keeps U+00A0, so such an order kept a blank-looking CVR and its e-invoice went out without one.
+// 20261029 CDX/MJ SST-876 Preserve both API histories while integrating current master.
 
 
 // ----------------------------------------------------------------------
@@ -899,6 +901,9 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		return($svar);
 	}
 	transaktion ('commit');
+	if (!$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; Postgres rolls it back on commit but $svar was reported OK, so surface the failure instead of a phantom success id (SD-595)
 		fclose($log);
 		return "Database write failed while posting order $saldi_id";

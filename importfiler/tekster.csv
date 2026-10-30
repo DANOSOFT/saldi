@@ -5303,6 +5303,9 @@
 7642	Brug fakturaens værdier	Use the invoice values	Bruk fakturaens verdier
 7643	linjen	the line	linjen
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+5442	Lagertallet blev ikke opdateret i webshoppen for	The stock level was not updated in the webshop for	Lagernivået ble ikke oppdatert i nettbutikken for
+
+5443	Webshopopdateringen afventer og forsøges automatisk igen ved næste lageropdatering for	The webshop update is pending and will be retried automatically on the next stock update for	Nettbutikkoppdateringen venter og forsøkes automatisk igjen ved neste lageroppdatering for
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
 5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med

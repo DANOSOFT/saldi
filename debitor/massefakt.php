@@ -1,5 +1,5 @@
 <?php	
-// ------------- debitor/massefakt.php ----- (modul nr 6)------ lap 2.0.9----2009-09-14-------
+// ------------- debitor/massefakt.php ----- (modul nr 6)------ ver 5.1.0----2026-10-29-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,8 +14,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261022 CL/MJ SST-876 Names the items the webshops would not take, at both exits: this page
+//                 invoices ten orders and then hands over to itself for the next ten, and
+//                 anything printed after that refresh is never written.
+// ----------------------------------------------------------------------
+// 20261028 CDX/MJ SST-876 Maintain file history metadata for the webshop synchronization review.
+// 20261029 CDX/MJ SST-876 Match the header version to the mass-invoicing warning behavior.
 
 @session_start();
 $s_id=session_id();
@@ -107,10 +113,16 @@ while ($ordre_id) {
 		else $qtxt= "select count(*) as antal from ordrer where (status='1' or status='2') and art='DO'";
 		if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) echo "Vent - $r[antal] ordrer tilbage<br>"; 
 		$tmp=explode($rest_id);
+		# SST-876: this request invoiced up to ten orders and each one committed as it went, so
+		# the webshops have been told by now. Reported before the refresh, because the refresh
+		# hands the page over to the next ten orders and anything printed after it is lost.
+		shopSyncAlertFailedItems();
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=massefakt.php?ordre_id=$ordre_id&ordre_antal=$ordre_antal&rest=$rest&rest_id=$tmp&skriv=$skriv\">";
 		exit;
 	}
 }
+# SST-876: the end of the run, for the orders invoiced since the last refresh.
+shopSyncAlertFailedItems();
 include("../includes/genberegn.php");
 genberegn($regnaar);
 
