@@ -148,6 +148,7 @@
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
 // 20261030 CL/MMR SST-913: opret_ordrelinje() compares the item's own sales price ($productPrice) for the fixed-margin cost, not a reused query row (undefined salgspris warning).
+//                 The surrounding block now has braces on its multi-line if/else statements (no behaviour change).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -4079,8 +4080,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$varegruppe = (int) $r['gruppe'];
 		$samlevare = $r['samlevare'];
 		$varerabatgruppe = $r['dvrg'] * 1;
-		if (!$pris && $b2b)
+		if (!$pris && $b2b) {
 			$pris = $r['tier_price'] * 1;
+		}
 		$specialType = $r['specialtype'];
 		$special_price = $r['special_price'] * 1;
 		$special_from_date = $r['special_from_date'];
@@ -4091,8 +4093,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$beholdning = ($r['beholdning']) * 1;
 		(strpos($r['m_antal'], ';')) ? list($m_antal, $temp) = explode(";", $r['m_antal'], 2) : $m_antal = $r['m_antal'];
 		$m_antal = trim($m_antal);
-		if (!is_numeric($m_antal))
+		if (!is_numeric($m_antal)) {
 			$m_antal = 0;
+		}
 		if (!$varegruppe) {
 			return ("Varenr $varenr er ikke tilknyttet en varegruppe!");
 		}
@@ -4102,8 +4105,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		}
 		if ($folgevare) {
 			$qtxt = "select varenr from varer where id='$folgevare'";
-			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
+			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$folgevare = 0;
+			}
 		}
 		if (!$beskrivelse) {
 			$beskrivelse = db_escape_string(trim($r['beskrivelse']));
@@ -4111,15 +4115,17 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				$r2 = db_fetch_array(db_select("select kodenr from grupper where art='VSPR' and box1 = '$formularsprog'", __FILE__ . " linje " . __LINE__));
 				$kodenr = $r2['kodenr'] * 1;
 				$r2 = db_fetch_array(db_select("select tekst from varetekster where sprog_id='$kodenr' and vare_id='$vare_id'", __FILE__ . " linje " . __LINE__));
-				if ($r2['tekst'])
+				if ($r2['tekst']) {
 					$beskrivelse = db_escape_string($r2['tekst']);
+				}
 			}
 		}
 		#		if (!$posnr && $art!='PO' && $r2=db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__))) {
 		if (!$posnr && $r2 = db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__))) {
 			$posnr = $r2['posnr'] + 1;
-		} elseif (!$posnr)
+		} elseif (!$posnr) {
 			$posnr = 1;
+		}
 		$qtxt = "select box4,box6,box7,box8 from grupper ";
 		$qtxt .= "where art = 'VG' and kodenr = '$varegruppe' and fiscal_year = '$regnaar'";
 		if (!$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -4128,8 +4134,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		}
 		$bogfkto = $r2['box4'];
 		$omvare = $r2['box6'];
-		if (!$momsfri)
+		if (!$momsfri) {
 			$momsfri = $r2['box7']; #20170207
+		}
 		$lagerfort = $r2['box8'];
 		if (!$bogfkto) {
 			$alerttekst = findtekst(319, $sprog_id) . " " . $varegruppe . "!";
@@ -4141,10 +4148,12 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "select box1,box2 from grupper where fiscal_year = '$regnaar' and kodenr = '$afd' and art = 'SM'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					if ($r['box1'])
+					if ($r['box1']) {
 						$vatAccount = (int) $r['box1'];
-					if ($r['box2'])
+					}
+					if ($r['box2']) {
 						$varemomssats = (float) $r['box2'];
+					}
 				}
 			} else {
 				$qtxt = "select moms from kontoplan where kontonr = '$bogfkto' and regnskabsaar = '$regnaar'";
@@ -4152,10 +4161,12 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				if ($tmp = (int) substr($r['moms'], 1)) {
 					$qtxt = "select box1,box2 from grupper where art = 'SM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
 					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					if ($r['box1'])
+					if ($r['box1']) {
 						$vatAccount = (int) $r['box1'];
-					if ($r['box2'])
+					}
+					if ($r['box2']) {
 						$varemomssats = (float) $r['box2'];
+					}
 				} else {
 					$varemomssats = $momssats;
 					$vatAccount = 0;
@@ -4170,11 +4181,13 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		if (
 			($special_from_date < $dd || ($special_from_date == $dd && $special_from_time <= $tt)) &&
 			($special_to_date > $dd || ($special_to_date == $dd && $special_to_time >= $tt))
-		)
+		) {
 			$SpecialPeriod = 1;
+		}
 		if ($SpecialPeriod && $special_price && $specialType == 'percent') {
-			if ($rabat_ny == 0)
+			if ($rabat_ny == 0) {
 				$rabat_ny = $special_price;
+			}
 			$special_price = 0;
 		}
 		if (!$pris) {
@@ -4190,30 +4203,35 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				$pris = $special_price;
 				$kostpris = $campaignCost * 1;
 			} else {
-				if ($pris != '0')
+				if ($pris != '0') {
 					$pris = $productPrice; #20140124
+				}
 				$kostpris = $productCost * 1;
-				if ($pris == 0 && $kostpris < 1)
+				if ($pris == 0 && $kostpris < 1) {
 					$fast_db = $kostpris;
+				}
 			}
 		} elseif ($momsfri) {
 			$kostpris = $productCost * 1;
 		} else {
 			$ms = $varemomssats;
-			if ($momssats < $varemomssats)
+			if ($momssats < $varemomssats) {
 				$varemomssats = $momssats;
-			if ($incl_moms && $varemomssats)
+			}
+			if ($incl_moms && $varemomssats) {
 				$pris = $pris - ($pris * $varemomssats / (100 + $varemomssats)); # 20190111 fjernet: $art=='PO' &&
-			else
+			} else {
 				$pris *= 1; #20140124
+			}
 			$kostpris = $productCost * 1;
 		}
 		#		fwrite($log,__line__." Pris $pris\n");
 		if ($pris && $productPrice == 0 && $kostpris < 1 && $kostpris > 0) {
 			$fast_db = $kostpris;
 			$kostpris = ($pris - $pris * $rabat_ny / 100) * $kostpris;
-		} else
+		} else {
 			$fast_db = 0;
+		}
 	} elseif (!$kopi) {
 		if ($webservice) { #20150218
 			if ($varenr) {
