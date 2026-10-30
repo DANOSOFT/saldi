@@ -40,6 +40,12 @@
 // 20261030 CDX/PHR Make Enter save the budget instead of filling it with last year's figures.
 // 20261030 CDX/NTR Cast budget IDs to int and replace if_isset calls with ifset.
 //                  Read posted IDs safely and initialize the ID grid independently of duplicate cleanup, including when filling from last year's figures.
+// 20261030 CDX/NTR Reject saves with missing budget dimensions before any includes or database writes.
+
+if (!isset($_POST['udfyld']) && isset($_POST['gem']) && !isset($_POST['kontoantal'], $_POST['maanedantal'])) {
+	http_response_code(400);
+	exit('Budget submission is incomplete. Reload the page and try again.');
+}
 
 @session_start();
 $s_id=session_id();

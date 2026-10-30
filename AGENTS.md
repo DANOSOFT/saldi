@@ -26,6 +26,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | Cast or escape every outside value in SQL; HTML/JS output escaped (`jsString()`); `returside` through `nav_sanitize_returside()` | review, CodeRabbit | [convention_sql_escaping](doc/ai/convention_sql_escaping.md) |
 | SQL runs on Postgres, MySQL and MariaDB; `information_schema` queries filter on the tenant's schema | review, CodeRabbit | CI only runs Postgres |
 | A fix reaches every copy of the code it fixes (grid copies, the several save paths) | review | |
+| Budget saves require both posted counts (`kontoantal`, `maanedantal`) before any includes or database writes | PHPUnit `BudgetSubmissionTest` | |
 | Ledger, posting and migration changes get Nicolai's review | review | |
 | CodeRabbit findings are answered before a human is asked to review | review | |
 | Braces on multi-line bodies; `__DIR__` includes; `@var` provenance blocks; controller/view split; PHPDoc shapes; keep `<?= 'text' ?>` tags | review | [doc/ai/MEMORY.md](doc/ai/MEMORY.md) |
