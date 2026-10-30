@@ -25,6 +25,7 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261028 CL/LH The first-grace-period test pinned a defect that #444 fixed; it now asserts the fix.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -81,27 +82,14 @@ final class DunningCharacterizationTest extends CharacterizationTestCase
     }
 
     /**
-     * DEFECT PINNED: ffdage1, the "days overdue before the first dunning"
-     * setting, has no effect at all - an invoice is dunned the day after it
-     * falls due no matter what the setting says.
+     * ffdage1, the "days overdue before the first dunning" setting, holds an
+     * invoice back until its grace period has passed.
      *
-     * ny_rykker.php:75 computes the cutoff before $dd exists:
-     *
-     *     $rykkerfrist1 = usdate(forfaldsdag($dd, 'netto', $ffdage1));
-     *
-     * $dd is not assigned until line 83, inside the "alle" branch below.
-     * forfaldsdag() returns NULL for an empty date (forfaldsdag.php:33), and
-     * usdate(NULL) falls back to today (std_func.php:~1290). So $rykkerfrist1
-     * is today, the open-post query at :121 selects everything with
-     * forfaldsdate <= today, and $ffdage1 is discarded.
-     *
-     * This is the same family of bug as the ffdage2/ffdage3 semicolon fixed
-     * in b09ccd49 (PR #422), at a third site that fix did not reach.
-     *
-     * When it is fixed, this test will fail; rewrite it to assert that an
-     * invoice inside the grace period is left alone.
+     * ny_rykker.php used to compute the cutoff before $dd existed, so the
+     * setting was discarded and an invoice was dunned the day after it fell
+     * due. #444 fixed that (dunning_cutoff_date($ffdage1)).
      */
-    public function test_the_first_dunning_grace_period_is_ignored(): void
+    public function test_an_invoice_inside_the_first_grace_period_is_not_dunned(): void
     {
         $debtor = self::$fx->debtor();
         // Well inside the configured 8-day grace period.
@@ -109,17 +97,15 @@ final class DunningCharacterizationTest extends CharacterizationTestCase
 
         $this->runDunning();
 
-        $this->assertCount(
-            1,
+        $this->assertSame(
+            [],
             $this->dunningsFor($debtor),
-            'an invoice one day overdue is dunned despite ffdage1 = ' . self::FFDAGE1
+            'an invoice one day overdue is not dunned while ffdage1 = ' . self::FFDAGE1
         );
     }
 
     /**
-     * The cutoff really is "today": an invoice that is not yet due is not
-     * dunned. This bounds the defect above - dunning is one day early
-     * relative to the setting, not arbitrary.
+     * An invoice that is not yet due is not dunned.
      */
     public function test_an_invoice_not_yet_due_is_not_dunned(): void
     {
