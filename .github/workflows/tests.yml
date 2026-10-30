@@ -71,6 +71,9 @@ jobs:
         # through the pages, against a clone of the tenant bootstrap-stack.sh
         # installed. Each suite skips itself when its setting is missing, so a
         # run without these variables is green without having touched them.
+        # tests/shopify clones the same tenant into saldi_shopify_test_ci_<x>
+        # databases; the name stays short because master regnskab.db is
+        # varchar(25).
         env:
           FIXTURE_PG: host=postgres dbname=saldi_char_fixture user=user password=${{ env.SALDI_PGPASS }}
         run: >-
@@ -81,6 +84,10 @@ jobs:
           -e SALDI_CHAR_PG_DSN="$FIXTURE_PG"
           -e SALDI_CHAR_DSN="pgsql:host=postgres;dbname=saldi_char_fixture"
           -e ACTIVE_FISCAL_YEARS_PG="$FIXTURE_PG"
+          -e SALDI_SHOPIFY_PGUSER=user
+          -e SALDI_SHOPIFY_PGPASS="$SALDI_PGPASS"
+          -e SALDI_SHOPIFY_TEMPLATE_DB="$SALDI_E2E_TENANT_DB"
+          -e SALDI_SHOPIFY_TEST_DB=saldi_shopify_test_ci
           -w /var/www/html/saldi web
           php vendor/bin/phpunit --testdox --log-junit /tmp/phpunit-junit.xml
 

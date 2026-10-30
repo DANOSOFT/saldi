@@ -64,7 +64,34 @@ The worker turns `received` events into jobs, `ORDERS_PAID` first. An event it c
 
 Look at the inbox with `SELECT id, topic, event_id, state, job_id FROM shopify_events ORDER BY id DESC LIMIT 20;`.
 
-Real deliveries from a Shopify store need a public HTTPS URL (ssl12 staging or a tunnel) and registered subscriptions; registration comes with SD-749.
+## Webhook registration, health check and replay (SD-749)
+
+Real deliveries from a Shopify store need a public HTTPS URL for the install and the shop's subscriptions pointed at it. Until the fixed ssl12 staging host exists, use a tunnel per developer:
+
+```sh
+cloudflared tunnel --url http://localhost:5000   # prints https://<random>.trycloudflare.com
+```
+
+The base URL is that host plus the install path, e.g. `https://<random>.trycloudflare.com/saldi`. The tenant must be the one the endpoint serves (`SALDI_SHOPIFY_DB` or `.ht_shopify_db`, see above); otherwise the command refuses. It doesn't check that the base URL points at this install, so pass this install's URL. Register every shop's subscriptions (or one with `--shop=hml`):
+
+```sh
+php tools/shopify_worker.php register-webhooks --db=saldi_shopify_test_xx --base-url=https://<random>.trycloudflare.com/saldi
+```
+
+- It subscribes the 10 P1 topics (`ORDERS_CREATE`, `ORDERS_PAID`, `ORDERS_UPDATED`, `ORDERS_CANCELLED`, `ORDERS_FULFILLED`, `CUSTOMERS_CREATE`, `CUSTOMERS_UPDATE`, `FULFILLMENTS_CREATE`, `FULFILLMENTS_UPDATE`, `REFUNDS_CREATE`) to `<base URL>/api/shopify/webhook.php?shop=<shop_key>`. `INVENTORY_LEVELS_UPDATE` is not subscribed in P1.
+- A second run sends nothing. When the tunnel URL changes, run it again with the new URL: it moves our subscriptions (any URI ending in `/api/shopify/webhook.php?shop=<shop_key>`) and leaves every other subscription alone.
+- Without `--base-url` it takes `SALDI_SHOPIFY_WEBHOOK_BASE_URL`, else the base URL stored by the last run (settings group `shopify`, `webhook_base_url`).
+- It prints one JSON line per shop and exits 1 when a topic failed.
+- **A custom app has one set of subscriptions.** If two developers share an app on one sandbox, the last run's URL wins. Use one custom app per developer per sandbox, or point a shared app at ssl12 staging and test locally with replay.
+- The hourly `webhook.health` job (shops with orders or customers on) re-creates, with the stored base URL, any topic Shopify deleted after failed deliveries, so it comes back within the hour. It never moves a subscription (that's `register-webhooks`), so two installs sharing an app don't move each other's every hour. Restored topics are logged as `shopify_webhook subscriptions_restored`, failures as `shopify_webhook health_failed` (the next hour tries again). For a shop with a wrong domain or API version the job dies with an alarm, each hour until the shop is fixed. Before the first `register-webhooks` it does nothing.
+
+Replay feeds a recorded day of webhooks back through the receiver, each delivery signed at run time with the shop's webhook secret. It runs on test tenants (`saldi_shopify_test_*`) only. Day files live under `tests/shopify/fixtures/` (synthetic or sanitized only, never test_12 data); see `tests/shopify/fixtures/webhooks/days/2026-10-27.json`:
+
+```sh
+php tools/shopify_worker.php replay --db=saldi_shopify_test_xx --shop=hml --file=tests/shopify/fixtures/webhooks/days/2026-10-27.json --promote=1
+```
+
+A day replayed again answers `duplicate` for every delivery and queues nothing new.
 
 ## Tests
 
@@ -77,6 +104,8 @@ vendor/bin/phpunit --testsuite shopify
 ```
 
 `WebhookEndpointTest` also needs the install's `includes/connect.php` on the same master database; it serves the endpoint with `php -S`.
+
+`WebhookRegistrationTest` runs the registration against a fake store (`tests/shopify/support/FakeWebhookShop.php`); nothing reaches Shopify.
 
 The sandbox check for K03 runs on the server against the deployed endpoint and cleans up after itself:
 

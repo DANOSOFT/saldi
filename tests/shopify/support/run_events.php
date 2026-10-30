@@ -8,6 +8,10 @@
 //            enqueue of fail_type throws before writing; with sql_error the order.import enqueue
 //            writes its job and then fails in SQL; with misuse every enqueue sends COMMIT itself;
 //            with real_queue the enqueue is SD-737's own includes/shopify/queue.php
+//   health   <base_url|-> [fail_create]  the webhook.health handler for shop hml against
+//            FakeWebhookShop, which has every topic at the base URL but ORDERS_PAID (missing) and
+//            REFUNDS_CREATE (at another install); stores the base URL first unless -; with
+//            fail_create the ORDERS_PAID create answers a userError
 // Prints JSON on stdout: the results, or the error that ended the run.
 //
 // This runner stands in for S02c's shopify_error_open() and S02b's queue, because the failure
@@ -24,6 +28,8 @@
 // 20261027 CL/SZ SD-748: real_queue runs promotion on SD-737's queue (#918) instead of the stand-in.
 // 20261028 CL/SZ SD-748: no_alarm replaced by real, S02c's error list and SD-737's queue (#948).
 // 20261028 CL/SZ SD-748 review: alarm_fails_once.
+// 20261028 CL/SZ SD-749: mode health.
+// 20261029 CL/SZ SD-749 review: health fail_create raises its alarm on S02c's real error list.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_events.php <receive|promote> <test_db> <deliveries.json|limit> [fail_type]\n");
@@ -49,8 +55,10 @@ function out(array $data, int $exit = 0): void
 
 $failType = $argv[4] ?? '';
 
-// With real the stand-in is not defined: events.php loads S02c's errors.php.
-if ($failType !== 'real') {
+// With real and with health's fail_create neither stand-in is defined: events.php loads S02c's errors.php,
+// which loads SD-737's queue.php.
+$realErrorList = $failType === 'real' || $failType === 'fail_create';
+if (!$realErrorList) {
 function shopify_error_open(?int $shopId, string $kind, string $ref, string $message, string $severity = 'error', array $correlation = []): int
 {
     global $failType;
@@ -68,8 +76,8 @@ function shopify_error_open(?int $shopId, string $kind, string $ref, string $mes
 }
 }
 
-// With real_queue or real the stand-in is not defined: queue.php is loaded instead.
-if ($failType !== 'real_queue' && $failType !== 'real') {
+// With real_queue (or a real error list) the stand-in is not defined: queue.php is loaded instead.
+if ($failType !== 'real_queue' && !$realErrorList) {
 function shopify_queue_enqueue(string $type, ?int $shopId, string $dedupeKey, array $payload, int $priority, ?DateTimeImmutable $runAt = null, array $correlation = []): array
 {
     global $failType;
@@ -139,6 +147,25 @@ try {
             // no break: out() exits
         case 'promote':
             out(['result' => shopify_promote_events((int)$argv[3])]);
+            // no break: out() exits
+        case 'health':
+            require_once __DIR__ . '/FakeWebhookShop.php';
+            if ($argv[3] !== '-') {
+                shopify_save_webhook_base_url($argv[3]);
+            }
+            $store = new FakeWebhookShop();
+            $base = shopify_webhook_base_url();
+            foreach ($base === null ? [] : SHOPIFY_WEBHOOK_TOPICS as $topic) {
+                if ($topic !== 'ORDERS_PAID') {
+                    $store->add($topic, shopify_webhook_uri($topic === 'REFUNDS_CREATE' ? 'https://other-install.example.dk/sz' : $base, 'hml'));
+                }
+            }
+            if ($failType === 'fail_create') {
+                $store->fail['ORDERS_PAID'] = 'user_error';
+            }
+            $job = ['id' => 1, 'shop_id' => (int)shopify_shop('hml')['id']];
+            $done = shopify_webhook_health_job($job, time() + 30, fn(): bool => true, $store->opts());
+            out(['result' => $done, 'ops' => $store->ops(), 'topics' => $store->byTopic()]);
             // no break: out() exits
         default:
             fwrite(STDERR, "unknown mode $mode\n");

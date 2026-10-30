@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- debitor/api.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,15 @@
 // 20261026 CL/MMR SD-774 An order or card CVR field holding the EAN/GLN, or no real number such as "-" or "N/A", is not used as the CVR (einvoice_cvr_present()), so the card's real CVR is sent, or the send is blocked when neither has one.
 //                 A Danish receiver on a GLN scheme like "GLN:5798..." without a CVR gets the same explanation instead of the old alert, and a missing card row no longer raises warnings.
 // 20261026 CL/MMR SD-774 easyUblCvrMissing() takes the database, encoding and language as parameters instead of globals; sendInvoice() gets them from its caller in $context.
+// 20261028 CL/MMR SST-905 An EAN written with the Peppol scheme 0088 ("0088:7350043510008") is sent as a GLN, like a plain EAN, and companyId comes from the order's or card's CVR.
+//                 0088 is the GS1 GLN; it was mapped to the Swedish organisation number (SE:ORGNR) and sent as "SE<gln>", also as companyId (MEDSHOP faktura 238877, Error 2026-07-07).
+// 20261029 CL/MJ SST-885 sendInvoice() and sendOrder() send "Bemærkning til ordre" (ordrer.notes) as the note only when the company has ticked "Send 'Bemærkning til ordre' med på e-fakturaer" (easyUblOrderNote()).
+//                 It is meant for internal remarks and the PDF only prints it when the form has the field, but every e-invoice carried it (MEDSHOP: 92 of 844 since April).
+// 20261030 CL/MJ SST-873 sendInvoice() leaves the Danish reg.nr./account out of the
+//                  paymentMeans when the invoice is foreign and an IBAN is on file, so
+//                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
+//                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
+//                  without the spaces Stamdata stores them with.
 
     @session_start();
     $s_id=session_id();
@@ -496,6 +505,21 @@
         exit;
     }
 
+    /**
+     * SST-885: "Bemærkning til ordre" (ordrer.notes) is where customers keep internal remarks, and the
+     * PDF prints it only when the form has the field. An e-document carries it as its note only when
+     * the company has ticked "Send 'Bemærkning til ordre' med på e-fakturaer" (Ordrerelaterede valg).
+     *
+     * @param string|null $notes ordrer.notes
+     * @return string The note to send; empty unless the setting is on
+     */
+    function easyUblOrderNote($notes) {
+        if (get_settings_value("sendOrderNote", "easyUBL", "off") !== "on") {
+            return "";
+        }
+        return (string)$notes;
+    }
+
     // Setting up the invoice data
     /**
      * @param int $id The Orders ID
@@ -554,11 +578,13 @@
             // Change === true to !== false
             $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
             $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
-            if(is_numeric($endpointType)){
+            if($endpointType === "0088"){
+                // SST-905: ICD 0088 is the GS1 GLN, so "0088:<gln>" is routed like a plain EAN, and companyId comes from the CVR below
+                $endpointType = "GLN";
+            } else if(is_numeric($endpointType)){
                 $peppolSchemes = [
                     "0184" => ["prefix" => "DK", "type" => "DK:CVR"],
                     "0007" => ["prefix" => "SE", "type" => "SE:ORGNR"],
-                    "0088" => ["prefix" => "SE", "type" => "SE:ORGNR"],
                     "9908" => ["prefix" => "NO", "type" => "NO:ORGNR"],
                     "0192" => ["prefix" => "NO", "type" => "NO:ORG"],
                     "0037" => ["prefix" => "FI", "type" => "FI:OVT"],
@@ -720,6 +746,31 @@
         if (einvoice_cvr_missing($r_faktura["ean"], $r_faktura["cvrnr"], $r_faktura["land"] ?? "")) {
             easyUblCvrMissing(trim((string)$r_faktura["ean"]), $id, $db, (string)($context["db_encode"] ?? "UTF8"), $context["sprog_id"] ?? 1);
         }
+
+        // 20261021 CL/MJ SST-873 EasyUBL's API has no field for PaymentMeansCode and takes one
+        // paymentMeans object rather than a list, so the code it writes is decided entirely by
+        // which of the fields are filled. Reg.nr. and account number give a Danish 42, which is
+        // the format a foreign recipient's bank cannot act on. Leaving them out when the invoice
+        // is foreign and an IBAN is on file is the only lever Saldi has for asking for 30 or 58,
+        // and it is safe in exactly that case because IBAN and BIC are then left to identify the
+        // account. Without an IBAN nothing changes and the invoice keeps its 42.
+        $invoiceCurrency = strtoupper(trim($r_faktura["valuta"] ?? ""));
+        // An empty currency is this install's own, not a foreign one.
+        $foreignPayment = ($countryCode !== "DK") || ($invoiceCurrency !== "" && $invoiceCurrency !== "DKK");
+
+        // Stamdata stores both exactly as typed and an IBAN is usually written in groups of four.
+        // The legacy OIOUBL generator in includes/oioublfunk.php strips the spaces for the same
+        // reason; EasyUBL is only given the account identifiers, so they have to be usable ones.
+        $paymentIban = preg_replace('/\s+/', '', (string)($adresse["iban"] ?? ""));
+        $paymentBic = preg_replace('/\s+/', '', (string)($adresse["swift"] ?? ""));
+        $paymentRegNo = $adresse["bank_reg"];
+        $paymentAccount = $adresse["bank_konto"];
+
+        if($foreignPayment && $paymentIban !== ""){
+            $paymentRegNo = "";
+            $paymentAccount = "";
+        }
+
         $data = [
             "invoiceCreditnote" => $creditNote,
             "id" => $r_faktura["fakturanr"],
@@ -729,7 +780,7 @@
             "orderReference" => $r_faktura['id'] ?? "", //TODO
             "invoiceReference" => "", //TODO
             "salesOrderID" => $r_faktura["ordrenr"],
-            "note" => $r_faktura["notes"],
+            "note" => easyUblOrderNote($r_faktura["notes"]), // 20261029 CL/MJ SST-885
             "buyerReference" => $r_faktura["kundeordnr"],
             "accountingCost" => "0",
             "externalReference" => "",
@@ -789,10 +840,10 @@
             "deliverAddress" => $deliverAddress,
             "paymentMeans" => [
                 "bankName" => $adresse["bank_navn"],
-                "bankRegNo" => $adresse["bank_reg"],
-                "bankAccount" => $adresse["bank_konto"],
-                "bic" => $adresse["swift"] ?? "",
-                "iban" => $adresse["iban"] ?? "",
+                "bankRegNo" => $paymentRegNo,
+                "bankAccount" => $paymentAccount,
+                "bic" => $paymentBic,
+                "iban" => $paymentIban,
                 "creditorIdentifier" => "",
                 "paymentID" => ""
             ],
@@ -1029,7 +1080,7 @@
             "dueDate" => usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']))."T00:00:00.000Z",
             "deliveryDate" => $r_faktura["levdate"]."T00:00:00.000Z",
             "salesOrderID" => $r_faktura["id"],
-            "note" => $r_faktura["notes"],
+            "note" => easyUblOrderNote($r_faktura["notes"]), // 20261029 CL/MJ SST-885
             "buyerReference" => $r_faktura["firmanavn"],
             "accountingCost" => "0",
             "accountingCustomerParty" => [
