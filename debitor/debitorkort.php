@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-10-07 ---
+// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -117,6 +117,12 @@
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
 //                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
+// 20261023 CL/MMR SD-774 A business card for a Danish customer with an EAN number shows a warning at the top when the CVR number is missing, as the receiver then rejects e-invoices to the customer.
+//                 It shows the same kind of warning when the stored CVR number is not valid.
+//                 The warning is decided on the saved values by debitorkortEinvoiceCvrBanner() in debitorkortIncludes/einvoiceCvrBanner.php and never blocks or changes the save.
+// 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
+//                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
+//                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
 @session_start();
 $s_id = session_id();
 
@@ -135,6 +141,7 @@ include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
+include_once(__DIR__ . '/debitorkortIncludes/einvoiceCvrBanner.php');
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
@@ -155,6 +162,9 @@ db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 #if (isset($_SESSION['debitorId'])) $_SESSION['debitorId'] = NULL;
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
+print "<script src=\"../javascript/Sortable.min.js\"></script>\n";
+print "<script src=\"../javascript/kontaktSortable.js\" defer></script>\n";
+print "<style>.kontakt-drag-handle{cursor:move;user-select:none;padding:0 4px 0 0;color:#15488f;} #kontaktpersoner .sortable-ghost{opacity:.5;}</style>\n";
 $_private = if_isset($_GET, NULL, 'privat');
 $_business = if_isset($_GET, NULL, 'erhverv');
 
@@ -1103,6 +1113,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 	}
 }
 
+$einvoiceCvrBanner = ''; # SD-774, set from the saved card below
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
@@ -1137,6 +1148,8 @@ if ($id > 0) {
 	$betalingsbet = trim($r['betalingsbet']);
 	$cvrnr = trim($r['cvrnr']);
 	$ean = trim($r['ean']);
+	// SD-774: decided on the saved values. The country goes in as stored, as $land above is HTML-escaped.
+	$einvoiceCvrBanner = debitorkortEinvoiceCvrBanner($kontotype, $ean, $cvrnr, (string)ifset($r, 'land', ''), $sprog_id, ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1');
 	$institution = htmlentities(trim($r['institution']), ENT_COMPAT, $charset);
 	$notes = htmlentities(trim($r['notes']), ENT_COMPAT, $charset);
 	$gruppe = trim($r['gruppe']);
@@ -1452,7 +1465,7 @@ function validateDebitorkort(form) {
 }
 </script>\n";
 
-print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
+print "<form name=debitorkort id='debitorkortForm' action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
@@ -1492,6 +1505,8 @@ print "<input type=hidden name=pbs_date value='$pbs_date'>\n";
 
 $bg = $bgcolor5;
 print "<input type=hidden name=gl_kontotype value='$kontotype'>\n";
+// SD-774: e-invoice CVR warning above the card fields, spanning its three columns.
+if ($einvoiceCvrBanner !== '') print "<tr><td colspan=3>$einvoiceCvrBanner</td></tr>\n";
 print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true;\">\n";
 if ($kontotype == 'privat') {
 
@@ -2506,19 +2521,27 @@ if ($kontotype == 'erhverv') {
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 
+		// Own tbody so javascript/kontaktSortable.js can drag the rows; the hidden ans_id/kontakt
+		// inputs sit inside the row so they travel with it. The card's <form> is closed by the HTML
+		// parser long before this table (it has no DOM children), so the rows are only form-associated
+		// through the parser; a moved row loses that, hence the explicit form='debitorkortForm'.
+		$dragTitle = htmlentities(findtekst('5455|Træk for at ændre rækkefølgen. Husk at gemme kortet bagefter', $sprog_id), ENT_COMPAT, $charset);
+		print "<tbody id='kontaktpersoner'>\n";
 		while ($r) {
 			$x++;
 			($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 			print "<tr bgcolor=$bg>\n";
-			print "<td width=10><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\"></td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
-			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td></td><td></td></tr>\n";
-			print "<input class='inpPasswordutbox' type=hidden name=ans_id[$x] value=$r[id]>\n";
+			print "<td width=10 nowrap><span class='kontakt-drag-handle' title=\"$dragTitle\">&#x2630;</span><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\" form='debitorkortForm'>";
+			print "<input type=hidden name=ans_id[$x] value=$r[id] form='debitorkortForm'>";
 			if ($x == 1) {
-				print "<input class='inputbox' type=hidden name=kontakt value='$r[navn]'>";
+				print "<input type=hidden name=kontakt value=\"" . htmlentities($r['navn'], ENT_QUOTES, $charset) . "\" form='debitorkortForm'>";
 			}
+			print "</td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td><td></td></tr>\n";
 			//fetch next
 			$r = db_fetch_array($q);
 		}
+		print "</tbody>\n";
 		print "<tr><td colspan='2' width='20%'><br></td></tr>\n";
 	}
 }

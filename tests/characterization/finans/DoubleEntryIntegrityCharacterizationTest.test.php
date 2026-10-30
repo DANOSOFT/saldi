@@ -8,19 +8,16 @@
 // (bogfor.php:751/757 accumulate $b_diff from the raw $dkkamount) but writes
 // each leg to the ledger rounded to two decimals. kassekladde.amount is
 // numeric(15,3), so the two can disagree: a voucher whose lines cancel out
-// exactly at three decimals passes the check and then posts legs that do not
-// cancel out at two.
-//
-// The tests below PIN that behavior rather than assert the invariant, because
-// the invariant does not currently hold - see
-// test_voucher_balanced_at_three_decimals_posts_an_unbalanced_ledger_entry.
-// If someone fixes the rounding, that test fails and should be rewritten to
-// assert balance; that is the point of pinning it.
+// exactly at three decimals can post legs that do not cancel out at two.
+// Until #674 that posted silently out of balance; now the posting is rolled
+// back, and the sub-ore tests below assert that nothing reaches the ledger.
 //
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261028 CL/LH The two sub-ore rounding tests pinned a defect that #674 fixed; they now assert
+//                that such a voucher is kept out of the ledger.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -88,28 +85,16 @@ final class DoubleEntryIntegrityCharacterizationTest extends CharacterizationTes
     }
 
     /**
-     * DEFECT PINNED: a voucher whose lines cancel out exactly at three
-     * decimals posts legs that do not cancel out at two.
+     * A voucher whose lines cancel out at three decimals but not after each
+     * leg is rounded to two is kept out of the ledger.
      *
-     * kassekladde.amount is numeric(15,3). The balance guard sums the raw
-     * amounts (finans/bogfor.php:751/757), finds $b_diff == 0 and skips the
-     * whole difference-handling block at bogfor.php:962. Each leg is then
-     * rounded to two decimals on its way into transaktioner, and the halves
-     * round up while the whole does not:
-     *
-     *     debit  0.005 -> 0.01
-     *     debit  0.005 -> 0.01
-     *     credit 0.010 -> 0.01
-     *     ledger: debit 0.02, credit 0.01
-     *
-     * The ledger is left one ore out of balance with nothing reported to the
-     * user. Reachable wherever sub-ore amounts enter a journal - currency
-     * conversion (valutaopslag) and bank/CSV imports both produce them.
-     *
-     * When the rounding is fixed, this test will fail; rewrite it to assert
-     * balance at that point.
+     * kassekladde.amount is numeric(15,3). Rounding each leg on its way into
+     * transaktioner turns 0.005 + 0.005 against 0.010 into 0.01 + 0.01 against
+     * 0.01. This used to post that one-ore imbalance silently; since #674
+     * (roll back unbalanced journal postings) the posting is rolled back
+     * instead, so nothing reaches the ledger.
      */
-    public function test_voucher_balanced_at_three_decimals_posts_an_unbalanced_ledger_entry(): void
+    public function test_voucher_balanced_only_at_three_decimals_is_kept_out_of_the_ledger(): void
     {
         [$a, $b] = self::$fx->plainAccounts(2);
 
@@ -119,25 +104,15 @@ final class DoubleEntryIntegrityCharacterizationTest extends CharacterizationTes
             ['bilag' => 1, 'debet' => null, 'kredit' => $b, 'amount' => 0.010],
         ], 'sub-ore split');
 
-        $this->assertGreaterThan(0, $result['rows'], 'the voucher is accepted, not rejected');
-        $this->assertEqualsWithDelta(0.02, $result['debet'], 0.0005, 'both half-ore debits round up');
-        $this->assertEqualsWithDelta(0.01, $result['kredit'], 0.0005, 'the one-ore credit does not');
-        $this->assertEqualsWithDelta(
-            0.01,
-            $result['debet'] - $result['kredit'],
-            0.0005,
-            'ledger is out of balance by one ore - see the docblock above'
-        );
+        $this->assertSame(0, $result['rows'], 'a voucher that would post one ore out of balance must not reach the ledger');
     }
 
     /**
-     * DEFECT PINNED: the same rounding gap scales with the number of lines.
-     *
-     * Five half-ore debits against one matching credit leave the ledger two
-     * ore out. A hundred would leave it fifty. The size of the discrepancy is
-     * bounded only by the line count, not by half an ore.
+     * The same holds when the rounding gap would grow with the line count:
+     * five half-ore debits against one matching credit used to post two ore
+     * out of balance; now nothing is posted.
      */
-    public function test_rounding_imbalance_scales_with_the_number_of_lines(): void
+    public function test_rounding_gap_over_many_lines_is_kept_out_of_the_ledger(): void
     {
         [$a, $b] = self::$fx->plainAccounts(2);
 
@@ -149,15 +124,7 @@ final class DoubleEntryIntegrityCharacterizationTest extends CharacterizationTes
 
         $result = $this->simulate($lines, 'sub-ore scaled');
 
-        $this->assertGreaterThan(0, $result['rows'], 'the voucher is accepted');
-        $this->assertEqualsWithDelta(500.05, $result['debet'], 0.0005, 'five legs each rounded up half an ore');
-        $this->assertEqualsWithDelta(500.03, $result['kredit'], 0.0005, 'the single credit leg rounds up once');
-        $this->assertEqualsWithDelta(
-            0.02,
-            $result['debet'] - $result['kredit'],
-            0.0005,
-            'the gap grows with the line count'
-        );
+        $this->assertSame(0, $result['rows'], 'a voucher that would post two ore out of balance must not reach the ledger');
     }
 
     /**
