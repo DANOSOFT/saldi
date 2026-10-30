@@ -7,13 +7,14 @@
 // would have sent. Anything the render prints is captured and reported.
 //
 // Usage: php run_render_document.php <test_db> <ordre_id> <formular>
-// Env: RENDER_PDFTK, RENDER_PS2PDF (commands passed as opts pdftk / ps2pdf).
+// Env: RENDER_PDFTK, RENDER_PS2PDF (commands passed as opts pdftk / ps2pdf); RENDER_DB_ID (render as that account).
 //
 // Prints one JSON object: result (render_document's array) or error (class, message and code),
 // mails, the printed output and the working directory before and after.
 //
 // History:
 // 20261029 CL/SZ SD-751: created.
+// 20261030 CL/SZ SD-751 review: RENDER_DB_ID renders as a second account on the same database.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_render_document.php <test_db> <ordre_id> <formular>\n");
@@ -61,6 +62,9 @@ putenv('FAKE_PDFTK_CALLER=' . getmypid());
 $out = array();
 try {
     shopify_bootstrap($testDb);
+    if (($value = getenv('RENDER_DB_ID')) !== false && $value !== '') {
+        $db_id = (int)$value; // a second account on the same database
+    }
     $out['cwd_before'] = getcwd();
     $opts = array();
     foreach (array('pdftk' => 'RENDER_PDFTK', 'ps2pdf' => 'RENDER_PS2PDF') as $opt => $env) {

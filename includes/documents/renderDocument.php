@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/documents/renderDocument.php --- ver 5.1.0 --- 2026.10.29
+// --- includes/documents/renderDocument.php --- ver 5.1.0 --- 2026.10.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 20261029 CL/SZ SD-751: created (WP11-1).
 // 20261029 CL/SZ SD-751: a brand without a letterhead of its own renders without one, never on another brand's letterhead.
 // 20261029 CL/SZ SD-751 review: $levNr reaches formularprint()'s global $lev_nr; docblock says which data a stored PDF freezes.
+// 20261030 CL/SZ SD-751 review: the account (db_id) is in the cache key; a brand that isn't a plain file name is refused.
 
 require_once __DIR__ . '/../stdFunc/renderPrintBatch.php';
 
@@ -96,6 +97,10 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 	}
 	$formular = $order['art'] === 'DK' ? 5 : 4;
 	$brand = strtolower((string)$order['sprog']) ?: 'dansk'; // as formularprint() reads it, untrimmed
+	if ($brand !== basename($brand)) {
+		// the brand names the letterhead files in logolib/, so it never leaves the account's folder
+		throw new DocumentRenderError("brand $brand is not a file name");
+	}
 	// formularprint() falls back to another layout when the brand has no line fields; refuse instead.
 	$brandSql = "lower(sprog) = '" . db_escape_string($brand) . "'";
 	$qtxt = "SELECT 1 FROM formularer WHERE formular = $formular AND art = 3 AND beskrivelse <> 'generelt' AND $brandSql LIMIT 1";
@@ -129,8 +134,9 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 		throw new DocumentRenderError("cannot create $dir");
 	}
 	// The order's own data is in the key, so a restored backup's different invoice under the same id and
-	// number never gets this one's PDF.
-	$sha = hash('sha256', implode('|', array($db, $ordreId, $formular, (int)$levNr, $fakturanr, $brand, $order['konto_id'],
+	// number never gets this one's PDF. The account is in it too: the letterhead comes from logolib/<db_id>/,
+	// and two accounts can share one database.
+	$sha = hash('sha256', implode('|', array($db, (int)$db_id, $ordreId, $formular, (int)$levNr, $fakturanr, $brand, $order['konto_id'],
 		$order['firmanavn'], $order['fakturadate'], $order['sum'], $order['moms'], $layout)));
 	$path = "$dir/.ht_doc_$sha.pdf";
 	$out = array(

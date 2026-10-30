@@ -12,6 +12,7 @@
 // 20261029 CL/SZ SD-751: created.
 // 20261029 CL/SZ SD-751: a brand without a letterhead of its own renders without one.
 // 20261029 CL/SZ SD-751 review: the refused-brand tests use brands no template has.
+// 20261030 CL/SZ SD-751 review: another account on the same database gets its own PDF; a brand with a / is refused.
 
 use PHPUnit\Framework\TestCase;
 
@@ -183,6 +184,18 @@ final class RenderDocumentTest extends TestCase
         $this->assertTrue($second['rendered']);
     }
 
+    public function testAnotherAccountOnTheSameDatabaseGetsItsOwnPdf(): void
+    {
+        // the letterhead comes from logolib/<db_id>/, so one account's PDF is never another's
+        $doc = $this->posted();
+        $first = $this->render($doc['id'])['result'];
+
+        $other = $this->render($doc['id'], 4, ['RENDER_DB_ID' => (string)(self::$dbId + 100000)])['result'];
+
+        $this->assertNotSame($first['path'], $other['path']);
+        $this->assertTrue($other['rendered']);
+    }
+
     public function testALayoutRowEditedInPlaceRendersANewPdf(): void
     {
         $doc = $this->posted();
@@ -228,6 +241,16 @@ final class RenderDocumentTest extends TestCase
         $out = $this->render($doc['id']);
 
         $this->assertSame(['class' => 'DocumentRenderError', 'message' => 'no layout for formular 4 in brand klingon', 'code' => 0], $out['error']);
+    }
+
+    public function testABrandThatIsNoPlainFileNameIsRefused(): void
+    {
+        // the brand names the letterhead files in logolib/<db_id>/
+        $doc = $this->posted('DO', 'Dansk/../Norsk');
+
+        $out = $this->render($doc['id']);
+
+        $this->assertSame(['class' => 'DocumentRenderError', 'message' => 'brand dansk/../norsk is not a file name', 'code' => 0], $out['error']);
     }
 
     public function testABrandWithOnlyTheGeneralLayoutRowIsRefusedToo(): void
