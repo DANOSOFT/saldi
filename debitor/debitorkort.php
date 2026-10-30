@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,10 +118,11 @@
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
 //                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
 // 20261023 CL/MMR SD-774 A business card for a Danish customer with an EAN number shows a warning at the top when the CVR number is missing, as the receiver then rejects e-invoices to the customer.
-// 20261029 CL/MJ SST-892 A new card drawn as private (most debitors are private) lost the company name from a CVR lookup: it went into a hidden field and Gem rebuilt it from the empty first and last name.
-//                 The company name is now a hidden row; choosing Erhverv shows it, a successful lookup chooses Erhverv, Gem keeps it, and the name check follows the chosen type.
 //                 It shows the same kind of warning when the stored CVR number is not valid.
 //                 The warning is decided on the saved values by debitorkortEinvoiceCvrBanner() in debitorkortIncludes/einvoiceCvrBanner.php and never blocks or changes the save.
+// 20261029 CL/MJ SST-892 A new card drawn as private (most debitors are private) lost the company name from a CVR lookup: it went into a hidden field and Gem rebuilt it from the empty first and last name.
+//                The company name is now a hidden row; choosing Erhverv shows it, a successful lookup chooses Erhverv, Gem keeps it, and the name check follows the chosen type.
+// 20261030 CL/MJ SST-892 Only a new card switches to Erhverv by itself after a lookup; on a saved card with contacts Gem refuses a type change and the edits were lost.
 @session_start();
 $s_id = session_id();
 
@@ -2698,6 +2699,8 @@ function split_navn($firmanavn)
 // 20261029 CL/MJ SST-892 Choosing Erhverv on a card drawn as private shows the company name instead of the first and
 // last name. A CVR lookup that finds a company name on such a card makes that choice for the user (cvrEfterOpslag(),
 // called by cvrapiopslag.js), so the name is visible and saved.
+// 20261030 CL/MJ SST-892 Only a new card switches by itself: a saved card with contacts can't change type (Gem
+// refuses it and reloads), so a lookup there would throw away the user's edits.
 print "<script type=\"text/javascript\">
 function debitorkortVisKontotype(kontotype) {
 	var firma = document.getElementById('debitorkort_firmanavn');
@@ -2707,6 +2710,9 @@ function debitorkortVisKontotype(kontotype) {
 	document.getElementById('debitorkort_fornavn').style.display = erhverv ? 'none' : '';
 	document.getElementById('debitorkort_efternavn').style.display = erhverv ? 'none' : '';
 }
+</script>\n";
+if (!$id) {
+	print "<script type=\"text/javascript\">
 function cvrEfterOpslag(data) {
 	var type = document.forms['debitorkort'] ? document.forms['debitorkort'].kontotype : null;
 	if (!type || type.value != 'privat' || !data.firmanavn) return;
@@ -2715,6 +2721,7 @@ function cvrEfterOpslag(data) {
 	debitorkortVisKontotype('erhverv');
 }
 </script>\n";
+}
 if (!$id || substr($cvrnr,0,1)  == '*') {
 	$cvrnr = trim($cvrnr,"*");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
