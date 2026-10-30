@@ -56,7 +56,7 @@ $projekt_til = if_isset($_GET, null, 'projekt_til');
 $simulering  = if_isset($_GET, null, 'simulering');
 $lagerbev    = if_isset($_GET, null, 'lagerbev');
 $page        = max(1, (int) if_isset($_GET, 1, 'page'));
-$per_page    = max(0, (int) if_isset($_GET, 0, 'per_page')); // 0 = all lines
+$per_page    = max(0, (int) ifset($_GET, 'per_page', 0)); // 0 = all lines
 
 include("rapport_includes/kontokort_moms.php");
 
