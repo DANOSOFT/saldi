@@ -52,7 +52,7 @@
     if(db_num_rows($query) > 0){
         $mailRow = db_fetch_array($query);
         try{
-            $mail = new PHPMailer();
+            $mail = new PHPMailer(true);
             $mail->isSMTP();                                            // Send using SMTP
             $mail->SMTPDebug = SMTP::DEBUG_OFF;
             $mail->Host     = $mailRow["host"];                       // Set the SMTP server to send through                       
@@ -77,7 +77,7 @@
         }
     }else{
         try{
-            $mail = new PHPMailer();
+            $mail = new PHPMailer(true);
             $mail->isSMTP();
             $mail->SMTPDebug = SMTP::DEBUG_OFF;
             $mail->Host     = 'localhost';

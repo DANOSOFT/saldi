@@ -1,5 +1,6 @@
 <?php
 $date = date("d-m-Y");
+$orderLines = '';
 while($orderLineRow = db_fetch_array($query)){
 	$orderLines .='
 	<table align="center" border="0" cellpadding="0" cellspacing="0" class="row row-6" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt;" width="100%">
