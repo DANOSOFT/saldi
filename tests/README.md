@@ -155,8 +155,8 @@ Confirm that an old backlog adds at most five seconds and cannot starve new item
 `php /path/to/phpunit.phar --no-configuration --do-not-cache-result tests/characterization/includes/PostingWarehouseTest.test.php`
 checks warehouse validation, department mapping priority, fallback, and SQL input handling.
 
-`SALDI_TEST_PG=1 php tests/integration/postingWarehouse.php` uses standard `PG*` connection
-variables (or `SALDI_TEST_PG_DSN`) and executes the shipped `linjeopdat()` and `lagerstatus()`
+`PostingWarehousePgTest` runs `tests/characterization/includes/support/posting_warehouse_pg.php` with
+`SALDI_CHAR_PG_DSN` (CI's fixture database) or `SALDI_TEST_PG_DSN`, and the script executes the shipped `linjeopdat()` and `lagerstatus()`
 functions against temporary PostgreSQL tables. It checks sales, credits, variants, existing
 and absent target rows, primary/legacy department mappings, unchanged valid warehouses,
 and companies without warehouses. All fixture writes are rolled back. No webshop is configured.

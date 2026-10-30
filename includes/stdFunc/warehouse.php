@@ -1,11 +1,12 @@
 <?php
-//--- includes/stdFunc/warehouse.php ---ver 5.0.0 ----2026-10-27 ---
+//--- includes/stdFunc/warehouse.php ---ver 5.1.0 ----2026-10-30 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261021 CL/MJ SST-883 warehouseIsDefined() - is a warehouse number still one this account
 //                  has? Order lines carry a warehouse from the moment they are written, so a
 //                  document posted later can name one that has since been taken out of use.
 // 20261027 CDX/MJ SST-883 Prefer the department warehouse mapping and validate both fallback mappings.
+// 20261030 CL/MJ SST-883 Header marker set to the release this behaviour ships in (5.1.0).
 
 if (!function_exists('warehouseIsDefined')) {
 	/**

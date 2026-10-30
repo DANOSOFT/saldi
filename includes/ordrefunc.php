@@ -906,7 +906,7 @@ function lagerstatus($vare_id, $variant_id, $lager, $antal)
 	# into resolvePostingWarehouse(), which declares it itself. Nothing else in this function
 	# reads it.
 
-	# Denne funktion bruges til regulering af lagerbeholdning i tilfælde hvor der er flere lagre
+	# Denne funktion bruges til regulering af lagerbeholdning i tilfælde hvor der er flere lagre 
 	# Kaldes fra funktionen batch_salg_lev... 
 
 	(int) $variant_id;

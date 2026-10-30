@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-883 Exercise the shipped posting writers against isolated PostgreSQL temporary tables.
 // Run with SALDI_TEST_PG_DSN or the standard PG* environment variables; no persistent data is changed.
-require_once __DIR__ . '/../../includes/std_func.php';
+// 20261030 CL/MJ SST-883 Moved here from tests/integration/ so PostingWarehousePgTest runs it in CI's characterization suite.
+require_once __DIR__ . '/../../../../includes/std_func.php';
 if (!extension_loaded('pgsql') || (!getenv('SALDI_TEST_PG_DSN') && !getenv('SALDI_TEST_PG'))) {
     echo "SKIP: set SALDI_TEST_PG=1 or SALDI_TEST_PG_DSN for PostgreSQL integration tests.\n";
     exit(0);
@@ -30,7 +31,7 @@ function check($condition, $message) {
 function scalar($sql) { return pg_fetch_result(db_select($sql), 0, 0); }
 
 // An optional source root lets the same assertions demonstrate the regression on the PR baseline.
-$sourceRoot = getenv('SALDI_POSTING_WAREHOUSE_SOURCE_ROOT') ?: dirname(__DIR__, 2);
+$sourceRoot = getenv('SALDI_POSTING_WAREHOUSE_SOURCE_ROOT') ?: dirname(__DIR__, 4);
 require_once $sourceRoot . '/includes/ordrefunc.php';
 $assertions = 0;
 db_modify('BEGIN');
