@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2026-09-29------------
+// --- systemdata/diverse.php -----ver 5.1.0 ----2026-10-30------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,6 +111,13 @@
 // 20260917 CL/LH Report a failed account reset as a message instead of an uncaught error page.
 // 20260924 LOE SD-657 Save the setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Save explicit HTML layout version choices without resetting older settings forms.
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261029 CL/MJ SST-885 ordre_valg saves "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL).
+// 20261029 CL/MMR SST-911 Save "Fakturér webshopordrer med ordredato" from Ordrerelaterede valg (settings ordre/webshopInvoiceOrderDate).
+//                 The save_webshop_invoice_order_date() handler runs before page output.
+// 20261029 CL/MMR SD-786 Save "Vis besked når kostprisen er anslået" (showCostEstimateNotice) under Ordrerelaterede valg.
+//                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
+// 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
 
 @session_start();
 $s_id = session_id();
@@ -134,6 +141,8 @@ if (is_file(__DIR__ . '/../bank_integration/includes/enabled.php')) {
 }
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
+include_once(__DIR__ . '/diverseIncludes/webshopInvoiceOrderDate.php');
+save_webshop_invoice_order_date((string)ifset($_SERVER, 'REQUEST_METHOD', ''), (string)ifset($_GET, 'sektion', ''), $_POST); #SST-911
 
 $defaultProvision = $sqlstreng = NULL;
 if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
@@ -638,119 +647,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'ordre_valg') {
-		$vatPrivateCustomers  = if_isset($_POST['vatPrivateCustomers']);
-		$vatBusinessCustomers = if_isset($_POST['vatBusinessCustomers']);
-		$hideRevenue          = (ifset($_POST, 'hideRevenue') === 'on') ? 'on' : 'off'; #SD-657
-		$box2                 = if_isset($_POST['box2']); #Rabatvarenr
-		$box3                 = if_isset($_POST['box3']); #folge_s_tekst
-		$box4                 = if_isset($_POST['box4']); #hurtigfakt
-		$box5                 = if_isset($_POST['straks_deb']) . ";" . if_isset($_POST['straks_kred']); #straks_bogf
-		$box6                 = if_isset($_POST['box6']); #fifo
-		$box7                 = if_isset($_POST['box7']); #
-		$box8                 = if_isset($_POST['box8']); #vis_nul_lev
-		$box9                 = if_isset($_POST['box9']); #negativt_lager
-		$box10                = if_isset($_POST['box10']); #
-		$box11                = if_isset($_POST['box11']); #advar_lav_beh
-		$box12                = if_isset($_POST['box12']); #$procentfakt
-		$box13                = if_isset($_POST['procenttillag']) . chr(9) . if_isset($_POST['procentvare']);
-		$box14                = if_isset($_POST['box14']);
-		$rabatvarenr          = if_isset($_POST['rabatvarenr']);
-		$kostmetode           = if_isset($_POST['kostmetode']);
-		$saetvarenr           = if_isset($_POST['saetvarenr']); #20150907
-		$orderNoteEnabled     = if_isset($_POST, null, 'orderNoteEnabled');
-		$debitoripad          = if_isset($_POST, null, 'debitoripad');
-		$portovarenr          = if_isset($_POST, null, 'portovarenr');
-		$showDB               = if_isset($_POST, null, 'showDB');
-		$showDG               = if_isset($_POST, null, 'showDG');
-		$pluklisteEmail       = if_isset($_POST, null, 'pluklisteEmail');
-		$lockPayment          = if_isset($_POST["lockPayment"]);
-		$ordreAutocomplete    = if_isset($_POST, null, 'ordreAutocomplete');
-		$gs1parsing           = if_isset($_POST, null, 'gs1_parsing');
-		$ourRefStockSwitch    = if_isset($_POST, null, 'ourRefStockSwitch');
-		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
-		
-		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
-
-
-		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
-		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
-		update_settings_value("porto_varnr", "ordre", $portovarenr, "Varenr to autmatically include on new orders");
-		update_settings_value("showDB", "ordre", $showDB, "Weather or not to show the DB on the order page");
-		update_settings_value("showDG", "ordre", $showDG, "Weather or not to show the DG on the order page");
-		update_settings_value("lockedInvoiceButton", "debitor", $lockPayment, "Locks the invoice button until payment has occured");
-		update_settings_value("ordreAutocomplete", "ordre", $ordreAutocomplete, "Enable or disable autocomplete search on order pages", $bruger_id);
-		update_settings_value("gs1_parsing", "ordre", $gs1parsing, "Enable GS1 barcode parsing on order line item entry");
-		update_settings_value("ourRefStockSwitch", "ordre", $ourRefStockSwitch, "Update order stock/warehouse from Our ref when the reference changes"); // Removed single quotes from description to avoid SQL syntax error
-		update_settings_value("stockWarningEnabled", "ordre", $stockWarningEnabled, "Show popup and require approval note when selling out-of-stock items (POS + Debtor/Order)");
-		update_settings_value("showBothAddrExtra", "ordre", $showBothAddrExtra, "Show both delivery address and extra fields simultaneously on open orders");
-		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
-			$box2 = $r['id'];
-		} elseif ($box2) {
-			$txt = str_replace('XXXXX', $box2, findtekst('289|Varenr. XXXXX eksisterer ikke.', $sprog_id));
-			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-		}
-		if ($box14 && !$box2) {
-			$txt = findtekst('1875|Samlet pris forudsætter at der er et varenr. til rabat', $sprog_id); #20210820
-			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-			$box14 = '';
-		}
-		#20150907 ->
-		$saetvareid = 0;
-		$qtxt = "select id from varer WHERE varenr = '$saetvarenr'";
-		if ($saetvarenr && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-			$saetvareid = $r['id'];
-		if ($saetvarenr && !$saetvareid) {
-			$txt = findtekst('1876|Varenummer for sæt eksisterer ikke', $sprog_id);
-			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-		}
-/*
-		if ($kostmetode) {
-			if ($r=db_fetch_array(db_select("select id from grupper WHERE art = 'VG' and box1 != box2",__FILE__ . " linje " . __LINE__))) {
-				$txt = findtekst(733, $sprog_id);
-				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=../systemdata/konv_lager.php\">\n"; # 20140424b
-				exit;
-			}
-		}
-*/
-		# <- 20150907
-		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='3'", __FILE__ . " linje " . __LINE__))) {
-			$id   = $r['id'];
-			$qtxt = "update grupper set  box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',";
-			$qtxt.= "box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',";
-			$qtxt.= "box14='$box14' WHERE id = '$id'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} else {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,";
-			$qtxt.= "box12,box13,box14) values ('Div_valg (Ordrer)','3','DIV','$box2','$box3','$box4','$box5','$box6',";
-			$qtxt.= "'$box7','$box8','$box9','$box10','$box11','$box12','$box13','$box14')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		
-		// Save VAT options to settings table
-		update_settings_value("vatPrivateCustomers", "ordre", $vatPrivateCustomers, "Show VAT on orders for private customers");
-		update_settings_value("vatBusinessCustomers", "ordre", $vatBusinessCustomers, "Show VAT on orders for business customers");
-		update_settings_value("hideRevenue", "finans", $hideRevenue, "Keep turnover from users without access to Settings");
-		
-		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))) {
-			$id = $r['id'];
-			db_modify("update grupper set box6='$kostmetode',box8='$saetvareid' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-		} else {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13) ";
-			$qtxt.= "values ('Div_valg','5','DIV','','','','','','','$kostmetode','','','','','','')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-
-		if ($r = db_fetch_array(db_select("select id from settings where var_name='orderNoteEnabled'", __FILE__ . " linje " . __LINE__))) { #20210729
-			$id   = $r['id'];
-			$qtxt = "update settings set var_value='$orderNoteEnabled' WHERE id='$id'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} else {
-			$qtxt = "insert into settings (var_name, var_value) values ('orderNoteEnabled','$orderNoteEnabled')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-
-		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
+		// SD-786: the save is a named handler (controller/view convention); its alerts are shown after the DB work
+		include_once(__DIR__ . '/diverseIncludes/saveOrderOptions.php');
+		print orderOptionsAlert(saveOrderOptions($_POST, $sprog_id, $bruger_id));
 
 		#######################################################################################
 	} elseif ($sektion == 'productOptions') {
@@ -1954,7 +1853,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 			
 			$ch       = curl_init();
-			$curl_url = "https://saldi.dk/locator/locator.php?action=insertUserCount&userCount=$new_max_users&dbName=$db";
+			$curl_url = "https://ssl3.saldi.dk/locator/locator.php?action=insertUserCount&userCount=$new_max_users&dbName=$db";
 			curl_setopt($ch, CURLOPT_URL, $curl_url);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 			curl_setopt($ch, CURLOPT_HTTPHEADER, array(
