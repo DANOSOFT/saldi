@@ -451,8 +451,9 @@
             db_modify("UPDATE ordrer SET digital_status = 'SendFailed' WHERE id = " . (int) $orderId, __FILE__ . " linje " . __LINE__);
             // SST-882: keep EasyUBL's reason in the invoice's e-invoice history
             $failed = db_fetch_array(db_select("SELECT fakturanr, cvrnr FROM ordrer WHERE id = " . (int) $orderId, __FILE__ . " linje " . __LINE__));
+            $failText = trim($outcome['message'] . ' ' . $outcome['detail']);
             einvoice_log_event((int) $orderId, (string) ($failed['fakturanr'] ?? ''), 'send', 'SendFailed',
-                trim($outcome['message'] . ' ' . $outcome['detail']), (string) ($failed['cvrnr'] ?? ''));
+                $failText !== '' ? $failText : "HTTP $outcome[http_code] $outcome[kind]", (string) ($failed['cvrnr'] ?? ''));
         }
 
         $txt = findtekst('5155|Digital afsendelse fejlede', $sprog_id) . "\n\n";

@@ -130,8 +130,9 @@ if (!function_exists('einvoice_event_is_rejection')) {
 	/**
 	 * Whether an event should be shown as a rejection on the order page.
 	 *
-	 * A delivered status (Sent and later) ends it, and so does a temporary validation problem that
-	 * EasyUBL retries by itself, or a status without any text to show.
+	 * Only a failure status counts: EasyUBL also sends text with informational statuses (Pending,
+	 * Sending ...), and a delivered status ends a rejection. A temporary validation problem that
+	 * EasyUBL retries by itself, or a failure without any text, is not shown either.
 	 *
 	 * @param array{status: string, message: string, class: string}|null $event The newest event of the invoice.
 	 * @return bool
@@ -140,7 +141,7 @@ if (!function_exists('einvoice_event_is_rejection')) {
 		if (!is_array($event)) {
 			return false;
 		}
-		if (in_array((string) ($event['status'] ?? ''), array('Sent', 'Received', 'Confirmed', 'Approved'), true)) {
+		if (!in_array((string) ($event['status'] ?? ''), array('Error', 'Rejected', 'SendFailed'), true)) {
 			return false;
 		}
 		return !in_array((string) ($event['class'] ?? ''), array('', 'none', 'transient_validation'), true);

@@ -61,7 +61,7 @@ if (!function_exists('einvoice_error_patterns')) {
 			array('class' => 'transient_validation', 'pattern' => '/Validation did not complete \(attempt \d+ of \d+\)|XSLT transformation exceeded/i', 'fixable' => false, 'retry' => true),
 			array('class' => 'no_postbox', 'pattern' => '/is not a KMD customer|has no postbox purchase/i', 'fixable' => false, 'retry' => false),
 			array('class' => 'cvr_missing', 'pattern' => '/\[DK-R-017\]|mandatory to specify schemeID as "0184"/i', 'fixable' => true, 'retry' => false),
-			array('class' => 'negative_price_line', 'pattern' => '/\bBR-S-08\b|UNCL 5189|Coded allowance reasons MUST belong/i', 'fixable' => false, 'retry' => false),
+			array('class' => 'negative_price_line', 'pattern' => '/UNCL 5189|Coded allowance reasons MUST belong/i', 'fixable' => false, 'retry' => false),
 			array('class' => 'sender_registration', 'pattern' => '/E-APS24007/i', 'fixable' => false, 'retry' => false),
 			array('class' => 'receiver_rejected', 'pattern' => '/E-APS24003|Error while transmitting request/i', 'fixable' => true, 'retry' => false),
 		);

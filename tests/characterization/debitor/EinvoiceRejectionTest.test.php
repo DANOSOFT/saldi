@@ -42,6 +42,8 @@ final class EinvoiceRejectionTest extends TestCase
             'BR-S-08 + UNCL5189 (233807)' => ['-For each different value of VAT category rate (BT-119) where the VAT category code (BT-118) is &quot;Standard rated&quot;, the VAT category taxable amount (BT-116) in a VAT breakdown (BG-23) shall equal the sum of Invoice line net amounts (BT-131) ... -Coded allowance reasons MUST belong to the UNCL 5189 code list', '66137112', 'negative_price_line', false, false],
             'E-APS24007 sender (237646)' => ["Document with number 134717 could not be sent to Peppol 2026-10-19 08:02:22 UTC. Reason was: SystemErrorHtmlText: MessageUuid: ValidationType: ALL Errors: ERROR E-APS24007:E-APS24007: The sender 'iso6523-actorid-upis::0088:5745001114190' does not support process 'cenbii-procid-ubl::urn:fdc:peppol.eu:poacc:bis:mlr:3'", '29189641', 'sender_registration', false, false],
             'XSLT timeout (234148)' => ['Validation did not complete (attempt 1 of 3) and will be tried again 2026-10-12 08:07:50 UTC: XSLT transformation exceeded the 30 second execution limit and was abandoned. Check the stylesheet for a template that never terminates.', '', 'transient_validation', false, true],
+            // BR-S-08 alone is a VAT taxable-amount mismatch, not the negative-line case (Sol, round 1)
+            'BR-S-08 alone' => ['[BR-S-08]-For each different value of VAT category rate (BT-119) where the VAT category code (BT-118) is "Standard rated", the VAT category taxable amount (BT-116) in a VAT breakdown (BG-23) shall equal the sum of Invoice line net amounts', '', 'unknown', false, false],
             'unknown text' => ['Something else went wrong', '', 'unknown', false, false],
             'empty' => ['', '', 'none', false, false],
         ];
@@ -82,6 +84,10 @@ final class EinvoiceRejectionTest extends TestCase
             'received' => [['status' => 'Received', 'message' => 'x', 'class' => 'unknown'], false],
             'a timeout EasyUBL retries' => [['status' => 'Error', 'message' => 'x', 'class' => 'transient_validation'], false],
             'a status without text' => [['status' => 'Pending', 'message' => '', 'class' => 'none'], false],
+            // EasyUBL sends text with informational statuses too; only a failure status is a rejection (Sol, round 1)
+            'pending with text' => [['status' => 'Pending', 'message' => 'Document received for validation', 'class' => 'unknown'], false],
+            'sending with text' => [['status' => 'Sending', 'message' => 'Sending to access point', 'class' => 'unknown'], false],
+            'an error without text' => [['status' => 'Error', 'message' => '', 'class' => 'none'], false],
             'no event' => [null, false],
         ];
     }
