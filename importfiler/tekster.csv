@@ -5298,11 +5298,16 @@
 5450	Ukendt betalingstype	Unknown payment type	Ukjent betalingstype
 5436	Dokumentet kunne ikke gemmes	The document could not be saved	Dokumentet kunne ikke lagres
 5437	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet	A document of the journal could not be deleted, so the journal was not deleted	Et dokument til kladden kunne ikke slettes, så kladden er ikke slettet
+7640	Udfyldt fra faktura	Filled in from invoice	Fylt ut fra faktura
+7641	Afviger fra fakturaen	Differs from the invoice	Avviker fra fakturaen
+7642	Brug fakturaens værdier	Use the invoice values	Bruk fakturaens verdier
+7643	linjen	the line	linjen
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
 5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med
 5454	Bilagsnummeret kan ikke gemmes: der er ikke flere ledige numre i kladden (maks 2147483647)	The document number cannot be saved: the journal has no free numbers left (max 2147483647)	Bilagsnummeret kan ikke lagres: det er ikke flere ledige numre i kladden (maks 2147483647)
+5455	Træk for at ændre rækkefølgen. Husk at gemme kortet bagefter	Drag to change the order. Remember to save the card afterwards	Dra for å endre rekkefølgen. Husk å lagre kortet etterpå
 
 7600	Ikke forfalden	Not yet due	Ikke forfalt
 7601	%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent beløb.	%s selected accounts were skipped because they have no positive overdue balance.	%s valgte kontoer ble hoppet over fordi de ikke har et positivt forfalt beløp.
@@ -5340,5 +5345,9 @@
 7633	Vis PBS-kunder	Show PBS customers	Vis PBS-kunder
 7634	Viser alle %s konti	Showing all %s accounts	Viser alle %s kontoer
 7635	Der er afmærket 1 konto med forfaldent beløb, så Ryk alle opretter kun en rykker for den (som Opret rykker).	One selected account has an overdue balance, so Remind all only creates a reminder for it (like Create reminder).	Det er avmerket 1 konto med forfalt beløp, så Påminn alle oppretter bare en påminnelse for den (som Opprett påminnelse).
+7650	Alle debitorer	All customers	Alle debitorer
+7651	Alle kreditorer	All suppliers	Alle kreditorer
 7694	Fakturér webshopordrer med ordredato	Invoice webshop orders with the order date	Fakturer nettbutikkordrer med ordredato
 7695	Hvis dette felt afmærkes, får en webshopordre ordredatoen som fakturadato, når Fakt. dato er tom ved fakturering. Ellers bruges dags dato.	If this box is ticked, a webshop order gets its order date as invoice date when Inv. date is empty at invoicing. Otherwise today's date is used.	Hvis dette feltet er avmerket, får en nettbutikkordre ordredatoen som fakturadato når Fakt. dato er tom ved fakturering. Ellers brukes dagens dato.
+8400	Send "Bemærkning til ordre" med på e-fakturaer	Include "Order note" on e-invoices	Send "Ordrenotat" med på e-fakturaer
+8401	Afmærkes feltet, sendes teksten i "Bemærkning til ordre" med som bemærkning på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet bruges ofte til interne noter, så det er slået fra som standard. PDF-fakturaen er uændret.	When ticked, the text in "Order note" is sent as the note on e-invoices, e-credit notes and e-orders. The field is often used for internal notes, so this is off by default. The PDF invoice is unchanged.	Når feltet er avkrysset, sendes teksten i "Ordrenotat" med som merknad på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet brukes ofte til interne notater, så det er slått av som standard. PDF-fakturaen er uendret.
