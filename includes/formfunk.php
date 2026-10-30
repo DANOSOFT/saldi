@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -89,6 +89,11 @@
 // 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
 // 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
 //                holds the last printed order by then.
+// 20261029 CL/SZ SD-751 (core edit 6): formularprint() takes $headless, a work directory: the print is written there,
+//                nothing is mailed or deleted, no redirect is printed, the order's own language is used and
+//                the documents are returned.
+//                A page-break text with $ordre_creditedinvoice printed the credited invoice's number instead of exiting,
+//                and a credit note without a credited invoice prints it empty instead of failing on the query.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -298,14 +303,16 @@ if (!function_exists('skriv')) {
 							list($tabel, $variabel) = explode("_", $streng[$i], 2);
 							if ($tabel == "ordre") {
 								if ($variabel == 'creditedinvoice') {
-									$qtxt = "kred_ord_id from ordrer where id=$id";
-									exit;
+									$qtxt = "select k.fakturanr as creditedinvoice from ordrer o left join ordrer k on k.id = o.kred_ord_id where o.id=$id";
+								} else {
+									if ($variabel == "rykkerdate") {
+										$variabel = "fakturadate";
+									}
+									if ($variabel == "tlf") {
+										$variabel = "phone";
+									}
+									$qtxt = "select $variabel from ordrer where id=$id";
 								}
-								if ($variabel == "rykkerdate")
-									$variabel = "fakturadate";
-								if ($variabel == "tlf")
-									$variabel = "phone";
-								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
 								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
@@ -667,11 +674,12 @@ if (!function_exists('find_form_tekst')) {
 					if ($tabel == "ordre") {
 						if (strtolower($variabel) == 'creditedinvoice') {
 							$qtxt = "select kred_ord_id from ordrer where id=$id";
+							$streng[$x] = ''; // no credited invoice: print nothing, not a query for a column that doesn't exist
 							if ($tmp = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0]) {
 								$qtxt = "select fakturanr from ordrer  where id = '$tmp'";
 								$streng[$x] = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
-								$q2 = $variabel = NULL;
 							}
+							$q2 = $variabel = NULL;
 						} elseif ($variabel == "rykkerdate")
 							$variabel = "fakturadate";
 						if ($variabel == "tlf")
@@ -1062,10 +1070,30 @@ if (!function_exists('modulus_10')) {
 }
 
 if (!function_exists('formularprint')) {
-	function formularprint($id, $formular, $lev_nr, $charset, $udskriv_alle_til, $background_file = null)
+	/**
+	 * Prints one or more order documents (offer, order confirmation, delivery note, invoice, credit note, ...).
+	 * In a browser request it writes temp/<db>/<bruger_id>/<name>.ps/.htm, mails the ones set to email, and
+	 * prints a redirect to includes/udskriv.php, which turns the rest into one PDF.
+	 *
+	 * @param int|string $id ordrer.id; -1 for the orders in $_GET['skriv']; non-numeric for a preview.
+	 * @param int|string $formular Document type (formularer.formular); 4 becomes 5 for a credit note.
+	 * @param int|null $lev_nr Delivery number of a delivery note.
+	 * @param string|null $charset Unused; the global $charset applies.
+	 * @param string|null $udskriv_alle_til Output for every document ('PDF', 'email', 'inkasso', ...); empty takes ordrer.udskriv_til.
+	 * @param string|null $background_file Unused (the letterhead is looked up per brand and department).
+	 * @param string|null $headless A work directory the caller created. The documents are written there as
+	 *   for a PDF print (.ps/.htm) in the order's own language (no form-editor language lock); nothing is
+	 *   mailed, the directory is not cleared, no redirect is printed and no print batch is left in the session.
+	 * @return string|array<int, array{name: string, background: string, pages: int}> 'OK' or an error text;
+	 *   with $headless, on success the documents written to it, in the shape renderPrintBatch() takes.
+	 */
+	function formularprint($id, $formular, $lev_nr, $charset, $udskriv_alle_til, $background_file = null, $headless = null)
 	{
 		print "<!--function formularprint start-->";
 
+		if ($headless) {
+			$udskriv_alle_til = 'PDF'; // never email, never 'ingen'
+		}
 		($udskriv_alle_til == 'inkasso') ? $inkasso = 'on' : $inkasso = NULL;
 
 		include("../includes/std_func.php");
@@ -1185,10 +1213,13 @@ if (!function_exists('formularprint')) {
 		if (!file_exists("../temp/$db"))
 			mkdir("../temp/$db", 0775);
 
-		$mappe = "../temp/$db/" . abs($bruger_id);
-		if (!$inkasso)
+		$mappe = $headless ? $headless : "../temp/$db/" . abs($bruger_id);
+		if (!$inkasso && !$headless) {
 			system("rm -r $mappe");
-		mkdir("$mappe", 0775);
+		}
+		if (!$headless) {
+			mkdir("$mappe", 0775);
+		}
 		if ($ordre_antal > 1) {
 			$printfilnavn = 'udskrift';
 			if ($formular <= 1)
@@ -1212,7 +1243,9 @@ if (!function_exists('formularprint')) {
 		}
 		$printBatchName = $printfilnavn ?? 'udskrift';
 		$printBatchDocuments = array();
-		unset($_SESSION['printBatch']);
+		if (!$headless) {
+			unset($_SESSION['printBatch']);
+		}
 		for ($o = 0; $o < $ordre_antal; $o++) {
 			$printBatchIndex = null;
 			#		$psfp=$psfp1;
@@ -1341,8 +1374,9 @@ if (!function_exists('formularprint')) {
 				// Per-form print-language lock (set in the visual form editor):
 				// force the whole print into one language regardless of the
 				// customer's language. No lock file => behaviour unchanged.
+				// A headless print keeps the order's own language: it is the document's brand (SD-751).
 				$fe_lock = "../logolib/$db_id/fe_printlang_$formular.json";
-				if (@file_exists($fe_lock)) {
+				if (!$headless && @file_exists($fe_lock)) {
 					$fe_pl = @json_decode(@file_get_contents($fe_lock), true);
 					if (is_array($fe_pl) && !empty($fe_pl['sprog'])) {
 						// value is interpolated into SQL below; restrict to a safe
@@ -1644,6 +1678,9 @@ if (!function_exists('formularprint')) {
 			}
 
 			if (!$found || $var_antal == 0) {
+				if ($headless) {
+					return 'Background values not set for this form';
+				}
 				echo "<script>alert('Background values not set for this form');</script>";
 				echo "<button onclick='window.history.go(-3)'>Go Back</button>";
 				exit;
@@ -2355,6 +2392,9 @@ if (!function_exists('formularprint')) {
 			if ($printBatchIndex !== null) {
 				$printBatchDocuments[$printBatchIndex]['pages'] = max(1, (int)$side - 1);
 			}
+		}
+		if ($headless) {
+			return $printBatchDocuments;
 		}
 		// UDSKRIVNING
 		if ($mailantal > 0) {

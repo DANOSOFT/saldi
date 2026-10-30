@@ -22,6 +22,7 @@ include_once __DIR__ . '/../../../../../includes/db_query.php';
 include_once __DIR__ . '/../../../../../includes/connect.php';
 include_once __DIR__ . '/../../../../../includes/std_func.php';
 include_once __DIR__ . '/../../../../../includes/ordrefunc.php';
+require_once __DIR__ . '/../../../../../includes/documents/renderDocument.php';
 
 class InvoicesEndpoint extends BaseEndpoint
 {
@@ -199,18 +200,55 @@ class InvoicesEndpoint extends BaseEndpoint
         $this->sendResponse(true, ['invoiceId' => $id, 'sent' => true], 'Invoice sent successfully');
     }
     
+    /**
+     * Streams the PDF of a posted invoice of the caller's account, rendered by render_document()
+     * (the same headless path as the Shopify document link). A missing, unposted or other-art id
+     * gives 404 and no document; a render that fails (no layout, no pdftk, ...) gives 500.
+     *
+     * @param int|string $id ordrer.id
+     * @return void
+     */
     private function getPdf($id)
     {
+        global $db, $db_id;
+
+        $id = (int)$id;
         $order = new OrderModel($id, 'DO');
-        
-        if (!$order->getId() || $order->getStatus() < 2) {
-            $this->sendResponse(false, null, 'Invoice not found or not ready', 404);
+        if (!$id || !$order->getId() || $order->getStatus() < 3) {
+            $this->sendResponse(false, null, 'Invoice not found or not posted', 404);
             return;
         }
         
-        // TODO: Generate PDF using existing system functions
-        // For now, return a placeholder response
-        $this->sendResponse(false, null, 'PDF generation not yet implemented. Use existing invoice PDF generation.', 501);
+        // The print code finds temp/<db>/ and logolib/<db_id>/ through the legacy globals. db_id is the
+        // account the request is for, as JWTAuth::getTenantDatabase() resolves it: two accounts can share a database.
+        $db = $this->db;
+        $payload = JWTAuth::validateToken();
+        $db_id = (int)($payload['tenant_id'] ?? 0);
+        if (!$db_id) {
+            $headers = array_change_key_case(getallheaders() ?: [], CASE_LOWER);
+            $db_id = (int)($headers['x-tenant-id'] ?? 0);
+        }
+        try {
+            $document = render_document($id, 4);
+        } catch (DocumentRenderError $e) {
+            write_log("Invoice $id PDF: " . $e->getMessage(), $this->db, 'WARNING');
+            if ($e->getCode() === DocumentRenderError::NO_DOCUMENT) {
+                $this->sendResponse(false, null, 'Invoice not found or not posted', 404);
+            } else {
+                $this->sendResponse(false, null, 'The invoice PDF could not be created', 500);
+            }
+            return;
+        }
+
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . $document['filename'] . '"');
+        header('Content-Length: ' . filesize($document['path']));
+        header('Cache-Control: private, no-store');
+        header('X-Content-Type-Options: nosniff');
+        readfile($document['path']);
     }
 }
 
