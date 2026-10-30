@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------finans/budget.php ----------- patch 5.0.0 --- 2026.06.01 ---
+// -------------finans/budget.php ----------- ver 5.1.0 --- 2026.10.30 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20220926 MSC Removed a 2 number in title for budget
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260601 PHR inserted (float) before Round()
+// 20261030 CDX/PHR Make Enter save the budget instead of filling it with last year's figures.
 
 @session_start();
 $s_id=session_id();
@@ -310,6 +311,8 @@ print "<style>
 
 print "<div class='budget-wrapper' id='budget-wrapper'>";
 print "<form name=budget action='budget.php?regnaar=$regnaar&returside=$returside' method=post>";
+// The first submit button handles Enter in text fields, even when it is hidden.
+print "<button type='submit' name='gem' value='1' hidden></button>";
 print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top'>";
 print "<thead>";
 print "<tr><td><br></td><td colspan=15>".findtekst(806, $sprog_id)." ";
@@ -445,4 +448,3 @@ if ($menu=='T') {
 	include_once '../includes/oldDesign/footer.php';
 }
 ?>
-
