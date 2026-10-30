@@ -27,6 +27,9 @@
 //                 Posted values are read with ifset() and escaped or cast where they reach SQL, because update_settings_value() puts its value into the SQL as it is.
 // 20261030 CL/MMR SD-786 Merge of master: "Send 'Bemærkning til ordre' med på e-fakturaer" (SST-885, settings sendOrderNote/easyUBL) is saved here too.
 //                 SST-885 had added it to the old ordre_valg save in diverse.php, which SD-786 moved into this function.
+// 20261030 CL/MMR SD-786 CodeRabbit (PR #959): a new DIV 5 row gets kostmetode in box6 and the set item id in box8, as the update writes them.
+//                 The legacy insert had kostmetode one column off in box7 (the shop encoding) and box8 empty.
+//                 orderOptionsAlert() shows all returned alerts in one alert, one per line.
 
 if (!function_exists('saveOrderOptions')) {
 	/**
@@ -144,8 +147,9 @@ if (!function_exists('saveOrderOptions')) {
 			$qtxt = "update grupper set box6='" . $sqlText($kostmetode) . "',box8='$saetvareid' WHERE id = '" . (int) $r['id'] . "'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
+			// Same columns as the update above: kostmetode in box6 and the set item id in box8 (box7 is the shop encoding, api/hent_varer.php)
 			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13) ";
-			$qtxt.= "values ('Div_valg','5','DIV','','','','','','','" . $sqlText($kostmetode) . "','','','','','','')";
+			$qtxt.= "values ('Div_valg','5','DIV','','','','','','" . $sqlText($kostmetode) . "','','$saetvareid','','','','','')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 
@@ -160,5 +164,25 @@ if (!function_exists('saveOrderOptions')) {
 		update_settings_value("debitoripad", "ordre", $sqlText($debitoripad), "Weather or not to include the debitor ipad system");
 
 		return $alerts;
+	}
+}
+
+if (!function_exists('orderOptionsAlert')) {
+	/**
+	 * The page markup that shows the alerts returned by saveOrderOptions().
+	 *
+	 * All messages go into one alert, one per line, because a page has one onLoad: with one BODY tag per
+	 * message only one of them was shown. The text is escaped for JavaScript (jsString()) and the whole
+	 * call for the HTML attribute.
+	 *
+	 * @param string[] $alerts Alert texts from saveOrderOptions().
+	 * @return string A BODY tag whose onLoad shows the alert, or '' when there is nothing to show.
+	 */
+	function orderOptionsAlert(array $alerts)
+	{
+		if (!$alerts) {
+			return '';
+		}
+		return "<BODY onLoad=\"JavaScript:alert(" . htmlspecialchars(jsString(array(implode("\n", $alerts))), ENT_QUOTES, 'UTF-8') . ")\">";
 	}
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.0 ----2026-10-29------------
+// --- systemdata/diverse.php -----ver 5.1.0 ----2026-10-30------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,7 @@
 // 20261029 CL/MJ SST-885 ordre_valg saves "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL).
 // 20261029 CL/MMR SD-786 Save "Vis besked når kostprisen er anslået" (showCostEstimateNotice) under Ordrerelaterede valg.
 //                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
+// 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
 
 @session_start();
 $s_id = session_id();
@@ -644,9 +645,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'ordre_valg') {
 		// SD-786: the save is a named handler (controller/view convention); its alerts are shown after the DB work
 		include_once(__DIR__ . '/diverseIncludes/saveOrderOptions.php');
-		foreach (saveOrderOptions($_POST, $sprog_id, $bruger_id) as $txt) {
-			print "<BODY onLoad=\"JavaScript:alert(" . htmlspecialchars(jsString(array($txt)), ENT_QUOTES, 'UTF-8') . ")\">";
-		}
+		print orderOptionsAlert(saveOrderOptions($_POST, $sprog_id, $bruger_id));
 
 		#######################################################################################
 	} elseif ($sektion == 'productOptions') {

@@ -18,6 +18,7 @@ use PHPUnit\Framework\TestCase;
  * 20261029 CL/MMR Created (SD-786, Codex round 2: characterize the extracted save).
  * 20261029 CL/MMR The real ifset() from includes/std_func.php instead of a stub (Codex round 3).
  * 20261030 CL/MMR sendOrderNote (SST-885, merged from master) is saved as 'on'/'off' in group easyUBL.
+ * 20261030 CL/MMR CodeRabbit (PR #959): a new DIV 5 row has kostmetode in box6 and the set item id in box8; orderOptionsAlert() shows all alerts in one.
  */
 #[RunTestsInSeparateProcesses]
 final class SaveOrderOptionsTest extends TestCase
@@ -170,7 +171,8 @@ final class SaveOrderOptionsTest extends TestCase
             . "values ('Div_valg (Ordrer)','3','DIV','501','','',';','','','','','','','','\t','')",
             self::modify("'Div_valg (Ordrer)'")
         );
-        self::assertStringContainsString("values ('Div_valg','5','DIV','','','','','','','2','','','','','','')", self::modify("'Div_valg','5'"));
+        // kostmetode in box6 and no set item (0) in box8, the columns the update writes and the form reads (CodeRabbit, PR #959)
+        self::assertStringContainsString("values ('Div_valg','5','DIV','','','','','','2','','0','','','','','')", self::modify("'Div_valg','5'"));
         self::assertSame("insert into settings (var_name, var_value) values ('orderNoteEnabled','on')", self::modify('insert into settings'));
     }
 
@@ -180,5 +182,47 @@ final class SaveOrderOptionsTest extends TestCase
         saveOrderOptions(['box2' => "R1' or '1'='1", 'saetvarenr' => "S'2"], 1, 7);
         self::assertStringContainsString("box2='R1\\' or \\'1\\'=\\'1'", self::modify("WHERE id = '30'"), 'no row matched the injected number');
         self::assertStringContainsString("box8='502'", self::modify("WHERE id = '50'"), "S'2 was found through the escaped lookup");
+    }
+
+    public function testANewDiv5RowKeepsTheSetItem(): void
+    {
+        // CodeRabbit (PR #959): the insert left box8 empty, so the set item was lost when the row did not exist yet
+        self::boot(['R1' => '501', "S'2" => '502'], true, false);
+        saveOrderOptions(['kostmetode' => '1', 'saetvarenr' => "S'2"], 1, 7);
+        self::assertSame(
+            "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13) "
+            . "values ('Div_valg','5','DIV','','','','','','1','','502','','','','','')",
+            self::modify("'Div_valg','5'")
+        );
+    }
+
+    /** The text of the alert in the markup from orderOptionsAlert(), decoded the way the browser does. */
+    private static function alertText(string $html): string
+    {
+        self::assertSame(1, preg_match('/^<BODY onLoad="JavaScript:alert\((.*)\)">$/s', $html, $m), "one BODY tag with one alert: $html");
+        self::assertStringNotContainsString('"', $m[1], 'no raw double quote inside the attribute');
+        return json_decode(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'), false, 512, JSON_THROW_ON_ERROR);
+    }
+
+    public function testAllAlertsAreShownInOneAlert(): void
+    {
+        // CodeRabbit (PR #959): one BODY tag per alert, so the browser showed only one of them
+        self::boot();
+        $GLOBALS['db_encode'] = 'UTF8';
+        $alerts = saveOrderOptions(['box2' => "X'9", 'saetvarenr' => 'NOPE'], 1, 7);
+        self::assertCount(2, $alerts);
+        self::assertSame("Varenr. X'9 eksisterer ikke.\nVarenummer for sæt eksisterer ikke", self::alertText(orderOptionsAlert($alerts)));
+        self::assertSame('Varenummer for sæt eksisterer ikke', self::alertText(orderOptionsAlert(['Varenummer for sæt eksisterer ikke'])));
+        self::assertSame('', orderOptionsAlert([]), 'no alert, no BODY tag');
+    }
+
+    public function testAlertMarkupCannotBreakOutOfTheAttribute(): void
+    {
+        self::boot();
+        $GLOBALS['db_encode'] = 'UTF8';
+        $text = 'Varenr. "><script>x()</script> & \'æøå\' eksisterer ikke.';
+        $html = orderOptionsAlert([$text]);
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertSame($text, self::alertText($html));
     }
 }
