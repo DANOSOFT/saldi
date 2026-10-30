@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -133,6 +133,7 @@
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
 // 20261026 CL/SZ SD-750 Saving syncs the shops when any slot is open for outbound in the shopify_legacy
 //                settings, not only when box4 is set.
+// 20261029 CL/SS SD-741 A saved item (also a confirmed rename) is queued for the Shopify catalogue after the commit.
 //
 ob_start(); //Starts output buffering
 
@@ -1266,6 +1267,11 @@ $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forl
 
 if ($begin)
     transaktion('commit');
+if ($id && ($begin || ($_POST['ChangeDescription'] ?? '') === 'Ja')) {
+    // before the lookups and the rename dialog, which exit; the 30 s let the description written below land first
+    include_once(__DIR__ . '/../includes/shopify/services/catalogue.php');
+    shopify_catalogue_item_saved((int) $id, 30);
+}
 if ($submit == 'supplierLookUp')
     kontoopslag("navn", $fokus, $id);
 elseif (strstr($submit, "Vare")) {

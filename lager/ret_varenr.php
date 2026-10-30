@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------lager/ret_varenr.php-------------patch 3.9.1 -- 20200612 ----------
+// ----------lager/ret_varenr.php-------------ver 5.1.0 -- 20261030 ----------
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2015.12.08 Tilføjet flet funtion til sammenlægning af varer.
 // 2018.05.15 Kontrol mod flet af styklister og vares som indgår.
 // 2020.06.12 PHR Added pattern match on item no (varenr).
+// 20261030 CL/SS SD-741 A renumbered item is queued for the Shopify catalogue, so its SKU moves there.
 
 @session_start();
 $s_id=session_id();
@@ -106,6 +107,8 @@ if (($nyt_varenr) && ($nyt_varenr!=$varenr)) {
 			else echo ", $r[ordrenr]";
 		}
 		if ($x>=1)echo "</td></tr><tr><td><hr></td></tr>";
+		include_once(__DIR__ . '/../includes/shopify/services/catalogue.php');
+		shopify_catalogue_item_saved((int) $id);
 		print "<BODY onLoad=\"javascript:alert('Varenummer er rettet fra $varenr til $nyt_varenr')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=varekort.php?id=$id\">";
 
