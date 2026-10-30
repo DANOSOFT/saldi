@@ -140,6 +140,7 @@
 // 20261029 CL/MMR SD-786 Ordrerelaterede valg: "Vis besked når kostprisen er anslået" (off by default) turns on the cost-price message on delivery.
 //                 ordre_valg(): braces on the multi-line "Lås fakturér-knappen" if.
 // 20261030 CL/MMR SD-786 The title of "Vis besked når kostprisen er anslået" has text id 8402, because #848 took 7640 on master.
+// 20261030 CL/MMR SD-786 The checkbox text moved from 7639 to 8406, next to its title 8402, because other changes also use 7636-7639.
 
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
@@ -1970,7 +1971,7 @@ function ordre_valg() {
 	$stockWarningTitle = htmlspecialchars(findtekst('5037|Aktiverer popup-advarsel og krav om begrundelse ved salg af udsolgte varer i både POS og Debitor/Ordre. Godkendelsen logges på ordren.', $sprog_id), ENT_QUOTES);
 	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
 	$costEstimateTitle = htmlspecialchars(findtekst('8402|Afmærkes feltet, kommer der en besked ved levering af en ordre, når kostprisen på en vare er anslået, fordi der ikke var et købsparti at tage den fra, og prisen kommer fra varekortet eller fra en åben indkøbsordre med en anden pris end varekortet. Kostprisen beregnes ens, uanset om feltet er afmærket.', $sprog_id), ENT_QUOTES);
-	print "<tr><td title='$costEstimateTitle'>".findtekst('7639|Vis besked når kostprisen er anslået', $sprog_id)."</td><td><INPUT title='$costEstimateTitle' class='inputbox' type='checkbox' name='showCostEstimateNotice' $showCostEstimateNotice></td></tr>";
+	print "<tr><td title='$costEstimateTitle'>".findtekst('8406|Vis besked når kostprisen er anslået', $sprog_id)."</td><td><INPUT title='$costEstimateTitle' class='inputbox' type='checkbox' name='showCostEstimateNotice' $showCostEstimateNotice></td></tr>";
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	$webshopInvoiceOrderDateTitle = htmlspecialchars(findtekst('7695|Hvis dette felt afmærkes, får en webshopordre ordredatoen som fakturadato, når Fakt. dato er tom ved fakturering. Ellers bruges dags dato.', $sprog_id), ENT_QUOTES);
 	print "<tr><td title='$webshopInvoiceOrderDateTitle'>".findtekst('7694|Fakturér webshopordrer med ordredato', $sprog_id)."</td><td><input type='hidden' name='webshopInvoiceOrderDateShown' value='1'><INPUT title='$webshopInvoiceOrderDateTitle' class='inputbox' type='checkbox' name='webshopInvoiceOrderDate' $webshopInvoiceOrderDate></td></tr>";

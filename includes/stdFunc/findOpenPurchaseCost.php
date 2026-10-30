@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/findOpenPurchaseCost.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/stdFunc/findOpenPurchaseCost.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 //                 When on, it is only shown on an interactive delivery of an order (not POS, webshop/API or a negative line/credit note), and only when the price came from the item card or from an open purchase line that differs from the item card.
 //                 It names each item, the price and where the price came from, all lines of a delivery in one message.
 //                 The cost price and the order log line are unchanged.
+// 20261030 CL/MMR SD-786 The message texts moved from 7636-7638 to 8403-8405, because other changes also use 7636 and 7637.
 
 if (!function_exists('find_open_purchase_cost')) {
 	/**
@@ -212,15 +213,15 @@ if (!function_exists('deficit_cost_notice')) {
 	{
 		static $started = false;
 		if ($kostkilde) {
-			$line = sprintf(findtekst('7637|%s: %s fra åben indkøbsordre %s (varekortet: %s)', $sprog_id),
+			$line = sprintf(findtekst('8404|%s: %s fra åben indkøbsordre %s (varekortet: %s)', $sprog_id),
 				$varenr, dkdecimal($kostpris, 2), $kostkilde['ordrenr'], dkdecimal($varekortpris, 2));
 		} else {
-			$line = sprintf(findtekst('7638|%s: %s fra varekortet. Der er ingen åben indkøbsordre, så prisen kan være forældet', $sprog_id),
+			$line = sprintf(findtekst('8405|%s: %s fra varekortet. Der er ingen åben indkøbsordre, så prisen kan være forældet', $sprog_id),
 				$varenr, dkdecimal($kostpris, 2));
 		}
 		if (!$started) {
 			$started = true;
-			$head = findtekst('7636|Kostprisen er anslået på disse varer, fordi der ikke var et købsparti at tage den fra:', $sprog_id);
+			$head = findtekst('8403|Kostprisen er anslået på disse varer, fordi der ikke var et købsparti at tage den fra:', $sprog_id);
 			print "<script>window.saldiCostNotice = [" . jsString(array($head)) . "];";
 			print "window.addEventListener('load', function () { alert(window.saldiCostNotice.join('\\n')); });</script>\n";
 		}
