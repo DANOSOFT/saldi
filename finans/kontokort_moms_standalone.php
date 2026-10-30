@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 //
 //20260430 LOE Created standalone version of kontokort repoort for easy navigation
+//20261030 CL/LAH per_page defaults to 0 = all lines.
 @session_start();
 $s_id = session_id();
 
@@ -55,8 +56,7 @@ $projekt_til = if_isset($_GET, null, 'projekt_til');
 $simulering  = if_isset($_GET, null, 'simulering');
 $lagerbev    = if_isset($_GET, null, 'lagerbev');
 $page        = max(1, (int) if_isset($_GET, 1, 'page'));
-$per_page = (int) if_isset($_GET, 50, 'per_page');
-if ($per_page < 1) $per_page = 50;
+$per_page    = max(0, (int) if_isset($_GET, 0, 'per_page')); // 0 = all lines
 
 include("rapport_includes/kontokort_moms.php");
 
