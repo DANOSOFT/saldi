@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- mysale/api.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,14 +23,18 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261028 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
+//                 The includes in the entry block now use __DIR__.
 //
-// 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+
 
 $header = "nix";
 $bg = "nix";
-include("../includes/connect.php");
-include("../includes/std_func.php");
-$db = $_GET["db"];
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/std_func.php");
+include_once(__DIR__ . "/../includes/publicTenantDb.php");
+$db = public_tenant_db(ifset($_GET, "db", ""));
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
@@ -97,7 +101,7 @@ if(isset($_GET["getAllProducts"])){
 }
 
 if(isset($_GET["getAllDates"])){
-    $productId = $_GET["getAllDates"];
+    $productId = (int)$_GET["getAllDates"];
     // Move the condition related to rentalperiods into the ON clause of the LEFT JOIN
     $query = db_select("SELECT ri.id, rp.rt_from, rp.rt_to FROM rentalitems ri LEFT JOIN rentalperiod rp ON ri.id = rp.item_id AND (rp.rt_to > EXTRACT(EPOCH FROM CURRENT_DATE) OR rp.rt_to IS NULL) WHERE ri.product_id = $productId", __FILE__ . " linje " . __LINE__);
     
@@ -116,7 +120,7 @@ if(isset($_GET["getAllDates"])){
         $results[] = $row;
     }
 
-    $query = db_select("SELECT item_id, rr_from, rr_to FROM rentalreserved WHERE item_id = ANY(ARRAY[" . implode(",", $itemIds) . "])", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT item_id, rr_from, rr_to FROM rentalreserved WHERE item_id = ANY(ARRAY[" . implode(",", array_map("intval", $itemIds)) . "])", __FILE__ . " linje " . __LINE__);
 
     while($row = db_fetch_array($query)){
         // Filter out numeric keys
@@ -141,6 +145,15 @@ if(isset($_GET["getAllDates"])){
 
 if(isset($_GET["createBooking"])){
     $data = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($data)) $data = array();
+    $data["item_id"] = (int)ifset($data, "item_id", 0);
+    $data["cust_id"] = (int)ifset($data, "cust_id", 0);
+    $data["weeks"] = (float)ifset($data, "weeks", 0);
+    if ($data["item_id"] <= 0 || $data["cust_id"] <= 0) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
     // make timestamp to unix timestamp
     $from = strtotime($data["start_date"]);
     $to = strtotime($data["end_date"]);
@@ -169,20 +182,22 @@ if(isset($_GET["createBooking"])){
 
 if(isset($_GET["updateBooking"])){
     $data = json_decode(file_get_contents("php://input"), true);
-    $status = $data["status"];
+    if (!is_array($data)) $data = array();
+    $status = ifset($data, "status", "");
+    $bookingId = (int)ifset($data, "id", 0);
     if($status != "approved"){
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $data[id]", __FILE__ . " linje " . __LINE__);
+        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
-        $orderId = $res["order_id"];
+        $orderId = $res ? (int)$res["order_id"] : 0;
         db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-        db_modify("DELETE FROM rentalperiod WHERE id = $data[id]", __FILE__ . " linje " . __LINE__);
+        db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
         echo json_encode(["status" => "deleted"]);
         exit;
     }else{
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $data[id]", __FILE__ . " linje " . __LINE__);
+        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
-        $orderId = $res["order_id"];
-        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $data[id]", __FILE__ . " linje " . __LINE__);
+        $orderId = $res ? (int)$res["order_id"] : 0;
+        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
         fakturer_ordre($orderId, "email", 0);
         echo json_encode(["status" => "approved"]);
     }
@@ -190,12 +205,13 @@ if(isset($_GET["updateBooking"])){
 }
 
 if(isset($_GET["getOrder"])){
-    $id = $_GET["getOrder"];
+    $id = (int)$_GET["getOrder"];
     $query = db_select("SELECT * FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
-    $query = db_select("SELECT * FROM ordrer WHERE id = $res[order_id]", __FILE__ . " linje " . __LINE__);
+    $orderId = $res ? (int)$res["order_id"] : 0;
+    $query = db_select("SELECT * FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
     $order = db_fetch_array($query);
-    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $res[order_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
     $orderLines = [];
     while($row = db_fetch_array($query)){
         $orderLines[] = $row;
@@ -220,14 +236,14 @@ if(isset($_GET["getClosedDates"])){
 }
 
 if(isset($_GET["getUser"])){
-    $id = $_GET["getUser"];
+    $id = (int)$_GET["getUser"];
     $query = db_select("SELECT * FROM adresser WHERE id = $id", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     echo json_encode($res);
 }
 
 if(isset($_GET["getAllBookingsByUser"])){
-    $id = $_GET["getAllBookingsByUser"];
+    $id = (int)$_GET["getAllBookingsByUser"];
     // make a join for rentalitem on item_id from rentalperiod to id in rentalitems
     $query = db_select("SELECT rp.id, rp.rt_from, rp.rt_to, ri.item_name FROM rentalperiod rp LEFT JOIN rentalitems ri ON rp.item_id = ri.id WHERE rp.cust_id = $id", __FILE__ . " linje " . __LINE__);
     $bookings = [];
@@ -684,22 +700,22 @@ function CreateOrder($data){
     $currentMonth = date('m');
     $momssats = 0;
 
-    $query = db_select("SELECT gruppe FROM varer WHERE varenr = '$data[sku]'", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT gruppe FROM varer WHERE varenr = '" . db_escape_string((string)ifset($data, "sku", "")) . "'", __FILE__ . " linje " . __LINE__);
     $gruppe = db_fetch_array($query)["gruppe"];
 
-    $q_vg = db_select("SELECT beskrivelse, kodenr, box4, box7 FROM grupper WHERE fiscal_year = $regnaar AND art = 'VG' AND kodenr = $gruppe", __FILE__ . " linje " . __LINE__);
+    $q_vg = db_select("SELECT beskrivelse, kodenr, box4, box7 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND art = 'VG' AND kodenr = " . (int)$gruppe, __FILE__ . " linje " . __LINE__);
     $r_vg = db_fetch_array($q_vg);
 
     if ($r_vg && is_array($r_vg)) {
         # Get momssats, checks if it is not momsfri
         if ($r_vg["box7"] != "on") {
-            $q_konto = db_select("SELECT moms FROM kontoplan WHERE regnskabsaar = $regnaar AND kontonr = {$r_vg['box4']}", __FILE__ . " linje " . __LINE__);
+            $q_konto = db_select("SELECT moms FROM kontoplan WHERE regnskabsaar = " . (int)$regnaar . " AND kontonr = " . (int)$r_vg['box4'], __FILE__ . " linje " . __LINE__);
             $konto_result = db_fetch_array($q_konto);
             $momstype = $konto_result ? $konto_result["moms"] : null;
 
             if ($momstype) {
                 $momstype = trim($momstype, 'S');
-                $q_moms = db_select("SELECT box2 FROM grupper WHERE fiscal_year = $regnaar AND kode = 'S' AND kodenr = $momstype AND art = 'SM'", __FILE__ . " linje " . __LINE__);
+                $q_moms = db_select("SELECT box2 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND kode = 'S' AND kodenr = " . (int)$momstype . " AND art = 'SM'", __FILE__ . " linje " . __LINE__);
                 $moms_result = db_fetch_array($q_moms);
                 $momssats = $moms_result ? $moms_result["box2"] : 0;
             } else {
@@ -713,13 +729,13 @@ function CreateOrder($data){
         error_log("Failed to fetch data for gruppe: $gruppe");
     }
     
-    $query = db_select("SELECT * FROM rentalitems WHERE id = $data[item_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM rentalitems WHERE id = " . (int)$data["item_id"], __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $query = db_select("SELECT invoice_date FROM rentalsettings", __FILE__ . " linje " . __LINE__);
     $invoiceDate = db_fetch_array($query)["invoice_date"];
     $product["product_id"] = $res["product_id"];
     $product["name"] = $res["item_name"];
-    $query = db_select("SELECT * FROM varer WHERE id = $product[product_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM varer WHERE id = " . (int)$product["product_id"], __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $product["description"] = $res["beskrivelse"];
     $product["product_number"] = $res["varenr"];
@@ -810,7 +826,7 @@ function CreateOrder($data){
     $basePrice = $res["salgspris"];
     
     
-    $query = db_select("SELECT * FROM adresser WHERE id = $data[cust_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM adresser WHERE id = " . (int)$data["cust_id"], __FILE__ . " linje " . __LINE__);
     $res2 = db_fetch_array($query);
     $customer["id"] = $res2["id"];
     $customer["name"] = $res2["firmanavn"];
@@ -824,24 +840,28 @@ function CreateOrder($data){
     $customer["valuta"] = "DKK";
     $customer["payment_condition"] = "netto";
     $customer["payment_days"] = 1;
-    $customer["konto_id"] = $res2["id"];
+    $customer["konto_id"] = (int)$res2["id"];
     $enhed = $res["enhed"];
     if(strtolower($enhed) == "dag" && $data["days"] > 1){
         $enhed = "Dage";
     }elseif(strtoLower($enhed) == "uge" && $paidWeeks > 1){
         $enhed = "Uger";
     }
+    $esc = array();
+    foreach (array("name", "address", "zip", "city", "email", "account_number") as $key) {
+        $esc[$key] = db_escape_string((string)$customer[$key]);
+    }
     $date = date("Y-m-d");
     $ordrenr = get_next_order_number('DO');
     if($invoiceDate){
-        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
     }else{
-        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
     }
     $query = db_select("SELECT id FROM ordrer WHERE ordrenr = $ordrenr AND art LIKE 'D%'", __FILE__ . " linje " . __LINE__);
     $order_id = db_fetch_array($query)["id"];
     opret_ordrelinje($order_id, $product["product_id"], $product["product_number"], $paidWeeks, $product["description"], $basePrice, $discount, '100', 'D', '', '1', '', '', '', $rabatart, '0', '', '', '', '', __LINE__);
-    db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 2, 0, 0, 0, $order_id, 'Stand: $product[name]')", __FILE__ . " linje " . __LINE__);
+    db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 2, 0, 0, 0, $order_id, '" . db_escape_string("Stand: " . $product["name"]) . "')", __FILE__ . " linje " . __LINE__);
     db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 3, 0, 0, 0, $order_id, 'Udlejning: Fra $data[fromDate] til $data[toDate]')", __FILE__ . " linje " . __LINE__);
     if($discountAmount > 0){
         // reduce decimal to 2 digits
@@ -850,7 +870,7 @@ function CreateOrder($data){
         $discountAmount = str_replace(".", ",", $discountAmount);
         db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 4, 0, 0, 0, $order_id, 'Rabat $discountAmount kr.')", __FILE__ . " linje " . __LINE__);
     }
-    db_modify("UPDATE rentalperiod SET order_id = $order_id WHERE id = $data[booking_id]", __FILE__ . " linje " . __LINE__);
+    db_modify("UPDATE rentalperiod SET order_id = " . (int)$order_id . " WHERE id = " . (int)$data["booking_id"], __FILE__ . " linje " . __LINE__);
 }
 
 function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
