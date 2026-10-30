@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-29 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -222,6 +222,7 @@
 // 20261022 CL/SZ MB-91 The list's "Indsæt" refuses the attach while a "Fordeling" row isn't saved (5451), with the cursor in that row; nothing is saved or attached.
 //                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
 // 20261029 CL/LH "Opdatér alle" scans only the documents not read yet (poolListData() unscanned=1), not the whole pool again.
+// 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -2668,6 +2669,7 @@ $txt29  = findtekst('3294|Klik for at vælge alle bilag i denne kombination', $s
 $txt30  = findtekst('3301|Fakturanummer', $sprog_id);
 $txt31  = findtekst('3302|Fejl ved gemning', $sprog_id);
 $txt32  = findtekst('3303|Prøv igen', $sprog_id);
+$poolListErrorJs = jsString(array($txt21, '. ', $txt32, '.'));
 $txt33  = findtekst('3304|Vælg mindst ét bilag', $sprog_id);
 $txt34  = findtekst('3305|Fejl ved indsætning', $sprog_id);
 $txt35  = findtekst('3306|Er du sikker på at du vil slette', $sprog_id);
@@ -4737,10 +4739,17 @@ window.extractAllPoolFiles = async function() {
 	let activeDocs = [];
 	try {
 		const listResponse = await fetch('_docPoolData.php?dir={$encodedDir}&filesOnly=1&unscanned=1', { credentials: 'same-origin' });
+		if (!listResponse.ok) {
+			throw new Error();
+		}
 		const listData = await listResponse.json();
-		activeDocs = (listData.files || []).map(function(name) { return { filename: name }; });
+		if (!listData || !Array.isArray(listData.files)) {
+			throw new Error();
+		}
+		activeDocs = listData.files.map(function(name) { return { filename: name }; });
 	} catch (e) {
-		activeDocs = (docData || []).filter(function(row) { return !row.archived && !row.manuallyEdited && String(row.amount ?? '').trim() === ''; });
+		alert({$poolListErrorJs});
+		return;
 	}
 	if (activeDocs.length === 0) {
 		alert('{$txt41}');
