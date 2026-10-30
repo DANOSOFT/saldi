@@ -257,3 +257,11 @@ test("reminders never touch the label", async () => {
   await deliver({ type: "remind", pr: pr({ labels: [LABEL] }), to: "alice", text: "x" }, { chatId: 1, ...f });
   assert.deepEqual(f.calls, ["send"]);
 });
+
+test("a malformed chat map fails without quoting it", () => {
+  assert.throws(() => parseChatMap('{"users": {"alice": 12345,'), (err) => {
+    assert.ok(err instanceof Error);
+    assert.equal(err.message, "TELEGRAM_CHAT_MAP is not valid JSON");
+    return true;
+  });
+});

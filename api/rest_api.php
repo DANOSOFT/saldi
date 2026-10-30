@@ -94,6 +94,8 @@
 //                 Every shop identifier it puts into SQL is escaped (item number, barcode), the integer ids are cast (order, item, variant, shop_varer.shop_id/shop_variant), and ordrefunc.php is included via __DIR__.
 // 20261028 CL/MMR SST-904 insert_shop_orderline() also decodes the item number and description of a found item with shop_input_text() instead of chk4utf8().
 //                 chk4utf8() took valid UTF-8 without a Danish letter for Latin-1, so "Pris 5 €" was stored garbled (CodeRabbit on PR #919).
+// 20261028 CL/MMR SST-905 shop_order_cvr_ean_from_card() treats a CVR or EAN of only non-breaking spaces (&nbsp; from the shop) as blank, so the customer card's value is used.
+//                 trim() keeps U+00A0, so such an order kept a blank-looking CVR and its e-invoice went out without one.
 
 
 // ----------------------------------------------------------------------
@@ -186,14 +188,15 @@ function fetch_from_table($select, $from, $where, $order_by, $limit) {
  * @return array{0: string, 1: string} [cvrnr, ean]
  */
 function shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean) {
-	$cvrnr = trim((string)$cvrnr);
-	$ean = trim((string)$ean);
+	// SST-905: a non-breaking space (&nbsp; from the shop) counts as blank too; trim() leaves it
+	$cvrnr = trim(str_replace("\xC2\xA0", ' ', (string)$cvrnr));
+	$ean = trim(str_replace("\xC2\xA0", ' ', (string)$ean));
 	$saldi_addr_id = (int)$saldi_addr_id;
 	if ($saldi_addr_id && ($cvrnr === '' || $ean === '')) {
 		$qtxt = "select cvrnr, ean from adresser where id = '$saldi_addr_id'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			if ($cvrnr === '') $cvrnr = trim((string)$r['cvrnr']);
-			if ($ean === '') $ean = trim((string)$r['ean']);
+			if ($cvrnr === '') $cvrnr = trim(str_replace("\xC2\xA0", ' ', (string)$r['cvrnr']));
+			if ($ean === '') $ean = trim(str_replace("\xC2\xA0", ' ', (string)$r['ean']));
 		}
 	}
 	return array($cvrnr, $ean);
