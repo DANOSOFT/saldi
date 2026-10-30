@@ -21,6 +21,7 @@ use PHPUnit\Framework\TestCase;
  * 20261028 CL/MMR Fixture-only default texts are built with call(), not written as findtekst('id|text') literals that guardrails compare with the real tekster.csv.
  * 20261028 CL/MMR A csv translation "0" is found, stored and cached (CodeRabbit, PR #878).
  * 20261029 CL/MMR SST-909: a text from egnetekster.csv is kept, and empty lines in egnetekster.csv/egne_tekster.csv raise no warning.
+ * 20261030 CL/MMR CodeRabbit (PR #957): a later egnetekster.csv line without a text for the language, or "-", does not replace an earlier text.
  */
 #[RunTestsInSeparateProcesses]
 final class FindtekstDefaultTextTest extends TestCase
@@ -237,6 +238,44 @@ final class FindtekstDefaultTextTest extends TestCase
         self::fromPage(['egnetekster.csv' => ["4981"], 'egne_tekster.csv' => ["4982"]], static function (): void {
             self::assertSame('Standard', findtekst(self::call(4981, 'Standard'), 1));
             self::assertSame('Bestiller', findtekst('4982', 1));
+        });
+    }
+
+    public function testAnIdOnlyLineDoesNotReplaceAnEarlierEgneteksterText(): void
+    {
+        // CodeRabbit (PR #957): the id-only line set the text to '' and tekster.csv's "Bestiller" was used instead
+        self::boot('UTF8');
+        self::fromPage(['egnetekster.csv' => ["4982\tEgen bestiller\tOwn ordering\tEgen bestiller", "4982"]], static function (): void {
+            self::assertSame('Egen bestiller', findtekst('4982', 1));
+        });
+    }
+
+    public function testALineWithoutTheLanguageColumnDoesNotReplaceAnEarlierText(): void
+    {
+        // The second line has only a Danish text, so it has no English column (language 2)
+        self::boot('UTF8');
+        self::fromPage(['egnetekster.csv' => ["4982\tEgen bestiller\tOwn ordering\tEgen bestiller", "4982\tAnden bestiller"]], static function (): void {
+            self::assertSame('Own ordering', findtekst('4982', 2));
+        });
+    }
+
+    public function testADashInEgneteksterFallsBackToTeksterCsv(): void
+    {
+        // CodeRabbit (PR #957): "-" skipped the fallback files and was then refused as a text, so the placeholder showed
+        self::boot('UTF8');
+        self::fromPage(['egnetekster.csv' => ["4982\t-\t-\t-"]], static function (): void {
+            self::assertSame('Bestiller', findtekst('4982', 1));
+        });
+        self::assertCount(1, $GLOBALS['__inserts']);
+        self::assertStringContainsString("values ('1','4982','Bestiller')", $GLOBALS['__inserts'][0]);
+    }
+
+    public function testTheLastEgneteksterTextForAnIdWins(): void
+    {
+        // Unchanged: of two lines with a text for the same id, the later one is used
+        self::boot('UTF8');
+        self::fromPage(['egnetekster.csv' => ["4982\tFørste bestiller", "4982\tSidste bestiller"]], static function (): void {
+            self::assertSame('Sidste bestiller', findtekst('4982', 1));
         });
     }
 }

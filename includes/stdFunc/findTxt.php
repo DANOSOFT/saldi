@@ -12,6 +12,8 @@
 // 20261029 CDX/NTR Restored helper definitions and input initialization lost while merging master.
 // 20261029 CL/MMR SST-909 A text found in egnetekster.csv is kept: egne_tekster.csv and tekster.csv are only read when it gave none (it was thrown away before).
 //                  An empty line in egnetekster.csv or egne_tekster.csv no longer raises "Undefined array key".
+// 20261030 CL/MMR SST-909 CodeRabbit (PR #957): an egnetekster.csv line without a text for the language (only the id, or "-") no longer replaces a text found earlier for the same id.
+//                  When an id has only such lines, egne_tekster.csv and tekster.csv are read, as before SST-909.
 
 if (!function_exists('findtekst_session_var')) {
 	/**
@@ -271,8 +273,9 @@ if (!function_exists('findtekst')) {
 					if ($linje = trim(fgets($fp))) {
 						// Every line is split, also one without tabs (only the id), so the id compare never reads a missing column (SST-909)
 						$tmp = explode(chr(9), $linje);
-						if ($textId == $tmp[0]) {
-							$newTxt = $tmp[$languageID] ?? ''; # Linjen efter 1. tab.
+						// A line without a text for this language (only the id, or "-") does not replace a text found on an earlier line (SST-909)
+						if ($textId == $tmp[0] && ($tmp[$languageID] ?? '') !== '' && $tmp[$languageID] !== '-') {
+							$newTxt = $tmp[$languageID]; # Linjen efter 1. tab. 
 						}
 					}
 				}
