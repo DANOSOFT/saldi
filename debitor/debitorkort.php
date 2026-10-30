@@ -126,6 +126,7 @@
 // 20261029 CL/MJ SST-892 A new card drawn as private (most debitors are private) lost the company name from a CVR lookup: it went into a hidden field and Gem rebuilt it from the empty first and last name.
 //                The company name is now a hidden row; choosing Erhverv shows it, a successful lookup chooses Erhverv, Gem keeps it, and the name check follows the chosen type.
 // 20261030 CL/MJ SST-892 Only a new card switches to Erhverv by itself after a lookup; on a saved card with contacts Gem refuses a type change and the edits were lost.
+//                On such a card the Kundetype select now refuses the change when it is made, with Gem's message, before anything is typed.
 @session_start();
 $s_id = session_id();
 
@@ -2715,8 +2716,18 @@ function split_navn($firmanavn)
 // called by cvrapiopslag.js), so the name is visible and saved.
 // 20261030 CL/MJ SST-892 Only a new card switches by itself: a saved card with contacts can't change type (Gem
 // refuses it and reloads), so a lookup there would throw away the user's edits.
+// 20261030 CL/MJ SST-892 On such a card the type select refuses the change at once, with Gem's own message, and
+// goes back, so nothing is typed into the company name that the refused save would throw away.
+$debitorkortTypeLaast = ($id && isset($an_id)) ? 'true' : 'false';
 print "<script type=\"text/javascript\">
+var debitorkortTypeLaast = $debitorkortTypeLaast;
 function debitorkortVisKontotype(kontotype) {
+	var form = document.forms['debitorkort'];
+	if (debitorkortTypeLaast && form && form.gl_kontotype && kontotype != form.gl_kontotype.value) {
+		alert('Please delete all contacts to proceed');
+		form.kontotype.value = form.gl_kontotype.value;
+		return;
+	}
 	var firma = document.getElementById('debitorkort_firmanavn');
 	if (!firma) return;
 	var erhverv = (kontotype == 'erhverv');
