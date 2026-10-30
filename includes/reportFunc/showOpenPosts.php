@@ -102,7 +102,7 @@
 // 20261001 CL/LAH Ryk alle's confirm uses a singular text for one ticked account.
 // 20261001 CL/LAH Aging buckets take the control sum's per-post amount, so zero-rate and '-' currency posts also add up to the kontokort figure.
 //                 vis_aabne_poster() can leave the footer to its caller, so openpost() prints it once after the rykker overview.
-// 20261006 Saw Every report-wide colspan is derived from the column count, so the footer and
+// 20261006 SAW Every report-wide colspan is derived from the column count, so the footer and
 //                  pagination no longer span a phantom tenth column when there are no BS customers.
 //                  The BS toggle carries the same view state as the pagination links, and showPBS
 //                  is read from $_REQUEST and posted back.
@@ -118,6 +118,7 @@
 // 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
 //                 collide with ids used by other open branches.
 // 20261030 CDX/NTR Merge the updated aging grid and actions while preserving request precedence and one shared column count.
+// 20261030 CDX/NTR Normalize the historical author tag to uppercase for file-history validation.
 
 if (!function_exists('openpost_account_filter')) {
 /**
