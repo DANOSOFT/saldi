@@ -21,6 +21,7 @@
 // 20261027 CDX/MJ SST-876 Allow the transaction regression to distinguish pending stock from committed stock.
 // 20261028 CDX/MJ SST-876 Model the per-round stock refresh against current fixture stock.
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
+// 20261030 CL/MJ SST-876 The alert is a script block now: the item number must not add a second </script>.
 
 chdir(dirname(__DIR__, 4));   // sync_shop_vare() opens ../temp/<db>/rest_api.log
 
@@ -407,7 +408,8 @@ shopSyncNoteFailedItem('item"</script>');
 ob_start();
 shopSyncAlertFailedItems(1);
 $alert = ob_get_clean();
-check(strpos($alert, '</script>') === false, 'An item number cannot inject markup into the alert');
+check(substr_count($alert, '</script>') === 1 && strpos($alert, 'item"') === false,
+	'An item number cannot inject markup into the alert');
 
 foreach (glob(shopSyncQueueDir() . '*') as $leftover) {
 	unlink($leftover);
