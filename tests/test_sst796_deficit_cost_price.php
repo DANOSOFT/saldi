@@ -23,6 +23,7 @@ ini_set('display_errors', 'stderr');
 $GLOBALS['sst796_rows'] = [];      // rows the double returns for the purchase-line query
 $GLOBALS['sst796_queries'] = [];
 $GLOBALS['sst796_varekostpris'] = '88100.930'; // Den-Tec's three-year-old varekort figure
+$GLOBALS['sst796_ordre_art'] = 'DO';      // ordrer.art of the order the priced line belongs to (SST-907)
 
 /** findtekst() is not under test here; return the fallback text carried by the id. */
 function findtekst($key, $sprog_id)
@@ -36,6 +37,9 @@ function db_select($query, $source)
     $GLOBALS['sst796_queries'][] = $query;
     if (stripos($query, 'from varer') !== false) {
         return (object)['rows' => [['kostpris' => $GLOBALS['sst796_varekostpris']]]];
+    }
+    if (stripos($query, 'join ordrer o on o.id = ol.ordre_id') !== false) {
+        return (object)['rows' => [['art' => $GLOBALS['sst796_ordre_art']]]];
     }
     return (object)['rows' => $GLOBALS['sst796_rows']];
 }
@@ -227,6 +231,39 @@ check('a webservice delivery still gets the right price', 138750.0, $ws);
 check('a webservice delivery prints nothing', '', $wsPrinted);
 check('a webservice delivery is still logged', true, strpos($wsLog, 'source open purchase line') !== false);
 
+// SST-907: a POS sale must not print the alert either. It was printed in the same page that then
+// redirects to the printserver, so the customer's receipt only printed after someone clicked OK -
+// on every sale off negative stock. Price and log line stay as they are. Like the webservice case
+// this runs while the warn-once flag is unset, so it also proves a POS sale does not spend it.
+$GLOBALS['sst796_rows'] = [];
+$GLOBALS['sst796_ordre_art'] = 'PO';
+$GLOBALS['sst796_queries'] = [];
+$fp = fopen('php://memory', 'w+');
+ob_start();
+$pos = deficit_cost_price(1096, 49345, 0, $fp, 2, 'salg fra negativ lagerbeholdning');
+$posPrinted = ob_get_clean();
+rewind($fp);
+$posLog = stream_get_contents($fp);
+fclose($fp);
+check('a POS sale still gets the varekort cost price', 88100.93, $pos);
+check('a POS sale prints no alert', '', $posPrinted);
+check('a POS sale is still logged', true, strpos($posLog, 'linje_id 49345, source varer.kostpris') !== false);
+$artQuery = '';
+foreach ($GLOBALS['sst796_queries'] as $q) {
+    if (stripos($q, 'join ordrer o on o.id = ol.ordre_id') !== false) $artQuery = $q;
+}
+check('the POS check looks up the line by its int-cast id', true, strpos($artQuery, "where ol.id = '49345'") !== false);
+$GLOBALS['sst796_queries'] = [];
+ob_start();
+deficit_cost_price("49345' or '1'='1", "49345' or '1'='1", 0, NULL, 2, 'salg fra negativ lagerbeholdning');
+ob_end_clean();
+$injected = false;
+foreach ($GLOBALS['sst796_queries'] as $q) {
+    if (strpos($q, "or '1'='1") !== false) $injected = true;
+}
+check('the line id is int-cast before it reaches SQL', false, $injected);
+$GLOBALS['sst796_ordre_art'] = 'DO';
+
 // The sale branch, Den-Tec's shape: the open purchase line must beat the stale varekort figure.
 // Reaching here with the flag unspent also proves the webservice call above did not consume it.
 $GLOBALS['sst796_rows'] = [poLine()];
@@ -266,7 +303,7 @@ $guard = file_get_contents(__DIR__ . '/../includes/stdFunc/findOpenPurchaseCost.
 check(
     'the warn-once flag is guarded by the webservice flag, not set before it',
     true,
-    (bool)preg_match('/if\s*\(\s*!\$webservice\s*&&\s*!\$advaret\s*\)/', $guard)
+    (bool)preg_match('/if\s*\(\s*!\$webservice\s*&&\s*!\$advaret\s*&&\s*!deficit_cost_is_pos_line\(\$linje_id\)\s*\)/', $guard)
 );
 
 // ---------------------------------------------------------------------------------------------

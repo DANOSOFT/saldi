@@ -49,7 +49,9 @@ class VareGruppeModel
     {
         global $regnaar;
 
-        $qtxt = "SELECT * FROM grupper WHERE id = $id";
+        // 20261008 CL/LH: id comes straight from ?id= - cast it, and only match product groups
+        // (any grupper row - fiscal years, warehouses, VAT codes - used to load as a product group).
+        $qtxt = "SELECT * FROM grupper WHERE id = " . (int)$id . " AND art = 'VG'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         if ($r = db_fetch_array($q)) {
@@ -223,6 +225,17 @@ class VareGruppeModel
         return explode("\t", $q)[0] == "0";
     }
 
+    // 20261008 CL/LH: swagger documents codeNo / description / fiscalYear for orderBy/field,
+    // but only the Danish column names were accepted. Both are accepted now.
+    private static $apiFieldColumns = [
+        'codeNo' => 'kodenr', 'description' => 'beskrivelse', 'fiscalYear' => 'fiscal_year',
+    ];
+
+    private static function apiFieldToColumn($field)
+    {
+        return self::$apiFieldColumns[$field] ?? $field;
+    }
+
     /**
      * Class method to get all VareGruppe items
      *
@@ -234,6 +247,7 @@ class VareGruppeModel
     {
         global $regnaar;
 
+        $orderBy = self::apiFieldToColumn($orderBy);
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['id', 'kodenr', 'beskrivelse', 'fiscal_year'];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'kodenr';
@@ -262,6 +276,7 @@ class VareGruppeModel
     {
         global $regnaar;
 
+        $field = self::apiFieldToColumn($field);
         // Whitelist allowed search fields
         $allowedFields = ['id', 'kodenr', 'beskrivelse', 'fiscal_year'];
         if (!in_array($field, $allowedFields)) {

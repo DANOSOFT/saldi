@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.02 ---
+// --- systemdata/sys_div_func.php --- ver 5.1.0 -- 2026.10.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -127,6 +127,15 @@
 // 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
 // 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
 // 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
+// 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
+//                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
+//                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
+// 20261027 CL/MMR SD-780 The SMTP password on Kontoindstillinger is a password field (was clear text) with a "Vis" box to show it.
+//                 The value is still posted unchanged, so Skift works without retyping it.
+//                 The two includes in kontoindstillinger() use __DIR__ now (include-path convention for an edited block).
+//                 The brugerantal lookup between them sits at function level (was indented one tab too far).
+// 20261029 CL/MJ SST-885 ordre_valg(): new checkbox "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL, off by default).
+
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -152,17 +161,17 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	$disabled  = "";
 	@session_start();
 	$s_id = session_id();
-	include("../includes/connect.php");
-		$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
-		$result = db_select($query, __FILE__ . " linje " . __LINE__);
-	
-		if ($result) {
-			if (db_num_rows($result) > 0) {
-				$row = db_fetch_array($result);
-				$max_users = (int)$row['brugerantal'];
-			}
+	include(__DIR__ . '/../includes/connect.php');
+	$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
+	$result = db_select($query, __FILE__ . " linje " . __LINE__);
+
+	if ($result) {
+		if (db_num_rows($result) > 0) {
+			$row = db_fetch_array($result);
+			$max_users = (int)$row['brugerantal'];
 		}
-	include("../includes/online.php");
+	}
+	include(__DIR__ . '/../includes/online.php');
 	if($masterDb == "gratis" || $masterDb == "mini") {
 		$disabled = "disabled";
 	}
@@ -228,7 +237,10 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		$tekst1 = findtekst('750|Adgangskode til SMTP serveren, hvis krævet', $sprog_id);
 		$tekst2 = findtekst('324|Adgangskode', $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 750-->$tekst2<!--tekst 324--></td>";
-		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtppass' value='$r[felt_3]'></td></tr>";
+		// SD-780: the SMTP password is a password field; the "Vis" box shows it while checked.
+		$tekst3 = findtekst('1133|Vis', $sprog_id);
+		print "<td title='$tekst1'><input class='inputbox' type='password' style='width:200px' name='smtppass' value='$r[felt_3]' autocomplete='new-password'>";
+		print " <label style='white-space:nowrap'><input type='checkbox' onclick=\"this.form.elements['smtppass'].type = this.checked ? 'text' : 'password';\"> $tekst3<!--tekst 1133--></label></td></tr>";
 		$tekst1 = findtekst('751|Krypteringsmetode til SMTP serveren, hvis krævet', $sprog_id);
 		$tekst2 = findtekst('748|Kryptering', $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 751-->$tekst2<!--tekst 748--></td>";
@@ -1356,14 +1368,15 @@ function removeDfmPickup(idx) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='vibrant_auth'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-	# Check if it exsists
-	$APIKEY = $r ? $r[0] : "";
+	# The saved key is never printed back, only its last four characters as a hint. The field starts
+	# empty, and diverse.php only saves a non-empty value, so an untouched field keeps the saved key.
+	$vibrantKeyHint = ($r && $r[0] !== '') ? htmlspecialchars('********' . substr($r[0], -4), ENT_QUOTES) : '';
 
 	$mtxt   = findtekst('2317|Vibrant API nøjle', $sprog_id);
 	$mtitle = findtekst('2318|API nøjlen til din Vibrant APP', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2318 -->$mtxt <!-- Tekst 2317 --></td>\n";
 	print "<td title='$mtitle'>
-    <input name='vibrant_id' class='inputbox' style='width:150px;' type='text' value='$APIKEY'>
+    <input name='vibrant_id' class='inputbox' style='width:150px;' type='text' value='' placeholder='$vibrantKeyHint' autocomplete='off'>
   </td>\n</tr>\n";
 
 	# Vibrant login setup
@@ -1374,12 +1387,13 @@ function removeDfmPickup(idx) {
 	$mtitle = findtekst('2323|Kontoen du anvender til at logge ind på din vibrant terminal med', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2323 -->$mtxt <!-- Tekst 2322 --></td>\n";
 
-	# If an account is already setup, show the "Show account" button
+	# If an account is already setup, show the "Show account" button. The login is fetched on click,
+	# so it is not in the page source or the browser cache.
 	if ($r) {
 		$ntxt = findtekst('2325|Vis login', $sprog_id); # Show account
 
 		print "<td title='$mtitle'>
-      <button type='button' onclick='alert(\"Dit login til din vibrant terminalen: \\n\\n$r[var_name] \\n$r[var_value]\")'>$ntxt</button>
+      <button type='button' onclick='show_vibrant_login()'>$ntxt</button>
     </td>\n</tr>\n";
 	} else { # No vibrant account in the system
 		$ytxt = findtekst('2324|Opret login', $sprog_id); # Create account
@@ -1411,58 +1425,54 @@ function removeDfmPickup(idx) {
     document.getElementsByClassName('backdrop')[0].style.display = 'block';
   }
 
+  function show_vibrant_login() {
+    fetch('diverseIncludes/show_vibrant_login.php', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': " . json_encode($csrf_token) . "
+      }
+    })
+      .then(response => response.json())
+      .then(res => {
+        if (!res.success) {
+          alert(res.error);
+          return;
+        }
+        alert('Dit login til din vibrant terminalen: \\n\\n' + res.email + ' \\n' + res.password);
+      })
+      .catch(error => {
+        // e.g. an expired session, where the answer is the HTML login page instead of JSON
+        console.error('Fetch Error:', error);
+        alert('Uventet svar fra serveren. Log evt. ind igen og prøv igen.');
+      });
+  }
+
+  // create_vibrant_login.php creates the user at Vibrant with the API key on the server and saves the login
   function hide_popup_vibrant() {
     var name = document.getElementById('vibrant-acc-name').value;
     var email = document.getElementById('vibrant-acc-email').value;
     var passwd = document.getElementById('vibrant-acc-passwd').value;
 
-    data = {
-      'name': name,
-      'email': email,
-      'roleIds': [
-        'ro_1xBHy6kquVWMne9caAaXps',
-        'ro_bzDKsUpAeFsFm8kUUXkXTy'
-      ],                           
-      'password': passwd       
-    }
-
-    fetch('https://pos.api.vibrant.app/pos/v1/users', {
+    fetch('diverseIncludes/create_vibrant_login.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '$APIKEY'
+        'X-CSRF-Token': " . json_encode($csrf_token) . "
       },
-      body: JSON.stringify(data) 
+      body: JSON.stringify({name: name, email: email, passwd: passwd})
     })
-      .then(response => {
-        if (!response.ok) {
-          console.log(response);
-          response.json().then((res) => {console.log(res); alert(res.error + ' : ' + res.message)}).catch(error => {
-            throw new Error('Network response was not ok');
-          })
-          throw new Error('Network response was not ok');
+      .then(response => response.json())
+      .then(res => {
+        if (!res.success) {
+          alert(res.error);
+          return;
         }
-        console.log('Response:', response);
-        fetch('diverseIncludes/create_vibrant_login.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({name: name, email: email, passwd: passwd}) 
-        })
-          .then(response => {
-            if (!response.ok) {
-              throw new Error('Network response was not ok');
-            }
-            console.log('Response:', response);
-            location.reload();
-          })
-          .catch(error => {
-            console.error('Fetch Error:', error);
-          });
+        location.reload();
       })
       .catch(error => {
+        // e.g. an expired session, where the answer is the HTML login page instead of JSON
         console.error('Fetch Error:', error);
+        alert('Uventet svar fra serveren. Log evt. ind igen og prøv igen.');
       });
 
 
@@ -1820,6 +1830,7 @@ function ordre_valg() {
 
 	// SD-657: while this is on, users without the Indstillinger right are kept out of turnover and Finans.
 	$hideRevenue = (get_settings_value('hideRevenue', 'finans', 'off') === 'on') ? 'checked' : '';
+	$sendOrderNote = (get_settings_value('sendOrderNote', 'easyUBL', 'off') === 'on') ? 'checked' : ''; #20261029
 	$rabatvareid = (int)$grupper_data['box2'];
 	($grupper_data['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
 	($grupper_data['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
@@ -1953,6 +1964,8 @@ function ordre_valg() {
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 	print "<tr><td title='".findtekst('5247|Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.', $sprog_id)."'>".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."</td><td><INPUT title='".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."' class='inputbox' type='checkbox' name='hideRevenue' $hideRevenue></td></tr>";
+	$sendOrderNoteTitle = htmlspecialchars(findtekst('8401|Afmærkes feltet, sendes teksten i "Bemærkning til ordre" med som bemærkning på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet bruges ofte til interne noter, så det er slået fra som standard. PDF-fakturaen er uændret.', $sprog_id), ENT_QUOTES); #20261029
+	print "<tr><td title='$sendOrderNoteTitle'>".htmlspecialchars(findtekst('8400|Send "Bemærkning til ordre" med på e-fakturaer', $sprog_id), ENT_QUOTES)."</td><td><INPUT title='$sendOrderNoteTitle' class='inputbox' type='checkbox' name='sendOrderNote' $sendOrderNote></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";

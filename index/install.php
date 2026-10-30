@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-03-20---
+//------------index/install.php----lap 5.0.0---2026-10-23---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20140701 Tilføjet bilag til create regnskab
@@ -46,6 +46,8 @@
 // 20260904 CL/NTR Pre-flight check of the OAuth key and JWT secret directories, trying chmod first, so a
 //                   missing write access stops the wizard with a message instead of an exception after the DB is created.
 // 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
+// 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
+// 20261023 CL/NTR Added tekst_key to tekster table, and added an index on (sprog_id, tekst_key) for faster lookups. This is needed for the new translation system to work properly.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -293,7 +295,7 @@ if (isset($_POST['opret'])){
 	$qtxt = "CREATE TABLE regnskab (id serial NOT NULL,	regnskab varchar(60), dbhost varchar(25), dbuser varchar(25), ";
 	$qtxt.= "db varchar(25), version varchar(10), sidst varchar(16), brugerantal numeric(5,0), posteringer numeric(10,0), ";
 	$qtxt.= "posteret numeric(10,0), mysale numeric(1,0), lukket varchar(2),administrator varchar(2),lukkes date, ";
-	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT, PRIMARY KEY (id))";
+	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT,global_id int default 0, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version,bilag) values ";
 	$qtxt.= "('$db_navn' ,'$db_host', '$db_bruger', '$db_navn', '$version','0')";
@@ -306,7 +308,9 @@ if (isset($_POST['opret'])){
 	$qtxt.= "kodeord text, kontrol_id text, aktiv int, logtime text,slettet varchar(2),tlf text,affiliate text, ";
 	$qtxt.= "referer text, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst text, PRIMARY KEY (id))";
+	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst_key varchar(190), tekst text, PRIMARY KEY (id))";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$qtxt = "CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE revisor";
 	$qtxt.= "(id serial NOT NULL,regnskabsaar integer,bruger_id integer,brugernavn text,db_id integer,PRIMARY KEY (id))";

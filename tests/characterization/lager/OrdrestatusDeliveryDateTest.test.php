@@ -206,7 +206,7 @@ namespace {
                 'buy_order_orders' => '934',
                 'buy_order_qty' => '1.000',
                 'buy_order_date' => '2026-12-15',
-            ), '1,00', '5439|Forventet lev. dato');
+            ), '1,00', '8402|Forventet lev. dato');
 
             self::assertSame('Forventet lev. dato', $this->dateHeader($html),
                 'the caller-supplied date header is ignored');
@@ -258,7 +258,7 @@ namespace {
                 'in_sales_offer' => array('sales_offer_orders_date', null),
                 'in_sales_order' => array('sales_order_orders_date', null),
                 'in_buy_proposal' => array('buy_proposal_orders_date', null),
-                'in_buy_order' => array('buy_order_date', '5439|Forventet lev. dato'),
+                'in_buy_order' => array('buy_order_date', '8402|Forventet lev. dato'),
             );
         }
 
@@ -322,11 +322,11 @@ namespace {
             $csv = file_get_contents(__DIR__ . '/../../../importfiler/tekster.csv');
             self::assertNotFalse($csv, 'could not read importfiler/tekster.csv');
 
-            foreach (array('5439' => 'Forventet lev. dato', '5440' => 'forventede leveringsdato') as $id => $needle) {
+            foreach (array('8402' => 'Forventet lev. dato', '8403' => 'forventede leveringsdato') as $id => $needle) {
                 self::assertMatchesRegularExpression("/^$id\t.*" . preg_quote($needle, '/') . "/m", $csv,
                     "text $id is missing from importfiler/tekster.csv");
             }
-            foreach (array('5439', '5440') as $id) {
+            foreach (array('8402', '8403') as $id) {
                 self::assertSame(1, preg_match_all("/^$id\t/m", $csv), "text $id is defined more than once");
             }
         }
@@ -339,7 +339,7 @@ namespace {
                 self::assertNotFalse($src, "could not read kreditor/orderIncludes/$file");
                 self::assertStringNotContainsString('findtekst(886', $src,
                     "$file still labels the delivery date with text 886, which sales orders share");
-                self::assertStringContainsString("findtekst('5439|Forventet lev. dato',\$sprog_id)", $src,
+                self::assertStringContainsString("findtekst('8402|Forventet lev. dato',\$sprog_id)", $src,
                     "$file no longer labels the delivery date Forventet lev. dato");
             }
             $sales = file_get_contents(__DIR__ . '/../../../debitor/ordreliste.php');

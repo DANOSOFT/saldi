@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/ordrestatus.php --- ver 5.0.0 --- 2026.10.13 ---
+// ---- lager/lister/ordrestatus.php --- ver 5.1.0 --- 2026.10.30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20261013 MJ The Indkoebsordre hover box dates its orders by the expected delivery date
 //              (ordrer.levdate) instead of the order date, and says so in the column header.
 //              An order without a delivery date is still listed, with a dash for the date.
+// 20261030 CL/MJ Text ids 5439/5440 are now 8402/8403: master already uses 5439 and 5440 for other texts.
 
 @session_start();
 $s_id = session_id();
@@ -218,7 +219,7 @@ $columns[] = array(
     "width" => "0.2",
     "sqlOverride" => "COALESCE(os.in_buy_order, 0)",
     "render" => function ($value, $row, $column) {
-        return renderColumn($value, $row, $column, 'kreditor', 'buy_order_orders_id', 'buy_order_orders', 'buy_order_qty', 'buy_order_date', 'border-right: 1px black solid', '5439|Forventet lev. dato');
+        return renderColumn($value, $row, $column, 'kreditor', 'buy_order_orders_id', 'buy_order_orders', 'buy_order_qty', 'buy_order_date', 'border-right: 1px black solid', '8402|Forventet lev. dato');
     }
 );
 
@@ -802,7 +803,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => findtekst('5440|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer. For indkøbsordrer er datoen den forventede leveringsdato.', $sprog_id)
+    "content" => findtekst('8403|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer. For indkøbsordrer er datoen den forventede leveringsdato.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",
