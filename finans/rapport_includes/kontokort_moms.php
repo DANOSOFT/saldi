@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-09-18 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-10-30 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----ver 5.0.0 ----2026-09-30-----
+// --- finans/rapport_includes/kontokort.php-----ver 5.0.0 ----2026-10-30-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,7 +67,7 @@
 //                  Simulated rows are left out in that mode, since simulated journals are among them.
 //                  Lines with an account setup error are listed once above the report instead of one alert each.
 //                  Unposted rows on a foreign-currency account use the account currency's rate, like posted rows.
-// 20261029 CL/LAH Show all lines by default: per_page 0 means "Alle" and is now the default, with
+// 20261030 CL/LAH Show all lines by default: per_page 0 means "Alle" and is now the default, with
 //                  "Alle" first in Linjer pr. side. The prev/next arrows kept dropping per_page.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
