@@ -28,8 +28,8 @@
 // 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant,
 //                 and deletes only a pending booking whose payment never started, failed or was cancelled.
 //                 The action is the named handler update_booking_payment() in includes/vibrantPayment.php.
-// 20261030 CL/MMR SST-913: Bookings invoice again: includes/ordrefunc.php is loaded (levering(), bogfor()) and the
-//                 local 2014 copy of opret_ordrelinje() is gone, so order lines come from the same function as remoteBooking.
+// 20261030 CL/MMR SST-913: Bookings invoice again: includes/ordrefunc.php is loaded, and the local 2014 copy of opret_ordrelinje() is gone.
+//                 CreateOrder() passes its VAT rate on to opret_ordrelinje(), and the order's VAT follows that rate.
 //
 
 
@@ -250,7 +250,7 @@ if(isset($_GET["getTerms"])){
 }
 
 function CreateOrder($data){
-    global $regnaar;
+    global $regnaar, $momssats; // opret_ordrelinje() takes the order's VAT rate from the global $momssats
     $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
     $currentYear = date('Y');
     $currentMonth = date('m');
@@ -377,7 +377,7 @@ function CreateOrder($data){
         }
     }
     $sum = ($product["price"] - $discountAmount);
-    $moms = ($product["price"] - $discountAmount) * 0.25;
+    $moms = ($product["price"] - $discountAmount) * $momssats / 100;
 
     $basePrice = $res["salgspris"];
     

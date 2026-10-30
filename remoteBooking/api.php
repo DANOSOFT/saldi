@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- remoteBooking/api.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- remoteBooking/api.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant,
 //                 and deletes only a pending booking whose payment never started, failed or was cancelled.
 //                 The action is the named handler update_booking_payment() in includes/vibrantPayment.php.
+// 20261030 CL/MMR SST-913: CreateOrder() passes its VAT rate on to opret_ordrelinje(), and the order's VAT follows that rate.
 //
 
 
@@ -404,7 +405,7 @@ if(isset($_GET["getClosedDates"])){
 }
 
 function CreateOrder($data){
-    global $regnaar;
+    global $regnaar, $momssats; // opret_ordrelinje() takes the order's VAT rate from the global $momssats
     $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
     $currentYear = date('Y');
     $currentMonth = date('m');
@@ -531,7 +532,7 @@ function CreateOrder($data){
         }
     }
     $sum = ($product["price"] - $discountAmount);
-    $moms = ($product["price"] - $discountAmount) * 0.25;
+    $moms = ($product["price"] - $discountAmount) * $momssats / 100;
     $incMoms = $sum + $moms;
     $basePrice = $res["salgspris"];
     

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -147,6 +147,7 @@
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261030 CL/MMR SST-913: opret_ordrelinje() compares the item's own sales price ($productPrice) for the fixed-margin cost, not a reused query row (undefined salgspris warning).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -4208,7 +4209,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			$kostpris = $productCost * 1;
 		}
 		#		fwrite($log,__line__." Pris $pris\n");
-		if ($pris && $r['salgspris'] == 0 && $kostpris < 1 && $kostpris > 0) {
+		if ($pris && $productPrice == 0 && $kostpris < 1 && $kostpris > 0) {
 			$fast_db = $kostpris;
 			$kostpris = ($pris - $pris * $rabat_ny / 100) * $kostpris;
 		} else

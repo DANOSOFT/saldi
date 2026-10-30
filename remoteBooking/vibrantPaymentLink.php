@@ -6,6 +6,7 @@
 //                 a retry gets the link already bound to the booking;
 //                 no link is handed out for a booking cancelled meanwhile.
 //                 SALDI_VIBRANT_API_BASE may point the call at a local mock in tests.
+// 20261030 CL/MMR SST-913: The amount is the order's sum plus its VAT (not sum x 1.25), so VAT-free bookings are not overcharged.
 require_once __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 include_once(__DIR__ . "/../includes/vibrantPayment.php");
@@ -36,7 +37,7 @@ if ((string)$res["payment_id"] !== '' && (string)$res["payment_url"] !== '') {
 
 $query = db_select("SELECT * FROM ordrer WHERE id = '$orderId'", __FILE__ . " linje " . __LINE__);
 $res = db_fetch_array($query);
-$amount = $res["sum"] * 1.25 * 100;
+$amount = (int)round(((float)$res["sum"] + (float)$res["moms"]) * 100);
 
 $query = db_select("SELECT apikey FROM rentalpayment WHERE id = 1", __FILE__ . " linje " . __LINE__);
 $res = db_fetch_array($query);
