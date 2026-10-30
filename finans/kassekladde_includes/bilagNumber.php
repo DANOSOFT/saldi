@@ -324,11 +324,10 @@ function bilagNextNumberSkipping($held, $used, $from) {
 	if ($next <= 0) {
 		return 0;
 	}
-	$guard = 0;
 	while (isset($held[$next]) || in_array($next, $used, true)) {
 		$next++;
-		if (++$guard > 5000) {
-			return 0;   # a set this tangled is not going to resolve by walking
+		if (!bilagNumberFits((string)$next)) {
+			return 0;
 		}
 	}
 	return bilagNumberFits((string)$next) ? $next : 0;
