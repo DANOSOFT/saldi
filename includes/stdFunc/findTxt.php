@@ -10,6 +10,10 @@
 // 20260903 NTR moved sessionVar behind pipe | filter to avoid session key collisions when using the same textId in different contexts (e.g., "5001|Udl&oslash;bsdato" vs. "5001|Udløbs dato").
 // 20261029 CL/NTR findtekst() now accepts descriptive string keys (tekst_key) as well as legacy numeric tekst_id. A key may be suffixed with '|fallback text' to provide a default when no translation is found. See doc/ai/convention_findtekst_keys.md.
 // 20261029 CDX/NTR Restored helper definitions and input initialization lost while merging master.
+// 20261029 CL/MMR SST-909 A text found in egnetekster.csv is kept: egne_tekster.csv and tekster.csv are only read when it gave none (it was thrown away before).
+//                  An empty line in egnetekster.csv or egne_tekster.csv no longer raises "Undefined array key".
+// 20261030 CL/MMR SST-909 CodeRabbit (PR #957): an egnetekster.csv line without a text for the language (only the id, or "-") no longer replaces a text found earlier for the same id.
+//                  When an id has only such lines, egne_tekster.csv and tekster.csv are read, as before SST-909.
 
 if (!function_exists('findtekst_session_var')) {
 	/**
@@ -267,10 +271,10 @@ if (!function_exists('findtekst')) {
 				$tmp = array();
 				while (!feof($fp)) {
 					if ($linje = trim(fgets($fp))) {
-						if (strpos($linje, chr(9))) {
-							$tmp = explode(chr(9), $linje);
-						}
-						if ($textId == $tmp[0]) {
+						// Every line is split, also one without tabs (only the id), so the id compare never reads a missing column (SST-909)
+						$tmp = explode(chr(9), $linje);
+						// A line without a text for this language (only the id, or "-") does not replace a text found on an earlier line (SST-909)
+						if ($textId == $tmp[0] && ($tmp[$languageID] ?? '') !== '' && $tmp[$languageID] !== '-') {
 							$newTxt = $tmp[$languageID]; # Linjen efter 1. tab. 
 						}
 					}
@@ -278,7 +282,8 @@ if (!function_exists('findtekst')) {
 				fclose($fp);
 			}
 		}
-		if (($tekst === null || $tekst === '') && $textId) { # 20210304
+		// egnetekster.csv has precedence over egne_tekster.csv and tekster.csv: keep its text (SST-909)
+		if (($tekst === null || $tekst === '') && ($newTxt === null || $newTxt === '') && $textId) { # 20210304
 			$newTxt = NULL;
 			if (file_exists("../importfiler/egne_tekster.csv")) {
 				$fp = fopen("../importfiler/egne_tekster.csv", "r");
@@ -287,7 +292,7 @@ if (!function_exists('findtekst')) {
 					if ($linje = trim(fgets($fp))) {
 						$a = explode("\t", $linje);
 						if ($a[0] == $textId) {
-							$newTxt = $a[$languageID];
+							$newTxt = $a[$languageID] ?? '';
 						}
 					}
 				}

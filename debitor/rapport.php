@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------ver 5.0.0 ----2026-10-23--------------
+// -------debitor/rapport.php------ver 5.1.0 ----2026-10-30--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,10 +51,16 @@
 //                report has no matching accounts - Mail kontoudtog/Opret rykker/Ryk alle used to crash.
 // 20261001 CDX/LAH Validate settlement lists and show skipped reminders and blocked-popup links.
 // 20261001 CDX/LAH Encode sales-statistics redirects and use ifset for the reminder count lookup.
+// 20261006 SAW Openpost GET filters are read once and raw; both DRV report-setting updates
+//                  (salgsstat and report submit) escape every value at the query instead.
 // 20261015 CL/LH PR #697 review: "Slet" deletes each reminder's lines and order inside one transaction,
 //                and autoudlign_liste() has a PHPDoc block.
 // 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
 //                collide with ids used by other open branches.
+// 20261027 CL/LH PR #450: the salgsstat redirect URL-encodes the dato/konto values and escapes the
+//                URL for the attribute (a firm name with & or a quote broke the link).
+// 20261030 CDX/NTR Merge the sales-statistics redirect with one URL prefix and one HTML escaping pass.
+// 20261030 CDX/NTR Normalize the historical author tag to uppercase for file-history validation.
 
 @session_start();
 $s_id = session_id();
@@ -425,7 +431,8 @@ $rapportart = NULL;
 if (isset($_POST['openpost']) || $openpost)
 	$rapportart = 'openpost';
 if ($openpost) {
-	# Keep the raw filters for report links/searches; rapport_save_filters() escapes only the SQL write.
+	# Openpost GET requests (0,00 links, Udlign alle, pagination, BS toggle, iframe reload) must
+	# keep their filters. Read raw: the DRV updates below and the report queries escape at the query.
 	if (!isset($dato_fra) && isset($_GET['dato_fra'])) $dato_fra = $_GET['dato_fra'];
 	if (!isset($dato_til) && isset($_GET['dato_til'])) $dato_til = $_GET['dato_til'];
 	if (!isset($konto_fra) && isset($_GET['konto_fra'])) $konto_fra = $_GET['konto_fra'];
