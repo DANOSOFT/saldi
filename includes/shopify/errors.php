@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/errors.php --- ver 5.0.0 --- 2026.10.28
+// --- includes/shopify/errors.php --- ver 5.1.0 --- 2026.10.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // queue needs the worker it reports as stopped) and starts one background worker run.
 //
 // 20261028 Sawaneh SD-738: created (WP02-3).
+// 20261029 CL/SS SD-741: shopify_error_resolve_key() resolves an open error by kind and ref.
 
 require_once __DIR__ . '/logging.php';
 require_once __DIR__ . '/queue.php';
@@ -109,8 +110,13 @@ function shopify_error_job_done(array $job): void {
 	if ((int)$job['attempts'] <= SHOPIFY_ALARM_AFTER_ATTEMPTS) {
 		return;
 	}
-	$key = shopify_error_key(isset($job['shop_id']) ? (int)$job['shop_id'] : null, 'job.failed', "{$job['type']}:{$job['dedupe_key']}");
-	shopify_db_rows('UPDATE shopify_errors SET resolved_at = now() WHERE error_key = $1 AND resolved_at IS NULL', array($key));
+	shopify_error_resolve_key(isset($job['shop_id']) ? (int)$job['shop_id'] : null, 'job.failed', "{$job['type']}:{$job['dedupe_key']}");
+}
+
+/** Resolves the open error of $kind and $ref, if there is one. */
+function shopify_error_resolve_key(?int $shopId, string $kind, string $ref): bool {
+	return shopify_db_rows('UPDATE shopify_errors SET resolved_at = now() WHERE error_key = $1 AND resolved_at IS NULL RETURNING id',
+		array(shopify_error_key($shopId, $kind, $ref))) !== array();
 }
 
 /** @param array<string, string|null> $row the alarmed shopify_errors row */

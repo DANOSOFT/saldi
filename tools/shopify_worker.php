@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.10.29
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.10.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // Usage: php tools/shopify_worker.php run --db=<tenant> [--max-seconds=50]
 //        php tools/shopify_worker.php register-webhooks --db=<tenant> [--base-url=https://...] [--shop=<shop_key>]
 //        php tools/shopify_worker.php replay --db=<tenant> --shop=<shop_key> --file=<day file> [--promote=1]
+//        php tools/shopify_worker.php seed --db=<tenant> --shop=<shop_key> [--batch=250]
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
 // 20261028 Sawaneh SD-738: the alarm mail (mail.alert) and the call-log purge (runtime.purge) are wired in.
@@ -38,6 +39,7 @@
 // 20261028 CL/SZ SD-749: commands register-webhooks and replay; the webhook.health handler.
 // 20261029 CL/SZ SD-749 review: register-webhooks reports a misconfigured shop as failed and goes on.
 // 20261029 CL/SZ SD-749 review: register-webhooks and replay need no fiscal year; a tenant they can't use ends with a line and exit 2.
+// 20261029 CL/SS SD-741: the catalogue jobs (catalogue.upsert, catalogue.link, catalogue.seed) and the command seed.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -51,6 +53,7 @@ function shopify_worker_commands(): array {
 		'run' => 'shopify_worker_cmd_run',
 		'register-webhooks' => 'shopify_worker_cmd_register_webhooks',
 		'replay' => 'shopify_worker_cmd_replay',
+		'seed' => 'shopify_worker_cmd_seed',
 	);
 }
 
@@ -61,6 +64,7 @@ function shopify_worker_commands(): array {
  */
 function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/events.php';
+	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
 	shopify_worker_register($registry, 'webhook.health', 'shopify_webhook_health_job');
@@ -72,6 +76,10 @@ function shopify_worker_wiring(): array {
 	);
 	shopify_worker_register($registry, 'mail.alert', 'shopify_mail_alert_job');
 	shopify_worker_register($registry, 'runtime.purge', 'shopify_runtime_purge_job');
+	// SD-741: items to the primary shop as drafts, links in the others, and the seed.
+	shopify_worker_register($registry, 'catalogue.upsert', 'shopify_catalogue_upsert_job');
+	shopify_worker_register($registry, 'catalogue.link', 'shopify_catalogue_link_job');
+	shopify_worker_register($registry, 'catalogue.seed', 'shopify_catalogue_seed_job');
 	return array('registry' => $registry, 'producers' => $producers);
 }
 
@@ -238,6 +246,39 @@ function shopify_worker_cmd_replay(array $opts): int {
 	}
 	echo json_encode($result, JSON_UNESCAPED_SLASHES) . "\n";
 	return $result['rejected'] > 0 ? 1 : 0;
+}
+
+/**
+ * Queues the catalogue seed of --shop (one catalogue.seed job; the worker run then queues every
+ * webshop item for it in chunks of --batch). The shop needs products_enabled. Prints the job.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_seed(array $opts): int {
+	$usage = 'seed --db=<tenant> --shop=<shop_key> [--batch=250]';
+	if (($opts['shop'] ?? '') === '') {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
+		return 2;
+	}
+	if (!shopify_worker_boot($opts, $usage)) {
+		return 2;
+	}
+	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
+	$shop = shopify_shop($opts['shop']);
+	if ($shop === null || $shop['products_enabled'] !== 't') {
+		fwrite(STDERR, "seed: shop {$opts['shop']} " . ($shop === null ? 'is unknown' : 'has products_enabled off') . "\n");
+		return 2;
+	}
+	$batch = (string)($opts['batch'] ?? '250');
+	if (!ctype_digit($batch) || (int)$batch < 1 || (int)$batch > 1000) {
+		fwrite(STDERR, "seed: --batch must be a whole number from 1 to 1000\n");
+		return 2;
+	}
+	$batch = (int)$batch;
+	$job = shopify_queue_enqueue('catalogue.seed', (int)$shop['id'], "{$shop['shop_key']}:seed", array('batch' => $batch), SHOPIFY_QUEUE_PRIORITY['catalogue.seed']);
+	// a seed already waiting or running keeps its own batch
+	echo json_encode(array('shop' => $shop['shop_key']) + ($job['created'] ? array('batch' => $batch) : array('note' => 'a seed is already queued or running')) + $job, JSON_UNESCAPED_SLASHES) . "\n";
+	return 0;
 }
 
 /**

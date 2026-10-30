@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/queue.php --- ver 5.0.0 --- 2026.10.28
+// --- includes/shopify/queue.php --- ver 5.1.0 --- 2026.10.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,8 @@
 // 20261026 Sawaneh SD-737: created (WP02-2).
 // 20261028 Sawaneh SD-738: a stored job error is redacted (shopify_redact(), loaded by the worker); recovery
 //                 reports the jobs it recovered, so a crash can alarm.
+// 20261029 CL/SS SD-741: shopify_queue_enqueue_coalesced() for producers of changed data: a follow-up behind a
+//                running job, and shopify_queue_hasten() brings a waiting one forward.
 
 require_once __DIR__ . '/db.php';
 
@@ -117,6 +119,39 @@ function shopify_queue_claim(array $types, int $leaseSeconds = 120): ?array {
 /** Marks the job done. False when $token no longer holds the lease (another run took it over). */
 function shopify_queue_complete(int $id, string $token): bool {
 	return shopify_queue_fenced($id, $token, "state = 'done', finished_at = now(), last_error = NULL");
+}
+
+/**
+ * shopify_queue_enqueue() for a producer whose data changed: when the equal job is already running
+ * it may have read the data before the change, so a second job (key <key>:again) is queued
+ * behind it; when it is waiting (perhaps in a retry backoff) it is brought forward to $runAt.
+ *
+ * @param array<string, mixed> $payload
+ * @param array<string, mixed> $correlation
+ * @return array{id: int, created: bool, state: string}
+ */
+function shopify_queue_enqueue_coalesced(string $type, ?int $shopId, string $dedupeKey, array $payload, int $priority, ?DateTimeImmutable $runAt = null, array $correlation = array()): array {
+	$job = shopify_queue_enqueue($type, $shopId, $dedupeKey, $payload, $priority, $runAt, $correlation);
+	if (!$job['created'] && $job['state'] === 'running') {
+		$job = shopify_queue_enqueue($type, $shopId, "$dedupeKey:again", $payload, $priority, $runAt, $correlation);
+	}
+	if (!$job['created'] && $job['state'] === 'queued') {
+		shopify_queue_hasten($job['id'], $runAt);
+	}
+	return $job;
+}
+
+/**
+ * Brings a queued job's next run forward to $runAt (now when null), never later. False when the
+ * job is not queued. For a producer whose job is waiting out a retry backoff: the new change
+ * should not wait an hour.
+ */
+function shopify_queue_hasten(int $id, ?DateTimeImmutable $runAt = null): bool {
+	return shopify_db_rows(
+		"UPDATE shopify_jobs SET next_run_at = least(next_run_at, coalesce($2::timestamp, now()))
+		 WHERE id = $1 AND state = 'queued' RETURNING id",
+		array($id, $runAt)
+	) !== array();
 }
 
 /**
