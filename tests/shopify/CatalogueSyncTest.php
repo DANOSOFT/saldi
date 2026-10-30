@@ -39,7 +39,7 @@ final class CatalogueSyncTest extends TestCase
             return;
         }
         try {
-            self::$db = ShopifyEnv::testDb('_c');
+            self::$db = ShopifyEnv::testDb('_k');
             ShopifyEnv::cloneTenant(self::$db);
             ShopifyEnv::registerTenant(self::$db);
             $run = ShopifyEnv::runSchema(self::$db, 'ensure');
