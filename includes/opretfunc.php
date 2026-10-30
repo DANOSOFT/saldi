@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.0.0 --- 2026-10-12 ---
+// --- includes/opretfunc.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20261027 CL/NTR create_regnskab: roll back and return build_failed when a master-row write
 //                fails, before the db_modify_fejl reset hides it (CodeRabbit). Fixed the brugere
 //                lookup precedence and '*' check, and skip that grant on the sign-up API.
+// 20261029 CL/MMR SST-841: rentalperiod gets payment_id and payment_url for the server-side Vibrant payment check.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -515,7 +516,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt = "CREATE TABLE rentalperiod ($id_column, rt_id int, rt_cust_id int, rt_from $decimal_type(15,0),";
-	$qtxt.= "rt_to $decimal_type(15,0), item_id int, cust_id int, order_id int, expiry_time timestamp, PRIMARY KEY (id))";
+	$qtxt.= "rt_to $decimal_type(15,0), item_id int, cust_id int, order_id int, expiry_time timestamp, payment_id varchar(100), payment_url varchar(500), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt="CREATE TABLE returnings ($id_column, price $decimal_type(15,3), kasse integer, report_number integer default 0, PRIMARY KEY (id))";
