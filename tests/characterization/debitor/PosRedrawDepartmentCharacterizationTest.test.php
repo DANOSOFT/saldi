@@ -12,11 +12,16 @@ require_once __DIR__ . '/../support/CharacterizationEnv.php';
 //                department and the till on every redraw with the drawing terminal's, and leaves
 //                the brand alone. That divergence was read in the code during the review of #900
 //                and is pinned here by running the real function. Synthetic data, no tenant.
-// 20261027 CL/MJ Why the row matters: levering() in includes/ordrefunc.php reads the department
-//                back with `select afd,art,ref from ordrer where id = $id` and posts the stock
-//                movement with it, so whatever the last redraw wrote is what gets booked. That
-//                is a code reading, not something these tests execute - posting to the ledger is
-//                out of scope here - so it is recorded as a note rather than asserted.
+// 20261027 CL/MJ Why the row matters: bogfor_nu() in includes/ordrefunc.php reads ordrer.afd
+//                for the sale and writes it as afd on every transaktioner row it inserts, so the
+//                whole sale is posted to whatever department the last redraw wrote. levering()
+//                only falls back to its own department when ordrer.afd is empty, and the stock
+//                line takes its warehouse from ordrelinjer.lager. That is a code reading, not
+//                something these tests execute - posting to the ledger is out of scope here - so
+//                it is recorded as a note rather than asserted.
+// 20261029 CL/MJ SD-772 review: the note above named levering() as the function that books the
+//                department; it is bogfor_nu(). The spec file is now the one tempnam() created, so
+//                a run no longer leaves an empty sd772vis* file per test in the temp dir.
 
 final class PosRedrawDepartmentCharacterizationTest extends TestCase
 {
@@ -52,7 +57,7 @@ final class PosRedrawDepartmentCharacterizationTest extends TestCase
      */
     private function redraw(array $spec): array
     {
-        $this->specFile = tempnam(sys_get_temp_dir(), 'sd772vis') . '.json';
+        $this->specFile = (string)tempnam(sys_get_temp_dir(), 'sd772vis');
         file_put_contents($this->specFile, json_encode($this->withDefaults($spec), JSON_THROW_ON_ERROR));
 
         $child = CharacterizationEnv::runChild(__DIR__ . '/support/run_vis_pos_linjer.php', [$this->specFile]);
