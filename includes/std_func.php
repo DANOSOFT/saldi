@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,6 +125,8 @@
 // 20261027 CDX/MJ SST-876 Defer document sends until the outer transaction completes and send them before old backlog in the post-commit drain.
 // 20261028 CDX/MJ SST-876 Log marker persistence failures and prioritize new updates over exhausted retries.
 // 20261029 CDX/MJ SST-876 Include deferred item labels in the documented report state.
+// 20261030 CL/MJ SST-876 The webshop warnings are load listeners (shopSyncOnLoad()) instead of <BODY onLoad>.
+//                A browser keeps only the first onload, so the warning was lost after levering()'s cost-price alert.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2646,8 +2648,25 @@ if (!function_exists('shopSyncAlertFailedItems')) {
 		if ($queued) {
 			$text[] = findtekst('5443|Webshopopdateringen afventer og forsøges automatisk igen ved næste lageropdatering for', $sprogId) . ': ' . implode(', ', $queued);
 		}
-		print '<BODY onLoad="' . $handler . '(' . htmlspecialchars(jsString(array(implode("\n", $text))), ENT_QUOTES, 'UTF-8') . ')">' . "\n";
+		shopSyncOnLoad($handler, jsString(array(implode("\n", $text))));
 		return true;
+	}
+}
+
+if (!function_exists('shopSyncOnLoad')) {
+	/**
+	 * Calls $handler with a message once the page has loaded.
+	 *
+	 * A load listener rather than <BODY onLoad>: a browser keeps only the first onload a page
+	 * declares, so a webshop warning printed after another alert (levering() warns about an
+	 * estimated cost price) was never shown.
+	 *
+	 * @param string $handler  JavaScript function to call: alert, or fejltekst on pages that define it.
+	 * @param string $jsText   The message, already a JavaScript string literal from jsString().
+	 * @return void
+	 */
+	function shopSyncOnLoad($handler, $jsText) {
+		print "<script type=\"text/javascript\">window.addEventListener('load', function () { " . $handler . "(" . $jsText . "); });</script>\n";
 	}
 }
 
@@ -2674,8 +2693,8 @@ if (!function_exists('shopSyncAlert')) {
 	 *
 	 * Lives here rather than in the pages because three places need the same sentence: the
 	 * goods receipt and two save paths on the product card. The text goes through jsString()
-	 * and htmlspecialchars() because it carries item numbers, which are free text and would
-	 * otherwise be able to close the attribute and the script string around them.
+	 * because it carries item numbers, which are free text and would otherwise be able to
+	 * close the script string or the script block around them.
 	 *
 	 * @param string $items    Item numbers to name, already joined for reading.
 	 * @param int    $sprogId  Language id for findtekst().
@@ -2684,12 +2703,11 @@ if (!function_exists('shopSyncAlert')) {
 	 * @return void
 	 */
 	function shopSyncAlert($items, $sprogId, $handler = 'alert') {
-		$text = jsString(array(
+		shopSyncOnLoad($handler, jsString(array(
 			findtekst('5442|Lagertallet blev ikke opdateret i webshoppen for', $sprogId),
 			': ',
 			(string)$items,
-		));
-		print "<BODY onLoad=\"" . $handler . "(" . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . ")\">\n";
+		)));
 	}
 }
 
