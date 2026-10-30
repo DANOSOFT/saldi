@@ -46,4 +46,4 @@ Continuation lines start with `//` followed by spaces padding out to the column 
 3. Only if neither step produced a candidate, ask the user directly what initials they want recorded in history for this project.
 4. Save the resulting initials to local memory (not to a repo file) so future sessions in this working copy don't need to ask again.
 
-**Enforced by:** `tools/guardrails` check `file-history` (a history line exists, is well-formed and sits below older entries; the header date and copyright moved along). Whether `ver` needed bumping stays a review call.
+**Enforced by:** `tools/guardrails` check `file-history` (a history line exists, is well-formed and sits below older entries; the header date and copyright moved along). The `ver` marker is checked by `file-version`: when a PHP file's code changes (not only comments or whitespace), its header marker must match `$version` in `includes/version.php`.
