@@ -102,7 +102,7 @@
 // 20261001 CL/LAH Ryk alle's confirm uses a singular text for one ticked account.
 // 20261001 CL/LAH Aging buckets take the control sum's per-post amount, so zero-rate and '-' currency posts also add up to the kontokort figure.
 //                 vis_aabne_poster() can leave the footer to its caller, so openpost() prints it once after the rykker overview.
-// 20261006 Sawaneh Every report-wide colspan is derived from the column count, so the footer and
+// 20261006 Saw Every report-wide colspan is derived from the column count, so the footer and
 //                  pagination no longer span a phantom tenth column when there are no BS customers.
 //                  The BS toggle carries the same view state as the pagination links, and showPBS
 //                  is read from $_REQUEST and posted back.
