@@ -26,11 +26,13 @@
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260821 CL/SZ Removed debug print_r($_GET)/echo $returside leftover that
 //                leaked "Array ( [date] => ... )" text onto the page (SST-736)
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();
 
 include ("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include ("../includes/online.php");
 include ("../includes/std_func.php");
 include ("../includes/stdFunc/dkDecimal.php");

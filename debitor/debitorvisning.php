@@ -31,6 +31,7 @@
 // 20220813 MSC - Implementing new design
 // 20231128 MSC - Copy pasted new design into code
 // 20240216 PHR - Added fiscal_year to sellect where art = 'DG'
+// 20261002 Sawaneh Saving the list columns updates only the chosen view (kode); it rewrote every DLV row of the user.
 	
 @session_start();
 $s_id=session_id();
@@ -77,8 +78,8 @@ if (isset($_POST) && $_POST) {
 				$box2.=$cat_id[$x];
 			}
 		}
-		$qtxt = "update grupper set box1='$box1',box2='$box2',box11='$box11',kode = '$valg' ";
-		$qtxt.= "where art = 'DLV' and kodenr = '$bruger_id'";
+		$qtxt = "update grupper set box1='$box1',box2='$box2',box11='$box11' ";
+		$qtxt.= "where art = 'DLV' and kode = '$valg' and kodenr = '$bruger_id'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	} elseif ($sektion=='4') {
 		$vis_feltantal=if_isset($_POST['vis_feltantal']);

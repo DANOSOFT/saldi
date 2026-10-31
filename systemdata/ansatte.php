@@ -27,107 +27,14 @@
 // 20210711 LOE - Translated some texts to Norsk and English from Dansk
 // 20220614 MSC - Implementing new design
 // 20230925 PHR - PHP8
+// 20261005 Sawaneh G7.1: employees live in Indstillinger » Organisation » Ansatte (list + card per employee); this page only
+//                  redirects, to the employee's card when an id is given. ansatte_load/_body/_save.php are no longer used.
 
 @session_start();
-$s_id=session_id();
-
-$css="../css/standard.css";
-$title="Personalekort";
-$modulnr=1;
-
-$afd_nr=array();
-	
-include("../includes/var_def.php");
+$s_id = session_id();
 include("../includes/connect.php");
+$modulnr = 1;
 include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/topline_settings.php");
-
- if ($_GET) {
-	$id = $_GET['id'];
-	$returside= $_GET['returside'];
-	$fokus = $_GET['fokus'];
-	$konto_id=$_GET['konto_id'];
- }
-if ($_POST) {
-	include("ansatte_save.php");
-}
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=stamkort.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<div class='divSys'>";
-	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\"><tbody>"; # -> 1
-} elseif ($menu == 'S') {
-	$query = db_select("select firmanavn from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
-	$row = db_fetch_array($query);
-
-	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><!-- TABEL 1 -> --><tbody>";
-	print "<tr><td align='center' valign='top'>";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><!-- TABEL 1.1 -> --><tbody>";
-
-	print "<td width='10%'><a href=stamkort.php?returside=$returside&id=$konto_id&fokus=$fokus accesskey=L>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>"; #20210711
-
-	print "<td width='80%' style='$topStyle' align='center'>$row[firmanavn] - ".findtekst('1262|Ansatte', $sprog_id)."</td>";
-
-	print "<td width='10%'><a href=ansatte.php?returside=$returside&fokus=$fokus&konto_id=$konto_id accesskey=N>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><br></td>";
-
-	print "</tbody></table><!-- <- TABEL1.1 -->";
-	print "</td></tr>";
-	print "<td align=center valign=center>";
-	print "<table cellpadding='1' cellspacing='1' border='0'><!-- TABEL 1.2 -> --><tbody>";
-} else {
-	$query = db_select("select firmanavn from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
-	$row = db_fetch_array($query);
-
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><!-- TABEL 1 -> --><tbody>";
-	print "<tr><td align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><!-- TABEL 1.1 -> --><tbody>";
-	print "<td width=\"10%\" $top_bund<font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">$font<a href=stamkort.php?returside=$returside&id=$konto_id&fokus=$fokus accesskey=L>".findtekst(30, $sprog_id)."</a></td>";#20210711 
-	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">$font$row[firmanavn] - ".findtekst(1262, $sprog_id)."</td>";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">$font<a href=ansatte.php?returside=$returside&fokus=$fokus&konto_id=$konto_id accesskey=N>".findtekst(39, $sprog_id)."</a><br></td>";
-	print "</tbody></table><!-- <- TABEL1.1 -->";
-	print "</td></tr>";
-	print "<td align=center valign=center>";
-	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><!-- TABEL 1.2 -> --><tbody>";
-}
-
-include("ansatte_load.php");
-
-print "<form name=\"ansatte\" action=\"ansatte.php?konto_id=$konto_id\" method=\"post\">";
-include("ansatte_body.php");
-
-print "<tr><td><br></td></tr>";
-print "<tr><td><br></td></tr>";
-print "<td><br></td><td><br></td><td><br></td>";
-PRINT "<td align=center><input type=\"submit\" class='green medium button' style='width:150px;' accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\" name=\"submit\"></td>";
-print "</form>";
-
-print "
-</tbody>
-</table>
-</td></tr>
-<tr><td align=\"center\" valign=\"bottom\">
-</tbody></table>
-</div></div>
-";
-
-
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
-
-?>
+$eid = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+header("Location: settingsSection.php?s=organisation.employees&moved=ansatte" . ($eid > 0 ? "&item=emp_$eid" : ""));
+exit;

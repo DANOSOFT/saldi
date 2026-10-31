@@ -27,6 +27,7 @@ $linje_id=$_GET['linje_id'];
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

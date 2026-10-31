@@ -33,6 +33,7 @@
 //                  via FileReservation instead of file_exists() polling, closing the window in
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261003 CL/SZ SD-722 An upload that was extracted stores the document's snapshot on its pool row (poolCapture.php).
 //                A document attached to a journal line gets "Rapportér fejl i aflæsning" in the viewer's left panel, when the company has it switched on.
 // 20261004 CDX/LOE Share browser upload handling and redirect form uploads before rendering.
@@ -43,6 +44,7 @@
 // 20261006 CL/SZ SD-727 An upload whose content matches an archived pool row brings that row back to
 //                the list instead of staying refused as a duplicate (poolUploadRestoreIfArchived(), poolUpload.php).
 // 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
+// 20261018 Sawaneh Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
 // 20261019 MJ SST-868 (review) This page holds its own output buffer, so an attach that fails
 //                  deep in docPool.php can still answer the pool with a status it reads. The
 //                  page frame from online.php and the ~700 lines printed here had already gone
@@ -66,6 +68,8 @@ $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$
 $globalId = 0;
 
 include("../includes/connect.php");
+$docSource = isset($_POST['source']) ? (string) $_POST['source'] : (isset($_GET['source']) ? (string) $_GET['source'] : '');
+$permission_key = ($docSource === 'kassekladde') ? 'finans.kassekladde' : (($docSource === 'debitorOrdrer') ? 'debitor.ordre' : (($docSource === 'creditorOrder') ? 'kreditor.ordre' : 'debitor.konti|kreditor.konti'));
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");

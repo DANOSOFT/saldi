@@ -43,6 +43,7 @@ $title="batch";
 
 $linje_id=$_GET['linje_id'];
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/db_query.php");

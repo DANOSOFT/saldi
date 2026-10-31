@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------------
 	// 20250629 - PHR $basecurrency  & some cleanup
+// 20261005 Sawaneh Debug output for account 628 removed (it was printed while deleting a fiscal year).
 
 function createAccountPrimo($accountId,$yearBegin,$yearEnd,$nextYearBegin) {
 	global $baseCurrency;
@@ -49,20 +50,17 @@ function createAccountPrimo($accountId,$yearBegin,$yearEnd,$nextYearBegin) {
 	}
 	if (count($id)) {
 		if ($amount) {
-			if ($accountId == '628') echo __line__." Amount $amount<br>";
 			$x--;
 			$amount = round($amount,3);
 			$qtxt = "update openpost set transdate = '$nextYearBegin', beskrivelse = 'Primo', amount  = '$amount' where id = $id[$x]";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		$qtxt = "delete from openpost where konto_id = '$accountId' and transdate <= '$yearEnd'  and udlignet = '1'";
-		if ($accountId == '628') echo __line__." 628 i liste<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 	}
 	for ($x = 0; $x<count($equalId); $x++) {
 		$qtxt = "update openpost set udlign_id = '$maxEqId', udlign_date = '$maxEqDate' where id = $id[$x]";
-		if ($accountId == '628') echo __line__." 628 i liste<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	$amount = $maxEqId = $x = 0;
@@ -70,7 +68,6 @@ function createAccountPrimo($accountId,$yearBegin,$yearEnd,$nextYearBegin) {
 	$equalId = $id = array();
 	$qtxt = "select * from openpost where konto_id = '$accountId' and transdate <= '$yearEnd' and udlignet != '1' ";
 	$qtxt.= "order by transdate,id";
-	if ($accountId == '628') echo __line__." 628 i liste<br>";
 
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -92,7 +89,6 @@ function createAccountPrimo($accountId,$yearBegin,$yearEnd,$nextYearBegin) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		$qtxt = "delete from openpost where konto_id = '$accountId' and transdate <= '$yearEnd'  and udlignet != '1'";
-		if ($accountId == '628') echo __line__." 628 i liste<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 

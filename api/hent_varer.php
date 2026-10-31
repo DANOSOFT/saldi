@@ -23,6 +23,7 @@
 //
 // 20150908 Default varenr er nu varenr i stedet for vare_id.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 #sleep (1);
 
@@ -37,6 +38,7 @@ print "</head><body>";
 print "<center>";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");

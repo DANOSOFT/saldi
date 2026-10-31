@@ -5,6 +5,7 @@
 // 20260916 CDX/PHR Verify item texts follow the keep-items option.
 // 20260916 CDX/PHR Verify user year reset and tenant-scoped session updates.
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
+// 20261005 Sawaneh Verify personal settings (USET) are not deleted by a reset.
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -33,6 +34,7 @@ foreach (array(false, true) as $keepAccounts) {
 		resetCheck(in_array("UPDATE brugere SET regnskabsaar='1'", $sql, true), 'All users must select financial year 1');
 		resetCheck(in_array('vare_lev', $truncated, true) === (!$keepAccounts || !$keepItems), 'Supplier-item relation option');
 		resetCheck((strpos(implode(';', $sql), 'DELETE FROM adresser') !== false) === !$keepAccounts, 'Address deletion option');
+		resetCheck(strpos(implode(';', $sql), "'USET'") === false, 'Personal settings (USET) must survive a reset');
 	}
 }
 resetCheck(accountResetStatements(array(), false, false, 'postgresql') === array(), 'Empty schema');

@@ -26,6 +26,7 @@
 //
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260618 LOE Added sticky header for S-mode and added a scrollable table for the data table in S-mode co-authored by Aj
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();
@@ -35,6 +36,7 @@ $title = "SAF-T Finance";
 
 include("../includes/var_def.php");
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include_once '../includes/topline_settings.php';

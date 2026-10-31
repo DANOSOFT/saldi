@@ -36,10 +36,12 @@ $komma=$semikolon=$tabulator=NULL;
 $feltnavn=array();
 
 include("../includes/connect.php");
+$permission_key = 'settings.import_export';
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$fileName = if_isset($_GET['fileName'],NULL);
+// 20260928 Sawaneh Security 4.0 (A3): the GET parameter may only select the shipped standard map.
+$fileName = (if_isset($_GET['fileName'],NULL) && basename((string) $_GET['fileName']) === 'stdAccountMap.csv') ? __DIR__ . '/../importfiler/stdAccountMap.csv' : NULL;
 
 print "<div align=\"center\">";
 

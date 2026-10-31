@@ -39,6 +39,7 @@ global $menu;
 $title="OIOUBL import";
 	
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");

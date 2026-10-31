@@ -4,6 +4,8 @@
 //                  lock-acquisition failure, concurrent creation and DDL-error lock release.
 // 20261028 CDX/NTR Expect the index lock when an existing column still needs its index.
 // 20261028 CDX/NTR Cover the same migration running against the master database.
+// 20261031 CL/ASR Stop the evaluated slice at the end-of-migration sentinel in betweenUpdates.php instead of the closing PHP tag.
+//                 Other migrations are now appended after the tekst_key block.
 
 namespace Saldi\Tests\TekstKeyMigration;
 
@@ -231,10 +233,11 @@ final class TekstKeyMigrationTest extends TestCase
 
     private function migrate(string $db_type): void
     {
-        // Exercise only this migration, without running unrelated pending updates.
+        // Exercise only this migration, without running unrelated pending updates. The slice ends
+        // at the sentinel comment after the migration; the blocks appended below it are not run.
         $source = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
         $start = strpos($source, '$tekstKeyMysql =');
-        $end = strpos($source, '?>', $start);
+        $end = strpos($source, '// ===== end of the tekst_key migration', $start);
         self::assertNotFalse($start);
         self::assertNotFalse($end);
         eval('namespace ' . __NAMESPACE__ . '; use RuntimeException; ' . substr($source, $start, $end - $start));

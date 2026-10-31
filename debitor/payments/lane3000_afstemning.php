@@ -25,6 +25,7 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 PHR Chaget ordre_id to 0 instead of 1000 if not set, as it returned to odrer 1000.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261007 CL/SZ SST-843 The Nets Connect@Cloud username and password are no longer written into the page.
 //                The login and the reconciliation run in lane3000_proxy.php, so the bearer token stays on the server too.
 
@@ -38,6 +39,7 @@ $s_id = session_id();
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

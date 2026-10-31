@@ -28,6 +28,7 @@
 // 2018.03.08 Indhold kopieret fra debitor/debitorvisning.php og tilrettet til kreditor
 // 2023.03.24 PBLM Fixed minor errors
 // 2025.05.17 Fiscal Year
+// 20261002 Sawaneh Saving the list columns updates only the kreditor view row (kode) instead of every KLV row of the user.
 	
 @session_start();
 $s_id=session_id();
@@ -70,7 +71,7 @@ if (isset($_POST) && $_POST && isset($_POST["cat_antal"])) {
 				($box2)?$box2.=chr(9).$cat_id[$x]:$box2=$cat_id[$x];
 			}
 		}
-		db_modify("update grupper set box1='$box1',box2='$box2',box11='$box11',kode = 'kreditor' where art = 'KLV' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
+		db_modify("update grupper set box1='$box1',box2='$box2',box11='$box11' where art = 'KLV' and kode = 'kreditor' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
 	} elseif ($sektion=='4') {
 		$vis_feltantal=if_isset($_POST['vis_feltantal']);
 		$vis_linjeantal=if_isset($_POST['vis_linjeantal']);

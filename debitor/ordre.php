@@ -149,6 +149,7 @@
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
+// 20261004 Sawaneh Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
 // 20261008 MJ SST-833 The batch-selection control on a sales line no longer uses the
 //                  serial-number icon and alt text. It opens batch(), not serienummer(),
@@ -3541,7 +3542,7 @@ function ordreside($id, $regnskab)
 		if (isset($_REQUEST['gls_go'])) {  // BZ
 			db_modify("update ordrer set gls_label = true where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$tGrossWeight = $_POST['tGrossWeight'] * 1;
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'gls_id')   $gls_id   = $r['var_value'];
@@ -3560,7 +3561,7 @@ function ordreside($id, $regnskab)
 			$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = NULL;
 			$dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
 			
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if (!isset($r['var_name'])) continue;
@@ -6602,7 +6603,7 @@ function ordreside($id, $regnskab)
 	# Malene, dette er enden
 
 	# ADD LINK TO GLS!! 
-	$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+	$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['var_name'] == 'gls_id')    $gls_id    = $r['var_value'];
@@ -6710,7 +6711,7 @@ function ordreside($id, $regnskab)
 			print "<tr><td align=\"center\">\n";
 			print "<p style='font-weight:bold; font-size: 16px; text-align: center;'>" . findtekst('1057|Danske Fragtmænd', $sprog_id) . "</p><!--Danske Fragtmænd--><br />\n";
 
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'dfm_gooddes') $form_gooddes = $r['var_value'];

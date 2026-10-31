@@ -28,6 +28,7 @@
 // 20130210 Break ændret til break 1
 // 20170303 PHR fjernet et par semikolons fra db_select som gav injektionsadvarsel.
 // 20170321 PHR Blokeret POS ordrer. Det giver bare bøvl. 20170321
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 
 @session_start();
@@ -36,6 +37,7 @@ $title="Hent ordrer";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");

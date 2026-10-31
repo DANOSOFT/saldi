@@ -3,6 +3,7 @@
 //                languageId were never populated, so it always rendered with
 //                zero options) and int-cast cookieLanguageId before it hits
 //                SQL. Sprogindstillinger below is the only working selector. MB-27.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 function language () {
     global $bgcolor,$bgcolor5,$bruger_id,$brugernavn;
     global $db;
@@ -18,6 +19,7 @@ function language () {
         include("../includes/connect.php");
         $qtxt = "UPDATE online SET logtime='$unixtime', language_id='$cookieLanguageId' WHERE session_id='$s_id'";
         db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+        $permission_key = 'system.indstillinger';
         include("../includes/online.php");
         if ($cookieLanguageId) {
             setcookie('languageId', $cookieLanguageId, time() + (10 * 365 * 24 * 60 * 60), '/');

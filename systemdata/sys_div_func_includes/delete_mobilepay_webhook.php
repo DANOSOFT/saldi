@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 #print '<head>';
 #print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
@@ -34,8 +35,14 @@
 $s_id = session_id();
 
 include ("../../includes/connect.php");
+$permission_key = 'system.indstillinger';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
+// 20261018 Sawaneh Review 2 (PR #803): deletes the webhooks at Vipps - integrations write, by POST with the session's token.
+if (function_exists('require_permission')) {
+	require_permission('settings.integrations', 'write');
+}
+perm_require_post_csrf(false);
 include ("../../includes/stdFunc/dkDecimal.php");
 include ("../../includes/stdFunc/usDecimal.php");
 

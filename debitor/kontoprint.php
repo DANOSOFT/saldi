@@ -36,6 +36,7 @@ $s_id=session_id();
 $formular=11;
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");

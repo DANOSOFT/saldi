@@ -21,6 +21,7 @@
   @session_start();
   $s_id=session_id();
   include("../includes/connect.php");
+  $permission_key = 'settings.backup'; // 20261002 Sawaneh key renamed per settings redesign §11.1
   include("../includes/online.php");
   include("../includes/db_query.php");
 

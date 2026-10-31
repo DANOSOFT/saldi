@@ -29,6 +29,7 @@
 // 20251203 LOE Updated the file to use grid framework
 // 20260821 CL/SZ Faktura column now links to ordre.php/pos_ordre.php via ordre_id
 // 20260826 LOE Linked to debitor/ordre.php instead of finans/ordre.php
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260929 CL/SZ SD-698: Optional returside; when set, Tilbage goes back there instead of regnskab.php (used by the kassekladde account lookup).
 
 
@@ -47,6 +48,7 @@ $css = "../css/standard.css";
 global $menu;
     
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");

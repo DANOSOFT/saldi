@@ -23,6 +23,7 @@
 // Copyright (c) 2008-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230123 PHR Replaced addslashes by db_escape_string
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261023 CL/MMR SST-887 Arrow up now also sets fornavn/efternavn for private customers.
 //                 Only firmanavn was updated, so the card kept the old name and saving it restored that name.
 //                 ordre_id and konto_id are cast to int before use in SQL.
@@ -34,6 +35,7 @@
 $s_id=session_id();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

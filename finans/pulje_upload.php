@@ -26,6 +26,7 @@
 // Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20250610 Created mobile-friendly document pool upload interface
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();
@@ -33,6 +34,7 @@ $title = "Document Pool Upload";
 $css = "../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

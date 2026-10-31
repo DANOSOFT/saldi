@@ -31,6 +31,7 @@
 // 20260710 MJ Ekstra COALESCE-fallbacks via ordrelinjer.vare_id→varer og batch_kob/batch_salg.vare_id→varer så serienr med tom/manglende ordrelinjer.varenr stadig søges.
 // 20260813 Sawaneh - "Not sold" filter: sn.salgslinje_id = 0 instead of <= 0, so negative history rows (credited sales) are no longer shown as available. Credited return serials still appear via the fresh row with salgslinje_id = 0 from krediter().
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260917 M - Column headers, filters and the rename/delete dialogs pulled from findtekst().
 // 20260917 M - Translated values interpolated into JavaScript string literals are addslashes()'d, and the page title follows the language via document.title.
 // 20260929 CL/NTR Cancelling the rename prompt no longer opens the rename confirmation.
@@ -48,6 +49,7 @@ $title = "Serienr.";
 
 include ("../../includes/std_func.php");
 include ("../../includes/connect.php");
+$permission_key = 'lager.varer';
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
 

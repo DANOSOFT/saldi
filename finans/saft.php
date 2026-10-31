@@ -28,6 +28,7 @@
 // included day 1.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
 // 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261002 NTR - Added null coalescing operator to $PostalCode to avoid undefined index notice when postnr is null.
 
 @session_start();
@@ -38,6 +39,7 @@ $title = "SAF-T Finance";
 
 include("../includes/var_def.php");
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include_once '../includes/topline_settings.php';

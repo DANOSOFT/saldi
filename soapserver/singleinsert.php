@@ -22,6 +22,7 @@
 // ----------------------------------------------------------------------
 // 2014.01.06 Fejl hvis paranteser i variabel. Søg 20140106
 // 20260911 Sawaneh Blank quoted "dummyvalue" literals in client SQL (JOB-115)
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 ini_set("soap.wsdl_cache_enabled", "1");
 
@@ -33,6 +34,7 @@ function singleinsert($string) {
 	if (!$s_id) return('1'.chr(9)."Missing session ID");
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
+	$permission_key = 'any';
 	include ("../includes/online.php");
 	include_once(__DIR__ . '/../includes/std_func.php');
 

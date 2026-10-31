@@ -32,6 +32,7 @@
 // 20260910 CDX/PHR Added optional purchased and sold quantity totals from the purchase/sales report sources.
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260916 CDX/LH Sort DG by its selected alias so DISTINCT queries accept the expression.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260924 CDX/PHR Match the DG sort expression to the DISTINCT select expression.
 // 20261005 CDX/PHR Add total webshop stock synchronization to the item-list action dropdown.
 // 20261026 LOE MB-65: assign module 9 so the Items right is consulted before the page opens.
@@ -45,6 +46,7 @@ $include_start = microtime(true);
 include("../../includes/std_func.php");
 include("../../includes/connect.php");
 $modulnr = 9;
+$permission_key = 'lager.varer';
 include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 

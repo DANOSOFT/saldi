@@ -31,6 +31,7 @@ $css="../css/standard.css";
 #$form=array();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/oioxmlfunk.php");

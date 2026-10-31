@@ -25,6 +25,7 @@
 // 20240209 PHR Added indbetaling
 // 20240301 PHR Added $printfile and call to saldiprint.php
 // 20260720 NTR Recreate temp/$db (cleared daily) before writing logs
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261007 CL/SZ SST-843 The Vibrant API key is no longer written into the page.
 //                All Vibrant calls go through vibrant_proxy.php, which adds the key on the server and builds the request bodies.
 
@@ -44,6 +45,7 @@ $s_id = session_id();
 $css = "../../css/flatpay.css";
 
 include("../../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../../includes/online.php");
 include("../../includes/std_func.php");
 include("../../includes/stdFunc/dkDecimal.php");

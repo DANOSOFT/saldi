@@ -25,6 +25,12 @@
 //
 // Copyright (c) 2004-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260916 Sawaneh Superseded by systemdata/personalSettings.php (personal settings + fiscal-year
+//                  switch in the topbar). Old links land there; the legacy page below is unreachable.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+
+header('Location: personalSettings.php');
+exit;
 
 @session_start();
 $s_id=session_id();
@@ -34,6 +40,7 @@ $title="Brugerdate";
 
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");

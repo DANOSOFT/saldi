@@ -20,27 +20,37 @@
 // ---------------------------------------------------------------------- 
 // 20140701 Mange ændring i forbindelse med indførelse af owncloud bilagsopbevaring
 // 20260212 LOE Refactored to handle multiple files, added upload functionality, and improved delete operations.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261018 Sawaneh Review 2 (PR #803): key by the attachment's module instead of 'any'; the ledger comes from the session, not ?db=.
+//                  kilde limited to kassekladde/ordrer/historik (a table name in the queries), ids cast, file name basename.
 
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+// The attachment's own module decides who may see it; deleting (?slet=) needs write there.
+$visKilde = isset($_GET['kilde']) ? (string) $_GET['kilde'] : '';
+$permission_key = ($visKilde === 'kassekladde') ? 'finans.kassekladde' : (($visKilde === 'ordrer') ? 'debitor.ordre|kreditor.ordre' : 'debitor.konti|kreditor.konti');
 include("../includes/online.php");
 include("../includes/std_func.php");
 
 print "<center><middle>";
 
-$bilag_id=$_GET['bilag_id'];
-$kilde_id=$_GET['kilde_id'];
-$kilde=$_GET['kilde'];
-$db=$_GET['db'];
+// kilde is a table name in the queries below: only the three attachment sources are accepted; the ids are numbers.
+if (!in_array($visKilde, array('kassekladde', 'ordrer', 'historik'), true)) {
+	exit;
+}
+$kilde = $visKilde;
+$bilag_id = (int) (isset($_GET['bilag_id']) ? $_GET['bilag_id'] : 0);
+$kilde_id = (int) (isset($_GET['kilde_id']) ? $_GET['kilde_id'] : 0);
+// $db is the logged-in ledger from online.php; the db= in the link is not used, so a path cannot point at another ledger.
 
 // Handle delete operations
 if (isset($_GET['slet'])) {
     if ($_GET['slet'] == 'ok' && isset($_GET['filnavn'])) {
         // Delete single file
-        $filnavn = $_GET['filnavn'];
+        $filnavn = basename((string) $_GET['filnavn']);
         slet_bilag($bilag_id, $filnavn, $kilde_id, $kilde, false);
         
         // Redirect to clean URL

@@ -33,6 +33,7 @@ $css = "../../css/standard.css?v=20";
 
 include("../../includes/std_func.php");
 include("../../includes/connect.php");
+$permission_key = 'lager.varer'; // 20261002 Sawaneh Declared as the other lager/lister pages (roles & permissions, phase 3)
 include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 

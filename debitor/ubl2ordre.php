@@ -30,6 +30,7 @@ $css="../css/standard.css";
 $title="OIOUBL import";
 	
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

@@ -23,6 +23,7 @@
 // Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261007 CL/SZ SST-843 Server-side proxy for the Flatpay socket API, so the Flatpay ID (GUID) stays on the server.
+// 20261023 ASR Merge into redesign: $permission_key declared (roles & permissions, phase 3), as the pages that call this endpoint.
 //                flatpay.php calls this page instead of socket-api.flatpay.dk.
 
 /**
@@ -40,6 +41,7 @@ $bg     = "nix";
 $s_id = session_id();
 
 include (__DIR__ . "/../../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include (__DIR__ . "/../../includes/online.php");
 include (__DIR__ . "/../../includes/std_func.php");
 

@@ -33,6 +33,7 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 
 # $modulnr=9;
 
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 # MB-99 the page now reads and formats input, so it needs if_isset() and findtekst() explicitly
 include("../includes/std_func.php");

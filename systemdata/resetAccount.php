@@ -7,6 +7,7 @@
 // 20260916 CDX/PHR Retain the latest undeleted financial year and renumber it and its setup to 1.
 // 20260917 CL/LH Refuse the reset on MySQL/MariaDB, where TRUNCATE auto-commits and the
 //                transaction cannot be rolled back.
+// 20261005 Sawaneh Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -59,7 +60,7 @@ function accountResetStatements(array $existingTables, $keepAccounts, $keepItems
 		// fiscalYearInc/deleteFiscalYear.php: warehouses are not per-year data, and since a new
 		// accounting year no longer copies them forward, deleting the rows outside the retained
 		// year would take the warehouse with them while its stock stayed under the same kodenr.
-		$statements[] = "DELETE FROM grupper WHERE (art='RA' AND kodenr!='$retainedYear') OR (art NOT IN ('RA','LG') AND fiscal_year>0 AND fiscal_year!=$retainedYear) OR art IN ('USET','DLV','KLV','DRV','KRV','VV','OLV')";
+		$statements[] = "DELETE FROM grupper WHERE (art='RA' AND kodenr!='$retainedYear') OR (art NOT IN ('RA','LG') AND fiscal_year>0 AND fiscal_year!=$retainedYear) OR art IN ('DLV','KLV','DRV','KRV','VV','OLV')";
 		$statements[] = "UPDATE grupper SET fiscal_year=1 WHERE fiscal_year=$retainedYear";
 		$statements[] = "UPDATE grupper SET kodenr='1', box5='on', box10='' WHERE art='RA' AND kodenr='$retainedYear'";
 	}

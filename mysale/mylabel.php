@@ -43,6 +43,7 @@
 // 20250306 PHR inserted ceil after '$rows = ' as last row was not saved if rows was not divisible by 5
 // 20260914 CL/NTR The per-cell print link and the printLabels batch pass single=1 to labelprint.php
 //                 so they render one cell each; the printSheet button still fills the page grid.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260921 CDX/LH Retain ssl3 early label-condition default during master deployment.
 
 @session_start();
@@ -105,6 +106,7 @@ $qtxt .= " values ";
 $qtxt .= "('$s_id','" . db_escape_string($account) . "','" . db_escape_string($db) . "','" . db_escape_string($squser) . "',";
 $qtxt .= "'0',0,'" . date('U') . "',FALSE)";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+$permission_key = 'any';
 include('../includes/online.php');
 include('../includes/std_func.php');
 

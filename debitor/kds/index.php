@@ -24,11 +24,13 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240301 PHR Added $printfile and call to saldiprint.php
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();
 $css = "../../css/kds.css?v=1";
 include("../../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../../includes/online.php");
 include("../../includes/std_func.php");
 include("../../includes/stdFunc/dkDecimal.php");

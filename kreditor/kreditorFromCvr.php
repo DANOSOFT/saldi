@@ -33,6 +33,7 @@ $s_id = session_id();
 $bg = "nix";
 $header = 'nix';
 $modulnr = 0;
+$permission_key = 'finans.kassekladde|kreditor.konti'; // 20261023 ASR Merge into redesign: modulnr 0 is no key; called from the journal and the pool (SD-721)
 ob_start(); // online.php writes html, which must not end up in the JSON answer
 include("../includes/connect.php");
 include("../includes/online.php");

@@ -59,6 +59,7 @@
 // 20220617 PHR Better recognition of date formats
 // 20220531	PHR Added 'Modtager konto'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
 
@@ -71,6 +72,7 @@ $bankName = NULL;
 
 $title="SALDI - Bankimport";
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");

@@ -30,6 +30,8 @@
 $s_id=session_id();
 
 include("../includes/connect.php");
+$modulnr = 2; // 20261004 Sawaneh Security 4.0 (A8), same as regnskabskort.php which opens it
+$permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

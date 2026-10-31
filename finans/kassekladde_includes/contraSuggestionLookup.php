@@ -34,6 +34,7 @@ session_start();
 $s_id = session_id();
 $title = 'contraSuggestionLookup';
 $modulnr = 0;
+$permission_key = 'finans.kassekladde'; // 20261023 ASR Merge into redesign: modulnr 0 is no key (roles & permissions, phase 3)
 $bg = 'nix';
 $header = 'nix';
 $webservice = true;

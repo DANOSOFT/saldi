@@ -23,6 +23,7 @@
 // Copyright (c) 2024-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
+// 20260930 Sawaneh Declared permission key 'any': the guides are for every logged-in user.
 // 17-10-2024 PBLM - Added link to booking
 
 @session_start();
@@ -30,6 +31,7 @@ $s_id = session_id();
 
 include "std_func.php";
 include "connect.php";
+$permission_key = 'any';
 include "online.php";
 include "stdFunc/dkDecimal.php";
 

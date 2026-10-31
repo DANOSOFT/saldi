@@ -346,11 +346,7 @@
     display: none;
 }*/
 
-.topbar {
-    width: 100%;
-    height: 50px;
-    background-color: #114691;
-}
+/* .topbar lives in css/topbar.css (always visible; height = --topbar-h) */
 
 .modalbg {
     width: 100%;
@@ -375,14 +371,14 @@ body {
         left: 210px;
         /* width: calc(100% - 210px); */
     }
-    .topbar {
-        display: none;
-    }
     .small {
         display: none !important;
     }
-    .home-section, .home-section .home-content {
+    .home-section {
         height: 100%;
+    }
+    .home-section .home-content {
+        height: calc(100% - var(--topbar-h, 58px));
     }
     iframe {
 	    height: 100%;
@@ -403,10 +399,10 @@ body {
 	    height: 100%;
     }
     .home-section {
-        height: calc(100% - 50px);
+        height: 100%;
     }
     .home-section .home-content {
-	    height: 100%;
+        height: calc(100% - var(--topbar-h, 58px));
     }
     /* .home-section {
         width: calc(100% - 72px);

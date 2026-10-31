@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261007 CL/SZ SST-843 Removed the unused get_api_key() and start_payment(); they printed the register's Nets
 //                Connect@Cloud username and password into the page although the simulation never calls them.
 
@@ -37,6 +38,7 @@ $s_id = session_id();
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

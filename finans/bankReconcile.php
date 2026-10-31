@@ -31,6 +31,7 @@
 // 20260624 CL/PHR apply 'vend' during reconciliation, show all CSV columns, and remember 'vend'.
 // 20260624 CL/PHR Normalize bank file text encoding when reconciling.
 // 20260916 CDX/LH Confine bank uploads to the tenant and retain all numeric CSV formats and rows.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-838: vis_data() and bankReconcileFileLines() decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
 
@@ -43,6 +44,7 @@ $bankName = NULL;
 
 $title = "BankAfstemning";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");

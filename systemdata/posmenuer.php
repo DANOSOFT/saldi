@@ -53,6 +53,7 @@
 //                menu_id-ret_col-ret_row, callers read it as
 //                menu_id-ret_row-ret_col) and a $bud_id/$but_id typo that
 //                made a re-fetch guard always fire.
+// 20261004 Sawaneh Shown inside the settings frame (top.php) with the Kasse tab list and breadcrumb, instead of its own Close header.
 // 20261005 LOE SST-849 Removed the unused input() function, which held its own copy of the
 //                system button list with the same wrong "Sæt" option.
 
@@ -380,17 +381,9 @@ if (!$radius)
 if (!$fontsize)
 	$fontsize = 20;
 
-print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
-print "<tr><td align='center' valign='top'>\n";
-print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>\n";
-print "<td width='10%'>
-	<a href='" . htmlspecialchars($returside, ENT_QUOTES) . "' accesskey='L'>
-	<button type='button' class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-	. $icon_back . findtekst('2172|Luk', $sprog_id) . "</button></a></td>\n";
-print "<td width='80%' style='$topStyle' align='center'>" . $title . "</td>\n";
-print "<td width='10%' style='$buttonStyle'></td>\n";
-print "</tr></tbody></table>\n";
-print "</td></tr></tbody></table>\n";
+// Inside the settings frame like the other old settings pages: tab list for Kasse, breadcrumb in the topbar.
+if (!isset($popup)) $popup = null;
+include("top.php");
 print "<style>.center-btn{display:flex;align-items:center;text-decoration:none;gap:5px;}</style>\n";
 
 print "<table border = '1'><tbody><tr><td>\n";

@@ -28,6 +28,7 @@ $s_id=session_id();
 $beskrivelse = $messages = $pageTitle = NULL;
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

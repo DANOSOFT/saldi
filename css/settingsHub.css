@@ -1,0 +1,143 @@
+/* systemdata/settings.php - settings front page.
+   2026-10-02 hand-over (settings redesign 8.0): rows in three labelled lists instead of tiles,
+   "Kræver opmærksomhed" above them, status as a dot plus text, no hover lift. Colours and font are
+   the tokens of the approved design system (prototype_indstillinger_v4.html :root); the primary
+   button keeps the user's own button colour (--st-accent from st_accent_style()). */
+
+:root {
+    --sh-page: #eef3fb;
+    --sh-surface: #ffffff;
+    --sh-surface-2: #f6f9fe;
+    --sh-border: #dde5f1;
+    --sh-grid: #e9eef7;
+    --sh-text: #0b1a3a;
+    --sh-text-2: #5b6b85;
+    --sh-text-3: #8a97ad;
+    --sh-text-4: #aab6cc;
+    --sh-link: #1b68bd;
+    --sh-good: #15803d;
+    --sh-bad: #c2410c;
+    --sh-warn: #d9822b;
+    --sh-warn-ink: #a15c07;
+    --sh-shadow: 0 1px 2px rgba(11, 26, 58, .05), 0 4px 14px rgba(11, 26, 58, .06);
+    --sh-r: 16px;
+    --sh-sans: Inter, "Segoe UI", system-ui, sans-serif;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--sh-page) !important;
+    color: var(--sh-text);
+    font: 14px/1.5 var(--sh-sans);
+    -webkit-font-smoothing: antialiased;
+}
+
+.sh-page { width: 100%; max-width: 1180px; margin: 0 auto; padding: 30px 36px 100px; box-sizing: border-box; display: flex; flex-direction: column; gap: 36px; }
+.sh-page *, .sh-page *::before, .sh-page *::after { box-sizing: border-box; }
+.sh-page a:focus-visible, .sh-page button:focus-visible, .sh-page input:focus-visible { outline: 2px solid var(--sh-link); outline-offset: 2px; }
+
+/* page head: title and lead left, search right */
+.sh-phead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px 40px; }
+.sh-phead > div:first-child { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+.sh-phead h1 { margin: 0; font: 700 26px/1.2 var(--sh-sans); letter-spacing: -.02em; }
+.sh-lead { margin: 0; font-size: 14px; line-height: 1.55; color: var(--sh-text-2); }
+
+.sh-search { position: relative; flex: 1 1 320px; max-width: 440px; }
+.sh-search label { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; background: var(--sh-surface); border: 1px solid var(--sh-border); border-radius: 12px; box-shadow: var(--sh-shadow); color: var(--sh-text-2); transition: box-shadow .15s, border-color .15s; }
+.sh-search label:focus-within { border-color: var(--sh-link); box-shadow: 0 0 0 4px rgba(27, 104, 189, .14); }
+.sh-search label > i { font-size: 18px; }
+.sh-search input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; font: inherit; font-size: 14.5px; color: var(--sh-text); outline: none !important; }
+.sh-search input::placeholder { color: var(--sh-text-3); }
+.sh-page kbd { font: 12px var(--sh-sans); color: var(--sh-text-2); border: 1px solid var(--sh-border); background: var(--sh-surface-2); border-radius: 6px; padding: 3px 8px; font-variant-numeric: tabular-nums; }
+
+.sh-res { position: absolute; left: 0; right: 0; top: 56px; z-index: 20; background: var(--sh-surface); border: 1px solid var(--sh-border); border-radius: 12px; box-shadow: 0 12px 32px rgba(14, 22, 38, .12); padding: 6px; max-height: 400px; overflow: auto; }
+.sh-res[hidden] { display: none; }
+.sh-cnt { font-size: 11.5px; color: var(--sh-text-3); padding: 8px 12px 6px; }
+.sh-grp { padding: 8px 14px 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--sh-muted, #6b7280); }
+.sh-more { display: block; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--sh-border, #e5e7eb); background: transparent; color: var(--sh-link, #1b68bd); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.sh-more:hover { text-decoration: underline; }
+.sh-none { padding: 18px 12px; font-size: 13px; color: var(--sh-text-2); }
+.sh-it { display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 8px; text-decoration: none; color: var(--sh-text); }
+.sh-it.sh-sel, .sh-it:hover { background: var(--sh-surface-2); }
+.sh-it b { font-size: 14px; font-weight: 500; }
+.sh-it span { font-size: 12.5px; color: var(--sh-text-2); }
+.sh-it span.sh-per { color: var(--sh-warn-ink); }
+.sh-it em { font-size: 11.5px; font-style: normal; color: var(--sh-text-3); }
+.sh-res mark { background: rgba(27, 104, 189, .18); color: inherit; border-radius: 3px; }
+
+/* a heading above each card */
+.sh-sect { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.sh-sect > h2 { margin: 0; font-size: 13px; font-weight: 600; }
+.sh-card { background: var(--sh-surface); border: 1px solid var(--sh-border); border-radius: var(--sh-r); overflow: hidden; box-shadow: var(--sh-shadow); }
+
+/* status: a small dot plus text, never a filled pill */
+.sh-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; background: var(--sh-text-4); }
+.sh-dot-s { width: 6px; height: 6px; }
+.sh-dot-warn { background: var(--sh-warn); }
+.sh-dot-err { background: var(--sh-bad); }
+.sh-dot-ok { background: var(--sh-good); }
+.sh-meta { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--sh-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sh-meta-warn { color: var(--sh-warn-ink); }
+.sh-meta-err { color: var(--sh-bad); }
+.sh-meta-ok { color: var(--sh-text-2); }
+
+/* "Kræver opmærksomhed" and the read-only note */
+.sh-attn { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 12px; }
+.sh-attn > div { display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 18px; background: var(--sh-surface); border: 1px solid var(--sh-border); border-radius: var(--sh-r); box-shadow: var(--sh-shadow); }
+.sh-attn > div > i.bx { font-size: 18px; color: var(--sh-text-2); }
+.sh-attn .sh-tx { flex: 1; }
+.sh-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sh-attn .sh-tx b { font-size: 14px; font-weight: 500; }
+.sh-attn .sh-tx span { font-size: 13px; color: var(--sh-text-2); }
+
+.sh-btn { height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--sh-border); background: var(--sh-surface); font: inherit; font-size: 13px; font-weight: 500; color: var(--sh-text); white-space: nowrap; cursor: pointer; text-decoration: none; transition: background .15s; }
+.sh-btn:hover { background: var(--sh-surface-2); }
+.sh-btn-primary { background: var(--st-accent, #014294); border-color: var(--st-accent, #014294); color: var(--st-accent-txt, #fff); font-weight: 600; }
+.sh-btn-primary:hover { background: var(--st-accent, #014294); filter: brightness(1.12); }
+.sh-btn-quiet { border-color: transparent; background: transparent; color: var(--sh-text-2); padding: 0 12px; margin-left: -12px; }
+
+/* the group lists */
+.sh-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 40px 28px; align-items: start; }
+.sh-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 16px; align-items: center; column-gap: 16px; padding: 18px 20px; color: var(--sh-text); text-decoration: none; transition: background .15s; }
+.sh-row + .sh-row { border-top: 1px solid var(--sh-grid); }
+a.sh-row:hover { background: var(--sh-surface-2); }
+.sh-ic { font-size: 20px; color: var(--sh-text-2); }
+.sh-row .sh-tx { gap: 3px; }
+.sh-row .sh-tx b { font-size: 15px; font-weight: 500; }
+.sh-row .sh-tx span { font-size: 13px; color: var(--sh-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-chev { font-size: 18px; color: var(--sh-text-4); transition: transform .15s, color .15s; }
+a.sh-row:hover .sh-chev { transform: translateX(2px); color: var(--sh-text); }
+.sh-row-off { cursor: default; }
+.sh-row-off .sh-tx b, .sh-row-off .sh-ic { color: var(--sh-text-3); }
+
+/* quiet panel in the same grid */
+.sh-notice { display: flex; flex-direction: column; gap: 18px; padding: 22px 22px 18px; border: 1px solid var(--sh-border); border-radius: var(--sh-r); background: var(--sh-surface-2); }
+.sh-notice p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--sh-text-2); }
+.sh-notice form { margin: 0; }
+.sh-ls a, .sh-ls button { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 0; border: 0; border-top: 1px solid var(--sh-border); background: none; font: inherit; font-size: 14px; font-weight: 500; color: var(--sh-link); text-decoration: none; text-align: left; cursor: pointer; }
+.sh-ls a:hover, .sh-ls button:hover { color: var(--sh-text); }
+.sh-ls i { font-size: 18px; }
+
+.sh-foot { display: flex; gap: 22px; margin: 0; font-size: 13px; }
+.sh-foot a, .sh-foot button { padding: 0; border: 0; background: none; font: inherit; color: var(--sh-text-2); text-decoration: none; cursor: pointer; }
+.sh-foot a:hover, .sh-foot button:hover { color: var(--sh-link); }
+
+/* shortcuts dialog */
+.sh-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(11, 26, 58, .28); }
+.sh-dialog { position: fixed; z-index: 41; left: 50%; top: 22vh; transform: translateX(-50%); width: min(420px, calc(100% - 32px)); background: var(--sh-surface); border-radius: var(--sh-r); box-shadow: 0 12px 32px rgba(14, 22, 38, .22); padding: 24px 26px 22px; }
+.sh-backdrop[hidden], .sh-dialog[hidden] { display: none; }
+.sh-dialog h3 { margin: 0 0 12px; font-size: 18px; font-weight: 700; }
+.sh-keys > div { display: flex; align-items: center; justify-content: space-between; min-height: 40px; font-size: 14px; border-top: 1px solid var(--sh-grid); }
+.sh-keys > div:first-child { border-top: 0; }
+.sh-dialog-btns { display: flex; justify-content: flex-end; margin-top: 18px; }
+
+@media (max-width: 780px) {
+    .sh-page { padding: 20px 16px 80px; gap: 28px; }
+    .sh-phead h1 { font-size: 22px; }
+    .sh-search { max-width: none; }
+    .sh-row { grid-template-columns: 20px minmax(0, 1fr) 16px; padding: 16px; }
+    .sh-row .sh-meta { grid-column: 2; grid-row: 2; margin-top: 4px; white-space: normal; }
+    .sh-row .sh-chev { grid-column: 3; grid-row: 1; }
+    .sh-btn { height: 40px; }
+}

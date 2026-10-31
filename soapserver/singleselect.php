@@ -27,6 +27,7 @@ function singleselect($string) {
 	$webservice='1';
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
+	$permission_key = 'any';
 	include ("../includes/online.php");
 	$fp=fopen("../temp/soap.log","a");
 	fwrite($fp,"A: ".$singleselect."\n");

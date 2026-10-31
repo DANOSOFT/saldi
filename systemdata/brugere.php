@@ -28,7 +28,14 @@
 // 20260127 PHR update settings value
 // 20260219 PHR Added employeeInitials
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
+// 20260916 Sawaneh Superseded by systemdata/usersRoles.php (Brugere & roller). Redirects there.
+// 20261001 Sawaneh The department setting is stored for the user ($id); the employee id went in as description.
 // 20260924 LOE SD-657 Losing the Indstillinger right switches the turnover setting on for that user.
+// 20261008 Sawaneh SD-657 moved to usersRoles.php ur_save_user() with the merge of master.
+// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+
+header('Location: usersRoles.php');
+exit;
 
 @session_start();
 $s_id=session_id();
@@ -65,25 +72,8 @@ $debitorrapport,$kreditorrapport,$produktionsordre,$varerapport);
 #$modules=array('kontoplan','indstillinger','kassekladde','regnskab','finansrapport','debitorordre','debitorkonti','kreditorordre','kreditorkonti','varer','enheder','backup','debitorrapport','kreditorrapport','produktionsordre','varerapport');
 
 
-if ($menu=='T') {  # 20150327 start
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-    print "<div id=\"leftmenuholder\">";
-    include_once 'left_menu.php';
-    print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<div class='divSys'>";
-    print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\" width='100%'><tbody>";
-} else {
-	include("top.php");
-	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>"; 
-}  # 20150327 stop
+include("top.php");
+print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>";   # 20150327 stop
 
 $ip_address = if_isset($_SERVER['REMOTE_ADDR']);
 $proxy_ip = if_isset($_SERVER['HTTP_X_FORWARDED_FOR']);
@@ -188,7 +178,7 @@ if ($addUser || $updateUser) {
 		if ($employeeId[0]) {
 			$qtxt = "select afd from ansatte where id = '$employeeId[0]'";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			update_settings_value('afd', 'brugerAfd', $r['afd'], $employeeId[0]);
+			update_settings_value('afd', 'brugerAfd', $r['afd'], 'Bruger afdeling', $id);
 		}
 	}
 	// if($restore_user){
@@ -209,11 +199,7 @@ if ($addUser || $updateUser) {
 print "<tr><td valign = 'top'>";
 print "<table border=0 width='100%'><tbody><tr><td>"; # 20150327
 print "<form name='bruger' action='brugere.php' method='post'>";
-if ($menu=='T') {
-	print "<table cellpadding='0' cellspacing='0' border='0' width='100%' class='dataTableSys'><tbody>"; #B
-} else {
-	print "<table cellpadding='0' cellspacing='0' border='0' width='70%'><tbody>"; #B
-}
+print "<table cellpadding='0' cellspacing='0' border='0' width='70%'><tbody>"; #B
 
 print "<tr><td colspan='2'></td>";
 print str_repeat("<td align='center' width='8px'><br></td>", 30);
@@ -389,11 +375,7 @@ if ($ret_id) {
 	print "</tbody></table></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
-	if ($menu=='T') {
-		$class = "class='button blue medium'";	
-	} else {
-		$class = "class='inputbox'";
-	}
+	$class = "class='inputbox'";
 	print "<td colspan='12' align = 'center'>";
 	print "<input style='width:100px;background-color:44ff44;' type=submit value=\"".findtekst('1091|Opdater', $sprog_id)."\" name=\"updateUser\">&nbsp;";
 	print "<input style='width:100px;background-color:ff4444;' type=submit value=\"".findtekst('1099|Slet', $sprog_id)."\" name=\"deleteUser\" onclick=\"confirm('Slet $userName?')\"></td>";
@@ -424,9 +406,7 @@ if ($ret_id) {
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<td colspan=12 align = center>";
-	if ($menu=='T') {
-		print "<input style='width:200px;' class='blue medium button' type=submit value=\"".findtekst('1175|Tilføj', $sprog_id)."\" name=\"addUser\"></td>";
-	} elseif ($menu=='S') {
+	if ($menu=='S') {
 		print "<input style='$buttonStyle; width:200px' type=submit value=\"".findtekst('1175|Tilføj', $sprog_id)."\" name=\"addUser\"></td>";
 	} else {
 		print "<input style='width:200px;background-color:#aaaaff;' type=submit value=\"".findtekst('1175|Tilføj', $sprog_id)."\" name=\"addUser\"></td>";
@@ -443,10 +423,6 @@ print "
 </div></div>
 ";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+include_once '../includes/oldDesign/footer.php';
 
 ?>

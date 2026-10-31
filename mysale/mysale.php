@@ -40,6 +40,7 @@
 // 20230918 PHR Check if db exists 
 // 20260915 CDX/PHR Resolve the shop from a logged-in Saldi session before customer lookup.
 // 20260915 CDX/PHR Customer logout returns to customer-number entry and preserves the staff session.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -229,6 +230,7 @@ if ($account && !$resetPW) {
 	$qtxt.= "('$s_id','". db_escape_string($account) ."','". db_escape_string($db) ."','". db_escape_string($squser) ."',";
 	$qtxt.= "'0',0,'". date('U') ."',FALSE,'1')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$permission_key = 'any';
 	include ('../includes/online.php');
 
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' and ";

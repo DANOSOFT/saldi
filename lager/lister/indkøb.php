@@ -33,6 +33,7 @@
 
 @session_start();
 $s_id = session_id();
+$modulnr = 9;
 
 $css = "../../css/standard.css?v=20";
 

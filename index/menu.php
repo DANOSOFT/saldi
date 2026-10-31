@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------index/menu.php------ ver 4.1.1 --- 2025-08-15 ---
+// -----------index/menu.php------ ver 5.1.0 --- 2026-10-31 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20180807 Corrected query to check if'kasse' is activated 20180807
 // 20210223 LOE replaced string Sikkerhedskopi with findtekst value
@@ -37,6 +37,7 @@
 //                  window is treated as a popup by request, not by user preference.
 // 20260907 CDX/LH Mark the POS launcher as a popup when opening it in a new window.
 // 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
+// 20260930 Sawaneh Every user passes this page right after login: open to all, or Deny mode would refuse users without Kontoplan.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -57,6 +58,7 @@ if(!isset($regnskab)){
 	exit;
 }
 $modulnr=0;
+$permission_key = 'any';
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");

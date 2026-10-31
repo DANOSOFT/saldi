@@ -28,6 +28,7 @@
 // 20260711 SZ Added Grid Framework sticky header+footer with pagination and internal-scroll grid
 // 20260711 SZ Fixed duplicate entries in Category dropdown: grupper has one row per fiscal_year,
 //             the VG group queries were missing that filter (same fix pattern as rapport.php/lagerstatus.php)
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
  
 @session_start();
@@ -39,6 +40,7 @@ $title="Prisliste";
 $linjebg=NULL;
 
 include("../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");

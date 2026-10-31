@@ -35,6 +35,7 @@
 // 2020.02.03 PHR - Critical '$vatAccount' was insertet instead of vat_account. 
 // 2020.02.20 PHR - $cvrnr set to '' if not valid; 
 // 20250815 PHR	Fiscal_year;
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -52,6 +53,7 @@ if ($id==-1){	# Saa er der flere fakturaer
 }
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
