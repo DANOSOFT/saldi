@@ -1,9 +1,11 @@
 <?php
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261030 CL/MJ SST-882 Each status is stored with its message in einvoice_events, and externalIdentifier is escaped before it reaches SQL.
 
     // This file is used to receive webhooks from EasyUBL
 
     include("../includes/connect.php");
+    include_once(__DIR__ . "/../includes/stdFunc/einvoiceEvents.php");
     // Mail function
     function sendSimpleMail($to, $subject, $message, $from = null) {
         // Set default sender if not provided
@@ -103,7 +105,10 @@
         
         if (array_key_exists((int)$base64["documentStatusCode"], $incStatus)) {
             $statusName = $incStatus[(int)$base64["documentStatusCode"]];
-            db_modify("UPDATE ordrer SET digital_status = '$statusName' WHERE fakturanr = '$base64[externalIdentifier]'", __FILE__ . " linje " . __LINE__);
+            $externalIdentifier = (string)($base64["externalIdentifier"] ?? '');
+            db_modify("UPDATE ordrer SET digital_status = '$statusName' WHERE fakturanr = '" . db_escape_string($externalIdentifier) . "'", __FILE__ . " linje " . __LINE__);
+            // SST-882: keep the message that came with the status (it used to go only to temp/), so the invoice can show why it was rejected
+            einvoice_record_webhook($externalIdentifier, $statusName, (string)$decoded);
         }
 
         if($base64["documentStatusCode"] == 5110 || $base64["documentStatusCode"] == 5210){

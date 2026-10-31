@@ -78,6 +78,7 @@
 //                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
 //                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
 //                  without the spaces Stamdata stores them with.
+// 20261030 CL/MJ SST-882 easyUblSendFailed() stores the failure and EasyUBL's message in einvoice_events, so the invoice can show it.
 
     @session_start();
     $s_id=session_id();
@@ -95,6 +96,7 @@
     include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");
     include_once(__DIR__ . "/../includes/stdFunc/countryCode.php");
     include_once(__DIR__ . "/../includes/stdFunc/einvoiceCvr.php");
+    include_once(__DIR__ . "/../includes/stdFunc/einvoiceEvents.php");
 
     /**
      * @param string $address The full street address to split
@@ -447,6 +449,11 @@
 
         if ((int) $orderId > 0) {
             db_modify("UPDATE ordrer SET digital_status = 'SendFailed' WHERE id = " . (int) $orderId, __FILE__ . " linje " . __LINE__);
+            // SST-882: keep EasyUBL's reason in the invoice's e-invoice history
+            $failed = db_fetch_array(db_select("SELECT fakturanr, cvrnr FROM ordrer WHERE id = " . (int) $orderId, __FILE__ . " linje " . __LINE__));
+            $failText = trim($outcome['message'] . ' ' . $outcome['detail']);
+            einvoice_log_event((int) $orderId, (string) ($failed['fakturanr'] ?? ''), 'send', 'SendFailed',
+                $failText !== '' ? $failText : "HTTP $outcome[http_code] $outcome[kind]", (string) ($failed['cvrnr'] ?? ''));
         }
 
         $txt = findtekst('5155|Digital afsendelse fejlede', $sprog_id) . "\n\n";

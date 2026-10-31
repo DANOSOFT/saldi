@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.28
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.10.30
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
 // 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
 // 20261028 CDX/NTR Apply the tekst_key schema migration to both tenant and master databases.
+// 20261030 CL/MJ SST-882 New table einvoice_events: every e-invoice status and message per invoice.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -126,5 +127,11 @@ foreach ($tekstKeyTargets as $tekstKeyGlobal) {
 		db_modify("CREATE INDEX IF NOT EXISTS idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
 	}
 }
+
+// 20261030 CL/MJ SST-882 einvoice_events keeps every status EasyUBL reports for an e-invoice and every failed
+// send, with the message. Before this the message went only to temp/, so a rejected invoice could not say why.
+include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
+include_once(__DIR__ . '/stdFunc/einvoiceEvents.php');
+ensureTableAndColumns($db, 'einvoice_events', einvoice_events_columns());
 
 ?>
