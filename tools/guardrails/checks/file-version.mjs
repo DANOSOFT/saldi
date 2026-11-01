@@ -1,7 +1,9 @@
 // tools/guardrails/checks/file-version.mjs - behavior changes mirror the current app version.
 // Tokenize without executing PHP so comments and whitespace do not require a version bump.
 // 20261029 CDX/MJ Enforce the repeated CodeRabbit header-version finding (PR #882, 39a812a75).
+// 20261101 CL/MJ Tokenize with php-syntax's PHP 8.2 or Docker, so a machine without php on PATH still gets findings.
 import { execFileSync } from "node:child_process";
+import { phpCommand } from "./php-syntax.mjs";
 
 const TOKEN_HASH = String.raw`
 $hashes = [];
@@ -27,6 +29,7 @@ export default {
     const version = /\$version\s*=\s*["']([^"']+)["']/.exec(ctx.readHead("includes/version.php") ?? "")?.[1];
     if (!version) return [];
     const findings = [];
+    let php = null;
     for (const file of ctx.files) {
       if (file.status === "D" || !file.path.endsWith(".php") || ctx.isVendored(file.path)) continue;
       const source = ctx.readHead(file.path) ?? "";
@@ -37,7 +40,8 @@ export default {
       if (declared?.[1].toLowerCase() === "ver" && declared[2] === version) continue;
       const previous = ctx.readBase(file.path);
       if (previous !== null) {
-        const [before, after] = JSON.parse(execFileSync("php", ["-r", TOKEN_HASH], {
+        php ??= phpCommand();
+        const [before, after] = JSON.parse(execFileSync(php[0], [...php.slice(1), "-r", TOKEN_HASH], {
           input: JSON.stringify([previous, source]), encoding: "utf8", maxBuffer: 1024 * 1024,
         }));
         if (before === after) continue;
