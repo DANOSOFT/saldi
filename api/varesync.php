@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- lap 4.1.0 --- 2024.03.18 ---
+// --- api/varesync.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2018.04.24 Omskrevet variant delen så det inditificeres på variant_id i stedet for på stregkode så det er muligt at ændre stregkode på shop.
@@ -34,6 +34,7 @@
 // 2024-03-18	PHR Speed optimation.
 // 2024-03-27 PHR Some improvemnets
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261101 CL/SZ MB-125 The $sProduct... arrays start empty, so 'Hent nye varer' and 'Opdater fra shop' no longer die in in_array() when varer is empty.
 
 
 function varesync($valg) {
@@ -58,6 +59,7 @@ function varesync($valg) {
 #	if (file_exist("../temp/$db/productList.txt")) unlink("../temp/$db/productList.txt");
 	$plf = fopen("../temp/$db/productList.txt",'w');
 	$i = 0;
+	$sProductId = $sProductNo = $sProductPrice = $sProductCost = $sProductName = $sProductBarcode = array();
 	$qtxt="select * from varer order by id"; #20240327. File is read by client, and existing products is excluded from list
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
