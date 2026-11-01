@@ -94,6 +94,7 @@ export default {
         });
       }
 
+      const base = splitLines(ctx.readBase(file.path) ?? "");
       const isNew = (line) => file.added.has(line) && !(file.status === "A" && deletedLines.has(lines[line - 1]));
       const endsSentence = (line) => /[.!?]["'`)]*$/.test(lines[line - 1].trimEnd());
       // A comment line under a history entry is a continuation when it is indented, or when it has
@@ -121,6 +122,10 @@ export default {
             // one-space line there is a file description (// Run: ...), not a continuation, even when
             // the new entry has no full stop: the convention does not ask for one on a one-line entry.
             if (continuation[2] === " ") break;
+            // A corrected dated line keeps its own continuation: at the base, the line above that
+            // continuation was a dated line, and that line is gone now.
+            const at = base.indexOf(lines[next - 1]);
+            if (at > 0 && HISTORY.test(base[at - 1]) && base[at - 1] !== lines[line - 2]) break;
             let last = next;
             while (last + 1 <= header && !isNew(last + 1) && continuationAt(last + 1)) last++;
             findings.push({ path: file.path, line,
