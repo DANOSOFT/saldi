@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRoles.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- systemdata/usersRoles.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260916 Sawaneh "Brugere & roller" (spec R8): user list with search, user card with role,
 //                  role list + matrix editor, bulk role assignment, migration suggestions and
 //                  the audit log. Replaces brugere.php (and brugereRevisor.php). Controller here,
 //                  view in usersRolesIncludes/view.php. Post/Redirect/Get throughout.
+// 20261101 CL/ASR New design (prototype D): the head links css/saldi-theme.css; the view links css/saldi-kit.css and then css/usersRoles.css, so the page's own rules come after the kit.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -43,7 +44,7 @@ $s_id = session_id();
 ob_start();
 
 $title = "Brugere & roller";
-$css = "../css/usersRoles.css?v=20260930b";
+$css = "../css/saldi-theme.css?v=7"; // the light/dark tokens; usersRolesIncludes/view.php links the kit and css/usersRoles.css after it
 $modulnr = 1; // legacy gate (Indstillinger)
 $permission_key = 'settings.users.manage';
 

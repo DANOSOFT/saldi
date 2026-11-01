@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/top.php --- ver 4.1.1 --- 2025-04-14 ---
+// --- systemdata/top.php --- ver 5.1.0 --- 2026-11-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20181102 PHR Oprydning, udefinerede variabler.
@@ -30,6 +30,9 @@
 // 20260928 Sawaneh Unsaved-changes guard uses the native beforeunload dialog (settings redesign spec §8.1).
 // 20261016 Sawaneh The frame draws the new settings layout (title, lead, the group's sections as the left menu, content beside)
 //                  so the seven old pages inside it look like the generated sections; their own markup is untouched.
+// 20261101 CL/ASR New design (prototype D): the frame takes the new look of css/unified-components.css (white page, 4 px corners, the section menu as a panel).
+//                 The old page inside keeps the font it inherited before, and its buttons get the 4 px corners of the frame.
+//                 The search field's stylesheet (css/settingsSearch.css, restyled the same day) carries a version, so browsers fetch the new look.
 
 $small=NULL;
 if (!isset($css)) $css=NULL;
@@ -78,11 +81,11 @@ if (typeof window.saldiTranslations === 'undefined') {
 	window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
 }
 </script>";
-print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css?v=20261101\">";
 print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
-print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261016b\">";
+print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261101c\">";
 print "<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>";
-print "<style>.st-legacy { min-width: 0; } .st-legacy table { max-width: 100%; } .st-legacy input[type=submit], .st-legacy input[type=button], .st-legacy button { border-radius: 8px; }</style>";
+print "<style>.st-legacy { min-width: 0; font: 14px/1.5 Inter, \"Segoe UI\", system-ui, sans-serif; } .st-legacy table { max-width: 100%; } .st-legacy input[type=submit], .st-legacy input[type=button], .st-legacy button { border-radius: 4px; }</style>";
 print "<div class=\"st-page\" style=\"" . st_h(st_accent_style((string) $buttonColor, (string) $buttonTxtColor)) . "\">";
 print "<section class=\"st-phead\"><div><h1>" . st_h(html_entity_decode($currentLabel, ENT_QUOTES, st_charset())) . "</h1><p class=\"st-lead\">" . st_t(5706) . " " . st_h(st_company()) . ".</p></div></section>";
 print "<div class=\"st-layout st-layout-list\">";

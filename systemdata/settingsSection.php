@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260929 Sawaneh Settings redesign phase 4a: a settings section generated from the registry
 //                  (spec §7.3, §8). Controller: POST with CSRF -> validation -> conflict check ->
@@ -48,6 +48,8 @@
 //                  per integration, each drawer its own form; an empty secret leaves the stored value (P8); item kept over redirects.
 // 20261008 Sawaneh The Assist menu's guide is the section's installed guide (settings decision 21).
 // 20261019 Sawaneh Review 2 (PR #803): row_copy_year takes from_year only when it is a fiscal year (RA) of this ledger other than the target year.
+// 20261101 CL/ASR New design (prototype D, as index/dashboard.php): the head links css/saldi-theme.css, then css/saldi-kit.css and css/unified-components.css follow online.php, so the settings rules come after the kit's base rules.
+//                 The page's root carries the kit's scope class sk (also in listView.php and rowsView.php).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -67,13 +69,15 @@ if (!isset($_SESSION['csrf_token'])) {
 $csrfToken = $_SESSION['csrf_token'];
 
 $title = "Indstillinger";
-$css = "../css/unified-components.css?v=20261016b";
+$css = "../css/saldi-theme.css?v=7";
 $modulnr = 0; // the section's own permission key is required below
 $permission_key = 'any';
 $permission_post_read = false;
 
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
+// The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261101b'><link rel='stylesheet' href='../css/unified-components.css?v=20261101c'>\n";
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");
@@ -521,7 +525,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <script>document.title = <?= json_encode(mb_convert_encoding(st_txt($section['label']), 'UTF-8', $charset)) ?>;</script>
 <?= settings_breadcrumb_script(settings_breadcrumb((string) $section['group'], st_txt($section['label']), $sprogId), $charset, isset($section['return_to']) ? (string) $section['return_to'] : '', isset($section['return_label']) ? (string) $section['return_label'] : '') ?>
-<div class="st-page" style="<?= st_h(st_accent_style((string) $accent, (string) $accentTxt)) ?>">
+<div class="sk st-page" style="<?= st_h(st_accent_style((string) $accent, (string) $accentTxt)) ?>">
   <a class="st-skip" href="#st-form"><?= st_t(5751) ?></a>
   <section class="st-phead">
     <div>

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowsView.php --- lap 5.0.0 --- 2026.10.05 ---
+// ---- includes/settings/rowsView.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261006 Sawaneh Row actions may show per-row confirm text ('confirm_args') and ask for one value ('input', posted as arg).
 // 20261006 Sawaneh §8.13: an empty table with a standard set offers "Opret dansk standardsæt" and "Tilføj selv".
@@ -29,6 +29,7 @@
 // 20261008 Sawaneh A table's 'confirm_skip' adds a second confirm button (master's SST-769 Gem kurs uden bogføring).
 // 20261016 Sawaneh The "copy from year" button points at its own form printed after the main one; a form inside the main form
 //                  closed it early, so later blocks fell out of the layout and Save posted the copy action.
+// 20261101 CL/ASR New design (prototype D): the page's root carries the kit's scope class sk; the look is css/unified-components.css on the kit's tokens.
 
 include_once(__DIR__ . '/rows.php');
 
@@ -84,7 +85,7 @@ function settings_rows_render(array $c): void
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <script>document.title = <?= json_encode(mb_convert_encoding(st_txt($section['label']), 'UTF-8', $charset)) ?>;</script>
 <?= settings_breadcrumb_script(settings_breadcrumb((string) $section['group'], st_txt($section['label']), $sprogId), $charset, isset($section['return_to']) ? (string) $section['return_to'] : '', isset($section['return_label']) ? (string) $section['return_label'] : '') ?>
-<div class="st-page st-page-rows" style="<?= st_h(st_accent_style((string) $c['accent'], (string) $c['accentTxt'])) ?>">
+<div class="sk st-page st-page-rows" style="<?= st_h(st_accent_style((string) $c['accent'], (string) $c['accentTxt'])) ?>">
   <a class="st-skip" href="#st-form"><?= st_t(5751) ?></a>
   <section class="st-phead">
     <div>

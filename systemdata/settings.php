@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settings.php --- lap 5.0.0 --- 2026.09.28 ---
+// ---- systemdata/settings.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260928 Sawaneh Settings front page (parent spec S1/S3/S4): search on top and one card per
 //                  settings group the user may open, generated from systemdata/settingsRegistry.php.
@@ -33,20 +33,21 @@
 // 20261004 Sawaneh Search results grouped by group with at most 8 until "Vis alle" (§8.5); the transition banner
 //                  only for users with activity from before the new settings landed (§8.10).
 // 20261004 Sawaneh Open to anyone with read on a settings group, not only the old Indstillinger bit (decision 16).
+// 20261101 CL/ASR New design (prototype D, as index/dashboard.php): the page is built from css/saldi-kit.css under .sk.
+//                 The group lists are panels with a grey header band and 24 px zebra rows, the search is the kit search with its dropdown, notes and the shortcuts dialog are kit components, and the one filled button is navy.
+//                 Same content, order, texts, links and behaviour.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $sprog_id
  * @var string $db_encode
- * @var string $buttonColor
- * @var string $buttonTxtColor
  */
 
 @session_start();
 $s_id = session_id();
 
 $title = "Indstillinger";
-$css = "../css/settingsHub.css?v=20261004";
+$css = "../css/settingsHub.css?v=20261101d";
 $modulnr = 0; // access is per settings group (settings_require_any_access below), not the old Indstillinger bit
 $permission_key = 'any';
 
@@ -93,7 +94,6 @@ settings_hub_view(array(
  */
 function settings_hub_view(array $vm, int $sprogId, string $dbEncode): void
 {
-	global $buttonColor, $buttonTxtColor;
 	$charset = ($dbEncode === 'UTF8') ? 'UTF-8' : 'ISO-8859-1';
 	$h = function ($s) use ($charset): string {
 		return htmlspecialchars((string) $s, ENT_QUOTES, $charset);
@@ -105,47 +105,50 @@ function settings_hub_view(array $vm, int $sprogId, string $dbEncode): void
 		return json_encode(mb_convert_encoding(findtekst($text, $sprogId), 'UTF-8', $charset), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 	};
 	$groups = $vm['groups'];
-	$accent = st_accent_style(!empty($buttonColor) ? (string) $buttonColor : '#114691', !empty($buttonTxtColor) ? (string) $buttonTxtColor : '#ffffff');
-	$dots = array('warn' => 'sh-dot-warn', 'err' => 'sh-dot-err', 'ok' => 'sh-dot-ok');
+	// status kind (settings_group_status / settings_attention) -> kit tone: a dot in that colour before the text
+	$tones = array('warn' => 'sk-warn', 'err' => 'sk-bad', 'ok' => 'sk-ok');
 	?>
+<link rel='stylesheet' href='../css/saldi-theme.css?v=7'><link rel='stylesheet' href='../css/saldi-kit.css?v=20261101b'>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <script>document.title = <?= $js('122|Indstillinger') ?>;</script>
 <?php if (function_exists('page_help')) { page_help(array('shortcuts' => '[data-keys]')); } ?>
 <?= settings_breadcrumb_script(settings_breadcrumb('', '', $sprogId), $charset) ?>
-<div class="sh-page" style="<?= $h($accent) ?>">
-  <section class="sh-phead">
-    <div>
-      <h1><?= $t('122|Indstillinger') ?></h1>
-      <p class="sh-lead"><?= $h(sprintf(findtekst('6020|Gælder for alle i %s. Dine personlige valg finder du under dit navn øverst til højre.', $sprogId), $vm['company'])) ?></p>
+<div class="sk sk-page sh-page">
+  <section class="sk-head">
+    <div class="sk-head-tx">
+      <h1 class="sk-title"><?= $t('122|Indstillinger') ?></h1>
+      <p class="sk-lead"><?= $h(sprintf(findtekst('6020|Gælder for alle i %s. Dine personlige valg finder du under dit navn øverst til højre.', $sprogId), $vm['company'])) ?></p>
     </div>
-    <div class="sh-search">
-      <label for="sh-search"><i class='bx bx-search' aria-hidden="true"></i><input type="search" id="sh-search" placeholder="<?= $t('6039|Søg – fx moms, GLS eller et gammelt menunavn') ?>" aria-label="<?= $t('5663|Søg i indstillinger…') ?>" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sh-res" aria-autocomplete="list"><kbd aria-hidden="true">/</kbd></label>
-      <div class="sh-res" id="sh-res" role="listbox" hidden></div>
+    <div class="sk-head-acts">
+      <div class="sk-search sh-search">
+        <i class='bx bx-search' aria-hidden="true"></i><input type="search" class="sk-input" id="sh-search" placeholder="<?= $t('6039|Søg – fx moms, GLS eller et gammelt menunavn') ?>" aria-label="<?= $t('5663|Søg i indstillinger…') ?>" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sh-res" aria-autocomplete="list"><kbd aria-hidden="true">/</kbd>
+        <div class="sk-pop sh-res" id="sh-res" role="listbox" hidden></div>
+      </div>
     </div>
   </section>
 
   <?php if (!$groups) { ?>
-  <div class="sh-attn"><div><i class='bx bx-lock-alt' aria-hidden="true"></i><div class="sh-tx"><b><?= $t('5665|Du har ikke adgang til nogen indstillinger. Kontakt en administrator.') ?></b></div></div></div>
+  <div class="sk-note sk-warn"><i class='bx bx-lock-alt' aria-hidden="true"></i><b><?= $t('5665|Du har ikke adgang til nogen indstillinger. Kontakt en administrator.') ?></b></div>
   <?php } elseif ($vm['readOnly']) { ?>
-  <div class="sh-attn" role="status"><div><i class='bx bx-lock-alt' aria-hidden="true"></i><div class="sh-tx"><b><?= $t('6031|Du har læseadgang') ?></b><span><?= $t('6032|Du kan se indstillingerne, men ikke ændre dem. Kontakt en administrator.') ?></span></div></div></div>
+  <div class="sk-note sk-info" role="status"><i class='bx bx-lock-alt' aria-hidden="true"></i><span><b><?= $t('6031|Du har læseadgang') ?></b> <span class="sk-muted"><?= $t('6032|Du kan se indstillingerne, men ikke ændre dem. Kontakt en administrator.') ?></span></span></div>
   <?php } ?>
 
   <?php if ($vm['attention']) { ?>
-  <section class="sh-sect">
-    <h2><?= $t('6016|Kræver opmærksomhed') ?></h2>
-    <div class="sh-attn">
+  <section class="sk-panel sh-panel">
+    <div class="sk-panel-h"><h2 class="sk-panel-t"><?= $t('6016|Kræver opmærksomhed') ?></h2></div>
+    <div class="sk-list sh-attn">
       <?php foreach ($vm['attention'] as $item) { ?>
-      <div>
-        <i class="sh-dot <?= $dots[$item['kind']] ?>" aria-hidden="true"></i>
-        <div class="sh-tx"><b><?= $h($item['title']) ?></b><span><?= $h($item['sub']) ?></span></div>
-        <a class="sh-btn" href="<?= $h($item['url']) ?>"><?= $h($item['button']) ?></a>
+      <div class="sk-list-row">
+        <span class="sk-list-ic sh-attn-ic" aria-hidden="true"><span class="sk-dot <?= isset($tones[$item['kind']]) ? $tones[$item['kind']] : '' ?>"></span></span>
+        <span class="sk-list-tx"><b class="sk-list-t"><?= $h($item['title']) ?></b><span class="sk-list-d"><?= $h($item['sub']) ?></span></span>
+        <a class="sk-btn sk-btn-sm" href="<?= $h($item['url']) ?>"><?= $h($item['button']) ?></a>
       </div>
       <?php } ?>
     </div>
   </section>
   <?php } ?>
 
-  <div class="sh-cols">
+  <div class="sk-cols sh-cols">
     <?php foreach (settings_group_lists() as $listId => $list) {
     	$rows = array_values(array_filter($list['groups'], function ($g) use ($groups) { return isset($groups[$g]); }));
     	$locked = ($listId === 'trade' && $vm['posLocked'] && !isset($groups['pos']));
@@ -153,26 +156,26 @@ function settings_hub_view(array $vm, int $sprogId, string $dbEncode): void
     		continue;
     	}
     ?>
-    <section class="sh-sect">
-      <h2><?= $t($list['label']) ?></h2>
-      <div class="sh-card">
+    <section class="sk-panel sh-panel">
+      <div class="sk-panel-h"><h2 class="sk-panel-t"><?= $t($list['label']) ?></h2></div>
+      <div class="sk-list">
         <?php foreach ($rows as $group) {
         	$g = $groups[$group];
         	$st = isset($vm['status'][$group]) ? $vm['status'][$group] : null;
         ?>
-        <a class="sh-row" href="<?= $h($g['entries'][0]['url']) ?>">
-          <i class='bx <?= $h($g['def']['icon']) ?> sh-ic' aria-hidden="true"></i>
-          <span class="sh-tx"><b><?= $t($g['def']['label']) ?></b><span><?= $t($g['def']['description']) ?></span></span>
-          <span class="sh-meta<?= ($st && $st['kind'] !== '') ? ' sh-meta-' . $h($st['kind']) : '' ?>"><?php if ($st) { ?><?php if (isset($dots[$st['kind']])) { ?><i class="sh-dot sh-dot-s <?= $dots[$st['kind']] ?>" aria-hidden="true"></i><?php } ?><?= $h($st['text']) ?><?php } ?></span>
-          <i class='bx bx-chevron-right sh-chev' aria-hidden="true"></i>
+        <a class="sk-list-row" href="<?= $h($g['entries'][0]['url']) ?>">
+          <i class='bx <?= $h($g['def']['icon']) ?> sk-list-ic' aria-hidden="true"></i>
+          <span class="sk-list-tx"><b class="sk-list-t"><?= $t($g['def']['label']) ?></b><span class="sk-list-d"><?= $t($g['def']['description']) ?></span></span>
+          <span class="sk-list-meta"><?php if ($st) { ?><?php if (isset($tones[$st['kind']])) { ?><span class="sk-status <?= $tones[$st['kind']] ?>"><?= $h($st['text']) ?></span><?php } else { ?><?= $h($st['text']) ?><?php } ?><?php } ?></span>
+          <i class='bx bx-chevron-right sk-list-chev' aria-hidden="true"></i>
         </a>
         <?php } ?>
         <?php if ($locked) { ?>
-        <div class="sh-row sh-row-off" aria-disabled="true">
-          <i class='bx bx-store-alt sh-ic' aria-hidden="true"></i>
-          <span class="sh-tx"><b><?= $t('2226|Kasse') ?></b><span><?= $t('5740|Kræver kasselicens — kontakt Saldi') ?></span></span>
-          <span class="sh-meta"></span>
-          <i class='bx bx-lock-alt sh-chev' aria-hidden="true"></i>
+        <div class="sk-list-row sk-off" aria-disabled="true">
+          <i class='bx bx-store-alt sk-list-ic' aria-hidden="true"></i>
+          <span class="sk-list-tx"><b class="sk-list-t"><?= $t('2226|Kasse') ?></b><span class="sk-list-d"><?= $t('5740|Kræver kasselicens — kontakt Saldi') ?></span></span>
+          <span class="sk-list-meta"></span>
+          <i class='bx bx-lock-alt sk-list-chev' aria-hidden="true"></i>
         </div>
         <?php } ?>
       </div>
@@ -180,38 +183,36 @@ function settings_hub_view(array $vm, int $sprogId, string $dbEncode): void
     <?php } ?>
 
     <?php if ($vm['notice'] && $groups) { ?>
-    <section class="sh-sect">
-      <h2><?= $t('6021|Ny struktur') ?></h2>
-      <div class="sh-notice">
-        <p><?= $t('6022|Indstillingerne er samlet i færre, tydeligere grupper. Alt er her stadig – søg efter det gamle menunavn, så finder du det nye sted.') ?></p>
-        <div class="sh-ls">
-          <a href="settingsMoved.php"><?= $t('6023|Hvor er de gamle menupunkter?') ?><i class='bx bx-right-arrow-alt' aria-hidden="true"></i></a>
-          <button type="button" data-keys><?= $t('6024|Tastaturgenveje') ?><i class='bx bx-right-arrow-alt' aria-hidden="true"></i></button>
-        </div>
-        <form method="post" action="settings.php">
-          <input type="hidden" name="csrf_token" value="<?= $h($vm['csrf']) ?>">
-          <input type="hidden" name="dismiss" value="1">
-          <button type="submit" class="sh-btn sh-btn-quiet"><?= $t('5746|Skjul') ?></button>
-        </form>
+    <section class="sk-panel sh-panel">
+      <div class="sk-panel-h"><h2 class="sk-panel-t"><?= $t('6021|Ny struktur') ?></h2></div>
+      <p class="sk-panel-note sh-notice-tx"><?= $t('6022|Indstillingerne er samlet i færre, tydeligere grupper. Alt er her stadig – søg efter det gamle menunavn, så finder du det nye sted.') ?></p>
+      <div class="sk-list sh-ls">
+        <a class="sk-list-row" href="settingsMoved.php"><span class="sk-list-tx"><span class="sk-list-t"><?= $t('6023|Hvor er de gamle menupunkter?') ?></span></span><i class='bx bx-right-arrow-alt sk-list-chev' aria-hidden="true"></i></a>
+        <button type="button" class="sk-list-row" data-keys><span class="sk-list-tx"><span class="sk-list-t"><?= $t('6024|Tastaturgenveje') ?></span></span><i class='bx bx-right-arrow-alt sk-list-chev' aria-hidden="true"></i></button>
       </div>
+      <form class="sk-foot" method="post" action="settings.php">
+        <input type="hidden" name="csrf_token" value="<?= $h($vm['csrf']) ?>">
+        <input type="hidden" name="dismiss" value="1">
+        <button type="submit" class="sk-btn sk-btn-ghost sk-btn-sm"><?= $t('5746|Skjul') ?></button>
+      </form>
     </section>
     <?php } ?>
   </div>
 
   <?php if ($groups && !$vm['notice']) { ?>
-  <p class="sh-foot"><a href="settingsMoved.php"><?= $t('6023|Hvor er de gamle menupunkter?') ?></a><button type="button" data-keys><?= $t('6024|Tastaturgenveje') ?></button></p>
+  <p class="sh-foot"><a href="settingsMoved.php"><?= $t('6023|Hvor er de gamle menupunkter?') ?></a><button type="button" class="sk-link" data-keys><?= $t('6024|Tastaturgenveje') ?></button></p>
   <?php } ?>
 
-  <div class="sh-backdrop" id="sh-backdrop" hidden></div>
-  <div class="sh-dialog" id="sh-dialog" role="dialog" aria-modal="true" aria-labelledby="sh-dialog-title" hidden>
-    <h3 id="sh-dialog-title"><?= $t('6024|Tastaturgenveje') ?></h3>
-    <div class="sh-keys">
-      <div><?= $t('5663|Søg i indstillinger…') ?><kbd>/</kbd></div>
-      <div><?= $t('3|Gem') ?><kbd>Ctrl S</kbd></div>
-      <div><?= $t('2172|Luk') ?><kbd>Esc</kbd></div>
-      <div><?= $t('5647|Tilbage') ?><kbd>Alt ←</kbd></div>
-    </div>
-    <div class="sh-dialog-btns"><button type="button" class="sh-btn sh-btn-primary" id="sh-dialog-close"><?= $t('2172|Luk') ?></button></div>
+  <div class="sk-scrim" id="sh-backdrop" hidden></div>
+  <div class="sk-dialog" id="sh-dialog" role="dialog" aria-modal="true" aria-labelledby="sh-dialog-title" hidden>
+    <h3 class="sk-dialog-t" id="sh-dialog-title"><?= $t('6024|Tastaturgenveje') ?></h3>
+    <ul class="sk-kv sh-keys">
+      <li><span><?= $t('5663|Søg i indstillinger…') ?></span><span><kbd>/</kbd></span></li>
+      <li><span><?= $t('3|Gem') ?></span><span><kbd>Ctrl S</kbd></span></li>
+      <li><span><?= $t('2172|Luk') ?></span><span><kbd>Esc</kbd></span></li>
+      <li><span><?= $t('5647|Tilbage') ?></span><span><kbd>Alt ←</kbd></span></li>
+    </ul>
+    <div class="sk-dialog-f"><button type="button" class="sk-btn sk-btn-primary" id="sh-dialog-close"><?= $t('2172|Luk') ?></button></div>
   </div>
 </div>
 
@@ -253,11 +254,11 @@ function settings_hub_view(array $vm, int $sprogId, string $dbEncode): void
 		res.textContent = '';
 		var head = document.createElement('div');
 		if (!hits.length) {
-			head.className = 'sh-none';
+			head.className = 'sk-pop-note sh-none';
 			head.textContent = txt.none;
 			res.appendChild(head);
 		} else {
-			head.className = 'sh-cnt';
+			head.className = 'sk-pop-note sh-cnt';
 			head.textContent = txt.count.replace('%s', hits.length);
 			res.appendChild(head);
 			var lastGroup = null;
@@ -265,13 +266,13 @@ function settings_hub_view(array $vm, int $sprogId, string $dbEncode): void
 				var hit = row.hit;
 				if (row.group !== lastGroup) {
 					var gh = document.createElement('div');
-					gh.className = 'sh-grp';
+					gh.className = 'sk-pop-h';
 					gh.textContent = row.group;
 					res.appendChild(gh);
 					lastGroup = row.group;
 				}
 				var a = document.createElement('a');
-				a.className = 'sh-it' + (i === sel ? ' sh-sel' : '');
+				a.className = 'sk-opt' + (i === sel ? ' on' : '');
 				a.href = hit.url;
 				a.id = 'sh-it-' + i;
 				a.setAttribute('role', 'option');
