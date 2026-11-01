@@ -143,6 +143,32 @@ final class ReturnPurchaseBatchTest extends CharacterizationTestCase
         $this->assertEqualsWithDelta(self::stockOf($item), self::stockFromBatches($item), 0.001, 'the return is counted once');
     }
 
+    /**
+     * A sale of 10 that took 6 from a batch and 4 without one (older data): crediting all 10 puts 6 back on
+     * the batch and gives the other 4 a batch of their own at the original line's cost (CodeRabbit).
+     */
+    public function test_a_return_split_between_the_original_batch_and_a_new_one(): void
+    {
+        $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 50.00]);
+        $purchase = self::$fx->creditorOrder(self::$fx->creditor(), [['item' => $item, 'antal' => 6, 'pris' => 100.00]]);
+        $this->receive($purchase['id'], 6);
+        $sale = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 10]]);
+        $this->deliver($sale['id'], 10); # 6 from the purchase batch, 4 from a deficit batch
+        $saleLine = self::lineId($sale['id']);
+        self::rows('UPDATE ordrelinjer SET kostpris = 80 WHERE id = $1', [$saleLine]);
+        [$batch, $deficit] = self::batches($item);
+        self::rows('UPDATE batch_salg SET batch_kob_id = 0 WHERE linje_id = $1 AND batch_kob_id = $2', [$saleLine, $deficit['id']]);
+
+        $this->creditNote($saleLine, $item, 10, 60.00);
+
+        $batches = self::batches($item);
+        $this->assertCount(3, $batches, 'one new batch for the remainder');
+        $this->assertEqualsWithDelta(6.0, (float)$batches[0]['rest'], 0.001, 'the purchase batch takes back its 6');
+        $this->assertEqualsWithDelta(4.0, (float)$batches[2]['rest'], 0.001, 'the other 4 in a new batch');
+        $this->assertEqualsWithDelta(80.0, (float)$batches[2]['pris'], 0.001, 'at the original line\'s cost');
+        $this->assertEqualsWithDelta(self::stockOf($item), self::stockFromBatches($item), 0.001);
+    }
+
     /** A sale only draws from its own warehouse, so a return to another warehouse gets a batch there. */
     public function test_a_return_to_another_warehouse_gets_a_batch_in_that_warehouse(): void
     {

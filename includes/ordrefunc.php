@@ -631,6 +631,9 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					$bk_id = $r['batch_kob_id']; # 20170507
 					$qtxt = "select antal,rest,lager from batch_kob where id = '$bk_id'"; #20170507
 					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if (!$r2) {
+						continue; # No batch behind the row (batch_kob_id 0): nothing to give back to
+					}
 					$tmp2 = $r2['antal'] - $r2['rest']; #$tmp2 er det antal det kan lægges tilbage på linjen.
 					if ($kred_linje_id) {
 						// 20261101 CL/MJ SST-910 Only a batch in the warehouse the return goes to takes
