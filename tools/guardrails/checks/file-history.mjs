@@ -48,6 +48,9 @@ export default {
   summary: "edited PHP files get a well-formed history line at the bottom of the block, header date and copyright moved along",
   run(ctx) {
     const findings = [];
+    // The diff runs with --no-renames, so a moved file is a new file plus a deleted one. Its lines that
+    // already stood in a deleted file are not new for the continuation rule below.
+    const deletedLines = new Set(ctx.files.filter((file) => file.status === "D").flatMap((file) => splitLines(ctx.readBase(file.path) ?? "")));
     for (const file of ctx.files) {
       if (file.status === "D" || !file.path.endsWith(".php") || ctx.isVendored(file.path)) continue;
       const lines = splitLines(ctx.readHead(file.path));
@@ -91,6 +94,7 @@ export default {
         });
       }
 
+      const isNew = (line) => file.added.has(line) && !(file.status === "A" && deletedLines.has(lines[line - 1]));
       const endsSentence = (line) => /[.!?]["'`)]*$/.test(lines[line - 1].trimEnd());
       // A comment line under a history entry is a continuation when it is indented, or when it has
       // one space but the line above left its sentence open. A one-space line after a finished
@@ -101,7 +105,7 @@ export default {
         const match = /^(\s*\/\/([ \t]+))(\S.*)$/.exec(lines[line - 1]);
         if (!match || HISTORY.test(lines[line - 1])) return null;
         if (/^[-=*#~_ ]+$/.test(match[3])) return null;
-        if (!file.added.has(line) && match[2] === " " && /^\d{2,4}[./-]\d/.test(match[3])) return null;
+        if (!isNew(line) && match[2] === " " && /^\d{2,4}[./-]\d/.test(match[3])) return null;
         if (match[2] === " " && endsSentence(line - 1)) return null;
         return match;
       };
@@ -111,14 +115,14 @@ export default {
         for (let next = line + 1; next <= header; next++) {
           const continuation = continuationAt(next);
           if (!continuation) break;
-          if (!file.added.has(line) && !file.added.has(next)) continue;
-          if (file.added.has(line) && !file.added.has(next)) {
+          if (!isNew(line) && !isNew(next)) continue;
+          if (isNew(line) && !isNew(next)) {
             // An old continuation right below a new entry belongs to the entry above it. An old
             // one-space line there is a file description (// Run: ...), not a continuation, even when
             // the new entry has no full stop: the convention does not ask for one on a one-line entry.
             if (continuation[2] === " ") break;
             let last = next;
-            while (last + 1 <= header && !file.added.has(last + 1) && continuationAt(last + 1)) last++;
+            while (last + 1 <= header && !isNew(last + 1) && continuationAt(last + 1)) last++;
             findings.push({ path: file.path, line,
               message: `this entry splits the entry above from its continuation on line ${next}; move it below line ${last}.` });
             break;
