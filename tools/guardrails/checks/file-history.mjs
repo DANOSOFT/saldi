@@ -68,7 +68,8 @@ export default {
           continue;
         }
         if (text.startsWith("/*")) {
-          if (text.startsWith("/**")) afterPhpDoc = true;
+          // A /*****\ licence banner (includes/barcode.php) also starts with /**; a docblock opener is /** alone or followed by space.
+          if (/^\/\*\*(\s|$)/.test(text)) afterPhpDoc = true;
           inComment = !text.includes("*/");
           continue;
         }
