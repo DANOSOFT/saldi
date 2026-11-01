@@ -27,6 +27,7 @@
 // 20261012 Sawaneh The headline counts every uninvoiced order (Adam): the 30-day window is gone.
 // 20261101 CL/ASR Each item group also carries its revenue (fourth field), for the table that replaces the ring (prototype D).
 // 20261101 CL/ASR The VAT KPI no longer sums up to 8 earlier periods for a trend line the page does not draw any more.
+// 20261101 CL/ASR No active-user count and no suggestion list any more (both cards left the dashboard).
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
@@ -127,7 +128,7 @@ function dash_kpi(float $now, float $last, array $spark): array
 /**
  * Everything the page and its script need.
  *
- * @param array<string, mixed> $c regnstart, regnslut, regnaar, kontomin, kontomaks, sprog_id, bruger_id, vat (vat_registration()), online (active users)
+ * @param array<string, mixed> $c regnstart, regnslut, regnaar, kontomin, kontomaks, sprog_id, bruger_id, vat (vat_registration())
  * @return array<string, mixed>
  */
 function dash_data(array $c): array
@@ -302,20 +303,6 @@ function dash_data(array $c): array
 	$r = db_fetch_array(db_select("select count(*) as n, coalesce(sum(\"sum\"), 0) as s from ordrer where status = 2 and art = 'DO' and levdate < '$fourteen'", __FILE__ . " linje " . __LINE__));
 	$orders['late'] = array('count' => $r ? (int) $r['n'] : 0, 'sum' => $r ? (float) $r['s'] : 0.0);
 
-	// Suggestions waiting: unread notifications of the type suggestion.
-	$suggest = 0;
-	$suggestList = array();
-	if (function_exists('notif_ready') && notif_ready() && function_exists('notif_list')) {
-		foreach (notif_list((int) $c['bruger_id']) as $n) {
-			if (!empty($n['unread']) && isset($n['type']) && $n['type'] === 'suggestion') {
-				$suggest++;
-				if (count($suggestList) < 3) {
-					$suggestList[] = array('title' => (string) $n['title'], 'body' => (string) $n['body'], 'link' => (string) $n['link']);
-				}
-			}
-		}
-	}
-
 	$fyLabel = function (int $kodenr): string {
 		$r = db_fetch_array(db_select("select beskrivelse from grupper where art = 'RA' and kodenr = $kodenr", __FILE__ . " linje " . __LINE__));
 		return $r ? trim((string) $r['beskrivelse']) : (string) $kodenr;
@@ -331,8 +318,5 @@ function dash_data(array $c): array
 		'heat' => $heat,
 		'donut' => $donut,
 		'orders' => $orders,
-		'online' => (int) $c['online'],
-		'suggest' => $suggest,
-		'suggestList' => $suggestList,
 	);
 }

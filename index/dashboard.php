@@ -48,6 +48,8 @@
 // 20261010 Sawaneh Ufakturerede ordrer: key figures 1 and 3 of addendum 3 §7 (delivered over 14 days ago, ready to invoice now). Texts 7072-7073.
 // 20261031 CL/ASR The drawer's widget key and block order are escaped before update_settings_value(): it takes its arguments as given again (master's contract, the caller escapes).
 // 20261101 CL/ASR Restyled on prototype D ("Som ordrelisten"): flat panels with a grey header band, the KPI strip without sparklines, Omsætning pr. varegruppe as a table with share bars, Ubetalte salgsfakturaer with the due groups as a table and a stacked bar, the small cards with lists and buttons, "Rediger oversigt" as a panel at the top right.
+// 20261101 CL/ASR "Aktive medarbejdere" and "Forslag klar til bekræftelse" removed (Adam): the topbar shows who is online and the
+//                  bell holds the suggestions. Små tal now holds Ufakturerede ordrer only; the online-count queries are gone.
 //                 Blocks, switches, order, access keys and links are unchanged.
 //                 Fiscal months and this week's days after today have no figure yet ("–", no bar), as in the prototype.
 //                 Texts 7700-7701.
@@ -62,22 +64,10 @@ print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
 include ("../includes/connect.php");
-# get superUsers
-$qtxt = "SELECT brugernavn FROM brugere";
-$result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-$superUsers = array();
-while ($row = db_fetch_array($result)) {
-    $superUsers[] = $row['brugernavn'];
-}
 # Get database name of current online user
 $qtxt = "SELECT db FROM online WHERE session_id='$s_id' limit 1";
 $db = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
-# Get amount of active users
-$superUsersPlaceholders = implode("','", $superUsers);
-$timestamp = (int) date("U") - (60*60);
-$qtxt = "SELECT count(brugernavn) FROM online WHERE db='$db' AND logtime > '$timestamp' AND revisor is not true AND brugernavn NOT IN ('$superUsersPlaceholders')";
-$online_people_amount = (int) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
 $permission_key = 'any';
 include ("../includes/online.php");
@@ -112,7 +102,7 @@ $brugerId = (int) $bruger_id;
 $canEditAccounts = function_exists('perm_can') ? perm_can('settings.finance', 'write') : (substr((string) $rettigheder, 1, 1) === '1');
 
 // The widgets (prototype keys = the old dashboard_toggles names; weekkpi is new and starts from the old revweek).
-$widgetDefaults = array('weekkpi' => 'on', 'revmonth' => 'on', 'revyear' => 'on', 'vatcount' => 'on', 'onlineusers' => 'off', 'ordercount' => 'on', 'suggest' => 'on',
+$widgetDefaults = array('weekkpi' => 'on', 'revmonth' => 'on', 'revyear' => 'on', 'vatcount' => 'on', 'ordercount' => 'on',
 	'revgraph' => 'on', 'revweek' => 'on', 'customergraph' => 'off', 'varegrp_doughnut' => 'on', 'unpaid_invoices' => 'on');
 // The blocks and their default order (front-page spec §4, §8.2/§8.4); the user's order is one JSON list per user.
 $blockDefaults = array('kpis', 'revgraph', 'customergraph', 'revweek', 'varegrp_doughnut', 'unpaid_invoices', 'small');
@@ -204,10 +194,6 @@ $blockAccess = array();
 foreach ($blockDefaults as $bid) {
 	$blockAccess[$bid] = $dashKey($bid) && ($bid !== 'unpaid_invoices' || check_permissions(array(6, 12)));
 }
-if (!$dashKey('suggestions')) {
-	$widgets['suggest'] = false;
-	$widgetDefaults['suggest'] = 'off';
-}
 // Se Oversigt (addendum 4 §2.1): refused once enforcement is on, logged while it only observes.
 if (function_exists('perm_can') && !perm_can('dashboard.view')) {
 	if (perm_enforcement_mode() === 'deny') {
@@ -245,7 +231,7 @@ if ((function_exists('perm_can') ? false : !check_permissions(array(3,4))) || is
 }
 
 $data = dash_data(array('regnstart' => $regnstart, 'regnslut' => $regnslut, 'regnaar' => $regnaar, 'kontomin' => $kontomin, 'kontomaks' => $kontomaks,
-	'sprog_id' => (int) $sprog_id, 'bruger_id' => $brugerId, 'vat' => $vatRegistration, 'online' => $online_people_amount));
+	'sprog_id' => (int) $sprog_id, 'bruger_id' => $brugerId, 'vat' => $vatRegistration));
 
 // Prototype D ("Som ordrelisten"): flat panels with a grey header band, the KPI strip, tables with share bars. Every block
 // keeps its data, switch, order and access key; the charts are drawn by dashboard.js at the box's real width.
@@ -416,14 +402,12 @@ $blocks['unpaid_invoices'] = function () use ($unpaid, $widgets, $tx, $h, $num, 
 	print "</div></div></div></section>";
 };
 
-// Små tal: aktive medarbejdere, ufakturerede ordrer (addendum 3 §7), forslag (§7a)
+// Små tal: ufakturerede ordrer (addendum 3 §7)
 $blocks['small'] = function () use ($data, $widgets, $tx, $h, $num, $gone) {
 	$kr = function ($v) use ($num) {
 		return $num($v, 2) . ' kr';
 	};
 	print "<section class='blk db-sec db-small' data-block='small' style='--w:1' aria-label='" . $h($tx('7059|Små tal')) . "'>";
-	print "<div class='db-cell" . $gone($widgets['onlineusers']) . "' data-widget='onlineusers'><div class='db-lbl'>" . $h($tx('2379|Aktive medarbejdere')) . "</div>"
-		. "<div class='db-val'><span>" . $num((int) $data['online']) . "</span></div><div class='db-note'>" . $h($tx('6965|Aktive inden for den sidste time')) . "</div></div>";
 	$o = $data['orders'];
 	print "<div class='db-cell" . $gone($widgets['ordercount']) . "' data-widget='ordercount'><div class='db-lbl'>" . $h($tx('2161|Ufakturerede ordrer')) . "<small>" . $h($tx('6922|ex moms')) . "</small></div>"
 		. "<div class='db-val'><span>" . $num((int) $o['count']) . "</span><small>" . $kr($o['sum']) . "</small></div>"
@@ -431,20 +415,6 @@ $blocks['small'] = function () use ($data, $widgets, $tx, $h, $num, $gone) {
 		. ($o['largest'] ? "<li><span>" . $h($tx('7051|Største ufakturerede')) . "</span><b>" . $h($o['largest']['name']) . ' &middot; ' . $kr($o['largest']['sum']) . "</b></li>" : '')
 		. "<li><span>" . $h($tx('7073|Klar til fakturering nu')) . "</span><b>" . (int) $o['ready']['count'] . ' &middot; ' . $kr($o['ready']['sum']) . "</b></li></ul>"
 		. "<div class='db-acts'><a class='btn btn-sm btn-secondary' href='../debitor/ordreliste.php'>" . $h($tx('6967|Gå til ordrer')) . "</a></div></div>";
-	$sl = $data['suggestList'];
-	print "<div class='db-cell" . $gone($widgets['suggest']) . "' data-widget='suggest'><div class='db-lbl'>" . $h($tx('6968|Forslag klar til bekræftelse')) . "</div>"
-		. "<div class='db-val'><span>" . $num((int) $data['suggest']) . "</span><small>" . $h($tx('6969|Notifikationer med forslag, der venter på dig')) . "</small></div>";
-	if ($sl) {
-		print "<ul class='db-kv'>";
-		foreach ($sl as $sg) {
-			print "<li><span>" . $h($sg['title']) . "</span><b>" . $h(mb_substr($sg['body'], 0, 60)) . "</b></li>";
-		}
-		if ((int) $data['suggest'] > count($sl)) {
-			print "<li class='more'><span>" . $h(sprintf($tx('7052|og %s forslag mere'), (int) $data['suggest'] - count($sl))) . "</span></li>";
-		}
-		print "</ul>";
-	}
-	print "<div class='db-acts'><button type='button' class='btn btn-sm btn-secondary' onclick=\"try { var b = window.parent.document.getElementById('topbar-bell-btn'); if (b) { b.click(); } } catch (e) {}\">" . $h($tx('6970|Gennemgå forslag')) . "</button></div></div>";
 	print "</section>";
 };
 
@@ -494,14 +464,9 @@ $blockList = array(
 	array('id' => 'revweek', 'name' => $u8($tx('6955|Omsætning pr. dag')), 'desc' => $u8($tx('6984|Ugen dag for dag'))),
 	array('id' => 'varegrp_doughnut', 'name' => $u8($tx('6960|Omsætning pr. varegruppe')), 'desc' => $u8($tx('6986|Fordeling i regnskabsåret'))),
 	array('id' => 'unpaid_invoices', 'name' => $u8($tx('7032|Ubetalte salgsfakturaer')), 'desc' => $u8($tx('7050|Forfaldne beløb og hvilke fakturaer det er'))),
-	array('id' => 'small', 'name' => $u8($tx('7059|Små tal')), 'desc' => $u8($tx('7060|Medarbejdere, ordrer, forslag')), 'items' => array(
-		array('onlineusers', $u8($tx('2379|Aktive medarbejdere')), $u8($tx('6981|Hvem der har været aktive den sidste time'))),
-		array('ordercount', $u8($tx('2161|Ufakturerede ordrer')), $u8($tx('7097|Leverede ordrer, der ikke er faktureret'))),
-		array('suggest', $u8($tx('6968|Forslag klar til bekræftelse')), $u8($tx('6969|Notifikationer med forslag, der venter på dig'))))),
+	array('id' => 'small', 'name' => $u8($tx('7059|Små tal')), 'desc' => $u8($tx('2161|Ufakturerede ordrer')), 'items' => array(
+		array('ordercount', $u8($tx('2161|Ufakturerede ordrer')), $u8($tx('7097|Leverede ordrer, der ikke er faktureret'))))),
 );
-if (!$dashKey('suggestions')) {
-	$blockList[6]['items'] = array_values(array_filter($blockList[6]['items'], function ($it) { return $it[0] !== 'suggest'; }));
-}
 $blockList = array_values(array_filter($blockList, function ($b) use ($blockAccess) { return !isset($blockAccess[$b['id']]) || $blockAccess[$b['id']]; }));
 $unpaidJs = null;
 if ($unpaid !== null && $unpaid['count']) {

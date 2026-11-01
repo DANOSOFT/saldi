@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissionRegistry.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- includes/permissionRegistry.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 //                  write, Bogholder read on all eight, every other role none (Lager lost items write / organisation read).
 // 20261002 Sawaneh Keys per settings redesign §11.1: settings.email (was settings.smtp), settings.backup (was system.backup),
 //                  settings.company.danger and settings.organisation.sensitive added; settings.integrations.keys withdrawn.
+// 20261101 CL/ASR dashboard.block.suggestions removed: the Forslag card left the dashboard (the bell holds suggestions).
 
 /**
  * Every permission key the system knows. A key is granted at level none / read / write.
@@ -66,7 +67,6 @@ function permission_registry(): array
 		'dashboard.block.revweek'           => array('group' => 'dashboard', 'label' => '6955|Omsætning pr. dag',        'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.rapporter', 'debitor.rapporter'), 'block' => true),
 		'dashboard.block.varegrp_doughnut'  => array('group' => 'dashboard', 'label' => '6960|Omsætning pr. varegruppe', 'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.rapporter', 'lager.rapporter'), 'block' => true),
 		'dashboard.block.small'             => array('group' => 'dashboard', 'label' => '7059|Små tal',                  'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.ordre'), 'block' => true),
-		'dashboard.block.suggestions'       => array('group' => 'dashboard', 'label' => '6968|Forslag klar til bekræftelse', 'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.kassekladde'), 'block' => true),
 		'dashboard.block.expiry'            => array('group' => 'dashboard', 'label' => '7067|Batch-/udløbsadvarsel',    'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('lager.varer', 'lager.rapporter'), 'block' => true),
 		'dashboard.block.news'              => array('group' => 'dashboard', 'label' => '7068|Nyhedsbanner',              'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('*'), 'block' => true),
 
@@ -182,7 +182,7 @@ function permission_default_roles(): array
 				'debitor.konti' => 'write', 'debitor.rapporter' => 'write',
 				'kreditor.konti' => 'write', 'kreditor.rapporter' => 'write',
 				'debitor.ordre' => 'read', 'kreditor.ordre' => 'read',
-			) + $dashAll + array('dashboard.block.suggestions' => 'read'),
+			) + $dashAll,
 		),
 		'salg' => array(
 			'label'       => '5544|Salg',
