@@ -76,13 +76,15 @@
 // 20261031 CL/ASR The Assist widget keeps its own sidebar entry, as on master (the sidebar differs from master only by the Indstillinger item).
 // 20261101 CL/ASR Sidebar: Kontoplan under Finans (Finans also shown on right 0); Kontakt removed; the Assist
 //                  widget's own sidebar entry is collapsed again (the topbar's Assist button opens the chat).
+// 20261101 CL/ASR Sidebar in prototype D's fixed look for every user (css/sidebar_style.css): navy-to-purple gradient, white mark, text and icons, translucent hover/active pill.
+//                 The personal colours ($buttonColor/$buttonTxtColor) no longer style the sidebar: the colour <style> block, the inline colour styles and brightenColor() are gone.
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $s_id = session_id();
 
-$css = "../css/sidebar_style.css?v=23";
+$css = "../css/sidebar_style.css?v=26";
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -95,8 +97,6 @@ $css = "../css/sidebar_style.css?v=23";
  * @var mixed  $regnaar
  * @var int    $sprog_id
  * @var string $regnskab
- * @var string $buttonColor
- * @var string $buttonTxtColor
  */
 
 include("../includes/connect.php");
@@ -115,24 +115,6 @@ $settingsGroups = settings_accessible_groups();
 
 if (substr($brugernavn, 0, 11) == "debitoripad") {
   header('Location: ../debitoripad/await.php');
-}
-
-function brightenColor($color, $amount = 0.2) {
-    // Remove # if present
-    $color = ltrim($color, '#');
-    
-    // Convert hex to RGB
-    $r = hexdec(substr($color, 0, 2));
-    $g = hexdec(substr($color, 2, 2));
-    $b = hexdec(substr($color, 4, 2));
-    
-    // Brighten each component
-    $r = min(255, $r + ($amount * (255 - $r)));
-    $g = min(255, $g + ($amount * (255 - $g)));
-    $b = min(255, $b + ($amount * (255 - $b)));
-    
-    // Convert back to hex
-    return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
 }
 
 ?>
@@ -155,54 +137,6 @@ function brightenColor($color, $amount = 0.2) {
   // Check every 1000ms for the cookie
   setInterval(checkRefreshCookie, 1000);
 </script>
-<style>
-  .showMenu{
-    background: <?php echo $buttonColor; ?> !important;
-    color: <?php echo $buttonTxtColor; ?> !important;
-  }
-
-  .nav-links{
-    background-color: <?php echo $buttonColor; ?> !important;
-    color: <?php echo $buttonTxtColor; ?> !important;
-  }
-  .sidebar .nav-links li:hover, .sidebar :not(.closed) .nav-links li.showMenu, .sidebar ul.nav-links li.active {
-    background: <?php echo brightenColor($buttonColor, 0.2); ?> !important;
-    color: <?php echo $buttonTxtColor; ?> !important;
-  }
-
-  .sidebar{
-    background-color: <?php echo $buttonColor; ?> !important;
-    color: <?php echo $buttonTxtColor; ?> !important;
-  }
-
-  .link_name{
-    color: <?php echo $buttonTxtColor; ?> !important;
-  }
-
-  .sidebar a, .sidebar p{
-    color: <?php echo $buttonTxtColor; ?> !important;
-  }
-
-  .sidebar .bx{
-    color: <?php echo $buttonTxtColor; ?> !important;
-  }
-
-  .logo-img {
-    width: 120px;
-    height: 40px; /* ← REQUIRED */
-
-    background-color: <?php echo $buttonTxtColor; ?> !important;
-
-    -webkit-mask: url("../img/sidebar_logo.png") no-repeat center;
-    mask: url("../img/sidebar_logo.png") no-repeat center;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-  }
-
-  .sidebar:not(.closed) .nav-links li .sub-menu li a::before{
-    background: <?php echo $buttonTxtColor; ?> !important;
-  }
-</style>
 
 <meta charset="utf-8">
 <title>Sidebar</title>
@@ -210,7 +144,7 @@ function brightenColor($color, $amount = 0.2) {
 <link rel="icon" href="../img/saldiLogo.png">
 <link href='../css/saldi-fonts.css?v=2' rel='stylesheet'>
 <script>window.SALDI_CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;</script>
-<link href='../css/sidebar_style.css?v=25' rel='stylesheet'>
+<link href='../css/sidebar_style.css?v=26' rel='stylesheet'>
 <link href='../css/topbar.css?v=22' rel='stylesheet'>
 <link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
 <script>document.documentElement.classList.add('saldi-shell');</script>
@@ -224,7 +158,7 @@ function brightenColor($color, $amount = 0.2) {
 
   <div class="logo wide">
     <div class="logo-img"></div>
-    <i id="icon-open" class="bx bxs-arrow-from-right"></i>
+    <i id="icon-open" class="bx bx-arrow-from-right"></i>
   </div>
 
   <div class="logo small" onclick="
@@ -232,14 +166,14 @@ function brightenColor($color, $amount = 0.2) {
       document.getElementsByClassName('modalbg')[0].style.display='none'; 
     ">
     <img class="logo-img" src="../img/sidebar_logo.png">
-    <i id="icon-open" class='bx bxs-arrow-from-right'></i>
+    <i id="icon-open" class='bx bx-arrow-from-right'></i>
   </div>
 
-  <ul class="nav-links top-links" style='margin-top: 1em; background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;'>
+  <ul class="nav-links top-links" style='margin-top: 1em;'>
     <!-- Finans -->
     <?php $dashView = !function_exists('perm_can') || perm_can('dashboard.view') || perm_enforcement_mode() !== 'deny'; // Se Oversigt (addendum 4) ?>
     <li class="active"<?= $dashView ? '' : ' style="display:none"' ?>>
-      <a href="#" id="dashboard" style="background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
+      <a href="#" id="dashboard" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
         <i class='bx bxs-dashboard'></i>
         <span class="link_name"><?php print findtekst('2224|Oversigt', $sprog_id); ?></span>
       </a>
@@ -258,7 +192,7 @@ function brightenColor($color, $amount = 0.2) {
           <i class='bx bx-coin-stack'></i>
           <span class="link_name"><?php print findtekst('600|Finans', $sprog_id); ?></span>
         </a>
-        <i class='bx bxs-chevron-down arrow'> </i>
+        <i class='bx bx-chevron-down arrow'> </i>
       </div>
       <ul class="sub-menu">
         <li><span class="link_name"><?php print findtekst('600|Finans', $sprog_id); ?></span></li>
@@ -291,7 +225,7 @@ function brightenColor($color, $amount = 0.2) {
           <i class='bx bx-group'></i>
           <span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span>
         </a>
-        <i class='bx bxs-chevron-down arrow'> </i>
+        <i class='bx bx-chevron-down arrow'> </i>
       </div>
       <ul class="sub-menu">
         <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
@@ -325,7 +259,7 @@ function brightenColor($color, $amount = 0.2) {
             <i class='bx bx-calendar'></i>
             <span class="link_name"><?php print findtekst('1116|Booking', $sprog_id); ?></span>
           </a>
-          <i class='bx bxs-chevron-down arrow'> </i>
+          <i class='bx bx-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
           <li><span class="link_name"><?php print findtekst('1116|Booking', $sprog_id); ?></span></li>
@@ -354,7 +288,7 @@ function brightenColor($color, $amount = 0.2) {
             <i class='bx bx-archive-out'></i>
             <span class="link_name"><?php print findtekst('607|Kreditorer', $sprog_id); ?></span>
           </a>
-          <i class='bx bxs-chevron-down arrow'> </i>
+          <i class='bx bx-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
           <li><span class="link_name"><?php print findtekst('607|Kreditorer', $sprog_id); ?></span></li>
@@ -385,7 +319,7 @@ function brightenColor($color, $amount = 0.2) {
             <i class='bx bx-package'></i>
             <span class="link_name"><?php print findtekst('608|Lager', $sprog_id); ?></span>
           </a>
-          <i class='bx bxs-chevron-down arrow'> </i>
+          <i class='bx bx-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
           <li><span class="link_name"><?php print findtekst('608|Lager', $sprog_id); ?></span></li>

@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-10-31 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-01 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,7 @@
 //                 Stripe abonnement is listed in every ledger again, as on master (no masterDb gate), and keeps master's label.
 // 20261031 CL/ASR Tjeklister is listed under Organisation again, where the old tjekliste entry lived; it opens sager/tjeklister.php
 //                 (the Sager left menu stays as on master, so this is the way to the checklist editor).
+// 20261101 CL/ASR Personal settings no longer match colour searches (knapfarve, button color ...): the personal colour choice is gone.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -135,7 +136,7 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('commission report settings','commission calculation','sales commission','provisionsrapport','provision','provisjonsberegning','provisjon',
 					'commission basis','invoiced or paid commission','commission source person','customer responsible person commission','reference person commission','cost price source for commission','purchase price commission','product card cost price commission','cutoff date commission calculation', 'default commission rate', 'show commission on item card', 'standard provisionssats')),
 			array('key' => 'userSettings',          'group' => 'personal', 'url' => 'personalSettings.php',                     'category' => 'personal', 'textId' => 5500,
-				'keywords' => array('personal settings','my settings','profile settings','appearance settings','theme color','button color','text color','button text color','ui color customization','user interface preferences','personlige valg','knapfarve',
+				'keywords' => array('personal settings','my settings','profile settings','appearance settings','user interface preferences','personlige valg',
 					'expiry warning days','udløbsadvarsel','language','sprog','password','adgangskode','two factor','2fa','notifications','notifikationer','active sessions','global bar placement')),
 			array('key' => 'ordre_valg',             'group' => 'sales', 'url' => 'settingsSection.php?s=sales.orders', 'section' => 'sales.orders', 'category' => 'invoicing', 'textId' => 5679,
 				'keywords' => array('order settings','order options','vat on orders','show vat private customers','show vat business customers','negative stock','allow negative stock','low stock warning','out of stock warning','fifo costing','cost method','quick invoicing','immediate posting','same day posting','discount item number','delivery note text','packing slip text','shipping item number','freight item number','postage item','pick list email','send pick list by mail','gs1 barcode scanning','barcode parsing','order autocomplete','search autocomplete orders','lock invoice until paid','ipad system','ordrerelaterede valg','hurtigfaktura','negativt lager','rabatvarenummer','bestillingsrelaterte valg','bestilling',

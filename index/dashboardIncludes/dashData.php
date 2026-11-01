@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/dashData.php --- lap 5.0.0 --- 2026.10.10 ---
+// ---- index/dashboardIncludes/dashData.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261008 Sawaneh The numbers behind Oversigt (Adam's prototype_dashboard_tema.html v5): week, month and fiscal year
 //                  revenue with last year and a trend, the VAT period with its deadline, revenue per month and per day,
@@ -25,6 +25,8 @@
 // 20261009 Sawaneh The largest uninvoiced order (addendum 3 §7) and the three newest suggestions (§7a) for the small cards.
 // 20261010 Sawaneh Key figures 1 and 3 of §7 (open point 9 settled): status 2 = delivered, not invoiced; levdate is the delivery date.
 // 20261012 Sawaneh The headline counts every uninvoiced order (Adam): the 30-day window is gone.
+// 20261101 CL/ASR Each item group also carries its revenue (fourth field), for the table that replaces the ring (prototype D).
+// 20261101 CL/ASR The VAT KPI no longer sums up to 8 earlier periods for a trend line the page does not draw any more.
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
@@ -220,15 +222,8 @@ function dash_data(array $c): array
 		list($pFrom, $pTo) = vat_period_range((string) $c['vat']['period'], $today);
 		$vNow = dash_sum($pFrom, $today, $vmin, $vmax);
 		$vLast = dash_sum(dash_add($pFrom, '-1 year'), dash_add($today, '-1 year'), $vmin, $vmax);
-		$spark = array();
-		for ($i = 7; $i >= 0; $i--) {
-			list($sf, $st) = vat_period_range((string) $c['vat']['period'], dash_add($pFrom, "-$i months"));
-			if ($i > 0 && $sf === $pFrom) {
-				continue;
-			}
-			$spark[$sf] = dash_sum($sf, min($st, $today), $vmin, $vmax);
-		}
-		$vat = dash_kpi($vNow, $vLast, array_slice(array_values($spark), -8)) + array('from' => $pFrom, 'to' => $pTo, 'deadline' => dash_vat_deadline((string) $c['vat']['period'], $pTo));
+		// No VAT trend: prototype D shows no sparklines, and each point cost a sum over transaktioner.
+		$vat = dash_kpi($vNow, $vLast, array()) + array('from' => $pFrom, 'to' => $pTo, 'deadline' => dash_vat_deadline((string) $c['vat']['period'], $pTo));
 	}
 
 	// Customers per hour and weekday, averaged per weekday, for the last 7, 30 and 90 days (orders by time of day).
@@ -281,14 +276,14 @@ function dash_data(array $c): array
 		$top = array_slice($groups, 0, 5);
 		$rest = array_slice($groups, 5);
 		foreach ($top as $g) {
-			$donut['items'][] = array($g[0], round($g[1] / $gTotal * 100, 1), false);
+			$donut['items'][] = array($g[0], round($g[1] / $gTotal * 100, 1), false, round($g[1], 2));
 		}
 		if ($rest) {
 			$sum = 0.0;
 			foreach ($rest as $g) {
 				$sum += $g[1];
 			}
-			$donut['items'][] = array(sprintf(findtekst('6964|Øvrige (%s grupper)', (int) $c['sprog_id']), count($rest)), round($sum / $gTotal * 100, 1), true);
+			$donut['items'][] = array(sprintf(findtekst('6964|Øvrige (%s grupper)', (int) $c['sprog_id']), count($rest)), round($sum / $gTotal * 100, 1), true, round($sum, 2));
 		}
 	}
 

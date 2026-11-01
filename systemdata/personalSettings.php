@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,8 @@
 // 20261014 Sawaneh Review: CSRF token on every form and checked before any POST is handled.
 // 20261031 CL/ASR The confirm-password flash's findtekst fallback is id 5625's full Danish text, as the tekster guardrail requires.
 // 20261031 CL/ASR Fallback texts 7031 and 5639 match importfiler/tekster.csv.
+// 20261101 CL/ASR The personal colour choice (Knapfarve / Tekstfarve på knapper under Udseende) and its save path are removed.
+//                 Everyone gets the standard colours (includes/online.php); stored colour rows are left as they are.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -152,15 +154,6 @@ function personal_settings_context_query(array $get, array $post): string
 }
 
 /**
- * Six hex digits without '#', or the default when the input is not a colour.
- */
-function personal_settings_hex($value, string $default): string
-{
-	$value = strtolower(ltrim(trim((string) $value), '#'));
-	return (strlen($value) === 6 && ctype_xdigit($value)) ? $value : $default;
-}
-
-/**
  * True when $password is the user's current password (md5 legacy or saldikrypt).
  */
 function personal_settings_password_ok(int $brugerId, string $password): bool
@@ -175,7 +168,7 @@ function personal_settings_password_ok(int $brugerId, string $password): bool
 
 /**
  * Persist everything the form posted. Writes go to the same places the old pages
- * wrote (grupper USET, settings colors/lager/globals, brugere), so nothing else changes.
+ * wrote (grupper USET, settings lager/globals, brugere), so nothing else changes.
  *
  * @return array<string, mixed> Query parameters for the redirect.
  */
@@ -197,20 +190,6 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 			$reloadShell = true;
 		}
 
-		$colors = array(
-			'buttonColor'    => personal_settings_hex(isset($post['buttonColor']) ? $post['buttonColor'] : '', '114691'),
-			'buttonTxtColor' => personal_settings_hex(isset($post['buttonTxtColor']) ? $post['buttonTxtColor'] : '', 'ffffff'),
-		);
-		if ($colors !== $current['colors']) {
-			$reloadShell = true;
-		}
-		$descriptions = array(
-			'buttonColor'    => 'Background color for user settings',
-			'buttonTxtColor' => 'Button color for user settings',
-		);
-		foreach ($colors as $name => $value) {
-			update_settings_value($name, 'colors', $value, $descriptions[$name], $brugerId);
-		}
 		// Popup windows are removed (settings redesign spec, Personal settings): saving switches
 		// them off, as the old Personlige valg page did. Background colour/highlight are no
 		// longer edited here; their stored values are left as they are.
@@ -346,10 +325,6 @@ function personal_settings_load(int $brugerId, bool $isRevisor, string $brugerna
 	$twofactor = in_array($u['twofactor'], array('t', true, '1', 1), true);
 
 	$uset = db_fetch_array(db_select("select box2 from grupper where art = 'USET' and kodenr = '$brugerId'", __FILE__ . " linje " . __LINE__));
-	$colors = array(
-		'buttonColor'    => personal_settings_hex(get_settings_value('buttonColor', 'colors', '', $brugerId), '114691'),
-		'buttonTxtColor' => personal_settings_hex(get_settings_value('buttonTxtColor', 'colors', '', $brugerId), 'ffffff'),
-	);
 
 	$languages = array();
 	$fp = @fopen(__DIR__ . "/../importfiler/tekster.csv", "r");
@@ -399,7 +374,6 @@ function personal_settings_load(int $brugerId, bool $isRevisor, string $brugerna
 		'language'  => max(1, (int) $sprog_id ?: (int) $u['language_id']),
 		'languages' => $languages,
 		'revisor'   => $isRevisor,
-		'colors'    => $colors,
 		'popup'     => ($uset && trim((string) $uset['box2']) !== ''),
 		'theme'     => in_array(SettingsService::get('personal.profile.theme', $brugerId), array('light', 'dark', 'system'), true) ? SettingsService::get('personal.profile.theme', $brugerId) : 'light',
 		'textSize'  => SettingsService::get('personal.profile.text_size', $brugerId) === 'large' ? 'large' : 'normal',
@@ -516,20 +490,6 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 	if (!form) { return; }
 	var dirty = document.getElementById('ps-dirty');
 
-	function hex(id) {
-		var el = document.getElementById(id);
-		var v = el ? (el.value || '').replace('#', '').toLowerCase() : '';
-		return /^[0-9a-f]{6}$/.test(v) ? '#' + v : null;
-	}
-	function preview() {
-		var btn = document.getElementById('ps-preview-btn');
-		var menu = document.getElementById('ps-preview-menu');
-		if (!btn || !menu) { return; }
-		var bc = hex('ps-buttonColor-text') || '#114691';
-		var tc = hex('ps-buttonTxtColor-text') || '#ffffff';
-		btn.style.background = bc; btn.style.color = tc;
-		menu.style.background = bc; menu.style.color = tc;
-	}
 	var initial = snapshot();
 	function snapshot() {
 		return Array.prototype.map.call(form.elements, function (el) {
@@ -543,20 +503,6 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 		if (dirty) { dirty.classList.toggle('on', changed); }
 	}
 
-	Array.prototype.forEach.call(document.querySelectorAll('input[type="color"][data-target]'), function (picker) {
-		picker.addEventListener('input', function () {
-			document.getElementById(picker.dataset.target).value = picker.value.substring(1);
-			markDirty(); preview();
-		});
-	});
-	Array.prototype.forEach.call(document.querySelectorAll('input[data-color]'), function (text) {
-		text.addEventListener('input', function () {
-			var v = text.value.replace('#', '');
-			if (/^[0-9a-fA-F]{6}$/.test(v)) { document.getElementById(text.dataset.color).value = '#' + v.toLowerCase(); }
-			preview();
-		});
-		text.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); } });
-	});
 	form.addEventListener('input', markDirty);
 	form.addEventListener('change', markDirty);
 	form.addEventListener('submit', function () {
@@ -564,7 +510,6 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 		var b = document.getElementById('ps-submit');
 		if (b) { b.disabled = true; }
 	});
-	preview();
 })();
 </script>
 	<?php
@@ -636,38 +581,6 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
             <option value="<?= (int) $id ?>"<?= ($id === $d['language']) ? ' selected' : '' ?>><?= $h($label) ?></option>
             <?php } ?>
           </select>
-        </div>
-      </div>
-    </section>
-
-    <section class="ps-card">
-      <h2><i class='bx bx-palette'></i><?= $t('5508|Udseende') ?></h2>
-      <p class="ps-card-help"><?= $t('5526|Farverne bruges i menuen og på knapper') ?></p>
-      <div class="ps-grid">
-        <?php
-        $colorFields = array(
-        	array('name' => 'buttonColor',    'label' => '5509|Knapfarve',            'help' => ''),
-        	array('name' => 'buttonTxtColor', 'label' => '5510|Tekstfarve på knapper', 'help' => ''),
-        );
-        foreach ($colorFields as $cf) {
-        	$val = $d['colors'][$cf['name']];
-        ?>
-        <div class="ps-field">
-          <label for="ps-<?= $cf['name'] ?>-text"><?= $t($cf['label']) ?></label>
-          <div class="ps-color">
-            <input type="color" id="ps-<?= $cf['name'] ?>-color" value="#<?= $h($val) ?>" data-target="ps-<?= $cf['name'] ?>-text">
-            <span class="ps-hash">#</span>
-            <input class="ps-input" type="text" id="ps-<?= $cf['name'] ?>-text" name="<?= $cf['name'] ?>" value="<?= $h($val) ?>" maxlength="7" pattern="#?[0-9a-fA-F]{6}" data-color="ps-<?= $cf['name'] ?>-color">
-          </div>
-          <?php if ($cf['help'] !== '') { ?><span class="ps-help"><?= $t($cf['help']) ?></span><?php } ?>
-        </div>
-        <?php } ?>
-        <div class="ps-field ps-field-full">
-          <div class="ps-preview">
-            <span class="ps-preview-label"><?= $t('5527|Eksempel') ?></span>
-            <span class="ps-preview-menu" id="ps-preview-menu"><i class='bx bx-coin-stack'></i><?= $t('600|Finans') ?></span>
-            <button type="button" class="ps-preview-btn" id="ps-preview-btn"><?= $t('3|Gem') ?></button>
-          </div>
         </div>
       </div>
     </section>

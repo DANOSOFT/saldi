@@ -5,7 +5,7 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-10-31---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-01---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -78,6 +78,8 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 //                 Every other page prints master's plain <html>.
 // 20261031 CL/ASR $skipLogtime (set by the topbar's polling endpoints, index/notifications.php and index/globalSearch.php) leaves
 //                 online.logtime alone, so a tab that only polls still ages out.
+// 20261101 CL/ASR The per-user colours (settings colors/buttonColor and buttonTxtColor) are no longer read: $buttonColor and
+//                 $buttonTxtColor are always the standard #114691 / #ffffff, as for a user who never chose a colour.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -340,18 +342,9 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		// opened by others polluted the opener's stack.
 		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup']));
 		if ($db_ver > '3.7.4') {
-			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$buttonColor = "#$r[var_value]";
-			} else {
-				$buttonColor = '#114691'; // Default button color
-			}
-			$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-			if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$buttonTxtColor = "#$r[var_value]";
-			} else {
-				$buttonTxtColor = '#ffffff'; // Default button text color
-			}
+			// The personal colour choice is gone: everyone gets the standard colours (stored rows are left alone).
+			$buttonColor = '#114691'; // Default button color
+			$buttonTxtColor = '#ffffff'; // Default button text color
 			// The user's text size (Normal / Større, front-page addendum 3 §3.3): <html data-size> on the shell, settings and dashboard.
 			$qtxt = "select var_value from settings where var_name = 'text_size' and var_grp = 'ui' and user_id = '$bruger_id'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {

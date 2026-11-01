@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/unpaidInvoices.php --- lap 5.0.0 --- 2026.10.11 ---
+// ---- index/dashboardIncludes/unpaidInvoices.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261009 Sawaneh Ubetalte salgsfakturaer (front-page spec §5.9, addendum 3 §6): open customer items netted per invoice
 //                  number in the database, split into not due / 1-15 days / over 15 days, the 8 oldest for the list,
@@ -23,6 +23,7 @@
 //                  converted in PHP like openpost_account_aging() does. Links by refnr and ordrer.art (§5.9.4).
 // 20261009 Sawaneh Items without a due date get one from the customer's payment terms with forfaldsdag(), as the
 //                  account card does (§5.9.2 point 4); such items are grouped in PHP like the placeholder-rate ones.
+// 20261101 CL/ASR The list holds the oldest invoices of each due group (at most $limit per group, oldest first), so a group picked on the card shows its own invoices (prototype D); the page shows the first $limit of them unfiltered.
 
 include_once(__DIR__ . "/../../includes/forfaldsdag.php");
 
@@ -88,7 +89,7 @@ function dash_unpaid_link(array $it): string
 }
 
 /**
- * The card's data: groups (sum, count), the list (oldest due first, at most $limit), the unapplied sum and the total.
+ * The card's data: groups (sum, count), the list (oldest due first, at most $limit per due group), the unapplied sum and the total.
  *
  * @return array{groups: array<string, array{sum: float, n: int}>, list: array<int, array<string, mixed>>, unapplied: float, total: float, count: int}
  */
@@ -118,9 +119,11 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 	$r = db_fetch_array(db_select("select coalesce(sum(i.net), 0) as s from ($items) i where i.net < 0 and i.placeholder = 0", __FILE__ . " linje " . __LINE__));
 	$unapplied = $r ? (float) $r['s'] : 0.0;
 	$list = array();
-	$q = db_select("select i.*, $days as days_over from ($items) i where $inSql order by i.forfaldsdate, i.item limit " . ($limit * 2), __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$list[] = $r;
+	foreach (array_keys($groups) as $g) {
+		$q = db_select("select i.*, $days as days_over from ($items) i where $inSql and $bucket = '$g' order by i.forfaldsdate, i.item limit " . $limit, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$list[] = $r;
+		}
 	}
 	// Foreign items with the placeholder rate and items without a due date: converted and dated here, counted into the
 	// groups, merged into the list.
@@ -151,12 +154,16 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 		$db = (string) ($b['forfaldsdate'] ?: $b['transdate']);
 		return strcmp($da, $db) ?: strcmp((string) $a['item'], (string) $b['item']);
 	});
-	$list = array_slice($list, 0, $limit);
 	$out = array();
+	$perGroup = array('late' => 0, 'warn' => 0, 'ok' => 0);
 	foreach ($list as $r) {
 		$over = (int) $r['days_over'];
+		$g = $over <= 0 ? 'ok' : ($over <= 15 ? 'warn' : 'late');
+		if (++$perGroup[$g] > $limit) {
+			continue;
+		}
 		$out[] = array(
-			'due' => (string) ($r['forfaldsdate'] ?: $r['transdate']), 'over' => $over, 'g' => $over <= 0 ? 'ok' : ($over <= 15 ? 'warn' : 'late'),
+			'due' => (string) ($r['forfaldsdate'] ?: $r['transdate']), 'over' => $over, 'g' => $g,
 			'nr' => (string) (strpos((string) $r['item'], 'r') === 0 ? ((int) $r['kladde_id'] > 0 && (int) $r['refnr'] > 0 ? $r['refnr'] : '') : $r['item']),
 			'kunde' => trim((string) $r['firmanavn']) . ((string) $r['item'] !== '' && strpos((string) $r['item'], 'r') === 0 && trim((string) $r['beskrivelse']) !== '' ? ' · ' . trim((string) $r['beskrivelse']) : ''),
 			'amount' => round((float) $r['net'], 2), 'href' => dash_unpaid_link($r),
