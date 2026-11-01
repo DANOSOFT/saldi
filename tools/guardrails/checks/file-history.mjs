@@ -95,12 +95,13 @@ export default {
       // A comment line under a history entry is a continuation when it is indented, or when it has
       // one space but the line above left its sentence open. A one-space line after a finished
       // sentence (// Run: ...) describes the file, and a separator or an older dated line ends the entry.
-      // Only an unchanged line can be an older dated entry; a new continuation may start with a date.
+      // Only an unchanged one-space line can be an older dated entry (// 2018.12.20 ...): a new
+      // continuation, or an indented old one (//                5027-5030 to ...), may start with a date.
       const continuationAt = (line) => {
         const match = /^(\s*\/\/([ \t]+))(\S.*)$/.exec(lines[line - 1]);
         if (!match || HISTORY.test(lines[line - 1])) return null;
         if (/^[-=*#~_ ]+$/.test(match[3])) return null;
-        if (!file.added.has(line) && /^\d{2,4}[./-]\d/.test(match[3])) return null;
+        if (!file.added.has(line) && match[2] === " " && /^\d{2,4}[./-]\d/.test(match[3])) return null;
         if (match[2] === " " && endsSentence(line - 1)) return null;
         return match;
       };
