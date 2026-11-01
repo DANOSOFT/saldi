@@ -10,6 +10,8 @@
 //                 Counting numbers, sparklines, rings and the entry animation are gone (calm motion, prototype kit).
 //                 Months and days after today show "–" in the tooltip and the table instead of 0 and a 100 % drop.
 // 20261101 CL/ASR Review: a chart redrawn while hidden (the compare select changed in table view) is redrawn when it shows again, not left stale.
+// 20261101 CL/ASR packGrid(): rows in the user's order, first fit, each block between its own min and max width (Adam: Omsætning pr.
+//                 måned and Ufakturerede ordrer were far wider than they need); a later block that fits moves up into a gap.
 (function () {
 	'use strict';
 	const D = window.SALDI_DASH || {};
@@ -218,8 +220,36 @@
 	}
 	let savedT = 0;
 	function markSaved(res) { const m = $('#savedMsg'); if (!m) return; if (!res || !res.ok) { m.classList.remove('on'); return; } m.classList.add('on'); clearTimeout(savedT); savedT = setTimeout(() => m.classList.remove('on'), 1500); }
-	function setWidget(k, on) { const c = cardOf(k); dash[k] = on; if (c) c.classList.toggle('gone', !on); }
-	function applyOrder(o) { if (!grid) return; const tail = grid.querySelector('.db-pos'); o.map(blockEl).filter(Boolean).forEach((e) => grid.insertBefore(e, tail)); }
+	function setWidget(k, on) { const c = cardOf(k); dash[k] = on; if (c) c.classList.toggle('gone', !on); if (typeof packGrid === 'function') packGrid(); }
+	// Widths in twelfths: [min, preferred, max]. A row takes blocks in the user's order while their minimums fit (a later block that
+	// fits may move up into the gap), then each block gets its preferred width, shrunk or grown within its own min/max to fill 12.
+	// What no block may take stays free (--rest), so nothing is stretched wider than it needs. One column under 1100 px.
+	const SPAN = { kpis: [12, 12, 12], revgraph: [6, 8, 8], customergraph: [4, 4, 6], revweek: [4, 6, 12], varegrp_doughnut: [6, 6, 12],
+		unpaid_invoices: [8, 12, 12], small: [4, 4, 6] };
+	const narrow = window.matchMedia('(max-width: 1100px)');
+	function packGrid() {
+		if (!grid) return;
+		const els = [...grid.children].filter((e) => e.classList.contains('blk'));
+		if (narrow.matches) { els.forEach((e) => { e.style.order = ''; e.style.removeProperty('--span'); e.style.removeProperty('--rest'); }); return; }
+		const q = els.filter((e) => getComputedStyle(e).display !== 'none').map((e) => ({ e, s: SPAN[e.dataset.block] || [12, 12, 12] }));
+		let n = 0;
+		while (q.length) {
+			const row = [q.shift()]; let used = row[0].s[0];
+			for (let i = 0; i < q.length && used < 12;) { if (used + q[i].s[0] <= 12) { used += q[i].s[0]; row.push(q.splice(i, 1)[0]); } else i++; }
+			const w = row.map((r) => r.s[1]); let tot = w.reduce((a, b) => a + b, 0);
+			while (tot > 12) {   // shrink the block with the most room above its minimum (the wider one on a tie)
+				let k = -1; row.forEach((r, i) => { const sl = w[i] - r.s[0]; if (sl > 0 && (k < 0 || sl > w[k] - row[k].s[0] || (sl === w[k] - row[k].s[0] && w[i] > w[k]))) k = i; });
+				if (k < 0) break; w[k]--; tot--;
+			}
+			while (tot < 12) {   // grow the narrowest block that may still grow
+				let k = -1; row.forEach((r, i) => { if (w[i] < r.s[2] && (k < 0 || w[i] < w[k])) k = i; });
+				if (k < 0) break; w[k]++; tot++;
+			}
+			row.forEach((r, i) => { r.e.style.order = n++; r.e.style.setProperty('--span', w[i]); r.e.style.setProperty('--rest', i === row.length - 1 ? 12 - tot : 0); });
+		}
+	}
+	if (narrow.addEventListener) narrow.addEventListener('change', packGrid);
+	function applyOrder(o) { if (!grid) return; const tail = grid.querySelector('.db-pos'); o.map(blockEl).filter(Boolean).forEach((e) => grid.insertBefore(e, tail)); packGrid(); }
 	function mkSwitch(on, label, fn) { const b = h('button', 'sw'); b.type = 'button'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', on); b.setAttribute('aria-label', label); b.addEventListener('click', (e) => { e.stopPropagation(); const v = b.getAttribute('aria-checked') !== 'true'; b.setAttribute('aria-checked', v); fn(v); }); return b; }
 	const spot = (e, on) => e && e.classList.toggle('spot', on);
 	function mkRow(title, desc, on, fn, target) {
@@ -291,6 +321,7 @@
 	document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer && drawer.classList.contains('open')) drawerOpen(false); });
 	window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data && e.data.type === 'saldi:dash-edit') drawerOpen(true); });
 	Object.keys(dash).forEach((k) => { if (!isOn(k)) setWidget(k, false); }); if (hidden && grid) grid.classList.add('all-hidden');
+	packGrid();
 
 	/* ---- draw the charts now, again when the web fonts are in, and whenever a chart's width changes ---- */
 	charts.forEach((c) => { render(c, true); if (ro) ro.observe(c.box); });

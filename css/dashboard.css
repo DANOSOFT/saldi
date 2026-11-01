@@ -39,10 +39,13 @@ button, select, input { font: inherit; color: inherit; }
 svg.ic { display: block; flex: none; width: 16px; height: 16px; fill: currentColor; }
 
 .dash { display: flex; flex-direction: column; gap: var(--db-gap); min-width: 0; padding: 16px 28px 96px; }
-/* blocks in the user's order: wide 2/3 + narrow 1/3, halves, full width; a lone block fills its row; under 1100 px all full width */
+/* 20261101 CL/ASR Blocks in the user's order, packed into rows by packGrid() in dashboard.js: --span = width in twelfths
+   (each block between its own minimum and maximum, never wider than it needs), --rest = the free twelfths a short row keeps,
+   so the next row starts on a new line. Without the script every block is as wide as --w. Under 1100 px all full width. */
 .grid { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--db-gap); }
-.blk { flex: 1 1 calc((100% + var(--db-gap)) * var(--w, 1) - var(--db-gap)); min-width: 0; }
-@media (max-width: 1100px) { .blk { flex-basis: 100%; } }
+.blk { flex: 0 0 calc((100% + var(--db-gap)) * var(--span, calc(var(--w, 1) * 12)) / 12 - var(--db-gap) - .02px);
+	margin-right: calc((100% + var(--db-gap)) * var(--rest, 0) / 12); min-width: 0; }
+@media (max-width: 1100px) { .blk { flex-basis: 100%; margin-right: 0; } }
 .blk.gone, .db-cell.gone { display: none; }
 .db-kpis:not(:has(.db-cell:not(.gone))), .db-small:not(:has(.db-cell:not(.gone))) { display: none; }
 .grid.all-hidden { display: none; }

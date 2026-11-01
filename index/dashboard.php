@@ -50,6 +50,7 @@
 // 20261101 CL/ASR Restyled on prototype D ("Som ordrelisten"): flat panels with a grey header band, the KPI strip without sparklines, Omsætning pr. varegruppe as a table with share bars, Ubetalte salgsfakturaer with the due groups as a table and a stacked bar, the small cards with lists and buttons, "Rediger oversigt" as a panel at the top right.
 // 20261101 CL/ASR "Aktive medarbejdere" and "Forslag klar til bekræftelse" removed (Adam): the topbar shows who is online and the
 //                  bell holds the suggestions. Små tal now holds Ufakturerede ordrer only; the online-count queries are gone.
+// 20261101 CL/ASR Rows packed by width need (dashboard.js packGrid): no block is stretched wider than it needs; css v6, js v7.
 //                 Blocks, switches, order, access keys and links are unchanged.
 //                 Fiscal months and this week's days after today have no figure yet ("–", no bar), as in the prototype.
 //                 Texts 7700-7701.
@@ -59,7 +60,7 @@ ob_start();
 
 global $sprog_id;
 
-$css = "../css/dashboard.css?v=5";
+$css = "../css/dashboard.css?v=6";
 print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
@@ -504,4 +505,4 @@ $js = array(
 	),
 );
 print "<script>window.SALDI_DASH = " . json_encode($js, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PARTIAL_OUTPUT_ON_ERROR) . ";</script>\n";
-print "<script src='../javascript/dashboard.js?v=6'></script>\n";
+print "<script src='../javascript/dashboard.js?v=7'></script>\n";
