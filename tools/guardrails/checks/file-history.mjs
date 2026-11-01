@@ -95,10 +95,12 @@ export default {
       // A comment line under a history entry is a continuation when it is indented, or when it has
       // one space but the line above left its sentence open. A one-space line after a finished
       // sentence (// Run: ...) describes the file, and a separator or an older dated line ends the entry.
+      // Only an unchanged line can be an older dated entry; a new continuation may start with a date.
       const continuationAt = (line) => {
         const match = /^(\s*\/\/([ \t]+))(\S.*)$/.exec(lines[line - 1]);
         if (!match || HISTORY.test(lines[line - 1])) return null;
-        if (/^[-=*#~_ ]+$/.test(match[3]) || /^\d{2,4}[./-]\d/.test(match[3])) return null;
+        if (/^[-=*#~_ ]+$/.test(match[3])) return null;
+        if (!file.added.has(line) && /^\d{2,4}[./-]\d/.test(match[3])) return null;
         if (match[2] === " " && endsSentence(line - 1)) return null;
         return match;
       };
@@ -110,7 +112,10 @@ export default {
           if (!continuation) break;
           if (!file.added.has(line) && !file.added.has(next)) continue;
           if (file.added.has(line) && !file.added.has(next)) {
-            // An old continuation right below a new entry belongs to the entry above it.
+            // An old continuation right below a new entry belongs to the entry above it. An old
+            // one-space line there is a file description (// Run: ...), not a continuation, even when
+            // the new entry has no full stop: the convention does not ask for one on a one-line entry.
+            if (continuation[2] === " ") break;
             let last = next;
             while (last + 1 <= header && !file.added.has(last + 1) && continuationAt(last + 1)) last++;
             findings.push({ path: file.path, line,
