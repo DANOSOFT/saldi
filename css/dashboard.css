@@ -46,6 +46,10 @@ svg.ic { display: block; flex: none; width: 16px; height: 16px; fill: currentCol
 .blk { flex: 0 0 calc((100% + var(--db-gap)) * var(--span, calc(var(--w, 1) * 12)) / 12 - var(--db-gap) - .02px);
 	margin-right: calc((100% + var(--db-gap)) * var(--rest, 0) / 12); min-width: 0; }
 @media (max-width: 1100px) { .blk { flex-basis: 100%; margin-right: 0; } }
+/* 20261101 CL/ASR Omsætning pr. varegruppe: the groups past the five largest (vg-x) or the "Øvrige" row (vg-oth), see fitGroups() */
+.db-vg:not(.all) tr.vg-x, .db-vg.all tr.vg-oth { display: none; }
+button.db-link { border: 0; padding: 0; background: none; font: inherit; color: var(--link); cursor: pointer; }
+button.db-link:hover { text-decoration: underline; }
 .blk.gone, .db-cell.gone { display: none; }
 .db-kpis:not(:has(.db-cell:not(.gone))), .db-small:not(:has(.db-cell:not(.gone))) { display: none; }
 .grid.all-hidden { display: none; }

@@ -12,6 +12,8 @@
 // 20261101 CL/ASR Review: a chart redrawn while hidden (the compare select changed in table view) is redrawn when it shows again, not left stale.
 // 20261101 CL/ASR packGrid(): rows in the user's order, first fit, each block between its own min and max width (Adam: Omsætning pr.
 //                 måned and Ufakturerede ordrer were far wider than they need); a later block that fits moves up into a gap.
+// 20261101 CL/ASR fitGroups(): Omsætning pr. varegruppe shows every group when its row has room, else the five largest +
+//                 Øvrige; "Se alle" / "Vis færre" switch in place.
 (function () {
 	'use strict';
 	const D = window.SALDI_DASH || {};
@@ -225,7 +227,7 @@
 	// fits may move up into the gap), then each block gets its preferred width, shrunk or grown within its own min/max to fill 12.
 	// What no block may take stays free (--rest), so nothing is stretched wider than it needs. One column under 1100 px.
 	const SPAN = { kpis: [12, 12, 12], revgraph: [6, 8, 8], customergraph: [4, 4, 6], revweek: [4, 6, 12], varegrp_doughnut: [6, 6, 12],
-		unpaid_invoices: [8, 12, 12], small: [4, 4, 6] };
+		unpaid_invoices: [12, 12, 12], small: [4, 4, 6] };   // unpaid always full width: at 2/3 its customer names were cut
 	const narrow = window.matchMedia('(max-width: 1100px)');
 	function packGrid() {
 		if (!grid) return;
@@ -247,8 +249,29 @@
 			}
 			row.forEach((r, i) => { r.e.style.order = n++; r.e.style.setProperty('--span', w[i]); r.e.style.setProperty('--rest', i === row.length - 1 ? 12 - tot : 0); });
 		}
+		if (typeof fitGroups === 'function') requestAnimationFrame(() => fitGroups());
 	}
 	if (narrow.addEventListener) narrow.addEventListener('change', packGrid);
+	// Omsætning pr. varegruppe: every group when that fits in the height its row already has (a taller neighbour), else the five
+	// largest and Øvrige. Measured by trying: if showing them all makes the block taller, it does not fit. "Se alle" overrides.
+	const vgTable = document.querySelector('.db-vg'), vgBtn = document.querySelector('.db-vg-more');
+	let vgManual = false;
+	function fitGroups() {
+		if (!vgTable || vgManual || !vgTable.querySelector('tr.vg-x')) return;
+		const sec = vgTable.closest('.blk');
+		vgTable.classList.remove('all');
+		if (!sec || getComputedStyle(sec).display === 'none') return;
+		const before = sec.offsetHeight;
+		vgTable.classList.add('all');
+		const fits = sec.offsetHeight <= before;
+		vgTable.classList.toggle('all', fits);
+		if (vgBtn) vgBtn.hidden = fits;
+	}
+	if (vgBtn) vgBtn.addEventListener('click', () => {
+		vgManual = true; const on = !vgTable.classList.contains('all');
+		vgTable.classList.toggle('all', on); vgBtn.textContent = on ? vgBtn.dataset.less : vgBtn.dataset.more; vgBtn.setAttribute('aria-expanded', on);
+	});
+	let fitT = 0; window.addEventListener('resize', () => { cancelAnimationFrame(fitT); fitT = requestAnimationFrame(fitGroups); });
 	function applyOrder(o) { if (!grid) return; const tail = grid.querySelector('.db-pos'); o.map(blockEl).filter(Boolean).forEach((e) => grid.insertBefore(e, tail)); packGrid(); }
 	function mkSwitch(on, label, fn) { const b = h('button', 'sw'); b.type = 'button'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', on); b.setAttribute('aria-label', label); b.addEventListener('click', (e) => { e.stopPropagation(); const v = b.getAttribute('aria-checked') !== 'true'; b.setAttribute('aria-checked', v); fn(v); }); return b; }
 	const spot = (e, on) => e && e.classList.toggle('spot', on);
@@ -325,5 +348,5 @@
 
 	/* ---- draw the charts now, again when the web fonts are in, and whenever a chart's width changes ---- */
 	charts.forEach((c) => { render(c, true); if (ro) ro.observe(c.box); });
-	if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => charts.forEach((c) => render(c, true)));
+	if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { charts.forEach((c) => render(c, true)); fitGroups(); });
 })();

@@ -51,6 +51,9 @@
 // 20261101 CL/ASR "Aktive medarbejdere" and "Forslag klar til bekræftelse" removed (Adam): the topbar shows who is online and the
 //                  bell holds the suggestions. Små tal now holds Ufakturerede ordrer only; the online-count queries are gone.
 // 20261101 CL/ASR Rows packed by width need (dashboard.js packGrid): no block is stretched wider than it needs; css v6, js v7.
+// 20261101 CL/ASR Ubetalte salgsfakturaer (with Ufakturerede ordrer) right under the key figures by default (Adam). Omsætning pr.
+//                  varegruppe holds every group: all show when its row has room, else "Se alle" unfolds them in place (it linked to
+//                  rapportart=salgsstat, which opened Kontokort). Text 7702 Vis færre. css v7, js v8.
 //                 Blocks, switches, order, access keys and links are unchanged.
 //                 Fiscal months and this week's days after today have no figure yet ("–", no bar), as in the prototype.
 //                 Texts 7700-7701.
@@ -60,7 +63,7 @@ ob_start();
 
 global $sprog_id;
 
-$css = "../css/dashboard.css?v=6";
+$css = "../css/dashboard.css?v=7";
 print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
@@ -106,7 +109,7 @@ $canEditAccounts = function_exists('perm_can') ? perm_can('settings.finance', 'w
 $widgetDefaults = array('weekkpi' => 'on', 'revmonth' => 'on', 'revyear' => 'on', 'vatcount' => 'on', 'ordercount' => 'on',
 	'revgraph' => 'on', 'revweek' => 'on', 'customergraph' => 'off', 'varegrp_doughnut' => 'on', 'unpaid_invoices' => 'on');
 // The blocks and their default order (front-page spec §4, §8.2/§8.4); the user's order is one JSON list per user.
-$blockDefaults = array('kpis', 'revgraph', 'customergraph', 'revweek', 'varegrp_doughnut', 'unpaid_invoices', 'small');
+$blockDefaults = array('kpis', 'unpaid_invoices', 'small', 'revgraph', 'revweek', 'varegrp_doughnut', 'customergraph');
 /**
  * The user's block order: saved list filtered to known blocks, missing blocks inserted at their default position.
  */
@@ -336,7 +339,9 @@ $blocks['revweek'] = function () use ($data, $widgets, $tx, $h, $noRevenue, $emp
 // Omsætning pr. varegruppe: the five largest groups and the rest as a table with share bars
 $blocks['varegrp_doughnut'] = function () use ($data, $widgets, $tx, $h, $num, $gone, $blockHead) {
 	$dn = $data['donut'];
-	$tools = $dn['count'] > 5 ? "<a class='db-link' href='../debitor/rapport.php?rapportart=salgsstat'>" . $h(sprintf($tx('6962|Se alle %s'), $dn['count'])) . "</a>" : '';
+	// "Se alle" unfolds the list in place (it linked to rapportart=salgsstat, which rapport.php does not know, so it opened Kontokort).
+	$more = $h(sprintf($tx('6962|Se alle %s'), $dn['count']));
+	$tools = $dn['count'] > 5 ? "<button type='button' class='db-link db-vg-more' aria-expanded='false' data-more='$more' data-less='" . $h($tx('7702|Vis færre')) . "'>$more</button>" : '';
 	print "<section class='blk db-sec" . $gone($widgets['varegrp_doughnut']) . "' data-widget='varegrp_doughnut' data-block='varegrp_doughnut' style='--w:.5'>"
 		. $blockHead($tx('6960|Omsætning pr. varegruppe'), $tx('6961|regnskabsåret'), $tools) . "<div class='db-b'>";
 	if (!$dn['items']) {
@@ -346,9 +351,13 @@ $blocks['varegrp_doughnut'] = function () use ($data, $widgets, $tx, $h, $num, $
 	$top = max(array_map(function ($it) { return (float) $it[1]; }, $dn['items']));
 	print "<table class='dt dt-fixed db-vg'><colgroup><col class='c-name'><col><col class='c-pct'><col class='c-amt'></colgroup>"
 		. "<thead><tr><th>" . $h($tx('429|Varegruppe')) . "</th><th></th><th class='dt-num'>" . $h($tx('6975|Andel')) . "</th><th class='dt-num'>" . $h($tx('1166|Omsætning')) . "</th></tr></thead><tbody>";
-	foreach ($dn['items'] as $it) {
+	// Every group is in the table: the five largest always, the rest (vg-x) and the "Øvrige" row (vg-oth) swap when the
+	// table shows them all - when its row has room (dashboard.js fitGroups) or after "Se alle".
+	$rows = $dn['count'] > 5 ? array_merge(array_slice($dn['all'], 0, 5), array_slice($dn['all'], 5), array_slice($dn['items'], 5, 1)) : $dn['items'];
+	foreach ($rows as $i => $it) {
 		$bar = $top > 0 ? round((float) $it[1] / $top * 100, 1) : 0;
-		print "<tr><td title='" . $h($it[0]) . "'>" . $h($it[0]) . "</td><td><span class='db-hbar" . ($it[2] ? ' oth' : '') . "' style='width:$bar%'></span></td>"
+		$cls = $it[2] ? " class='vg-oth'" : ($i >= 5 ? " class='vg-x'" : '');
+		print "<tr$cls><td title='" . $h($it[0]) . "'>" . $h($it[0]) . "</td><td><span class='db-hbar" . ($it[2] ? ' oth' : '') . "' style='width:$bar%'></span></td>"
 			. "<td class='dt-num db-pct'>" . $num($it[1], 1) . " %</td><td class='dt-num'>" . $num(round((float) $it[3])) . "</td></tr>";
 	}
 	print "</tbody><tfoot><tr><td>" . $h($tx('2373|I alt')) . "</td><td></td><td class='dt-num'>" . $num(100, 1) . " %</td><td class='dt-num'>" . $num(round((float) $dn['total'])) . "</td></tr></tfoot></table></div></section>";
@@ -505,4 +514,4 @@ $js = array(
 	),
 );
 print "<script>window.SALDI_DASH = " . json_encode($js, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PARTIAL_OUTPUT_ON_ERROR) . ";</script>\n";
-print "<script src='../javascript/dashboard.js?v=7'></script>\n";
+print "<script src='../javascript/dashboard.js?v=8'></script>\n";

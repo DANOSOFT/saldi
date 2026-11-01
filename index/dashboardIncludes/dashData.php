@@ -28,6 +28,7 @@
 // 20261101 CL/ASR Each item group also carries its revenue (fourth field), for the table that replaces the ring (prototype D).
 // 20261101 CL/ASR The VAT KPI no longer sums up to 8 earlier periods for a trend line the page does not draw any more.
 // 20261101 CL/ASR No active-user count and no suggestion list any more (both cards left the dashboard).
+// 20261101 CL/ASR Every item group is returned as well ('all'), so the page can show them all when its row has room.
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
@@ -272,12 +273,15 @@ function dash_data(array $c): array
 		$groups[] = array(trim((string) $r['beskrivelse']), $v);
 		$gTotal += $v;
 	}
-	$donut = array('items' => array(), 'total' => $gTotal, 'count' => count($groups));
+	$donut = array('items' => array(), 'all' => array(), 'total' => $gTotal, 'count' => count($groups));
 	if ($gTotal > 0) {
 		$top = array_slice($groups, 0, 5);
 		$rest = array_slice($groups, 5);
 		foreach ($top as $g) {
 			$donut['items'][] = array($g[0], round($g[1] / $gTotal * 100, 1), false, round($g[1], 2));
+		}
+		foreach ($groups as $g) {
+			$donut['all'][] = array($g[0], round($g[1] / $gTotal * 100, 1), false, round($g[1], 2));
 		}
 		if ($rest) {
 			$sum = 0.0;
