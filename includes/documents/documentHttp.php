@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/documents/documentHttp.php --- ver 5.1.0 --- 2026.10.30
+// --- includes/documents/documentHttp.php --- ver 5.1.0 --- 2026.11.01
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // mails or restocks. Anything that doesn't resolve to a live document gets the same 404.
 //
 // 20261030 CL/SZ SD-752: created (WP11-2).
+// 20261101 CL/SZ SD-752 review: order checked through the adapter before the render, a failed legacy query is a 503; printed output is dropped, the PDF streams.
 
 require_once __DIR__ . '/dokumentLinks.php';
 
@@ -40,7 +41,8 @@ const DOKUMENT_RATE_WINDOW = 60;
  * when the rate limit can't be kept, the database fails or the document can't be rendered. Every response carries
  * Cache-Control: no-store, nosniff and no-referrer. The token is never logged.
  *
- * Needs the tenant connection and legacy globals from shopify_bootstrap().
+ * Needs the tenant connection and legacy globals from shopify_bootstrap(), and the caller's output
+ * buffer around it: the legacy code can print, and only the answer may reach the client.
  *
  * @param array<string, mixed> $q the query ($_GET)
  * @param array<string, mixed> $server $_SERVER
@@ -65,23 +67,17 @@ function handle_dokument_request(array $q, array $server): void
 			dokument_respond(404);
 			return;
 		}
-		$doc = render_document($link['ordre_id'], $link['doc_type'] === 'credit' ? 5 : 4);
-	} catch (DocumentRenderError $e) {
-		if ($e->getCode() === DocumentRenderError::NO_DOCUMENT) {
+		try {
+			dokument_link_order($link['ordre_id'], $link['doc_type']);
+		} catch (DocumentRenderError $e) {
 			dokument_respond(404);
 			return;
 		}
+		// the document exists: a query failing in the legacy render reads as NO_DOCUMENT there, and is a 503 here
+		$doc = render_document($link['ordre_id'], $link['doc_type'] === 'credit' ? 5 : 4);
+	} catch (DocumentRenderError | ShopifyDbError $e) {
 		dokument_log_failure($link, $e);
 		dokument_respond(503);
-		return;
-	} catch (ShopifyDbError $e) {
-		dokument_log_failure($link, $e);
-		dokument_respond(503);
-		return;
-	}
-	// render_document() follows the order's art; a link only ever opens its own kind of document
-	if ($doc['formular'] !== ($link['doc_type'] === 'credit' ? 5 : 4)) {
-		dokument_respond(404);
 		return;
 	}
 	$size = @filesize($doc['path']);
@@ -89,6 +85,7 @@ function handle_dokument_request(array $q, array $server): void
 		dokument_respond(503);
 		return;
 	}
+	dokument_discard_output();
 	dokument_headers(200);
 	header('Content-Type: application/pdf');
 	header('Content-Disposition: inline; filename="' . preg_replace('/[^A-Za-z0-9._-]/', '_', $doc['filename']) . '"');
@@ -107,12 +104,21 @@ function dokument_log_failure(?array $link, Throwable $e): void
 /** A response without a document; the body says nothing about why. */
 function dokument_respond(int $status, array $headers = array()): void
 {
+	dokument_discard_output();
 	dokument_headers($status);
 	foreach ($headers as $header) {
 		header($header);
 	}
 	header('Content-Type: text/plain; charset=utf-8');
 	echo array(404 => 'Not found', 405 => 'Method not allowed', 429 => 'Too many requests')[$status] ?? 'Unavailable';
+}
+
+/** Drops what the legacy code printed and ends the buffers, so the answer is all the client gets and a PDF streams. */
+function dokument_discard_output(): void
+{
+	while (ob_get_level() > 0) {
+		ob_end_clean();
+	}
 }
 
 function dokument_headers(int $status): void

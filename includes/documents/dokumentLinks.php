@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/documents/dokumentLinks.php --- ver 5.1.0 --- 2026.10.30
+// --- includes/documents/dokumentLinks.php --- ver 5.1.0 --- 2026.11.01
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // or the secret.
 //
 // 20261030 CL/SZ SD-752: created (WP11-2).
+// 20261101 CL/SZ SD-752 review: the token check no longer lets a trailing newline through.
 
 require_once __DIR__ . '/renderDocument.php';
 require_once __DIR__ . '/../shopify/db.php';
@@ -84,7 +85,7 @@ function dokument_link(int $ordreId, string $docType): string
  */
 function dokument_resolve(string $token): ?array
 {
-	if (!preg_match('/^[A-Za-z0-9_-]{43}$/', $token)) {
+	if (!preg_match('/\A[A-Za-z0-9_-]{43}\z/', $token)) {
 		return null;
 	}
 	$row = shopify_db_rows('SELECT ordre_id, doc_type, key_version FROM dokument_links WHERE token_hash = $1 AND revoked_at IS NULL',

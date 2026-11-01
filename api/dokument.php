@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/dokument.php --- ver 5.1.0 --- 2026.10.30
+// --- api/dokument.php --- ver 5.1.0 --- 2026.11.01
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // SALDI_SHOPIFY_DB or includes/shopify/.ht_shopify_db, as for the webhook receiver.
 //
 // 20261030 CL/SZ SD-752: created (WP11-2).
+// 20261101 CL/SZ SD-752 review: the handler ends the output buffers before it answers.
 
 ob_start();
 require_once(__DIR__ . '/../includes/documents/documentHttp.php');
@@ -34,9 +35,7 @@ require_once(__DIR__ . '/../includes/documents/documentHttp.php');
 /** Ends the request with 503 and nothing that was printed before it. */
 function dokument_unavailable(): void
 {
-	while (ob_get_level() > 0) {
-		ob_end_clean();
-	}
+	dokument_discard_output();
 	if (!headers_sent()) {
 		header_remove();
 	}
@@ -61,15 +60,13 @@ include(__DIR__ . '/../includes/connect.php');
 require_once(__DIR__ . '/../includes/shopify/bootstrap.php');
 
 try {
+	// follows the ledger: no links while two fiscal years contain today, or none does and none is open
 	shopify_bootstrap();
 } catch (ShopifyBootstrapError | ShopifyDbError $e) {
 	error_log('dokument unavailable ' . json_encode(array('error' => $e->getMessage())));
 	dokument_unavailable();
 }
-while (ob_get_level() > 0) {
-	ob_end_clean();
-}
+dokument_discard_output();
 ob_start();
 handle_dokument_request($_GET, $_SERVER);
 $dokumentDone = true;
-ob_end_flush();

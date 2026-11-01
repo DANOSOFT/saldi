@@ -5,13 +5,14 @@
 // is deterministic and only its hash is stored; it opens its own document as a PDF with
 // no-store, nosniff and no-referrer; a mutated, unknown, missing or revoked token gets the same
 // 404; a revoked document gets a new link; a GET never posts, mails or restocks; the rate limit
-// answers 429 and fails closed; a database failure gets 503; an empty secret row doesn't break
-// stable links. The endpoint runs under `php -S` with dokument_router.php; the link calls run in
+// answers 429 and fails closed; a database failure, also inside the legacy render, gets 503 and
+// the uniform body; an empty secret row doesn't break stable links. The endpoint runs under `php -S` with dokument_router.php; the link calls run in
 // a child process booted by shopify_bootstrap(). pdftk is fake_pdftk.php, ps2pdf is required.
 // Skips when ShopifyEnv is not configured.
 //
 // History:
 // 20261030 CL/SZ SD-752: created.
+// 20261101 CL/SZ SD-752 review: a failing legacy query in the render, a link whose order changed kind.
 
 use PHPUnit\Framework\TestCase;
 
@@ -373,6 +374,40 @@ final class DokumentLinkTest extends TestCase
         $this->assertSame(503, $response['status']);
         $this->assertSame('Unavailable', $response['body']);
         $this->assertPrivateHeaders($response);
+    }
+
+    public function testAQueryFailingInsideTheRenderGets503AndTheUniformBody(): void
+    {
+        $token = self::token($this->link($this->posted()['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        // render_document()'s first query reads this column through the legacy db_select(); the adapter check doesn't
+        ShopifyEnv::rows($conn, 'ALTER TABLE ordrer RENAME COLUMN afd TO afd_away');
+        try {
+            $response = $this->get("?t=$token");
+        } finally {
+            ShopifyEnv::rows($conn, 'ALTER TABLE ordrer RENAME COLUMN afd_away TO afd');
+            pg_close($conn);
+        }
+
+        $this->assertSame(503, $response['status']);
+        $this->assertSame('Unavailable', $response['body']);
+        $this->assertPrivateHeaders($response);
+    }
+
+    public function testALinkWhoseOrderIsNoLongerItsKindOfDocumentGets404WithoutARender(): void
+    {
+        $doc = $this->posted();
+        $token = self::token($this->link($doc['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "UPDATE ordrer SET art = 'DK' WHERE id = $1", [$doc['id']]);
+        pg_close($conn);
+        $pdfs = glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_doc_*.pdf') ?: [];
+
+        $response = $this->get("?t=$token");
+
+        $this->assertSame(404, $response['status']);
+        $this->assertSame('Not found', $response['body']);
+        $this->assertSame($pdfs, glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_doc_*.pdf') ?: []);
     }
 
     public function testAnEmptySecretRowIsReplacedOnceAndLinksStayStable(): void
