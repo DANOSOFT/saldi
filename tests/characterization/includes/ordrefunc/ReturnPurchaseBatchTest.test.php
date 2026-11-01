@@ -115,8 +115,7 @@ final class ReturnPurchaseBatchTest extends CharacterizationTestCase
         $this->assertEqualsWithDelta(0.0, (float)$new['antal'], 0.001, 'antal 0 like a deficit batch');
         $this->assertEqualsWithDelta(2.0, (float)$new['rest'], 0.001);
         $this->assertNotNull($new['kobsdate']);
-        $lineCost = (float)self::one('SELECT kostpris FROM ordrelinjer WHERE id = $1', [self::lineId($return['id'])])['kostpris'];
-        $this->assertEqualsWithDelta($lineCost, (float)$new['pris'], 0.001, 'priced at the cost the line got');
+        $this->assertEqualsWithDelta(50.0, (float)$new['pris'], 0.001, 'no open purchase line, so the item card\'s cost');
         $neg = self::one('SELECT batch_kob_id, antal FROM batch_salg WHERE linje_id = $1', [self::lineId($return['id'])]);
         $this->assertSame((int)$new['id'], (int)$neg['batch_kob_id'], 'the negative row names the new batch');
         $this->assertEqualsWithDelta(2.0, self::stockOf($item), 0.001);
@@ -134,14 +133,64 @@ final class ReturnPurchaseBatchTest extends CharacterizationTestCase
         self::rows('UPDATE ordrelinjer SET kostpris = 80 WHERE id = $1', [$saleLine]);
         self::rows('UPDATE batch_salg SET batch_kob_id = 0 WHERE linje_id = $1', [$saleLine]);
 
-        $this->creditNote($saleLine, $item, 2, 80.00);
+        $this->creditNote($saleLine, $item, 2, 60.00);
 
         $batches = self::batches($item);
         $this->assertCount(2, $batches);
         $this->assertEqualsWithDelta(0.0, (float)$batches[0]['rest'], 0.001, 'the original batch is untouched');
         $this->assertEqualsWithDelta(2.0, (float)$batches[1]['rest'], 0.001);
-        $this->assertEqualsWithDelta(80.0, (float)$batches[1]['pris'], 0.001, 'the original line\'s cost, not the item card\'s 50');
+        $this->assertEqualsWithDelta(80.0, (float)$batches[1]['pris'], 0.001, 'the original line\'s cost, not the credit line\'s 60 or the item card\'s 50');
         $this->assertEqualsWithDelta(self::stockOf($item), self::stockFromBatches($item), 0.001, 'the return is counted once');
+    }
+
+    /** A sale only draws from its own warehouse, so a return to another warehouse gets a batch there. */
+    public function test_a_return_to_another_warehouse_gets_a_batch_in_that_warehouse(): void
+    {
+        $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 50.00]);
+        ['sale' => $sale] = $this->boughtAndSold($item);
+        self::rows('UPDATE ordrelinjer SET kostpris = 90 WHERE id = $1', [self::lineId($sale['id'])]);
+
+        $note = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => -2, 'kostpris' => 100.00]], ['art' => 'DK']);
+        self::rows('UPDATE ordrelinjer SET kred_linje_id = $1, lager = 2 WHERE ordre_id = $2', [self::lineId($sale['id']), $note['id']]);
+        $this->deliver($note['id'], -2);
+
+        $batches = self::batches($item);
+        $this->assertCount(2, $batches);
+        $this->assertEqualsWithDelta(0.0, (float)$batches[0]['rest'], 0.001, 'the warehouse 1 batch is untouched');
+        $lager = self::one('SELECT lager FROM batch_kob WHERE id = $1', [$batches[1]['id']]);
+        $this->assertSame(2, (int)$lager['lager']);
+        $this->assertEqualsWithDelta(2.0, (float)$batches[1]['rest'], 0.001);
+        $this->assertEqualsWithDelta(90.0, (float)$batches[1]['pris'], 0.001, 'the original line\'s cost, not the credit line\'s 100');
+        $this->assertEqualsWithDelta(self::stockOf($item), self::stockFromBatches($item), 0.001);
+    }
+
+    /**
+     * Two credit notes against the same sale line give each batch back no more than the line took from
+     * it: the second counts what the first already returned.
+     */
+    public function test_two_credit_notes_return_no_more_to_a_batch_than_was_taken_from_it(): void
+    {
+        $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 50.00]);
+        $creditor = self::$fx->creditor();
+        $a = self::$fx->creditorOrder($creditor, [['item' => $item, 'antal' => 5, 'pris' => 100.00]]);
+        $this->receive($a['id'], 5);
+        $b = self::$fx->creditorOrder($creditor, [['item' => $item, 'antal' => 100, 'pris' => 120.00]]);
+        $this->receive($b['id'], 100);
+        $sale = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 10]]);
+        $this->deliver($sale['id'], 10); # 5 from A, 5 from B
+        $other = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 50]]);
+        $this->deliver($other['id'], 50); # B down to 45
+        [$batchA, $batchB] = self::batches($item);
+        $this->assertEqualsWithDelta(45.0, (float)$batchB['rest'], 0.001);
+
+        $this->creditNote(self::lineId($sale['id']), $item, 4, 110.00); # B, newest first, takes 4
+        $this->creditNote(self::lineId($sale['id']), $item, 6, 110.00); # B has 1 left to take, A 5
+
+        $rest = fn (array $batch) => (float)self::one('SELECT rest FROM batch_kob WHERE id = $1', [$batch['id']])['rest'];
+        $this->assertEqualsWithDelta(50.0, $rest($batchB), 0.001, 'B gets back the 5 it gave');
+        $this->assertEqualsWithDelta(5.0, $rest($batchA), 0.001, 'A gets back the 5 it gave');
+        $this->assertCount(2, self::batches($item), 'no extra batch');
+        $this->assertEqualsWithDelta(self::stockOf($item), self::stockFromBatches($item), 0.001);
     }
 
     /** A sale from negative stock wrote a deficit batch; crediting it brings that batch back to zero. */

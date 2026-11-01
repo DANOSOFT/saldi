@@ -620,7 +620,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				$tmp = $antal * -1;
 				$bk_id = 0;
 				if ($kred_linje_id)
-					$qtxt = "select * from batch_salg where linje_id = '$kred_linje_id' order by id desc"; #20170507
+					$qtxt = "select * from batch_salg where linje_id = '$kred_linje_id' and vare_id = '$vare_id' order by id desc"; #20170507
 				else
 					$qtxt = "select * from batch_salg where linje_id = '$linje_id' and batch_kob_id != 0  order by id desc";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -628,10 +628,23 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					$bs_antal = $r['antal'];
 					$bs_id = $r['id'];
 					$bk_id = $r['batch_kob_id']; # 20170507
-					$qtxt = "select antal,rest from batch_kob where id = '$bk_id'"; #20170507
+					$qtxt = "select antal,rest,lager from batch_kob where id = '$bk_id'"; #20170507
 					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					$tmp2 = $r2['antal'] - $r2['rest']; #$tmp2 er det antal det kan lægges tilbage på linjen.
-					
+					if ($kred_linje_id) {
+						// 20261101 CL/MJ SST-910 Only a batch in the warehouse the return goes to takes
+						//             it back, because a sale only draws from its own warehouse. And only
+						//             what the original line took from it, less what earlier credits of
+						//             that line already returned to it (their rows are negative).
+						if ((int)$r2['lager'] != (int)$lager) {
+							continue;
+						}
+						$qtxt = "select coalesce(sum(bs.antal), 0) as antal from batch_salg bs, ordrelinjer ol where ol.id = bs.linje_id";
+						$qtxt .= " and ol.kred_linje_id = '$kred_linje_id' and bs.batch_kob_id = '$bk_id' and bs.vare_id = '$vare_id'";
+						$r3 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						$bs_antal += (float)$r3['antal'];
+					}
+
 					$max_retur = min($tmp, $tmp2, $bs_antal);
 					
 					if ($max_retur > 0) {
@@ -656,6 +669,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					}
 				}
 
+				$tmp = round($tmp, 3); # No batch for a float remainder of the subtraction above
 				if ($tmp) { # F.eks negativt salg uden købsreference
 					// 20261101 CL/MJ SST-910 The returned quantity no batch takes back gets a batch of
 					//             its own, so stock and batches stay equal and a later sale takes its
@@ -663,11 +677,14 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					//             negative batch_salg row already counts the return in
 					//             sum(batch_kob.antal) - sum(batch_salg.antal). With a reference
 					//             (the original sale came from a deficit or untracked batch) its price
-					//             is the original line's cost; without one it is deficit_cost_price().
-					if ($kred_linje_id) {
+					//             is the original line's cost; without one, or when that is 0, it is
+					//             deficit_cost_price().
+					$kostpris = 0;
+					if ($kred_linje_id && $tmp > 0) {
 						$r = db_fetch_array(db_select("select kostpris from ordrelinjer where id = '" . (int)$kred_linje_id . "'", __FILE__ . " linje " . __LINE__));
 						$kostpris = (float)($r['kostpris'] ?? 0);
-					} else {
+					}
+					if (!$kred_linje_id || ($tmp > 0 && $kostpris <= 0)) {
 						// 20260923 MJ SST-796 Same stale-cost-price exposure as the normal-sale branch
 						//             below: this quantity has no batch_kob behind it, so its cost was
 						//             taken from the static varer.kostpris. An open purchase line is the
@@ -680,8 +697,8 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					$tmp2 = $tmp * -1;
 					$bk_id = 0;
 					if ($tmp > 0) { # A positive line on a credit note is a sale and keeps an unlinked row
-						$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, kobsdate, antal, rest, pris, lager, variant_id) ";
-						$qtxt .= "values ('$vare_id', '0', '0', '$levdate', '0', '$tmp', '$kostpris', '$lager', '$variant_id')";
+						$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, kobsdate, fakturadate, antal, rest, pris, lager, variant_id) ";
+						$qtxt .= "values ('$vare_id', '0', '0', '$levdate', '$levdate', '0', '$tmp', '$kostpris', '$lager', '$variant_id')";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 						$r = db_fetch_array(db_select("select max(id) as id from batch_kob where vare_id='$vare_id' and linje_id='0'", __FILE__ . " linje " . __LINE__));
 						$bk_id = (int)$r['id'];
