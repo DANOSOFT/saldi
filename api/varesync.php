@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- lap 4.1.0 --- 2024.03.18 ---
+// --- api/varesync.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2018.04.24 Omskrevet variant delen så det inditificeres på variant_id i stedet for på stregkode så det er muligt at ændre stregkode på shop.
@@ -34,6 +34,7 @@
 // 2024-03-18	PHR Speed optimation.
 // 2024-03-27 PHR Some improvemnets
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261101 CL/SZ MB-121 $variantVareId starts as an empty array, so a shop with no variant rows no longer dies in in_array() at the end of the run.
 
 
 function varesync($valg) {
@@ -402,6 +403,7 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 	if (!$shop_encode) $shop_encode = 'utf8';
 #if ($brugernavn=='phr') transaktion ('begin');
 	$m = 0;
+	$variantVareId = array();
 #	$mangler = $var_type = array();
 	for ($y=1;$y<count($linje);$y++) {
 		$saldi_var_id[$y] = 0;
