@@ -619,9 +619,10 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			if ($art == 'DK' || $antal < 0) {
 				$tmp = $antal * -1;
 				$bk_id = 0;
-				if ($kred_linje_id)
-					$qtxt = "select * from batch_salg where linje_id = '$kred_linje_id' and vare_id = '$vare_id' order by id desc"; #20170507
-				else
+				if ($kred_linje_id) { # One row per batch: what the original line took from it in all its deliveries
+					$qtxt = "select batch_kob_id, sum(antal) as antal, max(id) as id from batch_salg";
+					$qtxt .= " where linje_id = '$kred_linje_id' and vare_id = '$vare_id' group by batch_kob_id order by max(id) desc"; #20170507
+				} else
 					$qtxt = "select * from batch_salg where linje_id = '$linje_id' and batch_kob_id != 0  order by id desc";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {

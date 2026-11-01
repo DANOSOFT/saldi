@@ -193,6 +193,31 @@ final class ReturnPurchaseBatchTest extends CharacterizationTestCase
         $this->assertEqualsWithDelta(self::stockOf($item), self::stockFromBatches($item), 0.001);
     }
 
+    /**
+     * A sale line delivered in two goes from the same batch has two rows on it. Crediting the whole line
+     * gives the batch back all of it (Sol, round 2). The split is made in SQL, as two partial deliveries
+     * leave it: this tenant's quick invoicing always delivers the whole line.
+     */
+    public function test_a_line_delivered_twice_from_one_batch_gets_all_of_it_back(): void
+    {
+        $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 50.00]);
+        ['sale' => $sale, 'batch' => $batch] = $this->boughtAndSold($item);
+        $saleLine = self::lineId($sale['id']);
+        self::rows('UPDATE batch_salg SET antal = 5 WHERE linje_id = $1', [$saleLine]);
+        self::rows(
+            'INSERT INTO batch_salg (batch_kob_id, vare_id, linje_id, salgsdate, ordre_id, antal, pris, lager, variant_id)
+             SELECT batch_kob_id, vare_id, linje_id, salgsdate, ordre_id, antal, pris, lager, variant_id FROM batch_salg WHERE linje_id = $1',
+            [$saleLine]
+        );
+
+        $this->creditNote($saleLine, $item, 10, 100.00);
+
+        $batches = self::batches($item);
+        $this->assertCount(1, $batches, 'no new batch');
+        $this->assertEqualsWithDelta(10.0, (float)$batches[0]['rest'], 0.001, 'both deliveries back on the batch');
+        $this->assertEqualsWithDelta(self::stockOf($item), self::stockFromBatches($item), 0.001);
+    }
+
     /** A sale from negative stock wrote a deficit batch; crediting it brings that batch back to zero. */
     public function test_crediting_a_sale_from_negative_stock_closes_its_deficit_batch(): void
     {
