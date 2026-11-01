@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -123,6 +123,8 @@
 // 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
 //                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
 //                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
+// 20261101 CL/SZ MB-129 A contact name with an apostrophe no longer breaks the card: the name is escaped in the three adresser.kontakt updates.
+//                The hidden kontakt, delivery and felt fields are double-quoted, so saving no longer cuts a stored value off at the apostrophe.
 @session_start();
 $s_id = session_id();
 
@@ -230,7 +232,7 @@ if ($id) {
 
 	$row = db_fetch_array($query);
 	if ($row && isset($row['navn']) && $row['navn']) {
-		$navnA = $row['navn'];
+		$navnA = db_escape_string($row['navn']);
 
 		// Update adresser where id = konto_id and set kontakt
 		db_modify("UPDATE adresser SET kontakt = '$navnA' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -1001,7 +1003,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 									", __FILE__ . " linje " . __LINE__);
 
 						$row = db_fetch_array($query);
-						$navnA = $row['navn'];
+						$navnA = db_escape_string($row['navn'] ?? '');
 						if (!$navnA) $navnA = NULL;
 						//update adresser where id = id and set kontakt to kontakt
 						db_modify("update adresser set kontakt = '$navnA' where id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -1081,7 +1083,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						$navnT = $r_navn['navn'];
 
 						error_log("Position 1 detected for id $emp_id; updating kontakt to '$navnT'");
-						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
+						db_modify("UPDATE adresser SET kontakt = '" . db_escape_string($navnT) . "' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
 					}
 
 					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
@@ -1470,23 +1472,23 @@ $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
 if ($vis_addr == "on") {
-	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
-	print "<input type=hidden name=\"felt_2\" value='$felt_2'>\n";
-	print "<input type=hidden name=\"felt_3\" value='$felt_3'>\n";
-	print "<input type=hidden name=\"felt_4\" value='$felt_4'>\n";
-	print "<input type=hidden name=\"felt_5\" value='$felt_5'>\n";
+	print "<input type=hidden name=\"felt_1\" value=\"$felt_1\">\n";
+	print "<input type=hidden name=\"felt_2\" value=\"$felt_2\">\n";
+	print "<input type=hidden name=\"felt_3\" value=\"$felt_3\">\n";
+	print "<input type=hidden name=\"felt_4\" value=\"$felt_4\">\n";
+	print "<input type=hidden name=\"felt_5\" value=\"$felt_5\">\n";
 } else {
-	print "<input type=hidden name=\"lev_firmanavn\" value='$lev_firmanavn'>\n";
-	print "<input type=hidden name=\"lev_fornavn\" value='$lev_fornavn'>\n";
-	print "<input type=hidden name=\"lev_efternavn\" value='$lev_efternavn'>\n";
-	print "<input type=hidden name=\"lev_addr1\" value='$lev_addr1'>\n";
-	print "<input type=hidden name=\"lev_addr2\" value='$lev_addr2'>\n";
-	print "<input type=hidden name=\"lev_postnr\" value='$lev_postnr'>\n";
-	print "<input type=hidden name=\"lev_bynavn\" value='$lev_bynavn'>\n";
-	print "<input type=hidden name=\"lev_land\" value='$lev_land'>\n";
-	print "<input type=hidden name=\"lev_tlf\" value='$lev_tlf'>\n";
-	print "<input type=hidden name=\"lev_email\" value='$lev_email'>\n";
-	print "<input type=hidden name=\"lev_kontakt\" value='$lev_kontakt'>\n";
+	print "<input type=hidden name=\"lev_firmanavn\" value=\"$lev_firmanavn\">\n";
+	print "<input type=hidden name=\"lev_fornavn\" value=\"$lev_fornavn\">\n";
+	print "<input type=hidden name=\"lev_efternavn\" value=\"$lev_efternavn\">\n";
+	print "<input type=hidden name=\"lev_addr1\" value=\"$lev_addr1\">\n";
+	print "<input type=hidden name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+	print "<input type=hidden name=\"lev_postnr\" value=\"" . htmlentities((string)$lev_postnr, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+	print "<input type=hidden name=\"lev_land\" value=\"$lev_land\">\n";
+	print "<input type=hidden name=\"lev_tlf\" value=\"" . htmlentities((string)$lev_tlf, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_email\" value=\"" . htmlentities((string)$lev_email, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
 }
 
 if (!isset($kontakt)) $kontakt = NULL;
@@ -1497,7 +1499,7 @@ print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
 print "<input type=hidden name=returside value=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\">\n";
 print "<input type=hidden name=fokus value='$fokus'>\n";
-print "<input type=hidden name=kontakt value='$kontakt'>\n";
+print "<input type=hidden name=kontakt value=\"$kontakt\">\n";
 print "<input type=hidden name=pbs_date value='$pbs_date'>\n";
 # print "<input type=hidden name=pbs_nr value='$pbs_nr'>\n";
 # print "<input type=hidden name=gl_pbs_nr value='$pbs_nr'>\n";
