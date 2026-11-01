@@ -54,6 +54,8 @@
 // 20261101 CL/ASR Ubetalte salgsfakturaer (with Ufakturerede ordrer) right under the key figures by default (Adam). Omsætning pr.
 //                  varegruppe holds every group: all show when its row has room, else "Se alle" unfolds them in place (it linked to
 //                  rapportart=salgsstat, which opened Kontokort). Text 7702 Vis færre. css v7, js v8.
+// 20261101 CL/ASR Kunder pr. time moved before Omsætning pr. dag in the default order, so when it is switched on it shares that row
+//                  instead of standing alone at the end (Omsætning pr. varegruppe then takes the last row).
 //                 Blocks, switches, order, access keys and links are unchanged.
 //                 Fiscal months and this week's days after today have no figure yet ("–", no bar), as in the prototype.
 //                 Texts 7700-7701.
@@ -109,7 +111,7 @@ $canEditAccounts = function_exists('perm_can') ? perm_can('settings.finance', 'w
 $widgetDefaults = array('weekkpi' => 'on', 'revmonth' => 'on', 'revyear' => 'on', 'vatcount' => 'on', 'ordercount' => 'on',
 	'revgraph' => 'on', 'revweek' => 'on', 'customergraph' => 'off', 'varegrp_doughnut' => 'on', 'unpaid_invoices' => 'on');
 // The blocks and their default order (front-page spec §4, §8.2/§8.4); the user's order is one JSON list per user.
-$blockDefaults = array('kpis', 'unpaid_invoices', 'small', 'revgraph', 'revweek', 'varegrp_doughnut', 'customergraph');
+$blockDefaults = array('kpis', 'unpaid_invoices', 'small', 'revgraph', 'customergraph', 'revweek', 'varegrp_doughnut');
 /**
  * The user's block order: saved list filtered to known blocks, missing blocks inserted at their default position.
  */
