@@ -399,6 +399,9 @@ html.topbar-tall { --topbar-h: 48px; }
 .topbar-notif-b { font-size: 0.7812rem; color: var(--topbar-mut); line-height: 1.4; margin-top: 2px; }
 .topbar-notif-time { font-size: 0.6875rem; color: var(--topbar-mut); margin-top: 4px; }
 
+/* 20261101 CL/ASR The Assist widget's own sidebar entry is collapsed; the topbar's Assist button replaces it. */
+.sidebar li.topbar-assist-hidden { height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; visibility: hidden; }
+
 /* 20260930 Sawaneh Dashboard items hidden away from the dashboard. */
 .topbar-dash[hidden] { display: none !important; }
 

@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- index/main.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -74,6 +74,8 @@
 // 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
 // 20261031 CL/ASR The sidebar mark changes on sidebar clicks only, as on master: sidebarFollow() and the Indstillinger mark on frame load are gone.
 // 20261031 CL/ASR The Assist widget keeps its own sidebar entry, as on master (the sidebar differs from master only by the Indstillinger item).
+// 20261101 CL/ASR Sidebar: Kontoplan under Finans (Finans also shown on right 0); Kontakt removed; the Assist
+//                  widget's own sidebar entry is collapsed again (the topbar's Assist button opens the chat).
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -209,7 +211,7 @@ function brightenColor($color, $amount = 0.2) {
 <link href='../css/saldi-fonts.css?v=2' rel='stylesheet'>
 <script>window.SALDI_CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;</script>
 <link href='../css/sidebar_style.css?v=25' rel='stylesheet'>
-<link href='../css/topbar.css?v=21' rel='stylesheet'>
+<link href='../css/topbar.css?v=22' rel='stylesheet'>
 <link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
 <script>document.documentElement.classList.add('saldi-shell');</script>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">
@@ -246,7 +248,7 @@ function brightenColor($color, $amount = 0.2) {
       </ul>
     </li>
 
-    <li style="display: <?php if (check_permissions(array(2, 3, 4))) {
+    <li style="display: <?php if (check_permissions(array(0, 2, 3, 4))) {
                           echo 'block';
                         } else {
                           echo 'none';
@@ -269,6 +271,10 @@ function brightenColor($color, $amount = 0.2) {
         }
         if (check_permissions(array(4))) {
           echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
+        }
+        // 20261101 CL/ASR The chart of accounts sits under Finans (settings redesign decision 16), on its own right (0).
+        if (check_permissions(array(0))) {
+          echo '<li><a href="#" id="kontoplan" onclick=\'update_iframe("/systemdata/kontoplan.php")\'>' . findtekst('612|Kontoplan', $sprog_id) . '</a></li>';
         }
         ?>
       </ul>
@@ -419,16 +425,6 @@ function brightenColor($color, $amount = 0.2) {
   </ul>
 
   <ul class="nav-links">
-    <li>
-      <a href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">
-        <i class='bx bx-envelope'></i>
-        <span class="link_name"><?php print findtekst('398|Kontakt', $sprog_id); ?></span>
-      </a>
-      <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">Kontakt</a>
-        </li>
-      </ul>
-    </li>
 
     <li>
       <a href="#" onclick='redirect_uri("/index/logud.php")'>
@@ -1056,6 +1052,13 @@ function brightenColor($color, $amount = 0.2) {
     const launcher = document.getElementById('saldi-chat-launcher');
     if (launcher) { launcher.click(); }
   }
+  function topbarHideAssistEntry() {
+    const launcher = document.getElementById('saldi-chat-launcher');
+    const li = launcher ? launcher.closest('li') : null;
+    if (li && !li.classList.contains('topbar-assist-hidden')) { li.classList.add('topbar-assist-hidden'); }
+  }
+  topbarHideAssistEntry();
+  new MutationObserver(topbarHideAssistEntry).observe(document.querySelector('.sidebar'), { childList: true, subtree: true });
 
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.topbar-pop, .topbar-item, .topbar-search')) {
