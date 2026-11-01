@@ -91,18 +91,37 @@ export default {
         });
       }
 
+      const endsSentence = (line) => /[.!?]["'`)]*$/.test(lines[line - 1].trimEnd());
+      // A comment line under a history entry is a continuation when it is indented, or when it has
+      // one space but the line above left its sentence open. A one-space line after a finished
+      // sentence (// Run: ...) describes the file, and a separator or an older dated line ends the entry.
+      const continuationAt = (line) => {
+        const match = /^(\s*\/\/([ \t]+))(\S.*)$/.exec(lines[line - 1]);
+        if (!match || HISTORY.test(lines[line - 1])) return null;
+        if (/^[-=*#~_ ]+$/.test(match[3]) || /^\d{2,4}[./-]\d/.test(match[3])) return null;
+        if (match[2] === " " && endsSentence(line - 1)) return null;
+        return match;
+      };
       for (const line of historyLines) {
         const prefix = /^(\s*\/\/ \d{8}[ \t]+(?:(?:CL|CDX)\/)?[A-Z]{2,4}[ \t]+)/.exec(lines[line - 1]);
         if (!prefix) continue;
         for (let next = line + 1; next <= header; next++) {
-          const continuation = /^(\s*\/\/[ \t]{2,})(\S.*)$/.exec(lines[next - 1]);
-          if (!continuation || HISTORY.test(lines[next - 1])) break;
+          const continuation = continuationAt(next);
+          if (!continuation) break;
           if (!file.added.has(line) && !file.added.has(next)) continue;
+          if (file.added.has(line) && !file.added.has(next)) {
+            // An old continuation right below a new entry belongs to the entry above it.
+            let last = next;
+            while (last + 1 <= header && !file.added.has(last + 1) && continuationAt(last + 1)) last++;
+            findings.push({ path: file.path, line,
+              message: `this entry splits the entry above from its continuation on line ${next}; move it below line ${last}.` });
+            break;
+          }
           if (continuation[1].length !== prefix[1].length) {
             findings.push({ path: file.path, line: next,
               message: `align the history continuation with the description at column ${prefix[1].length + 1}.` });
           }
-          if (!/[.!?]["'`)]*$/.test(lines[next - 2].trimEnd())) {
+          if (!endsSentence(next - 1)) {
             findings.push({ path: file.path, line: next,
               message: "history continuations start a new sentence; keep the preceding sentence on one line." });
           }
