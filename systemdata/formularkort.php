@@ -74,6 +74,9 @@
 //                 Tilbage above the title, and the title is 'Formularer' as the hub row (it said 'Formularkort').
 //                 The bar's buttons (Visuel editor, Bg.Navn, Email, Baggrund) sit right of the title, in both menu modes; the search field
 //                 above the editor is gone (the hub has the search). The form editor below is unchanged.
+// 20261102 CL/ASR Genindlæs standardformularer removed from the bottom row (both menu modes): it linked to formular_indlaes_std.php, which was
+//                 deleted on 24 Sep 2025 (6a35fea7), so the link gave a 404. The visual editor's Nulstil resets one form and background to the
+//                 standard and keeps the e-mail texts and fee/interest rows.
 @session_start();
 $s_id=session_id();
 
@@ -1191,8 +1194,7 @@ if ($menu=='S') {
 
 	print "<td width='38%' align='center'></td>\n";
 
-	print "<td width='24%'><a href=\"formular_indlaes_std.php\">";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</button></a></td>\n";
+	print "<td width='24%'></td>\n";
 
 	print "<td width='24%'></td>\n";
 
@@ -1206,8 +1208,7 @@ if ($menu=='S') {
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
 	print "<td width='14%' align='center' ".$top_bund.">&nbsp;</td>\n";
 	print "<td width='24%' align='center' ".$top_bund.">&nbsp;</td>\n";
-	print "<td width='24%' align='center' ".$top_bund." ;>";
-	print "<a href=\"formular_indlaes_std.php\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</a></td>\n";
+	print "<td width='24%' align='center' ".$top_bund.">&nbsp;</td>\n";
 	print "<td width='24%' ".$top_bund.">&nbsp;</td>\n";
   # 20150331 start bund
 		print "<td width=\"7%\" ".$top_bund."><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span ";
