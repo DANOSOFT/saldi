@@ -4,6 +4,7 @@
 // 20261102 CL/NTR Prefer the balances group when www-data belongs to it.
 //                 Fall back to plain writes on unmigrated installs and warn once per message.
 //                 Check the opened file against the path before truncating it.
+//                 Follow symlinks held by trusted directories; open a symlinked file without chmod.
 
 /**
  * Raise a shared-file warning once per request, so per-query logging cannot flood the error log.
@@ -62,8 +63,10 @@ function sharedFileGroup()
 /**
  * Validate the directory chain before any chmod, creation, opening or truncation.
  * Shared-group members and directory owners are trusted deployment accounts.
- * Reject symlinks and directories writable by others or an unrelated group.
- * Sticky ancestors (such as /tmp) are allowed only above an owned directory;
+ * Reject directories writable by others or an unrelated group. A symlink is
+ * followed only after the directory holding it passed, so no untrusted account
+ * can replace it, and its target chain is then validated the same way.
+ * Sticky ancestors (such as /tmp) are allowed only above an owned entry;
  * the immediate parent must never be writable by others, even with the sticky bit.
  * This trust boundary, rather than a post-open symlink check, prevents replacement.
  *
@@ -77,35 +80,56 @@ function sharedFileTrustedParent(string $path): bool
         return false;
     }
     $absolute = str_starts_with($path, '/') ? $path : getcwd() . '/' . $path;
-    $parts = array_values(array_filter(explode('/', dirname($absolute)),
+    $components = static fn(string $chain): array => array_values(array_filter(explode('/', $chain),
         static fn(string $part): bool => $part !== '' && $part !== '.'));
+    $pending = $components(dirname($absolute));
     $directory = '';
-    foreach ($parts as $index => $part) {
-        $directory .= '/' . $part;
-        clearstatcache(true, $directory);
-        $stat = @lstat($directory);
+    $links = 0;
+    while ($pending) {
+        $part = array_shift($pending);
+        if ($part === '..') {
+            // $directory holds no symlinks, so a lexical step up matches the kernel's.
+            $directory = dirname($directory ?: '/') === '/' ? '' : dirname($directory);
+            continue;
+        }
+        $entry = $directory . '/' . $part;
+        clearstatcache(true, $entry);
+        $stat = @lstat($entry);
         if ($stat === false) {
             return false;
         }
         $mode = $stat['mode'];
-        $last = $index === count($parts) - 1;
-        $stickyAncestor = !$last && ($mode & 01002) === 01002;
+        if (($mode & 0170000) === 0120000) {
+            // The holding directory already passed, so only trusted accounts can replace this link.
+            $target = readlink($entry);
+            if ($target === false || ++$links > 40) {
+                sharedFileWarning("Unresolvable shared-file parent symlink: $entry");
+                return false;
+            }
+            if (str_starts_with($target, '/')) {
+                $directory = '';
+            }
+            $pending = array_merge($components($target), $pending);
+            continue;
+        }
+        $stickyAncestor = $pending && ($mode & 01002) === 01002;
         if (($mode & 0170000) !== 0040000
             || (($mode & 0002) !== 0 && !$stickyAncestor)
             || (($mode & 0020) !== 0 && $stat['gid'] !== $gid && !$stickyAncestor)) {
-            sharedFileWarning("Untrusted shared-file parent: $directory; follow doc/runtime-permissions.md");
+            sharedFileWarning("Untrusted shared-file parent: $entry; follow doc/runtime-permissions.md");
             return false;
         }
         if ($stickyAncestor) {
             // A sticky parent protects an entry only when it belongs to a trusted account.
-            $child = $directory . '/' . $parts[$index + 1];
+            $child = $entry . '/' . $pending[0];
             clearstatcache(true, $child);
-            $childStat = lstat($child);
+            $childStat = @lstat($child);
             if ($childStat === false || !in_array($childStat['uid'], [0, posix_geteuid()], true)) {
                 sharedFileWarning("Untrusted entry below sticky directory: $child");
                 return false;
             }
         }
+        $directory = $entry;
     }
     return true;
 }
@@ -162,11 +186,12 @@ function sharedFilePermissions(string $path): bool
  * Creation is safe under any umask because the parent excludes untrusted users.
  * An unmigrated install (untrusted parent, unknown group) keeps the plain fopen
  * it used before, without changing permissions through that chain; a file the
- * caller cannot repair is still written when the filesystem allows it.
+ * caller cannot repair is still written when the filesystem allows it. A file
+ * that is itself a symlink is written through without changing permissions.
  *
  * @param string $path Local shared runtime file.
  * @param string $mode Writable fopen mode (for example 'a' or 'w').
- * @return resource|false Writable stream, or false on an open failure or a symlink/special file.
+ * @return resource|false Writable stream, or false on an open failure or a special file.
  */
 function sharedFileOpen(string $path, string $mode = 'a')
 {
@@ -174,9 +199,13 @@ function sharedFileOpen(string $path, string $mode = 'a')
         return @fopen($path, $mode);
     }
     clearstatcache(true, $path);
-    $existed = file_exists($path) || is_link($path);
-    if (is_link($path) || ($existed && !is_file($path))) {
-        sharedFileWarning("Refusing shared permissions on symlink or special file: $path");
+    if (is_link($path)) {
+        // A trusted account placed the link; write through it, but never chmod its target.
+        return @fopen($path, $mode);
+    }
+    $existed = file_exists($path);
+    if ($existed && !is_file($path)) {
+        sharedFileWarning("Refusing shared permissions on special file: $path");
         return false;
     }
     if ($existed) {
@@ -228,7 +257,8 @@ function sharedFilePutContents(string $path, string $contents, bool $append = fa
 
 /**
  * Create or repair a shared setgid directory below a trusted, existing parent.
- * Below an untrusted parent the directory is only created (0770), as before migration.
+ * Below an untrusted parent the directory is only created (0770), as before migration;
+ * a symlinked directory is used without changing permissions.
  *
  * @param string $path Directory whose parent already exists.
  * @return bool Whether the directory exists with shared permissions.
@@ -238,6 +268,10 @@ function sharedDirectory(string $path): bool
     $path = rtrim($path, '/') ?: '/';
     if (!sharedFileTrustedParent($path)) {
         return is_dir($path) || @mkdir($path, 0770) || is_dir($path);
+    }
+    if (is_link($path)) {
+        // A symlinked directory is used as it is; its target's permissions are not changed.
+        return is_dir($path);
     }
     if (!is_dir($path) && !mkdir($path, 02770) && !is_dir($path)) {
         return false;

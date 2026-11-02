@@ -2,6 +2,7 @@
 // 20261029 CDX/NTR Verify shared runtime permissions under restrictive umasks and existing files.
 // 20261029 CDX/NTR Cover group-only sharing, untrusted parents and administrator migration.
 // 20261102 CL/NTR Cover the balances group, the unmigrated fallback and once-per-message warnings.
+//                 Cover symlinks held by trusted directories and symlinks into untrusted ones.
 
 use PHPUnit\Framework\TestCase;
 
@@ -95,7 +96,8 @@ final class SharedFileTest extends TestCase
         self::assertSame(0660, fileperms($path) & 0777);
     }
 
-    public function testSymlinkTargetIsNeitherChangedNorWritten(): void
+    /** A log that is itself a symlink is written through, but its target keeps its permissions. */
+    public function testSymlinkedFileIsWrittenWithoutChangingTarget(): void
     {
         $path = $this->dir . '/target';
         file_put_contents($path, 'private');
@@ -108,15 +110,14 @@ final class SharedFileTest extends TestCase
             return true;
         });
         try {
-            self::assertFalse(sharedFilePutContents($link, 'changed'));
+            self::assertSame(7, sharedFilePutContents($link, 'changed'));
         } finally {
             restore_error_handler();
         }
-        self::assertCount(1, $warnings);
-        self::assertStringContainsString('symlink', $warnings[0]);
+        self::assertSame([], $warnings);
         clearstatcache(true, $path);
         self::assertSame(0600, fileperms($path) & 0777);
-        self::assertSame('private', file_get_contents($path));
+        self::assertSame('changed', file_get_contents($path));
     }
 
     /** A missing parent fails quietly, like the suppressed fopen these helpers replaced. */
@@ -164,8 +165,8 @@ final class SharedFileTest extends TestCase
         self::assertSame(0600, fileperms($path) & 0777);
     }
 
-    /** Symlinks in intermediate components get the plain write, never a permission change. */
-    public function testIntermediateSymlinkWritesWithoutChangingPermissions(): void
+    /** A symlinked install directory held by a trusted directory is shared like any other. */
+    public function testTrustedIntermediateSymlinkIsShared(): void
     {
         $target = $this->dir . '/target';
         mkdir($target, 0700);
@@ -179,13 +180,42 @@ final class SharedFileTest extends TestCase
         try {
             self::assertSame(4, sharedFilePutContents($link . '/log', 'data'));
             self::assertTrue(sharedDirectory($link . '/tenant'));
+            // '..' after a symlink climbs from the target, as the kernel does.
+            self::assertSame(4, sharedFilePutContents($link . '/../log', 'data'));
+        } finally {
+            restore_error_handler();
+        }
+        self::assertSame([], $warnings);
+        clearstatcache();
+        self::assertSame(0660, fileperms($target . '/log') & 0777);
+        self::assertSame(02770, fileperms($target . '/tenant') & 07777);
+        self::assertSame(0660, fileperms($this->dir . '/log') & 0777);
+    }
+
+    /** A symlink into a world-writable directory gets the plain write, never a permission change. */
+    public function testSymlinkToUntrustedDirectoryFallsBack(): void
+    {
+        $open = $this->dir . '/open';
+        mkdir($open);
+        chmod($open, 0777);
+        $link = $this->dir . '/link';
+        symlink($open, $link);
+        $warnings = [];
+        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+            $warnings[] = $message;
+            return true;
+        });
+        try {
+            self::assertSame(4, sharedFilePutContents($link . '/log', 'data'));
+            self::assertTrue(sharedDirectory($link . '/tenant'));
         } finally {
             restore_error_handler();
         }
         self::assertCount(1, $warnings);
+        self::assertStringContainsString('Untrusted shared-file parent: ' . $open, $warnings[0]);
         clearstatcache();
-        self::assertSame(0600, fileperms($target . '/log') & 0777);
-        self::assertSame(0700, fileperms($target . '/tenant') & 07777);
+        self::assertSame(0600, fileperms($open . '/log') & 0777);
+        self::assertSame(0700, fileperms($open . '/tenant') & 07777);
     }
 
     /** An unknown group keeps the plain write instead of losing the log or granting public access. */

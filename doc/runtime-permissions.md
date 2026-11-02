@@ -9,9 +9,13 @@ dedicated group instead. PHP's POSIX extension is required. Only trusted
 application accounts belong to this group.
 
 The helpers validate every parent component before changing permissions or
-opening a file, including before a `w` open can truncate it. Symlinks, special
-files, parents writable by others, and parents writable by unrelated groups are
-refused. Sticky system ancestors such as `/tmp` are allowed only above an entry
+opening a file, including before a `w` open can truncate it. Special files,
+parents writable by others, and parents writable by unrelated groups are refused.
+Symlinked installations work: a symlink in the path is followed when the
+directory holding it passed the check (so only trusted accounts can replace it),
+and the directories it points to are checked the same way. A log file or tenant
+directory that is itself a symlink is used without changing its permissions.
+Sticky system ancestors such as `/tmp` are allowed only above an entry
 owned by root or the current account; the immediate parent is never allowed to
 be writable by others. Directory owners and members of the shared group are
 trusted. Deploy the application under trusted owners and restrict write access
@@ -23,7 +27,8 @@ An unprivileged web worker cannot chmod a CLI user's `0600`/`0644` logs. Deployi
 PHP code alone cannot repair that situation. Before enabling the helpers:
 
 1. Stop web workers and CLI jobs that write runtime files. Check the runtime tree
-   for unexpected entries; the migration refuses symlinks and special files.
+   for unexpected entries; the migration refuses symlinks and special files
+   inside it. A symlinked `temp` directory itself is migrated at its target.
 2. Have an administrator add each CLI account to the shared group, for example
    `sudo usermod -a -G www-data YOUR_CLI_ACCOUNT`. Ensure the web account also
    belongs to this group. Start a new login session for group membership changes.
@@ -62,7 +67,7 @@ there is no privilege escalation. Repeat the administrator migration while
 writers are stopped. There is no fallback to access for every local user.
 
 Until an installation is migrated (an untrusted parent such as a `777` `temp`
-directory, a symlinked parent, or an unknown group), the helpers keep the plain
+directory, a symlink pointing into one, or an unknown group), the helpers keep the plain
 `fopen`/`mkdir` (`0770`) writes used before them and change no permissions through
 that chain. Each distinct warning is raised once per request, so per-query logs
 do not flood the error log. Overwrites open the file without truncating it,

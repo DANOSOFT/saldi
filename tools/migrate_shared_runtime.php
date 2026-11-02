@@ -1,5 +1,6 @@
 <?php
 // 20261029 CDX/NTR Provide an administrator-only migration for existing shared runtime files.
+// 20261102 CL/NTR Accept a symlinked runtime directory by migrating its resolved path.
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -53,7 +54,8 @@ if ($argc !== 2 || !is_dir($argv[1]) || realpath($argv[1]) === '/') {
     fwrite(STDERR, "Usage: sudo php tools/migrate_shared_runtime.php /absolute/path/to/temp\n");
     exit(1);
 }
-if (!migrateSharedRuntime($argv[1])) {
+// A symlinked temp directory is migrated at its target; entries inside are still never followed.
+if (!migrateSharedRuntime(realpath($argv[1]))) {
     exit(1);
 }
 fwrite(STDOUT, "Runtime migration complete. Restart CLI jobs and web workers with the shared group.\n");
