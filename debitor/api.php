@@ -81,6 +81,7 @@
 // 20261102 CL/MMR SST-746 sendInvoice() sends a line with a negative unit price (a discount such as 999rabat) as a negative quantity at a positive price, never as an allowance.
 //                 EasyUBL rejected those lines (BR-S-08, UNCL 5189), and Peppol does not allow a negative price (BR-27).
 //                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
+//                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
 
     @session_start();
     $s_id=session_id();
@@ -531,10 +532,10 @@
      * @param array $context SD-774: 'db_encode' and 'sprog_id' of the caller, for the missing-CVR page
      */
     function sendInvoice($id, $type, array $context = array()) {
-            global $db;
+        global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $adresse = db_fetch_array($query);
-        $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
+        $query = db_select("SELECT * FROM ordrer WHERE id = " . (int)$id, __FILE__ . " linje " . __LINE__);
         $r_faktura = db_fetch_array($query);
 
         // get momssats of the order so that the moms can get reduced to that number.
