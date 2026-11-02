@@ -52,6 +52,13 @@
 // 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu): the menu of Virksomhed with Brugere & roller marked under Brugere & ansatte, and the tabs, review banner, notices, table, role matrix, audit log, drawer and dialogs in the content column beside it.
 //                 Tilbage, title, the counts and Opret/Inviter bruger form the same head as the section pages; the layout prints the breadcrumb and the document title.
 //                 usersRoles.css is linked after the layout's stylesheets, as ?v=20261102b.
+// 20261102 CL/ASR Personer (owner, 2 Nov 2026: Brugere & ansatte is one row, Personer, with Brugere, Roller and Audit-log under it): the menu marks
+//                 the tab shown (Brugere / Roller / Audit-log) and the title is the tab's name. Opened from Personer (ret=), the menu keeps Personer
+//                 marked and Tilbage, the X, the scrim, Escape and Annullér return to the people list or the employee's card.
+//                 "Kobling til ansat" names a closed employee "(Fratrådt)" and marks one that already has a login; closing a login linked
+//                 to an employee says that the employee is marked as resigned too (user_close() does that).
+// 20261102 CL/ASR Review: the user counts are the lead of the Brugere tab only (the title follows the tab). The log's user filter (bruger=<name>)
+//                 is no user card, so Tilbage there stays the hub; the log opened from an employee's card ("Se log", ret=) returns to that card.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -75,7 +82,15 @@ function ur_view(array $vm): void
 	$flash = ($vm['msg'] === 'bulk') ? ur_bulk_flash($vm['act'], (int) $vm['done'], $vm['why'], $sprog) : ur_flash($vm['msg'], $sprog);
 	$counts = ur_user_counts($vm);
 	// Tilbage goes one step up: from a user or role card to its list; from a list as on every settings page (settings_back_link()).
-	$back = ($vm['editUser'] !== null) ? $vm['linkPrefix'] . 'tab=users' : (($vm['tab'] === 'roles' && isset($_GET['rolle'])) ? $vm['linkPrefix'] . 'tab=roles' : '');
+	$back = ($vm['editUser'] !== null && $vm['tab'] === 'users') ? $vm['linkPrefix'] . 'tab=users' : (($vm['tab'] === 'roles' && isset($_GET['rolle'])) ? $vm['linkPrefix'] . 'tab=roles' : '');
+	$fromPeople = ($vm['retUrl'] !== '' && ($vm['tab'] === 'users' || $vm['tab'] === 'log'));
+	if ($fromPeople) {
+		$back = $vm['retUrl']; // opened from Personer: back to the people list or the employee's card
+	}
+	// The hub entry of the tab shown (after the permission fallback), so the menu marks Brugere, Roller or Audit-log; from Personer, Personer.
+	$at = array('users' => 'brugere', 'roles' => 'roller', 'log' => 'audit_log');
+	$at = $fromPeople ? 'organisation.employees' : $at[$vm['tab']];
+	$pageTitle = array('users' => '5549|Brugere', 'roles' => '5550|Roller', 'log' => '5796|Audit-log');
 	// One filled button per view: on the Roles tab the role's Gem is the one, so the head's Inviter bruger is a plain button there.
 	$headPrimary = !($vm['tab'] === 'roles' && $vm['canRolesWrite'] && $vm['editRole'] !== null);
 	$headActs = '';
@@ -89,11 +104,11 @@ function ur_view(array $vm): void
 	print settings_layout_assets(true);
 	print "<link rel='stylesheet' href='../css/usersRoles.css?v=20261102b'>\n";
 	settings_layout_open(array(
-		'at'           => 'brugere',
+		'at'           => $at,
 		'kit'          => true,
 		'class'        => 'ur-page',
-		'title'        => findtekst('5536|Brugere & roller', $sprog),
-		'lead'         => sprintf(findtekst('5960|%s brugere · %s administratorer · %s inviterede · %s lukkede', $sprog), $counts['all'], $counts['admins'], $counts['invited'], $counts['closed']),
+		'title'        => findtekst($pageTitle[$vm['tab']], $sprog),
+		'lead'         => $vm['tab'] === 'users' ? sprintf(findtekst('5960|%s brugere · %s administratorer · %s inviterede · %s lukkede', $sprog), $counts['all'], $counts['admins'], $counts['invited'], $counts['closed']) : false,
 		'back'         => $back,
 		'actions_html' => $headActs,
 	));
@@ -291,7 +306,7 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
 	$ro = $vm['canWrite'] ? '' : ' disabled';
 	$ownCard = (!$isNew && $u['id'] === $vm['selfId']);
 	$lastAdmin = (!$isNew && function_exists('user_is_last_admin') && user_is_last_admin($u['id']));
-	$closeUrl = $link('tab=users');
+	$closeUrl = $vm['retUrl'] !== '' ? $h($vm['retUrl']) : $link('tab=users');
 	$modules = array();
 	foreach (permission_registry() as $key => $def) {
 		if ($def['legacy']) {
@@ -372,7 +387,7 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
         <select class="sk-input" name="ansat_id" id="ur-ansat"<?= $ro ?>>
           <option value="0">–</option>
           <?php foreach ($vm['employees'] as $e) { ?>
-          <option value="<?= (int) $e['id'] ?>"<?= $e['id'] === $u['ansat_id'] ? ' selected' : '' ?>><?= $h(trim($e['initialer'] . ' ' . $e['navn'])) ?></option>
+          <option value="<?= (int) $e['id'] ?>"<?= $e['id'] === $u['ansat_id'] ? ' selected' : '' ?>><?= $h(trim($e['initialer'] . ' ' . $e['navn'])) ?><?= !empty($e['left']) ? ' (' . $t('660|Fratrådt') . ')' : '' ?><?= (isset($e['logins']) && $e['logins'] > ($e['id'] === $u['ansat_id'] ? 1 : 0)) ? ' · ' . $t('7764|har login') : '' ?></option>
           <?php } ?>
         </select>
       </div>
@@ -454,7 +469,7 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
   <?php } ?>
   <template id="ur-close-dlg">
     <h3><?= $h(sprintf(findtekst('5936|Luk %s?', $vm['sprogId']), $u['navn'])) ?></h3>
-    <p><?= $t('5937|Brugeren kan ikke logge ind og tæller ikke i abonnementet. Historik og kontrolspor bevares, og brugeren kan genåbnes.') ?><?php if (!$u['hasLoggedIn']) { ?><br><br><?= $t('5938|Brugeren har aldrig logget ind og kan derfor også slettes helt.') ?><?php } ?></p>
+    <p><?= $t('5937|Brugeren kan ikke logge ind og tæller ikke i abonnementet. Historik og kontrolspor bevares, og brugeren kan genåbnes.') ?><?php if ($u['ansat_id'] > 0) { ?><br><br><?= $h(sprintf(findtekst('7761|Lukkes brugeren, markeres den koblede ansatte, %s, også som fratrådt.', $vm['sprogId']), $u['navn'])) ?><?php } ?><?php if (!$u['hasLoggedIn']) { ?><br><br><?= $t('5938|Brugeren har aldrig logget ind og kan derfor også slettes helt.') ?><?php } ?></p>
     <div data-buttons>
       <?php if (!$u['hasLoggedIn']) { ?><button type="submit" class="sk-btn sk-btn-danger" form="ur-delete-form"><?= $t('5939|Slet helt') ?></button><?php } ?>
       <button type="submit" class="sk-btn sk-btn-danger" form="ur-close-form"><?= $t('5756|Luk bruger') ?></button>

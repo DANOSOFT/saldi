@@ -31,6 +31,11 @@
 //                 a moved-map link to a page of another module (Kontoplan, Booking) carries settings=1 (settings_hub_marked_url()).
 //                 settings_opened_from_settings() tells such a page to show the settings layout (includes/settings/layout.php); without the
 //                 marker it stays as on master. An address with the marker counts as a settings page for Tilbage.
+// 20261102 CL/ASR Brugere & ansatte is one row, Personer (owner, 2 Nov 2026: one item for people): it opens the employee list, which also lists the logins,
+//                 and Brugere (usersRoles.php), Roller and Audit-log sit under it. The sub-group keeps its name, so no name repeats in the menu.
+//                 One badge "N ansatte · N brugere" (each part only with read on its own key); the role-review notice hangs on the row.
+//                 Registry entries marked 'newInHub' (Roller, Audit-log: tabs of the old page, never menu items) are left out of the moved map,
+//                 and a renamed or new entry's current name is a search term of its row, not one of its "tidligere" names.
 
 if (!function_exists('getSettingsHub')):
 
@@ -63,11 +68,10 @@ function getSettingsHub(): array
 					'hint' => $h('Slet kunder og leverandører uden aktivitet i 3 år', 'Delete customers and suppliers with no activity for 3 years', 'Slett kunder og leverandører uten aktivitet på 3 år')),
 			)),
 			'brugere' => array('label' => '7708|Brugere & ansatte', 'icon' => 'bx-group', 'description' => '7719|Hvem kan logge ind, roller og medarbejdere',
-				'status' => array('brugere', 'organisation.employees'), 'rows' => array(
-				array('label' => '5536|Brugere & roller', 'maps' => array('brugere'),
-					'hint' => $h('Hvem kan logge ind (også revisor og bogholder), roller og log', 'Who can log in (also auditor and bookkeeper), roles and log', 'Hvem kan logge inn (også revisor og regnskapsfører), roller og logg')),
-				array('label' => '1262|Ansatte', 'maps' => array('organisation.employees', 'ansatte', 'div_valg'),
-					'hint' => $h('Medarbejdere, initialer, kundeansvarlige og ekstra felter', 'Employees, initials, account managers and extra fields', 'Medarbeidere, initialer, kundeansvarlige og ekstra felt')),
+				'status' => array('organisation.employees'), 'rows' => array(
+				// One row for people (owner, 2 Nov 2026): the employee list (with the logins) first, then the pages of usersRoles.php.
+				array('label' => '7750|Personer', 'maps' => array('organisation.employees', 'ansatte', 'div_valg', 'brugere', 'roller', 'audit_log'),
+					'hint' => $h('Medarbejdere og alle, der kan logge ind (også revisor og bogholder), med rolle, adgang, log og ekstra felter', 'Employees and everyone who can log in (also auditor and bookkeeper), with role, access, log and extra fields', 'Medarbeidere og alle som kan logge inn (også revisor og regnskapsfører), med rolle, tilgang, logg og ekstra felt')),
 			)),
 			'formularer' => array('label' => '7709|Fakturaformularer & e-mail', 'icon' => 'bx-file', 'description' => '7720|Formularer, logo, udskrift og e-mail',
 				'status' => array('documents.email'), 'rows' => array(
@@ -641,7 +645,12 @@ function settings_hub_row_names(array $row, int $sprogId): array
 				$add(settings_legacy_text($path, $sprogId), trim(settings_legacy_all_languages($path)));
 			}
 		} else {
-			$add(settings_hub_page_label($def, $sprogId), settings_hub_text_all($def['label']));
+			if (!empty($def['entry']['newInHub']) || isset($def['entry']['renamedFrom'])) {
+				// A page whose name came with the hub (Brugere, Roller, Audit-log under Personer): found by search, never "tidligere".
+				$terms[] = settings_hub_text_all($def['label']);
+			} else {
+				$add(settings_hub_page_label($def, $sprogId), settings_hub_text_all($def['label']));
+			}
 			if (isset($def['entry']['renamedFrom'])) {
 				$add(settings_hub_text($def['entry']['renamedFrom'], $sprogId), settings_hub_text_all($def['entry']['renamedFrom']));
 			}
@@ -687,20 +696,27 @@ function settings_hub_badges(array $rowIds, int $sprogId): array
 		}
 	}
 	if (isset($want['organisation.employees'])) {
-		$n = $count("select count(*) as antal from ansatte where konto_id in (select id from adresser where art = 'S') and (lukket is null or lukket <> 'on')");
-		if ($n > 0) {
-			$out['organisation.employees'] = array('kind' => '', 'text' => $one($n, array('da' => '1 ansat', 'en' => '1 employee', 'no' => '1 ansatt'), '6034|%s ansatte'));
-		}
-	}
-	if (isset($want['brugere'])) {
-		$n = 0;
-		$q = db_select("select status from brugere", __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			if (!in_array($r['status'], array('f', false, '0', 0), true)) {
-				$n++;
+		// The Personer row: employees and logins, each count only for a user who may read it (the row holds both pages).
+		$parts = array();
+		if (!function_exists('perm_can') || perm_can('settings.organisation', 'read')) {
+			$n = $count("select count(*) as antal from ansatte where konto_id in (select id from adresser where art = 'S') and (lukket is null or lukket <> 'on')");
+			if ($n > 0) {
+				$parts[] = $one($n, array('da' => '1 ansat', 'en' => '1 employee', 'no' => '1 ansatt'), '6034|%s ansatte');
 			}
 		}
-		$out['brugere'] = array('kind' => '', 'text' => $one($n, array('da' => '1 bruger', 'en' => '1 user', 'no' => '1 bruker'), '6036|%s brugere'));
+		if (!function_exists('perm_can') || perm_can('settings.users.manage', 'read')) {
+			$n = 0;
+			$q = db_select("select status from brugere", __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				if (!in_array($r['status'], array('f', false, '0', 0), true)) {
+					$n++;
+				}
+			}
+			$parts[] = $one($n, array('da' => '1 bruger', 'en' => '1 user', 'no' => '1 bruker'), '6036|%s brugere');
+		}
+		if ($parts) {
+			$out['organisation.employees'] = array('kind' => '', 'text' => implode(' · ', $parts));
+		}
 	}
 	foreach (array('sales.debtor_groups' => 'G3.1', 'purchase.creditor_groups' => 'G4.1', 'items.item_groups' => 'G5.1') as $rowId => $section) {
 		if (isset($want[$rowId]) && !settings_section_complete($section)) {
@@ -847,7 +863,7 @@ function settings_hub_model(int $sprogId, bool $withStatus = true): array
 	if ($withStatus) {
 		$badges = settings_hub_badges($visibleRows, $sprogId);
 		$attention = settings_attention(settings_accessible_groups(), $sprogId);
-		$attentionRow = array('integrations' => 'integrations.connections', 'documents' => 'documents.email', 'users' => 'brugere');
+		$attentionRow = array('integrations' => 'integrations.connections', 'documents' => 'documents.email', 'users' => 'organisation.employees');
 		foreach ($groups as $g => $group) {
 			foreach ($group['subs'] as $s => $sub) {
 				$subBadges = array();
@@ -1070,8 +1086,8 @@ function settings_hub_moved_rows(int $sprogId): array
 	foreach (getSettingsRegistry() as $entry) {
 		$key = (string) $entry['key'];
 		$group = isset($entry['group']) ? (string) $entry['group'] : '';
-		if (!isset($groups[$group])) {
-			continue;
+		if (!isset($groups[$group]) || !empty($entry['newInHub'])) {
+			continue; // newInHub: a page that was never an old menu item (Roller, Audit-log were tabs of Brugere & roller)
 		}
 		$def = settings_hub_page_def($key);
 		$found = $target($key) ?: $leftOut($key);

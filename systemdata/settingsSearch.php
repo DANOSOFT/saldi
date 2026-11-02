@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-09-30 ----
+// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-11-02 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,10 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260928 Sawaneh Results limited to settings groups the user may open (phase 4).
 // 20260930 CL/NTR Added 'masterDb' visibility rule so master-only pages are not offered in other accounts.
+// 20261102 CL/ASR A renamed page is found by its old name with the "Tidligere:" tag: the entry's 'renamedFrom', or the 'renamed_from' of
+//                 the section it opens under the section's own name (Brugere & roller is Brugere, Ansatte is Personer, owner 2 Nov 2026).
+//                 A field of one employee (Adresse 2 · <name>) is no longer listed when only the section's name matched, so "Personer"
+//                 finds the page, not every employee's fields (nor for a match in the help text only: "Ekstra felter" listed Slet medarbejder).
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
 ob_start();
@@ -187,6 +191,24 @@ foreach (getSettingsRegistry() as $entry) {
 			$entry['keywords'][] = trim(settings_legacy_all_languages($path));
 		}
 	}
+	// The page's name before the hub (registry 'renamedFrom', or a renamed section's 'renamed_from'): searched in every language.
+	$renamed = null;
+	if (isset($entry['renamedFrom'])) {
+		$renamed = $entry['renamedFrom'];
+	} elseif (isset($entry['section'], $entry['textId'])) {
+		$renamedSections = getSettingsSections();
+		$renamedSection = isset($renamedSections[$entry['section']]) ? $renamedSections[$entry['section']] : array();
+		if (!empty($renamedSection['renamed_from']) && (string) $renamedSection['label'] === (string) $entry['textId']) {
+			$renamed = $renamedSection['renamed_from'];
+		}
+	}
+	$renamedAll = '';
+	if ($renamed !== null) {
+		$renamedAll = is_array($renamed) ? mb_strtolower(implode(' | ', $renamed), 'UTF-8') : settings_text_all_languages($renamed);
+		if ($renamedAll !== '') {
+			$entry['keywords'][] = $renamedAll;
+		}
+	}
 	$match = settingsEntryMatch($entry, $label, $search);
 	if ($match === null) {
 		continue;
@@ -201,6 +223,9 @@ foreach (getSettingsRegistry() as $entry) {
 				break;
 			}
 		}
+	}
+	if ($legacyTag === '' && $match['type'] !== 'label' && $renamedAll !== '' && $search !== '' && mb_strpos($renamedAll, mb_strtolower($search)) !== false) {
+		$legacyTag = function_exists('settings_hub_text') ? settings_hub_text($renamed, (int) $sprog_id) : (is_array($renamed) ? $renamed['da'] : findtekst((string) $renamed, $sprog_id));
 	}
 	$result = array(
 		'key' => $entry['key'],
@@ -268,14 +293,16 @@ if ($search !== '' && function_exists('getSettingDefinitions')) {
 			if ($rank === null && mb_strpos($labelAll, $needle) !== false) {
 				$rank = 2;
 			}
-			if ($rank === null && mb_strpos($sectionAll, $needle) !== false) {
+			// A field of one employee is not listed for the section's name alone (every employee's fields would follow "Personer").
+			$perEmployee = isset($def['per']) && ($def['per'] === 'employee' || $def['per'] === 'employee_user');
+			if ($rank === null && !$perEmployee && mb_strpos($sectionAll, $needle) !== false) {
 				$rank = 3;
 			}
 			if ($rank === null && $legacyAll !== '' && mb_strpos($legacyAll, $needle) !== false) {
 				$rank = 4;
 				$tag = $legacy;
 			}
-			if ($rank === null && $helpAll !== '' && mb_strpos($helpAll, $needle) !== false) {
+			if ($rank === null && !$perEmployee && $helpAll !== '' && mb_strpos($helpAll, $needle) !== false) {
 				$rank = 5;
 			}
 		}

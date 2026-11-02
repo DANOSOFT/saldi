@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-01 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-02 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,8 @@
 //   requiresReseller  true => only shown when $revisorregnskab || $forhandlerregnskab is truthy
 //   renamedFrom      optional - the entry's name before the settings hub (text id or array('da', 'en', 'no')); shown in the
 //                    "moved" map and found by the hub's search. An entry of a renamed section takes the section's 'renamed_from'.
+//   newInHub         optional - true for a page that got its own hub entry but never was an old menu item (a tab of another page);
+//                    left out of the "moved" map
 //   visibilityRule    null | 'posModule' | 'masterDb' - re-checked live in settingsSearch.php
 //   visibilityRule    null | 'posModule' | 'docubizz' | 'masterDb' - re-checked live in settingsSearch.php
 //                    ('masterDb' => only shown when $db == $sqdb, i.e. logged in to the master database,
@@ -93,6 +95,14 @@
 //                 Rules bookingLicence (Booking only with the booking licence) and stripeOperator (Stripe only in the operator ledger, spec G9.6).
 //                 Renamed with their sections: Sprog & lokalisering, Persondata (GDPR), Logo & baggrunde, Rykkere & inkasso; Bank Integration is Bankforbindelse and Udlejningsindstillinger is Booking (old names stay as keywords).
 //                 Diverse valg is an alias of Ansatte (its last field moved there) under the Organisation key; its url still redirects.
+// 20261102 CL/ASR The people row (Personer, owner 2 Nov 2026): Brugere & roller is listed as Brugere (renamedFrom keeps the old name for search and
+//                 the moved map), and its Roller and Audit-log tabs get entries of their own (usersRoles.php?tab=roles / ?tab=log, 'newInHub'),
+//                 shown under the row for users with read on settings.roles.manage / settings.audit.read. The page itself stays gated by the users group.
+// 20261102 CL/ASR Ansatte is listed as Personer, the name of its section (settingsSearch.php finds both by their old names), and the users group is
+//                 called Brugere & ansatte, as the hub's sub-group, so search results no longer say "Brugere & roller". Personer is also found as
+//                 "medarbejdere" (as on the hub).
+// 20261102 CL/ASR settings_breadcrumb_script(): no came-from chip when the previous page was a settings page too (the left menu shows the way).
+//                 Brugere, Roller and Audit-log hang under Personer (a four-level trail), so after them every settings page showed "‹ Roller".
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -114,8 +124,12 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('customer discount matrix','debtor discount group','product discount group','discount matrix','percent discount','amount discount per unit','kr/stk rabat','discount by customer and product group','debitor rabatgruppe','vare rabatgruppe','rabatgrupper','rabat','rabatt')),
 			array('key' => 'valuta',           'group' => 'finance', 'url' => 'settingsSection.php?s=finance.currencies', 'section' => 'finance.currencies', 'category' => 'finance', 'textId' => 776,
 				'keywords' => array('currency','currencies','exchange rate','currency code','currency rate','pos currency','valuta','valutakode','kurs')),
-			array('key' => 'brugere',          'group' => 'users', 'url' => 'usersRoles.php',               'category' => 'users',   'textId' => 5536,
+			array('key' => 'brugere',          'group' => 'users', 'url' => 'usersRoles.php',               'category' => 'users',   'textId' => 5549, 'renamedFrom' => 5536,
 				'keywords' => array('user','users','user permissions','access rights','user rights','password','change password','two factor authentication','2fa','sms code','auditor','accountant','revisor','revisoradgang','employee link','ip address restriction','allowed ip','user roles','delete user','add user','new user','brugernavn','rettigheder','adgangskode','brukere','brukernavn','passord','tilgangsrettigheter')),
+			array('key' => 'roller',           'group' => 'users', 'url' => 'usersRoles.php?tab=roles',     'category' => 'users',   'textId' => 5550, 'permission' => 'settings.roles.manage', 'newInHub' => true,
+				'keywords' => array('roles','role','roller','rolle','ny rolle','kopiér','standardrolle','nulstil til standard','sæt alle til skriv','sæt alle til læs','farlige funktioner','administrator','bogholder','revisor')),
+			array('key' => 'audit_log',        'group' => 'users', 'url' => 'usersRoles.php?tab=log',       'category' => 'users',   'textId' => 5796, 'permission' => 'settings.audit.read', 'newInHub' => true,
+				'keywords' => array('audit log','audit-log','log','revisjonslogg','handling','hændelser','login og logud','sessioner','rettigheder og sikkerhed','eksportér csv','export csv','håndhævelse','ville være afvist')),
 			array('key' => 'regnskabsaar',     'group' => 'company', 'url' => 'settingsSection.php?s=company.fiscal_years', 'section' => 'company.fiscal_years', 'category' => 'finance', 'textId' => 778,
 				'keywords' => array('fiscal year','financial year','accounting year','start month','end month','close year','closed year','delete fiscal year','active fiscal year','set active year','create fiscal year','regnskabsår','regnskapsår')),
 			array('key' => 'stamkort',         'group' => 'company', 'url' => 'settingsSection.php?s=company.data', 'section' => 'company.data', 'category' => 'company', 'textId' => 779,
@@ -124,8 +138,8 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'nulstil regnskab', 'slet regnskab', 'farezone', 'reset', 'delete ledger')),
 			array('key' => 'gdpr',             'group' => 'company', 'url' => 'settingsSection.php?s=company.gdpr', 'section' => 'company.gdpr', 'category' => 'company', 'textId' => 7737,
 				'keywords' => array('gdpr', 'persondata', 'personal data', 'inaktive kunder', 'inactive customers', 'oprydning')),
-			array('key' => 'ansatte',          'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees', 'section' => 'organisation.employees', 'category' => 'company', 'textId' => 1262,
-				'keywords' => array('employee record','staff record','new employee','edit employee','employee number','employee name','employee address','employee email','employee phone','employee mobile','salary','payroll','extra salary','cpr number','social security number','initials','pos code','employee department','employee background','employee language','employee bank account','employee notes','employee start date','employee end date','terminate employee','close employee','ansatte','løn','cprnr','initialer','startdato','slutdato','lønn')),
+			array('key' => 'ansatte',          'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees', 'section' => 'organisation.employees', 'category' => 'company', 'textId' => 7750,
+				'keywords' => array('employee record','staff record','new employee','edit employee','employee number','employee name','employee address','employee email','employee phone','employee mobile','salary','payroll','extra salary','cpr number','social security number','initials','pos code','employee department','employee background','employee language','employee bank account','employee notes','employee start date','employee end date','terminate employee','close employee','ansatte','løn','cprnr','initialer','startdato','slutdato','lønn','medarbejdere','medarbeidere','staff','login og rolle')),
 			array('key' => 'baggrunde',        'group' => 'documents', 'url' => 'settingsSection.php?s=documents.backgrounds', 'section' => 'documents.backgrounds', 'category' => 'documents', 'textId' => 7738,
 				'keywords' => array('baggrund', 'baggrunde', 'backgrounds', 'bakgrunner', 'formularsprog', 'background', 'logo', 'brevpapir', 'bilag', 'pdf')),
 			array('key' => 'formularer',       'group' => 'documents', 'url' => 'formularkort.php?valg=formularer', 'category' => 'documents', 'textId' => 780,
@@ -641,7 +655,7 @@ if (!function_exists('getSettingsGroups')) {
 			'items'         => array('label' => '5650|Varer & lager',       'description' => '5657|Varegrupper, enheder, varianter, lagre og mærkater',           'icon' => 'bx-package',    'permission' => 'settings.items'),
 			'documents'     => array('label' => '5671|Dokumenter & e-mail', 'description' => '5675|Formularer, e-mail og afsendere',                             'icon' => 'bx-file',       'permission' => 'settings.documents'),
 			'organisation'  => array('label' => '5670|Organisation',        'description' => '5658|Ansatte, afdelinger, projekter og provision',                 'icon' => 'bx-id-card',    'permission' => 'settings.organisation'),
-			'users'         => array('label' => '5536|Brugere & roller',    'description' => '5659|Brugere, roller, rettigheder og log',                         'icon' => 'bx-group',      'permission' => 'settings.users.manage'),
+			'users'         => array('label' => '7708|Brugere & ansatte',   'description' => '5659|Brugere, roller, rettigheder og log',                         'icon' => 'bx-group',      'permission' => 'settings.users.manage'),
 			'integrations'  => array('label' => '5537|Integrationer',       'description' => '5676|API, webshop, Stripe og app',                                 'icon' => 'bx-plug',       'permission' => 'settings.integrations'),
 			'pos'           => array('label' => '2226|Kasse',               'description' => '5661|Kassevalg og kassemenuer',                                    'icon' => 'bx-store-alt',  'permission' => 'settings.pos'),
 			'import_export' => array('label' => '5539|Import & eksport',    'description' => '5662|Ind- og udlæsning af kontoplan, kunder, varer og formularer', 'icon' => 'bx-transfer',   'permission' => 'settings.import_export'),
@@ -845,6 +859,12 @@ if (!function_exists('getSettingsGroups')) {
 		$backChip = null;
 		if ($back !== '') {
 			$backChip = array('label' => $backLabel !== '' ? $backLabel : page_label_for($back), 'href' => $back);
+		} elseif (function_exists('_nav_read') && function_exists('settings_hub_is_settings_url')) {
+			// From one settings page to another the left menu and the breadcrumb show the way: the chip is for a page reached from outside.
+			$stack = _nav_read();
+			if (count($stack) >= 2 && settings_hub_is_settings_url((string) $stack[count($stack) - 2])) {
+				$backChip = false;
+			}
 		}
 		return page_breadcrumb($levels, null, $backChip, $charset);
 	}

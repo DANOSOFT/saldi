@@ -29,6 +29,15 @@
 // 20261101 CL/ASR New design (prototype D): the head links css/saldi-theme.css; the view links css/saldi-kit.css and then css/usersRoles.css, so the page's own rules come after the kit.
 // 20261101 CL/ASR Loads includes/settings/components.php for the Tilbage button the view shows above the title.
 // 20261102 CL/ASR Loads includes/settings/layout.php (which loads components.php): the view uses the standard settings layout with the left menu.
+// 20261102 CL/ASR Personer (owner, 2 Nov 2026: one place for people, the employee list in Indstillinger as the overview) opens a login here with
+//                 ret=people or ret=emp_<id> (ur_return_target(), a whitelist): it stays on every form and redirect of the visit, and Tilbage and
+//                 closing the drawer go back to the people list or that employee's card (ur_return_url(), built here from an int, never from input).
+//                 With ret=emp_<id> a new user starts linked to that employee, with its e-mail and a username from it, when the employee is
+//                 the company's, has not left and has no login yet. Saving, the checks and the redirects' targets are unchanged.
+//                 "Kobling til ansat" lists only the company's employees (contact persons of customers and suppliers are in the same table),
+//                 keeps a closed or other linked employee as the selected choice (Gem no longer unlinks it), and marks employees that have a login.
+// 20261102 CL/ASR Review: the e-mail of an employee is filled in only for a user who may create logins and read the employees (settings.organisation),
+//                 and ret= must match to its very end (\z: a trailing newline left a blank page after a POST). The log tab also returns to the card.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -66,6 +75,9 @@ const UR_ADMIN_LOCKED = array('settings.users.manage', 'settings.roles.manage');
 require_permission('settings.users.manage', 'read');
 
 $contextQuery = (!empty($_GET['inframe']) ? 'inframe=1' : '');
+// Opened from Personer (ret=): kept through the POST and its redirect, so the round trip ends where it began.
+$urRet = ur_return_target($_GET);
+$postQuery = implode('&', array_filter(array($contextQuery, $urRet !== '' ? 'ret=' . $urRet : ''), 'strlen'));
 
 // Every posted form carries the session token (added to the page below), as in diverse.php.
 if (empty($_SESSION['csrf_token'])) {
@@ -77,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	if (!isset($_POST['csrf_token']) || !hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token'])) {
 		audit_log('csrf', 'usersRoles.php');
 		ob_end_clean();
-		header('Location: usersRoles.php?' . ($contextQuery !== '' ? $contextQuery . '&' : '') . 'tab=users&msg=csrf');
+		header('Location: usersRoles.php?' . ($postQuery !== '' ? $postQuery . '&' : '') . 'tab=users&msg=csrf');
 		exit;
 	}
 	$redirect = ur_handle_post($_POST, (int) $bruger_id, (int) $regnaar);
@@ -90,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		}
 	}
 	ob_end_clean();
-	header('Location: usersRoles.php?' . ($contextQuery !== '' ? $contextQuery . '&' : '') . $redirect);
+	header('Location: usersRoles.php?' . ($postQuery !== '' ? $postQuery . '&' : '') . $redirect);
 	exit;
 }
 
@@ -600,6 +612,29 @@ function ur_copy_role(int $id): string
 	return 'tab=roles&rolle=' . $newId;
 }
 
+// ================================================================== return to Personer
+
+/**
+ * Where a visit from Personer returns: 'people' (the list), 'emp_<id>' (that employee's card) or '' (none). A whitelist, so it
+ * can never name another address.
+ */
+function ur_return_target(array $get): string
+{
+	$ret = (isset($get['ret']) && is_string($get['ret'])) ? $get['ret'] : '';
+	return preg_match('/^(people|emp_[1-9][0-9]{0,9})\z/', $ret) ? $ret : '';
+}
+
+/**
+ * The address of ur_return_target() (relative to systemdata/), '' when there is none or the user cannot read the employees.
+ */
+function ur_return_url(string $ret): string
+{
+	if ($ret === '' || (function_exists('perm_can') && !perm_can('settings.organisation', 'read'))) {
+		return '';
+	}
+	return 'settingsSection.php?s=organisation.employees' . ($ret !== 'people' ? '&item=emp_' . (int) substr($ret, 4) : '');
+}
+
 // ================================================================== view model
 
 /**
@@ -681,11 +716,15 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 		);
 	}
 
+	// The company's own employees only: the table also holds the contact persons of customers and suppliers. 'logins' = how many
+	// logins are linked to each (shown as "har login"; a second link stays possible).
+	$companyId = function_exists('settings_company_account_id') ? settings_company_account_id() : 0;
 	$employees = array();
-	$q = db_select("select id, navn, initialer from ansatte where lukket is null or lukket != 'on' order by initialer, navn", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select a.id, a.navn, a.initialer, (select count(*) from brugere b where b.ansat_id = a.id) as logins from ansatte a where (a.lukket is null or a.lukket != 'on')" . ($companyId > 0 ? " and a.konto_id = $companyId" : "") . " order by a.initialer, a.navn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$employees[] = array('id' => (int) $r['id'], 'navn' => (string) $r['navn'], 'initialer' => (string) $r['initialer']);
+		$employees[] = array('id' => (int) $r['id'], 'navn' => (string) $r['navn'], 'initialer' => (string) $r['initialer'], 'logins' => (int) $r['logins'], 'left' => false);
 	}
+	$ret = ur_return_target($get);
 
 	$editUser = null;
 	if (isset($get['bruger'])) {
@@ -699,6 +738,27 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 			$editUser = array('id' => 0, 'brugernavn' => '', 'navn' => '', 'initialer' => '', 'email' => '', 'tlf' => '', 'ip' => '',
 				'twofactor' => false, 'ansat_id' => 0, 'role_id' => 0, 'role' => null, 'suggestion' => null, 'rettigheder' => '',
 				'lastLogin' => '', 'closed' => false, 'invited' => false, 'review' => false, 'hasLoggedIn' => false, 'isRevisor' => false);
+			// From an employee's card in Personer (ret=emp_<id>): the new user starts linked to that employee, with its e-mail and a
+			// username (the e-mail before @, else the initials) - only an employee of the company that has not left and has no login yet,
+			// and only for a user who may create logins and read the employees (the e-mail is the employee's data).
+			if (preg_match('/^emp_([0-9]+)\z/', $ret, $m) && $companyId > 0 && perm_can('settings.users.manage', 'write') && perm_can('settings.organisation', 'read')) {
+				$e = db_fetch_array(db_select("select id, navn, initialer, email from ansatte where id = " . (int) $m[1] . " and konto_id = $companyId and (lukket is null or lukket != 'on') and not exists (select 1 from brugere b where b.ansat_id = ansatte.id)", __FILE__ . " linje " . __LINE__));
+				if ($e) {
+					$mail = trim((string) $e['email']);
+					$name = ($mail !== '' && strpos($mail, '@') > 0) ? substr($mail, 0, strpos($mail, '@')) : trim((string) $e['initialer']);
+					$editUser['ansat_id'] = (int) $e['id'];
+					$editUser['email'] = $mail;
+					$editUser['brugernavn'] = substr(strtolower($name), 0, 80);
+				}
+			}
+		}
+	}
+	// A login linked to an employee that is not offered (left, or not the company's) keeps that link as its selected choice,
+	// so Gem does not unlink it.
+	if ($editUser !== null && $editUser['ansat_id'] > 0 && !in_array($editUser['ansat_id'], array_column($employees, 'id'), true)) {
+		$e = db_fetch_array(db_select("select id, navn, initialer, lukket from ansatte where id = " . (int) $editUser['ansat_id'], __FILE__ . " linje " . __LINE__));
+		if ($e) {
+			$employees[] = array('id' => (int) $e['id'], 'navn' => (string) $e['navn'], 'initialer' => (string) $e['initialer'], 'logins' => 1, 'left' => trim((string) $e['lukket']) !== '');
 		}
 	}
 
@@ -784,11 +844,14 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 		}
 	}
 
+	// Forms post to selfUrl, so ret= (Personer) is on every POST; the links inside the page (linkPrefix) leave it out.
+	$selfQuery = implode('&', array_filter(array($contextQuery, $ret !== '' ? 'ret=' . $ret : ''), 'strlen'));
 	return array(
 		'tab'          => $tab,
 		'sprogId'      => $sprogId,
 		'charset'      => ($dbEncode === 'UTF8') ? 'UTF-8' : 'ISO-8859-1',
-		'selfUrl'      => 'usersRoles.php' . ($contextQuery !== '' ? '?' . $contextQuery : ''),
+		'selfUrl'      => 'usersRoles.php' . ($selfQuery !== '' ? '?' . $selfQuery : ''),
+		'retUrl'       => ur_return_url($ret),
 		'linkPrefix'   => 'usersRoles.php?' . ($contextQuery !== '' ? $contextQuery . '&' : ''),
 		'canWrite'     => perm_can('settings.users.manage', 'write'),
 		'ownLevels'    => perm_user_levels($selfId, (string) $GLOBALS['rettigheder']),

@@ -6,6 +6,9 @@
 // 20261008 Sawaneh Mini forms send the page's CSRF token (X-CSRF-Token), as master's Flatpay ID save (SST-844) requires.
 // 20261018 Sawaneh Account lookups in the drawers: the list of matching accounts while typing, as on the other settings pages.
 // 20261023 ASR Merge of master (SST-843): a mini-form answer that is not JSON (the login page after the session expired) is a failure even with HTTP 200.
+// 20261102 CL/ASR A link marked data-guard in a drawer (Personer: "Rediger login og rolle", "Inviter som bruger") asks the unsaved-changes
+//                 question first, as opening another drawer does, so edits in the employee card are not lost without a word.
+// 20261102 CL/ASR In a list marked data-rowclick (Personer) a click anywhere on a row works as its button (the drawer, or the link of a login).
 (function () {
 	'use strict';
 	var cfg = window.SALDI_SETTINGS || {};
@@ -167,8 +170,19 @@
 
 	// ------------------------------------------------------------ clicks
 	page.addEventListener('click', function (e) {
+		var guarded = e.target.closest('a[data-guard]');
+		if (guarded && current && isDirty(current)) {
+			e.preventDefault();
+			openDialog(cfg.discardTitle, cfg.discardBody, cfg.discardVerb, { discard: true, then: function () { window.docChange = false; window.location.href = guarded.href; } });
+			return;
+		}
 		var opener = e.target.closest('[data-open]');
 		if (opener) { open(opener.dataset.open); return; }
+		var rowHit = e.target.closest('[data-rowclick] .st-irow');
+		if (rowHit && !e.target.closest('a, button, input, select, textarea, label')) {
+			var rowBtn = rowHit.querySelector('[data-open], a.st-btn');
+			if (rowBtn) { rowBtn.click(); return; }
+		}
 		var closer = e.target.closest('[data-close]');
 		if (closer) { close(false); return; }
 		var drawer = e.target.closest('.st-drawer');
@@ -341,6 +355,11 @@
 			if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
 			else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 		}
+	});
+
+	// Rows that open on a click show it (data-rowclick lists only).
+	Array.prototype.forEach.call(page.querySelectorAll('[data-rowclick] .st-irow'), function (row) {
+		if (row.querySelector('[data-open], a.st-btn')) { row.style.cursor = 'pointer'; }
 	});
 
 	// ------------------------------------------------------------ left column follows the scroll

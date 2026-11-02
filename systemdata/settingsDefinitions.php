@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-01 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-02 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -92,6 +92,12 @@
 //                 Their old name is kept as 'renamed_from' and as keywords, so search still finds it.
 //                 Diverse valg's last field, 'Tilføj ekstra felter på ansatte' (DIV/2 box3, unchanged storage), is organisation.employees.extra_fields in Ansatte (G7.1), under Ekstra felter.
 //                 The moved map sends Diverse valg to Ansatte and Sprog to Sprog & lokalisering.
+// 20261102 CL/ASR Ansatte is Personer (owner, 2 Nov 2026: one place for people): the list also shows each login's role and status and the logins
+//                 without an employee (includes/settings/integrations.php). 'renamed_from' 1262 keeps "Ansatte" for search. The list block is
+//                 "Ansatte og brugere"; 'menu_skip_anchors' leaves it out of the left menu, where the row is Personer.
+//                 The employee card opens with "Login og rolle" (the linked login, a link on to its role settings in usersRoles.php).
+//                 settings_employee_rows() also says whether the employee has left ('left').
+// 20261102 CL/ASR Personer's rows open from anywhere on the row ('row_click'), as the owner described it: click the person you want to adjust.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -270,11 +276,11 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('afdelinger', 'departments', 'afdeling', 'department'),
 			),
 			'organisation.employees' => array(
-				'group' => 'organisation', 'section' => 'employees', 'number' => 'G7.1', 'label' => 1262, 'icon' => 'bx-id-card', 'kind' => 'list',
-				'lead' => 6606, 'items_from' => 'employees', 'add_action' => 'organisation.employees.add', 'empty_text' => 6607,
-				'subsections' => array('employees' => 1262, 'general' => 6611),
+				'group' => 'organisation', 'section' => 'employees', 'number' => 'G7.1', 'label' => 7750, 'renamed_from' => 1262, 'icon' => 'bx-id-card', 'kind' => 'list',
+				'lead' => 7752, 'items_from' => 'employees', 'add_action' => 'organisation.employees.add', 'empty_text' => 6607,
+				'subsections' => array('employees' => 7751, 'general' => 6611), 'menu_skip_anchors' => array('employees'), 'row_click' => true,
 				'legacy' => array(array(779), array(782, 794)), 'old' => array('ansatte' => array(779), 'stamkort' => array(779), 'div_valg' => array(782, 794)),
-				'keywords' => array('ansatte', 'medarbejdere', 'employees', 'personale', 'personalekort', 'medarbejdernummer', 'initialer', 'løn', 'cpr', 'fratrådt', 'tiltrådt', 'ekstra felter', 'extra fields', 'diverse valg'),
+				'keywords' => array('ansatte', 'medarbejdere', 'employees', 'personale', 'personalekort', 'medarbejdernummer', 'initialer', 'løn', 'cpr', 'fratrådt', 'tiltrådt', 'ekstra felter', 'extra fields', 'diverse valg', 'personer', 'people', 'brugere', 'users', 'login', 'rolle', 'role'),
 			),
 			'organisation.projects' => array(
 				'group' => 'organisation', 'section' => 'projects', 'number' => 'G7.3', 'label' => 773, 'icon' => 'bx-briefcase', 'kind' => 'rows',
@@ -1118,6 +1124,8 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('grupper', 'DIV', 2, 'box3', 'onEmpty', 'row_name' => 'Div_valg'), 'legacy' => $divvalg,
 				'keywords' => array('ekstra felter', 'extra fields', 'ekstra felt', 'stamkort', 'diverse valg')),
 			'organisation.employees.add' => array('sub' => 'employees', 'type' => 'action', 'label' => 6613, 'help' => 6606, 'confirm_title' => 6613, 'confirm' => 6606, 'run' => 'employee_add'),
+			// First in the card: the login and its role (a link on to usersRoles.php, where they are changed).
+			'organisation.employees.user' => array('sub' => 'employees', 'type' => 'info', 'label' => 6612, 'info' => 'employee_user', 'per' => 'employee', 'group_label' => array(7753, ''), 'audit' => false),
 			'organisation.employees.nummer' => array('sub' => 'employees', 'type' => 'int', 'label' => 645, 'per' => 'employee', 'group_label' => array(6608, ''), 'validate' => array('employee_number'),
 				'storage' => array('dbrow', 'ansatte', 'nummer', 'raw', 'where' => $empWhere)),
 			'organisation.employees.navn' => array('sub' => 'employees', 'type' => 'text', 'label' => 646, 'per' => 'employee', 'group_label' => array(6608, ''), 'validate' => array('required'),
@@ -1160,7 +1168,6 @@ if (!function_exists('getSettingsSections')) {
 				'decimals' => 2, 'value_map' => array('' => '0'), 'storage' => array('dbrow', 'ansatte', 'loen', 'raw', 'where' => $empWhere)),
 			'organisation.employees.extraloen' => array('hide_without' => true, 'sub' => 'employees', 'type' => 'decimal', 'label' => 665, 'per' => 'employee', 'group_label' => array(6610, ''), 'permission' => 'settings.organisation.sensitive',
 				'decimals' => 2, 'value_map' => array('' => '0'), 'storage' => array('dbrow', 'ansatte', 'extraloen', 'raw', 'where' => $empWhere)),
-			'organisation.employees.user' => array('sub' => 'employees', 'type' => 'info', 'label' => 6612, 'info' => 'employee_user', 'per' => 'employee', 'group_label' => array(6612, ''), 'audit' => false),
 			'organisation.employees.background' => array('sub' => 'employees', 'type' => 'select', 'label' => 571, 'help' => 6628, 'per' => 'employee_user', 'group_label' => array(6612, ''),
 				'options_from' => 'form_backgrounds', 'options_literal' => true, 'scope' => 'user', 'storage' => array('settings', 'brugerSprog', 'sprog', 'raw'), 'default' => 'Dansk'),
 			'organisation.employees.up' => array('sub' => 'employees', 'type' => 'action', 'label' => 6619, 'help' => 6629, 'per' => 'employee', 'run' => 'employee_up', 'confirm_title' => 6619, 'confirm' => 6629),
@@ -2061,9 +2068,9 @@ if (!function_exists('getSettingsSections')) {
 	}
 
 	/**
-	 * The company's employees in their list order (posnr, then number): id => array(name, number, user = linked brugere id).
+	 * The company's employees in their list order (posnr, then number): id => array(name, number, user = linked brugere id, left = has left).
 	 *
-	 * @return array<int, array{name: string, number: string, user: int}>
+	 * @return array<int, array{name: string, number: string, user: int, left: bool}>
 	 */
 	function settings_employee_rows(bool $fresh = false): array
 	{
@@ -2071,9 +2078,9 @@ if (!function_exists('getSettingsSections')) {
 		if ($rows === null || $fresh) {
 			$rows = array();
 			$sid = settings_company_account_id();
-			$q = db_select("select a.id, a.navn, a.nummer, (select min(b.id) from brugere b where b.ansat_id = a.id) as uid from ansatte a where a.konto_id = $sid order by coalesce(a.posnr, 999999), a.nummer, a.id", __FILE__ . " linje " . __LINE__);
+			$q = db_select("select a.id, a.navn, a.nummer, a.lukket, (select min(b.id) from brugere b where b.ansat_id = a.id) as uid from ansatte a where a.konto_id = $sid order by coalesce(a.posnr, 999999), a.nummer, a.id", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
-				$rows[(int) $r['id']] = array('name' => trim((string) $r['navn']), 'number' => trim((string) $r['nummer']), 'user' => (int) $r['uid']);
+				$rows[(int) $r['id']] = array('name' => trim((string) $r['navn']), 'number' => trim((string) $r['nummer']), 'user' => (int) $r['uid'], 'left' => trim((string) $r['lukket']) !== '');
 			}
 		}
 		return $rows;

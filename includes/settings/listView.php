@@ -36,6 +36,12 @@
 // 20261102 CL/ASR settings_menu_html() is also the menu of the standard settings layout (includes/settings/layout.php), which any settings page,
 //                 sub-page or module page opened from Indstillinger uses. Its urls are rebased on a page outside systemdata/ (settings_menu_base()):
 //                 admin/backup.php and rental/settings.php would have opened admin/settings.php and rental/settingsSection.php.
+// 20261102 CL/ASR People (owner, 2 Nov 2026): a list section may leave blocks out of the left menu ('menu_skip_anchors'; Personer's own list block,
+//                 which would repeat the row's name), so a single block left (Ekstra felter) is still listed; settings_menu_html() takes 'anchors_min'.
+//                 A list item with 'href' is a link to another page (a login without an employee opens its role settings in usersRoles.php):
+//                 the row's button is a link and it has no drawer. Items without 'href' are as before. settingsList.js?v=5.
+// 20261102 CL/ASR A list section with 'row_click' (Personer: "click the person you want to adjust") opens a row from anywhere on it, not only
+//                 from its button (data-rowclick on the list, settingsList.js?v=6). Other lists are unchanged.
 
 include_once(__DIR__ . '/integrations.php');
 
@@ -51,6 +57,8 @@ if (!function_exists('settings_menu_html')):
  * @param array<string, mixed> $menu settings_hub_menu() (includes/settings/hub.php); texts plain, escaped here
  * @param array<string, mixed> $opts 'anchors' => [block id => plain label]: the page's own blocks under the current item
  *                                   (a list section, scroll-followed by settingsList.js through a[data-sub]);
+ *                                   'anchors_min' => the fewest blocks that are listed (default 2; 1 when the section left a block out,
+ *                                   then none is marked until the scroll reaches it);
  *                                   'dot' => true: the unsaved-changes dot (#st-dot) in the current item;
  *                                   'before' => html above the panel (the frame's search field);
  *                                   'label' => the page's name, for the select when no item is current;
@@ -96,12 +104,13 @@ function settings_menu_html(array $menu, int $sprogId, array $opts = array()): s
 	}
 	$dotHtml = !empty($opts['dot']) ? '<i class="st-dot" id="st-dot" hidden aria-hidden="true"></i>' : '';
 	// $deep: one step further in, under a level-2 page, or under a row whose second page follows (they must not look alike).
-	$anchorList = function (bool $deep) use ($anchors): string {
-		if (count($anchors) < 2) {
+	$anchorsMin = isset($opts['anchors_min']) ? max(1, (int) $opts['anchors_min']) : 2;
+	$anchorList = function (bool $deep) use ($anchors, $anchorsMin): string {
+		if (count($anchors) < $anchorsMin) {
 			return '';
 		}
 		$out = '<ul class="st-menu-anchors' . ($deep ? ' st-menu-deep' : '') . '">';
-		$first = true;
+		$first = ($anchorsMin >= 2);
 		foreach ($anchors as $id => $label) {
 			$out .= '<li><a class="st-menu-row st-menu-l2' . ($first ? ' on' : '') . '" href="#sub-' . st_h($id) . '" data-sub="' . st_h($id) . '"><span>' . st_h($label) . '</span></a></li>';
 			$first = false;
@@ -114,7 +123,7 @@ function settings_menu_html(array $menu, int $sprogId, array $opts = array()): s
 	};
 
 	$anchorOpts = '';
-	foreach (count($anchors) > 1 ? $anchors : array() as $id => $label) {
+	foreach (count($anchors) >= $anchorsMin ? $anchors : array() as $id => $label) {
 		$anchorOpts .= '<option value="#sub-' . st_h($id) . '">&nbsp;&nbsp;&nbsp;&nbsp;' . st_h($label) . '</option>';
 	}
 
@@ -196,6 +205,9 @@ function settings_list_render(array $c): void
 	if (($state['errors'] || $state['conflict']) && isset($_POST['item']) && isset($section['items'][$_POST['item']])) {
 		$openItem = (string) $_POST['item'];
 	}
+	if ($openItem !== '' && !empty($section['items'][$openItem]['href'])) {
+		$openItem = ''; // a link item has no drawer
+	}
 	$subs = array();
 	foreach ($section['subsections'] as $sub => $label) {
 		if (isset($section['sub_module'][$sub]) && !settings_has_module($section['sub_module'][$sub])) {
@@ -220,6 +232,12 @@ function settings_list_render(array $c): void
 	$anchors = array();
 	foreach ($subs as $sub => $label) {
 		$anchors[$sub] = st_txt($label);
+	}
+	// Blocks the section leaves out of the left menu (Personer's own list); a single block left is still listed.
+	$anchorsMin = 2;
+	foreach (isset($section['menu_skip_anchors']) ? (array) $section['menu_skip_anchors'] : array() as $skip) {
+		unset($anchors[$skip]);
+		$anchorsMin = 1;
 	}
 	$config = $c['config'] + array(
 		'openItem' => $openItem, 'fieldItem' => $fieldItem,
@@ -267,9 +285,9 @@ function settings_list_render(array $c): void
 	<?php } ?>
 
   <div class="st-layout st-layout-list">
-    <?= settings_menu_html($c['menu'], $sprogId, array('anchors' => $anchors, 'label' => st_txt($section['label']))) ?>
+    <?= settings_menu_html($c['menu'], $sprogId, array('anchors' => $anchors, 'anchors_min' => $anchorsMin, 'label' => st_txt($section['label']))) ?>
 
-    <div class="st-list" id="st-list">
+    <div class="st-list" id="st-list"<?= !empty($section['row_click']) ? ' data-rowclick' : '' ?>>
 		<?php foreach ($subs as $sub => $label) { ?>
       <section class="st-sect" id="sub-<?= st_h($sub) ?>">
         <h2><?= st_t($label) ?></h2>
@@ -287,6 +305,8 @@ function settings_list_render(array $c): void
             <span class="st-imeta st-imeta-<?= st_h($st['kind']) ?>"><?php if ($st['kind'] !== 'soon' && $st['kind'] !== 'plain') { ?><i class="st-dotw <?= $dots[$st['kind']] ?>" aria-hidden="true"></i><?php } ?><?= st_h($st['text']) ?></span>
 				<?php if ($st['kind'] === 'soon') { ?>
             <span class="st-ibtn-space"></span>
+				<?php } elseif (!empty($it['href'])) { ?>
+            <a class="st-btn" href="<?= st_h($it['href']) ?>"><?= !empty($it['href_write']) ? st_t($st['button']) : st_t(6143) ?></a>
 				<?php } else { ?>
             <button type="button" class="st-btn<?= $st['kind'] === 'ok' ? ' st-btn-quiet' : '' ?>" data-open="<?= st_h($id) ?>" aria-haspopup="dialog"><?= $canWrite ? st_t($st['button']) : st_t(6143) ?></button>
 				<?php } ?>
@@ -302,7 +322,7 @@ function settings_list_render(array $c): void
   </div>
 
 	<?php foreach ($section['items'] as $id => $it) {
-		if (!empty($it['soon']) || !isset($subs[$it['sub']])) {
+		if (!empty($it['soon']) || !isset($subs[$it['sub']]) || !empty($it['href'])) {
 			continue;
 		}
 		$fields = array();
@@ -436,6 +456,6 @@ function settings_list_render(array $c): void
   <div class="st-snack" id="st-snack" role="status" hidden></div>
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
-<script src="../javascript/settingsList.js?v=4"></script>
+<script src="../javascript/settingsList.js?v=6"></script>
 	<?php
 }
