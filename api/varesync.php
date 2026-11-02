@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- lap 4.1.0 --- 2024.03.18 ---
+// --- api/varesync.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2018.04.24 Omskrevet variant delen så det inditificeres på variant_id i stedet for på stregkode så det er muligt at ændre stregkode på shop.
@@ -34,6 +34,7 @@
 // 2024-03-18	PHR Speed optimation.
 // 2024-03-27 PHR Some improvemnets
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261102 CL/SZ MB-133 Initialize $stockVariant and $vt_id so a new variant no longer hits a fatal count() on null when the file has no qty column or variant_typer is empty.
 
 
 function varesync($valg) {
@@ -283,7 +284,7 @@ file_put_contents("../temp/$db/varesync.log","$qtxt\n",FILE_APPEND);
 	}
 	############################# Varianter #########################
 	$shop_encode = NULL;
-	$mangler = $s_variant_id = $strktjek = $var_id = $var_type = $vt_var = array();
+	$mangler = $s_variant_id = $stockVariant = $strktjek = $var_id = $var_type = $vt_id = $vt_var = array();
 		$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='variant_varer' and column_name='variant_kostpris'";
 	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		db_modify("ALTER TABLE variant_varer add column	variant_kostpris numeric(15,3)",__FILE__ . " linje " . __LINE__);
