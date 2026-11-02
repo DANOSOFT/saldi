@@ -230,6 +230,13 @@ final class signupFunc extends TestCase
             // index/login.php strips these from the username, so the account could never be logged in to
             self::assertFalse(signup_valid_email($email), $email);
         }
+        // The form rejects a long address instead of cutting it: 61 characters cut to 60 would turn .com into .co,
+        // and the activation link would go to somebody else's domain.
+        $long = 'mette.hansen.bogholderiet@nordlys-interioer-og-design-aps.com';
+        self::assertSame(61, mb_strlen($long));
+        $v = signup_validate_form(['name' => 'Mette', 'company' => 'Nordlys ApS', 'email' => $long, 'pakke' => 'finans']);
+        self::assertSame('E-mailadressen må højst være 60 tegn.', $v['errors']['email'] ?? null);
+        self::assertSame($long, $v['data']['email']);
     }
 
     public function testNamesFitTheAccountAndCarryNoLinks(): void
@@ -261,6 +268,8 @@ final class signupFunc extends TestCase
         self::assertSame('2001:db8:1:2::/64', $a);
         $_SERVER['REMOTE_ADDR'] = '192.0.2.7';
         self::assertSame('192.0.2.7', signup_client_ip());
+        $_SERVER['REMOTE_ADDR'] = '::ffff:192.0.2.8';
+        self::assertSame('192.0.2.8', signup_client_ip(), 'IPv4-mapped: one client, not ::/64 shared by every IPv4 client');
         unset($_SERVER['REMOTE_ADDR']);
     }
 
@@ -287,7 +296,21 @@ final class signupFunc extends TestCase
         self::assertTrue(signup_origin_allowed(), 'no Origin: not a browser form on another site');
         $_SERVER['HTTP_SEC_FETCH_SITE'] = 'cross-site';
         self::assertFalse(signup_origin_allowed());
-        unset($_SERVER['HTTP_SEC_FETCH_SITE']);
+        // The browser's own word that the post came from this site lets the pages' own forms through, also when they
+        // send "Origin: null" or the site is reached under another host name; anything else from another site is refused.
+        foreach (['null', 'http://127.0.0.1:5000'] as $origin) {
+            $_SERVER['HTTP_ORIGIN'] = $origin;
+            foreach (['same-origin' => true, 'same-site' => false, 'cross-site' => false, 'none' => false] as $site => $ok) {
+                $_SERVER['HTTP_SEC_FETCH_SITE'] = $site;
+                self::assertSame($ok, signup_origin_allowed(), "$origin + $site");
+            }
+        }
+        unset($_SERVER['HTTP_ORIGIN'], $_SERVER['HTTP_SEC_FETCH_SITE']);
+        // base_url's origin as a browser writes it
+        putenv('SALDI_SIGNUP_BASE_URL=HTTPS://SSL3.Saldi.dk:443/finans');
+        self::assertContains('https://ssl3.saldi.dk', signup_allowed_origins());
+        putenv('SALDI_SIGNUP_BASE_URL=http://localhost:5000/saldi');
+        self::assertContains('http://localhost:5000', signup_allowed_origins());
     }
 
     public function testBillingPayloadCannotBreakTheApisSql(): void

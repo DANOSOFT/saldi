@@ -32,7 +32,7 @@
 //                login (includes/opdat_func/backfillOrderLineDelivered.php) instead of one UPDATE at the first login.
 //                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
-//                  Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
+//                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -163,7 +163,8 @@ backfillOrderLineDelivered($db_type);
 // database and the trial columns on regnskab. Master only (global=true); runs from any tenant's login, so the
 // tables exist before the website's form is pointed at signup/. Serialized with an advisory lock (two logins at
 // the same moment would otherwise both try the CREATE), and once done a master settings flag
-// (var_grp 'system', var_name 'signup_schema') makes it a single query per login.
+// (var_grp 'system', var_name 'signup_schema') makes it a single query per login. The flag means this block never
+// runs again: a later change to the signup tables needs a block (and flag) of its own.
 if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb']) {
 	$signupFlag = "SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'signup_schema'";
 	if (!db_fetch_array(db_select($signupFlag, __FILE__ . " linje " . __LINE__, true))) {

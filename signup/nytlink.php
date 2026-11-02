@@ -34,6 +34,7 @@
 // 20261014 CL/PS Created.
 // 20261102 CL/ASR Refuses POSTs from foreign origins.
 //                 At most one new link per signup a minute and the per-mailbox daily mail cap, both claimed before sending.
+//                 A typed e-mail is read in full, not cut to 60.
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -72,7 +73,7 @@ if (!signup_claim_event('nytlink', 10, 3600)) {
 }
 
 $row = null;
-$email = signup_clean_text(ifset($in, 'email', ''), 60);
+$email = signup_clean_text(ifset($in, 'email', ''), 254); // in full: a cut address could be someone else's
 $resend = (string)ifset($in, 'resend', '');
 if ($resend !== '') {
 	$row = signup_find_pending_by_resend($resend);
@@ -94,7 +95,8 @@ if ($row && signup_may_resend($row) && signup_claim_event('resend', 1, 60, 'sign
 } elseif ($row) {
 	signup_log('resend refused for signup ' . $row['id'] . ' (status ' . $row['status'] . ', ' . $row['mails_sent'] . ' mails)');
 }
-$shown = $row ? signup_mask_email($row['email']) : ($email !== '' ? signup_mask_email($email) : 'jeres e-mail');
+// Only a plausible address is echoed back (an over-long one can never match a signup anyway).
+$shown = $row ? signup_mask_email($row['email']) : (signup_valid_email($email) ? signup_mask_email($email) : 'jeres e-mail');
 
 if ($json) {
 	signup_json(array('ok' => true, 'email' => $shown));

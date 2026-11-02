@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/rydop.php --- ver 5.0.0 --- 2026-10-14 ---
+// --- signup/rydop.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,13 +24,14 @@
 // ----------------------------------------------------------------------
 // Cleanup job for the signup flow (plan.md, section 2): deletes signups that were never activated
 // after cleanup_days (default 14), rate-limit events older than a week and CVR lookups older
-// than a month. Activated rows are kept (they link the account to its signup) but lose nothing
-// secret - their tokens were cleared at activation.
+// than a month. Activated rows are kept: they link the account to its signup, and their token hash
+// stays so the welcome mail's link can still say "already activated - go to login".
 //
 // Command line only, e.g. nightly from cron:
-//   15 3 * * * cd /var/www/html/finans/signup && php rydop.php >> ../temp/signup-rydop.log 2>&1
+//   15 3 * * * cd <install>/signup && php rydop.php >> ../temp/signup-rydop.log 2>&1
 //
 // 20261014 CL/PS Created.
+// 20261102 CL/ASR Header: activated rows keep their token hash.
 
 if (php_sapi_name() !== 'cli') {
 	http_response_code(404);

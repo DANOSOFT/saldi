@@ -35,8 +35,10 @@ deploy). Until then every endpoint answers "not ready" (`signup_schema_ready()`)
 - `signup_pending` - one row per submission. Holds only the SHA-256 of the activation token
   (`token_hash`), its expiry, the previous token's hash (so an old link can still ask for a new one)
   and the resend key's hash. `status`: pending, activating, activated, failed (the account build failed three
-  times; the link then asks the customer to call). At activation the resend key is cleared; the token hash is
-  kept so the link can still say "already activated", and `rydop.php` removes old rows.
+  times; the link then asks the customer to call). The `activated` timestamp is set when the account is reserved
+  (status `activating`) and again when it is ready (status `activated`); a failed build clears it, so it no longer
+  counts toward `max_activations_per_day`. At activation the resend key is cleared; the token hash is kept so the link can still say "already
+  activated". `rydop.php` removes only signups that were never activated.
 - `signup_events` - rate limiting (kind, ip, email, ts). `ip` is the client address (IPv6 per /64), `email` the
   mailbox (`signup_email_key()`: lower case, without `+tag`, Gmail without dots).
 - `signup_cvr_cache` - CVR lookups, kept for `cvr_cache_days`.
@@ -126,17 +128,24 @@ the same rows and sends a test mail.
 Answers: `200 {ok:true, resend, email}` (show "Tjek jeres mail"; post `resend` to `nytlink.php` for
 "Send mailen igen"), `422 {ok:false, errors:{field: message}}`, `429` too many attempts, `403` a foreign
 `Origin`, `503` not ready (schema or `base_url` missing). The CVR lookup for the form is
-`GET signup/cvr.php?q=<number or name>`. Field limits: name 60, e-mail 60 (no `' & " \ ; < >`, which
-`index/login.php` strips from usernames), company 90; no web addresses in name or company.
+`GET signup/cvr.php?q=<number or name>`. Field limits: name 60, e-mail 60 (a longer address is refused, not cut,
+and may not contain `' & " \ ; < >`, which `index/login.php` strips from usernames), company 90; no web addresses in
+name or company. Forms must not put `maxlength="60"` on the e-mail field: the browser would cut the address, and a
+cut address can be somebody else's.
 
 ## Operations
 
 - Cron: `15 3 * * * cd <install>/signup && php rydop.php >> ../temp/signup-rydop.log 2>&1`
 - Log lines are prefixed `signup:` in the web server's error log.
 - Rate limits (claimed: recorded first, then counted, so parallel requests cannot all pass): 5 signups/hour
-  per address, `max_signups_per_hour` for the server, `max_mails_per_day` per mailbox, 10 new-link requests/hour
-  per address and one per signup a minute, 40 CVR lookups/hour per address (the form's own lookups count too),
-  30 activation attempts/hour per address, `max_activations_per_day` for the server.
+  per address and `max_signups_per_hour` for the server (only submissions that pass validation count),
+  `max_mails_per_day` per mailbox, 10 new-link requests/hour per address and one per signup a minute, 40 CVR
+  lookups/hour per address (the form's own lookups count too; when they are used up the form answers 429 rather
+  than skip the check), 60 account-name checks/10 minutes per address (`tjeknavn.php`), 30 activation
+  attempts/hour per address.
+- `max_activations_per_day` (default 30) caps the accounts signups may reserve in 24 hours on the server. It is
+  counted inside the activation's lock on `regnskab`, so parallel activations cannot all pass it (on PostgreSQL;
+  MySQL takes no such lock). Above it the activation page asks the customer to call, and the log says why.
 
 ## Known limitations / open points
 

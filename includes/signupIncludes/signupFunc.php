@@ -55,6 +55,9 @@
 //                 signup_master_connect() closes the tenant connection like create_regnskab(), so a failed build is dropped; three failures set status 'failed'.
 //                 E-mail and name fit regnskab/adresser (60) and the usernames index/login.php accepts; names carry no backslashes or web addresses.
 //                 lukkes_kommentar explains the closing date in the admin panel, and the billing payload sends only plain text.
+//                 A longer e-mail is refused instead of cut to 60; posts the browser marks Sec-Fetch-Site same-origin pass the origin check.
+//                 max_activations_per_day is counted under the regnskab lock; a failed reservation is logged and noted on the signup.
+//                 The CVR cache is written with an upsert, and IPv4-mapped client addresses count as their IPv4 address.
 
 /** @var string $sqhost  from includes/connect.php */
 /** @var string $squser  from includes/connect.php */
@@ -244,6 +247,9 @@ if (!function_exists('signup_client_ip')) {
 	function signup_client_ip() {
 		$ip = (string)ifset($_SERVER, 'REMOTE_ADDR', '');
 		$bin = @inet_pton($ip);
+		if ($bin !== false && strlen($bin) === 16 && substr($bin, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
+			return inet_ntop(substr($bin, 12)); // IPv4-mapped (::ffff:a.b.c.d): one IPv4 client, not one /64 for all
+		}
 		if ($bin !== false && strlen($bin) === 16) {
 			// One IPv6 connection usually has a whole /64, so the limits count per /64, not per address.
 			return inet_ntop(substr($bin, 0, 8) . str_repeat("\0", 8)) . '/64';
@@ -463,7 +469,8 @@ if (!function_exists('signup_validate_form')) {
 		// the legacy injection check (includes/db_query.php injecttjek) misreads them and aborts the account build.
 		$navn = str_replace('\\', '', signup_clean_text(ifset($in, 'name', ''), 60));
 		$firma = str_replace('\\', '', signup_clean_text(ifset($in, 'company', ''), 90));
-		$email = signup_clean_text(ifset($in, 'email', ''), 60);
+		// Read the e-mail in full: cutting it to 60 here could turn it into another valid address (.com -> .co).
+		$email = signup_clean_text(ifset($in, 'email', ''), 254);
 		$tlf = signup_clean_text(ifset($in, 'phone', ''), 40);
 		$pakke = strtolower(signup_clean_text(ifset($in, 'pakke', 'business'), 20));
 		$source = preg_replace('/[^a-z0-9_-]/', '', strtolower(signup_clean_text(ifset($in, 'source', ''), 40)));
@@ -479,7 +486,9 @@ if (!function_exists('signup_validate_form')) {
 				$errors[$field] = 'Skriv navnet uden webadresser.';
 			}
 		}
-		if (!signup_valid_email($email)) {
+		if (mb_strlen($email) > 60) {
+			$errors['email'] = 'E-mailadressen må højst være 60 tegn.';
+		} elseif (!signup_valid_email($email)) {
 			$errors['email'] = 'Skriv en gyldig e-mailadresse.';
 		}
 		if ($tlf !== '' && !preg_match('/^\+?[0-9 ().-]{6,39}$/', $tlf)) {
@@ -680,9 +689,12 @@ if (!function_exists('signup_lookup_cvr')) {
 			signup_log("cvr lookup failed (http $code): " . substr((string)$body, 0, 200));
 			return array('status' => 'error');
 		}
+		// One statement, so parallel lookups of the same new query do not collide on the key (each failure mails fejl@).
 		$json = signup_q(json_encode($result, JSON_UNESCAPED_UNICODE));
-		db_modify("DELETE FROM signup_cvr_cache WHERE q = " . signup_q($key), __FILE__ . " linje " . __LINE__, true);
-		db_modify("INSERT INTO signup_cvr_cache (q, result) VALUES (" . signup_q($key) . ", $json)", __FILE__ . " linje " . __LINE__, true);
+		$upsert = ($db_type == 'mysql' || $db_type == 'mysqli')
+			? " ON DUPLICATE KEY UPDATE result = VALUES(result), fetched = NOW()"
+			: " ON CONFLICT (q) DO UPDATE SET result = EXCLUDED.result, fetched = now()";
+		db_modify("INSERT INTO signup_cvr_cache (q, result) VALUES (" . signup_q($key) . ", $json)" . $upsert, __FILE__ . " linje " . __LINE__, true);
 		return $result;
 	}
 }
@@ -1007,6 +1019,7 @@ if (!function_exists('signup_activate')) {
 	 * @param string $password the password in clear text; stored only as saldikrypt() hash
 	 * @return array{ok: bool, error: string, regnskab: string, regnskab_id: int, trial_end: string,
 	 *               suggestion: string} error: '' | 'taken' | 'state' | 'create' | 'failed' (3rd failed build)
+	 *               | 'ceiling' (max_activations_per_day reached)
 	 */
 	function signup_activate(array $row, $regnskab, $password) {
 		global $sqhost, $squser, $sqpass, $sqdb, $db, $db_type, $db_modify_fejl;
@@ -1030,7 +1043,18 @@ if (!function_exists('signup_activate')) {
 			$fail['suggestion'] = $avail['suggestion'];
 			return $fail;
 		}
+		// A failure while reserving is logged and noted on the signup; the page then says the error was registered.
+		$reserveFailed = function () use ($id, $fail) {
+			global $db_modify_fejl;
+			transaktion('rollback');
+			signup_log("activation $id: could not reserve the account in the master database");
+			$db_modify_fejl = false;
+			db_modify("UPDATE signup_pending SET fejl = " . signup_q(date('Y-m-d H:i:s') . ' reserve failed') . " WHERE id = $id", __FILE__ . " linje " . __LINE__);
+			$fail['error'] = 'create';
+			return $fail;
+		};
 		transaktion('begin');
+		$db_modify_fejl = false;
 		if ($db_type != 'mysql' && $db_type != 'mysqli') {
 			db_modify("LOCK TABLE regnskab IN SHARE ROW EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
 		}
@@ -1038,6 +1062,17 @@ if (!function_exists('signup_activate')) {
 		if (!$cur || $cur['status'] !== 'pending') {
 			transaktion('rollback');
 			$fail['error'] = 'state';
+			return $fail;
+		}
+		// The server's ceiling on new accounts (each one is a database on the shared server): signups that reserved
+		// an account in the last 24 hours. Counted under the regnskab lock, which every activation takes, so
+		// parallel activations cannot all pass it (MySQL has no such lock here). Sales can raise the setting.
+		$since = signup_q(date('Y-m-d H:i:s', time() - 86400));
+		$n = db_fetch_array(db_select("SELECT count(*) AS n FROM signup_pending WHERE status IN ('activating', 'activated') AND activated > $since", __FILE__ . " linje " . __LINE__));
+		if ((int)ifset($n, 'n', 0) >= (int)signup_setting('max_activations_per_day', '30')) {
+			transaktion('rollback');
+			signup_log("max_activations_per_day reached; activation of signup $id refused");
+			$fail['error'] = 'ceiling';
 			return $fail;
 		}
 		if (signup_name_taken_locally($regnskab)) {
@@ -1053,20 +1088,28 @@ if (!function_exists('signup_activate')) {
 			. signup_q($regnskab) . ", " . signup_q($sqhost) . ", " . signup_q($squser) . ", " . (int)$limits['brugerantal'] . ", " . (int)$limits['posteringer'] . ", "
 			. signup_q($row['email']) . ", '0', " . signup_q($row['pakke']) . ", " . signup_q($trialStart) . ", " . signup_q($trialEnd) . ", " . signup_q($dates['lukkes']) . ")";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if ($db_modify_fejl) { // before any further statement: on PostgreSQL the transaction is aborted now
+			return $reserveFailed();
+		}
 		$r = db_fetch_array(db_select("SELECT id FROM regnskab WHERE regnskab = " . signup_q($regnskab) . " ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__));
 		$regnskabId = (int)ifset($r, 'id', 0);
 		$newDb = $sqdb . '_' . $regnskabId;
 		if (!$regnskabId || $db_modify_fejl) {
-			transaktion('rollback');
-			$fail['error'] = 'create';
-			return $fail;
+			return $reserveFailed();
 		}
 		db_modify("UPDATE regnskab SET db = " . signup_q($newDb) . " WHERE id = $regnskabId", __FILE__ . " linje " . __LINE__);
+		if ($db_modify_fejl) {
+			return $reserveFailed();
+		}
 		if (signup_column_exists('regnskab', 'lukkes_kommentar')) { // created by admin/admin_panel.php
 			$note = 'Prøveperiode via saldi.dk til ' . $trialEnd . '. Lukkes ' . $dates['lukkes'] . ', medmindre datoen ryddes eller flyttes.';
 			db_modify("UPDATE regnskab SET lukkes_kommentar = " . signup_q($note) . " WHERE id = $regnskabId", __FILE__ . " linje " . __LINE__);
 		}
-		db_modify("UPDATE signup_pending SET status = 'activating', regnskab = " . signup_q($regnskab) . " WHERE id = $id", __FILE__ . " linje " . __LINE__);
+		// activated = when the account was reserved (counted by the ceiling above); set again when it is ready.
+		db_modify("UPDATE signup_pending SET status = 'activating', activated = " . signup_q(date('Y-m-d H:i:s')) . ", regnskab = " . signup_q($regnskab) . " WHERE id = $id", __FILE__ . " linje " . __LINE__);
+		if ($db_modify_fejl) {
+			return $reserveFailed();
+		}
 		transaktion('commit');
 
 		// 2. Create and seed the tenant database with master's tenant build (includes/opretfunc.php), the one
@@ -1115,7 +1158,7 @@ if (!function_exists('signup_activate')) {
 			signup_log_event('createfail', 'signup' . $id);
 			$failedBefore = signup_count_events('createfail', 30 * 86400, 'signup' . $id) >= 3;
 			$status = $failedBefore ? 'failed' : 'pending';
-			db_modify("UPDATE signup_pending SET status = '$status', fejl = " . signup_q(date('Y-m-d H:i:s') . ' create failed') . " WHERE id = $id", __FILE__ . " linje " . __LINE__);
+			db_modify("UPDATE signup_pending SET status = '$status', activated = NULL, fejl = " . signup_q(date('Y-m-d H:i:s') . ' create failed') . " WHERE id = $id", __FILE__ . " linje " . __LINE__);
 			$fail['error'] = $failedBefore ? 'failed' : 'create';
 			return $fail;
 		}
@@ -1256,7 +1299,10 @@ if (!function_exists('signup_allowed_origins')) {
 		$allowed = array_filter(array_map('trim', explode(',', signup_setting('allowed_origins', 'https://saldi.dk,https://www.saldi.dk'))));
 		$own = parse_url(signup_base_url());
 		if (!empty($own['scheme']) && !empty($own['host'])) {
-			$allowed[] = $own['scheme'] . '://' . $own['host'] . (isset($own['port']) ? ':' . $own['port'] : '');
+			// as a browser writes it: lower case, no default port
+			$scheme = strtolower($own['scheme']);
+			$port = (isset($own['port']) && !($scheme === 'https' && (int)$own['port'] === 443) && !($scheme === 'http' && (int)$own['port'] === 80)) ? ':' . (int)$own['port'] : '';
+			$allowed[] = $scheme . '://' . strtolower($own['host']) . $port;
 		}
 		return array_values($allowed);
 	}
@@ -1267,14 +1313,21 @@ if (!function_exists('signup_origin_allowed')) {
 	 * Whether a POST may come from where the browser says it comes from. A form on another website can
 	 * post to opret.php/nytlink.php without CORS (a "simple request"), which would let any site make its
 	 * visitors' browsers send Saldi mails; browsers always send Origin on a POST, so a foreign one is refused.
-	 * Requests without Origin (no browser, or an old one) are judged by Sec-Fetch-Site and the rate limits.
+	 * A post the browser itself marks as coming from this site (Sec-Fetch-Site: same-origin, which a page cannot
+	 * set) passes whatever its Origin says: that covers the flow's own forms when the site is reached under another
+	 * host name, or a page that hides its address ("Origin: null"). Requests without Origin (no browser, or an old
+	 * one) are judged by Sec-Fetch-Site and the rate limits.
 	 *
 	 * @return bool
 	 */
 	function signup_origin_allowed() {
 		$origin = (string)ifset($_SERVER, 'HTTP_ORIGIN', '');
+		$site = (string)ifset($_SERVER, 'HTTP_SEC_FETCH_SITE', '');
+		if ($site === 'same-origin') {
+			return true;
+		}
 		if ($origin === '' || $origin === 'null') {
-			return $origin === '' && ifset($_SERVER, 'HTTP_SEC_FETCH_SITE', '') !== 'cross-site';
+			return $origin === '' && $site !== 'cross-site';
 		}
 		return in_array($origin, signup_allowed_origins(), true);
 	}

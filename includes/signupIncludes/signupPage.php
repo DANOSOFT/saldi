@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/signupIncludes/signupPage.php --- ver 5.0.0 --- 2026-10-14 ---
+// --- includes/signupIncludes/signupPage.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // scripts carry a per-request nonce and the page sends a Content-Security-Policy with it.
 //
 // 20261014 CL/PS Created.
+// 20261102 CL/ASR Referrer-Policy same-origin, so the pages' own forms send a real Origin.
 
 /** @var string $copyright from includes/version.php (via includes/connect.php) */
 
@@ -134,7 +135,9 @@ if (!function_exists('signup_page')) {
 		header('Content-Type: text/html; charset=utf-8');
 		header('Cache-Control: no-store');
 		header('X-Frame-Options: DENY');
-		header('Referrer-Policy: no-referrer');
+		// same-origin, not no-referrer: the token url still never leaves this server, and the pages' own form posts
+		// then carry a real Origin (with no-referrer browsers send "Origin: null", which signup_origin_allowed() refuses).
+		header('Referrer-Policy: same-origin');
 		header("Content-Security-Policy: default-src 'none'; img-src https: data:; font-src https:; style-src 'nonce-$nonce'; script-src 'nonce-$nonce'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
 		$foot = $copyright ? 'Copyright © ' . signup_h($copyright) : 'Saldi · Danosoft ApS';
 		echo '<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">'

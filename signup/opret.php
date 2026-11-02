@@ -28,7 +28,8 @@
 //   -> 200 {ok:true, resend:"<key>", email:"<as typed>"}   the mail is on its way (or the request
 //                                                          was silently dropped: bot / too many)
 //   -> 422 {ok:false, errors:{field: message}}            validation failed
-//   -> 429 {ok:false, errors:{_: message}}                too many attempts from this address
+//   -> 429 {ok:false, errors:{_: message}}                too many signups (this address or the server),
+//                                                          or too many CVR lookups from this address
 //
 // Browsers get the same as an HTML page ("Tjek jeres mail") when they do not ask for JSON, and a
 // GET shows a plain fallback form, so the flow can be exercised without the website. All
@@ -38,8 +39,8 @@
 //
 // 20261014 CL/PS Created.
 // 20261102 CL/ASR Refuses POSTs from foreign origins.
-//                 Limits are claimed (recorded, then counted) and include a server ceiling, max_signups_per_hour.
-//                 The form's own CVR lookups count against the CVR limit.
+//                 Limits are claimed (recorded, then counted) after validation, so typos do not use them up, and include a server ceiling, max_signups_per_hour.
+//                 The form's own CVR lookups count against the CVR limit; when it is used up the signup waits instead of skipping the check.
 //                 The per-mailbox mail cap is claimed before the mail is sent.
 
 chdir(__DIR__);
@@ -65,16 +66,6 @@ if (trim((string)ifset($in, 'website', '')) !== '') {
 	signup_done(array('ok' => true, 'resend' => '', 'email' => signup_clean_text(ifset($in, 'email', ''), 60)), $json);
 }
 
-// Limits are claimed (recorded, then counted), so parallel requests cannot all slip past them: 5 per hour from
-// one address, and a ceiling for the whole server (max_signups_per_hour) that protects the mail reputation.
-if (!signup_claim_event('opret', 5, 3600) || !signup_claim_event('opret_alle', (int)signup_setting('max_signups_per_hour', '60'), 3600, null, true)) {
-	$msg = 'Der er oprettet for mange regnskaber den seneste time. Prøv igen senere, eller ring til os.';
-	if ($json) {
-		signup_json(array('ok' => false, 'errors' => array('_' => $msg)), 429);
-	}
-	signup_page('For mange forsøg', signup_icon('warn') . '<h1>For mange forsøg</h1><p class="lead">' . signup_h($msg) . '</p>' . signup_help_line(), '', 429);
-}
-
 $v = signup_validate_form($in);
 $d = $v['data'];
 $errors = $v['errors'];
@@ -83,8 +74,12 @@ $errors = $v['errors'];
 $company = array('firmanavn' => $d['firmanavn'], 'addr1' => '', 'addr2' => '', 'postnr' => '', 'bynavn' => '');
 $nameFromCvr = false; // the mail only says "hentet fra CVR" when it really was
 if (!$errors && $d['cvr'] !== '') {
-	// Counted like cvr.php's lookups, so the form cannot be used to spend the register's quota.
-	$cvr = signup_claim_event('cvr', 40, 3600) ? signup_lookup_cvr($d['cvr']) : array('status' => 'error');
+	// Counted like cvr.php's lookups, so the form cannot be used to spend the register's quota. A used-up quota
+	// makes the signup wait: going on as if the register were down would let a client skip the check.
+	if (!signup_claim_event('cvr', 40, 3600)) {
+		signup_too_many('Der er slået mange CVR-numre op fra jeres adresse den seneste time. Prøv igen senere, eller ring til os.', $json);
+	}
+	$cvr = signup_lookup_cvr($d['cvr']);
 	if ($cvr['status'] === 'found') {
 		$nameFromCvr = ($cvr['name'] !== '');
 		$company['firmanavn'] = $nameFromCvr ? $cvr['name'] : $d['firmanavn'];
@@ -105,6 +100,13 @@ if ($errors) {
 		signup_json(array('ok' => false, 'errors' => $errors), 422);
 	}
 	signup_fallback_form($in, $errors);
+}
+
+// Limits are claimed (recorded, then counted), so parallel requests cannot all slip past them: 5 per hour from
+// one address, and a ceiling for the whole server (max_signups_per_hour) that protects the mail reputation. Only
+// submissions that passed validation count, so a customer's typos do not lock them (or everybody) out.
+if (!signup_claim_event('opret', 5, 3600) || !signup_claim_event('opret_alle', (int)signup_setting('max_signups_per_hour', '60'), 3600, null, true)) {
+	signup_too_many('Der er oprettet for mange regnskaber den seneste time. Prøv igen senere, eller ring til os.', $json);
 }
 
 // Many mails to one mailbox within a day: answer as if sent, but send nothing (no enumeration). Claimed
@@ -153,6 +155,20 @@ function signup_done(array $data, $json) {
 		signup_icon('ok') . '<h1>Tjek jeres mail</h1>'
 		. '<p class="lead">Vi har sendt et aktiveringslink til <strong>' . signup_h($data['email']) . '</strong>. Klik på linket i mailen, vælg jeres adgangskode, og I er i gang. Kig også i spam-mappen, hvis mailen ikke dukker op inden for et par minutter.</p>'
 		. $again . signup_help_line());
+}
+
+/**
+ * Ends the request with 429 and a message, as JSON or as a page.
+ *
+ * @param string $msg
+ * @param bool   $json
+ * @return void
+ */
+function signup_too_many($msg, $json) {
+	if ($json) {
+		signup_json(array('ok' => false, 'errors' => array('_' => $msg)), 429);
+	}
+	signup_page('For mange forsøg', signup_icon('warn') . '<h1>For mange forsøg</h1><p class="lead">' . signup_h($msg) . '</p>' . signup_help_line(), '', 429);
 }
 
 /**

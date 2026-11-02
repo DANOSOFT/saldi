@@ -36,7 +36,7 @@
 //
 // 20261014 CL/PS Created.
 // 20261102 CL/ASR Trims the password like index/login.php.
-//                 Activation attempts are claimed (recorded, then counted), and max_activations_per_day caps new accounts for the server.
+//                 Activation attempts are claimed (recorded, then counted), and max_activations_per_day caps new accounts for the server (counted in signup_activate()).
 //                 A signup whose account build failed three times shows a "call us" page.
 
 chdir(__DIR__);
@@ -139,17 +139,9 @@ if ($method === 'POST') {
 			$ok = false;
 		}
 	}
-	// Global ceiling on new accounts (each one is a database on the shared server): above it the form says so
-	// and the log says why; sales can raise max_activations_per_day.
-	if ($ok && signup_count_events('aktiveret', 86400, null, true) >= (int)signup_setting('max_activations_per_day', '30')) {
-		signup_log('max_activations_per_day reached; activation of signup ' . (int)$row['id'] . ' refused');
-		$view['error'] = 'Vi kan ikke oprette flere regnskaber lige nu. Ring til os, så opretter vi det for jer.';
-		$ok = false;
-	}
 	if ($ok) {
 		$result = signup_activate($row, $name, $password);
 		if ($result['ok']) {
-			signup_log_event('aktiveret', $row['email']);
 			signup_create_billing_order($row, $result['regnskab'], $result['trial_end']);
 			signup_activated_page($row, $result, $password, $urls);
 		}
@@ -160,6 +152,9 @@ if ($method === 'POST') {
 		} elseif ($result['error'] === 'state' || $result['error'] === 'failed') {
 			header('Location: aktiver.php?t=' . rawurlencode($token));
 			exit;
+		} elseif ($result['error'] === 'ceiling') {
+			// the server's max_activations_per_day (signup_activate() counts it and logs why)
+			$view['error'] = 'Vi kan ikke oprette flere regnskaber lige nu. Ring til os, så opretter vi det for jer.';
 		} else {
 			$view['error'] = 'Regnskabet kunne ikke oprettes lige nu. Vi har registreret fejlen. Prøv igen om lidt, eller ring til os.';
 		}
@@ -286,7 +281,7 @@ function signup_activation_form(array $row, array $p, $token, array $view) {
   function setReq(id, state) { $(id).dataset.state = state; }
   function setStatus(state, text) { $('pw-status').dataset.state = state; $('pw-status').textContent = text; }
   function validatePw() {
-    var v = $('pw').value, len = Array.from(v).length, input = $('pw'), state;
+    var v = $('pw').value.replace(/^[ \t\n\r\0\x0B]+|[ \t\n\r\0\x0B]+$/g, ''), len = Array.from(v).length, input = $('pw'), state; // trimmed like the server
     var lenOk = len >= MIN;
     setReq('req-len', lenOk ? 'ok' : (attempted ? 'error' : 'pending'));
     setReq('req-common', len ? (lenOk ? 'pending' : 'pending') : (attempted ? 'error' : 'pending'));
