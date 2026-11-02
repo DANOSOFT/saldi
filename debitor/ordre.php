@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -172,6 +172,7 @@
 //                read the offset before the call, so it warned when there was no konto_id or no adresser row.
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
+// 20261101 CL/SS SD-792 create_debtor throws DebtorNumberTakenException for a taken number; the alert it showed is shown here (core edit 8).
 
 @session_start();
 $s_id = session_id();
@@ -381,7 +382,12 @@ if (isset($_POST['create_debtor'])) {
 	$betalingsdage = (int)if_isset($_POST['betalingsdage'], 8);
 	$kontakt = if_isset($_POST['kontakt']);
 
-	$konto_id = create_debtor($kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $email, $phone, $cvrnr, $grp, $ean, $betalingsbet, $betalingsdage, $kontakt);
+	try {
+		$konto_id = create_debtor($kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $email, $phone, $cvrnr, $grp, $ean, $betalingsbet, $betalingsdage, $kontakt);
+	} catch (DebtorNumberTakenException $e) {
+		alert($e->getMessage());
+		$konto_id = 0; // not the konto_id the page came with
+	}
 	if (!$konto_id) $konto_id = 0;
 	if (!$id && isset($_POST['id'])) $id = $_POST['id']; #20260410 - form posts the id
 	if (!$id && isset($_GET['id'])) $id = $_GET['id']; #20221019
