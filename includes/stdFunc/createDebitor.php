@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/stdFunc/createDebitor.php --- ver 5.1.0 --- 20261101 ---
+//--- includes/stdFunc/createDebitor.php --- ver 5.1.0 --- 20261102 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,8 @@
 //                betalingsbet is escaped.
 //                The number is chosen and inserted under one lock, shared with the Shopify worker (allocate_debtor_number()).
 //                With $headless (the worker) a failed insert never alerts and exits; in webservice mode it throws instead of returning no id.
+// 20261102 CL/SS SD-792 A number another creator commits while the insert waits on its table lock throws DebtorNumberTakenException.
+//                Before, the read-back could return that creator's debtor, and the Shopify worker wrote the customer onto it.
 
 final class DebtorNumberTakenException extends RuntimeException {
 	public function __construct($kontonr) {
@@ -101,8 +103,15 @@ function create_debtor($kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$email,
 		if (substr((string)$svar, 0, 1) === '1') {
 			throw new RuntimeException("create_debtor: debtor $kontonr was not saved");
 		}
-		$qtxt="select id from adresser where kontonr='".db_escape_string($kontonr)."' and art='D'";
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if (in_array($db_type, array('mysql', 'mysqli'))) {
+			$qtxt="select id from adresser where kontonr='".db_escape_string($kontonr)."' and art='D'";
+			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		} else {
+			// a creator outside the lock (a LOCK TABLE adresser import) can commit the number while the insert waits
+			$q=db_select("select id from adresser where kontonr='".db_escape_string($kontonr)."' limit 2",__FILE__ . " linje " . __LINE__);
+			$r=db_fetch_array($q);
+			if (db_fetch_array($q)) throw new DebtorNumberTakenException($kontonr);
+		}
 		if ($own) transaktion('commit');
 	} catch (Throwable $e) {
 		if ($own) transaktion('rollback');

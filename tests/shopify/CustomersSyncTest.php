@@ -9,6 +9,7 @@
 // History:
 // 20261101 CL/SS SD-792: created.
 // 20261102 CL/SS SD-792: the test creates its own debtor group; CI's template has no group 2.
+// 20261102 CL/SS SD-792: a number committed by a LOCK TABLE creator while the worker waits is not taken over.
 
 use PHPUnit\Framework\TestCase;
 
@@ -195,6 +196,32 @@ final class CustomersSyncTest extends TestCase
 
         $this->assertCount(1, $this->debtors());
         $this->assertCount(1, $this->links());
+    }
+
+    public function testANumberAnotherCreatorCommitsWhileTheWorkerWaitsIsNotTakenOver(): void
+    {
+        // as ExternalPaidInvoiceImportService: the table lock, then a number no other session sees until the commit
+        $import = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($import, 'BEGIN');
+        ShopifyEnv::rows($import, 'LOCK TABLE adresser IN EXCLUSIVE MODE');
+        ShopifyEnv::rows($import, "INSERT INTO adresser (kontonr, firmanavn, email, art) VALUES ('29000000', 'SD792 Import', 'import@example.dk', 'D')");
+        $worker = ShopifyEnv::startChild('run_customers.php', [self::$db, json_encode([['job', 'hml', 'CUSTOMERS_CREATE', self::customer(7)]])]);
+        for ($i = 0; $i < 100 && !$this->sql("SELECT 1 FROM pg_locks l JOIN pg_class c ON c.oid = l.relation JOIN pg_database d ON d.oid = l.database
+            WHERE d.datname = current_database() AND c.relname = 'adresser' AND NOT l.granted"); $i++) {
+            usleep(50000);
+        }
+        $this->assertLessThan(100, $i, 'the worker never waited on the table lock');
+        ShopifyEnv::rows($import, 'COMMIT');
+        pg_close($import);
+        $run = ShopifyEnv::waitChild($worker);
+
+        $this->assertSame('DebtorNumberTakenException', $run['result']['results'][0]['exception'] ?? null, $run['stderr'] . $run['stdout']);
+        $this->assertSame([['firmanavn' => 'SD792 Import', 'email' => 'import@example.dk']],
+            $this->sql("SELECT firmanavn, email FROM adresser WHERE kontonr = '29000000'"), 'the other debtor keeps its data and its number');
+        $this->assertSame([], $this->links());
+
+        $this->steps(['job', 'hml', 'CUSTOMERS_CREATE', self::customer(7)]);
+        $this->assertSame(['29000000', '29000001'], array_column($this->debtors(), 'kontonr'), 'the retry takes the next number');
     }
 
     public function testEachShopLinksItsOwnCustomer(): void
