@@ -13,6 +13,8 @@
 // Steps: ["line", copy, <the arguments>]   copy: ordrefunc | mysale | rental
 //        ["saet", <the arguments of opret_saet()>]
 //        ["gendan", ordre_id]
+//        ["validate", bom, plan, qty]   validate_saet_lager_plan()
+//        ["reread", ordre_id, before_ids]   shopify_reread_new_lines()
 // Prints one JSON object on the last line of stdout: one result per step, or the exception a step threw.
 //
 // History:
@@ -27,6 +29,7 @@ $tenantDb = $argv[2];
 
 require __DIR__ . '/bootstrap_ordrefunc.php';
 require_once __DIR__ . '/../debitor/support/pos_lift.php';
+require_once dirname(__DIR__, 3) . '/includes/shopify/services/orderLines.php';
 
 @mkdir("../temp/$db", 0777, true); // opret_ordrelinje() appends to ../temp/<db>/momslog.log
 
@@ -62,6 +65,12 @@ foreach ($spec['steps'] as $step) {
                 break;
             case 'gendan':
                 $results[] = gendan_saet(...$step);
+                break;
+            case 'validate':
+                $results[] = validate_saet_lager_plan(...$step);
+                break;
+            case 'reread':
+                $results[] = shopify_reread_new_lines(...$step);
                 break;
             default:
                 ob_end_clean();
