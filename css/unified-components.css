@@ -8,6 +8,9 @@
  * 20261101 CL/ASR Review: the left menu's narrow-screen rules (static, one row) come after its base rules, so they take effect.
  * 20261102 CL/ASR The standard layout of every settings page (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026): the page's
  *                 buttons right of the title (.st-phead-acts) and the content column (.st-frame-main) beside the left menu. Linked as ?v=20261102.
+ * 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: one item, one list, one card): a direct sub-group's heading in the left menu is a link
+ *                 (.st-menu-head), marked like a row; the employee drawer embedded in the person card (.st-embed: the drawer fills the
+ *                 iframe, without its own head, scrim or shadow). Linked as ?v=20261102b.
  */
 
 /* ============================================
@@ -1279,6 +1282,14 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-page .st-menu .st-menu-flat .st-menu-row { padding-left: var(--st-pad); }
 .st-page .st-menu .st-menu-flat .st-menu-row::before { left: 0; width: 0; }
 .st-page .st-menu .st-menu-flat .st-menu-row:hover::before { left: 0; width: 2px; border-radius: 0; }
+/* a direct sub-group (Brugere & ansatte): the heading is the link to its one list, marked as a row is; its pages are the rows under it */
+.st-page .st-menu a.st-menu-head { position: relative; justify-content: flex-start; gap: 6px; min-height: var(--st-row-h); padding: 3px var(--st-pad); border-radius: 0; box-shadow: none; font: 600 var(--st-fs-s)/1.25 var(--st-font); color: var(--st-text-2); text-decoration: none; }
+.st-page .st-menu .st-menu-sub.is-current > a.st-menu-head { color: var(--st-text); }
+.st-page .st-menu a.st-menu-head:hover { background: var(--st-row-hover); color: var(--st-text); text-decoration: none; }
+.st-page .st-menu a.st-menu-head.on { background: var(--st-row-sel); box-shadow: none; color: var(--st-text); }
+.st-page .st-menu a.st-menu-head:is(:hover, .on)::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 3px; border-radius: 0 2px 2px 0; background: var(--st-mark); }
+.st-page .st-menu a.st-menu-head:focus-visible { outline-offset: -2px; }
+.st-page .st-menu a.st-menu-head .st-dot { margin-left: auto; }
 /* back to the hub, under the group */
 .st-page .st-menu .st-menu-all { display: flex; align-items: center; justify-content: flex-start; gap: 6px; min-height: var(--st-band-h); padding: 0 var(--st-pad); border-top: 1px solid var(--st-border); background: none; box-shadow: none; font: 400 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text-2); text-decoration: none; }
 .st-page .st-menu .st-menu-all:hover { background: none; color: var(--st-link); text-decoration: none; }
@@ -1307,3 +1318,11 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-frame-main.st-legacy { overflow-x: auto; font: 14px/1.5 Inter, "Segoe UI", system-ui, sans-serif; }
 .st-frame-main.st-legacy table { max-width: none; }
 .st-frame-main.st-legacy :is(input[type=submit], input[type=button], button) { border-radius: 4px; }
+
+/* ---- 20261102 CL/ASR the employee drawer embedded in the person card of Brugere & ansatte (usersRoles.php, the Stamdata tab; listView.php
+   prints .st-embed): the drawer fills the iframe, its name is in the card's head, and the card's scrim and X close it. ---- */
+html:has(> body .st-embed), html:has(> body .st-embed) > body { height: 100%; margin: 0; overflow: hidden; }
+.st-page.st-embed { display: flex; flex-direction: column; height: 100vh; max-width: none; margin: 0; padding: 0; }
+.st-page.st-embed > .st-notes { flex: none; width: auto; margin: 8px 16px 0; }
+.st-page.st-embed > .st-drawer { position: static; flex: 1 1 auto; width: auto; min-height: 0; border: 0; border-radius: 0; box-shadow: none; animation: none; }
+.st-page.st-embed :is(.st-dhead, .st-skip, #st-scrim) { display: none; }

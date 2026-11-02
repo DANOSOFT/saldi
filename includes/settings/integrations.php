@@ -24,14 +24,9 @@
 //                  rows, the two small login forms, a new API key, MobilePay QR codes per till (moved from the old
 //                  page's render, spec B-D12) and the Vibrant terminal login created on the server (B-D10).
 // 20261101 CL/ASR Ansatte lists one more item, Ekstra felter ('general'), with the field that moved there from Diverse valg.
-// 20261102 CL/ASR Personer (owner, 2 Nov 2026: one place for people, the employee list as the overview): for a user with read on
-//                 settings.users.manage each employee row shows the login's role and status (or "Ingen login"), and the logins without an
-//                 employee of the company ("Kun login") or a second login of an employee ("Ekstra login") are rows of their own that open the
-//                 login in usersRoles.php. The card's "Login og rolle" lists the employee's logins with a link on to their role settings, or,
-//                 with write, invites or creates one (usersRoles.php's own drawer, which saves and checks as before; ret= brings the user back).
-//                 Without read on the logins nothing about them is shown, and the old link to usersRoles.php (which would refuse) is gone.
-// 20261102 CL/ASR Review: "Login og rolle" is laid out as the card's other lists (st-info-list: the login left, its buttons right), and
-//                 "Se log" carries ret= too, so Tilbage on the log returns to the card.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026): the one list of employees and logins is usersRoles.php; this list is the employee list
+//                 of a user without it. The card's "Bruger" line names the linked login without a link to usersRoles.php (its person card
+//                 shows the login, and a user here may not open that page).
 
 /**
  * Status of one integration from what is stored: kind 'ok', 'off', 'err' or 'soon', the short text and the
@@ -56,11 +51,7 @@ function settings_integration_status(string $item, array $def, array $setAt = ar
 	if (strpos($item, 'card_') === 0) {
 		return !empty($def['active']) ? array('kind' => 'ok', 'text' => st_txt(860), 'button' => 6122) : array('kind' => 'off', 'text' => st_txt(6360), 'button' => 6122);
 	}
-	if (strpos($item, 'emp_') === 0 || strpos($item, 'usr_') === 0) {
-		// Personer: the login's role and status when the list set them ('status_kind'), otherwise as before (Fratrådt or nothing).
-		if (isset($def['status_kind'])) {
-			return array('kind' => (string) $def['status_kind'], 'text' => isset($def['status_text']) ? (string) $def['status_text'] : '', 'button' => 6122);
-		}
+	if (strpos($item, 'emp_') === 0) {
 		return !empty($def['active']) ? array('kind' => 'plain', 'text' => '', 'button' => 6122) : array('kind' => 'off', 'text' => st_txt(660), 'button' => 6122);
 	}
 	if (strpos($item, 'pl_') === 0) {
@@ -170,33 +161,6 @@ function settings_list_dynamic_items(string $from): array
 		$items['general'] = array('sub' => 'general', 'abbr' => '+', 'literal' => true, 'label' => st_txt(616), 'desc' => st_txt(615));
 		$departments = st_options(array('options_from' => 'departments'));
 		$sid = settings_company_account_id();
-		// Personer (owner, 2 Nov 2026): who can log in as what. Only for a user with read on the logins; otherwise the rows are as before.
-		$canUsers = !function_exists('perm_can') || perm_can('settings.users.manage', 'read');
-		$usersWrite = !function_exists('perm_can') || perm_can('settings.users.manage', 'write');
-		$logins = $canUsers ? settings_people_logins() : array();
-		$byEmployee = array();
-		foreach ($logins as $uid => $l) {
-			if ($l['ansat_id'] > 0) {
-				$byEmployee[$l['ansat_id']][$uid] = $l;
-			}
-		}
-		$loginText = function (array $l): string {
-			return $l['role'] . ' · ' . $l['state_text'];
-		};
-		$loginItem = function (array $l, string $label, bool $extra) use ($loginText, $usersWrite): array {
-			$desc = array($extra ? st_txt('7756|Ekstra login') : st_txt('7755|Kun login'));
-			foreach (array($label !== $l['brugernavn'] ? $l['brugernavn'] : '', $l['email'], $l['revisor'] ? st_txt(2562) : '') as $part) {
-				if ($part !== '') {
-					$desc[] = $part;
-				}
-			}
-			return array(
-				'sub' => 'employees', 'abbr' => '–', 'literal' => true, 'label' => $label !== '' ? $label : '—', 'desc' => implode(' · ', $desc),
-				'active' => $l['state'] !== 'closed', 'status_kind' => $l['state'] === 'closed' ? 'off' : 'plain', 'status_text' => $loginText($l),
-				'href' => 'usersRoles.php?tab=users&bruger=' . (int) $l['id'] . '&ret=people', 'href_write' => $usersWrite,
-			);
-		};
-		$shown = array();
 		$q = db_select("select id, nummer, navn, initialer, email, tlf, mobil, afd, lukket from ansatte where konto_id = $sid order by coalesce(posnr, 999999), nummer, id", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$desc = array();
@@ -209,47 +173,13 @@ function settings_list_dynamic_items(string $from): array
 				$desc[] = $departments[(string) (int) $r['afd']];
 			}
 			$left = trim((string) $r['lukket']) !== '';
-			$eid = (int) $r['id'];
-			$item = array(
+			$items['emp_' . (int) $r['id']] = array(
 				'sub' => 'employees', 'abbr' => trim((string) $r['nummer']) !== '' ? trim((string) $r['nummer']) : '–', 'literal' => true,
 				'label' => trim((string) $r['navn']) !== '' ? trim((string) $r['navn']) : '—',
 				'desc' => implode(' · ', array_slice($desc, 0, 3)),
 				'active' => !$left,
 				'status_text' => $left ? st_txt(660) : '',
 			);
-			$mine = array();
-			if ($canUsers) {
-				// The employee's first login (as settings_employee_rows()) is the row's; a further login gets a row of its own below it.
-				$mine = isset($byEmployee[$eid]) ? $byEmployee[$eid] : array();
-				ksort($mine);
-				$primary = $mine ? reset($mine) : null;
-				if ($left) {
-					$item['status_kind'] = 'off';
-					$item['status_text'] = st_txt(660) . ($primary ? ' · ' . $loginText($primary) : '');
-				} elseif ($primary) {
-					$item['status_kind'] = $primary['state'] === 'closed' ? 'off' : 'plain';
-					$item['status_text'] = $loginText($primary);
-				} else {
-					$item['status_kind'] = 'off';
-					$item['status_text'] = st_txt('7754|Ingen login');
-				}
-				if ($primary) {
-					$shown[$primary['id']] = true;
-					unset($mine[$primary['id']]);
-				}
-			}
-			$items['emp_' . $eid] = $item;
-			foreach ($mine as $uid => $l) {
-				$shown[$uid] = true;
-				$items['usr_' . $uid] = $loginItem($l, $item['label'], true);
-			}
-		}
-		// Logins without an employee of the company (the administrator, revisor, bogholder, a login linked to a customer's contact person):
-		// after the employees, by username.
-		foreach ($logins as $uid => $l) {
-			if (!isset($shown[$uid])) {
-				$items['usr_' . $uid] = $loginItem($l, $l['brugernavn'], false);
-			}
 		}
 	}
 	if ($from === 'pricelists') {
@@ -264,55 +194,6 @@ function settings_list_dynamic_items(string $from): array
 		}
 	}
 	return $items;
-}
-
-/**
- * The logins for Personer (owner, 2 Nov 2026), loaded once: id => id, brugernavn, email, ansat_id, role (its name, plain text), state
- * (active | invited | closed), state_text, twofactor, revisor. Empty without read on settings.users.manage. Read only: every change
- * to a login goes through usersRoles.php.
- *
- * @return array<int, array<string, mixed>>
- */
-function settings_people_logins(): array
-{
-	static $out = null;
-	if ($out !== null) {
-		return $out;
-	}
-	$out = array();
-	if (function_exists('perm_can') && !perm_can('settings.users.manage', 'read')) {
-		return $out;
-	}
-	include_once(__DIR__ . '/../userFunctions.php'); // user_row_active(), user_row_invited()
-	global $sprog_id;
-	$roles = array();
-	foreach (function_exists('perm_roles') ? perm_roles() : array() as $role) {
-		// perm_role_name() is findtekst() text or the name as typed: decoded here, escaped once where it is printed.
-		$roles[(int) $role['id']] = html_entity_decode(perm_role_name($role, (int) $sprog_id), ENT_QUOTES | ENT_HTML5, st_charset());
-	}
-	$revisor = 0;
-	if ($r = db_fetch_array(db_select("select user_id from settings where var_name = 'revisor' and var_grp = 'system'", __FILE__ . " linje " . __LINE__))) {
-		$revisor = (int) $r['user_id'];
-	}
-	// brugere.* as usersRoles.php reads it: older databases lack some of the newer columns (email, status, tmp_kode).
-	$q = db_select("select * from brugere order by lower(brugernavn), id", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$closed = !user_row_active($r);
-		$invited = !$closed && user_row_invited($r);
-		$roleId = isset($r['role_id']) ? (int) $r['role_id'] : 0;
-		$out[(int) $r['id']] = array(
-			'id' => (int) $r['id'],
-			'brugernavn' => trim((string) $r['brugernavn']),
-			'email' => isset($r['email']) ? trim((string) $r['email']) : '',
-			'ansat_id' => (int) $r['ansat_id'],
-			'role' => isset($roles[$roleId]) ? $roles[$roleId] : st_txt(5554),
-			'state' => $closed ? 'closed' : ($invited ? 'invited' : 'active'),
-			'state_text' => st_txt($closed ? 5559 : ($invited ? 5778 : 5558)),
-			'twofactor' => isset($r['twofactor']) && in_array($r['twofactor'], array('t', true, '1', 1), true),
-			'revisor' => ((int) $r['id'] === $revisor),
-		);
-	}
-	return $out;
 }
 
 /**
@@ -358,47 +239,11 @@ function settings_integration_info(array $def): string
 		case 'employee_user':
 			$rows = settings_employee_rows();
 			$eid = (int) $def['scope_id'];
-			if (function_exists('perm_can') && !perm_can('settings.users.manage', 'read')) {
-				// No read on the logins: the name only, no link to usersRoles.php (it would refuse the user).
-				if (empty($rows[$eid]['user'])) {
-					return st_h(st_txt(6622));
-				}
-				$r = db_fetch_array(db_select("select brugernavn from brugere where id = " . (int) $rows[$eid]['user'], __FILE__ . " linje " . __LINE__));
-				return st_h(sprintf(st_txt(6621), $r ? (string) $r['brugernavn'] : ''));
+			if (empty($rows[$eid]['user'])) {
+				return st_h(st_txt(6622));
 			}
-			// Personer: every login of the employee with its role and status, and the way on to its role settings (usersRoles.php,
-			// which saves and checks; ret= brings the user back to this card). data-guard: unsaved edits here are asked about first.
-			$write = !function_exists('perm_can') || perm_can('settings.users.manage', 'write');
-			$audit = !function_exists('perm_can') || perm_can('settings.audit.read', 'read');
-			$lines = array();
-			foreach (settings_people_logins() as $uid => $l) {
-				if ($l['ansat_id'] !== $eid) {
-					continue;
-				}
-				$parts = array($l['brugernavn'], $l['role'], $l['state_text']);
-				if ($l['twofactor']) {
-					$parts[] = st_txt('7763|2FA til');
-				}
-				if ($l['revisor']) {
-					$parts[] = st_txt(2562);
-				}
-				$acts = '<a class="st-btn" data-guard href="usersRoles.php?tab=users&amp;bruger=' . (int) $uid . '&amp;ret=emp_' . $eid . '">'
-					. st_t($write ? '7757|Rediger login og rolle' : '7758|Se login og rolle') . '</a>';
-				if ($audit) {
-					$acts .= ' <a class="st-tl" data-guard href="usersRoles.php?tab=log&amp;bruger=' . rawurlencode($l['brugernavn']) . '&amp;ret=emp_' . $eid . '">' . st_t('7762|Se log') . '</a>';
-				}
-				$lines[] = '<li><span>' . st_h(implode(' · ', $parts)) . '</span><span>' . $acts . '</span></li>';
-			}
-			if ($lines) {
-				return '<ul class="st-info-list">' . implode('', $lines) . '</ul>';
-			}
-			$acts = '';
-			if ($write && isset($rows[$eid]) && empty($rows[$eid]['left'])) {
-				// Opens usersRoles.php's new-user drawer with this employee, its e-mail and a username filled in; nothing is sent before Send invitation.
-				$new = 'usersRoles.php?tab=users&amp;bruger=0&amp;ret=emp_' . $eid;
-				$acts = '<a class="st-btn" data-guard href="' . $new . '">' . st_t('7759|Inviter som bruger') . '</a> <a class="st-tl" data-guard href="' . $new . '&amp;mode=classic">' . st_t('7760|Opret login med adgangskode') . '</a>';
-			}
-			return '<ul class="st-info-list"><li><span>' . st_h(st_txt('7754|Ingen login')) . '</span>' . ($acts !== '' ? '<span>' . $acts . '</span>' : '') . '</li></ul>';
+			$r = db_fetch_array(db_select("select brugernavn from brugere where id = " . (int) $rows[$eid]['user'], __FILE__ . " linje " . __LINE__));
+			return st_h(sprintf(st_txt(6621), $r ? (string) $r['brugernavn'] : ''));
 		case 'gdpr_inactive':
 			$n = settings_gdpr_inactive();
 			if (!$n['D'] && !$n['K']) {

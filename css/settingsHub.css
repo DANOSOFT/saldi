@@ -10,7 +10,9 @@
                    stacking its own panels; sub-group rows that fold open into links; search marks in place.
                    No zebra in these navigation rows (owner, 1 Nov 2026). The kit loads after this file, so a rule that changes
                    a kit class starts with .sk.sh-page. The search dropdown, the attention panel and the three lists are gone.
-   20261102 CL/ASR The Tilbage button's place above the title is in css/saldi-kit.css now (.sk .sk-head-tx > .sk-back). */
+   20261102 CL/ASR The Tilbage button's place above the title is in css/saldi-kit.css now (.sk .sk-head-tx > .sk-back).
+   20261102 CL/ASR A direct sub-group (.sh-direct, Brugere & ansatte: one item, one list) is a link that looks like the other sub-group
+                   rows (icon, title, short text, status, chevron), without the fold and without the guide rail of a row's links. */
 
 /* the search, right in the page head; it filters the panels in place */
 .sk .sh-search { --sk-w: 24rem; }
@@ -75,12 +77,24 @@
 .sk .sh-attn::before { content: ""; position: absolute; top: 0; bottom: 0; left: 19px; width: 1px; background: var(--sk-border); }
 .sk .sh-attn > .sk-status { min-width: 0; }
 
+/* a direct sub-group: the sub-group row itself is the link (no fold); its role-review line and searched pages sit under it */
+.sk.sh-page .sh-direct .sh-link.sh-dlink { gap: 10px; min-height: 2rem; padding: 4px var(--sk-pad); }
+.sk.sh-page .sh-direct .sh-link.sh-dlink::before { content: none; }
+.sk.sh-page .sh-direct .sh-dlink .sh-link-t { font-weight: 500; color: var(--sk-text); }
+.sk.sh-page .sh-direct .sh-dlink .sk-list-chev { opacity: 1; }
+.sk.sh-page .sh-direct .sh-dlink > .sk-list-meta { flex: 0 0 auto; min-width: 0; max-width: 55%; }
+.sk.sh-page .sh-direct .sh-dlink:focus-visible { outline-offset: -2px; }
+.sk.sh-page .sh-direct .sh-attn { padding-left: calc(var(--sk-pad) + 26px); }
+.sk.sh-page .sh-direct .sh-attn::before { content: none; }
+
 /* four narrow columns: titles over their text, the group's description left out of the header band */
 .sk.sh-page .sh-grid[data-layout="c4"] .sk-panel-h .sk-sub { display: none; }
 .sk.sh-page .sh-grid[data-layout="c4"] .sh-item > .sk-list-row { align-items: flex-start; padding-top: 4px; padding-bottom: 5px; }
 .sk.sh-page .sh-grid[data-layout="c4"] .sh-item .sk-list-tx { flex-direction: column; align-items: stretch; gap: 1px; white-space: normal; }
 .sk.sh-page .sh-grid[data-layout="c4"] .sh-item .sk-list-d { overflow: visible; line-height: 1.35; }
 .sk.sh-page .sh-grid[data-layout="c4"] .sh-item > .sk-list-row > :is(.sk-list-ic, .sk-list-meta, .sk-list-chev) { margin-top: 1px; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-direct .sh-link.sh-dlink { padding-top: 4px; padding-bottom: 5px; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-direct .sh-dlink > :is(.sk-list-ic, .sk-list-meta, .sk-list-chev) { margin-top: 1px; }
 .sk.sh-page .sh-grid[data-layout="c4"] .sh-link { align-items: flex-start; padding-top: 3px; padding-bottom: 4px; }
 .sk.sh-page .sh-grid[data-layout="c4"] .sh-link-tx { flex-direction: column; align-items: stretch; gap: 1px; white-space: normal; }
 .sk.sh-page .sh-grid[data-layout="c4"] .sh-link-d { overflow: visible; line-height: 1.35; }

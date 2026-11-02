@@ -7043,18 +7043,37 @@
 7747	Ikke på forsiden – findes med søgning	Not on the overview – found by search	Ikke på forsiden – finnes med søk
 7748	Mellemrum	Space	Mellomrom
 7749	Næste række	Next row	Neste rad
-7750	Personer	People	Personer
-7751	Ansatte og brugere	Employees and users	Ansatte og brukere
-7752	Virksomhedens ansatte og alle, der kan logge ind. Klik på en person for stamdata, login og rolle	The company's employees and everyone who can log in. Click a person for master data, login and role	Virksomhetens ansatte og alle som kan logge inn. Klikk på en person for stamdata, innlogging og rolle
 7753	Login og rolle	Login and role	Innlogging og rolle
 7754	Ingen login	No login	Ingen innlogging
-7755	Kun login	Login only	Kun innlogging
-7756	Ekstra login	Extra login	Ekstra innlogging
-7757	Rediger login og rolle	Edit login and role	Rediger innlogging og rolle
-7758	Se login og rolle	View login and role	Se innlogging og rolle
 7759	Inviter som bruger	Invite as user	Inviter som bruker
 7760	Opret login med adgangskode	Create login with password	Opprett innlogging med passord
 7761	Lukkes brugeren, markeres den koblede ansatte, %s, også som fratrådt.	Closing the user also marks the linked employee, %s, as resigned.	Stenges brukeren, markeres den koblede ansatte, %s, også som fratrådt.
 7762	Se log	View log	Se logg
-7763	2FA til	2FA on	2FA på
 7764	har login	has a login	har innlogging
+7765	Tilføj person	Add person	Legg til person
+7766	Skal personen kunne logge ind?	Should the person be able to log in?	Skal personen kunne logge inn?
+7767	Nej – kun stamkort (navn, initialer, ansættelse)	No – a record only (name, initials, employment)	Nei – kun stamkort (navn, initialer, ansettelse)
+7768	Ja – send en invitation på e-mail	Yes – send an invitation by email	Ja – send en invitasjon på e-post
+7769	Ja – opret login med adgangskode	Yes – create a login with a password	Ja – opprett innlogging med passord
+7770	Er personen ansat i virksomheden?	Is the person employed by the company?	Er personen ansatt i virksomheten?
+7771	Ja – opret også et stamkort	Yes – also create a record	Ja – opprett også et stamkort
+7772	Nej – kun login, fx revisor, bogholder eller ekstern	No – login only, e.g. auditor, bookkeeper or external	Nei – kun innlogging, f.eks. revisor, regnskapsfører eller ekstern
+7773	Giv adgang	Give access	Gi tilgang
+7774	%s har ikke noget login.	%s has no login.	%s har ingen innlogging.
+7776	%s har intet stamkort.	%s has no record.	%s har ikke noe stamkort.
+7777	Et stamkort bruges til ansatte: initialer, kontakt og ansættelse, fx som "Vores ref." på ordrer. Revisor, bogholder og andre udefra har normalt ikke brug for et.	A record is for employees: initials, contact and employment, e.g. as "Our ref." on orders. An auditor, bookkeeper or other outsider normally does not need one.	Et stamkort brukes for ansatte: initialer, kontakt og ansettelse, f.eks. som "Vår ref." på ordrer. Revisor, regnskapsfører og andre utenfra trenger normalt ikke et.
+7778	Kobl til en ansat	Link to an employee	Koble til en ansatt
+7779	Har også login:	Also has a login:	Har også innlogging:
+7780	Viser %s af %s	Showing %s of %s	Viser %s av %s
+7781	Ingen matcher søgningen	Nothing matches the search	Ingen treff
+7782	1 ansat	1 employee	1 ansatt
+7783	1 bruger	1 user	1 bruker
+7784	1 administrator	1 administrator	1 administrator
+7785	%s administratorer	%s administrators	%s administratorer
+7786	1 inviteret	1 invited	1 invitert
+7787	%s inviterede	%s invited	%s inviterte
+7788	1 lukket	1 closed	1 stengt
+7789	%s lukkede	%s closed	%s stengte
+7790	Fratrådte kan ikke få login. Fjern Fratrådt under Stamdata først.	Employees who have left cannot get a login. Clear Resigned under Master data first.	Fratrådte kan ikke få innlogging. Fjern Fratrådt under Stamdata først.
+7791	Søg navn, initialer, brugernavn eller e-mail	Search name, initials, username or email	Søk navn, initialer, brukernavn eller e-post
+7792	Der sendes og oprettes intet, før du trykker Send invitation eller Opret.	Nothing is sent or created until you press Send invitation or Create.	Ingenting sendes eller opprettes før du trykker Send invitasjon eller Opprett.

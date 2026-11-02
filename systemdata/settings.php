@@ -48,6 +48,10 @@
 // 20261102 CL/ASR Tilbage (Alt+L) leaves the settings system: the newest page outside it in the navigation stack, skipping old addresses that redirect here, else Oversigt.
 // 20261102 CL/ASR No Tilbage on the hub itself (owner): it is the settings start page; the sub-pages keep theirs.
 //                 The kit and css/settingsHub.css are linked as ?v=20261102 (the kit places Tilbage now).
+// 20261102 CL/ASR A 'direct' sub-group (Brugere & ansatte, owner 2 Nov 2026: one item, one list) is itself the link to its one row: no fold
+//                 with a single child. It keeps its icon, short text, status ("5 ansatte · 1 bruger") and the role-review line under it; its
+//                 pages (Roller, Audit-log, Ekstra felter) show under it while a search finds them, as a row's second pages do.
+//                 The row markup (li.sh-row, .sh-link-t/-d) is the one javascript/settingsHub.js already reads. css/settingsHub.css?v=20261102b.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -60,7 +64,7 @@
 $s_id = session_id();
 
 $title = "Indstillinger";
-$css = "../css/settingsHub.css?v=20261102";
+$css = "../css/settingsHub.css?v=20261102b";
 $modulnr = 0; // access is per settings group (settings_require_any_access below), not the old Indstillinger bit
 $permission_key = 'any';
 
@@ -279,6 +283,10 @@ function settings_hub_panel(array $group, int $index, string $noMatch): void
           </div>
         <?php 	continue;
         	}
+            if (!empty($sub['direct'])) {
+                settings_hub_direct_item($sub);
+                continue;
+            }
         	// the status of the row; a warning that needs the administrator (settings_attention) speaks for the row when nothing else warns
         	$status = $sub['status'];
         	if (!$status || !in_array($status['kind'], array('warn', 'err'), true)) {
@@ -325,5 +333,44 @@ function settings_hub_panel(array $group, int $index, string $noMatch): void
         </div>
         <p class="sh-empty" hidden><?= st_h(sprintf($noMatch, $group['label'])) ?></p>
       </section>
+	<?php
+}
+
+/**
+ * A 'direct' sub-group (Brugere & ansatte): the sub-group itself is the link to its one row, with the row's search terms, old names,
+ * attention line and second pages (shown while a search finds them), in the markup javascript/settingsHub.js reads for a row.
+ *
+ * @param array<string, mixed> $sub from settings_hub_model(), 'direct' with exactly one row
+ */
+function settings_hub_direct_item(array $sub): void
+{
+	$row = $sub['rows'][0];
+	$attention = $row['attention'];
+	// the attention line below says the same as a warning badge, with the button that fixes it
+	$badge = ($attention && $row['badge'] && in_array($row['badge']['kind'], array('warn', 'err'), true)) ? null : $row['badge'];
+	$terms = $row['terms'] . ' | ' . $sub['terms'];
+	?>
+          <div class="sh-item sh-direct" data-sub="<?= st_h($sub['id']) ?>">
+            <ul class="sh-links">
+              <li class="sh-row" data-row="<?= st_h($row['id']) ?>" data-terms="<?= st_h($terms) ?>" data-old="<?= st_h(settings_hub_json(array_values($row['old']))) ?>">
+                <a class="sk-list-row sh-link sh-dlink" href="<?= st_h($row['url']) ?>">
+                  <i class='bx <?= st_h($sub['icon']) ?> sk-list-ic' aria-hidden="true"></i>
+                  <span class="sk-list-tx sh-link-tx"><b class="sk-list-t sh-link-t" data-hl><?= st_h($sub['label']) ?></b><span class="sk-list-d sh-link-d" data-hl><?= st_h($sub['description']) ?></span></span>
+                  <span class="sk-list-meta"<?= $badge ? ' title="' . st_h($badge['text']) . '"' : '' ?>><?= settings_hub_status_html($badge) ?></span>
+                  <i class='bx bx-chevron-right sk-list-chev' aria-hidden="true"></i>
+                </a>
+                <?php if ($attention) { ?>
+                <div class="sh-attn"><?= settings_hub_status_html(array('kind' => (string) $attention['kind'], 'text' => (string) $attention['title'])) ?><a class="sk-btn sk-btn-sm" href="<?= st_h($attention['url']) ?>"><?= st_h($attention['button']) ?></a></div>
+                <?php } ?>
+                <?php if (count($row['pages']) > 1) { ?>
+                <ul class="sh-deep" hidden>
+                  <?php foreach (array_slice($row['pages'], 1) as $page) { ?>
+                  <li class="sh-page2" data-terms="<?= st_h(mb_strtolower((string) $page['label'], st_charset())) ?>" hidden><a class="sh-link sh-deep-link" href="<?= st_h($page['url']) ?>"><i class='bx bx-subdirectory-right sh-deep-ic' aria-hidden="true"></i><span class="sh-link-tx"><span class="sh-link-t" data-hl><?= st_h($page['label']) ?></span></span><i class='bx bx-chevron-right sk-list-chev' aria-hidden="true"></i></a></li>
+                  <?php } ?>
+                </ul>
+                <?php } ?>
+              </li>
+            </ul>
+          </div>
 	<?php
 }

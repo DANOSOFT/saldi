@@ -26,6 +26,11 @@
 //                 the section it opens under the section's own name (Brugere & roller is Brugere, Ansatte is Personer, owner 2 Nov 2026).
 //                 A field of one employee (Adresse 2 · <name>) is no longer listed when only the section's name matched, so "Personer"
 //                 finds the page, not every employee's fields (nor for a match in the help text only: "Ekstra felter" listed Slet medarbejder).
+// 20261102 CL/ASR Brugere & ansatte is found once (owner, 2 Nov 2026: one item): an entry with 'searchHideIf' (the employee section) is left out
+//                 for a user who may open that group (usersRoles.php is shown instead), a page already listed under the same url is not listed
+//                 twice, and a page named as its permission group is shown under its hub group (Virksomhed), not "Brugere & ansatte" twice.
+// 20261102 CL/ASR Review: an entry's 'searchGroup' names its group (Ekstra felter: Brugere & ansatte, not Organisation), and a field of the
+//                 employee section is shown under the hub group the section sits in (Virksomhed / Brugere & ansatte, not Organisation / ...).
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
 ob_start();
@@ -175,6 +180,9 @@ foreach (getSettingsRegistry() as $entry) {
 	if (!settingsEntryIsVisible($entry)) {
 		continue;
 	}
+	if (!empty($entry['searchHideIf']) && $accessibleGroups !== null && isset($accessibleGroups[$entry['searchHideIf']])) {
+		continue; // another entry of the same name is shown for this user (Brugere & ansatte: usersRoles.php, not the employee section)
+	}
 
 	$label = settingsEntryLabel($entry, $sprog_id);
 	if (isset($entry['textId'])) {
@@ -227,13 +235,25 @@ foreach (getSettingsRegistry() as $entry) {
 	if ($legacyTag === '' && $match['type'] !== 'label' && $renamedAll !== '' && $search !== '' && mb_strpos($renamedAll, mb_strtolower($search)) !== false) {
 		$legacyTag = function_exists('settings_hub_text') ? settings_hub_text($renamed, (int) $sprog_id) : (is_array($renamed) ? $renamed['da'] : findtekst((string) $renamed, $sprog_id));
 	}
+	$groupLabel = ($entryGroup === 'personal') ? findtekst('5500|Personlige indstillinger', $sprog_id) : (isset($accessibleGroups[$entryGroup]) ? findtekst($accessibleGroups[$entryGroup]['def']['label'], $sprog_id) : '');
+	if (($groupLabel !== '' && mb_strtolower($groupLabel) === mb_strtolower($label)) || !empty($entry['searchHideIf'])) {
+		// "Brugere & ansatte · Brugere & ansatte" says nothing: the hub group it sits in (Virksomhed) instead.
+		$hubLoc = function_exists('settings_hub_locate') ? settings_hub_locate((string) $entry['key']) : null;
+		$hubAll = $hubLoc !== null ? getSettingsHub() : array();
+		if ($hubLoc !== null && isset($hubAll[$hubLoc['group']])) {
+			$groupLabel = settings_hub_text($hubAll[$hubLoc['group']]['label'], (int) $sprog_id);
+		}
+	}
+	if (!empty($entry['searchGroup'])) {
+		$groupLabel = findtekst((string) $entry['searchGroup'], $sprog_id); // Ekstra felter: Brugere & ansatte, as its siblings Roller and Audit-log
+	}
 	$result = array(
 		'key' => $entry['key'],
 		'url' => $entry['url'],
 		'label' => $label,
 		'legacy' => $legacyTag,
 		'category' => $entry['category'],
-		'group' => ($entryGroup === 'personal') ? findtekst('5500|Personlige indstillinger', $sprog_id) : (isset($accessibleGroups[$entryGroup]) ? findtekst($accessibleGroups[$entryGroup]['def']['label'], $sprog_id) : ''),
+		'group' => $groupLabel,
 		'matchType' => $match['type'],
 		'matchedTerm' => $match['matchedTerm'],
 	);
@@ -245,7 +265,17 @@ foreach (getSettingsRegistry() as $entry) {
 	}
 }
 
-$results = array_slice(array_merge($label_matches, $keyword_matches), 0, 20);
+// One result per page: a second entry with the same url (an alias found by another word) adds nothing.
+$results = array();
+$seenUrls = array();
+foreach (array_merge($label_matches, $keyword_matches) as $result) {
+	if (isset($seenUrls[$result['url']])) {
+		continue;
+	}
+	$seenUrls[$result['url']] = true;
+	$results[] = $result;
+}
+$results = array_slice($results, 0, 20);
 
 // 20260929 Sawaneh Phase 4a (spec §8.5, §8.10): single settings from registry v2, ranked
 // exact label > label prefix > label > keyword > old menu name > help text, filtered by the
@@ -309,11 +339,18 @@ if ($search !== '' && function_exists('getSettingDefinitions')) {
 		if ($rank === null) {
 			continue;
 		}
+		$fieldGroup = $personal ? findtekst('5500|Personlige indstillinger', $sprog_id) : findtekst($groups[$def['group']]['label'], $sprog_id);
+		if ($sectionId === 'organisation.employees' && function_exists('settings_hub_locate') && ($hubLoc = settings_hub_locate($sectionId)) !== null) {
+			$hubAll = getSettingsHub(); // Brugere & ansatte sits in Virksomhed on the hub; "Organisation" is a name the owner sees nowhere
+			if (isset($hubAll[$hubLoc['group']])) {
+				$fieldGroup = settings_hub_text($hubAll[$hubLoc['group']]['label'], (int) $sprog_id);
+			}
+		}
 		$fields[] = array(
 			'key'      => $key,
 			'label'    => $label,
 			'url'      => $personal ? 'personalSettings.php' : settings_section_url($sectionId, $key),
-			'group'    => $personal ? findtekst('5500|Personlige indstillinger', $sprog_id) : findtekst($groups[$def['group']]['label'], $sprog_id),
+			'group'    => $fieldGroup,
 			'section'  => isset($sections[$sectionId]) ? findtekst((string) $sections[$sectionId]['label'], $sprog_id) : '',
 			'legacy'   => $tag,
 			'personal' => $personal,

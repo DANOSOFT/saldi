@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/actions.php --- lap 5.0.0 --- 2026.10.02 ---
+// ---- includes/settings/actions.php --- lap 5.0.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,9 @@
 // 20261004 Sawaneh G4.3: price lists - add, use (one active list), test the file (fetched only here, with a timeout), delete.
 // 20261004 Sawaneh G2.6: FTP connection test for document storage.
 // 20261002 Sawaneh Phase 4b batch 2 (G9): new API key, shop sync, MobilePay webhook and QR codes (includes/settings/integrations.php).
+// 20261102 CL/ASR employee_add takes the name, initials and e-mail typed in "Tilføj person" (Brugere & ansatte, usersRoles.php), when
+//                 settingsSection.php passes them (settings_action_person, checked and capped in includes/settings/people.php);
+//                 without them it adds "Ny medarbejder" as before. Same insert, audit entry and redirect.
 
 include_once(__DIR__ . '/integrations.php');
 
@@ -240,12 +243,23 @@ function settings_run_action(array $def, string $selfUrl): string
 		case 'employee_add':
 			$sid = settings_company_account_id();
 			$r = db_fetch_array(db_select("select coalesce(max(nummer), 0) + 1 as n, coalesce(max(posnr), 0) + 1 as p from ansatte where konto_id = $sid", __FILE__ . " linje " . __LINE__));
-			$name = db_escape_string(st_txt(6614));
-			db_modify("insert into ansatte (konto_id, navn, nummer, posnr, startdate, slutdate, lukket) values ($sid, '$name', " . (int) $r['n'] . ", " . (int) $r['p'] . ", '" . date('Y-m-d') . "', '9999-12-31', '')", __FILE__ . " linje " . __LINE__);
+			// "Tilføj person" passes what was typed (already checked); otherwise the new row is "Ny medarbejder", as before.
+			$person = (isset($GLOBALS['settings_action_person']) && is_array($GLOBALS['settings_action_person'])) ? $GLOBALS['settings_action_person'] : array();
+			$plain = (isset($person['navn']) && $person['navn'] !== '') ? $person['navn'] : st_txt(6614);
+			$name = db_escape_string($plain);
+			$cols = '';
+			$vals = '';
+			foreach (array('initialer', 'email') as $col) {
+				if (isset($person[$col]) && $person[$col] !== '') {
+					$cols .= ", $col";
+					$vals .= ", '" . db_escape_string($person[$col]) . "'";
+				}
+			}
+			db_modify("insert into ansatte (konto_id, navn$cols, nummer, posnr, startdate, slutdate, lukket) values ($sid, '$name'$vals, " . (int) $r['n'] . ", " . (int) $r['p'] . ", '" . date('Y-m-d') . "', '9999-12-31', '')", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select max(id) as id from ansatte where konto_id = $sid", __FILE__ . " linje " . __LINE__));
 			$eid = (int) $r['id'];
 			if (function_exists('audit_log')) {
-				audit_log('setting.row_created', json_encode(array('before' => null, 'after' => st_txt(6614)), JSON_UNESCAPED_UNICODE), 'indstilling', 'organisation.employees#' . $eid);
+				audit_log('setting.row_created', json_encode(array('before' => null, 'after' => $plain), JSON_UNESCAPED_UNICODE), 'indstilling', 'organisation.employees#' . $eid);
 			}
 			return 'settingsSection.php?s=organisation.employees&item=emp_' . $eid;
 		case 'employee_up':

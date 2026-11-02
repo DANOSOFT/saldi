@@ -44,6 +44,7 @@
 //                 settings sub-page (includes/settings/layout.php: Kontokort, the import pages, Sikkerhedskopi); it went to the hub.
 // 20261102 CL/ASR No search field above the menu any more (search lives on the hub), so the menu starts where it does on every
 //                  other settings page. unified-components.css v=20261102.
+// 20261102 CL/ASR unified-components.css v=20261102b (the direct Brugere & ansatte heading in the left menu).
 
 $small=NULL;
 if (!isset($css)) $css=NULL;
@@ -108,7 +109,7 @@ if (typeof window.saldiTranslations === 'undefined') {
 	window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
 }
 </script>";
-print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261102\">";
+print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261102b\">";
 print "<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>";
 print "<style>.st-legacy { min-width: 0; font: 14px/1.5 Inter, \"Segoe UI\", system-ui, sans-serif; } .st-legacy table { max-width: 100%; } .st-legacy input[type=submit], .st-legacy input[type=button], .st-legacy button { border-radius: 4px; }</style>";
 print "<div class=\"st-page\" style=\"" . st_h(st_accent_style((string) $buttonColor, (string) $buttonTxtColor)) . "\">";

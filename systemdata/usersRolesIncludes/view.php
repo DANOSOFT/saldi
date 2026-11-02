@@ -52,13 +52,19 @@
 // 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu): the menu of Virksomhed with Brugere & roller marked under Brugere & ansatte, and the tabs, review banner, notices, table, role matrix, audit log, drawer and dialogs in the content column beside it.
 //                 Tilbage, title, the counts and Opret/Inviter bruger form the same head as the section pages; the layout prints the breadcrumb and the document title.
 //                 usersRoles.css is linked after the layout's stylesheets, as ?v=20261102b.
-// 20261102 CL/ASR Personer (owner, 2 Nov 2026: Brugere & ansatte is one row, Personer, with Brugere, Roller and Audit-log under it): the menu marks
-//                 the tab shown (Brugere / Roller / Audit-log) and the title is the tab's name. Opened from Personer (ret=), the menu keeps Personer
-//                 marked and Tilbage, the X, the scrim, Escape and Annullér return to the people list or the employee's card.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle"; one card with Stamdata and
+//                 Login og rolle; one button "Tilføj person"; Roller, Audit-log and Ekstra felter in the menu). Small hooks into
+//                 includes/settings/people.php, which holds the logic:
+//                 - the users tab is the one list "Brugere & ansatte": the employees without a login are rows too (ur_people_rows_before/_rest,
+//                   no tick box), a status filter "Ingen login", the counts with their singulars (ur_people_lead), a click anywhere on a row
+//                   opens the card (data-href), the line under a name is initials · username, a chevron instead of the edit icon;
+//                 - the user drawer is the person card: tabs Stamdata | Login og rolle under its head (ur_people_card_head), wider; an
+//                   employee without a login has its own card with "Giv adgang" (ur_people_card_nologin); closing goes to the list;
+//                 - the head's one button is "Tilføj person" (its dialog: ur_people_add_dialog); Roller and Audit-log have none and no tab bar
+//                   (the left menu holds Roller and Audit-log); the title follows the tab (Brugere & ansatte / Roller / Audit-log);
+//                 - Tilbage on the log opened by "Se log" from a card goes back to that card (ret=user_<id>, a whitelist).
 //                 "Kobling til ansat" names a closed employee "(Fratrådt)" and marks one that already has a login; closing a login linked
 //                 to an employee says that the employee is marked as resigned too (user_close() does that).
-// 20261102 CL/ASR Review: the user counts are the lead of the Brugere tab only (the title follows the tab). The log's user filter (bruger=<name>)
-//                 is no user card, so Tilbage there stays the hub; the log opened from an employee's card ("Se log", ret=) returns to that card.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -80,24 +86,22 @@ function ur_view(array $vm): void
 		return $role ? htmlspecialchars(perm_role_name($role, $sprog), ENT_QUOTES, 'UTF-8') : $t('5554|Ingen rolle');
 	};
 	$flash = ($vm['msg'] === 'bulk') ? ur_bulk_flash($vm['act'], (int) $vm['done'], $vm['why'], $sprog) : ur_flash($vm['msg'], $sprog);
+	if (!$flash) {
+		$flash = ur_people_flash(); // a message from the card's Stamdata tab (an employee deleted there)
+	}
 	$counts = ur_user_counts($vm);
-	// Tilbage goes one step up: from a user or role card to its list; from a list as on every settings page (settings_back_link()).
-	$back = ($vm['editUser'] !== null && $vm['tab'] === 'users') ? $vm['linkPrefix'] . 'tab=users' : (($vm['tab'] === 'roles' && isset($_GET['rolle'])) ? $vm['linkPrefix'] . 'tab=roles' : '');
-	$fromPeople = ($vm['retUrl'] !== '' && ($vm['tab'] === 'users' || $vm['tab'] === 'log'));
-	if ($fromPeople) {
-		$back = $vm['retUrl']; // opened from Personer: back to the people list or the employee's card
+	// Tilbage goes one step up: from a person card or a role card to its list, from the log opened on a card to that card; from a list
+	// as on every settings page (settings_back_link()).
+	$back = (($vm['editUser'] !== null || $vm['person'] !== null) && $vm['tab'] === 'users') ? $vm['linkPrefix'] . 'tab=users' : (($vm['tab'] === 'roles' && isset($_GET['rolle'])) ? $vm['linkPrefix'] . 'tab=roles' : '');
+	if ($vm['logBack'] !== '') {
+		$back = $vm['linkPrefix'] . $vm['logBack'];
 	}
-	// The hub entry of the tab shown (after the permission fallback), so the menu marks Brugere, Roller or Audit-log; from Personer, Personer.
+	// The hub entry of the tab shown (after the permission fallback), so the menu marks Brugere & ansatte, Roller or Audit-log.
 	$at = array('users' => 'brugere', 'roles' => 'roller', 'log' => 'audit_log');
-	$at = $fromPeople ? 'organisation.employees' : $at[$vm['tab']];
-	$pageTitle = array('users' => '5549|Brugere', 'roles' => '5550|Roller', 'log' => '5796|Audit-log');
-	// One filled button per view: on the Roles tab the role's Gem is the one, so the head's Inviter bruger is a plain button there.
-	$headPrimary = !($vm['tab'] === 'roles' && $vm['canRolesWrite'] && $vm['editRole'] !== null);
-	$headActs = '';
-	if ($vm['canWrite']) {
-		$headActs = '<a class="sk-btn" href="' . $link('tab=users&bruger=0&mode=classic') . '"><i class="bx bx-user-plus"></i>' . $t('5780|Opret bruger') . '</a>'
-			. '<a class="sk-btn' . ($headPrimary ? ' sk-btn-primary' : '') . '" href="' . $link('tab=users&bruger=0') . '"><i class="bx bx-envelope"></i>' . $t('5779|Inviter bruger') . '</a>';
-	}
+	$at = $at[$vm['tab']];
+	$pageTitle = array('users' => '7708|Brugere & ansatte', 'roles' => '5550|Roller', 'log' => '5796|Audit-log');
+	// One button in the head, on the list only: Tilføj person (Roller and Audit-log are reached from the left menu).
+	$headActs = $vm['tab'] === 'users' ? ur_people_add_button($vm, $t) : '';
 	// The standard layout of a settings page (includes/settings/layout.php): breadcrumb, document title, Tilbage, title, the counts
 	// as the lead and the head's buttons, then the left menu of Virksomhed with Brugere & roller marked and the page in the content
 	// column. Its stylesheets (fonts, the kit, the settings components, boxicons) are printed first, so css/usersRoles.css comes after them.
@@ -108,7 +112,7 @@ function ur_view(array $vm): void
 		'kit'          => true,
 		'class'        => 'ur-page',
 		'title'        => findtekst($pageTitle[$vm['tab']], $sprog),
-		'lead'         => $vm['tab'] === 'users' ? sprintf(findtekst('5960|%s brugere · %s administratorer · %s inviterede · %s lukkede', $sprog), $counts['all'], $counts['admins'], $counts['invited'], $counts['closed']) : false,
+		'lead'         => $vm['tab'] === 'users' ? ur_people_lead($vm, $counts) : false,
 		'back'         => $back,
 		'actions_html' => $headActs,
 	));
@@ -133,17 +137,13 @@ function ur_view(array $vm): void
   <div class="sk-note sk-bad"><i class='bx bx-error'></i><span>Roles tables missing - log in again so includes/betweenUpdates.php can create them.</span></div>
   <?php } ?>
 
-  <nav class="sk-tabs">
-    <a class="sk-tab<?= $vm['tab'] === 'users' ? ' on' : '' ?>" href="<?= $link('tab=users') ?>"<?= $vm['tab'] === 'users' ? ' aria-current="page"' : '' ?>><i class='bx bx-group'></i><?= $t('5549|Brugere') ?><span class="sk-n"><?= count($vm['users']) ?></span></a>
-    <?php if ($vm['canRoles']) { ?><a class="sk-tab<?= $vm['tab'] === 'roles' ? ' on' : '' ?>" href="<?= $link('tab=roles') ?>"<?= $vm['tab'] === 'roles' ? ' aria-current="page"' : '' ?>><i class='bx bx-key'></i><?= $t('5550|Roller') ?><span class="sk-n"><?= count($vm['roles']) ?></span></a><?php } ?>
-    <?php if ($vm['canAudit']) { ?><a class="sk-tab<?= $vm['tab'] === 'log' ? ' on' : '' ?>" href="<?= $link('tab=log') ?>"<?= $vm['tab'] === 'log' ? ' aria-current="page"' : '' ?>><i class='bx bx-history'></i><?= $t('5796|Audit-log') ?></a><?php } ?>
-  </nav>
-
   <?php
 	if ($vm['tab'] === 'users') {
 		ur_view_users($vm, $h, $t, $link, $roleName);
 		if ($vm['editUser'] !== null) {
 			ur_view_user_drawer($vm, $h, $t, $link, $roleName);
+		} elseif ($vm['person'] !== null) {
+			ur_people_card_nologin($vm, $h, $t, $link);
 		}
 	} elseif ($vm['tab'] === 'roles') {
 		ur_view_roles($vm, $h, $t, $link, $roleName);
@@ -159,9 +159,11 @@ function ur_view(array $vm): void
       <div class="sk-dialog-f" id="ur-dlg-row"></div>
     </div>
   </div>
+<?php ur_people_add_dialog($vm, $h, $t, $link); ?>
 <?php settings_layout_close(); ?>
 <template id="ur-dlg-cancel"><button type="button" class="sk-btn" data-dlg-close><?= $t('5940|Annullér') ?></button></template>
 <?php ur_view_script($vm); ?>
+<?php ur_people_assets($vm, $t); ?>
 	<?php
 }
 
@@ -192,7 +194,7 @@ function ur_view_users(array $vm, callable $h, callable $t, callable $link, call
   <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-bulk" class="sk-panel">
     <input type="hidden" name="action" value="bulk_role">
     <div class="sk-bar">
-      <label class="sk-search"><i class='bx bx-search'></i><input class="sk-input" type="search" id="ur-search" placeholder="<?= $t('5917|Søg navn, brugernavn eller e-mail') ?>" autocomplete="off"></label>
+      <label class="sk-search"><i class='bx bx-search'></i><input class="sk-input" type="search" id="ur-search" placeholder="<?= $t('7791|Søg navn, initialer, brugernavn eller e-mail') ?>" autocomplete="off"></label>
       <select class="sk-input" id="ur-role-filter" aria-label="<?= $t('5553|Rolle') ?>">
         <option value=""><?= $t('5875|Alle roller') ?></option>
         <?php foreach ($vm['roles'] as $role) { ?><option value="<?= (int) $role['id'] ?>"><?= $roleName($role) ?></option><?php } ?>
@@ -202,6 +204,7 @@ function ur_view_users(array $vm, callable $h, callable $t, callable $link, call
         <option value="active"><?= $t('5558|Aktiv') ?></option>
         <option value="invited"><?= $t('5778|Inviteret') ?></option>
         <option value="closed"><?= $t('5559|Lukket') ?></option>
+        <?= ur_people_status_option($vm, $t) ?>
       </select>
       <select class="sk-input" id="ur-2fa-filter" aria-label="2FA">
         <option value="">2FA: <?= $t('2498|Alle') ?></option>
@@ -251,16 +254,17 @@ function ur_view_users(array $vm, callable $h, callable $t, callable $link, call
         </thead>
         <tbody>
           <?php foreach ($vm['users'] as $u) {
-          	$searchBlob = mb_strtolower($u['navn'] . ' ' . $u['brugernavn'] . ' ' . $u['email'] . ' ' . ($u['role'] ? perm_role_name($u['role'], $vm['sprogId']) : ''));
+            ur_people_rows_before($vm, $u, $h, $t, $link);
+            $searchBlob = mb_strtolower($u['navn'] . ' ' . (!empty($vm['canOrg']) ? $u['initialer'] : '') . ' ' . $u['brugernavn'] . ' ' . $u['email'] . ' ' . ($u['role'] ? perm_role_name($u['role'], $vm['sprogId']) : ''));
           	$status = $u['closed'] ? 'closed' : ($u['invited'] ? 'invited' : 'active');
-          	$cardLink = $link('tab=users&bruger=' . $u['id']);
+            $cardLink = $link(ur_people_row_link($vm, $u));
           	$badge = !$u['role'] ? 'sk-bad' : ($u['role_id'] === $vm['adminRoleId'] ? 'sk-info' : ($u['role']['system'] ? '' : 'sk-warn'));
           	$tone = $u['closed'] ? 'sk-off' : ($u['invited'] ? 'sk-warn' : 'sk-ok');
           ?>
-          <tr data-search="<?= $h($searchBlob) ?>" data-status="<?= $status ?>"<?= $u['id'] === $vm['selfId'] ? ' data-self="1"' : '' ?> data-role="<?= (int) $u['role_id'] ?>" data-tfa="<?= $u['twofactor'] ? 1 : 0 ?>"<?= $u['review'] ? ' data-review="1"' : '' ?><?= ($vm['editUser'] && $vm['editUser']['id'] === $u['id']) ? ' class="on"' : '' ?>>
+          <tr data-search="<?= $h($searchBlob) ?>" data-status="<?= $status ?>"<?= $u['id'] === $vm['selfId'] ? ' data-self="1"' : '' ?> data-role="<?= (int) $u['role_id'] ?>" data-tfa="<?= $u['twofactor'] ? 1 : 0 ?>"<?= $u['review'] ? ' data-review="1"' : '' ?> data-href="<?= $cardLink ?>"<?= ($vm['editUser'] && $vm['editUser']['id'] === $u['id']) ? ' class="on"' : '' ?>>
             <?php if ($vm['canWrite']) { ?><td class="sk-c ur-cb"><input class="sk-check" type="checkbox" name="ids[]" value="<?= (int) $u['id'] ?>" aria-label="<?= $h($u['navn']) ?>"></td><?php } ?>
             <td class="ur-name" data-v="<?= $h(mb_strtolower($u['navn'])) ?>">
-              <a class="ur-name-a" href="<?= $cardLink ?>"><?= $h($u['navn']) ?></a><span class="sk-sub"><?= $h($u['brugernavn']) ?><?= $u['ansat_id'] > 0 ? ' · ' . $t('589|Ansat') : '' ?></span><?php if ($u['review']) { ?><span class="sk-tag sk-warn"><?= $t('5883|Ikke bekræftet') ?></span><?php } ?><?php if ($u['isRevisor']) { ?><span class="sk-tag"><?= $t('2562|Revisor') ?></span><?php } ?>
+              <a class="ur-name-a" href="<?= $cardLink ?>"><?= $h($u['navn']) ?></a><?= ur_people_user_sub($vm, $u, $h, $t) ?><?php if ($u['review']) { ?><span class="sk-tag sk-warn"><?= $t('5883|Ikke bekræftet') ?></span><?php } ?><?php if ($u['isRevisor']) { ?><span class="sk-tag"><?= $t('2562|Revisor') ?></span><?php } ?>
             </td>
             <td class="sk-muted" title="<?= $h($u['email']) ?>"><?= $h($u['email']) ?></td>
             <td data-v="<?= $h($u['role'] ? mb_strtolower(perm_role_name($u['role'], $vm['sprogId'])) : '') ?>">
@@ -273,15 +277,16 @@ function ur_view_users(array $vm, callable $h, callable $t, callable $link, call
             <td class="sk-c" data-v="<?= $u['twofactor'] ? 1 : 0 ?>"><i class='bx <?= $u['twofactor'] ? 'bxs-check-shield ur-tfa-on' : 'bx-shield ur-tfa-off' ?> ur-tfa' title="2FA"></i></td>
             <td class="sk-muted" data-v="<?= $h($u['lastLogin']) ?>"><?= $u['lastLogin'] !== '' ? $h(substr($u['lastLogin'], 0, 16)) : $t('5905|Aldrig') ?></td>
             <td data-v="<?= $status ?>"><span class="sk-status <?= $tone ?>"><?= $u['closed'] ? $t('5559|Lukket') : ($u['invited'] ? $t('5778|Inviteret') : $t('5558|Aktiv')) ?></span></td>
-            <td class="sk-act"><a class="sk-btn sk-btn-ghost sk-btn-icon sk-btn-sm" href="<?= $cardLink ?>" aria-label="<?= $t('5567|Rediger') ?>" title="<?= $t('5567|Rediger') ?>"><i class='bx bx-edit'></i></a></td>
+            <td class="sk-act"><a class="sk-btn sk-btn-ghost sk-btn-icon sk-btn-sm" href="<?= $cardLink ?>" aria-label="<?= $t('6157|Åbn') ?>" title="<?= $t('6157|Åbn') ?>"><i class='bx bx-chevron-right'></i></a></td>
           </tr>
           <?php } ?>
+          <?php ur_people_rows_rest($vm, $h, $t, $link); ?>
         </tbody>
       </table>
-      <div class="sk-empty" id="ur-empty" hidden><?= $t('5593|Ingen brugere fundet') ?></div>
+      <div class="sk-empty" id="ur-empty" hidden><?= $t('7781|Ingen matcher søgningen') ?></div>
     </div>
     <div class="sk-foot">
-      <span id="ur-foot-text" data-format="<?= $t('5914|Viser %s af %s brugere') ?>"></span>
+      <span id="ur-foot-text" data-format="<?= $t('7780|Viser %s af %s') ?>"></span>
       <span class="sk-grow"></span>
       <span class="ur-pager" id="ur-pager" hidden>
         <button class="sk-btn sk-btn-sm" type="button" data-page="-1"><i class='bx bx-chevron-left'></i><?= $t('5870|Forrige') ?></button>
@@ -306,7 +311,7 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
 	$ro = $vm['canWrite'] ? '' : ' disabled';
 	$ownCard = (!$isNew && $u['id'] === $vm['selfId']);
 	$lastAdmin = (!$isNew && function_exists('user_is_last_admin') && user_is_last_admin($u['id']));
-	$closeUrl = $vm['retUrl'] !== '' ? $h($vm['retUrl']) : $link('tab=users');
+	$closeUrl = $link('tab=users');
 	$modules = array();
 	foreach (permission_registry() as $key => $def) {
 		if ($def['legacy']) {
@@ -321,12 +326,13 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
 	}
 	?>
   <a class="sk-scrim" href="<?= $closeUrl ?>" aria-label="<?= $t('2172|Luk') ?>"></a>
-  <aside class="sk-drawer ur-drawer" id="ur-drawer" data-close="<?= $closeUrl ?>" aria-labelledby="ur-drawer-title">
+  <aside class="sk-drawer ur-drawer" id="ur-drawer" data-close="<?= $closeUrl ?>"<?= ur_people_drawer_attrs($vm) ?> aria-labelledby="ur-drawer-title">
     <div class="sk-drawer-h">
-      <h2 class="sk-drawer-t" id="ur-drawer-title"><?= $isNew ? ($inviteNew ? $t('5779|Inviter bruger') : $t('5780|Opret bruger')) : $h($u['navn']) ?><?php if ($u['invited']) { ?> <span class="sk-status sk-warn ur-drawer-st"><?= $t('5778|Inviteret') ?></span><?php } ?></h2>
+      <h2 class="sk-drawer-t" id="ur-drawer-title"><?= $isNew ? ($u['navn'] !== '' ? $h($u['navn']) : ($inviteNew ? $t('5779|Inviter bruger') : $t('5780|Opret bruger'))) : $h($u['navn']) ?><?php if ($u['invited']) { ?> <span class="sk-status sk-warn ur-drawer-st"><?= $t('5778|Inviteret') ?></span><?php } ?></h2>
       <a class="sk-btn sk-btn-ghost sk-btn-icon" href="<?= $closeUrl ?>" aria-label="<?= $t('2172|Luk') ?>" title="<?= $t('2172|Luk') ?>"><i class='bx bx-x'></i></a>
     </div>
-    <form method="post" action="<?= $h($vm['selfUrl']) ?>" autocomplete="off" id="ur-user-form" class="sk-drawer-b">
+    <?php ur_people_card_head($vm, $h, $t, $link); ?>
+    <form method="post" action="<?= $h($vm['userFormUrl']) ?>" autocomplete="off" id="ur-user-form" class="sk-drawer-b">
       <input type="hidden" name="action" value="save_user">
       <input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
       <?php if ($isNew) { ?><input type="hidden" name="mode" value="<?= $inviteNew ? 'invite' : 'classic' ?>"><?php } ?>

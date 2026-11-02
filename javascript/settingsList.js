@@ -6,9 +6,10 @@
 // 20261008 Sawaneh Mini forms send the page's CSRF token (X-CSRF-Token), as master's Flatpay ID save (SST-844) requires.
 // 20261018 Sawaneh Account lookups in the drawers: the list of matching accounts while typing, as on the other settings pages.
 // 20261023 ASR Merge of master (SST-843): a mini-form answer that is not JSON (the login page after the session expired) is a failure even with HTTP 200.
-// 20261102 CL/ASR A link marked data-guard in a drawer (Personer: "Rediger login og rolle", "Inviter som bruger") asks the unsaved-changes
-//                 question first, as opening another drawer does, so edits in the employee card are not lost without a word.
-// 20261102 CL/ASR In a list marked data-rowclick (Personer) a click anywhere on a row works as its button (the drawer, or the link of a login).
+// 20261102 CL/ASR In a list marked data-rowclick (the employee list) a click anywhere on a row opens its drawer, as its button does.
+// 20261102 CL/ASR Embedded (cfg.embed: the Stamdata tab of the person card in usersRoles.php, owner 2 Nov 2026): the one drawer stays open;
+//                 Annullér and Esc ask the card to close (it asks about unsaved changes first), and after a save the card is told the
+//                 saved name ({type: 'saldi:stamdata'} to the parent, same origin only). Nothing changes for the other lists.
 (function () {
 	'use strict';
 	var cfg = window.SALDI_SETTINGS || {};
@@ -148,7 +149,15 @@
 		});
 		window.docChange = false;
 	}
+	// Embedded: the card around the iframe closes (and asks about unsaved changes); this page never hides its drawer.
+	function tellCard(event, extra) {
+		if (window.parent === window) { return; }
+		var msg = { type: 'saldi:stamdata', event: event };
+		Object.keys(extra || {}).forEach(function (k) { msg[k] = extra[k]; });
+		window.parent.postMessage(msg, window.location.origin);
+	}
 	function close(force) {
+		if (cfg.embed) { tellCard('close'); return; }
 		if (!current) { return; }
 		if (!force && isDirty(current)) {
 			openDialog(cfg.discardTitle, cfg.discardBody, cfg.discardVerb, { discard: true, then: function () { close(true); } });
@@ -170,17 +179,11 @@
 
 	// ------------------------------------------------------------ clicks
 	page.addEventListener('click', function (e) {
-		var guarded = e.target.closest('a[data-guard]');
-		if (guarded && current && isDirty(current)) {
-			e.preventDefault();
-			openDialog(cfg.discardTitle, cfg.discardBody, cfg.discardVerb, { discard: true, then: function () { window.docChange = false; window.location.href = guarded.href; } });
-			return;
-		}
 		var opener = e.target.closest('[data-open]');
 		if (opener) { open(opener.dataset.open); return; }
 		var rowHit = e.target.closest('[data-rowclick] .st-irow');
 		if (rowHit && !e.target.closest('a, button, input, select, textarea, label')) {
-			var rowBtn = rowHit.querySelector('[data-open], a.st-btn');
+			var rowBtn = rowHit.querySelector('[data-open]');
 			if (rowBtn) { rowBtn.click(); return; }
 		}
 		var closer = e.target.closest('[data-close]');
@@ -359,7 +362,7 @@
 
 	// Rows that open on a click show it (data-rowclick lists only).
 	Array.prototype.forEach.call(page.querySelectorAll('[data-rowclick] .st-irow'), function (row) {
-		if (row.querySelector('[data-open], a.st-btn')) { row.style.cursor = 'pointer'; }
+		if (row.querySelector('[data-open]')) { row.style.cursor = 'pointer'; }
 	});
 
 	// ------------------------------------------------------------ left column follows the scroll
@@ -399,6 +402,11 @@
 	if (params.get('done') === 'vibrant') { say(cfg.doneVibrant || ''); }
 	cleanUrl();
 	if (startItem) { open(startItem, field); }
+	if (cfg.embed && current) {
+		var savedName = current.querySelector('.st-dhead h2');
+		if (cfg.saved) { tellCard('saved', { name: savedName ? savedName.textContent : '' }); }
+		tellCard('ready');
+	}
 
 	// Account and creditor lookups in a drawer (§8.1), as on the other settings pages (settingsSection.js).
 	Array.prototype.forEach.call(page.querySelectorAll('.st-lookup'), function (box) {

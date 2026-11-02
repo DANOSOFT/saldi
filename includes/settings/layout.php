@@ -23,6 +23,7 @@
 //                 shows the left menu of the section pages in the same place: the page's hub group with its sub-groups, the row marked,
 //                 Tilbage above the title, the breadcrumb Indstillinger / group / row (/ page). Same markup and classes as
 //                 systemdata/settingsSection.php (settings_menu_html(), css/unified-components.css), so it looks the same.
+// 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b (the direct Brugere & ansatte heading in the left menu).
 
 /*
  * HOW TO USE (for the pages that do not have the menu yet)
@@ -291,7 +292,7 @@ function settings_layout_assets(bool $kit = false): string
 	foreach (array_filter(array(
 		'fonts' => $rel . 'css/saldi-fonts.css?v=2',
 		'kit' => $kit ? $rel . 'css/saldi-kit.css?v=20261102' : '',
-		'st' => $rel . 'css/unified-components.css?v=20261102',
+		'st' => $rel . 'css/unified-components.css?v=20261102b',
 		'bx' => 'https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css',
 	)) as $id => $href) {
 		if (!isset($done[$id])) {

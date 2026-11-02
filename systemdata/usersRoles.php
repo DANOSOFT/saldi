@@ -29,15 +29,17 @@
 // 20261101 CL/ASR New design (prototype D): the head links css/saldi-theme.css; the view links css/saldi-kit.css and then css/usersRoles.css, so the page's own rules come after the kit.
 // 20261101 CL/ASR Loads includes/settings/components.php for the Tilbage button the view shows above the title.
 // 20261102 CL/ASR Loads includes/settings/layout.php (which loads components.php): the view uses the standard settings layout with the left menu.
-// 20261102 CL/ASR Personer (owner, 2 Nov 2026: one place for people, the employee list in Indstillinger as the overview) opens a login here with
-//                 ret=people or ret=emp_<id> (ur_return_target(), a whitelist): it stays on every form and redirect of the visit, and Tilbage and
-//                 closing the drawer go back to the people list or that employee's card (ur_return_url(), built here from an int, never from input).
-//                 With ret=emp_<id> a new user starts linked to that employee, with its e-mail and a username from it, when the employee is
-//                 the company's, has not left and has no login yet. Saving, the checks and the redirects' targets are unchanged.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle", one card with Stamdata and
+//                 Login og rolle, one button "Tilføj person"): the users list is the one list of logins and employees, and the user drawer the
+//                 person card (includes/settings/people.php, loaded here: ur_people_request() checks ansat=/fane=/field=, ur_people_model()
+//                 adds the employees after ur_view_model()). Saving, the checks and the redirects of this page are unchanged; the only new input
+//                 is ansat=<id>, an employee of the company, only read for a user who may read the employees.
+//                 With ansat=<id> a new user starts linked to that employee, with its e-mail and a username from it, when the employee is
+//                 the company's, has not left and has no login yet, and only for a user who may create logins and read the employees;
+//                 the new-user form keeps ansat= on its POST, so a refused form (a username already taken) comes back linked.
 //                 "Kobling til ansat" lists only the company's employees (contact persons of customers and suppliers are in the same table),
 //                 keeps a closed or other linked employee as the selected choice (Gem no longer unlinks it), and marks employees that have a login.
-// 20261102 CL/ASR Review: the e-mail of an employee is filled in only for a user who may create logins and read the employees (settings.organisation),
-//                 and ret= must match to its very end (\z: a trailing newline left a blank page after a POST). The log tab also returns to the card.
+//                 The status filter may start on "Ingen login" (status=nologin).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -66,6 +68,7 @@ include_once(__DIR__ . "/../includes/userFunctions.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/layout.php"); // settings_layout_open(): the standard settings layout (Tilbage, left menu) the view uses
 include(__DIR__ . "/usersRolesIncludes/view.php");
+include_once(__DIR__ . "/../includes/settings/people.php"); // Brugere & ansatte: the employees in the list, the person card, Tilføj person
 
 // Rows per page of the audit log. Declared before any code that reads it: a const statement is
 // not hoisted like the functions further down.
@@ -75,9 +78,8 @@ const UR_ADMIN_LOCKED = array('settings.users.manage', 'settings.roles.manage');
 require_permission('settings.users.manage', 'read');
 
 $contextQuery = (!empty($_GET['inframe']) ? 'inframe=1' : '');
-// Opened from Personer (ret=): kept through the POST and its redirect, so the round trip ends where it began.
-$urRet = ur_return_target($_GET);
-$postQuery = implode('&', array_filter(array($contextQuery, $urRet !== '' ? 'ret=' . $urRet : ''), 'strlen'));
+// A new login started from a person's card (ansat=<id>, digits only): kept through the POST's redirect, so a refused form comes back linked.
+$postQuery = implode('&', array_filter(array($contextQuery, (isset($_GET['ansat']) && is_string($_GET['ansat']) && preg_match('/^[1-9][0-9]{0,9}\z/', $_GET['ansat'])) ? 'ansat=' . $_GET['ansat'] : ''), 'strlen'));
 
 // Every posted form carries the session token (added to the page below), as in diverse.php.
 if (empty($_SESSION['csrf_token'])) {
@@ -120,7 +122,8 @@ $urToken = "<input type=\"hidden\" name=\"csrf_token\" value=\"" . htmlspecialch
 ob_start(function ($buffer) use ($urToken) {
 	return preg_replace('/(<form\b[^>]*\bmethod="post"[^>]*>)/i', '$1' . $urToken, $buffer);
 });
-$vm = ur_view_model($_GET, (int) $bruger_id, (int) $sprog_id, (string) $db_encode, $contextQuery);
+$get = ur_people_request($_GET);
+$vm = ur_people_model(ur_view_model($get, (int) $bruger_id, (int) $sprog_id, (string) $db_encode, $contextQuery), $get);
 ur_view($vm);
 ob_end_flush();
 
@@ -612,29 +615,6 @@ function ur_copy_role(int $id): string
 	return 'tab=roles&rolle=' . $newId;
 }
 
-// ================================================================== return to Personer
-
-/**
- * Where a visit from Personer returns: 'people' (the list), 'emp_<id>' (that employee's card) or '' (none). A whitelist, so it
- * can never name another address.
- */
-function ur_return_target(array $get): string
-{
-	$ret = (isset($get['ret']) && is_string($get['ret'])) ? $get['ret'] : '';
-	return preg_match('/^(people|emp_[1-9][0-9]{0,9})\z/', $ret) ? $ret : '';
-}
-
-/**
- * The address of ur_return_target() (relative to systemdata/), '' when there is none or the user cannot read the employees.
- */
-function ur_return_url(string $ret): string
-{
-	if ($ret === '' || (function_exists('perm_can') && !perm_can('settings.organisation', 'read'))) {
-		return '';
-	}
-	return 'settingsSection.php?s=organisation.employees' . ($ret !== 'people' ? '&item=emp_' . (int) substr($ret, 4) : '');
-}
-
 // ================================================================== view model
 
 /**
@@ -724,7 +704,6 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 	while ($r = db_fetch_array($q)) {
 		$employees[] = array('id' => (int) $r['id'], 'navn' => (string) $r['navn'], 'initialer' => (string) $r['initialer'], 'logins' => (int) $r['logins'], 'left' => false);
 	}
-	$ret = ur_return_target($get);
 
 	$editUser = null;
 	if (isset($get['bruger'])) {
@@ -738,17 +717,19 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 			$editUser = array('id' => 0, 'brugernavn' => '', 'navn' => '', 'initialer' => '', 'email' => '', 'tlf' => '', 'ip' => '',
 				'twofactor' => false, 'ansat_id' => 0, 'role_id' => 0, 'role' => null, 'suggestion' => null, 'rettigheder' => '',
 				'lastLogin' => '', 'closed' => false, 'invited' => false, 'review' => false, 'hasLoggedIn' => false, 'isRevisor' => false);
-			// From an employee's card in Personer (ret=emp_<id>): the new user starts linked to that employee, with its e-mail and a
-			// username (the e-mail before @, else the initials) - only an employee of the company that has not left and has no login yet,
-			// and only for a user who may create logins and read the employees (the e-mail is the employee's data).
-			if (preg_match('/^emp_([0-9]+)\z/', $ret, $m) && $companyId > 0 && perm_can('settings.users.manage', 'write') && perm_can('settings.organisation', 'read')) {
-				$e = db_fetch_array(db_select("select id, navn, initialer, email from ansatte where id = " . (int) $m[1] . " and konto_id = $companyId and (lukket is null or lukket != 'on') and not exists (select 1 from brugere b where b.ansat_id = ansatte.id)", __FILE__ . " linje " . __LINE__));
+			// From a person's card (ansat=<id>, checked by ur_people_request()): the new user starts linked to that employee, with its
+			// e-mail and a username (the e-mail before @, else the initials) - only an employee of the company that has not left and has
+			// no login yet, and only for a user who may create logins and read the employees (the e-mail is the employee's data).
+			$fromEmployee = isset($get['_ansat']) ? (int) $get['_ansat'] : 0;
+			if ($fromEmployee > 0 && $companyId > 0 && perm_can('settings.users.manage', 'write') && perm_can('settings.organisation', 'read')) {
+				$e = db_fetch_array(db_select("select id, navn, initialer, email from ansatte where id = " . $fromEmployee . " and konto_id = $companyId and (lukket is null or lukket != 'on') and not exists (select 1 from brugere b where b.ansat_id = ansatte.id)", __FILE__ . " linje " . __LINE__));
 				if ($e) {
 					$mail = trim((string) $e['email']);
 					$name = ($mail !== '' && strpos($mail, '@') > 0) ? substr($mail, 0, strpos($mail, '@')) : trim((string) $e['initialer']);
 					$editUser['ansat_id'] = (int) $e['id'];
 					$editUser['email'] = $mail;
 					$editUser['brugernavn'] = substr(strtolower($name), 0, 80);
+					$editUser['navn'] = trim((string) $e['navn']);
 				}
 			}
 		}
@@ -844,14 +825,11 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 		}
 	}
 
-	// Forms post to selfUrl, so ret= (Personer) is on every POST; the links inside the page (linkPrefix) leave it out.
-	$selfQuery = implode('&', array_filter(array($contextQuery, $ret !== '' ? 'ret=' . $ret : ''), 'strlen'));
 	return array(
 		'tab'          => $tab,
 		'sprogId'      => $sprogId,
 		'charset'      => ($dbEncode === 'UTF8') ? 'UTF-8' : 'ISO-8859-1',
-		'selfUrl'      => 'usersRoles.php' . ($selfQuery !== '' ? '?' . $selfQuery : ''),
-		'retUrl'       => ur_return_url($ret),
+		'selfUrl'      => 'usersRoles.php' . ($contextQuery !== '' ? '?' . $contextQuery : ''),
 		'linkPrefix'   => 'usersRoles.php?' . ($contextQuery !== '' ? $contextQuery . '&' : ''),
 		'canWrite'     => perm_can('settings.users.manage', 'write'),
 		'ownLevels'    => perm_user_levels($selfId, (string) $GLOBALS['rettigheder']),
@@ -865,7 +843,7 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 		'users'        => $users,
 		'withoutRole'  => $withoutRole,
 		'reviewCount'  => count($review),
-		'statusFilter' => (isset($get['status']) && in_array($get['status'], array('active', 'invited', 'closed', 'review'), true)) ? (string) $get['status'] : '',
+		'statusFilter' => (isset($get['status']) && in_array($get['status'], array('active', 'invited', 'closed', 'review', 'nologin'), true)) ? (string) $get['status'] : '',
 		'roles'        => $roles,
 		'roleCounts'   => $counts,
 		'employees'    => $employees,

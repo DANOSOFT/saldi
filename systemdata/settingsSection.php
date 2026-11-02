@@ -59,6 +59,19 @@
 // 20261101 CL/ASR Review: css/saldi-kit.css linked as ?v=20261101c, the version the other settings pages link (the kit's list rows lost their zebra).
 // 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
 //                 The kit is linked as ?v=20261102.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: one list of everyone, one card with Stamdata and Login og rolle): the one list is
+//                 usersRoles.php. The employee section (organisation.employees) is now
+//                 - embedded (embed=person, always with popup=1 so the navigation stack skips it): the Stamdata tab of the person card, only
+//                   that employee's drawer; every redirect of a save or action stays embedded; framed by this site only (frame-ancestors);
+//                 - Ekstra felter (sub=general, item=general, or the extra-fields field): its extra-fields block as a page of its own;
+//                 - the list of a user who may not open usersRoles.php (employees only, "Tilføj person" adds one, as before).
+//                 A plain GET of the employee list (an old address: ansatte.php, stamkort.php, a bookmark, a search hit, item=emp_N,
+//                 field=...emp key) by a user who may open usersRoles.php goes there instead, to the list or the person's card, and leaves
+//                 the navigation stack - not while a message is waiting or for a framed request. "Tilføj person" in usersRoles.php posts
+//                 the existing add action here (people=1, with the name, initials and e-mail typed in the dialog, checked and capped
+//                 in includes/settings/people.php); it then opens the new person's card, or the new login form linked to it (then=).
+//                 css/unified-components.css?v=20261102b.
+// 20261102 CL/ASR Review: Ekstra felter has no lead sentence of its own (it repeated the row's help word for word), only "Gælder for alle i".
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -86,7 +99,7 @@ $permission_post_read = false;
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
 // The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><link rel='stylesheet' href='../css/unified-components.css?v=20261102'>\n";
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><link rel='stylesheet' href='../css/unified-components.css?v=20261102b'>\n";
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");
@@ -207,6 +220,37 @@ if ($isList) {
 		$item = '';
 	}
 }
+// Brugere & ansatte (includes/settings/people.php): the employee section embedded in the person card, as Ekstra felter, or as the list of a
+// user without usersRoles.php; a plain visit by anyone else goes on to usersRoles.php (the one list) or the person's card there.
+$peopleEmbed = false;
+if ($sectionId === 'organisation.employees') {
+	include_once(__DIR__ . "/../includes/settings/people.php");
+	$peopleEmbed = isset($_GET['embed']) && $_GET['embed'] === 'person';
+	$peopleFields = !$peopleEmbed && ($item === 'general' || (isset($_GET['sub']) && $_GET['sub'] === 'general')
+		|| (isset($_GET['field']) && $_GET['field'] === 'organisation.employees.extra_fields'));
+	if (!$peopleEmbed && !$peopleFields && $_SERVER['REQUEST_METHOD'] === 'GET') {
+		$peopleTarget = settings_people_list_target($_GET);
+		if ($peopleTarget !== '') {
+			settings_people_nav_drop();
+			ob_end_clean();
+			header('Location: ' . $peopleTarget);
+			exit;
+		}
+	}
+	if ($peopleEmbed) {
+		if (!preg_match('/^emp_[1-9][0-9]{0,9}\z/', $item)) {
+			$item = ''; // only an employee's card is embedded; anything else tells the card it is gone
+		}
+		header("Content-Security-Policy: frame-ancestors 'self'");
+		$selfUrl .= '&embed=person&popup=1';
+		$section['embed'] = true;
+	} elseif ($peopleFields) {
+		$selfUrl .= '&sub=general';
+		$section += array('only_sub' => 'general', 'hub_at' => 'ekstra_felter', 'page_label' => 6611, 'page_lead' => '', 'no_add' => true);
+	} else {
+		$section += array('only_sub' => 'employees', 'add_label' => '7765|Tilføj person');
+	}
+}
 $backUrl = $selfUrl . ($item !== '' ? '&item=' . rawurlencode($item) : '');
 
 $state = array('errors' => array(), 'posted' => null, 'conflict' => null, 'flash' => array());
@@ -250,7 +294,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			foreach (isset($defs[$key]['inputs']) ? array_keys($defs[$key]['inputs']) : array() as $in) {
 				$GLOBALS['settings_action_inputs'][$in] = !empty($_POST['opt'][$in]);
 			}
+			// "Tilføj person" (usersRoles.php): the add action with the name, initials and e-mail of the dialog.
+			$peopleAdd = ($sectionId === 'organisation.employees' && $key === 'organisation.employees.add' && !empty($_POST['people']));
+			if ($peopleAdd) {
+				$GLOBALS['settings_action_person'] = settings_people_person_input(isset($_POST['person']) && is_array($_POST['person']) ? $_POST['person'] : array());
+			}
 			$target = settings_run_action($defs[$key], $backUrl);
+			if ($peopleAdd) {
+				$target = settings_people_after_add($target, isset($_POST['then']) ? (string) $_POST['then'] : '');
+			}
+		}
+		if ($peopleEmbed && strpos($target, 'settingsSection.php?s=organisation.employees') === 0 && strpos($target, 'embed=') === false) {
+			$target .= '&embed=person&popup=1'; // move, delete or a refused delete: the card's Stamdata tab stays embedded
 		}
 		ob_end_clean();
 		header('Location: ' . $target);
@@ -521,7 +576,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 		$movedText = st_txt(5720) . ' ' . settings_legacy_text($section['old'][$moved], $sprogId) . '. ' . st_txt(5721);
 	}
 
-	$menu = settings_hub_menu($sprogId, $sectionId);
+	$menu = settings_hub_menu($sprogId, isset($section['hub_at']) ? (string) $section['hub_at'] : $sectionId);
 	$history = SettingsService::history($sectionId, 20);
 	$setAt = SettingsService::lastChanged($sectionId);
 	$version = SettingsService::version($sectionId);

@@ -26,13 +26,14 @@
 //                 The left menu is the one of every settings page (settings_menu_html(): the hub group's sub-groups, Mærkater marked, no zebra).
 // 20261101 CL/ASR Review: css/unified-components.css linked as ?v=20261101e, the version the section pages and the old pages' frame link.
 // 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops; settings_back_button() adds Alt+L itself.
+// 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b, the version the other settings pages link.
 
 @session_start();
 $s_id = session_id();
 ob_start();
 
 $title = "Mærkater";
-$css = "../css/unified-components.css?v=20261102";
+$css = "../css/unified-components.css?v=20261102b";
 $permission_key = 'settings.items';
 $permission_level = 'read';
 
