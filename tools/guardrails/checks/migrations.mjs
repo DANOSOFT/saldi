@@ -2,7 +2,9 @@
 //
 // Rules (doc/ai/convention_database_changes.md, doc/ai/feedback_protected_update_files.md):
 //   1. DDL and ensureTableAndColumns() calls live only in the update/install
-//      files. Past mistakes: 5bc1a329, 76ff76b5 and 702c7aa3 created tables and
+//      files, including includes/opretfunc.php for a new regnskab's initial
+//      schema until structure helper functions replace that setup.
+//      Past mistakes: 5bc1a329, 76ff76b5 and 702c7aa3 created tables and
 //      columns from includes that run on every request; #540 review.
 //   2. includes/opdat_*.php (released versions) and includes/betweenUpdates2.php
 //      (a backup) are not edited. Past mistakes: c97cb4c7, 5bc1a329, 064afcdc, d57c564e.
@@ -14,12 +16,13 @@
 //
 // History:
 // 20261027 CL/LH Created.
+// 20261102 CDX/NTR Allow initial-schema DDL in includes/opretfunc.php for new regnskaber.
 
 import { splitLines } from "../lib/changeset.mjs";
 
 const UPDATES = "includes/betweenUpdates.php";
 const PROTECTED = /^includes\/(opdat_[^/]+|betweenUpdates2)\.php$/;
-const SCHEMA_FILES = /^(includes\/(betweenUpdates|opdater|opdat_[^/]+)\.php|includes\/opdat_func\/|index\/install\.php|admin\/opret\.php|tests\/|tools\/)/;
+const SCHEMA_FILES = /^(includes\/(betweenUpdates|opdater|opretfunc|opdat_[^/]+)\.php|includes\/opdat_func\/|index\/install\.php|admin\/opret\.php|tests\/|tools\/)/;
 const DDL = /\b(ALTER\s+TABLE|CREATE\s+(UNIQUE\s+)?INDEX|CREATE\s+TABLE|DROP\s+(TABLE|INDEX|COLUMN)|ADD\s+COLUMN|RENAME\s+COLUMN)\b|\bensureTableAndColumns\s*\(/i;
 const TEMPORARY = /CREATE\s+(TEMP|TEMPORARY)\s+TABLE/i;
 const COMMENT = /^\s*(\/\/|#|\*|\/\*)/;
@@ -35,7 +38,7 @@ function bodyBounds(lines) {
 
 export default {
   id: "migrations",
-  summary: "DDL only in the update chain, released opdat files untouched, betweenUpdates.php appended at the end",
+  summary: "DDL only in update/install paths (including new-regnskab creation), released opdat files untouched, betweenUpdates.php appended at the end",
   run(ctx) {
     const findings = [];
     for (const file of ctx.files) {

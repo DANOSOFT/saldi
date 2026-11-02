@@ -106,9 +106,8 @@
 // 20260925 CL/NTR Escape a Varenr./Varenavn search term's own '%'/'_' via the new
 //             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
 //             no longer matches (almost) the whole catalogue.
-// 20261027 CL/LH MB-73: 'Bestilt' (Ordered) counts purchase order lines only (ordrer.art = 'KO', as the
-//             product card's incoming list). It found open lines by leveret < antal alone, which NULL never
-//             matched, so open sales lines counted as ordered once leveret starts at 0.
+// 20261027 CL/LH MB-73: 'Bestilt' (Ordered) counts purchase order lines only (ordrer.art = 'KO', as the product card's incoming list).
+//             It found open lines by leveret < antal alone, which NULL never matched, so open sales lines counted as ordered once leveret starts at 0.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();

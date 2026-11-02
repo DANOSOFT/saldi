@@ -236,7 +236,11 @@ final class TekstKeyMigrationTest extends TestCase
         $source = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
         $start = strpos($source, '$tekstKeyMysql =');
         // End at the close of the migration's foreach: later blocks in betweenUpdates.php are other migrations.
-        $end = strpos($source, "\n}\n", strpos($source, 'foreach ($tekstKeyTargets', $start)) + 3;
+		$foreachAt = strpos($source, 'foreach ($tekstKeyTargets', (int) $start);
+        self::assertNotFalse($foreachAt, 'migration foreach not found');
+        $close = strpos($source, "\n}\n", $foreachAt);
+        self::assertNotFalse($close, 'end of migration foreach not found');
+        $end = $close + 3;
         self::assertNotFalse($start);
         self::assertNotFalse($end);
         eval('namespace ' . __NAMESPACE__ . '; use RuntimeException; ' . substr($source, $start, $end - $start));
