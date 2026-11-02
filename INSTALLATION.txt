@@ -56,24 +56,29 @@ Go to your working directory and run these commands:
 
 
 
-1. If necessary, create the group balances:
+1. Optional: Saldi shares its runtime files through the group www-data. To
+ use a separate group instead, create the group balances:
 
  sudo groupadd balances
 
-2. Optionally add the web user www-data to the balances group.
+2. Optional, only together with step 1: add the web user www-data to the
+ balances group. Saldi uses balances only while www-data is a member of it.
 
- sudo sed -i 's/^\(balances:.*[a-z0-9]\)$/\1,www-data/' /etc/group
- sudo sed -i 's/^\(balances:.*\\)$/\1www-data/' /etc/group
- 
+ sudo usermod -a -G balances www-data
+
+ Restart the web server (and PHP-FPM, if used) afterwards so it picks up
+ the group. Add any other account that runs Saldi jobs (cron, CLI) the
+ same way; it needs a new login session.
+
 3. Manually create these directories inside the root of saldi: 'temp' and 'logolib'.
 e.g saldi/loglib etc.
 
 4. Change the rights to the 'includes', 'logolib' and 'temp' directories, so
  the web server user (the visitor) has access to write in
- these. If this user on the system is called www-data and is a member of
- the group balances then:
+ these. Use the group balances if you did steps 1 and 2, otherwise
+ www-data:
 
- sudo chgrp -R balances /var/www/html/saldi/
+ sudo chgrp -R balances /var/www/html/saldi/      (or: www-data)
  sudo chmod 2770 /var/www/html/saldi/{includes,logolib,temp}
 
  or if you are down in the Saldi catalog itself:
@@ -82,10 +87,11 @@ e.g saldi/loglib etc.
  
  2770 gives the owner and the group full access and other users none; the
  leading 2 (setgid) makes new files and directories inherit the group.
- Saldi uses the group balances when www-data is a member of it, and
- otherwise the group www-data. Avoid 775, which lets every local user
- list and enter these directories, and 777, which also lets them replace
- files; under 777 Saldi falls back to plain writes without sharing them.
+ Every account that reads or writes these directories, the web server
+ included, must be the owner or a member of the group. Avoid 775, which
+ lets every local user list and enter these directories, and 777, which
+ also lets them replace files; under 777 Saldi falls back to plain writes
+ without sharing them.
  See doc/runtime-permissions.md for CLI accounts and for migrating an
  existing installation.
 
