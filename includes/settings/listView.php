@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/listView.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- includes/settings/listView.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,8 +26,136 @@
 // 20261016 Sawaneh The left menu is the group's sections like every other section kind; the list's own blocks sit as a
 //                  second level under the current one (Adam's test feedback: Employees, price lists, tills and cards looked moved).
 // 20261101 CL/ASR New design (prototype D): the page's root carries the kit's scope class sk; the look is css/unified-components.css on the kit's tokens.
+// 20261101 CL/ASR Settings hub "C - Fold ud": settings_menu_html(), the left menu of every settings page (the three section views and
+//                 the frame of the old pages, systemdata/top.php): the page's hub group as its sub-groups, each a heading over its
+//                 rows, the current row marked, a row's second page under it, no zebra (owner, 1 Nov 2026). The list's own blocks
+//                 stay a second level under the current page. Tilbage (settings_back_button()) above the title.
+// 20261101 CL/ASR Review: a page that is not on the hub lists only the hub groups the user can open something in (as the hub).
+//                 Tilbage carries Alt+L, as on the other settings pages.
+// 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
 
 include_once(__DIR__ . '/integrations.php');
+
+if (!function_exists('settings_menu_html')):
+
+/**
+ * The left menu of a settings page (hub "C - Fold ud", owner 1 Nov 2026): the page's hub group as its sub-groups, each a
+ * heading (icon + name) over its rows, the current row (or the row's second page) marked, no zebra. A row's second page
+ * (Kontoindstillinger, Kasseoptælling, POS-menuer ...) sits indented under it. Narrow screens get the same menu as a select.
+ * Used by the section views (settingsSection.php, rowsView.php, this file) and the frame of the old pages (top.php),
+ * so they all show the same menu. A page that is not on the hub (an old page, a left-out entry) lists the hub's groups.
+ *
+ * @param array<string, mixed> $menu settings_hub_menu() (includes/settings/hub.php); texts plain, escaped here
+ * @param array<string, mixed> $opts 'anchors' => [block id => plain label]: the page's own blocks under the current item
+ *                                   (a list section, scroll-followed by settingsList.js through a[data-sub]);
+ *                                   'dot' => true: the unsaved-changes dot (#st-dot) in the current item;
+ *                                   'before' => html above the panel (the frame's search field);
+ *                                   'label' => the page's name, for the select when no item is current
+ */
+function settings_menu_html(array $menu, int $sprogId, array $opts = array()): string
+{
+	$anchors = isset($opts['anchors']) && is_array($opts['anchors']) ? $opts['anchors'] : array();
+	$flat = !$menu;
+	if ($flat) {
+		$title = settings_hub_text('122|Indstillinger', $sprogId);
+		$rows = array();
+		foreach (getSettingsHub() as $groupId => $group) {
+			// Only the groups the hub shows this user: one row they may open in a page the company has.
+			$canOpen = false;
+			foreach ($group['subs'] as $hubSub) {
+				foreach ($hubSub['rows'] as $hubRow) {
+					$rowState = settings_hub_row_state($hubRow);
+					if ($rowState['open']) {
+						$canOpen = true;
+						break 2;
+					}
+				}
+			}
+			if (!$canOpen) {
+				continue;
+			}
+			$rows[] = array('id' => $groupId, 'label' => settings_hub_text($group['label'], $sprogId), 'hint' => settings_hub_text($group['description'], $sprogId), 'url' => 'settings.php?g=' . rawurlencode($groupId), 'current' => false, 'pages' => array());
+		}
+		$subs = array(array('id' => 'groups', 'label' => '', 'icon' => '', 'locked' => '', 'current' => false, 'rows' => $rows));
+	} else {
+		$title = (string) $menu['group']['label'];
+		$subs = $menu['subs'];
+	}
+	$dotHtml = !empty($opts['dot']) ? '<i class="st-dot" id="st-dot" hidden aria-hidden="true"></i>' : '';
+	// $deep: one step further in, under a level-2 page, or under a row whose second page follows (they must not look alike).
+	$anchorList = function (bool $deep) use ($anchors): string {
+		if (count($anchors) < 2) {
+			return '';
+		}
+		$out = '<ul class="st-menu-anchors' . ($deep ? ' st-menu-deep' : '') . '">';
+		$first = true;
+		foreach ($anchors as $id => $label) {
+			$out .= '<li><a class="st-menu-row st-menu-l2' . ($first ? ' on' : '') . '" href="#sub-' . st_h($id) . '" data-sub="' . st_h($id) . '"><span>' . st_h($label) . '</span></a></li>';
+			$first = false;
+		}
+		return $out . '</ul>';
+	};
+	$link = function (string $url, string $label, string $hint, bool $on, string $cls) use ($dotHtml): string {
+		return '<a class="st-menu-row' . $cls . ($on ? ' on' : '') . '" href="' . st_h($url) . '"' . ($hint !== '' ? ' title="' . st_h($hint) . '"' : '')
+			. ($on ? ' aria-current="page"' : '') . '><span>' . st_h($label) . '</span>' . ($on ? $dotHtml : '') . '</a>';
+	};
+
+	$anchorOpts = '';
+	foreach (count($anchors) > 1 ? $anchors : array() as $id => $label) {
+		$anchorOpts .= '<option value="#sub-' . st_h($id) . '">&nbsp;&nbsp;&nbsp;&nbsp;' . st_h($label) . '</option>';
+	}
+
+	$panel = '';
+	$options = '';
+	$anyCurrent = false;
+	foreach ($subs as $sub) {
+		$subId = (string) $sub['id'];
+		$head = '';
+		if ((string) $sub['label'] !== '') {
+			$head = '<p class="st-menu-subh" id="st-menu-' . st_h($subId) . '">' . ((string) $sub['icon'] !== '' ? '<i class="bx ' . st_h($sub['icon']) . '" aria-hidden="true"></i>' : '')
+				. '<span>' . st_h($sub['label']) . '</span>' . ($sub['locked'] !== '' ? '<i class="bx bx-lock-alt st-menu-lock" aria-hidden="true"></i>' : '') . '</p>';
+		}
+		if ($sub['locked'] !== '') {
+			// No licence for any of the sub-group's pages (Kasse without the POS licence): shown, not a link.
+			$panel .= '<div class="st-menu-sub is-off">' . $head . '<p class="st-menu-off">' . st_h($sub['locked']) . '</p></div>';
+			$options .= '<optgroup label="' . st_h($sub['label']) . '"><option value="" disabled>' . st_h($sub['locked']) . '</option></optgroup>';
+			continue;
+		}
+		$items = '';
+		$subOpts = '';
+		foreach ($sub['rows'] as $row) {
+			$pages = $row['pages'];
+			$rowOn = !empty($row['current']) && (!$pages || !empty($pages[0]['current']));
+			$sub2 = '';
+			$pageOpts = '';
+			foreach ($pages as $i => $page) {
+				if ($i === 0) {
+					continue;
+				}
+				$pageOn = !empty($page['current']);
+				$anyCurrent = $anyCurrent || $pageOn;
+				$sub2 .= '<li>' . $link((string) $page['url'], (string) $page['label'], '', $pageOn, ' st-menu-l2') . ($pageOn ? $anchorList(true) : '') . '</li>';
+				$pageOpts .= '<option value="' . st_h($page['url']) . '"' . ($pageOn ? ' selected' : '') . '>&nbsp;&nbsp;' . st_h($page['label']) . '</option>' . ($pageOn ? $anchorOpts : '');
+			}
+			$anyCurrent = $anyCurrent || $rowOn;
+			$items .= '<li' . (!empty($row['current']) ? ' class="is-current"' : '') . '>' . $link((string) $row['url'], (string) $row['label'], (string) $row['hint'], $rowOn, '')
+				. ($rowOn ? $anchorList($sub2 !== '') : '') . ($sub2 !== '' ? '<ul class="st-menu-pages">' . $sub2 . '</ul>' : '') . '</li>';
+			$subOpts .= '<option value="' . st_h($row['url']) . '"' . ($rowOn ? ' selected' : '') . '>' . st_h($row['label']) . '</option>' . ($rowOn ? $anchorOpts : '') . $pageOpts;
+		}
+		$panel .= '<div class="st-menu-sub' . (!empty($sub['current']) ? ' is-current' : '') . '">' . $head
+			. '<ul class="st-menu-rows' . ($head === '' ? ' st-menu-flat' : '') . '"' . ($head !== '' ? ' aria-labelledby="st-menu-' . st_h($subId) . '"' : '') . '>' . $items . '</ul></div>';
+		$options .= (string) $sub['label'] !== '' ? '<optgroup label="' . st_h($sub['label']) . '">' . $subOpts . '</optgroup>' : $subOpts;
+	}
+	$placeholder = $anyCurrent ? '' : '<option value="" selected>' . st_h(isset($opts['label']) ? (string) $opts['label'] : $title) . '</option>';
+	return '<nav class="st-tabs st-menu" aria-label="' . st_h($title) . '">'
+		. '<select class="st-tabs-select" aria-label="' . st_h($title) . '" onchange="if (this.value) { window.location = this.value; }">' . $placeholder . $options . '</select>'
+		. (isset($opts['before']) ? (string) $opts['before'] : '')
+		. '<div class="st-menu-panel"><p class="st-menu-h">' . st_h($title) . '</p>' . $panel
+		. ($flat ? '' : '<a class="st-menu-all" href="settings.php"><i class="bx bx-grid-alt" aria-hidden="true"></i><span>' . st_h(settings_hub_text('5666|Alle indstillinger', $sprogId)) . '</span></a>')
+		. '</div></nav>';
+}
+
+endif;
 
 /**
  * @param array<string, mixed> $c everything the section view computed (see settings_section_view)
@@ -66,7 +194,10 @@ function settings_list_render(array $c): void
 		$status[$id] = settings_integration_status($id, $it, $setAt);
 	}
 	$history = SettingsService::history($sectionId, 60);
-	$otherTabs = $c['tabs'];
+	$anchors = array();
+	foreach ($subs as $sub => $label) {
+		$anchors[$sub] = st_txt($label);
+	}
 	$config = $c['config'] + array(
 		'openItem' => $openItem, 'fieldItem' => $fieldItem,
 		'discardTitle' => st_txt(6144), 'discardBody' => st_txt(6145), 'discardVerb' => st_txt(6146), 'wait' => st_txt(6160), 'close' => st_txt(6128),
@@ -84,6 +215,7 @@ function settings_list_render(array $c): void
   <a class="st-skip" href="#st-list"><?= st_t(5751) ?></a>
   <section class="st-phead">
     <div>
+      <?= settings_back_button($section['return_to'] !== '' ? '..' . $section['return_to'] : '') ?>
       <h1><?= st_t($section['label']) ?><?= st_section_help($section) ?></h1>
       <p class="st-lead"><?= st_t($section['lead']) ?>. <?= st_t(5706) ?> <?= st_h(st_company()) ?>.</p>
     </div>
@@ -112,28 +244,7 @@ function settings_list_render(array $c): void
 	<?php } ?>
 
   <div class="st-layout st-layout-list">
-    <nav class="st-tabs" aria-label="<?= st_t($section['label']) ?>">
-      <select class="st-tabs-select" aria-label="<?= st_t($section['label']) ?>" onchange="if (this.value) { window.location = this.value; }">
-			<?php foreach ($otherTabs as $tab) { ?>
-        <option value="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' selected' : '' ?>><?= st_h($tab['label']) ?></option>
-				<?php if ($tab['id'] === $sectionId) { foreach ($subs as $sub => $label) { ?>
-        <option value="#sub-<?= st_h($sub) ?>">&nbsp;&nbsp;<?= st_t($label) ?></option>
-				<?php } } ?>
-			<?php } ?>
-      </select>
-      <ul>
-			<?php foreach ($otherTabs as $tab) { ?>
-        <li><a href="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' class="on" aria-current="page"' : '' ?>><span><?= st_h($tab['label']) ?></span><?= $tab['id'] === $sectionId ? '<i class="bx bx-chevron-right" aria-hidden="true"></i>' : '' ?></a></li>
-				<?php if ($tab['id'] === $sectionId && count($subs) > 1) { ?>
-        <li><ul class="st-tabs-sub">
-					<?php $first = true; foreach ($subs as $sub => $label) { ?>
-          <li><a href="#sub-<?= st_h($sub) ?>" data-sub="<?= st_h($sub) ?>"<?= $first ? ' class="on"' : '' ?>><span><?= st_t($label) ?></span></a></li>
-					<?php $first = false; } ?>
-        </ul></li>
-				<?php } ?>
-			<?php } ?>
-      </ul>
-    </nav>
+    <?= settings_menu_html($c['menu'], $sprogId, array('anchors' => $anchors, 'label' => st_txt($section['label']))) ?>
 
     <div class="st-list" id="st-list">
 		<?php foreach ($subs as $sub => $label) { ?>

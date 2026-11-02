@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowsView.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- includes/settings/rowsView.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,9 @@
 // 20261016 Sawaneh The "copy from year" button points at its own form printed after the main one; a form inside the main form
 //                  closed it early, so later blocks fell out of the layout and Save posted the copy action.
 // 20261101 CL/ASR New design (prototype D): the page's root carries the kit's scope class sk; the look is css/unified-components.css on the kit's tokens.
+// 20261101 CL/ASR Settings hub "C - Fold ud": the left menu is settings_menu_html() (includes/settings/listView.php), Tilbage above the title.
+// 20261101 CL/ASR Review: Tilbage carries Alt+L, as on the other settings pages.
+// 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
 
 include_once(__DIR__ . '/rows.php');
 
@@ -62,7 +65,6 @@ function settings_rows_render(array $c): void
 		$tablesBySub[$t['sub']][$tableId] = $t;
 	}
 	$history = SettingsService::history($sectionId, 20);
-	$otherTabs = $c['tabs'];
 	$posted = isset($c['rowsPosted']) ? $c['rowsPosted'] : array();
 	$errors = $state['errors'];
 	$config = $c['config'] + array(
@@ -89,6 +91,7 @@ function settings_rows_render(array $c): void
   <a class="st-skip" href="#st-form"><?= st_t(5751) ?></a>
   <section class="st-phead">
     <div>
+      <?= settings_back_button($section['return_to'] !== '' ? '..' . $section['return_to'] : '') ?>
       <h1><?= st_t($section['label']) ?><?= st_section_help($section) ?></h1>
       <p class="st-lead"><?php if (!empty($section['lead'])) { ?><?= st_t($section['lead']) ?> <?php } ?><?= st_t(5706) ?> <?= st_h(st_company()) ?>.</p>
     </div>
@@ -116,18 +119,7 @@ function settings_rows_render(array $c): void
 	<?php } ?>
 
   <div class="st-layout">
-    <nav class="st-tabs" aria-label="<?= st_h(html_entity_decode(findtekst($c['group']['label'], $sprogId), ENT_QUOTES | ENT_HTML5, $charset)) ?>">
-      <select class="st-tabs-select" onchange="if (this.value) { window.location = this.value; }">
-			<?php foreach ($otherTabs as $tab) { ?>
-        <option value="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' selected' : '' ?>><?= st_h($tab['label']) ?></option>
-			<?php } ?>
-      </select>
-      <ul>
-			<?php foreach ($otherTabs as $tab) { ?>
-        <li><a href="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' class="on" aria-current="page"' : '' ?>><span><?= st_h($tab['label']) ?></span><?= $tab['id'] === $sectionId ? '<i class="st-dot" id="st-dot" hidden aria-hidden="true"></i>' : '' ?></a></li>
-			<?php } ?>
-      </ul>
-    </nav>
+    <?= settings_menu_html($c['menu'], $sprogId, array('dot' => true, 'label' => st_txt($section['label']))) ?>
 
     <form class="st-form st-rows-form" id="st-form" method="post" action="<?= st_h($c['selfUrl']) ?>" autocomplete="off" novalidate>
       <input type="hidden" name="csrf_token" value="<?= st_h($c['csrfToken']) ?>">

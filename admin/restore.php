@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/restore.php --- ver 5.1.0 --- 2026-10-31 ---
+// --- admin/restore.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,10 @@
 // 20261027 CL/NTR Catch restore failures at both call sites and show them to the admin instead of a blank page.
 // 20261031 CL/ASR The 20261027 failure handling sits in restore_handle_upload(), the only restore() caller in the single-request flow.
 //                 The failure text no longer says the backup files are kept, as the per-request work folder is removed when the request ends.
+// 20261102 CL/ASR In a ledger (not the admin panel's ?db=) the head of every settings page: the shared Tilbage button top-left above the title
+//                 (settings_back_button(), css/saldi-kit.css) back to Indstillinger > Sikkerhedskopi, and the title on the page head (page_bar),
+//                 instead of the bar with Luk to the old main menu. A popup window (popup=1) is closed, as before; Alt+L kept.
+//                 The admin panel's restore keeps its old bar.
 
 @session_start();
 $s_id=session_id();
@@ -181,6 +185,15 @@ if ($menu=='T') {
 	print "<div class=\"maincontentLargeHolder\">\n";
 	print "<div class='divSys'>";
 	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\"><tbody>"; # -> 1
+} elseif (!$adminRestore) {
+	// The head of every settings page (opened from Indstillinger > Sikkerhedskopi or from backup.php): Tilbage, the kit's small
+	// button top-left above the title, back to the Sikkerhedskopi section (closes a popup window); the title on the page head.
+	include_once("../includes/stdFunc/pageBar.php");
+	include_once("../includes/settings/components.php");
+	$backTo = !empty($_GET['popup']) ? '../includes/luk.php' : '../systemdata/settingsSection.php?s=import_export.backup';
+	print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button($backTo) . "</div>\n";
+	page_bar(array('title' => findtekst('1247|Indlæs sikkerhedskopi', $sprog_id)));
+	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 } elseif ($menu=='S') {
 	print "<table width='100%' height='30%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	print "<tr><td height = '25' align='center' valign='top'>";

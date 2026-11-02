@@ -3,6 +3,9 @@
  * Harmonized styling for Grid (datagrid) and DocPool components
  * Extends docpool-variables.css with shared component styles
  * 20261101 CL/ASR The settings components (.st-*) at the bottom follow prototype D on the kit's tokens (css/saldi-kit.css).
+ * 20261101 CL/ASR Settings hub "C - Fold ud": the left menu of the settings pages as the hub group's sub-groups (.st-menu, no zebra in
+ *                 navigation) and the Tilbage button above the title (.sk-back, also in the frame of the old pages without the kit).
+ * 20261101 CL/ASR Review: the left menu's narrow-screen rules (static, one row) come after its base rules, so they take effect.
  */
 
 /* ============================================
@@ -755,6 +758,7 @@ button.btn-primary:hover {
   --st-r: 4px;
   --st-r-win: 8px;
   --st-pad: 12px;
+  --st-menu-w: 14rem;
   --st-gap: 16px;
   --st-t: 140ms;
   --st-ease: cubic-bezier(.4, 0, .2, 1);
@@ -821,9 +825,9 @@ html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--surface, #
 .st-page .st-toast-close:hover { background: var(--st-hover); color: var(--st-text); }
 
 /* section menu · form · history: 13rem | content | 17rem, 16 px apart */
-.st-layout { display: grid; grid-template-columns: 13rem minmax(0, 1fr) 17rem; gap: var(--st-gap); align-items: start; }
+.st-layout { display: grid; grid-template-columns: var(--st-menu-w) minmax(0, 1fr) 17rem; gap: var(--st-gap); align-items: start; }
 .st-tabs { min-width: 0; }
-.st-tabs ul { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 0; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); }
+.st-tabs > ul { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 0; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); }
 .st-tabs-select { display: none; }
 .st-page .st-tabs a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--st-ctl-h); padding: 4px var(--st-pad); border-radius: 0; font-size: var(--st-fs); line-height: 1.3; color: var(--st-text-2); text-decoration: none; transition: background-color var(--st-t), color var(--st-t); }
 .st-page .st-tabs a:hover { color: var(--st-text); background: var(--st-surface-2); text-decoration: none; }
@@ -832,7 +836,7 @@ html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--surface, #
 .st-tabs a > i.bx { flex: none; font-size: 16px; color: var(--st-text-3); }
 .st-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st-warn); flex-shrink: 0; }
 /* the frame of the old pages (top.php) has the settings search above the menu (the field itself: css/settingsSearch.css) */
-.st-tabs .settings-search-wrapper { margin: 0 0 8px !important; padding: 0; }
+.st-tabs .settings-search-wrapper { margin: 0 !important; padding: 0; }
 
 .st-form { display: flex; flex-direction: column; gap: var(--st-gap); min-width: 0; }
 .st-sect { display: flex; flex-direction: column; gap: 0; min-width: 0; }
@@ -969,7 +973,7 @@ select.st-input { -webkit-appearance: none; appearance: none; padding-right: 24p
 
 /* 20261005 Sawaneh Settings 4c row editor (spec §8.2, mock-up 04) */
 /* Row editors need the width: the change history goes below the tables instead of beside them. */
-.st-page-rows .st-layout { grid-template-columns: 13rem minmax(0, 1fr); }
+.st-page-rows .st-layout { grid-template-columns: var(--st-menu-w) minmax(0, 1fr); }
 .st-page-rows .st-hist { grid-column: 2; max-width: 40rem; }
 .st-rc-text .st-rin { min-width: 10rem; }
 .st-rc-select .st-rin { min-width: 7rem; }
@@ -1078,13 +1082,13 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-tag-personal { color: var(--st-warn-ink); }
 
 @media screen and (max-width: 1200px) {
-  .st-layout { grid-template-columns: 13rem minmax(0, 1fr); }
+  .st-layout { grid-template-columns: var(--st-menu-w) minmax(0, 1fr); }
   .st-hist { grid-column: 2; }
 }
 @media screen and (max-width: 900px) {
   .st-layout { grid-template-columns: minmax(0, 1fr); gap: var(--st-gap); }
   .st-hist { grid-column: 1; }
-  .st-tabs ul { display: none; }
+  .st-tabs > ul, .st-menu-panel { display: none; }
   .st-tabs-select { display: block; width: 100%; height: var(--st-ctl-h); padding: 0 24px 0 8px; border: 1px solid var(--st-field); border-radius: var(--st-r); background: var(--st-surface) var(--st-chevron) no-repeat right 4px center / 16px 16px; color: var(--st-text); font: inherit; -webkit-appearance: none; appearance: none; }
 }
 @media screen and (max-width: 780px) {
@@ -1102,7 +1106,7 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 }
 
 /* ---- a list section (integrations, employees): 24 px zebra rows with a drawer per item (hand-over 2 Oct, mock-ups 07/08) */
-.st-layout-list { grid-template-columns: 13rem minmax(0, 1fr); }
+.st-layout-list { grid-template-columns: var(--st-menu-w) minmax(0, 1fr); }
 .st-list { display: flex; flex-direction: column; gap: var(--st-gap); min-width: 0; }
 .st-tabs-sep { height: 1px; margin: 4px 0; background: var(--st-border); }
 .st-tabs-sub { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; position: static; }
@@ -1233,3 +1237,60 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-more { margin-top: 2px; font-size: var(--st-fs-s); color: var(--st-text-2); }
 .st-more summary { cursor: pointer; color: var(--st-link); }
 .st-more p { margin: 4px 0 0; }
+
+/* ---- 20261101 CL/ASR the left menu of the settings pages (hub "C - Fold ud", owner 1 Nov 2026; settings_menu_html() in
+   includes/settings/listView.php, on the section pages and in the frame of the old pages, systemdata/top.php): a panel with
+   the hub group's name in the grey band, then its sub-groups, each a heading (icon + name) over its rows on a hairline guide
+   under the icon, as the hub's unfolded rows. The current row is on the selection blue with the mark on the guide; a row's
+   second page and a list's own blocks sit indented under it. No zebra in navigation (owner): only hover and the mark. ---- */
+.st-page .st-menu { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; max-height: calc(100vh - 32px); }
+/* the menu spans the rows of the layout, so the history under the form (rows sections, narrower screens) is not pushed down */
+.st-layout > .st-menu { grid-row: span 2; }
+.st-layout:has(> .st-menu) { grid-template-rows: auto 1fr; }
+.st-menu-panel { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); }
+.st-menu-h { min-height: var(--st-band-h); margin: 0; padding: 7px var(--st-pad) 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--st-surface-2); border-bottom: 1px solid var(--st-border); border-radius: calc(var(--st-r) - 1px) calc(var(--st-r) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
+.st-menu ul { list-style: none; margin: 0; padding: 0; }
+.st-menu-sub { padding: 2px 0 6px; }
+.st-menu-sub + .st-menu-sub { border-top: 1px solid var(--st-border); }
+.st-menu-subh { display: flex; align-items: center; gap: 6px; min-height: 1.75rem; margin: 0; padding: 4px var(--st-pad) 2px; font: 600 var(--st-fs-s)/1.25 var(--st-font); color: var(--st-text-2); }
+.st-menu-subh > i.bx { flex: none; width: 16px; font-size: 16px; line-height: 1; text-align: center; color: var(--st-text-3); }
+.st-menu-sub.is-current .st-menu-subh { color: var(--st-text); }
+.st-menu-sub.is-current .st-menu-subh > i.bx { color: var(--st-text-2); }
+.st-menu-subh > i.st-menu-lock { margin-left: auto; font-size: 14px; }
+.st-menu-sub.is-off .st-menu-subh { color: var(--st-text-3); }
+.st-menu-off { margin: 0; padding: 0 var(--st-pad) 0 34px; font-size: var(--st-fs-s); line-height: 1.35; color: var(--st-text-3); }
+.st-page .st-menu .st-menu-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--st-row-h); padding: 3px var(--st-pad) 3px 34px; border-radius: 0; background: none; box-shadow: none; font: 400 var(--st-fs)/1.3 var(--st-font); color: var(--st-text-2); text-decoration: none; }
+.st-menu-row > span { min-width: 0; }
+.st-menu-row::before { content: ""; position: absolute; top: 0; bottom: 0; left: 19px; width: 1px; background: var(--st-border); }
+.st-page .st-menu .st-menu-row:hover { background: var(--st-row-hover); color: var(--st-text); text-decoration: none; }
+.st-page .st-menu .st-menu-row:is(:hover, .on)::before { left: 18px; width: 3px; border-radius: 2px; background: var(--st-mark); }
+.st-page .st-menu .st-menu-row.on { background: var(--st-row-sel); box-shadow: none; color: var(--st-text); font-weight: 600; }
+.st-page .st-menu .st-menu-row:focus-visible { outline-offset: -2px; }
+.st-menu li.is-current > .st-menu-row:not(.on) { color: var(--st-text); }
+.st-page .st-menu .st-menu-l2 { padding-left: 46px; font-size: var(--st-fs-s); }
+.st-page .st-menu .st-menu-deep .st-menu-l2 { padding-left: 58px; }
+.st-menu .st-dot { margin-left: auto; }
+/* a list's own blocks follow the scroll (javascript/settingsList.js): the block in view is bold, not a second current page */
+.st-page .st-menu .st-menu-anchors .st-menu-row.on { background: none; }
+.st-page .st-menu .st-menu-anchors .st-menu-row.on:not(:hover)::before { left: 19px; width: 1px; border-radius: 0; background: var(--st-border); }
+/* a page that is not on the hub lists the hub's groups: no guide, the mark at the panel's edge */
+.st-page .st-menu .st-menu-flat .st-menu-row { padding-left: var(--st-pad); }
+.st-page .st-menu .st-menu-flat .st-menu-row::before { left: 0; width: 0; }
+.st-page .st-menu .st-menu-flat .st-menu-row:hover::before { left: 0; width: 2px; border-radius: 0; }
+/* back to the hub, under the group */
+.st-page .st-menu .st-menu-all { display: flex; align-items: center; justify-content: flex-start; gap: 6px; min-height: var(--st-band-h); padding: 0 var(--st-pad); border-top: 1px solid var(--st-border); background: none; box-shadow: none; font: 400 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text-2); text-decoration: none; }
+.st-page .st-menu .st-menu-all:hover { background: none; color: var(--st-link); text-decoration: none; }
+.st-page .st-menu .st-menu-all > i.bx { font-size: 14px; color: inherit; }
+/* narrow screens: the menu is the select above the content (the panel is hidden above); after the rules above, which it overrides */
+@media screen and (max-width: 900px) {
+  .st-page .st-menu { position: static; max-height: none; }
+  .st-layout > .st-menu { grid-row: auto; }
+  .st-layout:has(> .st-menu) { grid-template-rows: none; }
+}
+
+/* ---- 20261101 CL/ASR Tilbage above the title on every settings page (owner, 1 Nov 2026; settings_back_button() in
+   includes/settings/components.php): the kit's small secondary button (.sk-btn.sk-btn-sm) with a left arrow. Written out on
+   the settings tokens as well, because the frame of the old pages (top.php) does not load the kit. ---- */
+.st-page .sk-back { --st-btn-bg: var(--st-surface); --st-btn-bd: var(--st-field); --st-btn-fg: var(--st-text); align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--st-ctl-h-sm); margin: 0 0 6px; padding: 0 8px; vertical-align: middle; border: 1px solid var(--st-btn-bd); border-radius: var(--st-r); background: var(--st-btn-bg); color: var(--st-btn-fg); box-shadow: none; font: 500 var(--st-fs-s)/1 var(--st-font); white-space: nowrap; text-decoration: none; cursor: pointer; user-select: none; transition: background-color var(--st-t), border-color var(--st-t), color var(--st-t); }
+.st-page .sk-back:hover { --st-btn-bg: var(--st-surface-2); --st-btn-bd: var(--st-field-hover); color: var(--st-btn-fg); text-decoration: none; }
+.st-page .sk-back > i.bx { flex: none; width: 14px; height: 14px; font-size: 14px; line-height: 14px; }

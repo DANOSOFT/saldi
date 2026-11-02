@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importAccountMap.php --- lap 4.1.0 --- 2024-01-03 ---
+// --- systemdata/importAccountMap.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,8 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2024 Saldi.dk ApS
+// Copyright (c) 2003 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261102 CL/ASR The same head as the other import pages under Indstillinger > Import & eksport: the shared Tilbage button top-left above the
+//                 title (settings_back_button(), css/saldi-kit.css; to the hub, Alt+L) and the title on the page head (page_bar), named as the
+//                 Import & eksport page links it, instead of the grey bar with "Importer_kontoplan" and Tilbage via the old diverse.php redirect.
+//                 After an import the page returns to Import & eksport directly (settingsSection.php?s=import_export.data).
 
 @session_start();
 $s_id=session_id();
@@ -47,16 +51,11 @@ print "<div align=\"center\">";
 
 if ($fileName) importData($fileName);
 
+include_once("../includes/stdFunc/pageBar.php");
+include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button() . "</div>\n";
+page_bar(array('title' => findtekst('2336|Importer mappingfil til offentlig standard kontoplan', $sprog_id)));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-#if ($popup) print "<td width=\"10%\" $top_bund><a href=../includes/luk.php accesskey=L>Luk</a></td>"; 
-# else 
-print "<td width=\"10%\" $top_bund><a href=diverse.php?sektion=div_io accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210713
-print "<td width=\"80%\" $top_bund>$title</td>";
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
 
 if (isset ($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
 	$fileName="../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv";
@@ -119,6 +118,6 @@ function importData($fileName) {
 		db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	alert("Mapping fil importeret og kontoplan opdateret");
-	print "<meta http-equiv=\"refresh\" content=\"0;URL= diverse.php?sektion=div_io\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=settingsSection.php?s=import_export.data\">\n";
 }
 ?>

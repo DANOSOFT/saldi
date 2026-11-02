@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.0 ----2026-10-31------------
+// --- systemdata/diverse.php -----ver 5.1.0 ----2026-11-01------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -126,6 +126,7 @@
 //                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
 // 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
 // 20261031 CL/ASR Merge of master into redesign: save_webshop_invoice_order_date() (SST-911) runs after the CSRF check, like every other save on this page.
+// 20261101 CL/ASR Settings hub: div_valg redirects to Indstillinger » Ansatte, where its last field (Tilføj ekstra felter på ansatte, DIV/2 box3) lives now.
 
 @session_start();
 $s_id = session_id();
@@ -197,6 +198,7 @@ $landedSections = array(
 	'solar_io'       => 'settingsSection.php?s=import_export.data&moved=div_io',
 	'variant_valg'   => 'settingsSection.php?s=items.variants&moved=variant_valg',
 	'labels'         => 'labels.php?moved=labels',
+	'div_valg'       => 'settingsSection.php?s=organisation.employees&moved=div_valg&item=general',
 );
 if (isset($landedSections[$sektion]) && !($sektion == 'api_valg' && !empty($_GET['varesync']))) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . $landedSections[$sektion] . "\">";

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/integrations.php --- lap 5.0.0 --- 2026.10.02 ---
+// ---- includes/settings/integrations.php --- ver 5.1.0 --- 2026.11.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261004 Sawaneh G9.2 pickup address items, G9.4 NemHandel status.
 // 20261004 Sawaneh G10.3: card list items from the POS card lists, their status, the payment providers' state.
@@ -23,6 +23,7 @@
 //                  the registry - the computed status of each integration (never stored, §8.13), the read-only info
 //                  rows, the two small login forms, a new API key, MobilePay QR codes per till (moved from the old
 //                  page's render, spec B-D12) and the Vibrant terminal login created on the server (B-D10).
+// 20261101 CL/ASR Ansatte lists one more item, Ekstra felter ('general'), with the field that moved there from Diverse valg.
 
 /**
  * Status of one integration from what is stored: kind 'ok', 'off', 'err' or 'soon', the short text and the
@@ -153,6 +154,8 @@ function settings_list_dynamic_items(string $from): array
 		}
 	}
 	if ($from === 'employees') {
+		// Diverse valg's last field (settings hub, 1 Nov 2026): one row under Ekstra felter, its drawer holds the switch.
+		$items['general'] = array('sub' => 'general', 'abbr' => '+', 'literal' => true, 'label' => st_txt(616), 'desc' => st_txt(615));
 		$departments = st_options(array('options_from' => 'departments'));
 		$sid = settings_company_account_id();
 		$q = db_select("select id, nummer, navn, initialer, email, tlf, mobil, afd, lukket from ansatte where konto_id = $sid order by coalesce(posnr, 999999), nummer, id", __FILE__ . " linje " . __LINE__);

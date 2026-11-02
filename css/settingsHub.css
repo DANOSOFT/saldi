@@ -4,42 +4,93 @@
    20261101 CL/ASR New design (prototype D, as index/dashboard.php): the page is built from css/saldi-kit.css (panels with a
                    grey header band, 24 px zebra rows, the kit search, notes, dialog and buttons). This file only holds what
                    the kit lacks, scoped under .sk like the kit, so it cannot restyle another page. The old page background,
-                   cards, shadows and the user's button colour are gone; the one filled button is the kit's navy. */
+                   cards, shadows and the user's button colour are gone; the one filled button is the kit's navy.
+   20261101 CL/ASR Settings hub "C - Fold ud" (the owner's choice, _prototypes/settings_hub/?v=c): the four group panels in columns
+                   that javascript/settingsHub.js lays out (four from a 1500 px wide grid, two, one under 860 px), each column
+                   stacking its own panels; sub-group rows that fold open into links; search marks in place.
+                   No zebra in these navigation rows (owner, 1 Nov 2026). The kit loads after this file, so a rule that changes
+                   a kit class starts with .sk.sh-page. The search dropdown, the attention panel and the three lists are gone.
+   20261102 CL/ASR The Tilbage button's place above the title is in css/saldi-kit.css now (.sk .sk-head-tx > .sk-back). */
 
-/* two columns of group panels in the frame (three on a wide screen) */
-.sk .sh-cols { --sk-col-w: 30rem; }
-/* zebra rows are clipped to the panel's 4 px corners, as the dashboard's blocks */
-.sk .sh-panel { overflow: hidden; }
-/* 20261101 CL/ASR the keyboard focus ring sits inside a row, so the clipping above cannot cut off its sides (as the kit's tabs and nav) */
-.sk .sh-panel .sk-list-row:focus-visible { outline-offset: -2px; }
-/* 20261101 CL/ASR a title too long for a narrow row ends in … instead of being cut off mid-letter; the description gives way first */
-.sk .sh-panel .sk-list-t { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-
-/* the search, right in the page head; its results drop down as a kit popover */
+/* the search, right in the page head; it filters the panels in place */
 .sk .sh-search { --sk-w: 24rem; }
-.sk.sh-page .sh-res { max-height: 25rem; }   /* room for the 8 first hits, as before */
-.sk .sh-res .sk-opt { gap: 1px; }
-.sk .sh-res .sk-opt b { font-weight: 500; }
-.sk .sh-res .sk-opt .sh-per { color: var(--sk-warn-ink); }   /* a personal setting (under your name, not the company's) */
-.sk .sh-res .sk-opt em { font-size: var(--sk-fs-xs); font-style: normal; color: var(--sk-text-3); }   /* the old menu name it was found by */
-.sk .sh-res .sh-none { padding-top: 12px; padding-bottom: 12px; }
-.sk .sh-more { display: block; width: 100%; min-height: var(--sk-ctl-h); margin: 4px 0 -4px; padding: 4px var(--sk-pad); border: 0; border-top: 1px solid var(--sk-border);
-	background: none; color: var(--sk-link); font-size: var(--sk-fs-s); text-align: left; cursor: pointer; }
-.sk .sh-more:hover { background: var(--sk-surface-2); text-decoration: underline; text-underline-offset: 2px; }
 
-/* "Kræver opmærksomhed": the status dot in the icon column, the action as a small button at the end of the row */
-.sk .sh-attn-ic { display: inline-flex; align-items: center; justify-content: center; }
-.sk .sh-attn .sk-list-row { min-height: 1.75rem; }
+/* notes above the panels: the text shrinks beside the icon instead of wrapping under it; "Ny struktur" ends in its Skjul button */
+.sk.sh-page > .sk-note > :is(span, b) { flex: 1 1 0; min-width: 0; }
+.sk.sh-page > .sh-notice { margin: 0; }
+.sk.sh-page > .sh-notice > .sk-btn { flex: none; margin: -2px -4px -2px 0; }
 
-/* "Ny struktur": the help text as the panel's note line; the shortcut row is a <button>, which the kit paints without zebra */
-.sk .sh-notice-tx { margin: 0; }
-.sk .sh-panel > form.sk-foot > .sk-btn-ghost { margin-left: -8px; }   /* the ghost button's text on the panel's text edge */
-.sk .sh-ls > button.sk-list-row:nth-child(even):not(:hover) { background: var(--sk-surface-2); }
+/* the grid: columns of panels; each column stacks its own panels, so a row unfolding in one column never pushes another down */
+.sk .sh-grid { display: grid; grid-template-columns: repeat(var(--sh-n, 2), minmax(0, 1fr)); align-items: start; gap: var(--sk-gap); }
+.sk .sh-col { display: flex; flex-direction: column; gap: var(--sk-gap); min-width: 0; }
 
-/* the read-only / no-access note: the text shrinks beside the lock icon instead of wrapping under it */
-.sk.sh-page > .sk-note > :not(i) { flex: 1 1 0; min-width: 0; }
+/* a group panel: its name and grey description in the header band; the rows are clipped to the 4 px corners */
+.sk .sh-panel { overflow: hidden; transition: border-color 900ms var(--sk-ease); }
+.sk.sh-page .sh-panel .sk-panel-h { gap: 0; }
+.sk.sh-page .sh-panel .sk-panel-t { flex: none; }
+.sk.sh-page .sh-panel .sk-panel-h .sk-sub { min-width: 0; margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--sk-fs-s); }
+.sk.sh-page .sh-panel.sh-hit { border-color: var(--sk-mark); transition: none; }   /* the group a settings breadcrumb came from (?g=) */
+.sk .sh-empty { margin: 0; padding: 10px var(--sk-pad); font-size: var(--sk-fs-s); color: var(--sk-text-3); }
 
-/* quiet links under the lists */
+/* the sub-group rows: icon, title, short text, count or status, chevron; all white, a hairline between (no zebra) */
+.sk .sh-acc { margin: 0; padding: 0; }
+.sk .sh-acc > :not([hidden]) ~ .sh-item { border-top: 1px solid var(--sk-border); }
+.sk.sh-page .sh-item > .sk-list-row { min-height: 2rem; padding-top: 4px; padding-bottom: 4px; }
+.sk.sh-page .sh-item > .sk-list-row:focus-visible { outline-offset: -2px; }   /* inside the row, so the panel cannot clip it */
+.sk.sh-page .sh-item .sk-list-t { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.sk.sh-page .sh-item > .sk-off .sk-list-d { color: var(--sk-text-3); }
+.sk.sh-page .sh-btn[aria-expanded="true"] .sk-list-t { font-weight: 600; }
+.sk .sh-chev { transition: transform var(--sk-t) var(--sk-ease), color var(--sk-t); }
+.sk.sh-page .sh-btn:hover > .sh-chev { color: var(--sk-text-2); }
+.sk.sh-page .sh-btn[aria-expanded="true"] > .sh-chev { transform: rotate(180deg); color: var(--sk-text-2); }
+/* the status keeps its width up to half the row, a longer one ends in …; on an open row it moves down to the page it belongs to */
+.sk.sh-page .sh-btn > .sk-list-meta { flex: 0 0 auto; min-width: 0; max-width: 55%; }
+.sk.sh-page .sh-btn[aria-expanded="true"] > .sk-list-meta { visibility: hidden; }
+.sk.sh-page .sk-list-meta > .sk-status { min-width: 0; max-width: 100%; }
+.sk .sh-st { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* an open row: its pages as links, indented to the title, on a hairline guide under the row's icon */
+.sk .sh-body { padding: 3px 0 7px; border-top: 1px solid var(--sk-border); background: var(--sk-surface); }
+.sk .sh-links, .sk .sh-deep { margin: 0; padding: 0; list-style: none; }
+.sk.sh-page .sh-link { position: relative; display: flex; align-items: center; gap: 10px; min-height: 1.5rem; padding: 2px var(--sk-pad) 2px 38px;
+	color: var(--sk-text); text-decoration: none; transition: background-color var(--sk-t); }
+.sk.sh-page .sh-link::before { content: ""; position: absolute; top: 0; bottom: 0; left: 19px; width: 1px; background: var(--sk-border); }
+.sk.sh-page .sh-link:hover { background: var(--sk-row-hover); text-decoration: none; }
+.sk.sh-page .sh-link:hover::before { left: 18px; width: 3px; border-radius: 2px; background: var(--sk-mark); }
+.sk.sh-page .sh-link:focus-visible { outline-offset: -2px; }
+.sk .sh-link-tx { display: flex; flex: 1 1 auto; align-items: baseline; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.sk .sh-link-t { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--sk-link); }
+.sk .sh-link-d { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .sh-was { font-size: var(--sk-fs-xs); font-style: normal; color: var(--sk-text-3); white-space: nowrap; }   /* the old name a row was found by */
+.sk.sh-page .sh-link .sk-list-chev { opacity: 0; transition: opacity var(--sk-t); }
+.sk.sh-page .sh-link:is(:hover, :focus-visible) .sk-list-chev { opacity: 1; }
+
+/* while searching: a row's second page, or a single setting the search found, one step further in */
+.sk.sh-page .sh-deep-link { min-height: 1.375rem; }
+.sk.sh-page .sh-deep-link .sh-link-t { font-weight: 400; }
+.sk .sh-deep-ic { flex: none; width: 14px; height: 14px; font-size: 14px; line-height: 14px; color: var(--sk-text-3); }
+
+/* what needs the administrator, under the page it is about, with the button that fixes it */
+.sk .sh-attn { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 2px var(--sk-pad) 4px 38px; font-size: var(--sk-fs-s); }
+.sk .sh-attn::before { content: ""; position: absolute; top: 0; bottom: 0; left: 19px; width: 1px; background: var(--sk-border); }
+.sk .sh-attn > .sk-status { min-width: 0; }
+
+/* four narrow columns: titles over their text, the group's description left out of the header band */
+.sk.sh-page .sh-grid[data-layout="c4"] .sk-panel-h .sk-sub { display: none; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-item > .sk-list-row { align-items: flex-start; padding-top: 4px; padding-bottom: 5px; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-item .sk-list-tx { flex-direction: column; align-items: stretch; gap: 1px; white-space: normal; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-item .sk-list-d { overflow: visible; line-height: 1.35; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-item > .sk-list-row > :is(.sk-list-ic, .sk-list-meta, .sk-list-chev) { margin-top: 1px; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-link { align-items: flex-start; padding-top: 3px; padding-bottom: 4px; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-link-tx { flex-direction: column; align-items: stretch; gap: 1px; white-space: normal; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-link-d { overflow: visible; line-height: 1.35; }
+.sk.sh-page .sh-grid[data-layout="c4"] .sh-link > :is(.sk-list-meta, .sk-list-chev, .sh-deep-ic) { margin-top: 2px; }
+
+/* search hits not on the panels (personal settings, Diverse, Tjeklister), below them */
+.sk .sh-other { max-width: 40rem; }
+.sk .sh-other-list { padding: 3px 0 7px; }
+
+/* quiet links under the panels */
 .sk .sh-foot { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-size: var(--sk-fs-s); }
 .sk .sh-foot a, .sk .sh-foot .sk-link { --sk-btn-fg: var(--sk-text-2); color: var(--sk-text-2); }
 .sk .sh-foot a:hover, .sk .sh-foot .sk-link:hover { --sk-btn-fg: var(--sk-link); color: var(--sk-link); }

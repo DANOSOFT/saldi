@@ -1,5 +1,5 @@
 <?php
-// ---- /systemdata/exporter_posmenu.php -------- ver 5.1.0 -- 2026-10-31 --
+// ---- /systemdata/exporter_posmenu.php -------- ver 5.1.0 -- 2026-11-02 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,6 +25,9 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
 // 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
+//                 It goes back to POS-menuer, whose form posts here; Alt+L kept.
+// 20261102 CL/ASR settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
 
 @session_start();
 $s_id=session_id();
@@ -75,7 +78,9 @@ if (fwrite($fp,"fileformat".chr(9)."version".chr(9)."delimiter".chr(9)."charset"
 fclose($fp);
 
 include_once("../includes/stdFunc/pageBar.php");
-page_bar(array('title' => findtekst(1932, $sprog_id), 'back' => $returside));
+include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button('posmenuer.php') . "</div>\n";
+page_bar(array('title' => findtekst(1932, $sprog_id)));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1

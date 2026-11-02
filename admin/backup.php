@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/admin/backup.php---lap 4.1.1--2025-05-18---------------------
+// ----------/admin/backup.php---ver 5.1.0--2026-11-02---------------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,16 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2019.07.04 RG (Rune Grysbæk) Mysqli implementation 
 // 2020.03.08 PHR SQL dump created on demand.
 // 20250427 LOE User can now delete backup file saved if they changed their minds.
 // 20250511 LOE Backupfile save a copy of current db on saldi
+// 20261102 CL/ASR The head of every settings page (opened from Indstillinger > Data & sikkerhedskopi > Sikkerhedskopi): the shared Tilbage
+//                 button top-left above the title (settings_back_button(), css/saldi-kit.css) and the title on the page head (page_bar),
+//                 instead of the bar with Tilbage to the old main menu. Tilbage goes back to the Sikkerhedskopi section; in a popup window
+//                 (popup=1) it closes it, as before. Alt+L kept.
 
 @session_start();
 $s_id = session_id();
@@ -87,31 +91,15 @@ if ($menu=='T') {
 	print "<div class='maincontent'>\n";
 
 	print "<table border='0' cellspacing='0' id='dataTable' class='dataTable'><tbody>"; # -> 1
-} elseif ($menu=='S') {
-	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
-	print "<tr><td align='center' valign='top'>";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-
-	print "<td width='10%' title='".findtekst('1673|Klik her for at vende tilbage til hovedmenuen', $sprog_id)."'>";
-	print "<a href=$returside accesskey=L><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-		   .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-	print "<td width='80%' align='center' style='$topStyle'>".findtekst('614|Sikkerhedskopi', $sprog_id)."</td>";
-
-	print "<td width='10%' align='center' style='$topStyle'><br></td>";
-
-	print "</tbody></table>";
-	print "</td></tr>";
 } else {
+	// The head of every settings page: Tilbage (the kit's small button, top-left above the title) back to Sikkerhedskopi, the
+	// section that opens this page; in a popup window (popup=1) it closes the window. The title on the page head (page_bar).
+	include_once("../includes/stdFunc/pageBar.php");
+	include_once("../includes/settings/components.php");
+	$backTo = !empty($_GET['popup']) ? '../includes/luk.php' : '../systemdata/settingsSection.php?s=import_export.backup';
+	print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button($backTo) . "</div>\n";
+	page_bar(array('title' => findtekst('614|Sikkerhedskopi', $sprog_id)));
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
-	print "<tr><td align='center' valign='top'>";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-	print "<td width='10%' $top_bund title='".findtekst('1673|Klik her for at vende tilbage til hovedmenuen', $sprog_id)."'>";
-	print "<a href=$returside accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
-	print "<td width='80%' $top_bund>".findtekst('614|Sikkerhedskopi', $sprog_id)."</td>";
-	print "<td width='10%' $top_bund><br></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
 }
 
 if ($menu=='T' || $menu=='S') {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,6 +50,15 @@
 // 20261019 Sawaneh Review 2 (PR #803): row_copy_year takes from_year only when it is a fiscal year (RA) of this ledger other than the target year.
 // 20261101 CL/ASR New design (prototype D, as index/dashboard.php): the head links css/saldi-theme.css, then css/saldi-kit.css and css/unified-components.css follow online.php, so the settings rules come after the kit's base rules.
 //                 The page's root carries the kit's scope class sk (also in listView.php and rowsView.php).
+// 20261101 CL/ASR Settings hub "C - Fold ud" (owner, 1 Nov 2026): the left menu shows the page's hub group as its sub-groups with their
+//                 rows (settings_hub_menu(), drawn by settings_menu_html() in includes/settings/listView.php for all three views and
+//                 the frame top.php), the current row marked, no zebra; a Tilbage button above the title on every section.
+// 20261101 CL/ASR Review: an old address that sent the user here (moved=) leaves the navigation stack, so Tilbage does not lead
+//                 back to it and round to this page again (and this page is kept without the one-off moved= notice).
+//                 Tilbage carries Alt+L, as on the other settings pages.
+// 20261101 CL/ASR Review: css/saldi-kit.css linked as ?v=20261101c, the version the other settings pages link (the kit's list rows lost their zebra).
+// 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
+//                 The kit is linked as ?v=20261102.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -77,7 +86,7 @@ $permission_post_read = false;
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
 // The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261101b'><link rel='stylesheet' href='../css/unified-components.css?v=20261101c'>\n";
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><link rel='stylesheet' href='../css/unified-components.css?v=20261101e'>\n";
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");
@@ -126,6 +135,31 @@ if ($returnTo !== '') {
 	}
 }
 $section['return_label'] = $returnLabel;
+// An old address (diverse.php?sektion=ordre_valg, syssetup.php?valg=moms, ansatte.php ...) redirected here with moved=<its name>.
+// It is not a page the user saw: it leaves the navigation stack, or Tilbage here (and on the next sections) would lead to it and
+// straight back to this page. Only the entry just before this page, and only when it is that address (its file name starts
+// with the moved name, or a query value is it): the stack may have been cut back to an older entry instead.
+if (isset($_GET['moved']) && is_string($_GET['moved']) && $_GET['moved'] !== '' && $_SERVER['REQUEST_METHOD'] === 'GET'
+	&& function_exists('_nav_read') && function_exists('_nav_write') && function_exists('_nav_page')) {
+	$movedFrom = (string) $_GET['moved'];
+	$navStack = _nav_read();
+	$navCount = count($navStack);
+	if ($navCount >= 1 && _nav_page((string) $navStack[$navCount - 1]) === _nav_page((string) $_SERVER['REQUEST_URI'])) {
+		// This page without the one-off notice, so a Tilbage that leads back here does not show it again.
+		$navStack[$navCount - 1] = rtrim((string) preg_replace('/([?&])moved=[^&#]*(?:&|$)/', '$1', (string) $navStack[$navCount - 1]), '?&');
+		if ($navCount >= 2) {
+			$stubUrl = (string) $navStack[$navCount - 2];
+			$stubFile = basename((string) parse_url($stubUrl, PHP_URL_PATH));
+			$stubQuery = array();
+			parse_str((string) parse_url($stubUrl, PHP_URL_QUERY), $stubQuery);
+			if (!in_array($stubFile, array('settings.php', 'settingsSection.php', 'settingsMoved.php'), true)
+				&& (strpos($stubFile, $movedFrom) === 0 || in_array($movedFrom, array_filter($stubQuery, 'is_string'), true))) {
+				array_splice($navStack, $navCount - 2, 1);
+			}
+		}
+		_nav_write($navStack);
+	}
+}
 $selfUrl = 'settingsSection.php?s=' . rawurlencode($sectionId) . ($returnTo !== '' ? '&back=' . rawurlencode($returnTo) . ($returnLabel !== '' ? '&back_label=' . rawurlencode(st_charset() !== 'UTF-8' ? mb_convert_encoding($returnLabel, 'UTF-8', st_charset()) : $returnLabel) : '') : '');
 $isList = (!empty($section['kind']) && $section['kind'] === 'list');
 $isRows = (!empty($section['kind']) && $section['kind'] === 'rows');
@@ -487,7 +521,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 		$movedText = st_txt(5720) . ' ' . settings_legacy_text($section['old'][$moved], $sprogId) . '. ' . st_txt(5721);
 	}
 
-	$tabs = settings_section_tabs($section['group'], $sprogId);
+	$menu = settings_hub_menu($sprogId, $sectionId);
 	$history = SettingsService::history($sectionId, 20);
 	$setAt = SettingsService::lastChanged($sectionId);
 	$version = SettingsService::version($sectionId);
@@ -504,7 +538,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 		settings_rows_render(array(
 			'sectionId' => $sectionId, 'section' => $section, 'defs' => $defs, 'state' => $state, 'canWrite' => $canWrite,
 			'csrfToken' => $csrfToken, 'selfUrl' => $selfUrl, 'values' => $values, 'originals' => $originals, 'flash' => $flash,
-			'movedText' => $movedText, 'tabs' => $tabs, 'version' => $version, 'config' => $config, 'accent' => $accent,
+			'movedText' => $movedText, 'menu' => $menu, 'version' => $version, 'config' => $config, 'accent' => $accent,
 			'accentTxt' => $accentTxt, 'group' => $group, 'sprogId' => $sprogId, 'charset' => $charset,
 			'tables' => $settingsRowsContext['tables'], 'year' => $settingsRowsContext['year'], 'years' => $settingsRowsContext['years'],
 			'rowsPosted' => isset($state['rows_posted']) ? $state['rows_posted'] : array(),
@@ -516,7 +550,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 		settings_list_render(array(
 			'sectionId' => $sectionId, 'section' => $section, 'defs' => $defs, 'state' => $state, 'canWrite' => $canWrite,
 			'csrfToken' => $csrfToken, 'selfUrl' => $selfUrl, 'values' => $values, 'originals' => $originals, 'flash' => $flash,
-			'movedText' => $movedText, 'tabs' => $tabs, 'version' => $version, 'config' => $config, 'accent' => $accent,
+			'movedText' => $movedText, 'menu' => $menu, 'version' => $version, 'config' => $config, 'accent' => $accent,
 			'accentTxt' => $accentTxt, 'group' => $group, 'sprogId' => $sprogId, 'charset' => $charset, 'item' => $item,
 		));
 		return;
@@ -529,6 +563,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
   <a class="st-skip" href="#st-form"><?= st_t(5751) ?></a>
   <section class="st-phead">
     <div>
+      <?= settings_back_button($section['return_to'] !== '' ? '..' . $section['return_to'] : '') ?>
       <h1><?= st_t($section['label']) ?><?= st_section_help($section) ?></h1>
       <p class="st-lead"><?= st_t(5706) ?> <?= st_h(st_company()) ?>.</p>
     </div>
@@ -549,18 +584,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 	<?php } ?>
 
   <div class="st-layout">
-    <nav class="st-tabs" aria-label="<?= st_h(html_entity_decode(findtekst($group['label'], $sprogId), ENT_QUOTES | ENT_HTML5, $charset)) ?>">
-      <select class="st-tabs-select" aria-label="<?= st_h(html_entity_decode(findtekst($group['label'], $sprogId), ENT_QUOTES | ENT_HTML5, $charset)) ?>" onchange="if (this.value) { window.location = this.value; }">
-			<?php foreach ($tabs as $tab) { ?>
-        <option value="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' selected' : '' ?>><?= st_h($tab['label']) ?></option>
-			<?php } ?>
-      </select>
-      <ul>
-			<?php foreach ($tabs as $tab) { ?>
-        <li><a href="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' class="on" aria-current="page"' : '' ?>><span><?= st_h($tab['label']) ?></span><?= $tab['id'] === $sectionId ? '<i class="st-dot" id="st-dot" hidden></i>' : '' ?></a></li>
-			<?php } ?>
-      </ul>
-    </nav>
+    <?= settings_menu_html($menu, $sprogId, array('dot' => true, 'label' => st_txt($section['label']))) ?>
 
     <form class="st-form" id="st-form" method="post" action="<?= st_h($selfUrl) ?>" autocomplete="off" novalidate>
       <input type="hidden" name="csrf_token" value="<?= st_h($csrfToken) ?>">

@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/importer_varianter.php --- lap 5.0.0 --- 2026.10.06 ---
+// ---- systemdata/importer_varianter.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,23 +15,28 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261006 Sawaneh Settings 4c G5.3: CSV import of variant types and values, moved from the old Varianter page. The
 //                  files are read by the existing import in diverse.php (variant_valg_import_types/_values), which
 //                  returns to Varer & lager » Varianter with the result.
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), styled by css/unified-components.css), as on every settings page, not the "← Varianter" link.
+//                 It goes to the settings page the user came from (Varianter), or the hub; Alt+L kept.
+// 20261101 CL/ASR Review: css/unified-components.css linked as ?v=20261101e, the version the section pages and the old pages' frame link.
+// 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops; settings_back_button() adds Alt+L itself.
 
 @session_start();
 $s_id = session_id();
 
 $title = "Importér varianter";
-$css = "../css/unified-components.css?v=20261016b";
+$css = "../css/unified-components.css?v=20261101e";
 $permission_key = 'settings.import_export';
 $permission_level = 'write';
 
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
 
 if (function_exists('perm_can') && !perm_can('settings.import_export', 'write')) {
 	print "<p style='padding:24px'>" . htmlspecialchars(findtekst('5665|Du har ikke adgang til nogen indstillinger. Kontakt en administrator.', $sprog_id), ENT_QUOTES) . "</p>";
@@ -47,11 +52,13 @@ $t = function ($s) use ($sprog_id, $h) {
 	return $h(findtekst($s, $sprog_id));
 };
 $token = "<input type='hidden' name='csrf_token' value='" . $h($_SESSION['csrf_token']) . "'>";
-$back = 'settingsSection.php?s=items.variants';
 ?>
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <div class="st-page" style="max-width:860px;margin:0 auto;padding:24px 16px">
-  <p><a href="<?= $h($back) ?>" accesskey="L">&larr; <?= $t('472|Varianter') ?></a></p>
-  <h1 style="font-size:22px;margin:8px 0 18px"><?= $t('6839|Importér varianter fra CSV') ?></h1>
+  <div style="display:flex;flex-direction:column;gap:2px">
+    <?= settings_back_button() ?>
+    <h1 style="font-size:22px;margin:0 0 18px"><?= $t('6839|Importér varianter fra CSV') ?></h1>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
     <form class="st-card" style="padding:18px" enctype="multipart/form-data" action="diverse.php?sektion=variant_valg_import_types" method="post">
       <?= $token ?>

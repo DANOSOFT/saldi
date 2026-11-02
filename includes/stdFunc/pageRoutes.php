@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageRoutes.php --- lap 5.0.0 --- 2026.10.06 ---
+// ---- includes/stdFunc/pageRoutes.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,13 +15,18 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261006 Sawaneh The central breadcrumb map (topbar addendum 2026-10-05 §3, Adam 2026-10-06: breadcrumbs on every
 //                  page). 'pages': 'dir/file.php' (or 'dir/file.php?param=value' for a variant of the same file) =>
 //                  module 'm', label 'l' ('textId|Danish'; '|Text' without an id) and parent page 'p' from the Saldi
 //                  root ('' = directly under the module). Read by page_auto_breadcrumb() in pageChrome.php.
 // 20261009 Sawaneh sager/tjeklister.php (checklists moved from Indstillinger, 4e).
+// 20261101 CL/ASR Settings hub "C - Fold ud": the four hub groups (settings.php?g=<group>) and the sections that other pages hang under are parents.
+//                 Settings pages without a trail of their own now read Indstillinger / group / row / page (Formularer, backup, import, export, opening balance, translations, POS menus).
+// 20261102 CL/ASR The hub is a page of its own ('systemdata/settings.php') and the groups hang under it; the pages under them use the module 'settings',
+//                 which prints no module level, so the first crumb Indstillinger is a link again (the groups share the hub's path, which made it look like the landing page).
+//                 Import & eksport also holds importer_debitor, exporter_debitor, importer_kreditor and exporter_kreditor; the import pages are named as the section links them.
 
 return array(
 	'modules' => array(
@@ -31,6 +36,7 @@ return array(
 		'kreditor'   => array('l' => '607|Kreditorer', 'href' => ''),
 		'lager'      => array('l' => '608|Lager', 'href' => ''),
 		'system'     => array('l' => '122|Indstillinger', 'href' => '/systemdata/settings.php'),
+		// 'settings' (the pages the hub's groups lead to) has no entry here: their trail starts at the page 'systemdata/settings.php'.
 		'pos'        => array('l' => '5606|Kassesystem', 'href' => '/debitor/pos_ordre.php'),
 		'sager'      => array('l' => '5607|Sagsstyring', 'href' => '/sager/sager.php'),
 		'loen'       => array('l' => '2784|Løn', 'href' => '/sager/loen.php'),
@@ -72,8 +78,8 @@ return array(
 		'bank_integration/get_accounts.php'    => array('m' => 'finans', 'l' => '|Vælg bankkonto', 'p' => '/finans/kassekladde.php'),
 
 		// admin/
-		'admin/backup.php'                     => array('m' => 'system', 'l' => '614|Backup', 'p' => ''),
-		'admin/restore.php'                    => array('m' => 'system', 'l' => '1247|Indlæs sikkerhedskopi', 'p' => ''),
+		'admin/backup.php'                     => array('m' => 'settings', 'l' => '614|Backup', 'p' => '/systemdata/settingsSection.php?s=import_export.backup'),
+		'admin/restore.php'                    => array('m' => 'settings', 'l' => '1247|Indlæs sikkerhedskopi', 'p' => '/systemdata/settingsSection.php?s=import_export.backup'),
 		// debitor/
 		'debitor/debitor.php' => array('m' => 'debitor', 'l' => '117|Konti', 'p' => ''),
 		'debitor/debitor.php?valg=historik' => array('m' => 'debitor', 'l' => '907|Historik', 'p' => '/debitor/debitor.php', 'q' => array('valg' => 'historik')),
@@ -186,29 +192,47 @@ return array(
 		// systemdata/
 		'systemdata/kontoplan.php' => array('m' => 'finans', 'l' => '113|Kontoplan', 'p' => ''),
 		'systemdata/kontokort.php' => array('m' => 'finans', 'l' => '443|Kontokort', 'p' => '/systemdata/kontoplan.php'),
-		'systemdata/formularkort.php' => array('m' => 'system', 'l' => '573|Formularkort', 'p' => ''),
-		'systemdata/formeditor.php' => array('m' => 'system', 'l' => '|Formulareditor', 'p' => '/systemdata/formularkort.php'),
-		'systemdata/logoupload.php' => array('m' => 'system', 'l' => '1745|Indlæs fil', 'p' => '/systemdata/formularkort.php'),
-		'systemdata/regnskabskort.php' => array('m' => 'system', 'l' => '1215|Regnskabskort', 'p' => ''),
+		// settings hub: the four groups and the sections other settings pages hang under (settingsSection.php and settings.php print their own trail)
+		// module 'settings' (no entry in 'modules'): the trail starts at the hub itself, Indstillinger / group / row / page, so Indstillinger stays a link
+		'systemdata/settings.php' => array('m' => 'settings', 'l' => '122|Indstillinger', 'p' => ''),
+		'systemdata/settings.php?g=virksomhed' => array('m' => 'settings', 'l' => '5669|Virksomhed', 'p' => '/systemdata/settings.php', 'q' => array('g' => 'virksomhed')),
+		'systemdata/settings.php?g=finans' => array('m' => 'settings', 'l' => '600|Finans', 'p' => '/systemdata/settings.php', 'q' => array('g' => 'finans')),
+		'systemdata/settings.php?g=salg' => array('m' => 'settings', 'l' => '5544|Salg', 'p' => '/systemdata/settings.php', 'q' => array('g' => 'salg')),
+		'systemdata/settings.php?g=koeb_lager' => array('m' => 'settings', 'l' => '7703|Køb & lager', 'p' => '/systemdata/settings.php', 'q' => array('g' => 'koeb_lager')),
+		'systemdata/settingsSection.php?s=company.localisation' => array('m' => 'settings', 'l' => '7736|Sprog & lokalisering', 'p' => '/systemdata/settings.php?g=virksomhed', 'q' => array('s' => 'company.localisation')),
+		'systemdata/settingsSection.php?s=company.fiscal_years' => array('m' => 'settings', 'l' => '894|Regnskabsår', 'p' => '/systemdata/settings.php?g=finans', 'q' => array('s' => 'company.fiscal_years')),
+		'systemdata/settingsSection.php?s=import_export.data' => array('m' => 'settings', 'l' => '5539|Import & eksport', 'p' => '/systemdata/settings.php?g=finans', 'q' => array('s' => 'import_export.data')),
+		'systemdata/settingsSection.php?s=import_export.backup' => array('m' => 'settings', 'l' => '6665|Sikkerhedskopi', 'p' => '/systemdata/settings.php?g=finans', 'q' => array('s' => 'import_export.backup')),
+		'systemdata/settingsSection.php?s=items.variants' => array('m' => 'settings', 'l' => '472|Varianter', 'p' => '/systemdata/settings.php?g=koeb_lager', 'q' => array('s' => 'items.variants')),
+		'systemdata/settingsSection.php?s=pos.screen' => array('m' => 'settings', 'l' => '7741|Skærm & kassemenuer', 'p' => '/systemdata/settings.php?g=salg', 'q' => array('s' => 'pos.screen')),
+		'systemdata/posmenuer.php' => array('m' => 'settings', 'l' => '1940|POS-menuer', 'p' => '/systemdata/settingsSection.php?s=pos.screen'),
+		'systemdata/formularkort.php' => array('m' => 'settings', 'l' => '780|Formularer', 'p' => '/systemdata/settings.php?g=virksomhed'),
+		'systemdata/formeditor.php' => array('m' => 'settings', 'l' => '|Formulareditor', 'p' => '/systemdata/formularkort.php'),
+		'systemdata/logoupload.php' => array('m' => 'settings', 'l' => '1745|Indlæs fil', 'p' => '/systemdata/formularkort.php'),
+		'systemdata/regnskabskort.php' => array('m' => 'settings', 'l' => '1215|Regnskabskort', 'p' => '/systemdata/settingsSection.php?s=company.fiscal_years'),
 		'systemdata/syssetup.php?valg=debitor' => array('m' => 'system', 'l' => '771|Debitor-/kreditorgrupper', 'p' => '', 'q' => array('valg' => 'debitor')),
 		'systemdata/diverse.php?sektion=api_valg' => array('m' => 'system', 'l' => '5537|Integrationer', 'p' => '', 'q' => array('sektion' => 'api_valg')),
-		'systemdata/tekster.php' => array('m' => 'system', 'l' => '581|Tekster', 'p' => ''),
+		'systemdata/tekster.php' => array('m' => 'settings', 'l' => '581|Tekster', 'p' => '/systemdata/settingsSection.php?s=company.localisation'),
 		'systemdata/personalSettings.php' => array('m' => 'system', 'l' => '5500|Personlige indstillinger', 'p' => ''),
-		'systemdata/importer_kontoplan.php' => array('m' => 'system', 'l' => '6652|Importér kontoplan', 'p' => ''),
-		'systemdata/importer_varianter.php' => array('m' => 'system', 'l' => '6839|Importér varianter fra CSV', 'p' => ''),
-		'systemdata/importAccountMap.php' => array('m' => 'system', 'l' => '2336|Importer mappingfil til offentlig standard kontoplan', 'p' => ''),
-		'systemdata/exporter_kontoplan.php' => array('m' => 'system', 'l' => '1353|Eksportér kontoplan', 'p' => ''),
-		'systemdata/exporter_adresser.php' => array('m' => 'system', 'l' => '1384|Eksporter adresser', 'p' => ''),
-		'systemdata/importer_adresser.php' => array('m' => 'system', 'l' => '1385|Importer_adresser', 'p' => ''),
-		'systemdata/exporter_varer.php' => array('m' => 'system', 'l' => '1383|Eksporter varer', 'p' => ''),
-		'systemdata/importer_varer.php' => array('m' => 'system', 'l' => '1380|Importér varer', 'p' => ''),
-		'systemdata/exporter_variantvarer.php' => array('m' => 'system', 'l' => '1375|Eksporter variantvarer', 'p' => ''),
-		'systemdata/importer_variantvarer.php' => array('m' => 'system', 'l' => '1371|Importer_variantvarer', 'p' => ''),
-		'systemdata/importer_varelokationer.php' => array('m' => 'system', 'l' => '6659|Importér varelokationer', 'p' => ''),
-		'systemdata/exporter_formular.php' => array('m' => 'system', 'l' => '1374|Eksporter formularer', 'p' => ''),
-		'systemdata/importer_formular.php' => array('m' => 'system', 'l' => '1367|Importer_formularer', 'p' => ''),
-		'systemdata/exporter_posmenu.php' => array('m' => 'system', 'l' => '1932|Eksportér POS-menuer', 'p' => ''),
-		'systemdata/importer_posmenu.php' => array('m' => 'system', 'l' => '1934|Importér POS-menuer', 'p' => ''),
+		'systemdata/importer_kontoplan.php' => array('m' => 'settings', 'l' => '6652|Importér kontoplan', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/importer_varianter.php' => array('m' => 'settings', 'l' => '6839|Importér varianter fra CSV', 'p' => '/systemdata/settingsSection.php?s=items.variants'),
+		'systemdata/importAccountMap.php' => array('m' => 'settings', 'l' => '2336|Importer mappingfil til offentlig standard kontoplan', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/exporter_kontoplan.php' => array('m' => 'settings', 'l' => '1353|Eksportér kontoplan', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/exporter_adresser.php' => array('m' => 'settings', 'l' => '1384|Eksporter adresser', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/importer_adresser.php' => array('m' => 'settings', 'l' => '6654|Importér kunder og leverandører', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/exporter_varer.php' => array('m' => 'settings', 'l' => '1383|Eksporter varer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/importer_varer.php' => array('m' => 'settings', 'l' => '1380|Importér varer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/exporter_variantvarer.php' => array('m' => 'settings', 'l' => '1375|Eksporter variantvarer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/importer_variantvarer.php' => array('m' => 'settings', 'l' => '6658|Importér variantvarer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/importer_varelokationer.php' => array('m' => 'settings', 'l' => '6659|Importér varelokationer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/exporter_formular.php' => array('m' => 'settings', 'l' => '1374|Eksporter formularer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/importer_formular.php' => array('m' => 'settings', 'l' => '6661|Importér formularer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/importer_debitor.php' => array('m' => 'settings', 'l' => '|Importér debitorer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/exporter_debitor.php' => array('m' => 'settings', 'l' => '|Eksportér debitorer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/importer_kreditor.php' => array('m' => 'settings', 'l' => '|Importér kreditorer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/exporter_kreditor.php' => array('m' => 'settings', 'l' => '|Eksportér kreditorer', 'p' => '/systemdata/settingsSection.php?s=import_export.data'),
+		'systemdata/exporter_posmenu.php' => array('m' => 'settings', 'l' => '1932|Eksportér POS-menuer', 'p' => '/systemdata/posmenuer.php'),
+		'systemdata/importer_posmenu.php' => array('m' => 'settings', 'l' => '1934|Importér POS-menuer', 'p' => '/systemdata/posmenuer.php'),
 		// includes/
 		'includes/documents.php?source=kassekladde' => array('m' => 'finans', 'l' => '1408|Kassebilag', 'p' => '/finans/kassekladde.php', 'q' => array('source' => 'kassekladde')),
 		'includes/documents.php?source=debitorOrdrer' => array('m' => 'debitor', 'l' => '1408|Kassebilag', 'p' => '/debitor/ordre.php', 'q' => array('source' => 'debitorOrdrer')),

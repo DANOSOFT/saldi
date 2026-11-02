@@ -6996,3 +6996,50 @@
 7700	inkl. moms	incl. VAT	inkl. mva
 7701	Forfaldsgruppe	Due group	Forfallsgruppe
 7702	Vis færre	Show fewer	Vis færre
+7703	Køb & lager	Purchasing & stock	Innkjøp og lager
+7704	Firma, brugere og ansatte, fakturaformularer og e-mail, integrationer	Company, users and employees, invoice forms and e-mail, integrations	Firma, brukere og ansatte, fakturaskjemaer og e-post, integrasjoner
+7705	Kontoplan, regnskabsår, moms, kassekladde, bilag og sikkerhedskopi	Chart of accounts, financial years, VAT, cash journal, vouchers and backup	Kontoplan, regnskapsår, mva, kassekladd, bilag og sikkerhetskopi
+7706	Debitorer, ordrer og priser, kasse, booking og Mit salg	Debtors, orders and prices, POS, booking and My sales	Debitorer, ordrer og priser, kasse, booking og Mitt salg
+7707	Kreditorer, varer, lager og særlige varer	Creditors, items, stock and special items	Kreditorer, varer, lager og spesielle varer
+7708	Brugere & ansatte	Users & employees	Brukere og ansatte
+7709	Fakturaformularer & e-mail	Invoice forms & e-mail	Fakturaskjemaer og e-post
+7710	Integrationer & fragt	Integrations & shipping	Integrasjoner og frakt
+7711	Regnskab & moms	Accounts & VAT	Regnskap og mva
+7712	Bogføring & bank	Bookkeeping & bank	Bokføring og bank
+7713	Afdelinger & projekter	Departments & projects	Avdelinger og prosjekter
+7714	Data & sikkerhedskopi	Data & backup	Data og sikkerhetskopi
+7715	Ordrer & priser	Orders & prices	Ordrer og priser
+7716	Booking & Mit salg	Booking & My sales	Booking og Mitt salg
+7717	Særlige varer	Special items	Spesielle varer
+7718	Stamdata, sprog, abonnement og persondata	Master data, language, subscription and personal data	Stamdata, språk, abonnement og persondata
+7719	Hvem kan logge ind, roller og medarbejdere	Who can log in, roles and employees	Hvem kan logge inn, roller og medarbeidere
+7720	Formularer, logo, udskrift og e-mail	Forms, logo, printing and e-mail	Skjemaer, logo, utskrift og e-post
+7721	Webshop, API, fragt, betaling og afhentning	Webshop, API, shipping, payment and pickup	Nettbutikk, API, frakt, betaling og henting
+7722	Kontoplan, regnskabsår, moms og valuta	Chart of accounts, financial years, VAT and currency	Kontoplan, regnskapsår, mva og valuta
+7723	Kassekladde, betalinger, bilag og bank	Cash journal, payments, vouchers and bank	Kassekladd, betalinger, bilag og bank
+7724	Afdelinger og projektnumre til bogføring og rapporter	Departments and project numbers for bookkeeping and reports	Avdelinger og prosjektnumre til bokføring og rapporter
+7725	Import, eksport og sikkerhedskopi af regnskabet	Import, export and backup of the accounts	Import, eksport og sikkerhetskopi av regnskapet
+7726	Debitorkort, debitorgrupper, rykkere og inkasso	Debtor card, debtor groups, reminders and debt collection	Debitorkort, debitorgrupper, purringer og inkasso
+7727	Fakturering, rabatter, prisgrupper og provision	Invoicing, discounts, price groups and commission	Fakturering, rabatter, prisgrupper og provisjon
+7728	Kasser, kort, kvittering, skærm og borde	Tills, cards, receipt, screen and tables	Kasser, kort, kvittering, skjerm og bord
+7729	Udlejning og portalen til kommissionskunder	Rental and the portal for consignment customers	Utleie og portalen for kommisjonskunder
+7730	Kreditorgrupper, købsordrer og leverandørprislister	Creditor groups, purchase orders and supplier price lists	Kreditorgrupper, innkjøpsordrer og leverandørprislister
+7731	Varegrupper, varianter, enheder og mærkater	Product groups, variants, units and labels	Varegrupper, varianter, enheter og klistremerker
+7732	Lagerstyring, kostpris og lagre	Stock control, cost price and warehouses	Lagerstyring, kostpris og lagre
+7733	Kommissionsvarer og emballage (producentansvar)	Consignment items and packaging (producer responsibility)	Kommisjonsvarer og emballasje (produsentansvar)
+7734	Kassekladde, betalinger og bilag	Cash journal, payments and vouchers	Kassekladd, betalinger og bilag
+7735	Portalen hvor kommissionskunder ser deres salg	The portal where consignment customers see their sales	Portalen der kommisjonskunder ser sitt salg
+7736	Sprog & lokalisering	Language & localisation	Språk og lokalisering
+7737	Persondata (GDPR)	Personal data (GDPR)	Persondata (GDPR)
+7738	Logo & baggrunde	Logo & backgrounds	Logo og bakgrunner
+7739	Rykkere & inkasso	Reminders & debt collection	Purringer og inkasso
+7740	Kasser & kasseoptælling	Tills & cash count	Kasser og kasseopptelling
+7741	Skærm & kassemenuer	Screen & POS menus	Skjerm og kassemenyer
+7742	Borde & køkken	Tables & kitchen	Bord og kjøkken
+7743	Intet match i %s	No match in %s	Ingen treff i %s
+7744	tidligere “%s”	formerly “%s”	tidligere «%s»
+7745	Fold ud eller sammen	Expand or collapse	Fold ut eller sammen
+7746	Gå til første træf	Go to the first match	Gå til første treff
+7747	Ikke på forsiden – findes med søgning	Not on the overview – found by search	Ikke på forsiden – finnes med søk
+7748	Mellemrum	Space	Mellomrom
+7749	Næste række	Next row	Neste rad

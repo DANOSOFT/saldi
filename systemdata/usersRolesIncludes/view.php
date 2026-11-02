@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,10 @@
 // 20261101 CL/ASR New design (prototype D, as the dashboard): the page is built from css/saldi-kit.css under one .sk root, with the kit's head, tabs, panels, filter bars, 24 px tables, status dots, drawer and dialog, and the role matrix as a table.
 //                 Same texts, controls, forms and URLs; one filled button per view (the role's Gem on the Roles tab).
 // 20261101 CL/ASR Review 2: the e-mail cell carries the address as its title, as a long one now ends in an ellipsis.
+// 20261101 CL/ASR Tilbage is the shared settings button (settings_back_button(): small kit button, arrow, above the title), as on every settings page.
+//                 A user or role card still goes back to its list; a list goes where settings_back_link() says. Alt+L kept.
+//                 The review banner sits under the head, so Tilbage keeps its place at the top.
+// 20261102 CL/ASR settings_back_button() adds Alt+L itself; a list's Tilbage goes to the hub. The kit and usersRoles.css are linked as ?v=20261102 (the kit places Tilbage).
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -67,17 +71,30 @@ function ur_view(array $vm): void
 	};
 	$flash = ($vm['msg'] === 'bulk') ? ur_bulk_flash($vm['act'], (int) $vm['done'], $vm['why'], $sprog) : ur_flash($vm['msg'], $sprog);
 	$counts = ur_user_counts($vm);
-	$back = ($vm['editUser'] !== null) ? $vm['linkPrefix'] . 'tab=users' : (($vm['tab'] === 'roles' && isset($_GET['rolle'])) ? $vm['linkPrefix'] . 'tab=roles' : 'settings.php');
+	// Tilbage goes one step up: from a user or role card to its list; from a list as on every settings page (settings_back_link()).
+	$back = ($vm['editUser'] !== null) ? $vm['linkPrefix'] . 'tab=users' : (($vm['tab'] === 'roles' && isset($_GET['rolle'])) ? $vm['linkPrefix'] . 'tab=roles' : '');
 	// One filled button per view: on the Roles tab the role's Gem is the one, so the head's Inviter bruger is a plain button there.
 	$headPrimary = !($vm['tab'] === 'roles' && $vm['canRolesWrite'] && $vm['editRole'] !== null);
 	?>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-<link rel='stylesheet' href='../css/saldi-kit.css?v=20261101b'>
-<link rel='stylesheet' href='../css/usersRoles.css?v=20261101d'>
+<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'>
+<link rel='stylesheet' href='../css/usersRoles.css?v=20261102'>
 <script>document.title = <?= json_encode(mb_convert_encoding(findtekst('5536|Brugere & roller', $sprog), 'UTF-8', $charset)) ?>;</script>
 <?= function_exists('settings_breadcrumb') ? settings_breadcrumb_script(settings_breadcrumb('', findtekst('5536|Brugere & roller', $sprog), (int) $sprog), $charset) : '' ?>
 <div class="sk sk-page ur-page">
-  <div class="ur-back-row"><a class="sk-btn sk-btn-ghost sk-btn-sm ur-back" accesskey="l" href="<?= $h($back) ?>"><i class='bx bx-arrow-back'></i><?= $t('5647|Tilbage') ?></a></div>
+  <header class="sk-head">
+    <div class="sk-head-tx">
+      <?= settings_back_button($back) ?>
+      <h1 class="sk-title"><?= $t('5536|Brugere & roller') ?></h1>
+      <p class="sk-lead"><?= $h(sprintf(findtekst('5960|%s brugere · %s administratorer · %s inviterede · %s lukkede', $sprog), $counts['all'], $counts['admins'], $counts['invited'], $counts['closed'])) ?></p>
+    </div>
+    <?php if ($vm['canWrite']) { ?>
+    <div class="sk-head-acts">
+      <a class="sk-btn" href="<?= $link('tab=users&bruger=0&mode=classic') ?>"><i class='bx bx-user-plus'></i><?= $t('5780|Opret bruger') ?></a>
+      <a class="sk-btn<?= $headPrimary ? ' sk-btn-primary' : '' ?>" href="<?= $link('tab=users&bruger=0') ?>"><i class='bx bx-envelope'></i><?= $t('5779|Inviter bruger') ?></a>
+    </div>
+    <?php } ?>
+  </header>
 
   <?php if ($vm['reviewCount'] > 0 && $vm['canWrite']) {
   	$sum = function_exists('perm_migration_summary') ? perm_migration_summary() : array('admin' => 0, 'custom' => 0);
@@ -91,19 +108,6 @@ function ur_view(array $vm): void
     </div>
   </div>
   <?php } ?>
-
-  <header class="sk-head">
-    <div class="sk-head-tx">
-      <h1 class="sk-title"><?= $t('5536|Brugere & roller') ?></h1>
-      <p class="sk-lead"><?= $h(sprintf(findtekst('5960|%s brugere · %s administratorer · %s inviterede · %s lukkede', $sprog), $counts['all'], $counts['admins'], $counts['invited'], $counts['closed'])) ?></p>
-    </div>
-    <?php if ($vm['canWrite']) { ?>
-    <div class="sk-head-acts">
-      <a class="sk-btn" href="<?= $link('tab=users&bruger=0&mode=classic') ?>"><i class='bx bx-user-plus'></i><?= $t('5780|Opret bruger') ?></a>
-      <a class="sk-btn<?= $headPrimary ? ' sk-btn-primary' : '' ?>" href="<?= $link('tab=users&bruger=0') ?>"><i class='bx bx-envelope'></i><?= $t('5779|Inviter bruger') ?></a>
-    </div>
-    <?php } ?>
-  </header>
 
   <?php if ($flash) { ?>
   <div class="sk-note <?= $flash['type'] === 'ok' ? 'sk-ok' : 'sk-bad' ?>" role="status"><i class='bx <?= $flash['type'] === 'ok' ? 'bx-check-circle' : 'bx-error' ?>'></i><span><?= $h($flash['text']) ?></span></div>

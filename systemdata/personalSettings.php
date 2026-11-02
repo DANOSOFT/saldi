@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,10 @@
 // 20261031 CL/ASR Fallback texts 7031 and 5639 match importfiler/tekster.csv.
 // 20261101 CL/ASR The personal colour choice (Knapfarve / Tekstfarve på knapper under Udseende) and its save path are removed.
 //                 Everyone gets the standard colours (includes/online.php); stored colour rows are left as they are.
+// 20261101 CL/ASR Tilbage is the shared settings button (settings_back_button(): small kit button, arrow, above the title) instead of the filled one in the user's colour.
+//                 It goes where the user came from, or Oversigt, also inside the shell (it went to Oversigt there). Alt+L kept.
+// 20261102 CL/ASR Tilbage comes from settings_back_link() alone: the newest page outside the settings system, skipping old addresses that redirect here, else Oversigt.
+//                 settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -62,7 +66,7 @@ $s_id = session_id();
 ob_start();
 
 $title = "Personlige indstillinger";
-$css = "../css/personalSettings.css";
+$css = "../css/personalSettings.css?v=20261101";
 $permission_key = 'any';
 
 include(__DIR__ . "/../includes/connect.php");
@@ -72,6 +76,7 @@ include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/notifications.php");
 include_once(__DIR__ . "/../includes/settings/SettingsService.php");
+include_once(__DIR__ . "/../includes/settings/components.php"); // settings_back_button(), the Tilbage of every settings page
 
 $contextQuery = personal_settings_context_query($_GET, $_POST);
 $selfUrl = 'personalSettings.php' . ($contextQuery !== '' ? '?' . $contextQuery : '');
@@ -436,19 +441,13 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 	$tabUrl = function (string $name) use ($selfUrl, $h): string {
 		return $h($selfUrl . (strpos($selfUrl, '?') === false ? '?' : '&') . 'tab=' . $name);
 	};
-	if (strpos($selfUrl, 'inframe=1') !== false) {
-		$backUrl = '../index/dashboard.php';
-	} else {
-		$backUrl = function_exists('nav_back_url') ? nav_back_url() : '../index/dashboard.php';
-	}
-	global $buttonColor, $buttonTxtColor;
-	$backStyle = 'background:' . (!empty($buttonColor) ? $buttonColor : '#114691') . ';color:' . (!empty($buttonTxtColor) ? $buttonTxtColor : '#ffffff');
 	$flashIcons = array('ok' => 'bx-check-circle', 'warn' => 'bx-error', 'err' => 'bx-x-circle');
 	?>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'>
 <script>document.title = <?= json_encode(mb_convert_encoding(findtekst('5500|Personlige indstillinger', $sprogId), 'UTF-8', $charset)) ?>;</script>
 <div class="ps-page">
-  <a class="ps-back" accesskey="l" style="<?= $h($backStyle) ?>" href="<?= $h($backUrl) ?>"><i class='bx bx-arrow-back'></i><?= $t('5647|Tilbage') ?></a>
+  <div class="sk ps-backbar"><?= settings_back_button() /* opened from anywhere in Saldi, like the hub: the last page outside the settings, or Oversigt */ ?></div>
   <header class="ps-head">
     <div>
       <h1><i class='bx bx-cog'></i><?= $t('5500|Personlige indstillinger') ?></h1>

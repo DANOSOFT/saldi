@@ -1,5 +1,5 @@
 <?php
-// ----------------------------- systemdata/tekster.php ----------------- ver 5.0.0 -- 2026-10-28 --
+// ----------------------------- systemdata/tekster.php ----------------- ver 5.1.0 -- 2026-11-02 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,9 @@
 //                  Copying a language matches rows by tekst_id or tekst_key.
 // 20261028 CL/NTR Saving or copying a text clears its findtekst() session cache entry.
 //                  Texts are HTML-escaped so quotes and angle brackets no longer break the table.
+// 20261102 CL/ASR Opened without ?sprog_id (Oversættelser under Indstillinger > Sprog & lokalisering links plain tekster.php) the page
+//                 showed "Sprog_id not found" and no texts; it now edits the texts of the language the user is logged in with, as the
+//                 section says. The language id is a number (it is printed in the page's links).
 
 /**
  * Injected by ../includes/connect.php, included below:
@@ -87,7 +90,7 @@ include("top.php");
 $sort=if_isset($_GET['sort']);
 if (!in_array($sort, array('tekst', 'tekst_id', 'id'), true)) $sort="tekst"; // 20260928 Sawaneh Security 4.0 (A12): column whitelist
 
-$sprog_id=ifset($_GET, ['sprog_id']);
+$sprog_id=(int) (ifset($_GET, ['sprog_id']) ?: $sprog_id); // 20261102 CL/ASR none given: the language the user is logged in with
 $kopier=ifset($_GET, ['kopier']);
 #$title= findtekst('30|Tilbage', $sprog_id); #20210818
 

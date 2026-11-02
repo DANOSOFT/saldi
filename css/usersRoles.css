@@ -3,14 +3,15 @@
    20261101 CL/ASR New design (prototype D, as the dashboard): the page is built from css/saldi-kit.css (linked just before
                    this file); only what the kit lacks is here, scoped under .sk and with the kit's tokens.
    20261101 CL/ASR Review 2: table text in the kit's text colour; the users list and the audit log fit the frame with long
-                   e-mails, details and IPv6 addresses (Status and the edit icon stayed out of view). */
+                   e-mails, details and IPv6 addresses (Status and the edit icon stayed out of view).
+   20261101 CL/ASR Tilbage is the shared settings button above the title (its quiet link and row are gone). The role list has no
+                   zebra (navigation, owner 1 Nov 2026) from css/saldi-kit.css's .sk-list; the data tables keep theirs.
+   20261102 CL/ASR The Tilbage button's place above the title is in css/saldi-kit.css now (.sk .sk-head-tx > .sk-back). */
 
 /* the page runs in quirks mode (online.php's HTML 4.01 doctype), where tables do not inherit the colour: black, not --sk-text */
 .sk .sk-table { color: var(--sk-text); }
 
 /* ------------------------------------------------------------ head */
-.sk .ur-back-row { margin-bottom: -8px; }
-.sk .ur-back { margin-left: -8px; }
 .sk .ur-review > .sk-grow b { margin-right: 4px; }
 .sk .ur-note-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 

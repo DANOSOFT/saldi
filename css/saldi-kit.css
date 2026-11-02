@@ -1,6 +1,10 @@
-/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.01 ---
+/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.02 ---
    20261101 CL/ASR The shared UI kit for pages on the new design (prototype D "Som ordrelisten", as index/dashboard.php):
                    the design tokens and the components the settings pages need, everything scoped under .sk.
+   20261101 CL/ASR No zebra on .sk-list rows: they are navigation (the settings hub, the left menu, lists of roles), and the owner found
+                   alternating colours there confusing. Zebra stays on real data tables (.sk-table).
+   20261102 CL/ASR The Tilbage button of every settings page (.sk-back, settings_back_button()) is placed here, above the title, once:
+                   the hub, Brugere & roller and the moved map each carried a copy of the rule.
 
    HOW TO USE
    1. Load it after includes/online.php (which links css/saldi-fonts.css on the shell, the dashboard and systemdata pages):
@@ -12,12 +16,13 @@
       Drawers, dialogs and toasts go inside the same root. A whole kit page uses <div class="sk sk-page">, which also
       paints the frame white. Page CSS is only for what the kit lacks, scoped under .sk as well (.sk .ur-matrix { … }).
    3. Classes (all sk-; one filled button per page; status = dot + text; no shadows except on floating layers):
-      page     .sk-page · .sk-head > (.sk-head-tx > h1.sk-title + p.sk-lead) + .sk-head-acts
+      page     .sk-page · .sk-head > (.sk-head-tx > a.sk-back + h1.sk-title + p.sk-lead) + .sk-head-acts; .sk-back = the settings
+               pages' Tilbage (a .sk-btn.sk-btn-sm above the title)
       layout   .sk-cols (columns of panels, min width --sk-col-w, 26rem) · .sk-split > aside + .sk-main + aside (side width
                --sk-side-w, 13rem) · .sk-stack (column, 16 px gap) · .sk-sticky
       panel    .sk-panel > .sk-panel-h (h2.sk-panel-t + span.sk-sub, .sk-panel-tools) · .sk-panel-note · .sk-panel-b
                (padded body) · rows/tables/lists directly in the panel · .sk-foot (bottom row) · .sk-panel-danger
-      rows     .sk-list > a.sk-list-row (.sk-list-ic, .sk-list-tx > .sk-list-t + .sk-list-d, .sk-list-meta, .sk-list-chev);
+      rows     .sk-list > a.sk-list-row (.sk-list-ic, .sk-list-tx > .sk-list-t + .sk-list-d, .sk-list-meta, .sk-list-chev), no zebra;
                .sk-list-stack = title over description; .sk-off = unavailable row · ul.sk-kv > li > span + b (key/value)
       form     .sk-form-row > (.sk-form-tx > .sk-form-lbl + .sk-form-help (.sk-form-def) + .sk-form-err) + .sk-form-ctl;
                .sk-form-sub = heading inside a panel · .sk-field > .sk-field-lbl + control (+ .sk-field-help), .sk-fields-2
@@ -107,6 +112,7 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--sur
 .sk.sk-page, .sk .sk-page { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--sk-gap); min-width: 0; padding: 16px var(--sk-page-x) 96px; background: var(--sk-bg); }
 .sk .sk-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 24px; }
 .sk .sk-head-tx { flex: 1 1 20rem; min-width: 0; }
+.sk .sk-head-tx > .sk-back { display: flex; width: max-content; margin: 0 0 8px; }   /* Tilbage above the title, 8 px to it (settings_back_button()) */
 .sk .sk-title { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 var(--sk-fs-title)/1.3 var(--sk-font-display); letter-spacing: -.005em; color: var(--sk-text); }
 .sk .sk-lead { max-width: 46rem; margin: 2px 0 0; color: var(--sk-text-2); line-height: 1.45; }
 .sk .sk-head-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
@@ -135,16 +141,14 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--sur
 .sk .sk-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: var(--sk-band-h); padding: 2px var(--sk-pad); border-top: 1px solid var(--sk-border);
 	font-size: var(--sk-fs-s); color: var(--sk-text-2); }
 
-/* ---- list rows (hub groups, history): 24 px zebra rows, hairline between, icon · title · description · meta · chevron ---- */
+/* ---- list rows (navigation: hub groups, menus, lists of roles): 24 px white rows, hairline between, icon · title · description · meta ·
+   chevron. 20261101 no zebra here (owner): alternating colours belong to data tables (.sk-table), not to lists you pick from ---- */
 .sk .sk-list { margin: 0; padding: 0; list-style: none; }
 .sk .sk-list-row { display: flex; align-items: center; gap: 10px; min-height: var(--sk-row-h); padding: 2px var(--sk-pad); color: var(--sk-text); text-decoration: none;
 	transition: background-color var(--sk-t); }
 .sk .sk-list > :not([hidden]) ~ .sk-list-row { border-top: 1px solid var(--sk-border); }
-.sk .sk-list > :where(.sk-list-row:nth-child(even of :not([hidden]))) { background: var(--sk-surface-2); }
 .sk a.sk-list-row:hover, .sk button.sk-list-row:hover { background: var(--sk-row-hover); text-decoration: none; }
 .sk button.sk-list-row { width: 100%; margin: 0; border: 0; background: none; text-align: left; cursor: pointer; }
-.sk .sk-list > button.sk-list-row:nth-child(even of :not([hidden])) { background: var(--sk-surface-2); }   /* 20261101 zebra also on button rows */
-.sk .sk-list > button.sk-list-row:hover { background: var(--sk-row-hover); }
 .sk .sk-list-ic { flex: none; width: 16px; height: 16px; font-size: 16px; line-height: 16px; color: var(--sk-text-2); fill: currentColor; }
 .sk .sk-list-tx { display: flex; flex: 1 1 auto; align-items: baseline; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; }
 .sk .sk-list-t { flex: none; font-weight: 500; color: var(--sk-text); }

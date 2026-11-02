@@ -1,5 +1,5 @@
 <?php
-// ----/systemdata/exporter_variantvarer.php-----ver 5.1.0 ----2026-10-31--
+// ----/systemdata/exporter_variantvarer.php-----ver 5.1.0 ----2026-11-02--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,12 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
 // 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
+//                 It goes to the settings page the user came from, or the hub; Alt+L kept.
+// 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops between settings pages; settings_back_button() adds Alt+L itself.
+//                 The kit is linked as ?v=20261102.
+// 20261102 CL/ASR Fix of a fatal error that was already on master: on a ledger without variants (or variant types) the export died
+//                 with count(null) (PHP 8), before the page was printed. The two lists start empty.
 
 @session_start();
 $s_id=session_id();
@@ -60,6 +66,7 @@ if ($r['attisdropped']!='f' || !$r['attname']) {
 	db_modify("alter TABLE variant_varer ADD variant_vejlpris numeric(15,3)",__FILE__ . " linje " . __LINE__);
 }
 
+$varianter_id=$varianter_beskrivelse=$varianter_shop_id=array(); // 20261102 CL/ASR count() below needs an array also when there are no variants
 $q=db_select("select * from varianter",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$varianter_id[$x]=$r['id'];
@@ -69,6 +76,7 @@ while ($r=db_fetch_array($q)) {
 }
 
 $x=0;
+$varianttyper_id=$varianttyper_beskrivelse=$varianttyper_shop_id=array();
 $q=db_select("select * from variant_typer",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$varianttyper_id[$x]=$r['id'];
@@ -127,7 +135,9 @@ if ($z>$slut) {
 
 
 include_once("../includes/stdFunc/pageBar.php");
-page_bar(array('title' => findtekst(1375, $sprog_id), 'back' => $returside));
+include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button() . "</div>\n";
+page_bar(array('title' => findtekst(1375, $sprog_id)));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1

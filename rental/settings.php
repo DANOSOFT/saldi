@@ -14,7 +14,26 @@
         include "header.php";
         include(__DIR__ . "/../includes/tutorial.php");
     ?>
+    <?php
+        // 20261102 CL/ASR The Tilbage of every settings page (the page is the hub's Booking row): the kit's small button top-left above the
+        //                 title (settings_back_button(); the kit's rules only reach .sk, so the booking styles are untouched). It goes back to the
+        //                 page the user came from when that is not a settings page (the booking pages), else to the hub: always the hub
+        //                 would send a user who came from the booking pages back and forth between the hub and this page.
+        include_once(__DIR__ . "/../includes/settings/components.php");
+        $backTo = '';
+        $navStack = function_exists('_nav_read') ? _nav_read() : array();
+        for ($i = count($navStack) - 1; $i >= 0; $i--) {
+            $navPath = (string) parse_url((string) $navStack[$i], PHP_URL_PATH);
+            if (basename($navPath) === 'settings.php' && basename(dirname($navPath)) === 'rental') {
+                continue; // this page
+            }
+            $backTo = settings_hub_is_settings_url((string) $navStack[$i]) ? '' : (string) $navStack[$i];
+            break;
+        }
+    ?>
+    <link rel="stylesheet" href="../css/saldi-kit.css?v=20261102"><link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
     <form class="form width-80">
+        <div class="sk" style="display:flex;margin-bottom:8px"><?= settings_back_button($backTo) ?></div>
         <h3>Indstillinger</h3>
         <div class="form-group mt-3">
             <label for="format">Vælg booking format:</label>

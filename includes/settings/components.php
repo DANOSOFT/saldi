@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- includes/settings/components.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260929 Sawaneh Settings redesign phase 4a (spec §7.3, §8.1): the components every generated
 //                  settings form is built from, and the conversion between a posted field and
@@ -50,6 +50,9 @@
 // 20261008 Sawaneh Settings decision 21: the "?" opens the section's guide (guides/settings/<group>-<section>.html|.pdf)
 //                  when installed, otherwise the section description with a link to Guides.
 // 20261019 Sawaneh Review 2 (PR #803): the grupper.inaktiv column check reads information_schema for this database/schema only.
+// 20261101 CL/ASR Settings hub "C - Fold ud": a section without a lead of its own describes itself with its hub row's hint, not the old group's text.
+//                 settings_back_button(): the Tilbage button every settings page shows above its title (kit classes, target from settings_back_link()).
+// 20261102 CL/ASR settings_back_button() takes the access key (default 'l', Alt+L), so callers no longer patch its markup.
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -742,7 +745,8 @@ function st_section_help(array $section): string
 		return ' <a class="st-qhelp" href="' . st_h($guide) . '" target="_blank" rel="noopener" title="' . st_t(6893) . '" aria-label="' . st_t(6893) . '">?</a>';
 	}
 	$groups = getSettingsGroups();
-	$desc = !empty($section['lead']) ? st_txt($section['lead']) : (isset($groups[$section['group']]['description']) ? st_txt($groups[$section['group']]['description']) : '');
+	$rowHint = function_exists('settings_hub_hint_for') ? settings_hub_hint_for((string) $section['group'] . '.' . (string) $section['section'], (int) $GLOBALS['sprog_id']) : '';
+	$desc = !empty($section['lead']) ? st_txt($section['lead']) : ($rowHint !== '' ? $rowHint : (isset($groups[$section['group']]['description']) ? st_txt($groups[$section['group']]['description']) : ''));
 	return ' <span class="st-qwrap"><button type="button" class="st-qhelp" data-section-help aria-expanded="false" aria-controls="st-qpop" title="' . st_t(6893) . '" aria-label="' . st_t(6893) . '">?</button>'
 		. '<span class="st-qpop" id="st-qpop" role="note" hidden><span class="st-qpop-t">' . st_h($desc) . '</span> <a href="#" class="st-qpop-guides" data-guides hidden>' . st_t(5504) . '</a></span>'
 		. '<script>(function () { var b = document.querySelector(\'[data-section-help]\'); if (!b || b.dataset.bound) { return; } b.dataset.bound = 1;'
@@ -752,6 +756,21 @@ function st_section_help(array $section): string
 		. ' b.addEventListener(\'click\', function (e) { e.stopPropagation(); show(pop.hidden); });'
 		. ' document.addEventListener(\'click\', function (e) { if (!pop.hidden && !pop.contains(e.target)) { show(false); } });'
 		. ' document.addEventListener(\'keydown\', function (e) { if (e.key === \'Escape\' && !pop.hidden) { show(false); b.focus(); } }); })();</script></span>';
+}
+
+/**
+ * The Tilbage button above a settings page's title (owner, 1 Nov 2026): a small kit button with a left arrow, the same on
+ * every settings page. The target comes from settings_back_link() (the hub and the personal settings: the last page outside
+ * the settings system, or Oversigt; any other settings page: the hub). $returnTo (a module page a gear link came from, or the
+ * page's own parent) wins. $accessKey: Alt+<key> follows it ('l' as every Luk/Tilbage in Saldi; '' = none).
+ * Place it as the first child of .sk-head-tx, above h1.sk-title; css/saldi-kit.css places .sk-back there.
+ */
+function settings_back_button(string $returnTo = '', string $accessKey = 'l'): string
+{
+	$back = settings_back_link((int) $GLOBALS['sprog_id'], $returnTo);
+	return '<a class="sk-btn sk-btn-sm sk-back" href="' . st_h($back['url']) . '" title="' . st_h($back['title']) . '" data-back'
+		. ($accessKey !== '' ? ' accesskey="' . st_h($accessKey) . '"' : '') . '>'
+		. '<i class="bx bx-left-arrow-alt" aria-hidden="true"></i><span>' . st_h($back['label']) . '</span></a>';
 }
 
 function st_render_field(array $def, array $state): void

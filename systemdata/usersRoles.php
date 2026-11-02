@@ -27,6 +27,7 @@
 //                  the audit log. Replaces brugere.php (and brugereRevisor.php). Controller here,
 //                  view in usersRolesIncludes/view.php. Post/Redirect/Get throughout.
 // 20261101 CL/ASR New design (prototype D): the head links css/saldi-theme.css; the view links css/saldi-kit.css and then css/usersRoles.css, so the page's own rules come after the kit.
+// 20261101 CL/ASR Loads includes/settings/components.php for the Tilbage button the view shows above the title.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -53,6 +54,7 @@ include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/userFunctions.php");
 include_once(__DIR__ . "/settingsRegistry.php");
+include_once(__DIR__ . "/../includes/settings/components.php"); // settings_back_button(), the Tilbage of every settings page
 include(__DIR__ . "/usersRolesIncludes/view.php");
 
 // Rows per page of the audit log. Declared before any code that reads it: a const statement is

@@ -36,6 +36,8 @@
 //                    has no Norwegian draft yet, settingsSearch.php falls back to labelEn rather than
 //                    silently showing Danish.
 //   requiresReseller  true => only shown when $revisorregnskab || $forhandlerregnskab is truthy
+//   renamedFrom      optional - the entry's name before the settings hub (text id or array('da', 'en', 'no')); shown in the
+//                    "moved" map and found by the hub's search. An entry of a renamed section takes the section's 'renamed_from'.
 //   visibilityRule    null | 'posModule' | 'masterDb' - re-checked live in settingsSearch.php
 //   visibilityRule    null | 'posModule' | 'docubizz' | 'masterDb' - re-checked live in settingsSearch.php
 //                    ('masterDb' => only shown when $db == $sqdb, i.e. logged in to the master database,
@@ -86,6 +88,11 @@
 // 20261031 CL/ASR Tjeklister is listed under Organisation again, where the old tjekliste entry lived; it opens sager/tjeklister.php
 //                 (the Sager left menu stays as on master, so this is the way to the checklist editor).
 // 20261101 CL/ASR Personal settings no longer match colour searches (knapfarve, button color ...): the personal colour choice is gone.
+// 20261101 CL/ASR The settings hub "C - Fold ud" (includes/settings/hub.php, included below) is the one source for the hub, the left menu and the breadcrumbs.
+//                 settings_section_tabs() returns the rows of the page's hub group, settings_breadcrumb() reads Indstillinger / group / row (/ page).
+//                 Rules bookingLicence (Booking only with the booking licence) and stripeOperator (Stripe only in the operator ledger, spec G9.6).
+//                 Renamed with their sections: Sprog & lokalisering, Persondata (GDPR), Logo & baggrunde, Rykkere & inkasso; Bank Integration is Bankforbindelse and Udlejningsindstillinger is Booking (old names stay as keywords).
+//                 Diverse valg is an alias of Ansatte (its last field moved there) under the Organisation key; its url still redirects.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -115,12 +122,12 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('company info','company profile','company name','company address','vat number','tax id','cvr number','bank details','bank account','gdpr agreement','data processing agreement','contact person','phone number','mobile number','employee list','firmanavn','bankoplysninger','databehandleraftale','kontaktperson')),
 			array('key' => 'konto',            'group' => 'company', 'url' => 'settingsSection.php?s=company.account', 'section' => 'company.account', 'category' => 'company', 'textId' => 6630, 'visibilityRule' => 'hosted',
 				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'nulstil regnskab', 'slet regnskab', 'farezone', 'reset', 'delete ledger')),
-			array('key' => 'gdpr',             'group' => 'company', 'url' => 'settingsSection.php?s=company.gdpr', 'section' => 'company.gdpr', 'category' => 'company', 'textId' => 6523,
+			array('key' => 'gdpr',             'group' => 'company', 'url' => 'settingsSection.php?s=company.gdpr', 'section' => 'company.gdpr', 'category' => 'company', 'textId' => 7737,
 				'keywords' => array('gdpr', 'persondata', 'personal data', 'inaktive kunder', 'inactive customers', 'oprydning')),
 			array('key' => 'ansatte',          'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees', 'section' => 'organisation.employees', 'category' => 'company', 'textId' => 1262,
 				'keywords' => array('employee record','staff record','new employee','edit employee','employee number','employee name','employee address','employee email','employee phone','employee mobile','salary','payroll','extra salary','cpr number','social security number','initials','pos code','employee department','employee background','employee language','employee bank account','employee notes','employee start date','employee end date','terminate employee','close employee','ansatte','løn','cprnr','initialer','startdato','slutdato','lønn')),
-			array('key' => 'baggrunde',        'group' => 'documents', 'url' => 'settingsSection.php?s=documents.backgrounds', 'section' => 'documents.backgrounds', 'category' => 'documents', 'textId' => 6671,
-				'keywords' => array('baggrund', 'baggrunde', 'formularsprog', 'background', 'logo', 'brevpapir', 'bilag', 'pdf')),
+			array('key' => 'baggrunde',        'group' => 'documents', 'url' => 'settingsSection.php?s=documents.backgrounds', 'section' => 'documents.backgrounds', 'category' => 'documents', 'textId' => 7738,
+				'keywords' => array('baggrund', 'baggrunde', 'backgrounds', 'bakgrunner', 'formularsprog', 'background', 'logo', 'brevpapir', 'bilag', 'pdf')),
 			array('key' => 'formularer',       'group' => 'documents', 'url' => 'formularkort.php?valg=formularer', 'category' => 'documents', 'textId' => 780,
 				'keywords' => array('order layout','order confirmation layout','invoice layout','invoice template','invoice design','quote layout','offer layout','credit note layout','packing slip layout','delivery note layout','reminder letter template','dunning letter','pick list layout','picking list layout','requisition layout','purchase order layout','purchase invoice layout','account card layout','document template','form editor','form design','logo position','logo upload','print layout','template design','background name','ordrebekræftelse layout','fakturadesign','tilbud skabelon','rykker skabelon','følgeseddel layout','plukliste layout','kontokort layout','reminder fee','interest rate on reminders','mail text for invoice','email text template','move text position','text position on form','line and border design','font size on form',
 					'skjemaer','ordrebekreftelse','kredittnota','påminnelse','påminnelsesmal','plukkliste','kjøpsforslag','rekvisisjon','kjøpsfaktura','bestillingslinjer','e-post tekst')),
@@ -155,7 +162,7 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'api_valg',              'group' => 'integrations', 'url' => 'settingsSection.php?s=integrations.connections', 'section' => 'integrations.connections', 'category' => 'integrations', 'textId' => 5537,
 				'keywords' => array('api settings','api key','api access','ip whitelist','allowed ip addresses','external integration','import file path','api bruger','api nøgle',
 					'saldi db variable','saldi url variable','api client url','api reference user','update from shop','fetch new products from shop')),
-			array('key' => 'stripe_valg',           'group' => 'integrations', 'url' => 'diverse.php?sektion=stripe_valg',          'category' => 'integrations', 'labelDa' => 'Stripe abonnement', 'labelEn' => 'Stripe subscriptions',
+			array('key' => 'stripe_valg',           'group' => 'integrations', 'url' => 'diverse.php?sektion=stripe_valg',          'category' => 'integrations', 'visibilityRule' => 'stripeOperator', 'labelDa' => 'Stripe abonnement', 'labelEn' => 'Stripe subscriptions',
 				'keywords' => array('stripe','subscription','subscriptions','abonnement','recurring payment','recurring billing','checkout','webhook','webhook secret','secret key','api key stripe',
 					'kortbetaling','card payment','betalingslink','payment link','tax rate','vat rate id','base url','bogholder email','bookkeeper email','stripe mode','test mode','live mode')),
 			array('key' => 'labels',                'group' => 'items', 'url' => 'labels.php',                              'category' => 'documents', 'textId' => 791,
@@ -164,10 +171,10 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'pricelists',            'group' => 'purchase', 'url' => 'settingsSection.php?s=purchase.pricelists', 'section' => 'purchase.pricelists', 'category' => 'pricing', 'textId' => 6219,
 				'keywords' => array('price list import','supplier price list','vendor price list','csv price list','csv delimiter','csv encoding','vendor price feed','product price import','price file url','purchase price list','add pricelist url','supplier group pricelist','product group pricelist','prisliste import','prisfil',
 					'price list file type','price list discount','supplier discount','vvs price list','plumbing price list','solar vvs','active price list toggle','delete price list reference')),
-			array('key' => 'rykker_valg',           'group' => 'sales', 'url' => 'settingsSection.php?s=sales.reminders', 'section' => 'sales.reminders', 'category' => 'invoicing', 'textId' => 6190,
-				'keywords' => array('reminder settings','dunning settings','debt collection','collection agency','debt collector','inkasso','reminder responsible user','person responsible for reminders','rykkerrelaterede valg','rykker','påminnelsesrelaterte valg','påminnelse',
+			array('key' => 'rykker_valg',           'group' => 'sales', 'url' => 'settingsSection.php?s=sales.reminders', 'section' => 'sales.reminders', 'category' => 'invoicing', 'textId' => 7739,
+				'keywords' => array('betalingsbetingelser & rykkere', 'payment terms & reminders', 'betalingsbetingelser og purringer', 'reminder settings','dunning settings','debt collection','collection agency','debt collector','inkasso','reminder responsible user','person responsible for reminders','rykkerrelaterede valg','rykker','påminnelsesrelaterte valg','påminnelse',
 					'reminder responsible email','interest rate per month reminder','reminder 1 deadline days','reminder 2 deadline days','reminder 3 deadline days','collection lawyer account number','collection attorney')),
-			array('key' => 'div_valg',               'group' => 'company', 'url' => 'diverse.php?sektion=div_valg',             'category' => 'diverse', 'textId' => 794,
+			array('key' => 'div_valg',               'group' => 'organisation', 'url' => 'diverse.php?sektion=div_valg', 'section' => 'organisation.employees', 'category' => 'diverse', 'textId' => 794,
 				'keywords' => array('payment days','default payment terms','label size mysale','vat on orders private customers','vat on orders business customers','pickup address','multiple pickup addresses','fragtintegration','betalingsdage','afhentningsadresse','mysale','customer sales portal','salesperson self service','commission self service portal','let customers see own sales','jobkort','brug jobkort','use job cards','opgaveliste','task list','oppgaveliste','bruk jobbkort','task list under debtor accounts','job card system','work order tracking','payment list toggle','show payment list debitor creditor','betalingsliste','customer phone on new order','different dates on order','extra employee on order','mandatory debtor group on debtor card','mandatory customer responsible on debtor card','extra fields on employee card','payment lists erh bank format','debtor account as order phone','activate mysale flea market','max label character length','use jobkort task descriptions','direct print to local printer','html css form generation','different dates same voucher cash journal','collection agency account number','ebconnect integration','pickup address different from main address','pickup company name','pickup zip code and city','order button name')),
 			array('key' => 'tjekliste',             'group' => 'organisation', 'url' => '../sager/tjeklister.php',              'category' => 'diverse', 'textId' => 796,
 				'keywords' => array('checklist','checklists','case checklist','task list','workflow phases','case phases','sagsstyring tjekliste','tjekpunkt','sjekkliste','sjekklister','new check group','new checklist')),
@@ -176,12 +183,12 @@ if (!function_exists('getSettingsRegistry')) {
 					'scanned receipts storage','store documents per gb per month','receipt email inbox address','own ftp server for documents','google docs viewer','ftp server name or ip','ftp username and password for documents','ftp folder for receipts','no storage option')),
 			array('key' => 'cash_journal',          'group' => 'finance', 'url' => 'settingsSection.php?s=finance.cash_journal', 'section' => 'finance.cash_journal', 'category' => 'finance', 'textId' => 5983,
 				'keywords' => array('rounding difference account','penny difference','cash rounding','rounding account','øredifferencer','øreforskjeller', 'payment terms','credit terms','payment due days','default payment days','invoice due date settings','betalingsfrist','betalingsdato', 'payment lists','betalingslister','different dates same voucher','forskellige datoer','bilagsnummer')),
-			array('key' => 'bank_integration',      'group' => 'finance', 'url' => 'diverse.php?sektion=bank_integration',     'category' => 'integrations', 'visibilityRule' => 'bankFeature', 'labelDa' => 'Bank Integration', 'labelEn' => 'Bank integration', 'labelNo' => 'Bankintegrasjon',
-				'keywords' => array('bank feed','bank transaction import','bank statement import','show bank status','show status kassekladde','default date range bank import','date method','last quarter','this quarter','bank connection status')),
+			array('key' => 'bank_integration',      'group' => 'finance', 'url' => 'diverse.php?sektion=bank_integration',     'category' => 'integrations', 'visibilityRule' => 'bankFeature', 'textId' => 6141, 'renamedFrom' => array('da' => 'Bank Integration', 'en' => 'Bank integration', 'no' => 'Bankintegrasjon'),
+				'keywords' => array('bank integration', 'bankintegration', 'bankintegrasjon', 'bank feed','bank transaction import','bank statement import','show bank status','show status kassekladde','default date range bank import','date method','last quarter','this quarter','bank connection status')),
 			array('key' => 'barcodescan',           'group' => 'integrations', 'url' => 'settingsSection.php?s=integrations.connections&item=app', 'section' => 'integrations.connections', 'category' => 'pos', 'labelDa' => 'App Barcode', 'labelEn' => 'Barcode scanning app', 'labelNo' => 'App-strekkode',
 				'keywords' => array('qr code login','app login','mobile app authentication','one time access qr','saldi app login','scan to login')),
-			array('key' => 'sprog',                 'group' => 'company', 'url' => 'settingsSection.php?s=company.localisation', 'section' => 'company.localisation', 'category' => 'company', 'textId' => 6524,
-				'keywords' => array('language','languages','change language','select language','preferred language','edit translation texts','ui language','current language','sprogindstillinger','sprog','språk','språkinnstillinger')),
+			array('key' => 'sprog',                 'group' => 'company', 'url' => 'settingsSection.php?s=company.localisation', 'section' => 'company.localisation', 'category' => 'company', 'textId' => 7736,
+				'keywords' => array('lokalisering', 'localisation', 'localization', 'language','languages','change language','select language','preferred language','edit translation texts','ui language','current language','sprogindstillinger','sprog','språk','språkinnstillinger')),
 			array('key' => 'div_io',                'group' => 'import_export', 'url' => 'settingsSection.php?s=import_export.data', 'section' => 'import_export.data', 'category' => 'data', 'textId' => 802,
 				'keywords' => array('import export','chart of accounts import export','customer import export','product import export','form import export','data import','data export','solar vvs import','kontoplan import','debitor import','varer import','formular import')),
 			array('key' => 'backup',                'group' => 'import_export', 'url' => 'settingsSection.php?s=import_export.backup', 'section' => 'import_export.backup', 'category' => 'data', 'textId' => 614, 'permission' => 'settings.backup',
@@ -221,13 +228,14 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('pdf conversion tools','weasyprint','pdftk','ps2pdf','ftp tool path','database dump tool','backup tool path','zip unzip tar path','system alert text','dashboard news snippet','system tools')),
 			array('key' => 'email_settings',    'group' => 'documents', 'url' => 'settingsSection.php?s=documents.email', 'section' => 'documents.email', 'permission' => 'settings.email', 'category' => 'documents', 'textId' => 6166,
 				'keywords' => array('sender email','sender name','email from address','invoice email sender','background specific email settings','afsender email','afsender navn')),
-			array('key' => 'rental_settings',   'group' => 'sales', 'url' => '../rental/settings.php',            'category' => 'rental', 'labelDa' => 'Udlejningsindstillinger', 'labelEn' => 'Rental settings', 'labelNo' => 'Utleieinnstillinger',
-				'keywords' => array('rental booking settings','booking format','date or timeslot booking','customer search fields','move in day','move out day','delete confirmation popup','combine consecutive bookings','automatic order creation','rental invoice date','password protect settings','week helper date picker')),
+			array('key' => 'rental_settings',   'group' => 'sales', 'url' => '../rental/settings.php',            'category' => 'rental', 'textId' => 1116, 'renamedFrom' => array('da' => 'Udlejningsindstillinger', 'en' => 'Rental settings', 'no' => 'Utleieinnstillinger'), 'visibilityRule' => 'bookingLicence',
+				'keywords' => array('udlejningsindstillinger', 'rental settings', 'utleieinnstillinger', 'udlejning', 'utleie', 'rental booking settings','booking format','date or timeslot booking','customer search fields','move in day','move out day','delete confirmation popup','combine consecutive bookings','automatic order creation','rental invoice date','password protect settings','week helper date picker')),
 		);
 	}
 }
 
 include_once(__DIR__ . '/settingsDefinitions.php');
+include_once(__DIR__ . '/../includes/settings/hub.php');
 
 if (!function_exists('settings_has_module')) {
 	/**
@@ -304,41 +312,103 @@ if (!function_exists('settings_feature_enabled')) {
 		}
 		return false;
 	}
+
+	/**
+	 * A licence feature of this company (includes/license_func.php's rule: no licence table or no row = allowed, an expired
+	 * row = not). The settings pages run on the company's database, so the licence table is read from the master database.
+	 */
+	function settings_feature_licensed(string $feature): bool
+	{
+		global $db_id;
+		static $cache = array();
+		if (isset($cache[$feature])) {
+			return $cache[$feature];
+		}
+		if (!empty($GLOBALS['_license_cache_loaded']) && isset($db_id) && isset($GLOBALS['_license_cache'][$db_id][$feature])) {
+			return $cache[$feature] = (bool) $GLOBALS['_license_cache'][$db_id][$feature];
+		}
+		if (!isset($db_id) || !(int) $db_id) {
+			return $cache[$feature] = true;
+		}
+		if (!db_fetch_array(db_select("select table_name from information_schema.tables where table_name = 'license_features'", __FILE__ . " linje " . __LINE__, true))) {
+			return $cache[$feature] = true;
+		}
+		$r = db_fetch_array(db_select("select enabled, expires_at from license_features where regnskab_id = '" . (int) $db_id . "' and feature_key = '" . db_escape_string($feature) . "'", __FILE__ . " linje " . __LINE__, true));
+		if (!$r) {
+			return $cache[$feature] = true;
+		}
+		$on = $r['enabled'] && $r['enabled'] !== 'f' && $r['enabled'] !== '0';
+		if ($on && !empty($r['expires_at'])) {
+			$expires = strtotime((string) $r['expires_at']);
+			if ($expires && $expires < time()) {
+				$on = false;
+			}
+		}
+		return $cache[$feature] = $on;
+	}
+
+	/**
+	 * The operator ledger of spec G9.6: the master database, or the ledger where Stripe subscriptions are set up
+	 * (a secret key stored, or the switch on). Everywhere else the entry stays hidden (it showed "IKKE KONFIGURERET").
+	 */
+	function settings_stripe_operator(): bool
+	{
+		global $db, $sqdb;
+		static $operator = null;
+		if ($operator !== null) {
+			return $operator;
+		}
+		if (isset($db, $sqdb) && $db === $sqdb) {
+			return $operator = true;
+		}
+		$operator = false;
+		$q = db_select("select var_name, var_value from settings where var_grp = 'stripe' and var_name in ('secret_key', 'enabled')", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$v = trim((string) $r['var_value']);
+			if (($r['var_name'] === 'secret_key' && $v !== '') || ($r['var_name'] === 'enabled' && $v === 'on')) {
+				$operator = true;
+			}
+		}
+		return $operator;
+	}
 }
 
 if (!function_exists('settings_section_tabs')) {
 	/**
-	 * The group's sections for the left menu of a settings page: id, label, url.
+	 * The left menu of a settings page as a flat list (id, label, url, plus sub, sub_label, level, current): the rows of
+	 * the page's hub group in their sub-groups' order; a row with two or more pages adds them as level 2 under it.
+	 * The id of the row holding the page is the page's own id, so callers that compare it with the section id mark it.
+	 * New pages use settings_hub_menu() (includes/settings/hub.php), which keeps the sub-groups.
+	 * $group (a permission group) is only used when the page is not on the hub: then its first row's hub group is shown.
 	 */
 	function settings_section_tabs(string $group, int $sprogId, string $current = ''): array
 	{
-		if ($current === '' && isset($_GET['s'])) {
-			$current = (string) $_GET['s'];
+		$menu = settings_hub_menu($sprogId, $current);
+		if (!$menu && $group !== '') {
+			foreach (settings_hub_index() as $key => $loc) {
+				$def = settings_hub_page_def($key);
+				$entryGroup = ($def !== null && $def['kind'] === 'entry') ? (isset($def['entry']['group']) ? $def['entry']['group'] : '') : (string) strtok($key, '.');
+				if ($entryGroup === $group) {
+					$menu = settings_hub_menu($sprogId, $loc['row']);
+					$menu['current'] = null;
+					break;
+				}
+			}
 		}
-		$script = isset($_SERVER['SCRIPT_NAME']) ? basename((string) $_SERVER['SCRIPT_NAME']) : '';
-		$groups = getSettingsGroups();
-		$groupPermission = isset($groups[$group]['permission']) ? $groups[$group]['permission'] : 'system.indstillinger';
 		$tabs = array();
-		foreach (getSettingsRegistry() as $entry) {
-			if (!isset($entry['group']) || $entry['group'] !== $group || !settings_entry_available($entry)) {
-				continue;
+		foreach (isset($menu['subs']) ? $menu['subs'] : array() as $sub) {
+			foreach ($sub['rows'] as $row) {
+				$id = $row['id'];
+				if ($row['current'] && !empty($menu['current']) && (!$row['pages'] || $row['pages'][0]['id'] === $menu['current']['page'])) {
+					$id = $menu['current']['page'];
+				}
+				$tabs[] = array('id' => $id, 'label' => $row['label'], 'url' => $row['url'], 'sub' => $sub['id'], 'sub_label' => $sub['label'], 'level' => 1, 'current' => $row['current'] && !empty($menu['current']));
+				foreach ($row['pages'] as $i => $page) {
+					if ($i > 0) {
+						$tabs[] = array('id' => $page['id'], 'label' => $page['label'], 'url' => $page['url'], 'sub' => $sub['id'], 'sub_label' => $sub['label'], 'level' => 2, 'current' => $page['current']);
+					}
+				}
 			}
-			$id = isset($entry['section']) ? (string) $entry['section'] : '';
-			if ($id === '' && preg_match('/[?&]s=([A-Za-z0-9_.]+)/', (string) $entry['url'], $m)) {
-				$id = $m[1];
-			}
-			$entryPath = (string) parse_url((string) $entry['url'], PHP_URL_PATH);
-			$shown = ($id !== '' && $id === $current)
-				|| ($script !== '' && $script !== 'settingsSection.php' && basename($entryPath) === $script);
-			$permission = isset($entry['permission']) ? (string) $entry['permission'] : $groupPermission;
-			if (!$shown && function_exists('perm_can') && !perm_can($permission, 'read')) {
-				continue;
-			}
-			$tabs[] = array(
-				'id'    => $id !== '' ? $id : (string) $entry['key'],
-				'label' => settings_entry_label($entry, $sprogId),
-				'url'   => (string) $entry['url'],
-			);
 		}
 		return $tabs;
 	}
@@ -664,6 +734,18 @@ if (!function_exists('getSettingsGroups')) {
 						return false;
 					}
 					break;
+				case 'bookingLicence':
+					// Booking only with the booking licence, as the Booking entry in the sidebar (index/main.php).
+					if (!settings_feature_licensed('booking')) {
+						return false;
+					}
+					break;
+				case 'stripeOperator':
+					// Subscriptions (Stripe) only in the operator ledger (spec G9.6); the page itself still opens by its url.
+					if (!settings_stripe_operator()) {
+						return false;
+					}
+					break;
 			}
 		}
 		return true;
@@ -709,20 +791,37 @@ if (!function_exists('getSettingsGroups')) {
 	}
 
 	/**
-	 * The trail the shell shows in the left side of the topbar on settings pages (settings redesign §8.0):
-	 * Indstillinger / group / current page. The shell puts the company name in front.
+	 * The trail the shell shows in the left side of the topbar on settings pages (settings redesign §8.0, hub "C - Fold ud"):
+	 * Indstillinger / hub group / row, and the page's own name after the row when the page is the row's second page
+	 * (Kasser & kasseoptælling / Kasseoptælling). The page is found from the request (or $at: a section id or registry key);
+	 * a page that is not on the hub shows Indstillinger / $current. ('', '') is the hub itself. The shell puts the company
+	 * name in front. $group is no longer read (the callers' permission group); it stays for their signature.
 	 *
 	 * @return array<int, array{label: string, url: string}> url '' for the current page
 	 */
-	function settings_breadcrumb(string $group, string $current, int $sprogId): array
+	function settings_breadcrumb(string $group, string $current, int $sprogId, string $at = ''): array
 	{
-		$trail = array(array('label' => findtekst('122|Indstillinger', $sprogId), 'url' => ($group === '' && $current === '') ? '' : '/systemdata/settings.php'));
-		if ($group !== '') {
-			$groups = settings_accessible_groups();
-			if (isset($groups[$group])) {
-				$label = findtekst($groups[$group]['def']['label'], $sprogId);
-				$trail[] = array('label' => $label, 'url' => $current === '' ? '' : settings_shell_path((string) $groups[$group]['entries'][0]['url']));
+		$hubUrl = '/systemdata/settings.php';
+		$isHub = ($group === '' && $current === '' && $at === '');
+		$trail = array(array('label' => settings_hub_text('122|Indstillinger', $sprogId), 'url' => $isHub ? '' : $hubUrl));
+		if ($isHub) {
+			return $trail;
+		}
+		$loc = $at !== '' ? settings_hub_locate($at) : settings_hub_locate_request();
+		$row = $loc !== null ? settings_hub_row($loc) : null;
+		if ($row !== null) {
+			$hub = getSettingsHub();
+			$trail[] = array('label' => settings_hub_text($hub[$loc['group']]['label'], $sprogId), 'url' => $hubUrl . '?g=' . rawurlencode($loc['group']));
+			$state = settings_hub_row_state($row);
+			$rowLabel = settings_hub_text($row['label'], $sprogId);
+			if ($state['target'] === '' || $state['target'] === $loc['page']) {
+				$trail[] = array('label' => $rowLabel, 'url' => '');
+			} else {
+				$def = settings_hub_page_def($loc['page']);
+				$trail[] = array('label' => $rowLabel, 'url' => settings_shell_path($state['url']));
+				$trail[] = array('label' => $current !== '' ? $current : ($def !== null ? settings_hub_page_label($def, $sprogId) : ''), 'url' => '');
 			}
+			return $trail;
 		}
 		if ($current !== '') {
 			$trail[] = array('label' => $current, 'url' => '');

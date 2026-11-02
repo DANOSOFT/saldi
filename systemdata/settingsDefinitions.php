@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-10-31 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-01 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -88,6 +88,10 @@
 // 20261023 ASR Merge of master (#815 removed lager/vareliste.php): the warehouses gear link names lager/lister/vareliste.php, the list that is left.
 // 20261031 CL/ASR G3.3 has master's order options from after 23 Oct, since Ordrerelaterede valg now opens this section: "Send 'Bemærkning til ordre' med på e-fakturaer" (SST-885), "Fakturér webshopordrer med ordredato" (SST-911) and "Vis besked når kostprisen er anslået" (SD-786).
 //                 They keep master's storage (settings sendOrderNote/easyUBL, webshopInvoiceOrderDate/ordre, showCostEstimateNotice/ordre, 'on'/'off') and default off.
+// 20261101 CL/ASR Settings hub "C - Fold ud": four sections carry the name of their hub row (Sprog & lokalisering, Persondata (GDPR), Logo & baggrunde, Rykkere & inkasso).
+//                 Their old name is kept as 'renamed_from' and as keywords, so search still finds it.
+//                 Diverse valg's last field, 'Tilføj ekstra felter på ansatte' (DIV/2 box3, unchanged storage), is organisation.employees.extra_fields in Ansatte (G7.1), under Ekstra felter.
+//                 The moved map sends Diverse valg to Ansatte and Sprog to Sprog & lokalisering.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -169,7 +173,7 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('stamdata', 'firmanavn', 'company name', 'adresse', 'cvr', 'bank', 'iban', 'swift', 'betalingsservice', 'bs', 'fi', 'gdpr', 'databehandleraftale', 'landekonfiguration'),
 			),
 			'company.localisation' => array(
-				'group' => 'company', 'section' => 'localisation', 'number' => 'G1.3', 'label' => 6524, 'icon' => 'bx-globe',
+				'group' => 'company', 'section' => 'localisation', 'number' => 'G1.3', 'label' => 7736, 'renamed_from' => 6524, 'icon' => 'bx-globe',
 				'subsections' => array('locale' => 6524, 'texts' => 6534), 'sub_help' => array('locale' => 6525),
 				'legacy' => array(array(782, 801)), 'old' => array('sprog' => array(782, 801)),
 				'keywords' => array('lokalisering', 'localisation', 'basisvaluta', 'base currency', 'tidszone', 'timezone', 'talformat', 'number format', 'systemsprog', 'sprog', 'language', 'oversættelser', 'translations', 'tekster'),
@@ -192,7 +196,7 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'omdøb', 'nulstil regnskab', 'reset', 'slet regnskab', 'delete ledger', 'farezone', 'danger zone'),
 			),
 			'company.gdpr' => array(
-				'group' => 'company', 'section' => 'gdpr', 'number' => 'G1.5', 'label' => 6523, 'icon' => 'bx-shield-quarter',
+				'group' => 'company', 'section' => 'gdpr', 'number' => 'G1.5', 'label' => 7737, 'renamed_from' => 6523, 'icon' => 'bx-shield-quarter',
 				'subsections' => array('cleanup' => 6537), 'sub_help' => array('cleanup' => 6538),
 				'legacy' => array(array(779)),
 				'keywords' => array('gdpr', 'persondata', 'personal data', 'inaktive kunder', 'slet kunder', 'oprydning', 'cleanup'),
@@ -268,9 +272,9 @@ if (!function_exists('getSettingsSections')) {
 			'organisation.employees' => array(
 				'group' => 'organisation', 'section' => 'employees', 'number' => 'G7.1', 'label' => 1262, 'icon' => 'bx-id-card', 'kind' => 'list',
 				'lead' => 6606, 'items_from' => 'employees', 'add_action' => 'organisation.employees.add', 'empty_text' => 6607,
-				'subsections' => array('employees' => 1262),
-				'legacy' => array(array(779)), 'old' => array('ansatte' => array(779), 'stamkort' => array(779)),
-				'keywords' => array('ansatte', 'medarbejdere', 'employees', 'personale', 'personalekort', 'medarbejdernummer', 'initialer', 'løn', 'cpr', 'fratrådt', 'tiltrådt', 'ekstra felter'),
+				'subsections' => array('employees' => 1262, 'general' => 6611),
+				'legacy' => array(array(779), array(782, 794)), 'old' => array('ansatte' => array(779), 'stamkort' => array(779), 'div_valg' => array(782, 794)),
+				'keywords' => array('ansatte', 'medarbejdere', 'employees', 'personale', 'personalekort', 'medarbejdernummer', 'initialer', 'løn', 'cpr', 'fratrådt', 'tiltrådt', 'ekstra felter', 'extra fields', 'diverse valg'),
 			),
 			'organisation.projects' => array(
 				'group' => 'organisation', 'section' => 'projects', 'number' => 'G7.3', 'label' => 773, 'icon' => 'bx-briefcase', 'kind' => 'rows',
@@ -634,7 +638,7 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('emballage', 'packaging', 'producentansvar', 'producer responsibility', 'emballageafgift'),
 			),
 			'documents.backgrounds' => array(
-				'group' => 'documents', 'section' => 'backgrounds', 'number' => 'G6.2', 'label' => 6671, 'icon' => 'bx-layer', 'kind' => 'rows',
+				'group' => 'documents', 'section' => 'backgrounds', 'number' => 'G6.2', 'label' => 7738, 'renamed_from' => 6671, 'icon' => 'bx-layer', 'kind' => 'rows',
 				'lead' => 6672, 'subsections' => array('backgrounds' => 6671, 'files' => 6673),
 				'tables' => array(
 					'backgrounds' => array('sub' => 'backgrounds', 'label' => 6671, 'help' => 6674, 'add' => 6675, 'empty' => 6676, 'storage' => array('grupper', 'VSPR'),
@@ -646,7 +650,7 @@ if (!function_exists('getSettingsSections')) {
 						)),
 				),
 				'legacy' => array(array(780)), 'old' => array('formularsprog' => array(780), 'logoslet' => array(780)),
-				'keywords' => array('baggrund', 'baggrunde', 'formularsprog', 'sprog', 'background', 'form language', 'logo', 'brevpapir', 'bilag', 'pdf'),
+				'keywords' => array('baggrund', 'baggrunde', 'formularsprog', 'sprog', 'background', 'backgrounds', 'form language', 'logo', 'brevpapir', 'bilag', 'pdf'),
 			),
 			'documents.print' => array(
 				'group' => 'documents', 'section' => 'print', 'number' => 'G6.4', 'label' => 5993, 'icon' => 'bx-printer',
@@ -665,13 +669,13 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('provision', 'commission', 'provisionsrapport', 'commission report', 'kundeansvarlig', 'referenceperson', 'skæringsdato', 'cut-off'),
 			),
 			'sales.reminders' => array(
-				'group' => 'sales', 'section' => 'reminders', 'number' => 'G3.4', 'label' => 6190, 'icon' => 'bx-bell',
+				'group' => 'sales', 'section' => 'reminders', 'number' => 'G3.4', 'label' => 7739, 'renamed_from' => 6190, 'icon' => 'bx-bell',
 				'subsections' => array('responsible' => 6186, 'deadlines' => 6187, 'collection' => 6188, 'fees' => 6189),
 				'sub_help' => array('deadlines' => 6202),
 				'legacy' => array(array(782, 793), array(780)),
 				'old' => array('rykker_valg' => array(782, 793)),
 				'context' => array('debitor/rykker.php', 'debitor/ny_rykker.php'),
-				'keywords' => array('rykker', 'rykkere', 'reminder', 'reminders', 'påmindelse', 'inkasso', 'collection', 'rykkergebyr', 'rente', 'interest', 'betalingsbetingelser', 'payment terms'),
+				'keywords' => array('rykker', 'rykkere', 'reminder', 'reminders', 'påmindelse', 'inkasso', 'collection', 'rykkergebyr', 'rente', 'interest', 'betalingsbetingelser', 'payment terms', 'betalingsbetingelser & rykkere'),
 			),
 			'documents.email' => array(
 				'group' => 'documents', 'section' => 'email', 'number' => 'G6.3', 'label' => 6166, 'icon' => 'bx-envelope', 'permission' => 'settings.email',
@@ -1110,6 +1114,9 @@ if (!function_exists('getSettingsSections')) {
 				'run' => 'gdpr_delete_inactive', 'impact' => 'gdpr_inactive', 'danger' => true, 'danger_zone' => true, 'permission' => 'settings.company.danger'),
 
 			// ---------------------------------------------------------------- G7.1 Employees (ansatte rows of the company's own address row)
+			'organisation.employees.extra_fields' => array('sub' => 'general', 'item' => 'general', 'type' => 'bool', 'label' => 616, 'help' => 615, 'default' => false,
+				'storage' => array('grupper', 'DIV', 2, 'box3', 'onEmpty', 'row_name' => 'Div_valg'), 'legacy' => $divvalg,
+				'keywords' => array('ekstra felter', 'extra fields', 'ekstra felt', 'stamkort', 'diverse valg')),
 			'organisation.employees.add' => array('sub' => 'employees', 'type' => 'action', 'label' => 6613, 'help' => 6606, 'confirm_title' => 6613, 'confirm' => 6606, 'run' => 'employee_add'),
 			'organisation.employees.nummer' => array('sub' => 'employees', 'type' => 'int', 'label' => 645, 'per' => 'employee', 'group_label' => array(6608, ''), 'validate' => array('employee_number'),
 				'storage' => array('dbrow', 'ansatte', 'nummer', 'raw', 'where' => $empWhere)),
@@ -1855,14 +1862,14 @@ if (!function_exists('getSettingsSections')) {
 			array('old' => array($d, 791), 'to' => array(array('items', null, 'labels.php'))),
 			array('old' => array($d, 792), 'to' => array(array('purchase', 'purchase.pricelists', null))),
 			array('old' => array($d, 793), 'to' => array(array('sales', 'sales.reminders', null))),
-			array('old' => array($d, 794), 'to' => array(array('sales', 'sales.debtor_card', null), array('finance', 'finance.cash_journal', null), array('sales', 'sales.mysale', null), array('documents', 'documents.print', null), array('company', null, 'diverse.php?sektion=div_valg'), array('integrations', 'integrations.connections', null))),
+			array('old' => array($d, 794), 'to' => array(array('sales', 'sales.debtor_card', null), array('finance', 'finance.cash_journal', null), array('sales', 'sales.mysale', null), array('documents', 'documents.print', null), array('organisation', 'organisation.employees', null), array('integrations', 'integrations.connections', null))),
 			array('old' => array($d, 796), 'to' => array(array('organisation', null, '../sager/tjeklister.php'))),
 			array('old' => array($d, 797), 'to' => array(array('finance', 'finance.document_storage', null))),
 			array('old' => array($d, 170), 'to' => array(array('finance', 'finance.cash_journal', null))),
 			array('old' => array(2732), 'to' => array(array('finance', 'finance.cash_journal', null))),
 			array('old' => array($d, 200), 'to' => array(array('sales', 'sales.orders', null))),
 			array('old' => array($d, 271), 'to' => array(array('pos', 'pos.tills', null), array('pos', 'pos.cards', null), array('pos', 'pos.tables', null))),
-			array('old' => array($d, 801), 'to' => array(array('personal', null, 'personalSettings.php'), array('company', null, 'diverse.php?sektion=sprog'))),
+			array('old' => array($d, 801), 'to' => array(array('personal', null, 'personalSettings.php'), array('company', 'company.localisation', null))),
 			array('old' => array($d, 802), 'to' => array(array('import_export', 'import_export.data', null))),
 		);
 	}

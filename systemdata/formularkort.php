@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- patch 5.0.0 --- 2026-06-04 ---
+// --- systemdata/formularkort --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 
 // 20120906 Tilføjet mulighed for at vise momssats på ordrelinjer.
@@ -66,6 +66,9 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261102 CL/ASR Tilbage is the shared settings button top-left above the title (settings_back_button(), css/saldi-kit.css), as on every
+//                 settings page, instead of page_bar's text link top-right; also in the old layout (no side menu), where it replaces the bar's Tilbage cell.
+//                 It goes to the hub (Formularer is a hub row), with Alt+L as before; the page's own returside, used only by the old links, is gone.
 @session_start();
 $s_id=session_id();
 
@@ -107,7 +110,6 @@ if (isset($_GET['nyt_sprog']) && $_GET['nyt_sprog']) {
 	exit;
 }
 $id        = if_isset($_GET['id']);
-$returside = nav_back_url((isset($_GET['returside']) && $_GET['returside']) ? $_GET['returside'] : null);
 $navn      = if_isset($_GET['navn']);
 
 if (isset($_POST) && $_POST) {
@@ -282,6 +284,9 @@ if (isset($_POST) && $_POST) {
 $fe_link = "formeditor.php?form_nr=".urlencode(($form_nr ?? '') ?: 4)."&sprog=".urlencode(($formularsprog ?? '') ?: 'Dansk');
 $fe_label = ($sprog_id == 1) ? 'Visuel editor' : 'Visual editor';
 $fe_title = ($sprog_id == 1) ? 'Ny visuel formulareditor (træk og slip)' : 'New visual form editor (drag & drop)';
+// Tilbage of every settings page: the kit's small button with an arrow, top-left above the title.
+include_once("../includes/settings/components.php");
+$settingsBack = "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button() . "</div>\n";
 
 if ($menu=='S') {
 	print "<html>\n";
@@ -291,6 +296,7 @@ if ($menu=='S') {
 	print "</head>\n";
 	print "<body>\n";
 	include_once("../includes/stdFunc/pageBar.php");
+	print $settingsBack;
 	page_bar(array(
 		'title' => findtekst('573|Formularkort', $sprog_id),
 		'actions' => array(
@@ -299,7 +305,6 @@ if ($menu=='S') {
 			array('Email', 'settingsSection.php?s=documents.email', 'bx-envelope', '', 'accesskey' => 'e'),
 			array(findtekst('571|Baggrund', $sprog_id), 'logoupload.php?upload=yes', 'bx-image', '', 'accesskey' => 'u'),
 		),
-		'back' => $returside,
 	));
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
 	print "<tr><td width='' height='1%' align='center' valign='top' collspan='2'>\n";
@@ -326,10 +331,10 @@ if ($menu=='S') {
 	print "<meta name=\"viewport\" content=\"width=1024\">\n";
 	print "</head>\n";
 	print "<body>\n";
+	print "<link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>" . $settingsBack; // the arrow (page_bar loads boxicons in the other leg)
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 	print "<tr><td width=\"\" height=\"1%\" align=\"center\" valign=\"top\" collspan=\"2\">\n";
 	print "<table width=\"100%\" height=\"1%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
-	print "<td width=\"12%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=$returside accesskey=\"l\">".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
 	print "<td width=\"12%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"$fe_link\" title=\"$fe_title\">$fe_label</a></td>\n";
 	print "<td width=\"68%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('573|Formularkort', $sprog_id)."</td>\n";
 	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a></span></td>\n";
