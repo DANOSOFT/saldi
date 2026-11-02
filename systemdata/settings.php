@@ -46,6 +46,7 @@
 //                 The hub script link has a new version (the script now also runs on latin-1 pages).
 //                 A search hit on a page this company lacks (e.g. Stripe abonnement outside the operator ledger) no longer shows the row it would sit in.
 // 20261102 CL/ASR Tilbage (Alt+L) leaves the settings system: the newest page outside it in the navigation stack, skipping old addresses that redirect here, else Oversigt.
+// 20261102 CL/ASR No Tilbage on the hub itself (owner): it is the settings start page; the sub-pages keep theirs.
 //                 The kit and css/settingsHub.css are linked as ?v=20261102 (the kit places Tilbage now).
 
 /**
@@ -186,7 +187,6 @@ function settings_hub_view(array $vm, int $sprogId): void
 <div class="sk sk-page sh-page" id="sh-hub">
   <section class="sk-head">
     <div class="sk-head-tx">
-      <?= settings_back_button() ?>
       <h1 class="sk-title"><?= $t('122|Indstillinger') ?></h1>
       <p class="sk-lead"><?= st_h(sprintf(st_txt('6020|Gælder for alle i %s. Dine personlige valg finder du under dit navn øverst til højre.'), $vm['company'])) ?></p>
     </div>
