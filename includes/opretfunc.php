@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- includes/opretfunc.php --- ver 5.0.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,8 @@
 //                fails, before the db_modify_fejl reset hides it (CodeRabbit). Fixed the brugere
 //                lookup precedence and '*' check, and skip that grant on the sign-up API.
 // 20261027 CL/SZ SD-733 (sync of master into hml/shopify): a new account also gets the Shopify schema (opret_shopify_schema()), as admin/opret.php's opret() did before it moved here.
+// 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
+//                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -338,7 +340,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt = "CREATE TABLE ordrelinjer ";
 	$qtxt.= "($id_column,varenr text,beskrivelse text,enhed text,posnr integer,pris $decimal_type(15,3),";
 	$qtxt.= "vat_price $decimal_type(15,3),rabat $decimal_type(15,3),lev_varenr text,ordre_id integer,serienr text,vare_id integer,";
-	$qtxt.= "antal $decimal_type(15,3),leveres $decimal_type(15,3),leveret $decimal_type(15,3),bogf_konto integer,oprettet_af text,";
+	$qtxt.= "antal $decimal_type(15,3),leveres $decimal_type(15,3),leveret $decimal_type(15,3) default 0,bogf_konto integer,oprettet_af text,";
 	$qtxt.= "bogfort_af text,hvem text,tidspkt text,kred_linje_id integer,momsfri varchar(2),momssats $decimal_type(15,3),";
 	$qtxt.= "vat_account $decimal_type(15,0),kostpris $decimal_type(15,3),samlevare varchar(2),projekt text,m_rabat $decimal_type(15,3),";
 	$qtxt.= "rabatgruppe integer,folgevare integer,kdo varchar(2),rabatart varchar(10),variant_id text,";
