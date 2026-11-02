@@ -8,6 +8,7 @@
 //
 // History:
 // 20261101 CL/SS SD-792: created.
+// 20261102 CL/SS SD-792: the test creates its own debtor group; CI's template has no group 2.
 
 use PHPUnit\Framework\TestCase;
 
@@ -58,9 +59,11 @@ final class CustomersSyncTest extends TestCase
             $this->sql("DELETE FROM $table");
         }
         $this->sql("DELETE FROM adresser WHERE btrim(kontonr) ~ '^2900[0-9]{4}$' OR kontonr = '99999999' OR firmanavn LIKE 'SD792%'");
+        // the test's own debtor group: a template need not have any given group
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art) SELECT 'SD792 Shopify', 92, 'DG' WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'DG' AND kodenr = 92)");
         $this->sql("DELETE FROM settings WHERE var_grp = 'shopify' AND var_name LIKE 'customer_%'");
         $this->sql("INSERT INTO settings (var_grp, var_name, var_value) VALUES ('shopify', 'customer_number_start', '29000000'),
-            ('shopify', 'customer_group', '2'), ('shopify', 'customer_payment_terms', 'Kontant'), ('shopify', 'customer_payment_days', '0')");
+            ('shopify', 'customer_group', '92'), ('shopify', 'customer_payment_terms', 'Kontant'), ('shopify', 'customer_payment_days', '0')");
         $this->sql("INSERT INTO shopify_shops (shop_key, domain, is_primary, customers_enabled) VALUES
             ('hml', 'hml-test.myshopify.com', true, true), ('hms', 'hms-test.myshopify.com', false, true)");
     }
@@ -125,7 +128,7 @@ final class CustomersSyncTest extends TestCase
         $this->assertSame(['29000000', 'Test Kunde 7', 'Havevej 1', '2750', 'Ballerup', 'Denmark', 'kunde7@example.dk'],
             [$d[0]['kontonr'], $d[0]['firmanavn'], $d[0]['addr1'], $d[0]['postnr'], $d[0]['bynavn'], $d[0]['land'], $d[0]['email']], 'K30: a løbenummer from the configured start');
         $this->assertSame(['+4512345678', '+4512345678'], [$d[0]['tlf'], $d[0]['mobile']], 'K30: the phone is searchable (tlf) and kept in mobile');
-        $this->assertSame(['2', 'Kontant', '0'], [$d[0]['gruppe'], $d[0]['betalingsbet'], $d[0]['betalingsdage']], 'group and terms from the settings');
+        $this->assertSame(['92', 'Kontant', '0'], [$d[0]['gruppe'], $d[0]['betalingsbet'], $d[0]['betalingsdage']], 'group and terms from the settings');
         $this->assertSame([['shop_key' => 'hml', 'customer_gid' => 'gid://shopify/Customer/7', 'adresser_id' => $d[0]['id'], 'source_updated_at' => '2026-11-01 09:00:00']], $this->links());
     }
 
