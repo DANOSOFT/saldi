@@ -13,27 +13,26 @@
         $side = "settings";
         include "header.php";
         include(__DIR__ . "/../includes/tutorial.php");
-    ?>
-    <?php
-        // 20261102 CL/ASR The Tilbage of every settings page (the page is the hub's Booking row): the kit's small button top-left above the
-        //                 title (settings_back_button(); the kit's rules only reach .sk, so the booking styles are untouched). It goes back to the
-        //                 page the user came from when that is not a settings page (the booking pages), else to the hub: always the hub
-        //                 would send a user who came from the booking pages back and forth between the hub and this page.
-        include_once(__DIR__ . "/../includes/settings/components.php");
-        $backTo = '';
-        $navStack = function_exists('_nav_read') ? _nav_read() : array();
-        for ($i = count($navStack) - 1; $i >= 0; $i--) {
-            $navPath = (string) parse_url((string) $navStack[$i], PHP_URL_PATH);
-            if (basename($navPath) === 'settings.php' && basename(dirname($navPath)) === 'rental') {
-                continue; // this page
-            }
-            $backTo = settings_hub_is_settings_url((string) $navStack[$i]) ? '' : (string) $navStack[$i];
-            break;
+        // 20261102 CL/ASR Opened from Indstillinger (settings=1 on the hub's Booking row and in the settings menu; owner, 2 Nov 2026: every page
+        //                 reached from the settings keeps the settings menu) the page shows the standard settings layout
+        //                 (includes/settings/layout.php): breadcrumb Indstillinger / Salg / Booking, Tilbage to the hub, the Salg group's menu with
+        //                 Booking marked, and the booking settings below unchanged.
+        //                 Opened from Booking (no marker) the page is exactly as on master: Booking has its own menu, so the always-shown
+        //                 Tilbage of 1 Nov is gone.
+        include_once(__DIR__ . "/../includes/settings/hub.php"); // settings_opened_from_settings()
+        $fromSettings = settings_opened_from_settings();
+        if ($fromSettings) {
+            include_once(__DIR__ . "/../includes/settings/layout.php");
+            // The layout sits where it sits on every settings page: Booking's content column (rental/header.php) loses its Bootstrap padding.
+            // The booking form fills the content column from its top (not 80 % wide, centred, 5 rem down); the layout's title replaces its
+            // heading.
+            print "<style>.row > .col.content:has(> .st-page) { padding: 0 !important; }"
+                . " .st-frame-main > form.form { width: auto; max-width: 46rem; margin: 0; }"
+                . " .st-frame-main > form.form > h3:first-child { display: none; }</style>\n";
+            settings_layout_open();
         }
     ?>
-    <link rel="stylesheet" href="../css/saldi-kit.css?v=20261102"><link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
     <form class="form width-80">
-        <div class="sk" style="display:flex;margin-bottom:8px"><?= settings_back_button($backTo) ?></div>
         <h3>Indstillinger</h3>
         <div class="form-group mt-3">
             <label for="format">Vælg booking format:</label>
@@ -163,6 +162,7 @@
             Hjælp  
         </button>
     </form>
+<?php if ($fromSettings) { settings_layout_close(); } ?>
 </div>
 </div>
     <script src="bootstrap.min.js"></script>

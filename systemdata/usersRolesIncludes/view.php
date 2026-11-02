@@ -49,6 +49,9 @@
 //                 A user or role card still goes back to its list; a list goes where settings_back_link() says. Alt+L kept.
 //                 The review banner sits under the head, so Tilbage keeps its place at the top.
 // 20261102 CL/ASR settings_back_button() adds Alt+L itself; a list's Tilbage goes to the hub. The kit and usersRoles.css are linked as ?v=20261102 (the kit places Tilbage).
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu): the menu of Virksomhed with Brugere & roller marked under Brugere & ansatte, and the tabs, review banner, notices, table, role matrix, audit log, drawer and dialogs in the content column beside it.
+//                 Tilbage, title, the counts and Opret/Inviter bruger form the same head as the section pages; the layout prints the breadcrumb and the document title.
+//                 usersRoles.css is linked after the layout's stylesheets, as ?v=20261102b.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -75,27 +78,26 @@ function ur_view(array $vm): void
 	$back = ($vm['editUser'] !== null) ? $vm['linkPrefix'] . 'tab=users' : (($vm['tab'] === 'roles' && isset($_GET['rolle'])) ? $vm['linkPrefix'] . 'tab=roles' : '');
 	// One filled button per view: on the Roles tab the role's Gem is the one, so the head's Inviter bruger is a plain button there.
 	$headPrimary = !($vm['tab'] === 'roles' && $vm['canRolesWrite'] && $vm['editRole'] !== null);
+	$headActs = '';
+	if ($vm['canWrite']) {
+		$headActs = '<a class="sk-btn" href="' . $link('tab=users&bruger=0&mode=classic') . '"><i class="bx bx-user-plus"></i>' . $t('5780|Opret bruger') . '</a>'
+			. '<a class="sk-btn' . ($headPrimary ? ' sk-btn-primary' : '') . '" href="' . $link('tab=users&bruger=0') . '"><i class="bx bx-envelope"></i>' . $t('5779|Inviter bruger') . '</a>';
+	}
+	// The standard layout of a settings page (includes/settings/layout.php): breadcrumb, document title, Tilbage, title, the counts
+	// as the lead and the head's buttons, then the left menu of Virksomhed with Brugere & roller marked and the page in the content
+	// column. Its stylesheets (fonts, the kit, the settings components, boxicons) are printed first, so css/usersRoles.css comes after them.
+	print settings_layout_assets(true);
+	print "<link rel='stylesheet' href='../css/usersRoles.css?v=20261102b'>\n";
+	settings_layout_open(array(
+		'at'           => 'brugere',
+		'kit'          => true,
+		'class'        => 'ur-page',
+		'title'        => findtekst('5536|Brugere & roller', $sprog),
+		'lead'         => sprintf(findtekst('5960|%s brugere · %s administratorer · %s inviterede · %s lukkede', $sprog), $counts['all'], $counts['admins'], $counts['invited'], $counts['closed']),
+		'back'         => $back,
+		'actions_html' => $headActs,
+	));
 	?>
-<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'>
-<link rel='stylesheet' href='../css/usersRoles.css?v=20261102'>
-<script>document.title = <?= json_encode(mb_convert_encoding(findtekst('5536|Brugere & roller', $sprog), 'UTF-8', $charset)) ?>;</script>
-<?= function_exists('settings_breadcrumb') ? settings_breadcrumb_script(settings_breadcrumb('', findtekst('5536|Brugere & roller', $sprog), (int) $sprog), $charset) : '' ?>
-<div class="sk sk-page ur-page">
-  <header class="sk-head">
-    <div class="sk-head-tx">
-      <?= settings_back_button($back) ?>
-      <h1 class="sk-title"><?= $t('5536|Brugere & roller') ?></h1>
-      <p class="sk-lead"><?= $h(sprintf(findtekst('5960|%s brugere · %s administratorer · %s inviterede · %s lukkede', $sprog), $counts['all'], $counts['admins'], $counts['invited'], $counts['closed'])) ?></p>
-    </div>
-    <?php if ($vm['canWrite']) { ?>
-    <div class="sk-head-acts">
-      <a class="sk-btn" href="<?= $link('tab=users&bruger=0&mode=classic') ?>"><i class='bx bx-user-plus'></i><?= $t('5780|Opret bruger') ?></a>
-      <a class="sk-btn<?= $headPrimary ? ' sk-btn-primary' : '' ?>" href="<?= $link('tab=users&bruger=0') ?>"><i class='bx bx-envelope'></i><?= $t('5779|Inviter bruger') ?></a>
-    </div>
-    <?php } ?>
-  </header>
-
   <?php if ($vm['reviewCount'] > 0 && $vm['canWrite']) {
   	$sum = function_exists('perm_migration_summary') ? perm_migration_summary() : array('admin' => 0, 'custom' => 0);
   ?>
@@ -142,7 +144,7 @@ function ur_view(array $vm): void
       <div class="sk-dialog-f" id="ur-dlg-row"></div>
     </div>
   </div>
-</div>
+<?php settings_layout_close(); ?>
 <template id="ur-dlg-cancel"><button type="button" class="sk-btn" data-dlg-close><?= $t('5940|Annullér') ?></button></template>
 <?php ur_view_script($vm); ?>
 	<?php

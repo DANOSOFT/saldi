@@ -69,6 +69,11 @@
 // 20261102 CL/ASR Tilbage is the shared settings button top-left above the title (settings_back_button(), css/saldi-kit.css), as on every
 //                 settings page, instead of page_bar's text link top-right; also in the old layout (no side menu), where it replaces the bar's Tilbage cell.
 //                 It goes to the hub (Formularer is a hub row), with Alt+L as before; the page's own returside, used only by the old links, is gone.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: Formularer did not keep the
+//                 side menu that Logo & baggrunde has): the left menu of Virksomhed with Formularer marked under Fakturaformularer & e-mail,
+//                 Tilbage above the title, and the title is 'Formularer' as the hub row (it said 'Formularkort').
+//                 The bar's buttons (Visuel editor, Bg.Navn, Email, Baggrund) sit right of the title, in both menu modes; the search field
+//                 above the editor is gone (the hub has the search). The form editor below is unchanged.
 @session_start();
 $s_id=session_id();
 
@@ -284,63 +289,27 @@ if (isset($_POST) && $_POST) {
 $fe_link = "formeditor.php?form_nr=".urlencode(($form_nr ?? '') ?: 4)."&sprog=".urlencode(($formularsprog ?? '') ?: 'Dansk');
 $fe_label = ($sprog_id == 1) ? 'Visuel editor' : 'Visual editor';
 $fe_title = ($sprog_id == 1) ? 'Ny visuel formulareditor (træk og slip)' : 'New visual form editor (drag & drop)';
-// Tilbage of every settings page: the kit's small button with an arrow, top-left above the title.
-include_once("../includes/settings/components.php");
-$settingsBack = "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button() . "</div>\n";
-
+// The standard layout of every settings page (includes/settings/layout.php): Tilbage, the title 'Formularer' (the hub row's name) and the
+// page's buttons above, the left menu of Virksomhed with Formularer marked beside the editor, which is unchanged.
+include_once("../includes/settings/layout.php");
+$formActions = array(
+	array('label' => $fe_label, 'href' => $fe_link, 'icon' => 'bx-edit', 'title' => $fe_title),
+	array('label' => 'Bg.' . findtekst('646|Navn', $sprog_id), 'href' => 'formularkort.php?nyt_sprog=yes', 'icon' => 'bx-globe', 'title' => findtekst('1779|Opret eller nedlæg sprog', $sprog_id), 'accesskey' => 's'),
+);
 if ($menu=='S') {
-	print "<html>\n";
-	print "<head>\n";
-	print "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>\n";
-	print "<meta name='viewport' content='width=1024'>\n";
-	print "</head>\n";
-	print "<body>\n";
-	include_once("../includes/stdFunc/pageBar.php");
-	print $settingsBack;
-	page_bar(array(
-		'title' => findtekst('573|Formularkort', $sprog_id),
-		'actions' => array(
-			array($fe_label, $fe_link, 'bx-edit'),
-			array('Bg.' . findtekst('646|Navn', $sprog_id), 'formularkort.php?nyt_sprog=yes', 'bx-globe', '', 'accesskey' => 's'),
-			array('Email', 'settingsSection.php?s=documents.email', 'bx-envelope', '', 'accesskey' => 'e'),
-			array(findtekst('571|Baggrund', $sprog_id), 'logoupload.php?upload=yes', 'bx-image', '', 'accesskey' => 'u'),
-		),
-	));
-	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
-	print "<tr><td width='' height='1%' align='center' valign='top' collspan='2'>\n";
-	print "</td></tr>\n";
-
-	$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
-	$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
-	$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
-	print "<script>
-	if (typeof window.saldiTranslations === 'undefined') {
-		window.saldiLanguage = " . (int)$sprog_id . ";
-		window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
-	}
-	</script>";
-	print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
-	print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
-	print "<tr><td height='1%' align='left' valign='top'><div class=\"settings-search-standalone\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
-} else {
-	# 2013.11.21 Tilføjet meta så ÆØÅ vises rigtigt. Også viewport til bedre visning på tablet
-	//print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n";
-	print "<html>\n";
-	print "<head>\n";
-	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n";
-	print "<meta name=\"viewport\" content=\"width=1024\">\n";
-	print "</head>\n";
-	print "<body>\n";
-	print "<link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>" . $settingsBack; // the arrow (page_bar loads boxicons in the other leg)
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
-	print "<tr><td width=\"\" height=\"1%\" align=\"center\" valign=\"top\" collspan=\"2\">\n";
-	print "<table width=\"100%\" height=\"1%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
-	print "<td width=\"12%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"$fe_link\" title=\"$fe_title\">$fe_label</a></td>\n";
-	print "<td width=\"68%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('573|Formularkort', $sprog_id)."</td>\n";
-	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a></span></td>\n";
-	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></span></td>\n";#20210804
-	print "</tbody></table></td></tr>\n";
+	$formActions[] = array('label' => 'Email', 'href' => 'settingsSection.php?s=documents.email', 'icon' => 'bx-envelope', 'accesskey' => 'e');
 }
+$formActions[] = array('label' => findtekst('571|Baggrund', $sprog_id), 'href' => 'logoupload.php?upload=yes', 'icon' => 'bx-image', 'title' => findtekst('1781|Indlæs eller fjern fil', $sprog_id), 'accesskey' => 'u');
+
+# 2013.11.21 Tilføjet meta så ÆØÅ vises rigtigt. Også viewport til bedre visning på tablet
+print "<html>\n";
+print "<head>\n";
+print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n";
+print "<meta name=\"viewport\" content=\"width=1024\">\n";
+print "</head>\n";
+print "<body>\n";
+settings_layout_open(array('at' => 'formularer', 'actions' => $formActions));
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 
 if ($nyt_sprog) sprog($nyt_sprog,$skabelon,$handling);
 
@@ -1254,6 +1223,7 @@ print "</tbody></table>\n";
 print "</td></tr>\n";
 print "</tbody></table>\n";
   # 20150331
+settings_layout_close();
 print "</body></html>\n";
 
 function get_background_file($form_type, $sprog) {

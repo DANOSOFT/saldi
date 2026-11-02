@@ -40,6 +40,10 @@
 // 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops; settings_back_button() adds Alt+L itself.
 // 20261102 CL/ASR Review: a page without a hub row of its own that the breadcrumb map hangs under a section (tekster.php under Sprog & lokalisering)
 //                 gets that section's group as its left menu, with the row marked, and its own name as the title (it showed "Indstillinger" and the four groups).
+// 20261102 CL/ASR Review: such a page (tekster.php, regnskabskort.php) is a sub-page of its section, so Tilbage goes to that section, as on every other
+//                 settings sub-page (includes/settings/layout.php: Kontokort, the import pages, Sikkerhedskopi); it went to the hub.
+// 20261102 CL/ASR No search field above the menu any more (search lives on the hub), so the menu starts where it does on every
+//                  other settings page. unified-components.css v=20261102.
 
 $small=NULL;
 if (!isset($css)) $css=NULL;
@@ -80,6 +84,7 @@ $hubMenu = settings_hub_menu((int) $sprog_id);
 // A page the hub reaches through a section (tekster.php from Sprog & lokalisering) has no row of its own: the left menu marks that
 // section's row and the title is the page's own name. Its breadcrumb stays the one of includes/stdFunc/pageRoutes.php (online.php).
 $routeParent = false;
+$routeBack = ''; // Tilbage of a sub-page: its section; '' = the hub
 if (!$hubMenu && $currentGroup === '' && function_exists('page_routes') && function_exists('page_route_key')) {
 	$routePages = page_routes()['pages'];
 	$route = isset($routePages[page_route_key()]) ? $routePages[page_route_key()] : null;
@@ -87,6 +92,7 @@ if (!$hubMenu && $currentGroup === '' && function_exists('page_routes') && funct
 		$hubMenu = settings_hub_menu((int) $sprog_id, $routeMatch[1]);
 		if ($hubMenu) {
 			$routeParent = true;
+			$routeBack = 'settingsSection.php?s=' . rawurlencode($routeMatch[1]);
 			$currentLabel = (strpos((string) $route['l'], '|') === 0) ? substr((string) $route['l'], 1) : findtekst((string) $route['l'], $sprog_id);
 		}
 	}
@@ -94,7 +100,6 @@ if (!$hubMenu && $currentGroup === '' && function_exists('page_routes') && funct
 if (($currentGroup !== '' || $hubMenu) && !$routeParent) {
 	print settings_breadcrumb_script(settings_breadcrumb($currentGroup, $currentLabel, (int) $sprog_id), (isset($db_encode) && $db_encode !== 'UTF8') ? 'ISO-8859-1' : 'UTF-8');
 }
-$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
 $noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
 $matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
 print "<script>
@@ -103,16 +108,13 @@ if (typeof window.saldiTranslations === 'undefined') {
 	window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
 }
 </script>";
-print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css?v=20261101\">";
-print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
-print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261101e\">";
+print "<link rel=\"stylesheet\" href=\"../css/unified-components.css?v=20261102\">";
 print "<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>";
 print "<style>.st-legacy { min-width: 0; font: 14px/1.5 Inter, \"Segoe UI\", system-ui, sans-serif; } .st-legacy table { max-width: 100%; } .st-legacy input[type=submit], .st-legacy input[type=button], .st-legacy button { border-radius: 4px; }</style>";
 print "<div class=\"st-page\" style=\"" . st_h(st_accent_style((string) $buttonColor, (string) $buttonTxtColor)) . "\">";
-print "<section class=\"st-phead\"><div>" . settings_back_button() . "<h1>" . st_h(html_entity_decode($currentLabel, ENT_QUOTES, st_charset())) . "</h1><p class=\"st-lead\">" . st_t(5706) . " " . st_h(st_company()) . ".</p></div></section>";
+print "<section class=\"st-phead\"><div>" . settings_back_button($routeBack) . "<h1>" . st_h(html_entity_decode($currentLabel, ENT_QUOTES, st_charset())) . "</h1><p class=\"st-lead\">" . st_t(5706) . " " . st_h(st_company()) . ".</p></div></section>";
 print "<div class=\"st-layout st-layout-list\">";
 print settings_menu_html($hubMenu, (int) $sprog_id, array(
-	'before' => "<div class=\"settings-search-wrapper\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\" aria-label=\"" . htmlspecialchars($searchPlaceholder) . "\"></div>",
 	'label' => html_entity_decode($currentLabel, ENT_QUOTES, st_charset()),
 ));
 // Unsaved changes (settings redesign spec §8.1): the browser's native beforeunload dialog when

@@ -26,6 +26,10 @@
 //                 title (settings_back_button(), css/saldi-kit.css; to the hub, Alt+L) and the title on the page head (page_bar), named as the
 //                 Import & eksport page links it, instead of the grey bar with "Importer_kontoplan" and Tilbage via the old diverse.php redirect.
 //                 After an import the page returns to Import & eksport directly (settingsSection.php?s=import_export.data).
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; the standard-map link, the upload form and the import are unchanged.
+//                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
 
 @session_start();
 $s_id=session_id();
@@ -47,14 +51,13 @@ include("../includes/std_func.php");
 // 20260928 Sawaneh Security 4.0 (A3): the GET parameter may only select the shipped standard map.
 $fileName = (if_isset($_GET['fileName'],NULL) && basename((string) $_GET['fileName']) === 'stdAccountMap.csv') ? __DIR__ . '/../importfiler/stdAccountMap.csv' : NULL;
 
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+settings_layout_open();
 print "<div align=\"center\">";
 
 if ($fileName) importData($fileName);
 
-include_once("../includes/stdFunc/pageBar.php");
-include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button() . "</div>\n";
-page_bar(array('title' => findtekst('2336|Importer mappingfil til offentlig standard kontoplan', $sprog_id)));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 
 if (isset ($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
@@ -66,6 +69,7 @@ if (isset ($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile'][
 }
 upload();
 print "</tbody></table>";
+settings_layout_close();
 #####################################################################################################
 function upload(){
 

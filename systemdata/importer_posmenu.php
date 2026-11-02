@@ -27,6 +27,9 @@
 // 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
 //                 It goes back to POS-menuer, whose form posts here; Alt+L kept.
 // 20261102 CL/ASR settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Salg with POS-menuer marked under Kasse > Skærm & kassemenuer, Tilbage above the title back to POS-menuer, the breadcrumb Indstillinger / Salg / Skærm & kassemenuer / POS-menuer / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
 
 $saldifileformat="saldi_posmenus";
 $title="Importer POS menuer";
@@ -40,10 +43,9 @@ include("../includes/std_func.php"); #20210713
 include("../includes/topline_settings.php");
 $returside="settingsSection.php?s=import_export.data";
 
-include_once("../includes/stdFunc/pageBar.php");
-include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button('posmenuer.php') . "</div>\n";
-page_bar(array('title' => findtekst(1934, $sprog_id)));
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+settings_layout_open();
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
@@ -85,4 +87,5 @@ if ($_POST) {
 }
 ?>
 </tbody></table>
+<?php settings_layout_close(); ?>
 </body></html>

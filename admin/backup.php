@@ -31,6 +31,12 @@
 //                 button top-left above the title (settings_back_button(), css/saldi-kit.css) and the title on the page head (page_bar),
 //                 instead of the bar with Tilbage to the old main menu. Tilbage goes back to the Sikkerhedskopi section; in a popup window
 //                 (popup=1) it closes it, as before. Alt+L kept.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Sikkerhedskopi marked, Tilbage above the title back to Sikkerhedskopi, the breadcrumb Indstillinger / Finans / Sikkerhedskopi / this page.
+//                 A popup window (popup=1) has no menu and Tilbage closes it, as before; the page's own links (create, cancel, restore) keep popup=1, so the window stays without the menu.
+//                 The div that centres the page's content opens inside the content column; the backup itself is unchanged.
+// 20261102 CL/ASR Review: after Opret sikkerhedskopi the closing of the tables and the layout is printed only outside the old top menu ($menu T),
+//                 whose page stays as it was.
 
 @session_start();
 $s_id = session_id();
@@ -75,6 +81,14 @@ if (isset($_GET['backup']) && $_GET['backup']==1) {
 	print "--> \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
 }
 
+// popup=1 (a popup window from the old main menu) is kept on the page's own links, so the window never gets the settings menu.
+$popupQs = !empty($_GET['popup']) ? '&popup=1' : '';
+if ($menu!='T') {
+	// The standard settings layout (includes/settings/layout.php): Tilbage above the title back to Sikkerhedskopi, the left menu of
+	// Finans with Sikkerhedskopi marked. A popup window (popup=1) gets no menu and Tilbage closes it.
+	include_once("../includes/settings/layout.php");
+	settings_layout_open($popupQs ? array('back' => '../includes/luk.php') : array());
+}
 print "<div align='center'>";
 if ($menu=='T') {
 #	print "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>";
@@ -92,13 +106,6 @@ if ($menu=='T') {
 
 	print "<table border='0' cellspacing='0' id='dataTable' class='dataTable'><tbody>"; # -> 1
 } else {
-	// The head of every settings page: Tilbage (the kit's small button, top-left above the title) back to Sikkerhedskopi, the
-	// section that opens this page; in a popup window (popup=1) it closes the window. The title on the page head (page_bar).
-	include_once("../includes/stdFunc/pageBar.php");
-	include_once("../includes/settings/components.php");
-	$backTo = !empty($_GET['popup']) ? '../includes/luk.php' : '../systemdata/settingsSection.php?s=import_export.backup';
-	print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button($backTo) . "</div>\n";
-	page_bar(array('title' => findtekst('614|Sikkerhedskopi', $sprog_id)));
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 }
 
@@ -128,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel'])) {
                     } 
                 }
          $backup=FALSE;
-         echo '<meta http-equiv="refresh" content="0;url=backup.php" />'; 
+         echo '<meta http-equiv="refresh" content="0;url=backup.php' . ($popupQs ? '?popup=1' : '') . '" />'; 
         exit;
 
 	} else {
@@ -194,10 +201,15 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 
 	print "<form action='restore.php' method='get'>";
 	print "<input type='hidden' name='file_path' value='$backUpFile' />";
+	if ($popupQs) print "<input type='hidden' name='popup' value='1' />";
 	print "<input type='submit' style='$buttonStyle' value='".findtekst('3358|Gå til indlæsning', $sprog_id)."' />";
 	print "</form>";
 	print "</div>";
     print "</td></tr>";
+	if ($menu!='T') { // 20261102 CL/ASR the old top menu's page is printed as before
+		print "</tbody></table></tbody></table></div>";
+		settings_layout_close();
+	}
 
 
 	return;
@@ -205,21 +217,25 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 } else {
    
     print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td><td $style  title='".findtekst('1675|Her har du mulighed for at gemme sikkerhedskopien på din computer', $sprog_id)."'>";
-    print "<a href='backup.php?backup=1'> $buttonStart";
+    print "<a href='backup.php?backup=1$popupQs'> $buttonStart";
     print findtekst('1245|Opret sikkerhedskopi', $sprog_id);
     print "$buttonEnd </a></td></tr>";
     print "<tr><td align=center colspan=2>".findtekst('1246|for at danne en sikkerhedskopi', $sprog_id)."<br>".findtekst('1676|som du kan gemme på din computer', $sprog_id).".</td></tr>";
     print "<tr><td colspan=2><hr></td></tr>";
     print "<tr><td align=center> ".findtekst('1241|Klik her', $sprog_id).": </td>";
     print "<td $style title='".findtekst('1677|Her har du mulighed for at genindlæse en tidligere gemt sikkerhedskopi', $sprog_id)."'>";
-    print "<a href=../admin/restore.php> $buttonStart";
+    print "<a href='../admin/restore.php" . ($popupQs ? '?popup=1' : '') . "'> $buttonStart";
     print findtekst('1247|Indlæs sikkerhedskopi', $sprog_id);
     print "$buttonEnd </a></td></tr>";
     print "<tr><td align=center colspan=2>".findtekst('1248|for at indlæse en sikkerhedskopi<br>fra din computer.', $sprog_id)."</td></tr>";
 }
 print "</tbody></table></tbody></table>";
 
-print "</div></div>";
+if ($menu=='T') print "</div></div>";
+else {
+	print "</div>";
+	settings_layout_close();
+}
 
 
 if ($menu=='T') {

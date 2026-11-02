@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------systemdata/view_logoupload.php------------patch 4.1.1-----2026-01-21------
+// --------systemdata/view_logoupload.php------------ver 5.1.0-----2026-11-02------
 //                               LICENSE      
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260102 LOE Updated to use department format for viewing uploaded background.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the
+//                 settings menu) instead of the blue Close/Print bar: the preview of a background or attachment under Logo & baggrunde,
+//                 titled Forhåndsvisning and the file, Tilbage to the upload page (as Close), the PDF as high as the window allows.
+// 20261102 CL/ASR Review: the preview sits under the row the upload page was opened from (Formularer or Logo & baggrunde, logoupload_from).
+//                 The page keeps 16 px under the PDF (not the section pages' 96 px), so the page itself does not scroll.
 
 session_start();
 $s_id=session_id();
@@ -111,15 +116,20 @@ if ($actual_file && file_exists($actual_file)) {
     $usefile = false;
 }
 error_log("Looking for background file: $baggrund, language: $current_sprog, department: $department. Found: " . ($usefile ? $usefile : "No file found"));
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund height=\"1%\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"logoupload.php?sprog=$current_sprog" . ($department ? "&department=$department" : "") . "\">Close</a></td>";
-print "<td width=\"80%\" $top_bund align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Print</td>";
-print "<td width=\"10%\" $top_bund align = \"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">&nbsp;</td>";
-print "<tr><td width=\"100%\" height=\"100%\" align=\"center\" valign=\"top\" colspan=\"3\">";
+// The standard settings layout: the preview under the row the upload page sits under (logoupload.php keeps it in the session:
+// Formularer or Logo & baggrunde), Tilbage to the upload page it came from (the old Close).
+include_once("../includes/settings/layout.php");
+settings_layout_open(array(
+	'at' => (isset($_SESSION['logoupload_from']['at']) && $_SESSION['logoupload_from']['at'] === 'formularer') ? 'formularer' : 'documents.backgrounds', 'title' => findtekst('3276|Forhåndsvisning', $sprog_id) . ': ' . $baggrund . '.pdf',
+	'back' => 'logoupload.php?sprog=' . urlencode((string) $current_sprog) . ($department ? '&department=' . urlencode((string) $department) : ''),
+));
+print "<style>.st-frame-main .vl-file { height: calc(100vh - 170px); min-height: 420px; } .st-page:has(.vl-file) { padding-bottom: 16px; }</style>\n";
+print "<table width=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+print "<tr><td width=\"100%\" align=\"center\" valign=\"top\" colspan=\"3\">";
 
 if ($usefile && file_exists($usefile)) {
     error_log("Displaying file: $usefile");
-    print "<div style=\"height:100%;\">
+    print "<div class=\"vl-file\">
     <iframe style=\"width:100%;height:100%;\" src=\"$usefile#toolbar=0&navpanes=0&scrollbar=0\">
         <p>Your browser cannot display this file. <a href=\"$usefile\">Download PDF</a></p>
     </iframe>
@@ -135,5 +145,6 @@ if ($usefile && file_exists($usefile)) {
 
 print "</td></tr>";
 print "</tbody></table>";
+settings_layout_close();
 
 ?>

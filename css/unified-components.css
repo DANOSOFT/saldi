@@ -6,6 +6,8 @@
  * 20261101 CL/ASR Settings hub "C - Fold ud": the left menu of the settings pages as the hub group's sub-groups (.st-menu, no zebra in
  *                 navigation) and the Tilbage button above the title (.sk-back, also in the frame of the old pages without the kit).
  * 20261101 CL/ASR Review: the left menu's narrow-screen rules (static, one row) come after its base rules, so they take effect.
+ * 20261102 CL/ASR The standard layout of every settings page (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026): the page's
+ *                 buttons right of the title (.st-phead-acts) and the content column (.st-frame-main) beside the left menu. Linked as ?v=20261102.
  */
 
 /* ============================================
@@ -1294,3 +1296,14 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-page .sk-back { --st-btn-bg: var(--st-surface); --st-btn-bd: var(--st-field); --st-btn-fg: var(--st-text); align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--st-ctl-h-sm); margin: 0 0 6px; padding: 0 8px; vertical-align: middle; border: 1px solid var(--st-btn-bd); border-radius: var(--st-r); background: var(--st-btn-bg); color: var(--st-btn-fg); box-shadow: none; font: 500 var(--st-fs-s)/1 var(--st-font); white-space: nowrap; text-decoration: none; cursor: pointer; user-select: none; transition: background-color var(--st-t), border-color var(--st-t), color var(--st-t); }
 .st-page .sk-back:hover { --st-btn-bg: var(--st-surface-2); --st-btn-bd: var(--st-field-hover); color: var(--st-btn-fg); text-decoration: none; }
 .st-page .sk-back > i.bx { flex: none; width: 14px; height: 14px; font-size: 14px; line-height: 14px; }
+
+/* ---- 20261102 CL/ASR the standard layout of a settings page (settings_layout_open() in includes/settings/layout.php; owner, 2 Nov 2026:
+   every page reached from Indstillinger keeps the left menu): the section pages' head - Tilbage, title, lead, the page's own buttons on
+   the right - and their two columns, the hub group's menu (.st-menu above) and the content column. ---- */
+.st-phead-acts { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.st-frame-main { min-width: 0; }
+/* an old page's own markup (forms and tables): the font of the frame of the old pages (top.php), 4 px corners on its buttons,
+   and a wide editor (Formularer's text lines) scrolls inside the column instead of pushing the page sideways */
+.st-frame-main.st-legacy { overflow-x: auto; font: 14px/1.5 Inter, "Segoe UI", system-ui, sans-serif; }
+.st-frame-main.st-legacy table { max-width: none; }
+.st-frame-main.st-legacy :is(input[type=submit], input[type=button], button) { border-radius: 4px; }

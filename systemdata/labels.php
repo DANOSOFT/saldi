@@ -32,7 +32,7 @@ $s_id = session_id();
 ob_start();
 
 $title = "Mærkater";
-$css = "../css/unified-components.css?v=20261101e";
+$css = "../css/unified-components.css?v=20261102";
 $permission_key = 'settings.items';
 $permission_level = 'read';
 

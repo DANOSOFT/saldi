@@ -50,6 +50,11 @@
 //                 (settings_back_button(), css/saldi-kit.css) back to Indstillinger > Sikkerhedskopi, and the title on the page head (page_bar),
 //                 instead of the bar with Luk to the old main menu. A popup window (popup=1) is closed, as before; Alt+L kept.
 //                 The admin panel's restore keeps its old bar.
+// 20261102 CL/ASR In a ledger the standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Sikkerhedskopi marked, Tilbage above the title back to Sikkerhedskopi, the breadcrumb Indstillinger / Finans / Sikkerhedskopi / this page.
+//                 A popup window (popup=1) has no menu and Tilbage closes it, as before; the upload form keeps popup=1, so the window stays without the menu after a failed upload.
+//                 The div that centres the page's content opens inside the content column; the restore itself is unchanged, and the admin panel's restore (?db=) keeps its old bar.
+// 20261102 CL/ASR Review: a file that is not a Saldi backup returns to backup.php with popup=1 in a popup window, so the window stays without the settings menu.
 
 @session_start();
 $s_id=session_id();
@@ -115,7 +120,7 @@ if(isset($_COOKIE['languageId'])){
 
 if ($popup) $returside="../includes/luk.php";
 else $returside="../index/menu.php";
-$formAction = $adminRestore ? "restore.php?db=" . rawurlencode($tmpDb) : "restore.php";
+$formAction = $adminRestore ? "restore.php?db=" . rawurlencode($tmpDb) : "restore.php" . (!empty($_GET['popup']) ? "?popup=1" : ""); // a popup window stays without the settings menu
 
 if (!file_exists("../temp/$db")) mkdir("../temp/$db", 0775);
 
@@ -169,6 +174,12 @@ $translations = [
 
 include("../includes/topline_settings.php");
 
+if ($menu!='T' && !$adminRestore) {
+	// In a ledger the standard settings layout (includes/settings/layout.php): Tilbage above the title back to Sikkerhedskopi, the left
+	// menu of Finans with Sikkerhedskopi marked. A popup window (popup=1) gets no menu and Tilbage closes it.
+	include_once("../includes/settings/layout.php");
+	settings_layout_open(!empty($_GET['popup']) ? array('back' => '../includes/luk.php') : array());
+}
 print "<div align=\"center\">";
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -186,13 +197,6 @@ if ($menu=='T') {
 	print "<div class='divSys'>";
 	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\"><tbody>"; # -> 1
 } elseif (!$adminRestore) {
-	// The head of every settings page (opened from Indstillinger > Sikkerhedskopi or from backup.php): Tilbage, the kit's small
-	// button top-left above the title, back to the Sikkerhedskopi section (closes a popup window); the title on the page head.
-	include_once("../includes/stdFunc/pageBar.php");
-	include_once("../includes/settings/components.php");
-	$backTo = !empty($_GET['popup']) ? '../includes/luk.php' : '../systemdata/settingsSection.php?s=import_export.backup';
-	print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button($backTo) . "</div>\n";
-	page_bar(array('title' => findtekst('1247|Indlæs sikkerhedskopi', $sprog_id)));
 	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 } elseif ($menu=='S') {
 	print "<table width='100%' height='30%' border='0' cellspacing='0' cellpadding='0'><tbody>";
@@ -238,6 +242,7 @@ if (!$restoreRan) {
 	if (restore_migration_allowed()) renderRestoreForm($formAction);
 }
 print "</tbody></table></div>";
+if (function_exists('settings_layout_close')) settings_layout_close(); // the layout is not opened for the admin panel's restore
 ################################################################################################################
 function upload($formAction){
 	global $sprog_id;
@@ -617,7 +622,7 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 		unlink($filnavn);
 		unlink($filnavn2);
 		print "<BODY ONLOAD=\"javascript:alert('Det er ikke en SALDI-sikkerhedskopi, som fors&oslash;ges indl&aelig;st')\">";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=backup.php\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=backup.php" . (!empty($_GET['popup']) ? "?popup=1" : "") . "\">"; // 20261102 CL/ASR a popup window stays without the settings menu
 	}
 	
 	print "</tbody></table>";

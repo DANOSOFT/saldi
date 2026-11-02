@@ -34,6 +34,13 @@
 // 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops between settings pages; settings_back_button() adds Alt+L itself.
 //                 The kit is linked as ?v=20261102.
 //                 The title is the name the Import & eksport page links it by, not "Importer_variantvarer".
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+//                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
+//                 Fixed: the first upload stopped with a PHP fatal error before the mapping step (no saved column mapping yet, or no variants in the ledger).
+// 20261102 CL/ASR Review: the page's output is buffered (ob_start()) before the layout, so the column mapping cookie (saldi_variantimp, set in vis_data()) is sent again.
+//                 The layout prints about 4 KB more than the old head, so PHP's 4 KB output buffer was flushed before setcookie() and the mapping was no longer remembered.
 
 @session_start();
 $s_id=session_id();
@@ -47,13 +54,13 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 $returside="settingsSection.php?s=import_export.data";
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+ob_start(); // vis_data() sets the column mapping cookie after the layout's html (20261102 CL/ASR)
+settings_layout_open();
 print "<div align=\"center\">\n";
 
 
-include_once("../includes/stdFunc/pageBar.php");
-include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button() . "</div>\n";
-page_bar(array('title' => findtekst('6658|Importér variantvarer', $sprog_id)));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
@@ -89,6 +96,7 @@ if($submit) {
 	upload($bilag);
 }
 print "</tbody></table>";
+settings_layout_close();
 print "</body></html>";
 #####################################################################################################
 function upload($bilag){
@@ -138,6 +146,7 @@ if ($feltnavn) {
 	$tmp = $_COOKIE['saldi_variantimp'];
 	$feltnavn=explode(";",$tmp);
 }
+if (!is_array($feltnavn)) $feltnavn = array(); // 20261102 CL/ASR the first upload passes '' and there is no saved mapping yet
 print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";
 print "<form enctype=\"multipart/form-data\" action=\"importer_variantvarer.php\" method=\"POST\">";
 #print "<tr><td colspan=6 width=100% align=center> $filnavn</td></tr>";
@@ -157,6 +166,7 @@ print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>";
 print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"".findtekst(1133, $sprog_id)."\" />";
 
 $x=0;
+$varer_id=$varer_nr=$varianter_id=$varianter_beskrivelse=$varianter_shop_id=$felt_aktiv=array(); // 20261102 CL/ASR count() below needs arrays also when there are no variants
 $q=db_select("select varenr,id from varer",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$varer_id[$x]=$r['id'];

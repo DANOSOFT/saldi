@@ -6,10 +6,17 @@
                    e-mails, details and IPv6 addresses (Status and the edit icon stayed out of view).
    20261101 CL/ASR Tilbage is the shared settings button above the title (its quiet link and row are gone). The role list has no
                    zebra (navigation, owner 1 Nov 2026) from css/saldi-kit.css's .sk-list; the data tables keep theirs.
-   20261102 CL/ASR The Tilbage button's place above the title is in css/saldi-kit.css now (.sk .sk-head-tx > .sk-back). */
+   20261102 CL/ASR The Tilbage button's place above the title is in css/saldi-kit.css now (.sk .sk-head-tx > .sk-back).
+   20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php): the page sits in the content column
+                   beside the left menu, so the users list and the role list + matrix follow the column's width (container queries), not
+                   the window's: E-mail and 2FA give way before the name gets cramped, and the role list narrows, then goes above the matrix. */
 
 /* the page runs in quirks mode (online.php's HTML 4.01 doctype), where tables do not inherit the colour: black, not --sk-text */
 .sk .sk-table { color: var(--sk-text); }
+
+/* ------------------------------------------------------------ the content column of the settings layout */
+/* tabs, notices and panels one under the other with the kit's gap, as on the kit's page before (.sk-page) */
+.sk.ur-page .st-frame-main { display: flex; flex-direction: column; gap: var(--sk-gap); }
 
 /* ------------------------------------------------------------ head */
 .sk .ur-review > .sk-grow b { margin-right: 4px; }
@@ -72,7 +79,7 @@
 .sk .ur-mx tbody tr:where(:nth-child(odd of :not([hidden]))) > td { background: var(--sk-surface-2); }
 .sk .ur-mx tbody tr:where(:nth-child(even of :not([hidden]))) > td { background: var(--sk-surface); }
 .sk .ur-grp-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.sk .ur-grp-h > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sk .ur-grp-h > span { min-width: 0; white-space: normal; }   /* wraps in a narrow column (a nowrap name in this colspan cell made the matrix wider than the column) */
 .sk .ur-grp-d { font-weight: 400; }
 .sk .ur-grp-h .sk-link { flex: none; font-weight: 500; }
 .sk .ur-plock { margin-left: 2px; font-size: 13px; vertical-align: -1px; color: var(--sk-text-3); }
@@ -113,10 +120,33 @@
 .sk .sk-dialog-b p { margin: 0 0 8px; }
 .sk .sk-dialog-b .sk-field { margin: 8px 0 0; }
 
-@media (max-width: 780px) {
-	/* E-mail and 2FA (counted from the right, so the right columns go with or without the tick column) */
-	.sk #ur-users :is(th, td):is(:nth-last-child(6), :nth-last-child(4)) { display: none; }
+/* ------------------------------------------------------------ the width of the content column */
+/* The users panel and the roles split are query containers (no fixed layer - drawer, scrim, dialog - sits inside them, so the
+   containment does not catch one). Columns are counted from the right, so they go with or without the tick column. */
+.sk #ur-bulk, .sk .ur-roles { container-type: inline-size; }
+/* under 60rem (960 px): 2FA goes (its filter and the drawer still show it), so the name keeps its room */
+@container (max-width: 60rem) {
+	.sk #ur-users :is(th, td):nth-last-child(4) { display: none; }
 }
-@media (max-width: 560px) {
+/* under 54rem (864 px): E-mail goes as well (the search still finds it, the drawer shows it), before the name and the address
+   both end in an ellipsis */
+@container (max-width: 54rem) {
+	.sk #ur-users :is(th, td):nth-last-child(6) { display: none; }
+	.sk .ur-users th:nth-last-child(5) { width: 24%; }
+}
+/* under 35rem (560 px): the columns size by content and the table scrolls sideways in its frame */
+@container (max-width: 35rem) {
 	.sk .ur-users { table-layout: auto; }
 }
+/* the role list beside the matrix: 18rem, 15rem under 56rem, above the matrix under 46rem (the matrix keeps 30rem: its name
+   column and the three level columns) */
+@container (max-width: 56rem) {
+	.sk .ur-roles > .ur-rlist { flex-basis: 15rem; }
+	.sk .ur-rlist .sk-panel-tools .sk-btn > i { display: none; }   /* Kopiér and Ny rolle without icons, so the list's title keeps its room */
+	.sk .ur-rlist .sk-panel-tools { gap: 8px; }
+}
+@container (max-width: 46rem) {
+	.sk .ur-roles > :is(.ur-rlist, .sk-main) { flex-basis: 100%; }
+	.sk .ur-rlist .sk-panel-tools .sk-btn > i { display: inline-block; }
+}
+.sk .ur-roles { flex-wrap: wrap; }

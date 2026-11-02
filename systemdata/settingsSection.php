@@ -86,7 +86,7 @@ $permission_post_read = false;
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
 // The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><link rel='stylesheet' href='../css/unified-components.css?v=20261101e'>\n";
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><link rel='stylesheet' href='../css/unified-components.css?v=20261102'>\n";
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");

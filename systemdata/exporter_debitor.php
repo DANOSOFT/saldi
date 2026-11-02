@@ -27,6 +27,10 @@
 //                 The kit is linked as ?v=20261102.
 // 20261102 CL/ASR Fix of a fatal error that was already on master: the address fields were read as $r[kontonr] (a constant in PHP 8,
 //                 "Undefined constant"), so the export died before the page was printed on a ledger with customers. The keys are quoted.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+//                 The old blue-grey bottom bar under the content is gone; in the content column it was an empty strip right under the form.
 
 @session_start();
 $s_id=session_id();
@@ -77,10 +81,9 @@ if (fwrite($fp,"kontonr".chr(9)."firmanavn".chr(9)."addr1".chr(9)."addr2".chr(9)
 } 
 fclose($fp);
 
-include_once("../includes/stdFunc/pageBar.php");
-include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button() . "</div>\n";
-page_bar(array('title' => $title));
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+settings_layout_open(array('title' => $title));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
@@ -100,10 +103,6 @@ print "</tbody></table>";
 </tbody>
 </table>
 </td></tr>
-<tr><td align = "center" valign = "bottom">
-<table width="100%" align="center" border="1" cellspacing="0" cellpadding="0"><tbody>
-<td width="100%" bgcolor="<?php echo $bgcolor2 ?>"><font face="Helvetica, Arial, sans-serif" color="#000066"><br></td>
 </tbody></table>
-</td></tr>
-</tbody></table>
+<?php settings_layout_close(); ?>
 </body></html>

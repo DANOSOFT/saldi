@@ -24,19 +24,22 @@
 //                 It goes to the settings page the user came from (Varianter), or the hub; Alt+L kept.
 // 20261101 CL/ASR Review: css/unified-components.css linked as ?v=20261101e, the version the section pages and the old pages' frame link.
 // 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops; settings_back_button() adds Alt+L itself.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Køb & lager with Varianter marked (Varer), Tilbage above the title back to Varianter, the breadcrumb Indstillinger / Køb & lager / Varianter / this page.
+//                 The two import forms sit in the content column beside the menu, unchanged; the layout links css/unified-components.css, the page's head links the theme tokens (css/saldi-theme.css) as the section pages.
 
 @session_start();
 $s_id = session_id();
 
 $title = "Importér varianter";
-$css = "../css/unified-components.css?v=20261101e";
+$css = "../css/saldi-theme.css?v=7"; // the theme tokens, as the section pages; the layout links css/unified-components.css
 $permission_key = 'settings.import_export';
 $permission_level = 'write';
 
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
+include_once("../includes/settings/layout.php"); // the standard settings layout: Tilbage, the title and the left menu with the page's row marked
 
 if (function_exists('perm_can') && !perm_can('settings.import_export', 'write')) {
 	print "<p style='padding:24px'>" . htmlspecialchars(findtekst('5665|Du har ikke adgang til nogen indstillinger. Kontakt en administrator.', $sprog_id), ENT_QUOTES) . "</p>";
@@ -52,13 +55,9 @@ $t = function ($s) use ($sprog_id, $h) {
 	return $h(findtekst($s, $sprog_id));
 };
 $token = "<input type='hidden' name='csrf_token' value='" . $h($_SESSION['csrf_token']) . "'>";
+// Tilbage, the title 'Importér varianter fra CSV' and the left menu of Køb & lager with Varianter marked; the forms in the content column.
+settings_layout_open(array('legacy' => false));
 ?>
-<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-<div class="st-page" style="max-width:860px;margin:0 auto;padding:24px 16px">
-  <div style="display:flex;flex-direction:column;gap:2px">
-    <?= settings_back_button() ?>
-    <h1 style="font-size:22px;margin:0 0 18px"><?= $t('6839|Importér varianter fra CSV') ?></h1>
-  </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
     <form class="st-card" style="padding:18px" enctype="multipart/form-data" action="diverse.php?sektion=variant_valg_import_types" method="post">
       <?= $token ?>
@@ -83,5 +82,5 @@ Størrelse;Small</pre>
       <p style="margin:12px 0 0"><button type="submit" class="st-btn st-btn-primary"><?= $t('1356|Importér') ?></button></p>
     </form>
   </div>
-</div>
+<?php settings_layout_close(); ?>
 </body></html>

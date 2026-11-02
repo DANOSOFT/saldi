@@ -27,6 +27,10 @@
 //                 the hub and the personal settings go to the newest page outside the settings system in the navigation stack, else Oversigt.
 //                 Old addresses that redirect (diverse.php, syssetup.php, anything with moved=) count as settings pages; Finans' kontoplan.php does not.
 // 20261102 CL/ASR Review: Tilbage's tooltip names a section by the section itself (backup.php's showed "Regnskabsår", the last section seen).
+// 20261102 CL/ASR The settings marker (owner, 2 Nov 2026: every page reached from Indstillinger keeps the settings menu): a hub row, a menu link or
+//                 a moved-map link to a page of another module (Kontoplan, Booking) carries settings=1 (settings_hub_marked_url()).
+//                 settings_opened_from_settings() tells such a page to show the settings layout (includes/settings/layout.php); without the
+//                 marker it stays as on master. An address with the marker counts as a settings page for Tilbage.
 
 if (!function_exists('getSettingsHub')):
 
@@ -264,8 +268,104 @@ function settings_registry_entry(string $key): ?array
 }
 
 /**
+ * The query parameter that marks a page of another module as opened from Indstillinger: settings=1 (owner, 2 Nov 2026).
+ * Kontoplan is also Finans > Kontoplan and Booking's settings page belongs to Booking; opened from their own module they look
+ * as on master, opened from the hub or the settings menu (whose links carry the marker) they show the settings layout.
+ */
+function settings_marker_param(): string
+{
+	return 'settings';
+}
+
+/**
+ * Whether a url (relative to systemdata/, '../dir/file.php', or a path from the Saldi root) opens a page the breadcrumb map
+ * (includes/stdFunc/pageRoutes.php) gives to a module other than the settings: systemdata/kontoplan.php and kontokort.php
+ * (Finans), rental/settings.php (Booking), sager/tjeklister.php (Sager).
+ */
+function settings_hub_module_owned(string $url): bool
+{
+	$path = (string) parse_url($url, PHP_URL_PATH);
+	if ($path === '' || preg_match('#^[a-z]+:#i', $url)) {
+		return false;
+	}
+	if (strpos($path, '/') === 0) {
+		$key = basename(dirname($path)) . '/' . basename($path);
+	} elseif (strpos($path, '../') === 0) {
+		$key = substr($path, 3);
+	} else {
+		$key = 'systemdata/' . $path;
+	}
+	$module = settings_hub_route_module($key);
+	return !in_array($module, array('', 'system', 'settings'), true);
+}
+
+/**
+ * A hub or menu url with the settings marker added when it opens another module's page (settings_hub_module_owned()).
+ */
+function settings_hub_marked_url(string $url): string
+{
+	if ($url === '' || !settings_hub_module_owned($url)) {
+		return $url;
+	}
+	$query = array();
+	parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+	if (isset($query[settings_marker_param()])) {
+		return $url;
+	}
+	$hash = strpos($url, '#') !== false ? substr($url, strpos($url, '#')) : '';
+	$base = $hash !== '' ? substr($url, 0, -strlen($hash)) : $url;
+	return $base . (strpos($base, '?') !== false ? '&' : '?') . settings_marker_param() . '=1' . $hash;
+}
+
+/**
+ * Whether the running page was opened from Indstillinger (the hub row, the settings menu, the moved map): the marker in
+ * the request (GET or POST), or - for a form or link of the page itself that did not carry it on - in the address of the
+ * same page the request came from. A module's own page (Kontoplan, Booking) asks this before it shows the settings layout;
+ * without the marker it stays exactly as on master. Keep it on with settings_marker_query() / settings_marker_input().
+ */
+function settings_opened_from_settings(): bool
+{
+	$p = settings_marker_param();
+	if ((isset($_GET[$p]) && $_GET[$p] === '1') || (isset($_POST[$p]) && $_POST[$p] === '1')) {
+		return true;
+	}
+	$referer = isset($_SERVER['HTTP_REFERER']) ? (string) $_SERVER['HTTP_REFERER'] : '';
+	$script = isset($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : '';
+	if ($referer === '' || $script === '') {
+		return false;
+	}
+	$host = (string) parse_url($referer, PHP_URL_HOST);
+	if ($host !== '' && isset($_SERVER['HTTP_HOST']) && strcasecmp($host, (string) preg_replace('/:\d+$/', '', (string) $_SERVER['HTTP_HOST'])) !== 0) {
+		return false;
+	}
+	if ((string) parse_url($referer, PHP_URL_PATH) !== $script) {
+		return false;
+	}
+	$query = array();
+	parse_str((string) parse_url($referer, PHP_URL_QUERY), $query);
+	return isset($query[$p]) && $query[$p] === '1';
+}
+
+/**
+ * 'settings=1' when the running page was opened from Indstillinger, else '': for the page's own links (kontoplan.php?sort=x&...).
+ */
+function settings_marker_query(): string
+{
+	return settings_opened_from_settings() ? settings_marker_param() . '=1' : '';
+}
+
+/**
+ * A hidden input with the marker when the running page was opened from Indstillinger, else '': for the page's own forms.
+ */
+function settings_marker_input(): string
+{
+	return settings_opened_from_settings() ? '<input type="hidden" name="' . settings_marker_param() . '" value="1">' : '';
+}
+
+/**
  * What a key of a row's 'maps' points at, without company or user checks: a section, or a registry entry. An entry whose
- * url opens a section ('section', or settingsSection.php?s=) is an alias of that section ('alias_of').
+ * url opens a section ('section', or settingsSection.php?s=) is an alias of that section ('alias_of'). The url of a page
+ * that belongs to another module carries the settings marker (settings_hub_marked_url()).
  *
  * @return array{key: string, kind: string, url: string, label: mixed, permission: string, module: string, entry: array<string, mixed>|null, alias_of: string}|null
  */
@@ -295,7 +395,7 @@ function settings_hub_page_def(string $key): ?array
 	}
 	$group = isset($entry['group']) ? (string) $entry['group'] : '';
 	return $cache[$key] = array(
-		'key' => $key, 'kind' => 'entry', 'url' => (string) $entry['url'],
+		'key' => $key, 'kind' => 'entry', 'url' => settings_hub_marked_url((string) $entry['url']),
 		'label' => isset($entry['textId']) ? (string) $entry['textId'] : array('da' => (string) $entry['labelDa'], 'en' => isset($entry['labelEn']) ? (string) $entry['labelEn'] : (string) $entry['labelDa'], 'no' => isset($entry['labelNo']) ? (string) $entry['labelNo'] : (isset($entry['labelEn']) ? (string) $entry['labelEn'] : (string) $entry['labelDa'])),
 		'permission' => isset($entry['permission']) ? (string) $entry['permission'] : (isset($groups[$group]) ? $groups[$group]['permission'] : 'system.indstillinger'),
 		'module' => '', 'entry' => $entry, 'alias_of' => $alias,
@@ -1029,7 +1129,8 @@ function settings_hub_route_module(string $key): string
  * section, the moved map, every page in systemdata/ (the old addresses that only redirect - diverse.php, syssetup.php,
  * ansatte.php ... - included), any address carrying moved=, a page the breadcrumb map hangs under the hub (admin/backup.php)
  * and a page a hub row opens. Not: a page the map gives to another module (kontoplan.php and kontokort.php are Finans,
- * rental/settings.php is Booking, sager/tjeklister.php is Sager), even when a hub row opens it.
+ * rental/settings.php is Booking, sager/tjeklister.php is Sager), even when a hub row opens it - unless the address carries
+ * the settings marker (settings=1: the page was opened from Indstillinger and shows the settings layout).
  */
 function settings_hub_is_settings_url(string $url): bool
 {
@@ -1041,7 +1142,7 @@ function settings_hub_is_settings_url(string $url): bool
 	}
 	$query = array();
 	parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
-	if (isset($query['moved'])) {
+	if (isset($query['moved']) || (isset($query[settings_marker_param()]) && $query[settings_marker_param()] === '1')) {
 		return true;
 	}
 	$module = settings_hub_route_module($dir . '/' . $file);

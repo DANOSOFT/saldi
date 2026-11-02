@@ -33,6 +33,9 @@
 // 20261101 CL/ASR Review: a page that is not on the hub lists only the hub groups the user can open something in (as the hub).
 //                 Tilbage carries Alt+L, as on the other settings pages.
 // 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
+// 20261102 CL/ASR settings_menu_html() is also the menu of the standard settings layout (includes/settings/layout.php), which any settings page,
+//                 sub-page or module page opened from Indstillinger uses. Its urls are rebased on a page outside systemdata/ (settings_menu_base()):
+//                 admin/backup.php and rental/settings.php would have opened admin/settings.php and rental/settingsSection.php.
 
 include_once(__DIR__ . '/integrations.php');
 
@@ -42,19 +45,29 @@ if (!function_exists('settings_menu_html')):
  * The left menu of a settings page (hub "C - Fold ud", owner 1 Nov 2026): the page's hub group as its sub-groups, each a
  * heading (icon + name) over its rows, the current row (or the row's second page) marked, no zebra. A row's second page
  * (Kontoindstillinger, Kasseoptælling, POS-menuer ...) sits indented under it. Narrow screens get the same menu as a select.
- * Used by the section views (settingsSection.php, rowsView.php, this file) and the frame of the old pages (top.php),
- * so they all show the same menu. A page that is not on the hub (an old page, a left-out entry) lists the hub's groups.
+ * Used by the section views (settingsSection.php, rowsView.php, this file), the frame of the old pages (top.php) and the
+ * standard layout of every other settings page (settings_layout_open(), includes/settings/layout.php), so they all show the same menu. A page that is not on the hub (an old page, a left-out entry) lists the hub's groups.
  *
  * @param array<string, mixed> $menu settings_hub_menu() (includes/settings/hub.php); texts plain, escaped here
  * @param array<string, mixed> $opts 'anchors' => [block id => plain label]: the page's own blocks under the current item
  *                                   (a list section, scroll-followed by settingsList.js through a[data-sub]);
  *                                   'dot' => true: the unsaved-changes dot (#st-dot) in the current item;
  *                                   'before' => html above the panel (the frame's search field);
- *                                   'label' => the page's name, for the select when no item is current
+ *                                   'label' => the page's name, for the select when no item is current;
+ *                                   'base' => prefix for the menu's urls (relative to systemdata/, as the hub's); default
+ *                                   settings_menu_base(): '' in systemdata/, '../systemdata/' on a page in another folder
  */
 function settings_menu_html(array $menu, int $sprogId, array $opts = array()): string
 {
 	$anchors = isset($opts['anchors']) && is_array($opts['anchors']) ? $opts['anchors'] : array();
+	$base = isset($opts['base']) ? (string) $opts['base'] : settings_menu_base();
+	// The hub's urls are relative to systemdata/; '../dir/page.php' and absolute ones fit every page one folder down already.
+	$url = function (string $u) use ($base): string {
+		if ($base === '' || $u === '' || $u[0] === '/' || $u[0] === '#' || strpos($u, '../') === 0 || preg_match('#^[a-z][a-z0-9+.\-]*:#i', $u)) {
+			return $u;
+		}
+		return $base . $u;
+	};
 	$flat = !$menu;
 	if ($flat) {
 		$title = settings_hub_text('122|Indstillinger', $sprogId);
@@ -95,8 +108,8 @@ function settings_menu_html(array $menu, int $sprogId, array $opts = array()): s
 		}
 		return $out . '</ul>';
 	};
-	$link = function (string $url, string $label, string $hint, bool $on, string $cls) use ($dotHtml): string {
-		return '<a class="st-menu-row' . $cls . ($on ? ' on' : '') . '" href="' . st_h($url) . '"' . ($hint !== '' ? ' title="' . st_h($hint) . '"' : '')
+	$link = function (string $href, string $label, string $hint, bool $on, string $cls) use ($dotHtml, $url): string {
+		return '<a class="st-menu-row' . $cls . ($on ? ' on' : '') . '" href="' . st_h($url($href)) . '"' . ($hint !== '' ? ' title="' . st_h($hint) . '"' : '')
 			. ($on ? ' aria-current="page"' : '') . '><span>' . st_h($label) . '</span>' . ($on ? $dotHtml : '') . '</a>';
 	};
 
@@ -135,12 +148,12 @@ function settings_menu_html(array $menu, int $sprogId, array $opts = array()): s
 				$pageOn = !empty($page['current']);
 				$anyCurrent = $anyCurrent || $pageOn;
 				$sub2 .= '<li>' . $link((string) $page['url'], (string) $page['label'], '', $pageOn, ' st-menu-l2') . ($pageOn ? $anchorList(true) : '') . '</li>';
-				$pageOpts .= '<option value="' . st_h($page['url']) . '"' . ($pageOn ? ' selected' : '') . '>&nbsp;&nbsp;' . st_h($page['label']) . '</option>' . ($pageOn ? $anchorOpts : '');
+				$pageOpts .= '<option value="' . st_h($url((string) $page['url'])) . '"' . ($pageOn ? ' selected' : '') . '>&nbsp;&nbsp;' . st_h($page['label']) . '</option>' . ($pageOn ? $anchorOpts : '');
 			}
 			$anyCurrent = $anyCurrent || $rowOn;
 			$items .= '<li' . (!empty($row['current']) ? ' class="is-current"' : '') . '>' . $link((string) $row['url'], (string) $row['label'], (string) $row['hint'], $rowOn, '')
 				. ($rowOn ? $anchorList($sub2 !== '') : '') . ($sub2 !== '' ? '<ul class="st-menu-pages">' . $sub2 . '</ul>' : '') . '</li>';
-			$subOpts .= '<option value="' . st_h($row['url']) . '"' . ($rowOn ? ' selected' : '') . '>' . st_h($row['label']) . '</option>' . ($rowOn ? $anchorOpts : '') . $pageOpts;
+			$subOpts .= '<option value="' . st_h($url((string) $row['url'])) . '"' . ($rowOn ? ' selected' : '') . '>' . st_h($row['label']) . '</option>' . ($rowOn ? $anchorOpts : '') . $pageOpts;
 		}
 		$panel .= '<div class="st-menu-sub' . (!empty($sub['current']) ? ' is-current' : '') . '">' . $head
 			. '<ul class="st-menu-rows' . ($head === '' ? ' st-menu-flat' : '') . '"' . ($head !== '' ? ' aria-labelledby="st-menu-' . st_h($subId) . '"' : '') . '>' . $items . '</ul></div>';
@@ -151,8 +164,18 @@ function settings_menu_html(array $menu, int $sprogId, array $opts = array()): s
 		. '<select class="st-tabs-select" aria-label="' . st_h($title) . '" onchange="if (this.value) { window.location = this.value; }">' . $placeholder . $options . '</select>'
 		. (isset($opts['before']) ? (string) $opts['before'] : '')
 		. '<div class="st-menu-panel"><p class="st-menu-h">' . st_h($title) . '</p>' . $panel
-		. ($flat ? '' : '<a class="st-menu-all" href="settings.php"><i class="bx bx-grid-alt" aria-hidden="true"></i><span>' . st_h(settings_hub_text('5666|Alle indstillinger', $sprogId)) . '</span></a>')
+		. ($flat ? '' : '<a class="st-menu-all" href="' . st_h($url('settings.php')) . '"><i class="bx bx-grid-alt" aria-hidden="true"></i><span>' . st_h(settings_hub_text('5666|Alle indstillinger', $sprogId)) . '</span></a>')
 		. '</div></nav>';
+}
+
+/**
+ * The prefix that makes the hub's urls (relative to systemdata/) work on the running page: '' in systemdata/,
+ * '../systemdata/' on a settings page in another folder (admin/backup.php, rental/settings.php).
+ */
+function settings_menu_base(): string
+{
+	$script = isset($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : '';
+	return ($script === '' || basename(dirname($script)) === 'systemdata') ? '' : '../systemdata/';
 }
 
 endif;

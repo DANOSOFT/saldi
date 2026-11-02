@@ -52,6 +52,13 @@
 //                 It goes to the settings page the user came from, or the hub; Alt+L kept.
 // 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops between settings pages; settings_back_button() adds Alt+L itself.
 //                 The kit is linked as ?v=20261102.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+//                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
+//                 Fixed: the first upload of a file without a saved column mapping (no saldi_vareimp cookie) stopped with a PHP fatal error (string offset) before the mapping step.
+// 20261102 CL/ASR Review: the page's output is buffered (ob_start()) before the layout, so the column mapping cookie (saldi_vareimp, set in vis_data()) is sent again.
+//                 The layout prints about 4 KB more than the old head, so PHP's 4 KB output buffer was flushed before setcookie() and the mapping was no longer remembered.
 
 @session_start();
 $s_id=session_id();
@@ -70,12 +77,12 @@ $csvFile = NULL;
 $retailPriceFromPurchasePrice = $salesPriceFromPurchasePrice = $tierPriceFromPurchasePrice = NULL;
 $feltnavn = array();
 
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+ob_start(); // vis_data() sets the column mapping cookie after the layout's html (20261102 CL/ASR)
+settings_layout_open();
 print "<div align=\"center\">\n";
 
-include_once("../includes/stdFunc/pageBar.php");
-include_once("../includes/settings/components.php"); // settings_back_button(): Tilbage above the title, as on every settings page
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><div class='sk' style='display:flex;padding:14px 16px 0;margin-bottom:-6px'>" . settings_back_button() . "</div>\n";
-page_bar(array('title' => findtekst(1380, $sprog_id)));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
@@ -170,6 +177,7 @@ if($submit || $import) {
 	upload($csvFile);
 }
 print "</tbody></table>";
+settings_layout_close();
 print "</body></html>";
 #####################################################################################################
 function upload($csvFile){
@@ -229,6 +237,7 @@ if ($feltnavn) {
 	list($tmp,$itemGroup) =  explode("|",$_COOKIE['saldi_vareimp']);
 	$feltnavn=explode(";",$tmp);
 }
+if (!is_array($feltnavn)) $feltnavn = array(); // 20261102 CL/ASR the first upload passes '' and there is no saved mapping yet
 $v = 0;
 $v_nr = array();
 $q = db_select("select varenr from varer",__FILE__ . " linje " . __LINE__); #20161015 -> 4 linjer

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRoles.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- systemdata/usersRoles.php --- ver 5.1.0 --- 2026.11.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 //                  view in usersRolesIncludes/view.php. Post/Redirect/Get throughout.
 // 20261101 CL/ASR New design (prototype D): the head links css/saldi-theme.css; the view links css/saldi-kit.css and then css/usersRoles.css, so the page's own rules come after the kit.
 // 20261101 CL/ASR Loads includes/settings/components.php for the Tilbage button the view shows above the title.
+// 20261102 CL/ASR Loads includes/settings/layout.php (which loads components.php): the view uses the standard settings layout with the left menu.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -54,7 +55,7 @@ include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/userFunctions.php");
 include_once(__DIR__ . "/settingsRegistry.php");
-include_once(__DIR__ . "/../includes/settings/components.php"); // settings_back_button(), the Tilbage of every settings page
+include_once(__DIR__ . "/../includes/settings/layout.php"); // settings_layout_open(): the standard settings layout (Tilbage, left menu) the view uses
 include(__DIR__ . "/usersRolesIncludes/view.php");
 
 // Rows per page of the audit log. Declared before any code that reads it: a const statement is

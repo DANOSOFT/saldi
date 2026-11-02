@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/logoupload.php --- ver 5.1.0 --- 2026-10-31 ---
+// --- systemdata/logoupload.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,17 @@
 // 20261005 Sawaneh Settings redesign G6.2: real admin check for departments (L1), PDF recognised by content (L4), the page
 //                  is shown again after an upload and pdf2ps runs with escaped arguments (L6). Reached from Baggrunde.
 // 20261031 CL/ASR The upload alert's findtekst fallback is id 1751's Danish text (Siden er indlæst.), as the tekster guardrail requires.
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the
+//                 settings menu) instead of page_bar: the page is Baggrunds- og bilagsfiler under Logo & baggrunde, where the hub opens it
+//                 (Åbn), also when Formularer's Baggrund button opened it: breadcrumb Indstillinger / Virksomhed / Logo & baggrunde /
+//                 Baggrunds- og bilagsfiler, the Virksomhed menu with Logo & baggrunde marked, Tilbage above the title.
+//                 Tilbage goes to the page given as returside (the form editor), else to Logo & baggrunde.
+//                 The upload, delete and preview below are unchanged.
+// 20261102 CL/ASR Review: opened from Formularer (its Baggrund button) or the form editor, the page sits under Formularer again: Formularer marked,
+//                 breadcrumb Indstillinger / Virksomhed / Formularer / Baggrunds- og bilagsfiler, Tilbage to the form or the editor, as before
+//                 (it went to Logo & baggrunde).
+//                 The place is kept in the session (logoupload_from) after an upload, a delete, a filter or the preview, which post or link
+//                 back without the returside.
 session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -74,11 +85,8 @@ function bg_display_name($sprog_value) {
 // Get current user info
 global $bruger_id;
 
-// G6.1 (audit FE5): Back returns to the page that opened the upload (the form editor), else to formularkort.php.
+// G6.1 (audit FE5): Back returns to the page that opened the upload (the form editor), else to Logo & baggrunde (the layout's default).
 $uploadBack = function_exists('nav_sanitize_returside') ? nav_sanitize_returside(isset($_GET['returside']) ? $_GET['returside'] : '') : '';
-if ($uploadBack === '') {
-	$uploadBack = 'formularkort.php';
-}
 // G6.2 (audit L1): administrators (and accountant sessions) choose any department; other users only their own.
 $is_admin = !empty($revisor) || (function_exists('perm_can') ? perm_can('settings.users.manage', 'write') : substr((string) $rettigheder, 1, 1) === '1');
 
@@ -188,23 +196,32 @@ if ($selected_department > 0 && !isset($departments[$selected_department]) && !$
 }
 
 
-print "<div align=\"center\">";
-if ($menu=='S') {
-	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => findtekst('1745|Load File', $sprog_id), 'back' => $uploadBack));
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "</td></tr>";
-} else {
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"" . htmlspecialchars($uploadBack, ENT_QUOTES) . "\" accesskey=\"L\">".findtekst('30|Back', $sprog_id)."</a></td>"; #20210803
-	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('1745|Load File', $sprog_id)."</td>";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
+// The standard settings layout (both menu modes). The page sits where it was opened from: under Formularer when Formularer (its
+// Baggrund button) or the form editor (returside) opened it, else under Logo & baggrunde (the hub's Åbn); Tilbage goes back there.
+// The way in is the returside or the referring page. The page's own filter, upload and delete forms and the preview come back
+// without the returside, so the place is kept in the session until the page is opened anew from another page.
+include_once("../includes/settings/layout.php");
+$uploadRef = isset($_SERVER['HTTP_REFERER']) ? (string) $_SERVER['HTTP_REFERER'] : '';
+$uploadSelf = in_array(basename((string) parse_url($uploadRef, PHP_URL_PATH)), array('logoupload.php', 'view_logoupload.php'), true);
+if ($uploadBack !== '' || !$uploadSelf || !isset($_SESSION['logoupload_from']['at'], $_SESSION['logoupload_from']['back'])) {
+	$uploadFrom = array('at' => 'documents.backgrounds', 'back' => $uploadBack);
+	$opener = ($uploadBack !== '') ? $uploadBack : ($uploadSelf ? '' : $uploadRef);
+	$openerFile = basename((string) parse_url($opener, PHP_URL_PATH));
+	if (in_array($openerFile, array('formularkort.php', 'formeditor.php'), true)) {
+		$uploadFrom['at'] = 'formularer';
+		if ($uploadFrom['back'] === '') {
+			$openerQuery = (string) parse_url($opener, PHP_URL_QUERY);
+			$uploadFrom['back'] = function_exists('nav_sanitize_returside') ? nav_sanitize_returside($openerFile . ($openerQuery !== '' ? '?' . $openerQuery : '')) : $openerFile;
+		}
 	}
+	$_SESSION['logoupload_from'] = $uploadFrom;
+}
+$uploadLayout = array('at' => (string) $_SESSION['logoupload_from']['at'], 'title' => findtekst('6673|Baggrunds- og bilagsfiler', $sprog_id));
+if ((string) $_SESSION['logoupload_from']['back'] !== '') {
+	$uploadLayout['back'] = (string) $_SESSION['logoupload_from']['back'];
+}
+settings_layout_open($uploadLayout);
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 if (!file_exists("../logolib")) mkdir("../logolib",0777); 
 
 // Create database-specific directory if it doesn't exist
@@ -715,5 +732,6 @@ function upload(){
 
 print "</tbody></table>";
 print "</td></tr>";
+settings_layout_close();
 
 ?>

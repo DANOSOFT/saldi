@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,10 @@
 // 20261030 CL/MMR SST-917: Text boxes keep every space (white-space: pre), because the PDF engine prints them all.
 //                 The draft preview shows the payment term as the field holds it ("Netto"), not "Netto 8 dage".
 //                 The draft preview leaves out order-line columns at x 0, which the PDF engine never prints.
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the
+//                 settings menu) instead of page_bar: Tilbage above the title, breadcrumb Indstillinger / Virksomhed / Formularer / Formulareditor
+//                 and the Virksomhed menu with Formularer marked beside the editor. Tilbage goes where page_bar's did.
+//                 The editor keeps its own font; its canvas and side panel are 76 px shorter, so they end inside the window.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -847,13 +851,13 @@ function fe_render_besk_labels($besk) {
 //  PAGE CHROME (modern top menu, mirrors formularkort.php / logoupload.php)
 // ---------------------------------------------------------------------------
 $menu = isset($menu) ? $menu : '';
-print "<div id=\"fe-header\">";
-include_once("../includes/stdFunc/pageBar.php");
-page_bar(array('title' => $title, 'back' => $returside));
-print "</div>";
+// The standard settings layout: the editor under Formularer (includes/stdFunc/pageRoutes.php), Tilbage as page_bar's was.
+include_once("../includes/settings/layout.php");
+settings_layout_open(array('title' => $title, 'back' => $returside, 'legacy' => false));
 ?>
 <style>
   #fe-wrap { font-family: Arial, Helvetica, sans-serif; }
+  .st-page:has(#fe-main) { padding-bottom: 16px; } /* 20261102: the editor ends inside the window, so the page does not scroll under it */
 
   #fe-header table { font-family: Arial, Helvetica, sans-serif; }
   #fe-toolbar {
@@ -865,7 +869,7 @@ print "</div>";
   #fe-toolbar select, #fe-toolbar input[type=number] { font-size:13px; padding:2px 4px; }
   #fe-toolbar .sep { width:1px; height:22px; background:#c7cdd6; }
   #fe-main { display:flex; align-items:flex-start; gap:0; position:relative; }
-  #fe-canvas-area { position:relative; flex:1 1 auto; height:calc(100vh - 190px); min-height:420px; }
+  #fe-canvas-area { position:relative; flex:1 1 auto; height:calc(100vh - 266px); min-height:420px; } /* 20261102: below the settings head */
   #fe-canvas-scroll {
     position:absolute; inset:0; overflow:auto; background:#8a90a0; padding:24px;
   }
@@ -893,7 +897,7 @@ print "</div>";
   #fe-align-bar .fe-ab-btn:hover { background:#e9f0ff; border-color:#9db4e6; }
   #fe-align-bar .fe-ab-sep { width:1px; height:20px; background:#d3d8e0; margin:0 3px; }
   #fe-align-bar .fe-ab-count { font-size:11px; color:#667; margin-right:4px; white-space:nowrap; }
-  #fe-fields-drawer { position:absolute; z-index:39; top:8px; left:8px; width:234px; max-height:calc(100vh - 240px);
+  #fe-fields-drawer { position:absolute; z-index:39; top:8px; left:8px; width:234px; max-height:calc(100vh - 316px);
     background:#fff; border:1px solid #c7cdd6; border-radius:8px; box-shadow:0 6px 22px rgba(0,0,0,.18);
     display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; }
   #fe-fields-drawer .fe-fd-head { display:flex; align-items:center; justify-content:space-between;
@@ -1015,7 +1019,7 @@ print "</div>";
   }
   .fe-el.fe-logo-ph:hover { border-color:#8894ad; color:#667; opacity:1; }
   #fe-side { width:280px; flex:0 0 280px; background:#fafbfc; border-left:1px solid #d3d8e0;
-    height:calc(100vh - 190px); overflow:auto; padding:12px; box-sizing:border-box; }
+    height:calc(100vh - 266px); overflow:auto; padding:12px; box-sizing:border-box; }
   #fe-side h3 { margin:0 0 8px; font-size:14px; color:#223; }
   #fe-side .row { display:flex; align-items:center; justify-content:space-between; margin:6px 0; font-size:12px; }
   #fe-side .row input[type=number] { width:80px; }
@@ -3974,5 +3978,6 @@ print "</div>";
 </script>
 
 <?php
+settings_layout_close();
 print "</body></html>\n";
 ?>
