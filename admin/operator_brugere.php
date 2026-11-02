@@ -5,7 +5,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -- systemdata/operator_brugere.php ------------- lap 4.0.8 -- 2026-10-29 --
+// -- systemdata/operator_brugere.php ------------- lap 4.0.8 -- 2026-11-02 --
 // 20261012 CL/ASR Operator copy of admin/admin_brugere.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -31,6 +31,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 // 20230323 PBLM Fixed some minor errors
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
 // 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
+// 20261102 CL/ASR "Ret" jumps to the edit form (#ret), like "Ny bruger" does (#ny) (review #785, SirRolin).
 
 @session_start();
 $s_id=session_id();
@@ -146,7 +147,7 @@ if ($br_admin) {
 	while ($row = db_fetch_array($query)) {
 		list($admin,$oprette,$slette,$adgang_til)=array_pad(explode(",",$row['rettigheder'],4), 4, '');
 		$ok = fn($v) => $v ? '<span class="vr-st"><span class="vr-dot vr-ok"></span></span>' : '<span class="vr-mut2">–</span>';
-		print "<tr".((int)$row['id'] == (int)$ret_id ? " style=\"background:var(--surface-2)\"" : "")."><td class=\"vr-nm\"><a href=\"operator_brugere.php?ret_id=".(int)$row['id']."\">".vr_h($row['brugernavn'])."</a></td><td class=\"vr-mut vr-num\">".($adgang_til === '*' ? vr_t('alle','all') : vr_h($adgang_til))."</td><td class=\"vr-mut\">".(isset($pu[(int)$row['id']]) ? vr_h($pu[(int)$row['id']]) : '<span class="vr-mut2">–</span>')."</td><td>".$ok($admin)."</td><td>".$ok($oprette)."</td><td>".$ok($slette)."</td><td class=\"vr-r\"><a class=\"vr-link\" href=\"operator_brugere.php?ret_id=".(int)$row['id']."\">".findtekst('1206|Ret', $sprog_id)."</a></td></tr>";
+		print "<tr".((int)$row['id'] == (int)$ret_id ? " style=\"background:var(--surface-2)\"" : "")."><td class=\"vr-nm\"><a href=\"operator_brugere.php?ret_id=".(int)$row['id']."#ret\">".vr_h($row['brugernavn'])."</a></td><td class=\"vr-mut vr-num\">".($adgang_til === '*' ? vr_t('alle','all') : vr_h($adgang_til))."</td><td class=\"vr-mut\">".(isset($pu[(int)$row['id']]) ? vr_h($pu[(int)$row['id']]) : '<span class="vr-mut2">–</span>')."</td><td>".$ok($admin)."</td><td>".$ok($oprette)."</td><td>".$ok($slette)."</td><td class=\"vr-r\"><a class=\"vr-link\" href=\"operator_brugere.php?ret_id=".(int)$row['id']."#ret\">".findtekst('1206|Ret', $sprog_id)."</a></td></tr>";
 	}
 	print "</tbody></table></div></section>";
 }
