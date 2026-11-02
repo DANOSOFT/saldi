@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
 // 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
+// 20261028 CDX/NTR Apply the tekst_key schema migration to both tenant and master databases.
 // 20261029 CL/ASR SD-731: the operator panel's master-database tables (includes/opdat_func/operatorPanelSchema.php).
 
 /**
@@ -72,6 +73,60 @@ if (!$udlignDateBackfilled) {
 	);
 }
 
+// 20261022 CL/NTR tekster gets a descriptive string key (tekst_key) alongside the legacy numeric
+// tekst_id, so findtekst() can be called with keys like 'common.accept'. Nullable, added as a
+// separate column rather than retyping tekst_id. See doc/ai/convention_findtekst_keys.md.
+$tekstKeyMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$tekstKeyTargets = [false];
+if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb']) {
+	// db_select()/db_modify() route global=true to the shared master database.
+	$tekstKeyTargets[] = true;
+}
+foreach ($tekstKeyTargets as $tekstKeyGlobal) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster' AND column_name='tekst_key'";
+	$qtxt .= $tekstKeyMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $tekstKeyGlobal))) {
+		if ($tekstKeyMysql) {
+			// MySQL has no ADD COLUMN IF NOT EXISTS. Serialize this migration per database.
+			$tekstKeyLock = "CONCAT('saldi:tekst_key:', MD5(DATABASE()))";
+			$lockResult = db_fetch_array(db_select("SELECT GET_LOCK($tekstKeyLock, 30) AS acquired", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal));
+			if ((int) ($lockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the tekst_key migration lock.');
+			}
+			try {
+				// Another login may have added the column while this connection waited.
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $tekstKeyGlobal))) {
+					db_modify("ALTER TABLE tekster ADD COLUMN tekst_key VARCHAR(190)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($tekstKeyLock)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+			}
+		} else {
+			db_modify("ALTER TABLE tekster ADD COLUMN IF NOT EXISTS tekst_key VARCHAR(190)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+		}
+	}
+
+	// Composite index for findtekst() key lookups (WHERE tekst_key = ... AND sprog_id = ...).
+	if ($tekstKeyMysql) {
+		$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_name='tekster' AND index_name='idx_tekster_sprog_key' AND table_schema = DATABASE()";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $tekstKeyGlobal))) {
+			$tekstKeyIdxLock = "CONCAT('saldi:tekst_key_idx:', MD5(DATABASE()))";
+			$idxLockResult = db_fetch_array(db_select("SELECT GET_LOCK($tekstKeyIdxLock, 30) AS acquired", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal));
+			if ((int) ($idxLockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the tekst_key index migration lock.');
+			}
+			try {
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $tekstKeyGlobal))) {
+					db_modify("CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($tekstKeyIdxLock)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+			}
+		}
+	} else {
+		db_modify("CREATE INDEX IF NOT EXISTS idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+	}
+}
 
 // 20261029 CL/ASR SD-731 operator panel: its tables live in the master database. operator_panel_schema() uses the master
 // connection ($global = true) and runs once per master (settings flag 'operator_panel_schema'); later logins only read the flag.
