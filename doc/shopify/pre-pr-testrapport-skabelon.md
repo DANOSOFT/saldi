@@ -12,7 +12,7 @@ Paste this into the PR description, filled in, before asking for review.
 - [ ] `php vendor/bin/phpunit --testsuite shopify` green locally (paste the summary line).
 - [ ] Characterization tests written **before** any legacy core edit, and still green after it.
 - [ ] POS-touching PR: `tests/test_pos_cash_checkout.php` run and green.
-- [ ] Sandbox script `tests/shopify/sandbox/<K>.php` run against the sandboxes, or SKIP with the reason.
+- [ ] Sandbox script `tests/shopify/support/sandbox/<K>.php` run against the sandboxes, or SKIP with the reason.
 
 ## Manual test scenarios
 For each affected function/page: the steps you ran and what you saw.
