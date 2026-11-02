@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 5.0.0 --- 2026-10-27---
+// --- lager/rapport.php --- ver 5.1.0 --- 2026-11-02---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
