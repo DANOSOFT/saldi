@@ -32,6 +32,7 @@
 // 20261102 CL/ASR Includes includes/opretfunc.php instead of the removed copy.
 //                 No DDL here any more: until includes/betweenUpdates.php has created the tables, every endpoint answers "not ready".
 //                 base_url is required ("not ready" without it), and CLI runs get a three-level REQUEST_URI so the logs land in temp/<db>.
+//                 Includes includes/cvrLookup.php for CVR numbers.
 
 $css = '';
 $title = 'signup';
@@ -46,6 +47,7 @@ if (!isset($_SERVER['REQUEST_URI'])) {
 include("../includes/connect.php");
 include("../includes/std_func.php");
 include(__DIR__ . "/../opretfunc.php"); // opret_build_tenant(): the tenant database build
+include(__DIR__ . "/../cvrLookup.php"); // cvrLookupCompany(): CVR numbers at Datafordeleren
 include(__DIR__ . "/signupFunc.php");
 include(__DIR__ . "/signupMail.php");
 include(__DIR__ . "/signupPage.php");

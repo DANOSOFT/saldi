@@ -313,6 +313,23 @@ final class signupFunc extends TestCase
         self::assertContains('http://localhost:5000', signup_allowed_origins());
     }
 
+    public function testCvrNumbersComeFromMastersLookup(): void
+    {
+        // cvrLookupCompany()'s answer (includes/cvrLookup.php, Datafordeleren) in the form opret.php and cvr.php use
+        $company = ['cvrnr' => '46412532', 'firmanavn' => 'Danosoft ApS', 'addr1' => 'c/o Revisor A/S', 'addr2' => 'Vej 2',
+            'postnr' => '3000', 'bynavn' => 'Helsingør', 'tlf' => '', 'email' => ''];
+        self::assertSame(['status' => 'found', 'vat' => '46412532', 'name' => 'Danosoft ApS', 'address' => 'c/o Revisor A/S', 'address2' => 'Vej 2',
+            'zipcode' => '3000', 'city' => 'Helsingør'], signup_cvr_result(['ok' => true, 'error' => null, 'dissolved' => false, 'company' => $company]));
+        self::assertSame(['status' => 'notfound'], signup_cvr_result(['ok' => true, 'error' => null, 'dissolved' => true, 'company' => $company]), 'an ended company');
+        foreach (['NOT_FOUND', 'INVALID'] as $error) {
+            self::assertSame(['status' => 'notfound'], signup_cvr_result(['ok' => false, 'error' => $error, 'dissolved' => false, 'company' => null]), $error);
+        }
+        foreach (['UNAVAILABLE', 'QUOTA_EXCEEDED', 'BLOCKED'] as $error) {
+            // no key on the server, Datafordeleren down: opret.php goes on with the typed number
+            self::assertSame(['status' => 'error'], signup_cvr_result(['ok' => false, 'error' => $error, 'dissolved' => false, 'company' => null]), $error);
+        }
+    }
+
     public function testBillingPayloadCannotBreakTheApisSql(): void
     {
         $row = ['firmanavn' => "Hotel'; DROP TABLE ordrer;--", 'navn' => 'Mette "M" Lund\\', 'email' => 'm@ab.dk', 'tlf' => '12345678',

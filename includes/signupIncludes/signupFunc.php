@@ -58,6 +58,8 @@
 //                 A longer e-mail is refused instead of cut to 60; posts the browser marks Sec-Fetch-Site same-origin pass the origin check.
 //                 max_activations_per_day is counted under the regnskab lock; a failed reservation is logged and noted on the signup.
 //                 The CVR cache is written with an upsert, and IPv4-mapped client addresses count as their IPv4 address.
+//                 A CVR number is looked up with master's cvrLookupCompany() (Datafordeleren, the server's key, no daily quota); cvrapi.dk only searches names,
+//                 with master's User-Agent and refusal pause, and an ended company is not found by either.
 
 /** @var string $sqhost  from includes/connect.php */
 /** @var string $squser  from includes/connect.php */
@@ -139,7 +141,7 @@ if (!function_exists('signup_setting')) {
 	 *   login_url_finans  optional separate login page for Finans (default: login_url)
 	 *   from_email, from_name, reply_to, bcc, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure
 	 *   allowed_origins   comma-separated origins allowed to call signup/opret.php from a browser
-	 *   cvr_api_url, cvr_user_agent, cvr_cache_days
+	 *   cvr_api_url, cvr_user_agent, cvr_cache_days  name search at cvrapi.dk (CVR numbers: includes/cvrLookup.php)
 	 *   locator_url (https://ssl3.saldi.dk/locator/locator.php), locator_check (on/off), hibp_check (on/off)
 	 *   billing_api_base  REST api base for the billing order ('' = no order is created)
 	 *   trial_days (30), trial_grace_days (14): the account closes (regnskab.lukkes) this many days after the
@@ -634,15 +636,20 @@ if (!function_exists('signup_password_pwned')) {
 
 if (!function_exists('signup_lookup_cvr')) {
 	/**
-	 * Looks a company up in the CVR register by number or name, through cvrapi.dk (cvr_api_url
-	 * setting), with a cache in signup_cvr_cache so repeated lookups do not count against the
-	 * provider's quota. The free tier is per server address and small (plan.md: consider a paid
-	 * agreement or Erhvervsstyrelsen's own access); a quota or network error yields 'error' and the
-	 * form falls back to a manually typed CVR number.
+	 * Looks a company up in the CVR register by number or name.
+	 *
+	 * A CVR number goes to master's lookup (includes/cvrLookup.php, cvrLookupCompany()): Datafordeleren, the
+	 * register's own service, with the server's API key (setting datafordeler / apikey in the master database),
+	 * free and without a daily quota, cached in temp/cvrcache. This is the lookup opret.php relies on. Without
+	 * the key, or while Datafordeleren is down, it yields 'error' and the form goes on with the typed number.
+	 *
+	 * A company name (only a suggestion for the website's form) goes to cvrapi.dk's search (cvr_api_url), with a
+	 * cache in signup_cvr_cache; its free quota is small and per server address, and when it is used up
+	 * the name search says 'error'.
 	 *
 	 * @param string $q 8-digit CVR number or a company name (at least 3 characters)
-	 * @return array{status: string, vat?: string, name?: string, address?: string, zipcode?: string,
-	 *               city?: string} status: 'found' | 'notfound' | 'error'
+	 * @return array{status: string, vat?: string, name?: string, address?: string, address2?: string,
+	 *               zipcode?: string, city?: string} status: 'found' | 'notfound' | 'error'
 	 */
 	function signup_lookup_cvr($q) {
 		global $db_type;
@@ -652,9 +659,17 @@ if (!function_exists('signup_lookup_cvr')) {
 		if (!$isCvr && mb_strlen($q) < 3) {
 			return array('status' => 'notfound');
 		}
-		$key = $isCvr ? 'vat:' . $digits : 'name:' . mb_strtolower($q);
+		if ($isCvr) {
+			return signup_cvr_result(cvrLookupCompany($digits, 6));
+		}
+		$key = 'name:' . mb_strtolower($q);
 		if (mb_strlen($key) > 120) { // signup_cvr_cache.q is VARCHAR(120)
 			$key = 'name#' . sha1($key);
+		}
+		// The same server address and quota as master's cvrapi.dk lookups (phone numbers on the kreditor card): its
+		// pause after a refusal holds here too, so more calls cannot turn a used-up quota into a ban.
+		if (cvrLookupPaused('') !== null) {
+			return array('status' => 'error');
 		}
 		$days = max(1, (int)signup_setting('cvr_cache_days', '7'));
 		$fresh = ($db_type == 'mysql' || $db_type == 'mysqli') ? "fetched > DATE_SUB(NOW(), INTERVAL $days DAY)" : "fetched > now() - interval '$days days'";
@@ -662,31 +677,30 @@ if (!function_exists('signup_lookup_cvr')) {
 		if ($r && ($cached = json_decode($r['result'], true)) && isset($cached['status'])) {
 			return $cached;
 		}
-		$url = rtrim(signup_setting('cvr_api_url', 'https://cvrapi.dk/api'), '/') . '?country=dk&' . ($isCvr ? 'vat=' . $digits : 'search=' . rawurlencode($q));
+		$url = rtrim(signup_setting('cvr_api_url', 'https://cvrapi.dk/api'), '/') . '?country=dk&search=' . rawurlencode($q);
 		$ch = curl_init($url);
 		curl_setopt_array($ch, array(
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_TIMEOUT => 6,
 			CURLOPT_CONNECTTIMEOUT => 3,
-			CURLOPT_USERAGENT => signup_setting('cvr_user_agent', 'Saldi oprettelse - ' . signup_setting('support_email', 'info@saldi.dk')),
+			CURLOPT_USERAGENT => signup_setting('cvr_user_agent', cvrLookupUserAgent()),
 		));
 		$body = curl_exec($ch);
-		$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		curl_close($ch);
 		$d = ($body !== false) ? json_decode($body, true) : null;
-		if (is_array($d) && !empty($d['vat'])) {
-			$result = array(
-				'status' => 'found',
-				'vat' => (string)$d['vat'],
-				'name' => signup_clean_text(ifset($d, 'name', ''), 90),
-				'address' => signup_clean_text(ifset($d, 'address', ''), 60),
-				'zipcode' => signup_clean_text(ifset($d, 'zipcode', ''), 10),
-				'city' => signup_clean_text(ifset($d, 'city', ''), 60),
-			);
-		} elseif (is_array($d) && ifset($d, 'error', '') === 'NOT_FOUND') {
+		$given = (is_array($d) && !empty($d['error'])) ? preg_replace('/[^A-Z_]/', '', strtoupper((string)$d['error'])) : '';
+		if (is_array($d) && !empty($d['vat']) && $given === '') {
+			// mapped like a CVR number's answer: an ended company is not found, a c/o address as on a letter
+			$result = signup_cvr_result(array('ok' => true, 'error' => null, 'dissolved' => cvrLookupDissolved($d), 'company' => cvrLookupCompanyFields($d)));
+		} elseif ($given === 'NOT_FOUND') {
 			$result = array('status' => 'notfound');
 		} else {
-			signup_log("cvr lookup failed (http $code): " . substr((string)$body, 0, 200));
+			$error = ($given !== '') ? $given : ($code === 403 ? 'BLOCKED' : 'UNAVAILABLE');
+			signup_log("cvr name search failed (http $code, $error)");
+			if ($body !== false && ($code >= 400 || $given !== '')) {
+				cvrLookupPause($error, ''); // a quota stops the server's cvrapi.dk calls until tomorrow, a refusal for an hour
+			}
 			return array('status' => 'error');
 		}
 		// One statement, so parallel lookups of the same new query do not collide on the key (each failure mails fejl@).
@@ -696,6 +710,35 @@ if (!function_exists('signup_lookup_cvr')) {
 			: " ON CONFLICT (q) DO UPDATE SET result = EXCLUDED.result, fetched = now()";
 		db_modify("INSERT INTO signup_cvr_cache (q, result) VALUES (" . signup_q($key) . ", $json)" . $upsert, __FILE__ . " linje " . __LINE__, true);
 		return $result;
+	}
+}
+
+if (!function_exists('signup_cvr_result')) {
+	/**
+	 * cvrLookupCompany()'s answer (includes/cvrLookup.php) in signup_lookup_cvr()'s form. An ended company is not
+	 * found: Datafordeleren does not return it, and cvrapi.dk's flag for it counts the same.
+	 *
+	 * @param array $lookup array{ok: bool, error: string|null, dissolved: bool, company: array|null}
+	 * @return array{status: string, vat?: string, name?: string, address?: string, address2?: string,
+	 *               zipcode?: string, city?: string}
+	 */
+	function signup_cvr_result(array $lookup) {
+		$c = ifset($lookup, 'company', null);
+		if (!empty($lookup['ok']) && is_array($c) && empty($lookup['dissolved'])) {
+			return array(
+				'status' => 'found',
+				'vat' => (string)ifset($c, 'cvrnr', ''),
+				'name' => signup_clean_text(ifset($c, 'firmanavn', ''), 90),
+				'address' => signup_clean_text(ifset($c, 'addr1', ''), 60),
+				'address2' => signup_clean_text(ifset($c, 'addr2', ''), 60),
+				'zipcode' => signup_clean_text(ifset($c, 'postnr', ''), 10),
+				'city' => signup_clean_text(ifset($c, 'bynavn', ''), 60),
+			);
+		}
+		if (!empty($lookup['dissolved']) || in_array(ifset($lookup, 'error', ''), array('NOT_FOUND', 'INVALID'), true)) {
+			return array('status' => 'notfound');
+		}
+		return array('status' => 'error');
 	}
 }
 

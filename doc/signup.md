@@ -41,7 +41,8 @@ deploy). Until then every endpoint answers "not ready" (`signup_schema_ready()`)
   activated". `rydop.php` removes only signups that were never activated.
 - `signup_events` - rate limiting (kind, ip, email, ts). `ip` is the client address (IPv6 per /64), `email` the
   mailbox (`signup_email_key()`: lower case, without `+tag`, Gmail without dots).
-- `signup_cvr_cache` - CVR lookups, kept for `cvr_cache_days`.
+- `signup_cvr_cache` - name searches at cvrapi.dk, kept for `cvr_cache_days`. CVR numbers are cached by
+  `includes/cvrLookup.php` in `temp/cvrcache`.
 - `regnskab` gets `trial_start`, `trial_end` and `pakke`. A new account also gets its package's
   `brugerantal`/`posteringer` (Finans 1/500, Professionel 1/5.000, Business 1/25.000; never 0, which would
   mean unlimited) and `lukkes` = end of trial + `trial_grace_days` (14), so it closes by itself at login
@@ -66,7 +67,7 @@ mail transport also reads the docker stack's `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE
 | `from_email`, `from_name`, `reply_to`, `bcc` | `noreply@saldi.dk`, `Saldi`, `support_email`, - | Sender; the sender address is still an open decision (plan.md). |
 | `smtp_host`, `smtp_port`, `smtp_user`, `smtp_pass`, `smtp_secure` | -, 587, -, -, - | SMTP; without a host PHPMailer uses sendmail. `smtp_secure`: `tls` (STARTTLS) or `ssl`. Production uses Resend, see "Mail delivery" below. |
 | `allowed_origins` | `https://saldi.dk,https://www.saldi.dk` | Origins allowed to call the endpoints from a browser (CORS), plus `base_url`'s own origin. A POST to `opret.php`/`nytlink.php` with any other `Origin` is refused (403), so other websites cannot make their visitors send signup mails. |
-| `cvr_api_url`, `cvr_user_agent`, `cvr_cache_days` | `https://cvrapi.dk/api`, `Saldi oprettelse - <support_email>`, 7 | CVR provider. |
+| `cvr_api_url`, `cvr_user_agent`, `cvr_cache_days` | `https://cvrapi.dk/api`, master's `cvrLookupUserAgent()`, 7 | Name search only (a suggestion for the form). It shares the server's cvrapi.dk quota with the kreditor card's lookups and honours their pause after a refusal. CVR numbers are looked up at Datafordeleren with master's `includes/cvrLookup.php`, using the server's API key: setting `datafordeler` / `apikey` in the master database, the same key the kreditor lookup uses. |
 | `locator_url`, `locator_check` | `https://ssl3.saldi.dk/locator/locator.php`, `on` | Cross-server name check, the same locator as `index/login.php`. Asked before the `regnskab` table is locked. The locator only answers allow-listed servers; otherwise the check is skipped and logged once. |
 | `hibp_check` | `on` | Reject passwords known from breaches (k-anonymity: 5 hash characters leave the server). |
 | `billing_api_base` | - | REST api base (e.g. `https://ssl3.saldi.dk/finans/restapi/endpoints/v1`) of the account that bills; empty = no order. Uses the `internal_api` settings. `billing_sku_<pakke>` overrides the item numbers FINANS/PROFESSIONEL/BUSINESS. Off until the billing integration has been reviewed and tested end to end (it is not part of the launch); the api finds the customer by phone number, so without a phone number no order is created. |
@@ -151,9 +152,10 @@ cut address can be somebody else's.
 
 - Finans (Mini) accounts are created the same way as the others; plan.md's open point 5 (own
   system for Mini) is not resolved here.
-- The locator and cvrapi.dk both restrict by server address (the locator allow-lists servers,
-  cvrapi.dk's free quota is per address); on a server without access the name check is local only
-  and the form falls back to a manually typed CVR number.
+- The locator allow-lists servers; on a server without access the name check is local only.
+- CVR numbers need the server's Datafordeleren key (`datafordeler` / `apikey` in the master settings). Without it,
+  or while Datafordeleren is down, `opret.php` goes on with the number the customer typed, unchecked (logged by
+  `includes/cvrLookup.php`). Name search uses cvrapi.dk's small free quota and says "error" when it is used up.
 - Passwords are stored with `saldikrypt()` to stay compatible with `index/login.php`; the upgrade
   to `password_hash()` is a separate task.
 

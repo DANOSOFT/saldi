@@ -23,13 +23,15 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Server-side CVR lookup for the website's form (plan.md, section 1: the browser no longer calls
-// cvrapi.dk itself). Cached and rate limited per client address.
+// cvrapi.dk itself). A CVR number is looked up at Datafordeleren (includes/cvrLookup.php), a name at
+// cvrapi.dk; cached and rate limited per client address.
 //
 //   GET q=<8-digit CVR number or company name>
-//   -> {status:"found", vat, name, address, zipcode, city} | {status:"notfound"} | {status:"error"}
+//   -> {status:"found", vat, name, address, address2, zipcode, city} | {status:"notfound"} | {status:"error"}
 //
 // 20261014 CL/PS Created.
 // 20261102 CL/ASR The rate limit is claimed (recorded, then counted) after the query has been validated.
+//                 CVR numbers are looked up at Datafordeleren (signup_lookup_cvr()).
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");

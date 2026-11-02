@@ -41,6 +41,7 @@
 // 20261102 CL/ASR Refuses POSTs from foreign origins.
 //                 Limits are claimed (recorded, then counted) after validation, so typos do not use them up, and include a server ceiling, max_signups_per_hour.
 //                 The form's own CVR lookups count against the CVR limit; when it is used up the signup waits instead of skipping the check.
+//                 A c/o address from the CVR register is kept as on a letter: addr1 "c/o <name>", the street in addr2 (as on the kreditor card).
 //                 The per-mailbox mail cap is claimed before the mail is sent.
 
 chdir(__DIR__);
@@ -74,8 +75,8 @@ $errors = $v['errors'];
 $company = array('firmanavn' => $d['firmanavn'], 'addr1' => '', 'addr2' => '', 'postnr' => '', 'bynavn' => '');
 $nameFromCvr = false; // the mail only says "hentet fra CVR" when it really was
 if (!$errors && $d['cvr'] !== '') {
-	// Counted like cvr.php's lookups, so the form cannot be used to spend the register's quota. A used-up quota
-	// makes the signup wait: going on as if the register were down would let a client skip the check.
+	// Counted like cvr.php's lookups, so the form cannot be used to flood the register. A used-up limit makes the
+	// signup wait: going on as if the register were down would let a client skip the check.
 	if (!signup_claim_event('cvr', 40, 3600)) {
 		signup_too_many('Der er slået mange CVR-numre op fra jeres adresse den seneste time. Prøv igen senere, eller ring til os.', $json);
 	}
@@ -84,12 +85,13 @@ if (!$errors && $d['cvr'] !== '') {
 		$nameFromCvr = ($cvr['name'] !== '');
 		$company['firmanavn'] = $nameFromCvr ? $cvr['name'] : $d['firmanavn'];
 		$company['addr1'] = $cvr['address'];
+		$company['addr2'] = ifset($cvr, 'address2', '');
 		$company['postnr'] = $cvr['zipcode'];
 		$company['bynavn'] = $cvr['city'];
 	} elseif ($cvr['status'] === 'notfound') {
 		$errors['cvr'] = 'Vi kunne ikke finde CVR-nummeret i CVR-registret. Tjek cifrene, eller opret jer med virksomhedsnavn i stedet.';
 	}
-	// 'error' (register unavailable): go on with the number and the name the customer gave, if any
+	// 'error' (Datafordeleren down, or no API key on this server): go on with the number and the name the customer gave
 	if ($company['firmanavn'] === '') {
 		$company['firmanavn'] = 'CVR ' . $d['cvr'];
 	}
