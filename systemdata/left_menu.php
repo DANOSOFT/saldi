@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/left_menu.php -----patch 4.0.8 ----2023-07-22----
+// ----------------systemdata/left_menu.php -----patch 5.1.0 ----2026-11-02----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,13 +16,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20141030 CA  Ændret projekter til topmenu-design - søg 20141030
 // 20150217 CA  Ændret varegrupper til topmenu-design - søg 20150217
 // 20150217 CA  Tilføjet linjeskift i HTML-koden, så fejlsøgning lettes
 // 20150313 CA  Ændret henvisning til rabatgrupper - søg 20150313
 // 20260710 SZ  Added Settings search box above the Systemdata menu (settingsSearch.php/.js/.css)
+// 20261102 CL/MJ SD-761: Shopify entry, shown once the tenant has a Shopify shop.
 
 	print "<div class=\"leftmenu\">";
 	if (strpos($_SERVER['SCRIPT_NAME'],"kontoplan.php")) {
@@ -76,6 +77,10 @@
 #			print "<li><a href=\"enheder.php\" accesskey=\"E\">Enh/mat</a></li>\n";
 			print "<li><a href=\"enheder.php\" accesskey=\"E\">Enheder/materialer</a></li>\n"; # 20150217 - skrevet fuldt ud
 			print "<li><a href=\"diverse.php?valg=diverse\" accesskey=\"I\">Diverse</a></li>\n";
+			include_once __DIR__ . '/shopify/adminModel.php';
+			if (shopify_admin_menu_visible()) {
+				print "<li><a href=\"shopify/shops.php\">".findtekst('shopify.admin.menu|Shopify', $sprog_id)."</a></li>\n";
+			}
 		print "</ul>";
 	}
 	print "</div><!-- end of leftmenu -->";
