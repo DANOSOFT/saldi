@@ -180,8 +180,7 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 		} finally {
 			ob_end_clean();
 		}
-		if ($db_select_fejl) {
-			// db_select() only alerted and the print carried on, so this PDF can miss data; it is kept for good once published
+		if ($db_select_fejl) { // db_select() only alerted and the print carried on, so this PDF can miss data and is kept for good once published. A lookup that can fail on ordinary data needs its own guard in formfunk.php
 			throw new DocumentRenderError("order $ordreId: a query failed during the print");
 		}
 		if (!is_array($documents) || $documents === array()) {

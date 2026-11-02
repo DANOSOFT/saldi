@@ -13,7 +13,7 @@
 // History:
 // 20261030 CL/SZ SD-752: created.
 // 20261101 CL/SZ SD-752 review: a failing legacy query in the render, a link whose order changed kind.
-// 20261102 CL/SZ SD-794: a query failing during the print publishes no PDF; the retry gets the document; set prices without a valid rebate item still render.
+// 20261102 CL/SZ SD-794: a query failing during the print publishes no PDF; the retry gets the document; set prices without a valid rebate item and a line without an item still render.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -457,7 +457,23 @@ final class DokumentLinkTest extends TestCase
     /** @return array<string, array{string}> */
     public static function rebateItems(): array
     {
-        return ['empty' => [''], 'not a number' => ['RABAT']];
+        return ['empty' => [''], 'not a number' => ['RABAT'], 'past int4, as an EAN' => ['5701234567890']];
+    }
+
+    public function testALineWithoutAnItemStillRendersTheInvoiceEveryTime(): void
+    {
+        $doc = $this->posted();
+        $token = self::token($this->link($doc['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        // what restapi/services/OrderLineService.php writes for a product it doesn't know
+        ShopifyEnv::rows($conn, 'UPDATE ordrelinjer SET vare_id = NULL WHERE ordre_id = $1', [$doc['id']]);
+        pg_close($conn);
+
+        foreach ([1, 2] as $request) {
+            $response = $this->get("?t=$token");
+            $this->assertSame(200, $response['status'], "request $request: {$response['body']}");
+            $this->assertSame('%PDF-', substr($response['body'], 0, 5));
+        }
     }
 
     public function testAnEmptySecretRowIsReplacedOnceAndLinksStayStable(): void

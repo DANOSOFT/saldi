@@ -94,7 +94,8 @@
 //                the documents are returned.
 //                A page-break text with $ordre_creditedinvoice printed the credited invoice's number instead of exiting,
 //                and a credit note without a credited invoice prints it empty instead of failing on the query.
-// 20261102 CL/SZ SD-794: without a valid rebate item (DIV 3 box2 empty or not a number) the query for its line, which failed, is skipped.
+// 20261102 CL/SZ SD-794: without a valid rebate item (DIV 3 box2 empty, not a number or past int4) the query for its line, which failed, is skipped.
+// 20261102 CL/SZ SD-794: a line without an item skips the trademark lookup, and an empty $regnaar reads as no fiscal year; both queries failed.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -724,7 +725,7 @@ if (!function_exists('find_form_tekst')) {
 							$qtxt = "select gruppe from adresser where id='$id'";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$qtxt = "select box3 as valuta from grupper where art='DG' and kodenr='$r2[gruppe]' ";
-							$qtxt .= "and fiscal_year = $regnaar";
+							$qtxt .= "and fiscal_year = " . (int)$regnaar; #20261102 CL/SZ SD-794 REST can run without a fiscal year
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						} else {
 							$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
@@ -1175,7 +1176,7 @@ if (!function_exists('formularprint')) {
 			}
 		}
 
-		$qtxt = "select box6,box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+		$qtxt = "select box6,box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '" . (int)$regnaar . "'"; #20261102 CL/SZ SD-794 REST can run without a fiscal year
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$vis_saet = trim($r['box12']);
 		if ($vis_saet)
@@ -1405,7 +1406,7 @@ if (!function_exists('formularprint')) {
 				$r = db_fetch_array(db_SELECT($qtxt, __FILE__ . " linje " . __LINE__));
 				$gruppe = (int) $r['gruppe'];
 				$procenttillag = $r['procenttillag'];
-				$qtxt = "select box8 from grupper where art='DG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
+				$qtxt = "select box8 from grupper where art='DG' and kodenr='$gruppe' and fiscal_year = '" . (int)$regnaar . "'"; #20261102 CL/SZ SD-794 REST can run without a fiscal year
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$b2b = $r['box8'];
 			}
@@ -1829,7 +1830,7 @@ if (!function_exists('formularprint')) {
 						$beskrivelse[$x] = utf8_iso8859('Eksempel på en linjetekst');
 					}
 				} else {
-					if ($brugsamletpris && ctype_digit((string)$rabatvare_id)) { #20261102 CL/SZ SD-794 no rebate item: an empty or non-numeric vare_id would fail the query
+					if ($brugsamletpris && ctype_digit((string)$rabatvare_id) && (int)$rabatvare_id <= 2147483647) { #20261102 CL/SZ SD-794 no rebate item: an empty, non-numeric or too large vare_id would fail the query
 						$qtxt = "select varenr from ordrelinjer where ordre_id = $ordre_id[$o] and vare_id='$rabatvare_id'";
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						if ($r['varenr']) {
@@ -1909,9 +1910,12 @@ if (!function_exists('formularprint')) {
 									$varemomssats[$x] = $momssats;
 
 								# Get trademark
-								$qtxt_varer = "select * from varer where id = '$vare_id[$x]' limit 1";
-								$r_varer = db_fetch_array(db_select($qtxt_varer, __FILE__ . " linje " . __LINE__));
-								$trademark[$x] = ($r_varer["trademark"]);
+								$trademark[$x] = NULL;
+								if ($vare_id[$x]) { #20261102 CL/SZ SD-794 a line without an item (vare_id NULL from REST) would fail the query
+									$qtxt_varer = "select * from varer where id = '$vare_id[$x]' limit 1";
+									$r_varer = db_fetch_array(db_select($qtxt_varer, __FILE__ . " linje " . __LINE__));
+									$trademark[$x] = ($r_varer["trademark"]);
+								}
 
 								(isset($dkantal[$x]) && strpos($dkantal[$x], ",")) ? list($a, $b) = explode(",", $dkantal[$x]) : $b = 0;
 								#						list($a,$b)=explode(",",$dkantal[$x]);

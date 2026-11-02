@@ -369,7 +369,7 @@ if (!function_exists('db_select')) {
 		}
 
 		if ($errtxt)	{		
-			global $db_select_fejl; #20261102 CL/SZ SD-794 lets a caller see that a select failed: the first failure only alerts and carries on
+			global $db_select_fejl; #20261102 CL/SZ SD-794 lets a caller see that a select failed; db_select() alerts and carries on
 			$db_select_fejl = true;
 			$db=trim($db);
 			$linje="";

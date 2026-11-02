@@ -9,7 +9,7 @@
 //
 // History:
 // 20261029 CL/SZ SD-751: created.
-// 20261102 CL/SZ SD-794: a query failing during the print gives 500 and caches nothing.
+// 20261102 CL/SZ SD-794: a query failing during the print gives 500 and caches nothing; no fiscal year still renders.
 
 use PHPUnit\Framework\TestCase;
 
@@ -120,6 +120,26 @@ final class InvoicePdfEndpointTest extends TestCase
         $retry = $this->getPdf($invoice['id']);
         $this->assertSame(200, $retry['status'], $retry['body']);
         $this->assertStringStartsWith('%PDF-', $retry['body']);
+    }
+
+    public function test_an_invoice_renders_without_a_current_fiscal_year(): void
+    {
+        $invoice = $this->order();
+        $conn = RestApiEnv::connect(RestApiEnv::testDb());
+        // BaseEndpoint only logs a warning when there is no fiscal year, so $regnaar reaches the print empty
+        RestApiEnv::rows($conn, "UPDATE grupper SET art = 'RA_away' WHERE art = 'RA'");
+        try {
+            $res = $this->getPdf($invoice['id']);
+        } finally {
+            RestApiEnv::rows($conn, "UPDATE grupper SET art = 'RA' WHERE art = 'RA_away'");
+            pg_close($conn);
+        }
+
+        if ($res['status'] === 500 && trim((string)shell_exec('command -v pdftk 2>/dev/null')) === '') {
+            $this->markTestSkipped('the server could not render the PDF and pdftk is not installed here: ' . $res['body']);
+        }
+        $this->assertSame(200, $res['status'], $res['body']);
+        $this->assertStringStartsWith('%PDF-', $res['body']);
     }
 
     public function test_a_missing_unposted_or_non_invoice_id_gives_no_document(): void
