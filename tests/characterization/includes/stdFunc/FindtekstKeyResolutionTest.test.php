@@ -6,6 +6,7 @@
 // 20261028 CDX/NTR Cover legacy CSV literal matches in every language column.
 // 20261029 CDX/NTR Cover custom/standard keyed TSV precedence, the dash sentinel and keyed stale-row purges.
 // 20261029 CDX/NTR Match database dash placeholders returning their pipe fallback or searchable key.
+// 20261102 CL/MJ Cover a keyed TSV lookup from a page two folders deep.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -149,6 +150,22 @@ final class FindtekstKeyResolutionTest extends TestCase
         self::assertCount(1, $GLOBALS['findtekstStub']->writes);
         self::assertStringContainsString("'common.close'", $GLOBALS['findtekstStub']->writes[0]);
         self::assertStringContainsString("'Close'", $GLOBALS['findtekstStub']->writes[0]);
+    }
+
+    public function testKeyedTsvIsFoundFromAPageTwoFoldersDeep(): void
+    {
+        // systemdata/shopify/shops.php runs two folders below the root. The TSV used to be opened as
+        // ../importfiler relative to the page, so the key fell through to its pipe fallback, which was
+        // then self-healed as the English text.
+        mkdir($this->fixtureRoot . '/page/sub');
+        chdir($this->fixtureRoot . '/page/sub');
+        try {
+            self::assertSame('Close', findtekst('common.close|Luk', 2));
+            self::assertStringContainsString("'Close'", $GLOBALS['findtekstStub']->writes[0]);
+        } finally {
+            chdir($this->fixtureRoot . '/page');
+            rmdir($this->fixtureRoot . '/page/sub');
+        }
     }
 
     public function testKeyedTsvDashSentinelSelfHealsButReturnsEmptyString(): void
