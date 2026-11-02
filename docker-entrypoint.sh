@@ -54,13 +54,16 @@ fi
 # Ensure required writable directories exclude unrelated local accounts.
 # The base PHP image makes this ancestor sticky and writable by everyone.
 chmod o-w /var/www/html
-shared_runtime_group="${SALDI_SHARED_FILE_GROUP:-www-data}"
+# 20261102 CL/NTR Resolve the group in PHP (balances when www-data belongs to it); a refused migration
+# leaves the app on its unmigrated fallback instead of stopping the container.
+shared_runtime_group="$(php -r 'require "/var/www/html/saldi/includes/sharedFile.php"; echo sharedFileGroupName();')"
 for dir in includes logolib temp bank_integration restapi; do
     mkdir -p /var/www/html/saldi/$dir
     chgrp "$shared_runtime_group" /var/www/html/saldi/$dir
     chmod 2770 /var/www/html/saldi/$dir
 done
-php /var/www/html/saldi/tools/migrate_shared_runtime.php /var/www/html/saldi/temp
+php /var/www/html/saldi/tools/migrate_shared_runtime.php /var/www/html/saldi/temp \
+    || echo "Shared runtime migration refused; see doc/runtime-permissions.md" >&2
 
 # Create vendor symlink at /var/www/html/vendor/ so relative paths like
 # ../../vendor/autoload.php resolve correctly when CWD is saldi/debitor/

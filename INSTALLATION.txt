@@ -74,13 +74,20 @@ e.g saldi/loglib etc.
  the group balances then:
 
  sudo chgrp -R balances /var/www/html/saldi/
- sudo chmod 775 /var/www/html/saldi/{includes,logolib,temp}
+ sudo chmod 2770 /var/www/html/saldi/{includes,logolib,temp}
 
  or if you are down in the Saldi catalog itself:
 
- sudo chmod 775 includes logolib temp
+ sudo chmod 2770 includes logolib temp
  
- If that permission didn't work during installation, you can use 777. 
+ 2770 gives the owner and the group full access and other users none; the
+ leading 2 (setgid) makes new files and directories inherit the group.
+ Saldi uses the group balances when www-data is a member of it, and
+ otherwise the group www-data. Avoid 775, which lets every local user
+ list and enter these directories, and 777, which also lets them replace
+ files; under 777 Saldi falls back to plain writes without sharing them.
+ See doc/runtime-permissions.md for CLI accounts and for migrating an
+ existing installation.
 
  In the includes directory the file connect.php is created, so after
  creation, it can be changed to 555. In the catalog logolib

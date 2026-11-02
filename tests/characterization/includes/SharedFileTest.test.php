@@ -1,6 +1,7 @@
 <?php
 // 20261029 CDX/NTR Verify shared runtime permissions under restrictive umasks and existing files.
 // 20261029 CDX/NTR Cover group-only sharing, untrusted parents and administrator migration.
+// 20261102 CL/NTR Cover the balances group, the unmigrated fallback and once-per-message warnings.
 
 use PHPUnit\Framework\TestCase;
 
@@ -118,24 +119,27 @@ final class SharedFileTest extends TestCase
         self::assertSame('private', file_get_contents($path));
     }
 
+    /** A missing parent fails quietly, like the suppressed fopen these helpers replaced. */
     public function testOpenFailureReturnsFalseWithoutWritingToInvalidStream(): void
     {
         $warnings = [];
         set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
-            $warnings[] = $message;
+            if (error_reporting() & $severity) {
+                $warnings[] = $message;
+            }
             return true;
         });
         try {
             self::assertFalse(db_log_append($this->dir . '/missing/log', 'line'));
+            self::assertFalse(sharedDirectory($this->dir . '/missing/tenant'));
         } finally {
             restore_error_handler();
         }
-        self::assertCount(1, $warnings);
-        self::assertStringContainsString('lstat', $warnings[0]);
+        self::assertSame([], $warnings);
     }
 
-    /** An unsafe parent is rejected before an existing file can be truncated or chmodded. */
-    public function testWorldWritableParentIsRejectedBeforeMutation(): void
+    /** An unsafe parent keeps the plain write but never has permissions changed through it. */
+    public function testWorldWritableParentFallsBackWithoutChangingPermissions(): void
     {
         $path = $this->dir . '/existing.log';
         file_put_contents($path, 'keep');
@@ -146,21 +150,22 @@ final class SharedFileTest extends TestCase
             return true;
         });
         try {
-            self::assertFalse(sharedFilePutContents($path, 'truncated'));
+            self::assertSame(9, sharedFilePutContents($path, 'truncated'));
             self::assertFalse(sharedFilePermissions($path));
         } finally {
             restore_error_handler();
             chmod($this->dir, 0700);
         }
-        self::assertCount(2, $warnings);
+        // The repeated warning for the same parent is raised once per request.
+        self::assertCount(1, $warnings);
         self::assertStringContainsString('Untrusted shared-file parent', $warnings[0]);
-        self::assertSame('keep', file_get_contents($path));
+        self::assertSame('truncated', file_get_contents($path));
         clearstatcache(true, $path);
         self::assertSame(0600, fileperms($path) & 0777);
     }
 
-    /** Symlinks in intermediate components cannot redirect file creation or permission changes. */
-    public function testIntermediateSymlinkIsRejected(): void
+    /** Symlinks in intermediate components get the plain write, never a permission change. */
+    public function testIntermediateSymlinkWritesWithoutChangingPermissions(): void
     {
         $target = $this->dir . '/target';
         mkdir($target, 0700);
@@ -172,19 +177,19 @@ final class SharedFileTest extends TestCase
             return true;
         });
         try {
-            self::assertFalse(sharedFilePutContents($link . '/log', 'data'));
-            // A lexical '..' must not conceal a symlink from validation.
-            self::assertFalse(sharedFilePutContents($link . '/../log', 'data'));
+            self::assertSame(4, sharedFilePutContents($link . '/log', 'data'));
+            self::assertTrue(sharedDirectory($link . '/tenant'));
         } finally {
             restore_error_handler();
         }
-        self::assertCount(2, $warnings);
-        self::assertFileDoesNotExist($target . '/log');
-        self::assertFileDoesNotExist($this->dir . '/log');
+        self::assertCount(1, $warnings);
+        clearstatcache();
+        self::assertSame(0600, fileperms($target . '/log') & 0777);
+        self::assertSame(0700, fileperms($target . '/tenant') & 07777);
     }
 
-    /** Creation with an unknown group fails closed instead of falling back to public access. */
-    public function testUnknownGroupDoesNotCreateFile(): void
+    /** An unknown group keeps the plain write instead of losing the log or granting public access. */
+    public function testUnknownGroupFallsBackToPlainWrite(): void
     {
         putenv('SALDI_SHARED_FILE_GROUP=saldi_missing_' . bin2hex(random_bytes(8)));
         $warnings = [];
@@ -193,13 +198,44 @@ final class SharedFileTest extends TestCase
             return true;
         });
         try {
-            self::assertFalse(sharedFilePutContents($this->dir . '/log', 'data'));
+            self::assertSame(4, sharedFilePutContents($this->dir . '/log', 'data'));
+            self::assertSame(4, sharedFilePutContents($this->dir . '/log', 'more', true));
         } finally {
             restore_error_handler();
         }
         self::assertCount(1, $warnings);
         self::assertStringContainsString('unavailable', $warnings[0]);
-        self::assertFileDoesNotExist($this->dir . '/log');
+        clearstatcache();
+        self::assertSame(0600, fileperms($this->dir . '/log') & 0777);
+        self::assertSame('datamore', file_get_contents($this->dir . '/log'));
+    }
+
+    /** A configured group always wins over the balances and www-data defaults. */
+    public function testConfiguredGroupNameWins(): void
+    {
+        putenv('SALDI_SHARED_FILE_GROUP=saldi-runtime');
+        self::assertSame('saldi-runtime', sharedFileGroupName());
+    }
+
+    /** Without configuration, balances is used only while www-data belongs to it. */
+    public function testBalancesGroupIsPreferredWhenWebUserIsMember(): void
+    {
+        if (posix_geteuid() !== 0) {
+            self::markTestSkipped('Creating the balances group requires root, as in the CI web container.');
+        }
+        if (posix_getpwnam('www-data') === false || posix_getgrnam('balances') !== false) {
+            self::markTestSkipped('Requires a www-data account and no existing balances group.');
+        }
+        putenv('SALDI_SHARED_FILE_GROUP');
+        self::assertSame(0, $this->runCommand(['groupadd', 'balances'])['status']);
+        try {
+            self::assertSame('www-data', sharedFileGroupName());
+            $added = $this->runCommand(['usermod', '-a', '-G', 'balances', 'www-data']);
+            self::assertSame(0, $added['status'], $added['output']);
+            self::assertSame('balances', sharedFileGroupName());
+        } finally {
+            $this->runCommand(['groupdel', 'balances']);
+        }
     }
 
     /** A real second user cannot repair a foreign log, but can append after administrator migration. */
@@ -227,7 +263,7 @@ final class SharedFileTest extends TestCase
         $identity = 'if (!posix_initgroups("www-data", ' . $web['gid'] . ') || !posix_setgid(' . $web['gid'] . ') || !posix_setuid(' . $web['uid'] . ')) { exit(2); }';
         // Failed repair must be actionable and preserve the file before an overwrite open.
         $before = $this->runPhp($identity . 'require ' . $source . '; '
-            . '$warnings = []; set_error_handler(static function($severity, $message) use (&$warnings) { $warnings[] = $message; return true; }); '
+            . '$warnings = []; set_error_handler(static function($severity, $message) use (&$warnings) { if (error_reporting() & $severity) { $warnings[] = $message; } return true; }); '
             . '$result = sharedFilePutContents(' . $file . ', "lost"); '
             . 'exit($result === false && count($warnings) === 1 && str_contains($warnings[0], "migration") ? 0 : 1);');
         self::assertSame(0, $before['status'], $before['output']);

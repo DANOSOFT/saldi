@@ -2,9 +2,11 @@
 
 Online/login and database logs use `includes/sharedFile.php`. Files use `0660`;
 directories use `02770` (setgid), so new entries inherit the shared group. The
-default group is `www-data`. Set `SALDI_SHARED_FILE_GROUP` consistently for PHP
-workers and CLI jobs to use a dedicated group instead. PHP's POSIX extension is
-required. Only trusted application accounts belong to this group.
+group is `balances` when that group exists and `www-data` is a member of it (the
+setup in `INSTALLATION.md`), and `www-data` otherwise. Set
+`SALDI_SHARED_FILE_GROUP` consistently for PHP workers and CLI jobs to use a
+dedicated group instead. PHP's POSIX extension is required. Only trusted
+application accounts belong to this group.
 
 The helpers validate every parent component before changing permissions or
 opening a file, including before a `w` open can truncate it. Symlinks, special
@@ -54,10 +56,17 @@ as root before starting Apache. On other installations, run the steps above
 explicitly before deployment.
 
 Existing files already using the correct group and mode work across owners
-without chmod. A restrictive foreign-owned file encountered later is refused
-with an actionable migration warning and a `false` return, without truncation
-or privilege escalation. Repeat the administrator migration while writers are
-stopped. There is no fallback to access for every local user.
+without chmod. A foreign-owned file the caller cannot repair raises an actionable
+migration warning and is then written only if its current permissions allow it;
+there is no privilege escalation. Repeat the administrator migration while
+writers are stopped. There is no fallback to access for every local user.
+
+Until an installation is migrated (an untrusted parent such as a `777` `temp`
+directory, a symlinked parent, or an unknown group), the helpers keep the plain
+`fopen`/`mkdir` (`0770`) writes used before them and change no permissions through
+that chain. Each distinct warning is raised once per request, so per-query logs
+do not flood the error log. Overwrites open the file without truncating it,
+compare the opened file with the path, and only then truncate it.
 
 Other legacy temporary-file writers still need to be migrated to these helpers
 when changed; a setgid directory supplies group inheritance, but each writer's
