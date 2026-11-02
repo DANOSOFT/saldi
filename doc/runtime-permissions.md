@@ -30,8 +30,12 @@ PHP code alone cannot repair that situation. Before enabling the helpers:
    for unexpected entries; the migration refuses symlinks and special files
    inside it. A symlinked `temp` directory itself is migrated at its target.
 2. Have an administrator add each CLI account to the shared group, for example
-   `sudo usermod -a -G www-data YOUR_CLI_ACCOUNT`. Ensure the web account also
-   belongs to this group. Start a new login session for group membership changes.
+   `sudo usermod -a -G SHARED_GROUP YOUR_CLI_ACCOUNT`. Print `SHARED_GROUP` from
+   the installation directory with
+   `php -r 'require "includes/sharedFile.php"; echo sharedFileGroupName(), "\n";'`
+   (run it with the same `SALDI_SHARED_FILE_GROUP` as the web workers, if set).
+   Ensure the web account also belongs to this group. Start a new login session
+   for group membership changes.
 3. Remove write access for unrelated accounts from application ancestors,
    including the application directory itself. Use `chmod o-w` on each affected
    ancestor and ensure any group with write access is the trusted shared group.

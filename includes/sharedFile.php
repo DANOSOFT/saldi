@@ -5,6 +5,7 @@
 //                 Fall back to plain writes on unmigrated installs and warn once per message.
 //                 Check the opened file against the path before truncating it.
 //                 Follow symlinks held by trusted directories; open a symlinked file without chmod.
+//                 Keep writing after a short fwrite() in sharedFilePutContents().
 
 /**
  * Raise a shared-file warning once per request, so per-query logging cannot flood the error log.
@@ -249,7 +250,17 @@ function sharedFilePutContents(string $path, string $contents, bool $append = fa
         return false;
     }
     try {
-        return fwrite($stream, $contents);
+        // fwrite() may write only a prefix; a short write must not look like success.
+        $length = strlen($contents);
+        $written = 0;
+        while ($written < $length) {
+            $count = fwrite($stream, substr($contents, $written));
+            if ($count === false || $count === 0) {
+                return false;
+            }
+            $written += $count;
+        }
+        return $written;
     } finally {
         fclose($stream);
     }
