@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/invoice.php -----ver 3.2.4---- 2011.10.25 ----------
+// #----------------- soapserver/invoice.php -----ver 5.1.0---- 2026.10.28 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+
 ini_set("soap.wsdl_cache_enabled", "0");
 
 function invoice($string) {
@@ -99,7 +101,12 @@ function invoice($string) {
 		$linje="$fejl";
 #		fwrite($fp,$linje."\n");
 		return('1'.chr(9).$fejl);
-	} else transaktion('commit');
+	} else {
+		transaktion('commit');
+		if (empty($GLOBALS['db_modify_fejl'])) {
+			shopSyncDrainQueue();
+		}
+	}
 	$linje="formularprint($ordre_id,'4','1',$charset,'email')";
 	fwrite($fp,$linje."\n");
 	$svar=formularprint($ordre_id,'4','1',$charset,'email');

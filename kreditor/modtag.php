@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- patch 4.1.1 --- 2025.03.22 ---
+// --- kreditor/modtag.php --- ver 5.1.0 --- 2026.10.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2013.08.30 Fejl v. "interne shops" (Rotary) de der blev forsøgt kald til ikke eksisterende url.Søn 20130830
@@ -49,6 +49,15 @@
 //             so box9-only items already relied on this validation (MB-36).
 // 20260917 SZ Guard the box9 lookup above against a missing grupper row (CodeRabbit,
 //             PR #608) - degrades to "not tracked" instead of a PHP warning.
+// 20261016 CL/MJ SST-876 A webshop that will not take the stock update is now named on screen
+//                  and in the log instead of passing unnoticed. Havemoebelland received
+//                  supplier orders for days while DirekteImport.dk and havemoebelland.dk
+//                  kept the old figures and Saldi reported nothing. The receipt itself is
+//                  correct either way, so this warns after the commit and never rolls back.
+//                  Also removed the dead second branch of the four warehouse lookups below.
+// 20261022 CL/MJ SST-876 The receipt marks its lines and tells the webshops once, after the
+//                 goods are committed, rather than syncing inside the line loop.
+// 20261028 CDX/MJ SST-876 Preserve receipt price and SKU adapter calls alongside batched stock updates.
 
 @session_start();
 $s_id=session_id();
@@ -196,6 +205,8 @@ if ($fejl==0) {
 			}
 		}
 	}
+	# SST-876: collected per item and reported after the commit - a shop that refuses the
+	# update must not undo a receipt that is otherwise correct.
 	for ($x=1; $x<=$linjeantal; $x++) {
 		$sn_start=0;
 		$qtxt="select id, gruppe, beholdning from varer where id='$vare_id[$x]'";
@@ -242,7 +253,12 @@ if ($fejl==0) {
 				
 				$lager[$x]*=1;
 				$qtxt="select * from lagerstatus where vare_id='$vare_id[$x]' and variant_id='$variant_id[$x]'";
-				($lager > 1)?$qtxt.=" and lager = '$lager[$x]'":$qtxt.=" and lager <= '1";
+				# SST-876: this compared $lager - the whole array - against 1, which php 8 always
+				# answers true for, so the second branch never ran. Just as well, since it appended
+				# an unterminated SQL string literal. The branch that did run is the correct one
+				# and is now the only one; $lager[$x] is cast to a number just above. Three more
+				# copies of the same ternary sit in the batch_kob lookups further down.
+				$qtxt.=" and lager = '$lager[$x]'";
 				$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($r=db_fetch_array($q)) $qtxt="update lagerstatus set beholdning=$r[beholdning]+$leveres[$x] where id=$r[id]";
 				else $qtxt="insert into lagerstatus (vare_id, variant_id, lager, beholdning) values ('$vare_id[$x]', '$variant_id[$x]', '$lager[$x]', '$leveres[$x]')";
@@ -283,7 +299,10 @@ if ($fejl==0) {
 				$qtxt.= "('$vare_id[$x]','$userName','$initials','$leveres[$x]','indkøbsordre $ordreNr','".date('U')."')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
-			sync_shop_vare($vare_id[$x],$variant_id[$x],$lager[$x]);
+			# SST-876: marked, not sent. The receipt sends once when every line is posted, so a
+			# receipt of thirteen lines is thirteen sends rather than thirteen times eight calls,
+			# and a set several of the lines belong to is sent once.
+			shopSyncMark($vare_id[$x],$variant_id[$x],$lager[$x],'all');
 /*
 			$qtxt = "select box2 from grupper where art = 'DIV' and kodenr = '5'";
 echo "$qtxt<br>";
@@ -322,7 +341,9 @@ echo "$shopurl<br>";
 				$rest=$r['rest'];	
 				if ($rest) {
 					$qtxt="select * from batch_kob where ordre_id != '$id' and vare_id = '$vare_id[$x]' and rest > '0' and linje_id != '$linje_id[$x]'";
-					($lager > 1)?$qtxt.=" and lager = '$lager[$x]'":$qtxt.=" and lager <= '1";
+					# SST-876: $lager is the array, so this was always the branch taken; the other
+					# one built invalid SQL. Kept as it behaved, with the dead branch removed.
+					$qtxt.=" and lager = '$lager[$x]'";
 					$qtxt.=" order by id";
 					$q2=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					while ($r2=db_fetch_array($q2)) {
@@ -343,7 +364,9 @@ echo "$shopurl<br>";
 				}
 				if ($rest) {
 					$qtxt="select * from batch_kob where ordre_id!='$id' and vare_id='$vare_id[$x]' and rest>'0' and linje_id!='$linje_id[$x]'";
-					($lager > 1)?$qtxt.=" and lager = '$lager[$x]'":$qtxt.=" and lager <= '1";
+					# SST-876: $lager is the array, so this was always the branch taken; the other
+					# one built invalid SQL. Kept as it behaved, with the dead branch removed.
+					$qtxt.=" and lager = '$lager[$x]'";
 					$qtxt.=" order by id";
 					$q2=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					while ($r2=db_fetch_array($q2)) {
@@ -390,7 +413,9 @@ echo "$shopurl<br>";
 				}
 				if ($rest) {
 					$qtxt="select * from batch_kob where antal='0' and ordre_id='0' and vare_id='$vare_id[$x]' and rest<'0' and linje_id!='$linje_id[$x]'";
-					($lager > 1)?$qtxt.=" and lager = '$lager[$x]'":$qtxt.=" and lager <= '1";
+					# SST-876: $lager is the array, so this was always the branch taken; the other
+					# one built invalid SQL. Kept as it behaved, with the dead branch removed.
+					$qtxt.=" and lager = '$lager[$x]'";
 					$q2=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					while ($r2=db_fetch_array($q2)) {
 						if ($rest) {
@@ -552,6 +577,16 @@ function returnering ($id,$linje_id,$leveres,$vare_id, $variant_id,$pris, $serie
 }
 
 
+# SST-876: the goods are received and committed by now, so this is where the webshops are
+# told, and where a shop that did not take the new figure is reported - the user knows to
+# look rather than assuming the shop is in step. Anything that could not be delivered stays
+# on the queue for the next request.
+$shopSync = shopSyncFlush();
+if (shopSyncFailed($shopSync)) {
+	$shopSyncItems = implode(', ', shopSyncFailedItems());
+	error_log("saldi: shop stock sync failed on receipt of order $id for: $shopSyncItems");
+	shopSyncAlertFailedItems($sprog_id, 'fejltekst');
+}
 #	print "<a href=ordre.php?id=$id accesskey=L>Luk</a>";
 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 

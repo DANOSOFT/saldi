@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- mysale/api.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
+// 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 //
 
 
@@ -969,5 +970,6 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; do not report success (SD-595)
 		return "Database write failed while posting order $saldi_id";
 	}
+	shopSyncDrainQueue();
 	return($saldi_id);
 }

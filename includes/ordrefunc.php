@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -147,6 +147,15 @@
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261016 CL/MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
+// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells
+//                 the webshops once when every line is posted. An item on two lines was two
+//                 sends, and a set the lines share was sent once per line: item 13054 is a
+//                 component in 33 sets, so one order line was 198 webshop calls and the 30
+//                 second budget skipped everything after it.
+// 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
+// 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -487,6 +496,13 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	#fclose ($fp);
 /* echo "<!--function levering slut-->"; */
 	#xit;
+	# SST-876: every line is marked. With an open transaction, the flush defers these
+	# figures until the owner drains after commit; otherwise it sends the document now.
+	# Failed item numbers belong to the screen caller, never a popup in this shared function.
+	$shopSync = shopSyncFlush(0); # Document only; the transaction owner drains after commit.
+	if (shopSyncFailed($shopSync)) {
+		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
+	}
 	return ("OK");
 } #endfunc levering
 
@@ -727,7 +743,11 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			}
 		}
 	}
-	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
+	# SST-876: the line is marked and nothing is sent yet. levering() sends once when every
+	# line has been posted, so an item on two lines is one send with the figure the document
+	# ended with, and a set shared by several lines is sent once rather than once per line.
+	# Item 13054 is a component in 33 sets: its line alone used to be 198 webshop calls.
+	shopSyncMark($vare_id, $variant_id, $lager, 'stock'); # std_func.
 	$qtxt = "update ordrelinjer set leveret = leveret+$antal,leveres=0 where id='$linje_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } # endfunc linjeopdat
@@ -1740,6 +1760,9 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		$svar = $fejl;
 	}
 	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
+	if (!$callerOwnsTransaction && $svar === 'OK' && !$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor
