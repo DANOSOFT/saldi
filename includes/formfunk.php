@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -94,6 +94,7 @@
 //                the documents are returned.
 //                A page-break text with $ordre_creditedinvoice printed the credited invoice's number instead of exiting,
 //                and a credit note without a credited invoice prints it empty instead of failing on the query.
+// 20261102 CL/SZ SD-794: without a valid rebate item (DIV 3 box2 empty or not a number) the query for its line, which failed, is skipped.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1828,7 +1829,7 @@ if (!function_exists('formularprint')) {
 						$beskrivelse[$x] = utf8_iso8859('Eksempel på en linjetekst');
 					}
 				} else {
-					if ($brugsamletpris) {
+					if ($brugsamletpris && ctype_digit((string)$rabatvare_id)) { #20261102 CL/SZ SD-794 no rebate item: an empty or non-numeric vare_id would fail the query
 						$qtxt = "select varenr from ordrelinjer where ordre_id = $ordre_id[$o] and vare_id='$rabatvare_id'";
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						if ($r['varenr']) {

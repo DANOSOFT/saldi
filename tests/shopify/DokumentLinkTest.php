@@ -13,7 +13,9 @@
 // History:
 // 20261030 CL/SZ SD-752: created.
 // 20261101 CL/SZ SD-752 review: a failing legacy query in the render, a link whose order changed kind.
+// 20261102 CL/SZ SD-794: a query failing during the print publishes no PDF; the retry gets the document; set prices without a valid rebate item still render.
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/ShopifyEnv.php';
@@ -408,6 +410,54 @@ final class DokumentLinkTest extends TestCase
         $this->assertSame(404, $response['status']);
         $this->assertSame('Not found', $response['body']);
         $this->assertSame($pdfs, glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_doc_*.pdf') ?: []);
+    }
+
+    public function testAQueryFailingDuringThePrintPublishesNoPdfAndARetryGetsTheDocument(): void
+    {
+        $doc = $this->posted();
+        $token = self::token($this->link($doc['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        // the print reads batch_salg once for this order's one line, so this is one failure: db_select() alerts and the print goes on
+        $pdfs = glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_doc_*.pdf') ?: [];
+        ShopifyEnv::rows($conn, 'ALTER TABLE batch_salg RENAME TO batch_salg_away');
+        try {
+            $failed = $this->get("?t=$token");
+        } finally {
+            ShopifyEnv::rows($conn, 'ALTER TABLE batch_salg_away RENAME TO batch_salg');
+            pg_close($conn);
+        }
+
+        $this->assertSame(503, $failed['status'], $failed['body']);
+        $this->assertSame('Unavailable', $failed['body']);
+        $this->assertSame($pdfs, glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_doc_*.pdf') ?: [], 'nothing is cached');
+
+        $retry = $this->get("?t=$token");
+        $this->assertSame(200, $retry['status'], $retry['body']);
+        $this->assertSame('%PDF-', substr($retry['body'], 0, 5));
+    }
+
+    #[DataProvider('rebateItems')]
+    public function testSetPricesWithoutAValidRebateItemStillRenderTheInvoice(string $rebateItem): void
+    {
+        $token = self::token($this->link($this->posted()['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        // a rebate item that is no number has to stay harmless now that a failed query stops the PDF
+        $saved = ShopifyEnv::one($conn, "SELECT box2, box14 FROM grupper WHERE art = 'DIV' AND kodenr = '3'");
+        ShopifyEnv::rows($conn, "UPDATE grupper SET box2 = $1, box14 = 'on' WHERE art = 'DIV' AND kodenr = '3'", [$rebateItem]);
+        try {
+            $response = $this->get("?t=$token");
+        } finally {
+            ShopifyEnv::rows($conn, "UPDATE grupper SET box2 = $1, box14 = $2 WHERE art = 'DIV' AND kodenr = '3'", [$saved['box2'], $saved['box14']]);
+            pg_close($conn);
+        }
+
+        $this->assertSame(200, $response['status'], $response['body']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function rebateItems(): array
+    {
+        return ['empty' => [''], 'not a number' => ['RABAT']];
     }
 
     public function testAnEmptySecretRowIsReplacedOnceAndLinksStayStable(): void

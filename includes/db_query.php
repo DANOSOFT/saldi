@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-09-25--------------
+// --- includes/db_query.php --- ver 5.1.0 --- 2026-11-02 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,6 +59,7 @@
 //                just gives them one place to call instead of hand-rolling the mysqli check.
 // 20261027 CL/NTR db_select_database(): also select on $db_type 'mysql', which db_connect()
 //                serves with a mysqli connection too (still supported, not actively used).
+// 20261102 CL/SZ SD-794 db_select: set $db_select_fejl on a failed query; what it prints, returns and exits on is unchanged.
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -368,6 +369,8 @@ if (!function_exists('db_select')) {
 		}
 
 		if ($errtxt)	{		
+			global $db_select_fejl; #20261102 CL/SZ SD-794 lets a caller see that a select failed: the first failure only alerts and carries on
+			$db_select_fejl = true;
 			$db=trim($db);
 			$linje="";
 			if (file_exists("$temp/lasterror.txt")) {

@@ -9,6 +9,7 @@
 //
 // History:
 // 20261029 CL/SZ SD-751: created.
+// 20261102 CL/SZ SD-794: a query failing during the print gives 500 and caches nothing.
 
 use PHPUnit\Framework\TestCase;
 
@@ -95,6 +96,30 @@ final class InvoicePdfEndpointTest extends TestCase
         $this->assertSame('application/pdf', $res['type']);
         $this->assertSame("inline; filename=\"fakt{$invoice['fakturanr']}.pdf\"", $res['disposition']);
         $this->assertStringStartsWith('%PDF-', $res['body']);
+    }
+
+    public function test_a_query_failing_during_the_print_gives_500_and_a_retry_gets_the_pdf(): void
+    {
+        $invoice = $this->order();
+        $conn = RestApiEnv::connect(RestApiEnv::testDb());
+        // the print reads batch_salg once for this order's one line, so this is one failure: db_select() alerts and the print goes on
+        RestApiEnv::rows($conn, 'ALTER TABLE batch_salg RENAME TO batch_salg_away');
+        try {
+            $failed = $this->getPdf($invoice['id']);
+        } finally {
+            RestApiEnv::rows($conn, 'ALTER TABLE batch_salg_away RENAME TO batch_salg');
+            pg_close($conn);
+        }
+
+        if ($failed['status'] === 500 && trim((string)shell_exec('command -v pdftk 2>/dev/null')) === '') {
+            $this->markTestSkipped('the server could not render the PDF and pdftk is not installed here: ' . $failed['body']);
+        }
+        $this->assertSame(500, $failed['status'], $failed['body']);
+        $this->assertStringNotContainsString('%PDF-', $failed['body']);
+
+        $retry = $this->getPdf($invoice['id']);
+        $this->assertSame(200, $retry['status'], $retry['body']);
+        $this->assertStringStartsWith('%PDF-', $retry['body']);
     }
 
     public function test_a_missing_unposted_or_non_invoice_id_gives_no_document(): void
