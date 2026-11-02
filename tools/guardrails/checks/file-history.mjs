@@ -125,7 +125,7 @@ export default {
             // A corrected dated line keeps its own continuation: at the base, the line above that
             // continuation was a dated line, and that line is gone now.
             const at = base.indexOf(lines[next - 1]);
-            if (at > 0 && HISTORY.test(base[at - 1]) && base[at - 1] !== lines[line - 2]) break;
+            if (at > 0 && HISTORY.test(base[at - 1]) && !lines.includes(base[at - 1])) break;
             let last = next;
             while (last + 1 <= header && !isNew(last + 1) && continuationAt(last + 1)) last++;
             findings.push({ path: file.path, line,
