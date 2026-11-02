@@ -180,19 +180,22 @@ final class AvailabilityTest extends TestCase
         $this->assertSame([1 => 2, 2 => 0, 3 => 0], self::available(self::set($stock)));
     }
 
-    public function testASplitLagerThatIsNotSellableIsRefusedOnlyWhenItIsNeeded(): void
+    public function testASplitLagerThatIsNotSellableFallsBackToTheFirstSellable(): void
     {
         $split = [self::X => [1 => 1000], self::Y => [2 => 2000]];
-        $whole = [self::X => [1 => 1000], self::Y => [1 => 2000]];
 
-        $this->assertSame(1, self::set($whole, 3)[1]['available'], 'no surplus, nothing to place');
-        foreach ([3, 4, 5, 99] as $lager) {
-            try {
-                self::set($split, $lager);
-                $this->fail("surplus on lager $lager");
-            } catch (InvalidArgumentException $e) {
-                $this->assertStringContainsString("split-set lager $lager", $e->getMessage());
-            }
+        foreach ([0, 3, 4, 5, 99] as $lager) {
+            $this->assertSame([1 => 1, 2 => 0, 3 => 0], self::available(self::set($split, $lager)), "setting $lager");
+        }
+    }
+
+    public function testTheSurplusGoesOnTheLagerTheSharedHelperResolves(): void
+    {
+        $split = [self::X => [1 => 1000], self::Y => [2 => 2000]];
+
+        foreach ([null, 0, 1, 2, 3, 4, 5, 99] as $setting) {
+            $out = self::set($split, $setting);
+            $this->assertSame(1, $out[shopify_split_set_lager($setting, self::lagre())]['available'], 'setting ' . var_export($setting, true));
         }
     }
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/allocation.php --- ver 5.1.0 --- 2026.10.28
+// --- includes/shopify/services/allocation.php --- ver 5.1.0 --- 2026.11.02
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 // - A set is one BOM level (HML has no sets inside sets nor variant-controlled components, P:492).
 //
 // 20261028 CL/SS SD-788: created (WP07-1).
+// 20261102 CL/SZ SD-755: shopify_split_set_lager(), shared with availability.
 
 require_once __DIR__ . '/../schema.php';
 
@@ -223,6 +224,34 @@ function shopify_allocate_order(array $lines, array $locations, array $stockMill
 	}
 	$out['tags'] = array_values($out['tags']);
 	return $out;
+}
+
+/**
+ * The lager split sets go on, so availability and allocation can't drift: the setting when it is a
+ * sellable lager, else the first sellable one by priority (K55, Å28). shopify_allocate_order() keeps
+ * refusing 0, so a caller that skips this fails loudly instead of guessing.
+ *
+ * @param int|null $setting split_set_lager, null when unset
+ * @param list<array{lager: int, rolle: string, prioritet?: int|null, virtual?: bool}> $locations the rows from
+ *   shopify_availability_lagre(); a row with virtual true is not sellable
+ * @throws InvalidArgumentException when no lager is sellable
+ */
+function shopify_split_set_lager(?int $setting, array $locations): int {
+	$sellable = array();
+	foreach ($locations as $loc) {
+		if (($loc['rolle'] ?? '') === 'saelgbar' && empty($loc['virtual'])) {
+			$lager = shopify_allocation_lager($loc['lager'] ?? null, 'location lager');
+			$sellable[$lager] = shopify_allocation_int($loc['prioritet'] ?? null, "priority of sellable lager $lager");
+		}
+	}
+	if ($sellable === array()) {
+		throw new InvalidArgumentException('no sellable lager: split sets have nowhere to go');
+	}
+	if ($setting !== null && isset($sellable[$setting])) {
+		return $setting;
+	}
+	uksort($sellable, fn(int $a, int $b): int => array($sellable[$a], $a) <=> array($sellable[$b], $b));
+	return (int)array_key_first($sellable);
 }
 
 /**

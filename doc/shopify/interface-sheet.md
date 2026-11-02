@@ -24,3 +24,13 @@ shopify_barrier_deferred(int $shopId, array $vareIds): array     // list<int>
 | `shopify_barrier_deferred` | The stock push (WP06) | Which of the given items to skip, by exact item: the push asks about a set together with its components. A barrier past `expires_at` no longer defers, also before the sweep has run. |
 
 `shopify_barrier_expire` returns what it just abandoned, one entry per order, and each barrier only once. L10b raises one alarm per order from it, naming the shop, order and items, and keeps the allocation on the move list; it doesn't read the rows back, so a resolved alarm stays resolved. Release and expire mark the items and every set above them in `shopify_stock_dirty` when a shop has `stock_capture_enabled`, so the next push publishes them.
+
+## Split-set lager (WP06, WP07 → WP09)
+
+`includes/shopify/services/allocation.php`. Availability and allocation resolve the lager split sets go on the same way.
+
+```php
+shopify_split_set_lager(?int $setting, array $locations): int
+```
+
+Returns the setting when it's a sellable lager, else the first sellable lager by priority, and throws when there is none. WP09 (S09b) calls it with the rows from `shopify_availability_lagre()`, so the virtual lager is left out, and passes the result to `shopify_allocate_order()`, which keeps its strict int parameter and keeps refusing 0.
