@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- debitor/api.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -78,6 +78,9 @@
 //                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
 //                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
 //                  without the spaces Stamdata stores them with.
+// 20261102 CL/MMR SST-746 sendInvoice() sends a line with a negative unit price (a discount such as 999rabat) as a negative quantity at a positive price, never as an allowance.
+//                 EasyUBL rejected those lines (BR-S-08, UNCL 5189), and Peppol does not allow a negative price (BR-27).
+//                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
 
     @session_start();
     $s_id=session_id();
@@ -95,6 +98,7 @@
     include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");
     include_once(__DIR__ . "/../includes/stdFunc/countryCode.php");
     include_once(__DIR__ . "/../includes/stdFunc/einvoiceCvr.php");
+    include_once(__DIR__ . "/../includes/stdFunc/einvoiceLineSign.php");
 
     /**
      * @param string $address The full street address to split
@@ -871,18 +875,15 @@
             ],
         ];
 
-        $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
+        $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = " . (int)$id . " ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         $line = [];
         while ($res = db_fetch_array($query)) {
 
             $res["rabat"] = abs((float)$res["rabat"]);
-            if($creditNote == "Cre"){
-                $res["antal"] = abs((float)$res["antal"]);
-                $res["pris"] = abs((float)$res["pris"]);
-            }else{
-                $res["antal"] = (float)$res["antal"];
-                $res["pris"] = (float)$res["pris"];
-            }
+            // SST-746: a negative unit price (a discount line) goes out as a negative quantity at a positive price
+            $linePrice = einvoice_line_quantity_price($res["antal"], $res["pris"], $creditNote == "Cre");
+            $res["antal"] = $linePrice["quantity"];
+            $res["pris"] = $linePrice["price"];
             $res["momssats"] = min(abs((float)$res["momssats"]), abs((float)$ordre_moms));
             if ($res["momsfri"] == 'on' || $res["omvbet"]) {
                 $res["momssats"] = 0;
@@ -931,7 +932,7 @@
                 "description" => $beskrivelse,
                 "accountingCost" => "",
                 "commodityCode" => "",
-                "isAllowanceCharge" => $price >= 0 ? false : true, // 20260825 - NTR - Set isAllowanceCharge based on price sign (negative price indicates allowance/charge)
+                "isAllowanceCharge" => false, // SST-746: a discount is a line with a negative quantity, never an allowance (EasyUBL rejected those, BR-S-08 / UNCL 5189)
                 "item" => [
                     "buyersItemID" => "",
                     "sellersItemID" => ($res["varenr"] != "" && $res["varenr"] != null && $res["varenr"] != "null") ? strval($res["varenr"]) : "",
