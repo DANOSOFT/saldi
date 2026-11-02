@@ -2,8 +2,8 @@
 //
 // Rules (doc/ai/convention_database_changes.md, doc/ai/feedback_protected_update_files.md):
 //   1. DDL and ensureTableAndColumns() calls live only in the update/install
-//      files, including includes/opretfunc.php for a new regnskab's initial
-//      schema until structure helper functions replace that setup.
+//      files, including admin/opret.php and includes/opretfunc.php for a new
+//      regnskab's initial schema until structure helper functions replace that setup.
 //      Past mistakes: 5bc1a329, 76ff76b5 and 702c7aa3 created tables and
 //      columns from includes that run on every request; #540 review.
 //   2. includes/opdat_*.php (released versions) and includes/betweenUpdates2.php
@@ -17,6 +17,7 @@
 // History:
 // 20261027 CL/LH Created.
 // 20261102 CDX/NTR Allow initial-schema DDL in includes/opretfunc.php for new regnskaber.
+// 20261102 CDX/NTR Document admin/opret.php alongside includes/opretfunc.php in the creation exception.
 
 import { splitLines } from "../lib/changeset.mjs";
 

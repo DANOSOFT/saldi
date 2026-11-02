@@ -13,9 +13,10 @@ reviews:
       instructions: |
         Follow doc/ai/convention_database_changes.md for schema changes.
         Migrations for existing regnskaber belong at the end of
-        includes/betweenUpdates.php. Exception: includes/opretfunc.php builds
-        the initial schema and seed data when creating a new regnskab
-        (opret_build_tenant()), so DDL there is intentional. Do not flag that
+        includes/betweenUpdates.php. Exception: admin/opret.php and
+        includes/opretfunc.php are new-regnskab creation paths, with the shared
+        schema builder opret_build_tenant() in includes/opretfunc.php.
+        Initial-schema DDL is permitted in both files. Do not flag that
         initial-schema DDL as violating the migration-location convention.
         Changes that also affect existing regnskaber need a corresponding
         migration at the end of includes/betweenUpdates.php. This exception is
