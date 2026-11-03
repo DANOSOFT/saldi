@@ -15,10 +15,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §8.6): brugere.tmp_kode has one
-//                  format for its three uses, "<type>|<expire>|<code>", type reset, invite or 2fa.
+// 20260929 SS Roles stage 2 (Requirements_roles_stage2_EN.md §8.6): brugere.tmp_kode has one format for its three uses, "<type>|<expire>|<code>", type reset, invite or 2fa.
 
 /**
  * The value to store in brugere.tmp_kode.

@@ -31,9 +31,9 @@
 // 2023.11.03 PHR Added call to online.php after tjek4opdat
 // 2025.05.14 LOE Added check for empty database and added error message if database is empty
 // 2025.05.14 LOE Added check for global_id in table regnskab and added error message if not exist as the former failed for mysql insert
-// 20260930 Sawaneh Roles stage 2 (§7.1): opening a company from the admin panel is written to its audit log (session.revisor_open).
-// 20260930 Sawaneh Declared permission key 'any' (the page checks the master database itself); unguarded pages are refused in Deny mode.
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20260930 SS Roles stage 2 (§7.1): opening a company from the admin panel is written to its audit log (session.revisor_open).
+// 20260930 SS Declared permission key 'any' (the page checks the master database itself); unguarded pages are refused in Deny mode.
 @session_start();
 $s_id=session_id();
 

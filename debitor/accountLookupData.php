@@ -25,8 +25,8 @@
 // ----------------------------------------------------------------------
 // 20260501 PHR removed K (creditors) from address lookup
 // 20260827 CDX/PHR Restored supplier lookup when o_art is KO.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 CDX/PHR Include NULL closed flags in AJAX account lookup, matching the initial grid.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 
 header('Content-Type: application/json');

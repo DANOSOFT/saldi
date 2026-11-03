@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/pricelist.php--- lap 4.0.1 --- 2025-05-03 ----
+// -----------------lager/pricelist.php--- lap 4.0.1 --- 2026-09-16 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
@@ -28,7 +28,7 @@
 // 20260711 SZ Added Grid Framework sticky header+footer with pagination and internal-scroll grid
 // 20260711 SZ Fixed duplicate entries in Category dropdown: grupper has one row per fiscal_year,
 //             the VG group queries were missing that filter (same fix pattern as rapport.php/lagerstatus.php)
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
  
 @session_start();

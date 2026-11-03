@@ -57,62 +57,48 @@
 //                    importfiler/tekster.csv, which has a Dansk/English/Norsk column for every id
 //                    used here) - keep it that way; don't invent settings that aren't actually on
 //                    the page, and don't invent translations that aren't already in tekster.csv.
-// 20260916 Sawaneh userSettings entry now points at systemdata/personalSettings.php (text 5230).
-// 20260928 Sawaneh Phase 4: every entry has a 'group' of the settings front page; groups, access and
-//                  request-to-entry matching live here, so front page, menu, search and gate share them.
-// 20260928 Sawaneh Groups, keys and placement aligned with Requirements_settings_redesign_EN.md §4 and Appendix A.
-// 20260929 Sawaneh Phase 4a: registry v2 (settingsDefinitions.php) included; generated sections G3.2, G3.3, G4.2
-//                  and G5.5 replace the ordre_valg and massefakt pages; PoS visibility from the licence flag.
-// 20261001 Sawaneh Phase 4a §8.13: optional modules (on or off) and computed status badges for the front page.
-// 20261002 Sawaneh Phase 4b batch 1: provision, productOptions, orediff and betalinger_settings entries point at the
-//                  generated sections (commission, consignment, packaging, cash journal); mySale and print added.
-// 20261002 Sawaneh Hand-over 2 Oct (A3, A4): breadcrumb trail for the shell's topbar; backup is an entry under Import & eksport
-//                  with its own key, since the sidebar's System menu is gone (decision 16).
-// 20261002 Sawaneh Hand-over 2 Oct (A1): the three labelled group lists, computed status per group and "Kræver opmærksomhed".
-// 20261004 Sawaneh settings_require_any_access(): the settings pages are open to users with read on any settings group.
-// 20261005 Sawaneh 4d: Baggrunde (G6.2) added; Import & eksport and Sikkerhedskopi (G11) open their new sections.
-// 20261005 Sawaneh 4d: Valuta, Regnskabsår and Ansatte open their new sections; Abonnement & konto (G1.4) only on hosted servers.
-// 20261005 Sawaneh 4d: Sprog opens Lokalisering (company.localisation); Persondata (company.gdpr) added.
-// 20261005 Sawaneh 4d: Stamdata opens the generated company.data section.
-// 20261005 Sawaneh 4c: Moms, Debitorgrupper, Kreditorgrupper and Varegrupper open the generated row-editor sections.
-// 20261005 Sawaneh settings_breadcrumb_script() goes through page_breadcrumb() (topbar addendum 2026-10-05 §4).
-// 20261005 Sawaneh 4c: Afdelinger, Projekter, Lagre and Enheder entries open the generated row-editor sections.
-// 20261004 Sawaneh §8.11 settings_context_links() for the gear in the sub-bar; §8.10 banner only for users who used the old settings.
-// 20261004 Sawaneh Stripe only in the operator ledger (G9.6), bank only when its credentials exist (G2.7), DFM flag in its own group.
-// 20261004 Sawaneh G10 batch B: Betalingskort and Borde entries; the PoS-valg entry is gone (its keywords moved to Kasser).
-// 20261004 Sawaneh Projekter opens projekter.php (syssetup.php?valg=projekter shows no projects, spec C7).
-// 20261009 Sawaneh The tjekliste entry removed: checklists live in the Sager module now (settings redesign §4, 4e).
-// 20261010 Sawaneh The labels entry opens the new Mærkater page (labels.php, G5.8).
-// 20261016 Sawaneh settings_section_tabs() moved here from settingsSection.php, so labels.php shows the same left menu.
-// 20261016 Sawaneh The left menu takes a section's id from its s= parameter when the entry names none (Discounts, Variants).
-// 20261011 Sawaneh settings_section_complete() (spec §8.8): 'done' from data for the onboarding checklist and the landing
-//                  cards, which show 'Grundopsætning mangler' for Salg/Køb/Varer until their base rows exist.
-// 20261019 Sawaneh Review 2 (PR #803): left menu hides entries the user cannot read (the shown page stays); G8 check without Postgres-only "is distinct from".
-// 20261019 Sawaneh Review 2 (PR #803): the e-mail entry carries the section's own key (settings.email), so menu, landing and page agree.
+// 20260916 SS userSettings entry now points at systemdata/personalSettings.php (text 5230).
+// 20260928 SS Phase 4: every entry has a 'group' of the settings front page; groups, access and request-to-entry matching live here, so front page, menu, search and gate share them.
+// 20260928 SS Groups, keys and placement aligned with Requirements_settings_redesign_EN.md §4 and Appendix A.
+// 20260929 SS Phase 4a: registry v2 (settingsDefinitions.php) included; generated sections G3.2, G3.3, G4.2 and G5.5 replace the ordre_valg and massefakt pages; PoS visibility from the licence flag.
+// 20261001 SS Phase 4a §8.13: optional modules (on or off) and computed status badges for the front page.
+// 20261002 SS Phase 4b batch 1: provision, productOptions, orediff and betalinger_settings entries point at the generated sections (commission, consignment, packaging, cash journal); mySale and print added.
+// 20261002 SS Hand-over 2 Oct (A3, A4): breadcrumb trail for the shell's topbar; backup is an entry under Import & eksport with its own key, since the sidebar's System menu is gone (decision 16).
+// 20261002 SS Hand-over 2 Oct (A1): the three labelled group lists, computed status per group and "Kræver opmærksomhed".
+// 20261004 SS settings_require_any_access(): the settings pages are open to users with read on any settings group.
+// 20261005 SS 4d: Baggrunde (G6.2) added; Import & eksport and Sikkerhedskopi (G11) open their new sections.
+// 20261005 SS 4d: Valuta, Regnskabsår and Ansatte open their new sections; Abonnement & konto (G1.4) only on hosted servers.
+// 20261005 SS 4d: Sprog opens Lokalisering (company.localisation); Persondata (company.gdpr) added.
+// 20261005 SS 4d: Stamdata opens the generated company.data section.
+// 20261005 SS 4c: Moms, Debitorgrupper, Kreditorgrupper and Varegrupper open the generated row-editor sections.
+// 20261005 SS settings_breadcrumb_script() goes through page_breadcrumb() (topbar addendum 2026-10-05 §4).
+// 20261005 SS 4c: Afdelinger, Projekter, Lagre and Enheder entries open the generated row-editor sections.
+// 20261004 SS §8.11 settings_context_links() for the gear in the sub-bar; §8.10 banner only for users who used the old settings.
+// 20261004 SS Stripe only in the operator ledger (G9.6), bank only when its credentials exist (G2.7), DFM flag in its own group.
+// 20261004 SS G10 batch B: Betalingskort and Borde entries; the PoS-valg entry is gone (its keywords moved to Kasser).
+// 20261004 SS Projekter opens projekter.php (syssetup.php?valg=projekter shows no projects, spec C7).
+// 20261009 SS The tjekliste entry removed: checklists live in the Sager module now (settings redesign §4, 4e).
+// 20261010 SS The labels entry opens the new Mærkater page (labels.php, G5.8).
+// 20261016 SS settings_section_tabs() moved here from settingsSection.php, so labels.php shows the same left menu.
+// 20261016 SS The left menu takes a section's id from its s= parameter when the entry names none (Discounts, Variants).
+// 20261011 SS settings_section_complete() (spec §8.8): 'done' from data for the onboarding checklist and the landing cards, which show 'Grundopsætning mangler' for Salg/Køb/Varer until their base rows exist.
+// 20261019 SS Review 2 (PR #803): left menu hides entries the user cannot read (the shown page stays); G8 check without Postgres-only "is distinct from".
+// 20261019 SS Review 2 (PR #803): the e-mail entry carries the section's own key (settings.email), so menu, landing and page agree.
 // 20261031 CL/ASR Kontoplan carries its own key system.kontoplan, so a user with the Kontoplan right but not Indstillinger still reaches it here.
 //                 Stripe abonnement is listed in every ledger again, as on master (no masterDb gate), and keeps master's label.
-// 20261031 CL/ASR Tjeklister is listed under Organisation again, where the old tjekliste entry lived; it opens sager/tjeklister.php
-//                 (the Sager left menu stays as on master, so this is the way to the checklist editor).
+// 20261031 CL/ASR Tjeklister is listed under Organisation again, where the old tjekliste entry lived; it opens sager/tjeklister.php (the Sager left menu stays as on master, so this is the way to the checklist editor).
 // 20261101 CL/ASR Personal settings no longer match colour searches (knapfarve, button color ...): the personal colour choice is gone.
-// 20261101 CL/ASR The settings hub "C - Fold ud" (includes/settings/hub.php, included below) is the one source for the hub, the left menu and the breadcrumbs.
-//                 settings_section_tabs() returns the rows of the page's hub group, settings_breadcrumb() reads Indstillinger / group / row (/ page).
+// 20261101 CL/ASR The settings hub "C - Fold ud" (includes/settings/hub.php, included below) is the one source for the hub, the left menu and the breadcrumbs. settings_section_tabs() returns the rows of the page's hub group, settings_breadcrumb() reads Indstillinger / group / row (/ page).
 //                 Rules bookingLicence (Booking only with the booking licence) and stripeOperator (Stripe only in the operator ledger, spec G9.6).
 //                 Renamed with their sections: Sprog & lokalisering, Persondata (GDPR), Logo & baggrunde, Rykkere & inkasso; Bank Integration is Bankforbindelse and Udlejningsindstillinger is Booking (old names stay as keywords).
 //                 Diverse valg is an alias of Ansatte (its last field moved there) under the Organisation key; its url still redirects.
-// 20261102 CL/ASR Brugere & ansatte, one place for people (owner, 2 Nov 2026: one item, one list of everyone, no page called Brugere or Personer):
-//                 Brugere & roller (usersRoles.php, the one list of employees and logins) and Ansatte (the employee section, the list of a user
-//                 without usersRoles.php) are both named Brugere & ansatte; renamedFrom keeps the old names for search and the moved map, and
-//                 search shows Ansatte only to a user who cannot open the users group ('searchHideIf'). The tabs Roller and Audit-log and the
-//                 employee section's Ekstra felter get entries of their own ('newInHub'; Ekstra felter is a 'page' although its url opens the
-//                 section), shown under Brugere & ansatte for users with read on their keys. The users group is called Brugere & ansatte.
-// 20261102 CL/ASR settings_breadcrumb_script(): no came-from chip when the previous page was a settings page too (the left menu shows the way).
-//                 settings_breadcrumb(): a page with the row's own name is not a level of its own (no "Brugere & ansatte / Brugere & ansatte").
+// 20261102 CL/ASR Brugere & ansatte, one place for people (owner, 2 Nov 2026: one item, one list of everyone, no page called Brugere or Personer): Brugere & roller (usersRoles.php, the one list of employees and logins) and Ansatte (the employee section, the list of a user without usersRoles.php) are both named Brugere & ansatte; renamedFrom keeps the old names for search and the moved map, and search shows Ansatte only to a user who cannot open the users group ('searchHideIf').
+//                 The tabs Roller and Audit-log and the employee section's Ekstra felter get entries of their own ('newInHub'; Ekstra felter is a 'page' although its url opens the section), shown under Brugere & ansatte for users with read on their keys.
+//                 The users group is called Brugere & ansatte.
+// 20261102 CL/ASR settings_breadcrumb_script(): no came-from chip when the previous page was a settings page too (the left menu shows the way). settings_breadcrumb(): a page with the row's own name is not a level of its own (no "Brugere & ansatte / Brugere & ansatte").
 // 20261102 CL/ASR Review: search shows Ekstra felter under Brugere & ansatte, as Roller and Audit-log ('searchGroup'), not under Organisation.
-// 20261103 CL/ASR The heading is Brugere & roller again with the rows Brugere, Roller, Audit-log and Ekstra felter (owner, 3 Nov 2026): the
-//                 brugere entry is called Brugere (5549, no 'renamedFrom': Brugere & roller is the heading now, not an old name), and
-//                 the users group and Ekstra felter's search group are Brugere & roller (5536); the employee section's entry (ansatte,
-//                 the list of a user without usersRoles.php) is called Brugere too. 'Brugere & roller' is a keyword of Brugere, so the top-bar
-//                 search, which does not search headings, still finds the page by its old name.
+// 20261103 CL/ASR The heading is Brugere & roller again with the rows Brugere, Roller, Audit-log and Ekstra felter (owner, 3 Nov 2026): the brugere entry is called Brugere (5549, no 'renamedFrom': Brugere & roller is the heading now, not an old name), and the users group and Ekstra felter's search group are Brugere & roller (5536); the employee section's entry (ansatte, the list of a user without usersRoles.php) is called Brugere too.
+//                 'Brugere & roller' is a keyword of Brugere, so the top-bar search, which does not search headings, still finds the page by its old name.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {

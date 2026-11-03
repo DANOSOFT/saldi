@@ -14,10 +14,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2005 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20260729 LOE Updated to include stdFunc/dkDecimal.php and removed dkdecimal.php which is no longer used.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 $kladde_id=$_GET['kladde_id'];
 @session_start();

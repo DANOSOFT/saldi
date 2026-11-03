@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/kreditorvisning.php --- lap 3.7.2--2025-05-17 ---
+// --- kreditor/kreditorvisning.php --- lap 3.7.2--2026-10-02 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,12 +23,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2018.03.08 Indhold kopieret fra debitor/debitorvisning.php og tilrettet til kreditor
 // 2023.03.24 PBLM Fixed minor errors
 // 2025.05.17 Fiscal Year
-// 20261002 Sawaneh Saving the list columns updates only the kreditor view row (kode) instead of every KLV row of the user.
+// 20261002 SS Saving the list columns updates only the kreditor view row (kode) instead of every KLV row of the user.
 	
 @session_start();
 $s_id=session_id();

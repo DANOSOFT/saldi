@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- patch 4.1.0 --- 2024-05-29 ---
+// --- debitor/ordreliste.php --- patch 4.1.0 --- 2026-10-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,17 +21,17 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20240529 PHR Block for deleteting invoiced orders
 // 20240603 PBLM Fixed booking deletion when invoice is credited
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-850: Settings password is verified server-side (checkPassword/settingsUnlocked) and never sent to the browser.
 //                Stored with password_hash(); legacy clear-text values are upgraded on first correct entry. The unlock is bound
 //                to the stored hash, and the endpoints behind the protected pages require it too.
-// 20261008 Sawaneh The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
-// 20261016 Sawaneh Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
 
     @session_start();
     $s_id=session_id();

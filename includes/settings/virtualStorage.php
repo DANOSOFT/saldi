@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/virtualStorage.php --- lap 5.0.0 --- 2026.10.04 ---
+// ---- includes/settings/virtualStorage.php --- lap 5.0.0 --- 2026.10.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,16 +15,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261006 Sawaneh G3.5 part B: discount_matrix, the discount per customer group × item group (table rabat) by group number.
-// 20261004 Sawaneh G10.5: table_count (POS/2 box7 names) and floor_plan_count (table_pages rows).
-// 20261004 Sawaneh G10.1: seed_post_each_sale, the starting value of the per-till postEachSale list.
-// 20261004 Sawaneh Settings redesign: a setting whose value is derived from several stored fields (storage
-//                  'virtual'). Read and written here, audited like any other setting by SettingsService.
-// 20261008 Sawaneh Settings decision 20: the matrix reads and writes only rows marked 'NR' (debitorart/vareart, by group
-//                  number); settings_discount_transfer() moves one old row (stored by position) into it. No automatic migration.
-// 20261019 Sawaneh Review 2 (PR #803): floor_plan_count selects the ids to drop first, then deletes them (MySQL refuses a same-table LIMIT subquery).
+// 20261006 SS G3.5 part B: discount_matrix, the discount per customer group × item group (table rabat) by group number.
+// 20261004 SS G10.5: table_count (POS/2 box7 names) and floor_plan_count (table_pages rows).
+// 20261004 SS G10.1: seed_post_each_sale, the starting value of the per-till postEachSale list.
+// 20261004 SS Settings redesign: a setting whose value is derived from several stored fields (storage 'virtual').
+//             Read and written here, audited like any other setting by SettingsService.
+// 20261008 SS Settings decision 20: the matrix reads and writes only rows marked 'NR' (debitorart/vareart, by group number); settings_discount_transfer() moves one old row (stored by position) into it.
+//             No automatic migration.
+// 20261019 SS Review 2 (PR #803): floor_plan_count selects the ids to drop first, then deletes them (MySQL refuses a same-table LIMIT subquery).
 
 /**
  * The value of a virtual setting.

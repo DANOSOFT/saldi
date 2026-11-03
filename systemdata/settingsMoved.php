@@ -17,10 +17,10 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Settings redesign phase 4a (spec §8.10): "Hvor er...?" - the old menu next to
-//                  where each item lives now, searchable. Generated from getSettingsMovedMap().
-// 20261002 Sawaneh Hand-over 2 Oct (§8.0): page head with the filter on the right, no Back button, list in one card.
-// 20261004 Sawaneh No longer gated by the Indstillinger bit; the list is filtered by the user's settings groups.
+// 20260929 SS Settings redesign phase 4a (spec §8.10): "Hvor er...?" - the old menu next to where each item lives now, searchable.
+//             Generated from getSettingsMovedMap().
+// 20261002 SS Hand-over 2 Oct (§8.0): page head with the filter on the right, no Back button, list in one card.
+// 20261004 SS No longer gated by the Indstillinger bit; the list is filtered by the user's settings groups.
 // 20261101 CL/ASR Settings hub "C - Fold ud": each old menu item points at its place on the hub (group › sub-group › row), from settings_hub_moved_rows().
 //                 The classic menu and the first new settings' names that moved or were renamed are both listed; left-out items say they are found by search.
 //                 The page is built from css/saldi-kit.css under .sk and has the Tilbage button above its title like every settings page (owner, 1 Nov 2026).

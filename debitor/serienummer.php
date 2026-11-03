@@ -1,5 +1,5 @@
 <?php
-// --- /debitor/serienummer.php --- patch 5.0.0 --- 2026.01.07 ---
+// --- /debitor/serienummer.php --- patch 5.0.0 --- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,13 +15,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20150929	Serienumre kan nu ændres og tilføjes.
 // 20230112 PHR Rewritten debitor creditnote section 
 // 20230206 PHR Some orher changes to avoid errors. 
 // 20260701 PHR (int)$sn_id[$x];
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();

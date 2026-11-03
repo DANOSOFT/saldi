@@ -20,9 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2012-2023 saldi.dk aps
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261001 Sawaneh Older archived rows with the terminal's name are removed before archiving (unique index on settings).
+// 20261001 SS Older archived rows with the terminal's name are removed before archiving (unique index on settings).
 // 20261103 CL/ASR QA: declares settings.integrations (write), the key it requires below, instead of system.indstillinger.
 @session_start();
 $s_id = session_id();

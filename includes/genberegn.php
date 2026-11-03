@@ -31,9 +31,9 @@
 // 20190321 PHR Added function equalizeMatchingRecords.
 // 20260210 PHR PHP8
 // 20260907 CDX/PHR Allow recalculation within the caller's tenant transaction and scope primo resets to one year.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261018 Sawaneh Review 2 (PR #803): the direct ?regnskabsaar= recompute needs finans.regnskab write instead of 'any'.
 // 20261019 CL/LH MB-72: equalizeMatchingRecords() sets udlign_date to the later of the two transaction dates.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): the direct ?regnskabsaar= recompute needs finans.regnskab write instead of 'any'.
 // 20261103 CL/ASR QA: the online.php include inside genberegn() declares $permission_key 'any' (as orderFuncIncludes/genberegn.php), so bogføring is not logged as unguarded.
 
 @session_start();

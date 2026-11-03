@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolAccountLookup.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- includes/docsIncludes/poolAccountLookup.php --- ver 5.0.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261003 CL/SZ SD-714 Created: name and VAT code of the account in a pool Debet/Kredit field, plus the "sidste 5 posteringer" the other field's lookup panel offers for it.
 //                Read-only, JSON.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 //
 // Request: art=F|D|K  kontonr=<number>  dk=D|K (the field the suggestions are for)  kladde_id=<journal>
 

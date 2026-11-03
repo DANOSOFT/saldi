@@ -86,12 +86,6 @@
 //                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
 // 20260914 CL/NTR barcode(): no horizontal padding in the SVG so the bars span the full 285 px
 //                  (vertical padding kept at 2 px) as we want to control padding in the print.
-// 20260916 Sawaneh includes/permissions.php (roles, require_permission, audit_log) loaded here so every page has it.
-// 20260930 Sawaneh check_permissions() shared here (was three copies); read access ('2') counts (roles spec §4.4).
-// 20261001 Sawaneh update_settings_value() treats NULL and 0 (user, till, group) as the same key, as the unique
-// 20261005 Sawaneh stdFunc/pageChrome.php: page_breadcrumb() / page_help() for the shell's breadcrumb and Assist menu.
-//                  index on settings does; a concurrent insert of the same key is dropped (ON CONFLICT DO NOTHING).
-// 20261008 Sawaneh vat_registration() and vat_period_range(): vat.registered / vat.period (settings decision 19).
 // 20260924 Sawaneh SST-757: Added active_fiscal_years() and newest_active_fiscal_year(), the dashboard's fiscal-year lookup.
 //                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
 //                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
@@ -99,7 +93,6 @@
 // 20261002 CL/NTR Include stdFunc/findTxtUtf8.php (findtekst_utf8()).
 // 20261006 CL/NTR Docblocks of ifset()/if_isset(): plain-variable checks should use $var ?? $default (undefined variable still warns).
 // 20261007 NTR Added global function to get_settings_value and update_settings_value.
-// 20261009 Sawaneh saldi_setcookie(): SameSite=Lax, Secure on https, HttpOnly unless JS reads it (settings redesign 4e, R11/C25).
 // 20261007 MJ SST-830 barcode(): ask the SVG renderer to fill the box the label template
 //                  gives the image, the way the PNG it replaced did. Templates set both
 //                  width and height on $img, where the SVG default keeps its own ~9:1
@@ -109,8 +102,13 @@
 //                  accepted decimals, signs and scientific notation).
 // 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
 //                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
-// 20261031 CL/ASR update_settings_value(): the text arguments are escaped by the caller again, as on master; master's
-//                  callers pass db_escape_string()ed values, which the redesign's own escaping escaped a second time.
+// 20260916 SS includes/permissions.php (roles, require_permission, audit_log) loaded here so every page has it.
+// 20260930 SS check_permissions() shared here (was three copies); read access ('2') counts (roles spec §4.4).
+// 20261001 SS update_settings_value() treats NULL and 0 (user, till, group) as the same key, as the unique
+// 20261005 SS stdFunc/pageChrome.php: page_breadcrumb() / page_help() for the shell's breadcrumb and Assist menu. index on settings does; a concurrent insert of the same key is dropped (ON CONFLICT DO NOTHING).
+// 20261008 SS vat_registration() and vat_period_range(): vat.registered / vat.period (settings decision 19).
+// 20261009 SS saldi_setcookie(): SameSite=Lax, Secure on https, HttpOnly unless JS reads it (settings redesign 4e, R11/C25).
+// 20261031 CL/ASR update_settings_value(): the text arguments are escaped by the caller again, as on master; master's callers pass db_escape_string()ed values, which the redesign's own escaping escaped a second time.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');

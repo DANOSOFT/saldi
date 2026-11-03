@@ -17,23 +17,20 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261102 CL/ASR Created: Brugere & ansatte, one place for people (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle",
-//                 one card with the tabs Stamdata and Login og rolle, one button "Tilføj person").
-//                 The one list is the users list of systemdata/usersRoles.php: its logins, plus the company's employees without a login
-//                 ("Ingen login"), employees first in their list order (posnr: POS and "vores ref." use it), then the other logins by name.
-//                 Search, filters (also "Ingen login"), sorting, pages and the bulk bar are usersRoles.php's own; a row without a login has
-//                 no tick box, so bulk only ever works on logins.
-//                 The card is usersRoles.php's user drawer with two tabs. Login og rolle is the drawer as it was (it saves and checks
-//                 there: CSRF, permissions, own role, last administrator, R5, revisor). Stamdata is the employee drawer of Indstillinger
-//                 (systemdata/settingsSection.php?s=organisation.employees&embed=person, in an iframe: it saves there, with its own checks).
-//                 A person without a login gets "Giv adgang" (Inviter / Opret login med adgangskode: the new-login form, linked to the
-//                 employee and filled in; nothing is sent before Send invitation). A login without an employee opens on Login og rolle.
+// 20261102 CL/ASR Created: Brugere & ansatte, one place for people (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle", one card with the tabs Stamdata and Login og rolle, one button "Tilføj person").
+//                 The one list is the users list of systemdata/usersRoles.php: its logins, plus the company's employees without a login ("Ingen login"), employees first in their list order (posnr: POS and "vores ref." use it), then the other logins by name.
+//                 Search, filters (also "Ingen login"), sorting, pages and the bulk bar are usersRoles.php's own; a row without a login has no tick box, so bulk only ever works on logins.
+//                 The card is usersRoles.php's user drawer with two tabs.
+//                 Login og rolle is the drawer as it was (it saves and checks there: CSRF, permissions, own role, last administrator, R5, revisor).
+//                 Stamdata is the employee drawer of Indstillinger (systemdata/settingsSection.php?s=organisation.employees&embed=person, in an iframe: it saves there, with its own checks).
+//                 A person without a login gets "Giv adgang" (Inviter / Opret login med adgangskode: the new-login form, linked to the employee and filled in; nothing is sent before Send invitation).
+//                 A login without an employee opens on Login og rolle.
 //                 "Tilføj person" posts the employee section's own add action (with name, initials and e-mail), or opens the new-login form.
 //                 The usersRoles.php side (ur_people_*) only reads; the settings side (settings_people_*) only routes and checks input.
 //                 Javascript in javascript/usersPeople.js, look in css/usersPeople.css.
-// 20261102 CL/ASR Review: when the list is too narrow for its E-mail column (the app shell at 1366 px), a row's sub-line shows the initials and
-//                 the e-mail (ur_people_sub). A search hit for Tilføj person (organisation.employees.add) opens the list with its dialog
-//                 (add=1). Giv adgang names both buttons in its note (7792 replaces 7775).
+// 20261102 CL/ASR Review: when the list is too narrow for its E-mail column (the app shell at 1366 px), a row's sub-line shows the initials and the e-mail (ur_people_sub).
+//                 A search hit for Tilføj person (organisation.employees.add) opens the list with its dialog (add=1).
+//                 Giv adgang names both buttons in its note (7792 replaces 7775).
 
 /**
  * Where a plain visit of the employee list goes for a user who may open usersRoles.php: the one list, or the person's card there

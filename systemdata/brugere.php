@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-09-24-----
+// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-10-08-----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,11 +28,11 @@
 // 20260127 PHR update settings value
 // 20260219 PHR Added employeeInitials
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
-// 20260916 Sawaneh Superseded by systemdata/usersRoles.php (Brugere & roller). Redirects there.
-// 20261001 Sawaneh The department setting is stored for the user ($id); the employee id went in as description.
 // 20260924 LOE SD-657 Losing the Indstillinger right switches the turnover setting on for that user.
-// 20261008 Sawaneh SD-657 moved to usersRoles.php ur_save_user() with the merge of master.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20260916 SS Superseded by systemdata/usersRoles.php (Brugere & roller). Redirects there.
+// 20261001 SS The department setting is stored for the user ($id); the employee id went in as description.
+// 20261008 SS SD-657 moved to usersRoles.php ur_save_user() with the merge of master.
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 header('Location: usersRoles.php');
 exit;

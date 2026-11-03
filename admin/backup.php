@@ -27,16 +27,14 @@
 // 2020.03.08 PHR SQL dump created on demand.
 // 20250427 LOE User can now delete backup file saved if they changed their minds.
 // 20250511 LOE Backupfile save a copy of current db on saldi
-// 20261102 CL/ASR The head of every settings page (opened from Indstillinger > Data & sikkerhedskopi > Sikkerhedskopi): the shared Tilbage
-//                 button top-left above the title (settings_back_button(), css/saldi-kit.css) and the title on the page head (page_bar),
-//                 instead of the bar with Tilbage to the old main menu. Tilbage goes back to the Sikkerhedskopi section; in a popup window
-//                 (popup=1) it closes it, as before. Alt+L kept.
+// 20261102 CL/ASR The head of every settings page (opened from Indstillinger > Data & sikkerhedskopi > Sikkerhedskopi): the shared Tilbage button top-left above the title (settings_back_button(), css/saldi-kit.css) and the title on the page head (page_bar), instead of the bar with Tilbage to the old main menu.
+//                 Tilbage goes back to the Sikkerhedskopi section; in a popup window (popup=1) it closes it, as before.
+//                 Alt+L kept.
 // 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
 //                 The left menu of Finans with Sikkerhedskopi marked, Tilbage above the title back to Sikkerhedskopi, the breadcrumb Indstillinger / Finans / Sikkerhedskopi / this page.
 //                 A popup window (popup=1) has no menu and Tilbage closes it, as before; the page's own links (create, cancel, restore) keep popup=1, so the window stays without the menu.
 //                 The div that centres the page's content opens inside the content column; the backup itself is unchanged.
-// 20261102 CL/ASR Review: after Opret sikkerhedskopi the closing of the tables and the layout is printed only outside the old top menu ($menu T),
-//                 whose page stays as it was.
+// 20261102 CL/ASR Review: after Opret sikkerhedskopi the closing of the tables and the layout is printed only outside the old top menu ($menu T), whose page stays as it was.
 
 @session_start();
 $s_id = session_id();
@@ -135,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel'])) {
                     } 
                 }
          $backup=FALSE;
-         echo '<meta http-equiv="refresh" content="0;url=backup.php' . ($popupQs ? '?popup=1' : '') . '" />'; 
+         echo '<meta http-equiv="refresh" content="0;url=backup.php' . ($popupQs ? '?popup=1' : '') . '" />';
         exit;
 
 	} else {

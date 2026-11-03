@@ -15,16 +15,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261001 Sawaneh Settings redesign §7.2 (phase 4a): one row per setting. Duplicates are merged and the
-//                  unique index settings(var_grp, var_name, user_id, pos_id, group_id) is added, NULL counted
-//                  as 0. Every removed row is kept in settings_removed. Called from includes/betweenUpdates.php.
-// 20261002 Sawaneh The migration can no longer stop a login: its statements run without db_modify()'s alert-and-exit and
-//                  are rolled back on failure; the index is looked for again once the table lock is held (two logins at once).
-// 20261103 CL/ASR QA: of two hour types with the same name, the one an open wage sheet resolves to today keeps the name. The wage
-//                 sheet (sager/loenIncludes/retLoen.php) reads casePayment in the order of its own query and the last match wins,
-//                 so that row keeps the name and the others are renamed; every rename is written to the PHP error log.
+// 20261001 SS Settings redesign §7.2 (phase 4a): one row per setting.
+//             Duplicates are merged and the unique index settings(var_grp, var_name, user_id, pos_id, group_id) is added, NULL counted as 0.
+//             Every removed row is kept in settings_removed.
+//             Called from includes/betweenUpdates.php.
+// 20261002 SS The migration can no longer stop a login: its statements run without db_modify()'s alert-and-exit and are rolled back on failure; the index is looked for again once the table lock is held (two logins at once).
+// 20261103 CL/ASR QA: of two hour types with the same name, the one an open wage sheet resolves to today keeps the name.
+//                 The wage sheet (sager/loenIncludes/retLoen.php) reads casePayment in the order of its own query and the last match wins, so that row keeps the name and the others are renamed; every rename is written to the PHP error log.
 //                 The index is looked for in the company's own schema only (pg_indexes.schemaname).
 
 const SETTINGS_UNIQUE_INDEX = 'settings_key_unique';
@@ -230,6 +229,7 @@ function settings_unique_migrate(): string
 	}
 	if ($plan['remove']) {
 		$qtxt = "select table_name from information_schema.tables where table_name = 'settings_removed'" . saldi_schema_filter() . "";
+		// guardrails-allow migrations until 2027-06-30 by ASR: called only from includes/betweenUpdates.php, the update chain
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && !settings_mig_exec("create table settings_removed (id integer, var_name text, var_grp text, var_value text, var_description text, user_id integer, pos_id integer, group_id integer, kept_id integer, removed timestamp)")) {
 			return settings_mig_fail();
 		}
@@ -257,6 +257,7 @@ function settings_unique_migrate(): string
 		transaktion('rollback');
 		return 'duplicates';
 	}
+	// guardrails-allow migrations until 2027-06-30 by ASR: called only from includes/betweenUpdates.php, the update chain
 	if (!settings_mig_exec("create unique index " . SETTINGS_UNIQUE_INDEX . " on settings ((coalesce(var_grp, '')), (coalesce(var_name, '')), (coalesce(user_id, 0)), (coalesce(pos_id, 0)), (coalesce(group_id, 0)))")) {
 		return settings_mig_fail();
 	}

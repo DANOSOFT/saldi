@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 4.1.1 --- 2025-07-02 --
+// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 4.1.1 --- 2026-10-19 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,16 +21,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20250629 - PHR $basecurrency  & some cleanup
 // 20250702 - PHR Updated deletion of fiscal year
-// 20261005 Sawaneh Settings redesign G1.2 (audit F10-F15): returns '' when deleted or the reason it refused instead of
-//                  alert + exit; refuses a year somebody has active; the base currency is compared as a value, not as
-//                  the text '$baseCurrency'; the report rows are deleted once; no stray HTML after the include. The
-//                  stock re-basing never ran (F11: its loops never started and would have died on db_modify(qtxt));
-//                  its variables are fixed but it stays switched off until the valuation rule is decided.
-// 20261019 Sawaneh Review 2 (PR #803): the active-year check casts with db_cast() (MySQL has no cast as text).
+// 20261005 SS Settings redesign G1.2 (audit F10-F15): returns '' when deleted or the reason it refused instead of alert + exit; refuses a year somebody has active; the base currency is compared as a value, not as the text '$baseCurrency'; the report rows are deleted once; no stray HTML after the include.
+//             The stock re-basing never ran (F11: its loops never started and would have died on db_modify(qtxt)); its variables are fixed but it stays switched off until the valuation rule is decided.
+// 20261019 SS Review 2 (PR #803): the active-year check casts with db_cast() (MySQL has no cast as text).
 
 function deleteFinancialYear($year, $rebaseStock = false) {
 	global $regnaar;
@@ -61,9 +58,9 @@ function deleteFinancialYear($year, $rebaseStock = false) {
 		return findtekst('6569|det er dit aktive år', $GLOBALS['sprog_id']);
 	}
 
-	$qtxt = "update batch_kob set variant_id = 0 where variant_id is NULL";  
+	$qtxt = "update batch_kob set variant_id = 0 where variant_id is NULL";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "update batch_salg set variant_id = 0 where variant_id is NULL";  
+	$qtxt = "update batch_salg set variant_id = 0 where variant_id is NULL";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
 	$accountId = array();

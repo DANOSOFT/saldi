@@ -17,16 +17,12 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261004 Sawaneh G9.2 pickup address items, G9.4 NemHandel status.
-// 20261004 Sawaneh G10.3: card list items from the POS card lists, their status, the payment providers' state.
-// 20261002 Sawaneh Settings redesign phase 4b batch 2 (G9, hand-over 2 Oct): what the Integrations list needs beyond
-//                  the registry - the computed status of each integration (never stored, §8.13), the read-only info
-//                  rows, the two small login forms, a new API key, MobilePay QR codes per till (moved from the old
-//                  page's render, spec B-D12) and the Vibrant terminal login created on the server (B-D10).
+// 20261004 SS G9.2 pickup address items, G9.4 NemHandel status.
+// 20261004 SS G10.3: card list items from the POS card lists, their status, the payment providers' state.
+// 20261002 SS Settings redesign phase 4b batch 2 (G9, hand-over 2 Oct): what the Integrations list needs beyond the registry - the computed status of each integration (never stored, §8.13), the read-only info rows, the two small login forms, a new API key, MobilePay QR codes per till (moved from the old page's render, spec B-D12) and the Vibrant terminal login created on the server (B-D10).
 // 20261101 CL/ASR Ansatte lists one more item, Ekstra felter ('general'), with the field that moved there from Diverse valg.
-// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026): the one list of employees and logins is usersRoles.php; this list is the employee list
-//                 of a user without it. The card's "Bruger" line names the linked login without a link to usersRoles.php (its person card
-//                 shows the login, and a user here may not open that page).
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026): the one list of employees and logins is usersRoles.php; this list is the employee list of a user without it.
+//                 The card's "Bruger" line names the linked login without a link to usersRoles.php (its person card shows the login, and a user here may not open that page).
 
 /**
  * Status of one integration from what is stored: kind 'ok', 'off', 'err' or 'soon', the short text and the

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.10.29----------
+// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.11.03----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@
 //                  The choice is carried to the next entry (kontotype in the URL), so it is made once per journal.
 // 20261029 CL/MMR SD-785 The two texts moved to 7650 and 7651, as 7636 is also used by another change.
 //                  The restart link URL-encodes kontotype like kladde_id next to it.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 ob_start();
 @session_start();

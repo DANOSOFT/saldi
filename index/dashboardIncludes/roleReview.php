@@ -17,9 +17,7 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260930 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §6.3): the "Review roles" card for
-//                  administrators after the migration to roles, until every migrated role is
-//                  confirmed or the card is hidden.
+// 20260930 SS Roles stage 2 (Requirements_roles_stage2_EN.md §6.3): the "Review roles" card for administrators after the migration to roles, until every migrated role is confirmed or the card is hidden.
 // 20261101 CL/ASR The card uses the dashboard's classes (prototype D panel, the kit's buttons) instead of inline styles.
 // 20261103 CL/ASR QA: texts are escaped in the page's charset (htmlspecialchars() with UTF-8 blanked latin-1 texts).
 

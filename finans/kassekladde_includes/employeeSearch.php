@@ -1,6 +1,7 @@
 <?php
 
 // 20260216 PHR - *1 -> (int)
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 
 ob_start();

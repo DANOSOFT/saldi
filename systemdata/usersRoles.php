@@ -22,28 +22,20 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh "Brugere & roller" (spec R8): user list with search, user card with role,
-//                  role list + matrix editor, bulk role assignment, migration suggestions and
-//                  the audit log. Replaces brugere.php (and brugereRevisor.php). Controller here,
-//                  view in usersRolesIncludes/view.php. Post/Redirect/Get throughout.
+// 20260916 SS "Brugere & roller" (spec R8): user list with search, user card with role, role list + matrix editor, bulk role assignment, migration suggestions and the audit log.
+//             Replaces brugere.php (and brugereRevisor.php).
+//             Controller here, view in usersRolesIncludes/view.php.
+//             Post/Redirect/Get throughout.
 // 20261101 CL/ASR New design (prototype D): the head links css/saldi-theme.css; the view links css/saldi-kit.css and then css/usersRoles.css, so the page's own rules come after the kit.
 // 20261101 CL/ASR Loads includes/settings/components.php for the Tilbage button the view shows above the title.
 // 20261102 CL/ASR Loads includes/settings/layout.php (which loads components.php): the view uses the standard settings layout with the left menu.
-// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle", one card with Stamdata and
-//                 Login og rolle, one button "Tilføj person"): the users list is the one list of logins and employees, and the user drawer the
-//                 person card (includes/settings/people.php, loaded here: ur_people_request() checks ansat=/fane=/field=, ur_people_model()
-//                 adds the employees after ur_view_model()). Saving, the checks and the redirects of this page are unchanged; the only new input
-//                 is ansat=<id>, an employee of the company, only read for a user who may read the employees.
-//                 With ansat=<id> a new user starts linked to that employee, with its e-mail and a username from it, when the employee is
-//                 the company's, has not left and has no login yet, and only for a user who may create logins and read the employees;
-//                 the new-user form keeps ansat= on its POST, so a refused form (a username already taken) comes back linked.
-//                 "Kobling til ansat" lists only the company's employees (contact persons of customers and suppliers are in the same table),
-//                 keeps a closed or other linked employee as the selected choice (Gem no longer unlinks it), and marks employees that have a login.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle", one card with Stamdata and Login og rolle, one button "Tilføj person"): the users list is the one list of logins and employees, and the user drawer the person card (includes/settings/people.php, loaded here: ur_people_request() checks ansat=/fane=/field=, ur_people_model() adds the employees after ur_view_model()).
+//                 Saving, the checks and the redirects of this page are unchanged; the only new input is ansat=<id>, an employee of the company, only read for a user who may read the employees.
+//                 With ansat=<id> a new user starts linked to that employee, with its e-mail and a username from it, when the employee is the company's, has not left and has no login yet, and only for a user who may create logins and read the employees; the new-user form keeps ansat= on its POST, so a refused form (a username already taken) comes back linked.
+//                 "Kobling til ansat" lists only the company's employees (contact persons of customers and suppliers are in the same table), keeps a closed or other linked employee as the selected choice (Gem no longer unlinks it), and marks employees that have a login.
 //                 The status filter may start on "Ingen login" (status=nologin).
-// 20261103 CL/ASR QA: no legacy $modulnr gate (it read the Indstillinger bit, so an Administrator matrix without Indstillinger, or a
-//                 role with only Brugere & roller, was refused before the page's own checks). Each tab has its own key: Brugere
-//                 settings.users.manage, Roller settings.roles.manage, Audit-log settings.audit.read; the page opens with any of the three,
-//                 and a POST needs write on the key of what it changes (role actions roles.manage, the rest users.manage).
+// 20261103 CL/ASR QA: no legacy $modulnr gate (it read the Indstillinger bit, so an Administrator matrix without Indstillinger, or a role with only Brugere & roller, was refused before the page's own checks).
+//                 Each tab has its own key: Brugere settings.users.manage, Roller settings.roles.manage, Audit-log settings.audit.read; the page opens with any of the three, and a POST needs write on the key of what it changes (role actions roles.manage, the rest users.manage).
 //                 Nulstil til standard is refused (and disabled) for a role whose present rights lie above the editor's own, as Gem is.
 //                 The employee choices on the user card are loaded only for a user who may read Organisation (else only the linked one).
 //                 Once a revisor is designated it can no longer be moved or removed here (master's rule; text 2563 says support does it).

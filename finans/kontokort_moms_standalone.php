@@ -25,8 +25,8 @@
 // ----------------------------------------------------------------------
 //
 //20260430 LOE Created standalone version of kontokort repoort for easy navigation
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261030 CL/LAH per_page defaults to 0 = all lines.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 @session_start();
 $s_id = session_id();
 

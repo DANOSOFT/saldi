@@ -1,5 +1,5 @@
 <?php
-// ---- index/invite.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- index/invite.php --- lap 5.0.0 --- 2026.10.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,12 +15,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §8.4): the page an invitation link
-//                  opens. The invited user chooses a password and is then logged in the normal way.
-// 20261001 Sawaneh MySQL: select the company database after connecting (as online.php).
-// 20261014 Sawaneh Review: the auto-login after an invitation keeps the password in the session for one minute, not in the HTML.
+// 20260929 SS Roles stage 2 (Requirements_roles_stage2_EN.md §8.4): the page an invitation link opens.
+//             The invited user chooses a password and is then logged in the normal way.
+// 20261001 SS MySQL: select the company database after connecting (as online.php).
+// 20261014 SS Review: the auto-login after an invitation keeps the password in the session for one minute, not in the HTML.
 
 @session_start();
 if (empty($_SESSION['nonce'])) {

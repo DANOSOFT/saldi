@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/kreditorFromCvr.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- kreditor/kreditorFromCvr.php --- ver 5.0.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 //                Actions (POST): resolve (pool document), form (groups, terms, defaults), create, undo ("Fortryd"), confirmBank ("Bekræft").
 //                The company and the user come from the session; creating, undoing and confirming need the kreditor module's rights.
 // 20261004 CL/SZ SD-721 Action reopen ("Genåbn") for a closed kreditor with the document's CVR number; create takes allowClosed for "Opret ny".
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id = session_id();

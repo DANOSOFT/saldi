@@ -17,13 +17,11 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh Topbar addendum 2026-10-05 §6: record lookups for the global search in the top bar - customers,
-//                  suppliers, orders/invoices, cash journals, items and accounts - and the recently visited pages.
-//                  Read-only JSON; every group only for users who may open that area; at most 4 per group with
-//                  LIMIT in SQL. Pages and settings are matched in the shell (sidebar) and by settingsSearch.php.
+// 20261005 SS Topbar addendum 2026-10-05 §6: record lookups for the global search in the top bar - customers, suppliers, orders/invoices, cash journals, items and accounts - and the recently visited pages.
+//             Read-only JSON; every group only for users who may open that area; at most 4 per group with LIMIT in SQL.
+//             Pages and settings are matched in the shell (sidebar) and by settingsSearch.php.
 // 20261031 CL/ASR $skipLogtime: the top bar's lookups do not touch online.logtime (includes/online.php).
-// 20261103 CL/ASR QA: a recently visited page links to its full path from the Saldi root (the request path without the install
-//                 prefix, as page_came_from() does), not the last two segments: Lager » Varer (lager/lister/vareliste.php) gave a 404.
+// 20261103 CL/ASR QA: a recently visited page links to its full path from the Saldi root (the request path without the install prefix, as page_came_from() does), not the last two segments: Lager » Varer (lager/lister/vareliste.php) gave a 404.
 
 ob_start();
 @session_start();

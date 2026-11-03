@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190411 PHR Added alertText
@@ -31,7 +31,7 @@
 // 20260212 PHR pdfmerge replaced by pdftk and some errors
 // 20260320 PHR cleanup (pdftk)
 // 20260326 PHR Fixed error in weasyprint
-// 20261001 Sawaneh Saves look the row up when the form has no id (stale or resubmitted form made duplicates).
+// 20261001 SS Saves look the row up when the form has no id (stale or resubmitted form made duplicates).
 
 @session_start();
 $s_id=session_id();

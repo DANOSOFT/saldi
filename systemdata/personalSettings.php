@@ -22,35 +22,31 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh Consolidated personal settings page (language, colours, popup/expiry
-//                  choices, contact details, 2FA, password). Replaces the "Personlige valg"
-//                  section in diverse.php and the self-service page brugerdata.php.
-//                  Controller (POST -> save -> redirect) above, view below.
-// 20260927 Sawaneh Topbar spec 2026-09-17 step 1b: three tabs (Profil / Sikkerhed / Min adgang),
-//                  cluster placement, active sessions with "log out other devices", current
-//                  password required for email/phone/2FA/password changes (spec 4.5), audit log.
-// 20260928 Sawaneh Back button top-left in the theme colour, as elsewhere in the system (was Close top-right).
-// 20260928 Sawaneh Popup windows, background colour and highlight removed (settings redesign spec, Personal settings).
-// 20260929 Sawaneh Order autocomplete moved here from Ordrerelaterede valg, saved through SettingsService.
-// 20260930 Sawaneh Notifications tab: daily e-mail summary on/off (Adam: summary only).
-// 20261004 Sawaneh Bank status in the cash journal is a personal setting here when the bank integration is live (G2.7).
-// 20261005 Sawaneh Bar placement option removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
-// 20261008 Sawaneh Tema (light / dark / system) under Udseende, stored as personal.profile.theme (settings ui/theme).
-// 20261009 Sawaneh The theme field waits for round 2 (settings decision 23): shown and saved only with SALDI_THEME_CHOICE.
-// 20261009 Sawaneh Tekststørrelse Normal / Større (personal.profile.text_size, front-page addendum 3 §3.3); the shell reloads on change.
-// 20261013 Sawaneh The back link carries accesskey L, so the shell hides it like on every migrated page (breadcrumb instead).
-// 20261014 Sawaneh Review: CSRF token on every form and checked before any POST is handled.
+// 20260916 SS Consolidated personal settings page (language, colours, popup/expiry choices, contact details, 2FA, password).
+//             Replaces the "Personlige valg" section in diverse.php and the self-service page brugerdata.php.
+//             Controller (POST -> save -> redirect) above, view below.
+// 20260927 SS Topbar spec 2026-09-17 step 1b: three tabs (Profil / Sikkerhed / Min adgang), cluster placement, active sessions with "log out other devices", current password required for email/phone/2FA/password changes (spec 4.5), audit log.
+// 20260928 SS Back button top-left in the theme colour, as elsewhere in the system (was Close top-right).
+// 20260928 SS Popup windows, background colour and highlight removed (settings redesign spec, Personal settings).
+// 20260929 SS Order autocomplete moved here from Ordrerelaterede valg, saved through SettingsService.
+// 20260930 SS Notifications tab: daily e-mail summary on/off (Adam: summary only).
+// 20261004 SS Bank status in the cash journal is a personal setting here when the bank integration is live (G2.7).
+// 20261005 SS Bar placement option removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
+// 20261008 SS Tema (light / dark / system) under Udseende, stored as personal.profile.theme (settings ui/theme).
+// 20261009 SS The theme field waits for round 2 (settings decision 23): shown and saved only with SALDI_THEME_CHOICE.
+// 20261009 SS Tekststørrelse Normal / Større (personal.profile.text_size, front-page addendum 3 §3.3); the shell reloads on change.
+// 20261013 SS The back link carries accesskey L, so the shell hides it like on every migrated page (breadcrumb instead).
+// 20261014 SS Review: CSRF token on every form and checked before any POST is handled.
 // 20261031 CL/ASR The confirm-password flash's findtekst fallback is id 5625's full Danish text, as the tekster guardrail requires.
 // 20261031 CL/ASR Fallback texts 7031 and 5639 match importfiler/tekster.csv.
 // 20261101 CL/ASR The personal colour choice (Knapfarve / Tekstfarve på knapper under Udseende) and its save path are removed.
 //                 Everyone gets the standard colours (includes/online.php); stored colour rows are left as they are.
 // 20261101 CL/ASR Tilbage is the shared settings button (settings_back_button(): small kit button, arrow, above the title) instead of the filled one in the user's colour.
-//                 It goes where the user came from, or Oversigt, also inside the shell (it went to Oversigt there). Alt+L kept.
-// 20261102 CL/ASR Tilbage comes from settings_back_link() alone: the newest page outside the settings system, skipping old addresses that redirect here, else Oversigt.
-//                 settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
-// 20261103 CL/ASR QA: two-factor login needs an e-mail or phone stored on the login itself (login.php reads brugere): switching it
-//                 on with only the employee's e-mail stores that e-mail on the login, and the last channel cannot be cleared while
-//                 two-factor is on. An expired form (err=csrf) now says so.
+//                 It goes where the user came from, or Oversigt, also inside the shell (it went to Oversigt there).
+//                 Alt+L kept.
+// 20261102 CL/ASR Tilbage comes from settings_back_link() alone: the newest page outside the settings system, skipping old addresses that redirect here, else Oversigt. settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
+// 20261103 CL/ASR QA: two-factor login needs an e-mail or phone stored on the login itself (login.php reads brugere): switching it on with only the employee's e-mail stores that e-mail on the login, and the last channel cannot be cleared while two-factor is on.
+//                 An expired form (err=csrf) now says so.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:

@@ -15,12 +15,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 Sawaneh Settings G5.8: loadLabelText(), saveLabelText(), parseLabelTemplate(), generateLabelTemplate(),
-//                  labelTemplateEditableVisually() and saveVisualLabelEdit() moved here unchanged from
-//                  systemdata/sys_div_func.php (their history is kept there), plus the list/template helpers the
-//                  Mærkater page (systemdata/labels.php) needs. lager/labelprint.php prints what is saved here.
+// 20261010 SS Settings G5.8: loadLabelText(), saveLabelText(), parseLabelTemplate(), generateLabelTemplate(), labelTemplateEditableVisually() and saveVisualLabelEdit() moved here unchanged from systemdata/sys_div_func.php (their history is kept there), plus the list/template helpers the Mærkater page (systemdata/labels.php) needs. lager/labelprint.php prints what is saved here.
 
 if (!function_exists('loadLabelText')) {
 
@@ -158,9 +155,9 @@ function parseLabelTemplate($labelText) {
         'beskrivelse_font_size' => '12',
         'pris_font_size'        => '12'
     );
-    
+
     if (empty($labelText)) return $parsed;
-    
+
     // Parse $cols, $rows, $txtlen from first lines
     if (preg_match('/\$cols=(\d+);/', $labelText, $matches)) {
         $parsed['cols'] = $matches[1];
@@ -171,7 +168,7 @@ function parseLabelTemplate($labelText) {
     if (preg_match('/\$txtlen=(\d+);/', $labelText, $matches)) {
         $parsed['txtlen'] = $matches[1];
     }
-    
+
     // Parse CSS dimensions. Accepts a comma decimal separator too (and normalizes it to a dot) in
     // case a template written before the generateLabelTemplate() comma-normalization fix already
     // has one stored - generateLabelTemplate() itself never writes a comma, so this is a read-side
@@ -196,22 +193,22 @@ function parseLabelTemplate($labelText) {
     if (preg_match('/margin-left:\s*([0-9.,]+)mm/', $labelText, $matches)) {
         $parsed['margin_left'] = str_replace(',', '.', $matches[1]);
     }
-    
+
     // Check what fields are shown
     $parsed['show_varenr']      = strpos($labelText,  '$varenr')      !== false;
     $parsed['show_varemrk']     = strpos($labelText,  '$varemrk')     !== false;
     $parsed['show_beskrivelse'] = (strpos($labelText, '$beskrivelse') !== false || strpos($labelText, '$minbeskrivelse') !== false);
     $parsed['show_pris']        = (strpos($labelText, '$pris')        !== false || strpos($labelText, '$minpris')        !== false);
     $parsed['show_barcode']     = strpos($labelText,  '$img')         !== false;
-    
+
     // Parse individual font sizes for each element
     if (preg_match('/<p>(.*?)<\/p>/s', $labelText, $matches)) {
         $content = $matches[1];
         $lines   = explode('<br>', $content);
-        
+
         foreach ($lines as $line) {
             $line = trim($line);
-            
+
             // Check for varenr with specific font size. [^<]*? (not .*?) keeps the match inside
             // a single <span>...</span> - $varenr and $varemrk can share one line
             // ("<span ...>$varenr</span> / <span ...>$varemrk</span>"), and .*? doesn't stop at
@@ -267,7 +264,7 @@ function parseLabelTemplate($labelText) {
             }
         }
     }
-    
+
     return $parsed;
 } # endfunc parseLabelTemplate
 
@@ -296,7 +293,7 @@ function generateLabelTemplate($data) {
     $template.= "margin-bottom: 0mm;\n";
     $template.= "margin-right: 0mm;\n";
     $template.= "margin-left: {$data['margin_left']}mm;}\n\n";
-    
+
     $template.= "p {\n";
     $template.= "width: {$data['width']}mm;\n";
     $template.= "display: inline-block;\n";
@@ -307,20 +304,20 @@ function generateLabelTemplate($data) {
     $template.= "margin-right: 0mm;\n";
     $template.= "margin-left: 1mm;\n";
     $template.= "font-size: {$data['font_size']}px}\n\n";
-    
+
     if ($data['show_barcode']) {
         $template.= "img {\n";
         $template.= "width: 90%;\n";
         $template.= "height: 5mm;\n";
         $template.= "margin-left:-4px}\n";
     }
-    
+
     $template.= "</style>\t\n";
     $template.= "<div id=\"main\">\n";
     $template.= "</top>\n\n";
-    
+
     $template.= "<p>\n";
-    
+
     // Add content based on selections with individual font sizes
     if ($data['show_varenr'] && $data['show_varemrk']) {
         $varenrSize  = $data['varenr_font_size'];
@@ -345,7 +342,7 @@ function generateLabelTemplate($data) {
             $template .= "\$varemrk<br>\n";
         }
     }
-    
+
     if ($data['show_beskrivelse']) {
         $fontSize = $data['beskrivelse_font_size'];
         if ($fontSize != $data['font_size']) {
@@ -354,7 +351,7 @@ function generateLabelTemplate($data) {
             $template .= "\$minbeskrivelse<br>\n";
         }
     }
-    
+
     // Add custom text lines with individual font sizes
     for ($i = 1; $i <= 5; $i++) {
         if (!empty($data["custom_text_$i"])) {
@@ -366,7 +363,7 @@ function generateLabelTemplate($data) {
             }
         }
     }
-    
+
     if ($data['show_pris']) {
         $fontSize = $data['pris_font_size'];
         if ($fontSize != $data['font_size']) {
@@ -375,11 +372,11 @@ function generateLabelTemplate($data) {
             $template .= "Pris \$minpris<br>\n";
         }
     }
-    
+
     if ($data['show_barcode']) {
         $template .= "<img src='\$img'><br>\n";
     }
-    
+
     $template .= "</p>\n\n";
     $template .= "<bottom>\n";
     $template .= "</div>\n";

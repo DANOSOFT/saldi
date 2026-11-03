@@ -17,39 +17,30 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261002 Sawaneh Settings redesign phase 4b batch 2 (hand-over 2 Oct, mock-ups 07/08): a section of 'kind' list.
-//                  Rows inside one card per sub-section - badge, title and one line, computed status, one button - and a
-//                  drawer per integration with its own form, actions and change history. Rendered by
-//                  systemdata/settingsSection.php; behaviour in javascript/settingsList.js.
-// 20261004 Sawaneh G10.1: group headings inside a drawer, a status without a dot ('plain').
-// 20261004 Sawaneh G4.3: rows from the database (names shown as typed), an empty state and a page-level add button.
-// 20261016 Sawaneh The left menu is the group's sections like every other section kind; the list's own blocks sit as a
-//                  second level under the current one (Adam's test feedback: Employees, price lists, tills and cards looked moved).
+// 20261002 SS Settings redesign phase 4b batch 2 (hand-over 2 Oct, mock-ups 07/08): a section of 'kind' list.
+//             Rows inside one card per sub-section - badge, title and one line, computed status, one button - and a drawer per integration with its own form, actions and change history.
+//             Rendered by systemdata/settingsSection.php; behaviour in javascript/settingsList.js.
+// 20261004 SS G10.1: group headings inside a drawer, a status without a dot ('plain').
+// 20261004 SS G4.3: rows from the database (names shown as typed), an empty state and a page-level add button.
+// 20261016 SS The left menu is the group's sections like every other section kind; the list's own blocks sit as a second level under the current one (Adam's test feedback: Employees, price lists, tills and cards looked moved).
 // 20261101 CL/ASR New design (prototype D): the page's root carries the kit's scope class sk; the look is css/unified-components.css on the kit's tokens.
-// 20261101 CL/ASR Settings hub "C - Fold ud": settings_menu_html(), the left menu of every settings page (the three section views and
-//                 the frame of the old pages, systemdata/top.php): the page's hub group as its sub-groups, each a heading over its
-//                 rows, the current row marked, a row's second page under it, no zebra (owner, 1 Nov 2026). The list's own blocks
-//                 stay a second level under the current page. Tilbage (settings_back_button()) above the title.
+// 20261101 CL/ASR Settings hub "C - Fold ud": settings_menu_html(), the left menu of every settings page (the three section views and the frame of the old pages, systemdata/top.php): the page's hub group as its sub-groups, each a heading over its rows, the current row marked, a row's second page under it, no zebra (owner, 1 Nov 2026).
+//                 The list's own blocks stay a second level under the current page.
+//                 Tilbage (settings_back_button()) above the title.
 // 20261101 CL/ASR Review: a page that is not on the hub lists only the hub groups the user can open something in (as the hub).
 //                 Tilbage carries Alt+L, as on the other settings pages.
 // 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
-// 20261102 CL/ASR settings_menu_html() is also the menu of the standard settings layout (includes/settings/layout.php), which any settings page,
-//                 sub-page or module page opened from Indstillinger uses. Its urls are rebased on a page outside systemdata/ (settings_menu_base()):
-//                 admin/backup.php and rental/settings.php would have opened admin/settings.php and rental/settingsSection.php.
-// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: one item, one list, one card): in the left menu a 'direct' sub-group's heading is the link
-//                 to its one row (marked on the list and on a card), and the row's other pages (Roller, Audit-log, Ekstra felter) are the rows
-//                 under it; the narrow-screen select lists the heading once with its pages under it (no optgroup that repeats the name).
-//                 A list section may show one of its blocks only ('only_sub', no h2): Ekstra felter is the employee section's extra-fields
-//                 block as a page of its own ('page_label', 'page_lead', 'hub_at'), the employee list of a user without usersRoles.php leaves
-//                 it out. 'add_label' names the head's add button. Embedded ('embed', the Stamdata tab of the person card in usersRoles.php,
-//                 in an iframe): only the open item's drawer, without page head, menu, breadcrumb or list; the page with no such item (a
-//                 deleted employee) only tells the card it is gone. A list section with 'row_click' opens a row from anywhere on it.
-//                 settingsList.js?v=7. Other list sections are unchanged.
+// 20261102 CL/ASR settings_menu_html() is also the menu of the standard settings layout (includes/settings/layout.php), which any settings page, sub-page or module page opened from Indstillinger uses.
+//                 Its urls are rebased on a page outside systemdata/ (settings_menu_base()): admin/backup.php and rental/settings.php would have opened admin/settings.php and rental/settingsSection.php.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: one item, one list, one card): in the left menu a 'direct' sub-group's heading is the link to its one row (marked on the list and on a card), and the row's other pages (Roller, Audit-log, Ekstra felter) are the rows under it; the narrow-screen select lists the heading once with its pages under it (no optgroup that repeats the name).
+//                 A list section may show one of its blocks only ('only_sub', no h2): Ekstra felter is the employee section's extra-fields block as a page of its own ('page_label', 'page_lead', 'hub_at'), the employee list of a user without usersRoles.php leaves it out.
+//                 'add_label' names the head's add button.
+//                 Embedded ('embed', the Stamdata tab of the person card in usersRoles.php, in an iframe): only the open item's drawer, without page head, menu, breadcrumb or list; the page with no such item (a deleted employee) only tells the card it is gone.
+//                 A list section with 'row_click' opens a row from anywhere on it. settingsList.js?v=7.
+//                 Other list sections are unchanged.
 // 20261102 CL/ASR Review: an empty 'page_lead' leaves the lead's first sentence out (Ekstra felter: the row's help says it).
-// 20261103 CL/ASR No 'direct' sub-group heading any more (owner, 3 Nov 2026: a heading is never a link in Indstillinger): Brugere & roller
-//                 is a heading like the others, with the rows Brugere, Roller, Audit-log and Ekstra felter.
-// 20261103 CL/ASR QA: the history hides the values of masked settings (SettingsService::historyMasked(): CPR, bank, salary as well as
-//                 secrets) and offers no Gendan for them: their audit rows keep no values.
+// 20261103 CL/ASR No 'direct' sub-group heading any more (owner, 3 Nov 2026: a heading is never a link in Indstillinger): Brugere & roller is a heading like the others, with the rows Brugere, Roller, Audit-log and Ekstra felter.
+// 20261103 CL/ASR QA: the history hides the values of masked settings (SettingsService::historyMasked(): CPR, bank, salary as well as secrets) and offers no Gendan for them: their audit rows keep no values.
 
 include_once(__DIR__ . '/integrations.php');
 

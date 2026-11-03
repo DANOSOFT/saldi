@@ -45,12 +45,12 @@
 //                so a crafted fokus can't break out of the links, the hidden field or the kontofusion redirect either.
 // 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
-// 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
 //                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
 // 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
 //                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
 //                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
+// 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261031 CL/ASR The inactive-group filter in the creditor group dropdown is only added when grupper has the inaktiv column, as in includes/orderFuncIncludes/accountLookup.php.
 //                 A ledger whose database update has not added the column yet still lists its groups instead of failing the query.
 

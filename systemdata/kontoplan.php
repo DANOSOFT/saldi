@@ -25,9 +25,7 @@
 // 20220607 MSC Implementing new design
 // 20260204 LOE Updated design with grid design format
 // 20260306 PHR Fixed error in call to dkdecimal
-// 20261102 CL/ASR Opened from Indstillinger (settings=1 on the hub row and the settings menu; owner, 2 Nov 2026: every page reached from the
-//                 settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): Tilbage, the title
-//                 and Ny above, the Finans group's menu with Kontoplan marked beside the grid, whose own height and scrolling stay.
+// 20261102 CL/ASR Opened from Indstillinger (settings=1 on the hub row and the settings menu; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): Tilbage, the title and Ny above, the Finans group's menu with Kontoplan marked beside the grid, whose own height and scrolling stay.
 //                 Its links to Kontokort and the grid's search and paging forms carry the marker on.
 //                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
 // 20261102 CL/ASR Review: opened from Indstillinger the page keeps 16 px under the grid (not the section pages' 96 px), so only the grid scrolls.

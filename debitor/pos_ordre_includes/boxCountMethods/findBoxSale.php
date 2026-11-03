@@ -32,11 +32,11 @@
 // 20260523 CL/PHR Fixed negative tilgang: skip retur calculation when pos_betalinger has no rows (NULL amount)
 // 20260907 CDX/PHR Expose included orders for cash report assignment.
 // 20260908 CDX/LH Limit immediate-posting report assignments to counted accounts; keep calculation read-only.
-// 20261009 Sawaneh The till account per currency comes from settings VK/till_account_<currency> per till (decision 22); box4 list only as fallback.
 // 20261019 CL/LH MB-70: Count only POS orders (and debtor orders when sets are enabled), as posbogfor() posts them.
 //                Ordinary invoices with a transaction on the register no longer inflate the turnover.
 //                A sale without payment type is logged and shown as "Ukendt betalingstype" instead of a nameless bucket.
 //                A missing (NULL) payment type no longer reaches substr()/strtolower().
+// 20261009 SS The till account per currency comes from settings VK/till_account_<currency> per till (decision 22); box4 list only as fallback.
 function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	$reportOrderIds = array();
 	echo "<!-- function findBoxSale begin -->"; 

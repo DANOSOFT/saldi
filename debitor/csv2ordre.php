@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/csv2ordre.php --- lap 4.1.1 --- 2025-12-19 ---
+// --- debitor/csv2ordre.php --- lap 4.1.1 --- 2026-09-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,14 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------
 // 20160502 PHR Sat returnconfirm på [Hent] for at hindre dobbeltimport ved dobbeltklik.
 // 20190812 PHR	More information from address is imported.
 // 20220713 phr '$pris' is now trimmed.  
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251219 LOE Added new top header design
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();

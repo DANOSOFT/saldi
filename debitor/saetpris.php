@@ -1,5 +1,5 @@
 <?php
-// --- debitor/saetpris.php ---patch 4.0.8 ----2023-08-31----
+// --- debitor/saetpris.php ---patch 4.0.8 ----2026-09-16----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,14 +16,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------
 // 2015.03.04	PHR Tilføjet mulighed for at slette et sæt
 // 2021.05.01 PHR Added  and box8!='0' as it is now set to 0 where updating 'varegrupper'
 // 20220831 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
 // 20231002 MSC - Copy pasted new design into code
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();

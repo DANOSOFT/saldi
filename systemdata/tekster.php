@@ -19,15 +19,14 @@
 // ----------------------------------------------------------------------
 // 20210818 LOE Updated some line here
 // 20210819 Added some blocks of codes and added an option to download edited text as csv file
-// 20260928 Sawaneh Phase 4: top-menu branch removed; top.php is the only frame.
 // 20261022 CL/NTR Added an editable Key (tekst_key) column; key edits propagate across all language rows of the text.
 // 20261028 CL/NTR Key is now shown in the Id column for rows without a tekst_id, and only the text is editable.
 //                  Copying a language matches rows by tekst_id or tekst_key.
 // 20261028 CL/NTR Saving or copying a text clears its findtekst() session cache entry.
 //                  Texts are HTML-escaped so quotes and angle brackets no longer break the table.
-// 20261102 CL/ASR Opened without ?sprog_id (Oversættelser under Indstillinger > Sprog & lokalisering links plain tekster.php) the page
-//                 showed "Sprog_id not found" and no texts; it now edits the texts of the language the user is logged in with, as the
-//                 section says. The language id is a number (it is printed in the page's links).
+// 20260928 SS Phase 4: top-menu branch removed; top.php is the only frame.
+// 20261102 CL/ASR Opened without ?sprog_id (Oversættelser under Indstillinger > Sprog & lokalisering links plain tekster.php) the page showed "Sprog_id not found" and no texts; it now edits the texts of the language the user is logged in with, as the section says.
+//                 The language id is a number (it is printed in the page's links).
 
 /**
  * Injected by ../includes/connect.php, included below:

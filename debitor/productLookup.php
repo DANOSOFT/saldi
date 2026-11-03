@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/productLookup.php --- patch 5.0.0 --- 2026-06-18 ---
+// --- debitor/productLookup.php --- patch 5.0.0 --- 2026-09-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 // Based on vareliste.php grid implementation
 // 20260513 CL/PHR Addet lager_ialt som valghmulighed
 // 20260618 CL/PHR replaced lower(vv.variant_type) by lower(vv.variant_type::text) to avoid Fatal error
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();

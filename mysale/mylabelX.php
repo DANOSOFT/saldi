@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mylabel.php --- lap 4.0.8 --- 2023-03-25 ---
+// --- mysale/mylabel.php --- lap 4.0.8 --- 2026-09-16 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2020 - 2023 saldi.dk aps
+// Copyright (c) 2020-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20200617 PHR Support for more pages.
 // 20200702 PHR Support for single label.
@@ -40,7 +40,7 @@
 // 20230325 PHR added memberShip to query and corrected an error in labelView for members. 
 // 20260914 CL/NTR The per-cell print link and the printLabels batch pass single=1 to labelprint.php
 //                 so they render one cell each; the printSheet button still fills the page grid.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();

@@ -17,26 +17,16 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh Topbar addendum 2026-10-05 §4: the one breadcrumb mechanism for every page in the shell.
-//                  page_help() registers the page's tour, shortcuts and guide for the Assist menu (§7);
-//                  page_breadcrumb() prints a script that posts saldi:breadcrumb to the shell (index/main.php),
-//                  answers the shell's request after each load, and handles saldi:navigate - through
-//                  window.saldiNavigate(href) when the page defines its own close logic, otherwise respecting
-//                  docChange. A "came from" chip (§3.1) is added from the navigation stack when the previous page
-//                  is not one of the page's own levels.
-// 20261006 Sawaneh Breadcrumb on every page (Adam 2026-10-06): online.php prints page_auto_breadcrumb() for each page from
-//                  the central map in pageRoutes.php (folder module + page title when a page is not in it); a page's own
-//                  page_breadcrumb() replaces it. The shell is always answered with the latest message, and a click
-//                  leaves through the page's old luk.php link when it has one, so record locks are still released.
-// 20261008 Sawaneh page_title(): the page's heading ("Kundeordre 1234", "Kassekladde 2877") becomes the last breadcrumb
-//                  level and the label the next page's came-from chip shows (addendum §5).
-// 20261008 Sawaneh The breadcrumb handlers moved to javascript/pageChrome.js; the head carries only window.saldiPageChrome
-//                  (and the shell-nav style), so a page that redirects after online.php stays under the output buffer.
-// 20261008 Sawaneh The came-from chip keeps the whole path of a page in a subfolder (lager/lister/vareliste.php gave a 404).
-// 20261009 Sawaneh page_record(): the record as the last breadcrumb level on cards (decision 22 of 2026-10-09).
-// 20261010 Sawaneh systemdata/labels.php prints the settings breadcrumb itself, like settingsSection.php.
-// 20261031 CL/ASR The breadcrumb only feeds the topbar: no page's Luk/Tilbage is hidden in the shell.
-//                 javascript/pageChrome.js (v=20261031) has no Alt+L handler.
+// 20261005 SS Topbar addendum 2026-10-05 §4: the one breadcrumb mechanism for every page in the shell. page_help() registers the page's tour, shortcuts and guide for the Assist menu (§7); page_breadcrumb() prints a script that posts saldi:breadcrumb to the shell (index/main.php), answers the shell's request after each load, and handles saldi:navigate - through window.saldiNavigate(href) when the page defines its own close logic, otherwise respecting docChange.
+//             A "came from" chip (§3.1) is added from the navigation stack when the previous page is not one of the page's own levels.
+// 20261006 SS Breadcrumb on every page (Adam 2026-10-06): online.php prints page_auto_breadcrumb() for each page from the central map in pageRoutes.php (folder module + page title when a page is not in it); a page's own page_breadcrumb() replaces it.
+//             The shell is always answered with the latest message, and a click leaves through the page's old luk.php link when it has one, so record locks are still released.
+// 20261008 SS page_title(): the page's heading ("Kundeordre 1234", "Kassekladde 2877") becomes the last breadcrumb level and the label the next page's came-from chip shows (addendum §5).
+// 20261008 SS The breadcrumb handlers moved to javascript/pageChrome.js; the head carries only window.saldiPageChrome (and the shell-nav style), so a page that redirects after online.php stays under the output buffer.
+// 20261008 SS The came-from chip keeps the whole path of a page in a subfolder (lager/lister/vareliste.php gave a 404).
+// 20261009 SS page_record(): the record as the last breadcrumb level on cards (decision 22 of 2026-10-09).
+// 20261010 SS systemdata/labels.php prints the settings breadcrumb itself, like settingsSection.php.
+// 20261031 CL/ASR The breadcrumb only feeds the topbar: no page's Luk/Tilbage is hidden in the shell. javascript/pageChrome.js (v=20261031) has no Alt+L handler.
 
 if (!function_exists('page_breadcrumb')):
 

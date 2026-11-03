@@ -22,52 +22,35 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh View functions for systemdata/usersRoles.php (users, roles matrix, audit log).
-// 20260928 Sawaneh Back button top-left in the theme colour, as elsewhere in the system (was Close top-right).
-// 20260929 Sawaneh Roles stage 2 (§8.4): Invite user / Create user, status Invited, resend invitation.
-// 20260930 Sawaneh Roles stage 2 (§7.2): audit log filters, search, pages, CSV export, readable actions.
-// 20260930 Sawaneh Back goes one step up: from a user or role card to its list, from a list to the settings
-//                  front page (the history fallback landed on the old VAT page);
-//                  password fields on the user card are not filled in by the browser; bulk results say how
-//                  many were done and why the rest were skipped; own card says why it cannot be closed.
-// 20260930 Sawaneh Roles stage 2 (§8.1, §8.2): reset password, role and 2FA filters, sorting, pages of 50.
-// 20260930 Sawaneh Roles stage 2 (§6.3): review of migrated roles in the list, on the card and in bulk.
-// 20260930 Sawaneh Layout after Adam's prototype_brugere_roller.html: review banner, toolbar card with a bulk bar
-//                  that appears on selection, user drawer, role list next to the matrix, dialogs instead of
-//                  browser confirms.
-// 20261001 Sawaneh Messages for a user above the actor's own access and for an expired form (CSRF); the Administrator
-//                  role's users and roles rows cannot be lowered.
-// 20261002 Sawaneh The page tells the shell its breadcrumb trail (settings redesign §8.0).
-// 20261009 Sawaneh Oversigt group (front-page addendum 4 §3): block rows under Se Oversigt, disabled while it is off, read-only radios, module note.
-// 20261011 Sawaneh Block rows under Se Oversigt = Ingen are greyed but still submitted, so their levels survive a save.
-// 20261016 Sawaneh Review (PR #803): the enforcement card says that read is enforced only in deny mode. Text 7099.
+// 20260916 SS View functions for systemdata/usersRoles.php (users, roles matrix, audit log).
+// 20260928 SS Back button top-left in the theme colour, as elsewhere in the system (was Close top-right).
+// 20260929 SS Roles stage 2 (§8.4): Invite user / Create user, status Invited, resend invitation.
+// 20260930 SS Roles stage 2 (§7.2): audit log filters, search, pages, CSV export, readable actions.
+// 20260930 SS Back goes one step up: from a user or role card to its list, from a list to the settings front page (the history fallback landed on the old VAT page); password fields on the user card are not filled in by the browser; bulk results say how many were done and why the rest were skipped; own card says why it cannot be closed.
+// 20260930 SS Roles stage 2 (§8.1, §8.2): reset password, role and 2FA filters, sorting, pages of 50.
+// 20260930 SS Roles stage 2 (§6.3): review of migrated roles in the list, on the card and in bulk.
+// 20260930 SS Layout after Adam's prototype_brugere_roller.html: review banner, toolbar card with a bulk bar that appears on selection, user drawer, role list next to the matrix, dialogs instead of browser confirms.
+// 20261001 SS Messages for a user above the actor's own access and for an expired form (CSRF); the Administrator role's users and roles rows cannot be lowered.
+// 20261002 SS The page tells the shell its breadcrumb trail (settings redesign §8.0).
+// 20261009 SS Oversigt group (front-page addendum 4 §3): block rows under Se Oversigt, disabled while it is off, read-only radios, module note.
+// 20261011 SS Block rows under Se Oversigt = Ingen are greyed but still submitted, so their levels survive a save.
+// 20261016 SS Review (PR #803): the enforcement card says that read is enforced only in deny mode. Text 7099.
 // 20261031 CL/ASR Fallback text 2563 matches importfiler/tekster.csv.
 // 20261101 CL/ASR New design (prototype D, as the dashboard): the page is built from css/saldi-kit.css under one .sk root, with the kit's head, tabs, panels, filter bars, 24 px tables, status dots, drawer and dialog, and the role matrix as a table.
 //                 Same texts, controls, forms and URLs; one filled button per view (the role's Gem on the Roles tab).
 // 20261101 CL/ASR Review 2: the e-mail cell carries the address as its title, as a long one now ends in an ellipsis.
 // 20261101 CL/ASR Tilbage is the shared settings button (settings_back_button(): small kit button, arrow, above the title), as on every settings page.
-//                 A user or role card still goes back to its list; a list goes where settings_back_link() says. Alt+L kept.
+//                 A user or role card still goes back to its list; a list goes where settings_back_link() says.
+//                 Alt+L kept.
 //                 The review banner sits under the head, so Tilbage keeps its place at the top.
 // 20261102 CL/ASR settings_back_button() adds Alt+L itself; a list's Tilbage goes to the hub. The kit and usersRoles.css are linked as ?v=20261102 (the kit places Tilbage).
 // 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu): the menu of Virksomhed with Brugere & roller marked under Brugere & ansatte, and the tabs, review banner, notices, table, role matrix, audit log, drawer and dialogs in the content column beside it.
-//                 Tilbage, title, the counts and Opret/Inviter bruger form the same head as the section pages; the layout prints the breadcrumb and the document title.
-//                 usersRoles.css is linked after the layout's stylesheets, as ?v=20261102b.
-// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle"; one card with Stamdata and
-//                 Login og rolle; one button "Tilføj person"; Roller, Audit-log and Ekstra felter in the menu). Small hooks into
-//                 includes/settings/people.php, which holds the logic:
-//                 - the users tab is the one list "Brugere & ansatte": the employees without a login are rows too (ur_people_rows_before/_rest,
-//                   no tick box), a status filter "Ingen login", the counts with their singulars (ur_people_lead), a click anywhere on a row
-//                   opens the card (data-href), the line under a name is initials · username, a chevron instead of the edit icon;
-//                 - the user drawer is the person card: tabs Stamdata | Login og rolle under its head (ur_people_card_head), wider; an
-//                   employee without a login has its own card with "Giv adgang" (ur_people_card_nologin); closing goes to the list;
-//                 - the head's one button is "Tilføj person" (its dialog: ur_people_add_dialog); Roller and Audit-log have none and no tab bar
-//                   (the left menu holds Roller and Audit-log); the title follows the tab (Brugere & ansatte / Roller / Audit-log);
-//                 - Tilbage on the log opened by "Se log" from a card goes back to that card (ret=user_<id>, a whitelist).
-//                 "Kobling til ansat" names a closed employee "(Fratrådt)" and marks one that already has a login; closing a login linked
-//                 to an employee says that the employee is marked as resigned too (user_close() does that).
+//                 Tilbage, title, the counts and Opret/Inviter bruger form the same head as the section pages; the layout prints the breadcrumb and the document title. usersRoles.css is linked after the layout's stylesheets, as ?v=20261102b.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle"; one card with Stamdata and Login og rolle; one button "Tilføj person"; Roller, Audit-log and Ekstra felter in the menu).
+//                 Small hooks into includes/settings/people.php, which holds the logic: - the users tab is the one list "Brugere & ansatte": the employees without a login are rows too (ur_people_rows_before/_rest, no tick box), a status filter "Ingen login", the counts with their singulars (ur_people_lead), a click anywhere on a row opens the card (data-href), the line under a name is initials · username, a chevron instead of the edit icon; - the user drawer is the person card: tabs Stamdata | Login og rolle under its head (ur_people_card_head), wider; an employee without a login has its own card with "Giv adgang" (ur_people_card_nologin); closing goes to the list; - the head's one button is "Tilføj person" (its dialog: ur_people_add_dialog); Roller and Audit-log have none and no tab bar (the left menu holds Roller and Audit-log); the title follows the tab (Brugere & ansatte / Roller / Audit-log); - Tilbage on the log opened by "Se log" from a card goes back to that card (ret=user_<id>, a whitelist).
+//                 "Kobling til ansat" names a closed employee "(Fratrådt)" and marks one that already has a login; closing a login linked to an employee says that the employee is marked as resigned too (user_close() does that).
 // 20261103 CL/ASR The one list is titled Brugere, the name of its row under the heading Brugere & roller (owner, 3 Nov 2026).
-// 20261103 CL/ASR QA: Nulstil til standard is disabled for a role above the editor's own rights; the revisor checkbox is disabled once a
-//                 revisor is designated; Audit-log times on PHP's clock in the format 3/11-2026 14:05.
+// 20261103 CL/ASR QA: Nulstil til standard is disabled for a role above the editor's own rights; the revisor checkbox is disabled once a revisor is designated; Audit-log times on PHP's clock in the format 3/11-2026 14:05.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().

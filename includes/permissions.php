@@ -20,31 +20,21 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh Roles & permissions layer (spec part 2): role -> permission levels,
-//                  compatibility with the legacy rettigheder string (a role is rendered
-//                  into brugere.rettigheder so old checks keep working), require_permission(),
-//                  nearest-role suggestion for migration, and the audit log.
-// 20260928 Sawaneh Derived keys (pos.kasse from Debitorordre) and one-time seeding of new keys into roles.
-// 20260928 Sawaneh Phase 4: settings pages resolve to their group key; derived keys open their source position.
-// 20260928 Sawaneh Registry keys may carry 'renamed_from'; role rows move to the new name once.
-// 20260929 Sawaneh Roles stage 2: audit_log() records object and source; event names follow the spec (§7.1).
-// 20260930 Sawaneh Roles stage 2 (§6): migration of users without a role, custom roles per rights pattern,
-//                  covering-role suggestion and the review list.
-// 20261001 Sawaneh Review fixes: the migration leaves users without a rights string alone and never rewrites a
-//                  rights string; booleans written as true/false (MySQL); custom roles get no audit log;
-//                  notification check per database; one review flag per user (unique index on settings).
-// 20261009 Sawaneh Oversigt keys (addendum 4): 'derive_keys' resolution for users without a role and at seeding (built-in roles too), read-only clamp.
-// 20261018 Sawaneh Review 2 (PR #803): perm_require_post_csrf() for pages that write; modulnr 0 is no key (spec: position 0 is never
-//                  enforced), Sager pages keep their own rights string (spec B2).
-// 20261016 Sawaneh Review (PR #803): GET write verbs on legacy pages (slet, udlign, aktiver, bogfor, ...) need write, like
-//                  a POST does; audit_log column check filtered on the schema.
-// 20261103 CL/ASR QA: SD-657 (hideRevenue on when someone loses the Indstillinger right) runs wherever rights strings are synced
-//                 from a role: a role change, bulk role, the role matrix, reset and moving users off a deleted role, not only the user card.
-// 20261103 CL/ASR QA: the user migration gives a standard role only when the role covers everything the old rights string gave
-//                 (perm_role_covers_legacy(), all keys incl. the settings areas and derived keys); a string that equals a standard
-//                 role's but gave more (e.g. 2222222222222222: read on every settings area) gets a custom role kept for review instead.
+// 20260916 SS Roles & permissions layer (spec part 2): role -> permission levels, compatibility with the legacy rettigheder string (a role is rendered into brugere.rettigheder so old checks keep working), require_permission(), nearest-role suggestion for migration, and the audit log.
+// 20260928 SS Derived keys (pos.kasse from Debitorordre) and one-time seeding of new keys into roles.
+// 20260928 SS Phase 4: settings pages resolve to their group key; derived keys open their source position.
+// 20260928 SS Registry keys may carry 'renamed_from'; role rows move to the new name once.
+// 20260929 SS Roles stage 2: audit_log() records object and source; event names follow the spec (§7.1).
+// 20260930 SS Roles stage 2 (§6): migration of users without a role, custom roles per rights pattern, covering-role suggestion and the review list.
+// 20261001 SS Review fixes: the migration leaves users without a rights string alone and never rewrites a rights string; booleans written as true/false (MySQL); custom roles get no audit log; notification check per database; one review flag per user (unique index on settings).
+// 20261009 SS Oversigt keys (addendum 4): 'derive_keys' resolution for users without a role and at seeding (built-in roles too), read-only clamp.
+// 20261018 SS Review 2 (PR #803): perm_require_post_csrf() for pages that write; modulnr 0 is no key (spec: position 0 is never enforced), Sager pages keep their own rights string (spec B2).
+// 20261016 SS Review (PR #803): GET write verbs on legacy pages (slet, udlign, aktiver, bogfor, ...) need write, like a POST does; audit_log column check filtered on the schema.
+// 20261103 CL/ASR QA: SD-657 (hideRevenue on when someone loses the Indstillinger right) runs wherever rights strings are synced from a role: a role change, bulk role, the role matrix, reset and moving users off a deleted role, not only the user card.
+// 20261103 CL/ASR QA: the user migration gives a standard role only when the role covers everything the old rights string gave (perm_role_covers_legacy(), all keys incl. the settings areas and derived keys); a string that equals a standard role's but gave more (e.g.
+//                 2222222222222222: read on every settings area) gets a custom role kept for review instead.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 

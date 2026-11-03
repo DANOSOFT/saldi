@@ -1,5 +1,5 @@
 <?php
-// -- -------------systemdata/valuta.php------------- ver 4.1.1 -- 2026-01-22 --
+// -- -------------systemdata/valuta.php------------- ver 4.1.1 -- 2026-10-05 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,15 +15,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.DK ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20150313 CA  Topmenudesign tilføjet                             søg 20150313
 // 20190221 MSC - Rettet topmenu design
 // 20190225 MSC - Rettet topmenu design
 // 20210706 LOE std_func.php missing file included and also translated some of the texts
 // 20260122 PHR - Restyled page with modern design, added POS checkbox
-// 20261005 Sawaneh Currencies live in Indstillinger » Finans » Valuta (settings redesign 4d, G2.3; audit V1, V10 gone with
-//                  the new page); this page only redirects.
+// 20261005 SS Currencies live in Indstillinger » Finans » Valuta (settings redesign 4d, G2.3; audit V1, V10 gone with the new page); this page only redirects.
 
 @session_start();
 $s_id = session_id();

@@ -21,10 +21,10 @@
 //                  compares the path only, and nav files are cleaned up on logout.
 // 20260907 CDX/LH Reject raw whitespace and control characters in request return targets.
 // 20260907 CDX/LH Accept malformed request values at the navigation boundary without TypeError.
-// 20261005 Sawaneh Background fetch/XHR requests are not recorded (they filled the stack the came-from chip and search read).
 // 20260921 CL/SZ MB-50: exclude dashboard chart data endpoints (weekly_graph_data.php,
 //                customer_graph_data.php) from the nav stack so Luk on POS-Menuer
 //                never lands on raw JSON.
+// 20261005 SS Background fetch/XHR requests are not recorded (they filled the stack the came-from chip and search read).
 // 20261031 CL/ASR The topbar background endpoints (bell, search, gear lookup, topbar actions) are never recorded in the stack.
 
 if (!defined('NAV_STACK_MAX'))   define('NAV_STACK_MAX',   10);

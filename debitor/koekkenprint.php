@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/koekkenprint.php - lap 4.1.0 --- 2025-05-21 ---
+// --- debitor/koekkenprint.php - lap 4.1.0 --- 2026-09-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2008-2024 saldi.dk aps
+// Copyright (c) 2008-2026 Danosoft ApS
 // -----------------------------------------------------------------------
 // 20140903 - Rettet diverse pga antal blev stillet tilbage efter 3. klik
 // 20140904 - Indsat 3x linjeafstand på udskrift.
@@ -33,7 +33,7 @@
 // 20220302 - PHR Added $next as k2 was not printed if $1 was empty
 // 20220421 -	PHR	Added varenr and grouping after 1 letter in varenr
 // 20240521	- PHR	fiscal_year
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();

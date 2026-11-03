@@ -70,13 +70,13 @@
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
 // 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
-// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
 // 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
 // 20261005 LOE SD-687 Department names are escaped where the filter options are built.
 // 20261023 CL/MMR SST-874 "Ryd" now only empties the grid's search fields and filter selections.
 //                 It used to delete the user's whole datatables row, so added columns, own headers and rows per page were lost.
 // 20261023 CL/MMR SST-874 Moved the "Ryd" database work into clearOrderListSearch() per the controller/view convention.
 //                 The list name (valg) is escaped in its SQL (review by Codex).
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
 
 @session_start();
 $s_id = session_id();

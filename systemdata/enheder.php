@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/enheder.php --- lap 3.9.9 --- 2021-02-11 ---
+// --- systemdata/enheder.php --- lap 3.9.9 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,14 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2019.02.25 MSC - Rettet topmenu design til og isset fejl
 // 2021.02.11 PHR	- Some cleanup
-// 20261004 Sawaneh Security 4.0 (A12e): enh_id/mat_id from the URL cast to integers before SQL and HTML.
+// 20261004 SS Security 4.0 (A12e): enh_id/mat_id from the URL cast to integers before SQL and HTML.
 
 		
-// 20261005 Sawaneh Units and materials live in Indstillinger » Varer » Enheder & materialer (settings redesign 4c, G5.2); this page only redirects.
+// 20261005 SS Units and materials live in Indstillinger » Varer » Enheder & materialer (settings redesign 4c, G5.2); this page only redirects.
 
 @session_start();
 $s_id = session_id();

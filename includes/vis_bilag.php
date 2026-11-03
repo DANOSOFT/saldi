@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php---- patch 5.0.0 --- 2026-02-12 ---
+// ----------finans/importer.php---- patch 5.0.0 --- 2026-10-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,13 +16,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ---------------------------------------------------------------------- 
 // 20140701 Mange ændring i forbindelse med indførelse af owncloud bilagsopbevaring
 // 20260212 LOE Refactored to handle multiple files, added upload functionality, and improved delete operations.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261018 Sawaneh Review 2 (PR #803): key by the attachment's module instead of 'any'; the ledger comes from the session, not ?db=.
-//                  kilde limited to kassekladde/ordrer/historik (a table name in the queries), ids cast, file name basename.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): key by the attachment's module instead of 'any'; the ledger comes from the session, not ?db=. kilde limited to kassekladde/ordrer/historik (a table name in the queries), ids cast, file name basename.
 
 @session_start();
 $s_id=session_id();

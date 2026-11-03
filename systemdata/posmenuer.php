@@ -53,9 +53,9 @@
 //                menu_id-ret_col-ret_row, callers read it as
 //                menu_id-ret_row-ret_col) and a $bud_id/$but_id typo that
 //                made a re-fetch guard always fire.
-// 20261004 Sawaneh Shown inside the settings frame (top.php) with the Kasse tab list and breadcrumb, instead of its own Close header.
 // 20261005 LOE SST-849 Removed the unused input() function, which held its own copy of the
 //                system button list with the same wrong "Sæt" option.
+// 20261004 SS Shown inside the settings frame (top.php) with the Kasse tab list and breadcrumb, instead of its own Close header.
 
 @session_start();
 $s_id = session_id();

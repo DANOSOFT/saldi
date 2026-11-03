@@ -118,7 +118,7 @@ class AuthRefreshEndpoint extends BaseEndpoint
             $this->sendResponse(false, null, 'User is closed', 401);
             return;
         }
-        
+
         // Generate new access token
         $accessTokenPayload = [
             'user_id' => $user['id'],

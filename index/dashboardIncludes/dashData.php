@@ -17,21 +17,17 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261008 Sawaneh The numbers behind Oversigt (Adam's prototype_dashboard_tema.html v5): week, month and fiscal year
-//                  revenue with last year and a trend, the VAT period with its deadline, revenue per month and per day,
-//                  customers per hour, revenue per item group, orders, active users and waiting suggestions. Revenue is
-//                  the sum of credit minus debit on the accounts between the dashboard's kontomin and kontomaks, as the
-//                  old widgets counted it. Everything from one daily query over the last and the current fiscal year.
-// 20261009 Sawaneh The largest uninvoiced order (addendum 3 §7) and the three newest suggestions (§7a) for the small cards.
-// 20261010 Sawaneh Key figures 1 and 3 of §7 (open point 9 settled): status 2 = delivered, not invoiced; levdate is the delivery date.
-// 20261012 Sawaneh The headline counts every uninvoiced order (Adam): the 30-day window is gone.
+// 20261008 SS The numbers behind Oversigt (Adam's prototype_dashboard_tema.html v5): week, month and fiscal year revenue with last year and a trend, the VAT period with its deadline, revenue per month and per day, customers per hour, revenue per item group, orders, active users and waiting suggestions.
+//             Revenue is the sum of credit minus debit on the accounts between the dashboard's kontomin and kontomaks, as the old widgets counted it.
+//             Everything from one daily query over the last and the current fiscal year.
+// 20261009 SS The largest uninvoiced order (addendum 3 §7) and the three newest suggestions (§7a) for the small cards.
+// 20261010 SS Key figures 1 and 3 of §7 (open point 9 settled): status 2 = delivered, not invoiced; levdate is the delivery date.
+// 20261012 SS The headline counts every uninvoiced order (Adam): the 30-day window is gone.
 // 20261101 CL/ASR Each item group also carries its revenue (fourth field), for the table that replaces the ring (prototype D).
 // 20261101 CL/ASR The VAT KPI no longer sums up to 8 earlier periods for a trend line the page does not draw any more.
 // 20261101 CL/ASR No active-user count and no suggestion list any more (both cards left the dashboard).
 // 20261101 CL/ASR Every item group is returned as well ('all'), so the page can show them all when its row has room.
-// 20261103 CL/ASR QA: the fiscal-year figure ends at the selected year's last day (an earlier year no longer counts later postings),
-//                 the month chart runs over the year's own months (6 or 18 too, not always 12), and item groups with a negative
-//                 revenue (credit notes) stay in the total and the list.
+// 20261103 CL/ASR QA: the fiscal-year figure ends at the selected year's last day (an earlier year no longer counts later postings), the month chart runs over the year's own months (6 or 18 too, not always 12), and item groups with a negative revenue (credit notes) stay in the total and the list.
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.

@@ -35,22 +35,16 @@
 // 20260102 LOE - Added uploading to folders by department
 // 20260220 LOE Background terms now used instead of language terms for clarity, as this is more accurate for what the settings do. The term 'language(sprog)' is still used in the database and code for backwards compatibility, but the user interface now refers to 'backgrounds' instead of 'languages'.
 // 20260320 PHR cleanup (pdftk)
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20260928 Sawaneh Security 4.0 (A3/A8): file-name whitelist for upload and delete, $modulnr gate.
-// 20261005 Sawaneh Settings redesign G6.2: real admin check for departments (L1), PDF recognised by content (L4), the page
-//                  is shown again after an upload and pdf2ps runs with escaped arguments (L6). Reached from Baggrunde.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20260928 SS Security 4.0 (A3/A8): file-name whitelist for upload and delete, $modulnr gate.
+// 20261005 SS Settings redesign G6.2: real admin check for departments (L1), PDF recognised by content (L4), the page is shown again after an upload and pdf2ps runs with escaped arguments (L6).
+//             Reached from Baggrunde.
 // 20261031 CL/ASR The upload alert's findtekst fallback is id 1751's Danish text (Siden er indlæst.), as the tekster guardrail requires.
-// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the
-//                 settings menu) instead of page_bar: the page is Baggrunds- og bilagsfiler under Logo & baggrunde, where the hub opens it
-//                 (Åbn), also when Formularer's Baggrund button opened it: breadcrumb Indstillinger / Virksomhed / Logo & baggrunde /
-//                 Baggrunds- og bilagsfiler, the Virksomhed menu with Logo & baggrunde marked, Tilbage above the title.
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) instead of page_bar: the page is Baggrunds- og bilagsfiler under Logo & baggrunde, where the hub opens it (Åbn), also when Formularer's Baggrund button opened it: breadcrumb Indstillinger / Virksomhed / Logo & baggrunde / Baggrunds- og bilagsfiler, the Virksomhed menu with Logo & baggrunde marked, Tilbage above the title.
 //                 Tilbage goes to the page given as returside (the form editor), else to Logo & baggrunde.
 //                 The upload, delete and preview below are unchanged.
-// 20261102 CL/ASR Review: opened from Formularer (its Baggrund button) or the form editor, the page sits under Formularer again: Formularer marked,
-//                 breadcrumb Indstillinger / Virksomhed / Formularer / Baggrunds- og bilagsfiler, Tilbage to the form or the editor, as before
-//                 (it went to Logo & baggrunde).
-//                 The place is kept in the session (logoupload_from) after an upload, a delete, a filter or the preview, which post or link
-//                 back without the returside.
+// 20261102 CL/ASR Review: opened from Formularer (its Baggrund button) or the form editor, the page sits under Formularer again: Formularer marked, breadcrumb Indstillinger / Virksomhed / Formularer / Baggrunds- og bilagsfiler, Tilbage to the form or the editor, as before (it went to Logo & baggrunde).
+//                 The place is kept in the session (logoupload_from) after an upload, a delete, a filter or the preview, which post or link back without the returside.
 session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -249,7 +243,7 @@ if (isset($_POST['slet_bilag'])) {
         upload();
         exit;
     }
-    $slet_bilag=$_POST['slet_bilag'].".pdf"; 
+    $slet_bilag=$_POST['slet_bilag'].".pdf";
     
     // For delete operation, use the selected department and current background
     $delete_department = $selected_department;

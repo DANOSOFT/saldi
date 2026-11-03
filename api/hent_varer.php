@@ -1,5 +1,5 @@
 <?php
-// ------------- api/hent_varer.php ---------- lap 3.5.6----2015.09.08-------
+// ------------- api/hent_varer.php ---------- lap 3.5.6----2026.09.16-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,12 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20150908 Default varenr er nu varenr i stedet for vare_id.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 #sleep (1);
 

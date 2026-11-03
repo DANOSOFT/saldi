@@ -17,13 +17,10 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261008 Sawaneh The page head of a migrated page (topbar addendum 2026-10-05 §5, prototype_dashboard_tema v5): the
-//                  title in the content, the old bar's tabs as a tab row, its actions on the right in the user's colour,
-//                  Ny as the primary button, Hjælp kept as a hidden #tutorial-help for the Assist menu's tour, Tilbage as a
-//                  plain link with accesskey L (the shell hides it, standalone pages keep it).
-// 20261009 Sawaneh Asset links via get_relative(): pages two levels down (lager/lister) got no CSS.
-// 20261009 Sawaneh 'extra' html among the actions for the open-post mode select (rapportfunc).
-// 20261018 Sawaneh Review 2 (PR #803): page_bar_back_ok() - a back link from the request may not run a script.
+// 20261008 SS The page head of a migrated page (topbar addendum 2026-10-05 §5, prototype_dashboard_tema v5): the title in the content, the old bar's tabs as a tab row, its actions on the right in the user's colour, Ny as the primary button, Hjælp kept as a hidden #tutorial-help for the Assist menu's tour, Tilbage as a plain link with accesskey L (the shell hides it, standalone pages keep it).
+// 20261009 SS Asset links via get_relative(): pages two levels down (lager/lister) got no CSS.
+// 20261009 SS 'extra' html among the actions for the open-post mode select (rapportfunc).
+// 20261018 SS Review 2 (PR #803): page_bar_back_ok() - a back link from the request may not run a script.
 // 20261031 CL/ASR Settings pages only: no dark-theme switch and no gear in the page toolbar (the gear is in the topbar).
 //                 The shell no longer hides Tilbage.
 

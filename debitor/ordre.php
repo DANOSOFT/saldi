@@ -149,7 +149,6 @@
 // 20260921 CDX/LH Reconcile employee-field history with master's navigation and price fixes.
 // 20260914 Sawaneh    JOB-141: Digital send also asks before resending when the last attempt ended
 //                     as SendFailed (set by debitor/api.php) - EasyUBL may have the document anyway.
-// 20261004 Sawaneh Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
 // 20261006 CL/LH SST-802: Manual invoicing of a webshop order with an empty Fakturadato uses the order date, like fakturer_ordre() does; other orders still default to today.
 // 20261008 MJ SST-833 The batch-selection control on a sales line no longer uses the
 //                  serial-number icon and alt text. It opens batch(), not serienummer(),
@@ -173,6 +172,7 @@
 //                read the offset before the call, so it warned when there was no konto_id or no adresser row.
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
+// 20261004 SS Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
 
 @session_start();
 $s_id = session_id();

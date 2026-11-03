@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 5.0.0 --- 2026-07-30 --
+// --- systemdata/regnskabsaar.php --- ver 5.0.0 --- 2026-10-05 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20150327 CA  Topmenudesign tilføjet                             søg 20150327
 // 20161202 PHR Små designændringer
@@ -39,9 +39,8 @@
 // 20260801 MJ Sat begge knapper til samme bredde (200px)
 // 20260814 Sawaneh SST-705 Current fiscal year shows Lukket when bookkeeping is
 //                  not allowed (box5) and GET params are int-cast before SQL
-// 20260930 Sawaneh check_permissions() moved to includes/std_func.php (roles spec §4.4).
-// 20261005 Sawaneh Fiscal years live in Indstillinger » Virksomhed » Regnskabsår (settings redesign 4d, G1.2; audit F1-F3
-//                  fixed by the new list); this page only redirects.
+// 20260930 SS check_permissions() moved to includes/std_func.php (roles spec §4.4).
+// 20261005 SS Fiscal years live in Indstillinger » Virksomhed » Regnskabsår (settings redesign 4d, G1.2; audit F1-F3 fixed by the new list); this page only redirects.
 
 @session_start();
 $s_id = session_id();

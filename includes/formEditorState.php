@@ -1,5 +1,5 @@
 <?php
-// ---- includes/formEditorState.php --- lap 5.0.0 --- 2026.10.05 ---
+// ---- includes/formEditorState.php --- lap 5.0.0 --- 2026.10.06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,14 +15,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh Settings redesign G6.1 (audit FE3): the visual form editor's print-language lock and drafts are kept
-//                  in the settings table (var_grp 'formeditor'), so they are in backups and the ledger, not in files
-//                  under logolib/. A file left from before is moved into the table the first time it is read.
-// 20261006 Sawaneh Onboarding part 1: fe_logo_store() is the logo upload shared by the form editor and the welcome guide;
-//                  the background helpers and fe_composite_logo() moved here from formeditor.php so the guide can put the
-//                  logo on the invoice (an optional file for a form without a background).
+// 20261005 SS Settings redesign G6.1 (audit FE3): the visual form editor's print-language lock and drafts are kept in the settings table (var_grp 'formeditor'), so they are in backups and the ledger, not in files under logolib/.
+//             A file left from before is moved into the table the first time it is read.
+// 20261006 SS Onboarding part 1: fe_logo_store() is the logo upload shared by the form editor and the welcome guide; the background helpers and fe_composite_logo() moved here from formeditor.php so the guide can put the logo on the invoice (an optional file for a form without a background).
 
 if (!function_exists('fe_state_get')):
 
@@ -167,7 +164,7 @@ function fe_composite_logo($db_id, $form_nr, $sprog, $defaultOut = 'bg.pdf') {
 		if ($active && file_exists($active)) @copy($active, $base);
 		else @shell_exec("convert -size 1654x2339 xc:white -units PixelsPerInch -density 200 " . escapeshellarg($base) . " 2>/dev/null");
 	} elseif ($activeMd5 !== '' && isset($meta['out_md5']) && $activeMd5 !== $meta['out_md5']) {
-		@copy($active, $base);   
+		@copy($active, $base);
 	}
 	if (!file_exists($base)) return;
 

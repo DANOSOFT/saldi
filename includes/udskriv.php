@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.0.0 --- 2026-10-08---
+// --- includes/udskriv.php --- ver 5.0.0 --- 2026-11-03---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,7 @@
 // 20261023 CL/LH MB-58: Tilbage after printing from an order returns to that order again, not the order list.
 //                The route now follows where the print started (bulk/list/order) instead of the area file,
 //                which only records the list tab the last order was opened from.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id=session_id();

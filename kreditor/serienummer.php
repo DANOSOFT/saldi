@@ -24,7 +24,6 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260123 PHR if (!$leveres && !$leveret) changed to if ($leveres == 0 && $leveret == 0) as it did not alert when value is 0.000
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261007 MJ SST-831 The 20260123 condition above had gone missing, so "Ingen varer er
 //                  sat til levering" appeared every time the window opened, including
 //                  with 1 in Modtag. Restored. The Gem button was guarded on $gem, which
@@ -33,6 +32,7 @@
 //                  statements below are cast where they arrive and serial numbers are
 //                  escaped at each use. The return list and what Modtag counts are
 //                  unchanged; both need the customer's credited rows established first.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 @session_start();
 $s_id=session_id();
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/diverseIncludes/save_flatpay_id.php ---------- ver 5.0.0----2026.10.02-------
+// ------------- systemdata/diverseIncludes/save_flatpay_id.php ---------- ver 5.0.0----2026.10.08-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,11 +22,9 @@
 //
 // Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260928 Sawaneh Security 4.0 (A10): the Flatpay login is exchanged for the GUID here on the server,
-//                  so username/password never leave the browser for a third-party host and are never logged.
 // 20261002 LOE SST-844 Flatpay ID saves need the Indstillinger right, a CSRF token and a GUID value.
-// 20261008 Sawaneh Merge of master: SST-844's JSON answers, CSRF token and GUID check around the server-side login
-//                  exchange; the right is settings.integrations (write), the legacy Indstillinger bit without roles.
+// 20260928 SS Security 4.0 (A10): the Flatpay login is exchanged for the GUID here on the server, so username/password never leave the browser for a third-party host and are never logged.
+// 20261008 SS Merge of master: SST-844's JSON answers, CSRF token and GUID check around the server-side login exchange; the right is settings.integrations (write), the legacy Indstillinger bit without roles.
 
 ob_start();
 

@@ -23,34 +23,24 @@
 //                 This file is the one source for the hub, the left menu of the settings pages, the settings breadcrumbs and the "moved" map.
 //                 Section ids, URLs, permission keys and stored data are unchanged: a row only points at sections and registry entries.
 //                 Included by systemdata/settingsRegistry.php.
-// 20261102 CL/ASR Tilbage is fixed, so it never loops: a section or other settings page goes to the hub (or the module page its gear came from);
-//                 the hub and the personal settings go to the newest page outside the settings system in the navigation stack, else Oversigt.
+// 20261102 CL/ASR Tilbage is fixed, so it never loops: a section or other settings page goes to the hub (or the module page its gear came from); the hub and the personal settings go to the newest page outside the settings system in the navigation stack, else Oversigt.
 //                 Old addresses that redirect (diverse.php, syssetup.php, anything with moved=) count as settings pages; Finans' kontoplan.php does not.
 // 20261102 CL/ASR Review: Tilbage's tooltip names a section by the section itself (backup.php's showed "Regnskabsår", the last section seen).
-// 20261102 CL/ASR The settings marker (owner, 2 Nov 2026: every page reached from Indstillinger keeps the settings menu): a hub row, a menu link or
-//                 a moved-map link to a page of another module (Kontoplan, Booking) carries settings=1 (settings_hub_marked_url()).
-//                 settings_opened_from_settings() tells such a page to show the settings layout (includes/settings/layout.php); without the
-//                 marker it stays as on master. An address with the marker counts as a settings page for Tilbage.
-// 20261102 CL/ASR Brugere & ansatte is one row, Personer (owner, 2 Nov 2026: one item for people): it opens the employee list, which also lists the logins,
-//                 and Brugere (usersRoles.php), Roller and Audit-log sit under it. The sub-group keeps its name, so no name repeats in the menu.
+// 20261102 CL/ASR The settings marker (owner, 2 Nov 2026: every page reached from Indstillinger keeps the settings menu): a hub row, a menu link or a moved-map link to a page of another module (Kontoplan, Booking) carries settings=1 (settings_hub_marked_url()). settings_opened_from_settings() tells such a page to show the settings layout (includes/settings/layout.php); without the marker it stays as on master.
+//                 An address with the marker counts as a settings page for Tilbage.
+// 20261102 CL/ASR Brugere & ansatte is one row, Personer (owner, 2 Nov 2026: one item for people): it opens the employee list, which also lists the logins, and Brugere (usersRoles.php), Roller and Audit-log sit under it.
+//                 The sub-group keeps its name, so no name repeats in the menu.
 //                 One badge "N ansatte · N brugere" (each part only with read on its own key); the role-review notice hangs on the row.
-//                 Registry entries marked 'newInHub' (Roller, Audit-log: tabs of the old page, never menu items) are left out of the moved map,
-//                 and a renamed or new entry's current name is a search term of its row, not one of its "tidligere" names.
-// 20261102 CL/ASR Brugere & ansatte, one place (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle"; no page called Brugere
-//                 or Personer): the sub-group is 'direct' - it is itself the link to the one list (usersRoles.php, which lists the employees too)
-//                 and has one row of the same name. Its pages are Roller, Audit-log and Ekstra felter. The employee section is the row's
-//                 'fallback': the list of a user without settings.users.manage, left out of the row's pages for everyone else.
-//                 A registry entry with 'page' => true is a page even when its url opens a section (Ekstra felter); a row's 'terms' are
-//                 extra search words (Personer, Medarbejdere). The badge "N ansatte · N brugere" and the role-review notice hang on the row.
-//                 settings_hub_path() leaves out a direct sub-group's row (its name would repeat); the coverage check wants one row there.
-// 20261103 CL/ASR No 'direct' sub-group (owner, 3 Nov 2026: a heading is never a link anywhere else in Indstillinger): the sub-group is called
-//                 Brugere & roller and folds out like the others, with four rows - Brugere (the one list of everyone, usersRoles.php, with the
-//                 employee section as its 'fallback' and the old Diverse valg, an alias of that section), Roller, Audit-log and Ekstra felter
-//                 (diverse.php?sektion=div_valg itself lands on Ekstra felter). Virksomhed's description is 7793 (brugere og roller); a new
-//                 id, since a database keeps the old text of an existing id. The 'direct' handling in
-//                 the model, the menu, settings_hub_path() and the coverage check is gone again.
-// 20261103 CL/ASR QA: in the moved map an old setting whose own page the user cannot open links to its hub row's page when the row
-//                 opens another way (Ansatte / Diverse valg for a user with Brugere but not Organisation: usersRoles.php).
+//                 Registry entries marked 'newInHub' (Roller, Audit-log: tabs of the old page, never menu items) are left out of the moved map, and a renamed or new entry's current name is a search term of its row, not one of its "tidligere" names.
+// 20261102 CL/ASR Brugere & ansatte, one place (owner, 2 Nov 2026: "Ét punkt, 'Brugere & ansatte', og én liste med alle"; no page called Brugere or Personer): the sub-group is 'direct' - it is itself the link to the one list (usersRoles.php, which lists the employees too) and has one row of the same name.
+//                 Its pages are Roller, Audit-log and Ekstra felter.
+//                 The employee section is the row's 'fallback': the list of a user without settings.users.manage, left out of the row's pages for everyone else.
+//                 A registry entry with 'page' => true is a page even when its url opens a section (Ekstra felter); a row's 'terms' are extra search words (Personer, Medarbejdere).
+//                 The badge "N ansatte · N brugere" and the role-review notice hang on the row. settings_hub_path() leaves out a direct sub-group's row (its name would repeat); the coverage check wants one row there.
+// 20261103 CL/ASR No 'direct' sub-group (owner, 3 Nov 2026: a heading is never a link anywhere else in Indstillinger): the sub-group is called Brugere & roller and folds out like the others, with four rows - Brugere (the one list of everyone, usersRoles.php, with the employee section as its 'fallback' and the old Diverse valg, an alias of that section), Roller, Audit-log and Ekstra felter (diverse.php?sektion=div_valg itself lands on Ekstra felter).
+//                 Virksomhed's description is 7793 (brugere og roller); a new id, since a database keeps the old text of an existing id.
+//                 The 'direct' handling in the model, the menu, settings_hub_path() and the coverage check is gone again.
+// 20261103 CL/ASR QA: in the moved map an old setting whose own page the user cannot open links to its hub row's page when the row opens another way (Ansatte / Diverse valg for a user with Brugere but not Organisation: usersRoles.php).
 
 if (!function_exists('getSettingsHub')):
 

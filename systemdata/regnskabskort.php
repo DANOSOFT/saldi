@@ -36,14 +36,12 @@
 // 20231230 PHR - Added individual groups for each year.
 // 20250522	PHR	- (int)$id
 // 20250702 PHR - PHP8
-// 20261005 Sawaneh Settings redesign G1.2: the year list and "create" live in Indstillinger » Virksomhed » Regnskabsår;
-//                  this page without an id redirects there and keeps the opening balance. Audit fixes: F4 (primo
-//                  transfer query built with = instead of .=), F5 (the previous year was tested as the year itself),
-//                  F7 (dead lock-stock redirect), F8 (aaben unchecked), F9 (posted values cast/escaped).
 // 20261007 MJ SST-829 A new accounting year no longer copies the art='LG' rows.
 //                  Warehouses are not per-year data - stock is keyed on grupper.kodenr
 //                  - so each copy only added a duplicate to every warehouse list.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261005 SS Settings redesign G1.2: the year list and "create" live in Indstillinger » Virksomhed » Regnskabsår; this page without an id redirects there and keeps the opening balance.
+//             Audit fixes: F4 (primo transfer query built with = instead of .=), F5 (the previous year was tested as the year itself), F7 (dead lock-stock redirect), F8 (aaben unchecked), F9 (posted values cast/escaped).
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 
 @session_start();
 $s_id=session_id();

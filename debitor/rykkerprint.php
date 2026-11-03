@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2019 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20120815 søg 20120815 V. Logoplacering blev ikke fundet v. opslag. 
@@ -32,6 +32,7 @@
 // 20170206	Søger efter teksten inkasso i felt 5 og sender mail til inkassofirma hvis den findes
 // 20170324 PHR Tilføjet id i kald til udskriv.php
 // 20190116 PHR kke nædret noget, blot en datoopdatering da der ligger forskellige versioner fra 2017 på ssl.   
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id=session_id();

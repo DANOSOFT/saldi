@@ -19,23 +19,16 @@
 // ----------------------------------------------------------------------
 // 20260709 SZ Created: JSON lookup endpoint backing the Settings search box
 // 20260710 SZ Added 3-tier label/keyword/word-fallback matching + Norwegian label support
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20260928 Sawaneh Results limited to settings groups the user may open (phase 4).
 // 20260930 CL/NTR Added 'masterDb' visibility rule so master-only pages are not offered in other accounts.
-// 20261102 CL/ASR A renamed page is found by its old name with the "Tidligere:" tag: the entry's 'renamedFrom', or the 'renamed_from' of
-//                 the section it opens under the section's own name (Brugere & roller is Brugere, Ansatte is Personer, owner 2 Nov 2026).
-//                 A field of one employee (Adresse 2 · <name>) is no longer listed when only the section's name matched, so "Personer"
-//                 finds the page, not every employee's fields (nor for a match in the help text only: "Ekstra felter" listed Slet medarbejder).
-// 20261102 CL/ASR Brugere & ansatte is found once (owner, 2 Nov 2026: one item): an entry with 'searchHideIf' (the employee section) is left out
-//                 for a user who may open that group (usersRoles.php is shown instead), a page already listed under the same url is not listed
-//                 twice, and a page named as its permission group is shown under its hub group (Virksomhed), not "Brugere & ansatte" twice.
-// 20261102 CL/ASR Review: an entry's 'searchGroup' names its group (Ekstra felter: Brugere & ansatte, not Organisation), and a field of the
-//                 employee section is shown under the hub group the section sits in (Virksomhed / Brugere & ansatte, not Organisation / ...).
-// 20261103 CL/ASR QA: search offers only what the hub offers this user and company: a page must be among the entries of
-//                 settings_accessible_groups() (settings_entry_available(): hosted, Stripe operator, bank feature, booking licence, and
-//                 an entry's own key such as Backup), and a field's section must have its licence module. A section without
-//                 'legacy' (Backup) no longer raises PHP warnings that broke the JSON. Labels are entity-decoded; row actions
-//                 (add/remove one till, card, person ...) and the Diverse page, which only reloads the hub, are not offered.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20260928 SS Results limited to settings groups the user may open (phase 4).
+// 20261102 CL/ASR A renamed page is found by its old name with the "Tidligere:" tag: the entry's 'renamedFrom', or the 'renamed_from' of the section it opens under the section's own name (Brugere & roller is Brugere, Ansatte is Personer, owner 2 Nov 2026).
+//                 A field of one employee (Adresse 2 · <name>) is no longer listed when only the section's name matched, so "Personer" finds the page, not every employee's fields (nor for a match in the help text only: "Ekstra felter" listed Slet medarbejder).
+// 20261102 CL/ASR Brugere & ansatte is found once (owner, 2 Nov 2026: one item): an entry with 'searchHideIf' (the employee section) is left out for a user who may open that group (usersRoles.php is shown instead), a page already listed under the same url is not listed twice, and a page named as its permission group is shown under its hub group (Virksomhed), not "Brugere & ansatte" twice.
+// 20261102 CL/ASR Review: an entry's 'searchGroup' names its group (Ekstra felter: Brugere & ansatte, not Organisation), and a field of the employee section is shown under the hub group the section sits in (Virksomhed / Brugere & ansatte, not Organisation / ...).
+// 20261103 CL/ASR QA: search offers only what the hub offers this user and company: a page must be among the entries of settings_accessible_groups() (settings_entry_available(): hosted, Stripe operator, bank feature, booking licence, and an entry's own key such as Backup), and a field's section must have its licence module.
+//                 A section without 'legacy' (Backup) no longer raises PHP warnings that broke the JSON.
+//                 Labels are entity-decoded; row actions (add/remove one till, card, person ...) and the Diverse page, which only reloads the hub, are not offered.
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
 ob_start();

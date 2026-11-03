@@ -22,28 +22,24 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh Topbar (variant A): user chip, fiscal-year switcher, who-is-online,
-//                  help (guides) and notification bell shell. Data + view for index/main.php.
-// 20260922 Sawaneh Global cluster per the 2026-09-17 topbar spec (step 1a): language selector,
-//                  SALDI Assist button, PoS shortcut, dashboard hide/edit + Print page in the chip,
-//                  no hamburger/breadcrumb on desktop, mobile fallbacks in the dropdown.
-// 20260927 Sawaneh Step 1b: cluster wrapper + move button (top/sidebar placement, spec 2.3);
-//                  Who is online counts every session in the company, current user marked.
-// 20260928 Sawaneh PoS shortcut shown only with the pos.kasse permission.
-// 20260930 Sawaneh Dashboard items in the user menu are hidden, not greyed out, away from the dashboard (Adam 2026-09-30).
-//                  Who is online shown to users who may manage users (settings.users.manage).
-// 20261005 Sawaneh Greeting, date and "opdateret" on the left on Oversigt only (topbar addendum 2026-09-30 §3).
-// 20261005 Sawaneh Assist button opens a menu (topbar addendum 2026-10-05 §7): ask about the page, page tour, shortcuts, guide.
-// 20261005 Sawaneh "+ Opret nyt regnskabsår" under Regnskabsår through the named route fiscal_year_create (addendum 2026-09-30 §4.1).
-// 20261005 Sawaneh Global search (topbar addendum 2026-10-05 §6): magnifier first in the cluster, field and results panel.
-// 20261005 Sawaneh Topbar addendum 2026-10-05: no sidebar placement (move button and cluster_placement gone).
-// 20261004 Sawaneh Gear link next to the breadcrumb: the settings section that governs the page in the frame (settings redesign §8.11).
-// 20261002 Sawaneh Breadcrumb element in the left side, filled by the shell on settings pages (settings redesign §8.0).
-// 20261008 Sawaneh Sagsstyring in the chip menu, only for companies with the module (prototype_dashboard_tema v5).
+// 20260916 SS Topbar (variant A): user chip, fiscal-year switcher, who-is-online, help (guides) and notification bell shell.
+//             Data + view for index/main.php.
+// 20260922 SS Global cluster per the 2026-09-17 topbar spec (step 1a): language selector, SALDI Assist button, PoS shortcut, dashboard hide/edit + Print page in the chip, no hamburger/breadcrumb on desktop, mobile fallbacks in the dropdown.
+// 20260927 SS Step 1b: cluster wrapper + move button (top/sidebar placement, spec 2.3); Who is online counts every session in the company, current user marked.
+// 20260928 SS PoS shortcut shown only with the pos.kasse permission.
+// 20260930 SS Dashboard items in the user menu are hidden, not greyed out, away from the dashboard (Adam 2026-09-30).
+//             Who is online shown to users who may manage users (settings.users.manage).
+// 20261005 SS Greeting, date and "opdateret" on the left on Oversigt only (topbar addendum 2026-09-30 §3).
+// 20261005 SS Assist button opens a menu (topbar addendum 2026-10-05 §7): ask about the page, page tour, shortcuts, guide.
+// 20261005 SS "+ Opret nyt regnskabsår" under Regnskabsår through the named route fiscal_year_create (addendum 2026-09-30 §4.1).
+// 20261005 SS Global search (topbar addendum 2026-10-05 §6): magnifier first in the cluster, field and results panel.
+// 20261005 SS Topbar addendum 2026-10-05: no sidebar placement (move button and cluster_placement gone).
+// 20261004 SS Gear link next to the breadcrumb: the settings section that governs the page in the frame (settings redesign §8.11).
+// 20261002 SS Breadcrumb element in the left side, filled by the shell on settings pages (settings redesign §8.0).
+// 20261008 SS Sagsstyring in the chip menu, only for companies with the module (prototype_dashboard_tema v5).
 // 20261031 CL/ASR MB-94: the fiscal-year switch offers only active_fiscal_years() (a year with box10 set is deleted).
 // 20261103 CL/ASR QA: the gear's map is converted to UTF-8 and written as ASCII JSON, so json_encode() does not fail on latin-1 installations.
-//                 "Hvem er online" lists only the company's own logins: revisor/support sessions, mySale customers and the anonymous
-//                 booking session (all in the same online table) are left out, as master's count left out revisor sessions.
+//                 "Hvem er online" lists only the company's own logins: revisor/support sessions, mySale customers and the anonymous booking session (all in the same online table) are left out, as master's count left out revisor sessions.
 
 /**
  * Sessions in the master `online` table that belong to the caller's company and

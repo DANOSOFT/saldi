@@ -22,9 +22,7 @@
 //
 // Copyright (c) 2003 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261102 CL/ASR The same head as the other import pages under Indstillinger > Import & eksport: the shared Tilbage button top-left above the
-//                 title (settings_back_button(), css/saldi-kit.css; to the hub, Alt+L) and the title on the page head (page_bar), named as the
-//                 Import & eksport page links it, instead of the grey bar with "Importer_kontoplan" and Tilbage via the old diverse.php redirect.
+// 20261102 CL/ASR The same head as the other import pages under Indstillinger > Import & eksport: the shared Tilbage button top-left above the title (settings_back_button(), css/saldi-kit.css; to the hub, Alt+L) and the title on the page head (page_bar), named as the Import & eksport page links it, instead of the grey bar with "Importer_kontoplan" and Tilbage via the old diverse.php redirect.
 //                 After an import the page returns to Import & eksport directly (settingsSection.php?s=import_export.data).
 // 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
 //                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.

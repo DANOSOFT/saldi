@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/projekter.php-----patch 4.0.8 ----2023-07-22-----------
+// --- systemdata/projekter.php-----patch 4.0.8 ----2026-10-05-----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,14 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20160118 div smårettelser.
 // 20210211 PHR Some cleanup
 // 20210710 LOE Some texts translated 
 // 20211018 LOE Some bugs fixed + 20211019
 // 20230323 PBLM Fixed minor error
-// 20261005 Sawaneh Projects live in Indstillinger » Organisation » Projekter (settings redesign 4c, G7.3); this page only redirects.
+// 20261005 SS Projects live in Indstillinger » Organisation » Projekter (settings redesign 4c, G7.3); this page only redirects.
 
 @session_start();
 $s_id = session_id();

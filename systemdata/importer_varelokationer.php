@@ -29,9 +29,9 @@
 // 20260416 PHP8
 // 20261015 LOE SST-875 A location from the CSV file is stored without the file's line break, and an
 //                 empty field is stored empty instead of as a line break.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261009 SS The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
 // 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
 //                 It goes to the settings page the user came from, or the hub; Alt+L kept.
@@ -41,14 +41,9 @@
 //                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
 //                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
 //                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
-// 20261102 CL/ASR Crashed on an account without warehouses (owner, 2 Nov 2026): count() of a list that was never set. The warehouses are now
-//                 counted as the item card counts them - the LG groups once each although they are copied to every fiscal year, and
-//                 the one standard warehouse 1 when there are none - so such an account imports onto warehouse 1, where its stock rows are.
-//                 Also: the warehouse from the form must be one of those (it went into the SQL unchecked); the file's charset is the one
-//                 chosen on the page (a global $charset hid it, so a UTF-8 file was converted as ISO-8859-1); the location goes on every
-//                 stock row of the item on the warehouse, as the item card saves it, not only the first; an item number from the file is
-//                 escaped when shown; blank lines are skipped; the three lines of instructions show (a missing quote hid them);
-//                 the item lookup is exact, then any case, then numeric value, each taking the first item instead of the last.
+// 20261102 CL/ASR Crashed on an account without warehouses (owner, 2 Nov 2026): count() of a list that was never set.
+//                 The warehouses are now counted as the item card counts them - the LG groups once each although they are copied to every fiscal year, and the one standard warehouse 1 when there are none - so such an account imports onto warehouse 1, where its stock rows are.
+//                 Also: the warehouse from the form must be one of those (it went into the SQL unchecked); the file's charset is the one chosen on the page (a global $charset hid it, so a UTF-8 file was converted as ISO-8859-1); the location goes on every stock row of the item on the warehouse, as the item card saves it, not only the first; an item number from the file is escaped when shown; blank lines are skipped; the three lines of instructions show (a missing quote hid them); the item lookup is exact, then any case, then numeric value, each taking the first item instead of the last.
 
 @session_start();
 $s_id=session_id();
@@ -138,14 +133,14 @@ function upload($lagre){
 	print "<td align=\"center\"><select style=\"width:160px;text-align:left;\" name=\"tegnset\">";
 	print "<option value=\"ISO-8859-1\">ISO-8859-1 (Windows)</option>";
 	print "<option value=\"UTF-8\">UTF-8 (Mac/Linux)</option>";
-	print "</select></td></tr><tr><td colspan='2'><hr></td></tr>";
+	print "</select></td></tr><tr><td colspan='2'><hr></td></tr>";	
 	print "<tr><td>Lager</td>";
 	print "<td align=\"center\"><select style=\"width:160px;text-align:left;\" name=\"lager\">";
 	foreach ($lagre as $nr => $navn) {
 		$tekst = ($navn !== '') ? $nr.":".htmlspecialchars($navn, ENT_QUOTES) : $nr;
 		print "<option value=\"$nr\">$tekst</option>";
 	}
-	print "</select></td></tr><tr><td colspan='2'><hr></td></tr>";
+	print "</select></td></tr><tr><td colspan='2'><hr></td></tr>";	
 	print "<tr><td colspan='2' align='center'><input type='hidden' name='MAX_FILE_SIZE' value='2900000'>\n";
 	print "<input name='uploadedfile' type='file' /><br /></td></tr>\n";
 	print "<tr><td><br></td></tr>\n";

@@ -17,10 +17,10 @@
 // Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261005 Sawaneh Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a 30-day cookie.
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261005 SS Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a 30-day cookie.
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261009 SS The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
 // 20261031 CL/ASR The posted column mapping is escaped before update_settings_value(), which takes its arguments as given again (master's contract, the caller escapes).
 // 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.

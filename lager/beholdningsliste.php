@@ -22,6 +22,7 @@
 //                sorts by the warehouse stock it shows.
 // 20261027 CL/LH MB-99 (review) the warehouse balance is summed over the item's lagerstatus rows (one per
 //                variant) in the sort and in the column, and the totals sort counts a missing balance as 0.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id = session_id();

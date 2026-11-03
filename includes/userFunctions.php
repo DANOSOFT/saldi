@@ -20,22 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §8, §8.2, §8.5): the user
-//                  operations of "Brugere & roller" in one place, so the page, onboarding and
-//                  the API share them: create, close instead of delete, reopen, the
-//                  last-administrator rule.
-// 20260929 Sawaneh Invitation flow (§8.4): user_invite, resend, welcome mail, first password.
-// 20260930 Sawaneh Close, reopen and role change report 'already'/'unchanged' instead of success when nothing changes.
-// 20260930 Sawaneh Reset password by mail (§8.2), shared mail sender, last active from live sessions (§8.1).
-// 20260930 Sawaneh Confirming a migrated role (§6.3); any role change counts as the confirmation.
-// 20261001 Sawaneh Review fixes: only users within the actor's own access can be changed (R5); a user the
-//                  audit log did not see being created counts as having logged in; booleans as true/false.
-// 20261006 Sawaneh Onboarding step 5: user_invite_error() checks a new invitation (name, role, e-mail, duplicate name,
-//                  R5) for the welcome guide; user_send_mail() takes an optional attachment (the guide's test invoice).
-// 20261103 CL/ASR QA: keeping a migrated role (Behold nuværende) has the same checks as a role change: not one's own role and
-//                 only users within the actor's own access.
+// 20260929 SS Roles stage 2 (Requirements_roles_stage2_EN.md §8, §8.2, §8.5): the user operations of "Brugere & roller" in one place, so the page, onboarding and the API share them: create, close instead of delete, reopen, the last-administrator rule.
+// 20260929 SS Invitation flow (§8.4): user_invite, resend, welcome mail, first password.
+// 20260930 SS Close, reopen and role change report 'already'/'unchanged' instead of success when nothing changes.
+// 20260930 SS Reset password by mail (§8.2), shared mail sender, last active from live sessions (§8.1).
+// 20260930 SS Confirming a migrated role (§6.3); any role change counts as the confirmation.
+// 20261001 SS Review fixes: only users within the actor's own access can be changed (R5); a user the audit log did not see being created counts as having logged in; booleans as true/false.
+// 20261006 SS Onboarding step 5: user_invite_error() checks a new invitation (name, role, e-mail, duplicate name, R5) for the welcome guide; user_send_mail() takes an optional attachment (the guide's test invoice).
+// 20261103 CL/ASR QA: keeping a migrated role (Behold nuværende) has the same checks as a role change: not one's own role and only users within the actor's own access.
 //                 The last login from the audit log is read on PHP's clock (st_local_time()), like the rest of Indstillinger.
 
 include_once(__DIR__ . '/permissions.php');

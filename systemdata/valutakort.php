@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/valutakort.php-----patch 4.1.1 ----2025-05-07--
+// -------------systemdata/valutakort.php-----patch 4.1.1 ----2026-10-05--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20130513 - Opdateret liste over valutakoder
 // 20150313 CA  Topmenudesign tilføjet                             søg 20150313
@@ -35,8 +35,7 @@
 //             transaktioner rows and no kontoplan change. Cast $_GET kodenr/id, which reached SQL raw.
 // 20260914 CDX/LH Recalculate account balances only after posting a currency adjustment.
  
-// 20261005 Sawaneh Currencies and rates live in Indstillinger » Finans » Valuta (settings redesign 4d, G2.3; audit V2-V9
-//                  fixed there, a rate change shows its postings before they are booked); this page only redirects.
+// 20261005 SS Currencies and rates live in Indstillinger » Finans » Valuta (settings redesign 4d, G2.3; audit V2-V9 fixed there, a rate change shows its postings before they are booked); this page only redirects.
 
 @session_start();
 $s_id = session_id();

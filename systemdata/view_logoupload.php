@@ -24,10 +24,8 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260102 LOE Updated to use department format for viewing uploaded background.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the
-//                 settings menu) instead of the blue Close/Print bar: the preview of a background or attachment under Logo & baggrunde,
-//                 titled Forhåndsvisning and the file, Tilbage to the upload page (as Close), the PDF as high as the window allows.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) instead of the blue Close/Print bar: the preview of a background or attachment under Logo & baggrunde, titled Forhåndsvisning and the file, Tilbage to the upload page (as Close), the PDF as high as the window allows.
 // 20261102 CL/ASR Review: the preview sits under the row the upload page was opened from (Formularer or Logo & baggrunde, logoupload_from).
 //                 The page keeps 16 px under the PDF (not the section pages' 96 px), so the page itself does not scroll.
 

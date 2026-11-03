@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorvisning.php --- lap 4.1.0 --- 2024-02-16 ---
+// --- debitor/debitorvisning.php --- lap 4.1.0 --- 2026-10-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2016.06.06 Tilføjet mulighed for at skjule lukkede debitorer Søg box11 / skjul_lukkede
 // 2020.06.23	PHR - various changes related to 'kommission' 
@@ -31,7 +31,7 @@
 // 20220813 MSC - Implementing new design
 // 20231128 MSC - Copy pasted new design into code
 // 20240216 PHR - Added fiscal_year to sellect where art = 'DG'
-// 20261002 Sawaneh Saving the list columns updates only the chosen view (kode); it rewrote every DLV row of the user.
+// 20261002 SS Saving the list columns updates only the chosen view (kode); it rewrote every DLV row of the user.
 	
 @session_start();
 $s_id=session_id();

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/bank_integration.php --- patch 0.0.1 --- 2026-06-09 ---
+// --- systemdata/diverseIncludes/bank_integration.php --- patch 0.0.1 --- 2026-10-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,11 +21,11 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260609 NTR - Initial version. Bank integration settings.
-// 20261004 Sawaneh show_status is a personal setting now (Indstillinger » Personlige indstillinger, settings redesign G2.7); only the date method stays here.
+// 20261004 SS show_status is a personal setting now (Indstillinger » Personlige indstillinger, settings redesign G2.7); only the date method stays here.
 
 global $bgcolor, $bgcolor5, $bruger_id, $sprog_id;
 

@@ -22,11 +22,11 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh Controller for topbar actions (fiscal-year switch from the user chip).
-//                  POST only, redirects back to the shell (Post/Redirect/Get).
-// 20260922 Sawaneh Language switch action; auditor sessions keep their year in the master revisor table.
-// 20260927 Sawaneh Placement action (cluster_placement setting, spec 2.3).
-// 20261005 Sawaneh Placement action removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
+// 20260916 SS Controller for topbar actions (fiscal-year switch from the user chip).
+//             POST only, redirects back to the shell (Post/Redirect/Get).
+// 20260922 SS Language switch action; auditor sessions keep their year in the master revisor table.
+// 20260927 SS Placement action (cluster_placement setting, spec 2.3).
+// 20261005 SS Placement action removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
 // 20261031 CL/ASR MB-94: a fiscal year can only be switched to when active_fiscal_years() offers it (a year with box10 set is deleted).
 
 /**

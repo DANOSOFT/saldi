@@ -1,5 +1,5 @@
 <?php
-// ----------finans/danlonimport.php------------patch 3.1.3-----2011.02.01-----------
+// ----------finans/danlonimport.php------------patch 3.1.3-----2026.09.16-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,13 +14,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 //
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260831 Sawaneh Corrected misplaced parenthesis in mb_convert_encoding calls from 20250130
 // 20260831 Sawaneh Removed duplicate fclose() in flyt_data - fatal TypeError on PHP 8
 // 20260831 Sawaneh Restrict $filnavn from POST to the user's own upload - path traversal in fopen/unlink
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // ----------------------------------------------------------------------
 
 @session_start();

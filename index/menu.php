@@ -37,7 +37,7 @@
 //                  window is treated as a popup by request, not by user preference.
 // 20260907 CDX/LH Mark the POS launcher as a popup when opening it in a new window.
 // 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
-// 20260930 Sawaneh Every user passes this page right after login: open to all, or Deny mode would refuse users without Kontoplan.
+// 20260930 SS Every user passes this page right after login: open to all, or Deny mode would refuse users without Kontoplan.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();

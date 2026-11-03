@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/diverseIncludes/show_vibrant_login.php ---------- ver 5.0.0----2026.10.07-------
+// ------------- systemdata/diverseIncludes/show_vibrant_login.php ---------- ver 5.0.0----2026.10.23-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261007 CL/SZ SST-843 Returns the saved Vibrant terminal login for "Vis login" on Diverse valg.
 // 20261023 ASR Merge into redesign: $permission_key declared (roles & permissions, phase 3), as the pages that call this endpoint.
-//                The page used to print the email and password into its source.
+//              The page used to print the email and password into its source.
 
 /**
  * Injected by ../../includes/online.php, included below:

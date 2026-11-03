@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/bankReconcile.php --- patch 4.1.0 --- 2024.02.13 ---
+// --- finans/bankReconcile.php --- patch 4.1.0 --- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20121110 Indsat mulighed for valutavalg ved import - søg: valuta
@@ -59,9 +59,9 @@
 // 20220617 PHR Better recognition of date formats
 // 20220531	PHR Added 'Modtager konto'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 ini_set("auto_detect_line_endings", true);
 

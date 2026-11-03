@@ -1,5 +1,5 @@
 <?php
-// -- ---------systemdata/stamdata.php --- patch 5.0.0 --- 2026-04-24 ---
+// -- ---------systemdata/stamdata.php --- patch 5.0.0 --- 2026-10-05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,8 +29,7 @@
 // 20230803 LOE Initialized some varibles and made some modifications
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 // 20260820 Sawaneh Added IBAN and SWIFT fields (included on e-invoices when filled in)
-// 20261005 Sawaneh G7.1: the employees moved to Indstillinger » Organisation » Ansatte, so this page only redirects (before any
-//                  output): ?ansatte=1 to the employee list, everything else to Stamdata (G1.1).
+// 20261005 SS G7.1: the employees moved to Indstillinger » Organisation » Ansatte, so this page only redirects (before any output): ?ansatte=1 to the employee list, everything else to Stamdata (G1.1).
 
 @session_start();
 $s_id = session_id();

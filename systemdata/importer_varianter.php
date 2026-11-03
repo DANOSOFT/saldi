@@ -17,9 +17,8 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261006 Sawaneh Settings 4c G5.3: CSV import of variant types and values, moved from the old Varianter page. The
-//                  files are read by the existing import in diverse.php (variant_valg_import_types/_values), which
-//                  returns to Varer & lager » Varianter with the result.
+// 20261006 SS Settings 4c G5.3: CSV import of variant types and values, moved from the old Varianter page.
+//             The files are read by the existing import in diverse.php (variant_valg_import_types/_values), which returns to Varer & lager » Varianter with the result.
 // 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), styled by css/unified-components.css), as on every settings page, not the "← Varianter" link.
 //                 It goes to the settings page the user came from (Varianter), or the hub; Alt+L kept.
 // 20261101 CL/ASR Review: css/unified-components.css linked as ?v=20261101e, the version the section pages and the old pages' frame link.

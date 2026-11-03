@@ -27,8 +27,6 @@
 // 20210713 LOE - Translated some texts
 // 20220404	PHR function vis_data & overfoer_data: Inserted trim($felt[$y],'"');	
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261005 Sawaneh Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a cookie.
 // 20260825 Sawaneh JOB-086: import ended in a blank page - now returns to import/export with a
 //                  message; file charset detected on upload and lines with an invalid charset are
 //                  rejected instead of aborting the transaction; validation shared between preview
@@ -42,9 +40,10 @@
 // 20260921 Sawaneh JOB-086 review 3: text ids renumbered 5080-5087 -> 5222-5229 (id range clash).
 // 20260921 Sawaneh JOB-086 review 3: find_splitter() stops at EOF, so a file with fewer than three
 //                  rows still gets its separator detected and its columns can be mapped.
-// 20261008 Sawaneh Merge of master (JOB-086 rewrite): the column mapping is read and saved after the includes, in settings
-//                  importMapping (the old cookie is only read as a fallback).
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261005 SS Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a cookie.
+// 20261008 SS Merge of master (JOB-086 rewrite): the column mapping is read and saved after the includes, in settings importMapping (the old cookie is only read as a fallback).
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
 // 20261031 CL/ASR Tilbage and the return after an import go to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
 // 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
 //                 It goes to the settings page the user came from, or the hub; Alt+L kept.

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rows.php --- lap 5.0.0 --- 2026.10.05 ---
+// ---- includes/settings/rows.php --- lap 5.0.0 --- 2026.10.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,29 +15,19 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh G6.2: 'transient' columns (posted, given to the hooks, never stored - the template of a new background)
-//                  and 'create_only' columns (editable on a new row, read-only afterwards).
-// 20261006 Sawaneh §8.13 empty-state seeding: table option 'standard' ('grupper' = the groups file a new ledger is made
-//                  from, or fixed rows); settings_rows_standard() gives the rows the editor inserts as new, unsaved rows.
-// 20261005 Sawaneh 4d fiscal years and currencies: date cells, read-only columns and locked rows, a parent filter
-//                  (rates of one currency), automatic numbering, 'forbid', per-row actions, hooks before a row is
-//                  written and on delete, and a confirmation step for saves that post amounts (spec G2.3, V9).
-// 20261005 Sawaneh 4c VAT and groups: column range, 'requires', 'locked_if_used', 'empty_value', table 'defaults', VAT/group usage;
-//                  unchanged cells are not validated again, decimals compare as numbers.
-// 20261005 Sawaneh Settings redesign phase 4c (spec §7.3 / §8.2): the row editor behind a section of 'kind' rows.
-//                  A table is a list of rows in grupper (one art) or in a table of its own; every cell is a column
-//                  definition. Reading, usage counts, validation, saving with one audit row per changed cell,
-//                  delete with usage check, the inaktiv flag and copying a fiscal year live here; the page is drawn
-//                  by rowsView.php and behaves through javascript/settingsRows.js.
-// 20261008 Sawaneh Table option 'hide_empty'; discount group usage counts only the matrix's 'NR' rows (settings decision 20).
-// 20261008 Sawaneh Table option 'confirm_skip' (button text, explanation) for the confirm box. Warehouse usage follows
-// 20261018 Sawaneh Review 2 (PR #803): an empty cell in a number column is written as NULL (SettingsService::sqlValue).
-//                  master's warehouseDeletion.php (history, order lines, departments; duplicates may go).
-// 20261019 Sawaneh Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's
-//                  own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto
-//                  code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
+// 20261005 SS G6.2: 'transient' columns (posted, given to the hooks, never stored - the template of a new background) and 'create_only' columns (editable on a new row, read-only afterwards).
+// 20261006 SS §8.13 empty-state seeding: table option 'standard' ('grupper' = the groups file a new ledger is made from, or fixed rows); settings_rows_standard() gives the rows the editor inserts as new, unsaved rows.
+// 20261005 SS 4d fiscal years and currencies: date cells, read-only columns and locked rows, a parent filter (rates of one currency), automatic numbering, 'forbid', per-row actions, hooks before a row is written and on delete, and a confirmation step for saves that post amounts (spec G2.3, V9).
+// 20261005 SS 4c VAT and groups: column range, 'requires', 'locked_if_used', 'empty_value', table 'defaults', VAT/group usage; unchanged cells are not validated again, decimals compare as numbers.
+// 20261005 SS Settings redesign phase 4c (spec §7.3 / §8.2): the row editor behind a section of 'kind' rows.
+//             A table is a list of rows in grupper (one art) or in a table of its own; every cell is a column definition.
+//             Reading, usage counts, validation, saving with one audit row per changed cell, delete with usage check, the inaktiv flag and copying a fiscal year live here; the page is drawn by rowsView.php and behaves through javascript/settingsRows.js.
+// 20261008 SS Table option 'hide_empty'; discount group usage counts only the matrix's 'NR' rows (settings decision 20).
+// 20261008 SS Table option 'confirm_skip' (button text, explanation) for the confirm box. Warehouse usage follows
+// 20261018 SS Review 2 (PR #803): an empty cell in a number column is written as NULL (SettingsService::sqlValue). master's warehouseDeletion.php (history, order lines, departments; duplicates may go).
+// 20261019 SS Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
 
 /**
  * The tables of a rows section with their defaults filled in.

@@ -19,10 +19,10 @@
 // ----------------------------------------------------------------------
 // PLBM 2024.01.31
 //20240305 PHR Varioous corrections
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261003 CL/SZ SD-723 The document is shown through docFile.php (login and tenant checked) instead of its direct path.
 // 20261005 CL/SZ SD-723 A document whose file is not on the server shows "Bilaget findes ikke på serveren" instead of an empty or "Not found" frame.
 // 20261005 CL/SZ SD-701 The XML notices (no EasyUBL key, conversion failed) keep their own height, so in the voucher tab the raw XML shows below them instead of below the fold.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 
 // Check if we're in flexbox layout (docPool-style) or table layout

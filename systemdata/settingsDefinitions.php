@@ -17,74 +17,42 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Registry v2 (Requirements_settings_redesign_EN.md §7.1): the definition of each
-// 20260930 Sawaneh Field links use ?field= so they work through the shell (spec §8.11).
-// 20261002 Sawaneh Phase 4b batch 1: G2.5 cash journal & payments, G3.6 mySale, G5.6 consignment, G5.7 packaging,
-//                  G6.4 print, G7.4 commission; 'module' gates a section, 'on_save' names a follow-up, type 'date'.
-// 20261006 Sawaneh 4c G3.5 part A: price, campaign and item quantity-discount groups (VPG/VTG/VRG) as rows in Salg » Rabatter
-//                  & prisgrupper; saving no longer rewrites item prices - "Anvend på varer" per group does, after a confirmation.
-//                  Part B: customer and item discount groups (DRG/DVRG) and the discount matrix (virtual discount_matrix, by
-//                  group number); rabatgrupper.php redirects.
-// 20261006 Sawaneh 4c B-D06: "Flyt samlekonto" on debtor/creditor groups as a confirmed row action (amount shown first).
-// 20261006 Sawaneh 4c G5.3 Varianter: variant types and their values as rows (values filtered by type), usage from
-//                  variant items, CSV import through importer_varianter.php; diverse.php?sektion=variant_valg redirects.
-// 20261006 Sawaneh §8.13: 'standard' on the VAT, VAT report, debtor/creditor/item group and unit tables ("Opret dansk standardsæt").
-// 20261005 Sawaneh 4d G6.2 Baggrunde: form backgrounds (VSPR) as a row list - new ones copied from a template background,
-//                  deleted with their form lines only when no customer, supplier or order uses them - and the PDF files.
-// 20261005 Sawaneh 4d G11: Import & eksport (export/import per data type, chart of accounts per fiscal year) and
-//                  Sikkerhedskopi (latest copy, take a copy, restore) framing the existing pages.
-// 20261005 Sawaneh 4d G1.4 Abonnement & konto (Saldi-hosted only): ledger name (master database), activity, and the
-//                  danger zone - reset (keep customers/suppliers, keep items) and delete, both with password.
-// 20261005 Sawaneh 4d G7.1 Ansatte: list of the company's employees with a card each (person, contact, employment, CPR
-//                  and salary behind settings.organisation.sensitive, extra fields, linked user and its form language),
-//                  add, move up/down (posnr) and delete with a usage check.
-// 20261005 Sawaneh 4d G1.2 Regnskabsår (row list, create card shared with onboarding, set active, delete empty or old
-//                  year) and G2.3 Valuta (currencies and rates per currency, rate changes confirmed before posting).
-// 20261005 Sawaneh 4d G1.3 Lokalisering (five settings that had no or scattered UI, translations link) and G1.5 Persondata
-//                  (inactive customers/suppliers clean-up as a danger-zone action with password).
-// 20261005 Sawaneh 4d G1.1 Stamdata as a generated section on the company address row (no notes/kontonr overwrite,
-//                  no double escaping, country always shown but changed only with settings.company.danger); employees
-//                  stay on the old page until G7.1.
-// 20261005 Sawaneh 4c stage 2: VAT codes (SM/KM/YM/EM per year, code 1-9, usage check, inactive) and VAT report accounts,
-//                  debtor and creditor groups (control account locked while in use, discount shown again, EU zone to all
-//                  years), item groups (box12/box14 left out, box10 kept for Sager/payroll); price groups stay on the old page.
-// 20261005 Sawaneh Phase 4c: sections of 'kind' rows (tables with columns, usage checks, 'exclude', 'code_col',
-//                  'on_save') for departments, projects, warehouses and units & materials; the project number split
-//                  as a field on the PRJ kodenr 0 row.
-// 20261004 Sawaneh 4b gaps: discount decimals (G3.3), payment link per till, link to confirm-stock-change from G4.2,
-//                  PDF command (G6.4), NemHandel status (G9.4), DFM settings in their own group (B-D5), pickup
-//                  addresses as a list section ('per' => 'pickup', settings group_id), bank item behind its feature,
-//                  bank status in the cash journal as a personal setting (G2.7).
-// 20261004 Sawaneh G10 batch B: Cards (one drawer per payment card, 'per' => 'card'), Tables & floor plans ('per' => 'table',
-//                  'per' => 'floor_plan' on table_pages rows), currencies per till, Move3500 login per till, KDS colours by
-//                  waiting time, Flatpay receipt print; the old PoS-valg page is retired.
-// 20261004 Sawaneh G10.1 Tills: list section with one drawer per till ('per' => 'till'), lists joined by tab with 'list',
-//                  Cash counting form section; 'decimal_comma', 'seed' for a joined settings row.
-// 20261004 Sawaneh G10 POS batch A: G10.2 receipt, G10.6 kitchen, G10.7 screen (shop-wide); 'fiscal' grupper storage.
-// 20261004 Sawaneh G4.3 Price lists: a list section whose items come from the database ('items_from'), 'per' => 'pricelist'
-//                  fields on storage 'grupper_row', 'value_map', rules 'required' and 'csv_url', a page-level 'add_action'.
-// 20261004 Sawaneh G2.6 Document storage: storage 'virtual', encoding 'urlencode' for a secret, 'ensure_suffix'.
-// 20261003 Sawaneh G3.4 Reminders: storage 'formularer', type 'creditor', 'options_from' users, 'group_label' and 'sub_help'.
-// 20261003 Sawaneh G6.3 E-mail: storage 'adresser', 'per' => 'language' fields expanded per form language (scope 'group'),
-//                  type 'textarea', a section-level 'permission'.
-// 20261002 Sawaneh Phase 4b batch 2: G9 Integrations as a list section ('kind' list, 'items', 'sub_module'); types secret,
-//                  info, link and mini; 'options_from', 'options_literal', 'locked_if' ht_keys:, rule 'setting_set'.
-// 20261002 Sawaneh Merge of master: its new batchExpiryEnabled setting (was on the removed Varerelaterede valg page) is
-//                  items.stock.batch_expiry.
-//                  setting - key, type, scope, group/section, label and help text ids, default,
-//                  storage (the EXISTING location and encoding), permission, dependencies.
-//                  Section pages, save logic, search, change history and the "moved" page are
-//                  generated from this file. Included by settingsRegistry.php.
-// 20261008 Sawaneh Settings decisions 19-20: vat.registered and vat.period at the top of G2.2 (settings var_grp 'vat',
-//                  company scope); the discount matrix keeps only rows marked 'NR' (by group number), older rows are
-//                  listed as inactive in G3.5 with a per-row Overfør.
-// 20261008 Sawaneh Merge of master: hideRevenue (SD-657) in G3.3, the HTML/CSS layout version (forms/htmlLayoutVersion) in
-//                  G6.4, and "Gem kurs uden bogføring" (SST-769) as 'confirm_skip' on the currency rates.
-// 20261008 Sawaneh personal.profile.theme: light, dark or system (prototype_dashboard_tema v5), settings ui/theme per user.
-// 20261009 Sawaneh pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
-// 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
-// 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
-// 20261019 Sawaneh Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
+// 20260929 SS Registry v2 (Requirements_settings_redesign_EN.md §7.1): the definition of each
+// 20260930 SS Field links use ?field= so they work through the shell (spec §8.11).
+// 20261002 SS Phase 4b batch 1: G2.5 cash journal & payments, G3.6 mySale, G5.6 consignment, G5.7 packaging, G6.4 print, G7.4 commission; 'module' gates a section, 'on_save' names a follow-up, type 'date'.
+// 20261006 SS 4c G3.5 part A: price, campaign and item quantity-discount groups (VPG/VTG/VRG) as rows in Salg » Rabatter & prisgrupper; saving no longer rewrites item prices - "Anvend på varer" per group does, after a confirmation.
+//             Part B: customer and item discount groups (DRG/DVRG) and the discount matrix (virtual discount_matrix, by group number); rabatgrupper.php redirects.
+// 20261006 SS 4c B-D06: "Flyt samlekonto" on debtor/creditor groups as a confirmed row action (amount shown first).
+// 20261006 SS 4c G5.3 Varianter: variant types and their values as rows (values filtered by type), usage from variant items, CSV import through importer_varianter.php; diverse.php?sektion=variant_valg redirects.
+// 20261006 SS §8.13: 'standard' on the VAT, VAT report, debtor/creditor/item group and unit tables ("Opret dansk standardsæt").
+// 20261005 SS 4d G6.2 Baggrunde: form backgrounds (VSPR) as a row list - new ones copied from a template background, deleted with their form lines only when no customer, supplier or order uses them - and the PDF files.
+// 20261005 SS 4d G11: Import & eksport (export/import per data type, chart of accounts per fiscal year) and Sikkerhedskopi (latest copy, take a copy, restore) framing the existing pages.
+// 20261005 SS 4d G1.4 Abonnement & konto (Saldi-hosted only): ledger name (master database), activity, and the danger zone - reset (keep customers/suppliers, keep items) and delete, both with password.
+// 20261005 SS 4d G7.1 Ansatte: list of the company's employees with a card each (person, contact, employment, CPR and salary behind settings.organisation.sensitive, extra fields, linked user and its form language), add, move up/down (posnr) and delete with a usage check.
+// 20261005 SS 4d G1.2 Regnskabsår (row list, create card shared with onboarding, set active, delete empty or old year) and G2.3 Valuta (currencies and rates per currency, rate changes confirmed before posting).
+// 20261005 SS 4d G1.3 Lokalisering (five settings that had no or scattered UI, translations link) and G1.5 Persondata (inactive customers/suppliers clean-up as a danger-zone action with password).
+// 20261005 SS 4d G1.1 Stamdata as a generated section on the company address row (no notes/kontonr overwrite, no double escaping, country always shown but changed only with settings.company.danger); employees stay on the old page until G7.1.
+// 20261005 SS 4c stage 2: VAT codes (SM/KM/YM/EM per year, code 1-9, usage check, inactive) and VAT report accounts, debtor and creditor groups (control account locked while in use, discount shown again, EU zone to all years), item groups (box12/box14 left out, box10 kept for Sager/payroll); price groups stay on the old page.
+// 20261005 SS Phase 4c: sections of 'kind' rows (tables with columns, usage checks, 'exclude', 'code_col', 'on_save') for departments, projects, warehouses and units & materials; the project number split as a field on the PRJ kodenr 0 row.
+// 20261004 SS 4b gaps: discount decimals (G3.3), payment link per till, link to confirm-stock-change from G4.2, PDF command (G6.4), NemHandel status (G9.4), DFM settings in their own group (B-D5), pickup addresses as a list section ('per' => 'pickup', settings group_id), bank item behind its feature, bank status in the cash journal as a personal setting (G2.7).
+// 20261004 SS G10 batch B: Cards (one drawer per payment card, 'per' => 'card'), Tables & floor plans ('per' => 'table', 'per' => 'floor_plan' on table_pages rows), currencies per till, Move3500 login per till, KDS colours by waiting time, Flatpay receipt print; the old PoS-valg page is retired.
+// 20261004 SS G10.1 Tills: list section with one drawer per till ('per' => 'till'), lists joined by tab with 'list', Cash counting form section; 'decimal_comma', 'seed' for a joined settings row.
+// 20261004 SS G10 POS batch A: G10.2 receipt, G10.6 kitchen, G10.7 screen (shop-wide); 'fiscal' grupper storage.
+// 20261004 SS G4.3 Price lists: a list section whose items come from the database ('items_from'), 'per' => 'pricelist' fields on storage 'grupper_row', 'value_map', rules 'required' and 'csv_url', a page-level 'add_action'.
+// 20261004 SS G2.6 Document storage: storage 'virtual', encoding 'urlencode' for a secret, 'ensure_suffix'.
+// 20261003 SS G3.4 Reminders: storage 'formularer', type 'creditor', 'options_from' users, 'group_label' and 'sub_help'.
+// 20261003 SS G6.3 E-mail: storage 'adresser', 'per' => 'language' fields expanded per form language (scope 'group'), type 'textarea', a section-level 'permission'.
+// 20261002 SS Phase 4b batch 2: G9 Integrations as a list section ('kind' list, 'items', 'sub_module'); types secret, info, link and mini; 'options_from', 'options_literal', 'locked_if' ht_keys:, rule 'setting_set'.
+// 20261002 SS Merge of master: its new batchExpiryEnabled setting (was on the removed Varerelaterede valg page) is items.stock.batch_expiry. setting - key, type, scope, group/section, label and help text ids, default, storage (the EXISTING location and encoding), permission, dependencies.
+//             Section pages, save logic, search, change history and the "moved" page are generated from this file.
+//             Included by settingsRegistry.php.
+// 20261008 SS Settings decisions 19-20: vat.registered and vat.period at the top of G2.2 (settings var_grp 'vat', company scope); the discount matrix keeps only rows marked 'NR' (by group number), older rows are listed as inactive in G3.5 with a per-row Overfør.
+// 20261008 SS Merge of master: hideRevenue (SD-657) in G3.3, the HTML/CSS layout version (forms/htmlLayoutVersion) in G6.4, and "Gem kurs uden bogføring" (SST-769) as 'confirm_skip' on the currency rates.
+// 20261008 SS personal.profile.theme: light, dark or system (prototype_dashboard_tema v5), settings ui/theme per user.
+// 20261009 SS pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
+// 20261009 SS personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
+// 20261010 SS G5.8: Diverse → Mærkater moved to labels.php.
+// 20261019 SS Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
 // 20261023 ASR Merge of master (#815 removed lager/vareliste.php): the warehouses gear link names lager/lister/vareliste.php, the list that is left.
 // 20261031 CL/ASR G3.3 has master's order options from after 23 Oct, since Ordrerelaterede valg now opens this section: "Send 'Bemærkning til ordre' med på e-fakturaer" (SST-885), "Fakturér webshopordrer med ordredato" (SST-911) and "Vis besked når kostprisen er anslået" (SD-786).
 //                 They keep master's storage (settings sendOrderNote/easyUBL, webshopInvoiceOrderDate/ordre, showCostEstimateNotice/ordre, 'on'/'off') and default off.
@@ -92,19 +60,13 @@
 //                 Their old name is kept as 'renamed_from' and as keywords, so search still finds it.
 //                 Diverse valg's last field, 'Tilføj ekstra felter på ansatte' (DIV/2 box3, unchanged storage), is organisation.employees.extra_fields in Ansatte (G7.1), under Ekstra felter.
 //                 The moved map sends Diverse valg to Ansatte and Sprog to Sprog & lokalisering.
-// 20261102 CL/ASR Ansatte is part of Brugere & ansatte (owner, 2 Nov 2026: one item, one list of everyone, one card with Stamdata and Login og
-//                 rolle): the section is named so ('renamed_from' 1262 keeps "Ansatte" for search); usersRoles.php shows the one list, and this
-//                 section is the card's Stamdata tab, Ekstra felter, and the list of a user without usersRoles.php (systemdata/settingsSection.php).
-//                 Its rows open from anywhere on the row ('row_click'). The card's "Bruger" line is left out of the embedded card ('embed_hide':
-//                 the Login og rolle tab shows the login). settings_employee_rows() also says whether the employee has left ('left').
-// 20261102 CL/ASR Review: the add action is called Tilføj person (7765), the name of the one button, so search offers it under that name
-//                 (the old name stays a keyword). The department select shows the departments' names as they are ('options_literal'):
-//                 they went through findtekst() and an empty choice read "Tekst nr: 109".
-// 20261103 CL/ASR The employee section is called Brugere (5549), the hub row it stands in for when usersRoles.php cannot be opened
-//                 (owner, 3 Nov 2026: the heading is Brugere & roller with the rows Brugere, Roller, Audit-log and Ekstra felter).
-// 20261103 CL/ASR QA: the group tables have master's posting accounts again: the item groups' sales accounts for EU and non-EU
-//                 customers (VG box12/box14, read when an order is invoiced) and the debtor/creditor groups' Modkonto (DG/KG box5,
-//                 the offset account the cash journal uses for open posts).
+// 20261102 CL/ASR Ansatte is part of Brugere & ansatte (owner, 2 Nov 2026: one item, one list of everyone, one card with Stamdata and Login og rolle): the section is named so ('renamed_from' 1262 keeps "Ansatte" for search); usersRoles.php shows the one list, and this section is the card's Stamdata tab, Ekstra felter, and the list of a user without usersRoles.php (systemdata/settingsSection.php).
+//                 Its rows open from anywhere on the row ('row_click').
+//                 The card's "Bruger" line is left out of the embedded card ('embed_hide': the Login og rolle tab shows the login). settings_employee_rows() also says whether the employee has left ('left').
+// 20261102 CL/ASR Review: the add action is called Tilføj person (7765), the name of the one button, so search offers it under that name (the old name stays a keyword).
+//                 The department select shows the departments' names as they are ('options_literal'): they went through findtekst() and an empty choice read "Tekst nr: 109".
+// 20261103 CL/ASR The employee section is called Brugere (5549), the hub row it stands in for when usersRoles.php cannot be opened (owner, 3 Nov 2026: the heading is Brugere & roller with the rows Brugere, Roller, Audit-log and Ekstra felter).
+// 20261103 CL/ASR QA: the group tables have master's posting accounts again: the item groups' sales accounts for EU and non-EU customers (VG box12/box14, read when an order is invoiced) and the debtor/creditor groups' Modkonto (DG/KG box5, the offset account the cash journal uses for open posts).
 //                 "Opdater kostpriser" runs in a new tab ('blank'), as on master: the worker ends with window.close().
 //                 The gear context of Kasseoptælling and Kommission is debitor/cashCountHistory.php (debitor/kasseoptaelling.php does not exist).
 //

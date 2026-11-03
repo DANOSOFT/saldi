@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/indkøb.php --- ver 5.0.0 --- 2026.10.16 ---
+// ---- lager/lister/indkøb.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 //                  which hold them, instead of 3389-3392, which SST-763 had already given to the
 //                  PBS resend. The list printed "Fakturaen har ikke været med i nogen PBS-leverance"
 //                  on a created order, and MEDSHOP read that as a failure and ordered again.
+// 20261103 CL/ASR $modulnr 9 (Lager) declared, so the purchase list follows the stock right; nothing else changed here.
 
 @session_start();
 $s_id = session_id();

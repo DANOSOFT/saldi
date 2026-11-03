@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/singleupdate.php -----ver 3.2.4---- 2011.10.25 ----------
+// #----------------- soapserver/singleupdate.php -----ver 3.2.4---- 2026.09.16 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260911 Sawaneh Blank quoted "dummyvalue" literals in client SQL (JOB-115)
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 ini_set("soap.wsdl_cache_enabled", "1");
 
 function singleupdate($string) {

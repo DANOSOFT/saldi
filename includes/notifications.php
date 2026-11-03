@@ -22,22 +22,18 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260927 Sawaneh Notification center (topbar spec §3): company-local notifications with
-//                  per-user read state; v1 sources = Saldi news, missing/expiring fiscal year,
-//                  batch expiry, bank-integration connection. Types can be switched off per user.
-// 20260930 Sawaneh Daily e-mail summary of unread notifications (Adam: summary only, no mail per notification),
-//                  sent by tools/notification_digest.php once a day for users who switched it on.
-// 20261001 Sawaneh notif_ready() remembers its answer per company database (the digest script visits several).
-// 20261002 Sawaneh notif_ready() checks the table's shape: an older unused table has the same name in most companies.
-// 20261010 Sawaneh The Oversigt role keys dashboard.block.news / dashboard.block.expiry (front-page addendum 4) hide the
-//                  news and batch-expiry items in the bell, as those banners now live there (topbar spec §3).
-// 20261019 Sawaneh Review 2 (PR #803): the batch-expiry limit date is computed in PHP (no Postgres interval literal).
+// 20260927 SS Notification center (topbar spec §3): company-local notifications with per-user read state; v1 sources = Saldi news, missing/expiring fiscal year, batch expiry, bank-integration connection.
+//             Types can be switched off per user.
+// 20260930 SS Daily e-mail summary of unread notifications (Adam: summary only, no mail per notification), sent by tools/notification_digest.php once a day for users who switched it on.
+// 20261001 SS notif_ready() remembers its answer per company database (the digest script visits several).
+// 20261002 SS notif_ready() checks the table's shape: an older unused table has the same name in most companies.
+// 20261010 SS The Oversigt role keys dashboard.block.news / dashboard.block.expiry (front-page addendum 4) hide the news and batch-expiry items in the bell, as those banners now live there (topbar spec §3).
+// 20261019 SS Review 2 (PR #803): the batch-expiry limit date is computed in PHP (no Postgres interval literal).
 // 20261031 CL/ASR MB-94: the fiscal-year notice ignores deleted years (any box10 value), as active_fiscal_years() does.
 // 20261031 CL/ASR SST-836: the batch-expiry item needs legacy right 12, as master's dashboard banner and lager/udlobsrapport.php, not right 9.
-// 20261103 CL/ASR QA: the fiscal-year warnings are shown only to users who may change the company settings, link to Indstillinger »
-//                 Regnskabsår (settingsSection.php?s=company.fiscal_years), disappear once the year is in order, and are worded in the
-//                 reader's language (title and body are made when listed). The role filter also applies to the daily e-mail summary,
-//                 per recipient. The bank item reads the stored bank connection before it calls the connection expired.
+// 20261103 CL/ASR QA: the fiscal-year warnings are shown only to users who may change the company settings, link to Indstillinger » Regnskabsår (settingsSection.php?s=company.fiscal_years), disappear once the year is in order, and are worded in the reader's language (title and body are made when listed).
+//                 The role filter also applies to the daily e-mail summary, per recipient.
+//                 The bank item reads the stored bank connection before it calls the connection expired.
 
 /**
  * @return array<string, string> type -> label text id

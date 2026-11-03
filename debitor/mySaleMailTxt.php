@@ -20,14 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2020 saldi.dk aps
+// Copyright (c) 2020-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261001 Sawaneh Subject and text saved by key (update_settings_value) instead of the posted row id.
+// 20261001 SS Subject and text saved by key (update_settings_value) instead of the posted row id.
 
 #ob_start();
-// 20261004 Sawaneh The mySale mail text lives in Indstillinger » Dokumenter » E-mail (settings redesign G6.3); this page only redirects.
-// 20261103 CL/ASR QA: output is buffered, so the redirect header still goes out after online.php has printed the page head
-//                 (it only worked where PHP's output_buffering is on).
+// 20261004 SS The mySale mail text lives in Indstillinger » Dokumenter » E-mail (settings redesign G6.3); this page only redirects.
+// 20261103 CL/ASR QA: output is buffered, so the redirect header still goes out after online.php has printed the page head (it only worked where PHP's output_buffering is on).
 
 ob_start();
 @session_start();

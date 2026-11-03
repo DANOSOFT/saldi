@@ -22,39 +22,29 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Settings redesign phase 4a (spec §7.3, §8.1): the components every generated
-//                  settings form is built from, and the conversion between a posted field and
-//                  the stored string. Styles live in css/unified-components.css (.st-*).
-// 20261006 Sawaneh §8.14: "?" in the section header (guide or SALDI Assist with the section as context) and a field's
-//                  "Læs mere" expander ('more' text id).
-// 20261006 Sawaneh G3.5: field type 'matrix' - the discount grid (customer groups × item groups), kept as one value in a
-//                  hidden input, stored through virtual storage (discount_matrix).
-// 20261001 Sawaneh Accessibility §8.6: readable text on a user-chosen button colour, darker shade for links/outlines.
-// 20261002 Sawaneh Phase 4b: type 'date' (shown dd-mm-yyyy, stored yyyy-mm-dd), decimals stored with a dot, 'range' rule.
-// 20261002 Sawaneh Hand-over 2 Oct (A2, §8.0): a field is a row - label and help left, control right, amber dot when changed,
-//                  dependent fields indented; actions are rows too.
-// 20261004 Sawaneh G10.1: 'decimal_comma', options from departments, sales VAT groups and table names.
-// 20261004 Sawaneh st_current_form_value(): a setting without a stored row shows its registry default.
-// 20261005 Sawaneh Field permissions are enforced (st_field_access): no read = hidden, read only = read-only; decimal
-//                  'decimals' shows a stored number with a Danish comma.
-// 20261004 Sawaneh G4.3: 'value_map' (form value <-> stored value, e.g. tab), rules 'required' and 'csv_url', supplier names.
-// 20261004 Sawaneh G2.6: a secret stored URL-encoded ('urlencode'), 'ensure_suffix' on text fields.
-// 20261003 Sawaneh G3.4 Reminders: type 'creditor' (lookup, stored as adresser id), options from the user list, a group
-//                  label above a run of fields ("Rykker 1"), a help line under a card heading.
-// 20261003 Sawaneh G6.3 E-mail: type 'textarea', a label suffix (the form language of a sender field), mixed select labels.
-// 20261004 Sawaneh §8.13: an action shows what it touches (impact) under its help and in its dialog.
-// 20261004 Sawaneh G10.6: 'color' type, a #rrggbb text with a colour swatch beside it (empty allowed).
-// 20261002 Sawaneh Phase 4b batch 2 (G9): write-only 'secret' control (masked, Skift), 'info', 'link' and 'mini' rows,
-//                  computed select options, rule 'setting_set', lock 'ht_keys:<var>' for keys the installation manages.
-// 20261016 Sawaneh virtualStorage.php loaded with the components: a matrix save and Transfer failed when it was not yet read.
-// 20261008 Sawaneh Settings decision 21: the "?" opens the section's guide (guides/settings/<group>-<section>.html|.pdf)
-//                  when installed, otherwise the section description with a link to Guides.
-// 20261019 Sawaneh Review 2 (PR #803): the grupper.inaktiv column check reads information_schema for this database/schema only.
-// 20261101 CL/ASR Settings hub "C - Fold ud": a section without a lead of its own describes itself with its hub row's hint, not the old group's text.
-//                 settings_back_button(): the Tilbage button every settings page shows above its title (kit classes, target from settings_back_link()).
+// 20260929 SS Settings redesign phase 4a (spec §7.3, §8.1): the components every generated settings form is built from, and the conversion between a posted field and the stored string.
+//             Styles live in css/unified-components.css (.st-*).
+// 20261006 SS §8.14: "?" in the section header (guide or SALDI Assist with the section as context) and a field's "Læs mere" expander ('more' text id).
+// 20261006 SS G3.5: field type 'matrix' - the discount grid (customer groups × item groups), kept as one value in a hidden input, stored through virtual storage (discount_matrix).
+// 20261001 SS Accessibility §8.6: readable text on a user-chosen button colour, darker shade for links/outlines.
+// 20261002 SS Phase 4b: type 'date' (shown dd-mm-yyyy, stored yyyy-mm-dd), decimals stored with a dot, 'range' rule.
+// 20261002 SS Hand-over 2 Oct (A2, §8.0): a field is a row - label and help left, control right, amber dot when changed, dependent fields indented; actions are rows too.
+// 20261004 SS G10.1: 'decimal_comma', options from departments, sales VAT groups and table names.
+// 20261004 SS st_current_form_value(): a setting without a stored row shows its registry default.
+// 20261005 SS Field permissions are enforced (st_field_access): no read = hidden, read only = read-only; decimal 'decimals' shows a stored number with a Danish comma.
+// 20261004 SS G4.3: 'value_map' (form value <-> stored value, e.g. tab), rules 'required' and 'csv_url', supplier names.
+// 20261004 SS G2.6: a secret stored URL-encoded ('urlencode'), 'ensure_suffix' on text fields.
+// 20261003 SS G3.4 Reminders: type 'creditor' (lookup, stored as adresser id), options from the user list, a group label above a run of fields ("Rykker 1"), a help line under a card heading.
+// 20261003 SS G6.3 E-mail: type 'textarea', a label suffix (the form language of a sender field), mixed select labels.
+// 20261004 SS §8.13: an action shows what it touches (impact) under its help and in its dialog.
+// 20261004 SS G10.6: 'color' type, a #rrggbb text with a colour swatch beside it (empty allowed).
+// 20261002 SS Phase 4b batch 2 (G9): write-only 'secret' control (masked, Skift), 'info', 'link' and 'mini' rows, computed select options, rule 'setting_set', lock 'ht_keys:<var>' for keys the installation manages.
+// 20261016 SS virtualStorage.php loaded with the components: a matrix save and Transfer failed when it was not yet read.
+// 20261008 SS Settings decision 21: the "?" opens the section's guide (guides/settings/<group>-<section>.html|.pdf) when installed, otherwise the section description with a link to Guides.
+// 20261019 SS Review 2 (PR #803): the grupper.inaktiv column check reads information_schema for this database/schema only.
+// 20261101 CL/ASR Settings hub "C - Fold ud": a section without a lead of its own describes itself with its hub row's hint, not the old group's text. settings_back_button(): the Tilbage button every settings page shows above its title (kit classes, target from settings_back_link()).
 // 20261102 CL/ASR settings_back_button() takes the access key (default 'l', Alt+L), so callers no longer patch its markup.
-// 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the
-//                 data processing agreement); only links to pages that change data are disabled.
+// 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the data processing agreement); only links to pages that change data are disabled.
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.

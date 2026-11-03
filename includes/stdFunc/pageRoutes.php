@@ -17,15 +17,13 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261006 Sawaneh The central breadcrumb map (topbar addendum 2026-10-05 §3, Adam 2026-10-06: breadcrumbs on every
-//                  page). 'pages': 'dir/file.php' (or 'dir/file.php?param=value' for a variant of the same file) =>
-//                  module 'm', label 'l' ('textId|Danish'; '|Text' without an id) and parent page 'p' from the Saldi
-//                  root ('' = directly under the module). Read by page_auto_breadcrumb() in pageChrome.php.
-// 20261009 Sawaneh sager/tjeklister.php (checklists moved from Indstillinger, 4e).
+// 20261006 SS The central breadcrumb map (topbar addendum 2026-10-05 §3, Adam 2026-10-06: breadcrumbs on every page).
+//             'pages': 'dir/file.php' (or 'dir/file.php?param=value' for a variant of the same file) => module 'm', label 'l' ('textId|Danish'; '|Text' without an id) and parent page 'p' from the Saldi root ('' = directly under the module).
+//             Read by page_auto_breadcrumb() in pageChrome.php.
+// 20261009 SS sager/tjeklister.php (checklists moved from Indstillinger, 4e).
 // 20261101 CL/ASR Settings hub "C - Fold ud": the four hub groups (settings.php?g=<group>) and the sections that other pages hang under are parents.
 //                 Settings pages without a trail of their own now read Indstillinger / group / row / page (Formularer, backup, import, export, opening balance, translations, POS menus).
-// 20261102 CL/ASR The hub is a page of its own ('systemdata/settings.php') and the groups hang under it; the pages under them use the module 'settings',
-//                 which prints no module level, so the first crumb Indstillinger is a link again (the groups share the hub's path, which made it look like the landing page).
+// 20261102 CL/ASR The hub is a page of its own ('systemdata/settings.php') and the groups hang under it; the pages under them use the module 'settings', which prints no module level, so the first crumb Indstillinger is a link again (the groups share the hub's path, which made it look like the landing page).
 //                 Import & eksport also holds importer_debitor, exporter_debitor, importer_kreditor and exporter_kreditor; the import pages are named as the section links them.
 
 return array(

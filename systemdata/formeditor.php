@@ -23,18 +23,15 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh Settings redesign G6.1: reset keeps the e-mail texts and fee/interest rows (FE2); print-language lock
-//                  and drafts in the settings table via includes/formEditorState.php (FE3); the background link opens
-//                  in the same window and the upload page returns here (FE5).
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 20261030 CL/MMR SST-917: Text boxes keep every space (white-space: pre), because the PDF engine prints them all.
 //                 The draft preview shows the payment term as the field holds it ("Netto"), not "Netto 8 dage".
 //                 The draft preview leaves out order-line columns at x 0, which the PDF engine never prints.
-// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the
-//                 settings menu) instead of page_bar: Tilbage above the title, breadcrumb Indstillinger / Virksomhed / Formularer / Formulareditor
-//                 and the Virksomhed menu with Formularer marked beside the editor. Tilbage goes where page_bar's did.
+// 20261005 SS Settings redesign G6.1: reset keeps the e-mail texts and fee/interest rows (FE2); print-language lock and drafts in the settings table via includes/formEditorState.php (FE3); the background link opens in the same window and the upload page returns here (FE5).
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 SS The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 SS The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) instead of page_bar: Tilbage above the title, breadcrumb Indstillinger / Virksomhed / Formularer / Formulareditor and the Virksomhed menu with Formularer marked beside the editor.
+//                 Tilbage goes where page_bar's did.
 //                 The editor keeps its own font; its canvas and side panel are 76 px shorter, so they end inside the window.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.

@@ -17,12 +17,12 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261102 CL/ASR Created: the standard layout of a settings page (owner, 2 Nov 2026: "When I click Logo & baggrunde it keeps a sidebar with
-//                 all related items of the same menu. It doesn't on all items - e.g. Formularer ... Can we make this a standard?").
-//                 Every page reached from a hub row, and the pages under it (import/export, backup, the form editor, POS menus ...),
-//                 shows the left menu of the section pages in the same place: the page's hub group with its sub-groups, the row marked,
-//                 Tilbage above the title, the breadcrumb Indstillinger / group / row (/ page). Same markup and classes as
-//                 systemdata/settingsSection.php (settings_menu_html(), css/unified-components.css), so it looks the same.
+// 20261102 CL/ASR Created: the standard layout of a settings page (owner, 2 Nov 2026: "When I click Logo & baggrunde it keeps a sidebar with all related items of the same menu.
+//                 It doesn't on all items - e.g.
+//                 Formularer ...
+//                 Can we make this a standard?").
+//                 Every page reached from a hub row, and the pages under it (import/export, backup, the form editor, POS menus ...), shows the left menu of the section pages in the same place: the page's hub group with its sub-groups, the row marked, Tilbage above the title, the breadcrumb Indstillinger / group / row (/ page).
+//                 Same markup and classes as systemdata/settingsSection.php (settings_menu_html(), css/unified-components.css), so it looks the same.
 // 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b (the direct Brugere & ansatte heading in the left menu).
 // 20261103 CL/ASR QA: the title's whitespace is normalised without the /u modifier on latin-1 installations (it returned null there: a blank heading).
 

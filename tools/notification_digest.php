@@ -1,5 +1,5 @@
 <?php
-// ---- tools/notification_digest.php --- lap 5.0.0 --- 2026.09.30 ---
+// ---- tools/notification_digest.php --- lap 5.0.0 --- 2026.10.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,14 +15,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260930 Sawaneh Daily e-mail summary of unread notifications (topbar spec §3.4, Adam: summary only).
-//                  Run once a day by cron, e.g.  0 7 * * *  php /var/www/html/saldi/tools/notification_digest.php
-//                  Goes through every open company and mails the users who switched the summary on
-//                  under Personal settings -> Notifications. Nothing is sent when there is nothing new.
-//                  Options: --db=<database> one company only, --dry-run count without sending.
-// 20261001 Sawaneh MySQL: select the company database after connecting (as online.php).
+// 20260930 SS Daily e-mail summary of unread notifications (topbar spec §3.4, Adam: summary only).
+//             Run once a day by cron, e.g.
+//             0 7 * * *  php /var/www/html/saldi/tools/notification_digest.php Goes through every open company and mails the users who switched the summary on under Personal settings -> Notifications.
+//             Nothing is sent when there is nothing new.
+//             Options: --db=<database> one company only, --dry-run count without sending.
+// 20261001 SS MySQL: select the company database after connecting (as online.php).
 
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 chdir(__DIR__);

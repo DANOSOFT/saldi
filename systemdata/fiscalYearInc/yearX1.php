@@ -1,9 +1,8 @@
 <?php
-// 20261005 Sawaneh Settings redesign G1.2 (audit F5): the layout for a year whose previous year is deleted. Once F5 was
-//                  fixed this page is really shown, so it was rewritten: the old one printed rows from undefined
-//                  arrays. The previous year's postings are gone, so the opening balance is shown as it stands and
-//                  cannot be transferred again; only description, end and "posting allowed" are saved.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261005 SS Settings redesign G1.2 (audit F5): the layout for a year whose previous year is deleted.
+//             Once F5 was fixed this page is really shown, so it was rewritten: the old one printed rows from undefined arrays.
+//             The previous year's postings are gone, so the opening balance is shown as it stands and cannot be transferred again; only description, end and "posting allowed" are saved.
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 function yearX1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben, $aut_lager) {
 	global $sprog_id, $menu;
 

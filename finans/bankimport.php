@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 5.0.0 --- 2026.03.20 ---
+// --- finans/bankimport.php --- patch 5.0.0 --- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20200820 PHR Added recognition of outgoing payments from Cultura Sparebank, Norway 20200820
@@ -45,9 +45,9 @@
 // 20251106 PHR Corrected date error
 // 20260311 PHR Corrected decimal error
 // 20260320 PHR	Removed 'This didn't work'
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 ini_set("auto_detect_line_endings", true);
 

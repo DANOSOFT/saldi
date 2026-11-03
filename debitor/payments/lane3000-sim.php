@@ -24,9 +24,9 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261007 CL/SZ SST-843 Removed the unused get_api_key() and start_payment(); they printed the register's Nets
 //                Connect@Cloud username and password into the page although the simulation never calls them.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
 
 @session_start();

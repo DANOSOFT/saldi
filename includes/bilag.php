@@ -1,5 +1,5 @@
 <?php
-// --- includes/bilag.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- includes/bilag.php --- ver 5.0.0 --- 2026-10-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,10 +32,9 @@
 // 20230123 PHR Corrected error if text in debet or credit
 // 20230304 PHR	Attachments can now be renamed
 // 20260212 LOE Refactored to handle multiple files for orders.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261018 Sawaneh Review 2 (PR #803): key by the attachment's module instead of 'any'; kilde limited to kassekladde/ordrer/historik
-//                  (a table name in the queries), ids cast to numbers, file name basename.
 // 20261005 LOE SST-857 Kassebilag is spelled with one l in the page title.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): key by the attachment's module instead of 'any'; kilde limited to kassekladde/ordrer/historik (a table name in the queries), ids cast to numbers, file name basename.
 
 @session_start();
 $s_id=session_id();

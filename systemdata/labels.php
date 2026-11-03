@@ -17,12 +17,13 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 Sawaneh Settings G5.8 Mærkater (Varer & lager): item label templates with the visual editor and raw HTML,
-//                  new label from a shipped template, delete with a dialog, Standard kept. CSRF + PRG + audit log.
-//                  Address labels (LABEL box2) have no reader and are not offered (spec G5.8); their data is kept.
-//                  The old diverse.php?sektion=labels redirects here.
-// 20261016 Sawaneh The left menu is the group's sections like every settings page; the label list is a column in the content.
-// 20261101 CL/ASR Tilbage above the title, the shared settings button (settings_back_button(), styled by css/unified-components.css), as on every settings page. Alt+L.
+// 20261010 SS Settings G5.8 Mærkater (Varer & lager): item label templates with the visual editor and raw HTML, new label from a shipped template, delete with a dialog, Standard kept.
+//             CSRF + PRG + audit log.
+//             Address labels (LABEL box2) have no reader and are not offered (spec G5.8); their data is kept.
+//             The old diverse.php?sektion=labels redirects here.
+// 20261016 SS The left menu is the group's sections like every settings page; the label list is a column in the content.
+// 20261101 CL/ASR Tilbage above the title, the shared settings button (settings_back_button(), styled by css/unified-components.css), as on every settings page.
+//                 Alt+L.
 //                 The left menu is the one of every settings page (settings_menu_html(): the hub group's sub-groups, Mærkater marked, no zebra).
 // 20261101 CL/ASR Review: css/unified-components.css linked as ?v=20261101e, the version the section pages and the old pages' frame link.
 // 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops; settings_back_button() adds Alt+L itself.

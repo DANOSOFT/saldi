@@ -3,7 +3,7 @@
 //                languageId were never populated, so it always rendered with
 //                zero options) and int-cast cookieLanguageId before it hits
 //                SQL. Sprogindstillinger below is the only working selector. MB-27.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 function language () {
     global $bgcolor,$bgcolor5,$bruger_id,$brugernavn;
     global $db;

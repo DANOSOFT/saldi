@@ -85,8 +85,6 @@
 // 20211022 LOE Fixed some bugs
 // 20211123 PHR added paperflow
 // 20211123 PHR added paperflowId & paperflowBearer
-// 20260928 Sawaneh Security 4.0: SQL tool, DocuBizz and Paperflow removed; Vibrant password never shown; MobilePay/QuickPay
-//                  secrets write-only; Flatpay login handled server-side; FTP test via PHP ftp_*; variant delete id cast.
 // 20220413 PHR Renamed pos_valg til posOptions and moved function to diverse/posOptions.php
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240130 PBLM Added Nemhandel (diverse valg)
@@ -124,29 +122,11 @@
 //                query (was mislabeled $mySaleTest but still read var_name='mySale');
 //                also dropped the debug echo block referencing it. Never saved
 //                ($_POST['mySaleTest'] was read nowhere) and had no consumer. MB-28.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20260928 Sawaneh Removed personlige_valg() (replaced by systemdata/personalSettings.php, no callers left).
-// 20261002 Sawaneh Phase 4b batch 1: provision() and orediff() removed (generated sections); div_valg() no longer shows
-//                  mySale, print, payment lists, payment days or voucher-date rows, and no longer calls checkip.dyndns.com.
-//                  The four debtor-card rows (Debitorkort section since 4a) are gone from it too.
-// 20261002 Sawaneh Phase 4b batch 2: GLS, Danske Fragtmænd, QuickPay, Flatpay, Vibrant, MobilePay and Copayone left div_valg()
-//                  for Indstillinger » Integrationer (pick-up addresses stay); api_valg() only runs the shop sync.
-// 20261005 Sawaneh G1.4: kontoindstillinger() keeps only the user count; name/reset/delete/time zone moved.
-// 20261003 Sawaneh G6.3: the SMTP form left kontoindstillinger() for Indstillinger » Dokumenter & e-mail » E-mail.
-// 20261004 Sawaneh G5.8 (B-L1): labels() escapes the label name and the custom text lines, and accepts only valg box1/box2.
-// 20261004 Sawaneh G2.6: bilag() and testftp() removed (generated section Finans » Bilagsopbevaring).
-// 20261003 Sawaneh G3.4: rykker_valg() removed (generated section Salg » Betalingsbetingelser & rykkere).
-// 20261004 Sawaneh Pick-up addresses are edited under Indstillinger » Integrationer » Afhentningsadresser; the list and its script are gone from Diverse valg.
 // 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
 // 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
 // 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
 // 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
-// 20261008 Sawaneh Settings 4e: the dead prislister() removed (price lists live in Indstillinger » Prislister).
-// 20261010 Sawaneh G5.8: the label template functions moved unchanged to includes/labelTemplates.php (shared with
-//                  systemdata/labels.php); labels() stays only for the old page, which now redirects.
-// 20261011 Sawaneh The include of sys_div_func_includes/chooseProvision.php removed: the file left with 4a on 2 October
-//                  (provision lives in Organisation » Provision) and the include has warned on every load since.
 // 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
 //                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
 //                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
@@ -163,6 +143,21 @@
 //                 ordre_valg(): braces on the multi-line "Lås fakturér-knappen" if.
 // 20261030 CL/MMR SD-786 The title of "Vis besked når kostprisen er anslået" has text id 8402, because #848 took 7640 on master.
 // 20261030 CL/MMR SD-786 The checkbox text moved from 7639 to 8406, next to its title 8402, because other changes also use 7636-7639.
+// 20260928 SS Security 4.0: SQL tool, DocuBizz and Paperflow removed; Vibrant password never shown; MobilePay/QuickPay secrets write-only; Flatpay login handled server-side; FTP test via PHP ftp_*; variant delete id cast.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20260928 SS Removed personlige_valg() (replaced by systemdata/personalSettings.php, no callers left).
+// 20261002 SS Phase 4b batch 1: provision() and orediff() removed (generated sections); div_valg() no longer shows mySale, print, payment lists, payment days or voucher-date rows, and no longer calls checkip.dyndns.com.
+//             The four debtor-card rows (Debitorkort section since 4a) are gone from it too.
+// 20261002 SS Phase 4b batch 2: GLS, Danske Fragtmænd, QuickPay, Flatpay, Vibrant, MobilePay and Copayone left div_valg() for Indstillinger » Integrationer (pick-up addresses stay); api_valg() only runs the shop sync.
+// 20261005 SS G1.4: kontoindstillinger() keeps only the user count; name/reset/delete/time zone moved.
+// 20261003 SS G6.3: the SMTP form left kontoindstillinger() for Indstillinger » Dokumenter & e-mail » E-mail.
+// 20261004 SS G5.8 (B-L1): labels() escapes the label name and the custom text lines, and accepts only valg box1/box2.
+// 20261004 SS G2.6: bilag() and testftp() removed (generated section Finans » Bilagsopbevaring).
+// 20261003 SS G3.4: rykker_valg() removed (generated section Salg » Betalingsbetingelser & rykkere).
+// 20261004 SS Pick-up addresses are edited under Indstillinger » Integrationer » Afhentningsadresser; the list and its script are gone from Diverse valg.
+// 20261008 SS Settings 4e: the dead prislister() removed (price lists live in Indstillinger » Prislister).
+// 20261010 SS G5.8: the label template functions moved unchanged to includes/labelTemplates.php (shared with systemdata/labels.php); labels() stays only for the old page, which now redirects.
+// 20261011 SS The include of sys_div_func_includes/chooseProvision.php removed: the file left with 4a on 2 October (provision lives in Organisation » Provision) and the include has warned on every load since.
 
 include_once("../includes/connect.php"); 
 include_once(__DIR__ . "/../includes/labelTemplates.php");

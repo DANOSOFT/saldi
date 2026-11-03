@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-09-25--------------
+// --- includes/db_query.php ---patch 5.0.0 ----2026-11-03--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,6 +59,7 @@
 //                just gives them one place to call instead of hand-rolling the mysqli check.
 // 20261027 CL/NTR db_select_database(): also select on $db_type 'mysql', which db_connect()
 //                serves with a mysqli connection too (still supported, not actively used).
+// 20261103 CL/ASR db_cast() and saldi_schema_filter() added for the settings system (PR #803 review): one cast and one information_schema filter that MySQL and PostgreSQL both accept.
 
 if (!function_exists('get_relative')) {
     function get_relative() {

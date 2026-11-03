@@ -15,16 +15,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261002 Sawaneh Settings redesign §7.2 + risk review R9: one grupper row per setting key for the settings arts.
-//                  kode is trimmed (incl. NBSP), duplicates are merged (per box: the newest non-empty value wins),
-//                  removed rows are kept in grupper_removed, then the partial unique index is added.
-//                  Called from includes/betweenUpdates.php. PostgreSQL only.
-// 20261002 Sawaneh Cannot stop a login: statements run through settings_mig_exec() (includes/settings/uniqueIndex.php)
-//                  and are rolled back on failure; the index is looked for again once the table lock is held.
-// 20261103 CL/ASR QA: the index is looked for in the company's own schema only (pg_indexes.schemaname), so a schema migrated
-//                 first in the same database does not make another one skip its clean-up.
+// 20261002 SS Settings redesign §7.2 + risk review R9: one grupper row per setting key for the settings arts. kode is trimmed (incl.
+//             NBSP), duplicates are merged (per box: the newest non-empty value wins), removed rows are kept in grupper_removed, then the partial unique index is added.
+//             Called from includes/betweenUpdates.php.
+//             PostgreSQL only.
+// 20261002 SS Cannot stop a login: statements run through settings_mig_exec() (includes/settings/uniqueIndex.php) and are rolled back on failure; the index is looked for again once the table lock is held.
+// 20261103 CL/ASR QA: the index is looked for in the company's own schema only (pg_indexes.schemaname), so a schema migrated first in the same database does not make another one skip its clean-up.
 
 include_once(__DIR__ . '/uniqueIndex.php');
 
@@ -149,6 +147,7 @@ function grupper_unique_migrate(): string
 	}
 	$plan = grupper_duplicate_plan($rows);
 	if ($plan['remove']) {
+		// guardrails-allow migrations until 2027-06-30 by ASR: called only from includes/betweenUpdates.php, the update chain
 		if (!db_fetch_array(db_select("select table_name from information_schema.tables where table_name = 'grupper_removed'" . saldi_schema_filter() . "", __FILE__ . " linje " . __LINE__)) && !settings_mig_exec("create table grupper_removed as select *, 0 as kept_id, now() as removed from grupper where false")) {
 			return settings_mig_fail();
 		}
@@ -176,6 +175,7 @@ function grupper_unique_migrate(): string
 		transaktion('rollback');
 		return 'duplicates';
 	}
+	// guardrails-allow migrations until 2027-06-30 by ASR: called only from includes/betweenUpdates.php, the update chain
 	if (!settings_mig_exec("create unique index " . GRUPPER_UNIQUE_INDEX . " on grupper ($key) where art in ($arts)")) {
 		return settings_mig_fail();
 	}

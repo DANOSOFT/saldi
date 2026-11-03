@@ -1,5 +1,5 @@
 <?php
-// ------------systemdata/email_settings.php-----patch 4.0.8 ----2025-01-26--
+// ------------systemdata/email_settings.php-----patch 4.0.8 ----2026-10-03--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,13 +16,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Language-specific sender email settings
 // 20260710 SZ Added Settings search box to standalone/topmenu layouts (settingsSearch.php/.js/.css)
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
-// 20261003 Sawaneh G6.3: the page has landed in Indstillinger » Dokumenter & e-mail » E-mail; this file only redirects there.
+// 20261003 SS G6.3: the page has landed in Indstillinger » Dokumenter & e-mail » E-mail; this file only redirects there.
 @session_start();
 $s_id=session_id();
 include("../includes/connect.php");

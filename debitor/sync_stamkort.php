@@ -23,13 +23,13 @@
 // Copyright (c) 2008-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230123 PHR Replaced addslashes by db_escape_string
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261023 CL/MMR SST-887 Arrow up now also sets fornavn/efternavn for private customers.
 //                 Only firmanavn was updated, so the card kept the old name and saving it restored that name.
 //                 ordre_id and konto_id are cast to int before use in SQL.
 // 20261023 CL/MMR SST-887 Moved the sync into syncStamkort() per the controller/view convention (review by Codex).
 // 20261027 CL/LH SST-887 ordre_id and konto_id must be plain digit strings; anything else (an array such as
 //                ordre_id[]=7, which (int) turned into 1) counts as a missing id. Raised by CodeRabbit on PR #851.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();

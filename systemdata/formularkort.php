@@ -57,26 +57,22 @@
 // 20260313 Sawaneh SD-420 Added ordre_email and ordre_tlf to form dropdown
 // 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 // 20260529 CL/PHR Rettet: manglende xa-records (mailtekst/bilag) for art=5 oprettes nu automatisk ved visning
-// 20261005 Sawaneh G6.2: background create/delete (nyt_sprog, slet_sprog) moved to Indstillinger » Dokumenter » Baggrunde.
 // 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 // 20260911 CDX/LH SD-186 Use the Danish Udført af label for the invoice field.
 // 20260921 CDX/MJ SST-745 Match VSPR sprog case-insensitively when saving et formularkort, so a
 //                          different capitalisation no longer creates a duplicate sprogrække.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-// 20261102 CL/ASR Tilbage is the shared settings button top-left above the title (settings_back_button(), css/saldi-kit.css), as on every
-//                 settings page, instead of page_bar's text link top-right; also in the old layout (no side menu), where it replaces the bar's Tilbage cell.
+// 20261005 SS G6.2: background create/delete (nyt_sprog, slet_sprog) moved to Indstillinger » Dokumenter » Baggrunde.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 SS The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261102 CL/ASR Tilbage is the shared settings button top-left above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's text link top-right; also in the old layout (no side menu), where it replaces the bar's Tilbage cell.
 //                 It goes to the hub (Formularer is a hub row), with Alt+L as before; the page's own returside, used only by the old links, is gone.
-// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: Formularer did not keep the
-//                 side menu that Logo & baggrunde has): the left menu of Virksomhed with Formularer marked under Fakturaformularer & e-mail,
-//                 Tilbage above the title, and the title is 'Formularer' as the hub row (it said 'Formularkort').
-//                 The bar's buttons (Visuel editor, Bg.Navn, Email, Baggrund) sit right of the title, in both menu modes; the search field
-//                 above the editor is gone (the hub has the search). The form editor below is unchanged.
-// 20261102 CL/ASR Genindlæs standardformularer removed from the bottom row (both menu modes): it linked to formular_indlaes_std.php, which was
-//                 deleted on 24 Sep 2025 (6a35fea7), so the link gave a 404. The visual editor's Nulstil resets one form and background to the
-//                 standard and keeps the e-mail texts and fee/interest rows.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: Formularer did not keep the side menu that Logo & baggrunde has): the left menu of Virksomhed with Formularer marked under Fakturaformularer & e-mail, Tilbage above the title, and the title is 'Formularer' as the hub row (it said 'Formularkort').
+//                 The bar's buttons (Visuel editor, Bg.Navn, Email, Baggrund) sit right of the title, in both menu modes; the search field above the editor is gone (the hub has the search).
+//                 The form editor below is unchanged.
+// 20261102 CL/ASR Genindlæs standardformularer removed from the bottom row (both menu modes): it linked to formular_indlaes_std.php, which was deleted on 24 Sep 2025 (6a35fea7), so the link gave a 404.
+//                 The visual editor's Nulstil resets one form and background to the standard and keeps the e-mail texts and fee/interest rows.
 @session_start();
 $s_id=session_id();
 

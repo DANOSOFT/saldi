@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- patch 4.1.1 --- 2025.03.22 ---
+// --- kreditor/modtag.php --- patch 4.1.1 --- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2013.08.30 Fejl v. "interne shops" (Rotary) de der blev forsøgt kald til ikke eksisterende url.Søn 20130830
@@ -37,7 +37,6 @@
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20250207 PHR Corrected error in 'bogf_konto' as is used wrong account !
 // 20260908 CDX/LH Lock creditor orders before receipt validation and batch changes (SST-765).
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260914 CL/SZ Block receipt of a batch/expiry-tracked line whose batch_due_date or
 //                batch_batch_no is empty, mirroring the existing serial-number check; also
 //                escaped batch_due_date and fixed a "0" batch-no being treated as empty in
@@ -50,6 +49,7 @@
 //             so box9-only items already relied on this validation (MB-36).
 // 20260917 SZ Guard the box9 lookup above against a missing grupper row (CodeRabbit,
 //             PR #608) - degrades to "not tracked" instead of a PHP warning.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();

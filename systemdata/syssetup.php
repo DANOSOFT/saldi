@@ -49,8 +49,8 @@
 // 20260723 MJ  Fjernet Rubrik-kolonne (box5) fra SM/KM/YM/EM-momskoder: bruges ikke laengere.
 // 20260724 MJ  EU-zone-dropdown (box10) paa KG-kreditorgrupper til Momsrubrikker Rubrik A.
 // 20260917 CDX/LH Correct VAT mapping label translation reference (MB-45).
-// 20260928 Sawaneh Phase 4: only the side-menu frame (top.php) remains; top-menu and old-menu branches removed.
 // 20261001 CDX/PHR Show one editable definition per warehouse, preferring the selected fiscal year.
+// 20260928 SS Phase 4: only the side-menu frame (top.php) remains; top-menu and old-menu branches removed.
 // 20261103 CL/ASR QA: syssetup.php without valg (linked so from the old menus) redirects to Finans » Moms like valg=moms, instead of the old VAT editor.
 
 @session_start();

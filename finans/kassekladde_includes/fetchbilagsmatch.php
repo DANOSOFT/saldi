@@ -21,7 +21,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260507 NTR - Added batch invoice matching
 // 20260721 CL/SZ - Replaced the raw OR-join (amount = OR date =) with a weighted scoring
@@ -50,11 +50,11 @@
 //                   date_score CASE itself (same pattern amountTolerance already used
 //                   correctly), so it now only zeroes the date signal when out of range
 //                   instead of excluding the row outright.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261003 CL/SZ SD-717: archived pool documents are not offered as matches.
 //                The header named the wrong file (kassekladde.php); corrected.
 // 20261012 CL/SZ SD-730 Each match carries its pool row's version (poolMetadataVersion()): since SST-777 docPool.php refuses an
 //                   attach without it, so "Match valgte" attached nothing.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
     // Start buffering
     ob_start();

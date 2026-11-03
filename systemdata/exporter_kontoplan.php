@@ -22,10 +22,10 @@
 // 20210713 LOE - Translated these texts to Norsk and English
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260825 Sawaneh JOB-086: fiscal year from the request is int-cast before use in SQL
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20260928 Sawaneh Phase 4: top-menu branch removed; side-menu layout is the only one.
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20260928 SS Phase 4: top-menu branch removed; side-menu layout is the only one.
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261009 SS The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
 // 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
 //                 It goes to the settings page the user came from, or the hub; Alt+L kept.
@@ -68,7 +68,7 @@ fclose($fp);
 // The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
 include_once("../includes/settings/layout.php");
 settings_layout_open();
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1

@@ -28,12 +28,12 @@
 // 20250523 printserver lookup
 // 20250531 PHR added $flatpayPrint
 // 20250912 PHR added print if canceled
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-848: Write disableTerminalPrints as a JavaScript boolean; PHP false printed as an empty token and broke the whole payment script when flatpay_terminal_print was set.
 // 20261007 CL/SZ SST-843 The Flatpay ID (GUID) is no longer written into the page.
 //                All Flatpay calls go through flatpay_proxy.php, which adds the ID on the server and builds the request.
 //                flatpay_proxy.php also now builds disableTerminalPrints server-side as a real PHP
 //                bool before json_encode, which was SST-848's fix and still applies, just moved.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
 
 /**

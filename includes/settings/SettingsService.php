@@ -20,33 +20,26 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Settings redesign phase 4a (spec §7.2): one service that reads and writes a
-//                  setting through its registry definition. The registry points at the EXISTING
-//                  storage (grupper box / settings row), so every current reader keeps working.
-// 20261005 Sawaneh G1.1: the company address row is created by the first saved field when a ledger has none.
-// 20261005 Sawaneh 4c: auditRow() for master-data rows; the history includes row events.
-// 20261005 Sawaneh G7.1: dbrow storage takes a row filter ('where'), grupper storage an optional 'kode' (ANSAT extra
-//                  fields keep two rows per employee with the same kodenr).
-// 20261004 Sawaneh G10.5: storage 'dbrow' = a column of any table's row (table_pages), scope 'row' = its id.
-// 20261004 Sawaneh G10.1: a joined list ('join' + 'index') may also live in a settings row (postEachSale); scope 'pos' takes its
-//                  id from the definition like 'group' and 'row'.
-// 20261004 Sawaneh G10 (risk review R2): grupper rows kept per fiscal year ('fiscal') are read from the current year and
-//                  written to every year, as before; a missing row is created for the current year.
-// 20261004 Sawaneh G4.3: storage 'grupper_row' (one column of one grupper row, the row id is the scope; price lists).
-// 20261004 Sawaneh G2.6: storage 'virtual' (a value derived from several fields, includes/settings/virtualStorage.php).
-// 20261004 Sawaneh Audit rows store the raw user name (the global from online.php is already escaped).
-// 20261003 Sawaneh G3.4 Reminders: storage 'formularer' (the GEBYR row of a reminder form per language: xb fee item, yb interest
-//                  item, str rate), kept where debitor/ny_rykker.php and includes/formfunk.php read it (spec R20).
-// 20261003 Sawaneh G6.3 E-mail: storage 'adresser' (a felt_ column of the company's own address row) and scope 'group'
-//                  (settings.group_id, the form language of a sender address).
-// 20261002 Sawaneh Phase 4b batch 2: lastChanged() for the 'sat <date>' note next to a write-only secret.
-// 20261002 Sawaneh Settings changes in audit_log carry objekt_type 'indstilling' and the key as objekt_id (settings redesign §11.2).
-// 20261018 Sawaneh Review 2 (PR #803): sqlValue()/columnIsNumeric(): an empty value goes into a number column as NULL.
-// 20261019 Sawaneh Review 2 (PR #803): a lone value in a tab-joined box is its first part only (DIV/3 box13); kode '0' also matches NULL/empty kode rows.
-// 20261103 CL/ASR QA: historyMasked() is the one rule for settings whose history keeps no values (secrets and the employees' CPR, bank and
-//                 salary): the audit row, the history views and Gendan all use it, so a masked row can never be restored as ''.
+// 20260929 SS Settings redesign phase 4a (spec §7.2): one service that reads and writes a setting through its registry definition.
+//             The registry points at the EXISTING storage (grupper box / settings row), so every current reader keeps working.
+// 20261005 SS G1.1: the company address row is created by the first saved field when a ledger has none.
+// 20261005 SS 4c: auditRow() for master-data rows; the history includes row events.
+// 20261005 SS G7.1: dbrow storage takes a row filter ('where'), grupper storage an optional 'kode' (ANSAT extra fields keep two rows per employee with the same kodenr).
+// 20261004 SS G10.5: storage 'dbrow' = a column of any table's row (table_pages), scope 'row' = its id.
+// 20261004 SS G10.1: a joined list ('join' + 'index') may also live in a settings row (postEachSale); scope 'pos' takes its id from the definition like 'group' and 'row'.
+// 20261004 SS G10 (risk review R2): grupper rows kept per fiscal year ('fiscal') are read from the current year and written to every year, as before; a missing row is created for the current year.
+// 20261004 SS G4.3: storage 'grupper_row' (one column of one grupper row, the row id is the scope; price lists).
+// 20261004 SS G2.6: storage 'virtual' (a value derived from several fields, includes/settings/virtualStorage.php).
+// 20261004 SS Audit rows store the raw user name (the global from online.php is already escaped).
+// 20261003 SS G3.4 Reminders: storage 'formularer' (the GEBYR row of a reminder form per language: xb fee item, yb interest item, str rate), kept where debitor/ny_rykker.php and includes/formfunk.php read it (spec R20).
+// 20261003 SS G6.3 E-mail: storage 'adresser' (a felt_ column of the company's own address row) and scope 'group' (settings.group_id, the form language of a sender address).
+// 20261002 SS Phase 4b batch 2: lastChanged() for the 'sat <date>' note next to a write-only secret.
+// 20261002 SS Settings changes in audit_log carry objekt_type 'indstilling' and the key as objekt_id (settings redesign §11.2).
+// 20261018 SS Review 2 (PR #803): sqlValue()/columnIsNumeric(): an empty value goes into a number column as NULL.
+// 20261019 SS Review 2 (PR #803): a lone value in a tab-joined box is its first part only (DIV/3 box13); kode '0' also matches NULL/empty kode rows.
+// 20261103 CL/ASR QA: historyMasked() is the one rule for settings whose history keeps no values (secrets and the employees' CPR, bank and salary): the audit row, the history views and Gendan all use it, so a masked row can never be restored as ''.
 
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
 

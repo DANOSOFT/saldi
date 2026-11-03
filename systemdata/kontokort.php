@@ -35,12 +35,10 @@
 // 20220605 PHR - php8
 // 20250619 PHR - Somebody broke the code by omitting || in several if statements
 // 20260206	PHR	- discal_year
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261031 CL/ASR The inactive-VAT-code filter is only added when grupper.inaktiv exists, so the page cannot fail on a database without the column.
-// 20261102 CL/ASR Opened from Kontoplan under Indstillinger (settings=1; owner, 2 Nov 2026: every page reached from the settings keeps the
-//                 settings menu) the page shows the standard settings layout (includes/settings/layout.php): breadcrumb Indstillinger / Finans /
-//                 Kontoplan / Kontokort, Tilbage to Kontoplan, previous, next and Ny above, the Finans group's menu with Kontoplan marked.
+// 20261102 CL/ASR Opened from Kontoplan under Indstillinger (settings=1; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): breadcrumb Indstillinger / Finans / Kontoplan / Kontokort, Tilbage to Kontoplan, previous, next and Ny above, the Finans group's menu with Kontoplan marked.
 //                 The form, the redirect after Gem and the way back to Kontoplan carry the marker on.
 //                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
 

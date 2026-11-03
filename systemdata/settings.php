@@ -22,17 +22,13 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260928 Sawaneh Settings front page (parent spec S1/S3/S4): search on top and one card per
-//                  settings group the user may open, generated from systemdata/settingsRegistry.php.
-// 20260929 Sawaneh Phase 4a (settings redesign spec §8.5, §8.10, §8.13, §8.14): search finds single settings and
-//                  old menu names, transition banner, "Hvor er...?" link, PoS licence card, shortcuts.
-// 20261001 Sawaneh Phase 4a §8.13: optional modules shown on or off with Aktivér, computed status badges per card.
-// 20261002 Sawaneh Hand-over 2 Oct (A1, settings redesign §8.0): groups as rows in three labelled lists instead of tiles,
-//                  "Kræver opmærksomhed" above them, status as a dot plus text, search results in a dropdown, no Back
-//                  button (the shell shows the breadcrumb). Optional modules are shown inside their group, not here.
-// 20261004 Sawaneh Search results grouped by group with at most 8 until "Vis alle" (§8.5); the transition banner
-//                  only for users with activity from before the new settings landed (§8.10).
-// 20261004 Sawaneh Open to anyone with read on a settings group, not only the old Indstillinger bit (decision 16).
+// 20260928 SS Settings front page (parent spec S1/S3/S4): search on top and one card per settings group the user may open, generated from systemdata/settingsRegistry.php.
+// 20260929 SS Phase 4a (settings redesign spec §8.5, §8.10, §8.13, §8.14): search finds single settings and old menu names, transition banner, "Hvor er...?" link, PoS licence card, shortcuts.
+// 20261001 SS Phase 4a §8.13: optional modules shown on or off with Aktivér, computed status badges per card.
+// 20261002 SS Hand-over 2 Oct (A1, settings redesign §8.0): groups as rows in three labelled lists instead of tiles, "Kræver opmærksomhed" above them, status as a dot plus text, search results in a dropdown, no Back button (the shell shows the breadcrumb).
+//             Optional modules are shown inside their group, not here.
+// 20261004 SS Search results grouped by group with at most 8 until "Vis alle" (§8.5); the transition banner only for users with activity from before the new settings landed (§8.10).
+// 20261004 SS Open to anyone with read on a settings group, not only the old Indstillinger bit (decision 16).
 // 20261101 CL/ASR New design (prototype D, as index/dashboard.php): the page is built from css/saldi-kit.css under .sk.
 //                 The group lists are panels with a grey header band and 24 px zebra rows, the search is the kit search with its dropdown, notes and the shortcuts dialog are kit components, and the one filled button is navy.
 //                 Same content, order, texts, links and behaviour.
@@ -44,7 +40,8 @@
 //                 No zebra rows (owner); a Tilbage button above the title as on every settings page; behaviour in javascript/settingsHub.js.
 // 20261101 CL/ASR Review: while searching only a sub-group's name is marked, as in the mock (its short text is not searched).
 //                 The hub script link has a new version (the script now also runs on latin-1 pages).
-//                 A search hit on a page this company lacks (e.g. Stripe abonnement outside the operator ledger) no longer shows the row it would sit in.
+//                 A search hit on a page this company lacks (e.g.
+//                 Stripe abonnement outside the operator ledger) no longer shows the row it would sit in.
 // 20261102 CL/ASR Tilbage (Alt+L) leaves the settings system: the newest page outside it in the navigation stack, skipping old addresses that redirect here, else Oversigt.
 // 20261102 CL/ASR No Tilbage on the hub itself (owner): it is the settings start page; the sub-pages keep theirs.
 //                 The kit and css/settingsHub.css are linked as ?v=20261102 (the kit places Tilbage now).

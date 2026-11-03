@@ -1,5 +1,5 @@
 <?php
-// ------------------debitor/batch.php--------ver 5.0.0----2026.10.13--
+// ------------------debitor/batch.php--------ver 5.0.0----2026.11.03--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -33,6 +33,7 @@
 //                  identifiers outside a string. On PHP 8 each is an undefined constant and
 //                  throws, and the first one ($row[art], reached on every open of this
 //                  window) made the page a 500 before it printed anything.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id=session_id();

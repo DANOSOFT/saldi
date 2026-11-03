@@ -17,25 +17,22 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261006 Sawaneh Row actions may show per-row confirm text ('confirm_args') and ask for one value ('input', posted as arg).
-// 20261006 Sawaneh §8.13: an empty table with a standard set offers "Opret dansk standardsæt" and "Tilføj selv".
-// 20261005 Sawaneh 4d: read-only columns and locked rows, row actions (with password for danger-zone ones), a parent
-//                  picker above a filtered table, a create card below a table and the confirmation of posted amounts.
-// 20261005 Sawaneh Settings redesign phase 4c (spec §8.2, mock-up 04): a section of 'kind' rows. One card per table:
-//                  column headers, every cell an input, an always-available "Tilføj" row, trash (with the usage count)
-//                  and the inaktiv eye; ordinary fields of the section above the tables; year selector for per-year
-//                  tables. Behaviour in javascript/settingsRows.js.
-// 20261008 Sawaneh A table with 'hide_empty' and no rows is not shown (old discounts in G3.5).
-// 20261008 Sawaneh A table's 'confirm_skip' adds a second confirm button (master's SST-769 Gem kurs uden bogføring).
-// 20261016 Sawaneh The "copy from year" button points at its own form printed after the main one; a form inside the main form
-//                  closed it early, so later blocks fell out of the layout and Save posted the copy action.
+// 20261006 SS Row actions may show per-row confirm text ('confirm_args') and ask for one value ('input', posted as arg).
+// 20261006 SS §8.13: an empty table with a standard set offers "Opret dansk standardsæt" and "Tilføj selv".
+// 20261005 SS 4d: read-only columns and locked rows, row actions (with password for danger-zone ones), a parent picker above a filtered table, a create card below a table and the confirmation of posted amounts.
+// 20261005 SS Settings redesign phase 4c (spec §8.2, mock-up 04): a section of 'kind' rows.
+//             One card per table: column headers, every cell an input, an always-available "Tilføj" row, trash (with the usage count) and the inaktiv eye; ordinary fields of the section above the tables; year selector for per-year tables.
+//             Behaviour in javascript/settingsRows.js.
+// 20261008 SS A table with 'hide_empty' and no rows is not shown (old discounts in G3.5).
+// 20261008 SS A table's 'confirm_skip' adds a second confirm button (master's SST-769 Gem kurs uden bogføring).
+// 20261016 SS The "copy from year" button points at its own form printed after the main one; a form inside the main form closed it early, so later blocks fell out of the layout and Save posted the copy action.
 // 20261101 CL/ASR New design (prototype D): the page's root carries the kit's scope class sk; the look is css/unified-components.css on the kit's tokens.
 // 20261101 CL/ASR Settings hub "C - Fold ud": the left menu is settings_menu_html() (includes/settings/listView.php), Tilbage above the title.
 // 20261101 CL/ASR Review: Tilbage carries Alt+L, as on the other settings pages.
 // 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
-// 20261103 CL/ASR QA: "Gælder regnskabsåret" shows each year by its name (grupper RA beskrivelse, e.g. 2026), not its number (1, 2).
-//                 After a refused save a cell's data-orig is the stored value, not the posted one, so Fortryd and the unsaved-changes
-//                 warning still see the change.
+// 20261103 CL/ASR QA: "Gælder regnskabsåret" shows each year by its name (grupper RA beskrivelse, e.g.
+//                 2026), not its number (1, 2).
+//                 After a refused save a cell's data-orig is the stored value, not the posted one, so Fortryd and the unsaved-changes warning still see the change.
 
 include_once(__DIR__ . '/rows.php');
 

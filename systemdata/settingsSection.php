@@ -22,60 +22,44 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Settings redesign phase 4a: a settings section generated from the registry
-//                  (spec §7.3, §8). Controller: POST with CSRF -> validation -> conflict check ->
-//                  transaction -> audit -> redirect. View below. No hand-written form.
-// 20261002 Sawaneh Phase 4b: actions run through includes/settings/actions.php, sections gated by a module, on_save follow-ups.
-// 20261002 Sawaneh Hand-over 2 Oct (A2, §8.0): a heading above each card, plain tab list, history as its own column, save bar
-//                  only while something is unsaved, no Back button or in-page trail (the shell's topbar has the breadcrumb).
-// 20261005 Sawaneh A field's own permission key is enforced on save and on actions (st_field_access).
-// 20261005 Sawaneh 4d G1.2/G2.3: row actions (set a fiscal year active, delete an old year with its data behind the
-//                  password), the create card of a table, a parent filter (the currency of the rates) kept in the URL,
-//                  and a save that would post amounts first shows them and needs "Bogfør og gem" (audit V9).
-// 20261005 Sawaneh Danger-zone actions ('danger_zone') run only with the user's password (§8.3); a refusal is audited.
-// 20261005 Sawaneh Phase 4c: sections of 'kind' rows - tables through includes/settings/rows.php (validate first,
-//                  then fields, then rows), actions row_delete / row_inactive / row_copy_year, year in the address.
-// 20261004 Sawaneh §8.11: 'back' (a path inside Saldi) from the gear in the sub-bar shows "Tilbage" and survives saves.
-// 20261004 Sawaneh List items with a 'feature' (bank) are hidden until the feature is on.
-// 20261004 Sawaneh settings_after_section_save() runs once after all fields of a save (KDS colours).
-// 20261004 Sawaneh Access follows the section's permission key only, not the old Indstillinger bit (decision 16).
-// 20261004 Sawaneh A stored secret shows when it was set ("sat 12/9-2026") on form sections too.
-// 20261004 Sawaneh G4.3: list items from the database ('items_from'), a one-off flash kept in the session.
-// 20261004 Sawaneh G2.6: FTP test result flash.
-// 20261003 Sawaneh G3.4: a run of fields may carry a heading ('group_label'), a card a help line ('sub_help').
-// 20261003 Sawaneh G6.3: a section may carry its own permission key (settings.email).
-// 20261002 Sawaneh Phase 4b batch 2 (G9): a section of 'kind' list renders includes/settings/listView.php - rows with a drawer
-//                  per integration, each drawer its own form; an empty secret leaves the stored value (P8); item kept over redirects.
-// 20261008 Sawaneh The Assist menu's guide is the section's installed guide (settings decision 21).
-// 20261019 Sawaneh Review 2 (PR #803): row_copy_year takes from_year only when it is a fiscal year (RA) of this ledger other than the target year.
+// 20260929 SS Settings redesign phase 4a: a settings section generated from the registry (spec §7.3, §8).
+//             Controller: POST with CSRF -> validation -> conflict check -> transaction -> audit -> redirect.
+//             View below.
+//             No hand-written form.
+// 20261002 SS Phase 4b: actions run through includes/settings/actions.php, sections gated by a module, on_save follow-ups.
+// 20261002 SS Hand-over 2 Oct (A2, §8.0): a heading above each card, plain tab list, history as its own column, save bar only while something is unsaved, no Back button or in-page trail (the shell's topbar has the breadcrumb).
+// 20261005 SS A field's own permission key is enforced on save and on actions (st_field_access).
+// 20261005 SS 4d G1.2/G2.3: row actions (set a fiscal year active, delete an old year with its data behind the password), the create card of a table, a parent filter (the currency of the rates) kept in the URL, and a save that would post amounts first shows them and needs "Bogfør og gem" (audit V9).
+// 20261005 SS Danger-zone actions ('danger_zone') run only with the user's password (§8.3); a refusal is audited.
+// 20261005 SS Phase 4c: sections of 'kind' rows - tables through includes/settings/rows.php (validate first, then fields, then rows), actions row_delete / row_inactive / row_copy_year, year in the address.
+// 20261004 SS §8.11: 'back' (a path inside Saldi) from the gear in the sub-bar shows "Tilbage" and survives saves.
+// 20261004 SS List items with a 'feature' (bank) are hidden until the feature is on.
+// 20261004 SS settings_after_section_save() runs once after all fields of a save (KDS colours).
+// 20261004 SS Access follows the section's permission key only, not the old Indstillinger bit (decision 16).
+// 20261004 SS A stored secret shows when it was set ("sat 12/9-2026") on form sections too.
+// 20261004 SS G4.3: list items from the database ('items_from'), a one-off flash kept in the session.
+// 20261004 SS G2.6: FTP test result flash.
+// 20261003 SS G3.4: a run of fields may carry a heading ('group_label'), a card a help line ('sub_help').
+// 20261003 SS G6.3: a section may carry its own permission key (settings.email).
+// 20261002 SS Phase 4b batch 2 (G9): a section of 'kind' list renders includes/settings/listView.php - rows with a drawer per integration, each drawer its own form; an empty secret leaves the stored value (P8); item kept over redirects.
+// 20261008 SS The Assist menu's guide is the section's installed guide (settings decision 21).
+// 20261019 SS Review 2 (PR #803): row_copy_year takes from_year only when it is a fiscal year (RA) of this ledger other than the target year.
 // 20261101 CL/ASR New design (prototype D, as index/dashboard.php): the head links css/saldi-theme.css, then css/saldi-kit.css and css/unified-components.css follow online.php, so the settings rules come after the kit's base rules.
 //                 The page's root carries the kit's scope class sk (also in listView.php and rowsView.php).
-// 20261101 CL/ASR Settings hub "C - Fold ud" (owner, 1 Nov 2026): the left menu shows the page's hub group as its sub-groups with their
-//                 rows (settings_hub_menu(), drawn by settings_menu_html() in includes/settings/listView.php for all three views and
-//                 the frame top.php), the current row marked, no zebra; a Tilbage button above the title on every section.
-// 20261101 CL/ASR Review: an old address that sent the user here (moved=) leaves the navigation stack, so Tilbage does not lead
-//                 back to it and round to this page again (and this page is kept without the one-off moved= notice).
+// 20261101 CL/ASR Settings hub "C - Fold ud" (owner, 1 Nov 2026): the left menu shows the page's hub group as its sub-groups with their rows (settings_hub_menu(), drawn by settings_menu_html() in includes/settings/listView.php for all three views and the frame top.php), the current row marked, no zebra; a Tilbage button above the title on every section.
+// 20261101 CL/ASR Review: an old address that sent the user here (moved=) leaves the navigation stack, so Tilbage does not lead back to it and round to this page again (and this page is kept without the one-off moved= notice).
 //                 Tilbage carries Alt+L, as on the other settings pages.
 // 20261101 CL/ASR Review: css/saldi-kit.css linked as ?v=20261101c, the version the other settings pages link (the kit's list rows lost their zebra).
 // 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
 //                 The kit is linked as ?v=20261102.
-// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: one list of everyone, one card with Stamdata and Login og rolle): the one list is
-//                 usersRoles.php. The employee section (organisation.employees) is now
-//                 - embedded (embed=person, always with popup=1 so the navigation stack skips it): the Stamdata tab of the person card, only
-//                   that employee's drawer; every redirect of a save or action stays embedded; framed by this site only (frame-ancestors);
-//                 - Ekstra felter (sub=general, item=general, or the extra-fields field): its extra-fields block as a page of its own;
-//                 - the list of a user who may not open usersRoles.php (employees only, "Tilføj person" adds one, as before).
-//                 A plain GET of the employee list (an old address: ansatte.php, stamkort.php, a bookmark, a search hit, item=emp_N,
-//                 field=...emp key) by a user who may open usersRoles.php goes there instead, to the list or the person's card, and leaves
-//                 the navigation stack - not while a message is waiting or for a framed request. "Tilføj person" in usersRoles.php posts
-//                 the existing add action here (people=1, with the name, initials and e-mail typed in the dialog, checked and capped
-//                 in includes/settings/people.php); it then opens the new person's card, or the new login form linked to it (then=).
-//                 css/unified-components.css?v=20261102b.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: one list of everyone, one card with Stamdata and Login og rolle): the one list is usersRoles.php.
+//                 The employee section (organisation.employees) is now - embedded (embed=person, always with popup=1 so the navigation stack skips it): the Stamdata tab of the person card, only that employee's drawer; every redirect of a save or action stays embedded; framed by this site only (frame-ancestors); - Ekstra felter (sub=general, item=general, or the extra-fields field): its extra-fields block as a page of its own; - the list of a user who may not open usersRoles.php (employees only, "Tilføj person" adds one, as before).
+//                 A plain GET of the employee list (an old address: ansatte.php, stamkort.php, a bookmark, a search hit, item=emp_N, field=...emp key) by a user who may open usersRoles.php goes there instead, to the list or the person's card, and leaves the navigation stack - not while a message is waiting or for a framed request.
+//                 "Tilføj person" in usersRoles.php posts the existing add action here (people=1, with the name, initials and e-mail typed in the dialog, checked and capped in includes/settings/people.php); it then opens the new person's card, or the new login form linked to it (then=). css/unified-components.css?v=20261102b.
 // 20261102 CL/ASR Review: Ekstra felter has no lead sentence of its own (it repeated the row's help word for word), only "Gælder for alle i".
-// 20261103 CL/ASR QA: Gendan goes through the normal save (settings_section_save()): the field must be visible, writable and not locked,
-//                 the old value is validated, and the follow-ups (on_save, settings_after_section_save) run; a value that was not set
-//                 is restored as the default the readers used. Masked history rows (SettingsService::historyMasked(): secrets, CPR,
-//                 bank, salary) offer no Gendan and are refused. A row error no longer saves the page's fields (dry run, spec §7.3).
+// 20261103 CL/ASR QA: Gendan goes through the normal save (settings_section_save()): the field must be visible, writable and not locked, the old value is validated, and the follow-ups (on_save, settings_after_section_save) run; a value that was not set is restored as the default the readers used.
+//                 Masked history rows (SettingsService::historyMasked(): secrets, CPR, bank, salary) offer no Gendan and are refused.
+//                 A row error no longer saves the page's fields (dry run, spec §7.3).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:

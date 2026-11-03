@@ -39,8 +39,6 @@
 // 20260722 NTR - Changed logic of antal 0 lines, from dropping the lines to changing their antal to 1 as well as changing price to 0, to try and avoid errors.
 // 20260825 NTR - Set isAllowanceCharge based on price sign (negative price indicates allowance/charge)
 // 20260825 CL/NTR - Added 0184 (Danish CVR) to the Peppol scheme map so an "0184:xxxxxxxx" EAN gets the DK prefix and correct country code instead of falling through unprefixed.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// &&       Also added "0088" as a swedish prefix.
 // 20260914 Sawaneh    JOB-141: getInvoicesOrder() classifies EasyUBL's reply with
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 //                     easyubl_interpret_response() (includes/stdFunc/easyUblResponse.php) - the
@@ -79,6 +77,7 @@
 //                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
 //                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
 //                  without the spaces Stamdata stores them with.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3) &&       Also added "0088" as a swedish prefix.
 
     @session_start();
     $s_id=session_id();

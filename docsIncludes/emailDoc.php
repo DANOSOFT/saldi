@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/emailDoc.php -----patch 4.0.8 ----2023-08-01------
+// --- includes/docsIncludes/emailDoc.php -----patch 4.0.8 ----2026-10-18------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,12 +16,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230727 LOE file created from bilag.php //refer to uploadDoc.php
 //20230911 LOE Delete code modified
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261018 Sawaneh Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
 
 @session_start();
 $s_id=session_id();

@@ -17,15 +17,12 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261009 Sawaneh Ubetalte salgsfakturaer (front-page spec §5.9, addendum 3 §6): open customer items netted per invoice
-//                  number in the database, split into not due / 1-15 days / over 15 days, the 8 oldest for the list,
-//                  unapplied payments and credit notes as one line. Foreign items with the placeholder rate 100 are
-//                  converted in PHP like openpost_account_aging() does. Links by refnr and ordrer.art (§5.9.4).
-// 20261009 Sawaneh Items without a due date get one from the customer's payment terms with forfaldsdag(), as the
-//                  account card does (§5.9.2 point 4); such items are grouped in PHP like the placeholder-rate ones.
+// 20261009 SS Ubetalte salgsfakturaer (front-page spec §5.9, addendum 3 §6): open customer items netted per invoice number in the database, split into not due / 1-15 days / over 15 days, the 8 oldest for the list, unapplied payments and credit notes as one line.
+//             Foreign items with the placeholder rate 100 are converted in PHP like openpost_account_aging() does.
+//             Links by refnr and ordrer.art (§5.9.4).
+// 20261009 SS Items without a due date get one from the customer's payment terms with forfaldsdag(), as the account card does (§5.9.2 point 4); such items are grouped in PHP like the placeholder-rate ones.
 // 20261101 CL/ASR The list holds the oldest invoices of each due group (at most $limit per group, oldest first), so a group picked on the card shows its own invoices (prototype D); the page shows the first $limit of them unfiltered.
-// 20261103 CL/ASR QA: a foreign-currency invoice with the placeholder rate is converted posting by posting (each at its own date's rate,
-//                 or its own rate when it has one) before the postings are netted, not the net at the first posting's rate.
+// 20261103 CL/ASR QA: a foreign-currency invoice with the placeholder rate is converted posting by posting (each at its own date's rate, or its own rate when it has one) before the postings are netted, not the net at the first posting's rate.
 
 include_once(__DIR__ . "/../../includes/forfaldsdag.php");
 

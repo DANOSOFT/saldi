@@ -22,9 +22,7 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260927 Sawaneh JSON endpoint for the shell's notification bell (topbar spec §3):
-//                  GET = refresh sources (throttled per session) + list + unread count;
-//                  POST action=read (id or all) marks as read.
+// 20260927 SS JSON endpoint for the shell's notification bell (topbar spec §3): GET = refresh sources (throttled per session) + list + unread count; POST action=read (id or all) marks as read.
 // 20261031 CL/ASR $skipLogtime: the shell polls this every 60 s, which must not keep the session's online.logtime fresh.
 
 /**

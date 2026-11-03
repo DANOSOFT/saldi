@@ -25,11 +25,11 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token) and the login itself in the
 //                 browser console; the log endpoint now takes the tenant from the session.
 // 20261007 CL/SZ SST-843 The Nets Connect@Cloud username and password are no longer written into the page or the console.
 //                The login and the transaction run in lane3000_proxy.php, so the bearer token stays on the server too.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
 
 @session_start();

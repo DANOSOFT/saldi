@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posOptions.php --- ver 5.0.0 -- 2025-05-03 ---
+// --- systemdata/diverseIncludes/posOptions.php --- ver 5.0.0 -- 2026-10-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.DK ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------
 // Kaldes fra systemdata/diverse.php
 // 20131230 PHR addad fiscal year to groups.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
-// 20261001 Sawaneh KDS colours are named color_1, color_2... (one row per setting name).
 // 20261008 CDX/NTR pre-fetch terminal_type for all POS terminals before the render loop, as $terminal_type was never populated, throwing errors.
+// 20261001 SS KDS colours are named color_1, color_2... (one row per setting name).
 
 function posOptions () {
 	global $bgcolor,$bgcolor5;

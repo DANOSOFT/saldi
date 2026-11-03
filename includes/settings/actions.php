@@ -15,23 +15,21 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh settings_verify_password() for danger-zone actions; GDPR clean-up of inactive accounts (G1.5).
-// 20261005 Sawaneh G1.1: company e-mail mirrored to the master database's regnskab row through db_modify(..., true).
-// 20261004 Sawaneh §8.13 settings_impact_text(): the number of items an action touches.
-// 20261004 Sawaneh G9.2: pickup addresses added and deleted here (the old page deleted every address missing from its form, B-D17).
-// 20261004 Sawaneh G10 batch B: payment card rows (add, move, remove across the seven tab-joined lists), KDS colour
-//                  compaction after the section is saved, printer cookies cleared as the old page did.
-// 20261002 Sawaneh Settings redesign phase 4b: the actions a generated section can run (spec P4), each after a
-//                  confirmation on the page. Called from systemdata/settingsSection.php.
-// 20261004 Sawaneh G10.1: add a till, remove the last one.
-// 20261004 Sawaneh G4.3: price lists - add, use (one active list), test the file (fetched only here, with a timeout), delete.
-// 20261004 Sawaneh G2.6: FTP connection test for document storage.
-// 20261002 Sawaneh Phase 4b batch 2 (G9): new API key, shop sync, MobilePay webhook and QR codes (includes/settings/integrations.php).
-// 20261102 CL/ASR employee_add takes the name, initials and e-mail typed in "Tilføj person" (Brugere & ansatte, usersRoles.php), when
-//                 settingsSection.php passes them (settings_action_person, checked and capped in includes/settings/people.php);
-//                 without them it adds "Ny medarbejder" as before. Same insert, audit entry and redirect.
+// 20261005 SS settings_verify_password() for danger-zone actions; GDPR clean-up of inactive accounts (G1.5).
+// 20261005 SS G1.1: company e-mail mirrored to the master database's regnskab row through db_modify(..., true).
+// 20261004 SS §8.13 settings_impact_text(): the number of items an action touches.
+// 20261004 SS G9.2: pickup addresses added and deleted here (the old page deleted every address missing from its form, B-D17).
+// 20261004 SS G10 batch B: payment card rows (add, move, remove across the seven tab-joined lists), KDS colour compaction after the section is saved, printer cookies cleared as the old page did.
+// 20261002 SS Settings redesign phase 4b: the actions a generated section can run (spec P4), each after a confirmation on the page.
+//             Called from systemdata/settingsSection.php.
+// 20261004 SS G10.1: add a till, remove the last one.
+// 20261004 SS G4.3: price lists - add, use (one active list), test the file (fetched only here, with a timeout), delete.
+// 20261004 SS G2.6: FTP connection test for document storage.
+// 20261002 SS Phase 4b batch 2 (G9): new API key, shop sync, MobilePay webhook and QR codes (includes/settings/integrations.php).
+// 20261102 CL/ASR employee_add takes the name, initials and e-mail typed in "Tilføj person" (Brugere & ansatte, usersRoles.php), when settingsSection.php passes them (settings_action_person, checked and capped in includes/settings/people.php); without them it adds "Ny medarbejder" as before.
+//                 Same insert, audit entry and redirect.
 // 20261103 CL/ASR QA: the FTP test fails when the configured folder cannot be opened (it went on in the login's root and could report success).
 
 include_once(__DIR__ . '/integrations.php');

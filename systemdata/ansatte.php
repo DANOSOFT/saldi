@@ -21,14 +21,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20160303 PHR indsat manglende '</form>'
 // 20210711 LOE - Translated some texts to Norsk and English from Dansk
 // 20220614 MSC - Implementing new design
 // 20230925 PHR - PHP8
-// 20261005 Sawaneh G7.1: employees live in Indstillinger » Organisation » Ansatte (list + card per employee); this page only
-//                  redirects, to the employee's card when an id is given. ansatte_load/_body/_save.php are no longer used.
+// 20261005 SS G7.1: employees live in Indstillinger » Organisation » Ansatte (list + card per employee); this page only redirects, to the employee's card when an id is given. ansatte_load/_body/_save.php are no longer used.
 
 @session_start();
 $s_id = session_id();

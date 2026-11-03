@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/saft.php --- patch 4.1.1 --- 2026.06.15 ---
+// --- finans/saft.php --- patch 4.1.1 --- 2026.09.16 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,15 +21,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20240128 PHR Changed "AND transdate <= '$startDate'" to "AND transdate < '$startDate'" as opening balance 
 // included day 1.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
 // 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261002 NTR - Added null coalescing operator to $PostalCode to avoid undefined index notice when postnr is null.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();

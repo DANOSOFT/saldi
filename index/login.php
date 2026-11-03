@@ -61,15 +61,14 @@
 //                  shared is_input_too_long() from std_func.php.
 // 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
-// 20260916 Sawaneh Successful login written to audit_log (roles & permissions, spec R7).
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
-// 20260929 Sawaneh Roles stage 2 (§8.4, §8.6): tmp_kode read and written in the common format; ?invite= opens the invitation page.
-// 20260930 Sawaneh Roles stage 2 (§7.1): login.failed, login.2fa_failed, login.ip_blocked and session.forced_logout in the audit log.
-// 20260930 Sawaneh Indexes on online.session_id and online.logtime (roles spec §4.7, without the primary key: see comment);
-//                  created only when missing.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
-// 20261018 Sawaneh Review 2 (PR #803): the invitation's auto-login data is taken from the session before the reset at the top, which lost it.
+// 20260916 SS Successful login written to audit_log (roles & permissions, spec R7).
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20260929 SS Roles stage 2 (§8.4, §8.6): tmp_kode read and written in the common format; ?invite= opens the invitation page.
+// 20260930 SS Roles stage 2 (§7.1): login.failed, login.2fa_failed, login.ip_blocked and session.forced_logout in the audit log.
+// 20260930 SS Indexes on online.session_id and online.logtime (roles spec §4.7, without the primary key: see comment); created only when missing.
+// 20261018 SS Review 2 (PR #803): the invitation's auto-login data is taken from the session before the reset at the top, which lost it.
 
 if (isset($_GET['invite'])) {
 	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
@@ -143,6 +142,7 @@ if ($db_type == 'mysql' || $db_type == 'mysqli') {
 	foreach (array('online_session_idx' => 'session_id', 'online_logtime_idx' => 'logtime') as $idxName => $idxCol) {
 		$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'online' AND index_name = '$idxName'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			// guardrails-allow migrations until 2027-06-30 by ASR: the online table is in the master database, which the per-company update chain never touches; the index is looked up before it is created
 			db_modify("CREATE INDEX $idxName ON online ($idxCol)", __FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -151,6 +151,7 @@ if ($db_type == 'mysql' || $db_type == 'mysqli') {
 	foreach (array('online_session_idx' => 'session_id', 'online_logtime_idx' => 'logtime') as $idxName => $idxCol) {
 		$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'online' AND indexname = '$idxName'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			// guardrails-allow migrations until 2027-06-30 by ASR: the online table is in the master database, which the per-company update chain never touches; the index is looked up before it is created
 			db_modify("CREATE INDEX IF NOT EXISTS $idxName ON online ($idxCol)", __FILE__ . " linje " . __LINE__);
 		}
 	}

@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/settingsLookup.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- systemdata/settingsLookup.php --- lap 5.0.0 --- 2026.10.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,13 +15,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Settings redesign phase 4a (spec §8.1): type-ahead for the account and item
-//                  lookup fields of a generated settings section. Read-only, JSON.
-// 20261004 Sawaneh Open to users with read on any settings group (no longer the Indstillinger bit); nothing for others.
-// 20261019 Sawaneh Review 2 (PR #803): a type answers only users who can read a section with a field of that type
-//                  (the search term stays UTF-8: db_escape_string() hands every query to the database as UTF-8).
+// 20260929 SS Settings redesign phase 4a (spec §8.1): type-ahead for the account and item lookup fields of a generated settings section.
+//             Read-only, JSON.
+// 20261004 SS Open to users with read on any settings group (no longer the Indstillinger bit); nothing for others.
+// 20261019 SS Review 2 (PR #803): a type answers only users who can read a section with a field of that type (the search term stays UTF-8: db_escape_string() hands every query to the database as UTF-8).
 
 ob_start();
 @session_start();

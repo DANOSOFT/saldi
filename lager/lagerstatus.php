@@ -61,11 +61,11 @@
 //             is covered, and guarded on positive remaining stock so already-zero/negative-stock
 //             items still value at 0. Verified against IBON's real saldi_821 dump (SST-764).
 // 20260908 CDX/LH Cancel linked purchase credits before selecting the remaining stock value.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260925 CL/NTR Escape a Varenr./Beskrivelse/Enhed search term's own '%'/'_' via the new
 //             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
 //             no longer matches (almost) the whole catalogue or spuriously bypasses the
 //             zStock/showClosed/activity filters via $lsHasTextSearch.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.

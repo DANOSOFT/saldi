@@ -38,7 +38,7 @@
 //                  isn't scoped to the current user (see comment at its call site).
 // 20260917 CL/LH Remember the last used tab per user and reopen it on menu entry (Havemoebelland).
 // 20260924 CL/LH MB-60: Only store the last used tab for a real user id (review, PR #638).
-// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
 
 
 ob_start();

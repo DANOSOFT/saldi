@@ -113,8 +113,6 @@
 // 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
 // 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
 // 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
-// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
-// 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
@@ -125,6 +123,8 @@
 // 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
 //                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
 //                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261031 CL/ASR The debtor-group dropdown leaves out inactive groups only when grupper.inaktiv exists, as includes/orderFuncIncludes/accountLookup.php does.
 //                 The card still opens on a database the settings migration has not reached yet.
 @session_start();

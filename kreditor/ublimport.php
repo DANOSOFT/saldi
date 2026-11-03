@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// -------------kreditor/ublimport.php----------lap 5.0.0-----2016-12-07----
+// -------------kreditor/ublimport.php----------lap 5.0.0-----2026-11-03----
 //                           LICENSE
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,12 +23,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2016 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2013.02.10 Break ændret til break 1
 // 2013.09.16 Tilføjet import fra pulje
 // 2016-12-07 Rettet puljesti - søg nfs_mount
 // 20261020 CDX/NTR Replace shell system() calls with PHP file ops to close command injection via $_GET
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id=session_id();

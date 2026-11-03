@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/invoiceReuseCheck.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- finans/kassekladde_includes/invoiceReuseCheck.php --- ver 5.0.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261003 CL/SZ SD-715 Created: the pool's check "invoice number already used on this kreditor" for one line.
 //                Read-only, JSON {html}.
 //                When a new line has neither kreditor nor invoice number yet, the pool document's matched kreditor and invoice number are checked, so a copy shows before a line exists.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 //
 // Request: kontonr=<kreditor>  faktura=<invoice no.>  line=<kassekladde id>  kladde_id  bilag  pool=<pool file name>
 

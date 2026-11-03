@@ -38,17 +38,17 @@
 // 20260127 LOE Updated migrateMySQLToPostgreSQL for some isolated fixes.
 // 20260129 PHR Added some str_replace  and a call to connect.php before lookup in 'regnskab'
 // 20260702 CX/PHR Close target PostgreSQL connection and terminate active sessions before DROP DATABASE in restore
-// 20261008 Sawaneh Restore (settings decision 18): online.php always runs; ?db= needs a Saldi-admin session with access to that ledger and an existing database (none is created), else 403.
-//                  Only the file uploaded in the same request is restored, after a required confirmation and a CSRF check; no file path is taken from POST and the work folder is removed when the request ends.
-//                  Shell arguments are escaped and database passwords passed through the environment.
-//                  The MySQL migration is shown and accepted only for a Saldi-admin with the admin right on an empty ledger, with password and audit log. Texts 6930-6943.
 // 20261015 CDX/PHR Copy the restored tenant version to the master database before the next login.
 // 20261027 CL/NTR Catch restore failures at both call sites and show them to the admin instead of a blank page.
+// 20261008 SS Restore (settings decision 18): online.php always runs; ?db= needs a Saldi-admin session with access to that ledger and an existing database (none is created), else 403.
+//             Only the file uploaded in the same request is restored, after a required confirmation and a CSRF check; no file path is taken from POST and the work folder is removed when the request ends.
+//             Shell arguments are escaped and database passwords passed through the environment.
+//             The MySQL migration is shown and accepted only for a Saldi-admin with the admin right on an empty ledger, with password and audit log.
+//             Texts 6930-6943.
 // 20261031 CL/ASR The 20261027 failure handling sits in restore_handle_upload(), the only restore() caller in the single-request flow.
 //                 The failure text no longer says the backup files are kept, as the per-request work folder is removed when the request ends.
-// 20261102 CL/ASR In a ledger (not the admin panel's ?db=) the head of every settings page: the shared Tilbage button top-left above the title
-//                 (settings_back_button(), css/saldi-kit.css) back to Indstillinger > Sikkerhedskopi, and the title on the page head (page_bar),
-//                 instead of the bar with Luk to the old main menu. A popup window (popup=1) is closed, as before; Alt+L kept.
+// 20261102 CL/ASR In a ledger (not the admin panel's ?db=) the head of every settings page: the shared Tilbage button top-left above the title (settings_back_button(), css/saldi-kit.css) back to Indstillinger > Sikkerhedskopi, and the title on the page head (page_bar), instead of the bar with Luk to the old main menu.
+//                 A popup window (popup=1) is closed, as before; Alt+L kept.
 //                 The admin panel's restore keeps its old bar.
 // 20261102 CL/ASR In a ledger the standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
 //                 The left menu of Finans with Sikkerhedskopi marked, Tilbage above the title back to Sikkerhedskopi, the breadcrumb Indstillinger / Finans / Sikkerhedskopi / this page.

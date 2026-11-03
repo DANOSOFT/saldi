@@ -20,23 +20,20 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh Central registry of permission keys (spec R1), their mapping to the legacy
-// 20261009 Sawaneh Oversigt keys (front-page addendum 4): dashboard.view + dashboard.block.* as read-only keys in a group of their own,
-//                  first in the matrix, derived from the module keys ('derive_keys'); standard-role defaults per addendum §4.
-//                  16-position rettigheder string, and the built-in default roles (R3).
-//                  Same pattern as systemdata/settingsRegistry.php: one place to maintain.
-// 20260928 Sawaneh pos.kasse key (own group) so point-of-sale access is granted per role.
-// 20260928 Sawaneh Settings-area keys (phase 4, spec S3), one per group of the settings front page.
-// 20260928 Sawaneh Keys and groups aligned with Requirements_settings_redesign_EN.md §4 (11 groups).
-// 20260930 Sawaneh Roles stage 2 (§3.1): settings.roles.manage and settings.audit.read.
-// 20260930 Sawaneh Built-in role descriptions are text ids, so they follow the user's language.
-// 20260930 Sawaneh Audit log for administrators only (Adam 2026-09-30): Bogholder and Revisor no longer read it.
-// 20261002 Sawaneh Standard role matrix for the settings groups as settings redesign §11.4 (hand-over 2 Oct): Administrator
-//                  write, Bogholder read on all eight, every other role none (Lager lost items write / organisation read).
-// 20261002 Sawaneh Keys per settings redesign §11.1: settings.email (was settings.smtp), settings.backup (was system.backup),
-//                  settings.company.danger and settings.organisation.sensitive added; settings.integrations.keys withdrawn.
+// 20260916 SS Central registry of permission keys (spec R1), their mapping to the legacy
+// 20261009 SS Oversigt keys (front-page addendum 4): dashboard.view + dashboard.block.* as read-only keys in a group of their own, first in the matrix, derived from the module keys ('derive_keys'); standard-role defaults per addendum §4.
+//             16-position rettigheder string, and the built-in default roles (R3).
+//             Same pattern as systemdata/settingsRegistry.php: one place to maintain.
+// 20260928 SS pos.kasse key (own group) so point-of-sale access is granted per role.
+// 20260928 SS Settings-area keys (phase 4, spec S3), one per group of the settings front page.
+// 20260928 SS Keys and groups aligned with Requirements_settings_redesign_EN.md §4 (11 groups).
+// 20260930 SS Roles stage 2 (§3.1): settings.roles.manage and settings.audit.read.
+// 20260930 SS Built-in role descriptions are text ids, so they follow the user's language.
+// 20260930 SS Audit log for administrators only (Adam 2026-09-30): Bogholder and Revisor no longer read it.
+// 20261002 SS Standard role matrix for the settings groups as settings redesign §11.4 (hand-over 2 Oct): Administrator write, Bogholder read on all eight, every other role none (Lager lost items write / organisation read).
+// 20261002 SS Keys per settings redesign §11.1: settings.email (was settings.smtp), settings.backup (was system.backup), settings.company.danger and settings.organisation.sensitive added; settings.integrations.keys withdrawn.
 // 20261101 CL/ASR dashboard.block.suggestions removed: the Forslag card left the dashboard (the bell holds suggestions).
 
 /**
