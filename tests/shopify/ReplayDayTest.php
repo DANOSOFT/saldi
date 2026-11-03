@@ -3,15 +3,17 @@
 //
 // NF-1 (SD-766): replaying a day's webhooks changes nothing. A synthetic day (fixtures/day.json,
 // made by support/build_replay_day.php from a fixed seed) is replayed into a cloned tenant in
-// process, signed at run time with a random webhook secret, and the worker is drained; the
-// persisted tables (ReplayDay::SNAPSHOT) must match fixtures/expected.json. The day is then sent
-// again, shuffled and with retries, every event is processed again, and the tables must not
-// change. Sent over HTTP (php -S, api/shopify/webhook.php) the day stores the same. Without a
-// database only the fixtures' reproducibility is checked: the generator runs as a
-// child, as events.php (its topic list) defines functions ClientRetryTest needs absent.
+// process, signed at run time with a random webhook secret, and the worker is drained; what was
+// stored (ReplayDay::SNAPSHOT, and the rows of ReplayDay::TABLES it added, links or not) must
+// match fixtures/expected.json. The day is then sent again, shuffled and with retries, every
+// event is processed again (each handler runs again), and no business row may change. Sent over
+// HTTP (php -S, api/shopify/webhook.php) the day stores the same. Without a database only the
+// fixtures' reproducibility is checked: the generator runs as a child, as events.php (its topic
+// list) defines functions ClientRetryTest needs absent.
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/LH SD-766: review fixes: whole business tables compared, the second drain must run every handler again.
 
 use PHPUnit\Framework\TestCase;
 
@@ -75,7 +77,8 @@ final class ReplayDayTest extends TestCase
         $raw = (string)file_get_contents(ReplayDay::FIXTURES . '/day.json');
         $this->assertStringNotContainsStringIgnoringCase('hmac', $raw);
         $this->assertDoesNotMatchRegularExpression('/shpat_|shpss_/', $raw . file_get_contents(ReplayDay::FIXTURES . '/graphql.json'), 'no Shopify token or secret');
-        $this->assertSame(array_keys(ReplayDay::SNAPSHOT), array_values(array_diff(array_keys($fixtures['expected'] ?? []), ['about'])), 'expected.json has every snapshot table');
+        $this->assertSame(array_merge(array_keys(ReplayDay::SNAPSHOT), ['changes']), array_values(array_diff(array_keys($fixtures['expected'] ?? []), ['about'])),
+            'expected.json has every snapshot part and the table changes');
 
         $topics = array_count_values(array_column($fixtures['day']['deliveries'], 'topic'));
         foreach (['orders/create', 'orders/paid', 'customers/create', 'customers/update', 'fulfillments/create', 'refunds/create'] as $topic) {
@@ -93,14 +96,21 @@ final class ReplayDayTest extends TestCase
         }
         $run = $this->replay();
         $expected = ReplayDay::load()['expected'];
-        unset($expected['about']);
+        $changes = $expected['changes'];
+        unset($expected['about'], $expected['changes']);
 
         $this->assertSame(['duplicate' => 3, 'stored' => 52], $run['answers1'], 'three retries in the day');
         $this->assertSame(['duplicate'], array_keys($run['answers2']), 'the second replay stores nothing');
         $this->assertSame(0, $run['drain1']['failed'] + $run['drain1']['dead'] + $run['drain2']['failed'] + $run['drain2']['dead']);
         $this->assertGreaterThan(0, $run['reset'], 'every event was processed again');
+        foreach (array_keys(ReplayDay::registry([])) as $type) {
+            $this->assertGreaterThan(0, $run['drain1']['handled'][$type], "the first drain ran $type");
+            $this->assertSame($run['drain1']['handled'][$type], $run['drain2']['handled'][$type], "the second drain ran every $type job again");
+        }
+        $this->assertSame([], $run['changes2'], 'NF-1: the second replay changed business rows (ReplayDay::TABLES, linked or not)');
         $this->assertSame($run['first'], $run['second'], 'NF-1: the second replay changed the stored data');
-        $this->assertSame($expected, $run['first'], 'expected.json: after one replay (refresh with run_replay.php record when a lane changes what is stored)');
+        $this->assertSame($expected, $run['first'], 'expected.json: after one replay (refresh and review as tests/shopify/support/FAKE-STORE.md says)');
+        $this->assertSame($changes, $run['changes1'], 'expected.json changes: the rows one replay adds');
         $this->assertCount(7, $run['first']['debtors'], 'one debtor per customer');
         $this->assertSame('Kunde 1 Jensen', substr($run['first']['debtors'][0]['firmanavn'], 5), 'the newer update wins over the older one that arrived last');
     }
@@ -119,6 +129,9 @@ final class ReplayDayTest extends TestCase
         unset($expected['about']);
 
         $this->assertSame(['duplicate' => 3, 'stored' => 52], $run['answers1'], 'signed at run time, answered by the endpoint');
+        $changes = $expected['changes'];
+        unset($expected['changes']);
         $this->assertSame($expected, $run['first']);
+        $this->assertSame($changes, $run['changes1']);
     }
 }

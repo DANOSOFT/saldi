@@ -2,17 +2,18 @@
 // tests/shopify/support/run_replay.php
 //
 // Child-process runner for the NF-1 offline replay (SD-766, ReplayDayTest). Bootstraps the test
-// tenant, gives the shop a random webhook secret, then replays tests/shopify/fixtures/day.json
-// in process (signed at run time), drains the worker with ReplayDay::registry() against the
-// store in graphql.json and snapshots ReplayDay::SNAPSHOT. The second replay sends the day again,
-// shuffled and with retries, sets every promoted event back to received so each job runs again,
-// drains and snapshots once more.
-//   php run_replay.php <test_db> replay   prints JSON: answers, drains, first and second snapshot
-//   php run_replay.php <test_db> record   the same, and writes the first snapshot to expected.json
-//   php run_replay.php <test_db> http     the day once over HTTP (php -S with webhook_router.php), drained: the snapshot
+// tenant, gives the shop a random webhook secret, reads ReplayDay::TABLES as the baseline, then
+// replays tests/shopify/fixtures/day.json in process (signed at run time), drains the worker with
+// ReplayDay::registry() against the store in graphql.json, snapshots ReplayDay::SNAPSHOT and
+// reads TABLES again. The second replay sends the day again, shuffled and with retries, sets every
+// promoted event back to received so each job runs again, drains, snapshots and reads once more.
+//   php run_replay.php <test_db> replay   prints JSON: answers, drains, first and second snapshot, the TABLES changes of each replay
+//   php run_replay.php <test_db> record   the same, and writes the first snapshot and changes to expected.json
+//   php run_replay.php <test_db> http     the day once over HTTP (php -S with webhook_router.php), drained: the snapshot and changes
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/LH SD-766: review fixes: TABLES read before and after each replay, their changes recorded.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_replay.php <test_db> <replay|record|http>\n");
@@ -62,6 +63,7 @@ try {
     $store = FakeShopifyStore::fromState($fixtures['graphql']);
     $graphql = $store->opts();
     $deliveries = $fixtures['day']['deliveries'];
+    $baseline = ReplayDay::tables();
     if ($mode === 'http') {
         $server = WebhookReplayer::startServer(['SALDI_SHOPIFY_DB' => $testDb]);
         try {
@@ -69,7 +71,8 @@ try {
         } finally {
             WebhookReplayer::stopServer($server);
         }
-        echo json_encode(['answers1' => $answers, 'drain1' => ReplayDay::drain($testDb, $graphql), 'first' => ReplayDay::snapshot()], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        echo json_encode(['answers1' => $answers, 'drain1' => ReplayDay::drain($testDb, $graphql), 'first' => ReplayDay::snapshot(),
+            'changes1' => ReplayDay::changes($baseline, ReplayDay::tables())], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         exit(0);
     }
     $replayer = WebhookReplayer::forShop(shopify_shop(ReplayDay::SHOP['shop_key']));
@@ -77,18 +80,22 @@ try {
     $answers1 = $replayer->replay($deliveries);
     $drain1 = ReplayDay::drain($testDb, $graphql);
     $first = ReplayDay::snapshot();
+    $tables1 = ReplayDay::tables();
 
     $again = WebhookReplayer::arrange(WebhookReplayer::arrange($deliveries, 'shuffled', ReplayDay::SEED), 'duplicated', ReplayDay::SEED);
     $answers2 = $replayer->replay($again);
     $reset = count(shopify_db_rows("UPDATE shopify_events SET state = 'received', processed_at = NULL, job_id = NULL WHERE state IN ('queued', 'ignored') RETURNING id"));
     $drain2 = ReplayDay::drain($testDb, $graphql);
     $second = ReplayDay::snapshot();
+    $changes1 = ReplayDay::changes($baseline, $tables1);
+    $changes2 = ReplayDay::changes($tables1, ReplayDay::tables());
 
     if ($mode === 'record') {
-        file_put_contents(ReplayDay::FIXTURES . '/expected.json', ReplayDay::encode(['about' => 'ReplayDay::SNAPSHOT after one replay of day.json (SD-766), written by run_replay.php record.'] + $first));
+        file_put_contents(ReplayDay::FIXTURES . '/expected.json', ReplayDay::encode(['about' => 'ReplayDay::SNAPSHOT after one replay of day.json, and changes: '
+            . 'the ReplayDay::TABLES rows it added and removed (SD-766), written by run_replay.php record.'] + $first + ['changes' => $changes1]));
     }
     echo json_encode(['answers1' => $answers1, 'drain1' => $drain1, 'answers2' => $answers2, 'reset' => $reset, 'drain2' => $drain2,
-        'log_lines' => count(file($log)), 'first' => $first, 'second' => $second], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        'log_lines' => count(file($log)), 'first' => $first, 'second' => $second, 'changes1' => $changes1, 'changes2' => $changes2], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
     echo json_encode(['error' => $e->getMessage(), 'class' => get_class($e), 'at' => $e->getFile() . ':' . $e->getLine(), 'log' => array_slice(file($log), -5)]);
     exit(1);

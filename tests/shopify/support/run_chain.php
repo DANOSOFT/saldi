@@ -10,6 +10,7 @@
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/LH SD-766: review fixes: the replay link compares ReplayDay::TABLES too.
 
 if ($argc < 2) {
     fwrite(STDERR, "usage: php run_chain.php <test_db>\n");
@@ -153,10 +154,12 @@ try {
     $step('invoice: the delivered order is invoiced and posted', 'BLOCKED', 'delivery transaction and posting are not merged', 'SD-743');
     $step('stock: the sale lowers the stock pushed to every shop', 'BLOCKED', 'stock drain and push are not merged', 'SD-756');
     $link('replay: the chain\'s webhooks sent again change nothing (NF-1)', function () use ($replayer, $sent, $testDb, $graphql): array {
-        $before = ReplayDay::snapshot();
+        [$before, $tables] = [ReplayDay::snapshot(), ReplayDay::tables()];
         $answers = $replayer->replay(WebhookReplayer::arrange($sent, 'reversed'));
         ReplayDay::drain($testDb, $graphql);
-        return [array_keys($answers) === ['duplicate'] && ReplayDay::snapshot() === $before, count($sent) . ' deliveries again: ' . json_encode($answers) . '; ReplayDay::SNAPSHOT unchanged'];
+        $changed = ReplayDay::changes($tables, ReplayDay::tables());
+        return [array_keys($answers) === ['duplicate'] && ReplayDay::snapshot() === $before && $changed === [], count($sent) . ' deliveries again: ' . json_encode($answers)
+            . ($changed === [] ? '; ReplayDay::SNAPSHOT and TABLES unchanged' : '; changed: ' . json_encode($changed, JSON_UNESCAPED_UNICODE))];
     });
 } catch (Throwable $e) {
     $step('chain', 'FAIL', get_class($e) . ': ' . $e->getMessage());

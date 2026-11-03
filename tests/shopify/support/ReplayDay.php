@@ -6,13 +6,16 @@
 // build() makes the day; tests/shopify/fixtures/day.json keeps its deliveries (unsigned: the
 // replayer signs at run time), graphql.json the store's state at the end of the day (so a
 // handler that reads Shopify gets the same answers), expected.json the snapshot after one replay.
-// SNAPSHOT is the one list of tables the replay compares, and registry() the job handlers it
-// runs: a lane that lands adds its handler there, and its tables to SNAPSHOT if they are not
-// listed yet, then refreshes the fixtures (build_replay_day.php, then run_replay.php record).
+// SNAPSHOT is the readable view of what the replay stored, through the Shopify links; TABLES are
+// the business tables compared whole, links or not, so a row a replay writes beside the linked
+// ones shows too; registry() is the job handlers it runs. A lane that lands adds its handler
+// there, its tables to TABLES (and a view to SNAPSHOT) if they are not listed yet, then refreshes
+// and reviews the fixtures as tests/shopify/support/FAKE-STORE.md describes.
 //
 // History:
 // 20261103 CL/LH SD-766: created.
-// 20261103 CL/LH SD-766: review fixes: the day's refunds carry an idempotency key, the move needs no stock at its destination.
+// 20261103 CL/LH SD-766: review fixes: the day's refunds carry an idempotency key, the move needs no stock at its destination;
+//                TABLES compared whole and their changes kept in expected.json; drain() counts the handlers that ran.
 
 require_once __DIR__ . '/FakeShopifyStore.php';
 require_once __DIR__ . '/WebhookReplayer.php';
@@ -57,6 +60,24 @@ final class ReplayDay
 	];
 
 	/**
+	 * The business tables compared whole, table => WHERE (null: every row), each row without its
+	 * serial ids (id, *_id) and timestamps, and today's date (adresser.oprettet) read as <today>:
+	 * an orphan debtor, a second order or a changed export shows here whether or not a Shopify
+	 * link points at it. The inbox, queue and error tables are run history and stay out (SNAPSHOT
+	 * shows their state).
+	 */
+	public const TABLES = [
+		'adresser' => null, 'ansatte' => null, 'ordrer' => null, 'ordrelinjer' => null, 'transaktioner' => null, 'openpost' => null,
+		'varer' => null, 'lagerstatus' => null, 'batch_kob' => null, 'batch_salg' => null,
+		'shopify_customer_links' => null, 'shopify_customer_exports' => null, 'shopify_product_links' => null, 'shopify_order_links' => null,
+		'shopify_fulfillments' => null, 'shopify_refunds' => null, 'shopify_refund_allocations' => null, 'shopify_stock_state' => null,
+		'settings' => "var_grp LIKE 'shopify%'",
+	];
+
+	/** @var array<string, int> job type => handler runs that ended done, since drain() began */
+	private static array $handled = [];
+
+	/**
 	 * The job handlers a replay runs, as tools/shopify_worker.php wires them. A handler that calls
 	 * Shopify gets the fake store's shopify_graphql() opts as a fourth argument. Not built yet, so
 	 * their jobs stay queued (pending_jobs): order.import, order.observed, order.status,
@@ -70,19 +91,29 @@ final class ReplayDay
 		$handlers = [
 			'customer.upsert' => 'shopify_customer_upsert_job',
 		];
-		return array_map(fn(callable $handler): Closure => fn(array $job, float $deadline, callable $heartbeat): array
-			=> $handler($job, $deadline, $heartbeat, $graphql), $handlers);
+		$out = [];
+		foreach ($handlers as $type => $handler) {
+			$out[$type] = function (array $job, float $deadline, callable $heartbeat) use ($handler, $graphql, $type): array {
+				$result = $handler($job, $deadline, $heartbeat, $graphql);
+				if (($result['outcome'] ?? null) === 'done') {
+					self::$handled[$type] = (self::$handled[$type] ?? 0) + 1;
+				}
+				return $result;
+			};
+		}
+		return $out;
 	}
 
 	/**
 	 * Worker passes on the bootstrapped tenant until no event is left to promote and no job to run.
 	 *
-	 * @return array{passes: int, promoted: int, done: int, failed: int, dead: int}
+	 * @return array{passes: int, promoted: int, done: int, failed: int, dead: int, handled: array<string, int>} handled: per registry() job type, the runs that ended done
 	 */
 	public static function drain(string $db, array $graphql): array
 	{
 		$heartbeat = sys_get_temp_dir() . "/sd766-$db.heartbeat";
 		$out = ['passes' => 0, 'promoted' => 0, 'done' => 0, 'failed' => 0, 'dead' => 0];
+		self::$handled = array_fill_keys(array_keys(self::registry($graphql)), 0);
 		try {
 			for ($i = 0; $i < 50; $i++) {
 				$run = shopify_worker_run(['db' => $db, 'heartbeat_file' => $heartbeat], self::registry($graphql),
@@ -98,7 +129,7 @@ final class ReplayDay
 					$out[$k] += $run[$k];
 				}
 				if ($promoted === 0 && $run['claimed'] === 0) {
-					return $out;
+					return $out + ['handled' => self::$handled];
 				}
 			}
 			throw new RuntimeException('the worker did not drain in 50 passes');
@@ -136,6 +167,55 @@ final class ReplayDay
 	public static function snapshot(): array
 	{
 		return array_map(fn(string $sql): array => shopify_db_rows($sql), self::SNAPSHOT);
+	}
+
+	/** @return array<string, list<string>> TABLES, read now: per table its rows as sorted JSON, without ids and timestamps */
+	public static function tables(): array
+	{
+		$today = date('Y-m-d');
+		$out = [];
+		foreach (self::TABLES as $table => $where) {
+			$columns = [];
+			foreach (shopify_db_rows('SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = $1 ORDER BY ordinal_position', [$table]) as $c) {
+				if ($c['column_name'] !== 'id' && !str_ends_with($c['column_name'], '_id') && !str_starts_with($c['data_type'], 'timestamp')) {
+					$columns[] = '"' . $c['column_name'] . '"';
+				}
+			}
+			if ($columns === []) {
+				throw new RuntimeException("ReplayDay::TABLES: no table $table on the tenant");
+			}
+			$rows = array_map(fn(array $row): string => json_encode(array_map(fn(mixed $v): mixed => $v === $today ? '<today>' : $v, $row), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+				shopify_db_rows('SELECT ' . implode(', ', $columns) . " FROM $table" . ($where === null ? '' : " WHERE $where")));
+			sort($rows);
+			$out[$table] = $rows;
+		}
+		return $out;
+	}
+
+	/**
+	 * The rows tables() gained and lost between two readings, per table that changed (a changed
+	 * row is one lost and one gained).
+	 *
+	 * @return array<string, array{added: list<array<string, mixed>>, removed: list<array<string, mixed>>}>
+	 */
+	public static function changes(array $before, array $after): array
+	{
+		$out = [];
+		foreach (array_keys($after + $before) as $table) {
+			[$was, $is] = [array_count_values($before[$table] ?? []), array_count_values($after[$table] ?? [])];
+			$diff = ['added' => [], 'removed' => []];
+			foreach ([['added', $is, $was], ['removed', $was, $is]] as [$kind, $these, $those]) {
+				foreach ($these as $row => $n) {
+					for ($i = $those[$row] ?? 0; $i < $n; $i++) {
+						$diff[$kind][] = json_decode((string)$row, true);
+					}
+				}
+			}
+			if ($diff['added'] !== [] || $diff['removed'] !== []) {
+				$out[$table] = $diff;
+			}
+		}
+		return $out;
 	}
 
 	/**
