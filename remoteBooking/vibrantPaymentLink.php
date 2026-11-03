@@ -6,6 +6,7 @@
 //                 A retry gets the link already bound to the booking.
 //                 No link is handed out for a booking cancelled meanwhile.
 //                 SALDI_VIBRANT_API_BASE may point the call at a local mock in tests.
+// 20261103 CL/MMR SST-841 Review (PR #969): the always-true check before handing out the stored binding is gone.
 require_once __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 include_once(__DIR__ . "/../includes/vibrantPayment.php");
@@ -77,10 +78,9 @@ if (is_string($paymentIntentId) && $paymentIntentId !== '' && is_string($betalin
 		echo json_encode(["error" => "Booking is no longer open", "id" => $customerData["id"]]);
 		exit;
 	}
-	if ((string)$bound["payment_id"] !== '') {
-		// a concurrent call bound its payment first: hand out that one, never a link the server will not check
-		$paymentIntentId = $bound["payment_id"];
-		$betalingsLink = $bound["payment_url"];
-	}
+	// Hand out the binding the booking actually has: ours, or a concurrent call's that was bound first, never a link
+	// the server will not check
+	$paymentIntentId = $bound["payment_id"];
+	$betalingsLink = $bound["payment_url"];
 }
 echo json_encode(["url" => $betalingsLink, "id" => $paymentIntentId]);
