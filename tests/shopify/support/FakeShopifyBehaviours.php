@@ -162,6 +162,11 @@ final class FakeShopifyBehaviours
 			'source' => 'ASSUMED',
 			'calibrated_by' => 'calibration probe move_unknown_fulfillment_order (dev store)',
 		],
+		'B30' => [
+			'behaviour' => 'shop.plan.partnerDevelopment is true on a development store, as the sandboxes are taken to be, and false on a paying (production) shop; the runner\'s K05 refuses a shop that answers false',
+			'source' => 'https://shopify.dev/docs/api/admin-graphql/2026-07/objects/ShopPlan (the sandboxes being development stores ASSUMED)',
+			'calibrated_by' => 'SD-764 connectivity (record plan per shop); calibration probe shop',
+		],
 	];
 
 	/** @return array{behaviour: string, source: string, calibrated_by: string} */

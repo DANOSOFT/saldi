@@ -961,6 +961,7 @@ final class FakeShopifyStore
 
 	private function qShop(string $domain): array
 	{
+		$this->uses('B30');
 		return $this->vShop($domain);
 	}
 

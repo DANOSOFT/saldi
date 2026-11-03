@@ -106,6 +106,31 @@ final class ReplayDay
 		}
 	}
 
+	/**
+	 * A clean hml shop on the bootstrapped tenant: its Shopify rows gone, the orders and customers
+	 * flows on ($flows adds others), a debtor group and number range for its customers, and a fresh
+	 * random webhook secret that the replayer reads back.
+	 */
+	public static function prepareTenant(array $flows = []): void
+	{
+		// a fresh install has adresser.mobile (includes/opretfunc.php); an old template may not
+		shopify_db_rows('ALTER TABLE adresser ADD COLUMN IF NOT EXISTS mobile varchar(15)');
+		foreach (['shopify_customer_links', 'shopify_customer_exports', 'shopify_refund_allocations', 'shopify_refunds', 'shopify_fulfillments', 'shopify_order_links',
+			'shopify_stock_state', 'shopify_product_links', 'shopify_events', 'shopify_jobs', 'shopify_errors', 'shopify_shops'] as $table) {
+			shopify_db_rows("DELETE FROM $table");
+		}
+		shopify_db_rows("DELETE FROM adresser WHERE btrim(kontonr) ~ '^29766[0-9]{3}$'");
+		shopify_db_rows("INSERT INTO grupper (beskrivelse, kodenr, art) SELECT 'SD766 Shopify', 76, 'DG' WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'DG' AND kodenr = 76)");
+		shopify_db_rows("DELETE FROM settings WHERE (var_grp = 'shopify' AND var_name LIKE 'customer_%') OR var_grp = 'shopify:hml'");
+		shopify_db_rows("INSERT INTO settings (var_grp, var_name, var_value) VALUES ('shopify', 'customer_number_start', '29766000'),
+			('shopify', 'customer_group', '76'), ('shopify', 'customer_payment_terms', 'Kontant'), ('shopify', 'customer_payment_days', '0')");
+		$columns = array_merge(['orders_enabled', 'customers_enabled'], $flows);
+		shopify_db_rows('INSERT INTO shopify_shops (shop_key, domain, is_primary, ' . implode(', ', $columns) . ') VALUES ($1, $2, true' . str_repeat(', true', count($columns)) . ')',
+			[self::SHOP['shop_key'], self::SHOP['domain']]);
+		shopify_db_rows("INSERT INTO settings (var_grp, var_name, var_value, var_description) VALUES ('shopify:hml', $1, $2, '')",
+			[SHOPIFY_WEBHOOK_SECRET, bin2hex(random_bytes(16))]);
+	}
+
 	/** @return array<string, list<array<string, mixed>>> SNAPSHOT, read now */
 	public static function snapshot(): array
 	{

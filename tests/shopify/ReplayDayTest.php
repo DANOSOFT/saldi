@@ -29,7 +29,7 @@ final class ReplayDayTest extends TestCase
             return;
         }
         try {
-            self::$db = ShopifyEnv::testDb('_d');
+            self::$db = ShopifyEnv::testDb('_nf');
             ShopifyEnv::cloneTenant(self::$db);
             ShopifyEnv::registerTenant(self::$db);
             $run = ShopifyEnv::runSchema(self::$db, 'ensure');

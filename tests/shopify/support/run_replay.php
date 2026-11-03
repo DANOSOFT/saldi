@@ -48,26 +48,6 @@ require_once ShopifyEnv::repoRoot() . '/includes/shopify/events.php';
 require_once ShopifyEnv::repoRoot() . '/includes/shopify/services/customers.php';
 require_once __DIR__ . '/ReplayDay.php';
 
-/** A clean shop on the tenant: its Shopify rows gone, the customers flow on, a fresh webhook secret. */
-function replay_prepare(): void
-{
-    // a fresh install has adresser.mobile (includes/opretfunc.php); an old template may not
-    shopify_db_rows('ALTER TABLE adresser ADD COLUMN IF NOT EXISTS mobile varchar(15)');
-    foreach (['shopify_customer_links', 'shopify_customer_exports', 'shopify_refund_allocations', 'shopify_refunds', 'shopify_fulfillments', 'shopify_order_links',
-        'shopify_stock_state', 'shopify_product_links', 'shopify_events', 'shopify_jobs', 'shopify_errors', 'shopify_shops'] as $table) {
-        shopify_db_rows("DELETE FROM $table");
-    }
-    shopify_db_rows("DELETE FROM adresser WHERE btrim(kontonr) ~ '^29766[0-9]{3}$'");
-    shopify_db_rows("INSERT INTO grupper (beskrivelse, kodenr, art) SELECT 'SD766 Shopify', 76, 'DG' WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'DG' AND kodenr = 76)");
-    shopify_db_rows("DELETE FROM settings WHERE (var_grp = 'shopify' AND var_name LIKE 'customer_%') OR var_grp = 'shopify:hml'");
-    shopify_db_rows("INSERT INTO settings (var_grp, var_name, var_value) VALUES ('shopify', 'customer_number_start', '29766000'),
-        ('shopify', 'customer_group', '76'), ('shopify', 'customer_payment_terms', 'Kontant'), ('shopify', 'customer_payment_days', '0')");
-    shopify_db_rows('INSERT INTO shopify_shops (shop_key, domain, is_primary, orders_enabled, customers_enabled) VALUES ($1, $2, true, true, true)',
-        [ReplayDay::SHOP['shop_key'], ReplayDay::SHOP['domain']]);
-    shopify_db_rows("INSERT INTO settings (var_grp, var_name, var_value, var_description) VALUES ('shopify:hml', $1, $2, '')",
-        [SHOPIFY_WEBHOOK_SECRET, bin2hex(random_bytes(16))]);
-}
-
 // the receiver logs every duplicate (error_log): kept off stderr, which the parent reads only at the end
 $log = (string)tempnam(sys_get_temp_dir(), 'sd766-replay-log');
 ini_set('error_log', $log);
@@ -77,7 +57,7 @@ try {
     if ($fixtures['day'] === null || $fixtures['graphql'] === null) {
         throw new RuntimeException('tests/shopify/fixtures/day.json or graphql.json is missing: run php tests/shopify/support/build_replay_day.php');
     }
-    replay_prepare();
+    ReplayDay::prepareTenant();
     $store = FakeShopifyStore::fromState($fixtures['graphql']);
     $graphql = $store->opts();
     $replayer = WebhookReplayer::forShop(shopify_shop(ReplayDay::SHOP['shop_key']));
