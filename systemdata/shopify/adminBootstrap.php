@@ -44,13 +44,14 @@ require_once __DIR__ . '/adminValidation.php';
 /**
  * Set by includes/online.php:
  * @var string $rettigheder the user's rights string
- * @var string|null $revisor '1' when the session was opened from the master admin (admin/aaben_regnskab.php)
+ * @var string|null $revisor online.revisor (boolean): 't' (PostgreSQL) or '1' (MySQL) when the session was
+ *   opened from the master admin (admin/aaben_regnskab.php); 'f', '0' or null otherwise
  * @var string $db the session's tenant
  */
 
 $shopifyAccess = shopify_admin_access((string)($rettigheder ?? ''));
 // Creating a shop is Danosoft's: each shop needs its own Shopify app. Editing one needs the Systemdata right only.
-$shopifyCanCreate = $shopifyAccess === 'write' && !empty($revisor);
+$shopifyCanCreate = $shopifyAccess === 'write' && in_array((string)($revisor ?? ''), array('t', '1'), true);
 if ($shopifyAccess === 'none') {
 	print "<p style='margin:20px'>" . shopify_admin_t('shopify.admin.no_access|Du har ikke adgang til Shopify-opsætningen.') . "</p>";
 	exit;
