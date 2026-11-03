@@ -75,8 +75,12 @@ $udskriv     = if_isset($_GET, null, 'udskriv') ? true : false;
 // this a two-employee range was narrowed to the first employee.
 $ansatte_id = NULL;
 if ($ansat_fra && $ansat_til && is_numeric($ansat_fra) && is_numeric($ansat_til)) {
+    // The form can send the bounds in either order (the report page appends from both ends), so the
+    // range is taken between the smaller and the larger id instead of assuming an order.
+    $ansatLav = min((int)$ansat_fra, (int)$ansat_til);
+    $ansatHoej = max((int)$ansat_fra, (int)$ansat_til);
     $ansatteIder = array();
-    $qtxt = "select id from ansatte where id >= '" . (int)$ansat_fra . "' and id <= '" . (int)$ansat_til . "' order by id";
+    $qtxt = "select id from ansatte where id >= '" . $ansatLav . "' and id <= '" . $ansatHoej . "' order by id";
     $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     while ($r = db_fetch_array($q)) {
         $ansatteIder[] = (int)$r['id'];
