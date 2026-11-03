@@ -25,8 +25,8 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
-// 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant,
-//                 and deletes only a pending booking whose payment never started, failed or was cancelled.
+// 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant.
+//                 It deletes only a pending booking whose payment never started, failed or was cancelled.
 //                 The action is the named handler update_booking_payment() in includes/vibrantPayment.php.
 //
 
