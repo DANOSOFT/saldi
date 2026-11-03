@@ -40,22 +40,26 @@ if (!function_exists('dimensionSqlFragment')) {
 		}
 
 		$ansatFraErTal = preg_match('/^\d+$/', (string)$ansatFra) === 1;
+		$ansatTilErTal = preg_match('/^\d+$/', (string)$ansatTil) === 1;
 		if ($ansatFra && $ansatTil) {
-			$ansatte = array();
-			foreach (explode(",", (string)$ansatteId) as $ansatId) {
-				if (preg_match('/^\d+$/', (string)$ansatId) && (int)$ansatId > 0) {
-					$ansatte[] = (int)$ansatId;
-				}
-			}
-			if (!$ansatte && $ansatFraErTal && (int)$ansatFra > 0) {
-				$ansatte[] = (int)$ansatFra;
-			}
-			if ($ansatte) {
-				$dele[] = "and " . $tabel . "ansat in (" . implode(",", $ansatte) . ")";
-			} elseif (!$ansatFraErTal) {
-				// Bounds that are not whole numbers cannot select an employee; dropping the clause
-				// would show every employee instead.
+			if (!$ansatFraErTal || !$ansatTilErTal) {
+				// A bound that is not a whole number names no employee: the list would be built, or
+				// cut down, from a value the request never expressed. Both bounds are checked, because
+				// a fractional upper bound used to fall back to the first employee alone.
 				$dele[] = "and 1 = 0";
+			} else {
+				$ansatte = array();
+				foreach (explode(",", (string)$ansatteId) as $ansatId) {
+					if (preg_match('/^\d+$/', (string)$ansatId) && (int)$ansatId > 0) {
+						$ansatte[] = (int)$ansatId;
+					}
+				}
+				if (!$ansatte && (int)$ansatFra > 0) {
+					$ansatte[] = (int)$ansatFra;
+				}
+				if ($ansatte) {
+					$dele[] = "and " . $tabel . "ansat in (" . implode(",", $ansatte) . ")";
+				}
 			}
 		} elseif ($ansatFra) {
 			if ($ansatFraErTal) {

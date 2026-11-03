@@ -109,6 +109,9 @@ final class DimensionSqlFragmentTest extends TestCase
         // a resolved list still wins, with the garbage entry dropped
         self::assertSame('and ansat in (8020) ',
             dimensionSqlFragment(null, '8020', '8021', '8020,x', null, null));
+        // a fractional upper bound used to fall back to the first employee alone
+        self::assertSame('and 1 = 0 ',
+            dimensionSqlFragment(null, '8020', '8021.5', '8020,8021', null, null));
     }
 
     public function testTheEmployeeListCarriesNumbersOnly(): void
