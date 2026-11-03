@@ -5601,10 +5601,14 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 {
 	global $regnaar;
 
-	if ($lager_plan === null)
+	if ($lager_plan === null) {
 		gendan_saet($id);
-	if (!$antal_ny && $antal_ny != '0')
+	}
+
+	if (!$antal_ny && $antal_ny != '0') {
 		$antal_ny = 1;
+	}
+
 	$antal_ny *= 1;
 	if ($lager_plan !== null) {
 		$bom = array();
@@ -5618,8 +5622,9 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 		$problems = (is_int($antal_ny) || (is_float($antal_ny) && floor($antal_ny) == $antal_ny))
 			? validate_saet_lager_plan($bom, $lager_plan, (int)$antal_ny)
 			: array("the number of sets ($antal_ny) is not whole");
-		if (!is_numeric($saetpris) || $saetpris < 0)
+		if (!is_numeric($saetpris) || $saetpris < 0) {
 			$problems[] = "the set price (" . var_export($saetpris, true) . ") is not a number of 0 or more";
+		}
 		if ($problems) {
 			throw new InvalidArgumentException("opret_saet: the lager plan does not fit set $master_id: " . implode('; ', $problems));
 		}
