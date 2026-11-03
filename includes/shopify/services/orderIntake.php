@@ -37,6 +37,7 @@
 // 20261103 CL/SS SD-742 review: a line split over several fulfillment locations is an alarm; an order that does not fit one read is refused.
 // 20261103 CL/SS SD-742 review: batch-controlled items, a VAT group without a rate and an ambiguous SKU are refused; the unit price
 //                is rounded down so the last unit is never below it; closed fulfillment orders are no assignment.
+// 20261103 CL/SS SD-743: the order's VAT (totalTaxSet) is read for S09b, and an order going abroad is refused.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -56,6 +57,8 @@ const SHOPIFY_TAG_SHORTAGE = 'saldi-mangler-lager';
 const SHOPIFY_PAYMENT_UNKNOWN = 'Ukendt kort';
 /** The header's payment terms; also the posting of an order whose payments do not fit felt_1..felt_5 (DIV/3 box10). */
 const SHOPIFY_PAYMENT_FALLBACK = 'Kreditkort';
+/** An order going elsewhere may carry another country's VAT (Shopify Markets), which the intake cannot post. */
+const SHOPIFY_INTAKE_COUNTRY = 'DK';
 /** A variant item's stock is allocated under this base plus its variant id, so two variants of one item never share stock. */
 const SHOPIFY_INTAKE_VARIANT_STOCK = 1000000000000;
 /** Transactions that are money received. */
@@ -63,7 +66,7 @@ const SHOPIFY_PAID_KINDS = array('SALE', 'CAPTURE');
 
 const SHOPIFY_ORDER_READ = 'query paidOrderRead($id: ID!) { order(id: $id) {
 	id name createdAt sourceName sourceIdentifier tags note email phone taxesIncluded currencyCode displayFinancialStatus
-	totalPriceSet { shopMoney { amount currencyCode } }
+	totalPriceSet { shopMoney { amount currencyCode } } totalTaxSet { shopMoney { amount } }
 	customer { id }
 	shippingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
 	billingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
@@ -123,7 +126,7 @@ function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array())
  * @param array<string, mixed> $o the order node of SHOPIFY_ORDER_READ
  * @return array{gid: string, name: string, created_at: string, source_name: string, source_identifier: string,
  *   tags: list<string>, note: string, email: string, phone: string, taxes_included: bool, currency: string,
- *   total: string, financial_status: string, customer_gid: string|null, shipping_address: array<string, string>|null,
+ *   total: string, total_tax: string, financial_status: string, customer_gid: string|null, shipping_address: array<string, string>|null,
  *   billing_address: array<string, string>|null,
  *   lines: list<array{gid: string, sku: string, name: string, quantity: int, current_quantity: int, variant_gid: string|null, product_gid: string|null,
  *     original_total: string, discount: string, assigned_location: string|null, assigned_locations: list<string>}>,
@@ -203,6 +206,7 @@ function shopify_order_from_graphql(array $o): array {
 		'taxes_included' => (bool)($o['taxesIncluded'] ?? false),
 		'currency' => (string)($o['currencyCode'] ?? ''),
 		'total' => $money($o['totalPriceSet'] ?? array()),
+		'total_tax' => $money($o['totalTaxSet'] ?? array()),
 		'financial_status' => strtoupper((string)($o['displayFinancialStatus'] ?? '')),
 		'customer_gid' => isset($o['customer']['id']) ? (string)$o['customer']['id'] : null,
 		'shipping_address' => $address($o['shippingAddress'] ?? null),
@@ -346,6 +350,10 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 	}
 	if (empty($order['taxes_included'])) {
 		$error('order.taxes', "order $name has prices without VAT; the intake takes Shopify's prices as VAT-inclusive");
+	}
+	$destination = strtoupper(trim((string)($order['shipping_address']['countryCodeV2'] ?? $order['billing_address']['countryCodeV2'] ?? '')));
+	if ($destination !== '' && $destination !== SHOPIFY_INTAKE_COUNTRY) {
+		$error('order.country', "order $name goes to $destination; the intake posts Danish VAT only, so an order abroad is entered by hand");
 	}
 
 	// lines
@@ -586,7 +594,7 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 		}
 		$invoiced = shopify_intake_invoice_total($lines, $freight, $ctx['items'] ?? array());
 		if (abs($invoiced - (float)$order['total']) > 0.005) {
-			$alarm('order.rounding', "order $name: the invoice comes to " . number_format($invoiced, 2, '.', '') . ", Shopify's total is {$order['total']}");
+			$alarm('order.rounding', "order $name: the lines come to " . number_format($invoiced, 2, '.', '') . ", Shopify's total is {$order['total']}; the difference is put on the VAT");
 		}
 	}
 
@@ -606,6 +614,7 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 		'momssats' => $vatRates === array() ? 0.0 : (float)max($vatRates),
 		'taxes_included' => (bool)$order['taxes_included'],
 		'total' => (string)$order['total'],
+		'total_tax' => isset($order['total_tax']) ? (string)$order['total_tax'] : null,
 		'currency' => (string)$order['currency'],
 		'shipping_address' => $order['shipping_address'],
 		'billing_address' => $order['billing_address'],

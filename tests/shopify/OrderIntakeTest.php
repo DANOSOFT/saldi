@@ -98,7 +98,7 @@ final class OrderIntakeTest extends TestCase
 		$node = [
 			'id' => self::GID, 'name' => '#HML1001', 'createdAt' => '2026-11-03T10:00:00Z', 'sourceName' => 'web', 'sourceIdentifier' => null,
 			'tags' => ['vip'], 'note' => null, 'email' => ' k@example.dk ', 'phone' => null, 'taxesIncluded' => true, 'currencyCode' => 'DKK',
-			'displayFinancialStatus' => 'paid', 'totalPriceSet' => ['shopMoney' => ['amount' => '269.0']], 'customer' => ['id' => 'gid://shopify/Customer/7'],
+			'displayFinancialStatus' => 'paid', 'totalPriceSet' => ['shopMoney' => ['amount' => '269.0']], 'totalTaxSet' => ['shopMoney' => ['amount' => '53.8']], 'customer' => ['id' => 'gid://shopify/Customer/7'],
 			'lineItems' => ['nodes' => [
 				['id' => 'gid://shopify/LineItem/1', 'sku' => ' X ', 'name' => 'Bord', 'quantity' => 2, 'variant' => ['id' => 'gid://shopify/ProductVariant/11'],
 					'product' => null, 'originalTotalSet' => ['shopMoney' => ['amount' => '200']],
@@ -121,6 +121,7 @@ final class OrderIntakeTest extends TestCase
 		$o = shopify_order_from_graphql($node);
 
 		$this->assertSame('269.00', $o['total']);
+		$this->assertSame('53.80', $o['total_tax'], 'the VAT Shopify charged, for S09b');
 		$this->assertSame('k@example.dk', $o['email']);
 		$this->assertSame('PAID', $o['financial_status']);
 		$this->assertSame(['sku' => 'X', 'original_total' => '200.00', 'discount' => '20.00', 'assigned_location' => 'gid://shopify/Location/2'],
@@ -250,6 +251,20 @@ final class OrderIntakeTest extends TestCase
 		$this->assertTrue($old['ok'], 'posted on the intake date: an order from last year taken in this one is fine');
 	}
 
+	public function testAnOrderGoingAbroadIsRefusedSinceItMayCarryAnotherCountrysVat(): void
+	{
+		$address = static fn(string $country): array => ['firstName' => 'K', 'lastName' => 'K', 'company' => '', 'address1' => 'Vej 1', 'address2' => '',
+			'zip' => '1000', 'city' => 'By', 'country' => $country, 'countryCodeV2' => $country, 'phone' => ''];
+		$abroad = self::validate(self::order(['shipping_address' => $address('SE'), 'billing_address' => $address('DK')]), self::ctx());
+		$billedAbroad = self::validate(self::order(['billing_address' => $address('de')]), self::ctx());
+		$home = self::validate(self::order(['shipping_address' => $address('dk'), 'billing_address' => $address('SE')]), self::ctx());
+
+		$this->assertSame(['order.country'], self::kinds($abroad['errors']), 'the shipping country decides');
+		$this->assertSame(['order.country'], self::kinds($billedAbroad['errors']), 'the billing country when nothing is shipped');
+		$this->assertTrue($home['ok']);
+		$this->assertTrue(self::validate(self::order(), self::ctx())['ok'], 'an order without an address');
+	}
+
 	public function testAnIntakeDateInAClosedVatPeriodIsRefused(): void
 	{
 		$v = self::validate(self::order(), self::ctx(['period_closed' => 'Perioden 11-2026 er lukket for bogfoering']));
@@ -322,7 +337,7 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertTrue($v['ok'], 'S09b writes the sum and VAT itself; the difference is reported, not refused');
 		$this->assertSame(['order.rounding'], self::kinds($v['alarms']));
-		$this->assertStringContainsString('comes to 0.15', $v['alarms'][0]['message']);
+		$this->assertStringContainsString('come to 0.15', $v['alarms'][0]['message']);
 	}
 
 	public function testSetComponentsAndTheFreightItemAreCheckedLikeLineItems(): void
@@ -613,7 +628,7 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertTrue($v['ok'], json_encode($v['errors']));
 		$this->assertSame(['order.rounding'], self::kinds($v['alarms']));
-		$this->assertStringContainsString('comes to 101.02', $v['alarms'][0]['message'], 'two rows of 40.012 with 10.00 VAT each, the set line 0, plus 1.00');
+		$this->assertStringContainsString('come to 101.02', $v['alarms'][0]['message'], 'two rows of 40.012 with 10.00 VAT each, the set line 0, plus 1.00');
 	}
 
 	/** Mixed rates take the VAT per row, so a line split over two lagre rounds twice. */
@@ -634,7 +649,7 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertSame([1, 2], array_column($v['lines'][0]['segments'], 'lager'), 'one unit from each lager');
 		$this->assertSame(['order.rounding'], self::kinds($v['alarms']));
-		$this->assertStringContainsString('comes to 101.02', $v['alarms'][0]['message'], '2 rows of 40.012 with 10.00 VAT each, plus 1.00 without');
+		$this->assertStringContainsString('come to 101.02', $v['alarms'][0]['message'], '2 rows of 40.012 with 10.00 VAT each, plus 1.00 without');
 		$this->assertSame(25.0, $v['header']['momssats'], 'the highest rate of the lines, for S09b to write and lend');
 	}
 

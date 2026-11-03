@@ -30,9 +30,10 @@
 //
 // 20261103 CL/SS SD-742: created (WP09-1).
 // 20261103 CL/SS SD-742 review: the preflight refuses a line whose variant is not one of its item, and a batch-controlled item.
+// 20261103 CL/SS SD-743: $valuta, $valutakurs and $difkto, which bogfor() and bogfor_nu() leave set, are given back too.
 
-/** Globals levering() and bogfor() set and read again later: always given back, so one order's never reach the next. */
-const SHOPIFY_LEGACY_STATE_GLOBALS = array('levdate', 'lev_nr', 'afd_lager', 'fakturadate', 'momssats', 'kasse');
+/** Globals levering(), bogfor() and bogfor_nu() set and read again later: always given back, so one order's never reach the next. */
+const SHOPIFY_LEGACY_STATE_GLOBALS = array('levdate', 'lev_nr', 'afd_lager', 'fakturadate', 'momssats', 'kasse', 'valuta', 'valutakurs', 'difkto');
 
 /** The delivery would not go through; thrown before levering() runs, nothing is written. */
 final class ShopifyPreflightError extends DomainException
