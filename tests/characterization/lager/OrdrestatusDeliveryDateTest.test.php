@@ -8,6 +8,7 @@
 // ints where the stubs below take strings and back again, which is fine for the page and would
 // be a TypeError under strict_types.
 // 20261029 CL/MJ Cover translation-id collisions with cached master/live voucher texts.
+// 20261103 CL/MJ Lager > Varer > Indkøb builds the same box as Ordrevisning.
 
 namespace OrdrestatusFixture {
 
@@ -622,6 +623,40 @@ namespace {
             }
             self::assertSame(array('buy_order_orders' => 3, 'buy_order_orders_id' => 3,
                 'buy_order_qty' => 3, 'buy_order_date' => 3), $lengths);
+        }
+
+        /**
+         * lager/lister/indkøb.php has its own copy of renderColumn() and of the buy_order lists.
+         * The tests above run against ordrestatus.php, so the copy is pinned to match it, apart
+         * from the page each order link returns to.
+         */
+        public function testTheIndkoebPageBuildsTheSameBox(): void
+        {
+            $indkoeb = file_get_contents(__DIR__ . '/../../../lager/lister/indkøb.php');
+            self::assertNotFalse($indkoeb, 'could not read lager/lister/indkøb.php');
+            $ordrestatus = self::source();
+
+            $function = static function (string $src): string {
+                $at = strpos($src, 'function renderColumn(');
+                self::assertNotFalse($at, 'renderColumn() is gone');
+                return substr($src, $at, strpos($src, "\n}\n", $at) - $at);
+            };
+            self::assertSame(
+                str_replace('returside=../lager/lister/ordrestatus.php', 'returside=../lager/lister/indkøb.php', $function($ordrestatus)),
+                $function($indkoeb)
+            );
+
+            $lists = static function (string $src): string {
+                $at = strpos($src, "COALESCE(SUM(CASE WHEN category = 'buy_order_qty'");
+                self::assertNotFalse($at, 'the buy_order lists are gone');
+                return substr($src, $at, strpos($src, 'AS buy_order_date', $at) - $at);
+            };
+            self::assertSame($lists($ordrestatus), $lists($indkoeb));
+
+            foreach (array('ol.id AS linjeid,', 'o.ordrenr AS ordrenr_sort,', 'o.levdate AS levdate,') as $column) {
+                self::assertStringContainsString($column, $indkoeb);
+            }
+            self::assertStringContainsString("'buy_order_date', 'border-right: 1px black solid', '8407|Forventet lev. dato')", $indkoeb);
         }
 
         public static function tearDownAfterClass(): void
