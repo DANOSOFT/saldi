@@ -7,6 +7,7 @@
 //
 // History:
 // 20261022 Sawaneh SD-735: created.
+// 20261101 CL/SS SD-792: shopify_customer_number() outside a transaction is refused (the allocator is built).
 
 use PHPUnit\Framework\TestCase;
 
@@ -87,8 +88,7 @@ final class ConfigLinksTest extends TestCase
         $this->assertSame('ShopifyConfigError', $r['bad_key']['class']);
         $this->assertSame('23505', $r['dup_afd']['sqlstate'], 'one shop per afdeling (K01)');
         $this->assertSame('ShopifyConfigError', $r['secret_unknown_shop']['class']);
-        $this->assertSame('ShopifyConfigError', $r['customer_number']['class']);
-        $this->assertStringContainsString('SD-740', $r['customer_number']['message']);
+        $this->assertSame('ShopifyDbMisuse', $r['customer_number']['class'], 'outside a transaction the lock would end before the insert');
     }
 
     public function testSecretsRoundTripAndNeverReachOutputOrLogs(): void

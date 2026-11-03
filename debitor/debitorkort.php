@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -123,6 +123,7 @@
 // 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
 //                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
 //                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
+// 20261101 CL/SS SD-792 A debtor linked to Shopify customers shows them, read-only, under the mobile number (shop and customer id).
 @session_start();
 $s_id = session_id();
 
@@ -1902,6 +1903,13 @@ print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('5230|Mobilnummer', $sprog_id) . "<!--tekst 5230--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+if ($id && $db_type != 'mysql' && $db_type != 'mysqli' && db_fetch_array(db_select("select to_regclass('shopify_customer_links') as t", __FILE__ . " linje " . __LINE__))['t']) {
+	$q = db_select("select s.shop_key, l.customer_gid from shopify_customer_links l join shopify_shops s on s.id = l.shop_id where l.adresser_id = '" . (int)$id . "' order by s.shop_key", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+		print "<tr bgcolor=$bg><td>" . findtekst('8000|Shopify-kunde', $sprog_id) . "<!--tekst 8000--></td><td>" . htmlspecialchars($r['shop_key'] . ': ' . preg_replace('#^gid://shopify/Customer/#', '', $r['customer_gid'])) . "</td></tr>\n";
+	}
+}
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";

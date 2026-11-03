@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.10.30
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.01
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20261029 CL/SZ SD-749 review: register-webhooks reports a misconfigured shop as failed and goes on.
 // 20261029 CL/SZ SD-749 review: register-webhooks and replay need no fiscal year; a tenant they can't use ends with a line and exit 2.
 // 20261029 CL/SS SD-741: the catalogue jobs (catalogue.upsert, catalogue.link, catalogue.seed) and the command seed.
+// 20261101 CL/SS SD-792: the customer.upsert handler (Shopify customer to debtor).
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -65,6 +66,7 @@ function shopify_worker_commands(): array {
 function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/events.php';
 	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
+	require_once __DIR__ . '/../includes/shopify/services/customers.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
 	shopify_worker_register($registry, 'webhook.health', 'shopify_webhook_health_job');
@@ -80,6 +82,8 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'catalogue.upsert', 'shopify_catalogue_upsert_job');
 	shopify_worker_register($registry, 'catalogue.link', 'shopify_catalogue_link_job');
 	shopify_worker_register($registry, 'catalogue.seed', 'shopify_catalogue_seed_job');
+	// SD-792: a Shopify customer becomes, or updates, its debtor.
+	shopify_worker_register($registry, 'customer.upsert', 'shopify_customer_upsert_job');
 	return array('registry' => $registry, 'producers' => $producers);
 }
 

@@ -1,12 +1,12 @@
 <?php
-// tests/shopify/sandbox/K03.php
+// tests/shopify/support/sandbox/K03.php
 //
 // Sandbox acceptance of K03 (SD-748): the same webhook twice gives one inbox row, and a wrong
 // signature gets 401 and creates no rows. Run on the server that hosts the tenant, against its
 // deployed endpoint:
 //
-//   php tests/shopify/sandbox/K03.php <tenant_db> <shop_key> <endpoint_url>
-//   e.g. php tests/shopify/sandbox/K03.php saldi_shopify_test_xx hml https://ssl12.saldi.dk/sz/api/shopify/webhook.php
+//   php tests/shopify/support/sandbox/K03.php <tenant_db> <shop_key> <endpoint_url>
+//   e.g. php tests/shopify/support/sandbox/K03.php saldi_shopify_test_xx hml https://ssl12.saldi.dk/sz/api/shopify/webhook.php
 //
 // Part 1 posts synthetic deliveries signed with the shop's webhook secret, under the unrouted
 // topic shop/update, so promotion never turns them into jobs, and deletes its own rows after.
@@ -15,12 +15,13 @@
 //
 // History:
 // 20261027 CL/SZ SD-748: created.
+// 20261102 CL/SZ SD-793: moved to tests/shopify/support/sandbox/, next to K45.php.
 
 if (PHP_SAPI !== 'cli') {
     exit;
 }
 if ($argc < 4) {
-    echo "K03 SKIP: usage php tests/shopify/sandbox/K03.php <tenant_db> <shop_key> <endpoint_url>\n";
+    echo "K03 SKIP: usage php tests/shopify/support/sandbox/K03.php <tenant_db> <shop_key> <endpoint_url>\n";
     exit(0);
 }
 [, $tenant, $shopKey, $url] = $argv;
@@ -29,7 +30,7 @@ if (!preg_match('/^saldi_shopify_test_[a-z0-9_]+$/', $tenant)) {
     echo "K03 SKIP: $tenant is not a saldi_shopify_test_* tenant\n";
     exit(0);
 }
-$root = dirname(__DIR__, 3);
+$root = dirname(__DIR__, 4);
 if (!is_readable("$root/includes/connect.php")) {
     echo "K03 SKIP: includes/connect.php is not installed here\n";
     exit(0);
