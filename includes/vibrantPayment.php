@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/vibrantPayment.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/vibrantPayment.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,8 @@
 //                 A failed invoice keeps the booking approved and is retried once per call, under a lock.
 //                 Cancelling deletes only on the payment binding it checked; links bind only to open bookings.
 //                 No schema change at request time: betweenUpdates.php and opretfunc.php add the columns.
+// 20261103 CL/MMR SST-841 CodeRabbit (PR #969): an error thrown while invoicing is a failed attempt (invoice_failed).
+//                 The advisory lock is released in a finally block, also when invoicing threw.
 //
 
 if (!function_exists('rental_payment_ready')) {
@@ -120,6 +122,9 @@ if (!function_exists('booking_invoice_once')) {
  *
  * @param int      $orderId  ordrer.id of the booking.
  * @param callable $invoice  Invoices and mails the order; returns the order id on success (fakturer_ordre()).
+ * An error thrown by $invoice (also an undefined function) counts as a failed attempt and is logged; the lock is
+ * released in every case.
+ *
  * @return bool  true when the order is invoiced (now or before), false when invoicing failed.
  */
 function booking_invoice_once($orderId, $invoice) {
@@ -128,12 +133,24 @@ function booking_invoice_once($orderId, $invoice) {
 		return false;
 	}
 	db_select("SELECT pg_advisory_lock(841, $orderId)", __FILE__ . " linje " . __LINE__);
-	$order = db_fetch_array(db_select("SELECT fakturanr FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__));
-	$done = $order && !in_array(trim((string)$order['fakturanr']), array('', '0'), true);
-	if (!$done && $order) {
-		$done = (string)call_user_func($invoice, $orderId) === (string)$orderId;
+	$done = false;
+	try {
+		$order = db_fetch_array(db_select("SELECT fakturanr FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__));
+		$done = $order && !in_array(trim((string)$order['fakturanr']), array('', '0'), true);
+		if (!$done && $order) {
+			try {
+				$done = (string)call_user_func($invoice, $orderId) === (string)$orderId;
+			} catch (Throwable $e) {
+				// An error thrown while invoicing (also a missing function) is a failed attempt, so the caller answers
+				// invoice_failed and a later call retries it.
+				error_log("booking_invoice_once: invoicing order $orderId failed: " . $e->getMessage());
+				$done = false;
+			}
+		}
+	} finally {
+		// The lock is per database session, so it is released even when invoicing threw.
+		db_select("SELECT pg_advisory_unlock(841, $orderId)", __FILE__ . " linje " . __LINE__);
 	}
-	db_select("SELECT pg_advisory_unlock(841, $orderId)", __FILE__ . " linje " . __LINE__);
 	return $done;
 }
 }
