@@ -1,0 +1,1373 @@
+{
+    "about": "FakeShopifyStore::exportState() at the end of the day in day.json (SD-766): what a handler reading Shopify during the replay is answered from.",
+    "now": 23289,
+    "epoch": 1793605400,
+    "next": 7400000000169,
+    "shops": {
+        "hml-test.myshopify.com": {
+            "key": "hml",
+            "domain": "hml-test.myshopify.com",
+            "id": "gid://shopify/Shop/7400000000001",
+            "name": "HML (synthetic)",
+            "token": "test-token-not-a-secret",
+            "available": 1990,
+            "bucket_at": 23289,
+            "locations": {
+                "gid://shopify/Location/7400000000002": {
+                    "id": "gid://shopify/Location/7400000000002",
+                    "name": "Lager 1",
+                    "active": true,
+                    "created": 1000
+                },
+                "gid://shopify/Location/7400000000003": {
+                    "id": "gid://shopify/Location/7400000000003",
+                    "name": "Lager 2",
+                    "active": true,
+                    "created": 1000
+                }
+            },
+            "products": {
+                "gid://shopify/Product/7400000000014": {
+                    "handle": "replay-1",
+                    "title": "Havemøbel 1",
+                    "status": "ACTIVE",
+                    "descriptionHtml": "",
+                    "vendor": "HML (synthetic)",
+                    "productType": "",
+                    "tags": [],
+                    "options": [
+                        {
+                            "id": "gid://shopify/ProductOption/7400000000015",
+                            "name": "Title",
+                            "position": 1,
+                            "values": [
+                                {
+                                    "id": "gid://shopify/ProductOptionValue/7400000000016",
+                                    "name": "Default Title"
+                                }
+                            ]
+                        }
+                    ],
+                    "variants": [
+                        "gid://shopify/ProductVariant/7400000000017"
+                    ],
+                    "created": 1000,
+                    "updated": 1000
+                },
+                "gid://shopify/Product/7400000000019": {
+                    "handle": "replay-2",
+                    "title": "Havemøbel 2",
+                    "status": "ACTIVE",
+                    "descriptionHtml": "",
+                    "vendor": "HML (synthetic)",
+                    "productType": "",
+                    "tags": [],
+                    "options": [
+                        {
+                            "id": "gid://shopify/ProductOption/7400000000020",
+                            "name": "Title",
+                            "position": 1,
+                            "values": [
+                                {
+                                    "id": "gid://shopify/ProductOptionValue/7400000000021",
+                                    "name": "Default Title"
+                                }
+                            ]
+                        }
+                    ],
+                    "variants": [
+                        "gid://shopify/ProductVariant/7400000000022"
+                    ],
+                    "created": 1000,
+                    "updated": 1000
+                },
+                "gid://shopify/Product/7400000000024": {
+                    "handle": "replay-3",
+                    "title": "Havemøbel 3",
+                    "status": "ACTIVE",
+                    "descriptionHtml": "",
+                    "vendor": "HML (synthetic)",
+                    "productType": "",
+                    "tags": [],
+                    "options": [
+                        {
+                            "id": "gid://shopify/ProductOption/7400000000025",
+                            "name": "Title",
+                            "position": 1,
+                            "values": [
+                                {
+                                    "id": "gid://shopify/ProductOptionValue/7400000000026",
+                                    "name": "Default Title"
+                                }
+                            ]
+                        }
+                    ],
+                    "variants": [
+                        "gid://shopify/ProductVariant/7400000000027"
+                    ],
+                    "created": 1000,
+                    "updated": 1000
+                },
+                "gid://shopify/Product/7400000000029": {
+                    "handle": "replay-4",
+                    "title": "Havemøbel 4",
+                    "status": "ACTIVE",
+                    "descriptionHtml": "",
+                    "vendor": "HML (synthetic)",
+                    "productType": "",
+                    "tags": [],
+                    "options": [
+                        {
+                            "id": "gid://shopify/ProductOption/7400000000030",
+                            "name": "Title",
+                            "position": 1,
+                            "values": [
+                                {
+                                    "id": "gid://shopify/ProductOptionValue/7400000000031",
+                                    "name": "Default Title"
+                                }
+                            ]
+                        }
+                    ],
+                    "variants": [
+                        "gid://shopify/ProductVariant/7400000000032"
+                    ],
+                    "created": 1000,
+                    "updated": 1000
+                }
+            },
+            "variants": {
+                "gid://shopify/ProductVariant/7400000000017": {
+                    "product": "gid://shopify/Product/7400000000014",
+                    "item": "gid://shopify/InventoryItem/7400000000018",
+                    "sku": "D766-1",
+                    "barcode": null,
+                    "price": "250.00",
+                    "compareAtPrice": null,
+                    "inventoryPolicy": "DENY",
+                    "taxable": true,
+                    "options": [
+                        {
+                            "name": "Title",
+                            "value": "Default Title"
+                        }
+                    ],
+                    "created": 1000,
+                    "updated": 1000
+                },
+                "gid://shopify/ProductVariant/7400000000022": {
+                    "product": "gid://shopify/Product/7400000000019",
+                    "item": "gid://shopify/InventoryItem/7400000000023",
+                    "sku": "D766-2",
+                    "barcode": null,
+                    "price": "500.00",
+                    "compareAtPrice": null,
+                    "inventoryPolicy": "DENY",
+                    "taxable": true,
+                    "options": [
+                        {
+                            "name": "Title",
+                            "value": "Default Title"
+                        }
+                    ],
+                    "created": 1000,
+                    "updated": 1000
+                },
+                "gid://shopify/ProductVariant/7400000000027": {
+                    "product": "gid://shopify/Product/7400000000024",
+                    "item": "gid://shopify/InventoryItem/7400000000028",
+                    "sku": "D766-3",
+                    "barcode": null,
+                    "price": "750.00",
+                    "compareAtPrice": null,
+                    "inventoryPolicy": "DENY",
+                    "taxable": true,
+                    "options": [
+                        {
+                            "name": "Title",
+                            "value": "Default Title"
+                        }
+                    ],
+                    "created": 1000,
+                    "updated": 1000
+                },
+                "gid://shopify/ProductVariant/7400000000032": {
+                    "product": "gid://shopify/Product/7400000000029",
+                    "item": "gid://shopify/InventoryItem/7400000000033",
+                    "sku": "D766-4",
+                    "barcode": null,
+                    "price": "1000.00",
+                    "compareAtPrice": null,
+                    "inventoryPolicy": "DENY",
+                    "taxable": true,
+                    "options": [
+                        {
+                            "name": "Title",
+                            "value": "Default Title"
+                        }
+                    ],
+                    "created": 1000,
+                    "updated": 1000
+                }
+            },
+            "items": {
+                "gid://shopify/InventoryItem/7400000000018": {
+                    "variant": "gid://shopify/ProductVariant/7400000000017",
+                    "sku": "D766-1",
+                    "tracked": true,
+                    "cost": null,
+                    "weight": null,
+                    "created": 1000
+                },
+                "gid://shopify/InventoryItem/7400000000023": {
+                    "variant": "gid://shopify/ProductVariant/7400000000022",
+                    "sku": "D766-2",
+                    "tracked": true,
+                    "cost": null,
+                    "weight": null,
+                    "created": 1000
+                },
+                "gid://shopify/InventoryItem/7400000000028": {
+                    "variant": "gid://shopify/ProductVariant/7400000000027",
+                    "sku": "D766-3",
+                    "tracked": true,
+                    "cost": null,
+                    "weight": null,
+                    "created": 1000
+                },
+                "gid://shopify/InventoryItem/7400000000033": {
+                    "variant": "gid://shopify/ProductVariant/7400000000032",
+                    "sku": "D766-4",
+                    "tracked": true,
+                    "cost": null,
+                    "weight": null,
+                    "created": 1000
+                }
+            },
+            "levels": {
+                "gid://shopify/InventoryItem/7400000000018": {
+                    "gid://shopify/Location/7400000000002": {
+                        "available": 7,
+                        "on_hand": 7,
+                        "committed": 0,
+                        "incoming": 0,
+                        "reserved": 0,
+                        "damaged": 0,
+                        "safety_stock": 0,
+                        "quality_control": 0,
+                        "updated": 20615
+                    },
+                    "gid://shopify/Location/7400000000003": {
+                        "available": 4,
+                        "on_hand": 4,
+                        "committed": 0,
+                        "incoming": 0,
+                        "reserved": 0,
+                        "damaged": 0,
+                        "safety_stock": 0,
+                        "quality_control": 0,
+                        "updated": 1000
+                    }
+                },
+                "gid://shopify/InventoryItem/7400000000023": {
+                    "gid://shopify/Location/7400000000002": {
+                        "available": 2,
+                        "on_hand": 2,
+                        "committed": 0,
+                        "incoming": 0,
+                        "reserved": 0,
+                        "damaged": 0,
+                        "safety_stock": 0,
+                        "quality_control": 0,
+                        "updated": 1000
+                    },
+                    "gid://shopify/Location/7400000000003": {
+                        "available": 4,
+                        "on_hand": 4,
+                        "committed": 0,
+                        "incoming": 0,
+                        "reserved": 0,
+                        "damaged": 0,
+                        "safety_stock": 0,
+                        "quality_control": 0,
+                        "updated": 1000
+                    }
+                },
+                "gid://shopify/InventoryItem/7400000000028": {
+                    "gid://shopify/Location/7400000000002": {
+                        "available": 6,
+                        "on_hand": 6,
+                        "committed": 0,
+                        "incoming": 0,
+                        "reserved": 0,
+                        "damaged": 0,
+                        "safety_stock": 0,
+                        "quality_control": 0,
+                        "updated": 1000
+                    },
+                    "gid://shopify/Location/7400000000003": {
+                        "available": 2,
+                        "on_hand": 2,
+                        "committed": 0,
+                        "incoming": 0,
+                        "reserved": 0,
+                        "damaged": 0,
+                        "safety_stock": 0,
+                        "quality_control": 0,
+                        "updated": 1000
+                    }
+                },
+                "gid://shopify/InventoryItem/7400000000033": {
+                    "gid://shopify/Location/7400000000002": {
+                        "available": 4,
+                        "on_hand": 4,
+                        "committed": 0,
+                        "incoming": 0,
+                        "reserved": 0,
+                        "damaged": 0,
+                        "safety_stock": 0,
+                        "quality_control": 0,
+                        "updated": 1000
+                    },
+                    "gid://shopify/Location/7400000000003": {
+                        "available": 0,
+                        "on_hand": 0,
+                        "committed": 0,
+                        "incoming": 0,
+                        "reserved": 0,
+                        "damaged": 0,
+                        "safety_stock": 0,
+                        "quality_control": 0,
+                        "updated": 1000
+                    }
+                }
+            },
+            "customers": {
+                "gid://shopify/Customer/7400000000034": {
+                    "email": "replay1@example.dk",
+                    "phone": "+4520000701",
+                    "first_name": "Test",
+                    "last_name": "Kunde 1 Jensen",
+                    "tags": [
+                        "newsletter"
+                    ],
+                    "note": null,
+                    "addresses": [],
+                    "created": 1584,
+                    "updated": 23158
+                },
+                "gid://shopify/Customer/7400000000036": {
+                    "email": "replay2@example.dk",
+                    "phone": "+4520000702",
+                    "first_name": "Test",
+                    "last_name": "Kunde 2",
+                    "tags": [
+                        "newsletter"
+                    ],
+                    "note": null,
+                    "addresses": [],
+                    "created": 1900,
+                    "updated": 1900
+                },
+                "gid://shopify/Customer/7400000000039": {
+                    "email": "replay3@example.dk",
+                    "phone": "+4520000703",
+                    "first_name": "Test",
+                    "last_name": "Kunde 3",
+                    "tags": [],
+                    "note": null,
+                    "addresses": [
+                        {
+                            "id": "gid://shopify/MailingAddress/7400000000040",
+                            "firstName": "Test",
+                            "lastName": "Kunde 3",
+                            "company": null,
+                            "address1": "Havevej 3",
+                            "address2": null,
+                            "city": "Ballerup",
+                            "zip": "2750",
+                            "countryCode": "DK",
+                            "country": "Denmark",
+                            "phone": null
+                        }
+                    ],
+                    "created": 3028,
+                    "updated": 3028
+                },
+                "gid://shopify/Customer/7400000000050": {
+                    "email": "replay4@example.dk",
+                    "phone": "+4520000704",
+                    "first_name": "Test",
+                    "last_name": "Kunde 4",
+                    "tags": [
+                        "vip"
+                    ],
+                    "note": null,
+                    "addresses": [
+                        {
+                            "id": "gid://shopify/MailingAddress/7400000000051",
+                            "firstName": "Test",
+                            "lastName": "Kunde 4",
+                            "company": null,
+                            "address1": "Havevej 4",
+                            "address2": null,
+                            "city": "Ballerup",
+                            "zip": "2750",
+                            "countryCode": "DK",
+                            "country": "Denmark",
+                            "phone": null
+                        }
+                    ],
+                    "created": 3312,
+                    "updated": 23289
+                },
+                "gid://shopify/Customer/7400000000061": {
+                    "email": "replay5@example.dk",
+                    "phone": "+4520000705",
+                    "first_name": "Test",
+                    "last_name": "Kunde 5",
+                    "tags": [],
+                    "note": null,
+                    "addresses": [
+                        {
+                            "id": "gid://shopify/MailingAddress/7400000000062",
+                            "firstName": "Test",
+                            "lastName": "Kunde 5",
+                            "company": null,
+                            "address1": "Havevej 5",
+                            "address2": null,
+                            "city": "Ballerup",
+                            "zip": "2750",
+                            "countryCode": "DK",
+                            "country": "Denmark",
+                            "phone": null
+                        }
+                    ],
+                    "created": 4446,
+                    "updated": 4446
+                },
+                "gid://shopify/Customer/7400000000072": {
+                    "email": "replay6@example.dk",
+                    "phone": "+4520000706",
+                    "first_name": "Test",
+                    "last_name": "Kunde 6",
+                    "tags": [],
+                    "note": null,
+                    "addresses": [
+                        {
+                            "id": "gid://shopify/MailingAddress/7400000000073",
+                            "firstName": "Test",
+                            "lastName": "Kunde 6",
+                            "company": null,
+                            "address1": "Havevej 6",
+                            "address2": null,
+                            "city": "Ballerup",
+                            "zip": "2750",
+                            "countryCode": "DK",
+                            "country": "Denmark",
+                            "phone": null
+                        }
+                    ],
+                    "created": 5792,
+                    "updated": 5792
+                },
+                "gid://shopify/Customer/7400000000084": {
+                    "email": "replay7@example.dk",
+                    "phone": "+4520000707",
+                    "first_name": "Test",
+                    "last_name": "Kunde 7",
+                    "tags": [],
+                    "note": null,
+                    "addresses": [
+                        {
+                            "id": "gid://shopify/MailingAddress/7400000000085",
+                            "firstName": "Test",
+                            "lastName": "Kunde 7",
+                            "company": null,
+                            "address1": "Havevej 7",
+                            "address2": null,
+                            "city": "Ballerup",
+                            "zip": "2750",
+                            "countryCode": "DK",
+                            "country": "Denmark",
+                            "phone": null
+                        }
+                    ],
+                    "created": 6711,
+                    "updated": 6711
+                }
+            },
+            "orders": {
+                "gid://shopify/Order/7400000000041": {
+                    "name": "#1001",
+                    "email": "replay3@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PAID",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000039",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000038",
+                            "variant": "gid://shopify/ProductVariant/7400000000017",
+                            "sku": "D766-1",
+                            "title": "Havemøbel 1",
+                            "quantity": 1,
+                            "price": 250,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [
+                        {
+                            "id": "gid://shopify/OrderTransaction/7400000000042",
+                            "kind": "SALE",
+                            "status": "SUCCESS",
+                            "gateway": "shopify_payments",
+                            "amount": 250
+                        }
+                    ],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000044"
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000120"
+                    ],
+                    "refunds": [
+                        "gid://shopify/Refund/7400000000159"
+                    ],
+                    "created": 3028,
+                    "updated": 20615
+                },
+                "gid://shopify/Order/7400000000052": {
+                    "name": "#1002",
+                    "email": "replay4@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PAID",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000050",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000048",
+                            "variant": "gid://shopify/ProductVariant/7400000000017",
+                            "sku": "D766-1",
+                            "title": "Havemøbel 1",
+                            "quantity": 1,
+                            "price": 250,
+                            "custom_attributes": []
+                        },
+                        {
+                            "id": "gid://shopify/LineItem/7400000000049",
+                            "variant": "gid://shopify/ProductVariant/7400000000027",
+                            "sku": "D766-3",
+                            "title": "Havemøbel 3",
+                            "quantity": 1,
+                            "price": 750,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [
+                        {
+                            "id": "gid://shopify/OrderTransaction/7400000000053",
+                            "kind": "SALE",
+                            "status": "SUCCESS",
+                            "gateway": "shopify_payments",
+                            "amount": 1000
+                        }
+                    ],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000056"
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000125"
+                    ],
+                    "refunds": [],
+                    "created": 3312,
+                    "updated": 14141
+                },
+                "gid://shopify/Order/7400000000063": {
+                    "name": "#1003",
+                    "email": "replay5@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PAID",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000061",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000060",
+                            "variant": "gid://shopify/ProductVariant/7400000000032",
+                            "sku": "D766-4",
+                            "title": "Havemøbel 4",
+                            "quantity": 2,
+                            "price": 1000,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [
+                        {
+                            "id": "gid://shopify/OrderTransaction/7400000000064",
+                            "kind": "SALE",
+                            "status": "SUCCESS",
+                            "gateway": "shopify_payments",
+                            "amount": 2000
+                        }
+                    ],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000066"
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000131"
+                    ],
+                    "refunds": [
+                        "gid://shopify/Refund/7400000000163"
+                    ],
+                    "created": 4446,
+                    "updated": 21217
+                },
+                "gid://shopify/Order/7400000000074": {
+                    "name": "#1004",
+                    "email": "replay6@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PAID",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000072",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000070",
+                            "variant": "gid://shopify/ProductVariant/7400000000017",
+                            "sku": "D766-1",
+                            "title": "Havemøbel 1",
+                            "quantity": 1,
+                            "price": 250,
+                            "custom_attributes": []
+                        },
+                        {
+                            "id": "gid://shopify/LineItem/7400000000071",
+                            "variant": "gid://shopify/ProductVariant/7400000000032",
+                            "sku": "D766-4",
+                            "title": "Havemøbel 4",
+                            "quantity": 1,
+                            "price": 1000,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [
+                        {
+                            "id": "gid://shopify/OrderTransaction/7400000000075",
+                            "kind": "SALE",
+                            "status": "SUCCESS",
+                            "gateway": "shopify_payments",
+                            "amount": 1250
+                        }
+                    ],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000078"
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000136"
+                    ],
+                    "refunds": [],
+                    "created": 5792,
+                    "updated": 15948
+                },
+                "gid://shopify/Order/7400000000086": {
+                    "name": "#1005",
+                    "email": "replay7@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PAID",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000084",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000082",
+                            "variant": "gid://shopify/ProductVariant/7400000000022",
+                            "sku": "D766-2",
+                            "title": "Havemøbel 2",
+                            "quantity": 2,
+                            "price": 500,
+                            "custom_attributes": []
+                        },
+                        {
+                            "id": "gid://shopify/LineItem/7400000000083",
+                            "variant": "gid://shopify/ProductVariant/7400000000027",
+                            "sku": "D766-3",
+                            "title": "Havemøbel 3",
+                            "quantity": 1,
+                            "price": 750,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [
+                        {
+                            "id": "gid://shopify/OrderTransaction/7400000000087",
+                            "kind": "SALE",
+                            "status": "SUCCESS",
+                            "gateway": "shopify_payments",
+                            "amount": 1750
+                        }
+                    ],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000090"
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000142"
+                    ],
+                    "refunds": [],
+                    "created": 6711,
+                    "updated": 17282
+                },
+                "gid://shopify/Order/7400000000095": {
+                    "name": "#1006",
+                    "email": "replay1@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PAID",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000034",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000094",
+                            "variant": "gid://shopify/ProductVariant/7400000000027",
+                            "sku": "D766-3",
+                            "title": "Havemøbel 3",
+                            "quantity": 1,
+                            "price": 750,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [
+                        {
+                            "id": "gid://shopify/OrderTransaction/7400000000096",
+                            "kind": "SALE",
+                            "status": "SUCCESS",
+                            "gateway": "shopify_payments",
+                            "amount": 750
+                        }
+                    ],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000098"
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000148"
+                    ],
+                    "refunds": [],
+                    "created": 8170,
+                    "updated": 17497
+                },
+                "gid://shopify/Order/7400000000102": {
+                    "name": "#1007",
+                    "email": "replay1@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PAID",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000034",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000101",
+                            "variant": "gid://shopify/ProductVariant/7400000000017",
+                            "sku": "D766-1",
+                            "title": "Havemøbel 1",
+                            "quantity": 2,
+                            "price": 250,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [
+                        {
+                            "id": "gid://shopify/OrderTransaction/7400000000103",
+                            "kind": "SALE",
+                            "status": "SUCCESS",
+                            "gateway": "shopify_payments",
+                            "amount": 500
+                        }
+                    ],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000105"
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000153"
+                    ],
+                    "refunds": [],
+                    "created": 8451,
+                    "updated": 18850
+                },
+                "gid://shopify/Order/7400000000109": {
+                    "name": "#1008",
+                    "email": "replay4@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [
+                        "saldi-hold"
+                    ],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PAID",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000050",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000108",
+                            "variant": "gid://shopify/ProductVariant/7400000000022",
+                            "sku": "D766-2",
+                            "title": "Havemøbel 2",
+                            "quantity": 2,
+                            "price": 500,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [
+                        {
+                            "id": "gid://shopify/OrderTransaction/7400000000110",
+                            "kind": "SALE",
+                            "status": "SUCCESS",
+                            "gateway": "shopify_payments",
+                            "amount": 1000
+                        }
+                    ],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000112"
+                    ],
+                    "fulfillments": [],
+                    "refunds": [],
+                    "created": 9734,
+                    "updated": 19115
+                },
+                "gid://shopify/Order/7400000000116": {
+                    "name": "#1009",
+                    "email": "replay6@example.dk",
+                    "phone": null,
+                    "note": null,
+                    "tags": [],
+                    "custom_attributes": [],
+                    "source_name": "web",
+                    "source_identifier": null,
+                    "po_number": null,
+                    "currency": "DKK",
+                    "test": false,
+                    "taxes_included": true,
+                    "financial": "PENDING",
+                    "shipping_address": null,
+                    "customer": "gid://shopify/Customer/7400000000072",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/LineItem/7400000000115",
+                            "variant": "gid://shopify/ProductVariant/7400000000032",
+                            "sku": "D766-4",
+                            "title": "Havemøbel 4",
+                            "quantity": 1,
+                            "price": 1000,
+                            "custom_attributes": []
+                        }
+                    ],
+                    "transactions": [],
+                    "inventory_behaviour": "BYPASS",
+                    "fulfillment_orders": [
+                        "gid://shopify/FulfillmentOrder/7400000000118"
+                    ],
+                    "fulfillments": [],
+                    "refunds": [],
+                    "created": 10385,
+                    "updated": 10385
+                }
+            },
+            "fulfillment_orders": {
+                "gid://shopify/FulfillmentOrder/7400000000044": {
+                    "order": "gid://shopify/Order/7400000000041",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "status": "CLOSED",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000043",
+                            "line": "gid://shopify/LineItem/7400000000038",
+                            "total": 1,
+                            "remaining": 0
+                        }
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000120"
+                    ],
+                    "created": 3028,
+                    "updated": 11718
+                },
+                "gid://shopify/FulfillmentOrder/7400000000056": {
+                    "order": "gid://shopify/Order/7400000000052",
+                    "location": "gid://shopify/Location/7400000000003",
+                    "status": "CLOSED",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000054",
+                            "line": "gid://shopify/LineItem/7400000000048",
+                            "total": 1,
+                            "remaining": 0
+                        },
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000055",
+                            "line": "gid://shopify/LineItem/7400000000049",
+                            "total": 1,
+                            "remaining": 0
+                        }
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000125"
+                    ],
+                    "created": 3312,
+                    "updated": 14141
+                },
+                "gid://shopify/FulfillmentOrder/7400000000066": {
+                    "order": "gid://shopify/Order/7400000000063",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "status": "CLOSED",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000065",
+                            "line": "gid://shopify/LineItem/7400000000060",
+                            "total": 2,
+                            "remaining": 0
+                        }
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000131"
+                    ],
+                    "created": 4446,
+                    "updated": 14570
+                },
+                "gid://shopify/FulfillmentOrder/7400000000078": {
+                    "order": "gid://shopify/Order/7400000000074",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "status": "CLOSED",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000076",
+                            "line": "gid://shopify/LineItem/7400000000070",
+                            "total": 1,
+                            "remaining": 0
+                        },
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000077",
+                            "line": "gid://shopify/LineItem/7400000000071",
+                            "total": 1,
+                            "remaining": 0
+                        }
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000136"
+                    ],
+                    "created": 5792,
+                    "updated": 15948
+                },
+                "gid://shopify/FulfillmentOrder/7400000000090": {
+                    "order": "gid://shopify/Order/7400000000086",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "status": "CLOSED",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000088",
+                            "line": "gid://shopify/LineItem/7400000000082",
+                            "total": 2,
+                            "remaining": 0
+                        },
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000089",
+                            "line": "gid://shopify/LineItem/7400000000083",
+                            "total": 1,
+                            "remaining": 0
+                        }
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000142"
+                    ],
+                    "created": 6711,
+                    "updated": 17282
+                },
+                "gid://shopify/FulfillmentOrder/7400000000098": {
+                    "order": "gid://shopify/Order/7400000000095",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "status": "CLOSED",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000097",
+                            "line": "gid://shopify/LineItem/7400000000094",
+                            "total": 1,
+                            "remaining": 0
+                        }
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000148"
+                    ],
+                    "created": 8170,
+                    "updated": 17497
+                },
+                "gid://shopify/FulfillmentOrder/7400000000105": {
+                    "order": "gid://shopify/Order/7400000000102",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "status": "IN_PROGRESS",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000104",
+                            "line": "gid://shopify/LineItem/7400000000101",
+                            "total": 2,
+                            "remaining": 1
+                        }
+                    ],
+                    "fulfillments": [
+                        "gid://shopify/Fulfillment/7400000000153"
+                    ],
+                    "created": 8451,
+                    "updated": 18850
+                },
+                "gid://shopify/FulfillmentOrder/7400000000112": {
+                    "order": "gid://shopify/Order/7400000000109",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "status": "OPEN",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000111",
+                            "line": "gid://shopify/LineItem/7400000000108",
+                            "total": 2,
+                            "remaining": 2
+                        }
+                    ],
+                    "fulfillments": [],
+                    "created": 9734
+                },
+                "gid://shopify/FulfillmentOrder/7400000000118": {
+                    "order": "gid://shopify/Order/7400000000116",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "status": "OPEN",
+                    "request_status": "UNSUBMITTED",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentOrderLineItem/7400000000117",
+                            "line": "gid://shopify/LineItem/7400000000115",
+                            "total": 1,
+                            "remaining": 1
+                        }
+                    ],
+                    "fulfillments": [],
+                    "created": 10385
+                }
+            },
+            "fulfillments": {
+                "gid://shopify/Fulfillment/7400000000120": {
+                    "order": "gid://shopify/Order/7400000000041",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000121",
+                            "line": "gid://shopify/LineItem/7400000000038",
+                            "quantity": 1
+                        }
+                    ],
+                    "created": 11718,
+                    "name": "#1001.1",
+                    "tracking": {
+                        "company": "GLS",
+                        "number": "D766TRACK01",
+                        "url": null
+                    }
+                },
+                "gid://shopify/Fulfillment/7400000000125": {
+                    "order": "gid://shopify/Order/7400000000052",
+                    "location": "gid://shopify/Location/7400000000003",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000126",
+                            "line": "gid://shopify/LineItem/7400000000048",
+                            "quantity": 1
+                        },
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000127",
+                            "line": "gid://shopify/LineItem/7400000000049",
+                            "quantity": 1
+                        }
+                    ],
+                    "created": 14141,
+                    "name": "#1002.1",
+                    "tracking": {
+                        "company": "GLS",
+                        "number": "D766TRACK02",
+                        "url": null
+                    }
+                },
+                "gid://shopify/Fulfillment/7400000000131": {
+                    "order": "gid://shopify/Order/7400000000063",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000132",
+                            "line": "gid://shopify/LineItem/7400000000060",
+                            "quantity": 2
+                        }
+                    ],
+                    "created": 14570,
+                    "name": "#1003.1",
+                    "tracking": {
+                        "company": "GLS",
+                        "number": "D766TRACK03",
+                        "url": null
+                    }
+                },
+                "gid://shopify/Fulfillment/7400000000136": {
+                    "order": "gid://shopify/Order/7400000000074",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000137",
+                            "line": "gid://shopify/LineItem/7400000000070",
+                            "quantity": 1
+                        },
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000138",
+                            "line": "gid://shopify/LineItem/7400000000071",
+                            "quantity": 1
+                        }
+                    ],
+                    "created": 15948,
+                    "name": "#1004.1",
+                    "tracking": {
+                        "company": "GLS",
+                        "number": "D766TRACK04",
+                        "url": null
+                    }
+                },
+                "gid://shopify/Fulfillment/7400000000142": {
+                    "order": "gid://shopify/Order/7400000000086",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000143",
+                            "line": "gid://shopify/LineItem/7400000000082",
+                            "quantity": 2
+                        },
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000144",
+                            "line": "gid://shopify/LineItem/7400000000083",
+                            "quantity": 1
+                        }
+                    ],
+                    "created": 17282,
+                    "name": "#1005.1",
+                    "tracking": {
+                        "company": "GLS",
+                        "number": "D766TRACK05",
+                        "url": null
+                    }
+                },
+                "gid://shopify/Fulfillment/7400000000148": {
+                    "order": "gid://shopify/Order/7400000000095",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000149",
+                            "line": "gid://shopify/LineItem/7400000000094",
+                            "quantity": 1
+                        }
+                    ],
+                    "created": 17497,
+                    "name": "#1006.1",
+                    "tracking": {
+                        "company": "GLS",
+                        "number": "D766TRACK06",
+                        "url": null
+                    }
+                },
+                "gid://shopify/Fulfillment/7400000000153": {
+                    "order": "gid://shopify/Order/7400000000102",
+                    "location": "gid://shopify/Location/7400000000002",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/7400000000154",
+                            "line": "gid://shopify/LineItem/7400000000101",
+                            "quantity": 1
+                        }
+                    ],
+                    "created": 18850,
+                    "name": "#1007.1",
+                    "tracking": {
+                        "company": "GLS",
+                        "number": "D766TRACK07",
+                        "url": null
+                    }
+                }
+            },
+            "refunds": {
+                "gid://shopify/Refund/7400000000159": {
+                    "order": "gid://shopify/Order/7400000000041",
+                    "note": "retur",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/RefundLineItem/7400000000158",
+                            "line": "gid://shopify/LineItem/7400000000038",
+                            "quantity": 1,
+                            "restock_type": "RETURN",
+                            "location": "gid://shopify/Location/7400000000002"
+                        }
+                    ],
+                    "created": 20615
+                },
+                "gid://shopify/Refund/7400000000163": {
+                    "order": "gid://shopify/Order/7400000000063",
+                    "note": "retur",
+                    "lines": [
+                        {
+                            "id": "gid://shopify/RefundLineItem/7400000000162",
+                            "line": "gid://shopify/LineItem/7400000000060",
+                            "quantity": 1,
+                            "restock_type": "NO_RESTOCK",
+                            "location": "gid://shopify/Location/7400000000002"
+                        }
+                    ],
+                    "created": 21217
+                }
+            },
+            "metafields": [],
+            "subscriptions": {
+                "gid://shopify/WebhookSubscription/7400000000004": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000004",
+                    "topic": "ORDERS_CREATE",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000005": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000005",
+                    "topic": "ORDERS_PAID",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000006": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000006",
+                    "topic": "ORDERS_UPDATED",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000007": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000007",
+                    "topic": "ORDERS_CANCELLED",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000008": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000008",
+                    "topic": "ORDERS_FULFILLED",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000009": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000009",
+                    "topic": "CUSTOMERS_CREATE",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000010": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000010",
+                    "topic": "CUSTOMERS_UPDATE",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000011": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000011",
+                    "topic": "FULFILLMENTS_CREATE",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000012": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000012",
+                    "topic": "FULFILLMENTS_UPDATE",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                },
+                "gid://shopify/WebhookSubscription/7400000000013": {
+                    "id": "gid://shopify/WebhookSubscription/7400000000013",
+                    "topic": "REFUNDS_CREATE",
+                    "uri": "https://saldi.example/api/shopify/webhook.php?shop=hml",
+                    "created": 1000
+                }
+            },
+            "receipts": [],
+            "idempotent": [],
+            "order_number": 1009
+        }
+    },
+    "outbox": []
+}
