@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-01 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -173,6 +173,8 @@
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
 // 20261101 CL/SS SD-792 create_debtor throws DebtorNumberTakenException for a taken number; the alert it showed is shown here (core edit 8).
+// 20261103 CL/SZ SD-753 The Lager field on an open order is as wide as the longest lager name, so the name shows in full.
+//                On a closed order the Lager cell has padding, so the name no longer runs into the description.
 
 @session_start();
 $s_id = session_id();
@@ -461,6 +463,8 @@ while ($r = db_fetch_array($q)) {
 	$l++;
 }
 $lagerantal = $l;
+$lagerBredde = 4; # 20261103 CL/SZ SD-753 width of the Lager field in ch, from the longest lager name
+foreach ($lagernavn ?? array() as $navn) $lagerBredde = max($lagerBredde, mb_strlen((string)$navn) + 2);
 
 if (empty($sag_id)) { #20210715
 	$id = if_isset($_GET['id']);
@@ -3408,7 +3412,7 @@ function ordreside($id, $regnskab)
 	global $genfakt, $gls_ctId, $gls_user, $gls_pass, $gls_id;
 	global $hurtigfakt;
 	global $incl_moms;
-	global $lagerantal, $lagernavn, $lagernr, $localPrint;
+	global $lagerantal, $lagerBredde, $lagernavn, $lagernr, $localPrint;
 	global $oio, $oioubl, $omkunde, $ordresum;
 	global $popup, $isPopupRequest, $procentfakt, $procenttillag, $procentvare;
 	global $regnaar, $returside, $rvid, $rvnr;
@@ -4533,7 +4537,7 @@ function ordreside($id, $regnskab)
 						break;
 					}
 				}
-				print "<td align='right'>$lagerDisplay<br></td>\n";
+				print "<td align='right' style='padding:0 6px'>$lagerDisplay<br></td>\n";
 			}
 			print "<input type='hidden' name='beskrivelse$x' ";
 			if (strpos($beskrivelse[$x], '"')) print "value='$beskrivelse[$x]'>";
@@ -6256,7 +6260,7 @@ function ordreside($id, $regnskab)
 				if ($lagerantal > 1) {
 					print "<td valign = 'top'>";
 					print "<input type=\"hidden\" name=\"lager[0]\" value=\"$lager[0]\">";
-					print "<input class = 'inputbox' type = 'text' style=\"text-align:right;width:35px\" name=\"lagr0\" placeholder=\"$lager[0]\"></td>\n";
+					print "<input class = 'inputbox' type = 'text' style=\"text-align:right;min-width:35px;width:{$lagerBredde}ch\" name=\"lagr0\" placeholder=\"$lager[0]\"></td>\n";
 				}
 				print "<td valign = 'top'><textarea class=\"autosize inputbox ordreText comment\" id=\"comment\" rows=\"1\" cols=\"58\" name=\"beskrivelse0\" placeholder=\"" . $beskrivelse[0] . "\" onfocus=\"document.forms[0].fokus.value=this.name; var val=this.value; this.value=''; this.value= val;\"></textarea></td>\n"; #2013.11.27 Ændret til textarea, så hele texten vises #2013.11.29 indsat ny onfocus da chrome ikke satte curser efter tekst
 				print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right\" size=\"10\" name=\"pris0\" placeholder=\"" . formatOrderUnitPrice($pris[0]) . "\"></td>\n";
@@ -6819,7 +6823,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	global $fokus, $flgv;
 	global $hurtigfakt;
 	global $incl_moms, $id;
-	global $lagerantal, $lagernavn, $lagernr;
+	global $lagerantal, $lagerBredde, $lagernavn, $lagernr;
 	global $momssats;
 	global $ny_pos;
 	global $omkunde;
@@ -7007,7 +7011,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			// Only allow editing on hovedvaren (samlevare='on') or items not in a samlesæt
 			$is_underliggende_vare = ($saet && $samlevare != 'on');
 			$lagerDisabled = ($art == 'OT' || ($rvnr && $rabat) || $is_underliggende_vare) ? 'disabled' : NULL;
-			print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:35px\" name=\"lagr$x\" value=\"$lager\" onchange=\"javascript:docChange = true;\" $lagerDisabled></td>\n";
+			print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;min-width:35px;width:{$lagerBredde}ch\" name=\"lagr$x\" value=\"$lager\" onchange=\"javascript:docChange = true;\" $lagerDisabled></td>\n";
 		}
 		$title = var2str($beskrivelse, $id, $posnr, $varenr, $dkantal, $enhed, $dkpris, $dkprocent, $serienr, $varemomssats, $dkrabat);
 		//print "<td valign = 'top' title=\"$title\"><input class = 'inputbox' type = 'text' $readonly size=\"58\" name=\"beskrivelse$x\" value=\"$beskrivelse\" onchange=\"javascript:docChange = true;\"></td>\n";
