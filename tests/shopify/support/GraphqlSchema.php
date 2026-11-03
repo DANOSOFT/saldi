@@ -9,6 +9,7 @@
 //
 // History:
 // 20261021 CL/SZ created (SD-747).
+// 20261102 CL/LH SD-766: tokenize() is public; fieldSpec(), kind() and roots() read the schema for FakeShopifyStore.
 
 final class GraphqlSchema
 {
@@ -300,8 +301,33 @@ final class GraphqlSchema
 		return $this->tokens[$this->pos++][1] ?? null;
 	}
 
+	/**
+	 * A field of an object, interface or input type: array{type: string, args: array, deprecated: bool}
+	 * for output fields, array{type: string} for input fields; null when the type has no such field.
+	 */
+	public function fieldSpec(string $type, string $name): ?array
+	{
+		$t = $this->types[$type] ?? null;
+		if (isset($t['fields'][$name])) {
+			return $t['fields'][$name];
+		}
+		return isset($t['inputFields'][$name]) ? ['type' => $t['inputFields'][$name]] : null;
+	}
+
+	/** The kind of a named type (OBJECT, INTERFACE, UNION, ENUM, INPUT_OBJECT, SCALAR), null when unknown. */
+	public function kind(string $type): ?string
+	{
+		return $this->types[$type]['kind'] ?? null;
+	}
+
+	/** @return array{query: string, mutation: string} the root type names */
+	public function roots(): array
+	{
+		return ['query' => $this->queryRoot, 'mutation' => $this->mutationRoot];
+	}
+
 	/** @return list<array{0: string, 1: string}> kind and text; commas, whitespace and comments dropped. */
-	private static function tokenize(string $doc): array
+	public static function tokenize(string $doc): array
 	{
 		preg_match_all('/"""(?:[^"\\\\]|\\\\.|"(?!""))*"""|"(?:[^"\\\\]|\\\\.)*"|\.\.\.|[!$():=@\[\]{}|]|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[_A-Za-z][_0-9A-Za-z]*|#[^\n]*|[\s,]+|./s', $doc, $m);
 		$tokens = [];
