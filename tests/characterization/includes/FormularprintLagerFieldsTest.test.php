@@ -5,8 +5,10 @@
 // includes/formfunk.php formularprint() (SD-754, WP11-4).
 //
 // - The line fields lager and lagernavn print the lager a line is drawn from (K17).
-// - A legacy order prints one row per posnr and varenr, as before; a Shopify web order (ref
-//   'shopify') prints every row, so a line drawn from two lagre prints both.
+// - A legacy order prints one row per posnr and varenr, as before; a Shopify web order (a web row
+//   in shopify_order_links) and its credit note print every row, so a line drawn from two lagre
+//   prints both, whatever the order's "Vor ref." says.
+// - With an LG row per accounting year, the lager name is the current year's.
 // - The K54 layout recipe of doc/shopify/layouts-pos50.md: a web order's invoice and credit note
 //   show the Shopify order name and the invoice / credit-note number, a store order's invoice shows
 //   the invoice number only, and neither shows Saldi's order number.
@@ -15,6 +17,7 @@
 //
 // History:
 // 20261103 CL/SZ SD-754: created.
+// 20261103 CL/SZ SD-754: The web order is marked by shopify_order_links, not by ref. Older LG rows per year.
 
 use PHPUnit\Framework\TestCase;
 
@@ -48,7 +51,19 @@ final class FormularprintLagerFieldsTest extends TestCase
         );
         self::$debtorId = (int)$debtor['id'];
         CharacterizationEnv::rows(self::$tenant, "DELETE FROM grupper WHERE art = 'LG'");
-        CharacterizationEnv::rows(self::$tenant, "INSERT INTO grupper (beskrivelse, art, kodenr) VALUES ('Hovedlager', 'LG', 3), ('Butik Aarhus', 'LG', 7)");
+        // lager 3 also has another accounting year's row with another name, read last, as on a tenant from
+        // before SST-829; the current year's (1) name prints
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "INSERT INTO grupper (beskrivelse, art, kodenr, fiscal_year) VALUES ('Hovedlager', 'LG', 3, 1), ('Butik Aarhus', 'LG', 7, 1),
+                                                                                 ('Gammelt lager', 'LG', 3, 2)"
+        );
+        // the intake's order links, as includes/shopify/schema.php makes them (only the columns used here)
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "CREATE TABLE IF NOT EXISTS shopify_order_links (id serial NOT NULL, shop_id integer NOT NULL, order_gid text,
+                                                             ordre_id integer, direction text NOT NULL, PRIMARY KEY (id))"
+        );
         // The invoice layout gets the two line fields; the K54 brand is the Dansk invoice and credit note with the recipe applied.
         CharacterizationEnv::rows(
             self::$tenant,
@@ -92,11 +107,12 @@ final class FormularprintLagerFieldsTest extends TestCase
 
     /**
      * A posted invoice (DO) or credit note (DK). Every line is [posnr, varenr, lager]; each is 1 x 100.00 at 25% VAT.
+     * A web order is linked in shopify_order_links; its credit note is linked only through kred_ord_id.
      *
      * @param list<array{0: int, 1: string, 2: int}> $lines
      * @return array{id: int, fakturanr: string, ordrenr: string}
      */
-    private function postedDocument(array $lines, string $ref = '', string $kundeordnr = '', string $sprog = 'Dansk', string $art = 'DO', ?int $credits = null): array
+    private function postedDocument(array $lines, string $ref = '', string $kundeordnr = '', string $sprog = 'Dansk', string $art = 'DO', ?int $credits = null, bool $web = false): array
     {
         $nr = ++self::$next;
         $ordrenr = 50000 + $nr; // never the same as the invoice number, so the print shows which one it printed
@@ -111,6 +127,13 @@ final class FormularprintLagerFieldsTest extends TestCase
              RETURNING id",
             [$art, $ordrenr, (string)$nr, $sign * 100 * count($lines), $sign * 25 * count($lines), self::$debtorId, $sprog, $ref, $kundeordnr, $credits]
         );
+        if ($web) {
+            CharacterizationEnv::rows(
+                self::$tenant,
+                "INSERT INTO shopify_order_links (shop_id, order_gid, ordre_id, direction) VALUES (1, $1, $2, 'web')",
+                ["gid://shopify/Order/$nr", (int)$order['id']]
+            );
+        }
         foreach ($lines as [$posnr, $varenr, $lager]) {
             CharacterizationEnv::rows(
                 self::$tenant,
@@ -134,8 +157,9 @@ final class FormularprintLagerFieldsTest extends TestCase
         $this->assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
         $this->assertSame('OK', $json['returned']);
         $prefix = $formular === 5 ? 'kn' : 'fakt';
-        $this->assertArrayHasKey("$prefix{$doc['fakturanr']}.ps", $json['print_files']);
-        return $json['print_files']["$prefix{$doc['fakturanr']}.ps"];
+        $file = $prefix . $doc['fakturanr'] . '.ps';
+        $this->assertArrayHasKey($file, $json['print_files']);
+        return $json['print_files'][$file];
     }
 
     public function testTheLagerFieldsPrintTheLagerEachLineIsDrawnFrom(): void
@@ -147,6 +171,7 @@ final class FormularprintLagerFieldsTest extends TestCase
         foreach (['(Havestol A1)', '(Hovedlager)', '(Havestol B2)', '(Butik Aarhus)', '(3)', '(7)'] as $text) {
             $this->assertStringContainsString($text, $ps);
         }
+        $this->assertStringNotContainsString('(Gammelt lager)', $ps);
     }
 
     public function testALegacyOrderPrintsOneRowPerPosnrAndVarenrAsBefore(): void
@@ -162,7 +187,8 @@ final class FormularprintLagerFieldsTest extends TestCase
 
     public function testAShopifyWebOrderPrintsBothRowsOfALineDrawnFromTwoLagre(): void
     {
-        $doc = $this->postedDocument([[1, 'A1', 3], [1, 'A1', 7]], 'shopify', 'HML1234');
+        // reassigned to a salesperson in "Vor ref.": still a web order
+        $doc = $this->postedDocument([[1, 'A1', 3], [1, 'A1', 7]], 'Anna Sælger', 'HML1234', 'Dansk', 'DO', null, true);
 
         $ps = $this->printed($doc);
 
@@ -171,9 +197,28 @@ final class FormularprintLagerFieldsTest extends TestCase
         $this->assertStringContainsString('(Butik Aarhus)', $ps);
     }
 
+    public function testAShopifyWebOrderCreditNotePrintsBothRowsOfALineDrawnFromTwoLagre(): void
+    {
+        $invoice = $this->postedDocument([[1, 'A1', 3], [1, 'A1', 7]], '', 'HML1236', 'Dansk', 'DO', null, true);
+        $credit = $this->postedDocument([[1, 'A1', 3], [1, 'A1', 7]], '', 'HML1236', 'Dansk', 'DK', $invoice['id']);
+
+        $ps = $this->printed($credit, 5);
+
+        $this->assertSame(2, substr_count($ps, '(Havestol A1)'));
+    }
+
+    public function testRefShopifyAloneIsNoWebOrder(): void
+    {
+        $doc = $this->postedDocument([[1, 'A1', 3], [1, 'A1', 7]], 'shopify', 'HML1237');
+
+        $ps = $this->printed($doc);
+
+        $this->assertSame(1, substr_count($ps, '(Havestol A1)'));
+    }
+
     public function testK54AWebOrderInvoiceShowsTheShopifyOrderNameAndTheInvoiceNumberNotTheOrderNumber(): void
     {
-        $doc = $this->postedDocument([[1, 'A1', 3]], 'shopify', 'HML1234', self::BRAND);
+        $doc = $this->postedDocument([[1, 'A1', 3]], '', 'HML1234', self::BRAND, 'DO', null, true);
 
         $ps = $this->printed($doc);
 
@@ -185,8 +230,8 @@ final class FormularprintLagerFieldsTest extends TestCase
 
     public function testK54AWebOrderCreditNoteShowsTheShopifyOrderNameAndTheCreditNoteNumberNotTheOrderNumber(): void
     {
-        $invoice = $this->postedDocument([[1, 'A1', 3]], 'shopify', 'HML1235', self::BRAND);
-        $credit = $this->postedDocument([[1, 'A1', 3]], 'shopify', 'HML1235', self::BRAND, 'DK', $invoice['id']);
+        $invoice = $this->postedDocument([[1, 'A1', 3]], '', 'HML1235', self::BRAND, 'DO', null, true);
+        $credit = $this->postedDocument([[1, 'A1', 3]], '', 'HML1235', self::BRAND, 'DK', $invoice['id']);
 
         $ps = $this->printed($credit, 5);
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- patch 5.1.0 --- 2026-11-03 ---
+// --- systemdata/formularkort --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,7 @@
 //                          different capitalisation no longer creates a duplicate sprogrække.
 // 20261103 CL/SZ SD-754 The order-line fields Lager and Lagernavn: the lager a line is drawn from, as number and name.
 //                A new language (VSPR copy) moves the formularer id sequence past the copied rows, so the next new row no longer fails.
+//                The Lager option uses the keyed text formular.line.lager, so its English text matches Lagernavn's.
 @session_start();
 $s_id=session_id();
 
@@ -703,9 +704,15 @@ if ($tmp!=$nyt_sprog) {
 				}
 				// 20261103 CL/SZ SD-754 The rows above have explicit ids, so on PostgreSQL the id sequence moves past them;
 				// otherwise the next new formularer row fails on a duplicate key. MySQL's AUTO_INCREMENT follows by itself.
+				// Never moved back (another session may hold a higher id), and found from the column default
+				// when the sequence isn't owned by the column.
 				global $db_type;
 				if (strtolower((string)$db_type) != 'mysql' && strtolower((string)$db_type) != 'mysqli') {
-					db_select("select setval(pg_get_serial_sequence('formularer', 'id'), (select max(id) from formularer))", __FILE__ . " linje " . __LINE__);
+					$qtxt = "select setval(s.seq::regclass, greatest(coalesce(pg_sequence_last_value(s.seq::regclass), 1), (select coalesce(max(id), 1) from formularer))) ";
+					$qtxt.= "from (select coalesce(pg_get_serial_sequence('formularer', 'id'), substring(column_default from 'nextval[(]''([^'']+)''')) as seq ";
+					$qtxt.= "from information_schema.columns where table_schema = current_schema() and table_name = 'formularer' and column_name = 'id') s ";
+					$qtxt.= "where s.seq is not null";
+					db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 			}
 
@@ -1000,7 +1007,7 @@ $x=0;
 		print "<option>procent</option>\n"; #20140709
 		print "<option value = 'lokation'>".findtekst('2045|Lokation', $sprog_id)."</option>\n";
 		print "<option value = 'trademark'>trademark</option>\n";
-		print "<option value = 'lager'>".findtekst('608|Lager', $sprog_id)."</option>\n";
+		print "<option value = 'lager'>".findtekst('formular.line.lager|Lager', $sprog_id)."</option>\n";
 		print "<option value = 'lagernavn'>".findtekst('formular.line.lagernavn|Lagernavn', $sprog_id)."</option>\n";
 		if ($form_nr==3) {
 			print "<option>lev_tidl_lev</option>\n";

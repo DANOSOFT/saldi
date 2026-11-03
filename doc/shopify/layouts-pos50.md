@@ -14,6 +14,16 @@ Try them on a `saldi_shopify_test_*` copy first.
 Keep both files until HML has accepted the documents. To restore: `DELETE FROM formularer`, then
 load the dump with `psql`, and delete any `VSPR` row that is not in the CSV.
 
+A language copied before SD-754 (Bg.Navn → new language from a template) left the `formularer`
+id sequence behind the copied rows, so adding a field then fails with "Uforudset hændelse"
+(duplicate key). Move the sequence on once before the steps below. It never moves it back, so it
+is safe to run again:
+
+    psql -h localhost -U <user> pos_50 -c "SELECT setval(s.seq::regclass, greatest(coalesce(pg_sequence_last_value(s.seq::regclass), 1), (SELECT coalesce(max(id), 1) FROM formularer))) FROM (SELECT coalesce(pg_get_serial_sequence('formularer', 'id'), substring(column_default from 'nextval[(]''([^'']+)''')) AS seq FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'formularer' AND column_name = 'id') s"
+
+It prints one number, the sequence's new value. No row means the sequence wasn't found: ask before
+adding fields.
+
 ## 2. One layout per brand (K36b)
 
 Each shop's brand is a layout language (Indstillinger → Formularer → Sprog). Its name must be
@@ -78,6 +88,7 @@ confirmation, shipping mail) are Shopify's mails, made by DTAILS.
 Formularer → Ordrelinjer, for the invoice (4), credit note (5) and packing slip (3) of every
 brand: add the line field **Lagernavn** (the lager's name) or **Lager** (its number), at an x
 position where the description leaves room. Each line prints the lager it is drawn from. On a
-Shopify web order (`ref` = `shopify`), a line drawn from two lagre is two order lines and prints as
-two rows, one per lager. Other orders still print one row per position and item number, as before.
+Shopify web order (one the intake linked with a `web` row in `shopify_order_links`, and its credit
+note), a line drawn from two lagre is two order lines and prints as two rows, one per lager. Other
+orders still print one row per position and item number, as before.
 Lager is shown on Saldi's documents only. Shopify has no line field for it (K17, v0.2).
