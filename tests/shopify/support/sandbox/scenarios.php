@@ -110,6 +110,12 @@ function shopify_sandbox_k05_tenant(array $ctx): array
 		return shopify_sandbox_result('SKIP', 'SALDI_SHOPIFY_PGUSER/PGPASS are not set: the tenant\'s shops are not read', null, null, 'tenant');
 	}
 	try {
+		$master = ShopifyEnv::connect(ShopifyEnv::masterDb());
+		$exists = ShopifyEnv::one($master, 'SELECT 1 AS x FROM pg_database WHERE datname = $1', [$ctx['tenant']]) !== null;
+		pg_close($master);
+		if (!$exists) {
+			return shopify_sandbox_result('SKIP', "no database {$ctx['tenant']} on " . ShopifyEnv::pgHost() . ': run K05 on the server that hosts the sandbox tenant', null, null, 'tenant');
+		}
 		$conn = ShopifyEnv::connect($ctx['tenant']);
 		$domains = array_column(ShopifyEnv::rows($conn, 'SELECT domain FROM shopify_shops ORDER BY domain'), 'domain');
 		pg_close($conn);
