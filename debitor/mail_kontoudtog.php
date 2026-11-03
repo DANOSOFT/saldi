@@ -237,6 +237,10 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$primoprint=0;
 	if (!$fromdate[$x]) { #20150305-1
 		$y=0;
+		// Both arrays are filled by the loop below; a query that matches nothing - every post
+		// settled with the open view selected - left them unset and count() threw on PHP 8.2.
+		$td=array();
+		$am=array();
 		$qtxt="select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'";
 		if ($kilde == 'openpost') {
 			$qtxt .= " and (udlignet != '1' or udlignet is null)";
@@ -251,6 +255,12 @@ for($x=1; $x<=$kontoantal; $x++) {
 		for ($y=0;$y<count($td);$y++) {
 			if (!$y) $fromdate[$x]=$td[$y];
 			if ($am[$y]==0 && $y<count($td)-1) $fromdate[$x]=$td[$y+1];
+			$fra[$x]=dkdato($fromdate[$x]);
+		}
+		// No open post means no date to derive from. Fall back to the end of the period, so the
+		// start date below is not built from an empty value.
+		if (!$td && $todate[$x]) {
+			$fromdate[$x]=$todate[$x];
 			$fra[$x]=dkdato($fromdate[$x]);
 		}
 	}
