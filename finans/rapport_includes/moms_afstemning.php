@@ -33,7 +33,7 @@
 //                 side som NULL; NULL-aritmetik gav NULL (vist som 0) i SUM.
 // 20260729 NTR - Reported by CodeRabbit - moved summery of over tolerance above table instead of in the table's body.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-//                  moms_afstemning() has braces on its one-line if/else bodies and includes its files via __DIR__ (no behaviour change).
+//                 moms_afstemning() has braces on its one-line if/else bodies and includes its files via __DIR__ (no behaviour change).
 
 function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                          $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

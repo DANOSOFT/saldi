@@ -40,7 +40,7 @@
 //                  GET-link til forside.
 // 20260813 LOE Corrected wrong text and link that should have valg as debitor. 
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-//                  moms_rubrik() includes its files via __DIR__ (no behaviour change).
+//                 moms_rubrik() includes its files via __DIR__ (no behaviour change).
 
 function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                      $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

@@ -72,7 +72,7 @@
 // 20261030 CDX/NTR Count screen rows first and retain only the account being rendered, including Alle.
 //                  Preserve print mode's complete row list for normal and unposted reports.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-//                  kontokort() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
+//                 kontokort() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

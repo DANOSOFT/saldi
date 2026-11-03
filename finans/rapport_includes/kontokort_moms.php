@@ -42,7 +42,7 @@
 // 20260918 CDX/PHR Print all VAT ledger rows and totals while paginating only the screen view.
 // 20261030 CL/LAH Show all lines by default, like kontokort: per_page 0 means "Alle" and is the default.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-//                  kontokort_moms() includes its files via __DIR__ (no behaviour change).
+//                 kontokort_moms() includes its files via __DIR__ (no behaviour change).
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 0) {
 	print <<<'HTML'

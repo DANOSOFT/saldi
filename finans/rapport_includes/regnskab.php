@@ -40,7 +40,7 @@
 //                 the summed amount, and lastYear sum uses $lastYearYear instead of
 //                 indexing the integer $lastYear.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-//                  regnskab() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
+//                 regnskab() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
 
 function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";

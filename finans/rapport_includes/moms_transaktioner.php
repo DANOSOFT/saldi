@@ -29,7 +29,7 @@
 // 20260722 MJ  COALESCE(debet,0)/COALESCE(kredit,0) i beloeb: NULL-aritmetik
 //                 gav NULL (vist som 0) for rene debet- eller kreditposteringer.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-//                  moms_transaktioner() has braces on its one-line if/else bodies, includes its files via __DIR__ and reads filter_momskode with ifset() (no behaviour change).
+//                 moms_transaktioner() has braces on its one-line if/else bodies, includes its files via __DIR__ and reads filter_momskode with ifset() (no behaviour change).
 
 function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                              $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

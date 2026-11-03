@@ -42,7 +42,7 @@
 // 20260729 NTR - Reported by CodeRabbit - topline-settings should be before print not after.
 //              - Reported by CodeRabbit - transactions that's not a varer nor a service doesn't add up to total as neither beloab_varer nor beloab_ydelser gets assigned, now beloab_andet takes the unknown transactions, for future use.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-//                  moms_oss() includes its files via __DIR__ (no behaviour change).
+//                 moms_oss() includes its files via __DIR__ (no behaviour change).
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

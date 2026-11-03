@@ -11,7 +11,7 @@
 // 20260814 Sawaneh Include booked orders (status 4) so the report is not
 //                  empty once invoices are booked.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-//                  emballage() includes its files via __DIR__ (no behaviour change).
+//                 emballage() includes its files via __DIR__ (no behaviour change).
 
 function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
