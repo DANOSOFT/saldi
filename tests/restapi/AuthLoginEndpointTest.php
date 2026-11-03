@@ -12,6 +12,7 @@
 // 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
 // 20260928 CL/NTR Account names come from RestApiEnv::accountOpen()/accountClosed()
 //                 (per-process suffix) instead of the removed constants.
+// 20261103 CDX/NTR Unknown login accounts return 401 with the account error instead of a route-like 404.
 
 use PHPUnit\Framework\TestCase;
 
@@ -64,12 +65,14 @@ final class AuthLoginEndpointTest extends TestCase
         $this->assertFalse($res['json']['success']);
     }
 
-    public function test_login_against_unknown_account_is_rejected_404(): void
+    public function test_login_against_unknown_account_is_rejected_401(): void
     {
         $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), 'no-such-account');
 
-        $this->assertSame(404, $res['status'], $res['body']);
+        $this->assertSame(401, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
+        $this->assertSame('Account not found', $res['json']['message']);
+        $this->assertNull($res['json']['data']);
     }
 
     public function test_login_against_closed_account_is_rejected_403(): void

@@ -12,7 +12,7 @@ docker-compose stack.
   wrong secret, expiry, malformed). Runs everywhere. Always sets an explicit
   secret, so it holds before and after the SD-587 deterministic-secret fix.
 - `AuthLoginEndpointTest` — `POST /auth/login.php`: success shape (tokens,
-  tenant), wrong password/unknown user → 401, unknown account → 404,
+  tenant), wrong password/unknown user/unknown account → 401,
   **closed account → 403**, missing fields → 400.
 - `OrdersEndpointTest` — `debitor/orders/`: 401 without/with garbage token,
   authorized list, create → read-back (+ debtor auto-provisioned in the

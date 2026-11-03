@@ -1,4 +1,6 @@
 <?php
+// 20261103 CDX/NTR Return 401 for an unknown login account so it is distinct from a missing endpoint.
+
 /**
  * POST /auth/login.php
  * OAuth2/JWT Login endpoint
@@ -86,7 +88,7 @@ class AuthLoginEndpoint extends BaseEndpoint
         $tenant_result = db_fetch_array(db_select($tenant_query, __FILE__ . " linje " . __LINE__));
         
         if (!$tenant_result) {
-            $this->sendResponse(false, null, 'Account not found', 404);
+            $this->sendResponse(false, null, 'Account not found', 401);
             return;
         }
         
