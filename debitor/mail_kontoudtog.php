@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_kontoudtog.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- debitor/mail_kontoudtog.php --- patch 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2008-2026 Danosoft.ApS
+// Copyright (c) 2008-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20120906 break ændret til break 1
 // 20121004 Gmail afviser mails hvor 'from' ikke er *.saldi.dk søg 20121029
@@ -47,6 +47,8 @@
 // 20260819 Sawaneh Show a confirmation per sent mail instead of a blank page when
 //                  sending account statements with 'Send mail(s)'.
 // 20260908 CDX/LH Initialize statement date before sending, compare ISO dates and close spans.
+// 20261103 LOE SST-908 kilde=openpost limits the statement to the open posts, and the
+//                saldo then covers those posts only.
 
 @session_start();
 $s_id=session_id();
@@ -85,12 +87,14 @@ if (isset($_POST['retur']) && $_POST['retur']) {
 	$email=$_POST['email'];
 	$fra=$_POST['fra'];
 	$til=$_POST['til'];
+	$kilde=if_isset($_POST['kilde']);
 }
 else {
 	$kontoliste=if_isset($_GET['kontoliste']);
 	$kontoantal=if_isset($_GET['kontoantal']);
 	$dato_fra=if_isset($_GET['dato_fra']);
 	$dato_til=if_isset($_GET['dato_til']);
+	$kilde=if_isset($_GET['kilde']);
 	#	$dato_til=$_GET['dato_til'];
 	for($x=1;$x<=$kontoantal;$x++) { #20150505
 		($dato_fra)?$fra[$x]=dkdato(usdate($dato_fra)):$fra[$x]=NULL;
@@ -99,7 +103,7 @@ else {
 }
 
 if ($send_mails) {
-	$sent_emails = send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	$sent_emails = send_htmlmails($kontoantal, $konto_id, $email, $fra, $til, $kilde);
 	print "<div style=\"text-align: center;\"><br>";
 	if ($sent_emails) {
 		$senttxt = findtekst('3370|Mail sendt til', $sprog_id);
@@ -233,7 +237,11 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$primoprint=0;
 	if (!$fromdate[$x]) { #20150305-1
 		$y=0;
-		$qtxt="select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]' order by transdate, faktnr";
+		$qtxt="select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'";
+		if ($kilde == 'openpost') {
+			$qtxt .= " and udlignet != '1'";
+		}
+		$qtxt .= " order by transdate, faktnr";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$td[$y]=$r['transdate'];
@@ -254,7 +262,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 		$qtxt="update adresser set email='$email[$x]' where id='$accountId[$x]'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
-	$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]' order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'" . ($kilde == 'openpost' ? " and udlignet != '1'" : "") . " order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($query)) {
 		$amount=afrund($r['amount'],2);
 		$forfaldsdag=NULL;
@@ -342,6 +350,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 	print "<input type = hidden name=konto_id[$x] value=$konto_id[$x]>";
 }
 print "<input type = hidden name=kontoantal value=$kontoantal>";
+print "<input type = hidden name=kilde value='" . htmlspecialchars((string)$kilde, ENT_QUOTES) . "'>";
 print "<input type = hidden name=dato_fra value=$dato_fra>";
 print "<input type = hidden name=dato_til value=$dato_til>";
 #print "<input type = hidden name=regnaar value=$regnaar>";
@@ -369,7 +378,7 @@ $spantxt=findtekst(1801, $sprog_id);
 print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Retur\" name=\"retur\"></td></span>";
 print "</form>\n";
 
-function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
+function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til, $kilde = NULL) {
 
 	global $bgcolor,$bgcolor5,$brugernavn;
 	global $charset,$currentdate;
@@ -433,7 +442,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			$kontosum=0;
 			$primo=0;
 			$primoprint=0;
-			$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]' order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'" . ($kilde == 'openpost' ? " and udlignet != '1'" : "") . " order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($query)) {
 				$amount=afrund($r['amount'],2);
 				$valuta=$r['valuta'];

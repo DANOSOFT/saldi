@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -89,6 +89,8 @@
 // 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
 // 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
 //                holds the last printed order by then.
+// 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
+//                primitive balance and running balance then cover those posts only.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -2911,6 +2913,12 @@ if (!function_exists('kontoprint')) {
 		global $s_id;
 		global $pdftk,$ps2pdf,$weasyprint;
 
+		$kilde = ifset($_GET, 'kilde', NULL);
+		if (!$kilde) {
+			$kilde = ifset($_POST, 'kilde', NULL);
+		}
+		$openPostOnly = ($kilde == 'openpost');
+
 		$dkkforfalden = $nomailantal = $mailantal = 0;
 		$mailsprog = 'Dansk';
 		($dato_fra) ? $dato_fra = usdate($dato_fra) : $dato_fra = "1970-01-01";
@@ -3060,7 +3068,11 @@ if (!function_exists('kontoprint')) {
 					}
 					if ($dato_fra > '1970-01-01') {
 						$saldo = 0;
-						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra' order by transdate";
+						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra'";
+						if ($openPostOnly) {
+							$qtxt .= " and udlignet != '1'";
+						}
+						$qtxt .= " order by transdate";
 						$q1 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 						while ($r1 = db_fetch_array($q1)) {
 							if ($kontovaluta == $r1['valuta'])
@@ -3105,7 +3117,11 @@ if (!function_exists('kontoprint')) {
 						$dksaldo = "0,00";
 					}
 					$y = $y - 4;
-					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til' order by transdate,id";
+					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til'";
+					if ($openPostOnly) {
+						$qxt .= " and udlignet != '1'";
+					}
+					$qxt .= " order by transdate,id";
 					$q1 = db_select("$qxt", __FILE__ . " linje " . __LINE__);
 					while ($r1 = db_fetch_array($q1)) {
 
