@@ -18,6 +18,7 @@
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 	
 	$vis=if_isset($_GET['vis']);
 	$sort=if_isset($_GET['sort']);
@@ -204,18 +205,21 @@
 				}
 				
 				
-				$itemopg .= "{ opg_id: \"$opg_id[$z]\", $name_sag_nr title: \"".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$z]\\n".findtekst('138|Navn', $sprog_id).":\t\t$opg_beskrivelse[$z]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$z]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$z]\\n".findtekst('494|Status', $sprog_id).":\t\t$opg_status[$z]$n\\n\\n".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"},";
+				$itemopg .= "{ opg_id: \"$opg_id[$z]\", $name_sag_nr title: \"".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$z]\\n".findtekst('138|Navn', $sprog_id).":\t\t$opg_beskrivelse[$z]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$z]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$z]\\n".findtekst('494|Status', $sprog_id).":\t\t".sag_status_txt($opg_status[$z])."$n\\n\\n".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"},";
 				
 				$ny_sag_nr = $sag_nr;
 			}
 		
 		$allitems = "$itemopg";// $itemsag,
 		//echo "$allitems";
-		$items .= "{ name: \"<a href='sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id' title='".findtekst('2792|Sag', $sprog_id).":\t\t$sag_nr\\n".findtekst('35|Kunde', $sprog_id).":\t\t$sag_firmanavn\\n".findtekst('3217|Udf. adr.', $sprog_id).":\t$udf_addr1, $udf_postnr $udf_bynavn\\n".findtekst('2793|Ansvarlig', $sprog_id).":\t$sag_ansvarlig\\n".findtekst('494|Status', $sprog_id).":\t\t$status'>$udf_addr1<\/a>\", series: [$allitems]},";
+		$items .= "{ name: \"<a href='sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id' title='".findtekst('2792|Sag', $sprog_id).":\t\t$sag_nr\\n".findtekst('35|Kunde', $sprog_id).":\t\t$sag_firmanavn\\n".findtekst('3217|Udf. adr.', $sprog_id).":\t$udf_addr1, $udf_postnr $udf_bynavn\\n".findtekst('2793|Ansvarlig', $sprog_id).":\t$sag_ansvarlig\\n".findtekst('494|Status', $sprog_id).":\t\t".sag_status_txt($status)."'>$udf_addr1<\/a>\", series: [$allitems]},";
 	
 		
 	}
 	$ganttdata = "[".rtrim($items, ",")."]";
+	// Month names and the word after the number of days in the Gantt chart, in the user's language
+	$ganttMonthNames = json_encode(array_map('trim', explode(',', findtekst('8414|jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec', $sprog_id))), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	$ganttDaysText = json_encode(findtekst('5025|dage', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 	
 	
 	//echo "Today's date $dagsdato<br>";
@@ -277,7 +281,7 @@
 	<script type="text/javascript" src="../javascript/jquery-1.4.2.js"></script>
 	<script type="text/javascript" src="../javascript/date-da-DK.js"></script>
 	<script type="text/javascript" src="../javascript/jquery-ui-1.8.4.js"></script>
-	<script type="text/javascript" src="../javascript/jquery.ganttView.js"></script>
+	<script type="text/javascript" src="../javascript/jquery.ganttView.js?v=20261103"></script>
 	<script type="text/javascript" src="../javascript/jquery.scrollTo.js"></script>
 	<script type="text/javascript" src="../javascript/dragscrollable.js"></script>
 	<script type="text/javascript">
@@ -285,6 +289,8 @@
 			var ganttData = <?php echo $ganttdata; ?>;
 			$("#ganttChart").ganttView({ 
 				data: ganttData,
+				monthNames: <?php echo $ganttMonthNames; ?>,
+				daysText: <?php echo $ganttDaysText; ?>,
 				slideWidth: 1550,
 				groupBySeries: true,
 				groupById: false,

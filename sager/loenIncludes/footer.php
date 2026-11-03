@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/footer.php --- lap 4.0.8 --- 2025-08-12 ---
+// --- sager/loenIncludes/footer.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20231005 PHR php8
 // 20250812 PHR Some variables set to 0 if empty  ($aa[$c], $a50[$c], $a100[$c]$as1[$c] & $as2[$c])
+// 20261103 CL/MMR SD-799 Wage slips without a project show their wage type in the user's language instead of the internal key.
 
 
 function fod_log($string)
@@ -213,6 +214,21 @@ function fod_indsaml_data($periode) {
 	global $overtid_100pct;
 	global $sprog_id;
 
+	// Wage types are stored as keys (sygdom, timer, ...); slips without a project show them with the wage slip's texts.
+	$artTekst = array(
+		'aconto'   => findtekst('2998|Aconto', $sprog_id),
+		'akktimer' => findtekst('2809|Dyrtid', $sprog_id),
+		'akk_afr'  => findtekst('2810|Akkordafregning', $sprog_id),
+		'akkord'   => findtekst('2811|Akkord med dyrtid', $sprog_id),
+		'timer'    => findtekst('2802|Timeløn', $sprog_id),
+		'kontor'   => findtekst('2999|Kontorarbejde', $sprog_id),
+		'plads'    => findtekst('2804|Pladsarbejde', $sprog_id),
+		'skole'    => findtekst('2805|Skoleophold', $sprog_id),
+		'sygdom'   => findtekst('2806|Sygdom', $sprog_id),
+		'barn_syg' => findtekst('2807|Barn syg', $sprog_id),
+		'ferie'    => findtekst('2808|Ferie', $sprog_id),
+	);
+
 	$funcstarttime = microtime(true);
 
 	fod_log('fod_indsaml_data:' . "\n");
@@ -244,8 +260,9 @@ function fod_indsaml_data($periode) {
 		$p_start[$x] = $p_start[$x-1]+1209600;
 	}
 
-	if (!$periode)
+	if (!$periode) {
 		$periode = $p_start[$x-2];
+	}
 
 	$startdate = date("Y-m-d",$periode);
 	$slutdate = date("Y-m-d",$periode+1209600);
@@ -321,8 +338,9 @@ function fod_indsaml_data($periode) {
 	$qtxt.=" or art='plads' or art='sygdom' or art='barn_syg' or art='skole')";
 	$qtxt.=" and loendate>='$startdate' and loendate<'$slutdate' and godkendt>='1' and (afvist<'1' or afvist is NULL)";
 
-	if (count($ansatte_id)==1)
+	if (count($ansatte_id)==1) {
 		$qtxt.=" and ansatte like '%$ansatte_id[0]%'";
+	}
 
 	$qtxt.=" order by loendate";
 	//if(something) $qtxt = "SELECT * FROM loen WHERE id='0'"
@@ -435,8 +453,9 @@ function fod_indsaml_data($periode) {
 		
 		if (isset($l_enh_id)) {
 			for ($l = 1;$l<=count($l_enh_id);$l++) {
-				if (isset($loen_id[$x]) && isset($l_akkord[$l]) && $loen_id[$x]==$l_enh_id[$l])
+				if (isset($loen_id[$x]) && isset($l_akkord[$l]) && $loen_id[$x]==$l_enh_id[$l]) {
 					$akkord[$x] += $l_akkord[$l];
+				}
 			}
 		}
 		if ($loentimer[$x]) $akk_timeloen[$x] = $akkord[$x]/$loentimer[$x];
@@ -497,8 +516,9 @@ function fod_indsaml_data($periode) {
 			$fodopgave = $fodsag->opgaver[$fod_opg_id[$x]];
 
 			if ($sag_id[$x] == 0) {
-				array_push($fodopgave->udfaddrs, $loen_art[$x]);
-				array_push($fodopgave->udftitles, $loen_art[$x]);
+				$artVis = ifset($artTekst, $loen_art[$x], $loen_art[$x]);
+				array_push($fodopgave->udfaddrs, $artVis);
+				array_push($fodopgave->udftitles, $artVis);
 			}
 
 			if ($loen_art[$x]=='akktimer' || $loen_art[$x]=='akkord') {

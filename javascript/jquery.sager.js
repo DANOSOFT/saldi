@@ -1,5 +1,6 @@
 /*
  * 20260805 CX/PHR Use tab-separated case autocomplete data so company names may contain "|".
+ * 20261103 CL/MMR SD-799 The autocomplete labels come from window.sagerTekst (the user's language), with the Danish as fallback.
  *
 // her er function til sortering i liste
 $(document).ready(function(){
@@ -21,16 +22,24 @@ $(document).ready(function(){
 */
 // Her er function til autocomplete i sager på forsiden
 $(document).ready(function(){
+	// Labels in the user's language from the page (sager_js_sagertekst), with the Danish as fallback.
+	var tekst = window.sagerTekst || {};
+	var kundeTekst = tekst.kunde || 'Kunde';
+	var adresseTekst = tekst.adresse || 'Adresse';
+	var nrTekst = tekst.nr || 'Nr';
+	// The colon is added below, so a trailing dot is dropped (the status text may be stored as "Status.").
+	var statusTekst = String(tekst.status || 'Status').replace(/\.$/, '');
+
 	function formatItemNr(row) {
-		return row[0] + " - <b>Kunde:</b> <i>" + row[1] + "</i> - <b>Adresse:</b> <i>" + row[2] + "</i><br><b>Status:</b> <i>" + row[4] + "</i>";
+		return row[0] + " - <b>" + kundeTekst + ":</b> <i>" + row[1] + "</i> - <b>" + adresseTekst + ":</b> <i>" + row[2] + "</i><br><b>" + statusTekst + ":</b> <i>" + row[4] + "</i>";
 	}
 	
 	function formatItemNavn(row) {
-		return row[0] + " - <b>Nr:</b> <i>" + row[1] + "</i> - <b>Adresse:</b> <i>" + row[2] + "</i><br><b>Status:</b> <i>" + row[4] + "</i>";
+		return row[0] + " - <b>" + nrTekst + ":</b> <i>" + row[1] + "</i> - <b>" + adresseTekst + ":</b> <i>" + row[2] + "</i><br><b>" + statusTekst + ":</b> <i>" + row[4] + "</i>";
 	}
 	
 	function formatItemAddr(row) {
-		return row[0] + " - <b>Nr:</b> <i>" + row[2] + "</i> - <b>Kunde:</b> <i>" + row[1] + "</i><br><b>Status:</b> <i>" + row[4] + "</i>";
+		return row[0] + " - <b>" + nrTekst + ":</b> <i>" + row[2] + "</i> - <b>" + kundeTekst + ":</b> <i>" + row[1] + "</i><br><b>" + statusTekst + ":</b> <i>" + row[4] + "</i>";
 	}
 
 	function formatResult(row) {
@@ -83,16 +92,22 @@ $(document).ready(function(){
 
 // Her er function til autocomplete til kopi_ordre
 $(document).ready(function(){
+	// Labels in the user's language from the page (sager_js_sagertekst), with the Danish as fallback.
+	var tekst = window.sagerTekst || {};
+	var kundeTekst = tekst.kunde || 'Kunde';
+	var adresseTekst = tekst.adresse || 'Adresse';
+	var nrTekst = tekst.nr || 'Nr';
+
 	function formatItemNr(row) {
-		return row[0] + " - <b>Kunde:</b> <i>" + row[1] + "</i> - <b>Adresse:</b> <i>" + row[2] + "</i>";
+		return row[0] + " - <b>" + kundeTekst + ":</b> <i>" + row[1] + "</i> - <b>" + adresseTekst + ":</b> <i>" + row[2] + "</i>";
 	}
 	
 	function formatItemNavn(row) {
-		return row[0] + " - <b>Nr:</b> <i>" + row[1] + "</i> - <b>Adresse:</b> <i>" + row[2] + "</i>";
+		return row[0] + " - <b>" + nrTekst + ":</b> <i>" + row[1] + "</i> - <b>" + adresseTekst + ":</b> <i>" + row[2] + "</i>";
 	}
 	
 	function formatItemAddr(row) {
-		return row[0] + " - <b>Nr:</b> <i>" + row[2] + "</i> - <b>Kunde:</b> <i>" + row[1] + "</i>";
+		return row[0] + " - <b>" + nrTekst + ":</b> <i>" + row[2] + "</i> - <b>" + kundeTekst + ":</b> <i>" + row[1] + "</i>";
 	}
 
 	function formatResult(row) {
@@ -145,16 +160,23 @@ $(document).ready(function(){
 
 // Her er function til autocomplete i kunder under 'opret sag'
 $(document).ready(function(){
+	// Labels in the user's language from the page (sager_js_sagertekst), with the Danish as fallback.
+	var tekst = window.sagerTekst || {};
+	var firmaTekst = tekst.firma || 'Firma';
+	var adresseTekst = tekst.adresse || 'Adresse';
+	var nrTekst = tekst.nr || 'Nr';
+	var navnTekst = tekst.navn || 'Navn';
+
 	function formatItemOpretNr(row) {
-		return row[0] + " - <b>Firma:</b> <i>" + row[1] + "</i> - <b>Adresse:</b> <i>" + row[2] + "</i>";
+		return row[0] + " - <b>" + firmaTekst + ":</b> <i>" + row[1] + "</i> - <b>" + adresseTekst + ":</b> <i>" + row[2] + "</i>";
 	}
 	
 	function formatItemOpretNavn(row) {
-		return row[0] + " - <b>Nr:</b> <i>" + row[1] + "</i> - <b>Adresse:</b> <i>" + row[2] + "</i>";
+		return row[0] + " - <b>" + nrTekst + ":</b> <i>" + row[1] + "</i> - <b>" + adresseTekst + ":</b> <i>" + row[2] + "</i>";
 	}
 	
 	function formatItemOpretAddr(row) {
-		return row[0] + " - <b>Nr:</b> <i>" + row[2] + "</i> - <b>Navn:</b> <i>" + row[1] + "</i>";
+		return row[0] + " - <b>" + nrTekst + ":</b> <i>" + row[2] + "</i> - <b>" + navnTekst + ":</b> <i>" + row[1] + "</i>";
 	}
 
 	function formatResult(row) {
@@ -365,7 +387,7 @@ function updatestatus() {
     data: dataString,
     success: function(response)
        {
-         alert("Record successfully updated");
+         alert((window.sagerTekst || {}).opdateret || "Record successfully updated");
        }
   });
   return false;
@@ -377,7 +399,7 @@ $(document).ready(function () {
 	
 		//var dataString = 'status='+ status + '&sagid=' + sagid;
 		//alert (dataString);return false;
-		alert("Record successfully updated");return false;
+		alert((window.sagerTekst || {}).opdateret || "Record successfully updated");return false;
 	
 		$.ajax({
 			type: "POST",
@@ -385,7 +407,7 @@ $(document).ready(function () {
 			data: $(this).parent().serialize(),
 			success: function(response)
 				{
-					alert("Record successfully updated");
+					alert((window.sagerTekst || {}).opdateret || "Record successfully updated");
 				}
 		});
 		return false;
@@ -400,7 +422,7 @@ $(document).ready(function(){
 		item_container_id : '.paging_content',
 		num_page_links_to_display : 10,
 		//abort_on_small_lists: true,
-		nav_label_info : 'Viser {0}-{1} af {2}',
+		nav_label_info : (window.sagerTekst || {}).visning || 'Viser {0}-{1} af {2}',
 		nav_label_first : '<<',
 		nav_label_last : '>>',
 		nav_label_prev : '<',

@@ -1,29 +1,30 @@
 <?php 
+	global $sprog_id; // includes/ordrefunc.php includes this file inside a function
 	print "<div id=\"menubarholder\">
 		<div id=\"menubar\">
 			<ul class=\"navbar\">
 				<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a $menu_sager href=\"../sager/sager.php\">Sager</a>";
+					if (substr($sag_rettigheder,2,1)) print "<a $menu_sager href=\"../sager/sager.php\">".findtekst('2774|Sager', $sprog_id)."</a>";
 					else print "<a $menu_sager href=\"\">------</a>";
 				print "</li><li>";
-					if (substr($sag_rettigheder,2,1)) print "<a $menu_planlaeg href=\"../sager/planlaeg.php\">Planlægning</a>";
+					if (substr($sag_rettigheder,2,1)) print "<a $menu_planlaeg href=\"../sager/planlaeg.php\">".findtekst('2775|Planlægning', $sprog_id)."</a>";
 					else print "<a $menu_planlaeg href=\"#\">------</a>";
 				print "</li><li>";
-					if (substr($sag_rettigheder,5,1)) print "<a $menu_dagbog href=\"../sager/notat.php\">Dagbog</a>";
+					if (substr($sag_rettigheder,5,1)) print "<a $menu_dagbog href=\"../sager/notat.php\">".findtekst('2776|Dagbog', $sprog_id)."</a>";
 					else print "<a $menu_dagbog href=\"\">------</a>";
 				print "</li><li>";
-					if (substr($sag_rettigheder,4,1)) print "<a $menu_kunder href=\"../sager/kunder.php\">Kunder</a>";
+					if (substr($sag_rettigheder,4,1)) print "<a $menu_kunder href=\"../sager/kunder.php\">".findtekst('991|Kunder', $sprog_id)."</a>";
 					else print "<a $menu_kunder href=\"\">------</a>";
 				print "</li><li>";
-					if($menu_loen) print "<a $menu_loen href=\"../sager/loen.php\">Løn</a>";
-					else print "<a $menu_ansatte href=\"../sager/loen.php\">Løn</a>";
+					if($menu_loen) print "<a $menu_loen href=\"../sager/loen.php\">".findtekst('2784|Løn', $sprog_id)."</a>";
+					else print "<a $menu_ansatte href=\"../sager/loen.php\">".findtekst('2784|Løn', $sprog_id)."</a>";
 				print "</li><li>";
 					#if (substr($sag_rettigheder,3,1)) print "<a $menu_ansatte href=\"ansatte.php\">Ansatte</a>";
 					#else print "<a $menu_ansatte href=\"\">------</a>";
-				if(substr($sag_rettigheder,2,1)) print "<a $menu_certificering href=\"../sager/certificering.php\">Certificering</a>";
+					if(substr($sag_rettigheder,2,1)) print "<a $menu_certificering href=\"../sager/certificering.php\">".findtekst('2777|Certificering', $sprog_id)."</a>";
 					else print "<a $menu_certificering href=\"\">------</a>";
 				print "</li><li>";
-					if (substr($sag_rettigheder,3,1)) print "<a href=\"../index/menu.php\">Regnskab</a>";
+					if (substr($sag_rettigheder,3,1)) print "<a href=\"../index/menu.php\">".findtekst('2778|Regnskab', $sprog_id)."</a>";
 					else print "<a href=\"\">------</a>";
 				print "</li>
 				<!--<li class=\"search\">
@@ -62,12 +63,12 @@
 			if ($vis=='nysager') {
 				print "
 				<div class=\"headerLft\"><p>&nbsp;</p>
-					<a href=\"../sager/planlaeg_sager.php?vis=aktsager\" class=\"button green small headerMM\">Aktuelle sager</a>
+					<a href=\"../sager/planlaeg_sager.php?vis=aktsager\" class=\"button green small headerMM\">".findtekst('8417|Aktuelle sager', $sprog_id)."</a>
 				</div>";
 			} else {
 				print "
 				<div class=\"headerLft\"><p>&nbsp;</p>
-					<a href=\"../sager/planlaeg_sager.php?vis=nysager\" class=\"button green small headerMM\">Alle sager</a>
+					<a href=\"../sager/planlaeg_sager.php?vis=nysager\" class=\"button green small headerMM\">".findtekst('8418|Alle sager', $sprog_id)."</a>
 				</div>";
 			}
 		}
@@ -88,18 +89,18 @@
 			if ($vis=='nyopgaver') {
 				print "
 				<div class=\"headerLft\"><p>&nbsp;</p>
-					<a href=\"../sager/planlaeg_opgaver.php?vis=aktopgaver\" class=\"button green small headerMM\">Aktuelle opgaver</a>
+					<a href=\"../sager/planlaeg_opgaver.php?vis=aktopgaver\" class=\"button green small headerMM\">".findtekst('8409|Aktuelle opgaver', $sprog_id)."</a>
 				</div>";
 			} else {
 				print "
 				<div class=\"headerLft\"><p>&nbsp;</p>
-					<a href=\"../sager/planlaeg_opgaver.php?vis=nyopgaver\" class=\"button green small headerMM\">Alle opgaver</a>
+					<a href=\"../sager/planlaeg_opgaver.php?vis=nyopgaver\" class=\"button green small headerMM\">".findtekst('2949|Alle opgaver', $sprog_id)."</a>
 				</div>";
 			}
 		}
 		print "
-		<div class=\"headerRght\"><p>Du er logget ind som <b>$ansat_navn</b></p>
-			<a href=\"../index/logud.php\" class=\"button rosy small headerbtn\">Log ud</a>
+		<div class=\"headerRght\"><p>".findtekst('2780|Du er logget ind som', $sprog_id)." <b>$ansat_navn</b></p>
+			<a href=\"../index/logud.php\" class=\"button rosy small headerbtn\">".findtekst('93|Log ud', $sprog_id)."</a>
 		</div>
 	</div><!-- end of header -->
 	</div><!-- end of headerHolder -->";

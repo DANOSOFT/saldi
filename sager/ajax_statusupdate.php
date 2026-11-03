@@ -10,6 +10,7 @@
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 	
 	$id=if_isset($_POST['sagid']);
 	$status=if_isset($_POST['status']);
@@ -43,5 +44,5 @@ if ($id) {
 		if ($status=='Afsluttet') $statcolor = "statcolor_8";
 }
 
-echo json_encode(array("status" => "$status", "statcolor" => "$statcolor"));
+echo json_encode(array("status" => "$status", "statustxt" => sag_status_txt($status), "statcolor" => "$statcolor"));
 ?>

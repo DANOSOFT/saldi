@@ -5358,3 +5358,13 @@
 8406	Vis besked når kostprisen er anslået	Show a message when the cost price is estimated	Vis melding når kostprisen er anslått
 8407	Advarsel: %s er fratrådt pr. %s.	Warning: %s left the company on %s.	Advarsel: %s sluttet %s.
 8408	ukendt	unknown	ukjent
+8409	Aktuelle opgaver	Current tasks	Aktuelle oppgaver
+8410	Luk akkordliste	Close piecework list	Lukk akkordliste
+8411	Afregnet på seddel %s	Settled on slip %s	Avregnet på seddel %s
+8412	Fejl i brugeropsætning	Error in the user setup	Feil i brukeroppsettet
+8413	HM	ASAP	Snarest
+8414	jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec	Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec	jan,feb,mar,apr,mai,jun,jul,aug,sep,okt,nov,des
+8415	Af	By	Av
+8416	Posten er opdateret	Record successfully updated	Posten er oppdatert
+8417	Aktuelle sager	Current projects	Aktuelle saker
+8418	Alle sager	All projects	Alle saker

@@ -2,7 +2,7 @@
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 
-// ------ sager/kontrolskemaer.php-------lap 3.3.0 ------2013-11-04------07:30---------
+// ------ sager/mm_kontrolskemaer.php-------ver 5.1.0 ------2026-11-03------07:30---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,10 +21,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2013 Danosoft ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20170303 Visning af bilag, hvis tilknyttet. Søg #20170303
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261103 CL/MMR SD-799 The "by" labels, the task names and the search suggestion labels follow the user's language.
 
 	$bg     = "nix";
 	$header = 'nix';
@@ -42,6 +43,7 @@
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
 	$funktion = if_isset($_GET['funktion']);
 	$skema_id = if_isset($_GET['tjekskema_id']);
@@ -70,7 +72,8 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 		<script type=\"text/javascript\" src=\"../javascript/jquery.autosize.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.pajinate.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/jquery.medarbejdermappe.js\"></script>
+		".sager_js_sagertekst()."
+		<script type=\"text/javascript\" src=\"../javascript/jquery.medarbejdermappe.js?v=20261103\"></script>
 		
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
@@ -263,13 +266,13 @@ function arbejdsseddelskemaliste() {
 		$skema_postnr[$x]     = $r['udf_postnr'];
 		$skema_bynavn[$x]     = $r['udf_bynavn'];
 		$skema_kontrol_af[$x] = htmlspecialchars($r['skema_hvem']);
-		$skema_opgave[$x]     = htmlspecialchars($r['opg_navn']);
+		$skema_opgave[$x]     = htmlspecialchars(opgave_navn_txt($r['opg_navn']));
 		$skema_sagsnr[$x]     = $r['sagsnr'];
 		$skema_status[$x]     = $r['skema_id'];
 		$skema_fase[$x]       = $r['fase']*1;
 		$skema_sagid[$x]      = $r['sag_id'];
 		$skema_tjek_id[$x]    = $r['tjek_id'];
-		}
+	}
 	$antal_skemaer = $x;
 	
 	$x = 0;
@@ -316,7 +319,7 @@ function arbejdsseddelskemaliste() {
 					<tr>
 						<th width=\"100\">".findtekst('438|Dato', $sprog_id)."</th>
 						<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
-						<th width=\"100\">".findtekst('638|Af', $sprog_id)."</th>
+						<th width=\"100\">".findtekst('8415|Af', $sprog_id)."</th>
 						<th width=\"410\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
 						<th colspan=\"6\">&nbsp;</th>
 					</tr>
@@ -374,7 +377,7 @@ function arbejdsseddelskemaliste() {
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=opg_navn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:75px\">".findtekst('2800|Opgave', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt03 $sortstyle[3]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt04 $sortstyle[4]\" style=\"width:215px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
-							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('638|Af', $sprog_id)."</a>
+							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('8415|Af', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=sjak&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt06 $sortstyle[6]\" style=\"width:70px\">".findtekst('3123|Sjak', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste\" class=\"felt07 $sortstyle[7]\" style=\"width:60px\">".findtekst('494|Status', $sprog_id)."</a>
 					</li>
@@ -607,13 +610,13 @@ function kontrolseddelskemaliste() {
 		$skema_postnr[$x]     = $r['udf_postnr'];
 		$skema_bynavn[$x]     = $r['udf_bynavn'];
 		$skema_kontrol_af[$x] = htmlspecialchars($r['skema_hvem']);
-		$skema_opgave[$x]     = htmlspecialchars($r['opg_navn']);
+		$skema_opgave[$x]     = htmlspecialchars(opgave_navn_txt($r['opg_navn']));
 		$skema_sagsnr[$x]     = $r['sagsnr'];
 		$skema_status[$x]     = $r['skema_id'];
 		$skema_fase[$x]       = $r['fase'] * 1;
 		$skema_sagid[$x]      = $r['sag_id'];
 		$skema_tjek_id[$x]    = $r['tjek_id'];
-		}
+	}
 	$antal_skemaer=$x;
 	
 	$x = 0;
@@ -661,7 +664,7 @@ function kontrolseddelskemaliste() {
 					<tr>
 						<th width=\"100\">".findtekst('438|Dato', $sprog_id)."</th>
 						<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
-						<th width=\"100\">".findtekst('638|Af', $sprog_id)."</th>
+						<th width=\"100\">".findtekst('8415|Af', $sprog_id)."</th>
 						<th width=\"410\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
 						<th colspan=\"6\">&nbsp;</th>
 					</tr>
@@ -719,7 +722,7 @@ function kontrolseddelskemaliste() {
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=opg_navn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:75px\">".findtekst('2800|Opgave', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt03 $sortstyle[3]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt04 $sortstyle[4]\" style=\"width:215px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
-							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('638|Af', $sprog_id)."</a>
+							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('8415|Af', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=sjak&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt06 $sortstyle[6]\" style=\"width:70px\">".findtekst('3123|Sjak', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste\" class=\"felt07 $sortstyle[7]\" style=\"width:60px\">".findtekst('494|Status', $sprog_id)."</a>
 					</li>
@@ -867,7 +870,7 @@ function vis_arbejdsseddel() {
 	$tjekskema_tjekliste_id = $r['tjekliste_id'];
 	$udf_dato               = date("d-m-Y",$r['datotid']);
 	$opg_art                = htmlspecialchars($r['opg_art']);
-	$opg_navn               = htmlspecialchars($r['opg_navn']);
+	$opg_navn               = htmlspecialchars(opgave_navn_txt($r['opg_navn']));
 	$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
 	$sjak                   = htmlspecialchars($r['sjak']);
 	$sjakid                 = $r['sjakid'];
@@ -1120,7 +1123,7 @@ function vis_kontrolskema() {
 	$tjekskema_tjekliste_id = $r['tjekliste_id'];
 	$datotid                = $r['datotid'];
 	$opg_art                = htmlspecialchars($r['opg_art']);
-	$opg_navn               = htmlspecialchars($r['opg_navn']);
+	$opg_navn               = htmlspecialchars(opgave_navn_txt($r['opg_navn']));
 	$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
 	$sjak                   = htmlspecialchars($r['sjak']);
 	$sjakid                 = $r['sjakid'];

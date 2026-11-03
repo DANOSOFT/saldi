@@ -1,6 +1,7 @@
 <?php
 // 20251028 PK - added two hours(7200) to start date due to daylight saving time
 // 20261103 CL/MMR SD-799 The total row label is translated.
+// 20261103 CL/MMR SD-799 The "settled by" label uses the author text, so English shows "by".
 
 function loenafregning() {#Summeret lønafregning
 
@@ -178,7 +179,7 @@ function loenafregning() {#Summeret lønafregning
 					print "<div style=\"float:left; width:828px;#background-color:lightgreen;\">\n";
 					//print "<div id=\"printableArea\">\n";
 						$tmp = "<h2 class=\"printHeadline\">".findtekst('2979|Lønopgørelse', $sprog_id)."</h2>\n";
-						if ($afregnet) $tmp.="<p class=\"printHeadline\">".findtekst('2986|Afregnet d.', $sprog_id)." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('638|Af', $sprog_id))." $afregnet_af</p>\n";
+						if ($afregnet) $tmp.="<p class=\"printHeadline\">".findtekst('2986|Afregnet d.', $sprog_id)." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('8415|Af', $sprog_id))." $afregnet_af</p>\n";
 						print "$tmp\n";
 								print "<table width=\"100%\" border=\"0\" class=\"loenafregning\"><tbody>\n";
 								print "<tr><td colspan=\"14\"><b>".findtekst('899|Periode', $sprog_id)."&nbsp;&nbsp;</b>".date("d-m-Y",$periode)."&nbsp;&ndash;&nbsp;".date("d-m-Y",$periode+1209600-86400)."</td></tr>\n";
@@ -414,7 +415,7 @@ function loenafregning() {#Summeret lønafregning
 			print "<div style=\"float:left; width:828px;#background-color:lightgreen;\">\n";
 			print "<div id=\"printableArea\">\n";
 				$tmp = "<h2 class=\"printHeadline\">".findtekst('2979|Lønopgørelse', $sprog_id)."</h2>\n";
-				if (isset($afregnet) && $afregnet) $tmp.="<p class=\"printHeadline\">".findtekst('2986|Afregnet d.', $sprog_id)." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('638|Af', $sprog_id))." $afregnet_af</p>\n";
+				if (isset($afregnet) && $afregnet) $tmp.="<p class=\"printHeadline\">".findtekst('2986|Afregnet d.', $sprog_id)." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('8415|Af', $sprog_id))." $afregnet_af</p>\n";
 				print "$tmp\n";
 #					print "<div class=\"contentA\">\n";
 						print "<table width='100%' border='0' class='loenafregning'><tbody>\n";
