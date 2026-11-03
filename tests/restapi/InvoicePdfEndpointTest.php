@@ -9,6 +9,7 @@
 //
 // History:
 // 20261029 CL/SZ SD-751: created.
+// 20261102 CL/SZ SD-795: a failed read of the order gives 500, not 404.
 
 use PHPUnit\Framework\TestCase;
 
@@ -95,6 +96,24 @@ final class InvoicePdfEndpointTest extends TestCase
         $this->assertSame('application/pdf', $res['type']);
         $this->assertSame("inline; filename=\"fakt{$invoice['fakturanr']}.pdf\"", $res['disposition']);
         $this->assertStringStartsWith('%PDF-', $res['body']);
+    }
+
+    public function test_a_failed_read_of_the_order_gives_500_not_404(): void
+    {
+        $invoice = $this->order();
+        $conn = RestApiEnv::connect(RestApiEnv::testDb());
+        // render_document()'s first query names this column; the endpoint's own order lookup selects *
+        RestApiEnv::rows($conn, 'ALTER TABLE ordrer RENAME COLUMN afd TO afd_away');
+        try {
+            $failed = $this->getPdf($invoice['id']);
+        } finally {
+            RestApiEnv::rows($conn, 'ALTER TABLE ordrer RENAME COLUMN afd_away TO afd');
+            pg_close($conn);
+        }
+
+        $this->assertSame(500, $failed['status'], $failed['body']);
+        $this->assertSame('application/json', $failed['type']);
+        $this->assertSame('The invoice PDF could not be created', $failed['json']['message']);
     }
 
     public function test_a_missing_unposted_or_non_invoice_id_gives_no_document(): void
