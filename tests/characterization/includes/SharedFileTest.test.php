@@ -3,6 +3,7 @@
 // 20261029 CDX/NTR Cover group-only sharing, untrusted parents and administrator migration.
 // 20261102 CL/NTR Cover the balances group, the unmigrated fallback and once-per-message warnings.
 //                 Cover symlinks held by trusted directories and symlinks into untrusted ones.
+// 20261103 CDX/NTR Cover non-throwing diagnostics, private fallback creation, stream failures and migration boundaries.
 
 use PHPUnit\Framework\TestCase;
 
@@ -13,6 +14,7 @@ final class SharedFileTest extends TestCase
     private string $dir;
     private int $originalUmask;
     private string|false $originalGroup;
+    private string $originalErrorLog;
 
     /** Prepare private runtime storage and use the test account's existing group. */
     protected function setUp(): void
@@ -22,12 +24,15 @@ final class SharedFileTest extends TestCase
         putenv('SALDI_SHARED_FILE_GROUP=' . posix_getgrgid(posix_getegid())['name']);
         $this->dir = sys_get_temp_dir() . '/saldi_shared_' . bin2hex(random_bytes(8));
         mkdir($this->dir, 0700);
+        $this->originalErrorLog = ini_get('error_log');
+        ini_set('error_log', $this->dir . '/diagnostics.log');
     }
 
     /** Restore process settings and remove only this test's disposable paths. */
     protected function tearDown(): void
     {
         umask($this->originalUmask);
+        ini_set('error_log', $this->originalErrorLog);
         putenv($this->originalGroup === false ? 'SALDI_SHARED_FILE_GROUP' : 'SALDI_SHARED_FILE_GROUP=' . $this->originalGroup);
         $entries = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($this->dir, FilesystemIterator::SKIP_DOTS),
@@ -145,10 +150,9 @@ final class SharedFileTest extends TestCase
         $path = $this->dir . '/existing.log';
         file_put_contents($path, 'keep');
         chmod($this->dir, 0777);
-        $warnings = [];
-        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
-            $warnings[] = $message;
-            return true;
+        // Match the journal-delete handler: even suppressed PHP errors become exceptions.
+        set_error_handler(static function (int $severity, string $message): never {
+            throw new ErrorException($message, 0, $severity);
         });
         try {
             self::assertSame(9, sharedFilePutContents($path, 'truncated'));
@@ -157,9 +161,8 @@ final class SharedFileTest extends TestCase
             restore_error_handler();
             chmod($this->dir, 0700);
         }
-        // The repeated warning for the same parent is raised once per request.
-        self::assertCount(1, $warnings);
-        self::assertStringContainsString('Untrusted shared-file parent', $warnings[0]);
+        $diagnostics = file_get_contents($this->dir . '/diagnostics.log');
+        self::assertSame(1, substr_count($diagnostics, 'Untrusted shared-file parent'));
         self::assertSame('truncated', file_get_contents($path));
         clearstatcache(true, $path);
         self::assertSame(0600, fileperms($path) & 0777);
@@ -200,19 +203,10 @@ final class SharedFileTest extends TestCase
         chmod($open, 0777);
         $link = $this->dir . '/link';
         symlink($open, $link);
-        $warnings = [];
-        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
-            $warnings[] = $message;
-            return true;
-        });
-        try {
-            self::assertSame(4, sharedFilePutContents($link . '/log', 'data'));
-            self::assertTrue(sharedDirectory($link . '/tenant'));
-        } finally {
-            restore_error_handler();
-        }
-        self::assertCount(1, $warnings);
-        self::assertStringContainsString('Untrusted shared-file parent: ' . $open, $warnings[0]);
+        self::assertSame(4, sharedFilePutContents($link . '/log', 'data'));
+        self::assertTrue(sharedDirectory($link . '/tenant'));
+        $diagnostics = file_get_contents($this->dir . '/diagnostics.log');
+        self::assertSame(1, substr_count($diagnostics, 'Untrusted shared-file parent: ' . $open));
         clearstatcache();
         self::assertSame(0600, fileperms($open . '/log') & 0777);
         self::assertSame(0700, fileperms($open . '/tenant') & 07777);
@@ -222,19 +216,10 @@ final class SharedFileTest extends TestCase
     public function testUnknownGroupFallsBackToPlainWrite(): void
     {
         putenv('SALDI_SHARED_FILE_GROUP=saldi_missing_' . bin2hex(random_bytes(8)));
-        $warnings = [];
-        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
-            $warnings[] = $message;
-            return true;
-        });
-        try {
-            self::assertSame(4, sharedFilePutContents($this->dir . '/log', 'data'));
-            self::assertSame(4, sharedFilePutContents($this->dir . '/log', 'more', true));
-        } finally {
-            restore_error_handler();
-        }
-        self::assertCount(1, $warnings);
-        self::assertStringContainsString('unavailable', $warnings[0]);
+        self::assertSame(4, sharedFilePutContents($this->dir . '/log', 'data'));
+        self::assertSame(4, sharedFilePutContents($this->dir . '/log', 'more', true));
+        $diagnostics = file_get_contents($this->dir . '/diagnostics.log');
+        self::assertSame(1, substr_count($diagnostics, 'unavailable'));
         clearstatcache();
         self::assertSame(0600, fileperms($this->dir . '/log') & 0777);
         self::assertSame('datamore', file_get_contents($this->dir . '/log'));
@@ -245,6 +230,127 @@ final class SharedFileTest extends TestCase
     {
         putenv('SALDI_SHARED_FILE_GROUP=saldi-runtime');
         self::assertSame('saldi-runtime', sharedFileGroupName());
+    }
+
+    /** A conventional umask must never create world-readable logs on the fallback. */
+    public function testFallbackCreationExcludesOthersAndPreservesExistingModes(): void
+    {
+        umask(0022);
+        chmod($this->dir, 0777);
+        try {
+            foreach (['a', 'w', 'x', 'c', 'r+'] as $mode) {
+                $path = $this->dir . '/mode-' . $mode;
+                if ($mode === 'r+') {
+                    file_put_contents($path, 'old');
+                    chmod($path, 0644);
+                }
+                $stream = sharedFileOpen($path, $mode);
+                self::assertIsResource($stream);
+                fclose($stream);
+                clearstatcache(true, $path);
+                self::assertSame($mode === 'r+' ? 0644 : 0640, fileperms($path) & 0777);
+                self::assertSame(0022, umask());
+            }
+            $existing = $this->dir . '/existing';
+            file_put_contents($existing, 'private');
+            chmod($existing, 0664);
+            self::assertSame(7, sharedFilePutContents($existing, 'changed'));
+            clearstatcache(true, $existing);
+            self::assertSame(0664, fileperms($existing) & 0777);
+        } finally {
+            chmod($this->dir, 0700);
+        }
+    }
+
+    /** A symlink to a FIFO must be refused without blocking a web worker. */
+    public function testSymlinkedFifoIsRefusedBeforeOpening(): void
+    {
+        $fifo = $this->dir . '/fifo';
+        self::assertTrue(posix_mkfifo($fifo, 0600));
+        $link = $this->dir . '/log';
+        symlink($fifo, $link);
+        $program = 'require ' . var_export(dirname(__DIR__, 3) . '/includes/sharedFile.php', true)
+            . '; exit(sharedFileOpen(' . var_export($link, true) . ') === false ? 0 : 1);';
+        // A regression must fail in seconds instead of hanging PHPUnit on the FIFO.
+        $result = $this->runCommand(['timeout', '3', PHP_BINARY, '-r', $program]);
+        self::assertSame(0, $result['status'], $result['output']);
+        self::assertStringContainsString('special file', $result['output']);
+    }
+
+    /** A failed truncate must close the file and report failure before writing new bytes. */
+    public function testFailedTruncationClosesStreamAndReportsFailure(): void
+    {
+        $result = $this->runFaultStream('SharedFileFaultStream::$truncateSucceeds = false; '
+            . '$result = sharedFilePutContents("/shared-file-fixture/log", "new"); '
+            . 'exit($result === false && SharedFileFaultStream::$closed === 1 '
+            . '&& SharedFileFaultStream::$contents === "" ? 0 : 1);');
+        self::assertSame(0, $result['status'], $result['output']);
+        self::assertStringContainsString('Could not truncate', $result['output']);
+    }
+
+    /** Incomplete lines must not prevent later diagnostic lines from being attempted. */
+    public function testDatabaseLogContinuesAfterIncompleteWrite(): void
+    {
+        $result = $this->runFaultStream('SharedFileFaultStream::$writeCounts = [2, 0]; '
+            . '$result = db_log_append("/shared-file-fixture/log", ["first\n", "later\n"]); '
+            . 'echo SharedFileFaultStream::$contents; '
+            . 'exit($result === false && SharedFileFaultStream::$closed === 1 '
+            . '&& str_contains(SharedFileFaultStream::$contents, "later\n") ? 0 : 1);');
+        self::assertSame(0, $result['status'], $result['output']);
+    }
+
+    /** Reusing an operation's validated parent avoids a second walk without caching filesystem trust. */
+    public function testFileOpenChecksParentOncePerOperation(): void
+    {
+        $result = $this->runFaultStream('$stream = sharedFileOpen("/shared-file-fixture/log"); '
+            . 'if ($stream === false) { exit(2); } fclose($stream); '
+            . 'if (SharedFileFaultStream::$parentStats !== 1) { exit(1); } '
+            . '$stream = sharedFileOpen("/shared-file-fixture/log"); '
+            . 'if ($stream === false) { exit(2); } fclose($stream); '
+            . 'exit(SharedFileFaultStream::$parentStats === 2 ? 0 : 1);');
+        self::assertSame(0, $result['status'], $result['output']);
+    }
+
+    /** Only the installation's temp is eligible, including a trusted symlink to it. */
+    public function testMigrationRejectsOtherTreesAndContinuesPastRefusedEntries(): void
+    {
+        if (posix_geteuid() !== 0) {
+            self::markTestSkipped('Administrator migration requires root, as in the CI web container.');
+        }
+        $runtime = $this->dir . '/runtime';
+        mkdir($runtime);
+        $script = $this->migrationInstallation($runtime);
+        $outside = $this->dir . '/outside';
+        mkdir($outside);
+        file_put_contents($outside . '/keep', 'untouched');
+        foreach (['/', $outside] as $path) {
+            $result = $this->runCommand([PHP_BINARY, $script, $path]);
+            self::assertSame(1, $result['status'], $result['output']);
+        }
+        self::assertSame(0700, fileperms($outside) & 07777);
+        self::assertSame(0600, fileperms($outside . '/keep') & 07777);
+        $unsafe = $this->dir . '/unsafe';
+        mkdir($unsafe);
+        chmod($unsafe, 0777);
+        symlink($runtime, $unsafe . '/alias');
+        $result = $this->runCommand([PHP_BINARY, $script, $unsafe . '/alias/']);
+        self::assertSame(1, $result['status'], $result['output']);
+        self::assertStringContainsString('untrusted runtime path', $result['output']);
+
+        // The first entry is refused, but the later regular log still receives shared permissions.
+        symlink($outside . '/keep', $runtime . '/a-link');
+        self::assertTrue(posix_mkfifo($runtime . '/b-fifo', 0600));
+        file_put_contents($runtime . '/z-log', 'preserved');
+        $result = $this->runCommand([PHP_BINARY, $script, dirname($script, 2) . '/temp']);
+        self::assertSame(1, $result['status'], $result['output']);
+        clearstatcache();
+        self::assertSame(0660, fileperms($runtime . '/z-log') & 07777);
+        self::assertSame('preserved', file_get_contents($runtime . '/z-log'));
+        self::assertSame(0600, fileperms($outside . '/keep') & 07777);
+        unlink($runtime . '/a-link');
+        unlink($runtime . '/b-fifo');
+        $result = $this->runCommand([PHP_BINARY, $script, dirname($script, 2) . '/temp']);
+        self::assertSame(0, $result['status'], $result['output']);
     }
 
     /** Without configuration, balances is used only while www-data belongs to it. */
@@ -293,13 +399,13 @@ final class SharedFileTest extends TestCase
         $identity = 'if (!posix_initgroups("www-data", ' . $web['gid'] . ') || !posix_setgid(' . $web['gid'] . ') || !posix_setuid(' . $web['uid'] . ')) { exit(2); }';
         // Failed repair must be actionable and preserve the file before an overwrite open.
         $before = $this->runPhp($identity . 'require ' . $source . '; '
-            . '$warnings = []; set_error_handler(static function($severity, $message) use (&$warnings) { if (error_reporting() & $severity) { $warnings[] = $message; } return true; }); '
             . '$result = sharedFilePutContents(' . $file . ', "lost"); '
-            . 'exit($result === false && count($warnings) === 1 && str_contains($warnings[0], "migration") ? 0 : 1);');
+            . 'exit($result === false ? 0 : 1);');
         self::assertSame(0, $before['status'], $before['output']);
+        self::assertStringContainsString('migration', $before['output']);
         self::assertSame("old\n", file_get_contents($path));
 
-        $migration = $this->runCommand([PHP_BINARY, dirname(__DIR__, 3) . '/tools/migrate_shared_runtime.php', $runtime]);
+        $migration = $this->runCommand([PHP_BINARY, $this->migrationInstallation($runtime), $runtime]);
         self::assertSame(0, $migration['status'], $migration['output']);
         clearstatcache();
         self::assertSame($web['gid'], filegroup($path));
@@ -332,6 +438,38 @@ final class SharedFileTest extends TestCase
     private function runPhp(string $code): array
     {
         return $this->runCommand([PHP_BINARY, '-r', $code]);
+    }
+
+    /**
+     * Inject controlled local-file failures without replacing PHPUnit's own filesystem wrapper.
+     *
+     * @param string $code Assertions executed with the fake file wrapper.
+     * @return array{status: int, output: string} Exit code and captured diagnostics.
+     */
+    private function runFaultStream(string $code): array
+    {
+        return $this->runPhp('require ' . var_export(dirname(__DIR__, 3) . '/includes/db_query.php', true)
+            . '; require ' . var_export(__DIR__ . '/support/SharedFileFaultStream.php', true)
+            . '; stream_wrapper_unregister("file"); stream_wrapper_register("file", SharedFileFaultStream::class); '
+            . $code);
+    }
+
+    /**
+     * Copy the migration into a disposable installation whose temp may point to the fixture runtime.
+     *
+     * @param string $runtime Temporary tree to migrate; never the checkout's real temp.
+     * @return string Migration script inside the disposable installation.
+     */
+    private function migrationInstallation(string $runtime): string
+    {
+        $installation = $this->dir . '/installation';
+        mkdir($installation);
+        mkdir($installation . '/tools');
+        mkdir($installation . '/includes');
+        copy(dirname(__DIR__, 3) . '/tools/migrate_shared_runtime.php', $installation . '/tools/migrate_shared_runtime.php');
+        copy(dirname(__DIR__, 3) . '/includes/sharedFile.php', $installation . '/includes/sharedFile.php');
+        symlink($runtime, $installation . '/temp');
+        return $installation . '/tools/migrate_shared_runtime.php';
     }
 
     /**

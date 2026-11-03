@@ -6,9 +6,11 @@
 //                 Check the opened file against the path before truncating it.
 //                 Follow symlinks held by trusted directories; open a symlinked file without chmod.
 //                 Keep writing after a short fwrite() in sharedFilePutContents().
+// 20261103 CDX/NTR Log diagnostics without interrupting requests and restrict fallback creation modes.
+//                  Reuse group lookups and validated parents, check truncation, and refuse special-file targets.
 
 /**
- * Raise a shared-file warning once per request, so per-query logging cannot flood the error log.
+ * Log a diagnostic once per request without invoking PHP error handlers or rendering it in the response.
  *
  * @param string $message Actionable warning text.
  * @return void
@@ -18,7 +20,7 @@ function sharedFileWarning(string $message): void
     static $seen = [];
     if (!isset($seen[$message])) {
         $seen[$message] = true;
-        trigger_error($message, E_USER_WARNING);
+        error_log($message);
     }
 }
 
@@ -52,13 +54,19 @@ function sharedFileGroupName(): string
  */
 function sharedFileGroup()
 {
+    // Configuration is stable during a request; key the cache so CLI callers can change it explicitly.
+    static $groups = [];
+    $configured = getenv('SALDI_SHARED_FILE_GROUP') ?: '';
+    if (array_key_exists($configured, $groups)) {
+        return $groups[$configured];
+    }
     $name = sharedFileGroupName();
     $group = function_exists('posix_getgrnam') ? posix_getgrnam($name) : false;
     if ($group === false) {
         sharedFileWarning("Shared runtime group '$name' is unavailable; configure POSIX and follow doc/runtime-permissions.md");
-        return false;
+        return $groups[$configured] = false;
     }
-    return $group['gid'];
+    return $groups[$configured] = $group['gid'];
 }
 
 /**
@@ -151,6 +159,19 @@ function sharedFilePermissions(string $path): bool
     if (!sharedFileTrustedParent($path)) {
         return false;
     }
+    return sharedFileApplyPermissions($path, sharedFileGroup());
+}
+
+/**
+ * Apply sharing after the caller has validated the parent chain for this operation.
+ *
+ * @internal Use sharedFilePermissions() when the parent has not just been checked.
+ * @param string $path Existing regular runtime file or directory.
+ * @param int $gid Shared group resolved for the validated parent.
+ * @return bool Whether the group and permissions are ready.
+ */
+function sharedFileApplyPermissions(string $path, int $gid): bool
+{
     clearstatcache(true, $path);
     $stat = lstat($path);
     if ($stat === false) {
@@ -159,10 +180,6 @@ function sharedFilePermissions(string $path): bool
     $type = $stat['mode'] & 0170000;
     if ($type !== 0100000 && $type !== 0040000) {
         sharedFileWarning("Refusing shared permissions on symlink or special file: $path");
-        return false;
-    }
-    $gid = sharedFileGroup();
-    if ($gid === false) {
         return false;
     }
     $mode = $type === 0040000 ? 02770 : 0660;
@@ -182,6 +199,24 @@ function sharedFilePermissions(string $path): bool
 }
 
 /**
+ * Open without changing existing permissions, excluding other users when creating a file.
+ *
+ * @param string $path Local runtime path, possibly a symlink to a regular file.
+ * @param string $mode Writable fopen mode.
+ * @return resource|false Opened stream, or false on failure.
+ */
+function sharedFilePlainOpen(string $path, string $mode)
+{
+    $mask = umask();
+    umask($mask | 0007);
+    try {
+        return @fopen($path, $mode);
+    } finally {
+        umask($mask);
+    }
+}
+
+/**
  * Open a shared runtime file, repairing owner-managed permissions before opening.
  * The trusted parent must already exist; setgid parents ensure group inheritance.
  * Creation is safe under any umask because the parent excludes untrusted users.
@@ -189,6 +224,7 @@ function sharedFilePermissions(string $path): bool
  * it used before, without changing permissions through that chain; a file the
  * caller cannot repair is still written when the filesystem allows it. A file
  * that is itself a symlink is written through without changing permissions.
+ * New files exclude other users even on the fallback; the caller's umask is restored.
  *
  * @param string $path Local shared runtime file.
  * @param string $mode Writable fopen mode (for example 'a' or 'w').
@@ -196,13 +232,18 @@ function sharedFilePermissions(string $path): bool
  */
 function sharedFileOpen(string $path, string $mode = 'a')
 {
+    clearstatcache(true, $path);
+    if (file_exists($path) && !is_file($path)) {
+        sharedFileWarning("Refusing shared permissions on special file: $path");
+        return false;
+    }
     if (!sharedFileTrustedParent($path)) {
-        return @fopen($path, $mode);
+        return sharedFilePlainOpen($path, $mode);
     }
     clearstatcache(true, $path);
     if (is_link($path)) {
         // A trusted account placed the link; write through it, but never chmod its target.
-        return @fopen($path, $mode);
+        return sharedFilePlainOpen($path, $mode);
     }
     $existed = file_exists($path);
     if ($existed && !is_file($path)) {
@@ -210,11 +251,11 @@ function sharedFileOpen(string $path, string $mode = 'a')
         return false;
     }
     if ($existed) {
-        sharedFilePermissions($path);
+        sharedFileApplyPermissions($path, sharedFileGroup());
     }
     // Open without truncating, so a path swapped after the checks is refused before data is lost.
     $truncate = $mode[0] === 'w';
-    $stream = @fopen($path, $truncate ? 'c' . substr($mode, 1) : $mode);
+    $stream = sharedFilePlainOpen($path, $truncate ? 'c' . substr($mode, 1) : $mode);
     if ($stream === false) {
         return false;
     }
@@ -226,11 +267,13 @@ function sharedFileOpen(string $path, string $mode = 'a')
         sharedFileWarning("Shared runtime file changed while opening: $path");
         return false;
     }
-    if ($truncate) {
-        ftruncate($stream, 0);
+    if ($truncate && !ftruncate($stream, 0)) {
+        fclose($stream);
+        sharedFileWarning("Could not truncate shared runtime file: $path");
+        return false;
     }
     if (!$existed) {
-        sharedFilePermissions($path);
+        sharedFileApplyPermissions($path, sharedFileGroup());
     }
     return $stream;
 }
@@ -268,7 +311,7 @@ function sharedFilePutContents(string $path, string $contents, bool $append = fa
 
 /**
  * Create or repair a shared setgid directory below a trusted, existing parent.
- * Below an untrusted parent the directory is only created (0770), as before migration;
+ * Below an untrusted parent the directory is only created (0770, subject to umask);
  * a symlinked directory is used without changing permissions.
  *
  * @param string $path Directory whose parent already exists.
@@ -287,5 +330,5 @@ function sharedDirectory(string $path): bool
     if (!is_dir($path) && !mkdir($path, 02770) && !is_dir($path)) {
         return false;
     }
-    return sharedFilePermissions($path);
+    return sharedFileApplyPermissions($path, sharedFileGroup());
 }

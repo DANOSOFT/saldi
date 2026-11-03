@@ -20,6 +20,9 @@ owned by root or the current account; the immediate parent is never allowed to
 be writable by others. Directory owners and members of the shared group are
 trusted. Deploy the application under trusted owners and restrict write access
 to its parent directories as well.
+Relative paths such as `../temp/log` also traverse the page's directory before
+stepping up. A group-writable `finans`, `index`, `admin` or `debitor` directory
+must therefore use the shared group; migrating `temp` alone does not repair it.
 
 ## One-time setup and migration
 
@@ -29,6 +32,7 @@ PHP code alone cannot repair that situation. Before enabling the helpers:
 1. Stop web workers and CLI jobs that write runtime files. Check the runtime tree
    for unexpected entries; the migration refuses symlinks and special files
    inside it. A symlinked `temp` directory itself is migrated at its target.
+   The argument must resolve to this installation's `temp`; other trees are refused.
 2. Have an administrator add each CLI account to the shared group, for example
    `sudo usermod -a -G SHARED_GROUP YOUR_CLI_ACCOUNT`. Print `SHARED_GROUP` from
    the installation directory with
@@ -55,7 +59,8 @@ PHP code alone cannot repair that situation. Before enabling the helpers:
    This migrates existing files to the shared group and `0660`, and directories
    to root ownership, the shared group and `02770`, preserving file contents and
    file owners. The entire `temp` tree, including tenant directories, is covered.
-   A failed migration exits nonzero; resolve the reported entry before restarting.
+   Refused entries are reported while other entries continue to be migrated.
+   An incomplete migration exits nonzero; resolve the reported entries before restarting.
 5. Restart web workers and CLI jobs, with the same shared-group configuration.
    Verify that a CLI-created log can be appended by the web account and that an
    unrelated account cannot read it or replace entries in its parent directory.
@@ -71,11 +76,16 @@ there is no privilege escalation. Repeat the administrator migration while
 writers are stopped. There is no fallback to access for every local user.
 
 Until an installation is migrated (an untrusted parent such as a `777` `temp`
-directory, a symlink pointing into one, or an unknown group), the helpers keep the plain
-`fopen`/`mkdir` (`0770`) writes used before them and change no permissions through
-that chain. Each distinct warning is raised once per request, so per-query logs
-do not flood the error log. Overwrites open the file without truncating it,
-compare the opened file with the path, and only then truncate it.
+directory, a symlink pointing into one, or an unknown group), the helpers keep
+writing without changing existing permissions through that chain. New files
+exclude other users by adding `0007` to the caller's creation mask, then restoring
+it. New directories request `0770`, subject to that mask (master requested `0775`).
+Each distinct diagnostic goes directly to the server error log once per request;
+it does not invoke PHP error handlers or display filesystem paths in the response.
+On trusted chains, overwrites open the file without truncating it, compare the
+opened file with the path, and truncate only when they match. Failed truncation
+closes the stream and reports failure. Special-file targets, including symlinks
+to FIFOs, are refused before opening.
 
 Other legacy temporary-file writers still need to be migrated to these helpers
 when changed; a setgid directory supplies group inheritance, but each writer's

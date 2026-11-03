@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.0 ----2026-10-29--------------
+// --- includes/db_query.php ---ver 5.1.0 ----2026-11-03--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,6 +61,7 @@
 //                serves with a mysqli connection too (still supported, not actively used).
 // 20261029 CDX/NTR Use shared permissions for database logs and tenant temporary directories.
 // 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
+// 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -100,12 +101,13 @@ if (!function_exists('db_log_append')) {
             return false;
         }
         try {
+            $complete = true;
             foreach ((array)$lines as $line) {
                 if (fwrite($fp, $line) !== strlen($line)) {
-                    return false;
+                    $complete = false;
                 }
             }
-            return true;
+            return $complete;
         } finally {
             fclose($fp);
         }
