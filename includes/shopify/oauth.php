@@ -65,10 +65,15 @@ function shopify_oauth_query_hmac(array $query, string $secret, bool $encoded = 
 		if (!is_string($value)) {
 			return null;
 		}
-		$pairs[] = $encoded ? urlencode((string)$name) . '=' . urlencode($value)
+		$pairs[] = $encoded ? shopify_oauth_form_encode((string)$name) . '=' . shopify_oauth_form_encode($value)
 			: strtr((string)$name, array('%' => '%25', '&' => '%26', '=' => '%3D')) . '=' . strtr($value, array('%' => '%25', '&' => '%26'));
 	}
 	return hash_hmac('sha256', implode('&', $pairs), $secret);
+}
+
+/** A value encoded as shopify-app-js signs it (URLSearchParams, a space as %20): unreserved and * stay. */
+function shopify_oauth_form_encode(string $value): string {
+	return strtr(rawurlencode($value), array('%2A' => '*', '~' => '%7E'));
 }
 
 /** Whether the request carries Shopify's signature under $secret and a timestamp near $now. */
