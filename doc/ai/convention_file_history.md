@@ -23,7 +23,7 @@ Continuation lines start with `//` followed by spaces padding out to the column 
 
 ```
 // 20260713 CL/PHR Added invoice history convention support to the header history block.
-//                  Also updated related tests.
+//                 Also updated related tests.
 ```
 
 **Why:** Lets the team (and future AI sessions) tell at a glance which changes were AI-assisted and by which tool, without disturbing the existing header layout or legacy history lines.

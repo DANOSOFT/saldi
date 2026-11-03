@@ -15,6 +15,7 @@
 // History:
 // 20261027 CL/LH Created.
 // 20261028 CL/LH Accept history blocks that are indented like the rest of their file's block.
+// 20261029 CL/MJ Enforce aligned sentence-only continuations for new history entries (PR #874).
 // 20261029 CDX/MJ Reject newly added history after a leading PHPDoc instead of inside the header.
 // 20261030 CL/MJ Only a /** block counts as that PHPDoc, so history after a plain /* note in the header (includes/grid.php) is not flagged.
 
@@ -49,6 +50,9 @@ export default {
   summary: "edited PHP files get a well-formed history line at the bottom of the block, header date and copyright moved along",
   run(ctx) {
     const findings = [];
+    // The diff runs with --no-renames, so a moved file is a new file plus a deleted one. Its lines that
+    // already stood in a deleted file are not new for the continuation rule below.
+    const deletedLines = new Set(ctx.files.filter((file) => file.status === "D").flatMap((file) => splitLines(ctx.readBase(file.path) ?? "")));
     for (const file of ctx.files) {
       if (file.status === "D" || !file.path.endsWith(".php") || ctx.isVendored(file.path)) continue;
       const lines = splitLines(ctx.readHead(file.path));
@@ -114,6 +118,55 @@ export default {
           line: misplaced[0],
           message: `history line added above older entries; new lines go at the bottom of the block, after line ${existing[existing.length - 1]}.`,
         });
+      }
+
+      const base = splitLines(ctx.readBase(file.path) ?? "");
+      const isNew = (line) => file.added.has(line) && !(file.status === "A" && deletedLines.has(lines[line - 1]));
+      const endsSentence = (line) => /[.!?]["'`)]*$/.test(lines[line - 1].trimEnd());
+      // A comment line under a history entry is a continuation when it is indented, or when it has
+      // one space but the line above left its sentence open. A one-space line after a finished
+      // sentence (// Run: ...) describes the file, and a separator or an older dated line ends the entry.
+      // Only an unchanged one-space line can be an older dated entry (// 2018.12.20 ...): a new
+      // continuation, or an indented old one (//                5027-5030 to ...), may start with a date.
+      const continuationAt = (line) => {
+        const match = /^(\s*\/\/([ \t]+))(\S.*)$/.exec(lines[line - 1]);
+        if (!match || HISTORY.test(lines[line - 1])) return null;
+        if (/^[-=*#~_ ]+$/.test(match[3])) return null;
+        if (!isNew(line) && match[2] === " " && /^\d{2,4}[./-]\d/.test(match[3])) return null;
+        if (match[2] === " " && endsSentence(line - 1)) return null;
+        return match;
+      };
+      for (const line of historyLines) {
+        const prefix = /^(\s*\/\/ \d{8}[ \t]+(?:(?:CL|CDX)\/)?[A-Z]{2,4}[ \t]+)/.exec(lines[line - 1]);
+        if (!prefix) continue;
+        for (let next = line + 1; next <= header; next++) {
+          const continuation = continuationAt(next);
+          if (!continuation) break;
+          if (!isNew(line) && !isNew(next)) continue;
+          if (isNew(line) && !isNew(next)) {
+            // An old continuation right below a new entry belongs to the entry above it. An old
+            // one-space line there is a file description (// Run: ...), not a continuation, even when
+            // the new entry has no full stop: the convention does not ask for one on a one-line entry.
+            if (continuation[2] === " ") break;
+            // A corrected dated line keeps its own continuation: at the base, the line above that
+            // continuation was a dated line, and that line is gone now.
+            const at = base.indexOf(lines[next - 1]);
+            if (at > 0 && HISTORY.test(base[at - 1]) && !lines.includes(base[at - 1])) break;
+            let last = next;
+            while (last + 1 <= header && !isNew(last + 1) && continuationAt(last + 1)) last++;
+            findings.push({ path: file.path, line,
+              message: `this entry splits the entry above from its continuation on line ${next}; move it below line ${last}.` });
+            break;
+          }
+          if (continuation[1].length !== prefix[1].length) {
+            findings.push({ path: file.path, line: next,
+              message: `align the history continuation with the description at column ${prefix[1].length + 1}.` });
+          }
+          if (!endsSentence(next - 1)) {
+            findings.push({ path: file.path, line: next,
+              message: "history continuations start a new sentence; keep the preceding sentence on one line." });
+          }
+        }
       }
 
       const newest = added.map((line) => HISTORY.exec(lines[line - 1])[2]).sort().pop();
