@@ -35,7 +35,7 @@ final class OpretOrdrelinjeDefaultTest extends CharacterizationTestCase
                 self::rows("UPDATE grupper SET box11 = $1 WHERE art = 'DIV' AND kodenr = '3'", [self::$div3['box11']]);
             }
             self::rows("DELETE FROM rabat WHERE debitor = 93 AND rabat = 10 AND rabatart = '%'");
-            self::rows("DELETE FROM grupper WHERE art = 'DG' AND beskrivelse IN ('SD789 B2B', 'SD789 Rabat')");
+            self::rows("DELETE FROM grupper WHERE beskrivelse IN ('SD789 B2B', 'SD789 Rabat', 'SD789 Momsfri')");
         }
         parent::tearDownAfterClass();
     }
@@ -218,10 +218,12 @@ final class OpretOrdrelinjeDefaultTest extends CharacterizationTestCase
     public function testAVatInclusivePriceOfAVatFreeItemIsStoredAsGiven(string $copy): void
     {
         $item = self::$fx->item(['salgspris' => 200, 'stocked' => false]);
-        if (self::one("SELECT box7 FROM grupper WHERE art = 'VG' AND kodenr = $1 AND fiscal_year = $2",
-            [(string)$item['gruppe'], self::$regnaar])['box7'] !== 'on') {
-            self::markTestSkipped('the template has no VAT-free untracked item group');
-        }
+        // a VAT-free item group of its own, with the accounts of the item's group: templates differ in which groups are VAT free
+        self::rows("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box3, box4, box7, box8)
+            SELECT 'SD789 Momsfri', '9775', 'VG', fiscal_year, box3, box4, 'on', ''
+            FROM grupper WHERE art = 'VG' AND kodenr = $1 AND fiscal_year = $2
+            AND NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'VG' AND kodenr = '9775' AND fiscal_year = $2)", [(string)$item['gruppe'], self::$regnaar]);
+        self::rows("UPDATE varer SET gruppe = 9775 WHERE id = $1", [$item['id']]);
         $order = self::order();
 
         $this->runSteps([self::line($copy, $order, $item, 125, [12 => 'on'])]);
