@@ -116,7 +116,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$firmanavn = $r['firmanavn'];
 	}
-		$vatNo     = $r['cvrnr'];
+	$vatNo     = $r['cvrnr'];
 	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='$afd'";
 	if (($afd || $afd == '0') && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
 		$afd_navn = $r['beskrivelse'];
