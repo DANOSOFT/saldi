@@ -1,15 +1,17 @@
 <?php
 // tests/shopify/SandboxRunnerTest.php
 //
-// The sandbox runner (SD-766, support/sandbox/run.php) as a command: an unsafe tenant or a half
-// credential exits 2 before anything runs, the sandboxes without credentials give SKIP, the fake
-// target passes K05 and runs the cross-lane chain X01 on a cloned tenant (SKIP without a
-// database), calibration without a dev store is SKIP, and the calibration's shape diff and
-// shopify_await() work on two fakes and a fake clock.
+// The sandbox runner (SD-766, support/sandbox/run.php) as a command: an unsafe tenant, a half
+// credential or half the database settings exit 2 before anything runs, the sandboxes without
+// credentials give SKIP, the fake target passes K05 and runs the cross-lane chain X01 on a cloned
+// tenant (SKIP without database settings), a clone is dropped whatever fails while it is set up,
+// calibration without a dev store is SKIP, and the calibration's comparison and shopify_await()
+// work on two fakes and a fake clock.
 //
 // History:
 // 20261103 CL/LH SD-766: created.
-// 20261103 CL/LH SD-766: review fixes: calibration compares outcomes, every error code and the cost.
+// 20261103 CL/LH SD-766: review fixes: calibration compares outcomes, every error code and the cost; the runner
+//                without database settings, with half of them, with an overlong clone name and a failed setup.
 
 use PHPUnit\Framework\TestCase;
 
@@ -19,13 +21,14 @@ final class SandboxRunnerTest extends TestCase
 {
     /**
      * Runs the runner as a child: this process's environment without sandbox or dev-store
-     * credentials, plus $env.
+     * credentials (and without database settings unless $database), plus $env.
      *
      * @return array{exit: int, stdout: string, stderr: string, json: ?array}
      */
-    private function runner(array $args, array $env = []): array
+    private function runner(array $args, array $env = [], bool $database = true): array
     {
-        $base = array_filter(getenv(), fn(string $k): bool => !preg_match('/^SALDI_SHOPIFY_(SANDBOX|DEVSTORE)_/', $k), ARRAY_FILTER_USE_KEY);
+        $drop = $database ? '/^SALDI_SHOPIFY_(SANDBOX|DEVSTORE)_/' : '/^SALDI_SHOPIFY_(SANDBOX_|DEVSTORE_|PG|TEMPLATE_DB|TEST_DB|MASTER_DB)/';
+        $base = array_filter(getenv(), fn(string $k): bool => !preg_match($drop, $k), ARRAY_FILTER_USE_KEY);
         $proc = proc_open(array_merge([PHP_BINARY, __DIR__ . '/support/sandbox/run.php'], $args), [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes,
             ShopifyEnv::repoRoot(), $env + $base);
         $stdout = (string)stream_get_contents($pipes[1]);
@@ -74,9 +77,99 @@ final class SandboxRunnerTest extends TestCase
             array_map(fn(array $r): array => [$r['id'], $r['status'], $r['detail']], $run['json']['results']));
     }
 
+    private function requireDatabase(): string
+    {
+        $why = ShopifyEnv::unavailableReason();
+        if ($why !== null) {
+            $this->markTestSkipped($why);
+        }
+        return (string)getenv('SALDI_SHOPIFY_TEST_DB');
+    }
+
+    /** @return array{0: bool, 1: bool} whether $db exists, and whether master regnskab registers it */
+    private function tenantState(string $db): array
+    {
+        $master = ShopifyEnv::connect(ShopifyEnv::masterDb());
+        try {
+            return [ShopifyEnv::one($master, 'SELECT 1 AS x FROM pg_database WHERE datname = $1', [$db]) !== null,
+                ShopifyEnv::one($master, 'SELECT 1 AS x FROM regnskab WHERE db = $1', [$db]) !== null];
+        } finally {
+            pg_close($master);
+        }
+    }
+
+    public function testWithoutDatabaseSettingsTheFakePassesK05AndSkipsTheChain(): void
+    {
+        // on a PHP with pgsql, as CI's: the runner must not ask for the settings it was not given
+        $run = $this->runner(['--target=fake', '--tenant=saldi_shopify_test_ci', '--json'], [], false);
+
+        $this->assertSame(0, $run['exit'], $run['stderr'] . $run['stdout']);
+        $this->assertSame(['PASS', 'PASS', 'PASS'], array_column(array_filter($run['json']['results'], fn(array $r): bool => $r['id'] === 'K05'), 'status'));
+        $this->assertSame([['SKIP', 'no test tenant: no database configured (SALDI_SHOPIFY_PGUSER, SALDI_SHOPIFY_PGPASS, SALDI_SHOPIFY_TEMPLATE_DB are not set)']],
+            array_map(fn(array $r): array => [$r['status'], $r['detail']], array_values(array_filter($run['json']['results'], fn(array $r): bool => $r['id'] === 'X01'))));
+        $this->assertNull($run['json']['clone']);
+    }
+
+    public function testHalfTheDatabaseSettingsExit2BeforeAnythingRuns(): void
+    {
+        foreach ([['SALDI_SHOPIFY_PGUSER' => 'user'], ['SALDI_SHOPIFY_PGUSER' => 'user', 'SALDI_SHOPIFY_PGPASS' => 'not-a-password'], ['SALDI_SHOPIFY_TEMPLATE_DB' => 'saldi_2']] as $env) {
+            $run = $this->runner(['--target=fake', '--tenant=saldi_shopify_test_ci'], $env, false);
+            $this->assertSame(2, $run['exit'], json_encode(array_keys($env)));
+            $this->assertStringContainsString('unsafe config, nothing run: SALDI_SHOPIFY_PGUSER, SALDI_SHOPIFY_PGPASS, SALDI_SHOPIFY_TEMPLATE_DB go together', $run['stderr']);
+            $this->assertSame('', $run['stdout'], 'nothing ran');
+        }
+    }
+
+    public function testAnOverlongCloneNameExits2BeforeAnythingIsCloned(): void
+    {
+        $this->requireDatabase();
+        $tenant = 'saldi_shopify_test_ci_long';
+        $run = $this->runner(['--target=fake', "--tenant=$tenant"]);
+
+        $this->assertSame(2, $run['exit'], $run['stdout']);
+        $this->assertStringContainsString("the clone {$tenant}_sr would be longer than 25 characters", $run['stderr']);
+        $this->assertSame('', $run['stdout']);
+        $this->assertSame([false, false], $this->tenantState("{$tenant}_sr"), 'nothing was cloned');
+    }
+
+    public function testAFailedSetupStillDropsTheClone(): void
+    {
+        $tenant = $this->requireDatabase();
+        $clone = "{$tenant}_sr";
+        $messages = '';
+        $seams = ['schema' => fn(string $db): array => ['exit' => 1, 'stderr' => 'injected schema failure'],
+            'stderr' => function (string $message) use (&$messages): void {
+                $messages .= $message;
+            }];
+        $main = function (array $seams): array {
+            ob_start();
+            try {
+                return [shopify_sandbox_main(['run.php', '--target=fake', '--tenant=' . getenv('SALDI_SHOPIFY_TEST_DB'), '--json'], $seams), ob_get_contents()];
+            } finally {
+                ob_end_clean();
+            }
+        };
+
+        $this->assertSame([2, ''], $main($seams));
+        $this->assertStringContainsString("setup failed, nothing run: schema ensure failed on $clone: injected schema failure", $messages);
+        $this->assertSame([false, false], $this->tenantState($clone), 'unregistered and dropped');
+
+        $messages = '';
+        try {
+            $this->assertSame([2, ''], $main($seams + ['unregister' => function (): void {
+                throw new RuntimeException('injected unregister failure');
+            }]));
+            $this->assertStringContainsString('cleanup failed: unregister: injected unregister failure', $messages);
+            $this->assertSame([false, true], $this->tenantState($clone), 'dropped though the unregister failed');
+        } finally {
+            ShopifyEnv::unregisterTenants();
+        }
+        $this->assertSame([false, false], $this->tenantState($clone));
+    }
+
     public function testTheFakeTargetPassesK05AndRunsTheChainAcrossTheLanes(): void
     {
-        $tenant = (string)getenv('SALDI_SHOPIFY_TEST_DB') ?: 'saldi_shopify_test_ci';
+        $tenant = $this->requireDatabase();
         $run = $this->runner(['--target=fake', "--tenant=$tenant", '--json']);
 
         $this->assertSame(0, $run['exit'], $run['stderr'] . $run['stdout']);
@@ -84,10 +177,6 @@ final class SandboxRunnerTest extends TestCase
         $this->assertSame(0, $run['json']['counts']['FAIL'], json_encode(array_filter($results, fn(array $r): bool => $r['status'] === 'FAIL')));
         $this->assertSame(['PASS', 'PASS', 'PASS'], array_column(array_filter($results, fn(array $r): bool => $r['id'] === 'K05'), 'status'));
         $chain = array_values(array_filter($results, fn(array $r): bool => $r['id'] === 'X01'));
-        if (ShopifyEnv::unavailableReason() !== null) {
-            $this->assertSame('SKIP', $chain[0]['status'], 'without a database the chain is skipped');
-            return;
-        }
         $this->assertNull(ShopifyEnv::one(ShopifyEnv::connect(ShopifyEnv::masterDb()), 'SELECT 1 AS x FROM pg_database WHERE datname = $1', [$tenant . '_sr']), 'the clone is dropped');
         $byStep = array_column($chain, 'status', 'step');
         foreach (['events: register-webhooks (SD-749)', 'catalogue: the item becomes a draft in the primary shop (SD-741)', 'webhooks: the order\'s deliveries reach the inbox (SD-748)',

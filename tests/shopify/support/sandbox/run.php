@@ -9,17 +9,22 @@
 //   php tests/shopify/support/sandbox/run.php --calibrate [--tenant=saldi_shopify_test_<x>] [--record=<dir>]
 //
 // --target=fake: FakeShopifyStore as the three shops; scenarios that need a tenant run on a clone
-// of SALDI_SHOPIFY_TEMPLATE_DB named <tenant>_sr, dropped afterwards (the named tenant itself is
-// never touched), with the suite's SALDI_SHOPIFY_PG* settings (tests/shopify/support/ShopifyEnv.php).
+// of SALDI_SHOPIFY_TEMPLATE_DB named <tenant>_sr, dropped afterwards even when setting it up fails
+// (the named tenant itself is never touched), with the suite's SALDI_SHOPIFY_PG* settings
+// (tests/shopify/support/ShopifyEnv.php). With none of SALDI_SHOPIFY_PGUSER, _PGPASS and
+// _TEMPLATE_DB set the fake runs without a tenant (X01 SKIP); with some but not all, exit 2.
 // --target=sandbox: the DTAILS sandboxes, SALDI_SHOPIFY_SANDBOX_<HML|HMS|DI>_DOMAIN and _TOKEN;
 // a shop without them is SKIP. --calibrate: the same documents against the fake and a Danosoft dev
 // store (SALDI_SHOPIFY_DEVSTORE_DOMAIN and _TOKEN; SKIP without), see calibration.php.
 // Credentials come from the environment only, never from a file or a default. The tenant (--tenant,
 // else SALDI_SHOPIFY_TEST_DB) must be saldi_shopify_test_*; pos_50 and test_12 are refused.
-// Exit 0 when nothing failed, 1 when something did, 2 on an unsafe or incomplete config (nothing run).
+// Exit 0 when nothing failed, 1 when something did or the clone could not be cleaned up, 2 on an
+// unsafe or incomplete config or a failed setup (nothing run).
 //
 // History:
 // 20261103 CL/LH SD-766: created (the ticket's tests/shopify/sandbox/ is tests/shopify/support/sandbox/ since SD-793).
+// 20261103 CL/LH SD-766: review fixes: no database settings run the fake without a tenant, partial ones exit 2;
+//                the clone's name is checked before cloning and cleaned up whatever fails.
 
 require_once __DIR__ . '/../../../../includes/shopify/client.php';
 require_once __DIR__ . '/scenarios.php';
@@ -35,22 +40,32 @@ final class ShopifySandboxConfigError extends RuntimeException
 {
 }
 
-/** @param list<string> $argv */
-function shopify_sandbox_main(array $argv): int
+/**
+ * @param list<string> $argv
+ * @param array{schema?: callable(string): array{exit: int, stderr: string}, unregister?: callable(): void, stderr?: callable(string): void} $seams
+ *   test seams: the clone's schema step, the unregister step of the cleanup, where messages go
+ */
+function shopify_sandbox_main(array $argv, array $seams = []): int
 {
+	$err = $seams['stderr'] ?? fn(string $message) => fwrite(STDERR, $message);
 	try {
 		$o = shopify_sandbox_options($argv);
-		$ctx = shopify_sandbox_context($o);
 	} catch (RuntimeException $e) {
-		fwrite(STDERR, 'sandbox runner: unsafe config, nothing run: ' . $e->getMessage() . "\n" . SHOPIFY_SANDBOX_USAGE);
+		$err('sandbox runner: unsafe config, nothing run: ' . $e->getMessage() . "\n" . SHOPIFY_SANDBOX_USAGE);
 		return 2;
 	}
 	try {
+		try {
+			$ctx = shopify_sandbox_context($o, $seams);
+		} catch (Throwable $e) {
+			$err('sandbox runner: ' . ($e instanceof ShopifySandboxConfigError ? 'unsafe config' : 'setup failed') . ', nothing run: ' . $e->getMessage() . "\n");
+			return 2;
+		}
 		$results = $o['calibrate'] ? shopify_sandbox_calibration($ctx, $o['record']) : shopify_sandbox_run($ctx, $o['only']);
 	} finally {
-		if (($ctx['db'] ?? null) !== null) {
-			ShopifyEnv::unregisterTenants();
-			ShopifyEnv::dropOwnedTenants();
+		$cleanup = shopify_sandbox_cleanup($seams['unregister'] ?? null);
+		if ($cleanup !== null) {
+			$err("sandbox runner: cleanup failed: $cleanup\n");
 		}
 	}
 	$counts = array_fill_keys(SHOPIFY_SANDBOX_STATUSES, 0);
@@ -63,7 +78,48 @@ function shopify_sandbox_main(array $argv): int
 	} else {
 		echo shopify_sandbox_report($ctx, $results, $counts);
 	}
-	return $counts['FAIL'] > 0 ? 1 : 0;
+	return $counts['FAIL'] > 0 || $cleanup !== null ? 1 : 0;
+}
+
+/**
+ * Unregisters and drops the tenants this process made; a failed unregister does not keep the
+ * clone. Nothing to do (and no connection) when it made none.
+ *
+ * @return string|null what failed
+ */
+function shopify_sandbox_cleanup(?callable $unregister = null): ?string
+{
+	$failed = [];
+	try {
+		($unregister ?? [ShopifyEnv::class, 'unregisterTenants'])();
+	} catch (Throwable $e) {
+		$failed[] = 'unregister: ' . $e->getMessage();
+	}
+	try {
+		ShopifyEnv::dropOwnedTenants();
+	} catch (Throwable $e) {
+		$failed[] = 'drop: ' . $e->getMessage();
+	}
+	return $failed === [] ? null : implode('; ', $failed);
+}
+
+/**
+ * The runner's database settings: null when SALDI_SHOPIFY_PGUSER, _PGPASS and _TEMPLATE_DB are
+ * all set, the reason to run without a tenant when none is.
+ *
+ * @throws ShopifySandboxConfigError when some but not all are set
+ */
+function shopify_sandbox_db_config(): ?string
+{
+	$vars = ['SALDI_SHOPIFY_PGUSER', 'SALDI_SHOPIFY_PGPASS', 'SALDI_SHOPIFY_TEMPLATE_DB'];
+	$set = array_values(array_filter($vars, fn(string $var): bool => (string)getenv($var) !== ''));
+	if ($set === []) {
+		return 'no database configured (' . implode(', ', $vars) . ' are not set)';
+	}
+	if (count($set) < count($vars)) {
+		throw new ShopifySandboxConfigError(implode(', ', $vars) . ' go together; only ' . implode(', ', $set) . ' set');
+	}
+	return null;
 }
 
 /**
@@ -124,8 +180,13 @@ function shopify_sandbox_env_shop(string $prefix, string $key): ?array
 		'opts' => fn(): array => ['access_token' => $token, 'deadline' => microtime(true) + 30, 'log' => fn(array $entry) => null]];
 }
 
-/** The target's shops (and, for the fake, the cloned tenant). */
-function shopify_sandbox_context(array $o): array
+/**
+ * The target's shops (and, for the fake, the cloned tenant). A failure after the clone leaves it
+ * to shopify_sandbox_cleanup(), which finds it in ShopifyEnv.
+ *
+ * @param array{schema?: callable(string): array{exit: int, stderr: string}} $seams
+ */
+function shopify_sandbox_context(array $o, array $seams = []): array
 {
 	$ctx = ['target' => $o['target'], 'tenant' => $o['tenant'], 'shops' => [], 'db' => null];
 	if ($o['target'] === 'sandbox') {
@@ -144,18 +205,27 @@ function shopify_sandbox_context(array $o): array
 		$ctx['real'] = shopify_sandbox_env_shop('DEVSTORE', 'devstore');
 		return $ctx;
 	}
-	// ShopifyEnv reads the test tenant's name from the environment
-	putenv('SALDI_SHOPIFY_TEST_DB=' . $o['tenant']);
-	$ctx['db_skip'] = ShopifyEnv::unavailableReason();
+	$ctx['db_skip'] = shopify_sandbox_db_config();
 	if ($ctx['db_skip'] === null) {
-		$ctx['db'] = ShopifyEnv::testDb('_sr');
-		ShopifyEnv::cloneTenant($ctx['db']);
-		ShopifyEnv::registerTenant($ctx['db']);
-		$schema = ShopifyEnv::runSchema($ctx['db'], 'ensure');
-		if ($schema['exit'] !== 0) {
-			throw new RuntimeException('schema ensure failed on ' . $ctx['db'] . ': ' . $schema['stderr']);
-		}
+		// ShopifyEnv reads the test tenant's name from the environment
+		putenv('SALDI_SHOPIFY_TEST_DB=' . $o['tenant']);
+		$ctx['db_skip'] = ShopifyEnv::unavailableReason();
 	}
+	if ($ctx['db_skip'] !== null) {
+		return $ctx;
+	}
+	$db = ShopifyEnv::testDb('_sr');
+	if (strlen($db) > ShopifyEnv::MAX_REGISTERED_DB_LENGTH) {
+		throw new ShopifySandboxConfigError("the clone $db would be longer than " . ShopifyEnv::MAX_REGISTERED_DB_LENGTH
+			. ' characters (master regnskab.db is varchar(' . ShopifyEnv::MAX_REGISTERED_DB_LENGTH . ')): use a tenant name of at most ' . (ShopifyEnv::MAX_REGISTERED_DB_LENGTH - 3));
+	}
+	ShopifyEnv::cloneTenant($db);
+	ShopifyEnv::registerTenant($db);
+	$schema = ($seams['schema'] ?? fn(string $db): array => ShopifyEnv::runSchema($db, 'ensure'))($db);
+	if ($schema['exit'] !== 0) {
+		throw new RuntimeException("schema ensure failed on $db: " . $schema['stderr']);
+	}
+	$ctx['db'] = $db;
 	return $ctx;
 }
 
