@@ -24,8 +24,8 @@
 // opened from the master admin (Danosoft) creates a shop.
 //
 // 20261102 CL/MJ SD-761: created.
-// 20261103 CL/MJ SD-761 review: creating a shop needs Danosoft's login; a new secret value wins over "Slet";
-//                the legacy slot reads 1./2./3. API-klient; the flows have texts.
+// 20261103 CL/MJ SD-761 review: creating a shop needs Danosoft's login, and a new secret value wins over "Slet".
+//                The legacy slot reads 1./2./3. API-klient, and the flows have texts.
 
 $title = 'Shopify shops';
 require __DIR__ . '/adminBootstrap.php';

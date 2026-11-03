@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/left_menu.php -----patch 5.1.0 ----2026-11-02----
+// ----------------systemdata/left_menu.php -----ver 5.1.0 ----2026-11-02----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
