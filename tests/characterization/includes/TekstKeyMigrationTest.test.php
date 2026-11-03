@@ -4,8 +4,9 @@
 //                  lock-acquisition failure, concurrent creation and DDL-error lock release.
 // 20261028 CDX/NTR Expect the index lock when an existing column still needs its index.
 // 20261028 CDX/NTR Cover the same migration running against the master database.
-// 20261031 CL/ASR Stop the evaluated slice at the end-of-migration sentinel in betweenUpdates.php instead of the closing PHP tag.
-//                 Other migrations are now appended after the tekst_key block.
+// 20261029 CL/LH Stop the eval at the end of this migration, so blocks appended after it in betweenUpdates.php are not run.
+// 20261103 CL/ASR Merged with master: the eval stops at the migration's foreach close (the 20261029 rule); the sentinel comment that
+//                 20261031 added in betweenUpdates.php stays only as a marker, and the other migrations are still appended after the block.
 
 namespace Saldi\Tests\TekstKeyMigration;
 
@@ -237,7 +238,12 @@ final class TekstKeyMigrationTest extends TestCase
         // at the sentinel comment after the migration; the blocks appended below it are not run.
         $source = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
         $start = strpos($source, '$tekstKeyMysql =');
-        $end = strpos($source, '// ===== end of the tekst_key migration', $start);
+        // End at the close of the migration's foreach: later blocks in betweenUpdates.php are other migrations.
+		$foreachAt = strpos($source, 'foreach ($tekstKeyTargets', (int) $start);
+        self::assertNotFalse($foreachAt, 'migration foreach not found');
+        $close = strpos($source, "\n}\n", $foreachAt);
+        self::assertNotFalse($close, 'end of migration foreach not found');
+        $end = $close + 3;
         self::assertNotFalse($start);
         self::assertNotFalse($end);
         eval('namespace ' . __NAMESPACE__ . '; use RuntimeException; ' . substr($source, $start, $end - $start));
