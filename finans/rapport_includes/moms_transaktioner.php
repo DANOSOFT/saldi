@@ -48,6 +48,18 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     $maaned_til = trim($maaned_til);
     $konto_fra  = trim($konto_fra);
     $konto_til  = trim($konto_til);
+    // An empty bound means no limit; a bound that is not a number closes the range instead of
+    // being cast to 0, which would widen the report.
+    if ($konto_fra === '') {
+        $konto_fraSql = 0;
+    } else {
+        $konto_fraSql = is_numeric($konto_fra) ? (int)$konto_fra : PHP_INT_MAX;
+    }
+    if ($konto_til === '') {
+        $konto_tilSql = PHP_INT_MAX;
+    } else {
+        $konto_tilSql = is_numeric($konto_til) ? (int)$konto_til : 0;
+    }
 
     for ($x = 1; $x <= 12; $x++) {
         if ($maaned_fra == $md[$x]) $maaned_fra = $x;
@@ -102,9 +114,9 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
 
     $konto_filter = '';
     if ($konto_fra && $konto_til && $konto_fra != $konto_til) {
-        $konto_filter = "AND t.kontonr >= '" . (int)$konto_fra . "' AND t.kontonr <= '" . (int)$konto_til . "' ";
+        $konto_filter = "AND t.kontonr >= '" . $konto_fraSql . "' AND t.kontonr <= '" . $konto_tilSql . "' ";
     } elseif ($konto_fra) {
-        $konto_filter = "AND t.kontonr = '" . (int)$konto_fra . "' ";
+        $konto_filter = "AND t.kontonr = '" . $konto_fraSql . "' ";
     }
 
     $kode_filter = ($filter_kode !== '') ? "AND COALESCE(kp.moms,'') = '$filter_kode' " : '';

@@ -127,6 +127,18 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$konto_fra = trim($konto_fra);
 	$konto_til = trim($konto_til);
+	// An empty bound means no limit; a bound that is not a number cannot match an account, so it
+	// closes the range instead of being cast to 0, which would widen the report.
+	if ($konto_fra === '') {
+		$konto_fraSql = 0;
+	} else {
+		$konto_fraSql = is_numeric($konto_fra) ? (int)$konto_fra : PHP_INT_MAX;
+	}
+	if ($konto_til === '') {
+		$konto_tilSql = PHP_INT_MAX;
+	} else {
+		$konto_tilSql = is_numeric($konto_til) ? (int)$konto_til : 0;
+	}
 
 	$mf = (int)$maaned_fra;
 	$mt = (int)$maaned_til;
@@ -391,7 +403,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$x = 0;
 	$kontonr = array();
-	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='" . (int)$konto_fra . "' and kontonr<='" . (int)$konto_til . "' order by kontonr";
+	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='" . $konto_fraSql . "' and kontonr<='" . $konto_tilSql . "' order by kontonr";
 	$q = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$kontonr[$x] = $row['kontonr'] * 1;
@@ -420,14 +432,14 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$ktonr = array();
 	$x = 0;
-	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='" . (int)$konto_fra . "' and kontonr<='" . (int)$konto_til . "' $dim";
+	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='" . $konto_fraSql . "' and kontonr<='" . $konto_tilSql . "' $dim";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$ktonr[$x] = $r['kontonr'];
 		$x++;
 	}
 	if ($includeSimulated) {
-		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='" . (int)$konto_fra . "' and kontonr<='" . (int)$konto_til . "' $dim";
+		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='" . $konto_fraSql . "' and kontonr<='" . $konto_tilSql . "' $dim";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['kontonr'], $ktonr)) {
@@ -468,7 +480,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		$unposted         = $preview['entries'];
 		$unpostedProblems = $preview['problems'];
 		foreach ($unposted as $unpostedKonto => $unpostedEntries) {
-			if ($unpostedKonto < $konto_fra || $unpostedKonto > $konto_til || in_array($unpostedKonto, $ktonr)) continue;
+			if ($unpostedKonto < $konto_fraSql || $unpostedKonto > $konto_tilSql || in_array($unpostedKonto, $ktonr)) continue;
 			foreach ($unpostedEntries as $entry) {
 				if ($entry['transdate'] >= $periodStart) {
 					$ktonr[] = $unpostedKonto;

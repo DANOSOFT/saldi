@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontokort_standalone.php-----patch 5.0.0 ----2026-10-30-----
+// --- finans/kontokort_standalone.php-----ver 5.1.0 ----2026-11-03-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,8 @@
 //20260929 MJ SST-809 Read udskriv from the URL and pass it on: the print view
 //                renders the whole kontokort instead of the requested page.
 // 20261030 CL/LAH per_page defaults to 0 = all lines.
+// 20261103 LOE SST-936 Resolve the employee range into the id list kontokort() filters by.
+//              The report page builds that list from its form; this page only gets the bounds.
 @session_start();
 $s_id = session_id();
 
@@ -65,6 +67,22 @@ $per_page    = max(0, (int) ifset($_GET, 'per_page', 0)); // 0 = all lines
 // SST-809 udskriv=on renders the whole kontokort in one pass for printing,
 // ignoring page/per_page. Treated as a flag, never interpolated anywhere.
 $udskriv     = if_isset($_GET, null, 'udskriv') ? true : false;
+
+// kontokort() filters the employee list it is given, and the report page builds that list from
+// its form. This page receives the two bounds, so the ids between them are resolved here - without
+// this a two-employee range was narrowed to the first employee.
+$ansatte_id = NULL;
+if ($ansat_fra && $ansat_til && is_numeric($ansat_fra) && is_numeric($ansat_til)) {
+    $ansatteIder = array();
+    $qtxt = "select id from ansatte where id >= '" . (int)$ansat_fra . "' and id <= '" . (int)$ansat_til . "' order by id";
+    $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    while ($r = db_fetch_array($q)) {
+        $ansatteIder[] = (int)$r['id'];
+    }
+    if ($ansatteIder) {
+        $ansatte_id = implode(",", $ansatteIder);
+    }
+}
 
 include("rapport_includes/kontokort.php");
 

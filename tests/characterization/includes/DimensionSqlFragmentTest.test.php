@@ -30,6 +30,7 @@ if (!function_exists('str2low')) {
 	}
 }
 
+require_once __DIR__ . '/../../../includes/db_query.php';
 require_once __DIR__ . '/../../../includes/stdFunc/dimensionSqlFragment.php';
 
 final class DimensionSqlFragmentTest extends TestCase
@@ -79,8 +80,16 @@ final class DimensionSqlFragmentTest extends TestCase
     public function testTheDepartmentIsAnIntegerEvenWhenTheRequestIsNot(): void
     {
         self::assertSame('and afd = 936 ', dimensionSqlFragment('936', null, null, null, null, null));
-        self::assertSame('and afd = 936 ', dimensionSqlFragment("936'", null, null, null, null, null));
         self::assertSame('and afd = 0 ', dimensionSqlFragment('0', null, null, null, null, null));
+        // a number with something attached is not a department: the query used to fail on it
+        self::assertSame('and 1 = 0 ', dimensionSqlFragment("936'", null, null, null, null, null));
+    }
+
+    public function testADepartmentThatIsNotANumberMatchesNothing(): void
+    {
+        // casting to 0 would select the postings that have no department at all
+        self::assertSame('and 1 = 0 ', dimensionSqlFragment('invalid', null, null, null, null, null));
+        self::assertSame('and 1 = 0 ', dimensionSqlFragment("936' or 1=1", null, null, null, null, null));
     }
 
     public function testTheEmployeeListCarriesNumbersOnly(): void

@@ -30,7 +30,13 @@ if (!function_exists('dimensionSqlFragment')) {
 		$dele = array();
 
 		if ($afd || $afd == '0') {
-			$dele[] = "and " . $tabel . "afd = " . (int)$afd;
+			if (is_numeric($afd)) {
+				$dele[] = "and " . $tabel . "afd = " . (int)$afd;
+			} else {
+				// A department that is not a number cannot match anything. Casting it to 0 would
+				// select the postings that have no department, so the report stays empty instead.
+				$dele[] = "and 1 = 0";
+			}
 		}
 
 		if ($ansatFra && $ansatTil) {
