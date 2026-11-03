@@ -10,6 +10,7 @@
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/SZ SD-754: K54.
 
 require_once __DIR__ . '/../ShopifyEnv.php';
 require_once __DIR__ . '/../FakeShopifyStore.php';
@@ -45,6 +46,15 @@ function shopify_sandbox_scenarios(): array
 			'args' => ['ordre_id' => 'SALDI_SHOPIFY_SANDBOX_K45_ORDRE'],
 			'owner' => 'DTAILS',
 			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is DokumentLinkTest'],
+		],
+		'K54' => [
+			'title' => 'a web order\'s invoice and credit note show the Shopify order name and their own number, a store order\'s invoice its number; none shows the order number',
+			'targets' => ['sandbox'],
+			'script' => 'K54.php',
+			'args' => ['web_invoice_id' => 'SALDI_SHOPIFY_SANDBOX_K54_WEB_INVOICE', 'web_credit_note_id' => 'SALDI_SHOPIFY_SANDBOX_K54_WEB_CREDIT',
+				'store_invoice_id' => 'SALDI_SHOPIFY_SANDBOX_K54_STORE_INVOICE'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is FormularprintLagerFieldsTest'],
 		],
 		'X01' => [
 			'title' => 'one web order across the lanes: item, webhooks, customer, order, allocation, move, fulfilment, invoice, stock',

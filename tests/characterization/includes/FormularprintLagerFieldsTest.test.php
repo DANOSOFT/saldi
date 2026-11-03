@@ -1,0 +1,209 @@
+<?php
+// tests/characterization/includes/FormularprintLagerFieldsTest.test.php
+//
+// Characterization tests for the order-line lager fields and the K54 references in
+// includes/formfunk.php formularprint() (SD-754, WP11-4).
+//
+// - The line fields lager and lagernavn print the lager a line is drawn from (K17).
+// - A legacy order prints one row per posnr and varenr, as before; a Shopify web order (ref
+//   'shopify') prints every row, so a line drawn from two lagre prints both.
+// - The K54 layout recipe of doc/shopify/layouts-pos50.md: a web order's invoice and credit note
+//   show the Shopify order name and the invoice / credit-note number, a store order's invoice shows
+//   the invoice number only, and neither shows Saldi's order number.
+//
+// Requires the characterization DB env - skips cleanly otherwise.
+//
+// History:
+// 20261103 CL/SZ SD-754: created.
+
+use PHPUnit\Framework\TestCase;
+
+require_once __DIR__ . '/../support/CharacterizationEnv.php';
+
+final class FormularprintLagerFieldsTest extends TestCase
+{
+    /** The brand the K54 recipe is applied to: a copy of the Dansk invoice and credit-note layouts. */
+    private const BRAND = 'k54test';
+
+    /** @var resource|\PgSql\Connection */
+    private static $tenant;
+    private static int $debtorId;
+    private static int $next = 7540;
+
+    public static function setUpBeforeClass(): void
+    {
+        $reason = CharacterizationEnv::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
+        }
+        CharacterizationEnv::bootstrapTenant();
+        self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
+        $dg = CharacterizationEnv::one(self::$tenant, "SELECT kodenr FROM grupper WHERE art = 'DG' ORDER BY kodenr LIMIT 1");
+        $debtor = CharacterizationEnv::one(
+            self::$tenant,
+            "INSERT INTO adresser (kontonr, firmanavn, addr1, postnr, bynavn, email, art, gruppe, betalingsbet, betalingsdage)
+             VALUES (91754, 'Lager Kunde', 'Lagervej 4', '8000', 'Aarhus', 'lager@example.invalid', 'D', $1, 'Netto', 8)
+             RETURNING id",
+            [$dg ? (int)$dg['kodenr'] : 1]
+        );
+        self::$debtorId = (int)$debtor['id'];
+        CharacterizationEnv::rows(self::$tenant, "DELETE FROM grupper WHERE art = 'LG'");
+        CharacterizationEnv::rows(self::$tenant, "INSERT INTO grupper (beskrivelse, art, kodenr) VALUES ('Hovedlager', 'LG', 3), ('Butik Aarhus', 'LG', 7)");
+        // The invoice layout gets the two line fields; the K54 brand is the Dansk invoice and credit note with the recipe applied.
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "INSERT INTO formularer (formular, art, beskrivelse, justering, xa, ya, xb, str, color, font, fed, kursiv, sprog)
+             VALUES (4, 3, 'lager', 'H', 110, 0, 0, 10, 0, 'Helvetica', '', '', 'Dansk'),
+                    (4, 3, 'lagernavn', 'V', 115, 0, 0, 10, 0, 'Helvetica', '', '', 'Dansk')"
+        );
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "INSERT INTO formularer (formular, art, beskrivelse, justering, xa, ya, xb, yb, str, color, font, fed, kursiv, side, sprog)
+             SELECT formular, art, beskrivelse, justering, xa, ya, xb, yb, str, color, font, fed, kursiv, side, $1
+             FROM formularer WHERE formular IN (4, 5) AND lower(sprog) = 'dansk'",
+            [self::BRAND]
+        );
+        self::applyK54Recipe(self::BRAND);
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        if (isset(self::$tenant) && self::$tenant) {
+            pg_close(self::$tenant);
+            self::$tenant = null;
+            CharacterizationEnv::teardownTenant();
+        }
+    }
+
+    /** The K54 recipe of doc/shopify/layouts-pos50.md, on one brand's invoice and credit note. */
+    private static function applyK54Recipe(string $brand): void
+    {
+        $rows = [
+            // the order number's label and value print the Shopify order name, and nothing when there is none
+            "UPDATE formularer SET beskrivelse = 'if(\$ordre_kundeordnr)Ordrenr.' WHERE beskrivelse IN ('Vores ordre nr', 'Deres ordre nr')",
+            "UPDATE formularer SET beskrivelse = 'if(\$ordre_kundeordnr)\$ordre_kundeordnr' WHERE beskrivelse = '\$ordre_ordrenr'",
+            // the Shopify order name is already printed above, so the customer-reference pair goes
+            "DELETE FROM formularer WHERE beskrivelse IN ('Deres ref:', '\$ordre_kundeordnr;')",
+        ];
+        foreach ($rows as $sql) {
+            CharacterizationEnv::rows(self::$tenant, "$sql AND formular IN (4, 5) AND art = 2 AND lower(sprog) = $1", [$brand]);
+        }
+    }
+
+    /**
+     * A posted invoice (DO) or credit note (DK). Every line is [posnr, varenr, lager]; each is 1 x 100.00 at 25% VAT.
+     *
+     * @param list<array{0: int, 1: string, 2: int}> $lines
+     * @return array{id: int, fakturanr: string, ordrenr: string}
+     */
+    private function postedDocument(array $lines, string $ref = '', string $kundeordnr = '', string $sprog = 'Dansk', string $art = 'DO', ?int $credits = null): array
+    {
+        $nr = ++self::$next;
+        $ordrenr = 50000 + $nr; // never the same as the invoice number, so the print shows which one it printed
+        $sign = $art === 'DK' ? -1 : 1;
+        $order = CharacterizationEnv::one(
+            self::$tenant,
+            "INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsbet, betalingsdage, kontonr, art, valuta,
+                                 ordredate, levdate, fakturadate, ordrenr, fakturanr, sum, moms, momssats, status, konto_id,
+                                 udskriv_til, mail_fakt, sprog, ref, kundeordnr, kred_ord_id)
+             VALUES ('Lager Kunde', 'Lagervej 4', '8000', 'Aarhus', 'lager@example.invalid', 'Netto', 8, 91754, $1, 'DKK',
+                     '2026-11-03', '2026-11-03', '2026-11-03', $2, $3, $4, $5, 25, 3, $6, 'PDF', '', $7, $8, $9, $10)
+             RETURNING id",
+            [$art, $ordrenr, (string)$nr, $sign * 100 * count($lines), $sign * 25 * count($lines), self::$debtorId, $sprog, $ref, $kundeordnr, $credits]
+        );
+        foreach ($lines as [$posnr, $varenr, $lager]) {
+            CharacterizationEnv::rows(
+                self::$tenant,
+                "INSERT INTO ordrelinjer (ordre_id, vare_id, varenr, beskrivelse, enhed, posnr, antal, pris, rabat, momssats, procent, lager)
+                 VALUES ($1, 0, $2, $3, 'stk', $4, $5, 100.00, 0, 25, 100, $6)",
+                [(int)$order['id'], $varenr, "Havestol $varenr", $posnr, $sign, $lager]
+            );
+        }
+        return ['id' => (int)$order['id'], 'fakturanr' => (string)$nr, 'ordrenr' => (string)$ordrenr];
+    }
+
+    /** The PostScript of a browser print of the document. */
+    private function printed(array $doc, int $formular = 4): string
+    {
+        $res = CharacterizationEnv::runChild(
+            __DIR__ . '/../support/run_formularprint.php',
+            [$doc['id'], $formular, CharacterizationEnv::testDb(), 'PDF', '0']
+        );
+        $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
+        $json = $lines !== [] ? json_decode(end($lines), true) : null;
+        $this->assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
+        $this->assertSame('OK', $json['returned']);
+        $prefix = $formular === 5 ? 'kn' : 'fakt';
+        $this->assertArrayHasKey("$prefix{$doc['fakturanr']}.ps", $json['print_files']);
+        return $json['print_files']["$prefix{$doc['fakturanr']}.ps"];
+    }
+
+    public function testTheLagerFieldsPrintTheLagerEachLineIsDrawnFrom(): void
+    {
+        $doc = $this->postedDocument([[1, 'A1', 3], [2, 'B2', 7]]);
+
+        $ps = $this->printed($doc);
+
+        foreach (['(Havestol A1)', '(Hovedlager)', '(Havestol B2)', '(Butik Aarhus)', '(3)', '(7)'] as $text) {
+            $this->assertStringContainsString($text, $ps);
+        }
+    }
+
+    public function testALegacyOrderPrintsOneRowPerPosnrAndVarenrAsBefore(): void
+    {
+        $doc = $this->postedDocument([[1, 'A1', 3], [1, 'A1', 7]]);
+
+        $ps = $this->printed($doc);
+
+        $this->assertSame(1, substr_count($ps, '(Havestol A1)'));
+        $this->assertStringContainsString('(Hovedlager)', $ps);
+        $this->assertStringNotContainsString('(Butik Aarhus)', $ps);
+    }
+
+    public function testAShopifyWebOrderPrintsBothRowsOfALineDrawnFromTwoLagre(): void
+    {
+        $doc = $this->postedDocument([[1, 'A1', 3], [1, 'A1', 7]], 'shopify', 'HML1234');
+
+        $ps = $this->printed($doc);
+
+        $this->assertSame(2, substr_count($ps, '(Havestol A1)'));
+        $this->assertStringContainsString('(Hovedlager)', $ps);
+        $this->assertStringContainsString('(Butik Aarhus)', $ps);
+    }
+
+    public function testK54AWebOrderInvoiceShowsTheShopifyOrderNameAndTheInvoiceNumberNotTheOrderNumber(): void
+    {
+        $doc = $this->postedDocument([[1, 'A1', 3]], 'shopify', 'HML1234', self::BRAND);
+
+        $ps = $this->printed($doc);
+
+        $this->assertStringContainsString('(Ordrenr.)', $ps);
+        $this->assertStringContainsString('(HML1234)', $ps);
+        $this->assertStringContainsString("({$doc['fakturanr']})", $ps);
+        $this->assertStringNotContainsString($doc['ordrenr'], $ps);
+    }
+
+    public function testK54AWebOrderCreditNoteShowsTheShopifyOrderNameAndTheCreditNoteNumberNotTheOrderNumber(): void
+    {
+        $invoice = $this->postedDocument([[1, 'A1', 3]], 'shopify', 'HML1235', self::BRAND);
+        $credit = $this->postedDocument([[1, 'A1', 3]], 'shopify', 'HML1235', self::BRAND, 'DK', $invoice['id']);
+
+        $ps = $this->printed($credit, 5);
+
+        $this->assertStringContainsString('(Kreditnota)', $ps);
+        $this->assertStringContainsString('(HML1235)', $ps);
+        $this->assertStringContainsString("({$credit['fakturanr']})", $ps);
+        $this->assertStringNotContainsString($credit['ordrenr'], $ps);
+    }
+
+    public function testK54AStoreOrderInvoiceShowsTheInvoiceNumberAndNoOrderNumber(): void
+    {
+        $doc = $this->postedDocument([[1, 'A1', 3]], 'Kasse 1', '', self::BRAND);
+
+        $ps = $this->printed($doc);
+
+        $this->assertStringContainsString("({$doc['fakturanr']})", $ps);
+        $this->assertStringNotContainsString('(Ordrenr.)', $ps);
+        $this->assertStringNotContainsString($doc['ordrenr'], $ps);
+    }
+}
