@@ -56,8 +56,13 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	if ($row = db_fetch_array(db_select("select firmanavn from adresser where art='S'", __FILE__ . " linje " . __LINE__)))
 		$firmanavn = $row['firmanavn'];
-	if (($afd) && ($row = db_fetch_array(db_select("select beskrivelse from grupper where art='AFD' and kodenr='$afd'", __FILE__ . " linje " . __LINE__))))
+	// grupper.kodenr is an integer, so only a whole-number department can be looked up - the same test
+	// the transaction filter uses. Department 0 has no row and carries the label the other reports use.
+	if ($afd && preg_match('/^\d+$/', (string)$afd) && ($row = db_fetch_array(db_select("select beskrivelse from grupper where art='AFD' and kodenr='" . (int)$afd . "'", __FILE__ . " linje " . __LINE__)))) {
 		$afd_navn = $row['beskrivelse'];
+	} elseif ($afd == '0') {
+		$afd_navn = 'Kun poster uden afd.';
+	}
 	if (!isset($afgiftssum))
 		$afgiftssum = NULL;
 
@@ -186,7 +191,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	}
 	print "<tr><td colspan=\"4\"><big><big>" . ucfirst($rapportart) . "</span></big></big></td>";
 	print "<td colspan=2 align=right><table style=\"text-align: left; width: 400px;\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody><tr>";
-	if ($afd) {
+	if ($afd || $afd == '0') {
 		print "<td>Afdeling</span></td>";
 		print "<td>$afd: $afd_navn</span></td></tr>";
 	}
@@ -200,7 +205,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		else
 			print "<tr><td>Medarbejdere</span></td><td>$ansatte</span></td></tr>";
 	}
-	if ($afd)
+	if ($afd || $afd == '0')
 		print "<tr><td>Afdeling</span></td><td>$afd_navn</span></td></tr>";
 	if ($projekt_fra) {
 		print "<tr><td>Projekt</td>";
@@ -254,14 +259,14 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 				$x++;
 				$ktonr[$x] = $row['kontonr'] * 1;
 				$kto_aar[$x] = 0;
-				if (($medtag_primo && !$afd) && ($r2 = db_fetch_array(db_select("select primo from kontoplan where regnskabsaar='$regnaar' and kontonr=$ktonr[$x] and kontotype='S'", __FILE__ . " linje " . __LINE__)))) {
+				if (($medtag_primo && !($afd || $afd == '0')) && ($r2 = db_fetch_array(db_select("select primo from kontoplan where regnskabsaar='$regnaar' and kontonr=$ktonr[$x] and kontotype='S'", __FILE__ . " linje " . __LINE__)))) {
 					$kto_aar[$x] = afrund($r2['primo'], 2);
 				}
 			}
 			$kto_aar[$x] = $kto_aar[$x] + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 		}
 		$kto_antal = $x;
-		if ($medtag_primo && !$afd) {
+		if ($medtag_primo && !($afd || $afd == '0')) {
 			for ($x = 1; $x <= $kontoantal; $x++) { # Her fanges konto med primovaerdi og ingen bevaegelser i perioden.
 				if (!in_array($kontonr[$x], $ktonr)) {
 					if ($primo[$x]) {

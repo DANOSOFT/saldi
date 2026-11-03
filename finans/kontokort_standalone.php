@@ -74,7 +74,7 @@ $udskriv     = if_isset($_GET, null, 'udskriv') ? true : false;
 // its form. This page receives the two bounds, so the ids between them are resolved here - without
 // this a two-employee range was narrowed to the first employee.
 $ansatte_id = NULL;
-if ($ansat_fra && $ansat_til && is_numeric($ansat_fra) && is_numeric($ansat_til)) {
+if ($ansat_fra && $ansat_til && preg_match('/^\d+$/', (string)$ansat_fra) && preg_match('/^\d+$/', (string)$ansat_til)) {
     // The form can send the bounds in either order (the report page appends from both ends), so the
     // range is taken between the smaller and the larger id instead of assuming an order.
     $ansatLav = min((int)$ansat_fra, (int)$ansat_til);

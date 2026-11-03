@@ -46,8 +46,10 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     $regnaar    = (int)$regnaar;
     $maaned_fra = trim($maaned_fra);
     $maaned_til = trim($maaned_til);
-    $konto_fra  = trim($konto_fra);
-    $konto_til  = trim($konto_til);
+    // A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+    // not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+    $konto_fra  = is_scalar($konto_fra) ? trim((string)$konto_fra) : '?';
+    $konto_til  = is_scalar($konto_til) ? trim((string)$konto_til) : '?';
     // An empty bound means no limit; a bound that is not a number closes the range instead of
     // being cast to 0, which would widen the report.
     if ($konto_fra === '') {

@@ -221,14 +221,15 @@ if ($_POST) {
 	 *  - The first part is assigned to the respective variable.
 	 *  - The second part is assigned to `$beskrivelse`.
 	 */
+	// The form sends strings; ?konto_fra[]= would arrive as an array and explode() throws on it.
 	$konto_fra = if_isset($_POST['konto_fra']);
-	if ($konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra) + [1 => null];
+	if (is_string($konto_fra) && $konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra) + [1 => null];
 
 	$konto_til = if_isset($_POST['konto_til']);
-	if ($konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til) + [1 => null];
+	if (is_string($konto_til) && $konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til) + [1 => null];
 
 	$regnaar = if_isset($_POST['regnaar']);
-	if ($regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar) + [1 => null];
+	if (is_string($regnaar) && $regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar) + [1 => null];
 	#+
 }
 
