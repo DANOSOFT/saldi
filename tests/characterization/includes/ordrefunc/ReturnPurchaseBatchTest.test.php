@@ -159,13 +159,15 @@ final class ReturnPurchaseBatchTest extends CharacterizationTestCase
         [$batch, $deficit] = self::batches($item);
         self::rows('UPDATE batch_salg SET batch_kob_id = 0 WHERE linje_id = $1 AND batch_kob_id = $2', [$saleLine, $deficit['id']]);
 
-        $this->creditNote($saleLine, $item, 10, 60.00);
+        $note = $this->creditNote($saleLine, $item, 10, 60.00);
 
         $batches = self::batches($item);
         $this->assertCount(3, $batches, 'one new batch for the remainder');
         $this->assertEqualsWithDelta(6.0, (float)$batches[0]['rest'], 0.001, 'the purchase batch takes back its 6');
         $this->assertEqualsWithDelta(4.0, (float)$batches[2]['rest'], 0.001, 'the other 4 in a new batch');
         $this->assertEqualsWithDelta(80.0, (float)$batches[2]['pris'], 0.001, 'at the original line\'s cost');
+        $link = self::one('SELECT batch_kob_id FROM batch_salg WHERE linje_id = $1 AND antal = -4', [self::lineId($note['id'])]);
+        $this->assertSame((int)$batches[2]['id'], (int)$link['batch_kob_id'], 'the remainder row names its new batch');
         $this->assertEqualsWithDelta(self::stockOf($item), self::stockFromBatches($item), 0.001);
     }
 

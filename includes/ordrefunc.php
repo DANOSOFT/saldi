@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.1.0 ----2026-11-01 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
