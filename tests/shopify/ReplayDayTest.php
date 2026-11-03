@@ -6,7 +6,8 @@
 // process, signed at run time with a random webhook secret, and the worker is drained; the
 // persisted tables (ReplayDay::SNAPSHOT) must match fixtures/expected.json. The day is then sent
 // again, shuffled and with retries, every event is processed again, and the tables must not
-// change. Without a database only the fixtures' reproducibility is checked.
+// change. Without a database only the fixtures' reproducibility is checked: the generator runs as a
+// child, as events.php (its topic list) defines functions ClientRetryTest needs absent.
 //
 // History:
 // 20261103 CL/LH SD-766: created.
@@ -14,7 +15,6 @@
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/ShopifyEnv.php';
-require_once __DIR__ . '/../../includes/shopify/events.php';
 require_once __DIR__ . '/support/ReplayDay.php';
 
 final class ReplayDayTest extends TestCase
@@ -57,11 +57,20 @@ final class ReplayDayTest extends TestCase
 
     public function testTheFixturesAreTheGeneratorsDayAndCarryNoSignature(): void
     {
-        $built = ReplayDay::build();
+        $dir = sys_get_temp_dir() . '/sd766-day-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        try {
+            exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__DIR__ . '/support/build_replay_day.php') . ' ' . ReplayDay::SEED . ' ' . escapeshellarg($dir) . ' 2>&1', $output, $exit);
+            $this->assertSame(0, $exit, implode("\n", $output));
+            foreach (['day', 'graphql'] as $name) {
+                $this->assertSame((string)file_get_contents("$dir/$name.json"), (string)file_get_contents(ReplayDay::FIXTURES . "/$name.json"),
+                    "$name.json is stale: run php tests/shopify/support/build_replay_day.php");
+            }
+        } finally {
+            array_map('unlink', glob("$dir/*.json"));
+            rmdir($dir);
+        }
         $fixtures = ReplayDay::load();
-
-        $this->assertSame(ReplayDay::encode($built['day']), ReplayDay::encode($fixtures['day']), 'day.json is stale: run php tests/shopify/support/build_replay_day.php');
-        $this->assertSame(ReplayDay::encode($built['graphql']), ReplayDay::encode($fixtures['graphql']), 'graphql.json is stale: run php tests/shopify/support/build_replay_day.php');
         $raw = (string)file_get_contents(ReplayDay::FIXTURES . '/day.json');
         $this->assertStringNotContainsStringIgnoringCase('hmac', $raw);
         $this->assertDoesNotMatchRegularExpression('/shpat_|shpss_/', $raw . file_get_contents(ReplayDay::FIXTURES . '/graphql.json'), 'no Shopify token or secret');

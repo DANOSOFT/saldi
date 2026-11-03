@@ -4,20 +4,21 @@
 // The shared fake store (SD-766) without a database: the documents the merged lanes send run
 // through shopify_graphql() against it, each Shopify behaviour in FakeShopifyBehaviours does what
 // its entry says, injected failures reach the client as Shopify's would, and the registry lists
-// exactly the behaviours the store and the webhook replayer encode.
+// exactly the behaviours the store and the webhook replayer encode. Each test runs in its own
+// process: the lanes' files define shopify_secret() and shopify_redact(), which ClientRetryTest
+// needs absent.
 //
 // History:
 // 20261103 CL/LH SD-766: created.
 
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/../../includes/shopify/client.php';
-require_once __DIR__ . '/../../includes/shopify/services/catalogue.php';
-require_once __DIR__ . '/../../includes/shopify/events.php';
 require_once __DIR__ . '/support/FakeShopifyStore.php';
 require_once __DIR__ . '/support/WebhookReplayer.php';
 require_once __DIR__ . '/ClientRetryTest.php';
 
+#[RunTestsInSeparateProcesses]
 final class FakeShopifyStoreTest extends TestCase
 {
 	private const ORDER_CREATE = 'mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
@@ -48,11 +49,11 @@ final class FakeShopifyStoreTest extends TestCase
 
 	protected function setUp(): void
 	{
-		static $n = 0;
-		$n++;
+		require_once __DIR__ . '/../../includes/shopify/client.php';
+		require_once __DIR__ . '/../../includes/shopify/services/catalogue.php';
+		require_once __DIR__ . '/../../includes/shopify/events.php';
 		$this->store = new FakeShopifyStore();
-		// a shop key no other test uses: the client keeps pacing state per key for the process
-		$this->shop = $this->store->addShop("fakestore$n", ['locations' => ['Lager 1', 'Lager 2']]);
+		$this->shop = $this->store->addShop('fakestore', ['locations' => ['Lager 1', 'Lager 2']]);
 		$this->domain = $this->shop['domain'];
 		[$this->l1, $this->l2] = $this->store->locations($this->domain);
 	}
