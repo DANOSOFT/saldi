@@ -9,6 +9,7 @@
 //
 // History:
 // 20261028 CL/SZ SD-749: created.
+// 20261103 CL/MJ SD-790: the counts follow SHOPIFY_WEBHOOK_TOPICS, which now has APP_UNINSTALLED.
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -27,6 +28,11 @@ final class WebhookRegistrationTest extends TestCase
         require_once __DIR__ . '/support/GraphqlSchema.php';
     }
 
+    private static function topics(): int
+    {
+        return count(SHOPIFY_WEBHOOK_TOPICS);
+    }
+
     public function testTheSameSetTwiceCreatesNothingTheSecondTime(): void
     {
         $shop = new FakeWebhookShop();
@@ -35,8 +41,8 @@ final class WebhookRegistrationTest extends TestCase
         $sent = count($shop->calls);
         $second = shopify_register_webhooks(self::SHOP, self::BASE, $shop->opts());
 
-        $this->assertSame([10, 0, 0, 0], [$first['created'], $first['updated'], $first['unchanged'], $first['failed']]);
-        $this->assertSame([0, 0, 10, 0], [$second['created'], $second['updated'], $second['unchanged'], $second['failed']]);
+        $this->assertSame([self::topics(), 0, 0, 0], [$first['created'], $first['updated'], $first['unchanged'], $first['failed']]);
+        $this->assertSame([0, 0, self::topics(), 0], [$second['created'], $second['updated'], $second['unchanged'], $second['failed']]);
         $this->assertSame(['list'], array_slice($shop->ops(), $sent), 'the second run only reads');
         $expected = SHOPIFY_WEBHOOK_TOPICS;
         sort($expected);
@@ -59,7 +65,7 @@ final class WebhookRegistrationTest extends TestCase
 
         $result = shopify_register_webhooks(self::SHOP, self::BASE, $shop->opts());
 
-        $this->assertSame([0, 10, 0, 0], [$result['created'], $result['updated'], $result['unchanged'], $result['failed']]);
+        $this->assertSame([0, self::topics(), 0, 0], [$result['created'], $result['updated'], $result['unchanged'], $result['failed']]);
         $this->assertNotContains('create', $shop->ops());
         $this->assertSame([self::URI, 'https://erp.example.com/hooks/orders', 'https://old-tunnel.trycloudflare.com/api/shopify/webhook.php?shop=brand'],
             $shop->byTopic()['ORDERS_PAID'], 'another endpoint and another shop key are not ours');
@@ -75,7 +81,7 @@ final class WebhookRegistrationTest extends TestCase
 
         $result = shopify_register_webhooks(self::SHOP, self::BASE, $shop->opts());
 
-        $this->assertSame([10, 0], [$result['created'], $result['updated']]);
+        $this->assertSame([self::topics(), 0], [$result['created'], $result['updated']]);
         $this->assertSame(['https://erp.example.com/hooks/orders', 'https://old-tunnel.trycloudflare.com/api/shopify/webhook.php?shop=brand',
             'https://old-tunnel.trycloudflare.com/api/shopify/other.php?shop=hml', self::URI], $shop->byTopic()['ORDERS_PAID']);
     }
@@ -88,7 +94,7 @@ final class WebhookRegistrationTest extends TestCase
 
         $result = shopify_register_webhooks(self::SHOP, self::BASE, $shop->opts());
 
-        $this->assertSame([1, 0, 9, 0], [$result['created'], $result['updated'], $result['unchanged'], $result['failed']]);
+        $this->assertSame([1, 0, self::topics() - 1, 0], [$result['created'], $result['updated'], $result['unchanged'], $result['failed']]);
         $this->assertSame('created', $result['topics']['ORDERS_PAID']);
         $this->assertSame([self::URI], $shop->byTopic()['ORDERS_PAID']);
     }
@@ -100,7 +106,7 @@ final class WebhookRegistrationTest extends TestCase
 
         $result = shopify_register_webhooks(self::SHOP, self::BASE, $shop->opts(['restore_only' => true]));
 
-        $this->assertSame([9, 0, 1], [$result['created'], $result['updated'], $result['unchanged']]);
+        $this->assertSame([self::topics() - 1, 0, 1], [$result['created'], $result['updated'], $result['unchanged']]);
         $this->assertSame('elsewhere', $result['topics']['ORDERS_PAID']);
         $this->assertNotContains('update', $shop->ops());
         $this->assertSame(['https://other-install.example.dk/sz/api/shopify/webhook.php?shop=hml'], $shop->byTopic()['ORDERS_PAID']);
@@ -114,7 +120,7 @@ final class WebhookRegistrationTest extends TestCase
         $result = shopify_register_webhooks(self::SHOP, self::BASE, $shop->opts());
 
         $this->assertSame('created', $result['topics']['ORDERS_PAID']);
-        $this->assertSame(10, $result['created']);
+        $this->assertSame(self::topics(), $result['created']);
         $creates = array_filter($shop->calls, fn(array $c): bool => $c['op'] === 'create' && $c['vars']['topic'] === 'ORDERS_PAID');
         $this->assertCount(1, $creates, 'the reconcile read found it; no second create');
         $this->assertSame([self::URI], $shop->byTopic()['ORDERS_PAID']);
@@ -127,7 +133,7 @@ final class WebhookRegistrationTest extends TestCase
 
         $result = shopify_register_webhooks(self::SHOP, self::BASE, $shop->opts());
 
-        $this->assertSame([9, 1], [$result['created'], $result['failed']]);
+        $this->assertSame([self::topics() - 1, 1], [$result['created'], $result['failed']]);
         $this->assertSame('failed', $result['topics']['REFUNDS_CREATE']);
         $this->assertSame(['REFUNDS_CREATE: Address for this topic has already been taken'], $result['errors']);
     }
@@ -140,8 +146,8 @@ final class WebhookRegistrationTest extends TestCase
 
         $again = shopify_register_webhooks(self::SHOP, self::BASE, $shop->opts());
 
-        $this->assertSame(10, $again['unchanged']);
-        $this->assertCount(3, array_filter($shop->calls, fn(array $c): bool => $c['op'] === 'list' && ($c['vars']['after'] ?? null) !== null), 'pages 2-4 of the second run (10 subscriptions, 3 per page)');
+        $this->assertSame(self::topics(), $again['unchanged']);
+        $this->assertCount(3, array_filter($shop->calls, fn(array $c): bool => $c['op'] === 'list' && ($c['vars']['after'] ?? null) !== null), 'pages 2-4 of the second run (11 subscriptions, 3 per page)');
     }
 
     public function testUnreadableSubscriptionsChangeNothing(): void

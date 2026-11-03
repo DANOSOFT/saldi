@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.01
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.03
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 //        php tools/shopify_worker.php register-webhooks --db=<tenant> [--base-url=https://...] [--shop=<shop_key>]
 //        php tools/shopify_worker.php replay --db=<tenant> --shop=<shop_key> --file=<day file> [--promote=1]
 //        php tools/shopify_worker.php seed --db=<tenant> --shop=<shop_key> [--batch=250]
+//        php tools/shopify_worker.php set-app --db=<tenant> --shop=<shop_key> --client-id=<id> < client-secret
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
 // 20261028 Sawaneh SD-738: the alarm mail (mail.alert) and the call-log purge (runtime.purge) are wired in.
@@ -41,6 +42,7 @@
 // 20261029 CL/SZ SD-749 review: register-webhooks and replay need no fiscal year; a tenant they can't use ends with a line and exit 2.
 // 20261029 CL/SS SD-741: the catalogue jobs (catalogue.upsert, catalogue.link, catalogue.seed) and the command seed.
 // 20261101 CL/SS SD-792: the customer.upsert handler (Shopify customer to debtor).
+// 20261103 CL/MJ SD-790: the shop.uninstalled handler and the command set-app (the app's client ID and secret).
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -55,6 +57,7 @@ function shopify_worker_commands(): array {
 		'register-webhooks' => 'shopify_worker_cmd_register_webhooks',
 		'replay' => 'shopify_worker_cmd_replay',
 		'seed' => 'shopify_worker_cmd_seed',
+		'set-app' => 'shopify_worker_cmd_set_app',
 	);
 }
 
@@ -67,6 +70,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/events.php';
 	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
 	require_once __DIR__ . '/../includes/shopify/services/customers.php';
+	require_once __DIR__ . '/../includes/shopify/oauth.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
 	shopify_worker_register($registry, 'webhook.health', 'shopify_webhook_health_job');
@@ -84,6 +88,8 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'catalogue.seed', 'shopify_catalogue_seed_job');
 	// SD-792: a Shopify customer becomes, or updates, its debtor.
 	shopify_worker_register($registry, 'customer.upsert', 'shopify_customer_upsert_job');
+	// SD-790: the app was uninstalled; the token goes and every flow is switched off.
+	shopify_worker_register($registry, 'shop.uninstalled', 'shopify_shop_uninstalled_job');
 	return array('registry' => $registry, 'producers' => $producers);
 }
 
@@ -282,6 +288,41 @@ function shopify_worker_cmd_seed(array $opts): int {
 	$job = shopify_queue_enqueue('catalogue.seed', (int)$shop['id'], "{$shop['shop_key']}:seed", array('batch' => $batch), SHOPIFY_QUEUE_PRIORITY['catalogue.seed']);
 	// a seed already waiting or running keeps its own batch
 	echo json_encode(array('shop' => $shop['shop_key']) + ($job['created'] ? array('batch' => $batch) : array('note' => 'a seed is already queued or running')) + $job, JSON_UNESCAPED_SLASHES) . "\n";
+	return 0;
+}
+
+/**
+ * Stores the client ID of --shop's app, and the client secret when one is given on stdin (one
+ * line, so it stays out of the shell history and the process list). The secret is the shop's
+ * webhook secret too: Shopify signs the app's webhooks with it. Prints what was set.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_set_app(array $opts): int {
+	$usage = 'set-app --db=<tenant> --shop=<shop_key> --client-id=<id> < client-secret';
+	if (($opts['shop'] ?? '') === '' || !preg_match('/^[A-Za-z0-9_-]{1,100}$/', $opts['client-id'] ?? '')) {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage
+");
+		return 2;
+	}
+	if (!shopify_worker_boot($opts, $usage)) {
+		return 2;
+	}
+	if (shopify_shop($opts['shop']) === null) {
+		fwrite(STDERR, "set-app: unknown shop {$opts['shop']}
+");
+		return 2;
+	}
+	require_once __DIR__ . '/../includes/shopify/oauth.php';
+	$secret = trim((string)fgets(STDIN));
+	shopify_db_transaction(function () use ($opts, $secret) {
+		shopify_save_secret($opts['shop'], SHOPIFY_OAUTH_CLIENT_ID, $opts['client-id']);
+		if ($secret !== '') {
+			shopify_save_secret($opts['shop'], SHOPIFY_WEBHOOK_SECRET, $secret);
+		}
+	});
+	echo json_encode(array('shop' => $opts['shop'], 'client_id' => 'set', 'client_secret' => $secret === '' ? 'unchanged' : 'set'), JSON_UNESCAPED_SLASHES) . "
+";
 	return 0;
 }
 
