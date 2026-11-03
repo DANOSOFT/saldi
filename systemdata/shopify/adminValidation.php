@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/shopify/adminValidation.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/shopify/adminValidation.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // past a concurrent save; these checks give the user a readable message first.
 //
 // 20261102 CL/MJ SD-761: created.
+// 20261103 CL/MJ SD-761 review: one shop per legacy slot; a display lager belongs to a sellable lager.
 
 /**
  * Problems with a posted shop, keyed by form field; empty when it can be saved.
@@ -35,7 +36,7 @@
 function shopify_admin_validate_shop(array $input, array $shops, bool $isNew): array {
 	$errors = array();
 	if ($isNew && !preg_match('/^[a-z0-9][a-z0-9_-]{0,39}$/', $input['shop_key'])) {
-		$errors['shop_key'] = 'shopify.admin.error.shop_key|Nøglen skal være 1-40 tegn: a-z, 0-9, _ eller -.';
+		$errors['shop_key'] = 'shopify.admin.error.shop_key|Kortnavnet skal være 1-40 tegn: a-z, 0-9, _ eller -.';
 	}
 	if (!preg_match('/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/', strtolower($input['domain']))) {
 		$errors['domain'] = 'shopify.admin.error.domain|Domænet skal være en *.myshopify.com-adresse.';
@@ -44,12 +45,12 @@ function shopify_admin_validate_shop(array $input, array $shops, bool $isNew): a
 		$errors['afd'] = 'shopify.admin.error.afd|Vælg en afdeling.';
 	}
 	if (!in_array($input['legacy_slot'], array('', '4', '5', '6'), true)) {
-		$errors['legacy_slot'] = 'shopify.admin.error.legacy_slot|Den gamle shopplads skal være 4, 5 eller 6.';
+		$errors['legacy_slot'] = 'shopify.admin.error.legacy_slot|Vælg 1., 2. eller 3. API-klient.';
 	}
 	foreach ($shops as $shop) {
 		if ($shop['shop_key'] === $input['shop_key']) {
 			if ($isNew) {
-				$errors['shop_key'] = 'shopify.admin.error.shop_key_taken|En anden shop har allerede denne nøgle.';
+				$errors['shop_key'] = 'shopify.admin.error.shop_key_taken|En anden shop har allerede dette kortnavn.';
 			}
 			continue;
 		}
@@ -58,6 +59,9 @@ function shopify_admin_validate_shop(array $input, array $shops, bool $isNew): a
 		}
 		if ($input['afd'] !== '' && (string)$shop['afd'] === $input['afd']) {
 			$errors['afd'] = 'shopify.admin.error.afd_taken|En anden shop bruger allerede denne afdeling.';
+		}
+		if ($input['legacy_slot'] !== '' && (string)($shop['legacy_slot'] ?? '') === $input['legacy_slot']) {
+			$errors['legacy_slot'] = 'shopify.admin.error.legacy_slot_taken|En anden shop bruger allerede denne API-klient.';
 		}
 		if ($input['is_primary'] && $shop['is_primary'] === 't') {
 			$errors['is_primary'] = 'shopify.admin.error.primary_taken|En anden shop er allerede primær.';
@@ -69,7 +73,7 @@ function shopify_admin_validate_shop(array $input, array $shops, bool $isNew): a
 /**
  * Problems with the posted lager roles, keyed '<lager>.<field>'; empty when they can be saved.
  * A sellable lager needs a priority, unique among the sellable ones (K16); a display lager names
- * another known lager it displays and takes no priority (K13).
+ * the sellable lager it belongs to and takes no priority (K13), so displays never chain or loop.
  *
  * @param array<int, array{rolle: string, prioritet: string, udstilling_af: string}> $roles lager => trimmed form values
  * @return array<string, string> '<lager>.<field>' => findtekst token
@@ -84,7 +88,7 @@ function shopify_admin_validate_lagre(array $roles): array {
 		}
 		if ($role['rolle'] === 'saelgbar') {
 			if (!preg_match('/^[1-9][0-9]{0,5}$/', $role['prioritet'])) {
-				$errors["$lager.prioritet"] = 'shopify.admin.error.prioritet|Et salgbart lager skal have en prioritet (et helt tal fra 1).';
+				$errors["$lager.prioritet"] = 'shopify.admin.error.prioritet|Et salgbart lager skal have en prioritet på 1 eller mere.';
 			} elseif (isset($priorities[$role['prioritet']])) {
 				$errors["$lager.prioritet"] = 'shopify.admin.error.prioritet_taken|To salgbare lagre kan ikke have samme prioritet.';
 			} else {
@@ -93,8 +97,8 @@ function shopify_admin_validate_lagre(array $roles): array {
 		}
 		if ($role['rolle'] === 'udstilling') {
 			$shows = $role['udstilling_af'];
-			if (!preg_match('/^[0-9]{1,9}$/', $shows) || !isset($roles[(int)$shows]) || (int)$shows === (int)$lager) {
-				$errors["$lager.udstilling_af"] = 'shopify.admin.error.udstilling_af|Vælg det lager, som udstillingslageret viser.';
+			if (!preg_match('/^[0-9]{1,9}$/', $shows) || ($roles[(int)$shows]['rolle'] ?? '') !== 'saelgbar') {
+				$errors["$lager.udstilling_af"] = 'shopify.admin.error.udstilling_af|Vælg det salgbare lager, udstillingen hører til.';
 			}
 		}
 	}

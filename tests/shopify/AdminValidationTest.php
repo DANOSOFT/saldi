@@ -6,6 +6,7 @@
 //
 // History:
 // 20261102 CL/MJ SD-761: created.
+// 20261103 CL/MJ SD-761 review: one shop per legacy slot; a display lager belongs to a sellable lager.
 
 use PHPUnit\Framework\TestCase;
 
@@ -18,8 +19,8 @@ final class AdminValidationTest extends TestCase
     private function shops(): array
     {
         return [
-            ['id' => '1', 'shop_key' => 'hml', 'domain' => 'hml-test.myshopify.com', 'afd' => '1', 'is_primary' => 't'],
-            ['id' => '2', 'shop_key' => 'brand2', 'domain' => 'brand2.myshopify.com', 'afd' => null, 'is_primary' => 'f'],
+            ['id' => '1', 'shop_key' => 'hml', 'domain' => 'hml-test.myshopify.com', 'afd' => '1', 'is_primary' => 't', 'legacy_slot' => '4'],
+            ['id' => '2', 'shop_key' => 'brand2', 'domain' => 'brand2.myshopify.com', 'afd' => null, 'is_primary' => 'f', 'legacy_slot' => null],
         ];
     }
 
@@ -42,7 +43,7 @@ final class AdminValidationTest extends TestCase
 
     public function testAShopKeepsItsOwnDepartmentAndDomainOnEdit(): void
     {
-        $edit = $this->shop(['shop_key' => 'hml', 'domain' => 'HML-test.myshopify.com', 'afd' => '1', 'is_primary' => true]);
+        $edit = $this->shop(['shop_key' => 'hml', 'domain' => 'HML-test.myshopify.com', 'afd' => '1', 'is_primary' => true, 'legacy_slot' => '4']);
         $this->assertSame([], shopify_admin_validate_shop($edit, $this->shops(), false));
     }
 
@@ -52,6 +53,14 @@ final class AdminValidationTest extends TestCase
         $this->assertStringStartsWith('shopify.admin.error.shop_key_taken|', $errors['shop_key']);
         $this->assertStringStartsWith('shopify.admin.error.domain_taken|', $errors['domain']);
         $this->assertStringStartsWith('shopify.admin.error.primary_taken|', $errors['is_primary']);
+    }
+
+    public function testTwoShopsCannotShareALegacySlot(): void
+    {
+        $errors = shopify_admin_validate_shop($this->shop(['legacy_slot' => '4']), $this->shops(), true);
+        $this->assertSame(['legacy_slot'], array_keys($errors));
+        $this->assertStringStartsWith('shopify.admin.error.legacy_slot_taken|', $errors['legacy_slot']);
+        $this->assertSame([], shopify_admin_validate_shop($this->shop(['legacy_slot' => '5']), $this->shops(), true));
     }
 
     public function testMalformedValuesAreRefused(): void
@@ -80,6 +89,17 @@ final class AdminValidationTest extends TestCase
             4 => ['rolle' => 'sold', 'prioritet' => '', 'udstilling_af' => ''],
         ]);
         $this->assertSame(['1.prioritet', '2.udstilling_af', '3.udstilling_af', '4.rolle'], array_keys($errors));
+    }
+
+    public function testADisplayLagerBelongsToASellableLagerSoDisplaysNeverChainOrLoop(): void
+    {
+        $errors = shopify_admin_validate_lagre([
+            1 => ['rolle' => 'udstilling', 'prioritet' => '', 'udstilling_af' => '2'],
+            2 => ['rolle' => 'udstilling', 'prioritet' => '', 'udstilling_af' => '1'],
+            3 => ['rolle' => 'ingen', 'prioritet' => '', 'udstilling_af' => ''],
+            4 => ['rolle' => 'udstilling', 'prioritet' => '', 'udstilling_af' => '3'],
+        ]);
+        $this->assertSame(['1.udstilling_af', '2.udstilling_af', '4.udstilling_af'], array_keys($errors), 'a loop, and a display of a lager with role none');
     }
 
     public function testSwappedPrioritiesAndADisplayLagerAreValid(): void

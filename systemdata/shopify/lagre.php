@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/shopify/lagre.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/shopify/lagre.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // priority change needs no code change.
 //
 // 20261102 CL/MJ SD-761: created.
+// 20261103 CL/MJ SD-761 review: the help, the empty-list note and the display column read as Lui's text review.
 
 $title = 'Shopify lagre';
 require __DIR__ . '/adminBootstrap.php';
@@ -73,9 +74,9 @@ $rolleLabels = array(
 );
 
 shopify_admin_header('shopify.admin.lagre.title|Shopify-lagre', 'lagre.php');
-print "<p style='margin:8px'>" . shopify_admin_t('shopify.admin.lagre.help|Salgbare lagre sælges fra i prioritetsorden (1 først). Et udstillingslager vises for det lager, det udstiller, men sælges ikke.') . "</p>\n";
+print "<p style='margin:8px'>" . shopify_admin_t('shopify.admin.lagre.help|Har en webordre intet lager fra Shopify, trækkes den fra de salgbare lagre i prioriteret rækkefølge (1 først). Der sælges aldrig fra et udstillingslager.') . "</p>\n";
 if (!$lagre) {
-	print "<p style='margin:8px'>" . shopify_admin_t('shopify.admin.lagre.none|Der er ingen lagre. Opret dem under Lagre i Systemdata.') . "</p>\n";
+	print "<p style='margin:8px'>" . shopify_admin_t('shopify.admin.lagre.none|Der er ingen lagre. Opret dem under Indstillinger → Lager.') . "</p>\n";
 	exit;
 }
 print "<form method='post' action='lagre.php' style='margin:8px'>\n";
@@ -84,7 +85,7 @@ if (isset($errors['form'])) {
 	print '<p>' . shopify_admin_error($errors['form']) . "</p>\n";
 }
 print "<table cellpadding='4' cellspacing='0' border='1' style='border-collapse:collapse'>\n<tr>";
-foreach (array('shopify.admin.lager.nr|Nr.', 'shopify.admin.lager.navn|Lager', 'shopify.admin.lager.rolle|Rolle', 'shopify.admin.lager.prioritet|Prioritet', 'shopify.admin.lager.udstilling_af|Udstiller lager') as $token) {
+foreach (array('shopify.admin.lager.nr|Nr.', 'shopify.admin.lager.navn|Lager', 'shopify.admin.lager.rolle|Rolle', 'shopify.admin.lager.prioritet|Prioritet', 'shopify.admin.lager.udstilling_af|Hører til lager') as $token) {
 	print '<th>' . shopify_admin_t($token) . '</th>';
 }
 print "</tr>\n";
