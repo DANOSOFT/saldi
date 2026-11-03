@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/config.php --- ver 5.0.0 --- 2026.10.27
+// --- includes/shopify/config.php --- ver 5.1.0 --- 2026.11.01
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20261022 Sawaneh SD-735: created (WP01-2).
 // 20261022 Sawaneh SD-735 review: secret saves serialized per secret, brand compared lower-cased on both sides.
 // 20261027 Sawaneh SD-736: saving a shop ensures the stock triggers in the same transaction, once the schema is current.
+// 20261101 CL/SS SD-792: shopify_customer_number() allocates under create_debtor()'s lock, from a configurable start.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/schema.php';
@@ -255,12 +256,26 @@ function shopify_brand_shop(string $sprog): ?array {
 	return $rows[0] ?? null;
 }
 
+/** Tenant setting (settings group shopify): the lowest debtor number a Shopify customer gets. */
+const SHOPIFY_CUSTOMER_NUMBER_START = 'customer_number_start';
+
 /**
  * The one locked debtor-number allocator shared by the web intake, the POS and the store-order
- * export. Hosted here per the interface sheet; WP08 (SD-740) implements it.
+ * export: from the configured start (1000 as get_next_number() when unset), the highest number in
+ * use plus one (allocate_debtor_number()). The lock is the one create_debtor() takes and is held
+ * until the caller's transaction ends, so the number stays free until its insert commits.
+ *
+ * @throws ShopifyDbMisuse outside a transaction, where the lock would end before the insert
  */
 function shopify_customer_number(): string {
-	throw new ShopifyConfigError('shopify_customer_number() is implemented by WP08 (SD-740)');
+	if (pg_transaction_status(shopify_db_connection()) !== PGSQL_TRANSACTION_INTRANS) {
+		throw new ShopifyDbMisuse('shopify_customer_number() holds its lock until the insert commits: call it inside shopify_db_transaction()');
+	}
+	if (!function_exists('allocate_debtor_number')) {
+		require_once __DIR__ . '/../std_func.php';
+	}
+	$rows = shopify_db_rows('SELECT var_value FROM settings WHERE var_grp = $1 AND var_name = $2 LIMIT 1', array('shopify', SHOPIFY_CUSTOMER_NUMBER_START));
+	return (string)allocate_debtor_number(max(1000, (int)($rows[0]['var_value'] ?? 0)));
 }
 
 /**
