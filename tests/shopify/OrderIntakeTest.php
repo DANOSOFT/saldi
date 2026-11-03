@@ -109,7 +109,9 @@ final class OrderIntakeTest extends TestCase
 				'amountSet' => ['shopMoney' => ['amount' => '269']], 'paymentDetails' => ['company' => 'Visa']]],
 			'fulfillmentOrders' => ['nodes' => [['id' => 'gid://shopify/FulfillmentOrder/1', 'status' => 'OPEN',
 				'assignedLocation' => ['location' => ['id' => 'gid://shopify/Location/2']],
-				'lineItems' => ['nodes' => [['id' => 'x', 'totalQuantity' => 2, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]]]],
+				'lineItems' => ['nodes' => [['id' => 'x', 'totalQuantity' => 1, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]],
+				['id' => 'gid://shopify/FulfillmentOrder/2', 'status' => 'OPEN', 'assignedLocation' => ['location' => ['id' => 'gid://shopify/Location/1']],
+				'lineItems' => ['nodes' => [['id' => 'y', 'totalQuantity' => 1, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]]]],
 		];
 
 		$o = shopify_order_from_graphql($node);
@@ -119,6 +121,7 @@ final class OrderIntakeTest extends TestCase
 		$this->assertSame('PAID', $o['financial_status']);
 		$this->assertSame(['sku' => 'X', 'original_total' => '200.00', 'discount' => '20.00', 'assigned_location' => 'gid://shopify/Location/2'],
 			array_intersect_key($o['lines'][0], array_flip(['sku', 'discount', 'original_total', 'assigned_location'])));
+		$this->assertSame(['gid://shopify/Location/2', 'gid://shopify/Location/1'], $o['lines'][0]['assigned_locations'], 'a line Shopify split over two fulfillment orders');
 		$this->assertSame('SALE', $o['transactions'][0]['kind']);
 		$this->assertSame('Visa', $o['transactions'][0]['card']);
 		$this->assertSame('39.00', $o['shipping'][0]['amount']);
@@ -427,6 +430,18 @@ final class OrderIntakeTest extends TestCase
 		$this->assertSame(['order.assignment', 'order.assignment'], self::kinds($v['alarms']));
 	}
 
+	public function testALineShopifySplitOverSeveralLocationsIsAnAlarm(): void
+	{
+		$lines = self::order()['lines'];
+		$lines[0]['assigned_locations'] = ['gid://shopify/Location/1', 'gid://shopify/Location/2'];
+
+		$v = self::validate(self::order(['lines' => $lines]), self::ctx());
+
+		$this->assertTrue($v['ok']);
+		$this->assertSame(['order.assignment'], self::kinds($v['alarms']));
+		$this->assertStringContainsString('split over 2 fulfillment locations', $v['alarms'][0]['message']);
+	}
+
 	public function testASplitSetGetsItsLagerPlanAndTheSplitTag(): void
 	{
 		$set = self::item(200, 'SAET', ['set' => true, 'bom' => [['bom_id' => 11, 'vare_id' => 100, 'quantity_milli' => 1000],
@@ -598,14 +613,16 @@ final class OrderIntakeTest extends TestCase
 		require_once __DIR__ . '/support/FakeShopify.php';
 		$node = ['id' => self::GID, 'name' => '#HML1001', 'totalPriceSet' => ['shopMoney' => ['amount' => '10']], 'lineItems' => ['nodes' => []],
 			'shippingLines' => ['nodes' => []], 'transactions' => [], 'fulfillmentOrders' => ['nodes' => []]];
-		$fake = new FakeShopify([FakeShopify::ok(['order' => $node]), FakeShopify::ok(['order' => null]), FakeShopify::json(['errors' => [['message' => 'Access denied']]], 403)]);
+		$large = ['lineItems' => ['pageInfo' => ['hasNextPage' => true], 'nodes' => []]] + $node;
+		$fake = new FakeShopify([FakeShopify::ok(['order' => $node]), FakeShopify::ok(['order' => null]), FakeShopify::json(['errors' => [['message' => 'Access denied']]], 403),
+			FakeShopify::ok(['order' => $large])]);
 		$rt = ['graphql' => $fake->opts()];
 
 		$order = shopify_fetch_paid_order(FakeShopify::shop(), '1001', $rt);
 		$this->assertSame(['gid' => self::GID, 'total' => '10.00'], array_intersect_key($order, ['gid' => 1, 'total' => 1]));
 		$this->assertSame(self::GID, $fake->calls[0]['body']['variables']['id'], 'a numeric id is sent as the order GID');
 
-		foreach (['not_found', 'http_403'] as $expected) {
+		foreach (['not_found', 'http_403', 'too_large'] as $expected) {
 			try {
 				shopify_fetch_paid_order(FakeShopify::shop(), self::GID, $rt);
 				$this->fail("expected $expected");

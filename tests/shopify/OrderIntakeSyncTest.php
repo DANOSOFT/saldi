@@ -195,7 +195,8 @@ final class OrderIntakeSyncTest extends TestCase
         $x = $this->item('X');
         $this->stock($x, 1, 5);
         $this->sql("UPDATE shopify_shops SET default_freight_vare_id = $1 WHERE shop_key = 'hml'", [$x]);
-        $orders = (int)$this->sql('SELECT count(*) AS n FROM ordrer')[0]['n'];
+        $counts = fn() => array_map(fn($t) => (int)$this->sql("SELECT count(*) AS n FROM $t")[0]['n'], ['ordrer', 'ordrelinjer', 'batch_salg']);
+        $before = $counts();
 
         [$r] = $this->steps(['report', 'hml', self::order([self::line('SD743X'), self::line('NOPE')])]);
 
@@ -204,7 +205,7 @@ final class OrderIntakeSyncTest extends TestCase
         $this->assertSame([['order.sku', self::GID, 'error']], array_map(fn($e) => [$e['kind'], $e['ref'], $e['severity']], array_values(array_filter($errors, fn($e) => $e['severity'] === 'error'))));
         $this->assertSame(['order.freight'], array_values(array_column(array_filter($errors, fn($e) => $e['severity'] === 'warning'), 'kind')),
             'the default freight item is an alarm, not an error');
-        $this->assertSame($orders, (int)$this->sql('SELECT count(*) AS n FROM ordrer')[0]['n'], 'K25: zero business rows');
+        $this->assertSame($before, $counts(), 'K25: no order, order line or delivery row');
         $this->assertSame(2, (int)$this->sql("SELECT count(*) AS n FROM shopify_jobs WHERE type = 'mail.alert'")[0]['n'], 'support is alarmed once per open row');
     }
 
@@ -283,6 +284,8 @@ final class OrderIntakeSyncTest extends TestCase
             return $id;
         };
         $noAccount = $this->item('NA', ['gruppe' => 9744]);
+        $other = $this->item('OTHER');
+        $otherVariant = (int)$this->sql("INSERT INTO variant_varer (vare_id, variant_stregkode) VALUES ($1, 'SD743-OTHER') RETURNING id", [$other])[0]['id'];
         $ok = $order(date('Y-m-d'), [[$x, 'SD743X', 2, '']]);
         $early = $order(date('Y-m-d', strtotime('-1 day')), [[$x, 'SD743X', 2, '']]);
         $this->sql('UPDATE ordrer SET ordredate = CURRENT_DATE WHERE id = $1', [$early]);
@@ -298,9 +301,11 @@ final class OrderIntakeSyncTest extends TestCase
             $order(date('Y-m-d'), [[$noAccount, 'SD743NA', 1, '']]),
             $early,
             $tooMuch,
+            $order(date('Y-m-d'), [[$x, 'SD743X', 1, '']]),
         ];
+        $this->sql('UPDATE ordrelinjer SET variant_id = $1 WHERE ordre_id = $2', [(string)$otherVariant, end($cases)]);
         $needles = ['no delivery date', 'already posted', 'serial numbers', 'a return', 'no item with an item group',
-            'without a purchase and sales account', 'before its order date', 'delivered and 2.000 to deliver of 2.000'];
+            'without a purchase and sales account', 'before its order date', 'delivered and 2.000 to deliver of 2.000', 'not a variant of its item'];
 
         $results = $this->steps(['preflight', $ok], ...array_map(fn($id) => ['preflight', $id], $cases));
 

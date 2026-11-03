@@ -34,6 +34,7 @@
 // it needs from the tenant, so the rules are tested without a database and the reads on one.
 //
 // 20261103 CL/SS SD-742: created (WP09-1).
+// 20261103 CL/SS SD-742 review: a line split over several fulfillment locations is an alarm; an order that does not fit one read is refused.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -64,12 +65,12 @@ const SHOPIFY_ORDER_READ = 'query paidOrderRead($id: ID!) { order(id: $id) {
 	customer { id }
 	shippingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
 	billingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
-	lineItems(first: 250) { nodes { id sku name quantity currentQuantity variant { id } product { id }
+	lineItems(first: 250) { pageInfo { hasNextPage } nodes { id sku name quantity currentQuantity variant { id } product { id }
 		originalTotalSet { shopMoney { amount } } discountAllocations { allocatedAmountSet { shopMoney { amount } } } } }
 	shippingLines(first: 10) { nodes { id title code discountedPriceSet { shopMoney { amount } } } }
 	transactions(first: 50) { id kind status gateway amountSet { shopMoney { amount } } paymentDetails { ... on CardPaymentDetails { company } } }
-	fulfillmentOrders(first: 20) { nodes { id status assignedLocation { location { id } }
-		lineItems(first: 250) { nodes { id totalQuantity lineItem { id } } } } }
+	fulfillmentOrders(first: 20) { pageInfo { hasNextPage } nodes { id status assignedLocation { location { id } }
+		lineItems(first: 250) { pageInfo { hasNextPage } nodes { id totalQuantity lineItem { id } } } } }
 } }';
 
 /** The read of a paid order failed; retryable when a job retry may succeed; error is shopify_graphql()'s code. */
@@ -86,7 +87,8 @@ final class ShopifyOrderReadError extends RuntimeException
  *
  * @param array{deadline?: float, graphql?: array<string, mixed>} $rt graphql: extra shopify_graphql() opts (test seams)
  * @return array<string, mixed> the order as shopify_order_from_graphql() shapes it
- * @throws ShopifyOrderReadError when the read fails or Shopify has no such order
+ * @throws ShopifyOrderReadError when the read fails, Shopify has no such order, or it does not fit one read
+ *   (more than 250 lines or 20 fulfillment orders: a partial order would be validated as a different one)
  */
 function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array()): array {
 	$gid = shopify_gid($gid, 'Order');
@@ -96,15 +98,24 @@ function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array())
 		$why = array_merge(array_column($res['user_errors'], 'message'), array_column($res['errors'], 'message'));
 		throw new ShopifyOrderReadError("paidOrderRead failed ({$res['error']})" . ($why ? ': ' . implode('; ', $why) : ''), $res['retryable'], (string)$res['error']);
 	}
-	if (!is_array($res['data']['order'] ?? null)) {
+	$node = $res['data']['order'] ?? null;
+	if (!is_array($node)) {
 		throw new ShopifyOrderReadError("order $gid does not exist in {$shop['shop_key']}", false, 'not_found');
 	}
-	return shopify_order_from_graphql($res['data']['order']);
+	$more = !empty($node['lineItems']['pageInfo']['hasNextPage']) || !empty($node['fulfillmentOrders']['pageInfo']['hasNextPage']);
+	foreach ($node['fulfillmentOrders']['nodes'] ?? array() as $fo) {
+		$more = $more || !empty($fo['lineItems']['pageInfo']['hasNextPage']);
+	}
+	if ($more) {
+		throw new ShopifyOrderReadError("order $gid has more than 250 lines or 20 fulfillment orders; enter it by hand", false, 'too_large');
+	}
+	return shopify_order_from_graphql($node);
 }
 
 /**
  * The order the way the intake reads it (pure): amounts as strings with two decimals, the
- * lines with the location their fulfillment order is assigned to.
+ * lines with the location their fulfillment order is assigned to (the first, when Shopify has
+ * split a line over several fulfillment orders; assigned_locations lists them all).
  *
  * @param array<string, mixed> $o the order node of SHOPIFY_ORDER_READ
  * @return array{gid: string, name: string, created_at: string, source_name: string, source_identifier: string,
@@ -112,7 +123,7 @@ function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array())
  *   total: string, financial_status: string, customer_gid: string|null, shipping_address: array<string, string>|null,
  *   billing_address: array<string, string>|null,
  *   lines: list<array{gid: string, sku: string, name: string, quantity: int, current_quantity: int, variant_gid: string|null, product_gid: string|null,
- *     original_total: string, discount: string, assigned_location: string|null}>,
+ *     original_total: string, discount: string, assigned_location: string|null, assigned_locations: list<string>}>,
  *   shipping: list<array{gid: string, title: string, code: string, amount: string}>,
  *   transactions: list<array{gid: string, kind: string, status: string, gateway: string, amount: string, card: string}>}
  */
@@ -123,8 +134,8 @@ function shopify_order_from_graphql(array $o): array {
 		$location = $fo['assignedLocation']['location']['id'] ?? null;
 		foreach ($fo['lineItems']['nodes'] ?? array() as $foLine) {
 			$lineGid = $foLine['lineItem']['id'] ?? null;
-			if ($lineGid !== null && $location !== null && !isset($assigned[$lineGid])) {
-				$assigned[$lineGid] = (string)$location;
+			if ($lineGid !== null && $location !== null && !in_array((string)$location, $assigned[$lineGid] ?? array(), true)) {
+				$assigned[$lineGid][] = (string)$location;
 			}
 		}
 	}
@@ -144,7 +155,8 @@ function shopify_order_from_graphql(array $o): array {
 			'product_gid' => isset($l['product']['id']) ? (string)$l['product']['id'] : null,
 			'original_total' => $money($l['originalTotalSet'] ?? array()),
 			'discount' => number_format($discount, 2, '.', ''),
-			'assigned_location' => $assigned[(string)$l['id']] ?? null,
+			'assigned_location' => $assigned[(string)$l['id']][0] ?? null,
+			'assigned_locations' => $assigned[(string)$l['id']] ?? array(),
 		);
 	}
 	$shipping = array();
@@ -373,6 +385,9 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 			if ($listTotal <= 0) {
 				$error('order.component', "order $name: the components of $label have no price, so no discount can bring them to the set price");
 			}
+		}
+		if (count($l['assigned_locations'] ?? array()) > 1) {
+			$alarm('order.assignment', "order $name: $label is split over " . count($l['assigned_locations']) . ' fulfillment locations in Shopify; it is drawn from the first, then by priority');
 		}
 		$quantity = (int)$l['quantity'];
 		$rate = (float)($item['vat_rate'] ?? 0);
