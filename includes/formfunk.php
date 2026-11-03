@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -96,6 +96,7 @@
 //                and a credit note without a credited invoice prints it empty instead of failing on the query.
 // 20261102 CL/SZ SD-794: without a valid rebate item (DIV 3 box2 empty, not a number or past int4) the query for its line, which failed, is skipped.
 // 20261102 CL/SZ SD-794: a line without an item skips the trademark lookup, and an empty $regnaar reads as no fiscal year; both queries failed.
+// 20261103 CL/SZ SD-794: the layout fields $ansat_by and $ordre_kundenr read ansatte.bynavn and ordrer.kontonr; their columns don't exist, so they printed blank and the query failed.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -313,6 +314,9 @@ if (!function_exists('skriv')) {
 									if ($variabel == "tlf") {
 										$variabel = "phone";
 									}
+									if ($variabel == "kundenr") {
+										$variabel = "kontonr";
+									}
 									$qtxt = "select $variabel from ordrer where id=$id";
 								}
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -323,6 +327,9 @@ if (!function_exists('skriv')) {
 								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 								$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "ansat" && $ref) {
+								if ($variabel == "by") {
+									$variabel = "bynavn";
+								}
 								$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
 								$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn = '$ref'", __FILE__ . " linje " . __LINE__);
 							}
@@ -686,6 +693,8 @@ if (!function_exists('find_form_tekst')) {
 							$variabel = "fakturadate";
 						if ($variabel == "tlf")
 							$variabel = "phone";
+						if ($variabel == "kundenr")
+							$variabel = "kontonr";
 						if ($variabel) {
 							$qtxt = "select $variabel from ordrer where id=$id";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -737,6 +746,8 @@ if (!function_exists('find_form_tekst')) {
 					} elseif ($tabel == "levering") {
 						$q2 = db_select("select $variabel from batch_salg where ordre_id=$id and lev_nr=$lev_nr", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "ansat") {
+						if ($variabel == "by")
+							$variabel = "bynavn";
 						$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
 						$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn='$ref'", __FILE__ . " linje " . __LINE__);
 					} elseif ($formular == 11 && ($tabel == "forfalden" || $tabel == "skyldig")) { #20191107 finder forfalden_sum / skyldig_sum på kontokort

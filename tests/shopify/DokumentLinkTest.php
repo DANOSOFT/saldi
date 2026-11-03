@@ -14,6 +14,7 @@
 // 20261030 CL/SZ SD-752: created.
 // 20261101 CL/SZ SD-752 review: a failing legacy query in the render, a link whose order changed kind.
 // 20261102 CL/SZ SD-794: a query failing during the print publishes no PDF; the retry gets the document; set prices without a valid rebate item and a line without an item still render.
+// 20261103 CL/SZ SD-794: the layout fields $ansat_by and $ordre_kundenr print their value.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -119,6 +120,51 @@ final class DokumentLinkTest extends TestCase
     }
 
     /** @return array{id: int, fakturanr: string} a posted invoice (DO) or credit note (DK), 2 x 125.00 at 25% VAT */
+    #[DataProvider('layoutFields')]
+    public function testLayoutFieldsTheEditorsOfferPrintTheirValue(string $side, string $field, string $expected): void
+    {
+        $doc = $this->posted();
+        $token = self::token($this->link($doc['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "UPDATE ordrer SET ref = 'Lay Out' WHERE id = $1", [$doc['id']]);
+        ShopifyEnv::rows($conn, "INSERT INTO ansatte (konto_id, navn, bynavn) SELECT id, 'Lay Out', 'Ansatby' FROM adresser WHERE art = 'S' LIMIT 1");
+        if ($side === '!S') {
+            // that row only prints on a page break, so the invoice needs more lines than a page holds
+            ShopifyEnv::rows($conn, "INSERT INTO ordrelinjer (ordre_id, vare_id, varenr, beskrivelse, enhed, posnr, antal, pris, rabat, momssats, procent)"
+                . " SELECT $1, 0, 'L1', 'Linkvare', 'stk', n, 1, 0, 0, 25, 100 FROM generate_series(2, 120) AS n", [$doc['id']]);
+        }
+        $row = ShopifyEnv::one($conn, "INSERT INTO formularer (formular, art, side, beskrivelse, justering, xa, ya, xb, str, color, font, fed, kursiv, sprog)"
+            . " VALUES (4, 2, $1, $2, 'V', 20, 150, 0, 10, 0, 'Helvetica', '', '', 'Dansk') RETURNING id", [$side, $field]);
+        try {
+            $response = $this->get("?t=$token");
+        } finally {
+            ShopifyEnv::rows($conn, 'DELETE FROM formularer WHERE id = $1', [(int)$row['id']]);
+            ShopifyEnv::rows($conn, "DELETE FROM ansatte WHERE navn = 'Lay Out'");
+            pg_close($conn);
+        }
+
+        $this->assertSame(200, $response['status'], $response['body']);
+        $this->assertSame('%PDF-', substr($response['body'], 0, 5));
+        if (trim((string)shell_exec('command -v pdftotext 2>/dev/null')) !== '') {
+            $pdf = tempnam(sys_get_temp_dir(), 'sd794');
+            file_put_contents($pdf, $response['body']);
+            $text = (string)shell_exec('pdftotext ' . escapeshellarg($pdf) . ' -');
+            unlink($pdf);
+            $this->assertStringContainsString($expected, $text);
+        }
+    }
+
+    /** @return array<string, array{string, string, string}> */
+    public static function layoutFields(): array
+    {
+        return [
+            'ansat by' => ['A', '$ansat_by', 'Ansatby'],
+            'kundenr' => ['A', '$ordre_kundenr', '91950'],
+            'ansat by, in the page header' => ['!S', '$ansat_by', 'Ansatby'],
+            'kundenr, in the page header' => ['!S', '$ordre_kundenr', '91950'],
+        ];
+    }
+
     private function posted(string $art = 'DO', int $status = 3): array
     {
         $nr = (string)++self::$next;
