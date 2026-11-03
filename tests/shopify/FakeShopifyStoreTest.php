@@ -263,11 +263,14 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertSame([$this->l2, 2], [$rest['movedFulfillmentOrder']['assignedLocation']['location']['id'], $rest['movedFulfillmentOrder']['lineItems']['nodes'][0]['remainingQuantity']]);
 		$this->assertSame([$this->l1, 'CLOSED'], [$state($partly['id'])['location'], $state($partly['id'])['status']], 'B04: the fulfilled piece stays, the emptied original closes');
 		$this->assertSame("Cannot move a fulfillment order with status CLOSED.", $this->move($partly['id'], $this->l2)['userErrors'][0]['message'], 'B05');
+		$actions = fn(string $id): array => array_column($this->gql('query f($id: ID!) { fulfillmentOrder(id: $id) { supportedActions { action } } }', ['id' => $id])['data']['fulfillmentOrder']['supportedActions'], 'action');
+		$this->assertSame([[], ['CREATE_FULFILLMENT', 'MOVE']], [$actions($partly['id']), $actions($rest['movedFulfillmentOrder']['id'])], 'B05: MOVE where a move is taken');
 
 		$reported = $this->order($p['variant'], 1)['order']['fulfillmentOrders']['nodes'][0];
 		$set($reported['id'], 'status', 'IN_PROGRESS');
 		$set($reported['id'], 'progress_reported', true);
 		$this->assertSame('CANNOT_MOVE_FULFILLMENT_ORDER_WITH_REPORTED_PROGRESS', $this->move($reported['id'], $this->l2)['userErrors'][0]['code'], 'B05');
+		$this->assertSame(['CREATE_FULFILLMENT'], $actions($reported['id']));
 	}
 
 	public function testAMoveTakesADecrementedOrdersCommitmentAlong(): void

@@ -937,8 +937,10 @@ final class FakeShopifyStore
 			'assignedLocation' => ['__typename' => 'FulfillmentOrderAssignedLocation', 'name' => $loc['name'], 'countryCode' => 'DK',
 				'address1' => null, 'address2' => null, 'city' => null, 'province' => null, 'zip' => null, 'phone' => null,
 				'location' => fn(): array => $this->vLocation($domain, $fo['location'])],
-			'supportedActions' => $fo['status'] === 'OPEN' ? [['__typename' => 'FulfillmentOrderSupportedAction', 'action' => 'CREATE_FULFILLMENT', 'externalUrl' => null],
-				['__typename' => 'FulfillmentOrderSupportedAction', 'action' => 'MOVE', 'externalUrl' => null]] : [],
+			// B05: MOVE where fulfillmentOrderMove would take it
+			'supportedActions' => array_map(fn(string $action): array => ['__typename' => 'FulfillmentOrderSupportedAction', 'action' => $action, 'externalUrl' => null],
+				in_array($fo['status'], ['OPEN', 'IN_PROGRESS'], true) ? array_merge(['CREATE_FULFILLMENT'],
+					in_array($fo['request_status'], self::MOVE_REFUSED_REQUESTS, true) || $fo['progress_reported'] ? [] : ['MOVE']) : []),
 			'lineItems' => fn(): array => array_map(fn(array $li): array => $this->vFulfillmentOrderLine($domain, $fo['order'], $li),
 				array_values(array_filter($this->shop($domain)['fulfillment_orders'][$gid]['lines'], fn(array $li): bool => $li['total'] > 0))),
 			'order' => fn(): array => $this->vOrder($domain, $fo['order']),
