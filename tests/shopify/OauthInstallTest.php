@@ -9,6 +9,7 @@
 // History:
 // 20261103 CL/MJ SD-790: created.
 // 20261103 CL/MJ SD-790 review: a form-encoded signature over reserved characters verifies.
+// 20261103 CL/MJ SD-790 review: a stale callback leaves the newer install's state.
 
 use PHPUnit\Framework\TestCase;
 
@@ -151,17 +152,31 @@ final class OauthInstallTest extends TestCase
     {
         $state = $this->begin();
         $wrong = $this->request(self::signed(['code' => 'c', 'shop' => self::DOMAIN, 'state' => strrev($state), 'timestamp' => (string)self::NOW]));
-        $burnt = $this->request(self::signed(['code' => 'c', 'shop' => self::DOMAIN, 'state' => $state, 'timestamp' => (string)self::NOW]));
-        $late = $this->begin();
-        $expired = $this->request(self::signed(['code' => 'c', 'shop' => self::DOMAIN, 'state' => $late, 'timestamp' => (string)(self::NOW + 601)]), self::NOW + 601);
-        $none = $this->request(self::signed(['code' => 'c', 'shop' => self::DOMAIN, 'timestamp' => (string)self::NOW]));
+        $kept = explode(':', (string)$this->setting('oauth_state'))[0];
+        $expired = $this->request(self::signed(['code' => 'c', 'shop' => self::DOMAIN, 'state' => $state, 'timestamp' => (string)(self::NOW + 601)]), self::NOW + 601);
+        $none = $this->request(self::signed(['code' => 'c', 'shop' => self::DOMAIN, 'state' => $state, 'timestamp' => (string)self::NOW]));
 
         $this->assertSame([401, 'bad_state'], self::answer($wrong));
-        $this->assertSame([401, 'bad_state'], self::answer($burnt), 'a wrong state uses the pending one up');
+        $this->assertSame($state, $kept, 'a wrong state leaves the pending one');
         $this->assertSame([401, 'bad_state'], self::answer($expired));
-        $this->assertSame([401, 'bad_state'], self::answer($none), 'no install pending');
-        $this->assertSame([], array_merge($wrong['calls'], $burnt['calls'], $expired['calls'], $none['calls']));
+        $this->assertSame([401, 'bad_state'], self::answer($none), 'the expired state is gone: no install pending');
+        $this->assertSame([], array_merge($wrong['calls'], $expired['calls'], $none['calls']));
         $this->assertNull($this->setting('access_token'));
+    }
+
+    public function testAStaleCallbackDoesNotCancelTheNewerInstall(): void
+    {
+        $first = $this->begin();
+        $second = $this->begin();
+        $answer = ['status' => 200, 'body' => '{"access_token":"shpat_b","scope":"write_orders"}'];
+
+        $stale = $this->request(self::signed(['code' => 'a', 'shop' => self::DOMAIN, 'state' => $first, 'timestamp' => (string)self::NOW]), self::NOW, $answer);
+        $current = $this->request(self::signed(['code' => 'b', 'shop' => self::DOMAIN, 'state' => $second, 'timestamp' => (string)self::NOW]), self::NOW, $answer);
+
+        $this->assertSame([401, 'bad_state'], self::answer($stale));
+        $this->assertSame([302, 'installed'], self::answer($current));
+        $this->assertSame(['b'], array_map(fn(array $c): string => $c['body']['code'], array_merge($stale['calls'], $current['calls'])));
+        $this->assertSame('shpat_b', $this->setting('access_token'));
     }
 
     public function testARefusedExchangeStoresNoToken(): void

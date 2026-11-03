@@ -31,6 +31,7 @@
 //
 // 20261103 CL/MJ SD-790: created.
 // 20261103 CL/MJ SD-790 review: the signature also verifies over form-encoded values, as Shopify's libraries sign them.
+// 20261103 CL/MJ SD-790 review: a state that doesn't match is kept, so a stale callback can't cancel a newer install.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -158,17 +159,25 @@ function shopify_oauth_request(array $query, array $opts = array()): array {
 }
 
 /**
- * Uses up the shop's pending state: true when $given is it and it hasn't expired. The stored
- * state is deleted either way, so a state answers one callback only.
+ * Uses up the shop's pending state: true when $given is it and it hasn't expired. A matching or
+ * expired state is deleted, so a state answers one callback only; another one is kept, so a stale
+ * callback (an earlier install attempt) doesn't cancel the attempt in progress.
  */
 function shopify_oauth_use_state(string $key, string $given, int $now): bool {
-	$rows = shopify_db_transaction(function () use ($key) {
+	return shopify_db_transaction(function () use ($key, $given, $now): bool {
 		// the lock shopify_save_secret() takes for this setting
 		shopify_db_rows('SELECT pg_advisory_xact_lock(hashtext($1))', array("shopify_secret:shopify:$key:" . SHOPIFY_OAUTH_STATE));
-		return shopify_db_rows('DELETE FROM settings WHERE var_grp = $1 AND var_name = $2 RETURNING var_value', array("shopify:$key", SHOPIFY_OAUTH_STATE));
+		$parts = explode(':', (string)shopify_secret($key, SHOPIFY_OAUTH_STATE), 2);
+		if (count($parts) !== 2) {
+			return false;
+		}
+		$expired = (int)$parts[1] < $now;
+		$match = $given !== '' && hash_equals($parts[0], $given);
+		if ($match || $expired) {
+			shopify_db_rows('DELETE FROM settings WHERE var_grp = $1 AND var_name = $2', array("shopify:$key", SHOPIFY_OAUTH_STATE));
+		}
+		return $match && !$expired;
 	});
-	$parts = explode(':', (string)($rows[0]['var_value'] ?? ''), 2);
-	return count($rows) === 1 && count($parts) === 2 && $given !== '' && hash_equals($parts[0], $given) && (int)$parts[1] >= $now;
 }
 
 /**
