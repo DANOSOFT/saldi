@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/integrations.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- includes/settings/integrations.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 Danosoft ApS
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261004 SS G9.2 pickup address items, G9.4 NemHandel status.
 // 20261004 SS G10.3: card list items from the POS card lists, their status, the payment providers' state.
@@ -23,6 +23,7 @@
 // 20261101 CL/ASR Ansatte lists one more item, Ekstra felter ('general'), with the field that moved there from Diverse valg.
 // 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026): the one list of employees and logins is usersRoles.php; this list is the employee list of a user without it.
 //                 The card's "Bruger" line names the linked login without a link to usersRoles.php (its person card shows the login, and a user here may not open that page).
+// 20261103 CL/ASR QA round 2: the Hent link of the latest backup goes through admin/backup_download.php and is shown only with write on Sikkerhedskopi.
 
 /**
  * Status of one integration from what is stored: kind 'ok', 'off', 'err' or 'soon', the short text and the
@@ -228,7 +229,12 @@ function settings_integration_info(array $def): string
 				return filemtime($b) - filemtime($a);
 			});
 			$f = $files[0];
-			return st_h(date('d-m-Y H:i', filemtime($f)) . ' · ' . number_format(filesize($f) / 1048576, 1, ',', '.') . ' MB') . ' · <a class="st-tl" href="../temp/backup/' . rawurlencode(basename((string) $db)) . '/' . rawurlencode(basename($f)) . '" download>' . st_t(6668) . '</a>';
+			$info = st_h(date('d-m-Y H:i', filemtime($f)) . ' · ' . number_format(filesize($f) / 1048576, 1, ',', '.') . ' MB');
+			// Fetched through admin/backup_download.php (write on Sikkerhedskopi), never from its place under temp/.
+			if (!function_exists('perm_can') || !perm_can('settings.backup', 'write')) {
+				return $info;
+			}
+			return $info . ' · <a class="st-tl" href="../admin/backup_download.php?f=' . rawurlencode(basename($f)) . '">' . st_t(6668) . '</a>';
 		case 'ledger_activity':
 			$r = db_fetch_array(db_select("select count(id) as n from transaktioner where logdate >= '" . date('Y-m-d', strtotime('-1 year')) . "'", __FILE__ . " linje " . __LINE__));
 			return st_h(sprintf(st_txt(6639), number_format($r ? (int) $r['n'] : 0, 0, ',', '.')));

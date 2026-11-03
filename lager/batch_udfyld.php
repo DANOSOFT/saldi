@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/batch_udfyld.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- lager/batch_udfyld.php --- ver 5.0.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,11 +32,14 @@
 // 20261013 CL/ASR Review: Post/Redirect/Get after saving, no LIKE ESCAPE clause (MySQL), leave guard
 //                 on the filter link and search form, lock only the batch row.
 // 20261020 CL/ASR 'for update of bk' only on Postgres; MariaDB has no OF clause in its locking clause.
+// 20261103 CL/ASR QA round 2: the page edits batches and splits stock, so it needs write on Varer ($modulnr 9, lager.varer) instead of the Debitorrapport right.
 
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
-$modulnr = 12;
+$modulnr = 9; // Varer (was 12, Debitorrapport): the page changes batch data and splits stock
+$permission_key = 'lager.varer';
+$permission_level = 'write';
 
 global $menu, $bruger_id, $buttonStyle, $topStyle;
 

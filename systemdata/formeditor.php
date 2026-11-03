@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) instead of page_bar: Tilbage above the title, breadcrumb Indstillinger / Virksomhed / Formularer / Formulareditor and the Virksomhed menu with Formularer marked beside the editor.
 //                 Tilbage goes where page_bar's did.
 //                 The editor keeps its own font; its canvas and side panel are 76 px shorter, so they end inside the window.
+// 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents) instead of the general settings fallback, and Gem & aktivér shows a refusal as its message instead of Netværksfejl.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -81,7 +82,7 @@ $css   = "../css/standard.css";
 
 include("../includes/connect.php");
 $modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
-$permission_key = 'system.indstillinger';
+$permission_key = 'settings.documents'; // the invoice forms are Dokumenter & e-mail (QA round 2), not the general settings fallback
 include("../includes/online.php");
 include("../includes/std_func.php");
 $title = findtekst('7012|Formulareditor', $sprog_id);
@@ -2824,6 +2825,7 @@ settings_layout_open(array('title' => $title, 'back' => $returside, 'legacy' => 
         statusEl.textContent=L.saved.replace('%s', j.updated); statusEl.style.color='#2a7d2a';
       }
       else if (j && j.error==='session') { statusEl.textContent=L.session; statusEl.style.color='#c00'; }
+      else if (j && j.error==='denied' && j.message) { statusEl.textContent=j.message; statusEl.style.color='#c00'; }
       else { statusEl.textContent=L.failed; statusEl.style.color='#c00'; }
     }).catch(function(){ statusEl.textContent=L.neterr; statusEl.style.color='#c00'; });
   });

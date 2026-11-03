@@ -1,5 +1,5 @@
 <?php
-// ----------------------------- systemdata/tekster.php ----------------- ver 5.1.0 -- 2026-11-02 --
+// ----------------------------- systemdata/tekster.php ----------------- ver 5.1.0 -- 2026-11-03 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20260928 SS Phase 4: top-menu branch removed; top.php is the only frame.
 // 20261102 CL/ASR Opened without ?sprog_id (Oversættelser under Indstillinger > Sprog & lokalisering links plain tekster.php) the page showed "Sprog_id not found" and no texts; it now edits the texts of the language the user is logged in with, as the section says.
 //                 The language id is a number (it is printed in the page's links).
+// 20261103 CL/ASR QA round 2: the page needs Virksomhed (settings.company), where Oversættelser sits, instead of the general settings fallback.
 
 /**
  * Injected by ../includes/connect.php, included below:
@@ -38,6 +39,7 @@ $s_id=session_id();
 $modulnr=1;
 $css="../css/standard.css";
 $title="Tekster";
+$permission_key = 'settings.company'; // Oversættelser sits under Virksomhed > Sprog & lokalisering (QA round 2)
 #$rightoptxt="<a href=\"tekster.php?ryd=1\" >ryd</a>"; #20210819 
 
 include("../includes/connect.php");

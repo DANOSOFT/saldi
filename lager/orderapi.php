@@ -13,8 +13,10 @@
 session_start();
 $s_id = session_id();
 
+// 20261103 CL/ASR QA round 2: the page creates purchase orders (art KO), so it needs write on Kreditorordre, not Debitorordre.
 include("../includes/connect.php");
-$permission_key = 'debitor.ordre';
+$permission_key = 'kreditor.ordre';
+$permission_level = 'write';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/stdFunc/usDecimal.php");

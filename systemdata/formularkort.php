@@ -73,6 +73,7 @@
 //                 The form editor below is unchanged.
 // 20261102 CL/ASR Genindlæs standardformularer removed from the bottom row (both menu modes): it linked to formular_indlaes_std.php, which was deleted on 24 Sep 2025 (6a35fea7), so the link gave a 404.
 //                 The visual editor's Nulstil resets one form and background to the standard and keeps the e-mail texts and fee/interest rows.
+// 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents), and the Vælg selector is a read, so a read-only role can choose a form; a new form language (VSPR) is created only with write.
 @session_start();
 $s_id=session_id();
 
@@ -81,7 +82,11 @@ $css="../css/standard.css";
 
 include("../includes/connect.php");
 $modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
-$permission_key = 'system.indstillinger';
+// The forms are Dokumenter & e-mail on the settings front page; the form posts to the page without ?valg=formularer, which the
+// general settings fallback could not map. The Vælg selector (formularvalg with only form_nr, art and sprog) chooses which
+// form to show, so that POST is a read; every other POST saves and needs write.
+$permission_key = 'settings.documents';
+$permission_post_read = isset($_POST['formularvalg']) && !array_diff(array_keys($_POST), array('formularvalg', 'form_nr', 'art', 'sprog'));
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
@@ -176,6 +181,8 @@ if (isset($_POST) && $_POST) {
 		$qtxt = "select kodenr from grupper where art = 'VSPR' and lower(box1) = lower('$formularsprog') order by kodenr";
 		if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$form_sprog_id = $r['kodenr'];
+		} elseif (!perm_can('settings.documents', 'write')) {
+			$form_sprog_id = 0; // a read-only user only looks; a new form language is created only by a save
 		} else {
 			$r             = db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
 			$form_sprog_id = $r['kodenr']+1;

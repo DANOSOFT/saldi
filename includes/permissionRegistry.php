@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissionRegistry.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- includes/permissionRegistry.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261002 SS Standard role matrix for the settings groups as settings redesign §11.4 (hand-over 2 Oct): Administrator write, Bogholder read on all eight, every other role none (Lager lost items write / organisation read).
 // 20261002 SS Keys per settings redesign §11.1: settings.email (was settings.smtp), settings.backup (was system.backup), settings.company.danger and settings.organisation.sensitive added; settings.integrations.keys withdrawn.
 // 20261101 CL/ASR dashboard.block.suggestions removed: the Forslag card left the dashboard (the bell holds suggestions).
+// 20261103 CL/ASR QA round 2: Kun visning no longer gets read on dangerous keys (settings.backup), and Bogholder and Revisor get no expiry block, which needs a lager key.
 
 /**
  * Every permission key the system knows. A key is granted at level none / read / write.
@@ -151,7 +152,8 @@ function permission_default_roles(): array
 	$legacyRead = array();
 	foreach (permission_registry() as $key => $def) {
 		$allWrite[$key] = !empty($def['readonly']) ? 'read' : 'write';
-		if ($def['legacy']) {
+		// Kun visning reads every module, but not a dangerous key: read on Sikkerhedskopi (legacy 11) created a full backup.
+		if ($def['legacy'] && empty($def['dangerous'])) {
 			$legacyRead[$key] = 'read';
 		}
 	}
@@ -160,6 +162,9 @@ function permission_default_roles(): array
 		'dashboard.block.revweek' => 'read', 'dashboard.block.varegrp_doughnut' => 'read', 'dashboard.block.small' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
 	$dashSalg = array('dashboard.view' => 'read', 'dashboard.block.unpaid_invoices' => 'read', 'dashboard.block.customergraph' => 'read', 'dashboard.block.varegrp_doughnut' => 'read', 'dashboard.block.small' => 'read', 'dashboard.block.news' => 'read');
 	$dashIndkoeb = array('dashboard.view' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
+	// Roles without a lager key get no expiry block, as the derive rule (lager.varer / lager.rapporter) gives at upgrade.
+	$dashNoStock = $dashAll;
+	unset($dashNoStock['dashboard.block.expiry']);
 	$legacyRead += $dashAll;
 	return array(
 		'administrator' => array(
@@ -179,7 +184,7 @@ function permission_default_roles(): array
 				'debitor.konti' => 'write', 'debitor.rapporter' => 'write',
 				'kreditor.konti' => 'write', 'kreditor.rapporter' => 'write',
 				'debitor.ordre' => 'read', 'kreditor.ordre' => 'read',
-			) + $dashAll,
+			) + $dashNoStock,
 		),
 		'salg' => array(
 			'label'       => '5544|Salg',
@@ -216,7 +221,7 @@ function permission_default_roles(): array
 			'levels'      => array(
 				'finans.kassekladde' => 'read', 'finans.regnskab' => 'read', 'finans.rapporter' => 'read',
 				'system.kontoplan' => 'read', 'debitor.rapporter' => 'read', 'kreditor.rapporter' => 'read',
-			) + $dashAll,
+			) + $dashNoStock,
 		),
 	);
 }

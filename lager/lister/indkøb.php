@@ -31,6 +31,7 @@
 //                  PBS resend. The list printed "Fakturaen har ikke været med i nogen PBS-leverance"
 //                  on a created order, and MEDSHOP read that as a failure and ordered again.
 // 20261103 CL/ASR $modulnr 9 (Lager) declared, so the purchase list follows the stock right; nothing else changed here.
+// 20261103 CL/ASR QA round 2: Bestil checks each answer from orderapi.php, so a refused order shows the refusal and no longer reports Bestillinger oprettet.
 
 @session_start();
 $s_id = session_id();
@@ -139,7 +140,15 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
         });
 
         try {
-            await Promise.all(promises);
+            const responses = await Promise.all(promises);
+            // A refused or failed order (HTTP 403 with a JSON message, or any other error status) is not a success.
+            const failed = responses.find(r => !r.ok);
+            if (failed) {
+                let message = '';
+                try { message = (await failed.json()).message || ''; } catch (e) {}
+                if (message) alert(message);
+                throw new Error('HTTP ' + failed.status);
+            }
         } catch (error) {
             console.error('Error processing orders:', error);
             throw error;

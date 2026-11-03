@@ -79,6 +79,7 @@
 // 20261101 CL/ASR Sidebar in prototype D's fixed look for every user (css/sidebar_style.css): navy-to-purple gradient, white mark, text and icons, translucent hover/active pill.
 //                 The personal colours ($buttonColor/$buttonTxtColor) no longer style the sidebar: the colour <style> block, the inline colour styles and brightenColor() are gone.
 // 20261103 CL/ASR QA: css/topbar.css linked as ?v=23 ([hidden] items in the top bar's menus stay hidden).
+// 20261103 CL/ASR QA round 2: Skjul oversigt and Rediger oversigt are hidden for a user without any dashboard block.
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -173,6 +174,13 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   <ul class="nav-links top-links" style='margin-top: 1em;'>
     <!-- Finans -->
     <?php $dashView = !function_exists('perm_can') || perm_can('dashboard.view') || perm_enforcement_mode() !== 'deny'; // Se Oversigt (addendum 4) ?>
+    <?php
+    // Skjul / Rediger oversigt only when the user has a block to hide or arrange (the dashboard shows a note otherwise).
+    $dashBlocks = !function_exists('perm_can');
+    foreach (array('kpis', 'unpaid_invoices', 'small', 'revgraph', 'customergraph', 'revweek', 'varegrp_doughnut') as $dashBlockId) {
+    	$dashBlocks = $dashBlocks || perm_can('dashboard.block.' . $dashBlockId);
+    }
+    ?>
     <li class="active"<?= $dashView ? '' : ' style="display:none"' ?>>
       <a href="#" id="dashboard" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
         <i class='bx bxs-dashboard'></i>
@@ -877,7 +885,8 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   }
   function topbarSetDashState(path) {
     const onDash = /\/index\/dashboard\.php$/.test(path || '') && <?= $dashView ? 'true' : 'false' ?>;
-    document.querySelectorAll('.topbar-dash').forEach((el) => { el.hidden = !onDash; });
+    const dashTools = onDash && <?= $dashBlocks ? 'true' : 'false' ?>;
+    document.querySelectorAll('.topbar-dash').forEach((el) => { el.hidden = !dashTools; });
     document.documentElement.classList.toggle('topbar-tall', onDash);
     topbarHello(onDash);
   }

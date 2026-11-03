@@ -1,5 +1,5 @@
 <?php
-// ------- systemdata/designer.php -------- lap 2.0.7 ----2009-05-15-------
+// ------- systemdata/designer.php -------- lap 2.0.7 ----2026-11-03-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,13 +14,15 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2008 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261103 CL/ASR QA round 2: the form designer needs Dokumenter & e-mail (settings.documents) besides its old module right.
 
 @session_start();
 $s_id=session_id();
 
 $modulnr=6;
+$permission_key = 'settings.documents';
 $kortnr=1;
 $title="designer";
 

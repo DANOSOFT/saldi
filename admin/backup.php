@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/admin/backup.php---ver 5.1.0--2026-11-02---------------------
+// ----------/admin/backup.php---ver 5.1.0--2026-11-03---------------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,9 @@
 //                 A popup window (popup=1) has no menu and Tilbage closes it, as before; the page's own links (create, cancel, restore) keep popup=1, so the window stays without the menu.
 //                 The div that centres the page's content opens inside the content column; the backup itself is unchanged.
 // 20261102 CL/ASR Review: after Opret sikkerhedskopi the closing of the tables and the layout is printed only outside the old top menu ($menu T), whose page stays as it was.
+// 20261103 CL/ASR QA round 2: the page needs Sikkerhedskopi (settings.backup), and creating or deleting a backup needs write.
+//                 The dump command with the database password is no longer printed into the page.
+//                 The plain dump and backup.info are deleted once archived, the kept copy gets a random part in its name and is downloaded through backup_download.php, and Annullér deletes only that copy.
 
 @session_start();
 $s_id = session_id();
@@ -42,6 +45,11 @@ $s_id = session_id();
 $css     = "../css/standard.css";
 $title   = "Sikkerhedskopi";
 $modulnr = 11;
+// Opening the page is a read on Sikkerhedskopi; creating a backup (backup=1) or deleting the copy (POST) is a write.
+$permission_key = 'settings.backup';
+if (isset($_GET['backup']) || (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST')) {
+	$permission_level = 'write';
+}
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -62,6 +70,18 @@ $backup       = TRUE;
 $timestamp    = date("Ymd-Hi");
 $r            = db_fetch_array(db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__));
 $dbver        = $r['box1'];
+// The files a backup leaves under temp/ are served by the web server without a login, so nothing stays there under a
+// guessable name: the plain dump and the info file older than ten minutes (an interrupted run, or one from before
+// 2026-11-03) are removed, and a kept copy without a random part in its name gets one.
+foreach (array($dump_filnavn, $info_filnavn) as $staleFile) {
+	if (is_file($staleFile) && filemtime($staleFile) < time() - 600) @unlink($staleFile);
+}
+foreach (glob("../temp/" . basename((string) $db) . "_*.sdat") ?: array() as $staleFile) {
+	if (filemtime($staleFile) < time() - 600) @unlink($staleFile);
+}
+foreach (glob("../temp/backup/" . basename((string) $db) . "/*.sdat") ?: array() as $staleFile) {
+	if (!preg_match('/_[0-9a-f]{16}\.sdat$/', $staleFile)) @rename($staleFile, substr($staleFile, 0, -5) . '_' . bin2hex(random_bytes(8)) . '.sdat');
+}
 if (isset($_GET['backup']) && $_GET['backup']==1) {
 	$fp = fopen($info_filnavn,"w");
 	if ($fp) {
@@ -70,12 +90,14 @@ if (isset($_GET['backup']) && $_GET['backup']==1) {
 	fclose($fp);
 	if ($db_type=='mysql' or $db_type=='mysqli') $dumpcmd="$exec_path/mysqldump -h $sqhost -u $squser --password=$sqpass -n $db --result-file=../temp/$dump_filnavn"; #RG_mysqli
 	else $dumpcmd="export PGPASSWORD=$sqpass\n$exec_path/pg_dump -h $sqhost -U $squser -f $dump_filnavn $db";
-	print "<!-- RUNEDEBUG $dumpcmd -->";
 	print "<!-- Saldi-kommentar for at skjule uddata til siden \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
 	system ($dumpcmd);
 	system ("tar -cf $tar_filnavn $dump_filnavn $info_filnavn");
 	system ("gzip $tar_filnavn");
 	system ("mv $gz_filnavn $dat_filnavn");
+	// The plain dump and the info file are inside the archive now.
+	@unlink($dump_filnavn);
+	@unlink($info_filnavn);
 	print "--> \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
 }
 
@@ -119,7 +141,8 @@ if ($menu=='T' || $menu=='S') {
 
 ########################Handle the cancel instruction
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel'])) {
-	$file_path = if_isset($_POST,NULL,'file_path');
+	// Only this ledger's kept copy can be deleted, never another path sent with the form.
+	$file_path = "../temp/backup/" . basename((string) $db) . "/" . basename((string) if_isset($_POST,NULL,'file_path'));
 	error_log("Attempting to delete file: $file_path");
 	if (file_exists($file_path)) {
         error_log("Deleting file: $file_path");
@@ -147,7 +170,8 @@ print "<table cellpadding='1' cellspacing='1' border='0'><tbody>";
 if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 	$dat_filnavn = basename($dat_filnavn);
 	$backUpDir = "../temp/backup/$db/"; //use this to ensure database is backed up
-	$backUpFile = $backUpDir . $dat_filnavn;
+	// A random part in the name, so the kept copy cannot be guessed from the ledger name and the time.
+	$backUpFile = $backUpDir . substr($dat_filnavn, 0, -5) . '_' . bin2hex(random_bytes(8)) . '.sdat';
 	$sourceFile = "../temp/$dat_filnavn";
 	
 
@@ -155,9 +179,14 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 	if (!is_dir($backUpDir)) {
 		mkdir($backUpDir, 0755, true);
 	}
+	// No directory listing, and no web access where the server reads .htaccess; the file is fetched through backup_download.php.
+	foreach (array("../temp/backup/", $backUpDir) as $guardDir) {
+		if (is_dir($guardDir) && !file_exists($guardDir . "index.html")) @file_put_contents($guardDir . "index.html", "");
+	}
+	if (!file_exists("../temp/backup/.htaccess")) @file_put_contents("../temp/backup/.htaccess", "Require all denied\n");
 	if (file_exists($sourceFile)) {
 		if (is_dir($backUpDir)) {
-			foreach (glob($backUpDir . '*') as $file) {
+			foreach (glob($backUpDir . '*.sdat') as $file) {
 				if (is_file($file)) {
 					unlink($file);
                     
@@ -169,6 +198,7 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 			error_log("Source file1: " . $sourceFile);
 			error_log("backUp file1: " . $backUpFile);
 			if (copy($sourceFile, $backUpFile)) {
+				@unlink($sourceFile); // the copy under temp/backup/ is the one offered for download
 				#echo "Please click on save to continue..";
 			} else {
 				throw new Exception("File not saved at $backUpFile");
@@ -180,7 +210,7 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 	}
     print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td>";
     print "<td $style title='".findtekst('1674|Her har du mulighed for danne en sikkerhedskopi som du kan gemme.', $sprog_id).".'>";
-    print "<a href='../temp/$dat_filnavn'> $buttonStart";
+    print "<a href='backup_download.php?f=" . rawurlencode(basename($backUpFile)) . "'> $buttonStart";
     print findtekst('3|Gem', $sprog_id)." ".findtekst('614|Sikkerhedskopi', $sprog_id);
     print "$buttonEnd </a></td></tr>";
     print "<tr><td align=center colspan=2>".findtekst('1242|og gem sikkerhedskopien et passende sted.', $sprog_id)."</td></tr>";

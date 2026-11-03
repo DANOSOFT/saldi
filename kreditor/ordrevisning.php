@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------kreditor/ordrevisning.php-----lap 4.1.0-------2025.08.26-----------
+// --------kreditor/ordrevisning.php-----lap 4.1.0-------2026.11.03-----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,8 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 7, kreditor.ordre) instead of the debitor one, so Indkøb opens the page and Salg does not.
 
 @session_start();
 $s_id=session_id();
@@ -43,7 +44,8 @@ $title=findtekst('544|Fakturavisning', $sprog_id);
 $title=findtekst('813|Visning', $sprog_id);
 }
 
-$modulnr=6;
+$modulnr=7; // Kreditorordre (was 6, Debitorkonti)
+$permission_key = 'kreditor.ordre';
 
 $css="../css/standard.css";
 
@@ -63,7 +65,7 @@ if ($valg=="forslag") $title=$aa; // treat as tilbud
 elseif ($valg=="ordrer") $title=$bb;
 else $title=$cc;
 
-$modulnr=6;
+$modulnr=7;
 
 $sort=trim(if_isset($_GET['sort']));
 

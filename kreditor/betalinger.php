@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/betalinger.php --- Patch 4.1.1 --- 20261020 ---
+// --- kreditor/betalinger.php --- Patch 4.1.1 --- 20261103 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 //
 // 20220201 PHR Copied from debitor/betalinger.php and adjusted
@@ -34,13 +34,15 @@
 // 20261005 CL/SZ SD-721 "Ubetalte" and a journal's invoices no longer leave out the first invoice (the one due first): the "nothing found" check read it from the result.
 // 20261020 CL/SZ SD-721 (CodeRabbit) The unconfirmed check goes by the kreditor's id; with two kreditorer of the same name, the first one's unconfirmed account was used.
 //                A name two kreditorer share gets the marker without "Bekræft" (confirmed on the kreditor card), so one's account can't fill the other's line.
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 13, kreditor.rapporter) instead of the debitor one, so Indkøb opens the page and Salg does not.
 
 $dan_liste=$gem=$listenote=$slet_ugyldige=$udskriv=NULL;
 
 @session_start();
 $s_id=session_id();
 		
-$modulnr=12;	
+$modulnr=13; // Kreditorrapport (was 12, Debitorrapport)
+$permission_key = 'kreditor.rapporter';
 $title="Betalinger til bank";
 $css="../css/std.css";
 

@@ -35,6 +35,7 @@
 // 20261103 CL/ASR QA: SD-657 (hideRevenue on when someone loses the Indstillinger right) runs wherever rights strings are synced from a role: a role change, bulk role, the role matrix, reset and moving users off a deleted role, not only the user card.
 // 20261103 CL/ASR QA: the user migration gives a standard role only when the role covers everything the old rights string gave (perm_role_covers_legacy(), all keys incl. the settings areas and derived keys); a string that equals a standard role's but gave more (e.g.
 //                 2222222222222222: read on every settings area) gets a custom role kept for review instead.
+// 20261103 CL/ASR QA round 2: a refusal answers HTTP 403, with JSON for fetch/XHR callers and JSON endpoints, and otherwise a small card with the message and Tilbage til Oversigt instead of the text box whose Luk left an empty frame.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 
@@ -409,18 +410,79 @@ function perm_require_post_csrf(bool $json = true): void
 	exit;
 }
 
+/**
+ * True when the refused request comes from a script (fetch/XHR or a JSON API), which needs a JSON answer, not a page.
+ */
+function perm_request_wants_json(): bool
+{
+	$h = function (string $k): string {
+		return isset($_SERVER[$k]) ? strtolower((string) $_SERVER[$k]) : '';
+	};
+	if ($h('HTTP_X_REQUESTED_WITH') === 'xmlhttprequest' || $h('HTTP_SEC_FETCH_DEST') === 'empty'
+		|| strpos($h('HTTP_ACCEPT'), 'application/json') !== false || strpos($h('CONTENT_TYPE'), 'application/json') !== false) {
+		return true;
+	}
+	// Endpoints that only ever answer JSON, for callers that send none of the headers above.
+	$script = basename(isset($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : '');
+	return in_array($script, array('rental.php', 'orderapi.php', 'save_date_settings.php'), true)
+		|| ($script === 'formeditor.php' && !empty($_GET['fe_action']));
+}
+
+/**
+ * The URL of index/main.php (the shell with Oversigt) from wherever the refused script lives.
+ */
+function perm_home_url(): string
+{
+	$root = realpath(__DIR__ . '/..');
+	$file = isset($_SERVER['SCRIPT_FILENAME']) ? realpath((string) $_SERVER['SCRIPT_FILENAME']) : false;
+	$name = isset($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : '';
+	if ($root !== false && $file !== false && strpos($file, $root . '/') === 0) {
+		$rel = substr($file, strlen($root));
+		if ($name !== '' && substr($name, -strlen($rel)) === $rel) {
+			return substr($name, 0, -strlen($rel)) . '/index/main.php';
+		}
+	}
+	return '../index/main.php';
+}
+
+/**
+ * Answer a refused request (HTTP 403) and stop: a JSON body for scripts, otherwise a small card with the message and a way
+ * back to Oversigt. One text (5548) for the old module gate and the new one alike.
+ */
 function perm_refuse(string $what, string $page): void
 {
 	global $sprog_id;
 	audit_log('denied', $what . ' ' . $page);
-	// std_func.php (findtekst/tekstboks) may not be loaded yet when called from online.php.
+	$lang = isset($sprog_id) ? (int) $sprog_id : 1;
+	// std_func.php (findtekst) may not be loaded yet when called from online.php.
 	$txt = function_exists('findtekst')
-		? findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', isset($sprog_id) ? (int) $sprog_id : 1)
+		? findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', $lang)
 		: 'Du har ikke adgang til denne funktion. Kontakt din administrator.';
-	if (function_exists('tekstboks')) {
-		print tekstboks($txt);
-	} else {
-		print "<p>" . htmlspecialchars($txt) . "</p>";
+	if (!headers_sent()) {
+		http_response_code(403);
+	}
+	if (perm_request_wants_json()) {
+		while (ob_get_level() > 0) {
+			ob_end_clean();
+		}
+		if (!headers_sent()) {
+			header('Content-Type: application/json; charset=utf-8');
+		}
+		print json_encode(array('ok' => false, 'succes' => false, 'success' => false, 'error' => 'denied', 'message' => $txt, 'msg' => $txt));
+		exit;
+	}
+	$back = function_exists('findtekst') ? findtekst('7805|Tilbage til Oversigt', $lang) : 'Tilbage til Oversigt';
+	$ownPage = !headers_sent(); // nothing printed yet: a page of its own, else the card inside what is there
+	if ($ownPage) {
+		print "<!DOCTYPE html>\n<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>403</title></head>";
+		print "<body style='margin:0;background:#f4f5f7;font-family:Inter,system-ui,-apple-system,\"Segoe UI\",Arial,sans-serif'>";
+	}
+	print "<div role='alert' style='box-sizing:border-box;max-width:460px;margin:12vh auto 0;padding:22px 26px;background:#fff;border:1px solid #d8dbe0;border-radius:8px;box-shadow:0 2px 10px rgba(16,24,40,.08);color:#1f2933;font-size:15px;line-height:1.45'>";
+	print "<p style='margin:0 0 16px'>" . htmlspecialchars($txt, ENT_QUOTES) . "</p>";
+	print "<a href='" . htmlspecialchars(perm_home_url(), ENT_QUOTES) . "' target='_top' style='display:inline-block;padding:7px 14px;border-radius:6px;background:#114691;color:#fff;text-decoration:none;font-weight:500'>" . htmlspecialchars($back, ENT_QUOTES) . "</a>";
+	print "</div>";
+	if ($ownPage) {
+		print "</body></html>";
 	}
 	exit;
 }

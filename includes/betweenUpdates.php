@@ -36,6 +36,7 @@
 //                 A sentinel comment marks the end of the tekst_key migration, where TekstKeyMigrationTest stops reading.
 // 20261031 CL/ASR Texts 7031 (personal text size) and 7021 (checklists lead) reworded; the cached old wording is removed.
 // 20261103 CL/ASR QA: the audit_log indexes on objekt_type/objekt_id are made after all three columns exist (and made later where an earlier login stopped before them); the role tables, the built-in roles and the user migration run under a PostgreSQL advisory lock, so two first logins at once cannot seed the roles twice.
+// 20261103 CL/ASR QA round 2: the built-in Kun visning role loses its dangerous keys (settings.backup) once, and role rows for keys no longer in the registry are removed.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -442,5 +443,29 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // second; later logins carry on from the stored window, and a login that finds the lock taken skips it.
 require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
 backfillOrderLineDelivered($db_type);
+
+// 20261103 CL/ASR QA round 2 (restricted roles): the built-in Kun visning role got read on every key with a legacy position,
+// dangerous ones too, and read on Sikkerhedskopi (settings.backup) let it create a full backup. Its dangerous rows are removed
+// once and the rights strings of its users rendered again. Role rows for keys that have left the registry
+// (dashboard.block.suggestions, 1 Nov 2026) are removed in the same step. Flagged in settings, like audit_admin_only above.
+include_once(__DIR__ . "/permissions.php");
+$qtxt = "select id from settings where var_grp = 'permissions' and var_name = 'readonly_no_dangerous'";
+if (perm_tables_ready() && !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$permDangerous = array();
+	$permKnown = array();
+	foreach (permission_registry() as $permKey => $permDef) {
+		$permKnown[] = "'" . db_escape_string($permKey) . "'";
+		if (!empty($permDef['dangerous'])) {
+			$permDangerous[] = "'" . db_escape_string($permKey) . "'";
+		}
+	}
+	$r = db_fetch_array(db_select("select id from roles where role_key = 'kunvisning'", __FILE__ . " linje " . __LINE__));
+	if ($r && $permDangerous) {
+		db_modify("delete from role_permissions where role_id = " . (int) $r['id'] . " and permission_key in (" . implode(', ', $permDangerous) . ")", __FILE__ . " linje " . __LINE__);
+		perm_sync_role((int) $r['id']);
+	}
+	db_modify("delete from role_permissions where permission_key not in (" . implode(', ', $permKnown) . ")", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('permissions', 'readonly_no_dangerous', '" . date('Ymd') . "', 'Dangerous keys removed from Kun visning, unknown keys from all roles', 0)", __FILE__ . " linje " . __LINE__);
+}
 
 ?>

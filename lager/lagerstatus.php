@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-09-25 ----
+// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-11-03 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,7 @@
 //             no longer matches (almost) the whole catalogue or spuriously bypasses the
 //             zStock/showClosed/activity filters via $lsHasTextSearch.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261103 CL/ASR QA round 2: the GET link ret_behold=2 (Ret skæve lagertal) needs write on lager.varer.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -106,6 +107,10 @@ $dateType = 'levdate';
 
 include("../includes/connect.php");
 $permission_key = 'lager.varer';
+// "Ret skæve lagertal" (ret_behold=2) rewrites stock figures from a GET link, so it needs write.
+if (isset($_GET['ret_behold']) && (string) $_GET['ret_behold'] === '2') {
+	$permission_level = 'write';
+}
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");

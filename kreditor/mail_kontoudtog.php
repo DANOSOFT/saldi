@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/mail_kontoudtog.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- kreditor/mail_kontoudtog.php --- patch 5.0.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20120906 break ændret til break 1
 // 20121004 Gmail afviser mails hvor 'from' ikke er *.saldi.dk søg 20121029
@@ -44,13 +44,15 @@
 // 20250924 LOE Added static footer with email and period inputs + buttons
 // 20250925 LOE Kilde added to determine which emails to send
 // 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 13, kreditor.rapporter) instead of the debitor one, so Indkøb opens the page and Salg does not.
 
 @session_start();
 $s_id=session_id();
 
 $css="../css/standard.css";
 $formular=11;
-$modulnr=12;
+$modulnr=13; // Kreditorrapport (was 12, Debitorrapport)
+$permission_key = 'kreditor.rapporter';
 
 include("../includes/connect.php");
 include("../includes/online.php");

@@ -60,6 +60,7 @@
 //                 Fiscal months and this week's days after today have no figure yet ("–", no bar), as in the prototype.
 //                 Texts 7700-7701.
 // 20261103 CL/ASR QA: the months to date are counted over the fiscal year's own months (dashData.php), not always 12.
+// 20261103 CL/ASR QA round 2: the VAT figure needs Finansrapport, each POS shortcut needs the right for its page, and a role without any block (Indkøb) gets a short note with links to its modules instead of an empty page.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -191,6 +192,10 @@ foreach ($widgetDefaults as $k => $def) {
 	$widgets[$k] = dash_toggle($k, $brugerId, $def);
 }
 $vatRegistration = vat_registration();
+// The VAT figure links to the VAT return (finans/rapport.php), so it is shown only to whoever may open Finansrapport.
+if (function_exists('perm_can') && !perm_can('finans.rapporter', 'read')) {
+	$vatRegistration['registered'] = false;
+}
 if (!$vatRegistration['registered']) {
 	$widgets['vatcount'] = false;
 }
@@ -434,20 +439,43 @@ $blocks['small'] = function () use ($data, $widgets, $tx, $h, $num, $gone) {
 print "<div class='dash'>";
 role_review_card($brugerId, (int) $sprog_id);
 print "<div class='grid" . ($hide_dash ? ' all-hidden' : '') . "' id='grid'>";
+$shownBlocks = 0;
 foreach ($blockOrder as $bid) {
 	if (isset($blocks[$bid]) && (!isset($blockAccess[$bid]) || $blockAccess[$bid])) {
 		$blocks[$bid]();
+		$shownBlocks++;
 	}
 }
 
-// POS shortcuts, as before
+// POS shortcuts, as before; each link only for whoever may open its page, and no block when none is left.
+$dashMay = function (string $key, string $level = 'read'): bool { return !function_exists('perm_can') || perm_can($key, $level); };
 $pos = db_fetch_array(db_select("SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'", __FILE__ . " linje " . __LINE__));
+$posLinks = '';
 if ($pos) {
-	print "<section class='blk db-sec db-pos' style='--w:1'>" . $blockHead($tx('2771|POS-muligheder'), '', '') . "<div class='db-b db-links'>"
-		. "<a class='btn btn-sm btn-secondary' href='../lager/varer.php?returside=../index/dashboard.php'>" . $h($tx('2584|Åbn vareliste')) . "</a>"
-		. "<a class='btn btn-sm btn-secondary' href='../lager/varekort.php?returside=../index/dashboard.php'>" . $h($tx('2585|Opret vare')) . "</a>"
-		. "<a class='btn btn-sm btn-secondary' href='../systemdata/posmenuer.php'>" . $h($tx('2586|Menu opsætning')) . "</a>"
-		. "<a class='btn btn-sm btn-secondary' href='../debitor/rapport.php'>" . $h($tx('2587|Åbn rapporter')) . "</a></div></section>";
+	if ($dashMay('lager.varer')) $posLinks .= "<a class='btn btn-sm btn-secondary' href='../lager/varer.php?returside=../index/dashboard.php'>" . $h($tx('2584|Åbn vareliste')) . "</a>";
+	if ($dashMay('lager.varer', 'write')) $posLinks .= "<a class='btn btn-sm btn-secondary' href='../lager/varekort.php?returside=../index/dashboard.php'>" . $h($tx('2585|Opret vare')) . "</a>";
+	if ($dashMay('settings.pos')) $posLinks .= "<a class='btn btn-sm btn-secondary' href='../systemdata/posmenuer.php'>" . $h($tx('2586|Menu opsætning')) . "</a>";
+	if ($dashMay('debitor.rapporter')) $posLinks .= "<a class='btn btn-sm btn-secondary' href='../debitor/rapport.php'>" . $h($tx('2587|Åbn rapporter')) . "</a>";
+}
+if ($posLinks !== '') {
+	print "<section class='blk db-sec db-pos' style='--w:1'>" . $blockHead($tx('2771|POS-muligheder'), '', '') . "<div class='db-b db-links'>" . $posLinks . "</div></section>";
+} elseif (!$shownBlocks) {
+	// No block for this role (e.g. Indkøb): a short note and the user's own modules instead of an empty page.
+	$dashModules = array(
+		array('finans.kassekladde', '../finans/kladdeliste.php', '601|Kassekladde'),
+		array('debitor.ordre', '../debitor/ordreliste.php', '1255|Debitorordre'),
+		array('kreditor.ordre', '../kreditor/ordreliste.php', '1257|Kreditorordre'),
+		array('kreditor.konti', '../kreditor/kreditor.php', '1258|Kreditorkonti'),
+		array('lager.varer', '../lager/lister/vareliste.php', '609|Varer'),
+		array('lager.varemodtagelse', '../lager/modtageliste.php', '182|Varemodtagelse'),
+	);
+	$moduleLinks = '';
+	foreach ($dashModules as $m) {
+		if ($dashMay($m[0])) $moduleLinks .= "<a class='btn btn-sm btn-secondary' href='" . $m[1] . "'>" . $h($tx($m[2])) . "</a>";
+	}
+	print "<section class='blk db-sec db-empty' style='--w:1'>" . $blockHead($tx('2224|Oversigt'), '', '') . "<div class='db-b'>"
+		. "<p style='margin:0 0 12px'>" . $h($tx('7806|Der er ingen nøgletal til din rolle.')) . "</p>"
+		. ($moduleLinks !== '' ? "<div class='db-links'>" . $moduleLinks . "</div>" : '') . "</div></section>";
 }
 print "</div>"; // grid
 print "<div class='db-sec dash-hidden' id='dashHidden'><div class='db-ph'><div><b>" . $h($tx('6993|Oversigten er skjult')) . "</b><br>" . $h($tx('6994|Du kan altid slå den til igen.')) . "<br>"

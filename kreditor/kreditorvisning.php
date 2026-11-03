@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/kreditorvisning.php --- lap 3.7.2--2026-10-02 ---
+// --- kreditor/kreditorvisning.php --- lap 3.7.2--2026-11-03 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -29,13 +29,15 @@
 // 2023.03.24 PBLM Fixed minor errors
 // 2025.05.17 Fiscal Year
 // 20261002 SS Saving the list columns updates only the kreditor view row (kode) instead of every KLV row of the user.
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 8, kreditor.konti) instead of the debitor one, so Indkøb opens the page and Salg does not.
 	
 @session_start();
 $s_id=session_id();
 
 $title="Kreditorvisning";
 
-$modulnr=6;
+$modulnr=8; // Kreditorkonti (was 6, Debitorkonti)
+$permission_key = 'kreditor.konti';
 $css="../css/standard.css";
 
 include("../includes/connect.php");

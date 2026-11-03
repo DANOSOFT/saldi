@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 Danosoft ApS
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260916 SS View functions for systemdata/usersRoles.php (users, roles matrix, audit log).
 // 20260928 SS Back button top-left in the theme colour, as elsewhere in the system (was Close top-right).
@@ -51,6 +51,7 @@
 //                 "Kobling til ansat" names a closed employee "(Fratrådt)" and marks one that already has a login; closing a login linked to an employee says that the employee is marked as resigned too (user_close() does that).
 // 20261103 CL/ASR The one list is titled Brugere, the name of its row under the heading Brugere & roller (owner, 3 Nov 2026).
 // 20261103 CL/ASR QA: Nulstil til standard is disabled for a role above the editor's own rights; the revisor checkbox is disabled once a revisor is designated; Audit-log times on PHP's clock in the format 3/11-2026 14:05.
+// 20261103 CL/ASR QA round 2: a user whose role is above the editor's rights sends that role with the form, so saving gives the right message (msg=above) instead of Vælg en rolle først.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -364,6 +365,10 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
       <div class="sk-field">
         <label class="sk-field-lbl" for="ur-role"><?= $t('5553|Rolle') ?></label>
         <?php if ($ownCard || $lastAdmin) { ?><input type="hidden" name="role_id" value="<?= (int) $u['role_id'] ?>"><?php } ?>
+        <?php
+        // The current role above the editor's own rights is a disabled option, which a form does not send: the hidden field
+        // sends it, so Gem answers "flere rettigheder end dig selv" instead of "Vælg en rolle først" (a chosen role still wins).
+        if (!$ownCard && !$lastAdmin && $u['role_id'] > 0 && !perm_within_own(perm_levels_from_role($u['role_id']))) { ?><input type="hidden" name="role_id" value="<?= (int) $u['role_id'] ?>"><?php } ?>
         <select class="sk-input" name="role_id" id="ur-role"<?= ($ownCard || $lastAdmin) ? ' disabled' : $ro ?>>
           <?php if ($u['role_id'] === 0) { ?><option value="0" disabled selected><?= $t('5891|Vælg en rolle') ?></option><?php } ?>
           <?php foreach ($vm['roles'] as $role) {

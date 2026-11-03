@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 Danosoft ApS
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260916 SS Consolidated personal settings page (language, colours, popup/expiry choices, contact details, 2FA, password).
 //             Replaces the "Personlige valg" section in diverse.php and the self-service page brugerdata.php.
@@ -47,6 +47,7 @@
 // 20261102 CL/ASR Tilbage comes from settings_back_link() alone: the newest page outside the settings system, skipping old addresses that redirect here, else Oversigt. settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
 // 20261103 CL/ASR QA: two-factor login needs an e-mail or phone stored on the login itself (login.php reads brugere): switching it on with only the employee's e-mail stores that e-mail on the login, and the last channel cannot be cleared while two-factor is on.
 //                 An expired form (err=csrf) now says so.
+// 20261103 CL/ASR QA round 2: when the current password is missing for a contact change, the page no longer also says Dine indstillinger er gemt; it says Øvrige indstillinger er gemt only when another preference changed (text 7807).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -182,6 +183,7 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 	$out = array('tab' => $tab, 'saved' => 1);
 	$reloadShell = false;
 	$current = personal_settings_load($brugerId, $isRevisor, $brugernavn, '', array(), '', 1);
+	$otherChanged = false; // a preference other than the password-protected contact details changed (for the flash below)
 
 	if ($tab === 'profile') {
 		$lang = isset($post['language_id']) ? (int) $post['language_id'] : 0;
@@ -221,7 +223,10 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 
 		if (isset($post['due_date_warning_days']) && $post['due_date_warning_days'] !== '') {
 			update_settings_value('due_date_warning_days', 'lager', max(1, intval($post['due_date_warning_days'])), 'Days before expiry to warn', $brugerId);
+			$otherChanged = $otherChanged || max(1, intval($post['due_date_warning_days'])) !== (int) $current['warnDays'];
 		}
+		$otherChanged = $otherChanged || $reloadShell || !empty($post['order_autocomplete']) !== (bool) $current['autocomplete']
+			|| (SettingsService::hasModule('bank') && !empty($post['bank_status']) !== (bool) $current['bankStatus']);
 
 		// Contact details are the 2FA / password-reset channel: current password required (spec 4.5).
 		if (!$isRevisor) {
@@ -257,6 +262,14 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 	if ($reloadShell) {
 		// index/main.php polls this cookie and reloads itself, so sidebar colours and texts follow.
 		saldi_setcookie('refresh_opener', 'true', time() + 30, '/');
+	}
+	// The contact details (or tofaktor) were not saved: no "Dine indstillinger er gemt" next to that error, only a note that
+	// the other preferences were saved when one of them changed.
+	if (isset($out['confirm']) || isset($out['tfa'])) {
+		unset($out['saved']);
+		if ($otherChanged) {
+			$out['saved_other'] = 1;
+		}
 	}
 	return $out;
 }
@@ -434,6 +447,8 @@ function personal_settings_flash(array $get, int $sprogId): array
 	}
 	if (!empty($get['saved'])) {
 		$flash[] = array('type' => 'ok', 'text' => findtekst('5517|Dine indstillinger er gemt', $sprogId));
+	} elseif (!empty($get['saved_other'])) {
+		$flash[] = array('type' => 'ok', 'text' => findtekst('7807|Øvrige indstillinger er gemt.', $sprogId));
 	}
 	return $flash;
 }

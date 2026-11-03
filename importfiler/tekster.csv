@@ -7081,3 +7081,6 @@
 7802	Bruges i stedet for Varesalg, når kunden har et CVR-nr. i et andet EU-land (Rubrik B).	Used instead of Sales when the customer has a VAT number in another EU country (box B).	Brukes i stedet for Varesalg når kunden har et org.nr. i et annet EU-land (rubrikk B).
 7803	Bruges i stedet for Varesalg, når kunden har et CVR-nr. uden for EU (Rubrik C).	Used instead of Sales when the customer has a VAT number outside the EU (box C).	Brukes i stedet for Varesalg når kunden har et org.nr. utenfor EU (rubrikk C).
 7804	Siden var udløbet, så intet blev gemt. Prøv igen.	The page had expired, so nothing was saved. Please try again.	Siden var utløpt, så ingenting ble lagret. Prøv igjen.
+7805	Tilbage til Oversigt	Back to Overview	Tilbake til Oversikt
+7806	Der er ingen nøgletal til din rolle.	There are no key figures for your role.	Det finnes ingen nøkkeltall for rollen din.
+7807	Øvrige indstillinger er gemt.	Your other settings have been saved.	Øvrige innstillinger er lagret.

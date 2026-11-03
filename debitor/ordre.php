@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.0.0 --- 2026-10-27 ---
+// --- debitor/ordre.php --- ver 5.0.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -173,6 +173,7 @@
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
 // 20261004 SS Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
+// 20261103 CL/ASR QA round 2: GET links that create an order (konto_id or funktion opret_ordre without an id) or move an order to another customer (konto_id with fokus) need write.
 
 @session_start();
 $s_id = session_id();
@@ -201,6 +202,13 @@ $sletslut = $sletstart = 0;
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
+// GET links that change data need write: konto_id without an order id (or funktion opret_ordre / opret_ordre_kopi) creates an
+// order, and konto_id with fokus (the account lookup) moves an existing order to that customer.
+$ordreGetId = !empty($_GET['id']) || !empty($_GET['ordre_id']);
+if ((!$ordreGetId && (!empty($_GET['konto_id']) || in_array((string) (isset($_GET['funktion']) ? $_GET['funktion'] : ''), array('opret_ordre', 'opret_ordre_kopi'), true)))
+	|| ($ordreGetId && !empty($_GET['konto_id']) && !empty($_GET['fokus']))) {
+	$permission_level = 'write';
+}
 
 $css = "../css/standard.css";
 #$css="../css/ordre.css";

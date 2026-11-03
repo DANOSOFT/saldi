@@ -5,7 +5,7 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-01---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-03---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -80,6 +80,7 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 //                 online.logtime alone, so a tab that only polls still ages out.
 // 20261101 CL/ASR The per-user colours (settings colors/buttonColor and buttonTxtColor) are no longer read: $buttonColor and
 //                 $buttonTxtColor are always the standard #114691 / #ffffff, as for a user who never chose a colour.
+// 20261103 CL/ASR QA round 2: the old module gate refuses through perm_refuse(), so both gates give the same translated text (5548), HTTP 403 and the way back to Oversigt.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -378,13 +379,10 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$css = NULL;
 	}
 	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
-		include($relativePath . "includes/std_func.php");
-		if (function_exists('audit_log')) {
-			audit_log('denied', 'modulnr ' . (int) $modulnr . ' ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
-		}
-		$txt = "Du har ikke nogen rettigheder her - din aktivitet er blevet logget";
-		print tekstboks($txt);
-		exit;
+		// One refusal for both gates (20261103): the text 5548, HTTP 403, JSON to scripts and a way back to Oversigt; logged as before.
+		include_once($relativePath . "includes/std_func.php");
+		include_once(__DIR__ . "/permissions.php");
+		perm_refuse('modulnr ' . (int) $modulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
 	}
 	// 20260916 Phase 3 gate (spec R4). Pages declare $permission_key ('any' = every logged-in
 	// user), optionally $permission_level = 'write' and $permission_post_read = true (POST is a
