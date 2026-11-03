@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 5.1.0 --- 2026-09-18 ---
+// --- finans/rapport.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20260915 CDX/PHR Keep submitted simulation selection instead of overriding it with the form URL; support older installs.
 // 20260917 CDX/PHR Expand scrollable financial reports and release sticky headers when printing.
 // 20260918 CDX/PHR Expand all report scroll containers and hide pagination in print.
+// 20261103 LOE SST-936 Escape the project-name lookup the report form runs before any report is built.
 @session_start();
 $s_id = session_id();
 
@@ -193,13 +194,19 @@ if ($_POST) {
 			list($projekt_til, $prj_navn_til) = explode(":", $projekt_til);
 			$projekt_til = trim($projekt_til);
 		}
-		if ($projekt_fra && !$prj_navn_fra) {
-			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '$projekt_fra'", __FILE__ . " linje " . __LINE__));
-			$prj_navn_fra = $r['beskrivelse'];
+		// grupper.kodenr is an integer, so only a numeric project number can be looked up; anything
+		// else is a name the form already carried, and comparing it would fail the query.
+		if ($projekt_fra && !$prj_navn_fra && preg_match('/^\d+$/', (string)$projekt_fra)) {
+			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '" . db_escape_string($projekt_fra) . "'", __FILE__ . " linje " . __LINE__));
+			if ($r) {
+				$prj_navn_fra = $r['beskrivelse'];
+			}
 		}
-		if ($projekt_til && !$prj_navn_til) {
-			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '$projekt_til'", __FILE__ . " linje " . __LINE__));
-			$prj_navn_til = $r['beskrivelse'];
+		if ($projekt_til && !$prj_navn_til && preg_match('/^\d+$/', (string)$projekt_til)) {
+			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '" . db_escape_string($projekt_til) . "'", __FILE__ . " linje " . __LINE__));
+			if ($r) {
+				$prj_navn_til = $r['beskrivelse'];
+			}
 		}
 	}
 	$tmp = str_replace("?", "", $projekt_fra);

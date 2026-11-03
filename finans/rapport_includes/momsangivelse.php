@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/momsangivelse.php --patch 4.0.8 ----2023-08-31----
+// --- finans/rapport_includes/momsangivelse.php --ver 5.1.0 ----2026-11-03----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210107 PHR Corrected error in 'deferred financial year'.
 // 20210301 PHR php 7x issues
@@ -29,6 +29,7 @@
 // 20230110 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
 // 20260515 PK - Removed csv button as it should not be possible to print csv from here
+// 20261103 LOE SST-936 Use dimensionSqlFragment() for the department, employee and project filters.
 
 
 function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
@@ -217,24 +218,10 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	print "<tr><td colspan=6><hr></td></tr>";
 
 	$dim = '';
-	if ($afd || $ansat_fra || $projekt_fra) {
-		if ($afd)
-			$dim = "and afd = $afd ";
-		if ($ansat_fra)
-			$dim = $dim . "and ansat = '$ansat_fra' ";
+	if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til)
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_')
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 
 	$row = db_fetch_array($query = db_select("select box1, box2 from grupper where art='MR'", __FILE__ . " linje " . __LINE__));

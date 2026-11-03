@@ -34,6 +34,7 @@
 // 20260729 NTR - Reported by CodeRabbit - moved summery of over tolerance above table instead of in the table's body.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 //                 moms_afstemning() has braces on its one-line if/else bodies and includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast the department filter, and match nothing when it is not a whole number.
 
 function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                          $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -92,7 +93,9 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $regnslut  = "$slutaar-$slutmaaned-$slutdato";
 
     $dim = '';
-    if ($afd || $afd == '0') $dim = "AND t.afd = $afd ";
+    if ($afd || $afd == '0') {
+        $dim = preg_match('/^\d+$/', (string)$afd) ? "AND t.afd = " . (int)$afd . " " : "AND 1 = 0 ";
+    }
 
     // configurable tolerance — persisted in session so it survives report navigation
     if (array_key_exists('tolerance', $_GET) && $_GET['tolerance'] !== '') {

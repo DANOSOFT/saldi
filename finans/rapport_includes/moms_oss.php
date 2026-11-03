@@ -43,6 +43,7 @@
 //              - Reported by CodeRabbit - transactions that's not a varer nor a service doesn't add up to total as neither beloab_varer nor beloab_ydelser gets assigned, now beloab_andet takes the unknown transactions, for future use.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 //                 moms_oss() includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast the department filter, and match nothing when it is not a whole number.
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -99,7 +100,9 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $regnslut  = "$slutaar-$slutmaaned-$slutdato";
 
     $dim = '';
-    if ($afd || $afd == '0') $dim = "AND t.afd = $afd ";
+    if ($afd || $afd == '0') {
+        $dim = preg_match('/^\d+$/', (string)$afd) ? "AND t.afd = " . (int)$afd . " " : "AND 1 = 0 ";
+    }
 
     $csvfile = "../temp/$db/moms_oss.csv";
     $csv     = fopen($csvfile, "w");
