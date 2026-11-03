@@ -32,6 +32,14 @@ final class FormularprintSetPriceFieldsTest extends TestCase
         }
         CharacterizationEnv::bootstrapTenant();
         self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
+        // A new tenant has no POS rows; the print reads box12 from POS 2 of the current fiscal year.
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "INSERT INTO grupper (beskrivelse, art, kodenr, fiscal_year)
+             SELECT 'Kasse 2', 'POS', 2, ra.kodenr FROM grupper ra
+             WHERE ra.art = 'RA' AND NOT EXISTS (
+                 SELECT 1 FROM grupper pos WHERE pos.art = 'POS' AND pos.kodenr = 2 AND pos.fiscal_year = ra.kodenr)"
+        );
         CharacterizationEnv::rows(self::$tenant, "UPDATE grupper SET box12 = 'on' WHERE art = 'POS' AND kodenr = '2'");
         CharacterizationEnv::rows(
             self::$tenant,
