@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -65,6 +65,7 @@
 //                 - Tilbage on the log opened by "Se log" from a card goes back to that card (ret=user_<id>, a whitelist).
 //                 "Kobling til ansat" names a closed employee "(Fratrådt)" and marks one that already has a login; closing a login linked
 //                 to an employee says that the employee is marked as resigned too (user_close() does that).
+// 20261103 CL/ASR The one list is titled Brugere, the name of its row under the heading Brugere & roller (owner, 3 Nov 2026).
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -99,7 +100,7 @@ function ur_view(array $vm): void
 	// The hub entry of the tab shown (after the permission fallback), so the menu marks Brugere & ansatte, Roller or Audit-log.
 	$at = array('users' => 'brugere', 'roles' => 'roller', 'log' => 'audit_log');
 	$at = $at[$vm['tab']];
-	$pageTitle = array('users' => '7708|Brugere & ansatte', 'roles' => '5550|Roller', 'log' => '5796|Audit-log');
+	$pageTitle = array('users' => '5549|Brugere', 'roles' => '5550|Roller', 'log' => '5796|Audit-log');
 	// One button in the head, on the list only: Tilføj person (Roller and Audit-log are reached from the left menu).
 	$headActs = $vm['tab'] === 'users' ? ur_people_add_button($vm, $t) : '';
 	// The standard layout of a settings page (includes/settings/layout.php): breadcrumb, document title, Tilbage, title, the counts

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/hub.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- includes/settings/hub.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,12 @@
 //                 A registry entry with 'page' => true is a page even when its url opens a section (Ekstra felter); a row's 'terms' are
 //                 extra search words (Personer, Medarbejdere). The badge "N ansatte · N brugere" and the role-review notice hang on the row.
 //                 settings_hub_path() leaves out a direct sub-group's row (its name would repeat); the coverage check wants one row there.
+// 20261103 CL/ASR No 'direct' sub-group (owner, 3 Nov 2026: a heading is never a link anywhere else in Indstillinger): the sub-group is called
+//                 Brugere & roller and folds out like the others, with four rows - Brugere (the one list of everyone, usersRoles.php, with the
+//                 employee section as its 'fallback' and the old Diverse valg, an alias of that section), Roller, Audit-log and Ekstra felter
+//                 (diverse.php?sektion=div_valg itself lands on Ekstra felter). Virksomhed's description is 7793 (brugere og roller); a new
+//                 id, since a database keeps the old text of an existing id. The 'direct' handling in
+//                 the model, the menu, settings_hub_path() and the coverage check is gone again.
 
 if (!function_exists('getSettingsHub')):
 
@@ -63,7 +69,7 @@ function getSettingsHub(): array
 		return array('da' => $da, 'en' => $en, 'no' => $no);
 	};
 	return array(
-		'virksomhed' => array('label' => '5669|Virksomhed', 'description' => '7704|Firma, brugere og ansatte, fakturaformularer og e-mail, integrationer', 'subs' => array(
+		'virksomhed' => array('label' => '5669|Virksomhed', 'description' => '7793|Firma, brugere og roller, fakturaformularer og e-mail, integrationer', 'subs' => array(
 			'firma' => array('label' => '5649|Firma', 'icon' => 'bx-buildings', 'description' => '7718|Stamdata, sprog, abonnement og persondata', 'rows' => array(
 				array('label' => '779|Stamdata', 'maps' => array('company.data', 'stamkort'),
 					'hint' => $h('Navn, adresse, CVR, kontaktperson og bank', 'Name, address, VAT number, contact person and bank', 'Navn, adresse, org.nr., kontaktperson og bank')),
@@ -74,14 +80,20 @@ function getSettingsHub(): array
 				array('label' => '7737|Persondata (GDPR)', 'maps' => array('company.gdpr', 'gdpr'),
 					'hint' => $h('Slet kunder og leverandører uden aktivitet i 3 år', 'Delete customers and suppliers with no activity for 3 years', 'Slett kunder og leverandører uten aktivitet på 3 år')),
 			)),
-			'brugere' => array('label' => '7708|Brugere & ansatte', 'icon' => 'bx-group', 'description' => '7719|Hvem kan logge ind, roller og medarbejdere',
-				'direct' => true, 'status' => array('brugere'), 'rows' => array(
-				// One place for people (owner, 2 Nov 2026): the one list (usersRoles.php, employees and logins), then Roller, Audit-log and
-				// Ekstra felter. The employee section is the list of a user who may not open usersRoles.php ('fallback').
-				array('label' => '7708|Brugere & ansatte', 'maps' => array('brugere', 'organisation.employees', 'ansatte', 'div_valg', 'roller', 'audit_log', 'ekstra_felter'),
+			'brugere' => array('label' => '5536|Brugere & roller', 'icon' => 'bx-group', 'description' => '7719|Hvem kan logge ind, roller og medarbejdere',
+				'status' => array('brugere'), 'rows' => array(
+				// One list of everyone (owner, 2-3 Nov 2026): Brugere is usersRoles.php with the employees and the logins; the employee
+				// section is the list of a user who may not open usersRoles.php ('fallback'). Then Roller, Audit-log and Ekstra felter.
+				array('label' => '5549|Brugere', 'maps' => array('brugere', 'organisation.employees', 'ansatte', 'div_valg'),
 					'fallback' => 'organisation.employees',
 					'terms' => $h('personer, medarbejdere, ansatte, brugere, login', 'people, staff, employees, users, login', 'personer, medarbeidere, ansatte, brukere, innlogging'),
-					'hint' => $h('Ansatte og alle, der kan logge ind (også revisor og bogholder), med rolle, adgang og log', 'Employees and everyone who can log in (also auditor and bookkeeper), with role, access and log', 'Ansatte og alle som kan logge inn (også revisor og regnskapsfører), med rolle, tilgang og logg')),
+					'hint' => $h('Ansatte og alle, der kan logge ind (også revisor og bogholder)', 'Employees and everyone who can log in (also auditor and bookkeeper)', 'Ansatte og alle som kan logge inn (også revisor og regnskapsfører)')),
+				array('label' => '5550|Roller', 'maps' => array('roller'),
+					'hint' => $h('Hvad hver rolle må se og ændre', 'What each role may see and change', 'Hva hver rolle kan se og endre')),
+				array('label' => '5796|Audit-log', 'maps' => array('audit_log'),
+					'hint' => $h('Hvem har gjort hvad og hvornår', 'Who did what and when', 'Hvem har gjort hva og når')),
+				array('label' => '6611|Ekstra felter', 'maps' => array('ekstra_felter'),
+					'hint' => $h('Op til 14 ekstra felter på de ansattes stamkort', "Up to 14 extra fields on the employees' records", 'Opptil 14 ekstra felt på de ansattes stamkort')),
 			)),
 			'formularer' => array('label' => '7709|Fakturaformularer & e-mail', 'icon' => 'bx-file', 'description' => '7720|Formularer, logo, udskrift og e-mail',
 				'status' => array('documents.email'), 'rows' => array(
@@ -817,8 +829,7 @@ function settings_hub_sub_status(array $sub, array $badges): ?array
  * company lacks is 'locked' (when the user holds a permission for it), otherwise left out.
  *
  * group: id, label, description, subs[]
- * sub:   id, label, description, icon, locked ('' or the text of the locked row), status (null or kind/text), terms, rows[],
- *        direct (the sub-group is itself the link to its one row: Brugere & ansatte)
+ * sub:   id, label, description, icon, locked ('' or the text of the locked row), status (null or kind/text), terms, rows[]
  * row:   id, label, hint, url (first page the user may open, relative to systemdata/), target (its key),
  *        pages[] (id, label, url: every page of the row the user may open, the target first), badge (null or kind/text),
  *        attention (null or kind/title/sub/button/url), old[] (names it was known by), terms (all languages, lower case)
@@ -872,7 +883,6 @@ function settings_hub_model(int $sprogId, bool $withStatus = true): array
 			}
 			$subs[] = array(
 				'id' => $subId, 'label' => $label, 'description' => $description, 'icon' => (string) $sub['icon'], 'locked' => $locked, 'status' => null,
-				'direct' => !empty($sub['direct']) && count($rows) === 1,
 				'terms' => settings_hub_text_all(isset($lean['label']) ? $lean['label'] : $sub['label']) . ' | ' . settings_hub_text_all(isset($lean['description']) ? $lean['description'] : $sub['description']),
 				'rows' => $rows, '_def' => $sub,
 			);
@@ -948,7 +958,7 @@ function settings_hub_left_out(int $sprogId): array
  *
  * group:   id, label, description, url (settings.php?g=<id>)
  * current: group, sub, row, page
- * subs[]:  id, label, icon, locked ('' or text), current (bool), rows[], direct (bool: the heading is the link to its one row)
+ * subs[]:  id, label, icon, locked ('' or text), current (bool), rows[]
  * rows[]:  id, label, hint, url, current (bool), pages[] (id, label, url, current) - only when the row has two or more pages
  *
  * @return array<string, mixed>
@@ -1006,7 +1016,7 @@ function settings_hub_menu(int $sprogId, string $current = ''): array
 		}
 		$subs[] = array(
 			'id' => $subId, 'label' => settings_hub_text(isset($lean['label']) ? $lean['label'] : $sub['label'], $sprogId), 'icon' => (string) $sub['icon'],
-			'locked' => $locked, 'current' => ($subId === $loc['sub']), 'rows' => $rows, 'direct' => !empty($sub['direct']) && count($rows) === 1,
+			'locked' => $locked, 'current' => ($subId === $loc['sub']), 'rows' => $rows,
 		);
 	}
 	return array(
@@ -1038,8 +1048,7 @@ function settings_hub_path(array $loc, int $sprogId): string
 	}
 	$sub = $hub[$loc['group']]['subs'][$loc['sub']];
 	$path = settings_hub_text($hub[$loc['group']]['label'], $sprogId) . ' › ' . settings_hub_text($sub['label'], $sprogId);
-	// A direct sub-group (Brugere & ansatte) is its row: "Virksomhed › Brugere & ansatte", not the name twice.
-	return !empty($sub['direct']) ? $path : $path . ' › ' . settings_hub_text($row['label'], $sprogId);
+	return $path . ' › ' . settings_hub_text($row['label'], $sprogId);
 }
 
 /**
@@ -1279,9 +1288,6 @@ function settings_hub_coverage_problems(): array
 		foreach ($group['subs'] as $subId => $sub) {
 			if (!$sub['rows']) {
 				$problems[] = "sub-group $subId has no rows";
-			}
-			if (!empty($sub['direct']) && count($sub['rows']) !== 1) {
-				$problems[] = "sub-group $subId is direct (itself the link) but has " . count($sub['rows']) . ' rows, not 1';
 			}
 			foreach ($sub['rows'] as $row) {
 				if (!empty($row['fallback']) && !in_array($row['fallback'], $row['maps'], true)) {

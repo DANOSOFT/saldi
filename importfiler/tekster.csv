@@ -6997,11 +6997,9 @@
 7701	Forfaldsgruppe	Due group	Forfallsgruppe
 7702	Vis færre	Show fewer	Vis færre
 7703	Køb & lager	Purchasing & stock	Innkjøp og lager
-7704	Firma, brugere og ansatte, fakturaformularer og e-mail, integrationer	Company, users and employees, invoice forms and e-mail, integrations	Firma, brukere og ansatte, fakturaskjemaer og e-post, integrasjoner
 7705	Kontoplan, regnskabsår, moms, kassekladde, bilag og sikkerhedskopi	Chart of accounts, financial years, VAT, cash journal, vouchers and backup	Kontoplan, regnskapsår, mva, kassekladd, bilag og sikkerhetskopi
 7706	Debitorer, ordrer og priser, kasse, booking og Mit salg	Debtors, orders and prices, POS, booking and My sales	Debitorer, ordrer og priser, kasse, booking og Mitt salg
 7707	Kreditorer, varer, lager og særlige varer	Creditors, items, stock and special items	Kreditorer, varer, lager og spesielle varer
-7708	Brugere & ansatte	Users & employees	Brukere og ansatte
 7709	Fakturaformularer & e-mail	Invoice forms & e-mail	Fakturaskjemaer og e-post
 7710	Integrationer & fragt	Integrations & shipping	Integrasjoner og frakt
 7711	Regnskab & moms	Accounts & VAT	Regnskap og mva
@@ -7077,3 +7075,4 @@
 7790	Fratrådte kan ikke få login. Fjern Fratrådt under Stamdata først.	Employees who have left cannot get a login. Clear Resigned under Master data first.	Fratrådte kan ikke få innlogging. Fjern Fratrådt under Stamdata først.
 7791	Søg navn, initialer, brugernavn eller e-mail	Search name, initials, username or email	Søk navn, initialer, brukernavn eller e-post
 7792	Der sendes og oprettes intet, før du trykker Send invitation eller Opret.	Nothing is sent or created until you press Send invitation or Create.	Ingenting sendes eller opprettes før du trykker Send invitasjon eller Opprett.
+7793	Firma, brugere og roller, fakturaformularer og e-mail, integrationer	Company, users and roles, invoice forms and e-mail, integrations	Firma, brukere og roller, fakturaskjemaer og e-post, integrasjoner

@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-02 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-03 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,6 +100,8 @@
 // 20261102 CL/ASR Review: the add action is called Tilføj person (7765), the name of the one button, so search offers it under that name
 //                 (the old name stays a keyword). The department select shows the departments' names as they are ('options_literal'):
 //                 they went through findtekst() and an empty choice read "Tekst nr: 109".
+// 20261103 CL/ASR The employee section is called Brugere (5549), the hub row it stands in for when usersRoles.php cannot be opened
+//                 (owner, 3 Nov 2026: the heading is Brugere & roller with the rows Brugere, Roller, Audit-log and Ekstra felter).
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -278,7 +280,7 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('afdelinger', 'departments', 'afdeling', 'department'),
 			),
 			'organisation.employees' => array(
-				'group' => 'organisation', 'section' => 'employees', 'number' => 'G7.1', 'label' => 7708, 'renamed_from' => 1262, 'icon' => 'bx-id-card', 'kind' => 'list',
+				'group' => 'organisation', 'section' => 'employees', 'number' => 'G7.1', 'label' => 5549, 'renamed_from' => 1262, 'icon' => 'bx-id-card', 'kind' => 'list',
 				'lead' => 6606, 'items_from' => 'employees', 'add_action' => 'organisation.employees.add', 'empty_text' => 6607,
 				'subsections' => array('employees' => 1262, 'general' => 6611), 'row_click' => true,
 				'legacy' => array(array(779), array(782, 794)), 'old' => array('ansatte' => array(779), 'stamkort' => array(779), 'div_valg' => array(782, 794)),

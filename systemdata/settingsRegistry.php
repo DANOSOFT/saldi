@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-02 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-03 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -108,6 +108,11 @@
 // 20261102 CL/ASR settings_breadcrumb_script(): no came-from chip when the previous page was a settings page too (the left menu shows the way).
 //                 settings_breadcrumb(): a page with the row's own name is not a level of its own (no "Brugere & ansatte / Brugere & ansatte").
 // 20261102 CL/ASR Review: search shows Ekstra felter under Brugere & ansatte, as Roller and Audit-log ('searchGroup'), not under Organisation.
+// 20261103 CL/ASR The heading is Brugere & roller again with the rows Brugere, Roller, Audit-log and Ekstra felter (owner, 3 Nov 2026): the
+//                 brugere entry is called Brugere (5549, no 'renamedFrom': Brugere & roller is the heading now, not an old name), and
+//                 the users group and Ekstra felter's search group are Brugere & roller (5536); the employee section's entry (ansatte,
+//                 the list of a user without usersRoles.php) is called Brugere too. 'Brugere & roller' is a keyword of Brugere, so the top-bar
+//                 search, which does not search headings, still finds the page by its old name.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -129,9 +134,9 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('customer discount matrix','debtor discount group','product discount group','discount matrix','percent discount','amount discount per unit','kr/stk rabat','discount by customer and product group','debitor rabatgruppe','vare rabatgruppe','rabatgrupper','rabat','rabatt')),
 			array('key' => 'valuta',           'group' => 'finance', 'url' => 'settingsSection.php?s=finance.currencies', 'section' => 'finance.currencies', 'category' => 'finance', 'textId' => 776,
 				'keywords' => array('currency','currencies','exchange rate','currency code','currency rate','pos currency','valuta','valutakode','kurs')),
-			array('key' => 'brugere',          'group' => 'users', 'url' => 'usersRoles.php',               'category' => 'users',   'textId' => 7708, 'renamedFrom' => 5536,
+			array('key' => 'brugere',          'group' => 'users', 'url' => 'usersRoles.php',               'category' => 'users',   'textId' => 5549,
 				'keywords' => array('user','users','user permissions','access rights','user rights','password','change password','two factor authentication','2fa','sms code','auditor','accountant','revisor','revisoradgang','employee link','ip address restriction','allowed ip','user roles','delete user','add user','new user','brugernavn','rettigheder','adgangskode','brukere','brukernavn','passord','tilgangsrettigheter',
-					'brugere','ansatte','medarbejdere','medarbeidere','personer','people','staff','employees','tilføj person','add person','stamdata','initialer','login og rolle')),
+					'brugere','ansatte','medarbejdere','medarbeidere','personer','people','staff','employees','tilføj person','add person','stamdata','initialer','login og rolle','brugere & roller','users & roles','brukere & roller')),
 			array('key' => 'roller',           'group' => 'users', 'url' => 'usersRoles.php?tab=roles',     'category' => 'users',   'textId' => 5550, 'permission' => 'settings.roles.manage', 'newInHub' => true,
 				'keywords' => array('roles','role','roller','rolle','ny rolle','kopiér','standardrolle','nulstil til standard','sæt alle til skriv','sæt alle til læs','farlige funktioner','administrator','bogholder','revisor')),
 			array('key' => 'audit_log',        'group' => 'users', 'url' => 'usersRoles.php?tab=log',       'category' => 'users',   'textId' => 5796, 'permission' => 'settings.audit.read', 'newInHub' => true,
@@ -144,9 +149,9 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'nulstil regnskab', 'slet regnskab', 'farezone', 'reset', 'delete ledger')),
 			array('key' => 'gdpr',             'group' => 'company', 'url' => 'settingsSection.php?s=company.gdpr', 'section' => 'company.gdpr', 'category' => 'company', 'textId' => 7737,
 				'keywords' => array('gdpr', 'persondata', 'personal data', 'inaktive kunder', 'inactive customers', 'oprydning')),
-			array('key' => 'ansatte',          'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees', 'section' => 'organisation.employees', 'category' => 'company', 'textId' => 7708, 'renamedFrom' => 1262, 'searchHideIf' => 'users',
+			array('key' => 'ansatte',          'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees', 'section' => 'organisation.employees', 'category' => 'company', 'textId' => 5549, 'renamedFrom' => 1262, 'searchHideIf' => 'users',
 				'keywords' => array('employee record','staff record','new employee','edit employee','employee number','employee name','employee address','employee email','employee phone','employee mobile','salary','payroll','extra salary','cpr number','social security number','initials','pos code','employee department','employee background','employee language','employee bank account','employee notes','employee start date','employee end date','terminate employee','close employee','ansatte','løn','cprnr','initialer','startdato','slutdato','lønn','medarbejdere','medarbeidere','staff','personer','people')),
-			array('key' => 'ekstra_felter',    'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees&sub=general', 'category' => 'company', 'textId' => 6611, 'page' => true, 'newInHub' => true, 'searchGroup' => 7708,
+			array('key' => 'ekstra_felter',    'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees&sub=general', 'category' => 'company', 'textId' => 6611, 'page' => true, 'newInHub' => true, 'searchGroup' => 5536,
 				'keywords' => array('ekstra felter', 'extra fields', 'ekstra felt', 'tilføj ekstra felter på ansatte', 'stamkort', 'diverse valg')),
 			array('key' => 'baggrunde',        'group' => 'documents', 'url' => 'settingsSection.php?s=documents.backgrounds', 'section' => 'documents.backgrounds', 'category' => 'documents', 'textId' => 7738,
 				'keywords' => array('baggrund', 'baggrunde', 'backgrounds', 'bakgrunner', 'formularsprog', 'background', 'logo', 'brevpapir', 'bilag', 'pdf')),
@@ -663,7 +668,7 @@ if (!function_exists('getSettingsGroups')) {
 			'items'         => array('label' => '5650|Varer & lager',       'description' => '5657|Varegrupper, enheder, varianter, lagre og mærkater',           'icon' => 'bx-package',    'permission' => 'settings.items'),
 			'documents'     => array('label' => '5671|Dokumenter & e-mail', 'description' => '5675|Formularer, e-mail og afsendere',                             'icon' => 'bx-file',       'permission' => 'settings.documents'),
 			'organisation'  => array('label' => '5670|Organisation',        'description' => '5658|Ansatte, afdelinger, projekter og provision',                 'icon' => 'bx-id-card',    'permission' => 'settings.organisation'),
-			'users'         => array('label' => '7708|Brugere & ansatte',   'description' => '5659|Brugere, roller, rettigheder og log',                         'icon' => 'bx-group',      'permission' => 'settings.users.manage'),
+			'users'         => array('label' => '5536|Brugere & roller',    'description' => '5659|Brugere, roller, rettigheder og log',                         'icon' => 'bx-group',      'permission' => 'settings.users.manage'),
 			'integrations'  => array('label' => '5537|Integrationer',       'description' => '5676|API, webshop, Stripe og app',                                 'icon' => 'bx-plug',       'permission' => 'settings.integrations'),
 			'pos'           => array('label' => '2226|Kasse',               'description' => '5661|Kassevalg og kassemenuer',                                    'icon' => 'bx-store-alt',  'permission' => 'settings.pos'),
 			'import_export' => array('label' => '5539|Import & eksport',    'description' => '5662|Ind- og udlæsning af kontoplan, kunder, varer og formularer', 'icon' => 'bx-transfer',   'permission' => 'settings.import_export'),

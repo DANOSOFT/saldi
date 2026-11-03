@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/listView.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- includes/settings/listView.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,8 @@
 //                 deleted employee) only tells the card it is gone. A list section with 'row_click' opens a row from anywhere on it.
 //                 settingsList.js?v=7. Other list sections are unchanged.
 // 20261102 CL/ASR Review: an empty 'page_lead' leaves the lead's first sentence out (Ekstra felter: the row's help says it).
+// 20261103 CL/ASR No 'direct' sub-group heading any more (owner, 3 Nov 2026: a heading is never a link in Indstillinger): Brugere & roller
+//                 is a heading like the others, with the rows Brugere, Roller, Audit-log and Ekstra felter.
 
 include_once(__DIR__ . '/integrations.php');
 
@@ -142,37 +144,6 @@ function settings_menu_html(array $menu, int $sprogId, array $opts = array()): s
 			// No licence for any of the sub-group's pages (Kasse without the POS licence): shown, not a link.
 			$panel .= '<div class="st-menu-sub is-off">' . $head . '<p class="st-menu-off">' . st_h($sub['locked']) . '</p></div>';
 			$options .= '<optgroup label="' . st_h($sub['label']) . '"><option value="" disabled>' . st_h($sub['locked']) . '</option></optgroup>';
-			continue;
-		}
-		if (!empty($sub['direct']) && $sub['rows']) {
-			// The heading is the link to the sub-group's one row (Brugere & ansatte), marked on its own page; the row's other pages are
-			// the rows under it. A page named as the heading (the employee list another user gets as the row) is the heading, not a row.
-			$row = $sub['rows'][0];
-			$pages = $row['pages'];
-			$headOn = !empty($row['current']) && (!$pages || !empty($pages[0]['current']));
-			$items = '';
-			$subOpts = '';
-			foreach ($pages as $i => $page) {
-				if ($i === 0) {
-					continue;
-				}
-				$pageOn = !empty($page['current']);
-				if ((string) $page['label'] === (string) $sub['label']) {
-					$headOn = $headOn || $pageOn;
-					continue;
-				}
-				$anyCurrent = $anyCurrent || $pageOn;
-				$items .= '<li>' . $link((string) $page['url'], (string) $page['label'], '', $pageOn, '') . ($pageOn ? $anchorList(false) : '') . '</li>';
-				$subOpts .= '<option value="' . st_h($url((string) $page['url'])) . '"' . ($pageOn ? ' selected' : '') . '>&nbsp;&nbsp;' . st_h($page['label']) . '</option>' . ($pageOn ? $anchorOpts : '');
-			}
-			$anyCurrent = $anyCurrent || $headOn;
-			$headLink = '<a class="st-menu-subh st-menu-head' . ($headOn ? ' on' : '') . '" id="st-menu-' . st_h($subId) . '" href="' . st_h($url((string) $row['url'])) . '"'
-				. ((string) $row['hint'] !== '' ? ' title="' . st_h($row['hint']) . '"' : '') . ($headOn ? ' aria-current="page"' : '') . '>'
-				. ((string) $sub['icon'] !== '' ? '<i class="bx ' . st_h($sub['icon']) . '" aria-hidden="true"></i>' : '')
-				. '<span>' . st_h($sub['label']) . '</span>' . ($headOn ? $dotHtml : '') . '</a>';
-			$panel .= '<div class="st-menu-sub st-menu-direct' . (!empty($sub['current']) ? ' is-current' : '') . '">' . $headLink . ($headOn ? $anchorList(false) : '')
-				. ($items !== '' ? '<ul class="st-menu-rows" aria-labelledby="st-menu-' . st_h($subId) . '">' . $items . '</ul>' : '') . '</div>';
-			$options .= '<option value="' . st_h($url((string) $row['url'])) . '"' . ($headOn ? ' selected' : '') . '>' . st_h($sub['label']) . '</option>' . ($headOn ? $anchorOpts : '') . $subOpts;
 			continue;
 		}
 		$items = '';
