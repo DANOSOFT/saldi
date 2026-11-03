@@ -9,6 +9,7 @@
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/LH SD-766: review fixes: calibration compares outcomes, every error code and the cost.
 
 use PHPUnit\Framework\TestCase;
 
@@ -124,10 +125,33 @@ final class SandboxRunnerTest extends TestCase
             rmdir($dir);
         }
 
-        $fake = shopify_calibration_shape(['http' => ['code' => 200], 'data' => ['metafieldsSet' => ['metafields' => null, 'userErrors' => [['field' => ['metafields'], 'code' => 'LESS_THAN_OR_EQUAL_TO']]]]]);
-        $real = shopify_calibration_shape(['http' => ['code' => 200], 'data' => ['metafieldsSet' => ['metafields' => null, 'userErrors' => [['field' => ['metafields', '25'], 'code' => 'INVALID_VALUE', 'extra' => 1]]]]]);
-        $this->assertSame(['$.data.metafieldsSet.userErrors[0].code: fake =\'LESS_THAN_OR_EQUAL_TO\', real =\'INVALID_VALUE\'',
-            '$.data.metafieldsSet.userErrors[0].extra: only the real store has it'], shopify_calibration_diff($fake, $real));
+        $this->assertContains('inventory_set_without_key', array_column($same, 'step'), 'B21 is probed');
+    }
+
+    public function testCalibrationComparesSuccessAgainstFailureAndEveryErrorCode(): void
+    {
+        $answer = fn(array $userErrors, array $errors = [], array $nodes = [['id' => 'gid://shopify/Product/1']]): array => ['http' => ['code' => 200],
+            'data' => $errors === [] ? ['metafieldsSet' => ['metafields' => null, 'userErrors' => $userErrors], 'products' => ['nodes' => $nodes]] : null,
+            'errors' => $errors, 'cost' => ['requestedQueryCost' => 12, 'actualQueryCost' => 12, 'throttleStatus' => ['maximumAvailable' => 2000.0, 'currentlyAvailable' => 1988, 'restoreRate' => 100.0]]];
+        $error = fn(string $code): array => ['field' => ['metafields'], 'message' => 'refused', 'code' => $code];
+
+        $this->assertSame([], shopify_calibration_compare($answer([]), $answer([], [], [])), 'a resource collection may be empty on one side');
+        $this->assertSame(['outcome: fake ok, real userErrors INVALID_VALUE', '$.data.metafieldsSet.userErrors: fake none, real {"field":["string"],"message":"string","code":"=\'INVALID_VALUE\'"}'],
+            shopify_calibration_compare($answer([]), $answer([$error('INVALID_VALUE')])), 'the fake accepts what Shopify refuses');
+        $this->assertSame('outcome: fake userErrors INVALID_VALUE, real ok', shopify_calibration_compare($answer([$error('INVALID_VALUE')]), $answer([]))[0], 'the fake refuses what Shopify accepts');
+        $this->assertSame('outcome: fake ok, real refused THROTTLED', shopify_calibration_compare($answer([]), $answer([], [['message' => 'Throttled', 'code' => 'THROTTLED']]))[0]);
+        $this->assertNotSame([], shopify_calibration_compare($answer([$error('INVALID_VALUE'), $error('TAKEN')]), $answer([$error('INVALID_VALUE'), $error('BLANK')])),
+            'every code counts, not the first');
+        $this->assertSame([], shopify_calibration_compare($answer([$error('TAKEN'), $error('INVALID_VALUE')]), $answer([$error('INVALID_VALUE'), $error('TAKEN'), $error('TAKEN')])),
+            'the same codes in another order or number');
+        $this->assertSame(['$.data.metafieldsSet.userErrors: fake {"field":["string"],"message":"string","code":"=\'TAKEN\'"}, real {"field":["string"],"message":"string","code":"=\'TAKEN\'","elementIndex":"number"}'],
+            shopify_calibration_compare($answer([$error('TAKEN')]), $answer([$error('TAKEN') + ['elementIndex' => 0]])), 'an error\'s shape counts too');
+        $dearer = $answer([]);
+        $dearer['cost']['requestedQueryCost'] = 15;
+        $this->assertSame(['requested cost: fake 12, real 15 (B09)'], shopify_calibration_compare($answer([]), $dearer), 'the cost is kept and compared');
+        $float = $answer([]);
+        $float['cost']['throttleStatus']['currentlyAvailable'] = 1988.0;
+        $this->assertSame([], shopify_calibration_compare($answer([]), $float), 'a JSON number is a number');
     }
 
     public function testAwaitObservesUntilAcceptedOrTheTimeoutOnItsClock(): void
