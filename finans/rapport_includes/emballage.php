@@ -7,9 +7,10 @@
 // --- finans/rapport_includes/emballage.php ---
 // Packaging tax report (producentansvar). Detailed and Summary views over
 // invoiced packaging within a date range, filtered by delivery country.
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // 20260814 Sawaneh Include booked orders (status 4) so the report is not
 //                  empty once invoices are booked.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 
 function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -59,7 +60,7 @@ function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		<a href=\"rapport.php?rapportart=emballage\" accesskey='L'>
 		<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">$tilbage_icon$lbl_back</button></a></td>";
 	print "<td width='75%' align='center' style='$topStyle'>$title</td>";
-	print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
+	print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' download style='color:#ffffff'>csv</a></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
 	?>

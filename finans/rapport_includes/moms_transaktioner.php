@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_transaktioner.php --- patch 5.0.0 --- 2026-07-22 ---
+// --- finans/rapport_includes/moms_transaktioner.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260716 MJ R1 – Posteringer pr. momskode: alle transaktioner med momskode-kolonne,
 //                  subtotaler pr. kode og grand total. CSV-eksport.
 // 20260720 MJ  Fiscal-year-aware kvartalsgenveje (fy_start/slut vars).
 // 20260722 MJ  COALESCE(debet,0)/COALESCE(kredit,0) i beloeb: NULL-aritmetik
 //                 gav NULL (vist som 0) for rene debet- eller kreditposteringer.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 
 function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                              $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -127,7 +128,7 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
               . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til"
               . "&simulering=$simulering&lagerbev=$lagerbev";
 
-    $csv_btn = "<a href='$csvfile' style='color:#ffffff; text-decoration:none;'>"
+    $csv_btn = "<a href='$csvfile' download style='color:#ffffff; text-decoration:none;'>"
              . "<i class='fa fa-download'></i> CSV</a>";
 
     include("../includes/topline_settings.php");
@@ -157,7 +158,7 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
         print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
         print "<td width='10%' $top_bund><a accesskey=L href='$back_url'>Luk</a></td>";
         print "<td width='80%' $top_bund>Rapport - Posteringer pr. momskode</td>";
-        print "<td width='10%' $top_bund><a href='$csvfile'>CSV</a></td>";
+        print "<td width='10%' $top_bund><a href='$csvfile' download>CSV</a></td>";
         print "</tbody></table></td></tr></table>";
     }
 

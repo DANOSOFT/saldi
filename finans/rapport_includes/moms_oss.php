@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_oss.php --- patch 5.0.0 --- 2026-07-23 ---
+// --- finans/rapport_includes/moms_oss.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260716 MJ R2 – OSS B2C EU-salg: oversigt over momspligtige salg og opkraevet
 //                  moms pr. land og sats til brug ved OSS-momsangivelse.
@@ -41,6 +41,7 @@
 //                 OSS-oversigt filtreres til B2C-EU; oevrige vises separat.
 // 20260729 NTR - Reported by CodeRabbit - topline-settings should be before print not after.
 //              - Reported by CodeRabbit - transactions that's not a varer nor a service doesn't add up to total as neither beloab_varer nor beloab_ydelser gets assigned, now beloab_andet takes the unknown transactions, for future use.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -110,7 +111,7 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
               . "&ansat_fra=$ansat_fra&ansat_til=$ansat_til"
               . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til"
               . "&simulering=$simulering&lagerbev=$lagerbev";
-    $csv_btn   = "<a href='$csvfile' style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
+    $csv_btn   = "<a href='$csvfile' download style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
     $print_btn = "<button onclick='window.print()' style='background:transparent;border:none;color:#fff;cursor:pointer;padding:0;'><i class='fa fa-print'></i> Print</button>";
     include("../includes/topline_settings.php");
 
@@ -147,7 +148,7 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
         print "<td width='10%' $top_bund><a accesskey=L href='$back_url'>Luk</a></td>";
         print "<td width='80%' $top_bund>Rapport - OSS B2C EU-salg</td>";
-        print "<td width='10%' $top_bund><a href='$csvfile'>CSV</a></td>";
+        print "<td width='10%' $top_bund><a href='$csvfile' download>CSV</a></td>";
         print "</tbody></table></td></tr></table>";
     }
 

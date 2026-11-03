@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-10-30 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.1.0 -- 2026-11-03 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 // 20260916 CDX/PHR Show opening balances, including balance accounts without VAT or period entries.
 // 20260918 CDX/PHR Print all VAT ledger rows and totals while paginating only the screen view.
 // 20261030 CL/LAH Show all lines by default, like kontokort: per_page 0 means "Alle" and is the default.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 0) {
 	print <<<'HTML'
@@ -177,7 +178,7 @@ HTML;
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 	print "<td width='80%' align='center' style='$topStyle'>".findtekst('516|Rapport - kontokort med moms', $sprog_id)."</td>\n";
-	print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
+	print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' download style='color:#ffffff'>csv</a></td>";
 	print "</tbody></table>"; #B slut
 	print "</td></tr>";
 	#######################

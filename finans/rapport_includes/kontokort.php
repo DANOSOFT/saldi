@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----ver 5.1.0 ----2026-10-30-----
+// --- finans/rapport_includes/kontokort.php-----ver 5.1.0 ----2026-11-03-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,7 @@
 //                  "Alle" first in Linjer pr. side. The prev/next arrows kept dropping per_page.
 // 20261030 CDX/NTR Count screen rows first and retain only the account being rendered, including Alle.
 //                  Preserve print mode's complete row list for normal and unposted reports.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -306,7 +307,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 		print "<td width='70%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
-		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
+		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' download style='color:#ffffff'>csv</a></td>\n";
 		if (!$udskriv)
 			print "<td width='5%' align='center' style='$buttonStyle'><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\" style='color:#ffffff'>$txtUdskriv</a></td>\n";
 
@@ -340,7 +341,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
 		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
 		print "<td width=\"70%\" $top_bund>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>";
-		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
+		print "<td width=\"10%\" $top_bund><a href='$csvfile' download>csv</a></td>";
 		if (!$udskriv)
 			print "<td width=\"10%\" $top_bund><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\">$txtUdskriv</a></td>";
 		print "</tbody></table>"; #B slut
