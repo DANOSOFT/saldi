@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontokort_standalone.php-----patch 5.0.0 ----2026-04-29-----
+// --- finans/kontokort_standalone.php-----patch 5.0.0 ----2026-10-30-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 //20260429 LOE Created standalone version of kontokort repoort for easy navigation
@@ -30,6 +30,7 @@
 //                for type numeric" (SST-672)
 //20260929 MJ SST-809 Read udskriv from the URL and pass it on: the print view
 //                renders the whole kontokort instead of the requested page.
+// 20261030 CL/LAH per_page defaults to 0 = all lines.
 @session_start();
 $s_id = session_id();
 
@@ -60,8 +61,7 @@ $projekt_til = if_isset($_GET, null, 'projekt_til');
 $simulering  = if_isset($_GET, null, 'simulering');
 $lagerbev    = if_isset($_GET, null, 'lagerbev');
 $page        = max(1, (int) if_isset($_GET, 1, 'page'));
-$per_page = (int) if_isset($_GET, 50, 'per_page');
-if ($per_page < 1) $per_page = 50;
+$per_page    = max(0, (int) ifset($_GET, 'per_page', 0)); // 0 = all lines
 // SST-809 udskriv=on renders the whole kontokort in one pass for printing,
 // ignoring page/per_page. Treated as a flag, never interpolated anywhere.
 $udskriv     = if_isset($_GET, null, 'udskriv') ? true : false;
