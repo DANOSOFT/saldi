@@ -48,7 +48,7 @@
 //                  sending account statements with 'Send mail(s)'.
 // 20260908 CDX/LH Initialize statement date before sending, compare ISO dates and close spans.
 // 20261103 LOE SST-908 kilde=openpost limits the statement to the open posts, and the
-//                saldo then covers those posts only.
+//                saldo then covers those posts only. A NULL udlignet counts as open.
 
 @session_start();
 $s_id=session_id();
@@ -87,14 +87,14 @@ if (isset($_POST['retur']) && $_POST['retur']) {
 	$email=$_POST['email'];
 	$fra=$_POST['fra'];
 	$til=$_POST['til'];
-	$kilde=if_isset($_POST['kilde']);
+	$kilde=ifset($_POST, 'kilde', NULL);
 }
 else {
 	$kontoliste=if_isset($_GET['kontoliste']);
 	$kontoantal=if_isset($_GET['kontoantal']);
 	$dato_fra=if_isset($_GET['dato_fra']);
 	$dato_til=if_isset($_GET['dato_til']);
-	$kilde=if_isset($_GET['kilde']);
+	$kilde=ifset($_GET, 'kilde', NULL);
 	#	$dato_til=$_GET['dato_til'];
 	for($x=1;$x<=$kontoantal;$x++) { #20150505
 		($dato_fra)?$fra[$x]=dkdato(usdate($dato_fra)):$fra[$x]=NULL;
@@ -239,7 +239,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 		$y=0;
 		$qtxt="select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'";
 		if ($kilde == 'openpost') {
-			$qtxt .= " and udlignet != '1'";
+			$qtxt .= " and (udlignet != '1' or udlignet is null)";
 		}
 		$qtxt .= " order by transdate, faktnr";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -262,7 +262,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 		$qtxt="update adresser set email='$email[$x]' where id='$accountId[$x]'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
-	$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'" . ($kilde == 'openpost' ? " and udlignet != '1'" : "") . " order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'" . ($kilde == 'openpost' ? " and (udlignet != '1' or udlignet is null)" : "") . " order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($query)) {
 		$amount=afrund($r['amount'],2);
 		$forfaldsdag=NULL;
@@ -442,7 +442,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til, $kilde = NUL
 			$kontosum=0;
 			$primo=0;
 			$primoprint=0;
-			$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'" . ($kilde == 'openpost' ? " and udlignet != '1'" : "") . " order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]'" . ($kilde == 'openpost' ? " and (udlignet != '1' or udlignet is null)" : "") . " order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($query)) {
 				$amount=afrund($r['amount'],2);
 				$valuta=$r['valuta'];

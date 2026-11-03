@@ -90,7 +90,8 @@
 // 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
 //                holds the last printed order by then.
 // 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
-//                primitive balance and running balance then cover those posts only.
+//                opening balance and running balance then cover those posts only. A NULL
+//                udlignet counts as open, as it does in the ledger.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -3070,7 +3071,7 @@ if (!function_exists('kontoprint')) {
 						$saldo = 0;
 						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra'";
 						if ($openPostOnly) {
-							$qtxt .= " and udlignet != '1'";
+							$qtxt .= " and (udlignet != '1' or udlignet is null)";
 						}
 						$qtxt .= " order by transdate";
 						$q1 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
@@ -3119,7 +3120,7 @@ if (!function_exists('kontoprint')) {
 					$y = $y - 4;
 					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til'";
 					if ($openPostOnly) {
-						$qxt .= " and udlignet != '1'";
+						$qxt .= " and (udlignet != '1' or udlignet is null)";
 					}
 					$qxt .= " order by transdate,id";
 					$q1 = db_select("$qxt", __FILE__ . " linje " . __LINE__);
