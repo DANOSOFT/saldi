@@ -205,7 +205,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		else
 			print "<tr><td>Medarbejdere</span></td><td>$ansatte</span></td></tr>";
 	}
-	if ($afd || $afd == '0')
+	if ($afd)
 		print "<tr><td>Afdeling</span></td><td>$afd_navn</span></td></tr>";
 	if ($projekt_fra) {
 		print "<tr><td>Projekt</td>";

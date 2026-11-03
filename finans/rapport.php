@@ -230,6 +230,9 @@ if ($_POST) {
 
 	$regnaar = if_isset($_POST['regnaar']);
 	if (is_string($regnaar) && $regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar) + [1 => null];
+	if ($regnaar !== NULL && !is_string($regnaar)) {
+		$regnaar = NULL;
+	}
 	#+
 }
 

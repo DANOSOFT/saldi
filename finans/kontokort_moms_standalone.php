@@ -25,7 +25,8 @@
 // ----------------------------------------------------------------------
 //
 //20260430 LOE Created standalone version of kontokort repoort for easy navigation
-// 20261030 CL/LAH per_page defaults to 0 = all lines.// 20261103 LOE SST-936 Resolve the employee range into the id list kontokort_moms() filters by.
+// 20261030 CL/LAH per_page defaults to 0 = all lines.
+// 20261103 LOE SST-936 Resolve the employee range into the id list kontokort_moms() filters by.
 
 @session_start();
 $s_id = session_id();
