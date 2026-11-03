@@ -30,6 +30,7 @@ final class OpretSaetLagerPlanTest extends CharacterizationTestCase
     {
         if (isset(self::$tenant) && self::$tenant && self::$div3 !== null) {
             self::rows("UPDATE grupper SET box2 = $1, box11 = $2 WHERE art = 'DIV' AND kodenr = '3'", [self::$div3['box2'], self::$div3['box11']]);
+            self::rows("DELETE FROM grupper WHERE beskrivelse IN ('SD789 Uden konto', 'SD789 Kun DG', 'SD789 Sidste aar')");
         }
         parent::tearDownAfterClass();
     }
@@ -174,6 +175,120 @@ final class OpretSaetLagerPlanTest extends CharacterizationTestCase
         $lines = self::lines($order);
         self::assertEqualsWithDelta(0.0, (float)$lines[3]['pris'], 0.0001, 'the set line is 0, not the special price');
         self::assertSame(320.0, round(self::lineSum($lines), 2));
+    }
+
+    public function testAPlannedSetAtPriceZeroIsFreeNotTheSetItemsPrice(): void
+    {
+        $s = self::set();
+        $order = self::order();
+
+        $this->runSteps([['saet', $order, $s['set']['id'], 0, 25, 2, '', self::ASSEMBLY, self::k55Plan($s)]]);
+
+        $lines = self::lines($order);
+        self::assertSame(['100', '100', '100', '0'], array_map(static fn($l) => (string)(float)$l['rabat'], $lines));
+        self::assertSame('0|100', $lines[3]['lev_varenr']);
+        self::assertSame(0.0, round(self::lineSum($lines), 2));
+    }
+
+    public function testAPlannedSetPriceMustBeANumberOfZeroOrMore(): void
+    {
+        $s = self::set();
+        $order = self::order();
+
+        $results = $this->runSteps([
+            ['saet', $order, $s['set']['id'], null, 25, 2, '', self::ASSEMBLY, self::k55Plan($s)],
+            ['saet', $order, $s['set']['id'], -10, 25, 2, '', self::ASSEMBLY, self::k55Plan($s)],
+            ['saet', $order, $s['set']['id'], 'gratis', 25, 2, '', self::ASSEMBLY, self::k55Plan($s)],
+        ]);
+
+        foreach ($results as $result) {
+            self::assertSame('InvalidArgumentException', $result['exception'] ?? null);
+            self::assertStringContainsString('is not a number of 0 or more', $result['message']);
+        }
+        self::assertSame([], self::lines($order));
+    }
+
+    public function testAPlannedComponentWithoutAnItemGroupThrowsBeforeAnythingIsWritten(): void
+    {
+        $s = self::set();
+        self::rows("UPDATE varer SET gruppe = 9789 WHERE id = $1", [$s['y']['id']]);
+        $order = self::order();
+
+        [$result] = $this->runSteps([['saet', $order, $s['set']['id'], 160, 25, 2, '', self::ASSEMBLY, self::k55Plan($s)]]);
+
+        self::assertSame('DomainException', $result['exception'] ?? null);
+        self::assertStringContainsString("component {$s['y']['id']} of set {$s['set']['id']} has no item or no item group", $result['message']);
+        self::assertSame([], self::lines($order));
+    }
+
+    /** opret_ordrelinje() needs an item group (art VG) of the fiscal year: a debtor group or last year's group is none. */
+    public function testAPlannedComponentWhoseGroupIsNoItemGroupOfTheYearThrowsBeforeAnythingIsWritten(): void
+    {
+        self::rows("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year)
+            SELECT 'SD789 Kun DG', '9777', 'DG', $1
+            WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE kodenr = '9777')", [self::$regnaar]);
+        self::rows("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box4)
+            SELECT 'SD789 Sidste aar', '9776', 'VG', $1, '1000'
+            WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE kodenr = '9776')", [self::$regnaar - 1]);
+        $results = [];
+        foreach ([9777, 9776] as $gruppe) {
+            $s = self::set();
+            self::rows("UPDATE varer SET gruppe = $1 WHERE id = $2", [$gruppe, $s['y']['id']]);
+            $order = self::order();
+            [$result] = $this->runSteps([['saet', $order, $s['set']['id'], 160, 25, 2, '', self::ASSEMBLY, self::k55Plan($s)]]);
+            $results[] = [$result['exception'] ?? null, str_contains($result['message'] ?? '', 'has no item or no item group'), count(self::lines($order))];
+        }
+
+        self::assertSame([['DomainException', true, 0], ['DomainException', true, 0]], $results, 'refused before X, the first component, is written');
+    }
+
+    public function testAPlannedSetItemWithoutAnItemGroupThrowsBeforeAnythingIsWritten(): void
+    {
+        $s = self::set();
+        self::rows("UPDATE varer SET gruppe = 9789 WHERE id = $1", [$s['set']['id']]);
+        $order = self::order();
+
+        [$result] = $this->runSteps([['saet', $order, $s['set']['id'], 160, 25, 2, '', self::ASSEMBLY, self::k55Plan($s)]]);
+
+        self::assertSame('DomainException', $result['exception'] ?? null);
+        self::assertStringContainsString("set item {$s['set']['id']} has no item or no item group", $result['message']);
+        self::assertSame([], self::lines($order));
+    }
+
+    public function testPlannedComponentsWithoutAPriceThrowBeforeAnythingIsWritten(): void
+    {
+        $s = self::set();
+        self::rows("UPDATE varer SET salgspris = 0 WHERE id IN ($1, $2)", [$s['x']['id'], $s['y']['id']]);
+        $order = self::order();
+
+        [$result] = $this->runSteps([['saet', $order, $s['set']['id'], 160, 25, 2, '', self::ASSEMBLY, self::k55Plan($s)]]);
+
+        self::assertSame('DomainException', $result['exception'] ?? null);
+        self::assertStringContainsString('have no price', $result['message']);
+        self::assertSame([], self::lines($order));
+    }
+
+    /** opret_ordrelinje() refuses an item whose group has no sales account; the caller's transaction rolls the rest back. */
+    public function testARefusedPlannedLineThrows(): void
+    {
+        self::rows("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box4)
+            SELECT 'SD789 Uden konto', '9788', 'VG', $1, ''
+            WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'VG' AND kodenr = '9788' AND fiscal_year = $1)", [self::$regnaar]);
+        $s = self::set();
+        self::rows("UPDATE varer SET gruppe = 9788 WHERE id = $1", [$s['y']['id']]);
+        $t = self::set();
+        self::rows("UPDATE varer SET gruppe = 9788 WHERE id = $1", [$t['set']['id']]);
+        $order = self::order();
+
+        [$component, $setLine] = $this->runSteps([
+            ['saet', $order, $s['set']['id'], 160, 25, 2, '', self::ASSEMBLY, self::k55Plan($s)],
+            ['saet', $order, $t['set']['id'], 160, 25, 2, '', self::ASSEMBLY, self::k55Plan($t)],
+        ]);
+
+        self::assertSame('DomainException', $component['exception'] ?? null);
+        self::assertStringContainsString("the line for component {$s['y']['id']} of set {$s['set']['id']} was refused", $component['message']);
+        self::assertSame('DomainException', $setLine['exception'] ?? null);
+        self::assertStringContainsString("the set line of set {$t['set']['id']} was refused", $setLine['message']);
     }
 
     public function testWithAPlanTheOrderDiscountIsNotUndone(): void

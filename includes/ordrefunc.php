@@ -156,6 +156,7 @@
 // 20261102 CL/SS SD-789 Core edit 3: opret_ordrelinje() $fixed_price stores the price and discount as given: no tier price,
 //                special or offer price, customer or quantity discount. Core edit 2: opret_saet() $lager_plan draws each
 //                component from the lagre the plan gives (validate_saet_lager_plan()). Default callers are unchanged.
+//                With a plan, a set price of 0 is a free set, and a missing item, item group or refused line throws.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -5588,8 +5589,13 @@ function saet_afrund($id,$sum,$moms,$difkto) {
  * @param list<array{bom_id: int, lager: int, quantity_milli: int}>|null $lager_plan null: every component is drawn from
  *   $lager, and the order's discount is undone first (gendan_saet()). A plan: each BOM occurrence (styklister.id) is drawn
  *   from the lagre the plan gives, one line per occurrence and lager, $lager is the set line's, and every line is written
- *   with $fixed_price, so no other price or discount moves the set off its price; see validate_saet_lager_plan()
- * @throws InvalidArgumentException when the plan does not fit the set
+ *   with $fixed_price, so no other price or discount moves the set off its price (a set price of 0 is a free set, not
+ *   the set item's price); see validate_saet_lager_plan()
+ * @throws InvalidArgumentException with a plan, before anything is written: the plan does not fit the set, or the set
+ *   price is not a number of 0 or more
+ * @throws DomainException with a plan: a component or the set item has no item or item group, or the components have no
+ *   price (before anything is written), or opret_ordrelinje() refused a line (after lines are written: the caller's
+ *   transaction must roll back)
  */
 function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms, $lager, $lager_plan = null)
 {
@@ -5612,6 +5618,8 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 		$problems = (is_int($antal_ny) || (is_float($antal_ny) && floor($antal_ny) == $antal_ny))
 			? validate_saet_lager_plan($bom, $lager_plan, (int)$antal_ny)
 			: array("the number of sets ($antal_ny) is not whole");
+		if (!is_numeric($saetpris) || $saetpris < 0)
+			$problems[] = "the set price (" . var_export($saetpris, true) . ") is not a number of 0 or more";
 		if ($problems) {
 			throw new InvalidArgumentException("opret_saet: the lager plan does not fit set $master_id: " . implode('; ', $problems));
 		}
@@ -5619,7 +5627,7 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 	if (!$antal_ny)
 		return 0;
 	$saetpris *= $antal_ny;
-	if (!$saetpris) {
+	if (!$saetpris && $lager_plan === null) {
 		$r = db_fetch_array(db_select("select salgspris from varer where id = '$master_id'", __FILE__ . " linje " . __LINE__));
 		$saetpris = $r['salgspris'];
 		if ($incl_moms) {
@@ -5660,6 +5668,9 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 		$qtxt = "select varer.id,varer.varenr,varer.salgspris,varer.beskrivelse,varer.gruppe,grupper.box7 ";
 		$qtxt .= "from varer,grupper where varer.id = '$vare_id[$x]' and grupper.kodenr=varer.gruppe";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($lager_plan !== null && (!$r || !saet_item_group_exists($r['gruppe']))) {
+			throw new DomainException("opret_saet: component $vare_id[$x] of set $master_id has no item or no item group");
+		}
 		$varenr[$x] = $r['varenr'];
 		$pris[$x] = afrund($r['salgspris'], 2);
 		$beskrivelse[$x] = $r['beskrivelse'];
@@ -5669,6 +5680,15 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 		}
 		$linjepris[$x] = afrund($antal[$x] * $pris[$x], 3);
 		$normalsum += $linjepris[$x];
+	}
+	if ($lager_plan !== null) {
+		if (!$normalsum) {
+			throw new DomainException("opret_saet: the components of set $master_id have no price, so no discount can bring them to the set price");
+		}
+		$r = db_fetch_array(db_select("select gruppe from varer where id = '" . (int)$master_id . "'", __FILE__ . " linje " . __LINE__));
+		if (!$r || !saet_item_group_exists($r['gruppe'])) {
+			throw new DomainException("opret_saet: set item $master_id has no item or no item group");
+		}
 	}
 	$rabat = $normalsum - $saetpris;
 	$rabat = afrund($rabat * 100 / $normalsum, 3);
@@ -5683,7 +5703,10 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 			}
 		}
 		foreach ($segments as list($segmentAntal, $segmentLager)) {
-			opret_ordrelinje($id, $vare_id[$x], $varenr[$x], $segmentAntal, '', $pris[$x], $rabat, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $segmentLager, __LINE__, $lager_plan !== null);
+			$svar = opret_ordrelinje($id, $vare_id[$x], $varenr[$x], $segmentAntal, '', $pris[$x], $rabat, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $segmentLager, __LINE__, $lager_plan !== null);
+			if ($lager_plan !== null && !is_int($svar) && !is_float($svar)) {
+				throw new DomainException("opret_saet: the line for component $vare_id[$x] of set $master_id was refused: " . (string)$svar);
+			}
 
 			if ($lager_plan === null) {
 				$linjesum = $segmentAntal * $pris[$x];
@@ -5699,13 +5722,27 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 	$r = db_fetch_array(db_select("select id,varenr,salgspris,beskrivelse from varer where id = '$master_id'", __FILE__ . " linje " . __LINE__));
 	$lineDiscount = $momssats * 100 / (100 + $momssats); // Giver umiddelbart ikke mening, men det skyldes at selve samlevaren ikke er momsbelagt.
 	$lineDiscount = 0; #20220602
-	opret_ordrelinje($id, $r['id'], $r['varenr'], 1, '', $diff, $lineDiscount, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__, $lager_plan !== null);
+	$svar = opret_ordrelinje($id, $r['id'], $r['varenr'], 1, '', $diff, $lineDiscount, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__, $lager_plan !== null);
+	if ($lager_plan !== null && !is_int($svar) && !is_float($svar)) {
+		throw new DomainException("opret_saet: the set line of set $master_id was refused: " . (string)$svar);
+	}
 	$lev_varenr = $saetpris . "|" . $rabat;
 	db_modify("update ordrelinjer set samlevare='on',lev_varenr='$lev_varenr',kostpris='0' where ordre_id='$id' and saet='$saetnr' and vare_id='$master_id'", __FILE__ . " linje " . __LINE__);
 	$qtxt = "select antal,pris,rabat from ordrelinjer where ordre_id='$id' and saet='$saetnr' and vare_id='$master_id'<br>";
 
 
 } #endfunc opret_saet
+
+/** The item group opret_ordrelinje() needs for a line: art VG in the fiscal year (any year when none is set yet). */
+function saet_item_group_exists($gruppe)
+{
+	global $regnaar;
+
+	$qtxt = "select id from grupper where art = 'VG' and kodenr = '" . (int)$gruppe . "'";
+	if ($regnaar)
+		$qtxt .= " and fiscal_year = '" . (int)$regnaar . "'";
+	return (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+} #endfunc saet_item_group_exists
 
 /**
  * What is wrong with a lager plan for opret_saet(): each BOM occurrence must need a quantity and be drawn in full, in
