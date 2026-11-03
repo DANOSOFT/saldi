@@ -5356,3 +5356,5 @@
 8404	%s: %s fra åben indkøbsordre %s (varekortet: %s)	%s: %s from open purchase order %s (item card: %s)	%s: %s fra åpen innkjøpsordre %s (varekortet: %s)
 8405	%s: %s fra varekortet. Der er ingen åben indkøbsordre, så prisen kan være forældet	%s: %s from the item card. There is no open purchase order, so the price may be out of date	%s: %s fra varekortet. Det finnes ingen åpen innkjøpsordre, så prisen kan være utdatert
 8406	Vis besked når kostprisen er anslået	Show a message when the cost price is estimated	Vis melding når kostprisen er anslått
+8407	Advarsel: %s er fratrådt pr. %s.	Warning: %s left the company on %s.	Advarsel: %s sluttet %s.
+8408	ukendt	unknown	ukjent

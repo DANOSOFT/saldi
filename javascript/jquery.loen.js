@@ -3,7 +3,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- javascript/jquery.loen.js.php --- lap 5.0.0 --- 2026-07-31 ---
+// --- javascript/jquery.loen.js --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260731 PHR - Warn when a former employee is selected in ret_loen autocomplete.
+// 20261103 CL/MMR SD-799 The former employee warning uses the translated text from loen.php.
 
 $(document).ready(function() {
 	$('.contentB .left, .contentB input, .contentB textarea, .contentB select').focus(function(){
@@ -38,8 +39,13 @@ $(document).ready(function() {
 
 function advarHvisFratraadtMedarbejder(data, navn) {
 	if (data && data[2] === "fratraadt") {
-		var slutdato = data[3] ? data[3].split("-").reverse().join("-") : "ukendt";
-		alert("Advarsel: " + navn + " er fratrådt pr. " + slutdato + ".");
+		var tekst = window.loenTekst || {};
+		var slutdato = data[3] ? data[3].split("-").reverse().join("-") : (tekst.ukendt || "ukendt");
+		var vaerdier = [navn, slutdato];
+		var besked = (tekst.fratraadt || "Advarsel: %s er fratrådt pr. %s.").replace(/%s/g, function() {
+			return vaerdier.length ? vaerdier.shift() : "";
+		});
+		alert(besked);
 	}
 }
 

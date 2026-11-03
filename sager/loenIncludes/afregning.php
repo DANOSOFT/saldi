@@ -1,5 +1,6 @@
 <?php
 // 20251028 PK - added two hours(7200) to start date due to daylight saving time
+// 20261103 CL/MMR SD-799 The total row label is translated.
 
 function loenafregning() {#Summeret lønafregning
 
@@ -296,10 +297,11 @@ function loenafregning() {#Summeret lønafregning
 
 								($linjebg==$bgcolor)?$linjebg = $bgcolor2:$linjebg = $bgcolor;
 								print "<tr bgcolor=\"$linjebg\">";
-								fod_felter_vis_titel('I alt', true);
+								fod_felter_vis_titel(findtekst('2373|I alt', $sprog_id), true);
 								if ($vis=="belob") {
-									if (count($fodansatinfos)==1)
+									if (count($fodansatinfos)==1) {
 										print "<td>&nbsp;</td>";
+									}
 
 									fod_felter_vis_beloeb($fodtotal, true, true);
 								} else {
@@ -538,7 +540,7 @@ function loenafregning() {#Summeret lønafregning
 								if (count($fodansatinfos)>1) {
 									($linjebg==$bgcolor)?$linjebg = $bgcolor2:$linjebg = $bgcolor;
 									print "<tr bgcolor=\"$linjebg\">";
-									fod_felter_vis_titel('I alt', true);
+									fod_felter_vis_titel(findtekst('2373|I alt', $sprog_id), true);
 									fod_felter_vis_timer($foddagtotal, true, true);
 									print "</tr>";
 								}
@@ -557,7 +559,7 @@ function loenafregning() {#Summeret lønafregning
 
 						print "<tr bgcolor=\"$linjebg\">";
 
-						fod_felter_vis_titel("I alt", true);
+						fod_felter_vis_titel(findtekst('2373|I alt', $sprog_id), true);
 
 						if (count($fodansatinfos) == 1) {
 							print "<td>&nbsp;</td>";

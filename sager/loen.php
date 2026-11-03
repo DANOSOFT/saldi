@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- lap 5.0.0 --- 2026-07-31 ---
+// --- sager/loen.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,6 +113,7 @@
 // 20240220 PK - Added javascript that prevent user from double click.
 // 20260731 PHR - Added cache busting for warning when selecting a former employee in ret_loen.
 // 20260810 CX/PHR - Corrected quoting in print icon onclick handlers.
+// 20261103 CL/MMR SD-799 The texts of the former employee warning are passed to jquery.loen.js in the user's language.
 
 @session_start();
 $s_id = session_id();
@@ -298,7 +299,8 @@ print "</div><!-- end of maincontent -->
 	});
 });
 </script>
-<script type=\"text/javascript\" src=\"../javascript/jquery.loen.js?v=20260731\"></script>
+<script type=\"text/javascript\">var loenTekst = " . json_encode(array('fratraadt' => findtekst('8407|Advarsel: %s er fratrådt pr. %s.', $sprog_id), 'ukendt' => findtekst('8408|ukendt', $sprog_id)), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";</script>
+<script type=\"text/javascript\" src=\"../javascript/jquery.loen.js?v=20261103\"></script>
 </body>
 </html>";
 

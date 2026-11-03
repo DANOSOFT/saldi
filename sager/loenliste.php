@@ -1,6 +1,6 @@
 <?php
 
-// ------ sager/loen.php-------lap 3.6.0 ------2015-12-16------13:22---------
+// ------ sager/loenliste.php-------ver 5.1.0 ------2026-11-03------13:22---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,7 +19,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2015 Danosoft ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2013-04-10 Indsat sessionsvariabler til søgning
 // 2013-04-22 Indsat sessionsvariabler til sortering, rettet variabler til søgning og tilrette søgning på afregnede
@@ -36,6 +36,7 @@
 // 2017-08-04 Finder ud af om feltet loendate er tomt. jQuery læser hidden field og fjerner link til akkordlister. Søg 20170804
 // 2017-08-11 Finder ud af om feltet sagnr er tomt. jQuery læser hidden field og fjerner link til sag og akkordlister. Søg 20170811
 // 20180612 PHR - Separat array for art_navn & alias så system kan tilrettes andre brancher (blot en start) #20180612
+// 20261103 CL/MMR SD-799 The "Alle" choice in the line count menu is translated.
 
 
 function loenliste() {
@@ -250,7 +251,7 @@ function loenliste() {
 	
 	//echo "Limit: $s_limit";
 	$limitarray=array('500','1000','2500','5000','10000','NULL');
-	$limitnavn=array('500','1000','2500','5000','10000','Alle');
+	$limitnavn=array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
 	
 	($s_limit)?$limit=$s_limit:$limit='500';
 	
