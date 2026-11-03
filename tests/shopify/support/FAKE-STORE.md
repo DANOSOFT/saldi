@@ -27,7 +27,7 @@ real-store check that calibrates it.
            $this->uses('B29');
            return self::payload(['fulfillmentOrder' => null], [self::userError(['id'], 'Fulfillment order does not exist.')]);
        }
-       $this->uses('B36');
+       $this->uses('B37');
        $s['fulfillment_orders'][$a['id']]['status'] = 'ON_HOLD';
        return self::payload(['fulfillmentOrder' => $this->vFulfillmentOrder($domain, $a['id'])]);
    }
@@ -40,7 +40,7 @@ real-store check that calibrates it.
    `FakeShopifyBehaviours::ALL`:
 
    ```php
-   'B36' => [
+   'B37' => [
        'behaviour' => 'fulfillmentOrderHold puts an open fulfillment order ON_HOLD ...',
        'basis' => 'partly',
        'source' => self::DOCS . 'mutations/fulfillmentOrderHold (the hold); the message ASSUMED',
@@ -122,10 +122,10 @@ other:
 
 ## What is assumed
 
-Of the 35 entries, 1 is verified, 27 are partly assumed (the rule is documented, a code, message or
-detail is not), and 7 are wholly assumed: B10 (bucket sizes), B14 (event ids across topics), B17
-(stock on fulfilment), B18 (order routing), B28 and B29 (error messages) and B31 (stock when a
-move carries a decremented order). `FakeShopifyBehaviours::byBasis()` lists them. They stay
-assumptions until SD-764 calibrates them on a real dev store and the calibration probes
-(`sandbox/run.php --calibrate`) agree. A scenario can pass on the fake and fail on a sandbox until
-then.
+Of the 36 entries, 1 is verified, 27 are partly assumed (the rule is documented, a code, message or
+detail is not), and 8 are wholly assumed: B10 (bucket sizes), B14 (event ids across topics), B17
+(stock on fulfilment), B18 (order routing), B28 and B29 (error messages), B31 (stock when a
+move carries a decremented order) and B36 (a metafield digest across a write of the same value).
+`FakeShopifyBehaviours::byBasis()` lists them. They stay assumptions until SD-764 calibrates them
+on a real dev store and the calibration probes (`sandbox/run.php --calibrate`) agree. A scenario
+can pass on the fake and fail on a sandbox until then.

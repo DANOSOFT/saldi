@@ -25,6 +25,7 @@
 //                a move carries the order's commitments, a destination must stock the item, the documented move
 //                request statuses, one location per fulfilment, compareDigest, the payload's cost on mutations,
 //                one event id per action with a webhook id per delivery, inventoryActivate.
+// 20261103 CL/LH SD-766: second review: the metafield digest is the persisted value's, so writing the same value keeps it (B36).
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -737,10 +738,20 @@ final class FakeShopifyStore
 			'createdAt' => $this->iso(false, $mf['created']), 'updatedAt' => $this->iso(false, $mf['updated'])];
 	}
 
-	/** B32: an opaque digest that changes with every write, as a caller may only read and send it back. */
+	/** B32, B36: an opaque digest of the persisted metafield (owner, namespace, key, type, value), so a write of the same value keeps it; a caller only reads it and sends it back. */
 	private static function digest(array $mf): string
 	{
-		return hash('sha256', $mf['id'] . '#' . $mf['version']);
+		return hash('sha256', json_encode([$mf['owner'], $mf['namespace'], $mf['key'], $mf['type'], $mf['value']]));
+	}
+
+	/** B32: null matches a metafield that does not exist yet, a digest one whose persisted value is the one it was read from (B36). */
+	private function digestMatches(?array $current, ?string $digest): bool
+	{
+		if ($digest === null || $current === null) {
+			return $digest === null && $current === null;
+		}
+		$this->uses('B36');
+		return hash_equals(self::digest($current), $digest);
 	}
 
 	private function times(array $row): array
@@ -2022,9 +2033,7 @@ final class FakeShopifyStore
 				|| ($type === 'Shop' && $mf['ownerId'] !== $this->shop($domain)['id'])) {
 				$this->uses('B29');
 				$errors[] = ['field' => $path, 'message' => 'Owner does not exist.', 'code' => 'INVALID_VALUE', 'elementIndex' => $i];
-			} elseif (array_key_exists('compareDigest', $mf)
-				&& ($mf['compareDigest'] === null ? $current !== null : $current === null || !hash_equals(self::digest($current), (string)$mf['compareDigest']))) {
-				// B32: null asks that the metafield not exist yet; a digest, that it is unchanged since it was read
+			} elseif (array_key_exists('compareDigest', $mf) && !$this->digestMatches($current, $mf['compareDigest'] === null ? null : (string)$mf['compareDigest'])) {
 				$this->uses('B32');
 				$errors[] = ['field' => ['metafields', (string)$i, 'compareDigest'], 'message' => 'The resource has been updated since it was loaded. Try again with an updated `compareDigest` value.',
 					'code' => 'STALE_OBJECT', 'elementIndex' => $i];
@@ -2050,8 +2059,8 @@ final class FakeShopifyStore
 		$ownerType = ['Order' => 'ORDER', 'Customer' => 'CUSTOMER', 'Product' => 'PRODUCT', 'ProductVariant' => 'PRODUCTVARIANT',
 			'Location' => 'LOCATION', 'Shop' => 'SHOP'][$this->gidType($owner)] ?? 'SHOP';
 		return $s['metafields'][$owner][$full] = ['id' => $old['id'] ?? $this->gid('Metafield'), 'namespace' => $mf['namespace'] ?? '$app',
-			'key' => $mf['key'], 'value' => (string)$mf['value'], 'type' => $mf['type'] ?? $old['type'] ?? 'single_line_text_field', 'owner_type' => $ownerType,
-			'version' => ($old['version'] ?? 0) + 1, 'created' => $old['created'] ?? $this->clock->now, 'updated' => $this->clock->now];
+			'key' => $mf['key'], 'value' => (string)$mf['value'], 'type' => $mf['type'] ?? $old['type'] ?? 'single_line_text_field', 'owner' => $owner, 'owner_type' => $ownerType,
+			'created' => $old['created'] ?? $this->clock->now, 'updated' => $this->clock->now];
 	}
 
 	private function mCustomerCreate(string $domain, array $a): array

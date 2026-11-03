@@ -15,6 +15,7 @@
 // 20261102 CL/LH SD-766: created.
 // 20261103 CL/LH SD-766: review fixes: a basis per entry, sources re-read for API 2026-07, B31-B35 added
 //                (move bookkeeping, metafield compareDigest, one location per fulfilment, order taxes, inventoryActivate).
+// 20261103 CL/LH SD-766: second review: B36, a metafield digest stands for its persisted data (assumed).
 
 final class FakeShopifyBehaviours
 {
@@ -237,6 +238,12 @@ final class FakeShopifyBehaviours
 			'basis' => 'partly',
 			'source' => self::DOCS . 'mutations/inventoryActivate (creates the inventory level, quantities default to zero, @idempotent required as of 2026-04); answering an active level unchanged ASSUMED',
 			'calibrated_by' => 'none in SD-764; SD-756 (stock push) on the sandbox',
+		],
+		'B36' => [
+			'behaviour' => 'a metafield\'s compareDigest stands for its persisted data (owner, namespace, key, type and value), not for a write: writing the value it already has keeps the digest read before valid for metafieldsSet compare-and-set, and writing back the value a digest was read from makes that digest match again',
+			'basis' => 'assumed',
+			'source' => 'ASSUMED from ' . self::DOCS . 'objects/Metafield (compareDigest is "the data stored in the resource, represented as a digest") and ' . self::DOCS . 'mutations/metafieldsSet (it sets "if the persisted metafield value matches the digest"); neither page says what a write of the same value does',
+			'calibrated_by' => 'SD-764 (to add): read a metafield\'s compareDigest, write the same value without one, then metafieldsSet a new value with the digest read first; the 2026-07 Metafield page (' . self::DOCS . 'objects/Metafield) leaves it open',
 		],
 	];
 

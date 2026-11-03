@@ -13,6 +13,7 @@
 // 20261103 CL/LH SD-766: review fixes: @idempotent required, taxes from the input, moves carry commitments and need
 //                only a stocking destination, the documented move statuses, one location per fulfilment, compareDigest,
 //                mutation cost with its payload, stable webhook ids, a basis per registry entry.
+// 20261103 CL/LH SD-766: second review: a write of the same metafield value keeps its digest valid (B36).
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -385,7 +386,10 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertSame(['v2', null], [$value('a'), $value('b')], 'B06, B32: the call sets nothing');
 		$blind = $set($mf('a', 'v2'));
 		$this->assertSame([], $blind['userErrors'], 'B32: no compareDigest, no check');
-		$this->assertNotSame($blind['metafields'][0]['compareDigest'], $set($mf('a', 'v2'))['metafields'][0]['compareDigest'], 'B32: every write gives a new digest, the same value too');
+		$read = $blind['metafields'][0]['compareDigest'];
+		$this->assertSame([], $set($mf('a', 'v2'))['userErrors'], 'a second write of the same value');
+		$this->assertSame([], $set($mf('a', 'v3', ['compareDigest' => $read]))['userErrors'], 'B36: a write of the same value keeps the digest read before valid');
+		$this->assertSame('v3', $value('a'));
 	}
 
 	public function testMetafieldsSetTakesAtMost25AndNoLineItemOwner(): void
