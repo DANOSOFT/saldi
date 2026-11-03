@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.10.08 ---
+// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 //                 browser console; the log endpoint now takes the tenant from the session.
 // 20261007 CL/SZ SST-843 The Nets Connect@Cloud username and password are no longer written into the page or the console.
 //                The login and the transaction run in lane3000_proxy.php, so the bearer token stays on the server too.
+// 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
 
 @session_start();
 $s_id = session_id();
@@ -46,7 +47,7 @@ header("Expires: 0");
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
-$permission_key = 'debitor.ordre';
+$permission_key = 'pos.kasse|debitor.ordre'; // the till (pos.kasse) and the order page both pay by terminal
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

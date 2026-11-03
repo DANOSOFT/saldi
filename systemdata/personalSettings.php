@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,9 @@
 //                 It goes where the user came from, or Oversigt, also inside the shell (it went to Oversigt there). Alt+L kept.
 // 20261102 CL/ASR Tilbage comes from settings_back_link() alone: the newest page outside the settings system, skipping old addresses that redirect here, else Oversigt.
 //                 settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
+// 20261103 CL/ASR QA: two-factor login needs an e-mail or phone stored on the login itself (login.php reads brugere): switching it
+//                 on with only the employee's e-mail stores that e-mail on the login, and the last channel cannot be cleared while
+//                 two-factor is on. An expired form (err=csrf) now says so.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -229,7 +232,10 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 			$email = trim(isset($post['email']) ? (string) $post['email'] : '');
 			$tlf = trim(isset($post['tlf']) ? (string) $post['tlf'] : '');
 			if ($email !== $current['email'] || $tlf !== $current['tlf']) {
-				if (personal_settings_password_ok($brugerId, isset($post['confirm_kode']) ? (string) $post['confirm_kode'] : '')) {
+				if ($current['twofactor'] && $email === '' && $tlf === '') {
+					// login.php sends the second factor to brugere.email/tlf: without both it would skip it.
+					$out['tfa'] = 'missing';
+				} elseif (personal_settings_password_ok($brugerId, isset($post['confirm_kode']) ? (string) $post['confirm_kode'] : '')) {
 					db_modify("update brugere set email = '" . db_escape_string($email) . "', tlf = '" . db_escape_string(mb_substr($tlf, 0, 16)) . "' where id = $brugerId", __FILE__ . " linje " . __LINE__);
 					audit_log('user.contact', $brugernavn . ': e-mail/telefon ændret');
 				} else {
@@ -282,6 +288,11 @@ function personal_settings_save_security(array $post, int $brugerId, string $bru
 		if ($twofactor && $current['email'] === '' && $current['tlf'] === '') {
 			$out['tfa'] = 'missing';
 		} else {
+			if ($twofactor && $current['storedEmail'] === '' && $current['tlf'] === '') {
+				// The e-mail shown is the employee's: login.php reads the login's own e-mail, so it is stored there first.
+				db_modify("update brugere set email = '" . db_escape_string($current['email']) . "' where id = $brugerId", __FILE__ . " linje " . __LINE__);
+				audit_log('user.contact', $brugernavn . ': e-mail sat til tofaktor');
+			}
 			db_modify("update brugere set twofactor = '" . ($twofactor ? 't' : 'f') . "' where id = $brugerId", __FILE__ . " linje " . __LINE__);
 			audit_log('user.twofactor', $brugernavn . ': ' . ($twofactor ? 'slået til' : 'slået fra'));
 		}
@@ -374,6 +385,7 @@ function personal_settings_load(int $brugerId, bool $isRevisor, string $brugerna
 		'name'      => $name,
 		'username'  => trim((string) $u['brugernavn']),
 		'email'     => $email,
+		'storedEmail' => trim((string) $u['email']),
 		'tlf'       => trim((string) $u['tlf']),
 		'twofactor' => $twofactor,
 		'language'  => max(1, (int) $sprog_id ?: (int) $u['language_id']),
@@ -417,6 +429,9 @@ function personal_settings_flash(array $get, int $sprogId): array
 	}
 	if (isset($get['tfa']) && $get['tfa'] === 'missing') {
 		$flash[] = array('type' => 'warn', 'text' => findtekst('5516|Tofaktor-login kræver et telefonnummer eller en e-mail', $sprogId));
+	}
+	if (isset($get['err']) && $get['err'] === 'csrf') {
+		$flash[] = array('type' => 'err', 'text' => findtekst('7804|Siden var udløbet, så intet blev gemt. Prøv igen.', $sprogId));
 	}
 	if (isset($get['sessions']) && $get['sessions'] === 'out') {
 		$flash[] = array('type' => 'ok', 'text' => findtekst('5623|Andre enheder er logget ud', $sprogId));

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/layout.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- includes/settings/layout.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 //                 Tilbage above the title, the breadcrumb Indstillinger / group / row (/ page). Same markup and classes as
 //                 systemdata/settingsSection.php (settings_menu_html(), css/unified-components.css), so it looks the same.
 // 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b (the direct Brugere & ansatte heading in the left menu).
+// 20261103 CL/ASR QA: the title's whitespace is normalised without the /u modifier on latin-1 installations (it returned null there: a blank heading).
 
 /*
  * HOW TO USE (for the pages that do not have the menu yet)
@@ -331,7 +332,7 @@ function settings_layout_open(array $opts = array()): void
 	$sprogId = (int) $sprog_id;
 	$charset = st_charset();
 	$plain = function ($s) use ($charset): string {
-		return trim((string) preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $s), ENT_QUOTES | ENT_HTML5, $charset)));
+		return trim((string) preg_replace($charset === 'UTF-8' ? '/\s+/u' : '/\s+/', ' ', html_entity_decode(strip_tags((string) $s), ENT_QUOTES | ENT_HTML5, $charset)));
 	};
 	$kit = !empty($opts['kit']);
 	$where = settings_layout_locate(isset($opts['at']) ? (string) $opts['at'] : '');

@@ -102,6 +102,11 @@
 //                 they went through findtekst() and an empty choice read "Tekst nr: 109".
 // 20261103 CL/ASR The employee section is called Brugere (5549), the hub row it stands in for when usersRoles.php cannot be opened
 //                 (owner, 3 Nov 2026: the heading is Brugere & roller with the rows Brugere, Roller, Audit-log and Ekstra felter).
+// 20261103 CL/ASR QA: the group tables have master's posting accounts again: the item groups' sales accounts for EU and non-EU
+//                 customers (VG box12/box14, read when an order is invoiced) and the debtor/creditor groups' Modkonto (DG/KG box5,
+//                 the offset account the cash journal uses for open posts).
+//                 "Opdater kostpriser" runs in a new tab ('blank'), as on master: the worker ends with window.close().
+//                 The gear context of Kasseoptælling and Kommission is debitor/cashCountHistory.php (debitor/kasseoptaelling.php does not exist).
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -426,6 +431,7 @@ if (!function_exists('getSettingsSections')) {
 							'box2' => array('label' => 2448, 'type' => 'account', 'required' => true, 'help' => 2449, 'locked_if_used' => 6887),
 							'box3' => array('label' => 776, 'type' => 'select', 'options_from' => 'currencies', 'options_literal' => true, 'empty_value' => 'DKK'),
 							'box4' => array('label' => 801, 'type' => 'select', 'options_from' => 'form_language_names', 'options_literal' => true, 'help' => 1010),
+							'box5' => array('label' => 1013, 'type' => 'account', 'help' => 2550),
 							'box6' => array('label' => 6481, 'type' => 'decimal', 'help' => 6482),
 							'box8' => array('label' => 6483, 'type' => 'bool', 'help' => 2454),
 							'box9' => array('label' => 2457, 'type' => 'bool', 'help' => 2456),
@@ -448,6 +454,7 @@ if (!function_exists('getSettingsSections')) {
 							'box1' => array('label' => 1011, 'type' => 'select', 'options_from' => 'vat_codes_purchase', 'options_literal' => true, 'help' => 2459),
 							'box2' => array('label' => 2448, 'type' => 'account', 'required' => true, 'help' => 2460, 'locked_if_used' => 6887),
 							'box3' => array('label' => 776, 'type' => 'select', 'options_from' => 'currencies', 'options_literal' => true, 'empty_value' => 'DKK'),
+							'box5' => array('label' => 1013, 'type' => 'account', 'help' => 2550),
 							'box6' => array('label' => 2463, 'type' => 'select', 'options_from' => 'vat_codes_sales', 'options_literal' => true, 'help' => 2462),
 							'box9' => array('label' => 2457, 'type' => 'bool', 'help' => 2465, 'requires' => array('box6', 6500)),
 							'box10' => array('label' => 6484, 'type' => 'select', 'options' => array('' => '–', 'B2B-EU' => 'B2B EU', 'B2B-UDL' => 'B2B uden for EU'), 'options_literal' => true),
@@ -477,7 +484,9 @@ if (!function_exists('getSettingsSections')) {
 							'box9' => array('label' => 6492, 'type' => 'bool', 'requires' => array('box8', 6498)),
 							'box10' => array('label' => 6493, 'type' => 'bool'),
 							'box11' => array('label' => 6494, 'type' => 'account', 'help' => 6496),
+							'box12' => array('label' => 7800, 'type' => 'account', 'help' => 7802),
 							'box13' => array('label' => 6495, 'type' => 'account', 'help' => 6497),
+							'box14' => array('label' => 7801, 'type' => 'account', 'help' => 7803),
 						)),
 				),
 				'legacy' => array(array(774)), 'old' => array('varer' => array(774)),
@@ -505,7 +514,7 @@ if (!function_exists('getSettingsSections')) {
 				'group' => 'pos', 'section' => 'cash', 'number' => 'G10.1', 'label' => 6303, 'icon' => 'bx-calculator', 'module' => 'pos',
 				'subsections' => array('cash' => 6303, 'discount' => 287),
 				'legacy' => array(array(782, 271)), 'old' => array('posOptions' => array(782, 271)),
-				'context' => array('debitor/kasseoptaelling.php'),
+				'context' => array('debitor/cashCountHistory.php'),
 				'keywords' => array('kasseoptælling', 'cash count', 'kassebeholdning', 'byttepenge', 'float', 'rabatvare', 'discount item'),
 			),
 			'pos.cards' => array(
@@ -636,7 +645,7 @@ if (!function_exists('getSettingsSections')) {
 				'subsections' => array('consignment' => 5975, 'accounts' => 117, 'settlement' => 2051),
 				'legacy' => array(array(782, 787)),
 				'old' => array('productOptions' => array(782, 787)),
-				'context' => array('lager/varekort.php', 'debitor/kasseoptaelling.php'),
+				'context' => array('lager/varekort.php', 'debitor/cashCountHistory.php'),
 				'keywords' => array('kommission', 'kommissionsvarer', 'consignment', 'commission', 'brugte varer', 'used items', 'afregning', 'settlement'),
 			),
 			'items.packaging' => array(
@@ -891,7 +900,7 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('grupper', 'DIV', 5, 'box6', 'raw', 'row_name' => 'Div_valg'), 'legacy' => $ordre,
 				'keywords' => array('kostpris', 'gennemsnitspris', 'genanskaffelsespris', 'cost price', 'average cost')),
 			'items.stock.update_cost_prices' => array('sub' => 'cost', 'type' => 'action', 'label' => 739, 'help' => 738,
-				'confirm_title' => 5737, 'confirm' => 5738, 'run' => 'update_cost_prices', 'impact' => 'cost_price_items', 'legacy' => $ordre,
+				'confirm_title' => 5737, 'confirm' => 5738, 'run' => 'update_cost_prices', 'impact' => 'cost_price_items', 'legacy' => $ordre, 'blank' => true,
 				'visible_if' => array('setting_in', 'items.stock.cost_method', array('1', '2'))),
 
 			'items.stock.status_mail' => array('sub' => 'mail', 'type' => 'email', 'label' => 2553, 'help' => 2554, 'default' => '',

@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- index/dashboard.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,6 +59,7 @@
 //                 Blocks, switches, order, access keys and links are unchanged.
 //                 Fiscal months and this week's days after today have no figure yet ("–", no bar), as in the prototype.
 //                 Texts 7700-7701.
+// 20261103 CL/ASR QA: the months to date are counted over the fiscal year's own months (dashData.php), not always 12.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -486,7 +487,7 @@ if ($unpaid !== null && $unpaid['count']) {
 }
 // Fiscal months begun by today: later months have no figure yet (no bar, "–" in the tooltip and the table, as the prototype).
 $monthsToDate = 0;
-for ($i = 0; $i < 12; $i++) {
+for ($i = 0; $i < count($data['month']['labels']); $i++) {
 	if (date('Y-m-01', mktime(0, 0, 0, (int) substr($regnstart, 5, 2) + $i, 1, (int) substr($regnstart, 0, 4))) <= date('Y-m-d')) {
 		$monthsToDate++;
 	}

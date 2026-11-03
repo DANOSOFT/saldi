@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-11-02 ----
+// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-11-03 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,11 @@
 //                 twice, and a page named as its permission group is shown under its hub group (Virksomhed), not "Brugere & ansatte" twice.
 // 20261102 CL/ASR Review: an entry's 'searchGroup' names its group (Ekstra felter: Brugere & ansatte, not Organisation), and a field of the
 //                 employee section is shown under the hub group the section sits in (Virksomhed / Brugere & ansatte, not Organisation / ...).
+// 20261103 CL/ASR QA: search offers only what the hub offers this user and company: a page must be among the entries of
+//                 settings_accessible_groups() (settings_entry_available(): hosted, Stripe operator, bank feature, booking licence, and
+//                 an entry's own key such as Backup), and a field's section must have its licence module. A section without
+//                 'legacy' (Backup) no longer raises PHP warnings that broke the JSON. Labels are entity-decoded; row actions
+//                 (add/remove one till, card, person ...) and the Diverse page, which only reloads the hub, are not offered.
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
 ob_start();
@@ -171,14 +176,27 @@ $label_matches = array();
 $keyword_matches = array();
 
 $accessibleGroups = function_exists('settings_accessible_groups') ? settings_accessible_groups() : null;
+// The entries the hub would offer this user in this company (available here and permitted), by key.
+$allowedKeys = array();
+foreach ($accessibleGroups !== null ? $accessibleGroups : array() as $accessible) {
+	foreach ($accessible['entries'] as $accessibleEntry) {
+		$allowedKeys[(string) $accessibleEntry['key']] = true;
+	}
+}
 foreach (getSettingsRegistry() as $entry) {
+	if ((string) $entry['key'] === 'diverse_overview') {
+		continue; // the old Diverse address only reloads the hub
+	}
 	// Phase 4 (spec S3): only pages of groups the user may open; personal settings always.
 	$entryGroup = isset($entry['group']) ? $entry['group'] : '';
 	if ($accessibleGroups !== null && $entryGroup !== 'personal' && !isset($accessibleGroups[$entryGroup])) {
 		continue;
 	}
-	if (!settingsEntryIsVisible($entry)) {
+	if (!settingsEntryIsVisible($entry) || (function_exists('settings_entry_available') && !settings_entry_available($entry))) {
 		continue;
+	}
+	if ($accessibleGroups !== null && $entryGroup !== 'personal' && !isset($allowedKeys[(string) $entry['key']])) {
+		continue; // e.g. Backup for a role with Import & eksport but not the backup key
 	}
 	if (!empty($entry['searchHideIf']) && $accessibleGroups !== null && isset($accessibleGroups[$entry['searchHideIf']])) {
 		continue; // another entry of the same name is shown for this user (Brugere & ansatte: usersRoles.php, not the employee section)
@@ -195,7 +213,7 @@ foreach (getSettingsRegistry() as $entry) {
 	}
 	if (isset($entry['section'])) {
 		$allSections = getSettingsSections();
-		foreach ($allSections[$entry['section']]['legacy'] as $path) {
+		foreach (isset($allSections[$entry['section']]['legacy']) ? $allSections[$entry['section']]['legacy'] : array() as $path) {
 			$entry['keywords'][] = trim(settings_legacy_all_languages($path));
 		}
 	}
@@ -225,7 +243,8 @@ foreach (getSettingsRegistry() as $entry) {
 	// A hit through an old menu name carries the "Tidligere: ..." tag, as single settings do (spec §8.10).
 	$legacyTag = '';
 	if ($match['type'] !== 'label' && isset($entry['section']) && $search !== '') {
-		foreach (getSettingsSections()[$entry['section']]['legacy'] as $path) {
+		$legacySections = getSettingsSections();
+		foreach (isset($legacySections[$entry['section']]['legacy']) ? $legacySections[$entry['section']]['legacy'] : array() as $path) {
 			if (mb_strpos(settings_legacy_all_languages($path), mb_strtolower($search)) !== false) {
 				$legacyTag = settings_legacy_text($path, $sprog_id);
 				break;
@@ -250,7 +269,7 @@ foreach (getSettingsRegistry() as $entry) {
 	$result = array(
 		'key' => $entry['key'],
 		'url' => $entry['url'],
-		'label' => $label,
+		'label' => html_entity_decode($label, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
 		'legacy' => $legacyTag,
 		'category' => $entry['category'],
 		'group' => $groupLabel,
@@ -294,6 +313,14 @@ if ($search !== '' && function_exists('getSettingDefinitions')) {
 			continue;
 		}
 		$sectionId = $def['group'] . '.' . $def['section'];
+		// The section's licence module (PoS, hosted ...), as the section page itself requires.
+		if (!empty($sections[$sectionId]['module']) && !settings_has_module((string) $sections[$sectionId]['module'])) {
+			continue;
+		}
+		// Row actions (add or remove one till, card, person ...) have no place to land on; the section is found by its name.
+		if ($def['type'] === 'action' && (isset($def['per']) || preg_match('/\.(add|remove)(_|\.|$)/', (string) $key))) {
+			continue;
+		}
 		$label = findtekst((string) $def['label'], $sprog_id);
 		if (isset($def['label_suffix'])) {
 			$label .= ' · ' . $def['label_suffix']; // 20261003 Sawaneh G6.3: a sender field carries its form language
@@ -348,7 +375,7 @@ if ($search !== '' && function_exists('getSettingDefinitions')) {
 		}
 		$fields[] = array(
 			'key'      => $key,
-			'label'    => $label,
+			'label'    => html_entity_decode($label, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
 			'url'      => $personal ? 'personalSettings.php' : settings_section_url($sectionId, $key),
 			'group'    => $fieldGroup,
 			'section'  => isset($sections[$sectionId]) ? findtekst((string) $sections[$sectionId]['label'], $sprog_id) : '',

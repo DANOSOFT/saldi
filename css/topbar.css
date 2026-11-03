@@ -443,3 +443,9 @@ html.topbar-tall { --topbar-h: 48px; }
 .topbar-pop, .guide-modal, .topbar-search-res { color: var(--topbar-txt); }
 .topbar-pop-item, .topbar-pop form .topbar-year, .topbar-online-user { color: var(--topbar-txt); }
 
+
+/* 20261103 CL/ASR QA: [hidden] hides in the top bar too (.topbar-pop-item's display:flex showed unavailable Assist actions). */
+.topbar [hidden],
+.topbar-pop [hidden] {
+    display: none !important;
+}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- payments/vibrant.php --- ver 5.0.0 --- 2026.10.07 ---
+// ---- payments/vibrant.php --- ver 5.0.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261007 CL/SZ SST-843 The Vibrant API key is no longer written into the page.
 //                All Vibrant calls go through vibrant_proxy.php, which adds the key on the server and builds the request bodies.
+// 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
 
 /**
  * Injected by ../../includes/online.php, included below:
@@ -45,7 +46,7 @@ $s_id = session_id();
 $css = "../../css/flatpay.css";
 
 include("../../includes/connect.php");
-$permission_key = 'debitor.ordre';
+$permission_key = 'pos.kasse|debitor.ordre'; // the till (pos.kasse) and the order page both pay by terminal
 include("../../includes/online.php");
 include("../../includes/std_func.php");
 include("../../includes/stdFunc/dkDecimal.php");

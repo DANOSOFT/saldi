@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.10.31
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.03
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,9 @@
 //                 audit_log is created here too, with opdat_5.0.php's schema, before they add columns to it: a company created at 5.1.0 never runs opdat_5.0.php.
 //                 A sentinel comment marks the end of the tekst_key migration, where TekstKeyMigrationTest stops reading.
 // 20261031 CL/ASR Texts 7031 (personal text size) and 7021 (checklists lead) reworded; the cached old wording is removed.
+// 20261103 CL/ASR QA: the audit_log indexes on objekt_type/objekt_id are made after all three columns exist (and made later where an
+//                 earlier login stopped before them); the role tables, the built-in roles and the user migration run under a
+//                 PostgreSQL advisory lock, so two first logins at once cannot seed the roles twice.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -151,6 +154,11 @@ $sawanehSchema = in_array($db_type, array('mysql', 'mysqli'), true) ? " AND tabl
 $sawanehMysql = in_array($db_type, array('mysql', 'mysqli'), true);
 $sawanehId = $sawanehMysql ? 'id INT NOT NULL AUTO_INCREMENT PRIMARY KEY' : 'id SERIAL PRIMARY KEY NOT NULL';
 $sawanehNow = $sawanehMysql ? 'DATETIME DEFAULT CURRENT_TIMESTAMP' : 'timestamp DEFAULT now()';
+// One login at a time creates the role tables, seeds the built-in roles and migrates the users (released after perm_migrate_users()).
+// A session lock: it also ends with the connection if a statement stops the login.
+if (!$sawanehMysql) {
+	db_select("select pg_advisory_lock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
+}
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='roles'" . $sawanehSchema;
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "CREATE TABLE roles (
@@ -297,10 +305,15 @@ foreach (array('objekt_type' => 'varchar(30)', 'objekt_id' => 'varchar(60)', 'ki
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='audit_log' and column_name='$auditCol'" . $sawanehSchema;
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		db_modify("ALTER TABLE audit_log ADD COLUMN $auditCol $auditType", __FILE__ . " linje " . __LINE__);
-		if ($auditCol === 'objekt_type') {
-			db_modify("CREATE INDEX audit_log_bruger_idx ON audit_log (bruger_id)", __FILE__ . " linje " . __LINE__);
-			db_modify("CREATE INDEX audit_log_objekt_idx ON audit_log (objekt_type, objekt_id)", __FILE__ . " linje " . __LINE__);
-		}
+	}
+}
+// The indexes once all three columns exist (the objekt_id index cannot be made before its column).
+foreach (array('audit_log_bruger_idx' => 'bruger_id', 'audit_log_objekt_idx' => 'objekt_type, objekt_id') as $auditIdx => $auditIdxCols) {
+	$qtxt = $sawanehMysql
+		? "SELECT index_name FROM information_schema.statistics WHERE table_name = 'audit_log' AND index_name = '$auditIdx' AND table_schema = DATABASE()"
+		: "SELECT indexname FROM pg_indexes WHERE tablename = 'audit_log' AND indexname = '$auditIdx' AND schemaname = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("CREATE INDEX $auditIdx ON audit_log ($auditIdxCols)", __FILE__ . " linje " . __LINE__);
 	}
 }
 // 20261003 Sawaneh Aligned with the roles spec §3 so the document-pool work (SD-724) shares the table: handling 60 wide,
@@ -327,6 +340,9 @@ $qtxt = "select id from settings where var_grp = 'permissions' and var_name = 'a
 if (perm_tables_ready() && !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("delete from role_permissions where permission_key = 'settings.audit.read' and role_id in (select id from roles where role_key in ('bogholder', 'revisor'))", __FILE__ . " linje " . __LINE__);
 	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('permissions', 'audit_admin_only', '" . date('Ymd') . "', 'Audit log read removed from Bogholder and Revisor', 0)", __FILE__ . " linje " . __LINE__);
+}
+if (!$sawanehMysql) {
+	db_select("select pg_advisory_unlock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
 }
 
 // 20261001 Sawaneh Settings redesign §7.2: one row per setting. Duplicates are merged (removed rows kept in

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.0 ----2026-11-01------------
+// --- systemdata/diverse.php -----ver 5.1.0 ----2026-11-03------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -127,6 +127,9 @@
 // 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
 // 20261031 CL/ASR Merge of master into redesign: save_webshop_invoice_order_date() (SST-911) runs after the CSRF check, like every other save on this page.
 // 20261101 CL/ASR Settings hub: div_valg redirects to Indstillinger » Ansatte, where its last field (Tilføj ekstra felter på ansatte, DIV/2 box3) lives now.
+// 20261103 CL/ASR QA: the integration and variant-import sections declare their own key before online.php (settings.integrations,
+//                 settings.import_export), so a role with only that key is not refused once enforcement is 'deny'.
+//                 sektion=label and sektion=kreditor_io redirect to Varer » Lager and Import & eksport instead of an empty page.
 
 @session_start();
 $s_id = session_id();
@@ -146,6 +149,15 @@ ob_start(function ($buffer) use ($diverseToken) {
 });
 $title      = "Diverse Indstillinger";
 $modulnr    = 1;
+// Sections with their own key declare it for online.php's gate, which would otherwise fall back to system.indstillinger
+// (no settings registry entry names these addresses); the require_permission() below still checks the same key.
+$diverseOwnKeys = array(
+	'api_valg' => 'settings.integrations', 'stripe_valg' => 'settings.integrations', 'shop_valg' => 'settings.integrations',
+	'variant_valg_import_types' => 'settings.import_export', 'variant_valg_import_values' => 'settings.import_export',
+);
+if (isset($_GET['sektion']) && is_string($_GET['sektion']) && isset($diverseOwnKeys[$_GET['sektion']])) {
+	$permission_key = $diverseOwnKeys[$_GET['sektion']];
+}
 $css        = "../css/standard.css";
 $diffkto    = NULL;
 
@@ -199,6 +211,8 @@ $landedSections = array(
 	'variant_valg'   => 'settingsSection.php?s=items.variants&moved=variant_valg',
 	'labels'         => 'labels.php?moved=labels',
 	'div_valg'       => 'settingsSection.php?s=organisation.employees&moved=div_valg&item=general',
+	'label'          => 'settingsSection.php?s=items.stock&moved=productOptions',
+	'kreditor_io'    => 'settingsSection.php?s=import_export.data&moved=div_io',
 );
 if (isset($landedSections[$sektion]) && !($sektion == 'api_valg' && !empty($_GET['varesync']))) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . $landedSections[$sektion] . "\">";

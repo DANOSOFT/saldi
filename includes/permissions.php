@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissions.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- includes/permissions.php --- lap 5.0.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,11 @@
 //                  enforced), Sager pages keep their own rights string (spec B2).
 // 20261016 Sawaneh Review (PR #803): GET write verbs on legacy pages (slet, udlign, aktiver, bogfor, ...) need write, like
 //                  a POST does; audit_log column check filtered on the schema.
+// 20261103 CL/ASR QA: SD-657 (hideRevenue on when someone loses the Indstillinger right) runs wherever rights strings are synced
+//                 from a role: a role change, bulk role, the role matrix, reset and moving users off a deleted role, not only the user card.
+// 20261103 CL/ASR QA: the user migration gives a standard role only when the role covers everything the old rights string gave
+//                 (perm_role_covers_legacy(), all keys incl. the settings areas and derived keys); a string that equals a standard
+//                 role's but gave more (e.g. 2222222222222222: read on every settings area) gets a custom role kept for review instead.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 
@@ -564,13 +569,33 @@ function perm_sync_user(int $brugerId): void
 		return;
 	}
 	$legacy = perm_legacy_string(perm_levels_from_role((int) $r['role_id']));
+	perm_hide_revenue_on_settings_loss("id = $brugerId", $legacy);
 	db_modify("update brugere set rettigheder = '$legacy' where id = $brugerId", __FILE__ . " linje " . __LINE__);
 }
 
 function perm_sync_role(int $roleId): void
 {
 	$legacy = perm_legacy_string(perm_levels_from_role($roleId));
+	perm_hide_revenue_on_settings_loss("role_id = $roleId", $legacy);
 	db_modify("update brugere set rettigheder = '$legacy' where role_id = $roleId", __FILE__ . " linje " . __LINE__);
+}
+
+/**
+ * SD-657 (master's brugere.php): when a user loses the Indstillinger right (position 1 of the rights string),
+ * hideRevenue is switched on once, so that user stops seeing turnover. Called before the rights strings of the
+ * users matching $where are set to $newLegacy.
+ */
+function perm_hide_revenue_on_settings_loss(string $where, string $newLegacy): void
+{
+	if (substr($newLegacy, 1, 1) === '1' || !function_exists('get_settings_value') || !function_exists('update_settings_value')) {
+		return;
+	}
+	if (!db_fetch_array(db_select("select id from brugere where $where and substr(rettigheder, 2, 1) = '1' limit 1", __FILE__ . " linje " . __LINE__))) {
+		return;
+	}
+	if (get_settings_value('hideRevenue', 'finans', 'off') !== 'on') {
+		update_settings_value('hideRevenue', 'finans', 'on', 'Set when a user lost access to Settings');
+	}
 }
 
 /**
@@ -826,7 +851,7 @@ function perm_migrate_users(): void
 			continue;
 		} elseif ($string === str_repeat('1', 16)) {
 			$roleId = $adminId;
-		} elseif (isset($standard[$string])) {
+		} elseif (isset($standard[$string]) && perm_role_covers_legacy($standard[$string], $string)) {
 			$roleId = $standard[$string];
 		} else {
 			$roleId = perm_custom_role_for($string, $sprog);
@@ -850,6 +875,25 @@ function perm_migrate_users(): void
 		}
 	}
 	perm_save_migration_summary($counts);
+}
+
+/**
+ * True when a role gives at least what the old rights string gave, key by key (the settings areas and derived keys too,
+ * which several strings share). The audit log is left out: the migration never grants it (perm_custom_role_for()).
+ */
+function perm_role_covers_legacy(int $roleId, string $string): bool
+{
+	$rank = perm_level_rank();
+	$role = perm_levels_from_role($roleId);
+	foreach (perm_levels_from_legacy($string) as $key => $level) {
+		if ($key === 'settings.audit.read') {
+			continue;
+		}
+		if ($rank[isset($role[$key]) ? $role[$key] : 'none'] < $rank[$level]) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /**

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowsView.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- includes/settings/rowsView.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,9 @@
 // 20261101 CL/ASR Settings hub "C - Fold ud": the left menu is settings_menu_html() (includes/settings/listView.php), Tilbage above the title.
 // 20261101 CL/ASR Review: Tilbage carries Alt+L, as on the other settings pages.
 // 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
+// 20261103 CL/ASR QA: "Gælder regnskabsåret" shows each year by its name (grupper RA beskrivelse, e.g. 2026), not its number (1, 2).
+//                 After a refused save a cell's data-orig is the stored value, not the posted one, so Fortryd and the unsaved-changes
+//                 warning still see the change.
 
 include_once(__DIR__ . '/rows.php');
 
@@ -95,12 +98,18 @@ function settings_rows_render(array $c): void
       <h1><?= st_t($section['label']) ?><?= st_section_help($section) ?></h1>
       <p class="st-lead"><?php if (!empty($section['lead'])) { ?><?= st_t($section['lead']) ?> <?php } ?><?= st_t(5706) ?> <?= st_h(st_company()) ?>.</p>
     </div>
-	<?php if ($fiscal) { ?>
+	<?php if ($fiscal) {
+		$yearNames = array();
+		$yq = db_select("select kodenr, beskrivelse from grupper where art = 'RA'", __FILE__ . " linje " . __LINE__);
+		while ($yr = db_fetch_array($yq)) {
+			$yearNames[(int) $yr['kodenr']] = trim((string) $yr['beskrivelse']);
+		}
+		?>
     <div class="st-scope">
       <label for="st-year"><?= st_t(6439) ?></label>
       <select class="st-input st-input-short" id="st-year" onchange="if (this.value) { window.location = this.value; }">
 			<?php foreach ($c['years'] as $y) { ?>
-        <option value="<?= st_h($yearUrl($y)) ?>"<?= $y === $year ? ' selected' : '' ?>><?= $y ?></option>
+        <option value="<?= st_h($yearUrl($y)) ?>"<?= $y === $year ? ' selected' : '' ?>><?= st_h(isset($yearNames[$y]) && $yearNames[$y] !== '' ? $yearNames[$y] : (string) $y) ?></option>
 			<?php } ?>
       </select>
     </div>
@@ -263,7 +272,7 @@ function settings_rows_render(array $c): void
   <div class="st-snack" id="st-snack" role="status" hidden></div>
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
-<script src="../javascript/settingsRows.js?v=4"></script>
+<script src="../javascript/settingsRows.js?v=5"></script>
 	<?php
 }
 
@@ -290,11 +299,13 @@ function settings_rows_table(array $c, string $tableId, array $t, array $posted,
 			$editable[] = $col;
 		}
 	}
-	$cell = function (string $rowId, string $col, array $def, string $value, array $row = null) use ($tableId, $canWrite, $errors) {
+	// $orig is the stored value (data-orig, the baseline for Fortryd and the unsaved-changes warning); after a refused save
+	// $value is what was posted, so the posted change still counts as unsaved.
+	$cell = function (string $rowId, string $col, array $def, string $value, array $row = null, ?string $orig = null) use ($tableId, $canWrite, $errors) {
 		$id = 'c-' . str_replace('.', '-', $tableId . '-' . $rowId . '-' . $col);
 		$name = 'r[' . $tableId . '][' . $rowId . '][' . $col . ']';
 		$err = isset($errors[$tableId . '/' . $rowId . '/' . $col]) ? (int) $errors[$tableId . '/' . $rowId . '/' . $col] : 0;
-		$attrs = ' id="' . st_h($id) . '" name="' . st_h($name) . '" data-orig="' . st_h($value) . '"' . ($err ? ' aria-invalid="true" title="' . st_t($err) . '"' : '');
+		$attrs = ' id="' . st_h($id) . '" name="' . st_h($name) . '" data-orig="' . st_h($orig !== null ? $orig : $value) . '"' . ($err ? ' aria-invalid="true" title="' . st_t($err) . '"' : '');
 		$ro = !$canWrite || $def['readonly'] || ($row && !empty($row['locked'])) || ($row && ($def['create_only'] || $def['transient']));
 		if ($def['type'] === 'code' && $row && $row['usage'] > 0) {
 			$ro = true;
@@ -368,8 +379,9 @@ function settings_rows_table(array $c, string $tableId, array $t, array $posted,
 							?>
               <tr class="<?= $row['inactive'] ? 'st-row-inactive' : '' ?>" data-row="<?= st_h($rowId) ?>" data-code="<?= st_h($code) ?>" data-use="<?= st_h($row['usage_text']) ?>"<?= $row['inactive'] && !$hasInactive ? '' : '' ?>>
 							<?php foreach ($t['columns'] as $col => $def) {
-								$value = $cells !== null && isset($cells[$col]) ? (string) $cells[$col] : settings_rows_form_value($def, (string) $row['cells'][$col]);
-								$cell($rowId, $col, $def, $value, $row);
+								$stored = settings_rows_form_value($def, (string) $row['cells'][$col]);
+								$value = $cells !== null && isset($cells[$col]) ? (string) $cells[$col] : $stored;
+								$cell($rowId, $col, $def, $value, $row, $stored);
 							} ?>
                 <td class="st-ra">
 				<?php if ($canWrite) { ?>

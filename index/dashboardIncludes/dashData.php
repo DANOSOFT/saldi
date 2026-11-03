@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/dashData.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- index/dashboardIncludes/dashData.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,9 @@
 // 20261101 CL/ASR The VAT KPI no longer sums up to 8 earlier periods for a trend line the page does not draw any more.
 // 20261101 CL/ASR No active-user count and no suggestion list any more (both cards left the dashboard).
 // 20261101 CL/ASR Every item group is returned as well ('all'), so the page can show them all when its row has room.
+// 20261103 CL/ASR QA: the fiscal-year figure ends at the selected year's last day (an earlier year no longer counts later postings),
+//                 the month chart runs over the year's own months (6 or 18 too, not always 12), and item groups with a negative
+//                 revenue (credit notes) stay in the total and the list.
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
@@ -170,15 +173,19 @@ function dash_data(array $c): array
 		$monthSpark[] = dash_range($daily, $f, date('Y-m-t', strtotime($f)));
 	}
 
-	// Fiscal year to date against last fiscal year to the same date; trend = the fiscal months to date.
-	$yearNow = dash_range($daily, $fyStart, $today);
-	$yearLast = dash_range($daily, $lastFyStart, dash_add($today, '-1 year'));
+	// Fiscal year to date against last fiscal year to the same date; trend = the fiscal months to date. A year that has
+	// ended (an earlier year chosen in the top bar) counts to its last day only.
+	$yearTo = min($fyEnd, $today);
+	$yearNow = dash_range($daily, $fyStart, $yearTo);
+	$yearLast = dash_range($daily, $lastFyStart, dash_add($yearTo, '-1 year'));
 	$labels = array();
 	$mNow = array();
 	$mLast = array();
 	$startMonth = (int) substr($fyStart, 5, 2);
 	$startYear = (int) substr($fyStart, 0, 4);
-	for ($i = 0; $i < 12; $i++) {
+	// The year's own number of months (a first or changed fiscal year can be 6 or 18 months).
+	$fyMonths = max(1, min(24, ((int) substr($fyEnd, 0, 4) - $startYear) * 12 + (int) substr($fyEnd, 5, 2) - $startMonth + 1));
+	for ($i = 0; $i < $fyMonths; $i++) {
 		$f = date('Y-m-01', mktime(0, 0, 0, $startMonth + $i, 1, $startYear));
 		$labels[] = $names['months'][(int) substr($f, 5, 2) - 1];
 		$mNow[] = dash_range($daily, $f, date('Y-m-t', strtotime($f)));
@@ -188,7 +195,7 @@ function dash_data(array $c): array
 	$yearSpark = array();
 	foreach ($mNow as $i => $v) {
 		$f = date('Y-m-01', mktime(0, 0, 0, $startMonth + $i, 1, $startYear));
-		if ($f <= $today) {
+		if ($f <= $yearTo) {
 			$yearSpark[] = $v;
 		}
 	}
@@ -267,8 +274,8 @@ function dash_data(array $c): array
 	$q = db_select("select sum(OL.pris * OL.antal * (1 - coalesce(OL.rabat, 0) / 100)) as pris, V.gruppe as gruppe, G.beskrivelse from ordrelinjer OL join ordrer O on O.id = OL.ordre_id join varer V on V.varenr = OL.varenr join grupper G on G.art = 'VG' and G.fiscal_year = '" . (int) $regnaar . "' and G.kodenr = V.gruppe where O.fakturadate >= '$fyStart' and O.fakturadate <= '$fyEnd' and O.status = 4 and O.art not in ('KK', 'KO') group by V.gruppe, G.beskrivelse order by pris desc", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$v = (float) $r['pris'];
-		if ($v <= 0) {
-			continue;
+		if ($v == 0) {
+			continue; // a negative group (more credited than sold) stays: it lowers the total
 		}
 		$groups[] = array(trim((string) $r['beskrivelse']), $v);
 		$gTotal += $v;

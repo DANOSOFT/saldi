@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settings.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- systemdata/settings.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,7 @@
 // 20261102 CL/ASR Tilbage (Alt+L) leaves the settings system: the newest page outside it in the navigation stack, skipping old addresses that redirect here, else Oversigt.
 // 20261102 CL/ASR No Tilbage on the hub itself (owner): it is the settings start page; the sub-pages keep theirs.
 //                 The kit and css/settingsHub.css are linked as ?v=20261102 (the kit places Tilbage now).
+// 20261103 CL/ASR QA: settings_hub_json() converts a single string too on latin-1 installations (array_walk_recursive() on a string was a fatal error).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -122,11 +123,15 @@ function settings_hub_status_html(?array $st): string
 function settings_hub_json($value): string
 {
 	if (st_charset() !== 'UTF-8') {
-		array_walk_recursive($value, function (&$s) {
-			if (is_string($s)) {
-				$s = mb_convert_encoding($s, 'UTF-8', 'ISO-8859-1');
-			}
-		});
+		if (is_string($value)) {
+			$value = mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
+		} elseif (is_array($value)) {
+			array_walk_recursive($value, function (&$s) {
+				if (is_string($s)) {
+					$s = mb_convert_encoding($s, 'UTF-8', 'ISO-8859-1');
+				}
+			});
+		}
 	}
 	return (string) json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 }

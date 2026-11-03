@@ -4,7 +4,8 @@
     $header = "nix";
     $bg = "nix";
     include "../includes/connect.php";
-    $permission_key = 'debitor.konti';
+    // Booking pages need the debtor key; the booking settings page (on the settings hub under Salg) also opens with the Salg settings key.
+    $permission_key = (basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')) === 'settings.php') ? 'debitor.konti|settings.sales' : 'debitor.konti';
     include "../includes/online.php";
     $query = db_select("SELECT box3 FROM grupper where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);

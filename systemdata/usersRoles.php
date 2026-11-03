@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRoles.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- systemdata/usersRoles.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,16 @@
 //                 "Kobling til ansat" lists only the company's employees (contact persons of customers and suppliers are in the same table),
 //                 keeps a closed or other linked employee as the selected choice (Gem no longer unlinks it), and marks employees that have a login.
 //                 The status filter may start on "Ingen login" (status=nologin).
+// 20261103 CL/ASR QA: no legacy $modulnr gate (it read the Indstillinger bit, so an Administrator matrix without Indstillinger, or a
+//                 role with only Brugere & roller, was refused before the page's own checks). Each tab has its own key: Brugere
+//                 settings.users.manage, Roller settings.roles.manage, Audit-log settings.audit.read; the page opens with any of the three,
+//                 and a POST needs write on the key of what it changes (role actions roles.manage, the rest users.manage).
+//                 Nulstil til standard is refused (and disabled) for a role whose present rights lie above the editor's own, as Gem is.
+//                 The employee choices on the user card are loaded only for a user who may read Organisation (else only the linked one).
+//                 Once a revisor is designated it can no longer be moved or removed here (master's rule; text 2563 says support does it).
+//                 "Slet helt" is offered only to users the log saw being created (as user_delete() decides), not to every older user.
+//                 A migrated custom role that an administrator saves loses its migrated_ key, so it is not deleted with its last holder.
+//                 Audit-log times (list and CSV) on PHP's clock (st_local_time()).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -58,8 +68,8 @@ ob_start();
 
 $title = "Brugere & roller";
 $css = "../css/saldi-theme.css?v=7"; // the light/dark tokens; usersRolesIncludes/view.php links the kit and css/usersRoles.css after it
-$modulnr = 1; // legacy gate (Indstillinger)
-$permission_key = 'settings.users.manage';
+$modulnr = 0; // no legacy gate: the page checks its own keys below
+$permission_key = 'settings.users.manage|settings.roles.manage|settings.audit.read';
 
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
@@ -75,7 +85,10 @@ include_once(__DIR__ . "/../includes/settings/people.php"); // Brugere & ansatte
 const UR_LOG_PAGE = 100;
 const UR_ADMIN_LOCKED = array('settings.users.manage', 'settings.roles.manage');
 
-require_permission('settings.users.manage', 'read');
+// Each tab has its own key (Brugere, Roller, Audit-log); any of them opens the page.
+if (!perm_can('settings.users.manage', 'read') && !perm_can('settings.roles.manage', 'read') && !perm_can('settings.audit.read', 'read')) {
+	require_permission('settings.users.manage', 'read');
+}
 
 $contextQuery = (!empty($_GET['inframe']) ? 'inframe=1' : '');
 // A new login started from a person's card (ansat=<id>, digits only): kept through the POST's redirect, so a refused form comes back linked.
@@ -87,7 +100,8 @@ if (empty($_SESSION['csrf_token'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-	require_permission('settings.users.manage', 'write');
+	// Role actions need the roles key, everything else the users key.
+	require_permission(in_array((string) ($_POST['action'] ?? ''), array('reset_role', 'save_role', 'delete_role', 'copy_role', 'set_enforce'), true) ? 'settings.roles.manage' : 'settings.users.manage', 'write');
 	if (!isset($_POST['csrf_token']) || !hash_equals((string) $_SESSION['csrf_token'], (string) $_POST['csrf_token'])) {
 		audit_log('csrf', 'usersRoles.php');
 		ob_end_clean();
@@ -368,6 +382,10 @@ function ur_set_revisor_user(int $id, bool $isRevisor): void
 {
 	$r = db_fetch_array(db_select("select id, user_id from settings where var_name = 'revisor' and var_grp = 'system'", __FILE__ . " linje " . __LINE__));
 	$currentId = $r ? (int) $r['user_id'] : 0;
+	// As on master's brugere.php: once a revisor is designated, only Saldi support moves or removes it (text 2563).
+	if ($currentId > 0) {
+		return;
+	}
 	if ($isRevisor && $currentId !== $id) {
 		if ($r) {
 			db_modify("update settings set user_id = $id where id = " . (int) $r['id'], __FILE__ . " linje " . __LINE__);
@@ -531,7 +549,9 @@ function ur_save_role(array $post): string
 		$id = (int) $r['id'];
 		audit_log('role.created', $navn, 'rolle', (string) $id);
 	} else {
-		db_modify("update roles set navn = '$navnSql', beskrivelse = '$beskSql' where id = $id", __FILE__ . " linje " . __LINE__);
+		// A custom role from the migration that an administrator has saved is theirs now: without its migrated_ key it is no
+		// longer removed automatically when its last holder moves (perm_review_done()).
+		db_modify("update roles set navn = '$navnSql', beskrivelse = '$beskSql', role_key = case when role_key like 'migrated_%' then null else role_key end where id = $id", __FILE__ . " linje " . __LINE__);
 		audit_log('role.updated', $navn, 'rolle', (string) $id);
 	}
 	perm_save_role_levels($id, $levels);
@@ -582,7 +602,8 @@ function ur_reset_role(int $id): string
 		foreach (permission_registry() as $key => $def) {
 			$levels[$key] = isset($defaults[$role['key']]['levels'][$key]) ? $defaults[$role['key']]['levels'][$key] : 'none';
 		}
-		if (!perm_within_own($levels)) {
+		// Like Gem: neither the defaults nor the role's present rights may lie above the editor's own.
+		if (!perm_within_own($levels) || !perm_within_own(perm_levels_from_role($id))) {
 			return 'tab=roles&rolle=' . $id . '&msg=escalation';
 		}
 		perm_save_role_levels($id, $levels);
@@ -626,9 +647,14 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 {
 	$canRoles = perm_can('settings.roles.manage', 'read');
 	$canAudit = perm_can('settings.audit.read', 'read');
+	$canUsers = perm_can('settings.users.manage', 'read');
 	$tab = isset($get['tab']) ? (string) $get['tab'] : 'users';
 	if (!in_array($tab, array('users', 'roles', 'log'), true) || ($tab === 'roles' && !$canRoles) || ($tab === 'log' && !$canAudit)) {
 		$tab = 'users';
+	}
+	// Without the users key the page opens on a tab the user may see.
+	if ($tab === 'users' && !$canUsers) {
+		$tab = $canRoles ? 'roles' : 'log';
 	}
 	$roles = perm_roles();
 	$rolesById = array();
@@ -643,10 +669,18 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 
 	$lastActive = user_last_active();
 	$lastLogin = array();
-	if (audit_ready()) {
+	$createdInLog = array();
+	$auditReady = audit_ready();
+	if ($auditReady) {
 		$q = db_select("select bruger_id, max(tidspunkt) as sidst from audit_log where handling in ('login', 'login.success') group by bruger_id", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$lastLogin[(int) $r['bruger_id']] = (string) $r['sidst'];
+		}
+		// Users the log saw being created: only they can be new. Older users may have logged in before the log existed
+		// (the same rule as user_has_logged_in(), which decides whether Slet helt is allowed).
+		$q = db_select("select distinct objekt_id from audit_log where objekt_type = 'bruger' and handling in ('user.created', 'user.invited')", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$createdInLog[(int) $r['objekt_id']] = true;
 		}
 	}
 	$revisorUser = 0;
@@ -691,7 +725,7 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 			'closed'     => !user_row_active($r),
 			'invited'    => user_row_invited($r),
 			'review'     => isset($review[(int) $r['id']]),
-			'hasLoggedIn'=> isset($lastLogin[(int) $r['id']]),
+			'hasLoggedIn'=> !$auditReady || isset($lastLogin[(int) $r['id']]) || !isset($createdInLog[(int) $r['id']]),
 			'isRevisor'  => ((int) $r['id'] === $revisorUser),
 		);
 	}
@@ -699,9 +733,10 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 	// The company's own employees only: the table also holds the contact persons of customers and suppliers. 'logins' = how many
 	// logins are linked to each (shown as "har login"; a second link stays possible).
 	$companyId = function_exists('settings_company_account_id') ? settings_company_account_id() : 0;
+	// Only for a user who may read the employees (Organisation); others see just the employee a login is linked to (added below).
 	$employees = array();
-	$q = db_select("select a.id, a.navn, a.initialer, (select count(*) from brugere b where b.ansat_id = a.id) as logins from ansatte a where (a.lukket is null or a.lukket != 'on')" . ($companyId > 0 ? " and a.konto_id = $companyId" : "") . " order by a.initialer, a.navn", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
+	$q = perm_can('settings.organisation', 'read') ? db_select("select a.id, a.navn, a.initialer, (select count(*) from brugere b where b.ansat_id = a.id) as logins from ansatte a where (a.lukket is null or a.lukket != 'on')" . ($companyId > 0 ? " and a.konto_id = $companyId" : "") . " order by a.initialer, a.navn", __FILE__ . " linje " . __LINE__) : false;
+	while ($q && $r = db_fetch_array($q)) {
 		$employees[] = array('id' => (int) $r['id'], 'navn' => (string) $r['navn'], 'initialer' => (string) $r['initialer'], 'logins' => (int) $r['logins'], 'left' => false);
 	}
 
@@ -858,6 +893,7 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 		'logFilter'    => $logFilter,
 		'logOptions'   => $logOptions,
 		'canRoles'     => $canRoles,
+		'revisorSet'   => $revisorUser > 0,
 		'canRolesWrite'=> perm_can('settings.roles.manage', 'write'),
 		'canAudit'     => $canAudit,
 		'canExport'    => perm_can('settings.import_export', 'read'),
@@ -1032,7 +1068,7 @@ function ur_export_log(array $get, string $dbEncode): void
 	$q = db_select("select * from audit_log where " . ur_log_where($filter, $cols) . " order by id desc limit 100000", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		fputcsv($out, array_map($cell, array(
-			substr((string) $r['tidspunkt'], 0, 19), $r['brugernavn'], $r['handling'],
+			function_exists('st_local_time') ? st_local_time((string) $r['tidspunkt'], 'Y-m-d H:i:s') : substr((string) $r['tidspunkt'], 0, 19), $r['brugernavn'], $r['handling'],
 			ifset($r, 'objekt_type', ''), ifset($r, 'objekt_id', ''), $r['detaljer'], $r['ip'], ifset($r, 'kilde', ''),
 		)), ';');
 	}

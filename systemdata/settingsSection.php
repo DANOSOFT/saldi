@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -72,6 +72,10 @@
 //                 in includes/settings/people.php); it then opens the new person's card, or the new login form linked to it (then=).
 //                 css/unified-components.css?v=20261102b.
 // 20261102 CL/ASR Review: Ekstra felter has no lead sentence of its own (it repeated the row's help word for word), only "Gælder for alle i".
+// 20261103 CL/ASR QA: Gendan goes through the normal save (settings_section_save()): the field must be visible, writable and not locked,
+//                 the old value is validated, and the follow-ups (on_save, settings_after_section_save) run; a value that was not set
+//                 is restored as the default the readers used. Masked history rows (SettingsService::historyMasked(): secrets, CPR,
+//                 bank, salary) offer no Gendan and are refused. A row error no longer saves the page's fields (dry run, spec §7.3).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -267,8 +271,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 	if ($action === 'revert') {
 		$entry = SettingsService::historyEntry(isset($_POST['entry']) ? (int) $_POST['entry'] : 0);
-		if ($entry && $entry['section'] === $sectionId && isset($defs[$entry['setting_key']]) && $defs[$entry['setting_key']]['type'] !== 'secret' && st_field_access($defs[$entry['setting_key']]) === 'write') {
-			SettingsService::saveRaw($entry['setting_key'], (string) $entry['old_value'], null, 'setting.reverted');
+		if ($entry && $entry['section'] === $sectionId && isset($defs[$entry['setting_key']]) && !SettingsService::historyMasked($defs[$entry['setting_key']]) && st_field_access($defs[$entry['setting_key']]) === 'write') {
+			// Through the normal save: visibility, locks, validation and the follow-ups apply as for Gem. A value that was not set
+			// was read as the default, so that is what comes back.
+			$revDef = $defs[$entry['setting_key']];
+			$revRaw = (string) $entry['old_value'];
+			if ($revRaw === '' && array_key_exists('default', $revDef)) {
+				$revRaw = st_default_raw($revDef);
+			}
+			$revState = settings_section_save($sectionId, array($entry['setting_key'] => $revDef), array('f' => array($entry['setting_key'] => st_form_value($revDef, $revRaw)), 'version' => SettingsService::version($sectionId)), true, 'setting.reverted');
+			if ($revState['errors']) {
+				$_SESSION['settings_error'] = st_txt((int) reset($revState['errors']));
+			}
 		}
 		ob_end_clean();
 		header('Location: ' . $backUrl . '&reverted=1#' . ($entry ? rawurlencode((string) $entry['setting_key']) : ''));
@@ -386,7 +400,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		// Nothing is written until the amounts the save would post have been seen and confirmed.
 		$state = array('errors' => array(), 'posted' => (isset($_POST['f']) && is_array($_POST['f'])) ? $_POST['f'] : array(), 'conflict' => null, 'flash' => array(), 'confirm' => $rowsState['confirm']);
 	} elseif ($rowsState['errors']) {
-		$state = settings_section_save($sectionId, $defs, $_POST + array('f' => array()));
+		// Validate the fields too, so all errors show at once, but write nothing (dry run).
+		$state = settings_section_save($sectionId, $defs, $_POST + array('f' => array()), false);
 		$state['errors'] = $rowsState['errors'];
 	} else {
 		$state = settings_section_save($sectionId, $defs, $_POST);
@@ -420,7 +435,7 @@ settings_section_view($sectionId, $section, $defs, $state, $canWrite, $csrfToken
  * @param array<string, array<string, mixed>> $defs
  * @return array{errors: array<string, int>, posted: array<string, string>, conflict: array<string, mixed>|null, flash: array<int, mixed>}
  */
-function settings_section_save(string $sectionId, array $defs, array $post): array
+function settings_section_save(string $sectionId, array $defs, array $post, bool $write = true, string $handling = 'setting.changed'): array
 {
 	$posted = array();
 	$originals = array();
@@ -473,10 +488,10 @@ function settings_section_save(string $sectionId, array $defs, array $post): arr
 		$conflict = array('by' => $latest ? (string) $latest[0]['brugernavn'] : '', 'at' => $latest ? (string) $latest[0]['tidspunkt'] : '', 'mine' => $mine);
 	}
 
-	if (!$errors && !$conflict && $toSave) {
+	if ($write && !$errors && !$conflict && $toSave) {
 		transaktion('begin');
 		foreach ($toSave as $key => $raw) {
-			SettingsService::saveRaw($key, $raw);
+			SettingsService::saveRaw($key, $raw, null, $handling);
 		}
 		transaktion('commit');
 		foreach ($toSave as $key => $raw) {
@@ -769,7 +784,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 				}
 				$shown++;
 				$def = $defs[$key];
-				$secret = ($def['type'] === 'secret' || st_field_access($def) === 'none');
+				$secret = (SettingsService::historyMasked($def) || st_field_access($def) === 'none');
 				$oldText = st_display_value($def, (string) $row['old_value']);
 				?>
         <div class="st-h">

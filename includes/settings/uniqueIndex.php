@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/uniqueIndex.php --- lap 5.0.0 --- 2026.10.01 ---
+// ---- includes/settings/uniqueIndex.php --- lap 5.0.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,10 @@
 //                  as 0. Every removed row is kept in settings_removed. Called from includes/betweenUpdates.php.
 // 20261002 Sawaneh The migration can no longer stop a login: its statements run without db_modify()'s alert-and-exit and
 //                  are rolled back on failure; the index is looked for again once the table lock is held (two logins at once).
+// 20261103 CL/ASR QA: of two hour types with the same name, the one an open wage sheet resolves to today keeps the name. The wage
+//                 sheet (sager/loenIncludes/retLoen.php) reads casePayment in the order of its own query and the last match wins,
+//                 so that row keeps the name and the others are renamed; every rename is written to the PHP error log.
+//                 The index is looked for in the company's own schema only (pg_indexes.schemaname).
 
 const SETTINGS_UNIQUE_INDEX = 'settings_key_unique';
 
@@ -50,7 +54,7 @@ function settings_mig_fail(): string
 
 function settings_unique_index_exists(): bool
 {
-	$qtxt = "select indexname from pg_indexes where tablename = 'settings' and indexname = '" . SETTINGS_UNIQUE_INDEX . "'";
+	$qtxt = "select indexname from pg_indexes where tablename = 'settings' and indexname = '" . SETTINGS_UNIQUE_INDEX . "' and schemaname = current_schema()";
 	return (bool) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 }
 
@@ -67,17 +71,21 @@ function settings_key_of(array $row): string
 
 /**
  * What happens to each duplicate. As for grupper in risk review R9: a non-empty value wins, then the
- * newest row. Hour types are different: wage lines point at them by name, so the oldest keeps the name
- * and the others get unused names instead of being removed.
+ * newest row. Hour types are different: wage lines point at them by name, so the row the wage sheet
+ * resolves the name to today keeps it and the others get unused names instead of being removed.
+ * The wage sheet reads the hour types in the order of $hourOrder (ids) and the last match wins; without
+ * an order the newest row keeps the name.
  *
  * @param array<int, array<string, mixed>> $rows
+ * @param array<int, int> $hourOrder ids of the casePayment rows in the order the wage sheet reads them
  * @return array{remove: array<int, int>, rename: array<int, string>, normalise: array<int, array<int, string>>}
  *         remove: removed id => kept id; rename: id => new var_name; normalise: kept id => scope columns
  *         to set from NULL to 0, because a removed row of the key had a value there and readers asking
  *         for 0 must still find the setting.
  */
-function settings_duplicate_plan(array $rows): array
+function settings_duplicate_plan(array $rows, array $hourOrder = array()): array
 {
+	$hourPos = array_flip(array_map('intval', $hourOrder));
 	$groups = array();
 	$nextHourType = 0;
 	foreach ($rows as $row) {
@@ -92,10 +100,16 @@ function settings_duplicate_plan(array $rows): array
 			continue;
 		}
 		if ($group[0]['var_grp'] === 'casePayment' && strpos((string) $group[0]['var_name'], 'hourTypes') === 0) {
-			usort($group, function ($a, $b) {
+			// The row the wage sheet resolves to (last in its read order) goes last and keeps the name.
+			usort($group, function ($a, $b) use ($hourPos) {
+				$pa = $hourPos[(int) $a['id']] ?? -1;
+				$pb = $hourPos[(int) $b['id']] ?? -1;
+				if ($pa !== $pb) {
+					return $pa - $pb;
+				}
 				return (int) $a['id'] - (int) $b['id'];
 			});
-			array_shift($group);
+			array_pop($group);
 			foreach ($group as $row) {
 				$plan['rename'][(int) $row['id']] = 'hourTypes' . $nextHourType++;
 			}
@@ -197,11 +211,22 @@ function settings_unique_migrate(): string
 	while ($r = db_fetch_array($q)) {
 		$rows[] = $r;
 	}
-	$plan = settings_duplicate_plan($rows);
+	// The same query as the wage sheet (sager/loenIncludes/retLoen.php), so the plan sees the hour types in its order.
+	$hourOrder = array();
+	$q = db_select("select * from settings where var_grp='casePayment'", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$hourOrder[] = (int) $r['id'];
+	}
+	$plan = settings_duplicate_plan($rows, $hourOrder);
+	$oldNames = array();
+	foreach ($rows as $row) {
+		$oldNames[(int) $row['id']] = (string) $row['var_name'];
+	}
 	foreach ($plan['rename'] as $id => $name) {
 		if (!settings_mig_exec("update settings set var_name = '" . db_escape_string($name) . "' where id = $id")) {
 			return settings_mig_fail();
 		}
+		error_log('Saldi settings migration: duplicate hour type ' . ($oldNames[$id] ?? '?') . " (settings id $id) renamed to $name");
 	}
 	if ($plan['remove']) {
 		$qtxt = "select table_name from information_schema.tables where table_name = 'settings_removed'" . saldi_schema_filter() . "";

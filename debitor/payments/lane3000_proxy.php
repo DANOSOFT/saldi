@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/payments/lane3000_proxy.php --- ver 5.0.0 --- 2026.10.17 ---
+// --- debitor/payments/lane3000_proxy.php --- ver 5.0.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 //                lane3000.php and lane3000_afstemning.php call this page instead of connectcloud.aws.nets.eu.
 // 20261017 CL/SZ SST-843 PHP time limit raised from 200 to 240 s, above the 30 s login plus 180 s transaction.
 // 20261023 ASR Merge into redesign: $permission_key declared (roles & permissions, phase 3), as the pages that call this endpoint.
+// 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
 
 /**
  * Injected by ../../includes/online.php, included below:
@@ -43,7 +44,7 @@ $bg     = "nix";
 $s_id = session_id();
 
 include (__DIR__ . "/../../includes/connect.php");
-$permission_key = 'debitor.ordre';
+$permission_key = 'pos.kasse|debitor.ordre'; // the till (pos.kasse) and the order page both pay by terminal
 include (__DIR__ . "/../../includes/online.php");
 include (__DIR__ . "/../../includes/std_func.php");
 

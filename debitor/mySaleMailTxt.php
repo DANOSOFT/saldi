@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------debitor/mySaleMailTxt.php.php---lap 3.9.5------2020-10-25----
+// ---------------debitor/mySaleMailTxt.php.php---lap 3.9.5------2026-11-03----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,10 @@
 
 #ob_start();
 // 20261004 Sawaneh The mySale mail text lives in Indstillinger » Dokumenter » E-mail (settings redesign G6.3); this page only redirects.
+// 20261103 CL/ASR QA: output is buffered, so the redirect header still goes out after online.php has printed the page head
+//                 (it only worked where PHP's output_buffering is on).
 
+ob_start();
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");

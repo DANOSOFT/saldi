@@ -66,6 +66,8 @@
 //                 "Kobling til ansat" names a closed employee "(Fratrådt)" and marks one that already has a login; closing a login linked
 //                 to an employee says that the employee is marked as resigned too (user_close() does that).
 // 20261103 CL/ASR The one list is titled Brugere, the name of its row under the heading Brugere & roller (owner, 3 Nov 2026).
+// 20261103 CL/ASR QA: Nulstil til standard is disabled for a role above the editor's own rights; the revisor checkbox is disabled once a
+//                 revisor is designated; Audit-log times on PHP's clock in the format 3/11-2026 14:05.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -420,7 +422,7 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
         <label class="sk-field-lbl" for="ur-ip"><?= $t('5931|IP-begrænsning') ?></label>
         <textarea class="sk-input ur-ip" name="ip_address" id="ur-ip" rows="2" placeholder="<?= $t('5932|Én adresse pr. linje. Tom = ingen begrænsning.') ?>"<?= $ro ?>><?= $h(str_replace(',', "\n", $u['ip'])) ?></textarea>
       </div>
-      <label class="ur-checkrow"><input class="sk-check" type="checkbox" name="revisor" value="on"<?= $u['isRevisor'] ? ' checked' : '' ?><?= $ro ?>><span><b><?= $t('5571|Denne bruger er regnskabets revisor') ?></b><small><?= $t('2563|Vil du gøre denne bruger til revisor? Kun én bruger kan have revisoradgang, og du kan ikke ændre hvilken bruger der er revisor uden at kontakte Saldi support.') ?></small></span></label>
+      <label class="ur-checkrow"><input class="sk-check" type="checkbox" name="revisor" value="on"<?= $u['isRevisor'] ? ' checked' : '' ?><?= !empty($vm['revisorSet']) ? ' disabled' : $ro ?>><span><b><?= $t('5571|Denne bruger er regnskabets revisor') ?></b><small><?= $t('2563|Vil du gøre denne bruger til revisor? Kun én bruger kan have revisoradgang, og du kan ikke ændre hvilken bruger der er revisor uden at kontakte Saldi support.') ?></small></span></label>
       <?php if (!$isNew && $vm['canWrite']) { ?>
       <details class="ur-pw">
         <summary><?= $t('5935|Sæt ny adgangskode') ?></summary>
@@ -546,7 +548,7 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
           <span class="sk-panel-tools">
           <?php if ($write && !$isNew) { ?>
             <?php if ($role['system']) { ?>
-            <button class="sk-btn sk-btn-sm" type="submit" form="ur-reset-role-form"<?= $vm['roleChanged'] ? '' : ' disabled' ?> data-confirm-form="<?= $t('5767|Nulstil rollen til standard?') ?>"><i class='bx bx-reset'></i><?= $t('5717|Nulstil til standard') ?></button>
+            <button class="sk-btn sk-btn-sm" type="submit" form="ur-reset-role-form"<?= ($vm['roleChanged'] && perm_within_own(perm_levels_from_role((int) $role['id']))) ? '' : ' disabled' ?> data-confirm-form="<?= $t('5767|Nulstil rollen til standard?') ?>"><i class='bx bx-reset'></i><?= $t('5717|Nulstil til standard') ?></button>
             <?php } else { ?>
             <button class="sk-btn sk-btn-sm sk-btn-danger" type="button" id="ur-del-role"><i class='bx bx-trash'></i><?= $t('1099|Slet') ?></button>
             <?php } ?>
@@ -680,7 +682,7 @@ function ur_view_log(array $vm, callable $h, callable $t, callable $link): void
           	$warn = (strpos($handling, 'permission') === 0 || strpos($handling, 'failed') !== false || in_array($handling, array('denied', 'csrf', 'would-deny', 'login.ip_blocked', 'unguarded'), true));
           ?>
           <tr>
-            <td class="sk-muted"><?= $h(substr((string) $row['tidspunkt'], 0, 16)) ?></td>
+            <td class="sk-muted"><?= $h(function_exists('st_local_time') ? st_local_time((string) $row['tidspunkt'], 'j/n-Y H:i') : substr((string) $row['tidspunkt'], 0, 16)) ?></td>
             <td><?= $h($row['brugernavn']) ?></td>
             <td><span class="sk-tag<?= $warn ? ' sk-warn' : '' ?>" title="<?= $h($handling) ?>"><?= $label !== '' ? $t($label) : $h($handling) ?></span></td>
             <td><?= $h(ur_log_object($row, $vm['userNames'])) ?></td>

@@ -7076,3 +7076,8 @@
 7791	Søg navn, initialer, brugernavn eller e-mail	Search name, initials, username or email	Søk navn, initialer, brukernavn eller e-post
 7792	Der sendes og oprettes intet, før du trykker Send invitation eller Opret.	Nothing is sent or created until you press Send invitation or Create.	Ingenting sendes eller opprettes før du trykker Send invitasjon eller Opprett.
 7793	Firma, brugere og roller, fakturaformularer og e-mail, integrationer	Company, users and roles, invoice forms and e-mail, integrations	Firma, brukere og roller, fakturaskjemaer og e-post, integrasjoner
+7800	Salgskonto til EU	Sales account for the EU	Salgskonto til EU
+7801	Salgskonto uden for EU	Sales account outside the EU	Salgskonto utenfor EU
+7802	Bruges i stedet for Varesalg, når kunden har et CVR-nr. i et andet EU-land (Rubrik B).	Used instead of Sales when the customer has a VAT number in another EU country (box B).	Brukes i stedet for Varesalg når kunden har et org.nr. i et annet EU-land (rubrikk B).
+7803	Bruges i stedet for Varesalg, når kunden har et CVR-nr. uden for EU (Rubrik C).	Used instead of Sales when the customer has a VAT number outside the EU (box C).	Brukes i stedet for Varesalg når kunden har et org.nr. utenfor EU (rubrikk C).
+7804	Siden var udløbet, så intet blev gemt. Prøv igen.	The page had expired, so nothing was saved. Please try again.	Siden var utløpt, så ingenting ble lagret. Prøv igjen.

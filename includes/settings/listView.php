@@ -48,6 +48,8 @@
 // 20261102 CL/ASR Review: an empty 'page_lead' leaves the lead's first sentence out (Ekstra felter: the row's help says it).
 // 20261103 CL/ASR No 'direct' sub-group heading any more (owner, 3 Nov 2026: a heading is never a link in Indstillinger): Brugere & roller
 //                 is a heading like the others, with the rows Brugere, Roller, Audit-log and Ekstra felter.
+// 20261103 CL/ASR QA: the history hides the values of masked settings (SettingsService::historyMasked(): CPR, bank, salary as well as
+//                 secrets) and offers no Gendan for them: their audit rows keep no values.
 
 include_once(__DIR__ . '/integrations.php');
 
@@ -435,7 +437,7 @@ function settings_list_render(array $c): void
 				<?php foreach ($rows as $row) {
 					$key = (string) $row['setting_key'];
 					$def = $defs[$key];
-					$secret = ($def['type'] === 'secret' || st_field_access($def) === 'none');
+					$secret = (SettingsService::historyMasked($def) || st_field_access($def) === 'none');
 					?>
             <div class="st-h">
               <a class="st-h-field" href="#<?= st_h($key) ?>"><?= st_t($def['label']) ?></a>

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------lap 5.0.1------2026.10.19---
+// ------includes/genberegn.php-------lap 5.0.1------2026.11.03---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -34,6 +34,7 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261018 Sawaneh Review 2 (PR #803): the direct ?regnskabsaar= recompute needs finans.regnskab write instead of 'any'.
 // 20261019 CL/LH MB-72: equalizeMatchingRecords() sets udlign_date to the later of the two transaction dates.
+// 20261103 CL/ASR QA: the online.php include inside genberegn() declares $permission_key 'any' (as orderFuncIncludes/genberegn.php), so bogføring is not logged as unguarded.
 
 @session_start();
 $s_id=session_id();
@@ -119,6 +120,7 @@ if (!function_exists('genberegn')) {
 		if ($updateUsage) {
 			include(__DIR__ . '/connect.php');
 			db_modify("update regnskab set posteret='$transantal' where id='" . (int)$db_id . "'", __FILE__ . ' line ' . __LINE__);
+			$permission_key = 'any'; // back to the company database for the caller, whose own page already checked access
 			include(__DIR__ . '/online.php');
 		}
 	}

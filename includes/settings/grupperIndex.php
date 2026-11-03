@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/grupperIndex.php --- lap 5.0.0 --- 2026.10.02 ---
+// ---- includes/settings/grupperIndex.php --- lap 5.0.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,8 @@
 //                  Called from includes/betweenUpdates.php. PostgreSQL only.
 // 20261002 Sawaneh Cannot stop a login: statements run through settings_mig_exec() (includes/settings/uniqueIndex.php)
 //                  and are rolled back on failure; the index is looked for again once the table lock is held.
+// 20261103 CL/ASR QA: the index is looked for in the company's own schema only (pg_indexes.schemaname), so a schema migrated
+//                 first in the same database does not make another one skip its clean-up.
 
 include_once(__DIR__ . '/uniqueIndex.php');
 
@@ -112,7 +114,7 @@ function grupper_unique_migrate(): string
 	if ($db_type === 'mysql' || $db_type === 'mysqli') {
 		return 'skipped';
 	}
-	if (db_fetch_array(db_select("select indexname from pg_indexes where tablename = 'grupper' and indexname = '" . GRUPPER_UNIQUE_INDEX . "'", __FILE__ . " linje " . __LINE__))) {
+	if (db_fetch_array(db_select("select indexname from pg_indexes where tablename = 'grupper' and indexname = '" . GRUPPER_UNIQUE_INDEX . "' and schemaname = current_schema()", __FILE__ . " linje " . __LINE__))) {
 		return 'exists';
 	}
 	$types = array();
@@ -131,7 +133,7 @@ function grupper_unique_migrate(): string
 	if (!settings_mig_exec("lock table grupper in share row exclusive mode")) {
 		return settings_mig_fail();
 	}
-	if (db_fetch_array(db_select("select indexname from pg_indexes where tablename = 'grupper' and indexname = '" . GRUPPER_UNIQUE_INDEX . "'", __FILE__ . " linje " . __LINE__))) {
+	if (db_fetch_array(db_select("select indexname from pg_indexes where tablename = 'grupper' and indexname = '" . GRUPPER_UNIQUE_INDEX . "' and schemaname = current_schema()", __FILE__ . " linje " . __LINE__))) {
 		transaktion('commit');
 		return 'exists';
 	}

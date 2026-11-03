@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/notifications.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- includes/notifications.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,10 @@
 // 20261019 Sawaneh Review 2 (PR #803): the batch-expiry limit date is computed in PHP (no Postgres interval literal).
 // 20261031 CL/ASR MB-94: the fiscal-year notice ignores deleted years (any box10 value), as active_fiscal_years() does.
 // 20261031 CL/ASR SST-836: the batch-expiry item needs legacy right 12, as master's dashboard banner and lager/udlobsrapport.php, not right 9.
+// 20261103 CL/ASR QA: the fiscal-year warnings are shown only to users who may change the company settings, link to Indstillinger »
+//                 Regnskabsår (settingsSection.php?s=company.fiscal_years), disappear once the year is in order, and are worded in the
+//                 reader's language (title and body are made when listed). The role filter also applies to the daily e-mail summary,
+//                 per recipient. The bank item reads the stored bank connection before it calls the connection expired.
 
 /**
  * @return array<string, string> type -> label text id
@@ -82,18 +86,73 @@ function notif_disabled_types(int $brugerId): array
  */
 function notif_role_filter(int $brugerId): string
 {
-	global $bruger_id;
-	if (!function_exists('perm_can') || (int) $bruger_id !== $brugerId) {
+	if (!function_exists('perm_can')) {
 		return '';
 	}
 	$sql = '';
-	if (!perm_can('dashboard.block.news')) {
+	if (!notif_user_can($brugerId, 'dashboard.block.news')) {
 		$sql .= " and n.source_key not like 'news:%'";
 	}
-	if (!perm_can('dashboard.block.expiry')) {
+	if (!notif_user_can($brugerId, 'dashboard.block.expiry')) {
 		$sql .= " and n.source_key != 'batch:expiry'";
 	}
+	// The fiscal-year warnings lead to Regnskabsår, which only users who may change the company settings can use.
+	if (!notif_user_can($brugerId, 'settings.company', 'write')) {
+		$sql .= " and n.source_key not like 'fiscal:%'";
+	}
 	return $sql;
+}
+
+/**
+ * Whether a user holds a permission: the logged-in user through perm_can(), anyone else (the daily summary, which runs
+ * for several users and companies in one process) from their own role or rights string.
+ */
+function notif_user_can(int $brugerId, string $key, string $level = 'read'): bool
+{
+	global $bruger_id, $db;
+	if (PHP_SAPI !== 'cli' && (int) $bruger_id === $brugerId) {
+		return perm_can($key, $level);
+	}
+	static $levels = array();
+	$slot = (string) $db . ':' . $brugerId;
+	if (!isset($levels[$slot])) {
+		$r = db_fetch_array(db_select("select rettigheder from brugere where id = " . (int) $brugerId, __FILE__ . " linje " . __LINE__));
+		$levels[$slot] = $r ? perm_user_levels($brugerId, (string) $r['rettigheder']) : array();
+	}
+	$rank = perm_level_rank();
+	$have = isset($levels[$slot][$key]) ? perm_level_valid((string) $levels[$slot][$key]) : 'none';
+	return $rank[$have] >= $rank[perm_level_valid($level)];
+}
+
+/**
+ * Title and body of a generated item in the reader's language. Items whose text the poll makes (fiscal year) are
+ * shared by every user, so they are worded when listed; others keep the stored text.
+ *
+ * @return array{0: string, 1: string}
+ */
+function notif_texts(string $sourceKey, string $title, string $body, int $sprogId): array
+{
+	if ($sourceKey === 'fiscal:missing') {
+		return array(findtekst('5627|Intet aktivt regnskabsår', $sprogId), findtekst('5646|Aktivér et regnskabsår under Indstillinger » Virksomhed » Regnskabsår', $sprogId));
+	}
+	if (strpos($sourceKey, 'fiscal:next:') === 0) {
+		$end = substr($sourceKey, 12);
+		return array(findtekst('5629|Regnskabsåret slutter snart', $sprogId), sprintf(findtekst('5628|Opret det næste regnskabsår, før det nuværende slutter den %s', $sprogId), date('d-m-Y', strtotime($end))));
+	}
+	if (strpos($sourceKey, 'news:') === 0) {
+		return array(findtekst('5626|Nyt i Saldi', $sprogId), $body);
+	}
+	return array($title, $body);
+}
+
+/**
+ * Remove the fiscal-year warnings (with their read marks) except $keep: the year is in order, or another warning applies.
+ */
+function notif_clear_fiscal(string $keep = ''): void
+{
+	$not = $keep !== '' ? " and source_key != '" . db_escape_string($keep) . "'" : '';
+	db_modify("delete from notification_read where notification_id in (select id from notifications where source_key like 'fiscal:%'$not)", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from notifications where source_key like 'fiscal:%'$not", __FILE__ . " linje " . __LINE__);
 }
 
 /**
@@ -177,21 +236,25 @@ function notif_source_fiscal_year(int $sprogId): void
 			$current = $y;
 		}
 	}
-	$link = '/systemdata/regnskabsaar.php';
+	$link = '/systemdata/settingsSection.php?s=company.fiscal_years';
 	if ($current === null || !$current['open']) {
+		notif_clear_fiscal('fiscal:missing');
 		notif_upsert('fiscal:missing', null, 'warning', findtekst('5627|Intet aktivt regnskabsår', $sprogId), findtekst('5646|Aktivér et regnskabsår under Indstillinger » Virksomhed » Regnskabsår', $sprogId), $link, date('Y-m-d', strtotime('+7 days')));
 		return;
 	}
 	$daysLeft = (int) floor((strtotime($current['end']) - strtotime($today)) / 86400);
 	if ($daysLeft > 45) {
+		notif_clear_fiscal();
 		return;
 	}
 	$dayAfter = date('Y-m-d', strtotime($current['end'] . ' +1 day'));
 	foreach ($years as $y) {
 		if ($y['start'] <= $dayAfter && $y['end'] >= $dayAfter) {
+			notif_clear_fiscal();
 			return;
 		}
 	}
+	notif_clear_fiscal('fiscal:next:' . $current['end']);
 	notif_upsert('fiscal:next:' . $current['end'], null, 'warning', findtekst('5629|Regnskabsåret slutter snart', $sprogId), sprintf(findtekst('5628|Opret det næste regnskabsår, før det nuværende slutter den %s', $sprogId), date('d-m-Y', strtotime($current['end']))), $link, $dayAfter);
 }
 
@@ -230,7 +293,21 @@ function notif_source_bank(int $brugerId, int $sprogId): void
 	if (!function_exists('bankIntegrationEnabled') || !bankIntegrationEnabled()) {
 		return;
 	}
-	$oauth = isset($_SESSION['OAuth']) ? $_SESSION['OAuth'] : null;
+	$oauth = (PHP_SAPI !== 'cli' && isset($_SESSION['OAuth'])) ? $_SESSION['OAuth'] : null;
+	if (empty($oauth)) {
+		// A fresh session (or the daily summary) has the connection only in storage, as bank_integration/includes/auth_check.php
+		// restores it: read it from there before calling it expired. oauthSessionLoad() reads the user in the global $bruger_id.
+		$oauth = null;
+		$crypt = __DIR__ . '/../bank_integration/includes/crypt.php';
+		$persist = __DIR__ . '/../bank_integration/includes/persist.php';
+		if ((int) $GLOBALS['bruger_id'] === $brugerId && file_exists($crypt) && file_exists($persist)) {
+			include_once($crypt);
+			include_once($persist);
+			$encrypted = oauthSessionLoad();
+			$json = $encrypted !== null ? oauthDecrypt($encrypted) : null;
+			$oauth = $json !== null ? json_decode($json, true) : null;
+		}
+	}
 	$expired = ($oauth === null || $oauth === false);
 	if (!$expired && isset($oauth['login']['expires'])) {
 		$expired = (strtotime((string) $oauth['login']['expires']) <= time());
@@ -255,17 +332,19 @@ function notif_list(int $brugerId, int $limit = 30): array
 	}
 	$off = notif_disabled_types($brugerId);
 	$typeFilter = ($off ? " and n.type not in ('" . implode("','", array_map('db_escape_string', $off)) . "')" : '') . notif_role_filter($brugerId);
-	$qtxt = "select n.id, n.type, n.title, n.body, n.link, n.created, r.read_at from notifications n "
+	global $sprog_id;
+	$qtxt = "select n.id, n.type, n.title, n.body, n.link, n.created, n.source_key, r.read_at from notifications n "
 		. "left join notification_read r on r.notification_id = n.id and r.user_id = $brugerId "
 		. "where (n.user_id is null or n.user_id = $brugerId) and (n.expires is null or n.expires >= current_date)$typeFilter "
 		. "order by n.created desc, n.id desc limit " . (int) $limit;
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
+		list($title, $body) = notif_texts((string) $r['source_key'], (string) $r['title'], (string) $r['body'], max(1, (int) $sprog_id));
 		$out[] = array(
 			'id'      => (int) $r['id'],
 			'type'    => (string) $r['type'],
-			'title'   => (string) $r['title'],
-			'body'    => (string) $r['body'],
+			'title'   => $title,
+			'body'    => $body,
 			'link'    => (string) $r['link'],
 			'created' => (string) $r['created'],
 			'unread'  => empty($r['read_at']),
@@ -329,19 +408,20 @@ function notif_relative(string $created, int $sprogId): string
  *
  * @return array<int, array{title: string, body: string, link: string, created: string}>
  */
-function notif_digest_items(int $brugerId, string $since): array
+function notif_digest_items(int $brugerId, string $since, int $sprogId = 1): array
 {
 	$off = notif_disabled_types($brugerId);
-	$typeFilter = $off ? " and n.type not in ('" . implode("','", array_map('db_escape_string', $off)) . "')" : '';
+	$typeFilter = ($off ? " and n.type not in ('" . implode("','", array_map('db_escape_string', $off)) . "')" : '') . notif_role_filter($brugerId);
 	$sinceFilter = $since !== '' ? " and n.created > '" . db_escape_string($since) . "'" : '';
-	$qtxt = "select n.title, n.body, n.link, n.created from notifications n "
+	$qtxt = "select n.title, n.body, n.link, n.created, n.source_key from notifications n "
 		. "left join notification_read r on r.notification_id = n.id and r.user_id = $brugerId "
 		. "where r.read_at is null and (n.user_id is null or n.user_id = $brugerId) and (n.expires is null or n.expires >= current_date)$typeFilter$sinceFilter "
 		. "order by n.created desc limit 50";
 	$out = array();
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$out[] = array('title' => (string) $r['title'], 'body' => (string) $r['body'], 'link' => (string) $r['link'], 'created' => (string) $r['created']);
+		list($title, $body) = notif_texts((string) $r['source_key'], (string) $r['title'], (string) $r['body'], $sprogId);
+		$out[] = array('title' => $title, 'body' => $body, 'link' => (string) $r['link'], 'created' => (string) $r['created']);
 	}
 	return $out;
 }
@@ -361,7 +441,7 @@ function notif_send_digest(array $user, int $sprogId): string
 		return 'noemail';
 	}
 	$since = (string) get_settings_value('digest_last', 'notifications', '', $id);
-	$items = notif_digest_items($id, $since);
+	$items = notif_digest_items($id, $since, $sprogId);
 	if (!$items) {
 		return 'none';
 	}

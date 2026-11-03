@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/mainIncludes/topbar.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- index/mainIncludes/topbar.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,9 @@
 // 20261002 Sawaneh Breadcrumb element in the left side, filled by the shell on settings pages (settings redesign §8.0).
 // 20261008 Sawaneh Sagsstyring in the chip menu, only for companies with the module (prototype_dashboard_tema v5).
 // 20261031 CL/ASR MB-94: the fiscal-year switch offers only active_fiscal_years() (a year with box10 set is deleted).
+// 20261103 CL/ASR QA: the gear's map is converted to UTF-8 and written as ASCII JSON, so json_encode() does not fail on latin-1 installations.
+//                 "Hvem er online" lists only the company's own logins: revisor/support sessions, mySale customers and the anonymous
+//                 booking session (all in the same online table) are left out, as master's count left out revisor sessions.
 
 /**
  * Sessions in the master `online` table that belong to the caller's company and
@@ -58,11 +61,19 @@ function topbar_online_rows(string $sessionId): array
 	}
 	$db = db_escape_string($r['db']);
 	$since = (int) date('U') - 3600;
-	$qtxt = "select brugernavn, max(logtime) as logtime from online where db = '$db' and logtime > '$since' group by brugernavn order by brugernavn";
+	$qtxt = "select brugernavn, logtime, revisor from online where db = '$db' and logtime > '$since' order by brugernavn";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	$rows = array();
+	$byName = array();
 	while ($r = db_fetch_array($q)) {
-		$rows[] = array('brugernavn' => trim((string) $r['brugernavn']), 'logtime' => (int) $r['logtime']);
+		if (in_array($r['revisor'], array('t', true, '1', 1, 'on'), true)) {
+			continue; // a revisor or support session, not one of the company's users
+		}
+		$name = trim((string) $r['brugernavn']);
+		$byName[$name] = max(isset($byName[$name]) ? $byName[$name] : 0, (int) $r['logtime']);
+	}
+	$rows = array();
+	foreach ($byName as $name => $logtime) {
+		$rows[] = array('brugernavn' => $name, 'logtime' => $logtime);
 	}
 	return $rows;
 }
@@ -78,6 +89,20 @@ function topbar_utf8(?string $s): string
 		$s = mb_convert_encoding($s, 'UTF-8', 'ISO-8859-1');
 	}
 	return $s;
+}
+
+/**
+ * topbar_utf8() on every string of an array, for json_encode().
+ *
+ * @param mixed $v
+ * @return mixed
+ */
+function topbar_utf8_deep($v)
+{
+	if (is_array($v)) {
+		return array_map('topbar_utf8_deep', $v);
+	}
+	return is_string($v) ? topbar_utf8($v) : $v;
 }
 
 function topbar_initials(string $displayName, string $initialer, string $username): string
@@ -244,7 +269,8 @@ function topbar_context(array $onlineRows, string $brugernavn, int $brugerId, st
 	$onlineUsers = array();
 	if ($isAdmin || $revisor) {
 		foreach ($onlineRows as $row) {
-			if ($row['brugernavn'] !== '') {
+			// Only the company's own logins (mySale customers and the booking page also have sessions here).
+			if ($row['brugernavn'] !== '' && isset($ansatByUser[$row['brugernavn']])) {
 				$label = topbar_utf8($resolveName($row['brugernavn']));
 				if ($row['brugernavn'] === $brugernavn) {
 					$label .= ' (' . topbar_utf8(findtekst('5612|dig', $sprogId)) . ')';
@@ -348,7 +374,7 @@ function topbar_render(array $ctx, int $sprogId): void
 		'min' => topbar_utf8(findtekst('6462|opdateret for %s min. siden', $sprogId)),
 	), JSON_UNESCAPED_UNICODE)) ?>" hidden><b id="topbar-hello-greet"></b><span class="topbar-hello-line"><i class="topbar-hello-dot" aria-hidden="true"></i><span id="topbar-hello-date"></span> · <span id="topbar-hello-upd"></span></span></div>
     <nav class="topbar-crumb" id="topbar-crumb" aria-label="<?= $t('6015|Du er her') ?>" data-company="<?= topbar_h($ctx['company']) ?>" hidden></nav>
-    <a class="topbar-gear" id="topbar-gear" href="#" title="<?= $t('6392|Indstillinger for denne side') ?>" aria-label="<?= $t('6392|Indstillinger for denne side') ?>" data-map="<?= topbar_h(json_encode(function_exists('settings_context_links') ? settings_context_links((int) $ctx['langId']) : array(), JSON_UNESCAPED_UNICODE)) ?>" hidden><i class='bx bx-cog' aria-hidden="true"></i></a>
+    <a class="topbar-gear" id="topbar-gear" href="#" title="<?= $t('6392|Indstillinger for denne side') ?>" aria-label="<?= $t('6392|Indstillinger for denne side') ?>" data-map="<?= topbar_h(json_encode(topbar_utf8_deep(function_exists('settings_context_links') ? settings_context_links((int) $ctx['langId']) : array()))) ?>" hidden><i class='bx bx-cog' aria-hidden="true"></i></a>
     <span class="topbar-spacer"></span>
     <div class="topbar-cluster" id="topbar-cluster">
 

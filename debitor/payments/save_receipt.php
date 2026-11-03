@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- payments/save_receipt.php --- lap 4.1.0 --- 2024.03.01 ---
+// ---- payments/save_receipt.php --- lap 4.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20240227 PHR Added include print_receipt
 // 20260720 NTR Recreate temp/$db if missing (cleared daily) before saving receipt
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
 //
 
 @session_start();
@@ -33,7 +34,7 @@ $s_id = session_id();
 global $db;
 
 include ("../../includes/connect.php");
-$permission_key = 'debitor.ordre';
+$permission_key = 'pos.kasse|debitor.ordre'; // the till (pos.kasse) and the order page both pay by terminal
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

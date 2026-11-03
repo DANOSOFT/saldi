@@ -49,6 +49,8 @@
 //                 (diverse.php?sektion=div_valg itself lands on Ekstra felter). Virksomhed's description is 7793 (brugere og roller); a new
 //                 id, since a database keeps the old text of an existing id. The 'direct' handling in
 //                 the model, the menu, settings_hub_path() and the coverage check is gone again.
+// 20261103 CL/ASR QA: in the moved map an old setting whose own page the user cannot open links to its hub row's page when the row
+//                 opens another way (Ansatte / Diverse valg for a user with Brugere but not Organisation: usersRoles.php).
 
 if (!function_exists('getSettingsHub')):
 
@@ -1084,7 +1086,13 @@ function settings_hub_moved_rows(int $sprogId): array
 		}
 		$def = settings_hub_page_def($loc['page']);
 		$open = $def !== null && settings_hub_page_available($def) && settings_hub_page_permitted($def);
-		return array('path' => settings_hub_path($loc, $sprogId), 'url' => $open ? $def['url'] : '', 'tag' => '', 'all' => '');
+		$url = $open ? $def['url'] : '';
+		if ($url === '') {
+			// The row may still open for this user through another of its pages (Brugere: usersRoles.php or the employee section).
+			$row = settings_hub_row($loc);
+			$url = $row !== null ? (string) settings_hub_row_state($row)['url'] : '';
+		}
+		return array('path' => settings_hub_path($loc, $sprogId), 'url' => $url, 'tag' => '', 'all' => '');
 	};
 	$byUrl = function (string $url): string {
 		foreach (getSettingsRegistry() as $entry) {

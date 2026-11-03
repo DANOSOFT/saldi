@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-10-01 ---
+// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 // 20260917 CDX/LH Correct VAT mapping label translation reference (MB-45).
 // 20260928 Sawaneh Phase 4: only the side-menu frame (top.php) remains; top-menu and old-menu branches removed.
 // 20261001 CDX/PHR Show one editable definition per warehouse, preferring the selected fiscal year.
+// 20261103 CL/ASR QA: syssetup.php without valg (linked so from the old menus) redirects to Finans » Moms like valg=moms, instead of the old VAT editor.
 
 @session_start();
 $s_id=session_id();
@@ -79,8 +80,10 @@ $landedValg = array(
 	'varer'      => 'settingsSection.php?s=items.item_groups&moved=varer',
 );
 // 20261006 Sawaneh B-D06: moving a control account is now a confirmed action in the new editor, so legacy=1 is gone.
-if (isset($_GET['valg']) && isset($landedValg[$_GET['valg']])) {
-	header("Location: " . $landedValg[$_GET['valg']]);
+// Without valg the page showed the VAT tables (the old menu links it so), so that goes to the VAT section too.
+$landedKey = (isset($_GET['valg']) && is_string($_GET['valg']) && $_GET['valg'] !== '') ? $_GET['valg'] : ($_SERVER['REQUEST_METHOD'] === 'GET' ? 'moms' : '');
+if (isset($landedValg[$landedKey])) {
+	header("Location: " . $landedValg[$landedKey]);
 	exit;
 }
 include("skriv_formtabel.inc.php");

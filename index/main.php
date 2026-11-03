@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- index/main.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -78,6 +78,7 @@
 //                  widget's own sidebar entry is collapsed again (the topbar's Assist button opens the chat).
 // 20261101 CL/ASR Sidebar in prototype D's fixed look for every user (css/sidebar_style.css): navy-to-purple gradient, white mark, text and icons, translucent hover/active pill.
 //                 The personal colours ($buttonColor/$buttonTxtColor) no longer style the sidebar: the colour <style> block, the inline colour styles and brightenColor() are gone.
+// 20261103 CL/ASR QA: css/topbar.css linked as ?v=23 ([hidden] items in the top bar's menus stay hidden).
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -145,7 +146,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 <link href='../css/saldi-fonts.css?v=2' rel='stylesheet'>
 <script>window.SALDI_CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;</script>
 <link href='../css/sidebar_style.css?v=26' rel='stylesheet'>
-<link href='../css/topbar.css?v=22' rel='stylesheet'>
+<link href='../css/topbar.css?v=23' rel='stylesheet'>
 <link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
 <script>document.documentElement.classList.add('saldi-shell');</script>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">

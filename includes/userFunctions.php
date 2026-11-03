@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/userFunctions.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- includes/userFunctions.php --- lap 5.0.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,9 @@
 //                  audit log did not see being created counts as having logged in; booleans as true/false.
 // 20261006 Sawaneh Onboarding step 5: user_invite_error() checks a new invitation (name, role, e-mail, duplicate name,
 //                  R5) for the welcome guide; user_send_mail() takes an optional attachment (the guide's test invoice).
+// 20261103 CL/ASR QA: keeping a migrated role (Behold nuværende) has the same checks as a role change: not one's own role and
+//                 only users within the actor's own access.
+//                 The last login from the audit log is read on PHP's clock (st_local_time()), like the rest of Indstillinger.
 
 include_once(__DIR__ . '/permissions.php');
 
@@ -292,6 +295,12 @@ function user_confirm_role(int $id, bool $useSuggestion, int $selfId, string $ki
 		if ($suggestion && $suggestion['id'] !== (int) $r['role_id']) {
 			return user_set_role($id, $suggestion['id'], $selfId, $kilde);
 		}
+	}
+	if ($id === $selfId) {
+		return 'ownrole';
+	}
+	if (!user_may_manage($r)) {
+		return 'above';
 	}
 	perm_review_done($id);
 	audit_log('user.role_confirmed', (string) $r['brugernavn'] . ': ' . user_role_label((int) $r['role_id']), 'bruger', (string) $id, $kilde);
@@ -561,7 +570,8 @@ function user_last_active(): array
 	if (audit_ready()) {
 		$q = db_select("select brugernavn, max(tidspunkt) as sidst from audit_log where handling in ('login', 'login.success') group by brugernavn", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$t = strtotime((string) $r['sidst']);
+			// The database may run in another time zone than PHP (st_local_time(), loaded by the settings pages).
+			$t = strtotime(function_exists('st_local_time') ? st_local_time((string) $r['sidst'], 'Y-m-d H:i:s') : (string) $r['sidst']);
 			if ($t) {
 				$last[mb_strtolower((string) $r['brugernavn'])] = $t;
 			}

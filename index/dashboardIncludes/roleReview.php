@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/roleReview.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- index/dashboardIncludes/roleReview.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,6 +21,7 @@
 //                  administrators after the migration to roles, until every migrated role is
 //                  confirmed or the card is hidden.
 // 20261101 CL/ASR The card uses the dashboard's classes (prototype D panel, the kit's buttons) instead of inline styles.
+// 20261103 CL/ASR QA: texts are escaped in the page's charset (htmlspecialchars() with UTF-8 blanked latin-1 texts).
 
 /**
  * Card on the dashboard. Hiding is per administrator.
@@ -41,8 +42,9 @@ function role_review_card(int $brugerId, int $sprogId): void
 		return;
 	}
 	$sum = perm_migration_summary();
-	$h = function ($s) {
-		return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+	$charset = (isset($GLOBALS['db_encode']) && $GLOBALS['db_encode'] !== 'UTF8') ? 'ISO-8859-1' : 'UTF-8';
+	$h = function ($s) use ($charset) {
+		return htmlspecialchars((string) $s, ENT_QUOTES, $charset);
 	};
 	$text = sprintf(findtekst('5879|Saldi har oversat jeres %s brugere til roller. %s har fuld adgang som Administrator, %s fik en tilpasset rolle. Gennemgå fordelingen.', $sprogId), $sum['total'], $sum['admin'], $sum['custom']);
 	?>

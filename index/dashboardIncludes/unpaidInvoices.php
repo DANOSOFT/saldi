@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/unpaidInvoices.php --- ver 5.1.0 --- 2026.11.01 ---
+// ---- index/dashboardIncludes/unpaidInvoices.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,8 @@
 // 20261009 Sawaneh Items without a due date get one from the customer's payment terms with forfaldsdag(), as the
 //                  account card does (§5.9.2 point 4); such items are grouped in PHP like the placeholder-rate ones.
 // 20261101 CL/ASR The list holds the oldest invoices of each due group (at most $limit per group, oldest first), so a group picked on the card shows its own invoices (prototype D); the page shows the first $limit of them unfiltered.
+// 20261103 CL/ASR QA: a foreign-currency invoice with the placeholder rate is converted posting by posting (each at its own date's rate,
+//                 or its own rate when it has one) before the postings are netted, not the net at the first posting's rate.
 
 include_once(__DIR__ . "/../../includes/forfaldsdag.php");
 
@@ -89,6 +91,36 @@ function dash_unpaid_link(array $it): string
 }
 
 /**
+ * An open item with the placeholder rate in the base currency: each posting converted on its own (its own rate, else the
+ * rate of its date), then netted.
+ *
+ * @param array<string, mixed> $r A row of dash_unpaid()'s item query (konto_id, item, valuta, transdate, net_cur).
+ */
+function dash_unpaid_convert(array $r, string $baseCurrency): float
+{
+	$item = (string) $r['item'];
+	$where = ($item !== '' && $item[0] === 'r' && ctype_digit(substr($item, 1)))
+		? "id = " . (int) substr($item, 1) . " and coalesce(faktnr, '') = ''"
+		: "faktnr = '" . db_escape_string($item) . "'";
+	$q = db_select("select amount, transdate, valuta, valutakurs from openpost where konto_id = " . (int) $r['konto_id'] . " and (udlignet is null or udlignet != '1') and $where", __FILE__ . " linje " . __LINE__);
+	$net = 0.0;
+	$found = false;
+	while ($p = db_fetch_array($q)) {
+		$found = true;
+		$valuta = trim((string) $p['valuta']);
+		$kurs = (float) $p['valutakurs'];
+		if ($valuta === '' || $valuta === '-' || $valuta === $baseCurrency) {
+			$net += (float) $p['amount'];
+		} elseif ($kurs > 0 && $kurs != 100) {
+			$net += (float) $p['amount'] * $kurs / 100;
+		} else {
+			$net += (float) $p['amount'] * dash_unpaid_rate($valuta, (string) $p['transdate']) / 100;
+		}
+	}
+	return $found ? $net : (float) $r['net_cur'] * dash_unpaid_rate((string) $r['valuta'], (string) $r['transdate']) / 100;
+}
+
+/**
  * The card's data: groups (sum, count), the list (oldest due first, at most $limit per due group), the unapplied sum and the total.
  *
  * @return array{groups: array<string, array{sum: float, n: int}>, list: array<int, array<string, mixed>>, unapplied: float, total: float, count: int}
@@ -131,7 +163,7 @@ function dash_unpaid(string $baseCurrency, int $limit = 8): array
 	$q = db_select("select i.* from ($items) i where i.placeholder = 1 or (i.forfaldsdate is null and i.net > 0)", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ((int) $r['placeholder'] === 1) {
-			$r['net'] = (float) $r['net_cur'] * dash_unpaid_rate((string) $r['valuta'], (string) $r['transdate']) / 100;
+			$r['net'] = dash_unpaid_convert($r, $baseCurrency);
 		}
 		if ($r['net'] < 0) {
 			$unapplied += $r['net'];

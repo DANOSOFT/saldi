@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- includes/settings/components.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,8 @@
 // 20261101 CL/ASR Settings hub "C - Fold ud": a section without a lead of its own describes itself with its hub row's hint, not the old group's text.
 //                 settings_back_button(): the Tilbage button every settings page shows above its title (kit classes, target from settings_back_link()).
 // 20261102 CL/ASR settings_back_button() takes the access key (default 'l', Alt+L), so callers no longer patch its markup.
+// 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the
+//                 data processing agreement); only links to pages that change data are disabled.
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -942,7 +944,12 @@ function st_render_field(array $def, array $state): void
 	<?php } elseif ($def['type'] === 'info') { ?>
     <span class="st-info"><?= function_exists('settings_integration_info') ? settings_integration_info($def) : '' ?></span>
 	<?php } elseif ($def['type'] === 'link') { ?>
-	<?php if (!empty($state['readonly']) && st_field_access($def) !== 'write') { ?>
+	<?php
+		// Pure navigation (another settings page, an export, external documentation) stays a link for readers; links to pages
+		// that change data (imports, uploads, backup/restore, translations) are disabled without write.
+		$linkReadOnly = (isset($def['needs']) && $def['needs'] === 'read') || !empty($def['blank'])
+			|| preg_match('#^(settingsSection\.php|https?:|exporter_|\.\./restapi/swagger)#', (string) $def['href']);
+		if (!empty($state['readonly']) && st_field_access($def) !== 'write' && !$linkReadOnly) { ?>
     <span class="st-btn" aria-disabled="true" style="opacity:.5;cursor:not-allowed"><?= st_t($def['button']) ?></span>
 	<?php } else { ?>
     <a class="st-btn" href="<?= st_h($def['href']) ?>"<?= !empty($def['blank']) ? ' target="_blank" rel="noopener"' : '' ?>><?= st_t($def['button']) ?><?php if (!empty($def['blank'])) { ?> <i class='bx bx-link-external' aria-hidden="true"></i><?php } ?></a>

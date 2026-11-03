@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------debitor/mailTxt.php---lap 3.9.5------2020-11-11----
+// ---------------debitor/mailTxt.php---lap 3.9.5------2026-11-03----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,9 @@
 // 20261001 Sawaneh Subject and text saved by key (update_settings_value) instead of the posted row id; read with NULL = 0.
 
 // 20261003 Sawaneh G6.3: the mail texts live under Indstillinger » Dokumenter & e-mail » E-mail; this file only redirects there.
+// 20261103 CL/ASR QA: output is buffered, so the redirect header still goes out after online.php has printed the page head
+//                 (it only worked where PHP's output_buffering is on).
+ob_start();
 @session_start();
 $s_id=session_id();
 $modulnr=6;

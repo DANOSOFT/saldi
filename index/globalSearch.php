@@ -1,5 +1,5 @@
 <?php
-// ---- index/globalSearch.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- index/globalSearch.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,8 @@
 //                  Read-only JSON; every group only for users who may open that area; at most 4 per group with
 //                  LIMIT in SQL. Pages and settings are matched in the shell (sidebar) and by settingsSearch.php.
 // 20261031 CL/ASR $skipLogtime: the top bar's lookups do not touch online.logtime (includes/online.php).
+// 20261103 CL/ASR QA: a recently visited page links to its full path from the Saldi root (the request path without the install
+//                 prefix, as page_came_from() does), not the last two segments: Lager » Varer (lager/lister/vareliste.php) gave a 404.
 
 ob_start();
 @session_start();
@@ -59,6 +61,9 @@ if (!empty($_GET['recent'])) {
 		$stack = array_reverse(_nav_read());
 		array_shift($stack);
 		$seen = array();
+		// The install prefix (/asr_dash): what precedes this endpoint's own path in the request.
+		$reqPath = (string) parse_url(isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '', PHP_URL_PATH);
+		$prefix = (substr($reqPath, -strlen('/index/globalSearch.php')) === '/index/globalSearch.php') ? substr($reqPath, 0, -strlen('/index/globalSearch.php')) : '';
 		foreach ($stack as $url) {
 			$path = function_exists('page_chrome_path') ? page_chrome_path((string) $url) : '';
 			if ($path === '' || isset($seen[$path]) || $path === 'index/dashboard.php' || $path === 'index/menu.php') {
@@ -67,7 +72,12 @@ if (!empty($_GET['recent'])) {
 			$seen[$path] = true;
 			$query = strpos((string) $url, '?') !== false ? substr((string) $url, strpos((string) $url, '?')) : '';
 			$label = isset($_SESSION['page_chrome'][$path]['label']) ? (string) $_SESSION['page_chrome'][$path]['label'] : '';
-			$out[] = array('href' => '/' . $path . $query, 'path' => '/' . $path, 'label' => $label);
+			$full = (string) parse_url((string) $url, PHP_URL_PATH);
+			if ($prefix !== '' && strpos($full, $prefix . '/') === 0) {
+				$full = substr($full, strlen($prefix));
+			}
+			$href = (strpos($full, '/') === 0 && substr($full, -strlen($path)) === $path) ? $full : '/' . $path;
+			$out[] = array('href' => $href . $query, 'path' => '/' . $path, 'label' => $label);
 			if (count($out) >= 5) {
 				break;
 			}

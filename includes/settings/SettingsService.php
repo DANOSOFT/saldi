@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/SettingsService.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- includes/settings/SettingsService.php --- lap 5.0.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,8 @@
 // 20261002 Sawaneh Settings changes in audit_log carry objekt_type 'indstilling' and the key as objekt_id (settings redesign §11.2).
 // 20261018 Sawaneh Review 2 (PR #803): sqlValue()/columnIsNumeric(): an empty value goes into a number column as NULL.
 // 20261019 Sawaneh Review 2 (PR #803): a lone value in a tab-joined box is its first part only (DIV/3 box13); kode '0' also matches NULL/empty kode rows.
+// 20261103 CL/ASR QA: historyMasked() is the one rule for settings whose history keeps no values (secrets and the employees' CPR, bank and
+//                 salary): the audit row, the history views and Gendan all use it, so a masked row can never be restored as ''.
 
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
 
@@ -635,10 +637,19 @@ class SettingsService
 	/** Settings history rows; 'setting.change' is the name used before the roles spec's event names. */
 	const HISTORY_HANDLINGS = "'setting.changed', 'setting.reverted', 'setting.change', 'setting.row_created', 'setting.row_updated', 'setting.row_deactivated', 'setting.row_deleted'";
 
+	/**
+	 * True when the change history keeps no values for this setting (only "ændret"): secrets and the sensitive
+	 * employee fields. Such rows are shown without values and can never be restored.
+	 */
+	public static function historyMasked(array $def): bool
+	{
+		return $def['type'] === 'secret' || (isset($def['permission']) && $def['permission'] === 'settings.organisation.sensitive');
+	}
+
 	private static function audit(array $def, string $old, string $new, string $handling): void
 	{
 		global $bruger_id, $brugernavn;
-		$secret = ($def['type'] === 'secret' || (isset($def['permission']) && $def['permission'] === 'settings.organisation.sensitive'));
+		$secret = self::historyMasked($def);
 		$section = $def['group'] . '.' . $def['section'];
 		// detaljer as the roles spec defines it: {before, after}, a secret only as "ændret" (settings redesign §8.12).
 		$detaljer = json_encode($secret ? array('before' => 'ændret', 'after' => 'ændret') : array('before' => $old, 'after' => $new), JSON_UNESCAPED_UNICODE);
