@@ -10,7 +10,7 @@
             "id": "gid://shopify/Shop/7400000000001",
             "name": "HML (synthetic)",
             "token": "test-token-not-a-secret",
-            "available": 1990,
+            "available": 1988,
             "bucket_at": 23289,
             "locations": {
                 "gid://shopify/Location/7400000000002": {
@@ -510,7 +510,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PAID",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000039",
@@ -522,6 +523,8 @@
                             "title": "Havemøbel 1",
                             "quantity": 1,
                             "price": 250,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -559,7 +562,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PAID",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000050",
@@ -571,6 +575,8 @@
                             "title": "Havemøbel 1",
                             "quantity": 1,
                             "price": 250,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         },
                         {
@@ -580,6 +586,8 @@
                             "title": "Havemøbel 3",
                             "quantity": 1,
                             "price": 750,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -615,7 +623,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PAID",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000061",
@@ -627,6 +636,8 @@
                             "title": "Havemøbel 4",
                             "quantity": 2,
                             "price": 1000,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -664,7 +675,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PAID",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000072",
@@ -676,6 +688,8 @@
                             "title": "Havemøbel 1",
                             "quantity": 1,
                             "price": 250,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         },
                         {
@@ -685,6 +699,8 @@
                             "title": "Havemøbel 4",
                             "quantity": 1,
                             "price": 1000,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -720,7 +736,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PAID",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000084",
@@ -732,6 +749,8 @@
                             "title": "Havemøbel 2",
                             "quantity": 2,
                             "price": 500,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         },
                         {
@@ -741,6 +760,8 @@
                             "title": "Havemøbel 3",
                             "quantity": 1,
                             "price": 750,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -776,7 +797,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PAID",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000034",
@@ -788,6 +810,8 @@
                             "title": "Havemøbel 3",
                             "quantity": 1,
                             "price": 750,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -823,7 +847,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PAID",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000034",
@@ -835,6 +860,8 @@
                             "title": "Havemøbel 1",
                             "quantity": 2,
                             "price": 250,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -872,7 +899,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PAID",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000050",
@@ -884,6 +912,8 @@
                             "title": "Havemøbel 2",
                             "quantity": 2,
                             "price": 500,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -917,7 +947,8 @@
                     "po_number": null,
                     "currency": "DKK",
                     "test": false,
-                    "taxes_included": true,
+                    "taxes_included": false,
+                    "tax_lines": [],
                     "financial": "PENDING",
                     "shipping_address": null,
                     "customer": "gid://shopify/Customer/7400000000072",
@@ -929,6 +960,8 @@
                             "title": "Havemøbel 4",
                             "quantity": 1,
                             "price": 1000,
+                            "taxable": true,
+                            "tax_lines": [],
                             "custom_attributes": []
                         }
                     ],
@@ -949,12 +982,14 @@
                     "location": "gid://shopify/Location/7400000000002",
                     "status": "CLOSED",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000043",
                             "line": "gid://shopify/LineItem/7400000000038",
                             "total": 1,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [
@@ -968,18 +1003,21 @@
                     "location": "gid://shopify/Location/7400000000003",
                     "status": "CLOSED",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000054",
                             "line": "gid://shopify/LineItem/7400000000048",
                             "total": 1,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         },
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000055",
                             "line": "gid://shopify/LineItem/7400000000049",
                             "total": 1,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [
@@ -993,12 +1031,14 @@
                     "location": "gid://shopify/Location/7400000000002",
                     "status": "CLOSED",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000065",
                             "line": "gid://shopify/LineItem/7400000000060",
                             "total": 2,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [
@@ -1012,18 +1052,21 @@
                     "location": "gid://shopify/Location/7400000000002",
                     "status": "CLOSED",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000076",
                             "line": "gid://shopify/LineItem/7400000000070",
                             "total": 1,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         },
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000077",
                             "line": "gid://shopify/LineItem/7400000000071",
                             "total": 1,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [
@@ -1037,18 +1080,21 @@
                     "location": "gid://shopify/Location/7400000000002",
                     "status": "CLOSED",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000088",
                             "line": "gid://shopify/LineItem/7400000000082",
                             "total": 2,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         },
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000089",
                             "line": "gid://shopify/LineItem/7400000000083",
                             "total": 1,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [
@@ -1062,12 +1108,14 @@
                     "location": "gid://shopify/Location/7400000000002",
                     "status": "CLOSED",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000097",
                             "line": "gid://shopify/LineItem/7400000000094",
                             "total": 1,
-                            "remaining": 0
+                            "remaining": 0,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [
@@ -1081,12 +1129,14 @@
                     "location": "gid://shopify/Location/7400000000002",
                     "status": "IN_PROGRESS",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000104",
                             "line": "gid://shopify/LineItem/7400000000101",
                             "total": 2,
-                            "remaining": 1
+                            "remaining": 1,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [
@@ -1100,12 +1150,14 @@
                     "location": "gid://shopify/Location/7400000000002",
                     "status": "OPEN",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000111",
                             "line": "gid://shopify/LineItem/7400000000108",
                             "total": 2,
-                            "remaining": 2
+                            "remaining": 2,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [],
@@ -1116,12 +1168,14 @@
                     "location": "gid://shopify/Location/7400000000002",
                     "status": "OPEN",
                     "request_status": "UNSUBMITTED",
+                    "progress_reported": false,
                     "lines": [
                         {
                             "id": "gid://shopify/FulfillmentOrderLineItem/7400000000117",
                             "line": "gid://shopify/LineItem/7400000000115",
                             "total": 1,
-                            "remaining": 1
+                            "remaining": 1,
+                            "committed": 0
                         }
                     ],
                     "fulfillments": [],
@@ -1365,7 +1419,28 @@
                 }
             },
             "receipts": [],
-            "idempotent": [],
+            "idempotent": {
+                "refundCreate|replay-refund-0": {
+                    "args": "7dcae871e638cd319359808710cd30e9d0e0f3fc",
+                    "out": {
+                        "refund": {
+                            "id": "gid://shopify/Refund/7400000000159"
+                        },
+                        "userErrors": []
+                    },
+                    "at": 20615
+                },
+                "refundCreate|replay-refund-2": {
+                    "args": "d90eed19f936436dcdb230e3d32d3cd93c0aace5",
+                    "out": {
+                        "refund": {
+                            "id": "gid://shopify/Refund/7400000000163"
+                        },
+                        "userErrors": []
+                    },
+                    "at": 21217
+                }
+            },
             "order_number": 1009
         }
     },

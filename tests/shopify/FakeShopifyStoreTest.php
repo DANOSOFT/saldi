@@ -10,6 +10,9 @@
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/LH SD-766: review fixes: @idempotent required, taxes from the input, moves carry commitments and need
+//                only a stocking destination, the documented move statuses, one location per fulfilment, compareDigest,
+//                mutation cost with its payload, stable webhook ids, a basis per registry entry.
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -37,7 +40,10 @@ final class FakeShopifyStoreTest extends TestCase
 	}';
 	private const FULFIL = 'mutation fulfil($f: FulfillmentInput!) { fulfillmentCreate(fulfillment: $f) { fulfillment { id status totalQuantity } userErrors { field message } } }';
 	private const LEVEL = 'query level($item: ID!, $loc: ID!) { inventoryItem(id: $item) { inventoryLevel(locationId: $loc) { quantities(names: ["available", "on_hand", "committed"]) { name quantity } } } }';
-	private const METAFIELDS = 'mutation mf($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id key value } userErrors { field message code elementIndex } } }';
+	private const METAFIELDS = 'mutation mf($m: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $m) { metafields { id key value compareDigest } userErrors { field message code elementIndex } } }';
+	private const STOCK_SET = 'mutation s($input: InventorySetQuantitiesInput!, $key: String!) { inventorySetQuantities(input: $input) @idempotent(key: $key) { userErrors { field message code } } }';
+	private const ACTIVATE = 'mutation a($item: ID!, $loc: ID!, $key: String!) { inventoryActivate(inventoryItemId: $item, locationId: $loc) @idempotent(key: $key) {
+		inventoryLevel { quantities(names: ["available", "on_hand"]) { name quantity } } userErrors { field message } } }';
 	private const CUSTOMER_CREATE = 'mutation c($input: CustomerInput!) { customerCreate(input: $input) { customer { id defaultEmailAddress { emailAddress } defaultPhoneNumber { phoneNumber } } userErrors { field message } } }';
 
 	private FakeShopifyStore $store;
@@ -189,27 +195,194 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertSame([$this->l2, $this->l1], array_map(fn(array $fo): string => $fo['assignedLocation']['location']['id'], $r['order']['fulfillmentOrders']['nodes']), 'B18');
 	}
 
-	public function testAMoveNeedsStockAtTheDestinationAndSplitsAPartialQuantity(): void
+	private function move(string $fo, string $to, ?array $lines = null): array
 	{
-		$p = $this->store->seedProduct($this->domain, 'bord', 'SD766-3', [$this->l1 => 5]);
-		$fo = $this->order($p['variant'], 3)['order']['fulfillmentOrders']['nodes'][0];
+		return $this->gql(self::MOVE, ['id' => $fo, 'to' => $to, 'lines' => $lines])['data']['fulfillmentOrderMove'];
+	}
+
+	private function fulfil(string $fo, ?array $lines = null): array
+	{
+		$group = ['fulfillmentOrderId' => $fo] + ($lines === null ? [] : ['fulfillmentOrderLineItems' => $lines]);
+		return $this->gql(self::FULFIL, ['f' => ['lineItemsByFulfillmentOrder' => [$group]]])['data']['fulfillmentCreate'];
+	}
+
+	public function testAMoveNeedsTheDestinationToStockTheItemNotToHaveItInStock(): void
+	{
+		$zero = $this->store->seedProduct($this->domain, 'bord', 'SD766-3', [$this->l1 => 5]);
+		$short = $this->store->seedProduct($this->domain, 'bord-kort', 'SD766-3K', [$this->l1 => 5, $this->l2 => 1]);
+		$none = $this->store->seedProduct($this->domain, 'bord-ude', 'SD766-3U', [$this->l1 => 5]);
+		$this->store->unstock($this->domain, $none['item'], $this->l2);
+
+		$unstocked = $this->order($none['variant'], 3)['order']['fulfillmentOrders']['nodes'][0];
+		$refused = $this->move($unstocked['id'], $this->l2);
+		$this->assertNull($refused['movedFulfillmentOrder']);
+		$this->assertSame([['newLocationId'], "The destination location doesn't stock the requested inventory item."],
+			[$refused['userErrors'][0]['field'], $refused['userErrors'][0]['message']], 'B03: an unstocked destination');
+		$activated = $this->gql(self::ACTIVATE, ['item' => $none['item'], 'loc' => $this->l2, 'key' => 'activate-1'])['data']['inventoryActivate'];
+		$this->assertSame([[], ['available' => 0, 'on_hand' => 0]], [$activated['userErrors'], array_column($activated['inventoryLevel']['quantities'], 'quantity', 'name')], 'B35: activated at zero');
+		$this->assertSame([], $this->move($unstocked['id'], $this->l2)['userErrors'], 'B03: once stocked, even at zero');
+
+		$understocked = $this->order($short['variant'], 3)['order']['fulfillmentOrders']['nodes'][0];
+		$this->assertSame([], $this->move($understocked['id'], $this->l2)['userErrors'], 'B03: 1 at the destination does not hold back a move of 3');
+
+		$fo = $this->order($zero['variant'], 3)['order']['fulfillmentOrders']['nodes'][0];
 		$line = $fo['lineItems']['nodes'][0]['id'];
-
-		$empty = $this->gql(self::MOVE, ['id' => $fo['id'], 'to' => $this->l2, 'lines' => null])['data']['fulfillmentOrderMove'];
-		$this->assertNull($empty['movedFulfillmentOrder']);
-		$this->assertSame(['newLocationId'], $empty['userErrors'][0]['field'], 'B03: no stock at the destination');
-
-		$this->store->shop($this->domain)['levels'][$p['item']][$this->l2]['available'] = 2;
-		$partial = $this->gql(self::MOVE, ['id' => $fo['id'], 'to' => $this->l2, 'lines' => [['id' => $line, 'quantity' => 2]]])['data']['fulfillmentOrderMove'];
-		$this->assertSame([], $partial['userErrors']);
+		$partial = $this->move($fo['id'], $this->l2, [['id' => $line, 'quantity' => 2]]);
+		$this->assertSame([], $partial['userErrors'], 'B03: activated at zero');
 		$this->assertNotSame($fo['id'], $partial['movedFulfillmentOrder']['id'], 'B04: a partial move makes a new fulfillment order');
 		$this->assertSame([$this->l2, 2], [$partial['movedFulfillmentOrder']['assignedLocation']['location']['id'], $partial['movedFulfillmentOrder']['lineItems']['nodes'][0]['remainingQuantity']]);
 		$this->assertSame([$this->l1, 1], [$partial['originalFulfillmentOrder']['assignedLocation']['location']['id'], $partial['originalFulfillmentOrder']['lineItems']['nodes'][0]['remainingQuantity']]);
+		$this->assertSame(['id'], $this->move('gid://shopify/FulfillmentOrder/1', $this->l2)['userErrors'][0]['field'], 'B29');
+	}
 
-		$this->store->shop($this->domain)['fulfillment_orders'][$fo['id']]['status'] = 'IN_PROGRESS';
-		$this->assertSame('CANNOT_MOVE_FULFILLMENT_ORDER_WITH_REPORTED_PROGRESS',
-			$this->gql(self::MOVE, ['id' => $fo['id'], 'to' => $this->l2, 'lines' => null])['data']['fulfillmentOrderMove']['userErrors'][0]['code'], 'B05');
-		$this->assertSame(['id'], $this->gql(self::MOVE, ['id' => 'gid://shopify/FulfillmentOrder/1', 'to' => $this->l2, 'lines' => null])['data']['fulfillmentOrderMove']['userErrors'][0]['field'], 'B29');
+	public function testAMoveFollowsTheDocumentedRequestStatusesAndReportedProgress(): void
+	{
+		$p = $this->store->seedProduct($this->domain, 'liggestol', 'SD766-S9', [$this->l1 => 9, $this->l2 => 9]);
+		$fo = $this->order($p['variant'], 3)['order']['fulfillmentOrders']['nodes'][0];
+		$state = fn(string $id): array => $this->store->shop($this->domain)['fulfillment_orders'][$id];
+		$set = function (string $id, string $key, mixed $value): void {
+			$this->store->shop($this->domain)['fulfillment_orders'][$id][$key] = $value;
+		};
+
+		foreach (FakeShopifyStore::MOVE_REFUSED_REQUESTS as $request) {
+			$set($fo['id'], 'request_status', $request);
+			$this->assertNull($this->move($fo['id'], $this->l2)['movedFulfillmentOrder'], "B05: $request awaits the fulfillment service");
+		}
+		$this->assertSame($this->l1, $state($fo['id'])['location']);
+		$set($fo['id'], 'request_status', 'CANCELLATION_ACCEPTED');
+		$reassigned = $this->move($fo['id'], $this->l2);
+		$this->assertSame([[], $fo['id'], $this->l2], [$reassigned['userErrors'], $reassigned['movedFulfillmentOrder']['id'], $state($fo['id'])['location']],
+			'B05: an accepted cancellation lets it be re-assigned');
+
+		$partly = $this->order($p['variant'], 3)['order']['fulfillmentOrders']['nodes'][0];
+		$this->assertSame([], $this->fulfil($partly['id'], [['id' => $partly['lineItems']['nodes'][0]['id'], 'quantity' => 1]])['userErrors']);
+		$this->assertSame('IN_PROGRESS', $state($partly['id'])['status']);
+		$rest = $this->move($partly['id'], $this->l2);
+		$this->assertSame([], $rest['userErrors'], 'B05: the rest of a partly fulfilled order moves');
+		$this->assertNotSame($partly['id'], $rest['movedFulfillmentOrder']['id'], 'B04: once something is fulfilled the moved order is a new one');
+		$this->assertSame([$this->l2, 2], [$rest['movedFulfillmentOrder']['assignedLocation']['location']['id'], $rest['movedFulfillmentOrder']['lineItems']['nodes'][0]['remainingQuantity']]);
+		$this->assertSame([$this->l1, 'CLOSED'], [$state($partly['id'])['location'], $state($partly['id'])['status']], 'B04: the fulfilled piece stays, the emptied original closes');
+		$this->assertSame("Cannot move a fulfillment order with status CLOSED.", $this->move($partly['id'], $this->l2)['userErrors'][0]['message'], 'B05');
+
+		$reported = $this->order($p['variant'], 1)['order']['fulfillmentOrders']['nodes'][0];
+		$set($reported['id'], 'status', 'IN_PROGRESS');
+		$set($reported['id'], 'progress_reported', true);
+		$this->assertSame('CANNOT_MOVE_FULFILLMENT_ORDER_WITH_REPORTED_PROGRESS', $this->move($reported['id'], $this->l2)['userErrors'][0]['code'], 'B05');
+	}
+
+	public function testAMoveTakesADecrementedOrdersCommitmentAlong(): void
+	{
+		$p = $this->store->seedProduct($this->domain, 'sofa', 'SD766-B4', [$this->l1 => 5, $this->l2 => 5]);
+		$levels = function () use ($p): array {
+			$out = [];
+			foreach (['l1' => $this->l1, 'l2' => $this->l2] as $name => $location) {
+				$q = $this->level($p['item'], $location);
+				$this->assertSame($q['on_hand'], $q['available'] + $q['committed'], "on_hand = available + committed at $name");
+				$out[$name] = [$q['available'], $q['on_hand'], $q['committed']];
+			}
+			return $out;
+		};
+		$decrement = ['inventoryBehaviour' => 'DECREMENT_OBEYING_POLICY'];
+
+		$whole = $this->order($p['variant'], 2, $decrement)['order']['fulfillmentOrders']['nodes'][0];
+		$this->assertSame(['l1' => [3, 5, 2], 'l2' => [5, 5, 0]], $levels(), 'B01');
+		$this->assertSame([], $this->move($whole['id'], $this->l2)['userErrors']);
+		$this->assertSame(['l1' => [5, 5, 0], 'l2' => [3, 5, 2]], $levels(), 'B31: the commitment moves with the order');
+		$this->assertSame([], $this->fulfil($whole['id'])['userErrors']);
+		$this->assertSame(['l1' => [5, 5, 0], 'l2' => [3, 3, 0]], $levels(), 'B17: shipped from the location it moved to');
+
+		$split = $this->order($p['variant'], 3, $decrement)['order']['fulfillmentOrders']['nodes'][0];
+		$this->assertSame(['l1' => [2, 5, 3], 'l2' => [3, 3, 0]], $levels());
+		$moved = $this->move($split['id'], $this->l2, [['id' => $split['lineItems']['nodes'][0]['id'], 'quantity' => 1]])['movedFulfillmentOrder'];
+		$this->assertSame(['l1' => [3, 5, 2], 'l2' => [2, 3, 1]], $levels(), 'B31: a partial move carries only the moved quantity');
+		$this->assertSame([], $this->fulfil($split['id'])['userErrors']);
+		$this->assertSame([], $this->fulfil($moved['id'])['userErrors']);
+		$this->assertSame(['l1' => [3, 3, 0], 'l2' => [2, 2, 0]], $levels(), 'B17, B31: both parts shipped, nothing left committed');
+
+		$bypass = $this->order($p['variant'], 1)['order']['fulfillmentOrders']['nodes'][0];
+		$this->assertSame([], $this->move($bypass['id'], $this->l2)['userErrors']);
+		$this->assertSame(['l1' => [3, 3, 0], 'l2' => [2, 2, 0]], $levels(), 'B31: a BYPASS order moves no stock');
+	}
+
+	public function testAFulfilmentTakesTheFulfillmentOrdersOfOneLocation(): void
+	{
+		$a = $this->store->seedProduct($this->domain, 'a', 'SD766-S4A', [$this->l1 => 2]);
+		$b = $this->store->seedProduct($this->domain, 'b', 'SD766-S4B', [$this->l2 => 2]);
+		$order = $this->gql(self::ORDER_CREATE, ['order' => ['lineItems' => [['variantId' => $a['variant'], 'quantity' => 1], ['variantId' => $b['variant'], 'quantity' => 1]]]])['data']['orderCreate']['order'];
+		[$fo1, $fo2] = array_column($order['fulfillmentOrders']['nodes'], 'id');
+		$before = $this->store->shop($this->domain)['fulfillment_orders'];
+
+		$both = $this->gql(self::FULFIL, ['f' => ['lineItemsByFulfillmentOrder' => [['fulfillmentOrderId' => $fo1], ['fulfillmentOrderId' => $fo2]]]])['data']['fulfillmentCreate'];
+		$this->assertNull($both['fulfillment']);
+		$this->assertSame('The fulfillment orders of one fulfillment must be assigned to the same location.', $both['userErrors'][0]['message'], 'B33');
+		$this->assertSame($before, $this->store->shop($this->domain)['fulfillment_orders'], 'B33: nothing changed');
+		$this->assertSame([], $this->store->shop($this->domain)['fulfillments']);
+
+		$this->assertSame([[], []], [$this->fulfil($fo1)['userErrors'], $this->fulfil($fo2)['userErrors']], 'one fulfilment per location');
+		$this->assertSame('FULFILLED', $this->gql('query o($id: ID!) { order(id: $id) { displayFulfillmentStatus } }', ['id' => $order['id']])['data']['order']['displayFulfillmentStatus']);
+	}
+
+	public function testTaxesComeFromTheOrderInputAndNoneAreMadeUp(): void
+	{
+		foreach (SHOPIFY_WEBHOOK_TOPICS as $topic) {
+			$this->store->subscribe($this->domain, $topic, 'https://saldi.example/api/shopify/webhook.php?shop=hml');
+		}
+		$p = $this->store->seedProduct($this->domain, 'parasol-moms', 'SD766-T1', [$this->l1 => 9]);
+		$doc = 'mutation o($order: OrderCreateOrderInput!) { orderCreate(order: $order) { order { id taxesIncluded totalTaxSet { shopMoney { amount } }
+			subtotalPriceSet { shopMoney { amount } } totalPriceSet { shopMoney { amount } } taxLines { title rate priceSet { shopMoney { amount } } } } userErrors { field message } } }';
+		$money = fn(string $amount): array => ['shopMoney' => ['amount' => $amount, 'currencyCode' => 'DKK']];
+		$moms = fn(string $amount): array => ['title' => 'Moms', 'rate' => '0.25', 'priceSet' => $money($amount)];
+		$create = fn(array $order): array => $this->gql($doc, ['order' => $order + ['currency' => 'DKK']])['data']['orderCreate'];
+		$amounts = fn(array $o): array => [$o['taxesIncluded'], $o['totalTaxSet']['shopMoney']['amount'], $o['subtotalPriceSet']['shopMoney']['amount'], $o['totalPriceSet']['shopMoney']['amount']];
+
+		$plain = $create(['lineItems' => [['variantId' => $p['variant'], 'quantity' => 1]]])['order'];
+		$this->assertSame([false, '0.0', '100.0', '100.0'], $amounts($plain), 'B34: taxesIncluded defaults to false and no tax lines make no tax');
+		$this->assertSame([], $plain['taxLines']);
+
+		$onLine = $create(['lineItems' => [['variantId' => $p['variant'], 'quantity' => 2, 'taxLines' => [$moms('50.00')]]]])['order'];
+		$this->assertSame([false, '50.0', '200.0', '250.0'], $amounts($onLine), 'B34: the line\'s tax, added to the total');
+		$this->assertSame([['title' => 'Moms', 'rate' => 0.25, 'priceSet' => ['shopMoney' => ['amount' => '50.0']]]], $onLine['taxLines']);
+
+		$included = $create(['taxesIncluded' => true, 'taxLines' => [$moms('20.00')], 'lineItems' => [['variantId' => $p['variant'], 'quantity' => 1]]])['order'];
+		$this->assertSame([true, '20.0', '100.0', '100.0'], $amounts($included), 'B34: tax inside the prices');
+		$body = json_decode(array_values(array_filter($this->store->takeDeliveries(), fn(array $d): bool => $d['topic'] === 'orders/create'))[2]['body'], true);
+		$this->assertSame([true, '20.00', '100.00', '100.00'], [$body['taxes_included'], $body['total_tax'], $body['subtotal_price'], $body['total_price']], 'the webhook body agrees');
+
+		$both = $create(['taxLines' => [$moms('20.00')], 'lineItems' => [['variantId' => $p['variant'], 'quantity' => 1, 'taxLines' => [$moms('20.00')]]]]);
+		$this->assertSame([null, ['order', 'taxLines']], [$both['order'], $both['userErrors'][0]['field']], 'B34: on the order or on the lines, not both');
+		foreach (['a tax line without priceSet' => ['lineItems' => [['variantId' => $p['variant'], 'quantity' => 1, 'taxLines' => [['title' => 'Moms', 'rate' => '0.25']]]]],
+			'shippingLines' => ['lineItems' => [['variantId' => $p['variant'], 'quantity' => 1]], 'shippingLines' => [['title' => 'GLS', 'priceSet' => $money('49.00')]]]] as $what => $order) {
+			try {
+				$create($order);
+				$this->fail("$what must fail loudly");
+			} catch (LogicException $e) {
+				$this->assertStringContainsString('not modelled', $e->getMessage(), $what);
+			}
+		}
+	}
+
+	public function testMetafieldsSetComparesDigestsAndSetsNothingOnAMismatch(): void
+	{
+		$p = $this->store->seedProduct($this->domain, 'hynde-mf', 'SD766-MF');
+		$mf = fn(string $key, string $value, array $extra = []): array => ['ownerId' => $p['product'], 'namespace' => 'saldi', 'key' => $key,
+			'type' => 'single_line_text_field', 'value' => $value] + $extra;
+		$set = fn(array ...$list): array => $this->gql(self::METAFIELDS, ['m' => $list])['data']['metafieldsSet'];
+		$value = fn(string $key): ?string => $this->store->shop($this->domain)['metafields'][$p['product']]["saldi.$key"]['value'] ?? null;
+
+		$created = $set($mf('a', 'v1', ['compareDigest' => null]));
+		$this->assertSame([], $created['userErrors'], 'B32: null creates a metafield that does not exist');
+		$digest = $created['metafields'][0]['compareDigest'];
+		$exists = $set($mf('a', 'v2', ['compareDigest' => null]));
+		$this->assertSame([['metafields', '0', 'compareDigest'], 'STALE_OBJECT', 0], [$exists['userErrors'][0]['field'], $exists['userErrors'][0]['code'], $exists['userErrors'][0]['elementIndex']], 'B32: null on an existing one');
+		$this->assertSame('v1', $value('a'));
+
+		$this->assertSame([], $set($mf('a', 'v2', ['compareDigest' => $digest]))['userErrors'], 'B32: the digest read before');
+		$stale = $set($mf('b', 'ny'), $mf('a', 'v3', ['compareDigest' => $digest]));
+		$this->assertSame(['STALE_OBJECT', 1], [$stale['userErrors'][0]['code'], $stale['userErrors'][0]['elementIndex']], 'B32: a stale digest');
+		$this->assertSame(['v2', null], [$value('a'), $value('b')], 'B06, B32: the call sets nothing');
+		$blind = $set($mf('a', 'v2'));
+		$this->assertSame([], $blind['userErrors'], 'B32: no compareDigest, no check');
+		$this->assertNotSame($blind['metafields'][0]['compareDigest'], $set($mf('a', 'v2'))['metafields'][0]['compareDigest'], 'B32: every write gives a new digest, the same value too');
 	}
 
 	public function testMetafieldsSetTakesAtMost25AndNoLineItemOwner(): void
@@ -251,16 +424,25 @@ final class FakeShopifyStoreTest extends TestCase
 	public function testCostsDrainTheBucketAndAnExpensiveQueryIsRefused(): void
 	{
 		$mutation = json_decode($this->store->request($this->domain, self::CUSTOMER_CREATE, ['input' => ['email' => 'kunde@example.dk']])['body'], true);
-		$this->assertSame(10, $mutation['extensions']['cost']['actualQueryCost'], 'B09');
-		$this->assertSame(1990.0, (float)$mutation['extensions']['cost']['throttleStatus']['currentlyAvailable'], 'B10');
+		$this->assertSame(14, $mutation['extensions']['cost']['actualQueryCost'], 'B09: 10, and the customer with its two objects and the userErrors');
+		$this->assertSame(1986.0, (float)$mutation['extensions']['cost']['throttleStatus']['currentlyAvailable'], 'B10');
+		$fragment = json_decode($this->store->request($this->domain, 'mutation c($input: CustomerInput!) { customerCreate(input: $input) { ...Made userErrors { field } } }
+			fragment Made on CustomerCreatePayload { customer { id defaultEmailAddress { emailAddress } defaultPhoneNumber { phoneNumber } } }', ['input' => ['email' => 'kunde3@example.dk']])['body'], true);
+		$this->assertSame(14, $fragment['extensions']['cost']['requestedQueryCost'], 'B09: a fragment costs what it selects');
 
 		$tooBig = $this->gql('query { products(first: 250) { nodes { variants(first: 250) { nodes { id } } } } }');
 		$this->assertSame('MAX_COST_EXCEEDED', $tooBig['errors'][0]['extensions']['code'], 'B11');
+		$dearSet = $this->gql('mutation p($identifier: ProductSetIdentifiers, $input: ProductSetInput!) { productSet(identifier: $identifier, input: $input) {
+			product { variants(first: 250) { nodes { inventoryItem { inventoryLevels(first: 250) { nodes { location { id } } } } } } } userErrors { message } } }',
+			['identifier' => ['handle' => 'dyr'], 'input' => ['title' => 'Dyr']]);
+		$this->assertSame('MAX_COST_EXCEEDED', $dearSet['errors'][0]['extensions']['code'], 'B09, B11: a mutation costs what its payload selects');
+		$this->assertGreaterThan(1000, $dearSet['errors'][0]['extensions']['cost']);
+		$this->assertNotContains('dyr', array_column($this->store->shop($this->domain)['products'], 'handle'), 'refused before it ran');
 
 		$this->store->shop($this->domain)['available'] = 5.0;
 		$throttled = $this->gql(self::CUSTOMER_CREATE, ['input' => ['email' => 'kunde2@example.dk']]);
 		$this->assertSame('THROTTLED', $throttled['errors'][0]['extensions']['code'], 'B10');
-		$this->assertCount(1, $this->store->shop($this->domain)['customers'], 'a throttled request is not executed');
+		$this->assertCount(2, $this->store->shop($this->domain)['customers'], 'a throttled request is not executed');
 
 		// a slow bucket, so the client's first attempt is refused and it waits on the fake clock
 		$this->store->restoreRate = 1.0;
@@ -329,27 +511,56 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertSame(['orders/updated'], array_column($this->store->takeDeliveries(), 'topic'), 'B25');
 		$this->assertSame(['saldi-hold'], $this->store->shop($this->domain)['orders'][$order['id']]['tags']);
 
+		$this->store->subscribe($this->domain, 'ORDERS_UPDATED', 'https://saldi2.example/api/shopify/webhook.php?shop=hml');
+		$this->gql('mutation t($id: ID!) { tagsRemove(id: $id, tags: ["saldi-hold"]) { node { id } userErrors { message } } }', ['id' => $order['id']]);
+		$twice = $this->store->takeDeliveries();
+		$this->assertSame(['orders/updated', 'orders/updated'], array_column($twice, 'topic'), 'B12: one delivery per subscription');
+		$this->assertSame($twice[0]['event_id'], $twice[1]['event_id'], 'B13: one event id for the action');
+		$this->assertNotSame($twice[0]['webhook_id'], $twice[1]['webhook_id'], 'B13: a webhook id per delivery');
+		$this->assertNotContains($twice[0]['event_id'], array_column($out, 'event_id'));
+
 		$created = $this->gql('mutation w($t: WebhookSubscriptionTopic!, $s: WebhookSubscriptionInput!) { webhookSubscriptionCreate(topic: $t, webhookSubscription: $s) { userErrors { message } } }',
 			['t' => 'ORDERS_PAID', 's' => ['uri' => 'https://saldi.example/api/shopify/webhook.php?shop=hml']]);
 		$this->assertSame('Address for this topic has already been taken', $created['data']['webhookSubscriptionCreate']['userErrors'][0]['message'], 'B28');
 	}
 
-	public function testStockSetsAreAbsoluteAndAnIdempotencyKeyAnswersOnce(): void
+	public function testStockSetsAreAbsoluteAndNeedAnIdempotencyKeyThatAnswersOnce(): void
 	{
 		$p = $this->store->seedProduct($this->domain, 'lampe', 'SD766-6', [$this->l1 => 2]);
-		$set = fn(int $qty, ?int $from, string $key) => $this->gql(ClientRetryTest::INVENTORY_SET, ['key' => $key, 'input' => ['name' => 'available', 'reason' => 'correction',
-			'quantities' => [['inventoryItemId' => $p['item'], 'locationId' => $this->l1, 'quantity' => $qty, 'changeFromQuantity' => $from]]]]);
+		$quantity = fn(int $qty, ?int $from): array => ['inventoryItemId' => $p['item'], 'locationId' => $this->l1, 'quantity' => $qty, 'changeFromQuantity' => $from];
+		$set = fn(int $qty, ?int $from, string $key): array => $this->gql(self::STOCK_SET, ['key' => $key,
+			'input' => ['name' => 'available', 'reason' => 'correction', 'quantities' => [$quantity($qty, $from)]]])['data']['inventorySetQuantities']['userErrors'];
 
-		$this->assertSame([], $set(7, 2, 'k1')['data']['inventorySetQuantities']['userErrors'], 'B20');
+		$unkeyed = $this->gql('mutation s($input: InventorySetQuantitiesInput!) { inventorySetQuantities(input: $input) { userErrors { code } } }',
+			['input' => ['name' => 'available', 'reason' => 'correction', 'quantities' => [$quantity(9, null)]]]);
+		$this->assertArrayNotHasKey('data', $unkeyed);
+		$this->assertStringContainsString('inventorySetQuantities requires an idempotency key', $unkeyed['errors'][0]['message'], 'B21: required in 2026-07');
+		$this->assertSame(2, $this->level($p['item'], $this->l1)['available'], 'B21: refused before it ran');
+
+		$this->assertSame([], $set(7, 2, 'k1'), 'B20');
 		$this->assertSame(['available' => 7, 'on_hand' => 7, 'committed' => 0], $this->level($p['item'], $this->l1));
-		$this->assertSame('CHANGE_FROM_QUANTITY_STALE', $this->gql('mutation s($input: InventorySetQuantitiesInput!) { inventorySetQuantities(input: $input) { userErrors { code } } }',
-			['input' => ['name' => 'available', 'reason' => 'correction', 'quantities' => [['inventoryItemId' => $p['item'], 'locationId' => $this->l1, 'quantity' => 1, 'changeFromQuantity' => 2]]]])
-			['data']['inventorySetQuantities']['userErrors'][0]['code'], 'B20');
+		$this->assertSame('CHANGE_FROM_QUANTITY_STALE', $set(1, 2, 'k2')[0]['code'], 'B20');
+		$omitted = $this->gql(self::STOCK_SET, ['key' => 'k3', 'input' => ['name' => 'available', 'reason' => 'correction',
+			'quantities' => [['inventoryItemId' => $p['item'], 'locationId' => $this->l1, 'quantity' => 1]]]])['data']['inventorySetQuantities']['userErrors'];
+		$this->assertSame(['input', 'quantities', '0', 'changeFromQuantity'], $omitted[0]['field'], 'B20: changeFromQuantity is required, null skips the check');
 
 		$this->store->shop($this->domain)['levels'][$p['item']][$this->l1]['available'] = 5;
-		$this->assertSame([], $set(7, 2, 'k1')['data']['inventorySetQuantities']['userErrors'], 'B21: the earlier answer');
+		$this->assertSame([], $set(7, 2, 'k1'), 'B21: the earlier answer');
 		$this->assertSame(5, $this->level($p['item'], $this->l1)['available'], 'B21: and nothing changed');
-		$this->assertSame('IDEMPOTENCY_KEY_PARAMETER_MISMATCH', $set(8, 5, 'k1')['errors'][0]['extensions']['code'], 'B21');
+		$mismatch = $set(8, 5, 'k1');
+		$this->assertSame(['IDEMPOTENCY_KEY_PARAMETER_MISMATCH', 'The same idempotency key cannot be used with different operation parameters.'],
+			[$mismatch[0]['code'], $mismatch[0]['message']], 'B21: a userError');
+		$this->assertSame(5, $this->level($p['item'], $this->l1)['available']);
+		$this->store->clock->now += FakeShopifyStore::IDEMPOTENCY_SECONDS;
+		$this->assertSame([], $set(8, 5, 'k1'), 'B21: a key is kept 24 hours');
+		$this->assertSame(8, $this->level($p['item'], $this->l1)['available']);
+
+		try {
+			$this->gql('mutation t($id: ID!) { tagsAdd(id: $id, tags: ["x"]) @idempotent(key: "t1") { userErrors { message } } }', ['id' => $p['product']]);
+			$this->fail('@idempotent where 2026-07 does not document it must fail loudly');
+		} catch (LogicException $e) {
+			$this->assertStringContainsString('@idempotent on mutation field tagsAdd is not modelled', $e->getMessage());
+		}
 	}
 
 	public function testProductSetUpdatesByIdOrHandleAndKeepsWhatItLeavesOut(): void
@@ -389,12 +600,15 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertSame(['ny note', ['pos'], [['key' => 'Leveringsdato', 'value' => '2026-11-20']]], [$update['note'], $update['tags'], $update['customAttributes']], 'B26');
 
 		$line = $this->store->shop($this->domain)['orders'][$order['id']]['lines'][0]['id'];
-		$refund = fn(int $qty) => $this->gql('mutation r($input: RefundInput!) { refundCreate(input: $input) { refund { id totalRefundedSet { shopMoney { amount } } } order { displayFinancialStatus } userErrors { message } } }',
-			['input' => ['orderId' => $order['id'], 'refundLineItems' => [['lineItemId' => $line, 'quantity' => $qty, 'restockType' => 'RETURN', 'locationId' => $this->l1]]]])['data']['refundCreate'];
-		$first = $refund(2);
+		$refund = fn(int $qty, string $key) => $this->gql('mutation r($input: RefundInput!, $key: String!) { refundCreate(input: $input) @idempotent(key: $key) {
+			refund { id totalRefundedSet { shopMoney { amount } } } order { displayFinancialStatus } userErrors { message } } }',
+			['key' => $key, 'input' => ['orderId' => $order['id'], 'refundLineItems' => [['lineItemId' => $line, 'quantity' => $qty, 'restockType' => 'RETURN', 'locationId' => $this->l1]]]])['data']['refundCreate'];
+		$first = $refund(2, 'refund-1');
 		$this->assertSame(['200.0', 'PARTIALLY_REFUNDED'], [$first['refund']['totalRefundedSet']['shopMoney']['amount'], $first['order']['displayFinancialStatus']], 'B27');
 		$this->assertSame(11, $this->level($p['item'], $this->l1)['available'], 'B27: restocked');
-		$this->assertSame('Quantity cannot refund more items than were purchased', $refund(2)['userErrors'][0]['message'], 'B27');
+		$this->assertSame($first, $refund(2, 'refund-1'), 'B21: the same key answers the same refund');
+		$this->assertSame(11, $this->level($p['item'], $this->l1)['available'], 'B21: and restocks once');
+		$this->assertSame('Quantity cannot refund more items than were purchased', $refund(2, 'refund-2')['userErrors'][0]['message'], 'B27');
 	}
 
 	public function testPagesAndStateSurviveAnExport(): void
@@ -424,10 +638,19 @@ final class FakeShopifyStoreTest extends TestCase
 
 		$this->assertSame(array_keys(FakeShopifyBehaviours::ALL), $encoded, 'every behaviour the fakes apply is listed, and every listed one is applied');
 		foreach (FakeShopifyBehaviours::ALL as $id => $b) {
-			$this->assertMatchesRegularExpression('#https://shopify\.dev/|verified 2026-10-06|ASSUMED#', $b['source'], "$id names its source");
+			$this->assertContains($b['basis'], FakeShopifyBehaviours::BASES, $id);
+			$cites = (bool)preg_match('#https://shopify\.dev/#', $b['source']);
+			$assumes = str_contains($b['source'], 'ASSUMED');
+			$this->assertSame(['verified' => [true, false], 'partly' => [true, true], 'assumed' => [$cites, true]][$b['basis']], [$cites, $assumes], "$id: a {$b['basis']} entry's source");
+			if ($b['basis'] === 'assumed') {
+				$this->assertStringStartsWith('ASSUMED', $b['source'], $id);
+			}
+			preg_match_all('#https://shopify\.dev/docs/api/admin-graphql/([^/]+)/#', $b['source'], $versions);
+			$this->assertSame([], array_values(array_diff($versions[1], [FakeShopifyStore::API_VERSION])), "$id cites the API version the fake models");
 			$this->assertNotSame('', $b['calibrated_by'], "$id names its calibration");
 		}
 		$this->assertStringContainsString("| B01 | orderCreate without options.inventoryBehaviour uses BYPASS", FakeShopifyBehaviours::markdown());
+		$this->assertEqualsCanonicalizing(array_keys(FakeShopifyBehaviours::ALL), array_merge(...array_values(FakeShopifyBehaviours::byBasis())), 'byBasis() holds every entry once');
 	}
 
 	public function testTheReplayerSignsAtRunTimeAndArrangesADay(): void
@@ -436,10 +659,14 @@ final class FakeShopifyStoreTest extends TestCase
 		$replayer = new WebhookReplayer(['shop_key' => 'hml', 'domain' => 'hml-test.myshopify.com', 'api_version' => '2026-07'], 'not-a-real-secret');
 
 		$a = $replayer->headers($deliveries[0]);
-		$b = $replayer->headers($deliveries[0]);
+		$retry = $replayer->headers(['attempt' => 2] + $deliveries[0]);
 		$this->assertTrue(shopify_verify_hmac('{"id":1}', $a['X-Shopify-Hmac-Sha256'], 'not-a-real-secret'));
 		$this->assertSame(['orders/paid', 'hml-test.myshopify.com', 'e1', '2026-07'], [$a['X-Shopify-Topic'], $a['X-Shopify-Shop-Domain'], $a['X-Shopify-Event-Id'], $a['X-Shopify-API-Version']]);
-		$this->assertNotSame($a['X-Shopify-Webhook-Id'], $b['X-Shopify-Webhook-Id'], 'a new webhook id per attempt');
+		$this->assertSame($a, $retry, 'B13: a retry carries the same webhook id and event id');
+		$this->assertNotSame($a['X-Shopify-Webhook-Id'], $replayer->headers($deliveries[1])['X-Shopify-Webhook-Id'], 'B13: another delivery, another webhook id');
+		$this->assertSame('w-1', $replayer->headers(['webhook_id' => 'w-1'] + $deliveries[0])['X-Shopify-Webhook-Id'], 'the store\'s webhook id wins');
+		$late = WebhookReplayer::arrange([['webhook_id' => 'w-1'] + $deliveries[0]], 'delayed');
+		$this->assertSame(['w-1', 2], [$late[0]['webhook_id'], $late[0]['attempt']], 'a delayed retry keeps its webhook id');
 
 		$ids = fn(array $list): array => array_column($list, 'event_id');
 		$this->assertSame(array_reverse($ids($deliveries)), $ids(WebhookReplayer::arrange($deliveries, 'reversed')));

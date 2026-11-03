@@ -12,6 +12,7 @@
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/LH SD-766: review fixes: the day's refunds carry an idempotency key, the move needs no stock at its destination.
 
 require_once __DIR__ . '/FakeShopifyStore.php';
 require_once __DIR__ . '/WebhookReplayer.php';
@@ -208,10 +209,6 @@ final class ReplayDay
 			$fo = $order['fulfillmentOrders']['nodes'][0];
 			if ($i === 1) {
 				// the warehouse moves one order to the other location before it ships
-				foreach ($store->shop($d)['fulfillment_orders'][$fo['id']]['lines'] as $li) {
-					$item = $store->shop($d)['variants'][$store->shop($d)['orders'][$order['id']]['lines'][0]['variant']]['item'];
-					$store->shop($d)['levels'][$item][$l2]['available'] = max($store->shop($d)['levels'][$item][$l2]['available'], $li['remaining']);
-				}
 				$fo['id'] = $gql($move, ['id' => $fo['id'], 'to' => $l2])['movedFulfillmentOrder']['id'];
 			}
 			$group = ['fulfillmentOrderId' => $fo['id']];
@@ -223,10 +220,10 @@ final class ReplayDay
 		}
 		$gql('mutation t($id: ID!) { tagsAdd(id: $id, tags: ["saldi-hold"]) { node { id } userErrors { message } } }', ['id' => $orders[7]['id']]);
 
-		$refund = 'mutation r($input: RefundInput!) { refundCreate(input: $input) { refund { id } userErrors { message } } }';
+		$refund = 'mutation r($input: RefundInput!, $key: String!) { refundCreate(input: $input) @idempotent(key: $key) { refund { id } userErrors { message } } }';
 		foreach ([[0, 'RETURN'], [2, 'NO_RESTOCK']] as [$k, $restock]) {
 			$line = $store->shop($d)['orders'][$orders[$k]['id']]['lines'][0];
-			$gql($refund, ['input' => ['orderId' => $orders[$k]['id'], 'note' => 'retur', 'refundLineItems' => [
+			$gql($refund, ['key' => "replay-refund-$k", 'input' => ['orderId' => $orders[$k]['id'], 'note' => 'retur', 'refundLineItems' => [
 				['lineItemId' => $line['id'], 'quantity' => 1, 'restockType' => $restock, 'locationId' => $l1]]]]);
 		}
 		$update = 'mutation u($input: CustomerInput!) { customerUpdate(input: $input) { customer { id } userErrors { message } } }';

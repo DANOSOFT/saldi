@@ -7,11 +7,13 @@
 // shopify_receive_webhook() on the bootstrapped tenant; over HTTP it posts to
 // api/shopify/webhook.php, served by `php -S` with webhook_router.php (startServer()). arrange()
 // gives the orders a day is replayed in: as recorded, reversed, shuffled by seed, with duplicates
-// (a retry: same event id, new webhook id) and delayed (retries that arrive after the rest).
-// Deliveries come from FakeShopifyStore's outbox or from a day file; neither holds a signature.
+// (a retry: the same delivery again, same webhook id and event id) and delayed (retries that
+// arrive after the rest). Deliveries come from FakeShopifyStore's outbox or from a day file;
+// neither holds a signature.
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/LH SD-766: review fixes: the webhook id is the delivery's, the same on every attempt (B13).
 
 require_once __DIR__ . '/FakeShopifyBehaviours.php';
 
@@ -21,7 +23,6 @@ final class WebhookReplayer
 
 	/** @var list<array{event_id: string, topic: string, attempt: int, status: int, outcome: string}> */
 	public array $answers = [];
-	private int $sent = 0;
 
 	/**
 	 * @param array{shop_key: string, domain: string, api_version?: string} $shop a shopify_shops row
@@ -43,12 +44,12 @@ final class WebhookReplayer
 	/**
 	 * FakeShopifyStore outbox entries as deliveries.
 	 *
-	 * @return list<array{topic: string, event_id: string, triggered_at: string, api_version: string, attempt: int, raw: string}>
+	 * @return list<array{topic: string, event_id: string, webhook_id: string, triggered_at: string, api_version: string, attempt: int, raw: string}>
 	 */
 	public static function fromOutbox(array $outbox): array
 	{
-		return array_map(fn(array $d): array => ['topic' => $d['topic'], 'event_id' => $d['event_id'], 'triggered_at' => $d['triggered_at'],
-			'api_version' => $d['api_version'], 'attempt' => 1, 'raw' => $d['body']], $outbox);
+		return array_map(fn(array $d): array => ['topic' => $d['topic'], 'event_id' => $d['event_id'], 'webhook_id' => $d['webhook_id'],
+			'triggered_at' => $d['triggered_at'], 'api_version' => $d['api_version'], 'attempt' => 1, 'raw' => $d['body']], $outbox);
 	}
 
 	/**
@@ -106,19 +107,19 @@ final class WebhookReplayer
 	}
 
 	/**
-	 * Shopify's headers for one delivery attempt, signed now (B13). The webhook id is new on every
-	 * attempt; the event id stays.
+	 * Shopify's headers for one delivery attempt, signed now (B13). Every attempt of a delivery
+	 * carries its webhook id and event id; a delivery without a webhook id (a hand-made one) gets
+	 * one from its topic and event id.
 	 *
 	 * @return array<string, string>
 	 */
 	public function headers(array $delivery): array
 	{
-		$this->sent++;
 		return [
 			'X-Shopify-Topic' => (string)$delivery['topic'],
 			'X-Shopify-Hmac-Sha256' => base64_encode(hash_hmac('sha256', (string)$delivery['raw'], $this->secret, true)),
 			'X-Shopify-Shop-Domain' => (string)$this->shop['domain'],
-			'X-Shopify-Webhook-Id' => sprintf('replay-%s-%d-%d', $delivery['event_id'], $delivery['attempt'] ?? 1, $this->sent),
+			'X-Shopify-Webhook-Id' => (string)($delivery['webhook_id'] ?? 'replay-' . substr(sha1($delivery['topic'] . ' ' . $delivery['event_id']), 0, 32)),
 			'X-Shopify-Event-Id' => (string)$delivery['event_id'],
 			'X-Shopify-Triggered-At' => (string)$delivery['triggered_at'],
 			'X-Shopify-API-Version' => (string)($delivery['api_version'] ?? $this->shop['api_version'] ?? '2026-07'),

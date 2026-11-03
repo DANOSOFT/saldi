@@ -10,6 +10,7 @@
 //
 // History:
 // 20261102 CL/LH SD-766: created.
+// 20261103 CL/LH SD-766: fields() and included() are public, for FakeShopifyStore's cost and refusals.
 
 require_once __DIR__ . '/GraphqlSchema.php';
 
@@ -240,6 +241,17 @@ final class GraphqlDocument
 	}
 
 	/**
+	 * The fields of a selection set that apply to an object of type $type (null: every fragment),
+	 * after @skip/@include and fragments.
+	 *
+	 * @return list<array> field nodes
+	 */
+	public function fields(array $selections, ?string $type, array $vars): array
+	{
+		return $this->collect($selections, $type, $vars);
+	}
+
+	/**
 	 * The fields of a selection set that apply to an object of type $type: fragments whose type
 	 * condition matches (the type itself, or an interface or union, which the schema fixture
 	 * lists without members), minus @skip(if: true) and @include(if: false).
@@ -273,7 +285,8 @@ final class GraphqlDocument
 		return $out;
 	}
 
-	private function included(array $directives, array $vars): bool
+	/** False when @skip(if: true) or @include(if: false) drops the selection. */
+	public function included(array $directives, array $vars): bool
 	{
 		foreach ($directives as $d) {
 			$if = isset($d['args']['if']) ? (bool)self::value($d['args']['if'], $vars) : null;
