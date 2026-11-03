@@ -111,7 +111,11 @@ final class OrderIntakeTest extends TestCase
 				'assignedLocation' => ['location' => ['id' => 'gid://shopify/Location/2']],
 				'lineItems' => ['nodes' => [['id' => 'x', 'totalQuantity' => 1, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]],
 				['id' => 'gid://shopify/FulfillmentOrder/2', 'status' => 'OPEN', 'assignedLocation' => ['location' => ['id' => 'gid://shopify/Location/1']],
-				'lineItems' => ['nodes' => [['id' => 'y', 'totalQuantity' => 1, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]]]],
+				'lineItems' => ['nodes' => [['id' => 'y', 'totalQuantity' => 1, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]],
+				['id' => 'gid://shopify/FulfillmentOrder/3', 'status' => 'CLOSED', 'assignedLocation' => ['location' => ['id' => 'gid://shopify/Location/3']],
+				'lineItems' => ['nodes' => [['id' => 'z', 'totalQuantity' => 1, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]],
+				['id' => 'gid://shopify/FulfillmentOrder/4', 'status' => 'OPEN', 'assignedLocation' => ['location' => ['id' => 'gid://shopify/Location/4']],
+				'lineItems' => ['nodes' => [['id' => 'w', 'totalQuantity' => 0, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]]]],
 		];
 
 		$o = shopify_order_from_graphql($node);
@@ -121,7 +125,8 @@ final class OrderIntakeTest extends TestCase
 		$this->assertSame('PAID', $o['financial_status']);
 		$this->assertSame(['sku' => 'X', 'original_total' => '200.00', 'discount' => '20.00', 'assigned_location' => 'gid://shopify/Location/2'],
 			array_intersect_key($o['lines'][0], array_flip(['sku', 'discount', 'original_total', 'assigned_location'])));
-		$this->assertSame(['gid://shopify/Location/2', 'gid://shopify/Location/1'], $o['lines'][0]['assigned_locations'], 'a line Shopify split over two fulfillment orders');
+		$this->assertSame(['gid://shopify/Location/2', 'gid://shopify/Location/1'], $o['lines'][0]['assigned_locations'],
+			'a line Shopify split over two fulfillment orders; a closed one and one holding none of the line are no assignment');
 		$this->assertSame('SALE', $o['transactions'][0]['kind']);
 		$this->assertSame('Visa', $o['transactions'][0]['card']);
 		$this->assertSame('39.00', $o['shipping'][0]['amount']);
@@ -196,6 +201,33 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertSame(['order.account', 'order.serial'], self::kinds($v['errors']));
 		$this->assertStringContainsString('without a purchase or sales account', $v['errors'][0]['message']);
+	}
+
+	public function testBatchControlledAmbiguousAndCollidingItemsAreRefused(): void
+	{
+		$batch = self::validate(self::order(), self::ctx(['by_variant' => [], 'by_sku' => ['X' => self::item(100, 'X', ['batch' => true]), 'Y' => self::item(101, 'Y')]]));
+		$ambiguous = self::validate(self::order(), self::ctx(['by_variant' => [], 'by_sku' => ['X' => self::item(100, 'X', ['sku_ambiguous' => true]), 'Y' => self::item(101, 'Y')]]));
+		$colliding = self::validate(self::order(), self::ctx(['by_variant' => [], 'by_sku' => ['X' => self::item(100, 'X', ['written_as' => 'X', 'written_as_other' => true]),
+			'Y' => self::item(101, 'Y')]]));
+
+		$this->assertSame(['order.account'], self::kinds($batch['errors']));
+		$this->assertStringContainsString('batch-controlled', $batch['errors'][0]['message']);
+		$this->assertSame(['order.sku'], self::kinds($ambiguous['errors']));
+		$this->assertStringContainsString('more than one item or variant', $ambiguous['errors'][0]['message']);
+		$this->assertSame(['order.account'], self::kinds($colliding['errors']));
+		$this->assertStringContainsString("another variant's barcode", $colliding['errors'][0]['message']);
+	}
+
+	public function testTheLastUnitIsNeverBelowTheOthers(): void
+	{
+		$line = ['gid' => 'gid://shopify/LineItem/3', 'sku' => 'Y', 'name' => 'Søm', 'quantity' => 1500, 'current_quantity' => 1500, 'variant_gid' => null,
+			'product_gid' => null, 'original_total' => '1.00', 'discount' => '0.00', 'assigned_location' => 'gid://shopify/Location/1'];
+		$order = self::order(['lines' => [$line], 'shipping' => [], 'total' => '1.00',
+			'transactions' => [['gid' => 't', 'kind' => 'SALE', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments', 'amount' => '1.00', 'card' => 'Visa']]]);
+
+		$l = self::validate($order, self::ctx(['stock_milli' => [101 => [1 => 2000000]]]))['lines'][0];
+
+		$this->assertSame([0.0, 0.8], [$l['unit_net'], $l['last_unit_net']], 'net 0.800 over 1500 units: 0.000 each, the last takes 0.800');
 	}
 
 	public function testAVariantLineNeedsItsVariantsBarcode(): void

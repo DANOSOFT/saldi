@@ -29,7 +29,7 @@
 // intake never relies on catching an exit or reading HTML.
 //
 // 20261103 CL/SS SD-742: created (WP09-1).
-// 20261103 CL/SS SD-742 review: the preflight refuses a line whose variant is not one of its item.
+// 20261103 CL/SS SD-742 review: the preflight refuses a line whose variant is not one of its item, and a batch-controlled item.
 
 /** Globals levering() and bogfor() set and read again later: always given back, so one order's never reach the next. */
 const SHOPIFY_LEGACY_STATE_GLOBALS = array('levdate', 'lev_nr', 'afd_lager', 'fakturadate', 'momssats', 'kasse');
@@ -74,7 +74,7 @@ function shopify_with_legacy_context(array $ctx, callable $op) {
  * open with a delivery date, not before its order date; every item line's item must exist with
  * an item group of the fiscal year that has a purchase and a sales account (linjeopdat()); a
  * variant-controlled item needs its variant, and a line's variant must be one of its item; a line with serial numbers cannot be delivered
- * headless; a web order has no returns, so no line may be negative, and what is delivered and
+ * headless, nor a batch-controlled one (batch_salg_lev() exits when the batches don't cover it); a web order has no returns, so no line may be negative, and what is delivered and
  * left to deliver may not exceed the line's quantity. S09b calls levering($id, 'on', NULL, true),
  * under which levering() sets the date and the quantities itself; the checks hold either way.
  *
@@ -97,7 +97,7 @@ function shopify_preflight_delivery(int $ordreId): void {
 	}
 	$lines = shopify_db_rows(
 		'SELECT l.id, l.posnr, l.varenr, l.vare_id, l.antal, COALESCE(l.leveres, 0) AS leveres, l.serienr, l.variant_id, v.gruppe,
-			g.id AS group_id, g.box3, g.box4,
+			g.id AS group_id, g.box3, g.box4, g.box9,
 			EXISTS (SELECT 1 FROM variant_varer vv WHERE vv.vare_id = l.vare_id) AS variant_item,
 			EXISTS (SELECT 1 FROM variant_varer vo WHERE vo.id::text = btrim(l.variant_id::text) AND vo.vare_id = l.vare_id) AS variant_owned,
 			(SELECT COALESCE(sum(antal), 0) FROM batch_salg b WHERE b.linje_id = l.id) AS delivered
@@ -114,6 +114,9 @@ function shopify_preflight_delivery(int $ordreId): void {
 		}
 		if ($l['group_id'] === null || trim((string)$l['box3']) === '' || trim((string)$l['box4']) === '') {
 			throw new ShopifyPreflightError("order $ordreId: $pos has item group {$l['gruppe']} without a purchase and sales account in the fiscal year");
+		}
+		if (trim((string)$l['box9']) === 'on') {
+			throw new ShopifyPreflightError("order $ordreId: $pos is batch-controlled; levering() stops when its batches don't cover it");
 		}
 		if (in_array($l['variant_item'], array(true, 't', '1', 1), true) && (int)$l['variant_id'] < 1) {
 			throw new ShopifyPreflightError("order $ordreId: $pos is a variant item without a variant");

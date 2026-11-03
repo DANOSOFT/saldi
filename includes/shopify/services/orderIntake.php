@@ -35,6 +35,8 @@
 //
 // 20261103 CL/SS SD-742: created (WP09-1).
 // 20261103 CL/SS SD-742 review: a line split over several fulfillment locations is an alarm; an order that does not fit one read is refused.
+// 20261103 CL/SS SD-742 review: batch-controlled items, a VAT group without a rate and an ambiguous SKU are refused; the unit price
+//                is rounded down so the last unit is never below it; closed fulfillment orders are no assignment.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -115,7 +117,8 @@ function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array())
 /**
  * The order the way the intake reads it (pure): amounts as strings with two decimals, the
  * lines with the location their fulfillment order is assigned to (the first, when Shopify has
- * split a line over several fulfillment orders; assigned_locations lists them all).
+ * split a line over several fulfillment orders; assigned_locations lists them all). A closed or
+ * cancelled fulfillment order, and a line it holds none of, is no assignment.
  *
  * @param array<string, mixed> $o the order node of SHOPIFY_ORDER_READ
  * @return array{gid: string, name: string, created_at: string, source_name: string, source_identifier: string,
@@ -131,8 +134,14 @@ function shopify_order_from_graphql(array $o): array {
 	$money = static fn($set): string => number_format((float)($set['shopMoney']['amount'] ?? 0), 2, '.', '');
 	$assigned = array();
 	foreach ($o['fulfillmentOrders']['nodes'] ?? array() as $fo) {
+		if (in_array(strtoupper((string)($fo['status'] ?? '')), array('CLOSED', 'CANCELLED'), true)) {
+			continue;
+		}
 		$location = $fo['assignedLocation']['location']['id'] ?? null;
 		foreach ($fo['lineItems']['nodes'] ?? array() as $foLine) {
+			if ((int)($foLine['totalQuantity'] ?? 0) < 1) {
+				continue;
+			}
 			$lineGid = $foLine['lineItem']['id'] ?? null;
 			if ($lineGid !== null && $location !== null && !in_array((string)$location, $assigned[$lineGid] ?? array(), true)) {
 				$assigned[$lineGid][] = (string)$location;
@@ -310,6 +319,12 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 		if (!empty($item['variant_item']) && !$variantAllowed) {
 			return "(item {$item['varenr']}) is a variant item, which can't be used here";
 		}
+		if (!empty($item['batch'])) {
+			return "(item {$item['varenr']}) is batch-controlled, which the intake cannot deliver (levering() stops when the batches don't cover it)";
+		}
+		if (!empty($item['written_as_other'])) {
+			return "(item {$item['varenr']}) is written as '{$item['written_as']}', which is another variant's barcode, so opret_ordrelinje() would take that one";
+		}
 		if (($item['problem'] ?? null) !== null) {
 			return "(item {$item['varenr']}) {$item['problem']}";
 		}
@@ -349,6 +364,10 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 		$label = $l['sku'] !== '' ? "SKU {$l['sku']}" : "line {$l['gid']}";
 		if ($item === null) {
 			$error('order.sku', "order $name: $label is no item in Saldi");
+			continue;
+		}
+		if (!empty($item['sku_ambiguous'])) {
+			$error('order.sku', "order $name: $label names more than one item or variant in Saldi");
 			continue;
 		}
 		if ($l['quantity'] < 1) {
@@ -392,7 +411,8 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 		$quantity = (int)$l['quantity'];
 		$rate = (float)($item['vat_rate'] ?? 0);
 		$net = round($paid / (1 + $rate / 100), 3);
-		$unit = round($net / $quantity, 3);
+		$netMilli = (int)round($net * 1000);
+		$unit = (float)(intdiv($netMilli, $quantity) / 1000);
 		$lines[] = array(
 			'key' => $l['gid'],
 			'vare_id' => (int)$item['vare_id'],
@@ -404,7 +424,7 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 			'line_paid' => $paid,
 			'line_net' => $net,
 			'unit_net' => $unit,
-			'last_unit_net' => round($net - $unit * ($quantity - 1), 3),
+			'last_unit_net' => (float)(($netMilli - intdiv($netMilli, $quantity) * ($quantity - 1)) / 1000),
 			'set' => !empty($item['set']),
 			'bom' => !empty($item['set']) ? array_values($item['bom']) : array(),
 			'sku' => $l['sku'],
@@ -792,12 +812,13 @@ function shopify_intake_context(array $shop, array $order): array {
  * allocation wants them. The VAT lookup is opret_ordrelinje()'s: the
  * department's VAT group when the setting maxDepVatRate_<afd> exists, else the sales account's.
  *
- * @return array{vare_id: int, varenr: string, variant_id: int, variant_barcode: string, stock_key: int, gruppe: int, problem: string|null, vat_rate: float, salgspris: float,
+ * @return array{vare_id: int, varenr: string, variant_id: int, variant_barcode: string, written_as: string, written_as_other: bool, batch: bool,
+ *   stock_key: int, gruppe: int, problem: string|null, vat_rate: float, salgspris: float,
  *   serial: bool, variant_item: bool, set: bool, bom: list<array{bom_id: int, vare_id: int, quantity_milli: int}>}|null
  */
 function shopify_intake_item(int $vareId, int $variantId, int $year, int $afd = 0): ?array {
 	$rows = shopify_db_rows(
-		"SELECT v.id, v.varenr, v.gruppe, v.serienr, v.samlevare, v.salgspris, g.id AS group_id, g.box3, g.box4, g.box7,
+		"SELECT v.id, v.varenr, v.gruppe, v.serienr, v.samlevare, v.salgspris, g.id AS group_id, g.box3, g.box4, g.box7, g.box9,
 			EXISTS (SELECT 1 FROM variant_varer vv WHERE vv.vare_id = v.id) AS variant_item
 		 FROM varer v LEFT JOIN grupper g ON g.art = 'VG' AND g.kodenr::text = v.gruppe::text AND g.fiscal_year::text = $2
 		 WHERE v.id = $1",
@@ -824,6 +845,9 @@ function shopify_intake_item(int $vareId, int $variantId, int $year, int $afd = 
 			$sm = $code > 0 ? shopify_db_rows("SELECT box1, box2 FROM grupper WHERE art = 'SM' AND kodenr::text = $1 AND fiscal_year::text = $2", array((string)$code, (string)$year)) : array();
 			if ($sm === array() || trim((string)$sm[0]['box1']) === '') {
 				$problem = $depVat ? "is sold by department $afd, whose VAT group has no VAT account" : "has sales account $sales without a VAT code with a VAT account";
+			} elseif ((float)$sm[0]['box2'] <= 0) {
+				// opret_ordrelinje() takes the rate only when it is set, else the order's
+				$problem = "has VAT group $code without a rate in a group that is not VAT-free";
 			} else {
 				$rate = (float)$sm[0]['box2'];
 			}
@@ -834,6 +858,14 @@ function shopify_intake_item(int $vareId, int $variantId, int $year, int $afd = 
 		$v = shopify_db_rows('SELECT variant_stregkode FROM variant_varer WHERE id = $1 AND vare_id = $2', array($variantId, $vareId));
 		$barcode = trim((string)($v[0]['variant_stregkode'] ?? ''));
 	}
+	// opret_ordrelinje() looks the written number up as a variant barcode first (a 12-digit number also with a leading 0)
+	$writtenAs = $variantId > 0 ? $barcode : (string)$r['varenr'];
+	$forms = array(strtoupper($writtenAs));
+	if (strlen($writtenAs) === 12 && ctype_digit($writtenAs)) {
+		$forms[] = '0' . $writtenAs;
+	}
+	$other = shopify_db_rows('SELECT 1 FROM variant_varer WHERE upper(variant_stregkode) = ANY($1::text[]) AND id <> $2 LIMIT 1',
+		array('{' . implode(',', array_map(fn($f) => '"' . str_replace(array('\\', '"'), array('\\\\', '\\"'), $f) . '"', $forms)) . '}', $variantId));
 	$bom = array();
 	foreach (shopify_db_rows('SELECT id, vare_id, antal FROM styklister WHERE indgaar_i = $1 ORDER BY posnr, id', array($vareId)) as $c) {
 		$bom[] = array('bom_id' => (int)$c['id'], 'vare_id' => (int)$c['vare_id'], 'quantity_milli' => (int)round((float)$c['antal'] * 1000));
@@ -843,6 +875,9 @@ function shopify_intake_item(int $vareId, int $variantId, int $year, int $afd = 
 		'varenr' => (string)$r['varenr'],
 		'variant_id' => $variantId,
 		'variant_barcode' => $barcode,
+		'written_as' => $writtenAs,
+		'written_as_other' => $writtenAs !== '' && $other !== array(),
+		'batch' => trim((string)($r['box9'] ?? '')) === 'on',
 		'stock_key' => $variantId > 0 ? SHOPIFY_INTAKE_VARIANT_STOCK + $variantId : (int)$r['id'],
 		'gruppe' => (int)$r['gruppe'],
 		'problem' => $problem,
@@ -855,17 +890,25 @@ function shopify_intake_item(int $vareId, int $variantId, int $year, int $afd = 
 	);
 }
 
-/** The item a SKU names: its varenr or barcode, or a variant's barcode (then with the variant). */
+/**
+ * The item a SKU names: its varenr or barcode, or a variant's barcode (then with the variant).
+ * sku_ambiguous is true when the SKU names more than one item or variant (case-insensitive for
+ * a variant, as opret_ordrelinje() matches it): the first is returned, and must not be used.
+ */
 function shopify_intake_item_by_sku(string $sku, int $year, int $afd = 0): ?array {
-	$rows = shopify_db_rows('SELECT id FROM varer WHERE varenr = $1 OR stregkode = $1 ORDER BY (varenr = $1) DESC, id LIMIT 1', array($sku));
+	$rows = shopify_db_rows('SELECT id FROM varer WHERE varenr = $1 OR stregkode = $1 ORDER BY (varenr = $1) DESC, id LIMIT 2', array($sku));
+	$variants = shopify_db_rows('SELECT id, vare_id FROM variant_varer WHERE upper(variant_stregkode) = upper($1) ORDER BY id LIMIT 2', array($sku));
+	$ambiguous = count($rows) + count($variants) > 1;
+	$item = null;
 	if ($rows !== array()) {
-		return shopify_intake_item((int)$rows[0]['id'], 0, $year, $afd);
+		$item = shopify_intake_item((int)$rows[0]['id'], 0, $year, $afd);
+	} elseif ($variants !== array()) {
+		$item = shopify_intake_item((int)$variants[0]['vare_id'], (int)$variants[0]['id'], $year, $afd);
 	}
-	$variant = shopify_db_rows('SELECT id, vare_id FROM variant_varer WHERE variant_stregkode = $1 ORDER BY id LIMIT 1', array($sku));
-	if ($variant !== array()) {
-		return shopify_intake_item((int)$variant[0]['vare_id'], (int)$variant[0]['id'], $year, $afd);
+	if ($item !== null) {
+		$item['sku_ambiguous'] = $ambiguous;
 	}
-	return null;
+	return $item;
 }
 
 /**

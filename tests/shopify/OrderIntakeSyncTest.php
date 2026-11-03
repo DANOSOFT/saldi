@@ -238,6 +238,31 @@ final class OrderIntakeSyncTest extends TestCase
         $this->assertGreaterThan(0, $missing + $vatFree);
     }
 
+    public function testAVatGroupWithoutARateBatchControlAndAmbiguousSkusAreFound(): void
+    {
+        $this->sql("INSERT INTO kontoplan (kontonr, beskrivelse, kontotype, moms, regnskabsaar) VALUES (1002, 'SD743 Salg S2', 'D', 'S2', $1)", [self::$year['kodenr']]);
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, kode, art, fiscal_year, box1, box2) VALUES ('SD743 Uden sats', '2', 'S', 'SM', $1, '66100', '')", [self::$year['kodenr']]);
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box3, box4, box7, box9) VALUES ('SD743 Uden sats', '9747', 'VG', $1, '1000', '1002', '', ''),
+            ('SD743 Batch', '9748', 'VG', $1, '1000', '1000', '', 'on')", [(string)self::$year['kodenr']]);
+        $this->item('NORATE', ['gruppe' => 9747]);
+        $this->item('BATCH', ['gruppe' => 9748]);
+        $dup = $this->item('DUP');
+        $this->item('DUP2', ['stregkode' => 'SD743DUP']);
+        $owner = $this->item('OWNER');
+        $this->sql("INSERT INTO variant_varer (vare_id, variant_stregkode) VALUES ($1, 'sd743clash')", [$owner]);
+        $clash = $this->item('CLASH');
+
+        [$ctx] = $this->steps(['context', 'hml', self::order([self::line('SD743NORATE'), self::line('SD743BATCH'), self::line('SD743DUP'), self::line('SD743CLASH')])]);
+
+        $this->assertSame('has VAT group 2 without a rate in a group that is not VAT-free', $ctx['by_sku']['SD743NORATE']['problem'],
+            'opret_ordrelinje() would fall back to the order rate');
+        $this->assertTrue($ctx['by_sku']['SD743BATCH']['batch']);
+        $this->assertTrue($ctx['by_sku']['SD743DUP']['sku_ambiguous'], "one item's varenr is another's barcode");
+        $this->assertSame($dup, $ctx['by_sku']['SD743DUP']['vare_id']);
+        $this->assertTrue($ctx['by_sku']['SD743CLASH']['written_as_other'], 'SD743CLASH is another item\'s variant barcode, matched case-insensitively');
+        $this->assertGreaterThan(0, $clash);
+    }
+
     public function testAVariantLineDrawsOnItsOwnVariantsStock(): void
     {
         $x = $this->item('V');
@@ -284,6 +309,9 @@ final class OrderIntakeSyncTest extends TestCase
             return $id;
         };
         $noAccount = $this->item('NA', ['gruppe' => 9744]);
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box3, box4, box9) VALUES ('SD743 Batch', '9749', 'VG', $1, '1000', '1000', 'on')",
+            [(string)self::$year['kodenr']]);
+        $batch = $this->item('BT', ['gruppe' => 9749]);
         $other = $this->item('OTHER');
         $otherVariant = (int)$this->sql("INSERT INTO variant_varer (vare_id, variant_stregkode) VALUES ($1, 'SD743-OTHER') RETURNING id", [$other])[0]['id'];
         $ok = $order(date('Y-m-d'), [[$x, 'SD743X', 2, '']]);
@@ -302,10 +330,11 @@ final class OrderIntakeSyncTest extends TestCase
             $early,
             $tooMuch,
             $order(date('Y-m-d'), [[$x, 'SD743X', 1, '']]),
+            $order(date('Y-m-d'), [[$batch, 'SD743BT', 1, '']]),
         ];
-        $this->sql('UPDATE ordrelinjer SET variant_id = $1 WHERE ordre_id = $2', [(string)$otherVariant, end($cases)]);
+        $this->sql('UPDATE ordrelinjer SET variant_id = $1 WHERE ordre_id = $2', [(string)$otherVariant, $cases[count($cases) - 2]]);
         $needles = ['no delivery date', 'already posted', 'serial numbers', 'a return', 'no item with an item group',
-            'without a purchase and sales account', 'before its order date', 'delivered and 2.000 to deliver of 2.000', 'not a variant of its item'];
+            'without a purchase and sales account', 'before its order date', 'delivered and 2.000 to deliver of 2.000', 'not a variant of its item', 'batch-controlled'];
 
         $results = $this->steps(['preflight', $ok], ...array_map(fn($id) => ['preflight', $id], $cases));
 
