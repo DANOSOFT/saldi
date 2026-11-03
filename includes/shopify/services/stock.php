@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.02
+// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.03
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,14 +28,37 @@
 // 30 minutes or 3 failed move attempts, so the item is no longer skipped. Failed moves are counted on
 // WP10's job. Released and abandoned items are marked dirty, so the next push publishes them.
 //
+// Also the warning when split_set_lager isn't sellable, so the fallback in shopify_split_set_lager() is seen.
+//
 // 20261102 CL/SZ SD-755: created (WP06-1).
+// 20261103 CL/SZ SD-755: shopify_split_set_lager_checked() warns on the error list while the setting is not used.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../errors.php';
 
 const SHOPIFY_BARRIER_MINUTES = 30;
 /** WP10 calls shopify_barrier_expire() with the order id when a move has failed this many times. */
 const SHOPIFY_BARRIER_MOVE_ATTEMPTS = 3;
+
+/**
+ * shopify_split_set_lager() for a caller with a database: a warning stays open on the error list while
+ * split_set_lager is set and another lager is used, and is resolved once they match or it is unset. Call it once
+ * per stock push or order, not per item: every call on a mismatch counts an occurrence.
+ *
+ * @param int|null $setting split_set_lager, null when unset
+ * @param list<array<string, mixed>> $locations the rows from shopify_availability_lagre()
+ * @throws InvalidArgumentException when no lager is sellable
+ */
+function shopify_split_set_lager_checked(?int $setting, array $locations): int {
+	$lager = shopify_split_set_lager($setting, $locations);
+	if ($setting !== null && $lager !== $setting) {
+		shopify_error_open(null, 'config', 'split_set_lager', "split_set_lager is lager $setting, which is not sellable; split sets go on lager $lager", 'warning');
+	} else {
+		shopify_error_resolve_key(null, 'config', 'split_set_lager');
+	}
+	return $lager;
+}
 
 /**
  * Opens a barrier per item of the order, expiring in SHOPIFY_BARRIER_MINUTES. Runs in the caller's

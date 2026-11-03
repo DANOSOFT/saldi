@@ -12,6 +12,7 @@
 //
 // History:
 // 20261102 CL/SZ SD-755: created.
+// 20261103 CL/SZ SD-755: split_lager runs shopify_split_set_lager_checked().
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_barriers.php <test_db> <calls json>\n");
@@ -66,6 +67,9 @@ foreach ($calls as $call) {
                 break;
             case 'deferred':
                 $out[] = array('result' => shopify_barrier_deferred((int)$call[1], $call[2]));
+                break;
+            case 'split_lager':
+                $out[] = array('result' => shopify_split_set_lager_checked($call[1], $call[2]));
                 break;
             default:
                 throw new InvalidArgumentException("unknown call {$call[0]}");

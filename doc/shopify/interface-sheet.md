@@ -27,10 +27,13 @@ shopify_barrier_deferred(int $shopId, array $vareIds): array     // list<int>
 
 ## Split-set lager (WP06, WP07 → WP09)
 
-`includes/shopify/services/allocation.php`. Availability and allocation resolve the lager split sets go on the same way.
+`includes/shopify/services/allocation.php`, and the checked version in `services/stock.php`. Availability and allocation resolve the lager split sets go on the same way.
 
 ```php
 shopify_split_set_lager(?int $setting, array $locations): int
+shopify_split_set_lager_checked(?int $setting, array $locations): int
 ```
 
 Returns the setting when it's a sellable lager, else the first sellable lager by priority, and throws when there is none. WP09 (S09b) calls it with the rows from `shopify_availability_lagre()`, so the virtual lager is left out, and passes the result to `shopify_allocate_order()`, which keeps its strict int parameter and keeps refusing 0.
+
+`shopify_split_set_lager_checked()` does the same and needs a database: while `split_set_lager` is set and another lager is used, a warning naming both stays open on the error list (`kind` `config`, `ref` `split_set_lager`), and it's resolved once they match or the setting is unset. The stock push (WP06) calls it once per push and passes the setting on to `shopify_availability()`, which stays pure. WP09 calls it per order.

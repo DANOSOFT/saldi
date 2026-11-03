@@ -4,11 +4,12 @@
 // Move barriers (SD-755, WP06, doc/shopify/interface-sheet.md) on a throwaway tenant: open defers
 // an item in that shop only, is idempotent per (shop, order, item) and commits or rolls back with the
 // caller's transaction; release and expire stop the deferring and mark the items dirty; expiry after
-// 30 minutes and on the order id WP10 passes after the 3rd failed move. Skips when ShopifyEnv is
-// not configured.
+// 30 minutes and on the order id WP10 passes after the 3rd failed move; the warning while
+// split_set_lager isn't sellable. Skips when ShopifyEnv is not configured.
 //
 // History:
 // 20261102 CL/SZ SD-755: created.
+// 20261103 CL/SZ SD-755: the split_set_lager warning.
 
 use PHPUnit\Framework\TestCase;
 
@@ -63,7 +64,7 @@ final class MoveBarrierTest extends TestCase
             $this->markTestSkipped(self::$skip);
         }
         $this->conn = ShopifyEnv::connect(self::$db);
-        foreach (['shopify_move_barriers', 'shopify_stock_dirty', 'shopify_shops', 'styklister'] as $table) {
+        foreach (['shopify_move_barriers', 'shopify_stock_dirty', 'shopify_shops', 'styklister', 'shopify_errors'] as $table) {
             ShopifyEnv::rows($this->conn, "DELETE FROM $table");
         }
     }
@@ -309,6 +310,62 @@ final class MoveBarrierTest extends TestCase
             $this->assertSame('InvalidArgumentException', $run['result'][0]['error']['class']);
         }
         $this->assertSame([], $this->barriers());
+    }
+
+    /** @return list<array<string, string|null>> the split_set_lager warning's rows */
+    private function splitWarnings(): array
+    {
+        return ShopifyEnv::rows($this->conn, "SELECT shop_id, severity, message, occurrences, resolved_at FROM shopify_errors WHERE kind = 'config' AND ref = 'split_set_lager' ORDER BY id");
+    }
+
+    /** Sellable 1 and 2, display 3, sellable-looking virtual 5. */
+    private const LAGRE = [
+        ['lager' => 2, 'rolle' => 'saelgbar', 'prioritet' => 2],
+        ['lager' => 1, 'rolle' => 'saelgbar', 'prioritet' => 1],
+        ['lager' => 3, 'rolle' => 'udstilling', 'prioritet' => null],
+        ['lager' => 5, 'rolle' => 'saelgbar', 'prioritet' => 3, 'virtual' => true],
+    ];
+
+    public function testASplitLagerThatIsNotSellableKeepsOneWarningNamingBothLagre(): void
+    {
+        foreach ([3, 5, 99] as $setting) {
+            $this->assertSame([1, 1], $this->calls([['split_lager', $setting, self::LAGRE], ['split_lager', $setting, self::LAGRE]]), "setting $setting");
+
+            $rows = array_values(array_filter($this->splitWarnings(), fn(array $row): bool => $row['resolved_at'] === null));
+            $this->assertCount(1, $rows);
+            $this->assertNull($rows[0]['shop_id']);
+            $this->assertSame('warning', $rows[0]['severity']);
+            $this->assertStringContainsString("lager $setting", $rows[0]['message']);
+            $this->assertStringContainsString('split sets go on lager 1', $rows[0]['message']);
+            ShopifyEnv::rows($this->conn, 'DELETE FROM shopify_errors');
+        }
+    }
+
+    public function testTheWarningIsResolvedOnceTheSettingIsUsedOrUnset(): void
+    {
+        foreach ([2, null] as $setting) {
+            $this->assertSame([1, $setting ?? 1], $this->calls([['split_lager', 3, self::LAGRE], ['split_lager', $setting, self::LAGRE]]));
+
+            $rows = $this->splitWarnings();
+            $this->assertCount(1, $rows);
+            $this->assertNotNull($rows[0]['resolved_at'], var_export($setting, true));
+            ShopifyEnv::rows($this->conn, 'DELETE FROM shopify_errors');
+        }
+    }
+
+    public function testASellableOrUnsetSplitLagerOpensNoWarning(): void
+    {
+        $this->assertSame([2, 1], $this->calls([['split_lager', 2, self::LAGRE], ['split_lager', null, self::LAGRE]]));
+
+        $this->assertSame([], $this->splitWarnings());
+    }
+
+    public function testNoSellableLagerThrowsAndOpensNoWarning(): void
+    {
+        $run = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_barriers.php', [self::$db, json_encode([['split_lager', 3, [['lager' => 3, 'rolle' => 'udstilling']]]])]));
+
+        $this->assertSame('InvalidArgumentException', $run['result'][0]['error']['class']);
+        $this->assertSame([], $this->splitWarnings());
     }
 
     public function testAMalformedItemIdIsRefused(): void
