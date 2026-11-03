@@ -7,6 +7,8 @@
 //                  number/date formatting, da/en texts without the uncached findtekst('plain text') path,
 //                  and the page frame (head/tabs/foot).
 // 20261029 CL/ASR vr_require_operator() shows a short notice until the update chain has created the panel's tables.
+// 20261029 CL/ASR Hooks for a panel's own shell (menu, home link, label, shell class, logo, topbar controls, guide link
+//                  and version line); without them the operator panel's shell is unchanged.
 
 if (!function_exists('vr_h')) {
 function vr_cs() { global $db_encode; return ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1'; }
@@ -53,6 +55,7 @@ function vr_require_operator() {
 }
 function vr_menu() {
 	global $sprog_id, $mastername;
+	if (isset($GLOBALS['vr_menu_items'])) return $GLOBALS['vr_menu_items']; # 20261012 CL/ASR a panel may bring its own menu (bogholderpanelet: admin/bogholder_ui.php)
 	$items = array(array(vr_t('Overblik','Overview'), '../admin/operator_overblik.php', 'home', true));
 	$items[] = array(vr_t('Regnskaber','Accounts'), '../admin/operator_panel.php', 'list', true);
 	$items[] = array(findtekst('339|Opret regnskab', $sprog_id), '../admin/operator_opret.php', 'plus', true);
@@ -84,27 +87,29 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	print "<link rel=\"stylesheet\" href=\"../css/operator_panel.css?v=5.2.1\">\n";
 	if (!vr_csrf_exempt()) print vr_csrf_js();
 	if (isset($_GET['msg'])) print "<script>try{var vrU=new URL(location.href);[...vrU.searchParams.keys()].filter(function(k){return k.indexOf('msg')===0||k==='mk'}).forEach(function(k){vrU.searchParams.delete(k)});history.replaceState(null,'',vrU.pathname+vrU.search+vrU.hash);}catch(e){}</script>"; # a reload does not show the note again
-	print "<div class=\"vr-app\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n";
+	print "<div class=\"vr-app".(isset($GLOBALS['vr_app_class']) ? ' '.vr_h($GLOBALS['vr_app_class']) : '')."\" style=\"--vr-user:".vr_h($buttonColor).";--vr-user-text:".vr_h($buttonTxtColor).";\">\n"; # 20261013 CL/ASR a panel may add its own shell class
 	// sidebar
 	// 20261012 CL/ASR Danosoft logo (white, from the brand file) and a collapsible sidebar. The state is kept per browser
 	//                  in localStorage and applied before paint by the inline script, so the page does not jump.
 	print "<script>try{if(localStorage.getItem('vrSideCollapsed')==='1')document.documentElement.classList.add('vr-collapsed');}catch(e){}</script>";
-	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"../admin/operator_overblik.php\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"../img/danosoft_logo_white.png\" alt=\"Danosoft\" width=\"170\" height=\"26\"><img class=\"vr-logo-mark\" src=\"../img/danosoft_mark_white.png\" alt=\"Danosoft\" width=\"38\" height=\"26\"></a>";
+	$vr_home = isset($GLOBALS['vr_home']) ? $GLOBALS['vr_home'] : '../admin/operator_overblik.php'; # 20261012 CL/ASR the panel's own landing page
+	$vr_logo = isset($GLOBALS['vr_logo']) ? $GLOBALS['vr_logo'] : array('../img/danosoft_logo_white.png', '../img/danosoft_mark_white.png', 'Danosoft'); # 20261013 CL/ASR [full, mark, alt] – a panel may bring its own logo
+	print "<aside class=\"vr-side\" id=\"vrSide\"><div class=\"vr-logo-row\"><a class=\"vr-logo\" href=\"".vr_h($vr_home)."\" title=\"".vr_t('Overblik','Overview')."\"><img class=\"vr-logo-full\" src=\"".vr_h($vr_logo[0])."\" alt=\"".vr_h($vr_logo[2])."\" height=\"26\"><img class=\"vr-logo-mark\" src=\"".vr_h($vr_logo[1])."\" alt=\"".vr_h($vr_logo[2])."\" height=\"26\">".(!empty($vr_logo[3]) ? "<img class=\"vr-logo-full vr-logo-dark\" src=\"".vr_h($vr_logo[3])."\" alt=\"".vr_h($vr_logo[2])."\" height=\"26\">" : "")."</a>"; # optional 4th: full logo for the dark theme
 	print "<button type=\"button\" class=\"vr-collapse\" id=\"vrCollapse\" onclick=\"vrToggleSide()\" aria-label=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\" title=\"".vr_t('Fold menuen ind eller ud','Collapse or expand the menu')."\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 6l-6 6 6 6\"/></svg></button></div>";
-	print "<div class=\"vr-grp\">".($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration')))."</div><nav>";
+	print "<div class=\"vr-grp\">".(isset($GLOBALS['vr_panel_label']) ? vr_h($GLOBALS['vr_panel_label']) : ($u['is_operator'] ? vr_t('Operatørpanel','Operator panel') : ($u['partner'] ? vr_t('Bogholderpanel','Accountant panel') : vr_t('Administration','Administration'))))."</div><nav>";
 	foreach (vr_menu() as $it) {
-		$on = (basename($it[1]) == $self) || ($self == 'partnere.php' && basename($it[1]) == 'operator_panel.php');
+		$on = (basename($it[1]) == $self) || ($self == 'partnere.php' && basename($it[1]) == 'operator_panel.php') || (isset($it[4]) && in_array($self, (array)$it[4], true));
 		if ($it[3]) print "<a class=\"vr-nav".($on ? " vr-on" : "")."\" href=\"".vr_h($it[1])."\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></a>";
 		else print "<span class=\"vr-nav vr-dim\" title=\"".vr_h($it[0])."\">".vr_icon($it[2])."<span class=\"vr-lbl\">".vr_h($it[0])."</span></span>";
 	}
-	print "</nav><div class=\"vr-spacer\"></div><hr><a class=\"vr-nav\" href=\"http://saldi.dk/dok/komigang.html\" target=\"_blank\" title=\"".findtekst('92|Vejledning', $sprog_id)."\">".vr_icon('help')."<span class=\"vr-lbl\">".findtekst('92|Vejledning', $sprog_id)."</span></a><a class=\"vr-nav\" href=\"../index/logud.php\" accesskey=\"L\" title=\"".findtekst('93|Log ud', $sprog_id)."\">".vr_icon('out')."<span class=\"vr-lbl\">".findtekst('93|Log ud', $sprog_id)."</span></a><div class=\"vr-ver\">Saldi version ".vr_h($version)."</div></aside>\n";
+	print "</nav><div class=\"vr-spacer\"></div><hr><a class=\"vr-nav".(isset($GLOBALS['vr_help']) && basename($GLOBALS['vr_help']) == $self ? " vr-on" : "")."\" href=\"".(isset($GLOBALS['vr_help']) ? vr_h($GLOBALS['vr_help'])."\"" : "http://saldi.dk/dok/komigang.html\" target=\"_blank\"")." title=\"".findtekst('92|Vejledning', $sprog_id)."\">".vr_icon('help')."<span class=\"vr-lbl\">".findtekst('92|Vejledning', $sprog_id)."</span></a><a class=\"vr-nav\" href=\"../index/logud.php\" accesskey=\"L\" title=\"".findtekst('93|Log ud', $sprog_id)."\">".vr_icon('out')."<span class=\"vr-lbl\">".findtekst('93|Log ud', $sprog_id)."</span></a><div class=\"vr-ver\">".(isset($GLOBALS['vr_version_text']) ? vr_h($GLOBALS['vr_version_text']) : "Saldi version ".vr_h($version))."</div></aside>\n";
 	// column: topbar + main
 	print "<div class=\"vr-side-scrim\" onclick=\"vrToggleSide()\"></div>";
 	print "<div class=\"vr-col\"><div class=\"vr-top\"><button type=\"button\" class=\"vr-menu-btn\" onclick=\"vrToggleSide()\" aria-label=\"".vr_t('Menu','Menu')."\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M4 7h16M4 12h16M4 17h16\"/></svg></button><nav class=\"vr-bc\" aria-label=\"Du er her\">";
 	foreach ($crumbs as $i => $c) { if ($i) print "<i>/</i>"; if (is_array($c)) print "<a href=\"".vr_h($c[1])."\">".vr_h($c[0])."</a>"; else print "<b>".vr_h($c)."</b>"; }
 	$ini = strtoupper(mb_substr((string)$brugernavn, 0, 2, vr_cs()));
 	$sub = $u['is_operator'] ? vr_t('Saldi · Operatør','Saldi · Operator') : ($u['partner'] ? $u['partner']['name'].' · '.($u['partner']['partner_role'] == 'owner' ? vr_t('Ejer','Owner') : vr_t('Medarbejder','Employee')) : vr_t('Administration','Administration'));
-	print "</nav><div class=\"vr-grow\"></div><div class=\"vr-chip\"><span class=\"vr-av\">".vr_h($ini)."</span><span class=\"vr-who\"><span>".vr_h($brugernavn)."</span><small>".vr_h($sub)."</small></span></div></div>\n";
+	print "</nav><div class=\"vr-grow\"></div>".(isset($GLOBALS['vr_top_extra']) ? $GLOBALS['vr_top_extra'] : "")."<div class=\"vr-chip\"><span class=\"vr-av\">".vr_h($ini)."</span><span class=\"vr-who\"><span>".vr_h($brugernavn)."</span><small>".vr_h($sub)."</small></span></div></div>\n";
 	print "<main class=\"vr\">\n<div class=\"vr-head\">\n<div class=\"vr-title\">\n<h1>".vr_h($h1).($pill ? " <span class=\"vr-pill\">".vr_h($pill)."</span>" : "")."</h1>\n";
 	if ($lead) print "<p class=\"vr-lead\">".$lead."</p>\n";
 	print "</div>\n<div class=\"vr-acts\">$actions</div>\n</div>\n";
