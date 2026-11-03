@@ -73,6 +73,8 @@
 //                  Preserve print mode's complete row list for normal and unposted reports.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 //                 kontokort() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
+//              The account range is cast here as well.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -368,29 +370,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	
 	$dim = '';
 	if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
-		if ($afd || $afd == '0') {
-			$dim = "and afd = $afd ";
-		}
-		if ($ansat_fra && $ansat_til) {
-			$tmp = str_replace(",", " or ansat=", $ansatte_id);
-			$dim = $dim . " and (ansat=$tmp) ";
-		} elseif ($ansat_fra) {
-			$dim = $dim . "and ansat = '$ansat_fra' ";
-		}
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til) {
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		} elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_') {
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				}
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 	$x = 0;
 	$valdate = array();
@@ -409,7 +391,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$x = 0;
 	$kontonr = array();
-	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
+	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='" . (int)$konto_fra . "' and kontonr<='" . (int)$konto_til . "' order by kontonr";
 	$q = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$kontonr[$x] = $row['kontonr'] * 1;
@@ -438,14 +420,14 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$ktonr = array();
 	$x = 0;
-	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim";
+	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='" . (int)$konto_fra . "' and kontonr<='" . (int)$konto_til . "' $dim";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$ktonr[$x] = $r['kontonr'];
 		$x++;
 	}
 	if ($includeSimulated) {
-		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim";
+		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='" . (int)$konto_fra . "' and kontonr<='" . (int)$konto_til . "' $dim";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['kontonr'], $ktonr)) {

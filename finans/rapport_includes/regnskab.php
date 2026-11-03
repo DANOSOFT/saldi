@@ -41,6 +41,8 @@
 //                 indexing the integer $lastYear.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 //                 regnskab() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
+//              The department-name lookup is cast as well.
 
 function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";
@@ -60,29 +62,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	#if ($rapportart=='lastYear')$show0=1;
 	$dim = '';
 	if (($afd || $afd == '0' || $ansat_fra || $projekt_fra) && $rapportart != 'budget') { #20190923
-		if ($afd || $afd == '0') {
-			$dim = "and afd = '$afd' ";
-		}
-		if ($ansat_fra && $ansat_til) {
-			$tmp = str_replace(",", " or ansat=", $ansatte_id);
-			$dim = $dim . " and (ansat=$tmp) ";
-		} elseif ($ansat_fra) {
-			$dim = $dim . "and ansat = '$ansat_fra' ";
-		}
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til) {
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		} elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_') {
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				}
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 
 
@@ -117,7 +99,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		$firmanavn = $r['firmanavn'];
 	}
 	$vatNo     = $r['cvrnr'];
-	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='$afd'";
+	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='" . (int)$afd . "'";
 	if (($afd || $afd == '0') && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
 		$afd_navn = $r['beskrivelse'];
 	}
