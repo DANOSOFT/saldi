@@ -30,6 +30,7 @@
 // deletes it again (shop.uninstalled).
 //
 // 20261103 CL/MJ SD-790: created.
+// 20261103 CL/MJ SD-790 review: the signature also verifies over form-encoded values, as Shopify's libraries sign them.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -50,11 +51,13 @@ const SHOPIFY_OAUTH_SCOPES = 'write_products,write_inventory,read_locations,writ
 
 /**
  * Shopify's signature of an OAuth request: the hex HMAC-SHA256 of the other query parameters,
- * sorted by name and joined as name=value with &. Null when a parameter is not a single string.
+ * sorted by name and joined as name=value with &, the values as sent (form-encoded, as Shopify's
+ * own libraries sign them) or not encoded (as its docs show). Null when a parameter is not a
+ * single string.
  *
  * @param array<string, mixed> $query
  */
-function shopify_oauth_query_hmac(array $query, string $secret): ?string {
+function shopify_oauth_query_hmac(array $query, string $secret, bool $encoded = false): ?string {
 	unset($query['hmac'], $query['signature']);
 	ksort($query, SORT_STRING);
 	$pairs = array();
@@ -62,7 +65,8 @@ function shopify_oauth_query_hmac(array $query, string $secret): ?string {
 		if (!is_string($value)) {
 			return null;
 		}
-		$pairs[] = strtr((string)$name, array('%' => '%25', '&' => '%26', '=' => '%3D')) . '=' . strtr($value, array('%' => '%25', '&' => '%26'));
+		$pairs[] = $encoded ? urlencode((string)$name) . '=' . urlencode($value)
+			: strtr((string)$name, array('%' => '%25', '&' => '%26', '=' => '%3D')) . '=' . strtr($value, array('%' => '%25', '&' => '%26'));
 	}
 	return hash_hmac('sha256', implode('&', $pairs), $secret);
 }
@@ -74,8 +78,10 @@ function shopify_oauth_verify(array $query, string $secret, int $now): bool {
 	if ($secret === '' || !is_string($hmac) || $hmac === '' || !is_string($timestamp) || !preg_match('/^\d{1,12}$/', $timestamp)) {
 		return false;
 	}
-	$expected = shopify_oauth_query_hmac($query, $secret);
-	return $expected !== null && hash_equals($expected, strtolower($hmac)) && abs($now - (int)$timestamp) <= SHOPIFY_OAUTH_MAX_AGE;
+	$hmac = strtolower($hmac);
+	$plain = shopify_oauth_query_hmac($query, $secret);
+	$encoded = shopify_oauth_query_hmac($query, $secret, true);
+	return $plain !== null && (hash_equals($plain, $hmac) || hash_equals((string)$encoded, $hmac)) && abs($now - (int)$timestamp) <= SHOPIFY_OAUTH_MAX_AGE;
 }
 
 /**

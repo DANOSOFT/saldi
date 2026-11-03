@@ -8,6 +8,7 @@
 //
 // History:
 // 20261103 CL/MJ SD-790: created.
+// 20261103 CL/MJ SD-790 review: a form-encoded signature over reserved characters verifies.
 
 use PHPUnit\Framework\TestCase;
 
@@ -82,6 +83,17 @@ final class OauthInstallTest extends TestCase
         $this->assertSame($params['state'], explode(':', (string)$this->setting('oauth_state'))[0], 'the state in the link is the stored one');
         $this->assertSame((string)(self::NOW + 600), explode(':', (string)$this->setting('oauth_state'))[1], 'it expires after ten minutes');
         $this->assertSame([], $run['calls']);
+    }
+
+    public function testAValueWithReservedCharactersVerifiesAsShopifysLibrariesSignIt(): void
+    {
+        $query = ['shop' => self::DOMAIN, 'host' => 'YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvaG1s+/A==', 'timestamp' => (string)self::NOW];
+        ksort($query);
+        // URLSearchParams.toString() of the sorted parameters, as shopify-app-js signs them
+        $signed = $query + ['hmac' => hash_hmac('sha256', 'host=YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvaG1s%2B%2FA%3D%3D&shop=' . self::DOMAIN . '&timestamp=' . self::NOW, self::$secret)];
+
+        $this->assertSame([302, 'authorize'], self::answer($this->request($signed)));
+        $this->assertSame([302, 'authorize'], self::answer($this->request(self::signed($query))), 'and the unencoded form of the docs');
     }
 
     public function testARequestShopifyDidNotSignIsRefusedAndStoresNothing(): void
