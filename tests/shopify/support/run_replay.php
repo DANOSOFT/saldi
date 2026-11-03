@@ -9,12 +9,13 @@
 // drains and snapshots once more.
 //   php run_replay.php <test_db> replay   prints JSON: answers, drains, first and second snapshot
 //   php run_replay.php <test_db> record   the same, and writes the first snapshot to expected.json
+//   php run_replay.php <test_db> http     the day once over HTTP (php -S with webhook_router.php), drained: the snapshot
 //
 // History:
 // 20261103 CL/LH SD-766: created.
 
 if ($argc < 3) {
-    fwrite(STDERR, "usage: php run_replay.php <test_db> <replay|record>\n");
+    fwrite(STDERR, "usage: php run_replay.php <test_db> <replay|record|http>\n");
     exit(2);
 }
 $testDb = $argv[1];
@@ -60,8 +61,18 @@ try {
     ReplayDay::prepareTenant();
     $store = FakeShopifyStore::fromState($fixtures['graphql']);
     $graphql = $store->opts();
-    $replayer = WebhookReplayer::forShop(shopify_shop(ReplayDay::SHOP['shop_key']));
     $deliveries = $fixtures['day']['deliveries'];
+    if ($mode === 'http') {
+        $server = WebhookReplayer::startServer(['SALDI_SHOPIFY_DB' => $testDb]);
+        try {
+            $answers = WebhookReplayer::forShop(shopify_shop(ReplayDay::SHOP['shop_key']), $server['url'])->replay($deliveries);
+        } finally {
+            WebhookReplayer::stopServer($server);
+        }
+        echo json_encode(['answers1' => $answers, 'drain1' => ReplayDay::drain($testDb, $graphql), 'first' => ReplayDay::snapshot()], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        exit(0);
+    }
+    $replayer = WebhookReplayer::forShop(shopify_shop(ReplayDay::SHOP['shop_key']));
 
     $answers1 = $replayer->replay($deliveries);
     $drain1 = ReplayDay::drain($testDb, $graphql);

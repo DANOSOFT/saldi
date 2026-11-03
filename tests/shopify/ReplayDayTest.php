@@ -6,7 +6,8 @@
 // process, signed at run time with a random webhook secret, and the worker is drained; the
 // persisted tables (ReplayDay::SNAPSHOT) must match fixtures/expected.json. The day is then sent
 // again, shuffled and with retries, every event is processed again, and the tables must not
-// change. Without a database only the fixtures' reproducibility is checked: the generator runs as a
+// change. Sent over HTTP (php -S, api/shopify/webhook.php) the day stores the same. Without a
+// database only the fixtures' reproducibility is checked: the generator runs as a
 // child, as events.php (its topic list) defines functions ClientRetryTest needs absent.
 //
 // History:
@@ -102,5 +103,22 @@ final class ReplayDayTest extends TestCase
         $this->assertSame($expected, $run['first'], 'expected.json: after one replay (refresh with run_replay.php record when a lane changes what is stored)');
         $this->assertCount(7, $run['first']['debtors'], 'one debtor per customer');
         $this->assertSame('Kunde 1 Jensen', substr($run['first']['debtors'][0]['firmanavn'], 5), 'the newer update wins over the older one that arrived last');
+    }
+
+    public function testTheDayOverHttpStoresWhatTheInProcessReplayStores(): void
+    {
+        if (self::$skip !== null) {
+            $this->markTestSkipped(self::$skip);
+        }
+        $file = ShopifyEnv::repoRoot() . '/includes/connect.php';
+        if (!is_readable($file) || !preg_match('/^\$sqdb\s*=\s*"([^"]*)"/m', (string)file_get_contents($file), $m) || $m[1] !== ShopifyEnv::masterDb()) {
+            $this->markTestSkipped('api/shopify/webhook.php needs the install\'s includes/connect.php on SALDI_SHOPIFY_MASTER_DB');
+        }
+        $run = $this->replay('http');
+        $expected = ReplayDay::load()['expected'];
+        unset($expected['about']);
+
+        $this->assertSame(['duplicate' => 3, 'stored' => 52], $run['answers1'], 'signed at run time, answered by the endpoint');
+        $this->assertSame($expected, $run['first']);
     }
 }
