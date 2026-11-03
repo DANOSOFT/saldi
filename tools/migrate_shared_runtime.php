@@ -3,6 +3,7 @@
 // 20261102 CL/NTR Accept a symlinked runtime directory by migrating its resolved path.
 // 20261103 CDX/NTR Restrict migration to this installation's temp and validate argument ancestors before resolving.
 //                  Continue past refused entries and report an incomplete migration at the end.
+// 20261103 CDX/NTR Refuse symlinked temp targets that are world-writable or sticky before changing any permissions.
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -67,6 +68,13 @@ $runtime = realpath($argv[1]);
 $expected = realpath($installationTemp);
 if ($runtime === false || $runtime === '/' || $runtime !== $expected) {
     fwrite(STDERR, "Refusing runtime path outside this installation's temp directory: $argv[1]\n");
+    exit(1);
+}
+// A temp symlink must designate private application storage, never a shared system scratch directory.
+clearstatcache(true, $runtime);
+$runtimeStat = lstat($runtime);
+if ($runtimeStat === false || (is_link($installationTemp) && ($runtimeStat['mode'] & 01002) !== 0)) {
+    fwrite(STDERR, "Refusing shared directory as a symlinked temp target: $runtime\n");
     exit(1);
 }
 // A symlinked temp is migrated at its target; entries inside are still never followed.

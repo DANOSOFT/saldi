@@ -72,13 +72,14 @@ e.g saldi/loglib etc.
 4. Change the rights to the 'includes', 'logolib' and 'temp' directories, so
  the web server user (the visitor) has access to write in
  these. Use the group balances if you did steps 1 and 2. Otherwise,
- replace balances with www-data in the next command:
+ replace balances with www-data in the chgrp commands below:
 
  sudo chgrp -R balances /var/www/html/saldi/
  sudo chmod 2770 /var/www/html/saldi/{includes,logolib,temp}
 
  or if you are down in the Saldi catalog itself:
 
+ sudo chgrp -R balances includes logolib temp
  sudo chmod 2770 includes logolib temp
 
  2770 gives the owner and the group full access and other users none; the

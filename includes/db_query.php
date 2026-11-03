@@ -62,6 +62,7 @@
 // 20261029 CDX/NTR Use shared permissions for database logs and tenant temporary directories.
 // 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
 // 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
+// 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -106,6 +107,9 @@ if (!function_exists('db_log_append')) {
                 if (fwrite($fp, $line) !== strlen($line)) {
                     $complete = false;
                 }
+            }
+            if (!$complete) {
+                sharedFileWarning("Incomplete write to database log: $path");
             }
             return $complete;
         } finally {

@@ -8,6 +8,13 @@ setup in `INSTALLATION.md`), and `www-data` otherwise. Set
 dedicated group instead. PHP's POSIX extension is required. Only trusted
 application accounts belong to this group.
 
+PHP needs access as the operating-system account running the worker. If that
+account is `www-data`, ownership or membership in the shared group supplies its
+access; permission bits for other users are not required. PHP-FPM pools can use
+a different account, which must also belong to the configured shared group.
+PHP source files need read access, and every directory traversed needs execute
+access for that account.
+
 The helpers validate every parent component before changing permissions or
 opening a file, including before a `w` open can truncate it. Special files,
 parents writable by others, and parents writable by unrelated groups are refused.
@@ -32,6 +39,9 @@ PHP code alone cannot repair that situation. Before enabling the helpers:
 1. Stop web workers and CLI jobs that write runtime files. Check the runtime tree
    for unexpected entries; the migration refuses symlinks and special files
    inside it. A symlinked `temp` directory itself is migrated at its target.
+   That target must be private application storage: world-writable or sticky
+   targets such as `/var/tmp` are refused without changing them. A direct
+   installation `temp` can still be migrated from legacy `0777` permissions.
    The argument must resolve to this installation's `temp`; other trees are refused.
 2. Have an administrator add each CLI account to the shared group, for example
    `sudo usermod -a -G SHARED_GROUP YOUR_CLI_ACCOUNT`. Print `SHARED_GROUP` from
@@ -66,7 +76,8 @@ PHP code alone cannot repair that situation. Before enabling the helpers:
    unrelated account cannot read it or replace entries in its parent directory.
 
 The Docker entrypoint applies the directory permissions and runs this migration
-as root before starting Apache. On other installations, run the steps above
+as root before starting Apache. It leaves a symlinked `temp` untouched until the
+migration validates its target. On other installations, run the steps above
 explicitly before deployment.
 
 Existing files already using the correct group and mode work across owners

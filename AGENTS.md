@@ -29,6 +29,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | A fix reaches every copy of the code it fixes (grid copies, the several save paths) | review | |
 | Shared runtime files use a trusted shared group and parent directories; migrate foreign-owned files as an administrator, never grant access to all users | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | Shared-runtime diagnostics go to the server log without invoking request error handlers; a fallback write must not abort journal deletion | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
+| A symlinked migration root must target private application storage; refuse world-writable or sticky targets before changing their ownership or permissions | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | Budget saves require both posted counts (`kontoantal`, `maanedantal`) before any includes or database writes | PHPUnit `BudgetSubmissionTest` | |
 | Ledger, posting and migration changes get Nicolai's review | review | |
 | CodeRabbit findings are answered before a human is asked to review | review | |

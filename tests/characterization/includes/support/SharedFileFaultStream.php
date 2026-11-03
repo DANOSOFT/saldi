@@ -1,5 +1,6 @@
 <?php
 // 20261103 CDX/NTR Simulate truncation and partial-write failures in isolated shared-file test processes.
+// 20261103 CDX/NTR Model overwrite opens so failed-truncation tests detect premature data loss.
 
 /** A local-file wrapper used only in child processes, after application includes are loaded. */
 final class SharedFileFaultStream
@@ -16,6 +17,9 @@ final class SharedFileFaultStream
     /** Accept the fake local file without opening any real filesystem entry. */
     public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
     {
+        if ($mode[0] === 'w') {
+            self::$contents = '';
+        }
         return true;
     }
 

@@ -57,7 +57,11 @@ chmod o-w /var/www/html
 # 20261102 CL/NTR Resolve the group in PHP (balances when www-data belongs to it); a refused migration
 # leaves the app on its unmigrated fallback instead of stopping the container.
 shared_runtime_group="$(php -r 'require "/var/www/html/saldi/includes/sharedFile.php"; echo sharedFileGroupName();')"
+# 20261103 CDX/NTR Let migration validate a symlinked temp before startup changes its target's permissions.
 for dir in includes logolib temp bank_integration restapi; do
+    if [ "$dir" = temp ] && [ -L "/var/www/html/saldi/$dir" ]; then
+        continue
+    fi
     mkdir -p /var/www/html/saldi/$dir
     chgrp "$shared_runtime_group" /var/www/html/saldi/$dir
     chmod 2770 /var/www/html/saldi/$dir

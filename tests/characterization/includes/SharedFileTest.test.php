@@ -4,6 +4,7 @@
 // 20261102 CL/NTR Cover the balances group, the unmigrated fallback and once-per-message warnings.
 //                 Cover symlinks held by trusted directories and symlinks into untrusted ones.
 // 20261103 CDX/NTR Cover non-throwing diagnostics, private fallback creation, stream failures and migration boundaries.
+// 20261103 CDX/NTR Preserve old bytes on truncation failure and refuse shared targets behind temp symlinks.
 
 use PHPUnit\Framework\TestCase;
 
@@ -281,9 +282,10 @@ final class SharedFileTest extends TestCase
     public function testFailedTruncationClosesStreamAndReportsFailure(): void
     {
         $result = $this->runFaultStream('SharedFileFaultStream::$truncateSucceeds = false; '
+            . 'SharedFileFaultStream::$contents = "old"; '
             . '$result = sharedFilePutContents("/shared-file-fixture/log", "new"); '
             . 'exit($result === false && SharedFileFaultStream::$closed === 1 '
-            . '&& SharedFileFaultStream::$contents === "" ? 0 : 1);');
+            . '&& SharedFileFaultStream::$contents === "old" ? 0 : 1);');
         self::assertSame(0, $result['status'], $result['output']);
         self::assertStringContainsString('Could not truncate', $result['output']);
     }
@@ -297,6 +299,7 @@ final class SharedFileTest extends TestCase
             . 'exit($result === false && SharedFileFaultStream::$closed === 1 '
             . '&& str_contains(SharedFileFaultStream::$contents, "later\n") ? 0 : 1);');
         self::assertSame(0, $result['status'], $result['output']);
+        self::assertStringContainsString('Incomplete write to database log', $result['output']);
     }
 
     /** Reusing an operation's validated parent avoids a second walk without caching filesystem trust. */
@@ -320,6 +323,21 @@ final class SharedFileTest extends TestCase
         $runtime = $this->dir . '/runtime';
         mkdir($runtime);
         $script = $this->migrationInstallation($runtime);
+        file_put_contents($runtime . '/keep', 'unchanged');
+        try {
+            foreach ([0777, 01770, 01777] as $mode) {
+                chmod($runtime, $mode);
+                $result = $this->runCommand([PHP_BINARY, $script, dirname($script, 2) . '/temp']);
+                self::assertSame(1, $result['status'], $result['output']);
+                self::assertStringContainsString('Refusing shared directory', $result['output']);
+                clearstatcache();
+                self::assertSame($mode, fileperms($runtime) & 07777);
+                self::assertSame(0600, fileperms($runtime . '/keep') & 07777);
+                self::assertSame('unchanged', file_get_contents($runtime . '/keep'));
+            }
+        } finally {
+            chmod($runtime, 0700);
+        }
         $outside = $this->dir . '/outside';
         mkdir($outside);
         file_put_contents($outside . '/keep', 'untouched');
@@ -351,6 +369,16 @@ final class SharedFileTest extends TestCase
         unlink($runtime . '/b-fifo');
         $result = $this->runCommand([PHP_BINARY, $script, dirname($script, 2) . '/temp']);
         self::assertSame(0, $result['status'], $result['output']);
+
+        // The actual installation temp may still be migrated from legacy 0777 permissions.
+        $installationTemp = dirname($script, 2) . '/temp';
+        unlink($installationTemp);
+        rename($runtime, $installationTemp);
+        chmod($installationTemp, 0777);
+        $result = $this->runCommand([PHP_BINARY, $script, $installationTemp]);
+        self::assertSame(0, $result['status'], $result['output']);
+        clearstatcache();
+        self::assertSame(02770, fileperms($installationTemp) & 07777);
     }
 
     /** Without configuration, balances is used only while www-data belongs to it. */
