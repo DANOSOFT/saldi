@@ -52,8 +52,10 @@ $aar_fra     = if_isset($_GET, null, 'aar_fra');
 $aar_til     = if_isset($_GET, null, 'aar_til');
 $dato_fra    = if_isset($_GET, null, 'dato_fra');
 $dato_til    = if_isset($_GET, null, 'dato_til');
-$konto_fra   = (int) if_isset($_GET, null, 'konto_fra');
-$konto_til   = (int) if_isset($_GET, null, 'konto_til');
+// kontokort() normalises the bounds itself (a bound that is not a number closes the range), so
+// they are passed through as read - casting them here made the printout wider than the screen.
+$konto_fra   = if_isset($_GET, null, 'konto_fra');
+$konto_til   = if_isset($_GET, null, 'konto_til');
 $rapportart  = if_isset($_GET, null, 'rapportart');
 $ansat_fra   = if_isset($_GET, null, 'ansat_fra');
 $ansat_til   = if_isset($_GET, null, 'ansat_til');

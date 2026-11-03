@@ -53,12 +53,12 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     if ($konto_fra === '') {
         $konto_fraSql = 0;
     } else {
-        $konto_fraSql = is_numeric($konto_fra) ? (int)$konto_fra : PHP_INT_MAX;
+        $konto_fraSql = preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX;
     }
     if ($konto_til === '') {
         $konto_tilSql = PHP_INT_MAX;
     } else {
-        $konto_tilSql = is_numeric($konto_til) ? (int)$konto_til : 0;
+        $konto_tilSql = preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0;
     }
 
     for ($x = 1; $x <= 12; $x++) {

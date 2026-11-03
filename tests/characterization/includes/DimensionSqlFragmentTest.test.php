@@ -92,6 +92,25 @@ final class DimensionSqlFragmentTest extends TestCase
         self::assertSame('and 1 = 0 ', dimensionSqlFragment("936' or 1=1", null, null, null, null, null));
     }
 
+    public function testAFractionalDepartmentIsNotADepartment(): void
+    {
+        // is_numeric() accepts "0.5" and (int)"0.5" is 0, which would select the postings without a department
+        self::assertSame('and 1 = 0 ', dimensionSqlFragment('0.5', null, null, null, null, null));
+        self::assertSame('and 1 = 0 ', dimensionSqlFragment('936.0', null, null, null, null, null));
+    }
+
+    public function testEmployeeBoundsThatAreNotWholeNumbersMatchNothing(): void
+    {
+        // dropping the clause would show every employee instead of filtering
+        self::assertSame('and 1 = 0 ',
+            dimensionSqlFragment(null, 'invalid', 'x', '', null, null));
+        self::assertSame('and 1 = 0 ',
+            dimensionSqlFragment(null, '1.5', null, null, null, null));
+        // a resolved list still wins, with the garbage entry dropped
+        self::assertSame('and ansat in (8020) ',
+            dimensionSqlFragment(null, '8020', '8021', '8020,x', null, null));
+    }
+
     public function testTheEmployeeListCarriesNumbersOnly(): void
     {
         self::assertSame('and ansat in (8019,8020) ',
@@ -104,7 +123,8 @@ final class DimensionSqlFragmentTest extends TestCase
             dimensionSqlFragment(null, '8019', '8020', '', null, null));
         // the single-employee path
         self::assertSame('and ansat = 8020 ', dimensionSqlFragment(null, '8020', null, null, null, null));
-        self::assertSame('and ansat = 8020 ', dimensionSqlFragment(null, "8020'", null, null, null, null));
+        // a number with something attached is not an employee id
+        self::assertSame('and 1 = 0 ', dimensionSqlFragment(null, "8020'", null, null, null, null));
     }
 
     public function testAProjectWithAnApostropheStaysOneQuotedLiteral(): void

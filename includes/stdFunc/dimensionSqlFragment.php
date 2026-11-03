@@ -30,30 +30,39 @@ if (!function_exists('dimensionSqlFragment')) {
 		$dele = array();
 
 		if ($afd || $afd == '0') {
-			if (is_numeric($afd)) {
+			if (preg_match('/^\d+$/', (string)$afd)) {
 				$dele[] = "and " . $tabel . "afd = " . (int)$afd;
 			} else {
-				// A department that is not a number cannot match anything. Casting it to 0 would
-				// select the postings that have no department, so the report stays empty instead.
+				// A department that is not a whole number cannot match anything. Casting "0.5" or
+				// "invalid" to 0 would select the postings without a department.
 				$dele[] = "and 1 = 0";
 			}
 		}
 
+		$ansatFraErTal = preg_match('/^\d+$/', (string)$ansatFra) === 1;
 		if ($ansatFra && $ansatTil) {
 			$ansatte = array();
 			foreach (explode(",", (string)$ansatteId) as $ansatId) {
-				if ((int)$ansatId > 0) {
+				if (preg_match('/^\d+$/', (string)$ansatId) && (int)$ansatId > 0) {
 					$ansatte[] = (int)$ansatId;
 				}
 			}
-			if (!$ansatte && (int)$ansatFra > 0) {
+			if (!$ansatte && $ansatFraErTal && (int)$ansatFra > 0) {
 				$ansatte[] = (int)$ansatFra;
 			}
 			if ($ansatte) {
 				$dele[] = "and " . $tabel . "ansat in (" . implode(",", $ansatte) . ")";
+			} elseif (!$ansatFraErTal) {
+				// Bounds that are not whole numbers cannot select an employee; dropping the clause
+				// would show every employee instead.
+				$dele[] = "and 1 = 0";
 			}
 		} elseif ($ansatFra) {
-			$dele[] = "and " . $tabel . "ansat = " . (int)$ansatFra;
+			if ($ansatFraErTal) {
+				$dele[] = "and " . $tabel . "ansat = " . (int)$ansatFra;
+			} else {
+				$dele[] = "and 1 = 0";
+			}
 		}
 
 		$fra = str2low((string)$projektFra);
