@@ -40,6 +40,7 @@
 //                  GET-link til forside.
 // 20260813 LOE Corrected wrong text and link that should have valg as debitor. 
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                  moms_rubrik() includes its files via __DIR__ (no behaviour change).
 
 function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                      $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -111,11 +112,11 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
               . "&simulering=$simulering&lagerbev=$lagerbev";
     $csv_btn  = "<a href='$csvfile' download style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
 
-    include("../includes/topline_settings.php");
+    include(__DIR__ . '/../../includes/topline_settings.php');
 
     if ($menu == 'T') {
-        include_once '../includes/top_header.php';
-        include_once '../includes/top_menu.php';
+        include_once(__DIR__ . '/../../includes/top_header.php');
+        include_once(__DIR__ . '/../../includes/top_menu.php');
         print "<div id=\"header\">";
         print "<div class=\"headerbtnLft headLink\"><a href=\"$back_url\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> Luk</a></div>";
         print "<div class=\"headerTxt\">Momsrubrikker (A/B/C)</div>";
@@ -325,9 +326,9 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     fclose($csv);
 
     if ($menu == 'T') {
-        include_once '../includes/topmenu/footer.php';
+        include_once(__DIR__ . '/../../includes/topmenu/footer.php');
     } else {
-        include_once '../includes/oldDesign/footer.php';
+        include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
     }
 }
 ?>

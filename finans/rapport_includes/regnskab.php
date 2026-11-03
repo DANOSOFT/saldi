@@ -40,6 +40,7 @@
 //                 the summed amount, and lastYear sum uses $lastYearYear instead of
 //                 indexing the integer $lastYear.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                  regnskab() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
 
 function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";
@@ -59,22 +60,25 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	#if ($rapportart=='lastYear')$show0=1;
 	$dim = '';
 	if (($afd || $afd == '0' || $ansat_fra || $projekt_fra) && $rapportart != 'budget') { #20190923
-		if ($afd || $afd == '0')
+		if ($afd || $afd == '0') {
 			$dim = "and afd = '$afd' ";
+		}
 		if ($ansat_fra && $ansat_til) {
 			$tmp = str_replace(",", " or ansat=", $ansatte_id);
 			$dim = $dim . " and (ansat=$tmp) ";
-		} elseif ($ansat_fra)
+		} elseif ($ansat_fra) {
 			$dim = $dim . "and ansat = '$ansat_fra' ";
+		}
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til)
+		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til) {
 			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		elseif ($projekt_fra) {
+		} elseif ($projekt_fra) {
 			$tmp = str_replace("?", "_", $projekt_fra);
 			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_')
+				while (substr($tmp, -1) == '_') {
 					$tmp = substr($tmp, 0, strlen($tmp) - 1);
+				}
 				$tmp = str2low($tmp) . "%";
 			}
 			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
@@ -109,12 +113,14 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 
 	$qtxt = "select firmanavn,cvrnr from adresser where art='S'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$firmanavn = $r['firmanavn'];
+	}
 		$vatNo     = $r['cvrnr'];
 	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='$afd'";
-	if (($afd || $afd == '0') && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
+	if (($afd || $afd == '0') && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
 		$afd_navn = $r['beskrivelse'];
+	}
 
 	$regnaar = $regnaar * 1; #fordi den er i tekstformat og skal vaere numerisk
 
@@ -157,10 +163,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	$slutdato = 31;
 /*
 	if ($aar_fra < $aar_til) { #20210107
-		if ($maaned_til > $slutmaaned)
+		if ($maaned_til > $slutmaaned) {
 			$aar_til = $aar_fra;
-		elseif ($maaned_fra < $startmaaned)
+		} elseif ($maaned_fra < $startmaaned) {
 			$aar_fra = $aar_til;
+		}
 	}
 */
 	
@@ -185,36 +192,45 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		}
 	}
 
-	if (strlen($startmaaned) == 1)
+	if (strlen($startmaaned) == 1) {
 		$startmaaned = "0" . $startmaaned;
-	if (strlen($slutmaaned) == 1)
+	}
+	if (strlen($slutmaaned) == 1) {
 		$slutmaaned = "0" . $slutmaaned;
+	}
 
 	$regnAarStart = $startaar . "-" . $startmaaned . "-" . '01';
 	$lastYearBegin = $startaar - 1 . "-" . $startmaaned . "-" . '01';
-	if ($rapportart == 'lastYear')
+	if ($rapportart == 'lastYear') {
 		$regnAarStart = $startaar - 1 . "-" . $startmaaned . "-" . '01';
+	}
 
 
-	if ($maaned_fra)
+	if ($maaned_fra) {
 		$startmaaned = $maaned_fra;
-	if ($maaned_til)
+	}
+	if ($maaned_til) {
 		$slutmaaned = $maaned_til;
-	if ($dato_fra)
+	}
+	if ($dato_fra) {
 		$startdato = $dato_fra;
-	if ($dato_til)
+	}
+	if ($dato_til) {
 		$slutdato = $dato_til;
+	}
 
 	while (!checkdate($startmaaned, $startdato, $startaar)) {
 		$startdato = $startdato - 1;
-		if ($startdato < 28)
+		if ($startdato < 28) {
 			break 1;
+		}
 	}
 
 	while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 		$slutdato = $slutdato - 1;
-		if ($slutdato < 28)
+		if ($slutdato < 28) {
 			break 1;
+		}
 	}
 
 	$regnstart = $aar_fra . "-" . $startmaaned . "-" . $startdato;
@@ -261,8 +277,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	$q = db_select("select * from valuta order by gruppe,valdate desc", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$y = $x - 1;
-		if (!isset($valkode[$x]))
+		if (!isset($valkode[$x])) {
 			$valkode[$x] = NULL;
+		}
 		if ((!$x) || $r['gruppe'] != $valkode[$x] || $valdate[$x] >= $regnstart) {
 			$valkode[$x] = $r['gruppe'];
 			$valkurs[$x] = $r['kurs'];
@@ -274,12 +291,12 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	$csv = fopen($csvfile, "w");
 
 	// load topline settings menu
-	include("../includes/topline_settings.php");
+	include(__DIR__ . '/../../includes/topline_settings.php');
 	if ($menu == 'T') {
 		$title = "Rapport • $rapportart";
 
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
+		include_once(__DIR__ . '/../../includes/top_header.php');
+		include_once(__DIR__ . '/../../includes/top_menu.php');
 		
 		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
 		$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
@@ -344,27 +361,32 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 	print "<td colspan = '5'></td><td align = 'right'>Regnskabs&aring;r: $regnaar. : ";
 #	print "<tr><td colspan = '2'></td>";
-	if ($startdato < 10)
+	if ($startdato < 10) {
 		$startdato = "0" . $startdato * 1;
+	}
 	print "$startdato/$mf $aar_fra - $slutdato/$mt $aar_til</td></tr>";
 	if ($ansat_fra) {
-		if (!$ansat_til || $ansat_fra == $ansat_til)
+		if (!$ansat_til || $ansat_fra == $ansat_til) {
 			print "<tr><td>Medarbejder</td><td>$ansatte</td></tr>";
-		else
+		} else {
 			print "<tr><td>Medarbejdere</td><td>$ansatte</td></tr>";
+		}
 	}
-	if ($afd || $afd == '0')
+	if ($afd || $afd == '0') {
 		print "<tr><td>Afdeling</td><td>$afd_navn</td></tr>";
+	}
 	if ($projekt_fra) {
 		print "<td>Projekt:</td><td>";
 		#		print "<tr><td>Projekt $prj_navn_fra</td>";
 		if (!strstr($projekt_fra, "?")) {
-			if ($projekt_til && $projekt_fra != $projekt_til)
+			if ($projekt_til && $projekt_fra != $projekt_til) {
 				print "Fra: $projekt_fra, $prj_navn_fra<br>Til : $projekt_til, $prj_navn_til";
-			else
+			} else {
 				print "$projekt_fra, $prj_navn_fra";
-		} else
+			}
+		} else {
 			print "$projekt_fra, $prj_navn_fra";
+		}
 		print "</td></tr>";
 	}
 	print "</tbody></table></td></tr>";
@@ -405,10 +427,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		$vis_kto[$x] = 0;
 		$kontovaluta[$x] = $row['valuta'];
 		$kontokurs[$x] = $row['valutakurs'];
-		if (!$dim && $kontotype[$x] == "S")
+		if (!$dim && $kontotype[$x] == "S") {
 			$primo[$x] = afrund($row['primo'], 2);
-		else
+		} else {
 			$primo[$x] = 0;
+		}
 		if ($primo[$x] && $kontovaluta[$x]) {
 			for ($y = 0; $y <= count($valkode); $y++) {
 				if ($valkode[$y] == $kontovaluta[$x] && $valdate[$y] <= $slutdato) {
@@ -416,8 +439,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					break 1;
 				}
 			}
-		} else
+		} else {
 			$primokurs[$x] = 100;
+		}
 
 	}
 	$kto_antal = $kontoantal = $x;
@@ -449,8 +473,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				$vis_kto[$x] = 1;
 			}
 		}
-		if ($kontotype[$x] == 'R')
+		if ($kontotype[$x] == 'R') {
 			$vis_kto[$x] = 1;
+		}
 	}
 
 	if ($rapportart == 'budget') {
@@ -489,8 +514,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		if ($simulering) {
 			$query = db_select("select * from simulering where transdate>='$regnAarStart' and transdate<='$regnslut' and kontonr='$ktonr[$x]' $dim", __FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
-				if ($row['transdate'] >= $regnstart)
+				if ($row['transdate'] >= $regnstart) {
 					$kto_periode[$x] = $kto_periode[$x] + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+				}
 				if ($rapportart != 'budget') {
 					$kto_aar[$x] = $kto_aar[$x] + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 				}
@@ -594,11 +620,13 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				}
 			}
 		}
-		if (!isset($periodesum[$x]))
+		if (!isset($periodesum[$x])) {
 			$periodesum[$x] = 0;
+		}
 		for ($y = 1; $y <= $kto_antal; $y++) {
-			if (!isset($kto_periode[$y]))
+			if (!isset($kto_periode[$y])) {
 				$kto_periode[$y] = 0;
+			}
 			if (($kontotype[$x] == 'D') || ($kontotype[$x] == 'S')) {
 				if ($kontonr[$x] == $ktonr[$y]) {
 					$aarsum[$x] = $aarsum[$x] + $kto_aar[$y];
@@ -614,13 +642,16 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 	if ($lastYear) {
 		for ($x = 1; $x <= $kontoantal; $x++) {
-			if (!isset($lastYearPeriodSum[$x]))
+			if (!isset($lastYearPeriodSum[$x])) {
 				$lastYearPeriodSum[$x] = 0;
-			if (!isset($lastYearYearSum[$x]))
+			}
+			if (!isset($lastYearYearSum[$x])) {
 				$lastYearYearSum[$x] = 0;
+			}
 			for ($y = 1; $y <= $kto_antal; $y++) {
-				if (!isset($lastYearPeriod[$y]))
+				if (!isset($lastYearPeriod[$y])) {
 					$lastYearPeriod[$y] = 0;
+				}
 				if (($kontotype[$x] == 'D') || ($kontotype[$x] == 'S')) {
 					if ($kontonr[$x] == $ktonr[$y]) {
 						$lastYearYearSum[$x] += $lastYearYear[$y]; // 20260907 - NTR - Changed variable for the integer lastYear to lastYearYear as it was trying to access an array element.
@@ -677,10 +708,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					$tmp = $aarsum[$x] * 100 / $kontokurs[$x];
 					$title = "DKK " . dkdecimal($aarsum[$x], 2) . " Kurs: " . dkdecimal($kontokurs[$x], 2);
 				} else {
-					if ($lastYear)
+					if ($lastYear) {
 						$tmp = $lastYearYearSum[$x];
-					else
+					} else {
 						$tmp = $aarsum[$x];
+					}
 					$title = NULL;
 				}
 				print "<td align=\"right\" title=\"$title\"><b>" . dkdecimal($tmp, 2) . "</b></td>";
@@ -690,10 +722,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 						$tmp = $aarsum[$x] * 100 / $kontokurs[$x];
 						$title = "DKK " . dkdecimal($aarsum[$x], 2) . " Kurs: " . dkdecimal($kontokurs[$x], 2);
 					} else {
-						if ($aarsum[$x])
+						if ($aarsum[$x]) {
 							$tmp = ($periodesum[$x] - $aarsum[$x]) * 100 / $aarsum[$x];
-						else
+						} else {
 							$tmp = "--";
+						}
 						$title = NULL;
 					}
 					print "<td align=\"right\" title=\"$title\"><b>" . dkdecimal($tmp, 2) . "%</b></td>";
@@ -707,12 +740,14 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				if ($kontovaluta[$x]) {
 					$qtxt = "select box1 from grupper where art = 'VK' and kodenr = '$kontovaluta[$x]'";
 					$valname[$x] = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
-				} else
+				} else {
 					$valname[$x] = 'DKK';
+				}
 				if (in_array($kontonr[$x], $varekob)) {
 					$title = "Heraf på lager: " . dkdecimal($l_a_sum[$x] - $l_p_primo[$x], 2);
-				} else
+				} else {
 					$title = '';
+				}
 				($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
 				print "<tr bgcolor=\"$linjebg\"><td>$kontonr[$x]</td>";
 				fwrite($csv, "\"$kontonr[$x]\";");
@@ -735,10 +770,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					$tmp = $aarsum[$x];
 					$title = NULL;
 				}
-				if ($lastYear)
+				if ($lastYear) {
 					$tmp = dkdecimal($lastYearYear[$x], 2); #aar til dato
-				else
+				} else {
 					$tmp = dkdecimal($aarsum[$x], 2);
+				}
 				print "<td align=\"right\" title=\"$title\">" . $tmp . "</td>"; #20210317
 				fwrite($csv, "\"" . $tmp . "\";");
 				if ($rapportart == 'budget') {
@@ -748,8 +784,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					} elseif ($aarsum[$x]) {
 						$tmp = ($periodesum[$x] - $aarsum[$x]) * 100 / $aarsum[$x];
 						$title = NULL;
-					} else
+					} else {
 						$tmp = "--";
+					}
 					print "<td align=\"right\">" . dkdecimal($tmp, 2) . "%</td>"; #afvigelse fra budget
 					fwrite($csv, "\"" . dkdecimal($tmp, 2) . "\"");
 				}
@@ -764,9 +801,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	print "</div>"; // close scrollable overflow wrapper
 
 	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
+		include_once(__DIR__ . '/../../includes/topmenu/footer.php');
 	} else {
-		include_once '../includes/oldDesign/footer.php';
+		include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
 	}
 	print "<!--Function regnskab slut-->\n";
 }

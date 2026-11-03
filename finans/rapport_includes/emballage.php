@@ -11,13 +11,14 @@
 // 20260814 Sawaneh Include booked orders (status 4) so the report is not
 //                  empty once invoices are booked.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                  emballage() includes its files via __DIR__ (no behaviour change).
 
 function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
                    $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,
                    $simulering, $lagerbev) {
 	global $db, $menu, $sprog_id;
-	include_once("../includes/emballage_schema.php");
+	include_once(__DIR__ . '/../../includes/emballage_schema.php');
 	ensure_emballage_schema();
 
 	$view = if_isset($_GET['view'], if_isset($_POST['view'], 'detailed'));
@@ -45,7 +46,7 @@ function emballage($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$EN = (isset($sprog_id) && $sprog_id == 2);
 	$title = $EN ? "Report &bull; Packaging" : "Rapport &bull; Emballage";
-	include("../includes/topline_settings.php");
+	include(__DIR__ . '/../../includes/topline_settings.php');
 
 	$lbl_close = $EN ? 'Close' : 'Luk';
 	$lbl_back  = $EN ? 'Back'  : findtekst('30|Tilbage', $sprog_id);

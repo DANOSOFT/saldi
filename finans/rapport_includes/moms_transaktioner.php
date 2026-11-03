@@ -29,6 +29,7 @@
 // 20260722 MJ  COALESCE(debet,0)/COALESCE(kredit,0) i beloeb: NULL-aritmetik
 //                 gav NULL (vist som 0) for rene debet- eller kreditposteringer.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                  moms_transaktioner() has braces on its one-line if/else bodies, includes its files via __DIR__ and reads filter_momskode with ifset() (no behaviour change).
 
 function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                              $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -88,7 +89,7 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     $regnstart = "$startaar-$startmaaned-$startdato";
     $regnslut  = "$slutaar-$slutmaaned-$slutdato";
 
-    $filter_kode = db_escape_string(trim(if_isset($_GET, NULL, 'filter_momskode')));
+    $filter_kode = db_escape_string(trim(ifset($_GET, 'filter_momskode', NULL)));
 
     $dim = '';
     if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
@@ -99,9 +100,9 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
         } elseif ($ansat_fra) $dim .= "AND t.ansat = '$ansat_fra' ";
         $p_fra = str2low($projekt_fra);
         $p_til = str2low($projekt_til);
-        if ($p_fra && $p_til && $p_fra != $p_til)
+        if ($p_fra && $p_til && $p_fra != $p_til) {
             $dim .= " AND lower(t.projekt) >= '$p_fra' AND lower(t.projekt) <= '$p_til' ";
-        elseif ($p_fra) {
+        } elseif ($p_fra) {
             $tmp = str_replace("?", "_", $p_fra);
             if (substr($tmp, -1) == '_') { while (substr($tmp, -1) == '_') $tmp = substr($tmp, 0, strlen($tmp)-1); $tmp = str2low($tmp).'%'; }
             $dim .= "AND lower(t.projekt) LIKE '$tmp' ";
@@ -109,10 +110,11 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     }
 
     $konto_filter = '';
-    if ($konto_fra && $konto_til && $konto_fra != $konto_til)
+    if ($konto_fra && $konto_til && $konto_fra != $konto_til) {
         $konto_filter = "AND t.kontonr >= '$konto_fra' AND t.kontonr <= '$konto_til' ";
-    elseif ($konto_fra)
+    } elseif ($konto_fra) {
         $konto_filter = "AND t.kontonr = '$konto_fra' ";
+    }
 
     $kode_filter = ($filter_kode !== '') ? "AND COALESCE(kp.moms,'') = '$filter_kode' " : '';
 
@@ -131,11 +133,11 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     $csv_btn = "<a href='$csvfile' download style='color:#ffffff; text-decoration:none;'>"
              . "<i class='fa fa-download'></i> CSV</a>";
 
-    include("../includes/topline_settings.php");
+    include(__DIR__ . '/../../includes/topline_settings.php');
 
     if ($menu == 'T') {
-        include_once '../includes/top_header.php';
-        include_once '../includes/top_menu.php';
+        include_once(__DIR__ . '/../../includes/top_header.php');
+        include_once(__DIR__ . '/../../includes/top_menu.php');
         print "<div id=\"header\">";
         print "<div class=\"headerbtnLft headLink\"><a href=\"$back_url\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> Luk</a></div>";
         print "<div class=\"headerTxt\">Posteringer pr. momskode</div>";
@@ -349,9 +351,9 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     fclose($csv);
 
     if ($menu == 'T') {
-        include_once '../includes/topmenu/footer.php';
+        include_once(__DIR__ . '/../../includes/topmenu/footer.php');
     } else {
-        include_once '../includes/oldDesign/footer.php';
+        include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
     }
 }
 ?>
