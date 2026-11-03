@@ -6,14 +6,16 @@
 // process, signed at run time with a random webhook secret, and the worker is drained; what was
 // stored (ReplayDay::SNAPSHOT, and the rows of ReplayDay::TABLES it added, links or not) must
 // match fixtures/expected.json. The day is then sent again, shuffled and with retries, every
-// event is processed again (each handler runs again), and no business row may change. Sent over
-// HTTP (php -S, api/shopify/webhook.php) the day stores the same. Without a database only the
-// fixtures' reproducibility is checked: the generator runs as a child, as events.php (its topic
-// list) defines functions ClientRetryTest needs absent.
+// event is processed again (each handler runs again), and no business row may change, nor any
+// reference in one: a link moved to another item or debtor is a change. Sent over HTTP (php -S,
+// api/shopify/webhook.php) the day stores the same. Without a database only the fixtures'
+// reproducibility is checked: the generator runs as a child, as events.php (its topic list)
+// defines functions ClientRetryTest needs absent.
 //
 // History:
 // 20261103 CL/LH SD-766: created.
 // 20261103 CL/LH SD-766: review fixes: whole business tables compared, the second drain must run every handler again.
+// 20261103 CL/LH SD-766: second review: a reference moved to another row is a change, to NF-1 and to expected.json.
 
 use PHPUnit\Framework\TestCase;
 
@@ -113,6 +115,25 @@ final class ReplayDayTest extends TestCase
         $this->assertSame($changes, $run['changes1'], 'expected.json changes: the rows one replay adds');
         $this->assertCount(7, $run['first']['debtors'], 'one debtor per customer');
         $this->assertSame('Kunde 1 Jensen', substr($run['first']['debtors'][0]['firmanavn'], 5), 'the newer update wins over the older one that arrived last');
+    }
+
+    public function testALinkMovedToAnotherItemOrDebtorIsAChange(): void
+    {
+        if (self::$skip !== null) {
+            $this->markTestSkipped(self::$skip);
+        }
+        $run = $this->replay('relink');
+        foreach (['product_link' => ['shopify_product_links', 'vare_id', 'SD766-A', 'SD766-B'],
+            'customer_export' => ['shopify_customer_exports', 'adresser_id', 'D SD766-A', 'D SD766-B']] as $case => [$table, $column, $from, $to]) {
+            $stored = $run[$case]['stored'];
+            $this->assertSame([$table], array_keys($stored), "$case: NF-1 sees the moved link");
+            $this->assertSame([[$column], [$column]], [array_keys(array_diff_assoc($stored[$table]['added'][0], $stored[$table]['removed'][0])),
+                array_keys(array_diff_assoc($stored[$table]['removed'][0], $stored[$table]['added'][0]))], "$case: only $column changed");
+            $portable = $run[$case]['portable'];
+            $this->assertSame([$table], array_keys($portable), "$case: expected.json sees it");
+            $this->assertSame([[$from], [$to], 'hml'], [array_column($portable[$table]['removed'], $column), array_column($portable[$table]['added'], $column),
+                $portable[$table]['added'][0]['shop_id']], "$case: as business keys");
+        }
     }
 
     public function testTheDayOverHttpStoresWhatTheInProcessReplayStores(): void

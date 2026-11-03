@@ -102,7 +102,9 @@ other:
 - `expected.json`: read the business rows, not the diff size. Every SNAPSHOT part and every
   `changes` row (debtor numbers and names, addresses, orders, amounts and VAT, ledger, stock)
   must be what that day should store in Saldi. A row you cannot explain is a bug in the lane or
-  the fake.
+  the fake. A `changes` row shows a reference as the business key of the row it points at
+  (`"adresser_id": "D 29766000"`, `"shop_id": "hml"`); a lane whose rows carry another reference
+  adds it to `ReplayDay::REFS`.
 - Say in the PR what changed in the rows and why.
 
 ## Coverage today

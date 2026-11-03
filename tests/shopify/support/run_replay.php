@@ -10,13 +10,17 @@
 //   php run_replay.php <test_db> replay   prints JSON: answers, drains, first and second snapshot, the TABLES changes of each replay
 //   php run_replay.php <test_db> record   the same, and writes the first snapshot and changes to expected.json
 //   php run_replay.php <test_db> http     the day once over HTTP (php -S with webhook_router.php), drained: the snapshot and changes
+//   php run_replay.php <test_db> relink   no replay: a product link moved to another item and a pending export to another debtor,
+//                                         each in a transaction rolled back; the TABLES changes each read sees (stored, portable)
 //
 // History:
 // 20261103 CL/LH SD-766: created.
 // 20261103 CL/LH SD-766: review fixes: TABLES read before and after each replay, their changes recorded.
+// 20261103 CL/LH SD-766: second review: the second replay compares TABLES as stored, ids and references too; expected.json
+//                keeps the portable read; relink mode.
 
 if ($argc < 3) {
-    fwrite(STDERR, "usage: php run_replay.php <test_db> <replay|record|http>\n");
+    fwrite(STDERR, "usage: php run_replay.php <test_db> <replay|record|http|relink>\n");
     exit(2);
 }
 $testDb = $argv[1];
@@ -60,10 +64,36 @@ try {
         throw new RuntimeException('tests/shopify/fixtures/day.json or graphql.json is missing: run php tests/shopify/support/build_replay_day.php');
     }
     ReplayDay::prepareTenant();
+    if ($mode === 'relink') {
+        $cases = [
+            'product_link' => ["INSERT INTO varer (varenr, beskrivelse) VALUES ('SD766-A', 'Relink A'), ('SD766-B', 'Relink B')",
+                "INSERT INTO shopify_product_links (shop_id, vare_id, product_gid, variant_gid) SELECT s.id, v.id, 'gid://shopify/Product/9001', 'gid://shopify/ProductVariant/9002'
+                    FROM shopify_shops s, varer v WHERE v.varenr = 'SD766-A'",
+                "UPDATE shopify_product_links SET vare_id = (SELECT id FROM varer WHERE varenr = 'SD766-B')"],
+            'customer_export' => ["INSERT INTO adresser (art, kontonr, firmanavn) VALUES ('D', 'SD766-A', 'Relink A'), ('D', 'SD766-B', 'Relink B')",
+                "INSERT INTO shopify_customer_exports (shop_id, adresser_id, state) SELECT s.id, a.id, 'pending' FROM shopify_shops s, adresser a WHERE a.kontonr = 'SD766-A'",
+                "UPDATE shopify_customer_exports SET adresser_id = (SELECT id FROM adresser WHERE kontonr = 'SD766-B')"],
+        ];
+        $out = [];
+        foreach ($cases as $case => [$rows, $link, $move]) {
+            shopify_db_rows('BEGIN');
+            try {
+                shopify_db_rows($rows);
+                shopify_db_rows($link);
+                [$stored, $portable] = [ReplayDay::tables(), ReplayDay::tables(true)];
+                shopify_db_rows($move);
+                $out[$case] = ['stored' => ReplayDay::changes($stored, ReplayDay::tables()), 'portable' => ReplayDay::changes($portable, ReplayDay::tables(true))];
+            } finally {
+                shopify_db_rows('ROLLBACK');
+            }
+        }
+        echo json_encode($out, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        exit(0);
+    }
     $store = FakeShopifyStore::fromState($fixtures['graphql']);
     $graphql = $store->opts();
     $deliveries = $fixtures['day']['deliveries'];
-    $baseline = ReplayDay::tables();
+    $baseline = ReplayDay::tables(true);
     if ($mode === 'http') {
         $server = WebhookReplayer::startServer(['SALDI_SHOPIFY_DB' => $testDb]);
         try {
@@ -72,7 +102,7 @@ try {
             WebhookReplayer::stopServer($server);
         }
         echo json_encode(['answers1' => $answers, 'drain1' => ReplayDay::drain($testDb, $graphql), 'first' => ReplayDay::snapshot(),
-            'changes1' => ReplayDay::changes($baseline, ReplayDay::tables())], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            'changes1' => ReplayDay::changes($baseline, ReplayDay::tables(true))], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         exit(0);
     }
     $replayer = WebhookReplayer::forShop(shopify_shop(ReplayDay::SHOP['shop_key']));
@@ -80,6 +110,7 @@ try {
     $answers1 = $replayer->replay($deliveries);
     $drain1 = ReplayDay::drain($testDb, $graphql);
     $first = ReplayDay::snapshot();
+    $changes1 = ReplayDay::changes($baseline, ReplayDay::tables(true));
     $tables1 = ReplayDay::tables();
 
     $again = WebhookReplayer::arrange(WebhookReplayer::arrange($deliveries, 'shuffled', ReplayDay::SEED), 'duplicated', ReplayDay::SEED);
@@ -87,7 +118,6 @@ try {
     $reset = count(shopify_db_rows("UPDATE shopify_events SET state = 'received', processed_at = NULL, job_id = NULL WHERE state IN ('queued', 'ignored') RETURNING id"));
     $drain2 = ReplayDay::drain($testDb, $graphql);
     $second = ReplayDay::snapshot();
-    $changes1 = ReplayDay::changes($baseline, $tables1);
     $changes2 = ReplayDay::changes($tables1, ReplayDay::tables());
 
     if ($mode === 'record') {

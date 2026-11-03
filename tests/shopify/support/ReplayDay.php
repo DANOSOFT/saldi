@@ -8,14 +8,18 @@
 // handler that reads Shopify gets the same answers), expected.json the snapshot after one replay.
 // SNAPSHOT is the readable view of what the replay stored, through the Shopify links; TABLES are
 // the business tables compared whole, links or not, so a row a replay writes beside the linked
-// ones shows too; registry() is the job handlers it runs. A lane that lands adds its handler
-// there, its tables to TABLES (and a view to SNAPSHOT) if they are not listed yet, then refreshes
-// and reviews the fixtures as tests/shopify/support/FAKE-STORE.md describes.
+// ones shows too, with their ids and references (expected.json reads the references as business
+// keys, REFS); registry() is the job handlers it runs. A lane that lands adds its handler there,
+// its tables to TABLES (and a view to SNAPSHOT) and their references to REFS if they are not
+// listed yet, then refreshes and reviews the fixtures as tests/shopify/support/FAKE-STORE.md
+// describes.
 //
 // History:
 // 20261103 CL/LH SD-766: created.
 // 20261103 CL/LH SD-766: review fixes: the day's refunds carry an idempotency key, the move needs no stock at its destination;
 //                TABLES compared whole and their changes kept in expected.json; drain() counts the handlers that ran.
+// 20261103 CL/LH SD-766: second review: tables() keeps ids and references, leaving out only VOLATILE; its portable read
+//                for expected.json reads REFS as business keys.
 
 require_once __DIR__ . '/FakeShopifyStore.php';
 require_once __DIR__ . '/WebhookReplayer.php';
@@ -60,11 +64,10 @@ final class ReplayDay
 	];
 
 	/**
-	 * The business tables compared whole, table => WHERE (null: every row), each row without its
-	 * serial ids (id, *_id) and timestamps, and today's date (adresser.oprettet) read as <today>:
-	 * an orphan debtor, a second order or a changed export shows here whether or not a Shopify
-	 * link points at it. The inbox, queue and error tables are run history and stay out (SNAPSHOT
-	 * shows their state).
+	 * The business tables compared whole, table => WHERE (null: every row): an orphan debtor, a
+	 * second order, a changed export or a link moved to another item or debtor shows here whether
+	 * or not a Shopify link points at it. The inbox, queue and error tables are run history and
+	 * stay out (SNAPSHOT shows their state). tables() reads them.
 	 */
 	public const TABLES = [
 		'adresser' => null, 'ansatte' => null, 'ordrer' => null, 'ordrelinjer' => null, 'transaktioner' => null, 'openpost' => null,
@@ -73,6 +76,39 @@ final class ReplayDay
 		'shopify_fulfillments' => null, 'shopify_refunds' => null, 'shopify_refund_allocations' => null, 'shopify_stock_state' => null,
 		'settings' => "var_grp LIKE 'shopify%'",
 	];
+
+	/**
+	 * The columns of TABLES a run rewrites with no business change, by name: when a row was last
+	 * written (an upsert that runs again touches its link with the same data).
+	 */
+	public const VOLATILE = ['updated_at'];
+
+	/**
+	 * The references of TABLES that expected.json reads as the business key of the row they point
+	 * at (KEYS), as a clone's serial ids are not the recording's: table => column => referenced
+	 * table. A lane whose rows carry another reference adds it here.
+	 */
+	public const REFS = [
+		'ansatte' => ['konto_id' => 'adresser'],
+		'ordrer' => ['konto_id' => 'adresser', 'kred_ord_id' => 'ordrer'],
+		'ordrelinjer' => ['ordre_id' => 'ordrer', 'vare_id' => 'varer'],
+		'transaktioner' => ['ordre_id' => 'ordrer', 'adresser_id' => 'adresser'],
+		'openpost' => ['konto_id' => 'adresser'],
+		'lagerstatus' => ['vare_id' => 'varer'],
+		'batch_kob' => ['vare_id' => 'varer', 'ordre_id' => 'ordrer'],
+		'batch_salg' => ['vare_id' => 'varer', 'ordre_id' => 'ordrer'],
+		'shopify_customer_links' => ['shop_id' => 'shopify_shops', 'adresser_id' => 'adresser'],
+		'shopify_customer_exports' => ['shop_id' => 'shopify_shops', 'adresser_id' => 'adresser'],
+		'shopify_product_links' => ['shop_id' => 'shopify_shops', 'vare_id' => 'varer'],
+		'shopify_order_links' => ['shop_id' => 'shopify_shops', 'ordre_id' => 'ordrer'],
+		'shopify_fulfillments' => ['shop_id' => 'shopify_shops', 'ordre_id' => 'ordrer'],
+		'shopify_refunds' => ['shop_id' => 'shopify_shops', 'ordre_id' => 'ordrer'],
+		'shopify_refund_allocations' => ['credit_ordre_id' => 'ordrer'],
+		'shopify_stock_state' => ['shop_id' => 'shopify_shops', 'vare_id' => 'varer'],
+	];
+
+	/** The business key a REFS reference reads as, per referenced table. */
+	public const KEYS = ['adresser' => "art || ' ' || kontonr", 'ordrer' => "art || ' ' || ordrenr", 'varer' => 'varenr', 'shopify_shops' => 'shop_key'];
 
 	/** @var array<string, int> job type => handler runs that ended done, since drain() began */
 	private static array $handled = [];
@@ -169,23 +205,39 @@ final class ReplayDay
 		return array_map(fn(string $sql): array => shopify_db_rows($sql), self::SNAPSHOT);
 	}
 
-	/** @return array<string, list<string>> TABLES, read now: per table its rows as sorted JSON, without ids and timestamps */
-	public static function tables(): array
+	/**
+	 * TABLES, read now: per table its rows as sorted JSON. As stored, for comparing two reads of one
+	 * clone (NF-1): every column but VOLATILE, ids and references too, so a link moved to another
+	 * item or debtor shows. $portable, for expected.json across clones: a REFS reference as the
+	 * business key of the row it points at, other ids (id, *_id) and timestamps out, today's date
+	 * (adresser.oprettet) as <today>.
+	 *
+	 * @return array<string, list<string>>
+	 */
+	public static function tables(bool $portable = false): array
 	{
 		$today = date('Y-m-d');
 		$out = [];
 		foreach (self::TABLES as $table => $where) {
 			$columns = [];
 			foreach (shopify_db_rows('SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = $1 ORDER BY ordinal_position', [$table]) as $c) {
-				if ($c['column_name'] !== 'id' && !str_ends_with($c['column_name'], '_id') && !str_starts_with($c['data_type'], 'timestamp')) {
-					$columns[] = '"' . $c['column_name'] . '"';
+				$column = $c['column_name'];
+				$ref = self::REFS[$table][$column] ?? null;
+				if (!$portable) {
+					if (!in_array($column, self::VOLATILE, true)) {
+						$columns[] = "t.\"$column\"";
+					}
+				} elseif ($ref !== null) {
+					$columns[] = '(SELECT ' . self::KEYS[$ref] . " FROM $ref r WHERE r.id = t.\"$column\") AS \"$column\"";
+				} elseif ($column !== 'id' && !str_ends_with($column, '_id') && !str_starts_with($c['data_type'], 'timestamp')) {
+					$columns[] = "t.\"$column\"";
 				}
 			}
 			if ($columns === []) {
 				throw new RuntimeException("ReplayDay::TABLES: no table $table on the tenant");
 			}
-			$rows = array_map(fn(array $row): string => json_encode(array_map(fn(mixed $v): mixed => $v === $today ? '<today>' : $v, $row), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-				shopify_db_rows('SELECT ' . implode(', ', $columns) . " FROM $table" . ($where === null ? '' : " WHERE $where")));
+			$rows = array_map(fn(array $row): string => json_encode($portable ? array_map(fn(mixed $v): mixed => $v === $today ? '<today>' : $v, $row) : $row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+				shopify_db_rows('SELECT ' . implode(', ', $columns) . " FROM $table t" . ($where === null ? '' : " WHERE $where")));
 			sort($rows);
 			$out[$table] = $rows;
 		}
