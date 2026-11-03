@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- mysale/api.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
+// 20261102 CL/SS SD-789 Core edit 3: opret_ordrelinje() $fixed_price, as in includes/ordrefunc.php.
 //
 
 
@@ -258,7 +259,7 @@ if(isset($_GET["getTerms"])){
     echo json_encode(["terms" => $terms]);
 }
 
-function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_ny,$procent,$art,$momsfri,$posnr,$linje_id,$incl_moms,$kdo,$rabatart,$kopi,$saet,$fast_db,$lev_varenr,$lager,$linje) { #20140426
+function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_ny,$procent,$art,$momsfri,$posnr,$linje_id,$incl_moms,$kdo,$rabatart,$kopi,$saet,$fast_db,$lev_varenr,$lager,$linje,$fixed_price=false) { #20140426
 
     if (!$id) return("missing ordre ID");
     global $afd,$barcodeNew;
@@ -303,6 +304,8 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
     if ($procent=='') $procent=100;
     if (!is_numeric($fast_db)) $fast_db = 0;
     if (!is_numeric($rabat_ny)) $rabat_ny = 0;
+    $fixed_price = ($fixed_price === true);
+    if ($fixed_price) $pris=(float)$pris;
     $b2b=$debitorgruppe=$debitorrabatgruppe=$omkunde=$valutakurs=0;
     if (!$afd) $afd=0;
     $dd=date("Y-m-d");
@@ -418,7 +421,7 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
         $varegruppe=(int)$r['gruppe'];
         $samlevare=$r['samlevare'];
         $varerabatgruppe=$r['dvrg']*1;
-        if (!$pris && $b2b) $pris=(float)$r['tier_price'];
+        if (!$pris && $b2b && !$fixed_price) $pris=(float)$r['tier_price'];
         $specialType=$r['specialtype'];
         $special_price=(float)$r['special_price'];
         $special_from_date=$r['special_from_date'];
@@ -488,12 +491,12 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
 
         if (($special_from_date < $dd || ($special_from_date == $dd && $special_from_time <= $tt)) && 
             ($special_to_date > $dd || ($special_to_date == $dd && $special_to_time >= $tt))) $SpecialPeriod=1;
-        if ($SpecialPeriod && $special_price && $specialType=='percent') {
+        if ($SpecialPeriod && $special_price && $specialType=='percent' && !$fixed_price) {
             if ($rabat_ny == 0) $rabat_ny=$special_price;
             $special_price=0;
         }
 
-        if (!$pris) {
+        if (!$pris && !$fixed_price) {
             $ugedag=date('N');
             $uxtid=date("U");
             $tidspkt=date("H:i:s");
@@ -582,14 +585,16 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
                 $r2=db_fetch_array(db_select("select sum(antal) as antal from ordrelinjer where vare_id='$vare_id' and pris='$pris' and rabat='0' and ordre_id='$id'",__FILE__ . " linje " . __LINE__));
                 $tmpantal=$r2['antal'];
             }
-            if ($m_antal && $tmpantal >= $m_antal) {
+            if ($fixed_price) {
+                # no quantity discount, and the order's other lines keep theirs
+            } elseif ($m_antal && $tmpantal >= $m_antal) {
                 m_rabat($r['id'],$vare_id,$r['posnr'],$tmpantal,$id,$pris);
             } else {
                 db_modify("update ordrelinjer set m_rabat='0' where ordre_id = '$id' and vare_id = '$vare_id'",__FILE__ . " linje " . __LINE__);
             }
         } elseif ($art=='PO' && $r['id']) db_modify("delete from ordrelinjer where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
     } else {
-        if ($kopi || $rabat_ny) $rabat=$rabat_ny;
+        if ($kopi || $rabat_ny || $fixed_price) $rabat=$rabat_ny;
         else {
             if (!$debitorrabatgruppe && !db_fetch_array(db_select("select id from grupper where art='DRG'",__FILE__ . " linje " . __LINE__))){
                 $debitorrabatgruppe=$debitorgruppe;
@@ -676,7 +681,9 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
         $qtxt.= "vare_id='$vare_id' and pris != 0 and rabat='0' and ordre_id='$id'";
         $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
         $tmpantal=$r['antal'];
-        if ($m_antal && $tmpantal >= $m_antal) {
+        if ($fixed_price) {
+            # no quantity discount, and the order's other lines keep theirs
+        } elseif ($m_antal && $tmpantal >= $m_antal) {
             $qtxt = "select max(id) as id from ordrelinjer where ";
             $qtxt.= "vare_id='$vare_id' and pris != 0 and rabat='0' and ordre_id='$id'";
             $r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
