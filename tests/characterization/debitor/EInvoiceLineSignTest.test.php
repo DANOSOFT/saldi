@@ -8,9 +8,9 @@ use PHPUnit\Framework\TestCase;
 require_once __DIR__ . '/../../../includes/stdFunc/einvoiceLineSign.php';
 
 // 20261102 CL/MMR SST-746 Pins the quantity and unit price an order line is sent to EasyUBL with.
-//                 MEDSHOP's discount lines (999rabat, 1 x -600) were rejected: a negative price is not allowed (BR-27), and sent as an allowance they failed BR-S-08 / UNCL 5189.
+//                 A customer's discount lines (1 x -600) were rejected: a negative price is not allowed (BR-27), and sent as an allowance they failed BR-S-08 / UNCL 5189.
 //                 A negative quantity at a positive price is accepted, so the price is never negative and the line amount keeps its sign.
-//                 The figures are MEDSHOP's faktura 236656, faktura 239960 and kreditnota 240876, which credits 236656.
+//                 The figures come from a customer's real invoices and a credit note that credits one of them (anonymised).
 //                 The last tests check that sendInvoice() uses the helper and no longer flags lines as allowances.
 final class EInvoiceLineSignTest extends TestCase
 {
@@ -21,13 +21,13 @@ final class EInvoiceLineSignTest extends TestCase
     {
         return [
             'invoice item'                        => [1.0, 17196.0, false, 1.0, 17196.0],
-            'invoice discount 999rabat'           => [1.0, -600.0, false, -1.0, 600.0],
-            'invoice discount 239960'             => [1.0, -1500.0, false, -1.0, 1500.0],
+            'invoice discount line'               => [1.0, -600.0, false, -1.0, 600.0],
+            'invoice larger discount'             => [1.0, -1500.0, false, -1.0, 1500.0],
             'invoice return line'                 => [-1.0, 1500.0, false, -1.0, 1500.0],
             'invoice negative both'               => [-2.0, -10.0, false, 2.0, 10.0],
             'invoice text line'                   => [0.0, 0.0, false, 0.0, 0.0],
             'credit note returned item'           => [-2.0, 100.0, true, 2.0, 100.0],
-            'credit note discount (240876)'       => [-1.0, -600.0, true, -1.0, 600.0],
+            'credit note discount'                => [-1.0, -600.0, true, -1.0, 600.0],
             'credit note line taken back'         => [1.0, 44.4, true, -1.0, 44.4],
             'credit note text line'               => [0.0, 0.0, true, 0.0, 0.0],
             'credit note free line'               => [-1.0, 0.0, true, 1.0, 0.0],
@@ -62,9 +62,9 @@ final class EInvoiceLineSignTest extends TestCase
         self::assertSame('{"quantity":0,"price":0}', json_encode(einvoice_line_quantity_price('0.000', '0.000', true)));
     }
 
-    public function testInvoice236656TotalsStillReconcile(): void
+    public function testDiscountedInvoiceTotalsStillReconcile(): void
     {
-        // 236656: 1 x 17196, a text line, 1 x -600 (999rabat), 1 x 49. ordrer.sum 16645, moms 4161.25.
+        // An invoice: 1 x 17196, a text line, 1 x -600 (discount), 1 x 49. ordrer.sum 16645, moms 4161.25.
         $sum = 0.0;
         foreach (array(array(1, 17196), array(0, 0), array(1, -600), array(1, 49)) as $l) {
             $r = einvoice_line_quantity_price($l[0], $l[1], false);
@@ -74,9 +74,9 @@ final class EInvoiceLineSignTest extends TestCase
         self::assertEqualsWithDelta(4161.25, $sum * 0.25, 0.001);
     }
 
-    public function testCreditNote240876CreditsTheDiscountedAmount(): void
+    public function testCreditNoteCreditsTheDiscountedAmount(): void
     {
-        // 240876 credits 236656: -1 x 17196, -1 x -600 (999rabat), -1 x 49. ordrer.sum -16645.
+        // The credit note for that invoice: -1 x 17196, -1 x -600 (discount), -1 x 49. ordrer.sum -16645.
         $sum = 0.0;
         foreach (array(array(-1, 17196), array(-1, -600), array(-1, 49)) as $l) {
             $r = einvoice_line_quantity_price($l[0], $l[1], true);

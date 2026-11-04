@@ -23,7 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261102 CL/MMR SST-746 Created. The quantity and unit price an order line is sent with on an e-invoice or credit note.
-//                 A discount line (999rabat and the like) has a negative unit price, which Peppol does not allow (BR-27).
+//                 A discount line (a discount item at a negative price) has a negative unit price, which Peppol does not allow (BR-27).
 //                 It is sent as a negative quantity at a positive price, so the line amount and the VAT stay as in Saldi.
 
 if (!function_exists('einvoice_line_quantity_price')) {
@@ -32,9 +32,9 @@ if (!function_exists('einvoice_line_quantity_price')) {
 	 *
 	 * The unit price is never negative: Peppol BIS Billing 3.0 rejects a negative item net price (BR-27).
 	 * Since 20260825 such lines went out flagged isAllowanceCharge with the negative price, which EasyUBL
-	 * also rejects (BR-S-08, "Coded allowance reasons MUST belong to the UNCL 5189 code list", MEDSHOP
-	 * faktura 233807). A line with a negative quantity at a positive price is accepted (MEDSHOP: 31 of 31
-	 * digital invoices with such lines since March 2026), so a negative price is moved to the quantity.
+	 * also rejects (BR-S-08, "Coded allowance reasons MUST belong to the UNCL 5189 code list"). A line with
+	 * a negative quantity at a positive price is accepted (31 of 31 digital invoices with such lines in a
+	 * customer's account since March 2026), so a negative price is moved to the quantity.
 	 * The line amount (quantity x price) keeps its sign, so the totals and the VAT breakdown are unchanged.
 	 *
 	 * A credit note is sent with the amounts it credits as positive figures. Saldi stores a credit note's

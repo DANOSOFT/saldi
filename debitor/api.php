@@ -78,7 +78,7 @@
 //                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
 //                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
 //                  without the spaces Stamdata stores them with.
-// 20261102 CL/MMR SST-746 sendInvoice() sends a line with a negative unit price (a discount such as 999rabat) as a negative quantity at a positive price, never as an allowance.
+// 20261102 CL/MMR SST-746 sendInvoice() sends a line with a negative unit price (a discount line) as a negative quantity at a positive price, never as an allowance.
 //                 EasyUBL rejected those lines (BR-S-08, UNCL 5189), and Peppol does not allow a negative price (BR-27).
 //                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
 //                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
