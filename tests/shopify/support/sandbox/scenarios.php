@@ -51,8 +51,8 @@ function shopify_sandbox_scenarios(): array
 		'K18' => [
 			'title' => 'a store order reduces Shopify stock by exactly the quantity sold (no double draw)',
 			'targets' => [],
-			'elsewhere' => ['status' => 'BLOCKED', 'owner' => 'WP13',
-				'detail' => 'needs BYPASS store orders (WP13) and the fulfil check on a Danosoft dev store; the push never adjusts, so Saldi\'s one draw is all Shopify gets unless a fulfilled BYPASS order draws again'],
+			'elsewhere' => ['status' => 'BLOCKED', 'owner' => 'Lui',
+				'detail' => 'needs the BYPASS fulfil check on a Danosoft dev store (does fulfilling a BYPASS order lower Shopify stock?), then WP13\'s store orders on the sandboxes; the push never adjusts, so Saldi\'s one draw is all Shopify gets unless a fulfilled BYPASS order draws again'],
 		],
 		'K45' => [
 			'title' => 'the document link of a posted invoice opens its PDF; a changed link opens nothing',
