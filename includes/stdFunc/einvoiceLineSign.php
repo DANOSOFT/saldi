@@ -25,7 +25,7 @@
 // 20261102 CL/MMR SST-746 Created. The quantity and unit price an order line is sent with on an e-invoice or credit note.
 //                 A discount line (a discount item at a negative price) has a negative unit price, which Peppol does not allow (BR-27).
 //                 It is sent as a negative quantity at a positive price, so the line amount and the VAT stay as in Saldi.
-// 20261104 CL/MMR SST-746 Review (PR #998): the comments no longer name a customer or real invoice numbers.
+// 20261104 CL/MMR SST-746 Review (PR #998): the comments no longer name a customer or real invoice numbers, and the example amount is synthetic.
 
 if (!function_exists('einvoice_line_quantity_price')) {
 	/**
@@ -41,7 +41,7 @@ if (!function_exists('einvoice_line_quantity_price')) {
 	 * A credit note is sent with the amounts it credits as positive figures. Saldi stores a credit note's
 	 * lines with the sign they have in the books (a returned item is -2 x 100), so the quantity is
 	 * negated. Until 20261102 both quantity and price were made positive with abs(), which turned the
-	 * discount on a credit note (-1 x -600) into a charge of +600, so the credit note credited too much.
+	 * discount on a credit note (-1 x -100) into a charge of +100, so the credit note credited too much.
 	 *
 	 * @param float|int|string $antal        ordrelinjer.antal.
 	 * @param float|int|string $pris         ordrelinjer.pris.
