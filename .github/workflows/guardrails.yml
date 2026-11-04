@@ -51,6 +51,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Guardrail regression tests
+        run: node --test tools/guardrails/tests/*.test.mjs
+
       - name: Guardrails
         if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'sync/')
         run: node tools/guardrails/check.mjs --base "origin/$BASE_REF"

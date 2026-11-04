@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- lap 5.0.0 --- 2026-07-31 ---
+// --- sager/loen.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,6 +113,8 @@
 // 20240220 PK - Added javascript that prevent user from double click.
 // 20260731 PHR - Added cache busting for warning when selecting a former employee in ret_loen.
 // 20260810 CX/PHR - Corrected quoting in print icon onclick handlers.
+// 20261103 CL/MMR SD-799 The texts of the former employee warning are passed to jquery.loen.js in the user's language.
+// 20261103 CL/MMR SD-799 The date picker, the piecework list toggle, the list paging line and the date clear button follow the user's language.
 
 @session_start();
 $s_id = session_id();
@@ -139,6 +141,7 @@ $modulnr = 0;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 include("loenliste.php");
 include('loenIncludes/footer.php');
 include("../includes/topline_settings.php");
@@ -197,7 +200,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 			<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/print.css\" media=\"print\">
 			<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>
 			<script type=\"text/javascript\" src=\"../javascript/jquery-ui-1.9.2.custom.min.js\"></script>
-			<script type=\"text/javascript\" src=\"../javascript/ui.datepicker-da.js\"></script>
+			".sager_datepicker_locale()."
 			<script type=\"text/javascript\" src=\"../javascript/jquery.autosize.js\"></script>
 			<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js\"></script>
 			<script type=\"text/javascript\" src=\"../javascript/jquery.table.addrow.js\"></script>
@@ -298,7 +301,14 @@ print "</div><!-- end of maincontent -->
 	});
 });
 </script>
-<script type=\"text/javascript\" src=\"../javascript/jquery.loen.js?v=20260731\"></script>
+" . sager_js_tekst('loenTekst', array(
+	'fratraadt'      => findtekst('8409|Advarsel: %s er fratrådt pr. %s.', $sprog_id),
+	'ukendt'         => findtekst('8410|ukendt', $sprog_id),
+	'visAkkordliste' => findtekst('3032|Vis akkordliste', $sprog_id),
+	'lukAkkordliste' => findtekst('8412|Luk akkordliste', $sprog_id),
+	'visning'        => sager_pagination_label(),
+	'slet'           => findtekst('1099|Slet', $sprog_id),
+)) . "<script type=\"text/javascript\" src=\"../javascript/jquery.loen.js?v=20261103b\"></script>
 </body>
 </html>";
 
