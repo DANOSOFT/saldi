@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.29
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.10.29
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20261027 CL/LH MB-73 (review): the leveret backfill runs in id windows under a try-lock with a time budget per
 //                login (includes/opdat_func/backfillOrderLineDelivered.php) instead of one UPDATE at the first login.
 //                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url (the Vibrant payment the server created for a booking).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -156,5 +157,22 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // second; later logins carry on from the stored window, and a login that finds the lock taken skips it.
 require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
 backfillOrderLineDelivered($db_type);
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url hold the Vibrant payment the server created for
+// a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
+// the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
+if (isset($db) && is_string($db) && $db !== '') {
+	$rentalTable = db_fetch_array(db_select(
+		"SELECT table_name FROM information_schema.tables WHERE (table_schema = '" . db_escape_string($db) . "' OR table_catalog = '" . db_escape_string($db) . "') AND table_name = 'rentalperiod'",
+		__FILE__ . " linje " . __LINE__
+	));
+	if ($rentalTable) {
+		include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
+		ensureTableAndColumns($db, 'rentalperiod', array(
+			'id' => 'SERIAL PRIMARY KEY', 'order_id' => 'INTEGER', 'rt_from' => 'numeric(15,0)', 'rt_to' => 'numeric(15,0)',
+			'item_id' => 'INTEGER', 'cust_id' => 'INTEGER', 'expiry_time' => 'TIMESTAMP', 'payment_id' => 'varchar(100)',
+			'payment_url' => 'varchar(500)'
+		));
+	}
+}
 
 ?>
