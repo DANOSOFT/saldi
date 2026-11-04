@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/orderIncludes/einvoiceRejection.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- debitor/orderIncludes/einvoiceRejection.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261030 CL/MJ SST-882 Created: an invoice whose e-invoice was rejected shows why at the top of the order page (debitor/ordre.php).
+// 20261104 CL/MJ SST-882 On an ISO-8859-1 order page, EasyUBL's UTF-8 message is converted before it is printed (CodeRabbit).
 //                The message comes from einvoice_events, and a short explanation per kind of rejection says what to do.
 
 include_once(__DIR__ . '/../../includes/stdFunc/einvoiceEvents.php');
@@ -90,6 +91,10 @@ if (!function_exists('einvoiceRejectionView')) {
 		}
 		$rejection = einvoice_latest_rejection($ordreId);
 		if ($rejection) {
+			// EasyUBL sends UTF-8; a LATIN9 tenant stores those bytes as they came.
+			if ($dbEncode != 'UTF8' && mb_check_encoding($rejection['message'], 'UTF-8')) {
+				$rejection['message'] = mb_convert_encoding($rejection['message'], 'ISO-8859-1', 'UTF-8');
+			}
 			print einvoiceRejectionHtml($rejection, einvoiceRejectionTexts($sprogId), $dbEncode == 'UTF8' ? 'UTF-8' : 'ISO-8859-1');
 		}
 	}
