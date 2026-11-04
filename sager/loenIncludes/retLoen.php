@@ -32,7 +32,7 @@
 // 20261103 CL/MMR SD-799 The created/transferred/approved/rejected "by" labels use the author text, so English shows "by".
 // 20261104 CL/MMR SST-943 Gem and Overfør no longer save a slip, or its piecework lines, without a date.
 //                 The slip is shown as stored with the typed values put back and the messages "Dato ikke udfyldt" and "Obs - Du har ikke gemt.".
-// 20261104 CL/MMR SST-943 A stopped save also skips the writes made while the slip is drawn (sum, duplicate lines, master_id).
+// 20261104 CL/MMR SST-943 A stopped save also skips the writes made while the slip is drawn (sum, duplicate lines, master_id); vis_liste() gets it as a parameter.
 //                 The list type selector keeps the type the piecework lines are drawn for.
 
 function ret_loen() {
@@ -69,7 +69,6 @@ function ret_loen() {
 	}
 	$id=if_isset($_GET['id']);
 	$gem=NULL;
-	global $datoMangler; # 20261104 SST-943 also read by vis_liste()
 	$datoMangler = loenDatoMangler($_POST); # 20261104 SST-943
 	if ($datoMangler) $id = (int)ifset($_POST, 'id', 0);
 	transaktion('begin');
@@ -1546,7 +1545,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 
 				print "<tbody>";
 				include('loenIncludes/visListe.php');
-				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal);
+				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler); # 20261104 SST-943
 				print "<tr>
 					<td colspan=\"13\" class=\"tableSagerBorder\"><b>".findtekst('3006|Lønlinjer ialt', $sprog_id).":</b></td>
 					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>

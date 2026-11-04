@@ -27,12 +27,11 @@
 //              loen_enheder
 // 20230915 PHR tent surcharges were not shown on completed bills.
 // 20260319 LOE Added $categorySum to calculate sum per category for use in ret_loen.php
-// 20261104 CL/MMR SST-943 The empty transport line is not deleted while a save that was stopped for a missing date is shown.
+// 20261104 CL/MMR SST-943 The empty transport line is not deleted while a save that was stopped for a missing date is shown (new parameter $datoMangler, default false).
 
-function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
+function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler = false) { # 20261104 SST-943 $datoMangler: Gem/Overfør was stopped for a missing date, so nothing is written
 
 	global $brugernavn,$bgcolor,$db,$sprog_id;
-	global $datoMangler; # 20261104 SST-943 set by ret_loen() when Gem/Overfør was stopped for a missing date
 	$categorySum = array(); 
 /*
  ($listevalg >= 10)?$nyListe = 1:$nyListe = 0;
