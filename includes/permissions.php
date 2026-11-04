@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissions.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/permissions.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,12 @@
 // 20261103 CL/ASR QA: the user migration gives a standard role only when the role covers everything the old rights string gave (perm_role_covers_legacy(), all keys incl. the settings areas and derived keys); a string that equals a standard role's but gave more (e.g.
 //                 2222222222222222: read on every settings area) gets a custom role kept for review instead.
 // 20261103 CL/ASR QA round 2: a refusal answers HTTP 403, with JSON for fetch/XHR callers and JSON endpoints, and otherwise a small card with the message and Tilbage til Oversigt instead of the text box whose Luk left an empty frame.
+// 20261104 CL/ASR Final QA: a role suggestion (perm_covering_role(), perm_suggest_role()) is never Administrator, never a role that gives a dangerous key, Indstillinger, a settings area, sensitive employee fields or the audit log beyond what the user had, and there is none for a user without any rights (perm_suggestion_safe()).
+//                 perm_role_extra_labels() names what a suggested role gives beyond the old rights, for the confirmation on the user card.
+//                 A built-in role and its rights, and a custom role from the migration and its rights, are created in one transaction each, so a first login that stops halfway leaves no incomplete role behind.
+//                 The users given Administrator when the roles are seeded are written to the audit log and counted in the migration summary, and the migration's audit rows are written as the user system without an IP address (audit_log() takes $system).
+//                 perm_migration_summary_live() counts the administrators, the users with a role and the roles still to review from the users themselves, for the review banner and the dashboard card.
+//                 perm_review_done() no longer deletes the custom role a user leaves, so the change can be undone by giving the role back.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 
@@ -686,6 +692,9 @@ function perm_suggest_role(string $rettigheder): ?array
 			continue;
 		}
 		$levels = perm_levels_from_role($role['id']);
+		if (!perm_suggestion_safe($role, $rettigheder, $levels)) {
+			continue;
+		}
 		$distance = 0;
 		foreach (permission_registry() as $key => $def) {
 			if ($def['legacy'] && $levels[$key] !== $target[$key]) {
@@ -697,6 +706,68 @@ function perm_suggest_role(string $rettigheder): ?array
 		}
 	}
 	return $best;
+}
+
+/**
+ * True when a built-in role may be suggested for a legacy rights string (final QA, 4 Nov 2026): a suggestion is taken with one
+ * click, so it must never be Administrator, never give a guarded key (the dangerous keys, Indstillinger, the settings areas,
+ * sensitive employee fields, the audit log) above what the string gave, and a user without any rights gets no suggestion.
+ *
+ * @param array{id: int, key: string} $role
+ * @param array<string, string>|null $levels the role's levels when the caller has them already
+ */
+function perm_suggestion_safe(array $role, string $rettigheder, ?array $levels = null): bool
+{
+	if ($role['key'] === 'administrator') {
+		return false;
+	}
+	$target = perm_levels_from_legacy(perm_normalize_legacy($rettigheder));
+	$registry = permission_registry();
+	$anyRight = false;
+	foreach ($registry as $key => $def) {
+		if ($def['legacy'] && $target[$key] !== 'none') {
+			$anyRight = true;
+			break;
+		}
+	}
+	if (!$anyRight) {
+		return false;
+	}
+	$rank = perm_level_rank();
+	if ($levels === null) {
+		$levels = perm_levels_from_role($role['id']);
+	}
+	foreach ($registry as $key => $def) {
+		$guarded = !empty($def['dangerous']) || $def['group'] === 'settingsarea'
+			|| in_array($key, array('system.indstillinger', 'settings.organisation.sensitive', 'settings.audit.read'), true);
+		if ($guarded && $rank[isset($levels[$key]) ? $levels[$key] : 'none'] > $rank[isset($target[$key]) ? $target[$key] : 'none']) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * The rights a role gives beyond a legacy rights string, as labels ("Kassekladde", "Varer (læs)"); the Oversigt keys are left out.
+ *
+ * @return array<int, string>
+ */
+function perm_role_extra_labels(int $roleId, string $rettigheder, int $sprogId): array
+{
+	$target = perm_levels_from_legacy(perm_normalize_legacy($rettigheder));
+	$levels = perm_levels_from_role($roleId);
+	$rank = perm_level_rank();
+	$out = array();
+	foreach (permission_registry() as $key => $def) {
+		if ($def['group'] === 'dashboard') {
+			continue;
+		}
+		$have = isset($levels[$key]) ? $levels[$key] : 'none';
+		if ($rank[$have] > $rank[isset($target[$key]) ? $target[$key] : 'none']) {
+			$out[] = findtekst($def['label'], $sprogId) . ($have === 'read' ? ' (' . findtekst('5893|læs', $sprogId) . ')' : '');
+		}
+	}
+	return $out;
 }
 
 /**
@@ -723,6 +794,9 @@ function perm_ensure_default_roles(): void
 		$fresh[$key] = true;
 		$navn = db_escape_string(explode('|', $def['label'], 2)[1]);
 		$beskrivelse = db_escape_string(explode('|', $def['beskrivelse'], 2)[1]);
+		// The role and its rights in one transaction: a login that stops in between leaves no role without its rights,
+		// which the next login would skip (its role_key exists) and hand to every user with all rights.
+		transaktion('begin');
 		db_modify("insert into roles (role_key, navn, beskrivelse, system) values ('$key', '$navn', '$beskrivelse', true)", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select id from roles where role_key = '$key'", __FILE__ . " linje " . __LINE__));
 		if ($r) {
@@ -732,11 +806,27 @@ function perm_ensure_default_roles(): void
 			}
 			$existing[$key] = $roleId;
 		}
+		transaktion('commit');
 	}
 	perm_seed_new_keys($existing, $fresh);
 	if (isset($existing['administrator'])) {
 		$adminId = (int) $existing['administrator'];
-		db_modify("update brugere set role_id = $adminId where (role_id is null or role_id = 0) and rettigheder = '1111111111111111'", __FILE__ . " linje " . __LINE__);
+		$seeded = array();
+		$q = db_select("select id, brugernavn from brugere where (role_id is null or role_id = 0) and rettigheder = '1111111111111111'", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$seeded[] = $r;
+		}
+		if ($seeded) {
+			db_modify("update brugere set role_id = $adminId where (role_id is null or role_id = 0) and rettigheder = '1111111111111111'", __FILE__ . " linje " . __LINE__);
+			$label = perm_role_label_plain($adminId);
+			foreach ($seeded as $r) {
+				audit_log('user.role_changed', (string) $r['brugernavn'] . ': - -> ' . $label, 'bruger', (string) $r['id'], 'migrering', true);
+			}
+			$counts = perm_migration_summary();
+			$counts['total'] += count($seeded);
+			$counts['admin'] += count($seeded);
+			perm_save_migration_summary($counts);
+		}
 	}
 }
 
@@ -832,7 +922,8 @@ function perm_normalize_legacy(string $rettigheder): string
 
 /**
  * The standard role with the fewest extra rights that still covers everything the user had
- * (spec §6.3). Administrator covers everything, so there is always an answer.
+ * (spec §6.3). Only roles perm_suggestion_safe() allows take part, so Administrator is never suggested
+ * and there may be no answer: the custom role the user has then stays (Behold nuværende).
  */
 function perm_covering_role(string $rettigheder): ?array
 {
@@ -844,6 +935,9 @@ function perm_covering_role(string $rettigheder): ?array
 			continue;
 		}
 		$levels = perm_levels_from_role($role['id']);
+		if (!perm_suggestion_safe($role, $rettigheder, $levels)) {
+			continue;
+		}
 		$extra = 0;
 		$covers = true;
 		foreach (permission_registry() as $key => $def) {
@@ -918,7 +1012,7 @@ function perm_migrate_users(): void
 			db_modify("delete from settings where var_grp = 'permissions' and var_name = 'review' and user_id = $id", __FILE__ . " linje " . __LINE__);
 			db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('permissions', 'review', '" . db_escape_string((string) $r['rettigheder']) . "', 'Role set by the migration, not confirmed yet', $id)", __FILE__ . " linje " . __LINE__);
 		}
-		audit_log('user.role_changed', (string) $r['brugernavn'] . ': - -> ' . perm_role_label_plain($roleId), 'bruger', (string) $id, 'migrering');
+		audit_log('user.role_changed', (string) $r['brugernavn'] . ': - -> ' . perm_role_label_plain($roleId), 'bruger', (string) $id, 'migrering', true);
 		$counts['total']++;
 		if ($roleId === $adminId) {
 			$counts['admin']++;
@@ -973,12 +1067,15 @@ function perm_custom_role_for(string $string, int $sprog): int
 	}
 	$navn = sprintf(findtekst('5877|Tilpasset rolle %s', $sprog), $n);
 	$beskrivelse = sprintf(findtekst('5878|Oprettet ved overgangen til roller ud fra de gamle rettigheder: %s', $sprog), implode(', ', $grants));
+	// The role and its rights in one transaction, as the built-in roles (perm_ensure_default_roles()).
+	transaktion('begin');
 	db_modify("insert into roles (role_key, navn, beskrivelse, system) values ('" . db_escape_string($key) . "', '" . db_escape_string($navn) . "', '" . db_escape_string(mb_substr($beskrivelse, 0, 1000)) . "', false)", __FILE__ . " linje " . __LINE__);
 	$roleId = perm_role_id_by_key($key);
 	if ($roleId > 0) {
 		perm_save_role_levels($roleId, $levels);
-		audit_log('role.created', $navn . ': ' . $string, 'rolle', (string) $roleId, 'migrering');
+		audit_log('role.created', $navn . ': ' . $string, 'rolle', (string) $roleId, 'migrering', true);
 	}
+	transaktion('commit');
 	return $roleId;
 }
 
@@ -1000,6 +1097,33 @@ function perm_migration_summary(): array
 	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'permissions' and var_name = 'migration_summary'", __FILE__ . " linje " . __LINE__));
 	$parts = $r ? array_map('intval', explode(';', (string) $r['var_value'])) : array();
 	return array('total' => isset($parts[0]) ? $parts[0] : 0, 'admin' => isset($parts[1]) ? $parts[1] : 0, 'custom' => isset($parts[2]) ? $parts[2] : 0);
+}
+
+/**
+ * The review banner's figures from the users as they are now (final QA, 4 Nov 2026): the stored summary missed the users
+ * the seeding gave Administrator. total = open users with a role, admin = open users with Administrator, custom = users
+ * whose migrated role is not confirmed yet.
+ *
+ * @return array{total: int, admin: int, custom: int}
+ */
+function perm_migration_summary_live(): array
+{
+	$out = array('total' => 0, 'admin' => 0, 'custom' => count(perm_review_pending()));
+	if (!perm_tables_ready()) {
+		return $out;
+	}
+	$adminId = perm_role_id_by_key('administrator');
+	$q = db_select("select * from brugere where role_id > 0", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (array_key_exists('status', $r) && in_array($r['status'], array('f', false, '0', 0), true)) {
+			continue; // closed
+		}
+		$out['total']++;
+		if ($adminId > 0 && (int) $r['role_id'] === $adminId) {
+			$out['admin']++;
+		}
+	}
+	return $out;
 }
 
 function perm_save_migration_summary(array $c): void
@@ -1032,22 +1156,13 @@ function perm_review_pending(): array
 }
 
 /**
- * The administrator has decided on this user's role. Custom roles from the migration that
- * no one holds any more are removed (spec §6.3).
+ * The administrator has decided on this user's role. The custom role from the migration the user leaves is kept (final QA,
+ * 4 Nov 2026), even when no one holds it any more: it holds exactly the old rights, so giving it back undoes the change.
+ * An administrator deletes it under Roller once it is not needed.
  */
 function perm_review_done(int $brugerId): void
 {
 	db_modify("delete from settings where var_grp = 'permissions' and var_name = 'review' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
-	$q = db_select("select r.id, r.navn from roles r where r.role_key like 'migrated_%' and not exists (select 1 from brugere b where b.role_id = r.id)", __FILE__ . " linje " . __LINE__);
-	$empty = array();
-	while ($r = db_fetch_array($q)) {
-		$empty[] = $r;
-	}
-	foreach ($empty as $r) {
-		db_modify("delete from role_permissions where role_id = " . (int) $r['id'], __FILE__ . " linje " . __LINE__);
-		db_modify("delete from roles where id = " . (int) $r['id'], __FILE__ . " linje " . __LINE__);
-		audit_log('role.deleted', (string) $r['navn'], 'rolle', (string) $r['id'], 'migrering');
-	}
 }
 
 // ------------------------------------------------------------------ audit log
@@ -1071,8 +1186,9 @@ function audit_user_name(): string
 
 /**
  * Record who did what (spec R7). Never throws: an install without the table just skips.
+ * $system: written as the user "system" without an IP address (the one-time migration at a first login, which is not that user's doing).
  */
-function audit_log(string $handling, string $detaljer = '', string $objektType = '', string $objektId = '', string $kilde = 'ui'): void
+function audit_log(string $handling, string $detaljer = '', string $objektType = '', string $objektId = '', string $kilde = 'ui', bool $system = false): void
 {
 	global $bruger_id, $brugernavn;
 	static $extended = null;
@@ -1082,9 +1198,9 @@ function audit_log(string $handling, string $detaljer = '', string $objektType =
 	if ($extended === null) {
 		$extended = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'audit_log' and column_name = 'objekt_type'" . (function_exists('saldi_schema_filter') ? saldi_schema_filter() : ''), __FILE__ . " linje " . __LINE__));
 	}
-	$id = isset($bruger_id) ? (int) $bruger_id : 0;
-	$navn = db_escape_string(audit_user_name());
-	$ip = db_escape_string(isset($_SERVER['REMOTE_ADDR']) ? substr((string) $_SERVER['REMOTE_ADDR'], 0, 45) : '');
+	$id = (isset($bruger_id) && !$system) ? (int) $bruger_id : 0;
+	$navn = db_escape_string($system ? 'system' : audit_user_name());
+	$ip = db_escape_string((isset($_SERVER['REMOTE_ADDR']) && !$system) ? substr((string) $_SERVER['REMOTE_ADDR'], 0, 45) : '');
 	$handling = db_escape_string(substr($handling, 0, 60));
 	$detaljer = db_escape_string($detaljer);
 	if ($extended) {

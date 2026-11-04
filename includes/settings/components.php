@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/components.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // 20261101 CL/ASR Settings hub "C - Fold ud": a section without a lead of its own describes itself with its hub row's hint, not the old group's text. settings_back_button(): the Tilbage button every settings page shows above its title (kit classes, target from settings_back_link()).
 // 20261102 CL/ASR settings_back_button() takes the access key (default 'l', Alt+L), so callers no longer patch its markup.
 // 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the data processing agreement); only links to pages that change data are disabled.
+// 20261104 CL/ASR Final QA: a setting marked 'empty_is_default' also shows its default when its stored value is empty (Landekonfiguration: an empty adresser.land is Danmark), so the field is not blank and saving the page does not change it.
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -239,7 +240,7 @@ function st_current_form_value(array $def): string
 	$key = (string) $def['key'];
 	$raw = SettingsService::raw($key);
 	if ($raw === '' && array_key_exists('default', $def) && $def['default'] !== '' && $def['default'] !== null && $def['default'] !== false
-		&& !in_array($def['type'], array('secret', 'action', 'info', 'link', 'mini'), true) && !SettingsService::exists($key)) {
+		&& !in_array($def['type'], array('secret', 'action', 'info', 'link', 'mini'), true) && (!empty($def['empty_is_default']) || !SettingsService::exists($key))) {
 		return st_form_value($def, st_default_raw($def));
 	}
 	return st_form_value($def, $raw);

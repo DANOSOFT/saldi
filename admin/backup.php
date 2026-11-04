@@ -39,6 +39,7 @@
 //                 The dump command with the database password is no longer printed into the page.
 //                 The plain dump and backup.info are deleted once archived, the kept copy gets a random part in its name and is downloaded through backup_download.php, and Annullér deletes only that copy.
 // 20261104 CL/ASR Every visit removes expired work folders of the two-step restore (includes/restorePending.php), as restore.php does.
+// 20261104 CL/ASR Final QA: a backup that was created is written to the audit log (setting.action on import_export.backup, with the file name and size), as the restore's steps are.
 
 @session_start();
 $s_id = session_id();
@@ -202,6 +203,9 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 			error_log("backUp file1: " . $backUpFile);
 			if (copy($sourceFile, $backUpFile)) {
 				@unlink($sourceFile); // the copy under temp/backup/ is the one offered for download
+				if (function_exists('audit_log')) {
+					audit_log('setting.action', (string) json_encode(array('step' => 'backup_created', 'file' => basename($backUpFile), 'size' => (int) @filesize($backUpFile)), JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE), 'indstilling', 'import_export.backup');
+				}
 				#echo "Please click on save to continue..";
 			} else {
 				throw new Exception("File not saved at $backUpFile");

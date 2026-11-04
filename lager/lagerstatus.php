@@ -72,6 +72,7 @@
 //              A search that matches nothing no longer fatals in the print view.
 //              The filters that URL sends are read without warnings too.
 // 20261104 CL/ASR The item number links to the item trace (varespor.php) only for users who may open it; the trace moved to Varerapport (right 15, lager.rapporter).
+// 20261104 CL/ASR Final QA: the page is opened from Varerapport (lager/rapport.php, right 15), so reading it needs lager.rapporter instead of lager.varer; Ret skæve lagertal (ret_behold=2) still needs write on lager.varer.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -111,9 +112,11 @@ $kostvalue=0;$lagervalue=0;$salgsvalue=0;
 $dateType = 'levdate';
 
 include("../includes/connect.php");
-$permission_key = 'lager.varer';
-// "Ret skæve lagertal" (ret_behold=2) rewrites stock figures from a GET link, so it needs write.
+// Opened from Varerapport (lager/rapport.php, right 15): reading needs the report key.
+$permission_key = 'lager.rapporter';
+// "Ret skæve lagertal" (ret_behold=2) rewrites stock figures from a GET link, so it needs write on Varer.
 if (isset($_GET['ret_behold']) && (string) $_GET['ret_behold'] === '2') {
+	$permission_key = 'lager.varer';
 	$permission_level = 'write';
 }
 include("../includes/online.php");

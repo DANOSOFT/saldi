@@ -43,6 +43,8 @@
 // 20261104 CL/ASR QA round 3: the PostgreSQL advisory lock now also covers the settings migrations up to the stale texts, so two first logins at once cannot insert the same settings flag twice.
 //                 The one-time role changes at the end of the file run under the same lock, check their flag again once they hold it, and run in one transaction with their flag.
 //                 Text 7815 (the restore's warning about a backup of another ledger) is reworded; the cached old wording is removed.
+// 20261104 CL/ASR QA round 3: the till account per currency is copied once from the tab list in grupper VK box4 to the settings rows VK/till_account_<currency> per till (includes/opdat_func/migrateTillAccounts.php), so switching the currency on in the till no longer loses it.
+//                 box4 is left as it is, and a till that already has a row for the currency keeps it.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -604,5 +606,13 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb
 		}
 	}
 }
+
+// 20261104 CL/ASR Decision 22 (2026-10-09) moved the till account per currency from the tab list in grupper VK box4
+// (index kasse-1, the old POS settings page) to settings VK/till_account_<currency> per till (pos_id), and made box4
+// the "used in the till" flag. Saving that flag ('1'/'0') overwrites a list, so the accounts are copied to the new
+// rows once, under a lock and in one transaction with the flag system/vk_till_accounts_migrated. box4 is not changed:
+// findBoxSale() and posbogfor() read the new rows first and the list only while no row is stored.
+require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
+migrateTillAccounts($db_type);
 
 ?>

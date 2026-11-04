@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-03 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-04 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,7 @@
 // 20261103 CL/ASR QA: the group tables have master's posting accounts again: the item groups' sales accounts for EU and non-EU customers (VG box12/box14, read when an order is invoiced) and the debtor/creditor groups' Modkonto (DG/KG box5, the offset account the cash journal uses for open posts).
 //                 "Opdater kostpriser" runs in a new tab ('blank'), as on master: the worker ends with window.close().
 //                 The gear context of Kasseoptælling and Kommission is debitor/cashCountHistory.php (debitor/kasseoptaelling.php does not exist).
+// 20261104 CL/ASR Final QA: Landekonfiguration (company.data.country) shows its default Danmark while adresser.land is empty ('empty_is_default'), as its help text says.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -1157,7 +1158,7 @@ if (!function_exists('getSettingsSections')) {
 			'company.data.zip' => array('sub' => 'company', 'type' => 'text', 'label' => 36, 'storage' => array('adresser', 'postnr'), 'maxlength' => 10, 'legacy' => array(779)),
 			'company.data.city' => array('sub' => 'company', 'type' => 'text', 'label' => 46, 'storage' => array('adresser', 'bynavn'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.cvr' => array('sub' => 'company', 'type' => 'text', 'label' => 376, 'storage' => array('adresser', 'cvrnr'), 'maxlength' => 15, 'legacy' => array(779)),
-			'company.data.country' => array('sub' => 'company', 'type' => 'select', 'label' => 6513, 'help' => 6514, 'default' => 'Denmark', 'permission' => 'settings.company.danger',
+			'company.data.country' => array('sub' => 'company', 'type' => 'select', 'label' => 6513, 'help' => 6514, 'default' => 'Denmark', 'empty_is_default' => true, 'permission' => 'settings.company.danger',
 				'options' => array('Denmark' => 'Danmark', 'Norway' => 'Norge', 'Switzerland' => 'Schweiz'), 'options_literal' => true, 'storage' => array('adresser', 'land'), 'legacy' => array(779)),
 			'company.data.phone' => array('sub' => 'contact', 'type' => 'text', 'label' => 37, 'storage' => array('adresser', 'tlf'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.mobile' => array('sub' => 'contact', 'type' => 'text', 'label' => 378, 'storage' => array('adresser', 'mobile'), 'maxlength' => 15, 'legacy' => array(779)),

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,6 +52,8 @@
 // 20261103 CL/ASR The one list is titled Brugere, the name of its row under the heading Brugere & roller (owner, 3 Nov 2026).
 // 20261103 CL/ASR QA: Nulstil til standard is disabled for a role above the editor's own rights; the revisor checkbox is disabled once a revisor is designated; Audit-log times on PHP's clock in the format 3/11-2026 14:05.
 // 20261103 CL/ASR QA round 2: a user whose role is above the editor's rights sends that role with the form, so saving gives the right message (msg=above) instead of Vælg en rolle først.
+// 20261104 CL/ASR Final QA: Tildel <forslag> on the user card asks first and names what the suggested role gives beyond the user's old rights (texts 7850, 7853).
+//                 The review banner counts the administrators and the roles to review from the users as they are now (perm_migration_summary_live()), not from the stored summary that missed the users seeded as Administrator.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -105,7 +107,7 @@ function ur_view(array $vm): void
 	));
 	?>
   <?php if ($vm['reviewCount'] > 0 && $vm['canWrite']) {
-  	$sum = function_exists('perm_migration_summary') ? perm_migration_summary() : array('admin' => 0, 'custom' => 0);
+  	$sum = function_exists('perm_migration_summary_live') ? perm_migration_summary_live() : array('admin' => 0, 'custom' => 0);
   ?>
   <div class="sk-note sk-info ur-review" id="ur-review-banner">
     <i class='bx bx-shield-quarter'></i>
@@ -335,8 +337,15 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
       <div class="sk-note sk-warn ur-note-col">
         <span><?= $h(sprintf(findtekst('5884|Rollen er sat automatisk ud fra brugerens gamle rettigheder. Forslag: %s.', $vm['sprogId']), $u['suggestion'] ? perm_role_name($u['suggestion'], $vm['sprogId']) : '-')) ?></span>
         <span class="ur-note-acts">
-          <?php if ($u['suggestion'] && $u['suggestion']['id'] !== $u['role_id'] && !$ownCard) { ?>
-          <button class="sk-btn sk-btn-sm" type="submit" form="ur-confirm-use"><?= $h(sprintf(findtekst('5921|Tildel %s', $vm['sprogId']), perm_role_name($u['suggestion'], $vm['sprogId']))) ?></button>
+          <?php if ($u['suggestion'] && $u['suggestion']['id'] !== $u['role_id'] && !$ownCard) {
+          	// The custom role holds exactly the old rights, so what the suggestion gives beyond them is named in the question.
+          	$sugName = perm_role_name($u['suggestion'], $vm['sprogId']);
+          	$sugExtra = perm_role_extra_labels((int) $u['suggestion']['id'], (string) $u['rettigheder'], $vm['sprogId']);
+          	$sugAsk = $sugExtra
+          		? sprintf(findtekst('7850|Giv brugeren rollen %s? Rollen giver mere end brugerens gamle rettigheder: %s. Den tilpassede rolle bliver liggende under Roller, så du kan skifte tilbage.', $vm['sprogId']), $sugName, implode(', ', $sugExtra))
+          		: sprintf(findtekst('7853|Giv brugeren rollen %s? Den tilpassede rolle bliver liggende under Roller, så du kan skifte tilbage.', $vm['sprogId']), $sugName);
+          ?>
+          <button class="sk-btn sk-btn-sm" type="submit" form="ur-confirm-use" data-confirm-form="<?= $h($sugAsk) ?>"><?= $h(sprintf(findtekst('5921|Tildel %s', $vm['sprogId']), $sugName)) ?></button>
           <?php } ?>
           <button class="sk-btn sk-btn-sm" type="submit" form="ur-confirm-keep"><?= $t('5920|Behold nuværende') ?></button>
         </span>

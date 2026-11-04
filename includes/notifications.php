@@ -36,6 +36,7 @@
 //                 The bank item reads the stored bank connection before it calls the connection expired.
 // 20261104 CL/ASR The batch-expiry item follows lager/udlobsrapport.php to Varerapport (owner, 4 Nov 2026): it needs legacy right 15 and the key lager.rapporter instead of right 12, so it reaches exactly the users who may open the report it links to.
 //                 A user without them has a stored item removed, and the bell list and the daily summary hide the item from them as well.
+// 20261104 CL/ASR Final QA: when no fiscal year covers today (the last one has ended), the warning asks for the next year to be created (fiscal:none, texts 7852 and 7851) instead of asking for a year to be activated, which stays for a year that covers today but is not open.
 
 /**
  * @return array<string, string> type -> label text id
@@ -133,6 +134,9 @@ function notif_texts(string $sourceKey, string $title, string $body, int $sprogI
 {
 	if ($sourceKey === 'fiscal:missing') {
 		return array(findtekst('5627|Intet aktivt regnskabsår', $sprogId), findtekst('5646|Aktivér et regnskabsår under Indstillinger » Virksomhed » Regnskabsår', $sprogId));
+	}
+	if ($sourceKey === 'fiscal:none') {
+		return array(findtekst('7852|Intet regnskabsår dækker dags dato', $sprogId), findtekst('7851|Opret næste regnskabsår under Indstillinger » Virksomhed » Regnskabsår', $sprogId));
 	}
 	if (strpos($sourceKey, 'fiscal:next:') === 0) {
 		$end = substr($sourceKey, 12);
@@ -236,7 +240,13 @@ function notif_source_fiscal_year(int $sprogId): void
 		}
 	}
 	$link = '/systemdata/settingsSection.php?s=company.fiscal_years';
-	if ($current === null || !$current['open']) {
+	if ($current === null) {
+		// No year covers today (the last one has ended, or there is none): the next year has to be created, not activated.
+		notif_clear_fiscal('fiscal:none');
+		notif_upsert('fiscal:none', null, 'warning', findtekst('7852|Intet regnskabsår dækker dags dato', $sprogId), findtekst('7851|Opret næste regnskabsår under Indstillinger » Virksomhed » Regnskabsår', $sprogId), $link, date('Y-m-d', strtotime('+7 days')));
+		return;
+	}
+	if (!$current['open']) {
 		notif_clear_fiscal('fiscal:missing');
 		notif_upsert('fiscal:missing', null, 'warning', findtekst('5627|Intet aktivt regnskabsår', $sprogId), findtekst('5646|Aktivér et regnskabsår under Indstillinger » Virksomhed » Regnskabsår', $sprogId), $link, date('Y-m-d', strtotime('+7 days')));
 		return;

@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/roleReview.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/dashboardIncludes/roleReview.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,6 +20,7 @@
 // 20260930 SS Roles stage 2 (Requirements_roles_stage2_EN.md §6.3): the "Review roles" card for administrators after the migration to roles, until every migrated role is confirmed or the card is hidden.
 // 20261101 CL/ASR The card uses the dashboard's classes (prototype D panel, the kit's buttons) instead of inline styles.
 // 20261103 CL/ASR QA: texts are escaped in the page's charset (htmlspecialchars() with UTF-8 blanked latin-1 texts).
+// 20261104 CL/ASR Final QA: the card counts the users, the administrators and the roles to review from the users as they are now (perm_migration_summary_live()); the stored summary missed the users seeded as Administrator and said 0.
 
 /**
  * Card on the dashboard. Hiding is per administrator.
@@ -39,7 +40,7 @@ function role_review_card(int $brugerId, int $sprogId): void
 	if ($pending === 0 || get_settings_value('review_card_hidden', 'permissions', '0', $brugerId) === '1') {
 		return;
 	}
-	$sum = perm_migration_summary();
+	$sum = perm_migration_summary_live();
 	$charset = (isset($GLOBALS['db_encode']) && $GLOBALS['db_encode'] !== 'UTF8') ? 'ISO-8859-1' : 'UTF-8';
 	$h = function ($s) use ($charset) {
 		return htmlspecialchars((string) $s, ENT_QUOTES, $charset);
