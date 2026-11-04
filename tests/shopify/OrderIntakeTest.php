@@ -11,6 +11,7 @@
 // 20261104 CL/SS SD-743 review: an absent totalTaxSet is unknown; an empty shipping country falls back to billing.
 // 20261104 CL/SS SD-808: the read is paged under Shopify's query cost limit; checked against the schema and the stateful fake store.
 // 20261104 CL/SS SD-808 review: an order changed between its reads is refused as changed, retryable.
+// 20261104 CL/SS SD-743 review 2: a kasse VAT code of 0 is refused.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -368,6 +369,7 @@ final class OrderIntakeTest extends TestCase
 		$pos = self::ctx()['pos'];
 		$noCash = self::validate(self::order(), self::ctx(['pos' => ['kasse_account_ok' => false] + $pos]));
 		$noVat = self::validate(self::order(), self::ctx(['pos' => ['kasse_vat' => ''] + $pos]));
+		$zeroVat = self::validate(self::order(), self::ctx(['pos' => ['kasse_vat' => '0'] + $pos]));
 		$noCard = self::validate(self::order(), self::ctx(['pos' => ['card_accounts' => [], 'fallback_card_account_ok' => false] + $pos]));
 		$fallback = self::validate(self::order(), self::ctx(['pos' => ['card_accounts' => []] + $pos]));
 		$namedWithoutAccount = self::validate(self::order(), self::ctx(['pos' => ['card_accounts' => ['visa/dankort' => false]] + $pos]));
@@ -375,6 +377,11 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertSame(['config.pos'], self::kinds($noCash['errors']));
 		$this->assertSame(['config.pos'], self::kinds($noVat['errors']));
+		$this->assertSame(['config.pos'], self::kinds($zeroVat['errors']), 'a 0 stops the posting as an empty code does');
+		$free = static fn(int $id, string $nr): array => self::item($id, $nr, ['vat_rate' => 0.0]);
+		$vatFree = self::ctx(['by_variant' => ['gid://shopify/ProductVariant/11' => $free(100, 'X')], 'by_sku' => ['X' => $free(100, 'X'), 'Y' => $free(101, 'Y')],
+			'items' => [100 => $free(100, 'X'), 101 => $free(101, 'Y'), 900 => $free(900, 'FRAGT'), 901 => $free(901, 'FRAGT-STD'), 902 => $free(902, 'AFHENT')]]);
+		$this->assertTrue(self::validate(self::order(), ['pos' => ['kasse_vat' => '0'] + $pos] + $vatFree)['ok'], 'an invoice without VAT needs no VAT code');
 		$this->assertSame(['config.pos'], self::kinds($noCard['errors']));
 		$this->assertTrue($fallback['ok'], 'the account for other cards takes an unlisted type');
 		$this->assertSame(['config.pos'], self::kinds($namedWithoutAccount['errors']),

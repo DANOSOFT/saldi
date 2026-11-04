@@ -41,6 +41,7 @@
 // 20261104 CL/SS SD-743 review: an absent totalTaxSet stays unknown, and an empty shipping country falls back to billing.
 // 20261104 CL/SS SD-808: the paid order is read in pages, each document under Shopify's query cost limit of 1000.
 // 20261104 CL/SS SD-808 review: an order changed while it was read in pages is refused as changed, and retried.
+// 20261104 CL/SS SD-743 review 2: a kasse VAT code of 0 and a VAT account 1 are refused, as the posting stops at them.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -597,7 +598,9 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 			if (empty($pos['kasse_account_ok'])) {
 				$error('config.pos', "kasse $webKasse has no valid cash account (POS settings): order $name cannot be posted");
 			}
-			if (trim((string)($pos['kasse_vat'] ?? '')) === '') {
+			// bogfor_nu() asks for the code only when the invoice carries VAT, and tests it as PHP does, so a 0 stops it as an empty one does
+			$carriesVat = max(array_merge(array(0.0), array_map('floatval', array_column($lines, 'vat_rate')), array((float)($freight['vat_rate'] ?? 0)))) > 0;
+			if ($carriesVat && !trim((string)($pos['kasse_vat'] ?? ''))) {
 				$error('config.pos', "kasse $webKasse has no VAT code (POS settings): order $name cannot be posted");
 			}
 			foreach (array_keys($byType) as $type) {
@@ -924,6 +927,10 @@ function shopify_intake_item(int $vareId, int $variantId, int $year, int $afd = 
 			$sm = $code > 0 ? shopify_db_rows("SELECT box1, box2 FROM grupper WHERE art = 'SM' AND kodenr::text = $1 AND fiscal_year::text = $2", array((string)$code, (string)$year)) : array();
 			if ($sm === array() || trim((string)$sm[0]['box1']) === '') {
 				$problem = $depVat ? "is sold by department $afd, whose VAT group has no VAT account" : "has sales account $sales without a VAT code with a VAT account";
+			} elseif (is_numeric(trim((string)$sm[0]['box1'])) && (int)trim((string)$sm[0]['box1']) === 1) {
+				// bogfor_nu() stops at a VAT posting on account 1 (a leftover exit), after the delivery; the line keeps the
+				// VAT account as a number, so 01 is account 1 too
+				$problem = "has VAT group $code with VAT account 1, which the posting cannot use";
 			} elseif ((float)$sm[0]['box2'] <= 0) {
 				// opret_ordrelinje() takes the rate only when it is set, else the order's
 				$problem = "has VAT group $code without a rate in a group that is not VAT-free";

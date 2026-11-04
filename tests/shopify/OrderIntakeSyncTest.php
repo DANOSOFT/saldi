@@ -9,6 +9,7 @@
 // History:
 // 20261103 CL/SS SD-742: created.
 // 20261104 CL/SS SD-743: today is compared in the tenant's zone (Europe/Copenhagen), so the test holds after 23:00 UTC.
+// 20261104 CL/SS SD-743 review 2: an item whose VAT group posts on account 1 is refused.
 
 use PHPUnit\Framework\TestCase;
 
@@ -257,6 +258,15 @@ final class OrderIntakeSyncTest extends TestCase
 
         $this->assertSame('has VAT group 2 without a rate in a group that is not VAT-free', $ctx['by_sku']['SD743NORATE']['problem'],
             'opret_ordrelinje() would fall back to the order rate');
+        $this->sql("INSERT INTO kontoplan (kontonr, beskrivelse, kontotype, moms, regnskabsaar) VALUES (1003, 'SD743 Salg S3', 'D', 'S3', $1)", [self::$year['kodenr']]);
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, kode, art, fiscal_year, box1, box2) VALUES ('SD743 Konto 1', '3', 'S', 'SM', $1, '1', '25')", [self::$year['kodenr']]);
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box3, box4, box7, box9) VALUES ('SD743 Konto 1', '9749', 'VG', $1, '1000', '1003', '', '')", [(string)self::$year['kodenr']]);
+        $this->item('VATONE', ['gruppe' => 9749]);
+        [$one] = $this->steps(['context', 'hml', self::order([self::line('SD743VATONE')])]);
+        $this->assertSame('has VAT group 3 with VAT account 1, which the posting cannot use', $one['by_sku']['SD743VATONE']['problem'], 'bogfor_nu() exits at a VAT posting on account 1');
+        $this->sql("UPDATE grupper SET box1 = '01' WHERE art = 'SM' AND kodenr = '3' AND fiscal_year = $1", [self::$year['kodenr']]);
+        [$zeroOne] = $this->steps(['context', 'hml', self::order([self::line('SD743VATONE')])]);
+        $this->assertSame('has VAT group 3 with VAT account 1, which the posting cannot use', $zeroOne['by_sku']['SD743VATONE']['problem'], '01 is account 1 on the line');
         $this->assertTrue($ctx['by_sku']['SD743BATCH']['batch']);
         $this->assertTrue($ctx['by_sku']['SD743DUP']['sku_ambiguous'], "one item's varenr is another's barcode");
         $this->assertSame($dup, $ctx['by_sku']['SD743DUP']['vare_id']);

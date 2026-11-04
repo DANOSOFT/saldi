@@ -14,6 +14,7 @@
 // 20261104 CL/SS SD-743: an order cancelled in Shopify after its creation or delivery is not delivered or posted.
 // 20261104 CL/SS SD-743 review: a set whose BOM changed after the validation is refused before any write.
 // 20261104 CL/SS SD-743 review 2: an øre difference of the posting goes on OreDif; without a valid OreDif account on every row the order is not created.
+// 20261104 CL/SS SD-743 review 2: a debtor group without its VAT group refuses a Kreditkort order before it is created.
 
 use PHPUnit\Framework\TestCase;
 
@@ -595,6 +596,32 @@ final class OrderImportSyncTest extends TestCase
         $this->sql("UPDATE grupper SET box2 = '58050' WHERE art = 'OreDif'");
         $refused('a status account, which bogfor_nu() does not take for an øre');
         $this->assertSame(9.0, (float)$this->sql('SELECT beholdning FROM lagerstatus WHERE vare_id = $1', [$a])[0]['beholdning'], 'only the first order drew stock');
+    }
+
+    public function testADebtorGroupWithoutItsVatGroupRefusesAKreditkortOrderBeforeItIsCreated(): void
+    {
+        $a = $this->item('A', ['salgspris' => 125]);
+        $free = $this->item('FRI', ['gruppe' => 9747, 'salgspris' => 50]);
+        $this->stock($a, 1, 10);
+        $this->stock($free, 1, 10);
+        $this->sql("UPDATE grupper SET box1 = '' WHERE art = 'DG' AND fiscal_year = $1", [$this->year]);
+        $kasse = $this->order([self::line('A', 1, '125.00')]);
+        $this->assertSame('invoiced', $this->import($kasse)['result']['state'] ?? null, 'a kasse sale takes the kasse\'s VAT code, not the debtor group\'s');
+
+        $this->sql('UPDATE shopify_shops SET web_kasse = NULL');
+        // empty, the kind without its number, or 0: bogfor_nu() tests the second character as PHP does
+        foreach (['', 'S', 'S0'] as $box1) {
+            $this->sql("UPDATE grupper SET box1 = $2 WHERE art = 'DG' AND fiscal_year = $1", [$this->year, $box1]);
+            $this->sql("DELETE FROM shopify_errors");
+            $order = $this->order([self::line('A', 1, '125.00')]);
+            $this->assertSame(['refused' => ['order.create']], $this->import($order)['result'] ?? null, "box1 '$box1'");
+            $this->assertSame([0, 'validated'], [$this->outcome($order)['orders'], $this->outcome($order)['link']], "box1 '$box1': refused before it is created");
+            $this->assertStringContainsString('no VAT group', $this->sql("SELECT message FROM shopify_errors WHERE kind = 'order.create'")[0]['message'] ?? '', "box1 '$box1'");
+        }
+        $this->assertSame(9.0, (float)$this->sql('SELECT beholdning FROM lagerstatus WHERE vare_id = $1', [$a])[0]['beholdning'], 'only the kasse sale was delivered');
+
+        // an order without VAT needs no VAT group: bogfor_nu() asks only when the order has VAT
+        $this->assertSame('invoiced', $this->import($this->order([self::line('FRI', 1, '50.00')]))['result']['state'] ?? null, 'a VAT-free order');
     }
 
     public function testASetWhoseComponentsSwappedLagreAfterTheValidationIsRefused(): void

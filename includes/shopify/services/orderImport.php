@@ -36,6 +36,7 @@
 // 20261104 CL/SS SD-743: an order cancelled in Shopify (the link's cancelled_at, SD-801) stops before its delivery or posting.
 // 20261104 CL/SS SD-743 review: a set must be written with the components it was validated with.
 // 20261104 CL/SS SD-743 review 2: the account check includes OreDif, which bogfor_nu() posts an øre difference of the posting on.
+// 20261104 CL/SS SD-743 review 2: the debtor group must have the VAT group that bogfor() reads for an order with VAT.
 
 require_once __DIR__ . '/orderIntake.php';
 require_once __DIR__ . '/customers.php';
@@ -362,7 +363,7 @@ function shopify_import_invoiced(int $linkId): void {
  */
 function shopify_import_check_accounts(int $ordreId): void {
 	global $regnaar;
-	$o = shopify_db_rows('SELECT felt_1, felt_2, felt_4, felt_5 FROM ordrer WHERE id = $1', array($ordreId))[0];
+	$o = shopify_db_rows('SELECT felt_1, felt_2, felt_4, felt_5, moms, konto_id FROM ordrer WHERE id = $1', array($ordreId))[0];
 	$account = static fn(string $nr): bool => ctype_digit($nr)
 		&& shopify_db_rows("SELECT 1 FROM kontoplan WHERE kontonr = $1::numeric AND regnskabsaar::text = $2 AND kontotype IN ('D', 'S')", array($nr, (string)(int)$regnaar)) !== array();
 	// bogfor_nu() sums the postings it wrote, each rounded to two decimals; an øre left over goes on an OreDif row's account
@@ -386,6 +387,15 @@ function shopify_import_check_accounts(int $ordreId): void {
 	$box10 = trim((string)(shopify_db_rows("SELECT box10 FROM grupper WHERE art = 'DIV' AND kodenr::text = '3'")[0]['box10'] ?? ''));
 	if (!$account($box10)) {
 		throw new ShopifyImportError('no valid account for Kreditkort (Indstillinger > Diverse > Ordrerelaterede valg); the order would be left as an open post');
+	}
+	// posted with its debtor (a kasse sale above takes the kasse's VAT code, which the validation checks): bogfor_nu() takes the
+	// VAT code from the debtor's group, its second character as PHP tests it (S1 is 1, S0 none), and stops an order with VAT without it
+	if ((float)$o['moms'] != 0 && (int)$o['konto_id'] > 0) {
+		$group = shopify_db_rows("SELECT g.box1 FROM adresser a LEFT JOIN grupper g ON g.art = 'DG' AND g.kodenr::text = a.gruppe::text AND g.fiscal_year::text = $2
+			WHERE a.id = $1", array((int)$o['konto_id'], (string)(int)$regnaar))[0] ?? null;
+		if ($group === null || !substr(trim((string)$group['box1']), 1, 1)) {
+			throw new ShopifyImportError("the debtor group of the order's customer has no VAT group (Debitorgrupper), which an order with VAT is posted with");
+		}
 	}
 }
 
