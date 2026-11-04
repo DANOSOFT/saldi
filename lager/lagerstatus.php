@@ -67,6 +67,8 @@
 //             zStock/showClosed/activity filters via $lsHasTextSearch.
 // 20261104 LOE SST-922 The Print button printed one screen of the list instead of the whole report.
 //              autoprint=1 now renders the whole filtered list print-friendly, and @media print releases the grid.
+//              A search that matches nothing no longer fatals in the print view.
+//              The filters that URL sends are read without warnings too.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -146,10 +148,10 @@ else {
 if (isset($_GET['dato']) && $_GET['dato']) {
 	$dato       = $_GET['dato'];
 	$dateType   = 'levdate';
-	$varegruppe = $_GET['varegruppe'];
-	$lagervalg  = $_GET['lagervalg'];
-	$zStock     = $_GET['zStock'];
-	$showClosed = $_GET['showClosed'];
+	$varegruppe = ifset($_GET, 'varegruppe', null);
+	$lagervalg  = ifset($_GET, 'lagervalg', null);
+	$zStock     = ifset($_GET, 'zStock', null);
+	$showClosed = ifset($_GET, 'showClosed', null);
 	// 20260901 CL/SZ - named $varenrSoeg (not $varenr): this file already has a per-item $varenr[$x]
 	// array further down (the item number shown in each result row) - reusing the bare name here would
 	// silently clobber that array with this scalar search term, so the request field stays "varenr" but
@@ -176,7 +178,7 @@ if (isset($_POST['dato']) && $_POST['dato']) {
 	setcookie("saldi_lagerstatus", $varegruppe);
 }
 if (!$dateType) $dateType   = 'levdate';
-$csv=if_isset($_GET['csv']);
+$csv=ifset($_GET, 'csv', null);
 
 $dd=date("Y-m-d");
 $date=usdate($dato);
@@ -503,14 +505,16 @@ if ($lsGridMode) {
 	print "<input type='submit' style='position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;'>";
 	// SST-922 - the URL the shell's Print button prints: every filter in GET form plus the current page and
 	// page size, because the frame's own URL cannot be reused - the per-column search posts, so its values
-	// are not in it, and a reload of that URL would print an unfiltered list.
+	// are not in it, and a reload of that URL would print an unfiltered list. The filter values are cast to
+	// text because http_build_query() skips a null and the print view would then read a key that is absent.
 	$lsPrintParams = array(
-		'dato' => $dato, 'varegruppe' => $varegruppe, 'lagervalg' => $lagervalg, 'dateType' => $dateType,
-		'zStock' => $lsPrintZStock, 'showClosed' => $lsPrintShowClosed,
-		'varenr' => $varenrSoeg, 'varenavn' => $varenavn, 'enhed' => $enhedSoeg,
+		'dato' => (string)$dato, 'varegruppe' => (string)$varegruppe, 'lagervalg' => (string)$lagervalg,
+		'dateType' => (string)$dateType, 'zStock' => (string)$lsPrintZStock,
+		'showClosed' => (string)$lsPrintShowClosed,
+		'varenr' => (string)$varenrSoeg, 'varenavn' => (string)$varenavn, 'enhed' => (string)$enhedSoeg,
 		'ls_page' => $lsPage, 'ls_per_page' => $lsPerPage, 'autoprint' => 1,
 	);
-	foreach ($lsSFields as $lsSField) $lsPrintParams['lss_' . $lsSField] = $lsS[$lsSField];
+	foreach ($lsSFields as $lsSField) $lsPrintParams['lss_' . $lsSField] = (string)$lsS[$lsSField];
 	print "<script>window.saldiPrintAutoprint = " . json_encode("lagerstatus.php?" . http_build_query($lsPrintParams), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "; window.saldiPrintAutoprintView = false;</script>\n";
 	$lsSearchVarenr   = "<input class='inputbox' type='text' name='varenr' value='" . htmlspecialchars((string)$varenrSoeg, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
 	$lsSearchVarenavn = "<input class='inputbox' type='text' name='varenavn' value='" . htmlspecialchars((string)$varenavn, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
@@ -556,7 +560,7 @@ if ($csv) {
 	fwrite($fp,"$linje\n");
 }
  
-if ($lsGridMode) {
+if ($lsGridMode || $autoprint) {
 	// MB-31 - must exist even if zero items ever push into them below (e.g. a search or the
 	// Varenr./Beskrivelse/Enhed filter matches nothing): count($lsAllChunks) in the unified
 	// filter block further down otherwise fatals with "count(): Argument #1 ($value) must be
