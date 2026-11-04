@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------sager/kontrol_sager.php---ver 5.1.0---2026-11-03--------------
+// ----------sager/kontrol_sager.php---ver 5.1.0---2026-11-04--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20261103 CL/MMR SD-799 The task names ("Opgave N") are shown in the user's language in the task menu, headings, task descriptions and e-mails.
 //                 The stored task name stays Danish.
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
 @session_start();
 $s_id = session_id();
@@ -452,7 +453,7 @@ function kontrolskema() {
 			$tmp                              = mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
 			$bilag_navn[$x]                   = mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 			$bilag_beskrivelse[$x]            = $r['beskrivelse'];
-			$bilag_dato[$x]                   = date("d-m-Y",$r['datotid']);
+			$bilag_dato[$x]                   = datotidTilTekst($r['datotid'], 'd-m-Y');
 			$bilag_hvem[$x]                   = $r['hvem'];
 			$bilag_filtype[$x]                = $r['filtype'];
 			$bilag_tjekskema_id[$x]           = $r['bilag_tjekskema_id'];
@@ -523,7 +524,7 @@ function kontrolskema() {
 	print "<tbody>\n";
 	print "<tr><td colspan=\"2\" class=\"printtxt\"><p><b>".findtekst('2820|Opstillingsadresse', $sprog_id).":</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
 	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('494|Status', $sprog_id).":</b></p></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\" class=\"printdate\"><p><b>".findtekst('438|Dato', $sprog_id).":</b></p><p>".date("d-m-Y",$datotid)."</p></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\" class=\"printdate\"><p><b>".findtekst('438|Dato', $sprog_id).":</b></p><p>".datotidTilTekst($datotid, 'd-m-Y')."</p></td>\n";
 	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3145|Opgavens art', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"opg_art\" rows=\"4\" cols=\"12\" style=\"height:64px;width:95px;\">".htmlspecialchars($opg_art)."</textarea></td>\n";
 	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3123|Sjak', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font sjak\" name=\"sjak\" rows=\"4\" cols=\"10\" title=\"$sjaktitle\" style=\"height:64px;width:85px;\">".htmlspecialchars($sjak)."</textarea></td>\n"; // onfocus=\"var val=this.value; this.value=''; this.value= val;\"
 	print "<td style=\"height:0px;padding:0px;margin:0px;border:none;\"><input type=\"hidden\" class=\"sjakid\" name=\"sjakid\" value=\"\"></td></tr>\n";
@@ -700,7 +701,7 @@ function arbejdsseddel() {
 	
 	if(!$tjekskema_id) {
 		$datotid  = date("U");
-		$udf_dato = date("d-m-Y",$datotid);
+		$udf_dato = datotidTilTekst($datotid, 'd-m-Y');
 	} 
 	
 	if (isset($_POST['kontrolskema']) && !$tjekskema_id) {
@@ -713,13 +714,16 @@ function arbejdsseddel() {
 		$tjekantal    = if_isset($_POST['tjekantal']);
 		$kontrolpunkt = if_isset($_POST['kontrolpunkt']);
 		$udf_dato     = if_isset($_POST['udf_dato']);
-		list ($day, $month, $year) = explode('-', $udf_dato);
-		if (checkdate($month, $day, $year) && (strlen($year)==4)) { // Validering af dato
-			$udf_dato = $day . "-" . $month . "-" . $year;
+		// A posted date is only used when it is three whole numbers forming a real date; a legacy
+		// datotid ("01-01-1970 01:00") and any other unparsable value fall to the "now" branch, which is
+		// the existing behaviour for a sheet without a usable date.
+		$udf_datoParsed = datoTekstTilDato($udf_dato);
+		if ($udf_datoParsed !== NULL) { // Validering af dato
+			$udf_dato = $udf_datoParsed;
 			$unixdato = strtotime($udf_dato);// Formatere dato til UNIX
 		} else {
 			$datotid  = date("U");
-			$udf_dato = date("d-m-Y",$datotid);
+			$udf_dato = datotidTilTekst($datotid, 'd-m-Y');
 			$unixdato = strtotime($udf_dato);
 		}
 		$man_trans    = if_isset($_POST['man_trans']); 
@@ -769,13 +773,16 @@ function arbejdsseddel() {
 		$kontrolpunkt   = if_isset($_POST['kontrolpunkt']);
 		$tjekpunkter_id = if_isset($_POST['tjekpunkter_id']);
 		$udf_dato       = if_isset($_POST['udf_dato']);
-		list ($day, $month, $year) = explode('-', $udf_dato); 
-		if (checkdate($month, $day, $year) && (strlen($year)==4)) { // Validering af dato
-			$udf_dato = $day . "-" . $month . "-" . $year;
+		// Same guard as above: an unparsable value keeps the datotid the sheet already has, instead of
+		// passing "1970 01:00" to checkdate() and losing the user's other changes to a fatal.
+		$udf_datoParsed = datoTekstTilDato($udf_dato);
+		if ($udf_datoParsed !== NULL) { // Validering af dato
+			$udf_dato = $udf_datoParsed;
 			$unixdato = strtotime($udf_dato);// Formatere dato til UNIX
 		} else {
 			$r        = db_fetch_array(db_select("select datotid from tjekskema where id = '$tjekskema_id'",__FILE__ . " linje " . __LINE__)); 
 			$unixdato = $r['datotid'];
+			$udf_dato = datotidTilTekst($unixdato, 'd-m-Y');
 		}
 		$opgave = if_isset($_POST['opgave']);
 		if($opgave){
@@ -860,7 +867,7 @@ function arbejdsseddel() {
 		$man_trans      = if_isset($_POST['man_trans']);
 		$stillads_til   = if_isset($_POST['stillads_til']);
 		$datotid        = date("U");
-		$udf_dato       = date("d-m-Y",$datotid);
+		$udf_dato       = datotidTilTekst($datotid, 'd-m-Y');
 		$unixdato       = strtotime($udf_dato);
 		/*
 		echo "skemaid: $tjekskema_id<br>";
@@ -902,7 +909,7 @@ function arbejdsseddel() {
 		$r                      = db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
 		$tjekskema_id           = $r['id']*1;
 		$tjekskema_tjekliste_id = $r['tjekliste_id'];
-		$udf_dato               = date("d-m-Y",$r['datotid']);
+		$udf_dato               = datotidTilTekst($r['datotid'], 'd-m-Y');
 		$opg_art                =  htmlspecialchars($r['opg_art']);
 		$opg_navn               =  htmlspecialchars($r['opg_navn']);
 		$opg_beskrivelse        =  htmlspecialchars($r['opg_beskrivelse']);
@@ -1026,7 +1033,7 @@ function arbejdsseddel() {
 			$tmp                              = mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
 			$bilag_navn[$x]                   = mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 			$bilag_beskrivelse[$x]            = $r['beskrivelse'];
-			$bilag_dato[$x]                   = date("d-m-Y",$r['datotid']);
+			$bilag_dato[$x]                   = datotidTilTekst($r['datotid'], 'd-m-Y');
 			$bilag_hvem[$x]                   = $r['hvem'];
 			$bilag_filtype[$x]                = $r['filtype'];
 			$bilag_tjekskema_id[$x]           = $r['bilag_tjekskema_id'];
@@ -1436,7 +1443,7 @@ function emailKontrolskema() {
 		<tr>
 			<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('2820|Opstillingsadresse', $sprog_id).':</b></span><br><span>'.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn.'</span></td>
 			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('494|Status', $sprog_id).':</b></span></td>
-			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('438|Dato', $sprog_id).':</b></span><br><span>'.date("d-m-Y",$datotid).'</span></td>
+			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('438|Dato', $sprog_id).':</b></span><br><span>'.datotidTilTekst($datotid, 'd-m-Y').'</span></td>
 			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3145|Opgavens art', $sprog_id).':</b></span><br><span>'.htmlspecialchars($opg_art).'</span></td>
 			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3123|Sjak', $sprog_id).':</b></span><br><span>'.htmlspecialchars($sjak).'</span></td>
 		</tr>
@@ -1912,7 +1919,7 @@ function emailArbejdsseddel() {
 		$r                      = db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
 		$tjekskema_id           = $r['id']*1;
 		$tjekskema_tjekliste_id = $r['tjekliste_id'];
-		$udf_dato               = date("d-m-Y",$r['datotid']);
+		$udf_dato               = datotidTilTekst($r['datotid'], 'd-m-Y');
 		$opg_art                = htmlspecialchars($r['opg_art']);
 		$opg_navn               = htmlspecialchars(opgave_navn_txt($r['opg_navn']));
 		$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);

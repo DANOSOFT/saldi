@@ -26,6 +26,7 @@
 // 20260806 PHR Return to the employee folder menu if the user has no employee ID.
 // 20261103 CL/MMR SD-799 The user setup error shown when the login has no employee is translated.
 // 20261104 CL/MMR SD-799 The user-setup alert text is passed to the script as UTF-8.
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 @session_start();
 $s_id                  = session_id();
 
@@ -566,7 +567,7 @@ function vis_mappe() {
 					print "<td class=\"dragHandle\">&nbsp;</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['navn']."</td>\n";
-					print "<td align=\"left\" style=\"#width:100%;\">".date("d-m-Y",$r['datotid'])."</td>\n";
+					print "<td align=\"left\" style=\"#width:100%;\">".datotidTilTekst($r['datotid'], 'd-m-Y')."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['hvem']."</td>\n";
 					print "<td class=\"alignRight\"><a href=\"../mappe/$db/$mappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></td>\n";
 					print "<td title=\"".findtekst('3113|Ret bilagstekst', $sprog_id)."\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_bilag&amp;mappe_id=$mappe_id&amp;bilag_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
@@ -1087,7 +1088,7 @@ function vis_ansatmappe() {
 					print "<td class=\"dragHandle\">&nbsp;</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['navn']."</td>\n";
-					print "<td align=\"left\" style=\"#width:100%;\">".date("d-m-Y",$r['datotid'])."</td>\n";
+					print "<td align=\"left\" style=\"#width:100%;\">".datotidTilTekst($r['datotid'], 'd-m-Y')."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['hvem']."</td>\n";
 					print "<td class=\"alignRight\"><a href=\"../ansatmappe/$db/$ans_id/$ansatmappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></td>\n";
 					print "<td title=\"".findtekst('3113|Ret bilagstekst', $sprog_id)."\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_ansatbilag&amp;ansatmappe_id=$ansatmappe_id&amp;ansatbilag_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
