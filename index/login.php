@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-10-08 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,7 @@
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
+// 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -295,7 +296,9 @@ if (isset($_POST['regnskab'])) {
 		if ($lukket) {
 			if (!$mastername) $mastername='SALDI';
 			if (!$mastertel) $mastertel='+45 4690 2208';
-			$fejltxt="Regnskab '$regnskab' er lukket!<br>Ring $mastertel for gen&aring;bning";
+			// Plain text: login() runs fejltxt through sanitize_input(), which strips quotes, < > and & and refuses
+			// more than 80 characters, so the old "Regnskab '<name>' er lukket!<br>..." arrived empty or garbled.
+			$fejltxt="Regnskabet er lukket. Ring $mastertel for genåbning";
 			login($regnskab,$brugernavn,$fejltxt);
  			exit;
 		}

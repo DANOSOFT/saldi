@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-10-19 ---
+// ---------------finans/bogfor.php---------- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -70,6 +70,7 @@
 // 20261019 CL/LH MB-71: Simulation and posting are refused, naming the vouchers, while a saved row has text, amount or invoice number but no debit or credit account (unfinishedJournalVouchers()).
 //                Such rows are no longer deleted silently; only rows without any content are still dropped.
 // 20261023 CL/LH MB-71: The refusal alert text goes through jsString(), so it is no longer empty when $db_encode isn't UTF8.
+// 20261102 CL/ASR The old "+1000 postings for kr. 30,-" offer is not shown to accounts with a package from the self-service signup.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -697,7 +698,9 @@ if (!$fejl) { #20140228
 	print "<input type=hidden name=kladde_id value=$kladde_id>";
 	if ($funktion=='bogfor') {
 		$onclick="";
-		if (($sqdb=="saldi" || $sqdb=='gratis'|| $sqdb=='develop') && $max_posteringer && $max_posteringer<=8500 && $d_sum>0) {
+		// Not for accounts with a package from the self-service signup ($regnskab_pakke, includes/online.php): their
+		// postings follow the price list on saldi.dk, not this old "+1000 for kr. 30,-" offer, and sales handles more.
+		if (($sqdb=="saldi" || $sqdb=='gratis'|| $sqdb=='develop') && $max_posteringer && $max_posteringer<=8500 && $d_sum>0 && empty($regnskab_pakke)) {
 			$y=date('Y')-1;$m=date('m');$d=date('d');
 			while (!checkdate($m, $d, $y)) { #Skudår !
 				$d=$d-1;
