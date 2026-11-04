@@ -66,6 +66,7 @@
 // 20261028 Sawaneh SD-738: Shopify worker watchdog: a heartbeat older than 10 minutes alarms support and starts a run.
 // 20261029 CDX/NTR Share online log permissions with the web server.
 // 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
+// 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -299,7 +300,9 @@ if (isset($_POST['regnskab'])) {
 		if ($lukket) {
 			if (!$mastername) $mastername='SALDI';
 			if (!$mastertel) $mastertel='+45 4690 2208';
-			$fejltxt="Regnskab '$regnskab' er lukket!<br>Ring $mastertel for gen&aring;bning";
+			// Plain text: login() runs fejltxt through sanitize_input(), which strips quotes, < > and & and refuses
+			// more than 80 characters, so the old "Regnskab '<name>' er lukket!<br>..." arrived empty or garbled.
+			$fejltxt="Regnskabet er lukket. Ring $mastertel for genåbning";
 			login($regnskab,$brugernavn,$fejltxt);
  			exit;
 		}
