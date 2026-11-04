@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -127,6 +127,8 @@
 //                The company name is now a hidden row; choosing Erhverv shows it, a successful lookup chooses Erhverv, Gem keeps it, and the name check follows the chosen type.
 // 20261030 CL/MJ SST-892 Only a new card switches to Erhverv by itself after a lookup; on a saved card with contacts Gem refuses a type change and the edits were lost.
 //                On such a card the Kundetype select now refuses the change when it is made, with Gem's message, before anything is typed.
+// 20261104 CL/MJ SST-892 The tutorial's company-name step is only added on an Erhverv card, as the field is hidden on a private one.
+//                A saved card without a type is not locked (Gem allows any type there), and a refused change puts back the drawn type.
 @session_start();
 $s_id = session_id();
 
@@ -2718,14 +2720,14 @@ function split_navn($firmanavn)
 // refuses it and reloads), so a lookup there would throw away the user's edits.
 // 20261030 CL/MJ SST-892 On such a card the type select refuses the change at once, with Gem's own message, and
 // goes back, so nothing is typed into the company name that the refused save would throw away.
-$debitorkortTypeLaast = ($id && isset($an_id)) ? 'true' : 'false';
+$debitorkortTypeLaast = ($id && isset($an_id) && $kontotype) ? 'true' : 'false';
 print "<script type=\"text/javascript\">
 var debitorkortTypeLaast = $debitorkortTypeLaast;
 function debitorkortVisKontotype(kontotype) {
 	var form = document.forms['debitorkort'];
 	if (debitorkortTypeLaast && form && form.gl_kontotype && kontotype != form.gl_kontotype.value) {
 		alert('Please delete all contacts to proceed');
-		form.kontotype.value = form.gl_kontotype.value;
+		form.kontotype.selectedIndex = 0;
 		return;
 	}
 	var firma = document.getElementById('debitorkort_firmanavn');
@@ -3071,10 +3073,13 @@ $steps[] = array(
 	"selector" => 'input[type="text"][name="fornavn"], input[type="text"][name="efternavn"]',
 	"content" => findtekst('2629|Angiv kundens navn', $sprog_id) . "."
 );
-$steps[] = array(
-	"selector" => 'input[type="text"][name="firmanavn"]',
-	"content" => findtekst('2630|Angiv kundens firmanavn', $sprog_id) . "."
-);
+// 20261104 CL/MJ SST-892 The company name is a hidden row on a private card, so the step would point at nothing.
+if ($kontotype != 'privat') {
+	$steps[] = array(
+		"selector" => 'input[type="text"][name="firmanavn"]',
+		"content" => findtekst('2630|Angiv kundens firmanavn', $sprog_id) . "."
+	);
+}
 $steps[] = array(
 	"selector" => 'input[type="text"][name="email"], input[type="checkbox"][name="mailfakt"]',
 	"content" => findtekst('2631|Kundens e-mail indtastes her. Hvis du vil have, at systemet som standard sender e-mails, når du fakturerer en ordre, kan du sætte hak i \'Brug mail\'', $sprog_id) . "."
