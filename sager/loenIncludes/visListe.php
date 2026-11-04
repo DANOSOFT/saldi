@@ -29,7 +29,23 @@
 // 20260319 LOE Added $categorySum to calculate sum per category for use in ret_loen.php
 // 20261104 CL/MMR SST-943 The empty transport line is not deleted while a save that was stopped for a missing date is shown (new parameter $datoMangler, default false).
 
-function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler = false) { # 20261104 SST-943 $datoMangler: Gem/Overfør was stopped for a missing date, so nothing is written
+/**
+ * Prints the piecework (akkord) lines of a wage slip for the chosen list type and works out their total.
+ * While drawing it also keeps the data tidy: item categories in varer are updated, and an empty
+ * transport line is deleted from loen_enheder (unless $datoMangler is set).
+ *
+ * @param int|string  $id          The wage slip (loen.id).
+ * @param int|string  $listevalg   The piecework list type the lines are drawn for.
+ * @param string|null $afsluttet   Transfer timestamp of the slip; when it or $godkendt is set the lines are shown
+ *                                 as a read-only summary (and item categories are only updated on open slips).
+ * @param string|null $godkendt    Approval timestamp of the slip.
+ * @param string|null $telt_antal  The chosen tent surcharge factor (e.g. '0.35'), for lists that have one; read
+ *                                 from the stored tent line when the slip has one.
+ * @param bool        $datoMangler True when Gem/Overfør was stopped for a missing date (SST-943): the slip is only
+ *                                 shown again, so nothing is written to loen_enheder. Default false.
+ * @return float The total of the piecework lines (incl. transport and tent surcharge).
+ */
+function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler = false) {
 
 	global $brugernavn,$bgcolor,$db,$sprog_id;
 	$categorySum = array(); 
