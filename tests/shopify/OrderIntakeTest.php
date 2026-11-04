@@ -10,6 +10,7 @@
 // 20261103 CL/SS SD-742: created.
 // 20261104 CL/SS SD-808: the read is paged under Shopify's query cost limit; checked against the schema and the stateful fake store.
 // 20261104 CL/SS SD-808 review: an order changed between its reads is refused as changed, retryable.
+// 20261104 CL/SS SD-808 review: all 250 lines are assembled; an edit between two reads of the store is caught.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -679,6 +680,9 @@ final class OrderIntakeTest extends TestCase
 		$this->assertSame('too_large', $refused([$ok($node), $ok($lines(101, 100, true)), $ok($lines(201, 100, true))]), 'past 250 lines with more to come');
 		$this->assertSame('too_large', $refused([$ok($node), $ok($lines(101, 100, true)), $ok($lines(201, 51, false))]), '251 lines');
 		$this->assertSame('read', $refused([$ok($node), $ok($lines(101, 100, true)), $ok($lines(201, 50, false)), $ok($fo(1, false)), $check($fo(1, false))]), '250 lines is the most');
+		$full = shopify_fetch_paid_order(FakeShopify::shop(), self::GID, ['graphql' => (new FakeShopify([$ok($node), $ok($lines(101, 100, true)), $ok($lines(201, 50, false)),
+			$ok($fo(1, false)), $check($fo(1, false))]))->opts()]);
+		$this->assertSame([250, 'S250'], [count($full['lines']), $full['lines'][249]['sku']], 'all 250 lines are read, the last one included');
 		$this->assertSame('too_large', $refused([$ok($node), $ok($lines(101, 1, false)), $ok($fo(1, false, true))]), 'a fulfillment order with more than 250 lines');
 		$moved = $fo(1, false);
 		$moved['fulfillmentOrders']['nodes'][0]['assignedLocation']['location']['id'] = 'gid://shopify/Location/9';
@@ -700,7 +704,8 @@ final class OrderIntakeTest extends TestCase
 		}
 
 		// the store projects each answer onto its document and refuses one above 1000 points (MAX_COST_EXCEEDED), as Shopify does
-		$store = new FakeShopifyStore();
+		$clock = new FakeShopify([]);
+		$store = new FakeShopifyStore($clock);
 		$shop = $store->addShop('fakestore', ['locations' => ['Lager 1']]);
 		$location = $store->locations($shop['domain'])[0];
 		$a = $store->seedProduct($shop['domain'], 'havestol', 'SD808-A', [$location => 5]);
@@ -714,5 +719,20 @@ final class OrderIntakeTest extends TestCase
 		$this->assertSame([['SD808-A', 2, $location], ['SD808-B', 1, $location]],
 			array_map(fn(array $l): array => [$l['sku'], $l['quantity'], $l['assigned_location']], $order['lines']), 'every line, with the location its fulfillment order is assigned to');
 		$this->assertSame([['SALE', 'SUCCESS', '300.00']], array_map(fn(array $t): array => [$t['kind'], $t['status'], $t['amount']], $order['transactions']));
+
+		// the order is edited a few seconds later, between its pages and the closing check: read again, never mixed
+		$edit = function (string $url, array $headers, string $body, float $connect, float $timeout) use ($store, $clock, $shop, $gid): array {
+			if (str_contains($body, 'paidOrderCheck')) {
+				$clock->now += 2;
+				$store->request($shop['domain'], 'mutation u($input: OrderInput!) { orderUpdate(input: $input) { userErrors { message } } }', ['input' => ['id' => $gid, 'note' => 'ring først']]);
+			}
+			return $store->send($url, $headers, $body, $connect, $timeout);
+		};
+		try {
+			shopify_fetch_paid_order($shop, $gid, ['graphql' => $store->opts(['transport' => $edit])]);
+			$this->fail('an order edited during its read must not be read as one');
+		} catch (ShopifyOrderReadError $e) {
+			$this->assertSame(['changed', true], [$e->error, $e->retryable]);
+		}
 	}
 }
