@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-10-30 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.1.0 -- 2026-11-03 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,8 @@
 // 20260916 CDX/PHR Show opening balances, including balance accounts without VAT or period entries.
 // 20260918 CDX/PHR Print all VAT ledger rows and totals while paginating only the screen view.
 // 20261030 CL/LAH Show all lines by default, like kontokort: per_page 0 means "Alle" and is the default.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                 kontokort_moms() includes its files via __DIR__ (no behaviour change).
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 0) {
 	print <<<'HTML'
@@ -163,7 +165,7 @@ HTML;
 	}
 	if ($momsq) $momsq.=")";
 	$momsantal=$x;
-	include("../includes/topline_settings.php");
+	include(__DIR__ . '/../../includes/topline_settings.php');
 	print "<div class='ledger-heading' style=\"position: sticky; top: 0; z-index: 100; background-color: #eeeef0;\">";
 		#########
 		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
@@ -177,7 +179,7 @@ HTML;
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 	print "<td width='80%' align='center' style='$topStyle'>".findtekst('516|Rapport - kontokort med moms', $sprog_id)."</td>\n";
-	print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
+	print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' download style='color:#ffffff'>csv</a></td>";
 	print "</tbody></table>"; #B slut
 	print "</td></tr>";
 	#######################
@@ -621,9 +623,9 @@ print "</table>";
 	fclose($csv);
 
 	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
+		include_once(__DIR__ . '/../../includes/topmenu/footer.php');
 	} else {
-		include_once '../includes/oldDesign/footer.php';
+		include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
 	}
  
 #################################################################################################
