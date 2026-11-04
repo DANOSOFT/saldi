@@ -29,9 +29,11 @@
 // from the link's state and the order's status, so a replay gives one order and one invoice.
 // No Shopify call is made inside a transaction. The transaction that sets invoiced enqueues the
 // first write-back stage (order.tags), which stays queued until WP10 registers its handler.
+// An order cancelled in Shopify before it is invoiced is neither delivered nor posted any more.
 //
 // 20261103 CL/SS SD-743: created (WP09-2).
 // 20261104 CL/SS SD-743 review: an order whose link holds no order past validation (cancelled before the import) is skipped.
+// 20261104 CL/SS SD-743: an order cancelled in Shopify (the link's cancelled_at, SD-801) stops before its delivery or posting.
 
 require_once __DIR__ . '/orderIntake.php';
 require_once __DIR__ . '/customers.php';
@@ -48,6 +50,11 @@ const SHOPIFY_IMPORT_WRITEBACK_JOB = 'order.tags';
 
 /** A deterministic refusal of the order: it is reported on the error list and not retried. */
 final class ShopifyImportError extends DomainException
+{
+}
+
+/** The order was cancelled in Shopify before it was invoiced: the import stops where it is. */
+final class ShopifyImportCancelled extends RuntimeException
 {
 }
 
@@ -77,7 +84,7 @@ function shopify_import_paid_order(array $job, array $services = array()): array
 	$shop = shopify_db_rows('SELECT * FROM shopify_shops WHERE id = $1', array($shopId))[0] ?? null;
 	if ($shop === null || !in_array($shop['orders_enabled'], array(true, 't', '1', 1), true)) {
 		$link = $shop === null ? null : shopify_order_link($shopId, $gid);
-		if ($link !== null && $link['direction'] === 'web' && $link['state'] !== 'invoiced' && ($link['ordre_id'] !== null || $link['state'] === 'validated')) {
+		if ($link !== null && $link['direction'] === 'web' && $link['state'] !== 'invoiced' && $link['cancelled_at'] === null && ($link['ordre_id'] !== null || $link['state'] === 'validated')) {
 			shopify_error_open($shopId, 'order.invoice', $gid, "order {$link['order_name']} stopped at {$link['state']}: the orders flow of the shop is off; it is resumed by a replay once the flow is on", 'error');
 		}
 		return array('outcome' => 'done', 'result' => array('skipped' => 'orders flow off'));
@@ -147,11 +154,17 @@ function shopify_import_paid_order(array $job, array $services = array()): array
 /**
  * shopify_resume_web_invoice() for the job: a refusal of the delivery or posting is an error on
  * the list (order.invoice) and the job is done; the order is resumed by a replay once it is fixed.
+ * An order cancelled in Shopify before it was invoiced is not resumed: it is logged, an open
+ * order.invoice is resolved, and the job is done. Its "do not ship or invoice" warning is SD-801's.
  */
 function shopify_import_finish(int $linkId, callable $crash, array $correlation): array {
 	$link = shopify_db_rows('SELECT shop_id, order_gid, order_name FROM shopify_order_links WHERE id = $1', array($linkId))[0];
 	try {
 		$result = shopify_resume_web_invoice($linkId, $crash);
+	} catch (ShopifyImportCancelled $e) {
+		shopify_import_log('cancelled', $correlation + array('link_id' => $linkId));
+		shopify_error_resolve_key((int)$link['shop_id'], 'order.invoice', (string)$link['order_gid']);
+		return array('outcome' => 'done', 'result' => array('skipped' => 'cancelled in Shopify before it was invoiced'));
 	} catch (ShopifyImportError | ShopifyPreflightError $e) {
 		shopify_error_open((int)$link['shop_id'], 'order.invoice', (string)$link['order_gid'], "order {$link['order_name']}: " . $e->getMessage(), 'error', $correlation);
 		return array('outcome' => 'done', 'result' => array('refused' => array('order.invoice')));
@@ -240,10 +253,13 @@ function shopify_create_web_order(int $linkId, array $validated, ?callable $cras
 /**
  * Takes a web order from its link's checkpoint to invoiced: delivery, posting and, when the
  * posting left the order at status 3, the post-only step. The order's status decides over the
- * link's state, so an order posted meanwhile is not posted again.
+ * link's state, so an order posted meanwhile is not posted again. The delivery and the posting
+ * each check the link's cancelled_at under its row lock, which the cancellation (SD-801) takes
+ * too: either the import sees the cancellation, or the cancellation sees the invoiced order.
  *
  * @return array{link_id: int, ordre_id: int, state: string, status: int}
  * @throws ShopifyImportError when the order is gone or the posting refuses it
+ * @throws ShopifyImportCancelled when the order was cancelled in Shopify before it was invoiced
  */
 function shopify_resume_web_invoice(int $linkId, ?callable $crash = null): array {
 	$crash = $crash ?? static function (string $stage): void {
@@ -260,6 +276,7 @@ function shopify_resume_web_invoice(int $linkId, ?callable $crash = null): array
 	if ($status < 3 && $link['state'] === 'created') {
 		shopify_db_transaction(function () use ($linkId, $ordreId, $crash) {
 			shopify_db_rows('SELECT id FROM ordrer WHERE id = $1 FOR UPDATE', array($ordreId));
+			shopify_import_check_not_cancelled($linkId);
 			shopify_preflight_delivery($ordreId);
 			$answer = shopify_import_legacy(fn() => levering($ordreId, 'on', null, true));
 			if ($answer !== 'OK') {
@@ -272,8 +289,9 @@ function shopify_resume_web_invoice(int $linkId, ?callable $crash = null): array
 		$crash('delivered');
 	}
 	if (shopify_import_status($ordreId) < 3) {
-		shopify_db_transaction(function () use ($ordreId, $crash) {
+		shopify_db_transaction(function () use ($linkId, $ordreId, $crash) {
 			shopify_db_rows('SELECT id FROM ordrer WHERE id = $1 FOR UPDATE', array($ordreId));
+			shopify_import_check_not_cancelled($linkId);
 			shopify_import_check_accounts($ordreId);
 			unset($_SESSION['payment_id']);
 			// 'on', as api/rest_api.php passes it: bogfor() hands the flag on to bogfor_nu() as its source, where
@@ -308,6 +326,17 @@ function shopify_resume_web_invoice(int $linkId, ?callable $crash = null): array
 	shopify_db_transaction(fn() => shopify_import_invoiced($linkId));
 	shopify_error_resolve_key((int)$link['shop_id'], 'order.create', (string)$link['order_gid']);
 	return array('link_id' => $linkId, 'ordre_id' => $ordreId, 'state' => 'invoiced', 'status' => $status);
+}
+
+/**
+ * Throws ShopifyImportCancelled when the link's order was cancelled in Shopify, in the caller's
+ * transaction and under the link's row lock, so a cancellation recorded meanwhile waits for it.
+ */
+function shopify_import_check_not_cancelled(int $linkId): void {
+	$row = shopify_db_rows('SELECT cancelled_at FROM shopify_order_links WHERE id = $1 FOR UPDATE', array($linkId))[0] ?? null;
+	if ($row !== null && $row['cancelled_at'] !== null) {
+		throw new ShopifyImportCancelled("order link $linkId was cancelled in Shopify at {$row['cancelled_at']}");
+	}
 }
 
 /** The link becomes invoiced and the write-back is handed off, in the caller's transaction. */

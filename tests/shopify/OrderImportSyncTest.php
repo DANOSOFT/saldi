@@ -11,6 +11,7 @@
 // 20261103 CL/SS SD-743: created.
 // 20261104 CL/SS SD-743 review: an order cancelled before its import (link without an order) is not imported.
 // 20261104 CL/SS SD-743: the fixture builds its own groups and chart, so it passes on a fresh tenant (CI) as on an old one.
+// 20261104 CL/SS SD-743: an order cancelled in Shopify after its creation or delivery is not delivered or posted.
 
 use PHPUnit\Framework\TestCase;
 
@@ -441,6 +442,38 @@ final class OrderImportSyncTest extends TestCase
         $this->assertSame(['skipped' => "the order's link is in state cancelled without an order"], $this->import($raced)['result'] ?? null,
             'a cancellation that reserved the link while the import validated');
         $this->assertSame([0, 'cancelled'], [$this->outcome($raced)['orders'], $this->outcome($raced)['link']]);
+    }
+
+    public function testAnOrderCancelledInShopifyDuringItsImportIsNeitherDeliveredNorPosted(): void
+    {
+        $a = $this->item('A');
+        $this->stock($a, 1, 10);
+        $cancel = fn(array $order) => $this->sql('UPDATE shopify_order_links SET cancelled_at = now() WHERE order_gid = $1', [$order['gid']]);
+        $skipped = ['skipped' => 'cancelled in Shopify before it was invoiced'];
+
+        $created = $this->order([self::line('A', 1, '125.00')]);
+        $this->assertSame(9, $this->runChild($created, 'created')['exit']);
+        $cancel($created);
+        $this->assertSame($skipped, $this->import($created)['result'] ?? null);
+        $o = $this->outcome($created);
+        $this->assertSame([1, 0, 'created', []], [$o['orders'], $o['postings'], $o['link'], $o['writeback']], 'the order stays, not invoiced');
+        $this->assertLessThan(3, $o['status']);
+        $this->assertSame(10.0, (float)$this->sql('SELECT beholdning FROM lagerstatus WHERE vare_id = $1', [$a])[0]['beholdning'], 'and not delivered');
+
+        $delivered = $this->order([self::line('A', 1, '125.00')]);
+        $this->assertSame(9, $this->runChild($delivered, 'delivered')['exit']);
+        $this->sql('UPDATE shopify_shops SET orders_enabled = false');
+        $this->import($delivered);
+        $this->assertSame(1, (int)$this->sql("SELECT count(*) AS n FROM shopify_errors WHERE kind = 'order.invoice' AND resolved_at IS NULL")[0]['n']);
+        $cancel($delivered);
+        $this->import($delivered);
+        $this->assertSame(1, (int)$this->sql("SELECT occurrences FROM shopify_errors WHERE kind = 'order.invoice'")[0]['occurrences'], 'flow off: a cancelled order is not listed again');
+        $this->sql('UPDATE shopify_shops SET orders_enabled = true');
+        $this->assertSame($skipped, $this->import($delivered)['result'] ?? null);
+        $o = $this->outcome($delivered);
+        $this->assertSame([0, 'delivery_committed', []], [$o['postings'], $o['link'], $o['writeback']], 'delivered before the cancellation, never posted');
+        $this->assertSame(0, (int)$this->sql("SELECT count(*) AS n FROM shopify_errors WHERE kind = 'order.invoice' AND resolved_at IS NULL")[0]['n'],
+            'the order will not be invoiced, so its stop is resolved');
     }
 
     public function testARefusedOrderWritesNothingAndItsReplayAfterTheFixCreatesIt(): void
