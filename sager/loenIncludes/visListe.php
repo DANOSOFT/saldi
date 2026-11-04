@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/vis_liste.php --- lap 5.0.0 --- 2026-03-19 ---
+// --- sager/loenIncludes/visListe.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,17 +20,19 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // 20230703 PHR array tr_tjek moved up, as it was reset when it should not. 
 // 20230703 PHR reactiveate $sum1 - no idea why it was deactivated.
 // 20230915 PHR if transport has been on list and all itens with transport is removed, transportlines are deleted from
 //              loen_enheder
 // 20230915 PHR tent surcharges were not shown on completed bills.
 // 20260319 LOE Added $categorySum to calculate sum per category for use in ret_loen.php
+// 20261104 CL/MMR SST-943 The empty transport line is not deleted while a save that was stopped for a missing date is shown.
 
 function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 
 	global $brugernavn,$bgcolor,$db,$sprog_id;
+	global $datoMangler; # 20261104 SST-943 set by ret_loen() when Gem/Overfør was stopped for a missing date
 	$categorySum = array(); 
 /*
  ($listevalg >= 10)?$nyListe = 1:$nyListe = 0;
@@ -435,7 +437,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 		</tr>";
 	} elseif (!$tr_sum) { // 20230915
 		$qtxt = "delete from loen_enheder where loen_id = '$id' and vare_id = '-1' and tekst = '$listevalg|Transport'";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		if (!$datoMangler) db_modify($qtxt,__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped
 	}
 
 	if ($listevalg=='7' && !$telt_tillaeg) {

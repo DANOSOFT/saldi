@@ -32,6 +32,8 @@
 // 20261103 CL/MMR SD-799 The created/transferred/approved/rejected "by" labels use the author text, so English shows "by".
 // 20261104 CL/MMR SST-943 Gem and Overfør no longer save a slip, or its piecework lines, without a date.
 //                 The slip is shown as stored with the typed values put back and the messages "Dato ikke udfyldt" and "Obs - Du har ikke gemt.".
+// 20261104 CL/MMR SST-943 A stopped save also skips the writes made while the slip is drawn (sum, duplicate lines, master_id).
+//                 The list type selector keeps the type the piecework lines are drawn for.
 
 function ret_loen() {
 	global $brugernavn;
@@ -67,6 +69,7 @@ function ret_loen() {
 	}
 	$id=if_isset($_GET['id']);
 	$gem=NULL;
+	global $datoMangler; # 20261104 SST-943 also read by vis_liste()
 	$datoMangler = loenDatoMangler($_POST); # 20261104 SST-943
 	if ($datoMangler) $id = (int)ifset($_POST, 'id', 0);
 	transaktion('begin');
@@ -703,7 +706,7 @@ function ret_loen() {
 #cho "Bundet på seddel nr $master_nr<br>";
 			}	else {
 #cho "update loen set master_id='0',godkendt='' where id='$id'<br>";
-				db_modify("update loen set master_id='0' where id='$id'",__FILE__ . " linje " . __LINE__); #20161012 Fjernet godkendt='' da udbetalte sedler bliver afregnet igen.
+				if (!$datoMangler) db_modify("update loen set master_id='0' where id='$id'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped #20161012 Fjernet godkendt='' da udbetalte sedler bliver afregnet igen.
 				$master_id = NULL;
 				$master_nr = NULL;
 #				$godkendt=NULL; #20161012
@@ -853,7 +856,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 				$aa_sum+=($r['ned_160']*$r['pris_ned']*1.6);
 				$aa_sum+=($r['ned_30m']*$r['pris_ned']*0.1);
 				$x++;
-			} else db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__);
+			} elseif (!$datoMangler) db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped
 
 #cho "$r[vare_id] || $r[tekst] $r[op] $r[ned]<br>";
 #cho "$r[op]*$r[pris_op] | $r[ned]*$r[pris_ned] |".$r['op']*$r['pris_op']."|".$r['ned']*$r['pris_ned']."| aa_sum $aa_sum<br>";
@@ -1493,7 +1496,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					//print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">";
 				}
 				#cho "update loen set sum='$sum' where id='$id'<br>";
-				if (!$afsluttet || $afslut) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604
+				if ((!$afsluttet || $afslut) && !$datoMangler) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604 # 20261104 SST-943 not when the save was stopped
 
 #				print "<tbody class=\"akkordTableBody\">
 #					<tr>
@@ -1698,7 +1701,8 @@ function loenDatoMangler($post) {
  * Puts the values of a Gem/Overfør that was stopped for a missing date back into the wage slip form (SST-943).
  * Nothing was saved, so the form is drawn from the stored slip with the same fields in the same places as the
  * posted form. The browser then sets every posted field back to its posted value, also as the field's default,
- * so printing and the next save use what was typed. Read-only fields keep their drawn value. The date stays empty.
+ * so printing and the next save use what was typed. Read-only fields keep their drawn value. The date stays empty,
+ * and the list type selector keeps the type the piecework lines are drawn for (a type change is not applied).
  *
  * @param array<string, string|array<int|string, string>> $post The posted form fields ($_POST).
  * @return void Prints a <script> element after the form.
@@ -1715,6 +1719,7 @@ function loenGenindsaet($post) {
 		}
 	}
 	unset($felter['loendato']);
+	unset($felter['listevalg_ny']); # the list type stays the one the piecework lines are drawn for
 	$json = json_encode($felter, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
 	if ($json === false) return;
 	print "<script type=\"text/javascript\">
