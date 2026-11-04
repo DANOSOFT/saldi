@@ -1,5 +1,5 @@
 <?php
-// ---- index/invite.php --- lap 5.0.0 --- 2026.10.14 ---
+// ---- index/invite.php --- ver 5.1.0 --- 2026.10.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

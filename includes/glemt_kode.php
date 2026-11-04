@@ -1,5 +1,5 @@
 <?php
-// -----------index/glemt_kode.php-----------lap 3.5.0------2026-11-03---
+// -----------index/glemt_kode.php-----------ver 5.1.0------2026-11-03---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

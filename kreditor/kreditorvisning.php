@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/kreditorvisning.php --- lap 3.7.2--2026-11-03 ---
+// --- kreditor/kreditorvisning.php --- ver 5.1.0--2026-11-03 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

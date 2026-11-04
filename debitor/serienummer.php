@@ -1,5 +1,5 @@
 <?php
-// --- /debitor/serienummer.php --- patch 5.0.0 --- 2026.09.16 ---
+// --- /debitor/serienummer.php --- ver 5.1.0 --- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

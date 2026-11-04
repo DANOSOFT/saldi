@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php------------patch 3.2.5-----2011.12.28-----------
+// ----------finans/importer.php------------ver 5.1.0-----2011.12.28-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

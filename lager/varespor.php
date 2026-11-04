@@ -1,6 +1,6 @@
 <?php
 
-// ------------lager/varespor.php---------------------patch 5.0.0--2026.11.04--
+// ------------lager/varespor.php---------------------ver 5.1.0--2026.11.04--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

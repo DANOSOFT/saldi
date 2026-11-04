@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// -------------kreditor/ublimport.php----------lap 5.0.0-----2026-11-03----
+// -------------kreditor/ublimport.php----------ver 5.1.0-----2026-11-03----
 //                           LICENSE
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

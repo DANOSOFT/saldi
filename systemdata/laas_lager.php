@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------systemdata/laas_lager.php---------------------Patch 3.7.0-----2017.05.15---
+// ---------systemdata/laas_lager.php---------------------ver 5.1.0-----2017.05.15---
 // LICENS
 //
 // // Dette program er fri software. Du kan gendistribuere det og / eller

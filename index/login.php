@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-10-31 ---
+// --- index/login.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,14 +61,17 @@
 //                  shared is_input_too_long() from std_func.php.
 // 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
-// 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
-// 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
 // 20260916 SS Successful login written to audit_log (roles & permissions, spec R7).
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 // 20260929 SS Roles stage 2 (§8.4, §8.6): tmp_kode read and written in the common format; ?invite= opens the invitation page.
 // 20260930 SS Roles stage 2 (§7.1): login.failed, login.2fa_failed, login.ip_blocked and session.forced_logout in the audit log.
 // 20260930 SS Indexes on online.session_id and online.logtime (roles spec §4.7, without the primary key: see comment); created only when missing.
+// 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
 // 20261018 SS Review 2 (PR #803): the invitation's auto-login data is taken from the session before the reset at the top, which lost it.
+// 20261029 CDX/NTR Share online log permissions with the web server.
+// 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
+// 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 
 if (isset($_GET['invite'])) {
 	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
@@ -94,6 +97,7 @@ include("../includes/db_query.php");
 include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 require_once(__DIR__ . '/../includes/locatorClient.php');
+require_once __DIR__ . '/../includes/sharedFile.php';
 
 #print "<!--";
 $timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
@@ -336,7 +340,9 @@ if (isset($_POST['regnskab'])) {
 		if ($lukket) {
 			if (!$mastername) $mastername='SALDI';
 			if (!$mastertel) $mastertel='+45 4690 2208';
-			$fejltxt="Regnskab '$regnskab' er lukket!<br>Ring $mastertel for gen&aring;bning";
+			// Plain text: login() runs fejltxt through sanitize_input(), which strips quotes, < > and & and refuses
+			// more than 80 characters, so the old "Regnskab '<name>' er lukket!<br>..." arrived empty or garbled.
+			$fejltxt="Regnskabet er lukket. Ring $mastertel for genåbning";
 			login($regnskab,$brugernavn,$fejltxt);
  			exit;
 		}
@@ -406,10 +412,8 @@ else $languageId = 1;
 $spor = null; 
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 if ($db && !file_exists("../temp/.ht_$db.log")) {
-	$fp=fopen("../temp/.ht_$db.log","a");
-	fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-	fwrite($fp,"\\connect $db;\n");
-	fclose ($fp);
+	sharedFilePutContents(__DIR__ . "/../temp/.ht_$db.log",
+		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n", true);
 }
 if ($db) {
 	$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
@@ -927,9 +931,8 @@ if(!isset($afbryd)){
 	$db_skriv_id = NULL;
 	$dbLocation = loginLocatorInstallation($_SERVER);
 	
-	$fp=fopen("../temp/.ht_online.log","a");
-	fwrite($fp,date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n"); #20210902
-	fclose($fp);
+	sharedFilePutContents(__DIR__ . "/../temp/.ht_online.log",
+		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n", true);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";

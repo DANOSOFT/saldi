@@ -1,5 +1,5 @@
 <?php
-// ------------------debitor/batch.php--------ver 5.0.0----2026.11.03--
+// ------------------debitor/batch.php--------ver 5.1.0----2026.11.03--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

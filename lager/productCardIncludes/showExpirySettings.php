@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productCardIncludes/showExpirySettings.php --- patch 4.2.0 --- 2026-11-04 ---
+// --- lager/productCardIncludes/showExpirySettings.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

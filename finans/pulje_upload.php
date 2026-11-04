@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docIncludes/poolUpload.php --- patch 4.1.1 --- 2026-09-16 ---
+// --- includes/docIncludes/poolUpload.php --- ver 5.1.0 --- 2026-09-16 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

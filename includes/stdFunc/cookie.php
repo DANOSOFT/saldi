@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/cookie.php --- lap 5.0.0 --- 2026.10.11 ---
+// ---- includes/stdFunc/cookie.php --- ver 5.1.0 --- 2026.10.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

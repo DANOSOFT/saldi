@@ -1,5 +1,5 @@
 <?php
-// -------------------debitor/prislister.php------------patch 3.2.9----2026-09-16--------------
+// -------------------debitor/prislister.php------------ver 5.1.0----2026-09-16--------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

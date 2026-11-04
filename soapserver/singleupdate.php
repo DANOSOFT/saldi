@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/singleupdate.php -----ver 3.2.4---- 2026.09.16 ----------
+// #----------------- soapserver/singleupdate.php -----ver 5.1.0---- 2026.09.16 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

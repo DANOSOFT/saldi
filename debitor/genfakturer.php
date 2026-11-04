@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/genfakturer.php-----lap 3.8.9-----2026-09-16------
+// ---------debitor/genfakturer.php-----ver 5.1.0-----2026-09-16------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

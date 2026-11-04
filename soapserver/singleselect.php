@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/singleselect.php -----ver 3.2.3---- 2011.10.11 ----------
+// #----------------- soapserver/singleselect.php -----ver 5.1.0---- 2011.10.11 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

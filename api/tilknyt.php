@@ -1,5 +1,5 @@
 <?php
-// ------------- api/hent_ordrer.php ---------- lap 3.5.3----2015.04.21-------
+// ------------- api/hent_ordrer.php ---------- ver 5.1.0----2015.04.21-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

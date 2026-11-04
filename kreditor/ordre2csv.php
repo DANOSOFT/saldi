@@ -1,5 +1,5 @@
 <?php
-// -------------kreditor/ordre2csv.php----------patch 5.0.0------2026-09-16----
+// -------------kreditor/ordre2csv.php----------ver 5.1.0------2026-09-16----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

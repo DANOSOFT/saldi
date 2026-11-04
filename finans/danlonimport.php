@@ -1,5 +1,5 @@
 <?php
-// ----------finans/danlonimport.php------------patch 3.1.3-----2026.09.16-----------
+// ----------finans/danlonimport.php------------ver 5.1.0-----2026.09.16-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

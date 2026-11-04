@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------kreditor/top100.php-------lap 4.1.1------2026-11-03---
+// ----------kreditor/top100.php-------ver 5.1.0------2026-11-03---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

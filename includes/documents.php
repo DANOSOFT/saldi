@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php --- ver 5.0.0 --- 2026-10-19 ---
+// --- includes/documents.php --- ver 5.1.0 --- 2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/stockLog.php---------lap 3.9.4---2020-07-22	-----
+// ----------/lager/stockLog.php---------ver 5.1.0---2020-07-22	-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or

@@ -1,5 +1,5 @@
 <?php
-// --- lager/varefoto.php --- ver 3.6.1 --- 2026.11.04 ---
+// --- lager/varefoto.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

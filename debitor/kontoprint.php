@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------------debitor/kontoprint.php-----lap 4.1.1---2025.09.25-------
+// ----------------debitor/kontoprint.php-----ver 5.1.0---2025.09.25-------
 // LICENS
 //
 // This program is free software. You can redistribute it and / or

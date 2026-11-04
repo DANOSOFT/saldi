@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/rabatgrupper.php--------- ver 3.5.5 -- 2026.10.08 --
+// -------------systemdata/rabatgrupper.php--------- ver 5.1.0 -- 2026.10.08 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

@@ -1,5 +1,5 @@
 <?php
-// ---------------------kreditor/batch.php---ver 3.2.5----2011-11-29--
+// ---------------------kreditor/batch.php---ver 5.1.0----2011-11-29--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

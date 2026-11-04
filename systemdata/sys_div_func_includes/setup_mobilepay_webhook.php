@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/mobilepay/mobilepay.php --- lap 4.1.0 --- 2026.10.02 ---
+// --- payments/mobilepay/mobilepay.php --- ver 5.1.0 --- 2026.10.02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

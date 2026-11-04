@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/valutakort.php-----patch 4.1.1 ----2026-10-05--
+// -------------systemdata/valutakort.php-----ver 5.1.0 ----2026-10-05--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

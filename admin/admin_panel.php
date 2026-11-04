@@ -5,7 +5,7 @@ ob_start();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-03-05 ---
+// --- admin/admin_panel.php --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -13,10 +13,12 @@ ob_start();
 // which is published by The Free Software Foundation; either in version 2
 // of this license or later version of your choice.
 //
-// Copyright (c) 2026 Saldi.dk ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Admin Panel - Comprehensive admin page for managing customer accounts,
 // feature licenses, usage stats, and account settings.
+//
+// 20261102 CL/ASR Reopening an account whose closing date (lukkes) has passed also clears that date, so the auto-close does not close it again at once.
 
 @session_start();
 $s_id = session_id();
@@ -225,6 +227,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $betalt_til = $_POST['betalt_til'] ? "'" . db_escape_string($_POST['betalt_til']) . "'" : "'2099-12-31'";
         $logintekst = db_escape_string(if_isset($_POST['logintekst'], ''));
         $lukkes_post = trim(if_isset($_POST['lukkes'], ''));
+        // Reopening an account ("Lukket" unticked) whose closing date has passed also clears that date; otherwise the
+        // auto-close below (and at the account's next login, includes/online.php) closes it again at once.
+        if ($lukket === '' && $lukkes_post !== '' && strtotime($lukkes_post) !== false && strtotime($lukkes_post) <= strtotime(date('Y-m-d'))) {
+            $lukkes_post = '';
+        }
         $lukkes_sql = ($lukkes_post && $lukkes_post !== '') ? "'" . db_escape_string($lukkes_post) . "'" : "NULL";
         $lukkes_kommentar = db_escape_string(if_isset($_POST['lukkes_kommentar'], ''));
 

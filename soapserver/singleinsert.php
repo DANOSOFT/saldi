@@ -1,5 +1,5 @@
 <?php
-// // #----------------- soapserver/singleinsert.php -----ver 3.2.8---- 2026.09.16 ----------
+// // #----------------- soapserver/singleinsert.php -----ver 5.1.0---- 2026.09.16 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

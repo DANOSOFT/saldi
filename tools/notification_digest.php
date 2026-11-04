@@ -1,5 +1,5 @@
 <?php
-// ---- tools/notification_digest.php --- lap 5.0.0 --- 2026.10.01 ---
+// ---- tools/notification_digest.php --- ver 5.1.0 --- 2026.10.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

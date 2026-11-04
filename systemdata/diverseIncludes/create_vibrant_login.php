@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/diverseIncludes/create_vibrant_login.php ---------- ver 5.0.0----2026.11.03-------
+// ------------- systemdata/diverseIncludes/create_vibrant_login.php ---------- ver 5.1.0----2026.11.03-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

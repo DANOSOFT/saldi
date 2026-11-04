@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// ---------debitor/oioxml_dok.php----patch 3.2.5---2012-01-19--
+// ---------debitor/oioxml_dok.php----ver 5.1.0---2012-01-19--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

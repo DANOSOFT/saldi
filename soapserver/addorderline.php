@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/addordreline.php -----ver 3.4.1---- 2014.04.26 ----------
+// #----------------- soapserver/addordreline.php -----ver 5.1.0---- 2014.04.26 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.0.0 --- 2026-10-12 ---
+// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.1.0 --- 2026-10-12 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //

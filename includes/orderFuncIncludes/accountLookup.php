@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//---includes/orderFuncIncludes/accountLookup.php ---patch 5.0.0 ----2026-10-19 ---
+//---includes/orderFuncIncludes/accountLookup.php ---ver 5.1.0 ----2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

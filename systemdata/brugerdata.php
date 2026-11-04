@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -----------------systemdata/brugerdata.php ------ver 3.6.6-----2026.09.16----------
+// -----------------systemdata/brugerdata.php ------ver 5.1.0-----2026.09.16----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

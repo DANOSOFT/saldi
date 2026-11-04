@@ -1,5 +1,5 @@
 <?php
-// --- debitor/saetpris.php ---patch 4.0.8 ----2026-09-16----
+// --- debitor/saetpris.php ---ver 5.1.0 ----2026-09-16----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

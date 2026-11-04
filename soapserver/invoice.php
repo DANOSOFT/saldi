@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/invoice.php -----ver 3.2.4---- 2011.10.25 ----------
+// #----------------- soapserver/invoice.php -----ver 5.1.0---- 2011.10.25 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

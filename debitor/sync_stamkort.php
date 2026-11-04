@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------debitor/sync_stamkort.php--------ver 5.0.0-------2026.10.23--------------
+// --------------debitor/sync_stamkort.php--------ver 5.1.0-------2026.10.23--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

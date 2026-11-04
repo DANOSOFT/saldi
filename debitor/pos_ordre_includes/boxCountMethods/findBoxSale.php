@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- ver 5.0.0 --- 2026.10.19 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- ver 5.1.0 --- 2026.10.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

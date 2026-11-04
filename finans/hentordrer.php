@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------------finans/hentordrer.php-------patch 3.6.7----2026-09-16-----------
+// -------------------finans/hentordrer.php-------ver 5.1.0----2026-09-16-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

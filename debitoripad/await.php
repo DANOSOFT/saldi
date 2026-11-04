@@ -1,5 +1,5 @@
 <?php
-// ------------------debitoripad/await.php--------lap 3.2.9----2024.06.07--
+// ------------------debitoripad/await.php--------ver 5.1.0----2024.06.07--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

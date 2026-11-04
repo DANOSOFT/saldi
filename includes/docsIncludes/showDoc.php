@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/showDoc.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- includes/docsIncludes/showDoc.php --- ver 5.1.0 --- 2026-10-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

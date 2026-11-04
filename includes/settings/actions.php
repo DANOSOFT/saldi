@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/actions.php --- lap 5.0.0 --- 2026.11.03 ---
+// ---- includes/settings/actions.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

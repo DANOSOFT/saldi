@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-08 ---
+// --- admin/aaben_regnskab.php --- ver 5.1.0 --- 2026-10-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

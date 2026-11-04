@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/pbsm602import.php --- patch 4.1.1 --- 2026.09.16 ---
+// --- finans/pbsm602import.php --- ver 5.1.0 --- 2026.09.16 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

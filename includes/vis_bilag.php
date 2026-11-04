@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php---- patch 5.0.0 --- 2026-10-18 ---
+// ----------finans/importer.php---- ver 5.1.0 --- 2026-10-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

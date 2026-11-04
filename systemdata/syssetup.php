@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-11-03 ---
+// --- systemdata/syssetup.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

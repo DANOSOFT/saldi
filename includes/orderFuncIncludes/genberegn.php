@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------ver 5.0.0------2026.10.19---
+// ------includes/genberegn.php-------ver 5.1.0------2026.10.19---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

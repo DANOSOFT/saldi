@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// --- systemdata/ansatte.php --- patch 4.0.8 --- 2023-079-25 ---
+// --- systemdata/ansatte.php --- ver 5.1.0 --- 2023-079-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

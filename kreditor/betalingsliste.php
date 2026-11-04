@@ -1,5 +1,5 @@
 <?php
-// ---------kreditor/betalingsliste.php-----------------------Patch 4.1.1---2026.11.03---
+// ---------kreditor/betalingsliste.php-----------------------ver 5.1.0---2026.11.03---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

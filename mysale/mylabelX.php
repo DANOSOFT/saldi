@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mylabel.php --- lap 4.0.8 --- 2026-09-16 ---
+// --- mysale/mylabel.php --- ver 5.1.0 --- 2026-09-16 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or

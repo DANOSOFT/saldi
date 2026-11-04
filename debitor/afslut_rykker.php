@@ -1,6 +1,6 @@
 <?php #topkode_start
 
-// -----------------------debitor/afslut_rykker.php-----lap 2.1.0--2009.10.12-------
+// -----------------------debitor/afslut_rykker.php-----ver 5.1.0--2009.10.12-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

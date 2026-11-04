@@ -1,5 +1,5 @@
 <?php
-// ---- includes/tmpCode.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- includes/tmpCode.php --- ver 5.1.0 --- 2026.09.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

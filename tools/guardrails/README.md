@@ -41,3 +41,11 @@ node tools/guardrails/check.mjs --base 6fad671b^ --head 6fad671b --only js-synta
 
 The commits each check was proven on are named at the top of its file in
 `checks/`.
+
+`file-version` uses PHP tokenization without executing the source. It ignores code
+comments and formatting, while changes to string contents count as behavior. It
+requires PHP on `PATH`, as provided by the guardrails CI job. `file-history` also
+rejects history entries inserted after a leading PHPDoc instead of in the header.
+
+Run the guardrail regression tests with `node --test tools/guardrails/tests/*.test.mjs`;
+the guardrails workflow runs the same tests before checking a pull request.

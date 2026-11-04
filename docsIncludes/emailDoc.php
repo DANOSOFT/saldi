@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/emailDoc.php -----patch 4.0.8 ----2026-10-18------
+// --- includes/docsIncludes/emailDoc.php -----ver 5.1.0 ----2026-10-18------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/settingsLookup.php --- lap 5.0.0 --- 2026.10.19 ---
+// ---- systemdata/settingsLookup.php --- ver 5.1.0 --- 2026.10.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

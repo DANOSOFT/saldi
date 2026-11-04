@@ -2,7 +2,7 @@
 <?php
   @session_start();
   $s_id=session_id();
- // -------------------includes/luk.php-----lap 3.1.67----2026.09.24------------------
+ // -------------------includes/luk.php-----ver 5.1.0----2026.09.24------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

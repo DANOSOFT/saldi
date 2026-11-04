@@ -80,6 +80,7 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 //                 online.logtime alone, so a tab that only polls still ages out.
 // 20261101 CL/ASR The per-user colours (settings colors/buttonColor and buttonTxtColor) are no longer read: $buttonColor and
 //                 $buttonTxtColor are always the standard #114691 / #ffffff, as for a user who never chose a colour.
+// 20261102 CL/ASR $regnskab_pakke: the account's package from the self-service signup, used by finans/bogfor.php.
 // 20261103 CL/ASR QA round 2: the old module gate refuses through perm_refuse(), so both gates give the same translated text (5548), HTTP 403 and the way back to Oversigt.
 // 20261104 CL/ASR A fatal PHP error (E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR) on an HTML page with a session shows the error box of includes/errorReport.php, so the user can send a report.
 //                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
@@ -211,6 +212,7 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 	$db_ver = $row['version']; # 20150104
 	$regnskab = $row['regnskab'];
 	$max_posteringer = $row['posteringer'];
+	$regnskab_pakke = (string)($row['pakke'] ?? ''); // package from the self-service signup ('' = account set up by hand)
 	$lukket = $row['lukket'];
 
 	if ($lukket != 'on' && !empty($row['lukkes']) && $row['lukkes'] !== '2099-12-31') {

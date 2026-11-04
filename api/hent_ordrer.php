@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- api/hent_ordrer.php ---------- lap 3.7.0----2026.09.16-------
+// ------------- api/hent_ordrer.php ---------- ver 5.1.0----2026.09.16-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

@@ -1,5 +1,5 @@
 <?php
-// ------------debitor/import.php------- patch 3.5.8---22026-09-16------
+// ------------debitor/import.php------- ver 5.1.0---22026-09-16------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

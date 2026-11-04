@@ -1,5 +1,5 @@
 <?php
-// --------------------------------------------------lager/beholdningsliste.php     ver 5.0.0 --- 20261027 ----------
+// --------------------------------------------------lager/beholdningsliste.php     ver 5.1.0 --- 20261027 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

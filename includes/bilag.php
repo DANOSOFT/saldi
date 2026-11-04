@@ -1,5 +1,5 @@
 <?php
-// --- includes/bilag.php --- ver 5.0.0 --- 2026-11-04 ---
+// --- includes/bilag.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

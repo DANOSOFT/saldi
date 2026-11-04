@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/gdprInc/gdprLogic.php --- ver 4.0.4 --- 2023-01-09 --
+// --- systemdata/gdprInc/gdprLogic.php --- ver 5.1.0 --- 2023-01-09 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

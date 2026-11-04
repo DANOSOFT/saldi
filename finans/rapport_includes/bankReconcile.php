@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/bankReconcile.php --- patch 4.1.0 --- 2026.09.16 ---
+// --- finans/bankReconcile.php --- ver 5.1.0 --- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

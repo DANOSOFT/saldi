@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___|_\_\
 //
-// ---- payments/vibrant.php --- lap 4.1.0 --- 2026.10.01 ---
+// ---- payments/vibrant.php --- ver 5.1.0 --- 2026.10.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
