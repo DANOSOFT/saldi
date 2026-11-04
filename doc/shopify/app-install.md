@@ -15,6 +15,9 @@ is no refresh step.
 3. Distribution → Custom distribution → the shop's `*.myshopify.com` domain. Shopify then
    shows the install link. Keep it for step 3.
 4. Note the client ID and the client secret (Overview → Client credentials).
+5. API access → Protected customer data access: request access to protected customer data,
+   and to the name, email, phone and address fields. The order and customer flows need them,
+   and Shopify leaves them out of the API responses until this step is done.
 
 The `<saldi host>/<install>` part is the install's base URL. It must be HTTPS. Until the
 fixed host exists, use a tunnel to a dev install.

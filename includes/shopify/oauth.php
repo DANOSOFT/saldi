@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/oauth.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/shopify/oauth.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 20261103 CL/MJ SD-790: created.
 // 20261103 CL/MJ SD-790 review: the signature also verifies over form-encoded values, as Shopify's libraries sign them.
 // 20261103 CL/MJ SD-790 review: a state that doesn't match is kept, so a stale callback can't cancel a newer install.
+// 20261104 CL/MJ SD-790 review: the app also asks for read_fulfillments, which the FULFILLMENTS_CREATE and FULFILLMENTS_UPDATE webhooks need.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -48,7 +49,7 @@ const SHOPIFY_OAUTH_STATE_TTL = 600;
 /** A signed request older (or newer) than this is refused, so a captured link can't be replayed later. */
 const SHOPIFY_OAUTH_MAX_AGE = 3600;
 /** What the module reads and writes; write_* includes read_*. */
-const SHOPIFY_OAUTH_SCOPES = 'write_products,write_inventory,read_locations,write_orders,write_draft_orders,write_customers,write_merchant_managed_fulfillment_orders';
+const SHOPIFY_OAUTH_SCOPES = 'write_products,write_inventory,read_locations,write_orders,write_draft_orders,write_customers,write_merchant_managed_fulfillment_orders,read_fulfillments';
 
 /**
  * Shopify's signature of an OAuth request: the hex HMAC-SHA256 of the other query parameters,
