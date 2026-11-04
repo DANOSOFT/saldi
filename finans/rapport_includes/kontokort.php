@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----ver 5.1.0 ----2026-10-30-----
+// --- finans/rapport_includes/kontokort.php-----ver 5.1.0 ----2026-11-03-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,11 @@
 //                  "Alle" first in Linjer pr. side. The prev/next arrows kept dropping per_page.
 // 20261030 CDX/NTR Count screen rows first and retain only the account being rendered, including Alle.
 //                  Preserve print mode's complete row list for normal and unposted reports.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                 kontokort() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
+//              The account range is cast here as well.
+//              The print link carries the employee list the form resolved, so the printout keeps the selected range.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -107,10 +112,11 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	}
 
 	$query = db_select("select firmanavn, cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query))
+	if ($row = db_fetch_array($query)) {
 		$firmanavn = $row['firmanavn'];
-		$vatNo     = $row['cvrnr'];
-		$regnaar = (int)$regnaar; #fordi den er i tekstformat og skal vaere numerisk
+	}
+	$vatNo     = $row['cvrnr'];
+	$regnaar = (int)$regnaar; #fordi den er i tekstformat og skal vaere numerisk
 
 	#	list ($aar_fra, $maaned_fra) = explode(" ", $maaned_fra);
 #	list ($aar_til, $maaned_til) = explode(" ", $maaned_til);
@@ -120,8 +126,15 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	$aar_fra = trim($aar_fra);
 	$aar_til = trim($aar_til);
 
-	$konto_fra = trim($konto_fra);
-	$konto_til = trim($konto_til);
+	// A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+	$konto_fra = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+	$konto_til = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
+	// The queries filter through kontoRangeSqlFragment(); these two are only compared in PHP, where
+	// an empty bound is the whole range.
+	$konto_fraSql = ($konto_fra === '') ? 0 : (preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX);
+	$konto_tilSql = ($konto_til === '') ? PHP_INT_MAX : (preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0);
+	$kontoSql = kontoRangeSqlFragment($konto_fra, $konto_til);
 
 	$mf = (int)$maaned_fra;
 	$mt = (int)$maaned_til;
@@ -153,10 +166,11 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	$slutdato = 31;
 
 	if ($aar_fra < $aar_til) { #20210107
-		if ($maaned_til > $slutmaaned)
+		if ($maaned_til > $slutmaaned) {
 			$aar_til = $aar_fra;
-		elseif ($maaned_fra < $startmaaned)
+		} elseif ($maaned_fra < $startmaaned) {
 			$aar_fra = $aar_til;
+		}
 	}
 	$regnaarstart = $startaar . "-" . $startmaaned . "-" . '01';
 
@@ -196,33 +210,42 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 
 
-	if ($aar_fra)
+	if ($aar_fra) {
 		$startaar = $aar_fra;
-	if ($aar_til)
+	}
+	if ($aar_til) {
 		$slutaar = $aar_til;
-	if ($maaned_fra)
+	}
+	if ($maaned_fra) {
 		$startmaaned = $maaned_fra;
-	if ($maaned_til)
+	}
+	if ($maaned_til) {
 		$slutmaaned = $maaned_til;
-	if ($dato_fra)
+	}
+	if ($dato_fra) {
 		$startdato = $dato_fra;
-	if ($dato_til)
+	}
+	if ($dato_til) {
 		$slutdato = $dato_til;
+	}
 
 	$startdato *= 1;
-	if ($startdato < 10)
+	if ($startdato < 10) {
 		$startdato = '0' . $startdato;
+	}
 
 	while (!checkdate($startmaaned, $startdato, $startaar)) {
 		$startdato = $startdato - 1;
-		if ($startdato < 28)
+		if ($startdato < 28) {
 			break 1;
+		}
 	}
 
 	while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 		$slutdato = $slutdato - 1;
-		if ($slutdato < 28)
+		if ($slutdato < 28) {
 			break 1;
+		}
 	}
 
 	$regnstart = $startaar . "-" . $startmaaned . "-" . $startdato;
@@ -230,7 +253,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$title = "Rapport • " . ($ubogfort ? findtekst('5327|Kontokort med u-bogført', $sprog_id) : "Kontokort");
 
-	include("../includes/topline_settings.php");
+	include(__DIR__ . '/../../includes/topline_settings.php');
 #print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: white;\">";
 
 	#	print "  <a accesskey=L href=\"rapport.php?rapportart=Kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
@@ -254,6 +277,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		'rapportart'  => $rapportart,
 		'ansat_fra'   => $ansat_fra,
 		'ansat_til'   => $ansat_til,
+		// The employee range is resolved here, from the form's own order; the printout must not
+		// rebuild it from the two ids, which would take every id in between instead.
+		'ansatte_id'  => $ansatte_id,
 		'afd'         => $afd,
 		'projekt_fra' => $projekt_fra,
 		'projekt_til' => $projekt_til,
@@ -281,8 +307,8 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	if ($menu == 'T') {
 		$leftbutton = "<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> &nbsp;Luk</a>";
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
+		include_once(__DIR__ . '/../../includes/top_header.php');
+		include_once(__DIR__ . '/../../includes/top_menu.php');
 		print "<div id=\"header\">";
 		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
 		print "<div class=\"headerTxt\">$title</div>";
@@ -306,9 +332,10 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 		print "<td width='70%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
-		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
-		if (!$udskriv)
+		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' download style='color:#ffffff'>csv</a></td>\n";
+		if (!$udskriv) {
 			print "<td width='5%' align='center' style='$buttonStyle'><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\" style='color:#ffffff'>$txtUdskriv</a></td>\n";
+		}
 
 		print "</tbody></table>";
 		print "</td></tr>";
@@ -340,9 +367,10 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
 		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
 		print "<td width=\"70%\" $top_bund>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>";
-		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
-		if (!$udskriv)
+		print "<td width=\"10%\" $top_bund><a href='$csvfile' download>csv</a></td>";
+		if (!$udskriv) {
 			print "<td width=\"10%\" $top_bund><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\">$txtUdskriv</a></td>";
+		}
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";
 		$tmp = $rapportTitel;
@@ -353,26 +381,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	
 	$dim = '';
 	if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
-		if ($afd || $afd == '0')
-			$dim = "and afd = $afd ";
-		if ($ansat_fra && $ansat_til) {
-			$tmp = str_replace(",", " or ansat=", $ansatte_id);
-			$dim = $dim . " and (ansat=$tmp) ";
-		} elseif ($ansat_fra)
-			$dim = $dim . "and ansat = '$ansat_fra' ";
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til)
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_')
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 	$x = 0;
 	$valdate = array();
@@ -391,7 +402,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$x = 0;
 	$kontonr = array();
-	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
+	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' " . $kontoSql . "order by kontonr";
 	$q = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$kontonr[$x] = $row['kontonr'] * 1;
@@ -400,10 +411,11 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		$kontomoms[$x] = $row['moms'];
 		$kontovaluta[$x] = $row['valuta'];
 		$kontokurs[$x] = $row['valutakurs'];
-		if (!$dim && $kontotype[$x] == "S")
+		if (!$dim && $kontotype[$x] == "S") {
 			$primo[$x] = afrund($row['primo'], 2);
-		else
+		} else {
 			$primo[$x] = 0;
+		}
 		if ($primo[$x] && $kontovaluta[$x]) {
 			for ($y = 0; $y <= count($valkode); $y++) {
 				if ($valkode[$y] == $kontovaluta[$x] && $valdate[$y] <= $regnstart) {
@@ -411,21 +423,22 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 					break 1;
 				}
 			}
-		} else
+		} else {
 			$primokurs[$x] = 100;
+		}
 		$x++;
 	}
 
 	$ktonr = array();
 	$x = 0;
-	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim";
+	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' " . $kontoSql . "$dim";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$ktonr[$x] = $r['kontonr'];
 		$x++;
 	}
 	if ($includeSimulated) {
-		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim";
+		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' " . $kontoSql . "$dim";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['kontonr'], $ktonr)) {
@@ -466,7 +479,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		$unposted         = $preview['entries'];
 		$unpostedProblems = $preview['problems'];
 		foreach ($unposted as $unpostedKonto => $unpostedEntries) {
-			if ($unpostedKonto < $konto_fra || $unpostedKonto > $konto_til || in_array($unpostedKonto, $ktonr)) continue;
+			if ($unpostedKonto < $konto_fraSql || $unpostedKonto > $konto_tilSql || in_array($unpostedKonto, $ktonr)) continue;
 			foreach ($unpostedEntries as $entry) {
 				if ($entry['transdate'] >= $periodStart) {
 					$ktonr[] = $unpostedKonto;
@@ -505,22 +518,26 @@ print "</tr>";
 print "</table>";
 if ($csv) fwrite($csv, ";; $startdato / $mf - $slutdato / $mt\n");
 if ($ansat_fra) {
-    if (!$ansat_til || $ansat_fra == $ansat_til)
+    if (!$ansat_til || $ansat_fra == $ansat_til) {
         print "<tr><td>Medarbejder</td><td>$ansatte</td></tr>";
-    else
+    } else {
         print "<tr><td>Medarbejdere</td><td>$ansatte</td></tr>";
+    }
 }
-if ($afd || $afd == '0')
+if ($afd || $afd == '0') {
     print "<tr><td>Afdeling</td><td>$afd_navn</td></tr>";
+}
 if ($projekt_fra) {
     print "<td>Projekt:</td><td>";
     if (!strstr($projekt_fra, "?")) {
-        if ($projekt_til && $projekt_fra != $projekt_til)
+        if ($projekt_til && $projekt_fra != $projekt_til) {
             print "Fra: $projekt_fra, $prj_navn_fra<br>Til : $projekt_til, $prj_navn_til";
-        else
+        } else {
             print "$projekt_fra, $prj_navn_fra";
-    } else
+        }
+    } else {
         print "$projekt_fra, $prj_navn_fra";
+    }
     print "</td></tr>";
 }
 if ($menu != 'T') print "</tbody></table>";
@@ -549,17 +566,19 @@ print "</div>";
 // Browsers routinely clip a scrollable element to its visible box when
 // printing, so the print view does not use one at all; @media print releases it
 // for a plain Ctrl+P of the paginated screen.
-if ($udskriv)
+if ($udskriv) {
 	print "<div class=\"kontokort-data\">";
-else
+} else {
 	print "<div class=\"kontokort-data\" style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
+}
 print "<table style=\"width:100%; border-collapse:collapse;\" class='dataTable' id='datapg'>";
 
 // Sticky header
-if ($udskriv)
+if ($udskriv) {
 	print "<thead>";
-else
+} else {
 	print "<thead style=\"position: sticky; top: 0; background-color: #eeeef0; z-index: 10;\">";
+}
 print "<tr>";
 // SST-809 .dataTable is table-layout:fixed, and with no width on any column the
 // six share the width equally. On paper, where the page is narrower than the
@@ -661,8 +680,9 @@ print "<tbody>";
 									break 1;
 								}
 							}
-						} else
+						} else {
 							$transkurs[$tr] = 100;
+						}
 						$tr++;
 					}
 
@@ -700,15 +720,17 @@ print "<tbody>";
 								for ($y = 0; $y < count($vare_id); $y++) {
 									if ($r['vare_id'] == $vare_id[$y]) {
 										if ($kontotype[$x] == 'D') {
-											if ($r['antal'] > 0)
+											if ($r['antal'] > 0) {
 												$kobskredit[$z] += $r['antal'] * $kostpris[$y];
-											else
+											} else {
 												$kobsdebet[$z] -= $r['antal'] * $kostpris[$y];
+											}
 										} elseif (in_array($kontonr[$x], $varelager_i)) {
-											if ($r['antal'] > 0)
+											if ($r['antal'] > 0) {
 												$kobsdebet[$z] += $r['antal'] * $kostpris[$y];
-											else
+											} else {
 												$kobskredit[$z] -= $r['antal'] * $kostpris[$y];
+											}
 										}
 									}
 								}
@@ -718,9 +740,9 @@ print "<tbody>";
 										if ($kontotype[$x] == 'D') {
 											$z++;
 											$koid[$z] = $r['ordre_id'];
-											if (isset($koid[$z - 1]) && $koid[$z] == $koid[$z - 1])
+											if (isset($koid[$z - 1]) && $koid[$z] == $koid[$z - 1]) {
 												$kobsfakt[$z] = $kobsfakt[$z - 1];
-											else {
+											} else {
 												$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$koid[$z]'", __FILE__ . " linje " . __LINE__));
 												$kobsfakt[$z] = $r2['fakturanr'];
 											}
@@ -736,9 +758,9 @@ print "<tbody>";
 										} elseif (in_array($kontonr[$x], $varelager_i)) {
 											$z++;
 											$koid[$z] = $r['ordre_id'];
-											if (isset($koid[$z - 1]) && $koid[$z] == $koid[$z - 1])
+											if (isset($koid[$z - 1]) && $koid[$z] == $koid[$z - 1]) {
 												$kobsfakt[$z] = $kobsfakt[$z - 1];
-											else {
+											} else {
 												$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$koid[$z]'", __FILE__ . " linje " . __LINE__));
 												$kobsfakt[$z] = $r2['fakturanr'];
 											}
@@ -766,15 +788,17 @@ print "<tbody>";
 								for ($y = 0; $y < count($vare_id); $y++) {
 									if ($r['vare_id'] == $vare_id[$y]) {
 										if ($kontotype[$x] == 'D') {
-											if ($r['antal'] > 0)
+											if ($r['antal'] > 0) {
 												$salgsdebet[$z] += $r['antal'] * $kostpris[$y];
-											else
+											} else {
 												$salgskredit[$z] -= $r['antal'] * $kostpris[$y];
+											}
 										} elseif (in_array($kontonr[$x], $varelager_u)) {
-											if ($r['antal'] > 0)
+											if ($r['antal'] > 0) {
 												$salgskredit[$z] += $r['antal'] * $kostpris[$y];
-											else
+											} else {
 												$salgsdebet[$z] -= $r['antal'] * $kostpris[$y];
+											}
 										}
 									}
 								}
@@ -785,9 +809,9 @@ print "<tbody>";
 										if ($kontotype[$x] == 'D') {
 											$z++;
 											$soid[$z] = $r['ordre_id'];
-											if ($soid[$z] == $soid[$z - 1])
+											if ($soid[$z] == $soid[$z - 1]) {
 												$salgsfakt[$z] = $salgsfakt[$z - 1];
-											else {
+											} else {
 												$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$soid[$z]'", __FILE__ . " linje " . __LINE__));
 												$salgsfakt[$z] = $r2['fakturanr'];
 											}
@@ -803,9 +827,9 @@ print "<tbody>";
 										} elseif (in_array($kontonr[$x], $varelager_u)) {
 											$z++;
 											$soid[$z] = $r['ordre_id'];
-											if (isset($soid[$z - 1]) && $soid[$z] == $soid[$z - 1])
+											if (isset($soid[$z - 1]) && $soid[$z] == $soid[$z - 1]) {
 												$salgsfakt[$z] = $salgsfakt[$z - 1];
-											else {
+											} else {
 												$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$soid[$z]'", __FILE__ . " linje " . __LINE__));
 												$salgsfakt[$z] = $r2['fakturanr'];
 											}
@@ -882,10 +906,12 @@ print "<tbody>";
 							}
 							$dd *= 1;
 							$mm *= 1;
-							if (strlen($dd) < 2)
+							if (strlen($dd) < 2) {
 								$dd = '0' . $dd;
-							if (strlen($mm) < 2)
+							}
+							if (strlen($mm) < 2) {
 								$mm = '0' . $mm;
+							}
 							$dato = $yy . "-" . $mm . "-" . $dd;
 						}
 						for ($y = 0; $y < count($trd); $y++) {
@@ -1074,10 +1100,11 @@ print "<tbody>";
 			fwrite($csv, "-----------\n");
 
 			$kontosum = $accountPrimo[$x];
-			if ($primokurs[$x])
+			if ($primokurs[$x]) {
 				$tmp = $kontosum * 100 / $primokurs[$x];
-			else
+			} else {
 				$tmp = $kontosum;
+			}
 			#if (!$dim) #20180226
 			print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>" . dkdecimal($tmp, 2) . "</td></tr>";
 			fwrite($csv, ";;Primosaldo;;;" . dkdecimal($tmp, 2) . "\n");
@@ -1215,6 +1242,7 @@ print "<tbody>";
         'rapportart'  => $rapportart,
         'ansat_fra'   => $ansat_fra,
         'ansat_til'   => $ansat_til,
+        'ansatte_id'  => $ansatte_id,
         'afd'         => $afd,
         'projekt_fra' => $projekt_fra,
         'projekt_til' => $projekt_til,
@@ -1340,9 +1368,9 @@ print "<tbody>";
 	fclose($csv);
 
 	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
+		include_once(__DIR__ . '/../../includes/topmenu/footer.php');
 	} else {
-		include_once '../includes/oldDesign/footer.php';
+		include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
 	}
 }# endfunc kontokort
 #################################################################################################
