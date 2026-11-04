@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/readModels.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/shopify/services/readModels.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // Shopify, read from the links and projections. Read-only; no Shopify call.
 //
 // 20261103 CL/SS SD-801: created (WP08-2).
+// 20261104 CL/SS SD-801 review 3: the order's read model returns only the status namespace of the link's flags.
 
 require_once __DIR__ . '/../db.php';
 
@@ -35,7 +36,7 @@ require_once __DIR__ . '/../db.php';
  * Null when the order has no Shopify link.
  *
  * @return array{shop_key: string, order_gid: string|null, order_name: string|null, direction: string, state: string, cancelled_at: string|null,
- *   status: array{financial_status: string|null, fulfillment_status: string|null, updated_at: string|null}|null, flags: array<string, mixed>,
+ *   status: array{financial_status: string|null, fulfillment_status: string|null, updated_at: string|null}|null,
  *   fulfillments: list<array{fulfillment_gid: string, status: string|null, tracking_company: string|null, tracking_number: string|null, tracking_url: string|null, shipped_at: string|null, shipment_status: string|null}>,
  *   refunds: list<array{refund_gid: string, amount: string|null, currency: string|null, state: string, refunded_at: string|null}>}|null
  */
@@ -69,7 +70,7 @@ function shopify_order_read_model(int $ordreId): ?array {
 	return array(
 		'shop_key' => (string)$link['shop_key'], 'order_gid' => $link['order_gid'], 'order_name' => $link['order_name'],
 		'direction' => (string)$link['direction'], 'state' => (string)$link['state'], 'cancelled_at' => $link['cancelled_at'],
-		'status' => is_array($flags['status'] ?? null) ? $flags['status'] : null, 'flags' => $flags,
+		'status' => is_array($flags['status'] ?? null) ? $flags['status'] : null,
 		'fulfillments' => $fulfillments, 'refunds' => $refunds,
 	);
 }

@@ -8,6 +8,7 @@
 //
 // History:
 // 20261103 CL/SS SD-801: created.
+// 20261104 CL/SS SD-801 review 3: the worker registers the four status handlers.
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -39,6 +40,19 @@ final class StatusInTest extends TestCase
 		$this->assertFalse(shopify_status_newer('2026-11-02 12:00:00', 'a', '2026-11-02 12:00:00', 'a'), 'a replay');
 		$this->assertTrue(shopify_status_newer('2026-11-02 12:00:00', 'a', null, 'z'), 'a time beats none');
 		$this->assertFalse(shopify_status_newer(null, 'z', '2026-11-02 12:00:00', 'a'));
+	}
+
+	public function testTheWorkerRegistersTheStatusHandlers(): void
+	{
+		require_once __DIR__ . '/../characterization/debitor/support/pos_lift.php';
+		require_once __DIR__ . '/../../includes/shopify/worker.php';
+		$tools = realpath(__DIR__ . '/../../tools');
+		// the function as it ships; its __DIR__ is the tools folder
+		eval(str_replace('__DIR__', var_export($tools, true), pos_lift("$tools/shopify_worker.php", ['shopify_worker_wiring'])));
+
+		$this->assertSame(['fulfillment.upsert' => 'shopify_fulfillment_upsert_job', 'order.status' => 'shopify_order_status_job',
+			'order.cancelled' => 'shopify_order_cancelled_job', 'refund.upsert' => 'shopify_refund_upsert_job'],
+			array_intersect_key(shopify_worker_wiring()['registry'], array_flip(['fulfillment.upsert', 'order.status', 'order.cancelled', 'refund.upsert'])));
 	}
 
 	public function testShopifyTimesCompareInUtc(): void

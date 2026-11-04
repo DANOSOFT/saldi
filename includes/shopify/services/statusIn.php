@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,14 @@
 // 20261103 CL/SS SD-801 review: a cancellation in a legacy shop or with the orders flow off is a warning.
 // 20261103 CL/SS SD-801 review 2: a cancelled link resolves status.unlinked; the legacy warning needs an open intake.
 // 20261103 CL/SS SD-801 review 2: the flow-off warning has its own ref and is resolved once the cancellation is handled.
+// 20261104 CL/SS SD-801 review 3: an applied event leaves the other listed events of its row listed.
+// 20261104 CL/SS SD-801 review 3: status.unlinked is info when the legacy intake may have imported the order.
+// 20261104 CL/SS SD-801 review 3: a cancellation of an order not invoiced yet is recorded and listed at once.
+// 20261104 CL/SS SD-801 review 3: a cancellation before the import resolves the waiting rows of its order.
+// 20261104 CL/SS SD-801 review 3: a refund that comes while the orders flow is off is listed.
+// 20261104 CL/SS SD-801 review 4: only a status at least as new resolves a listed one. Listing rechecks the link under its lock.
+// 20261104 CL/SS SD-801 review 4: a cancellation locks its link before it asks for the credit note.
+// 20261104 CL/SS SD-801 review 4: only a fulfillment of a legacy order is info; a refund or cancellation asks for the credit note.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -52,26 +60,28 @@ final class ShopifyOrderLinkPending extends RuntimeException
 }
 
 /**
- * The link of the event's order with its Saldi order, when it has one (and $ready accepts it);
- * an open status.unlinked of the order and job type is resolved then. A link cancelled before
- * the import never gets an order: null at once, nothing listed, and an open status.unlinked is
- * resolved too, so the list does not depend on which came first. Else, within 48 hours of the
- * event's arrival, throws ShopifyOrderLinkPending so the job is deferred; after that it lists the
- * event once (status.unlinked, one row per job type and order) and returns null, and the event
- * is not applied. An order.status event is listed as info, since an unpaid order is never
- * imported; the others as warning.
+ * The link of the event's order with its Saldi order, when it has one; the event is then taken
+ * off an open status.unlinked of the order and job type (shopify_status_unlist()). A link
+ * cancelled before the import never gets an order: null at once, nothing listed, and an open
+ * status.unlinked is resolved too, so the list does not depend on which came first. Else, within
+ * 48 hours of the event's arrival, throws ShopifyOrderLinkPending so the job is deferred; after
+ * that it lists the event once (status.unlinked, one row per job type and order) and returns null,
+ * and the event is not applied. The row is info for an order.status event, since an unpaid order
+ * is never imported, and for a fulfillment of an order the legacy intake may have imported
+ * (shopify_status_legacy_may_have()); a warning otherwise, which for a refund or cancellation of
+ * such an order asks for the credit note if Saldi has the order invoiced.
  *
  * @param array{shop_id: int, event_row_id: int, topic: string} $event
- * @param callable(array<string, string|null>): bool|null $ready
+ * @param array<string, mixed> $body the event's body
  * @return array<string, string|null>|null the shopify_order_links row
  * @throws ShopifyOrderLinkPending
  */
-function shopify_require_order_link(array $event, string $orderGid, ?callable $ready = null): ?array {
+function shopify_require_order_link(array $event, string $orderGid, array $body): ?array {
 	$shopId = (int)$event['shop_id'];
 	$type = (string)shopify_event_job_type((string)$event['topic']);
 	$link = shopify_order_link($shopId, $orderGid);
-	if ($link !== null && $link['ordre_id'] !== null && ($ready === null || $ready($link))) {
-		shopify_error_resolve_key($shopId, 'status.unlinked', "$type:$orderGid");
+	if ($link !== null && $link['ordre_id'] !== null) {
+		shopify_status_unlist($event, "$type:$orderGid");
 		return $link;
 	}
 	if ($link !== null && $link['state'] === 'cancelled' && $link['ordre_id'] === null) {
@@ -79,16 +89,81 @@ function shopify_require_order_link(array $event, string $orderGid, ?callable $r
 		error_log("shopify_status skipped: $type event {$event['event_row_id']} of $orderGid, cancelled before it was imported");
 		return null;
 	}
-	$rows = shopify_db_rows('SELECT received_at <= now() - make_interval(hours => $2) AS expired FROM shopify_events WHERE id = $1',
-		array((int)$event['event_row_id'], SHOPIFY_STATUS_DEFER_HOURS));
-	if (($rows[0]['expired'] ?? 't') !== 't') {
+	if (!shopify_status_expired($event)) {
 		throw new ShopifyOrderLinkPending("order $orderGid has no Saldi order yet");
 	}
+	$slot = $type === 'order.status' ? null : shopify_status_legacy_may_have($shopId, shopify_status_order_created($event, $body, $orderGid));
 	$waited = $link === null ? 'no Saldi order' : "its link in state {$link['state']}" . ($link['ordre_id'] === null ? ' without an order' : '');
-	shopify_status_list_once($event, 'status.unlinked', "$type:$orderGid",
-		"$type event {$event['topic']} of order $orderGid waited " . SHOPIFY_STATUS_DEFER_HOURS . " hours and found $waited; it was not applied",
-		$type === 'order.status' ? 'info' : 'warning', array('order_gid' => $orderGid));
+	$message = "$type event {$event['topic']} of order $orderGid waited " . SHOPIFY_STATUS_DEFER_HOURS . " hours and found $waited; it was not applied";
+	if ($slot !== null) {
+		$message .= ". The shop's legacy integration (slot $slot) may have imported the order: "
+			. ($type === 'fulfillment.upsert' ? 'nothing to do if Saldi has it' : 'if Saldi has it invoiced, make a credit note (lav kreditnota)');
+	}
+	$severity = $type === 'order.status' || ($slot !== null && $type === 'fulfillment.upsert') ? 'info' : 'warning';
+	$listed = shopify_db_transaction(function () use ($event, $shopId, $orderGid, $type, $link, $message, $severity): bool {
+		// the lock a cancellation reserves the link under: a link it made meanwhile is seen here, else it waits and resolves this row
+		shopify_db_rows('SELECT pg_advisory_xact_lock(hashtext($1))', array("shopify_order_link:order:$shopId:$orderGid"));
+		$now = shopify_order_link($shopId, $orderGid);
+		if (array($now['id'] ?? null, $now['ordre_id'] ?? null, $now['state'] ?? null) !== array($link['id'] ?? null, $link['ordre_id'] ?? null, $link['state'] ?? null)) {
+			return false;
+		}
+		shopify_status_list_once($event, 'status.unlinked', "$type:$orderGid", $message, $severity, array('order_gid' => $orderGid));
+		return true;
+	});
+	if (!$listed) {
+		throw new ShopifyOrderLinkPending("the link of order $orderGid changed while its event was listed");
+	}
 	return null;
+}
+
+/** Whether the event arrived more than 48 hours ago, so it is no longer waited for. */
+function shopify_status_expired(array $event): bool {
+	$rows = shopify_db_rows('SELECT received_at <= now() - make_interval(hours => $2) AS expired FROM shopify_events WHERE id = $1',
+		array((int)$event['event_row_id'], SHOPIFY_STATUS_DEFER_HOURS));
+	return ($rows[0]['expired'] ?? 't') === 't';
+}
+
+/**
+ * Takes an applied event off the open status.unlinked of $ref, with the listed events that
+ * $superseded says the applied data replaces, and resolves the row once none of its listed events
+ * is left. The others are applied only by their own replay, so their row stays open until then.
+ *
+ * @param (callable(int): bool)|null $superseded given a listed event's row id
+ */
+function shopify_status_unlist(array $event, string $ref, ?callable $superseded = null): void {
+	$shopId = (int)$event['shop_id'];
+	$id = (int)$event['event_row_id'];
+	shopify_db_transaction(function () use ($shopId, $id, $ref, $superseded) {
+		$key = shopify_error_key($shopId, 'status.unlinked', $ref);
+		shopify_db_rows('SELECT pg_advisory_xact_lock(hashtext($1))', array("shopify_error:$key"));
+		$row = shopify_db_rows("SELECT id, correlation->'event_row_ids' AS ids FROM shopify_errors WHERE error_key = $1 AND resolved_at IS NULL", array($key))[0] ?? null;
+		if ($row === null) {
+			return;
+		}
+		$ids = json_decode((string)$row['ids'], true);
+		$ids = is_array($ids) ? $ids : array();
+		$left = array_values(array_filter($ids, fn($listed): bool => (int)$listed !== $id && ($superseded === null || !$superseded((int)$listed))));
+		if ($left === array()) {
+			shopify_error_resolve_key($shopId, 'status.unlinked', $ref);
+		} elseif (count($left) !== count($ids)) {
+			shopify_db_rows("UPDATE shopify_errors SET correlation = jsonb_set(correlation, '{event_row_ids}', $2::jsonb) WHERE id = $1",
+				array((int)$row['id'], json_encode($left)));
+		}
+	});
+}
+
+/**
+ * When the event's order was created: from the body of an order event, else from a stored order
+ * event of the same order (Shopify sends ORDERS_UPDATED with every fulfillment and refund). Null
+ * when neither has it.
+ */
+function shopify_status_order_created(array $event, array $body, string $orderGid): ?DateTimeImmutable {
+	if (strncmp((string)$event['topic'], 'ORDERS_', 7) !== 0) {
+		$rows = shopify_db_rows("SELECT e.payload_b64 FROM shopify_events e JOIN shopify_jobs j ON j.id = e.job_id
+			WHERE e.shop_id = $1 AND e.topic LIKE 'ORDERS\\_%' AND j.payload->>'order_gid' = $2 ORDER BY e.id LIMIT 1", array((int)$event['shop_id'], $orderGid));
+		$body = isset($rows[0]) ? json_decode((string)base64_decode((string)$rows[0]['payload_b64'], true), true) : null;
+	}
+	return is_array($body) ? shopify_event_time(shopify_status_text($body['created_at'] ?? null)) : null;
 }
 
 /**
@@ -275,7 +350,7 @@ function shopify_status_upsert_refund(int $shopId, string $orderGid, int $ordreI
  */
 function shopify_handle_fulfillment(array $event): void {
 	$loaded = shopify_status_load($event);
-	$link = $loaded['on'] ? shopify_require_order_link($event, $loaded['order_gid']) : null;
+	$link = $loaded['on'] ? shopify_require_order_link($event, $loaded['order_gid'], $loaded['body']) : null;
 	if ($link === null) {
 		return;
 	}
@@ -300,25 +375,40 @@ function shopify_handle_fulfillment(array $event): void {
  */
 function shopify_handle_order_updated(array $event): void {
 	$loaded = shopify_status_load($event);
-	$link = $loaded['on'] ? shopify_require_order_link($event, $loaded['order_gid']) : null;
+	$link = $loaded['on'] ? shopify_require_order_link($event, $loaded['order_gid'], $loaded['body']) : null;
 	if ($link === null) {
 		return;
 	}
-	$body = $loaded['body'];
-	$status = array('financial_status' => shopify_status_text($body['financial_status'] ?? null),
-		'fulfillment_status' => shopify_status_text($body['fulfillment_status'] ?? null), 'updated_at' => shopify_status_utc($body['updated_at'] ?? null));
-	shopify_db_transaction(function () use ($link, $status) {
+	$status = shopify_status_of($loaded['body']);
+	$stored = shopify_db_transaction(function () use ($link, $status): array {
 		$row = shopify_db_rows("SELECT flags->'status' AS status FROM shopify_order_links WHERE id = $1 FOR UPDATE", array((int)$link['id']));
 		$stored = json_decode((string)($row[0]['status'] ?? ''), true);
 		if (is_array($stored)) {
 			ksort($stored); // jsonb reorders the keys; $status is built in key order
 			if (!shopify_status_newer($status['updated_at'], shopify_status_json($status), $stored['updated_at'] ?? null, shopify_status_json($stored))) {
-				return;
+				return $stored;
 			}
 		}
 		shopify_db_rows('UPDATE shopify_order_links SET flags = flags || $2::jsonb, updated_at = now() WHERE id = $1',
 			array((int)$link['id'], shopify_link_json(array('status' => $status))));
+		return $status;
 	});
+	// a listed status no newer than the stored one is replaced by it
+	shopify_status_unlist($event, 'order.status:' . $loaded['order_gid'], function (int $listed) use ($stored): bool {
+		$rows = shopify_db_rows('SELECT payload_b64 FROM shopify_events WHERE id = $1', array($listed));
+		$body = isset($rows[0]) ? json_decode((string)base64_decode((string)$rows[0]['payload_b64'], true), true) : null;
+		if (!is_array($body)) {
+			return false;
+		}
+		$old = shopify_status_of($body);
+		return !shopify_status_newer($old['updated_at'], shopify_status_json($old), $stored['updated_at'] ?? null, shopify_status_json($stored));
+	});
+}
+
+/** What the link keeps of an order body under flags.status, in key order. */
+function shopify_status_of(array $body): array {
+	return array('financial_status' => shopify_status_text($body['financial_status'] ?? null),
+		'fulfillment_status' => shopify_status_text($body['fulfillment_status'] ?? null), 'updated_at' => shopify_status_utc($body['updated_at'] ?? null));
 }
 
 /**
@@ -347,13 +437,16 @@ function shopify_status_invoiced(array $link): bool {
  * imported gets a web link in state cancelled, so a later import finds it and does not create
  * the order; listed as info, or as a warning to look for the order when the legacy intake may
  * have imported it (shopify_status_legacy_may_have()). An imported order is waited for until it
- * is invoiced (as shopify_require_order_link() waits) and then opens 'lav kreditnota'
- * (status.credit_note) on the error list. With the orders flow off it is not applied and is
- * listed as a warning (ref <order gid>:flow_off), resolved once a later run handles the
- * cancellation (anything but a wait for the invoice). The credit note itself is WP14's; nothing is posted here.
+ * has its Saldi order (as shopify_require_order_link() waits). Then cancelled_at is set, and an
+ * invoiced order opens 'lav kreditnota' (status.credit_note) on the error list. An order not
+ * invoiced yet opens a warning at once not to ship or invoice it (status.cancelled), and the
+ * cancellation waits up to 48 hours for an invoice, which turns the warning into 'lav kreditnota'.
+ * With the orders flow off it is not applied and is listed as a warning (ref <order gid>:flow_off),
+ * resolved once a later run handles the cancellation (anything but a wait for the Saldi order).
+ * The credit note itself is WP14's; nothing is posted here.
  *
  * @param array{shop_id: int, event_row_id: int, topic: string} $event
- * @throws ShopifyOrderLinkPending while the imported order is not invoiced yet
+ * @throws ShopifyOrderLinkPending while the imported order has no Saldi order or is not invoiced yet
  */
 function shopify_handle_order_cancelled(array $event): void {
 	$loaded = shopify_status_load($event);
@@ -378,36 +471,66 @@ function shopify_handle_order_cancelled(array $event): void {
 					$message .= ". The shop has a legacy integration (slot $slot), whose intake may have imported it: look for the order in Saldi and make a credit note if it is invoiced (lav kreditnota)";
 				}
 				shopify_error_open($shopId, 'status.cancelled', $gid, $message, $slot === null ? 'info' : 'warning', $correlation);
+				foreach (array('fulfillment.upsert', 'order.status', 'refund.upsert') as $type) {
+					shopify_error_resolve_key($shopId, 'status.unlinked', "$type:$gid");
+				}
 			}
 		});
 	}
-	// a replay: a link cancelled before the import is not waited for, and cancelled_at keeps the row below to once
-	$link = shopify_require_order_link($event, $gid, 'shopify_status_invoiced');
+	// a replay: a link cancelled before the import is not waited for
+	$link = shopify_require_order_link($event, $gid, $loaded['body']);
 	shopify_error_resolve_key($shopId, 'status.cancelled', "$gid:flow_off");
 	if ($link === null) {
 		return;
 	}
-	shopify_db_transaction(function () use ($shopId, $gid, $name, $at, $link, $correlation) {
-		if (shopify_db_rows('UPDATE shopify_order_links SET cancelled_at = $2, updated_at = now() WHERE id = $1 AND cancelled_at IS NULL RETURNING id', array((int)$link['id'], $at)) === array()) {
-			return;
+	$invoiced = shopify_db_transaction(function () use ($shopId, $gid, $name, $at, $link, $correlation): bool {
+		$first = shopify_db_rows('SELECT cancelled_at FROM shopify_order_links WHERE id = $1 FOR UPDATE', array((int)$link['id']))[0]['cancelled_at'] === null;
+		if ($first) {
+			shopify_db_rows('UPDATE shopify_order_links SET cancelled_at = $2, updated_at = now() WHERE id = $1', array((int)$link['id'], $at));
 		}
 		$ordrenr = shopify_db_rows('SELECT ordrenr FROM ordrer WHERE id = $1', array((int)$link['ordre_id']))[0]['ordrenr'] ?? $link['ordre_id'];
-		shopify_error_open($shopId, 'status.credit_note', $gid, "Shopify order $name was cancelled on " . $at->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i')
-			. "; Saldi order $ordrenr is invoiced: lav kreditnota (make a credit note for it in Saldi)", 'error', $correlation + array('ordre_id' => (int)$link['ordre_id']));
+		$when = $at->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i');
+		$correlation += array('ordre_id' => (int)$link['ordre_id']);
+		if (!shopify_status_invoiced($link)) {
+			if ($first) {
+				shopify_error_open($shopId, 'status.cancelled', $gid, "Shopify order $name was cancelled on $when; Saldi order $ordrenr is not invoiced:"
+					. ' do not ship or invoice it, and make a credit note (lav kreditnota) if it is invoiced after all', 'warning', $correlation);
+			}
+			return false;
+		}
+		if (shopify_db_rows('SELECT 1 FROM shopify_errors WHERE error_key = $1', array(shopify_error_key($shopId, 'status.credit_note', $gid))) === array()) {
+			shopify_error_open($shopId, 'status.credit_note', $gid, "Shopify order $name was cancelled on $when"
+				. "; Saldi order $ordrenr is invoiced: lav kreditnota (make a credit note for it in Saldi)", 'error', $correlation);
+		}
+		shopify_error_resolve_key($shopId, 'status.cancelled', $gid);
+		return true;
 	});
+	if (!$invoiced && !shopify_status_expired($event)) {
+		throw new ShopifyOrderLinkPending("Saldi order {$link['ordre_id']} of $gid is not invoiced yet");
+	}
 }
 
 /**
- * Applies a REFUNDS_CREATE event: the refund projection for WP14. Matching it to a credit note is WP14's.
+ * Applies a REFUNDS_CREATE event: the refund projection for WP14. Matching it to a credit note is
+ * WP14's. With the orders flow off it is not stored and is listed as a warning (ref <refund
+ * gid>:flow_off), resolved once a later run handles the refund.
  *
  * @param array{shop_id: int, event_row_id: int, topic: string} $event
  * @throws ShopifyOrderLinkPending while the order has no Saldi order
  */
 function shopify_handle_refund(array $event): void {
 	$loaded = shopify_status_load($event);
-	$link = $loaded['on'] ? shopify_require_order_link($event, $loaded['order_gid']) : null;
+	$shopId = (int)$event['shop_id'];
+	$refundGid = shopify_gid((string)($loaded['body']['admin_graphql_api_id'] ?? $loaded['body']['id'] ?? ''), 'Refund');
+	if (!$loaded['on']) {
+		shopify_status_list_once($event, 'status.refund', "$refundGid:flow_off", "Shopify refund $refundGid of order {$loaded['order_gid']} came while the orders flow of the shop"
+			. ' is off and was not stored: replay its event once the flow is on', 'warning', array('order_gid' => $loaded['order_gid']));
+		return;
+	}
+	$link = shopify_require_order_link($event, $loaded['order_gid'], $loaded['body']);
+	shopify_error_resolve_key($shopId, 'status.refund', "$refundGid:flow_off");
 	if ($link !== null) {
-		shopify_status_upsert_refund((int)$event['shop_id'], (string)$link['order_gid'], (int)$link['ordre_id'], $loaded['body']);
+		shopify_status_upsert_refund($shopId, (string)$link['order_gid'], (int)$link['ordre_id'], $loaded['body']);
 	}
 }
 

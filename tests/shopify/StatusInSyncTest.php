@@ -12,6 +12,9 @@
 // 20261103 CL/SS SD-801: created.
 // 20261103 CL/SS SD-801 review: listed once and resolved; cancelled links, legacy shops and flow off.
 // 20261103 CL/SS SD-801 review 2: a cancelled link resolves; a cut-over legacy shop; the flow-off ref, resolved once applied.
+// 20261104 CL/SS SD-801 review 3: another event leaves a listed one listed; legacy orders are info; a cancellation not invoiced is listed at once.
+// 20261104 CL/SS SD-801 review 3: a cancellation before the import resolves the waiting rows; a refund with the flow off is listed.
+// 20261104 CL/SS SD-801 review 4: an older status leaves a newer listed one listed; a legacy order's refund still asks for the credit note.
 
 use PHPUnit\Framework\TestCase;
 
@@ -261,6 +264,7 @@ final class StatusInSyncTest extends TestCase
             $end[] = json_decode($this->sql("SELECT flags->'status' AS s FROM shopify_order_links")[0]['s'], true)['financial_status'];
         }
         $this->assertSame($end[0], $end[1], 'K41: a tie on updated_at is broken the same way whichever came first');
+        $this->assertSame('partially_refunded', $end[0], 'the greater body wins the tie');
     }
 
     public function testAnOrdersFulfilledBodyProjectsEachOfItsFulfillments(): void
@@ -294,18 +298,25 @@ final class StatusInSyncTest extends TestCase
         $this->assertSame($ordreId, (int)$this->sql('SELECT ordre_id FROM shopify_order_links')[0]['ordre_id']);
     }
 
-    public function testACancellationWaitsForTheImportToInvoiceTheOrder(): void
+    public function testACancellationNotInvoicedYetIsListedAtOnceAndAsksForTheCreditNoteOnceInvoiced(): void
     {
         $ordreId = $this->importOrder(2, 'created');
         $this->deliver('ORDERS_CANCELLED', self::body('orders_cancelled.json'));
         $run = $this->pass();
-        $this->assertSame(1, $run['yielded']);
-        $this->assertSame([], $this->errors());
+        $this->assertSame(1, $run['yielded'], 'it still waits for an invoice');
+        $errors = $this->errors();
+        $this->assertSame([['status.cancelled', self::ORDER_GID, 'warning']], array_map(fn(array $e): array => [$e['kind'], $e['ref'], $e['severity']], $errors));
+        $this->assertStringContainsString('Saldi order 80101 is not invoiced: do not ship or invoice it', $errors[0]['message']);
+        $this->assertNotNull($this->sql('SELECT cancelled_at FROM shopify_order_links')[0]['cancelled_at'], 'the order shows as cancelled at once');
+
+        $this->sql("UPDATE shopify_jobs SET next_run_at = now() WHERE state = 'queued'");
+        $this->assertSame(1, $this->pass()['yielded']);
+        $this->assertSame(['1'], array_column($this->errors(), 'occurrences'), 'a later run does not list it again');
 
         $this->sql('UPDATE ordrer SET status = 3 WHERE id = $1', [$ordreId]);
         $this->sql("UPDATE shopify_jobs SET next_run_at = now() WHERE state = 'queued'");
         $this->pass();
-        $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'), 'invoiced meanwhile (status 3, link still created): lav kreditnota');
+        $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'), 'invoiced meanwhile (status 3, link still created): lav kreditnota replaces the warning');
     }
 
     public function testACancellationBeforeTheImportIsRecordedOnALinkWithoutAnOrder(): void
@@ -373,10 +384,15 @@ final class StatusInSyncTest extends TestCase
         $this->assertSame('1', $this->sql("SELECT count(*) AS n FROM shopify_jobs WHERE type = 'mail.alert'")[0]['n'], 'and mails nothing, also past the hourly throttle');
 
         $this->importOrder();
-        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL WHERE topic = 'FULFILLMENTS_CREATE'");
+        $this->pass();
+        $this->assertSame([$this->sql("SELECT id FROM shopify_events WHERE topic = 'FULFILLMENTS_UPDATE'")[0]['id']],
+            array_map('strval', json_decode($this->sql("SELECT correlation->'event_row_ids' AS ids FROM shopify_errors WHERE resolved_at IS NULL")[0]['ids'], true)),
+            'the replayed event is taken off the row; the other is still listed');
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL WHERE topic = 'FULFILLMENTS_UPDATE'");
         $this->pass();
         $this->assertSame(['00370730253779425598'], array_column($this->fulfillments(), 'tracking_number'), 'the replay applies once the order is there');
-        $this->assertSame([], $this->errors(), 'and resolves the listed row');
+        $this->assertSame([], $this->errors(), 'and the last one resolves the listed row');
     }
 
     public function testEventsOfAnOrderCancelledBeforeTheImportAreNotWaitedFor(): void
@@ -464,21 +480,123 @@ final class StatusInSyncTest extends TestCase
         $this->assertNull($this->sql('SELECT cancelled_at FROM shopify_order_links')[0]['cancelled_at']);
     }
 
-    public function testACancellationNotInvoicedWithin48HoursIsListedAndAppliedOnceInvoiced(): void
+    public function testACancellationNotInvoicedWithin48HoursKeepsItsWarningAndIsAppliedOnceInvoiced(): void
     {
         $ordreId = $this->importOrder(2, 'created');
         $this->deliver('ORDERS_CANCELLED', self::body('orders_cancelled.json'), 49);
-        $this->pass();
+        $run = $this->pass();
 
-        $errors = $this->errors();
-        $this->assertSame([['status.unlinked', 'order.cancelled:' . self::ORDER_GID, 'warning']], array_map(fn(array $e): array => [$e['kind'], $e['ref'], $e['severity']], $errors));
-        $this->assertStringContainsString('its link in state created', $errors[0]['message']);
-        $this->assertNull($this->sql('SELECT cancelled_at FROM shopify_order_links')[0]['cancelled_at']);
+        $this->assertSame([1, 0], [$run['done'], $run['yielded']]);
+        $this->assertSame([['status.cancelled', self::ORDER_GID, 'warning']], array_map(fn(array $e): array => [$e['kind'], $e['ref'], $e['severity']], $this->errors()),
+            'the "do not ship or invoice" warning, not a status.unlinked');
+        $this->assertNotNull($this->sql('SELECT cancelled_at FROM shopify_order_links')[0]['cancelled_at']);
 
         $this->sql('UPDATE ordrer SET status = 3 WHERE id = $1', [$ordreId]);
         $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
         $this->pass();
-        $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'), 'the replay after the invoice asks for the credit note and resolves the waiting row');
+        $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'), 'the replay after the invoice asks for the credit note and resolves the warning');
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
+        $this->pass();
+        $this->assertSame(['1'], array_column($this->errors(), 'occurrences'), 'once');
+    }
+
+    public function testAnotherEventOfTheOrderLeavesAListedEventListed(): void
+    {
+        $r1 = $this->deliver('REFUNDS_CREATE', self::body('refunds_create.json'), 49);
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json'), 49);
+        $this->pass();
+        $this->assertSame(['order.status:' . self::ORDER_GID, 'refund.upsert:' . self::ORDER_GID], array_column($this->errors(), 'ref'));
+
+        $this->importOrder();
+        $this->deliver('REFUNDS_CREATE', self::body('refunds_create.json', ['id' => 1009876543299, 'admin_graphql_api_id' => 'gid://shopify/Refund/1009876543299']));
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['updated_at' => '2026-11-02T15:00:00+01:00']));
+        $this->pass();
+        $this->assertSame(['gid://shopify/Refund/1009876543299'], array_column($this->sql('SELECT refund_gid FROM shopify_refunds'), 'refund_gid'));
+        $this->assertSame([['refund.upsert:' . self::ORDER_GID, [$r1]]],
+            array_map(fn(array $e): array => [$e['ref'], json_decode($e['ids'], true)], $this->sql("SELECT ref, correlation->'event_row_ids' AS ids FROM shopify_errors WHERE resolved_at IS NULL")),
+            'the listed refund stays listed; a newer order status replaces the listed one');
+
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL WHERE id = $1", [$r1]);
+        $this->pass();
+        $this->assertCount(2, $this->sql('SELECT refund_gid FROM shopify_refunds'));
+        $this->assertSame([], $this->errors(), 'its replay applies it and resolves the row');
+    }
+
+    public function testAnOlderOrderStatusLeavesANewerListedOneListed(): void
+    {
+        $newer = $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'refunded', 'updated_at' => '2026-11-02T16:00:00+01:00']), 49);
+        $this->pass();
+        $this->importOrder();
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json'));
+        $this->pass();
+        $this->assertSame(['order.status:' . self::ORDER_GID], array_column($this->errors(), 'ref'), 'the older paid status does not replace the listed refunded one');
+
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL WHERE id = $1", [$newer]);
+        $this->pass();
+        $this->assertSame('refunded', json_decode($this->sql("SELECT flags->'status' AS s FROM shopify_order_links")[0]['s'], true)['financial_status']);
+        $this->assertSame([], $this->errors());
+    }
+
+    public function testAnUnlinkedEventOfAnOrderTheLegacyIntakeMayHaveIsInfo(): void
+    {
+        $listed = function (?string $goLive, bool $intakeOpen, bool $orderEvent, string $topic = 'FULFILLMENTS_CREATE'): array {
+            $this->reset();
+            $this->sql('UPDATE shopify_shops SET legacy_slot = 4, go_live_at = $1', [$goLive]);
+            if (!$intakeOpen) {
+                $this->sql("INSERT INTO settings (var_grp, var_name, var_value) VALUES ('shopify_legacy:4', 'intake_enabled', '0')");
+            }
+            if ($orderEvent) {
+                $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json'));
+            }
+            $this->deliver($topic, self::body(strtolower($topic) . '.json'), 49);
+            $this->pass();
+            return $this->sql("SELECT severity, message FROM shopify_errors WHERE kind = 'status.unlinked' AND ref NOT LIKE 'order.status:%'")[0];
+        };
+
+        $legacy = $listed('2026-11-02 12:00:00', false, true);
+        $this->assertSame('info', $legacy['severity'], 'created 09:12, before go-live (from its ORDERS_UPDATED)');
+        $this->assertStringContainsString("legacy integration (slot 4) may have imported the order: nothing to do if Saldi has it", $legacy['message']);
+        $this->assertSame('info', $listed(null, true, false)['severity'], 'the legacy intake is still open');
+        $this->assertSame('warning', $listed('2026-11-01 12:00:00', false, true)['severity'], 'created after go-live: only the Shopify import could have it');
+        $this->assertSame('warning', $listed('2026-11-02 12:00:00', false, false)['severity'], 'no order event to date it');
+        $refund = $listed('2026-11-02 12:00:00', false, true, 'REFUNDS_CREATE');
+        $this->assertSame('warning', $refund['severity'], 'money went back: a refund of a legacy order still mails');
+        $this->assertStringContainsString('may have imported the order: if Saldi has it invoiced, make a credit note (lav kreditnota)', $refund['message']);
+    }
+
+    public function testACancellationBeforeTheImportResolvesTheWaitingRowsOfItsOrder(): void
+    {
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json'), 49);
+        $this->deliver('FULFILLMENTS_CREATE', self::body('fulfillments_create.json'), 49);
+        $this->pass();
+        $this->assertSame(['fulfillment.upsert:' . self::ORDER_GID, 'order.status:' . self::ORDER_GID], array_column($this->errors(), 'ref'));
+
+        $this->deliver('ORDERS_CANCELLED', self::body('orders_cancelled.json'));
+        $this->pass();
+        $this->assertSame([['status.cancelled', self::ORDER_GID]], array_map(fn(array $e): array => [$e['kind'], $e['ref']], $this->errors()), 'without a replay of the listed events');
+    }
+
+    public function testARefundWhileTheOrdersFlowIsOffIsListedOnceAndResolvedWhenStored(): void
+    {
+        $this->importOrder();
+        $this->deliver('REFUNDS_CREATE', self::body('refunds_create.json'));
+        $this->steps(['promote']);
+        $this->sql('UPDATE shopify_shops SET orders_enabled = false');
+        $this->steps(['work']);
+        $this->sql("UPDATE shopify_jobs SET state = 'queued', next_run_at = now(), finished_at = NULL WHERE type = 'refund.upsert'");
+        $this->steps(['work']);
+
+        $errors = $this->errors();
+        $this->assertSame([['status.refund', 'gid://shopify/Refund/1009876543210:flow_off', 'warning', '1']],
+            array_map(fn(array $e): array => [$e['kind'], $e['ref'], $e['severity'], $e['occurrences']], $errors));
+        $this->assertStringContainsString('orders flow of the shop is off and was not stored', $errors[0]['message']);
+        $this->assertSame([], $this->sql('SELECT * FROM shopify_refunds'));
+
+        $this->sql('UPDATE shopify_shops SET orders_enabled = true');
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
+        $this->pass();
+        $this->assertCount(1, $this->sql('SELECT * FROM shopify_refunds'));
+        $this->assertSame([], $this->errors(), 'the replay stores it and resolves the warning');
     }
 
     public function testAnEventOfAShopWhoseOrdersFlowWentOffIsSkipped(): void
@@ -523,6 +641,7 @@ final class StatusInSyncTest extends TestCase
 
         $this->assertSame(['hml', self::ORDER_GID, '#1042', 'web', 'invoiced', null], [$model['shop_key'], $model['order_gid'], $model['order_name'], $model['direction'], $model['state'], $model['cancelled_at']]);
         $this->assertSame(['paid', 'fulfilled'], [$model['status']['financial_status'], $model['status']['fulfillment_status']]);
+        $this->assertArrayNotHasKey('flags', $model, 'only the status namespace, not the intake or writeback internals');
         $this->assertSame([['gid://shopify/Fulfillment/5374851219514', 'PostNord', '00370730253779425598', 'in_transit'], ['gid://shopify/Fulfillment/5374851200001', 'GLS', 'GLS1', null]],
             array_map(fn(array $f): array => [$f['fulfillment_gid'], $f['tracking_company'], $f['tracking_number'], $f['shipment_status']], $model['fulfillments']), 'newest first; the first of a tracking list');
         $this->assertNull($model['fulfillments'][1]['tracking_url']);
