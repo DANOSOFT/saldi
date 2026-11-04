@@ -11,6 +11,7 @@
 //
 // History:
 // 20261030 LOE MB-62: moved out of tests/test_readonly_menu.php, which phpunit.xml never ran.
+// 20261104 LOE MB-62: the card's happy-hour and varenr-alias links are checked too.
 
 /**
  * Read the MB-62 rules out of the pages and the stylesheets.
@@ -149,6 +150,35 @@ function readonly_menu_checks(): array
 	$topLine = $source('/lager/lister/topLineVarer.php');
 	$check(preg_match('/\$valg == "Vareliste" && substr\(\(string\)\(\$rettigheder \?\? \'\'\), 9, 1\) !== \'2\'/', $topLine) === 1,
 		'and the goods-list top line withholds Ny from a read-only user');
+
+	# ---- the card offers no link to a write screen the PR refuses -------------------------------
+	# Two of them sit on the item card itself: the happy-hour screen (draws in a card include) and the
+	# varenr-alias editor (an inline link). Both refuse a read-only Items user now, so both are gated.
+	$discounts = $source('/lager/productCardIncludes/showDiscounts.php');
+	$check(strpos($discounts, 'if ($noEdit) {') !== false
+		&& strpos($discounts, 'if ($noEdit) {') < strpos($discounts, 'happyhour.php?vare_id'),
+		'the card links to the happy-hour screen only for a user who may edit');
+
+	$happyhour = $source('/lager/happyhour.php');
+	$happyHourRefusal = strpos($happyhour, 'MB-62: happy hour change refused');
+	$happyHourWrite = strpos($happyhour, 'insert into varetilbud');
+	$check($happyHourRefusal !== false, 'the happy-hour screen refuses a read-only user');
+	$check($happyHourRefusal !== false && $happyHourWrite !== false && $happyHourRefusal < $happyHourWrite,
+		'and refuses before it inserts, updates or deletes a varetilbud row');
+	$check(strpos($happyhour, "\$_SERVER['REQUEST_METHOD'] === 'POST'") !== false
+		&& $happyHourRefusal !== false
+		&& strpos($happyhour, "\$_SERVER['REQUEST_METHOD'] === 'POST'") < $happyHourRefusal,
+		'only on the save, so a read-only user still sees the prices');
+	$check(strpos($happyhour, "substr(\$rettigheder, 9, 1) === '2'") !== false
+		&& strpos($happyhour, "substr(\$rettigheder, 9, 1) < '1'") !== false,
+		'and names read-only (2) and a right below 1');
+
+	$cardSource = implode("\n", $cardLines);
+	// The href appears in the two card links only; each one is printed from the false arm of a
+	// ($noEdit) ? ternary, and the un-gated count is what a regression would change.
+	$check(substr_count($cardSource, 'href=\'ret_varenralias.php') === 2
+		&& substr_count($cardSource, '($noEdit) ?') === 3,
+		'both varenr-alias links, with the item-number one above them, are gated on $noEdit');
 
 	return array($checks, $failures);
 }

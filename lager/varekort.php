@@ -133,6 +133,7 @@
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
 // 20261030 LOE MB-62 A read-only user is offered only the buttons that read, not the ones that write.
 //              The Ny control in either header layout is not offered either: it opens the blank card the page refuses.
+//              Nor are the happy-hour and varenr-alias links, which lead to pages that now refuse the same user.
 //
 ob_start(); //Starts output buffering
 
@@ -1721,9 +1722,13 @@ if (substr($rettigheder,7,1) && $id) {
     print "<tr><td colspan=\"1\"></td>\n";
     print "<td colspan=\"1\" align=\"center\"><b>".findtekst('917|Varenr.', $sprog_id).": <a href=\"$href\">$varenr</a></b>";
     if($varenrAlias) { 
-        print "<b style='margin-left: 1rem;'>Varenr alias: <a href='ret_varenralias.php?id=$id' >$varenrAlias</a></b></td>";
+        // MB-62 a read-only Items user sees the alias as text: ret_varenralias.php refuses the edit.
+        print "<b style='margin-left: 1rem;'>Varenr alias: ";
+        print ($noEdit) ? $varenrAlias : "<a href='ret_varenralias.php?id=$id' >$varenrAlias</a>";
+        print "</b></td>";
     }else{
-        print "<a href='ret_varenralias.php?id=$id' style='margin-left: 1rem;'><b>Tilføj varenr alias</b></a></td>";
+        print ($noEdit) ? "" : "<a href='ret_varenralias.php?id=$id' style='margin-left: 1rem;'><b>Tilføj varenr alias</b></a>";
+        print "</td>";
     }
     $query = db_select("select * from vare_lev where vare_id='$id'", __FILE__ . " linje " . __LINE__);
     if (db_fetch_array($query)) {

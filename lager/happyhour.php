@@ -1,5 +1,5 @@
 <?php
-// ------------- lager/happyhour.php ---------- ver 3.6.1----2016.01.06-------
+// ------------- lager/happyhour.php ---------- ver 5.1.0 --- 2026-11-04 ---
 // LICENS
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
@@ -17,8 +17,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261104 LOE MB-62 A read-only Items user may look at a product's happy-hour prices but not save them.
 @session_start();
 $s_id = session_id();
 
@@ -29,6 +30,18 @@ $css = "../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+
+// MB-62 a read-only Items user may not write happy-hour prices: the form below inserts, updates and
+// deletes varetilbud rows, and $modulnr alone lets that right into the page. The view stays open.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $rettigheder !== ''
+		&& (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1')) {
+	error_log('MB-62: happy hour change refused for user ' . $brugernavn . ' (Items right ' . substr($rettigheder, 9, 1) . ')');
+	print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varekortet'";
+	print " href='varekort.php?id=" . (int) if_isset($_GET['vare_id']) . "'";
+	print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+		. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+	exit;
+}
 
 $submit = if_isset($_POST['submit']);
 $vare_id = if_isset($_GET['vare_id']);
