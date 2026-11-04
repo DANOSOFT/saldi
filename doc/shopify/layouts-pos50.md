@@ -21,8 +21,8 @@ is safe to run again:
 
     psql -h localhost -U <user> pos_50 -c "SELECT setval(s.seq::regclass, greatest(coalesce(pg_sequence_last_value(s.seq::regclass), 1), (SELECT coalesce(max(id), 1) FROM formularer))) FROM (SELECT coalesce(pg_get_serial_sequence('formularer', 'id'), substring(column_default from 'nextval[(]''([^'']+)''')) AS seq FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'formularer' AND column_name = 'id') s WHERE s.seq IS NOT NULL"
 
-It prints one number, the sequence's new value. No row means the sequence wasn't found: ask before
-adding fields.
+It prints one row with the sequence's new value. `(0 rows)` means the sequence wasn't found: ask
+before adding fields.
 
 ## 2. One layout per brand (K36b)
 
