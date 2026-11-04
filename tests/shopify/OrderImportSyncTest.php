@@ -10,6 +10,7 @@
 // History:
 // 20261103 CL/SS SD-743: created.
 // 20261104 CL/SS SD-743 review: an order cancelled before its import (link without an order) is not imported.
+// 20261104 CL/SS SD-743: the fixture builds its own groups and chart, so it passes on a fresh tenant (CI) as on an old one.
 
 use PHPUnit\Framework\TestCase;
 
@@ -76,7 +77,7 @@ final class OrderImportSyncTest extends TestCase
         $this->sql("DELETE FROM styklister WHERE indgaar_i IN (SELECT id FROM varer WHERE varenr LIKE 'SD743%')");
         $this->sql("DELETE FROM varer WHERE varenr LIKE 'SD743%'");
 
-        // one open fiscal year covering today, with the template's groups and chart of its last year
+        // one open fiscal year covering today with its own groups and chart, so a fresh tenant (admin/opret.php, as in CI) does as well as an old one
         $this->sql("UPDATE grupper SET box10 = 'on' WHERE art = 'RA'");
         $old = $this->sql("SELECT kodenr FROM grupper WHERE art = 'RA' AND beskrivelse = 'SD743'");
         foreach ($old as $o) {
@@ -84,23 +85,23 @@ final class OrderImportSyncTest extends TestCase
             $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = $1', [(int)$o['kodenr']]);
         }
         $this->sql("DELETE FROM grupper WHERE art = 'RA' AND beskrivelse = 'SD743'");
-        $from = (int)$this->sql("SELECT max(kodenr::int) AS k FROM grupper WHERE art = 'RA'")[0]['k'];
-        $this->year = $from + 1;
+        $this->year = (int)$this->sql("SELECT COALESCE(max(kodenr::int), 0) + 1 AS k FROM grupper WHERE art = 'RA'")[0]['k'];
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, box3, box4, box5) VALUES ('SD743', $1, 'RA', '01', $2, '12', $2, 'on')",
             [(string)$this->year, date('Y')]);
-        $cols = implode(', ', array_column($this->sql("SELECT column_name FROM information_schema.columns WHERE table_name = 'grupper'
-            AND column_name NOT IN ('id', 'fiscal_year') ORDER BY ordinal_position"), 'column_name'));
-        $this->sql("INSERT INTO grupper ($cols, fiscal_year) SELECT $cols, $1 FROM grupper WHERE fiscal_year = $2", [$this->year, $from]);
-        $cols = implode(', ', array_column($this->sql("SELECT column_name FROM information_schema.columns WHERE table_name = 'kontoplan'
-            AND column_name NOT IN ('id', 'regnskabsaar') ORDER BY ordinal_position"), 'column_name'));
-        $this->sql("INSERT INTO kontoplan ($cols, regnskabsaar) SELECT $cols, $1 FROM kontoplan WHERE regnskabsaar = $2", [$this->year, $from]);
+        // stock items at 25 % (12), VAT-free freight (4) and VAT-free stock items (9747); VAT code S1; the debtor group
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box3, box4, box7, box8) VALUES ('SD743 Lagervare', '12', 'VG', $1, '1100', '1100', '', 'on'),
+            ('SD743 Fragt', '4', 'VG', $1, '2300', '1300', 'on', ''), ('SD743 Momsfri', '9747', 'VG', $1, '1100', '1100', 'on', 'on')", [$this->year]);
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, kode, art, fiscal_year, box1, box2, box3, box4) VALUES ('SD743 Salgsmoms', '1', 'S', 'SM', $1, '66100', '25', '', ''),
+            ('SD743 Debitorer', '1', 'D', 'DG', $1, 'S1', '56100', 'DKK', 'Dansk')", [$this->year]);
+        $this->sql("INSERT INTO kontoplan (kontonr, beskrivelse, kontotype, moms, fra_kto, lukket, regnskabsaar) VALUES (1100, 'SD743 Varesalg', 'D', 'S1', 0, '', $1),
+            (1300, 'SD743 Fragt ydet', 'D', 'S1', 0, '', $1), (2300, 'SD743 Fragt modtaget', 'D', '', 0, '', $1), (7950, 'SD743 Kassedifferencer', 'D', '', 0, '', $1),
+            (56100, 'SD743 Debitorer', 'S', '', 0, '', $1), (58050, 'SD743 Kort', 'S', '', 0, '', $1), (58200, 'SD743 Kasse', 'S', '', 0, '', $1),
+            (66100, 'SD743 Salgsmoms', 'S', '', 0, '', $1)", [$this->year]);
         // the web kasse is kasse 3: cash account, VAT code and the card type Kort with its account; other cards on 58050
-        $this->sql("UPDATE grupper SET box1 = '3', box2 = $2, box5 = 'Kort', box6 = '58050', box7 = $3 WHERE art = 'POS' AND kodenr = '1' AND fiscal_year = $1",
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box1, box2, box5, box6, box7) VALUES ('SD743 POS', '1', 'POS', $1, '3', $2, 'Kort', '58050', $3)",
             [$this->year, "58200\t58200\t58200", "S1\tS1\tS1"]);
-        $this->sql("UPDATE grupper SET box6 = '58050', box9 = $2 WHERE art = 'POS' AND kodenr = '2' AND fiscal_year = $1", [$this->year, "7950\t7950\t7950"]);
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box6, box9) VALUES ('SD743 POS', '2', 'POS', $1, '58050', $2)", [$this->year, "7950\t7950\t7950"]);
         $this->sql("UPDATE grupper SET box5 = 'on;on', box10 = '58050' WHERE art = 'DIV' AND kodenr = '3'");
-        $this->sql("DELETE FROM grupper WHERE art = 'VG' AND kodenr = '9747'");
-        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box3, box4, box7, box8) VALUES ('SD743 Momsfri', '9747', 'VG', $1, '1100', '1100', 'on', 'on')", [$this->year]);
 
         $this->sql("INSERT INTO shopify_shops (shop_key, domain, is_primary, orders_enabled, afd, web_kasse, default_freight_vare_id)
             VALUES ('hml', 'hml-test.myshopify.com', true, true, 5, '3', NULL)");
