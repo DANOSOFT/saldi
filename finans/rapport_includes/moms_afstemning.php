@@ -105,12 +105,7 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         $tolerance = isset($_SESSION['moms_afstemning_tolerance']) ? (float)$_SESSION['moms_afstemning_tolerance'] : 0;
     }
 
-    $konto_filter = '';
-    if ($konto_fra && $konto_til && $konto_fra != $konto_til) {
-        $konto_filter = "AND kp.kontonr >= '$konto_fra' AND kp.kontonr <= '$konto_til' ";
-    } elseif ($konto_fra) {
-        $konto_filter = "AND kp.kontonr = '$konto_fra' ";
-    }
+    $konto_filter = kontoRangeSqlFragment($konto_fra, $konto_til, 'kp.');
 
     $csvfile = "../temp/$db/moms_afstemning.csv";
     $csv     = fopen($csvfile, "w");

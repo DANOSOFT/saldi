@@ -182,4 +182,30 @@ final class DimensionSqlFragmentTest extends TestCase
         self::assertSame("and afd = 936 and lower(projekt) >= 'a' and lower(projekt) <= 'z' ",
             dimensionSqlFragment('936', null, null, null, 'A', 'Z'));
     }
+
+    public function testTheAccountRangeCastsBothBounds(): void
+    {
+        self::assertSame('and kontonr >= 58999 and kontonr <= 58999 ', kontoRangeSqlFragment('58999', '58999'));
+        self::assertSame('and t.kontonr >= 50000 and t.kontonr <= 60000 ',
+            kontoRangeSqlFragment('50000', '60000', 't.'));
+        self::assertSame('and kontonr >= 58999 ', kontoRangeSqlFragment('58999', ''));
+        self::assertSame('and kontonr <= 58999 ', kontoRangeSqlFragment(null, '58999'));
+    }
+
+    public function testAnEmptyAccountBoundIsLeftOut(): void
+    {
+        // An empty bound means "no limit". Comparing it with a sentinel is what fails: kontonr is an
+        // integer column, so a value above every account number cannot be written into the query.
+        self::assertSame('', kontoRangeSqlFragment('', ''));
+        self::assertSame('', kontoRangeSqlFragment(null, null));
+        self::assertStringNotContainsString('9223372036854775807', kontoRangeSqlFragment('', '58999'));
+        self::assertStringNotContainsString('9223372036854775807', kontoRangeSqlFragment('58999', ''));
+    }
+
+    public function testAnAccountBoundThatIsNotAWholeNumberMatchesNothing(): void
+    {
+        self::assertSame('and 1 = 0 ', kontoRangeSqlFragment('abc', '58999'));
+        self::assertSame('and 1 = 0 ', kontoRangeSqlFragment('58999', '3.5'));
+        self::assertSame('and 1 = 0 ', kontoRangeSqlFragment('?', '58999'), 'a bound that arrived as an array');
+    }
 }

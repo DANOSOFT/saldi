@@ -44,6 +44,7 @@
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 //                 kontokort_moms() includes its files via __DIR__ (no behaviour change).
 // 20261103 LOE SST-936 Use dimensionSqlFragment() for the department, employee and project filters.
+//              The account range is cast here as well, like Kontokort.
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 0) {
 	print <<<'HTML'
@@ -99,8 +100,11 @@ HTML;
 	$aar_fra=trim($aar_fra);
 	$aar_til=trim($aar_til);
 
-	$konto_fra=trim($konto_fra);
-	$konto_til=trim($konto_til);
+	// A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+	$konto_fra=($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+	$konto_til=($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
+	$kontoSql=kontoRangeSqlFragment($konto_fra, $konto_til);
 	
 	$mf=$maaned_fra;
 	$mt=$maaned_til;
@@ -278,7 +282,7 @@ print "</table>";
 	}
 
 	$x=0;$kontonr=array();
-	$qtxt="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
+	$qtxt="select * from kontoplan where regnskabsaar='$regnaar' " . $kontoSql . "order by kontonr";
 	$q= db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
 		if (!in_array($row['kontonr'],$kontonr) && (trim($row['moms']) || $simulering || $row['kontotype'] == 'S')) {

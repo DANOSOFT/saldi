@@ -129,18 +129,11 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
 	$konto_fra = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
 	$konto_til = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
-	// An empty bound means no limit; a bound that is not a number cannot match an account, so it
-	// closes the range instead of being cast to 0, which would widen the report.
-	if ($konto_fra === '') {
-		$konto_fraSql = 0;
-	} else {
-		$konto_fraSql = preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX;
-	}
-	if ($konto_til === '') {
-		$konto_tilSql = PHP_INT_MAX;
-	} else {
-		$konto_tilSql = preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0;
-	}
+	// The queries filter through kontoRangeSqlFragment(); these two are only compared in PHP, where
+	// an empty bound is the whole range.
+	$konto_fraSql = ($konto_fra === '') ? 0 : (preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX);
+	$konto_tilSql = ($konto_til === '') ? PHP_INT_MAX : (preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0);
+	$kontoSql = kontoRangeSqlFragment($konto_fra, $konto_til);
 
 	$mf = (int)$maaned_fra;
 	$mt = (int)$maaned_til;
@@ -405,7 +398,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$x = 0;
 	$kontonr = array();
-	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='" . $konto_fraSql . "' and kontonr<='" . $konto_tilSql . "' order by kontonr";
+	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' " . $kontoSql . "order by kontonr";
 	$q = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$kontonr[$x] = $row['kontonr'] * 1;
@@ -434,14 +427,14 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$ktonr = array();
 	$x = 0;
-	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='" . $konto_fraSql . "' and kontonr<='" . $konto_tilSql . "' $dim";
+	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' " . $kontoSql . "$dim";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$ktonr[$x] = $r['kontonr'];
 		$x++;
 	}
 	if ($includeSimulated) {
-		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='" . $konto_fraSql . "' and kontonr<='" . $konto_tilSql . "' $dim";
+		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' " . $kontoSql . "$dim";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['kontonr'], $ktonr)) {

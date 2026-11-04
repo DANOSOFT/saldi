@@ -9,6 +9,8 @@
 // History:
 // 20261103 LOE SST-936 Extracted from kontokort(), regnskab() and moms_transaktioner().
 //              The three copies can no longer drift, and the values are cast or escaped once.
+// 20261103 LOE SST-936 The account range joins them, so an empty bound no longer becomes a sentinel.
+//              An integer account column cannot hold such a sentinel, so the bound is left out instead.
 
 if (!function_exists('dimensionSqlFragment')) {
 	/**
@@ -84,6 +86,42 @@ if (!function_exists('dimensionSqlFragment')) {
 				$moenster = str2low($moenster) . "%";
 			}
 			$dele[] = "and lower(" . $tabel . "projekt) LIKE '" . db_escape_string($moenster) . "'";
+		}
+
+		return $dele ? implode(" ", $dele) . " " : '';
+	}
+}
+
+if (!function_exists('kontoRangeSqlFragment')) {
+	/**
+	 * Builds the SQL fragment for the account range the Finans reports filter their rows by.
+	 *
+	 * @param mixed  $kontoFra Lower account bound from the report form.
+	 * @param mixed  $kontoTil Upper account bound from the report form.
+	 * @param string $alias    Table alias to prefix the column with, e.g. 't.'; '' for none.
+	 *
+	 * @return string The fragment, ready to append to the query, or '' when no bound was given.
+	 */
+	function kontoRangeSqlFragment($kontoFra, $kontoTil, $alias = '')
+	{
+		$tabel = ($alias === '') ? '' : trim($alias, '.') . '.';
+		$dele = array();
+
+		// A bound that is not a whole number names no account: casting it to 0 would widen the report
+		// to the lowest accounts instead of selecting nothing, so one such bound closes the range.
+		foreach (array($kontoFra, $kontoTil) as $vaerdi) {
+			if ($vaerdi !== NULL && $vaerdi !== '' && !preg_match('/^\d+$/', (string)$vaerdi)) {
+				return "and 1 = 0 ";
+			}
+		}
+
+		// An empty bound means no limit, so the fragment leaves the column out. Comparing against a
+		// sentinel instead fails on an integer column, where there is no value above every account.
+		if ($kontoFra !== NULL && $kontoFra !== '') {
+			$dele[] = "and " . $tabel . "kontonr >= " . (int)$kontoFra;
+		}
+		if ($kontoTil !== NULL && $kontoTil !== '') {
+			$dele[] = "and " . $tabel . "kontonr <= " . (int)$kontoTil;
 		}
 
 		return $dele ? implode(" ", $dele) . " " : '';

@@ -108,8 +108,13 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 
 	$maaned_fra = trim($maaned_fra);
 	$maaned_til = trim($maaned_til);
-	$konto_fra = trim($konto_fra);
-	$konto_til = trim($konto_til);
+	// A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+	$konto_fra = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+	$konto_til = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
+	// An empty bound is the whole range; a bound that is not a whole number matches nothing.
+	$konto_fraSql = ($konto_fra === '') ? 0 : (preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX);
+	$konto_tilSql = ($konto_til === '') ? PHP_INT_MAX : (preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0);
 
 	$mf = $maaned_fra;
 	$mt = $maaned_til;
@@ -651,7 +656,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 
 	for ($x = 1; $x <= $kontoantal; $x++) {
-		if ($kontonr[$x] >= $konto_fra && $kontonr[$x] <= $konto_til && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $vis_kto[$x] || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220 // 20260907 - NTR - Added $vis_kto[$x] to show accounts with postings but that's balanced out.
+		if ($kontonr[$x] >= $konto_fraSql && $kontonr[$x] <= $konto_tilSql && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $vis_kto[$x] || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220 // 20260907 - NTR - Added $vis_kto[$x] to show accounts with postings but that's balanced out.
 			if ($kontotype[$x] == 'H') {
 				$linjebg = $bgcolor;
 				print "<tr><td><br></td></tr>";
