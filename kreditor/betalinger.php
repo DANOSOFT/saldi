@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/betalinger.php --- ver 5.0.0 --- 20261027 ---
+// --- kreditor/betalinger.php --- ver 5.1.0 --- 20261027 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
