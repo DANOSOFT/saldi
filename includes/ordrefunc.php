@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-10-29 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -163,6 +163,7 @@
 // 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
 // 20261027 CDX/MJ SST-883 Apply line deltas when a removed warehouse falls back to warehouse zero.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261104 CL/MJ SST-883 levering() hands linjeopdat() the order's department warehouse, so a line on a removed warehouse goes there on Fakturér.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 include_once(__DIR__ . '/stdFunc/warehouse.php'); # warehouseIsDefined() - used when posting stock
@@ -492,7 +493,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 					exit;
 				}
 				if ($vare_id[$x] && $leveres[$x]) {
-					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x], $bogf_konto[$x], $variant_id[$x], $lager[$x], $webservice);
+					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x], $bogf_konto[$x], $variant_id[$x], $lager[$x], $webservice, $afd ? (int) $afd_lager : 0);
 					#				if (trim($row['samlevare'])=='on') {
 #					$q2 = db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
 #					while($r2 =db_fetch_array($q2)) 
@@ -515,7 +516,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 } #endfunc levering
 
 #############################################################################################
-function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pris, $nettopris, $rabat, $samlevare, $linje_nr, $posnr, $serienr, $kred_linje_id, $bogf_konto, $variant_id, $lager, $webservice = false)
+function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pris, $nettopris, $rabat, $samlevare, $linje_nr, $posnr, $serienr, $kred_linje_id, $bogf_konto, $variant_id, $lager, $webservice = false, $orderWarehouse = 0)
 {
 
 	#xit;
@@ -541,7 +542,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 	# totalStock sent to the webshops, but appears in no warehouse column, so nobody can find it
 	# or move it. Resolve it to a warehouse that exists before anything is written.
 	$requestedWarehouse = (int) $lager;
-	$lager = resolvePostingWarehouse($lager, $vare_id, $linje_id);
+	$lager = resolvePostingWarehouse($lager, $vare_id, $linje_id, $orderWarehouse);
 	$warehouseRedirected = $lager !== $requestedWarehouse;
 
 	if (!$levdate)

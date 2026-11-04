@@ -31,11 +31,16 @@ use PHPUnit\Framework\TestCase;
 //                  the ticket: 4 is Havemøbelland's M, 10 is the «V» that was removed.
 // 20261027 CDX/MJ SST-883 Cover primary department mapping and removed fallback mappings.
 // 20261030 CL/MJ SST-883 An account without warehouses keeps levering()'s default warehouse 1.
+// 20261104 CL/MJ SST-883 A removed warehouse goes to the order's department warehouse, else the lowest defined one, never 0.
 
 function db_select($sql, $location = '')
 {
 	$GLOBALS['pwQueries'][] = $sql;
 
+	if (strpos($sql, "select min(kodenr) as kodenr from grupper where art='LG' and kodenr > 0") !== false) {
+		$positive = array_filter($GLOBALS['pwDefined'], function ($k) { return $k > 0; });
+		return array('kodenr' => $positive ? min($positive) : null);
+	}
 	if (strpos($sql, "from grupper where art='LG' limit 1") !== false) {
 		return $GLOBALS['pwDefined'] === array() ? false : array('id' => 100);
 	}
@@ -165,33 +170,58 @@ final class PostingWarehouseTest extends TestCase
 		);
 	}
 
-	/** With no department warehouse to fall back on, 0 is where stock goes - as before. */
-	public function testWithoutADepartmentWarehouseItFallsToZero(): void
+	/**
+	 * With no department warehouse, a removed warehouse goes to the lowest defined one.
+	 *
+	 * Warehouse 0 has no column on an account with warehouses, so stock there would be as lost
+	 * as on the removed one. An empty warehouse still falls to 0, as before.
+	 */
+	public function testWithoutADepartmentWarehouseARemovedOneGoesToTheLowestDefined(): void
 	{
 		$GLOBALS['pwAfdWarehouse'] = null;
 
-		self::assertSame(0, resolvePostingWarehouse(10, 2003, 55),
-			'a removed warehouse was kept when the department had none to offer');
+		self::assertSame(1, resolvePostingWarehouse(10, 2003, 55),
+			'a removed warehouse went to 0, which no warehouse column shows');
 		self::assertSame(0, resolvePostingWarehouse('', 2003, 55),
 			'an empty warehouse no longer falls to 0');
+		$GLOBALS['pwDefined'] = array(3, 4);
+		self::assertSame(3, resolvePostingWarehouse(10, 2003, 55),
+			'the fallback is not the lowest defined warehouse');
 	}
 
-	/** No employee row either - still 0, never the warehouse that is gone. */
-	public function testWithoutAnEmployeeRowItFallsToZero(): void
+	/** No employee row either - the lowest defined warehouse, never the one that is gone. */
+	public function testWithoutAnEmployeeRowItGoesToTheLowestDefined(): void
 	{
 		$GLOBALS['pwEmployeeAfd'] = null;
 
-		self::assertSame(0, resolvePostingWarehouse(10, 2003, 55),
-			'a removed warehouse was kept when there was no employee to take a department from');
+		self::assertSame(1, resolvePostingWarehouse(10, 2003, 55),
+			'a removed warehouse was not moved to a defined one when there was no employee');
 	}
 
 	/** The department can point at a warehouse that was removed as well. */
-	public function testADepartmentPointingAtARemovedWarehouseFallsToZero(): void
+	public function testADepartmentPointingAtARemovedWarehouseGoesToTheLowestDefined(): void
 	{
 		$GLOBALS['pwAfdWarehouse'] = '10';
 
-		self::assertSame(0, resolvePostingWarehouse(10, 2003, 55),
+		self::assertSame(1, resolvePostingWarehouse(10, 2003, 55),
 			'the fallback handed back a warehouse that does not exist either');
+	}
+
+	/**
+	 * levering() keeps $ref local, so on Fakturér only the order's department warehouse it
+	 * passes in can name the department.
+	 */
+	public function testTheOrdersDepartmentWarehouseFromLeveringComesFirst(): void
+	{
+		$GLOBALS['ref'] = null;
+		$GLOBALS['pwEmployeeAfd'] = null;
+
+		self::assertSame(4, resolvePostingWarehouse(10, 2003, 55, 4),
+			"the order's department warehouse was not used");
+		self::assertSame(1, resolvePostingWarehouse(10, 2003, 55, 10),
+			"a removed department warehouse from levering() was used");
+		self::assertSame(1, resolvePostingWarehouse(1, 2003, 55, 4),
+			'a valid line warehouse was replaced by the department one');
 	}
 
 	/** @return array<string, array{mixed, mixed, int}> */
@@ -202,8 +232,8 @@ final class PostingWarehouseTest extends TestCase
 			'primary preferred' => ['1', '4', 1],
 			'removed primary uses legacy' => ['10', '4', 4],
 			'empty primary uses legacy' => ['', '4', 4],
-			'both removed' => ['10', '10', 0],
-			'no warehouses' => [null, null, 0],
+			'both removed' => ['10', '10', 1],
+			'no department warehouse' => [null, null, 1],
 		];
 	}
 

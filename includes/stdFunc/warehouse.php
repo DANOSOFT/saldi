@@ -1,5 +1,5 @@
 <?php
-//--- includes/stdFunc/warehouse.php ---ver 5.1.0 ----2026-10-30 ---
+//--- includes/stdFunc/warehouse.php ---ver 5.1.0 ----2026-11-04 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261021 CL/MJ SST-883 warehouseIsDefined() - is a warehouse number still one this account
@@ -8,6 +8,7 @@
 // 20261027 CDX/MJ SST-883 Prefer the department warehouse mapping and validate both fallback mappings.
 // 20261030 CL/MJ SST-883 Header marker set to the release this behaviour ships in (5.1.0).
 // 20261030 CL/MJ SST-883 An account without any warehouses keeps every warehouse number, so levering()'s default warehouse 1 is not moved to 0 (CodeRabbit).
+// 20261104 CL/MJ SST-883 A removed warehouse goes to the order's department warehouse, else the lowest defined one; 0 only without warehouses (Saul).
 
 if (!function_exists('warehouseIsDefined')) {
 	/**
@@ -48,20 +49,25 @@ if (!function_exists('resolvePostingWarehouse')) {
 	/**
 	 * The warehouse stock should actually be posted to.
 	 *
-	 * An empty warehouse falls back to the order reference employee's department, which is what the
-	 * posting code has always done. A warehouse that is set but no longer exists takes the same
-	 * fallback rather than being used - that case is new, and it is the one that strands stock
-	 * where no warehouse column can show it.
+	 * An empty warehouse falls back to the department, which is what the posting code has always
+	 * done: the order's department warehouse when levering() passes it in (levering() keeps $ref
+	 * local, so the employee lookup finds nothing there), else the order reference employee's.
+	 * A warehouse that is set but no longer exists takes the same fallback rather than being
+	 * used - that case is new, and it is the one that strands stock where no warehouse column
+	 * can show it.
 	 *
-	 * Warehouse 0 is the last resort, as before: it is where an account without warehouses
-	 * posts everything, so it is always a valid place to put stock.
+	 * When no department warehouse is found, a removed warehouse goes to the lowest defined one:
+	 * warehouse 0 has no column on the item list, the product card and lagerflyt.php skip it,
+	 * and lagerstatus.php treats it as "Alle", so stock there would be just as lost. An empty
+	 * warehouse still ends on 0 as before, and an account without warehouses never gets here.
 	 *
-	 * @param mixed $lager    The warehouse as it arrives from the order line or the form.
-	 * @param mixed $vare_id  Item id, for the log line only.
-	 * @param mixed $linje_id Order line id, for the log line only.
+	 * @param mixed $lager          The warehouse as it arrives from the order line or the form.
+	 * @param mixed $vare_id        Item id, for the log line only.
+	 * @param mixed $linje_id       Order line id, for the log line only.
+	 * @param mixed $orderWarehouse The order's department warehouse from levering(), 0 if none.
 	 * @return int The warehouse to post to.
 	 */
-	function resolvePostingWarehouse($lager, $vare_id = 0, $linje_id = 0) {
+	function resolvePostingWarehouse($lager, $vare_id = 0, $linje_id = 0, $orderWarehouse = 0) {
 		global $ref;
 
 		# Set and still defined: nothing to do. The $lager test is kept because an empty
@@ -74,7 +80,9 @@ if (!function_exists('resolvePostingWarehouse')) {
 
 		$resolved = 0;
 		$employee = db_escape_string((string) ($ref ?? ''));
-		if ($r = db_fetch_array(db_select(
+		if ((int) $orderWarehouse && warehouseIsDefined($orderWarehouse)) {
+			$resolved = (int) $orderWarehouse;
+		} elseif ($r = db_fetch_array(db_select(
 				"select afd from ansatte where navn = '$employee'",
 				__FILE__ . " linje " . __LINE__))) {
 			$afd = (int) ifset($r, 'afd', 0);
@@ -92,6 +100,12 @@ if (!function_exists('resolvePostingWarehouse')) {
 		# The department can point at a warehouse that was removed too.
 		if (!warehouseIsDefined($resolved)) {
 			$resolved = 0;
+		}
+		if ($asked !== 0 && $resolved === 0) {
+			$r = db_fetch_array(db_select(
+				"select min(kodenr) as kodenr from grupper where art='LG' and kodenr > 0",
+				__FILE__ . " linje " . __LINE__));
+			$resolved = (int) ifset($r, 'kodenr', 0);
 		}
 
 		# Only worth a log line when a real warehouse number was asked for and could not be

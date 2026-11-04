@@ -4,6 +4,7 @@
 // Run with SALDI_TEST_PG_DSN or the standard PG* environment variables; no persistent data is changed.
 // 20261030 CL/MJ SST-883 Moved here from tests/integration/ so PostingWarehousePgTest runs it in CI's characterization suite.
 // 20261030 CL/MJ SST-883 An account without warehouses keeps the line's warehouse, including levering()'s default 1.
+// 20261104 CL/MJ SST-883 A removed warehouse without a department warehouse goes to the lowest defined one, not 0.
 require_once __DIR__ . '/../../../../includes/std_func.php';
 if (!extension_loaded('pgsql') || (!getenv('SALDI_TEST_PG_DSN') && !getenv('SALDI_TEST_PG'))) {
     echo "SKIP: set SALDI_TEST_PG=1 or SALDI_TEST_PG_DSN for PostgreSQL integration tests.\n";
@@ -57,15 +58,16 @@ try {
     db_modify("INSERT INTO grupper (art,kodenr,fiscal_year,box1,box2,box3,box4,box8,box9) VALUES ('VG',1,2026,'1000','1000','2000','3000','on','')");
     $scenarios = [
         // label, requested warehouse, primary department mapping, legacy mapping, expected, existing row, variant, quantity, LG definitions
-        ['removed to zero sale', 10, null, null, 0, true, 0, 1, [4]],
-        ['removed to zero credit', 10, null, null, 0, true, 0, -1, [4]],
-        ['removed to zero variant', 10, null, null, 0, true, 7, 1, [4]],
-        ['missing zero row', 10, null, null, 0, false, 0, 1, [4]],
+        ['removed to lowest sale', 10, null, null, 4, true, 0, 1, [4]],
+        ['removed to lowest credit', 10, null, null, 4, true, 0, -1, [4]],
+        ['removed to lowest variant', 10, null, null, 4, true, 7, 1, [4]],
+        ['missing lowest row', 10, null, null, 4, false, 0, 1, [4]],
+        ['lowest of several', 10, null, null, 3, true, 0, 1, [3,4]],
         ['primary mapping', 10, 4, null, 4, true, 0, 1, [1,4]],
         ['primary preferred', 10, 1, 4, 1, true, 0, -1, [1,4]],
         ['legacy mapping', 10, null, 4, 4, true, 0, 1, [1,4]],
         ['removed primary', 10, 10, 4, 4, false, 0, 1, [1,4]],
-        ['both mappings removed', 10, 10, 10, 0, true, 0, -1, [4]],
+        ['both mappings removed', 10, 10, 10, 4, true, 0, -1, [4]],
         ['valid line preserved', 4, 1, null, 4, true, 7, 1, [1,4]],
         ['empty line uses department', 0, 4, null, 4, true, 0, 1, [4]],
         ['no warehouses zero', 0, null, null, 0, true, 0, 1, []],
