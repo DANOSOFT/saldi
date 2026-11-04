@@ -1,5 +1,5 @@
 <?php
-// --- includes/bilag.php --- ver 5.0.0 --- 2026-10-18 ---
+// --- includes/bilag.php --- ver 5.0.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261005 LOE SST-857 Kassebilag is spelled with one l in the page title.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261018 SS Review 2 (PR #803): key by the attachment's module instead of 'any'; kilde limited to kassekladde/ordrer/historik (a table name in the queries), ids cast to numbers, file name basename.
+// 20261104 CL/ASR An attachment folder that cannot be made shows the error box (includes/errorReport.php) instead of the text with the phone number; it comes again on the page the refresh leads to.
 
 @session_start();
 $s_id=session_id();
@@ -218,7 +219,7 @@ function upload_bilag($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$funktio
 		if (!file_exists("../".$nfs_mappe."/".$db)) {
 		  mkdir ("../".$nfs_mappe."/".$db,0777);
 		  if (!file_exists("../".$nfs_mappe."/".$db)) {
-				print tekstboks("Det er sket en fejl, bilag ikke gemt\nRing venligst på 46902208 så problemet kan blive løst");
+				if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . " linje " . __LINE__, "bilag ikke gemt: mappen ../$nfs_mappe/$db kunne ikke oprettes", '', false, 'app') === 'nosession') print tekstboks("Det er sket en fejl, bilag ikke gemt\nRing venligst på 46902208 så problemet kan blive løst"); #20261104 the error box
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 				exit;
 			}

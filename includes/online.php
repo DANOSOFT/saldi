@@ -5,7 +5,7 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-03---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-04---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -81,6 +81,9 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 // 20261101 CL/ASR The per-user colours (settings colors/buttonColor and buttonTxtColor) are no longer read: $buttonColor and
 //                 $buttonTxtColor are always the standard #114691 / #ffffff, as for a user who never chose a colour.
 // 20261103 CL/ASR QA round 2: the old module gate refuses through perm_refuse(), so both gates give the same translated text (5548), HTTP 403 and the way back to Oversigt.
+// 20261104 CL/ASR A fatal PHP error (E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR) on an HTML page with a session shows the error box of includes/errorReport.php, so the user can send a report.
+//                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
+//                 A page load also shows the box of an earlier page that moved on before it could be seen (a meta refresh right after a failed query).
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -583,6 +586,11 @@ $isApiCall = (
     isset($_GET['api']) ||
     isset($_POST['api'])
 );
+// 20261104 CL/ASR A fatal PHP error on an HTML page shows the error box (includes/errorReport.php), and so does a box an earlier page moved past; API, JSON and webservice requests are left alone.
+if (!$isApiCall && !$webservice && PHP_SAPI !== 'cli') {
+	include_once(__DIR__ . '/errorReport.php');
+	saldi_error_page_start();
+}
 
 $pathParts = explode('/', trim($path, '/'));
 $firstFolder = '';

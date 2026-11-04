@@ -7099,3 +7099,17 @@
 7820	Filen er ikke en SALDI-sikkerhedskopi. Intet er ændret.	The file is not a SALDI backup. Nothing has been changed.	Filen er ikke en SALDI-sikkerhetskopi. Ingenting er endret.
 7821	Regnskabet er gendannet fra sikkerhedskopien fra %s. Log ind igen.	The ledger has been restored from the backup from %s. Please log in again.	Regnskapet er gjenopprettet fra sikkerhetskopien fra %s. Logg inn igjen.
 7822	Regnskabet er gendannet fra sikkerhedskopien. Log ind igen.	The ledger has been restored from the backup. Please log in again.	Regnskapet er gjenopprettet fra sikkerhetskopien. Logg inn igjen.
+7830	Noget gik galt	Something went wrong	Noe gikk galt
+7833	Fejlreference	Error reference	Feilreferanse
+7834	Hvad var du i gang med? (valgfrit)	What were you doing? (optional)	Hva holdt du på med? (valgfritt)
+7835	Send fejlrapport	Send error report	Send feilrapport
+7836	Luk	Close	Lukk
+7838	Rapporten kunne ikke sendes. Skriv til support@danosoft.dk og oplys %s.	The report could not be sent. Write to support@danosoft.dk and quote %s.	Rapporten kunne ikke sendes. Skriv til support@danosoft.dk og oppgi %s.
+7839	Sender ...	Sending ...	Sender ...
+7840	Rapporten om denne fejl er allerede sendt (%s).	The report on this error has already been sent (%s).	Rapporten om denne feilen er allerede sendt (%s).
+7842	Fejlrapporten er sendt	The error report has been sent	Feilrapporten er sendt
+7844	Handlingen blev ikke gennemført, og fejlen er registreret.	The action was not completed, and the error has been logged.	Handlingen ble ikke fullført, og feilen er registrert.
+7845	Send en fejlrapport, hvis du vil have hjælp. Den indeholder de tekniske detaljer.	Send an error report if you need help. It includes the technical details.	Send en feilrapport hvis du vil ha hjelp. Den inneholder de tekniske detaljene.
+7846	Tak. Rapporten er sendt til Saldis support. Vi kontakter dig, hvis vi har brug for flere oplysninger.	Thank you. The report has been sent to Saldi support. We will contact you if we need more information.	Takk. Rapporten er sendt til Saldis support. Vi kontakter deg hvis vi trenger flere opplysninger.
+7847	Du har sendt mange rapporter den seneste time. Skriv til support@danosoft.dk og oplys %s.	You have sent many reports in the last hour. Write to support@danosoft.dk and quote %s.	Du har sendt mange rapporter den siste timen. Skriv til support@danosoft.dk og oppgi %s.
+7848	Skriv til support@danosoft.dk og oplys fejlreferencen, hvis du vil have hjælp.	Write to support@danosoft.dk and quote the error reference if you need help.	Skriv til support@danosoft.dk og oppgi feilreferansen hvis du vil ha hjelp.

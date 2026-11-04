@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/emailDoc.php -----patch 4.0.8 ----2026-10-18------
+// --- includes/docsIncludes/emailDoc.php -----patch 4.0.8 ----2026-11-04------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,7 @@
 //20230911 LOE Delete code modified
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261018 SS Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
+// 20261104 CL/ASR A document folder that cannot be made shows the error box (includes/errorReport.php) instead of the text with the phone number; it comes again on the page the refresh leads to.
 
 @session_start();
 $s_id=session_id();
@@ -476,7 +477,7 @@ $relativeP1 = "../../".$docFolder;
 			if(!file_exists($path1)){
 				mkdir ($path1 ,0777);
 				if (!file_exists($path1)) {
-					print tekstboks("Det er sket en fejl, bilag ikke gemt\nRing venligst på 46902208 så problemet kan blive løst");
+					if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . " linje " . __LINE__, "bilag ikke gemt: mappen $path1 kunne ikke oprettes", '', false, 'app') === 'nosession') print tekstboks("Det er sket en fejl, bilag ikke gemt\nRing venligst på 46902208 så problemet kan blive løst"); #20261104 the error box
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 					exit;
 			   }

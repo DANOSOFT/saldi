@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-11-03--------------
+// --- includes/db_query.php ---patch 5.0.0 ----2026-11-04--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,6 +60,9 @@
 // 20261027 CL/NTR db_select_database(): also select on $db_type 'mysql', which db_connect()
 //                serves with a mysqli connection too (still supported, not actively used).
 // 20261103 CL/ASR db_cast() and saldi_schema_filter() added for the settings system (PR #803 review): one cast and one information_schema filter that MySQL and PostgreSQL both accept.
+// 20261104 CL/ASR A failed query shows the error box of includes/errorReport.php (saldi_error_box()) instead of the alert that told everyone to call 4690 2208.
+//                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
+//                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -292,6 +295,8 @@ if (!function_exists('db_modify')) {
 					db_log_append("$temp/opdatfejl.txt", date("U")."\n", 'w');
 				} 
 			} else {
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
+				$message .= " | ".saldi_error_ref(); #20261104 the error box's reference, so a customer's report can be matched to this mail
 				if (file_exists("$temp/modifyfejl.txt")) {
 					$ff=fopen("$temp/modifyfejl.txt","r");
 					$lastmail=trim(fgets($ff));
@@ -320,7 +325,9 @@ if (!function_exists('db_modify')) {
 					$db_modify_fejl = true;
 					return ('1'.chr(9)."$alerttekst");
 				}
-				alert("$alerttekst");
+				$shown = saldi_error_box($spor, (string) $errtxt, $qtext, true); #20261104 the error box (includes/errorReport.php) instead of the plain alert
+				if ($shown === 'nested') return ('1'.chr(9)."$alerttekst"); // a failure inside the box itself: no second box, no exit
+				if ($shown === 'nosession') alert("$alerttekst"); // CLI, cron, API: as before
 				exit;
 			}
 		}
@@ -390,13 +397,14 @@ if (!function_exists('db_select')) {
 					"-- Fejl!! ".$qtext." | $errtxt;\n",
 				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
 				if (file_exists("$temp/selectfejl.txt")) {
 					$ff=fopen("$temp/selectfejl.txt","r");
 					$lastmail=trim(fgets($ff));
 					fclose($ff);
 				} else $lastmail=0; 
 				if($lastmail!=date("U")) {
-					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
+					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt | ".saldi_error_ref(); #20261104 + the error box's reference
 					if ($sqdb == 'develop') echo "$message<br>";
 					else {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
@@ -406,12 +414,15 @@ if (!function_exists('db_select')) {
 				} 
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
-				alert("$alerttekst");
+				if (saldi_error_box($spor, (string) $errtxt, $qtext, false) === 'nosession') alert("$alerttekst"); #20261104 the error box; the page goes on as before
 			} else {
 				#	$customAlertText saettes i connect.php;
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				echo $fejltxt; 
-				alert("$alerttekst");
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
+				$shown = saldi_error_box($spor, (string) $errtxt, $qtext, true); #20261104 the error box instead of the plain alert
+				if ($shown === 'nested') return $query;
+				if ($shown === 'nosession') alert("$alerttekst");
 				exit;
 			}
 		} else {

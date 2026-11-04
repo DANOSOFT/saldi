@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.0.0 --- 2026-11-03---
+// --- includes/udskriv.php --- ver 5.0.0 --- 2026-11-04---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,7 @@
 //                The route now follows where the print started (bulk/list/order) instead of the area file,
 //                which only records the list tab the last order was opened from.
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261104 CL/ASR A PDF print that cannot be made shows the error box (includes/errorReport.php) with a report to Saldi instead of "Kontakt support"; Tilbage stays below it.
 
 @session_start();
 $s_id=session_id();
@@ -210,7 +211,7 @@ if ($valg) {
 			);
 		} catch (RuntimeException $error) {
 			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
-			print '<p>' . htmlspecialchars(findtekst('PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, 'UTF-8') . '</p>';
+			if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . ' linje ' . __LINE__, 'Print batch failed: ' . $error->getMessage(), '', false, 'app') === 'nosession') print '<p>' . htmlspecialchars(findtekst('PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, 'UTF-8') . '</p>';
 			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
 			exit;
 		}
