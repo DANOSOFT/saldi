@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.01
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.03
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 // 20261029 CL/SZ SD-749 review: register-webhooks and replay need no fiscal year; a tenant they can't use ends with a line and exit 2.
 // 20261029 CL/SS SD-741: the catalogue jobs (catalogue.upsert, catalogue.link, catalogue.seed) and the command seed.
 // 20261101 CL/SS SD-792: the customer.upsert handler (Shopify customer to debtor).
+// 20261103 CL/SS SD-801: the status handlers fulfillment.upsert, order.status, order.cancelled and refund.upsert.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -67,6 +68,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/events.php';
 	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
 	require_once __DIR__ . '/../includes/shopify/services/customers.php';
+	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
 	shopify_worker_register($registry, 'webhook.health', 'shopify_webhook_health_job');
@@ -84,6 +86,11 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'catalogue.seed', 'shopify_catalogue_seed_job');
 	// SD-792: a Shopify customer becomes, or updates, its debtor.
 	shopify_worker_register($registry, 'customer.upsert', 'shopify_customer_upsert_job');
+	// SD-801: fulfillments, order status, cancellations and refunds projected onto the order's link.
+	shopify_worker_register($registry, 'fulfillment.upsert', 'shopify_fulfillment_upsert_job');
+	shopify_worker_register($registry, 'order.status', 'shopify_order_status_job');
+	shopify_worker_register($registry, 'order.cancelled', 'shopify_order_cancelled_job');
+	shopify_worker_register($registry, 'refund.upsert', 'shopify_refund_upsert_job');
 	return array('registry' => $registry, 'producers' => $producers);
 }
 
