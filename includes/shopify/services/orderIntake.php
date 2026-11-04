@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderIntake.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/shopify/services/orderIntake.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,8 +35,10 @@
 //
 // 20261103 CL/SS SD-742: created (WP09-1).
 // 20261103 CL/SS SD-742 review: a line split over several fulfillment locations is an alarm; an order that does not fit one read is refused.
-// 20261103 CL/SS SD-742 review: batch-controlled items, a VAT group without a rate and an ambiguous SKU are refused; the unit price
-//                is rounded down so the last unit is never below it; closed fulfillment orders are no assignment.
+// 20261103 CL/SS SD-742 review: batch-controlled items, a VAT group without a rate and an ambiguous SKU are refused.
+//                The unit price is rounded down so the last unit is never below it; closed fulfillment orders are no assignment.
+// 20261104 CL/SS SD-808: the paid order is read in pages, each document under Shopify's query cost limit of 1000.
+// 20261104 CL/SS SD-808 review: an order changed while it was read in pages is refused as changed, and retried.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -61,19 +63,40 @@ const SHOPIFY_INTAKE_VARIANT_STOCK = 1000000000000;
 /** Transactions that are money received. */
 const SHOPIFY_PAID_KINDS = array('SALE', 'CAPTURE');
 
+/** The fields of an order line, as the order read and its further line pages ask for them. */
+const SHOPIFY_ORDER_LINE_FIELDS = 'id sku name quantity currentQuantity variant { id } product { id }
+	originalTotalSet { shopMoney { amount } } discountAllocations { allocatedAmountSet { shopMoney { amount } } }';
+/**
+ * The order with its first 100 lines. Shopify prices a connection at 2 + first x its nodes, so one
+ * document with every line and every fulfillment order's lines would cost far above the 1000
+ * points a single query may (MAX_COST_EXCEEDED): the read is split, each document under it.
+ */
 const SHOPIFY_ORDER_READ = 'query paidOrderRead($id: ID!) { order(id: $id) {
-	id name createdAt sourceName sourceIdentifier tags note email phone taxesIncluded currencyCode displayFinancialStatus
+	id name createdAt updatedAt sourceName sourceIdentifier tags note email phone taxesIncluded currencyCode displayFinancialStatus
 	totalPriceSet { shopMoney { amount currencyCode } }
 	customer { id }
 	shippingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
 	billingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
-	lineItems(first: 250) { pageInfo { hasNextPage } nodes { id sku name quantity currentQuantity variant { id } product { id }
-		originalTotalSet { shopMoney { amount } } discountAllocations { allocatedAmountSet { shopMoney { amount } } } } }
+	lineItems(first: 100) { pageInfo { hasNextPage endCursor } nodes { ' . SHOPIFY_ORDER_LINE_FIELDS . ' } }
 	shippingLines(first: 10) { nodes { id title code discountedPriceSet { shopMoney { amount } } } }
 	transactions(first: 50) { id kind status gateway amountSet { shopMoney { amount } } paymentDetails { ... on CardPaymentDetails { company } } }
-	fulfillmentOrders(first: 20) { pageInfo { hasNextPage } nodes { id status assignedLocation { location { id } }
+} }';
+/** The order's next 100 lines. */
+const SHOPIFY_ORDER_LINES_READ = 'query paidOrderLines($id: ID!, $after: String) { order(id: $id) {
+	lineItems(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { ' . SHOPIFY_ORDER_LINE_FIELDS . ' } }
+} }';
+/** One fulfillment order of the order, with its lines. */
+const SHOPIFY_ORDER_FULFILLMENT_READ = 'query paidOrderFulfillment($id: ID!, $after: String) { order(id: $id) {
+	fulfillmentOrders(first: 1, after: $after) { pageInfo { hasNextPage endCursor } nodes { id status assignedLocation { location { id } }
 		lineItems(first: 250) { pageInfo { hasNextPage } nodes { id totalQuantity lineItem { id } } } } }
 } }';
+/** Read last: the order and its fulfillment orders as they are now, to see the pages describe one state of the order. */
+const SHOPIFY_ORDER_CHECK_READ = 'query paidOrderCheck($id: ID!) { order(id: $id) {
+	updatedAt fulfillmentOrders(first: 21) { nodes { id status assignedLocation { location { id } } } }
+} }';
+/** An order with more is refused as too large: a partial order would be validated as a different one. */
+const SHOPIFY_ORDER_MAX_LINES = 250;
+const SHOPIFY_ORDER_MAX_FULFILLMENT_ORDERS = 20;
 
 /** The read of a paid order failed; retryable when a job retry may succeed; error is shopify_graphql()'s code. */
 final class ShopifyOrderReadError extends RuntimeException
@@ -85,31 +108,72 @@ final class ShopifyOrderReadError extends RuntimeException
 }
 
 /**
- * Reads a paid order from Shopify.
+ * Reads a paid order from Shopify: the order with its first lines, its further lines a page at a
+ * time, then its fulfillment orders one at a time (each document under the query cost limit).
  *
  * @param array{deadline?: float, graphql?: array<string, mixed>} $rt graphql: extra shopify_graphql() opts (test seams)
  * @return array<string, mixed> the order as shopify_order_from_graphql() shapes it
- * @throws ShopifyOrderReadError when the read fails, Shopify has no such order, or it does not fit one read
- *   (more than 250 lines or 20 fulfillment orders: a partial order would be validated as a different one)
+ * @throws ShopifyOrderReadError when a read fails, Shopify has no such order, it is too large to read whole
+ *   (more than 250 lines, 20 fulfillment orders or 250 lines in one: a partial order would be validated as a different one),
+ *   or it changed while it was read (edited, or a fulfillment order moved): retryable, so the job reads it again later
  */
 function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array()): array {
 	$gid = shopify_gid($gid, 'Order');
 	$opts = array('deadline' => (float)($rt['deadline'] ?? microtime(true) + 50), 'retry_mode' => 'read', 'correlation' => array('order_gid' => $gid));
-	$res = shopify_graphql($shop, 'paidOrderRead', SHOPIFY_ORDER_READ, array('id' => $gid), ($rt['graphql'] ?? array()) + $opts);
-	if (!$res['ok']) {
-		$why = array_merge(array_column($res['user_errors'], 'message'), array_column($res['errors'], 'message'));
-		throw new ShopifyOrderReadError("paidOrderRead failed ({$res['error']})" . ($why ? ': ' . implode('; ', $why) : ''), $res['retryable'], (string)$res['error']);
+	$read = static function (string $op, string $document, array $vars) use ($shop, $gid, $rt, $opts): array {
+		$res = shopify_graphql($shop, $op, $document, array('id' => $gid) + $vars, ($rt['graphql'] ?? array()) + $opts);
+		if (!$res['ok']) {
+			$why = array_merge(array_column($res['user_errors'], 'message'), array_column($res['errors'], 'message'));
+			throw new ShopifyOrderReadError("$op failed ({$res['error']})" . ($why ? ': ' . implode('; ', $why) : ''), $res['retryable'], (string)$res['error']);
+		}
+		$node = $res['data']['order'] ?? null;
+		if (!is_array($node)) {
+			throw new ShopifyOrderReadError("order $gid does not exist in {$shop['shop_key']}", false, 'not_found');
+		}
+		return $node;
+	};
+	$tooLarge = static fn(): ShopifyOrderReadError => new ShopifyOrderReadError("order $gid has more than " . SHOPIFY_ORDER_MAX_LINES . ' lines or '
+		. SHOPIFY_ORDER_MAX_FULFILLMENT_ORDERS . ' fulfillment orders; enter it by hand', false, 'too_large');
+
+	$node = $read('paidOrderRead', SHOPIFY_ORDER_READ, array());
+	$page = $node['lineItems'] ?? array();
+	$lines = $page['nodes'] ?? array();
+	while (!empty($page['pageInfo']['hasNextPage'])) {
+		if (count($lines) >= SHOPIFY_ORDER_MAX_LINES) {
+			throw $tooLarge();
+		}
+		$page = $read('paidOrderLines', SHOPIFY_ORDER_LINES_READ, array('after' => $page['pageInfo']['endCursor'] ?? null))['lineItems'] ?? array();
+		$lines = array_merge($lines, $page['nodes'] ?? array());
 	}
-	$node = $res['data']['order'] ?? null;
-	if (!is_array($node)) {
-		throw new ShopifyOrderReadError("order $gid does not exist in {$shop['shop_key']}", false, 'not_found');
+	if (count($lines) > SHOPIFY_ORDER_MAX_LINES) {
+		throw $tooLarge();
 	}
-	$more = !empty($node['lineItems']['pageInfo']['hasNextPage']) || !empty($node['fulfillmentOrders']['pageInfo']['hasNextPage']);
-	foreach ($node['fulfillmentOrders']['nodes'] ?? array() as $fo) {
-		$more = $more || !empty($fo['lineItems']['pageInfo']['hasNextPage']);
-	}
-	if ($more) {
-		throw new ShopifyOrderReadError("order $gid has more than 250 lines or 20 fulfillment orders; enter it by hand", false, 'too_large');
+	$node['lineItems'] = array('nodes' => $lines);
+
+	$fulfillmentOrders = array();
+	$after = null;
+	do {
+		$page = $read('paidOrderFulfillment', SHOPIFY_ORDER_FULFILLMENT_READ, array('after' => $after))['fulfillmentOrders'] ?? array();
+		foreach ($page['nodes'] ?? array() as $fo) {
+			if (!empty($fo['lineItems']['pageInfo']['hasNextPage'])) {
+				throw $tooLarge();
+			}
+			$fulfillmentOrders[] = $fo;
+		}
+		$after = $page['pageInfo']['endCursor'] ?? null;
+		$more = !empty($page['pageInfo']['hasNextPage']);
+		if ($more && count($fulfillmentOrders) >= SHOPIFY_ORDER_MAX_FULFILLMENT_ORDERS) {
+			throw $tooLarge();
+		}
+	} while ($more);
+	$node['fulfillmentOrders'] = array('nodes' => $fulfillmentOrders);
+
+	// the pages are several reads: an edit of the order, or a fulfillment order moved, in between would mix two states
+	$summary = static fn(array $nodes): array => array_map(static fn(array $fo): array => array((string)($fo['id'] ?? ''), (string)($fo['status'] ?? ''),
+		(string)($fo['assignedLocation']['location']['id'] ?? '')), $nodes);
+	$now = $read('paidOrderCheck', SHOPIFY_ORDER_CHECK_READ, array());
+	if (($now['updatedAt'] ?? null) !== ($node['updatedAt'] ?? null) || $summary($now['fulfillmentOrders']['nodes'] ?? array()) !== $summary($fulfillmentOrders)) {
+		throw new ShopifyOrderReadError("order $gid changed while it was read; it is read again", true, 'changed');
 	}
 	return shopify_order_from_graphql($node);
 }
@@ -120,7 +184,7 @@ function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array())
  * split a line over several fulfillment orders; assigned_locations lists them all). A closed or
  * cancelled fulfillment order, and a line it holds none of, is no assignment.
  *
- * @param array<string, mixed> $o the order node of SHOPIFY_ORDER_READ
+ * @param array<string, mixed> $o the order node as shopify_fetch_paid_order() puts it together from its reads
  * @return array{gid: string, name: string, created_at: string, source_name: string, source_identifier: string,
  *   tags: list<string>, note: string, email: string, phone: string, taxes_included: bool, currency: string,
  *   total: string, financial_status: string, customer_gid: string|null, shipping_address: array<string, string>|null,

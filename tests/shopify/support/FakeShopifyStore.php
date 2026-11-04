@@ -27,6 +27,7 @@
 //                one event id per action with a webhook id per delivery, inventoryActivate.
 // 20261103 CL/LH SD-766: second review: the metafield digest is the persisted value's, so writing the same value keeps it (B36).
 // 20261103 CL/SS SD-802: productVariantsBulkUpdate sets price and compareAtPrice (B37).
+// 20261104 CL/SS SD-808: the order fields the paid-order read selects (billing address, line totals, shipping lines, payment details).
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -897,6 +898,10 @@ final class FakeShopifyStore
 			'taxesIncluded' => $o['taxes_included'], 'totalTaxSet' => self::money($this->orderTax($domain, $gid), $o['currency']),
 			'taxLines' => array_map(fn(array $t): array => $this->vTaxLine($t, $o['currency']), $this->orderTaxLines($domain, $gid)),
 			'shippingAddress' => $o['shipping_address'] === null ? null : ['__typename' => 'MailingAddress'] + $o['shipping_address'],
+			// orderCreate keeps no billing address
+			'billingAddress' => null,
+			// orderCreate refuses shippingLines (B34), so an order of the store has none
+			'shippingLines' => fn(): array => [],
 			'customer' => fn(): ?array => $this->node($domain, $o['customer']),
 			'lineItems' => fn(): array => array_map(fn(array $l): array => $this->vLine($domain, $gid, $l), $this->shop($domain)['orders'][$gid]['lines']),
 			'fulfillmentOrders' => fn(array $a): array => array_values(array_map(fn(string $fo): array => $this->vFulfillmentOrder($domain, $fo),
@@ -908,7 +913,7 @@ final class FakeShopifyStore
 				$this->shop($domain)['orders'][$gid]['refunds']), 0, $a['first'] ?? null),
 			'transactions' => fn(array $a): array => array_map(fn(array $t): array => ['__typename' => 'OrderTransaction', 'id' => $t['id'],
 				'kind' => $t['kind'], 'status' => $t['status'], 'gateway' => $t['gateway'], 'test' => $o['test'],
-				'amountSet' => self::money($t['amount'], $o['currency']), 'createdAt' => $this->iso(false, $o['created']),
+				'amountSet' => self::money($t['amount'], $o['currency']), 'paymentDetails' => null, 'createdAt' => $this->iso(false, $o['created']),
 				'processedAt' => $this->iso(false, $o['created'])], array_slice($o['transactions'], 0, $a['first'] ?? null)),
 		] + $this->times($o) + $this->metafieldFields($domain, $gid);
 	}
@@ -927,6 +932,8 @@ final class FakeShopifyStore
 		return ['__typename' => 'LineItem', 'id' => $l['id'], 'sku' => $l['sku'], 'name' => $l['title'], 'title' => $l['title'],
 			'quantity' => $l['quantity'], 'currentQuantity' => $l['quantity'] - $refunded, 'unfulfilledQuantity' => $this->unfulfilled($domain, $order, $l['id']),
 			'taxable' => $l['taxable'], 'requiresShipping' => true, 'originalUnitPriceSet' => self::money($l['price'], $o['currency']),
+			// orderCreate refuses discountCode (B34), so a line has no discount
+			'originalTotalSet' => self::money($l['price'] * $l['quantity'], $o['currency']), 'discountAllocations' => [],
 			'taxLines' => function () use ($l, $o, $order): array {
 				if ($o['tax_lines'] !== []) {
 					throw new LogicException("FakeShopifyStore: LineItem.taxLines of $order is not modelled: Shopify splits its order-level tax lines across the taxable lines (B34); select Order.taxLines");
