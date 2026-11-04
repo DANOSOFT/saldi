@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php------------patch 3.2.5-----2011.12.28-----------
+// ----------sager/bilag_sager.php------------ver 5.1.0-----2026-11-04-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Tilføjet fase og kategori fra sagstyring
 // 20170303	Tilføjet tilknytning af bilag til kontrolskema i funktion ret_bilag. Søg #20170303
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
 @session_start();
 $s_id = session_id();
@@ -470,7 +471,7 @@ function ret_bilag() {
 		while ($r = db_fetch_array($q)) {
 			$tjekskema_id[$x]=$r['tjekskemaid']*1;
 			$tjekskema_tjekliste_id[$x]=$r['tjekliste_id'];
-			$tjekskema_dato[$x]=date("d-m-Y",$r['datotid']);
+			$tjekskema_dato[$x]=datotidTilTekst($r['datotid'], 'd-m-Y');
 			$tjekskema_opg[$x]=htmlspecialchars($r['opg_navn']);
 			$tjekskema_hvem[$x]=htmlspecialchars($r['hvem']);
 			$bilag_tjekskema_id[$x]=$r['bilag_tjekskema_id'];

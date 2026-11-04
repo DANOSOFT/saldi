@@ -1,0 +1,82 @@
+<?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- includes/stdFunc/datotidTilTekst.php --- ver 5.1.0 --- 2026-11-04 ---
+// LICENS
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261104 LOE SST-940 Created, one owner for the datotid formatting the Dagbog and the check sheets share.
+//              Those columns are text: a unix timestamp normally, but older data holds a finished date string.
+//              date() throws a TypeError on such a value in PHP 8.
+//              The Dagbog autocomplete answered 500 and the list stopped halfway through the render.
+
+if (!function_exists('datotidErTidsstempel')) {
+	/**
+	 * Tells whether a datotid value is a unix timestamp rather than a finished date string.
+	 *
+	 * @param mixed $vaerdi The column value, as the driver returned it.
+	 *
+	 * @return bool True when the value is a whole number of seconds.
+	 */
+	function datotidErTidsstempel($vaerdi)
+	{
+		// ctype_digit(), not is_numeric(): a text date such as "01-01-1970 01:00", "0.5" or "-1"
+		// is not a timestamp, though is_numeric() would call the first two of those numeric.
+		return ctype_digit((string)$vaerdi);
+	}
+}
+
+if (!function_exists('datotidTilTekst')) {
+	/**
+	 * Formats a datotid value, or returns it unchanged when it is not a timestamp.
+	 *
+	 * @param mixed  $vaerdi The column value, normally a unix timestamp as text.
+	 * @param string $format A date() format string.
+	 *
+	 * @return string The formatted date, or the value escaped for HTML when it holds text.
+	 */
+	function datotidTilTekst($vaerdi, $format = 'd-m-Y')
+	{
+		if (datotidErTidsstempel($vaerdi)) {
+			return date($format, (int)$vaerdi);
+		}
+		// The value is printed inside the page and inside the autocomplete list, so it is escaped
+		// here rather than at twenty call sites; the formatted date needs no escaping.
+		return htmlspecialchars((string)$vaerdi, ENT_QUOTES, 'UTF-8');
+	}
+}
+
+if (!function_exists('datotidTilDatoOgTid')) {
+	/**
+	 * Formats a datotid value as the "date kl. time" cell the lists print.
+	 *
+	 * @param mixed  $vaerdi  The column value, normally a unix timestamp as text.
+	 * @param string $klTekst The word between the date and the time, already translated.
+	 *
+	 * @return string "d-m-y kl. H:i" for a timestamp, the value escaped for HTML for text.
+	 */
+	function datotidTilDatoOgTid($vaerdi, $klTekst = 'kl.')
+	{
+		if (!datotidErTidsstempel($vaerdi)) {
+			return htmlspecialchars((string)$vaerdi, ENT_QUOTES, 'UTF-8');
+		}
+		return date("d-m-y", (int)$vaerdi) . " " . $klTekst . " " . date("H:i", (int)$vaerdi);
+	}
+}

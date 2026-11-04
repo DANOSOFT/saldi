@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-	// -------sager/autocomplete.php--------lap 5.0.0-------2026-08-05-------
+	// -------sager/autocomplete.php--------ver 5.1.0-------2026-11-04-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,10 +21,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2012-2026 DANOSOFT ApS
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260731 CX/PHR - Added termination date to employee autocomplete used by ret_loen.
 // 20260805 CX/PHR - Use tabs as field separators for case autocomplete so company names may contain "|".
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
 	$bg      = "nix";
 	$header  = 'nix';
@@ -215,7 +216,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['n_hvem']."|".$row['beskrivelse']."|".$row['n_id']."\n";
+					echo datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['n_hvem']."|".$row['beskrivelse']."|".$row['n_id']."\n";
 				}
 			} 
 			break;
@@ -229,7 +230,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['sagsnr']."|".date("d-m-Y",$row['datotid'])."|".$row['n_hvem']."|".$row['beskrivelse']."|".$row['n_id']."\n";
+					echo $row['sagsnr']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['n_hvem']."|".$row['beskrivelse']."|".$row['n_id']."\n";
 				}
 			} 
 			break;
@@ -243,7 +244,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['n_hvem']."|".date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['beskrivelse']."|".$row['n_id']."\n";
+					echo $row['n_hvem']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['beskrivelse']."|".$row['n_id']."\n";
 				}
 			} 
 			break;
@@ -257,7 +258,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['beskrivelse']."|".date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['n_hvem']."|".$row['n_id']."\n";
+					echo $row['beskrivelse']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['n_hvem']."|".$row['n_id']."\n";
 				}
 			} 
 			break;
@@ -345,7 +346,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -362,7 +363,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['sagsnr']."|".date("d-m-Y",$row['datotid'])."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['sagsnr']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -379,7 +380,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['skema_hvem']."|".date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['skema_hvem']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -396,7 +397,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -475,7 +476,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -506,7 +507,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['sagsnr']."|".date("d-m-Y",$row['datotid'])."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['sagsnr']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -537,7 +538,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['skema_hvem']."|".date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['skema_hvem']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -568,7 +569,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -599,7 +600,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -630,7 +631,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['sagsnr']."|".date("d-m-Y",$row['datotid'])."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['sagsnr']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['skema_hvem']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -661,7 +662,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['skema_hvem']."|".date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['skema_hvem']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 
@@ -692,7 +693,7 @@
 				while($row=db_fetch_array($result))
 				{
 					if (!empty($row['datotid'])) {
-						echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".date("d-m-Y",$row['datotid'])."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
+						echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."|".datotidTilTekst($row['datotid'], 'd-m-Y')."|".$row['sagsnr']."|".$row['skema_hvem']."|".$row['tjekpunkt']."|".$row['opg_navn']."|".$row['skema_id']."|".$row['fase']."|".$row['sag_id']."|".$row['tjek_id']."\n";
 					}
 				}
 			} 

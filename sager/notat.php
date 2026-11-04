@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/notat.php --- ver 4.0.8 -- 2023-04-05 --
+// --- sager/notat.php --- ver 5.1.0 -- 2026-11-04 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2009-2023 Saldi.dk ApS
+// Copyright (c) 2009-2026 Danosoft ApS
 // --------------------------------------------------------------------------
 
 // Har lagt javascript i en separat fil ved navn 'jquery.notat.js' 
@@ -34,6 +34,7 @@
 // 20190910 PHR Button 'bilag' removed by # as it doesn't work. 
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260803 CL/SZ Upgraded TinyMCE 3.5.8 (2012, EOL) to self-hosted TinyMCE 8 (SD-604)
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
 @session_start();
 $s_id = session_id();
@@ -261,7 +262,7 @@ function noteliste($mine_notater) {
 				elseif (!$status[$x]==1) $stat = findtekst('2910|Ulæst', $sprog_id);
 				else $stat = "OK";
 				print "<li><a href=\"notat.php?id=$notat_id[$x]\">
-					<span class=\"felt01\" style=\"width:115px\">".date("d-m-y",$datotid[$x])." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$datotid[$x])."&nbsp;</span>
+					<span class=\"felt01\" style=\"width:115px\">".datotidTilDatoOgTid($datotid[$x], findtekst('2883|kl.', $sprog_id))."&nbsp;</span>
 					<span class=\"felt02\" style=\"width:70px\">$sagsnr[$x]&nbsp;</span>
 					<span class=\"felt03\" style=\"width:215px\" title='$sag_addr[$x]'>$sag_addr[$x]&nbsp;</span>
 					<span class=\"felt04\" style=\"width:80px\">$forfatter[$x]&nbsp;</span>

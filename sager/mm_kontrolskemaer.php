@@ -2,7 +2,7 @@
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 
-// ------ sager/kontrolskemaer.php-------lap 3.3.0 ------2013-11-04------07:30---------
+// ------ sager/mm_kontrolskemaer.php-------ver 5.1.0 ------2026-11-04------07:30---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,8 +21,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2013 Danosoft ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 // 20170303 Visning af bilag, hvis tilknyttet. Søg #20170303
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
@@ -456,7 +457,7 @@ function arbejdsseddelskemaliste() {
 				
 						//($skema_fase[$x]==1)?$funktion_navn = "vis_arbejdsseddel":$funktion_navn = "vis_kontrolskema";
 					print "<li><a href=\"mm_kontrolskemaer.php?funktion=vis_arbejdsseddel&amp;sag_id=$skema_sagid[$x]&amp;sag_fase=$skema_fase[$x]&amp;tjek_id=$skema_tjek_id[$x]&amp;tjekskema_id=$skema_id[$x]\">
-						<span class=\"felt01\" style=\"width:115px;\">".date("d-m-y",$skema_datotid[$x])." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$skema_datotid[$x])."&nbsp;</span>
+						<span class=\"felt01\" style=\"width:115px;\">".datotidTilDatoOgTid($skema_datotid[$x], findtekst('2883|kl.', $sprog_id))."&nbsp;</span>
 						<span class=\"felt02\" style=\"width:120px;\" title='$skema_navn[$x]'>$skema_navn[$x]&nbsp;</span>
 						<span class=\"felt03\" style=\"width:75px;\" title='$skema_opgave[$x]'>$skema_opgave[$x]&nbsp;</span>
 						<span class=\"felt04\" style=\"width:65px;\" title='$skema_sagsnr[$x]'>$skema_sagsnr[$x]&nbsp;</span>
@@ -801,7 +802,7 @@ function kontrolseddelskemaliste() {
 				
 						//($skema_fase[$x]==1)?$funktion_navn = "vis_arbejdsseddel":$funktion_navn = "vis_kontrolskema";
 					print "<li><a href=\"mm_kontrolskemaer.php?funktion=vis_kontrolskema&amp;sag_id=$skema_sagid[$x]&amp;sag_fase=$skema_fase[$x]&amp;tjek_id=$skema_tjek_id[$x]&amp;tjekskema_id=$skema_id[$x]\">
-						<span class=\"felt01\" style=\"width:115px;\">".date("d-m-y",$skema_datotid[$x])." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$skema_datotid[$x])."&nbsp;</span>
+						<span class=\"felt01\" style=\"width:115px;\">".datotidTilDatoOgTid($skema_datotid[$x], findtekst('2883|kl.', $sprog_id))."&nbsp;</span>
 						<span class=\"felt02\" style=\"width:120px;\" title='$skema_navn[$x]'>$skema_navn[$x]&nbsp;</span>
 						<span class=\"felt03\" style=\"width:75px;\" title='$skema_opgave[$x]'>$skema_opgave[$x]&nbsp;</span>
 						<span class=\"felt04\" style=\"width:65px;\" title='$skema_sagsnr[$x]'>$skema_sagsnr[$x]&nbsp;</span>
@@ -865,7 +866,7 @@ function vis_arbejdsseddel() {
 	$r                      = db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
 	$tjekskema_id           = $r['id']*1;
 	$tjekskema_tjekliste_id = $r['tjekliste_id'];
-	$udf_dato               = date("d-m-Y",$r['datotid']);
+	$udf_dato               = datotidTilTekst($r['datotid'], 'd-m-Y');
 	$opg_art                = htmlspecialchars($r['opg_art']);
 	$opg_navn               = htmlspecialchars($r['opg_navn']);
 	$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
@@ -963,7 +964,7 @@ function vis_arbejdsseddel() {
 		$tmp                              = mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
 		$bilag_navn[$x]                   = mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 		$bilag_beskrivelse[$x]            = $r['beskrivelse'];
-		$bilag_dato[$x]                   = date("d-m-Y",$r['datotid']);
+		$bilag_dato[$x]                   = datotidTilTekst($r['datotid'], 'd-m-Y');
 		$bilag_hvem[$x]                   = $r['hvem'];
 		$bilag_filtype[$x]                = $r['filtype'];
 		$bilag_tjekskema_id[$x]           = $r['bilag_tjekskema_id'];
@@ -1210,7 +1211,7 @@ function vis_kontrolskema() {
 		$tmp                              = mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
 		$bilag_navn[$x]                   = mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 		$bilag_beskrivelse[$x]            = $r['beskrivelse'];
-		$bilag_dato[$x]                   = date("d-m-Y",$r['datotid']);
+		$bilag_dato[$x]                   = datotidTilTekst($r['datotid'], 'd-m-Y');
 		$bilag_hvem[$x]                   = $r['hvem'];
 		$bilag_filtype[$x]                = $r['filtype'];
 		$bilag_tjekskema_id[$x]           = $r['bilag_tjekskema_id'];
@@ -1271,7 +1272,7 @@ function vis_kontrolskema() {
   print "<tbody>\n";
 	print "<tr><td colspan=\"2\" class=\"printtxt\"><p><b>".findtekst('2820|Opstillingsadresse', $sprog_id).":</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
 	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('494|Status', $sprog_id).":</b></p></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\" class=\"printdate\"><p><b>".findtekst('438|Dato', $sprog_id).":</b></p><p>".date("d-m-Y",$datotid)."</p></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\" class=\"printdate\"><p><b>".findtekst('438|Dato', $sprog_id).":</b></p><p>".datotidTilTekst($datotid, 'd-m-Y')."</p></td>\n";
 	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3145|Opgavens art', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"opg_art\" rows=\"4\" cols=\"12\" style=\"height:64px;width:95px;border:none;background:transparent;\" disabled>".htmlspecialchars($opg_art)."</textarea></td>\n";
 	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3123|Sjak', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"sjak\" rows=\"4\" cols=\"10\" title=\"$sjaktitle\" style=\"height:64px;width:85px;border:none;background:transparent;\" disabled>".htmlspecialchars($sjak)."</textarea></td></tr>\n";
 	print "<tr><td colspan=\"2\" class=\"printtxt\"><input type=\"hidden\" name=\"hvem\" value='$ansat_navn'><p><b>".findtekst('2826|Kontrolleret af', $sprog_id).":</b></p><p>".htmlspecialchars($hvem)."</p></td></tr>\n";
