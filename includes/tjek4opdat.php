@@ -34,6 +34,7 @@
 // 2019.06.06 PHR added $b==8{ etc. 20190606
 // 20260206 PHR opdat_4.1
 // 20260223 PHR Fixed opdat_4_1
+// 20261027 CL/LH After opdat_4_3 go on to 5.0 ($a=5), so a 4.3.0 tenant reaches 5.1.0 in the same login.
 if (!function_exists('tjek4opdat')) {
 	function tjek4opdat($dbver,$version) {
 		if ($dbver<$version) {
@@ -144,7 +145,7 @@ if (!function_exists('tjek4opdat')) {
 				if ($b==3) {
 					include("../includes/opdat_4.3.php");
 					opdat_4_3();
-					$b=4;$c=0;
+					$a=5;$b=0;$c=0;
 				}
 			}
 			if ($a==5) {

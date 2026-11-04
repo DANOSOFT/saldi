@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../../debitor/debitorkortIncludes/einvoiceCvrBanner.
 //                 Two parity tests run the matching blocks lifted out of sendInvoice() next to the helpers, so the helpers cannot drift from what is actually sent.
 //                 sendInvoice() opens a database connection and posts to EasyUBL, so the order of its steps is asserted on the source with comments stripped, because the comments around the block name the same functions.
 // 20261026 CL/MMR SD-774 Placeholders such as "-", "N/A" or "0" and "DK" + an EAN in the CVR field count as no CVR, and the card fallback in sendInvoice() runs for real, also without a card row.
+// 20261028 CL/MMR SST-905 "0088:<gln>" counts as a GLN endpoint, so a Danish receiver on it without a CVR is caught; a Swedish one is not.
 final class EInvoiceCvrRequirementTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -126,7 +127,7 @@ final class EInvoiceCvrRequirementTest extends TestCase
             'plain EAN with spaces around'  => [' ' . self::GLN . ' ', true],
             'GLN: prefix'                   => ['GLN:' . self::GLN, true],
             '0184 CVR scheme'               => ['0184:53383211', false],
-            '0088 scheme'                   => ['0088:' . self::GLN, false],
+            '0088 GS1 GLN scheme (SST-905)' => ['0088:' . self::GLN, true],
             '0007 Swedish scheme'           => ['0007:2321000255', false],
             'empty'                         => ['', false],
             'whitespace only'               => ['   ', false],
@@ -199,7 +200,8 @@ final class EInvoiceCvrRequirementTest extends TestCase
             'GLN receiver with a foreign CVR'           => [self::GLN, 'SE232100025501', '', false],
             'no EAN at all'                             => ['', '', 'Danmark', false],
             'numeric scheme 0184'                       => ['0184:53383211', '', 'Danmark', false],
-            'numeric scheme 0088'                       => ['0088:' . self::GLN, '', 'Danmark', false],
+            'GS1 GLN scheme 0088 (SST-905)'             => ['0088:' . self::GLN, '', 'Danmark', true],
+            'GS1 GLN scheme 0088, Swedish receiver'     => ['0088:7350043510008', '', 'Sverige', false],
             'nothing at all'                            => [null, null, null, false],
         ];
     }

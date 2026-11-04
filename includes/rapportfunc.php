@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- includes/rapportfunc.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -98,6 +98,11 @@
 // 20261015 CL/LH PR #697 review: PHPDoc blocks on openpost(), bogfor_rykker(), kontokort() and kontosaldo().
 // 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
 //                collide with ids used by other open branches.
+// 20261027 CL/LH PR #450: openpost() escapes the rykker overview's firm-name search and the box7 view flags
+//                at the query; debitor/rapport.php now hands it the openpost GET filters unescaped.
+// 20261030 CDX/NTR Remove the duplicated reminder block from the automatic merge and escape the report flags once.
+
+
 include_once(__DIR__ . '/reportFunc/showOpenPosts.php');
 
 /**

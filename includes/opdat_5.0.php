@@ -119,13 +119,17 @@
 // 20261014 MJ SST-814 (CodeRabbit): build the two trigram indexes CONCURRENTLY, with the
 //                  advisory lock and the invalid-index rebuild SST-808 and SST-818 settled on,
 //                  so the one-time build no longer blocks writes to adresser during a login.
+// 20261027 CL/LH Login on a 5.0.0 tenant: include deleteStaleTekst(), global $db/$db_type in the 5.1.0 step,
+//                  reconnect to the tenant instead of including online.php (logged the user out mid-upgrade).
 // =========== END of 5.1.0 HISTORY ===========
 if (!function_exists('opdat_5_0')) {
 	function opdat_5_0(){
 		include_once(__DIR__ . "/opdat_func/opdat_func.php");
+		include_once(__DIR__ . "/opdat_func/deleteStaleTekst.php");
 
 		$nextver='5.1.0';
 		opdat_to($nextver, function () {
+			global $db, $db_type;
 
 			$performedByMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 			$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
@@ -482,7 +486,10 @@ if (!function_exists('opdat_5_0')) {
 				}
 			}
 
-			include ("../includes/online.php");
+			// Back to the tenant after the master-db settings above. online.php did this in betweenUpdates.php,
+			// but during login there is no online row yet, so it logged the user out before 5.1.0 was stamped.
+			$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+			db_select_database($connection, $db);
 
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'digital_status'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {

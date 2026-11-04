@@ -1,13 +1,9 @@
 <?php
-// 20261021 CL/MJ MB-79 Pin the exchange difference an automatic settlement leaves behind, and the
-// currency condition that stops a DKK payment settling a foreign-currency post.
-// 20261027 CL/LH MB-79 The open-post difference row is written the way manual settlement writes it, and
-// equalizeMatchingRecords() (includes/genberegn.php), which runs after every posting, keeps to the same
-// currency and rate conditions; it is lifted the same way.
-// 20261027 CL/LH MB-79 Simuler measures against what the journal's earlier lines would have written to
-// openpost, the confirmation page gets the same differences (journalRateDifferences()), a reference given
-// twice is measured once, and a difference account missing from the chart of accounts is refused.
+// 20261021 CL/MJ MB-79 Pin the exchange difference an automatic settlement leaves behind, and the currency condition that stops a DKK payment settling a foreign-currency post.
+// 20261027 CL/LH MB-79 The open-post difference row is written the way manual settlement writes it, and equalizeMatchingRecords() (includes/genberegn.php), which runs after every posting, keeps to the same currency and rate conditions; it is lifted the same way.
+// 20261027 CL/LH MB-79 Simuler measures against what the journal's earlier lines would have written to openpost, the confirmation page gets the same differences (journalRateDifferences()), a reference given twice is measured once, and a difference account missing from the chart of accounts is refused.
 // 20261027 CL/LH MB-79 The confirmation page's in-voucher currency rounding goes on the difference account's row.
+// 20261104 CDX/NTR Verify MB-72 project matching, group dates and complete payments with MB-123 differences and simulation in both equalizers.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -84,14 +80,16 @@ final class ExchangeRateSettlementTest extends TestCase
         }
         if (!self::$equalizeLifted) {
             eval('namespace ' . __NAMESPACE__ . '; ' . self::liftedEqualizeSource());
+            eval('namespace ' . __NAMESPACE__ . '; ' . str_replace('function equalizeMatchingRecords (',
+                'function equalizeOrderMatchingRecords (', self::liftedEqualizeSource('/includes/orderFuncIncludes/genberegn.php')));
             self::$equalizeLifted = true;
         }
     }
 
     /** equalizeMatchingRecords() exactly as includes/genberegn.php ships it. */
-    private static function liftedEqualizeSource(): string
+    private static function liftedEqualizeSource(string $path = '/includes/genberegn.php'): string
     {
-        $src = file_get_contents(dirname(__DIR__, 3) . '/includes/genberegn.php');
+        $src = file_get_contents(dirname(__DIR__, 3) . $path);
         $from = strpos($src, 'function equalizeMatchingRecords (');
         self::assertNotFalse($from, 'includes/genberegn.php no longer defines equalizeMatchingRecords(); the lift is stale');
         // The function and the function_exists() guard around it close together on one line.
@@ -144,7 +142,7 @@ final class ExchangeRateSettlementTest extends TestCase
     /** @return array<int,array<string,mixed>> */
     private function openposts(): array
     {
-        return $this->db->query("SELECT id,faktnr,amount,udlignet,udlign_id,valuta,valutakurs,beskrivelse
+        return $this->db->query("SELECT id,faktnr,amount,udlignet,udlign_id,valuta,valutakurs,beskrivelse,udlign_date,projekt
             FROM openpost ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -427,6 +425,109 @@ final class ExchangeRateSettlementTest extends TestCase
         $rows = $this->openposts();
         self::assertSame('1', $rows[0]['udlignet']);
         self::assertSame(0.0, $this->groupDkk());
+    }
+
+    public function testNoProjectOrderInvoicesUseTheSameRateDifferenceInSimulationAndPosting(): void
+    {
+        foreach ([null, '0', ''] as $project) {
+            $this->db->exec('DELETE FROM openpost');
+            $this->post('D', '2200', 'NO-PROJECT', 100, self::EUR, 745, '2026-09-01', 1);
+            $stmt = $this->db->prepare('UPDATE openpost SET projekt = ?');
+            $stmt->execute([$project]);
+            $overlay = openpostOverlay();
+            self::assertSame(-1.0, openpostRateDifference('D', '2200', 'NO-PROJECT', -100,
+                self::EUR, 746, ' 0 ', $overlay));
+            self::assertSame(-1.0, openpostRateDifference('D', '2200', 'NO-PROJECT', -100,
+                self::EUR, 746, ' 0 '));
+            openpost('D', '2200', '2', 'NO-PROJECT', -100, 'payment', '2026-10-01', 102,
+                self::EUR, 746, '', '', ' 0 ');
+            self::assertSame(['1', '1', '1'], $this->settledFlags());
+            self::assertSame(0.0, $this->groupDkk());
+            foreach ($this->openposts() as $row) {
+                self::assertSame('2026-10-01', $row['udlign_date']);
+            }
+            self::assertSame('0', $this->openposts()[1]['projekt'], 'the stored project is trimmed');
+        }
+    }
+
+    public function testJournalLocalNoProjectValuesMatchLikeStoredInvoices(): void
+    {
+        $overlay = openpostOverlay();
+        openpostRateDifference('D', '2200', 'LOCAL-PROJECT', 100, self::EUR, 745, ' 0 ', $overlay);
+        self::assertSame(-1.0, openpostRateDifference('D', '2200', 'LOCAL-PROJECT', -100,
+            self::EUR, 746, '', $overlay));
+        self::assertSame(0.0, openpostRateDifference('D', '2200', 'LOCAL-PROJECT', -100,
+            self::EUR, 746, '', $overlay), 'a simulated settlement consumes the invoice once');
+    }
+
+    public function testMultiInvoiceCurrencyPaymentIsStoredOnceWithTheLatestGroupDate(): void
+    {
+        $this->post('D', '2200', 'GROUP-A', 40, self::EUR, 745, '2026-09-01', 1);
+        $this->post('D', '2200', 'GROUP-B', 60, self::EUR, 745, '2026-10-10', 2);
+        self::assertSame(-1.0, openpostRateDifference('D', '2200', 'GROUP-A;GROUP-B', -100,
+            self::EUR, 746, ''));
+        $this->post('D', '2200', 'GROUP-A;GROUP-B', -100, self::EUR, 746, '2026-10-01', 3);
+        $rows = $this->openposts();
+        self::assertCount(4, $rows, 'two invoices, one payment and one currency correction');
+        self::assertSame(-100.0, (float)$rows[2]['amount']);
+        self::assertSame(0.0, $this->groupDkk());
+        foreach ($rows as $row) {
+            self::assertSame('1', $row['udlignet']);
+            self::assertSame((string)$rows[0]['udlign_id'], (string)$row['udlign_id']);
+            self::assertSame('2026-10-10', $row['udlign_date']);
+        }
+    }
+
+    public function testShortAndExcessMultiInvoicePaymentsLeaveEveryPostOpen(): void
+    {
+        foreach ([-90, -110] as $payment) {
+            $this->db->exec('DELETE FROM openpost');
+            $this->post('D', '2200', 'PART-A', 40, self::EUR, 745, '2026-09-01', 1);
+            $this->post('D', '2200', 'PART-B', 60, self::EUR, 745, '2026-09-02', 2);
+            $overlay = openpostOverlay();
+            self::assertSame(0.0, openpostRateDifference('D', '2200', 'PART-A;PART-B', $payment,
+                self::EUR, 746, '', $overlay));
+            self::assertSame([], $overlay['settled'], 'Simuler leaves the invoices available');
+            self::assertSame(-1.0, openpostRateDifference('D', '2200', 'PART-A;PART-B', -100,
+                self::EUR, 746, '', $overlay), 'a later complete payment can still settle them');
+            $this->post('D', '2200', 'PART-A;PART-B', $payment, self::EUR, 746, '2026-10-01', 3);
+            self::assertSame(['0', '0', '0'], $this->settledFlags());
+            foreach ($this->openposts() as $row) {
+                self::assertNull($row['udlign_date']);
+            }
+        }
+    }
+
+    public function testQuotedProjectIsTrimmedAndEscapedOnEverySettlementRow(): void
+    {
+        foreach ([100, -100] as $amount) {
+            openpost('D', '2200', '1', 'QUOTED-PROJECT', $amount, 'line', '2026-10-01', 101,
+                self::EUR, $amount > 0 ? 745 : 746, '', '', " P'1 ");
+        }
+        self::assertSame(['1', '1', '1'], $this->settledFlags());
+        foreach ($this->openposts() as $row) {
+            self::assertSame("P'1", $row['projekt']);
+        }
+    }
+
+    public function testBothEqualizersPreserveCurrencyRulesAndTheLaterSettlementDate(): void
+    {
+        foreach (['equalizeMatchingRecords', 'equalizeOrderMatchingRecords'] as $name) {
+            $this->db->exec('DELETE FROM openpost');
+            $this->openRow('SAME-RATE', 100, 'EUR', 745);
+            $this->openRow('SAME-RATE', -100, 'EUR', 745);
+            $this->db->exec("UPDATE openpost SET transdate='2026-10-10' WHERE amount < 0");
+            $this->openRow('OTHER-RATE', 200, 'EUR', 745);
+            $this->openRow('OTHER-RATE', -200, 'EUR', 746);
+            $this->openRow('OTHER-CURRENCY', 300, 'EUR', 745);
+            $this->openRow('OTHER-CURRENCY', -300, 'DKK', 100);
+            $equalize = __NAMESPACE__ . '\\' . $name;
+            $equalize();
+            self::assertSame(['1', '1', '0', '0', '0', '0'], $this->settledFlags(), $name);
+            $rows = $this->openposts();
+            self::assertSame('2026-10-10', $rows[0]['udlign_date'], $name);
+            self::assertSame('2026-10-10', $rows[1]['udlign_date'], $name);
+        }
     }
 
     // ---------------------------------------------------- booking the ledger

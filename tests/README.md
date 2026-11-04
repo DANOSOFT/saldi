@@ -4,7 +4,10 @@
   code (`*.test.php`, see the READMEs inside).
 - `restapi/` - PHPUnit suite for the REST API (`*Test.php`, see
   [restapi/README.md](restapi/README.md)).
-- `test_*.php` - older stand-alone scripts run directly with `php`.
+- `test_*.php`, `integration/` - older stand-alone scripts run directly with `php`.
+  CI never runs them, so add no new ones: the guardrails `test-discovery` check
+  rejects a new test file outside the suites `phpunit.xml` discovers. Helpers go
+  in a `support/` directory inside a suite.
 
 Run everything with `composer test` (PHPUnit discovery via `phpunit.xml`).
 
@@ -37,3 +40,4 @@ for the local stack come from env vars or the gitignored
 `includes/connect.php`, as documented per suite.
 
 <!-- 20260904 CL/NTR created. -->
+<!-- 20261027 CL/LH New tests only where CI runs them (guardrails test-discovery). -->

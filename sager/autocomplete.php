@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-	// -------sager/autocomplete.php--------lap 5.0.0-------2026-08-05-------
+	// -------sager/autocomplete.php--------ver 5.1.0-------2026-11-03-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,10 +21,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2012-2026 DANOSOFT ApS
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260731 CX/PHR - Added termination date to employee autocomplete used by ret_loen.
 // 20260805 CX/PHR - Use tabs as field separators for case autocomplete so company names may contain "|".
+// 20261103 CL/MMR SD-799 The case search dropdowns show the case status in the user's language.
 
 	$bg      = "nix";
 	$header  = 'nix';
@@ -32,6 +33,7 @@
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 	
 	$q=$_GET['q'];
 	switch ($_GET['mode']) {
@@ -177,7 +179,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['sagsnr']."\t".$row['firmanavn']."\t".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['id']."\t".$row['status']."\n";
+					echo $row['sagsnr']."\t".$row['firmanavn']."\t".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['id']."\t".sag_status_txt($row['status'])."\n";
 				}
 			} 
 			break;
@@ -189,7 +191,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['firmanavn']."\t".$row['sagsnr']."\t".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['id']."\t".$row['status']."\n";
+					echo $row['firmanavn']."\t".$row['sagsnr']."\t".$row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['id']."\t".sag_status_txt($row['status'])."\n";
 				}
 			} 
 			break;
@@ -201,7 +203,7 @@
 			{
 				while($row=db_fetch_array($result))
 				{
-					echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['firmanavn']."\t".$row['sagsnr']."\t".$row['id']."\t".$row['status']."\n";
+					echo $row['udf_addr1'].", ".$row['udf_postnr']." ".$row['udf_bynavn']."\t".$row['firmanavn']."\t".$row['sagsnr']."\t".$row['id']."\t".sag_status_txt($row['status'])."\n";
 				}
 			} 
 			break;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------sager/kontrol_sager-php---ver. 3.8.1---2020-04-16--------------
+// ----------sager/kontrol_sager.php---ver 5.1.0---2026-11-03--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20150904 Tilføjet kopi af arbejdsseddel til sagen. Søg #20150904
 // 20160107 Har fjernet aftrådte i 'kolleger' ved afsendelse af mail. Søg #20160107
@@ -28,6 +28,8 @@
 // 20190806 PHR Added db_escape_string to $status_tekst[$x]
 // 20200416 PHR Moved query text to qtxt and added db_escape_string to needed fields. #20200416
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261103 CL/MMR SD-799 The task names ("Opgave N") are shown in the user's language in the task menu, headings, task descriptions and e-mails.
+//                 The stored task name stays Danish.
 
 @session_start();
 $s_id = session_id();
@@ -49,6 +51,7 @@ $modulnr = 0;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
 $sag_id   = if_isset($_GET['sag_id']);
 $konto_id = if_isset($_GET['konto_id']);
@@ -403,7 +406,7 @@ function kontrolskema() {
 		$opgave_sagsnr[$x]             = $r['assign_id'];
 		$opgave_navn[$x]               = "Opgave ".$r['nr'];
 		$opgave_beskrivelse[$x]        = $r['beskrivelse'];
-		$opgave_select_beskrivelse[$x] = $opgave_navn[$x].':&nbsp;'.$opgave_beskrivelse[$x].'';
+		$opgave_select_beskrivelse[$x] = opgave_navn_txt($opgave_navn[$x]).':&nbsp;'.$opgave_beskrivelse[$x].'';
 		$x++;
 	}
 	/*
@@ -484,17 +487,17 @@ function kontrolskema() {
 	print "<tr><td width=\"100%\" align=\"center\">\n";
 	print "<div style=\"#background-color:lightblue;height:40px;padding-top:5px;\"><p>".findtekst('3190|Vælg hvilken opgave skemaet hører til', $sprog_id).":&nbsp;\n";
 	print "<select style=\"width:110px;\" id=\"opgavenavn\" name=\"opgave\">\n";
-				for ($x=0;$x<=count($opgave_nr);$x++) {
-					if ($opg_navn==$opgave_navn[$x]) print "<option title=\"$opgave_navn[$x]&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";	
-				} 
-				for ($x=0;$x<=count($opgave_nr);$x++) {
-					if ($opg_navn!=$opgave_navn[$x]) print "<option title=\"$opgave_navn[$x]&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";	
-				}
+	for ($x=0;$x<=count($opgave_nr);$x++) {
+		if ($opg_navn==$opgave_navn[$x]) print "<option title=\"".opgave_navn_txt($opgave_navn[$x])."&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";
+	}
+	for ($x=0;$x<=count($opgave_nr);$x++) {
+		if ($opg_navn!=$opgave_navn[$x]) print "<option title=\"".opgave_navn_txt($opgave_navn[$x])."&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";
+	}
 	print "</select></p></div>";
 	print "<div id=\"printableArea\">\n";
 	//print "<a style=\"float:right;\" href=\"javascript:window.print()\">Print</a>\n";
 	if (!$tjekskema_id) $hvem = $ansat_navn;
-	($opg_navn)?$opg=findtekst('3131|til', $sprog_id).'&nbsp;'.$opg_navn:$opg=NULL;
+	($opg_navn)?$opg=findtekst('3131|til', $sprog_id).'&nbsp;'.opgave_navn_txt($opg_navn):$opg=NULL;
 	print "<h3 class=\"printHeadLineSkema\">$tjekpunktnavn $opg</h3>\n";
 	print "<table border=\"0\" cellspacing=\"0\" class=\"kontrolskema\" style=\"table-layout:fixed;\">\n";
 	print "<colgroup>
@@ -525,7 +528,7 @@ function kontrolskema() {
 	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3123|Sjak', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font sjak\" name=\"sjak\" rows=\"4\" cols=\"10\" title=\"$sjaktitle\" style=\"height:64px;width:85px;\">".htmlspecialchars($sjak)."</textarea></td>\n"; // onfocus=\"var val=this.value; this.value=''; this.value= val;\"
 	print "<td style=\"height:0px;padding:0px;margin:0px;border:none;\"><input type=\"hidden\" class=\"sjakid\" name=\"sjakid\" value=\"\"></td></tr>\n";
 	print "<tr><td colspan=\"2\" class=\"printtxt\"><input type=\"hidden\" name=\"hvem\" value='$ansat_navn'><p><b>".findtekst('2826|Kontrolleret af', $sprog_id).":</b></p><p>".htmlspecialchars($hvem)."</p></td></tr>\n";
-	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" class=\"printtxt\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\" class=\"printtxt\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
+	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" class=\"printtxt\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\" class=\"printtxt\"><p><i><b>".opgave_navn_txt($opg_navn).":</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
 	// Array til status select-box i kontrolskema
 	$value       = array(0,1,2,3,4);
 	$color       = array("white","green","yellow","red","white");
@@ -1007,7 +1010,7 @@ function arbejdsseddel() {
 		$opgave_nr[$x]                 = $r['nr'];
 		$opgave_navn[$x]               = "Opgave ".$r['nr'];
 		$opgave_beskrivelse[$x]        = $r['beskrivelse'];
-		$opgave_select_beskrivelse[$x] = $opgave_navn[$x].':&nbsp;'.$opgave_beskrivelse[$x].'';
+		$opgave_select_beskrivelse[$x] = opgave_navn_txt($opgave_navn[$x]).':&nbsp;'.$opgave_beskrivelse[$x].'';
 		$x++;
 	}
 	
@@ -1054,17 +1057,17 @@ function arbejdsseddel() {
 	print "<tr><td width=\"100%\" align=\"center\">\n";
 	print "<div style=\"#background-color:lightblue;height:40px;padding-top:5px;\"><p>".findtekst('3190|Vælg hvilken opgave skemaet hører til', $sprog_id).":&nbsp;\n"; 
 	print "<select style=\"width:110px;\" id=\"opgavenavn\" name=\"opgave\">\n";
-				for ($x=0;$x<=count($opgave_nr);$x++) {
-					if ($opg_navn==$opgave_navn[$x]) print "<option title=\"$opgave_navn[$x]&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";	
-				} 
-				for ($x=0;$x<=count($opgave_nr);$x++) {
-					if ($opg_navn!=$opgave_navn[$x]) print "<option title=\"$opgave_navn[$x]&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";	
-				}
+	for ($x=0;$x<=count($opgave_nr);$x++) {
+		if ($opg_navn==$opgave_navn[$x]) print "<option title=\"".opgave_navn_txt($opgave_navn[$x])."&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";
+	}
+	for ($x=0;$x<=count($opgave_nr);$x++) {
+		if ($opg_navn!=$opgave_navn[$x]) print "<option title=\"".opgave_navn_txt($opgave_navn[$x])."&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";
+	}
 	print "</select></p><p><span id=\"dataText\"></span></p></div>";
 	print "<div id=\"printableArea\">\n";
 	//print "<a style=\"float:right;\" href=\"javascript:window.print()\">Print</a>\n";
 	if (!$tjekskema_id) $hvem = $ansat_navn;
-	($opg_navn)?$opg=findtekst('3131|til', $sprog_id).'&nbsp;'.$opg_navn:$opg=NULL;
+	($opg_navn)?$opg=findtekst('3131|til', $sprog_id).'&nbsp;'.opgave_navn_txt($opg_navn):$opg=NULL;
 	print "<h3 class=\"printHeadLineSkema\">$tjekpunktnavn $opg</h3>\n";
 	print "<table border=\"0\" cellspacing=\"0\" class=\"kontrolskema printKontrolskematxt\">\n";
 	print "<colgroup>
@@ -1097,7 +1100,7 @@ function arbejdsseddel() {
 	print "<textarea class=\"textAreaSager autosize kontrolskema_font sjak\" name=\"sjak\" rows=\"1\" cols=\"10\" title=\"$sjaktitle\" style=\"height:16px;width:100%;\" >".htmlspecialchars($sjak)."</textarea></td>\n";//onfocus=\"var val=this.value; this.value=''; this.value= val;\"
 	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3133|Konduktør', $sprog_id).":</b></p><p>$hvem</p></td>\n";
 	print "<td style=\"height:0px;padding:0px;margin:0px;border:none;\"><input type=\"hidden\" class=\"sjakid\" name=\"sjakid\" value=\"\"></td></tr>\n";
-	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
+	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\"><p><i><b>".opgave_navn_txt($opg_navn).":</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
 	print "</tbody>\n";
 	#print "</table>\n";
 	#print "<table border=\"0\" cellspacing=\"0\" class=\"kontrolskema\">\n";
@@ -1294,15 +1297,15 @@ function emailKontrolskema() {
 	
 	// Visning af tjekskema, hvis tjekskema_id er sat
 	if ($tjekskema_id) {
-	$r                      = db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
-	$tjekskema_id           = $r['id']*1;
-	$tjekskema_tjekliste_id = $r['tjekliste_id'];
-	$datotid                = $r['datotid'];
-	$opg_art                = htmlspecialchars($r['opg_art']);
-	$opg_navn               = htmlspecialchars($r['opg_navn']);
-	$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
-	$sjak                   = htmlspecialchars($r['sjak']);
-	$hvem                   = htmlspecialchars($r['hvem']);
+		$r                      = db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
+		$tjekskema_id           = $r['id']*1;
+		$tjekskema_tjekliste_id = $r['tjekliste_id'];
+		$datotid                = $r['datotid'];
+		$opg_art                = htmlspecialchars($r['opg_art']);
+		$opg_navn               = htmlspecialchars(opgave_navn_txt($r['opg_navn']));
+		$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
+		$sjak                   = htmlspecialchars($r['sjak']);
+		$hvem                   = htmlspecialchars($r['hvem']);
 	}
 	
 	// Visning af tjekliste
@@ -1906,18 +1909,18 @@ function emailArbejdsseddel() {
 	
 	// Visning af tjekskema, hvis tjekskema_id er sat
 	if ($tjekskema_id) {
-	$r                      = db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
-	$tjekskema_id           = $r['id']*1;
-	$tjekskema_tjekliste_id = $r['tjekliste_id'];
-	$udf_dato               = date("d-m-Y",$r['datotid']);
-	$opg_art                = htmlspecialchars($r['opg_art']);
-	$opg_navn               = htmlspecialchars($r['opg_navn']);
-	$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
-	$sjak                   = htmlspecialchars($r['sjak']);
-	$hvem                   = htmlspecialchars($r['hvem']);
-	$stillads_til           = htmlspecialchars($r['stillads_til']);
-	$man_trans              = htmlspecialchars($r['man_trans']);
-	if (!$man_trans) $man_trans="0";
+		$r                      = db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
+		$tjekskema_id           = $r['id']*1;
+		$tjekskema_tjekliste_id = $r['tjekliste_id'];
+		$udf_dato               = date("d-m-Y",$r['datotid']);
+		$opg_art                = htmlspecialchars($r['opg_art']);
+		$opg_navn               = htmlspecialchars(opgave_navn_txt($r['opg_navn']));
+		$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
+		$sjak                   = htmlspecialchars($r['sjak']);
+		$hvem                   = htmlspecialchars($r['hvem']);
+		$stillads_til           = htmlspecialchars($r['stillads_til']);
+		$man_trans              = htmlspecialchars($r['man_trans']);
+		if (!$man_trans) $man_trans="0";
 	}
 	
 	// Visning af tjekliste

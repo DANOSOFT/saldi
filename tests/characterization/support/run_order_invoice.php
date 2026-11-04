@@ -27,6 +27,8 @@
 // 20260723 CL/LH SD-601: created.
 // 20260725 CL/LH Bootstrap extracted to bootstrap_ordrefunc.php, shared with run_order_lifecycle.php.
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
+// 20261028 CL/LH Removed the inline bootstrap that the #815 merge brought back next to the
+//                bootstrap_ordrefunc.php require; it included ordrefunc.php a second time.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice> <ordre_id> [tenant_db]\n");
@@ -38,49 +40,6 @@ $tenantDb = $argv[3] ?? 'saldi_chartest';
 
 require __DIR__ . '/bootstrap_ordrefunc.php';
 error_reporting(E_ALL);
-
-$_SERVER['REQUEST_URI'] = '/saldi/remoteBooking/api.php';
-$_SERVER['PHP_SELF'] = '/saldi/remoteBooking/api.php';
-$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
-$_SERVER['HTTP_USER_AGENT'] = 'chartest';
-
-chdir(dirname(__DIR__, 3) . '/remoteBooking'); // ../includes/... must resolve
-
-// --- bootstrap copied from remoteBooking/api.php:29-60 ---
-$header = "nix";
-$bg = "nix";
-ob_start(); // legacy includes print stray HTML on some branches
-include("../includes/connect.php");      // connects to master, defines db_* + $sqhost/$squser/...
-include("../includes/std_func.php");
-$db = $tenantDb;
-
-// Mirror what includes/online.php would provide for a logged-in session.
-$r = db_fetch_array(db_select("select id, regnskab, posteringer from regnskab where db = '$db'", __FILE__ . " linje " . __LINE__));
-$db_id = $r['id'];
-$db_skriv_id = $db_id;
-$regnskab = $r['regnskab'];
-$max_posteringer = $r['posteringer'];
-
-include("../includes/ordrefunc.php");
-
-$connection = db_connect($sqhost, $squser, $sqpass, $db);
-$query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
-$currentYear = date('Y');
-$currentMonth = date('m');
-while ($row = db_fetch_array($query)) {
-    if (($currentYear > $row['box2'] || ($currentYear == $row['box2'] && $currentMonth >= $row['box1'])) &&
-        ($currentYear < $row['box4'] || ($currentYear == $row['box4'] && $currentMonth <= $row['box3']))) {
-        $regnaar = $row['kodenr'];
-    }
-}
-$baseCurrency = get_settings_value("baseCurrency", "globals", "");
-if ($baseCurrency == "") {
-    $baseCurrency = "DKK";
-}
-$brugernavn = 'chartest';
-$bruger_id = 1;
-$sprog_id = 0;
-// --- end bootstrap ---
 
 $out = ['scenario' => $scenario, 'ordre_id' => $ordreId];
 

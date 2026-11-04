@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------lap 5.0.1------2026.10.27---
+// ------includes/genberegn.php-------ver 5.1.0------2026.11.04---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -31,10 +31,9 @@
 // 20190321 PHR Added function equalizeMatchingRecords.
 // 20260210 PHR PHP8
 // 20260907 CDX/PHR Allow recalculation within the caller's tenant transaction and scope primo resets to one year.
-// 20261027 CL/LH MB-79 equalizeMatchingRecords() only settles two posts in the same currency, and in a foreign
-//                  currency only at the same rate. It runs after every journal posting and books nothing, so it
-//                  settled a DKK payment against a EUR invoice with the same number and figure, and a EUR pair
-//                  booked at different rates, leaving the DKK difference on the control account.
+// 20261019 CL/LH MB-72: equalizeMatchingRecords() sets udlign_date to the later of the two transaction dates.
+// 20261027 CL/LH MB-79 equalizeMatchingRecords() only settles two posts in the same currency, and in a foreign currency only at the same rate. It runs after every journal posting and books nothing, so it settled a DKK payment against a EUR invoice with the same number and figure, and a EUR pair booked at different rates, leaving the DKK difference on the control account.
+// 20261104 CDX/NTR Preserve settlement dates alongside the MB-123 currency and rate conditions.
 
 @session_start();
 $s_id=session_id();
@@ -151,7 +150,7 @@ function equalizeMatchingRecords () {
 	for ($x=0;$x<count($konto_id);$x++) {
 		$faktnr[$x]=array();
 		$y=0;
-		$qtxt="select id,faktnr,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$x]' and udlignet='0' and amount>'0' order by transdate";
+		$qtxt="select id,faktnr,amount,transdate,valuta,valutakurs from openpost where konto_id='$konto_id[$x]' and udlignet='0' and amount>'0' order by transdate";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['faktnr'],$faktnr[$x])) {
@@ -159,6 +158,7 @@ function equalizeMatchingRecords () {
 			}
 			$faktnr[$x][$y]=$r['faktnr'];
 			$amount[$x][$y]=$r['amount'];
+			$transdate[$x][$y]=$r['transdate'];
 			$postValuta[$x][$y]=trim((string)$r['valuta']) === '' ? 'DKK' : $r['valuta'];
 			$postKurs[$x][$y]=(float)$r['valutakurs'];
 			$y++;
@@ -170,7 +170,7 @@ function equalizeMatchingRecords () {
 	for ($x=0;$x<count($konto_id);$x++) {
 		for ($y=0;$y<count($faktnr[$x]);$y++) {
 			$negAmount=$amount[$x][$y]*-1;
-			$qtxt = "select id from openpost where konto_id='$konto_id[$x]' and udlignet='0' and faktnr='".db_escape_string($faktnr[$x][$y])."'";
+			$qtxt = "select id,transdate from openpost where konto_id='$konto_id[$x]' and udlignet='0' and faktnr='".db_escape_string($faktnr[$x][$y])."'";
 			$qtxt.= "and  amount= '$negAmount'";
 			$qtxt.= " and coalesce(nullif(valuta,''),'DKK')='" . db_escape_string($postValuta[$x][$y]) . "'";
 			if ($postValuta[$x][$y] != 'DKK' && $postKurs[$x][$y]) {
@@ -181,7 +181,11 @@ function equalizeMatchingRecords () {
 			if ($r = db_fetch_array($q)) {
 				$udlignId++;
 				if ($openId[$x][$y]) {
-					$qtxt="update openpost set udlignet='1',udlign_id='$udlignId' where id = '$r[id]' or id = '" .$openId[$x][$y] ."'";
+					// The settlement date is the later of the two transaction dates.
+					$udlignDate = max((string)$transdate[$x][$y], (string)$r['transdate']);
+					$qtxt="update openpost set udlignet='1',udlign_id='$udlignId'";
+					if ($udlignDate) $qtxt.= ",udlign_date='" . db_escape_string($udlignDate) . "'";
+					$qtxt.= " where id = '$r[id]' or id = '" .$openId[$x][$y] ."'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}

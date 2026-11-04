@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-09-18 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.1.0 -- 2026-11-03 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,8 +40,11 @@
 // 20260915 CDX/PHR Paginate posted and simulated VAT rows together, including the final date.
 // 20260916 CDX/PHR Show opening balances, including balance accounts without VAT or period entries.
 // 20260918 CDX/PHR Print all VAT ledger rows and totals while paginating only the screen view.
+// 20261030 CL/LAH Show all lines by default, like kontokort: per_page 0 means "Alle" and is the default.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                 kontokort_moms() includes its files via __DIR__ (no behaviour change).
 
-function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 50) {
+function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 0) {
 	print <<<'HTML'
 <style>
 @media screen {
@@ -68,6 +71,14 @@ HTML;
 	global $prj_navn_fra,$prj_navn_til;
 	global $sprog_id;
 	global $top_bund;
+
+	// per_page 0 is "Alle", the default. Kept apart from $per_page, which the
+	// window maths below needs as a real row count.
+	$perPageChoice = max(0, (int) $per_page);
+	if (!$perPageChoice) {
+		$page     = 1;
+		$per_page = 1000000000;
+	}
 
 	$title = 'Rapport • Kontokort med Moms';
 	
@@ -154,7 +165,7 @@ HTML;
 	}
 	if ($momsq) $momsq.=")";
 	$momsantal=$x;
-	include("../includes/topline_settings.php");
+	include(__DIR__ . '/../../includes/topline_settings.php');
 	print "<div class='ledger-heading' style=\"position: sticky; top: 0; z-index: 100; background-color: #eeeef0;\">";
 		#########
 		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
@@ -168,7 +179,7 @@ HTML;
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 	print "<td width='80%' align='center' style='$topStyle'>".findtekst('516|Rapport - kontokort med moms', $sprog_id)."</td>\n";
-	print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
+	print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' download style='color:#ffffff'>csv</a></td>";
 	print "</tbody></table>"; #B slut
 	print "</td></tr>";
 	#######################
@@ -544,15 +555,16 @@ print "</table>";
 
     $offsetFrom  = (($page - 1) * $per_page) + 1;
     $offsetTo    = min($total_rows, $page * $per_page);
-    $prevUrl     = $base_url . '&per_page=' . $per_page . '&page=' . ($page - 1);
-    $nextUrl     = $base_url . '&per_page=' . $per_page . '&page=' . ($page + 1);
+    $prevUrl     = $base_url . '&per_page=' . $perPageChoice . '&page=' . ($page - 1);
+    $nextUrl     = $base_url . '&per_page=' . $perPageChoice . '&page=' . ($page + 1);
 
     // Build rows-per-page options
-    $rowCounts = [25, 50, 100, 250, 500];
+    $rowCounts = [0, 25, 50, 100, 250, 500];
     $rowCountOptions = '';
     foreach ($rowCounts as $count) {
-        $sel = ($count === $per_page) ? 'selected' : '';
-        $rowCountOptions .= "<option value='{$count}' {$sel}>{$count}</option>";
+        $sel = ($count === $perPageChoice) ? 'selected' : '';
+        $label = $count ? $count : findtekst('2498|Alle', $sprog_id);
+        $rowCountOptions .= "<option value='{$count}' {$sel}>{$label}</option>";
     }
 
     // Build page number buttons with ellipsis — matches render_table_footer pattern
@@ -562,16 +574,16 @@ print "</table>";
 
     $pageButtons = '';
     if ($startPage > 1) {
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page=1' class='navbutton'>1</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page=1' class='navbutton'>1</a>";
         if ($startPage > 2) $pageButtons .= "<span>...</span>";
     }
     for ($p = $startPage; $p <= $endPage; $p++) {
         $activeStyle = ($p === $page) ? "style='text-decoration:underline; font-weight:bold;'" : "";
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
     }
     if ($endPage < $total_pages) {
         if ($endPage < $total_pages - 1) $pageButtons .= "<span>...</span>";
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
     }
 
     print "</div>"; // closes scrollable div — MUST be before the fixed bar
@@ -611,9 +623,9 @@ print "</table>";
 	fclose($csv);
 
 	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
+		include_once(__DIR__ . '/../../includes/topmenu/footer.php');
 	} else {
-		include_once '../includes/oldDesign/footer.php';
+		include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
 	}
  
 #################################################################################################

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-10-27 ---
+// ---------------finans/bogfor.php---------- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,31 +69,19 @@
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
 // 20261019 CL/LH MB-71: Simulation and posting are refused, naming the vouchers, while a saved row has text, amount or invoice number but no debit or credit account (unfinishedJournalVouchers()).
 //                Such rows are no longer deleted silently; only rows without any content are still dropped.
-// 20261021 CL/MJ MB-79 Automatic settlement matched on the currency amount alone, so an invoice and its
-//                  payment settled each other even when they were booked at different rates - and the DKK
-//                  difference between the rates was left on the debtor/creditor control account. It is now
-//                  booked on the currency's difference account, the way manual settlement books it, and a
-//                  post only settles against another post in the same currency. openpostRateDifference()
-//                  measures the difference without writing anything, so bogfor() books it into simulering
-//                  as well as transaktioner and openpost() keeps its "only when not simulating" guard.
 // 20261023 CL/LH MB-71: The refusal alert text goes through jsString(), so it is no longer empty when $db_encode isn't UTF8.
+// 20261019 CL/LH MB-72: openpost() treats an empty, '0' and NULL project as the same, so a journal payment settles an invoice without a project.
+//                The settlement date is the later of invoice and payment date, not the invoice date.
+// 20261023 CL/LH MB-72: openpost() trims the project before matching and storing it, and a payment settling
+//                several invoices gives every row of the group the group's latest date.
+// 20261028 CL/LH MB-72: openpost() settles a payment naming several invoices ("A;B") only when they and the payment
+//                net to zero, and writes the payment row once instead of once per settled invoice.
+// 20261021 CL/MJ MB-79 Automatic settlement matched on the currency amount alone, so an invoice and its payment settled each other even when they were booked at different rates - and the DKK difference between the rates was left on the debtor/creditor control account. It is now booked on the currency's difference account, the way manual settlement books it, and a post only settles against another post in the same currency. openpostRateDifference() measures the difference without writing anything, so bogfor() books it into simulering as well as transaktioner and openpost() keeps its "only when not simulating" guard.
 // 20261026 CDX/MJ MB-79 Preserve exchange-difference settlement alongside current master journal validation.
-// 20261027 CL/LH MB-79 The open-post row for an automatic exchange difference is written the way manual
-//                  settlement writes it - 0,001 in the settled currency at a rate worth the DKK difference - so
-//                  the account statement of a foreign-currency debtor/creditor no longer shows a currency
-//                  balance on a settled account (rateDifferenceOpenpostAmount()).
-// 20261027 CL/LH MB-79 Simuler and the confirmation page now book and show the same exchange differences as
-//                  Bogfør: openpostRateDifference() keeps track of what the journal's earlier lines would have
-//                  written to openpost (openpostOverlay()), so a journal holding an invoice and its payment, or
-//                  two payments for one invoice, simulates what it posts, and the confirmation page adds the
-//                  differences to its account and debtor/creditor movements (journalRateDifferences()). The
-//                  same invoice reference twice ('F-1;F-1') is measured once, as openpost() settles it
-//                  (openpostMatches()), and a difference account that is not in the chart of accounts is
-//                  refused instead of posted to (rateDifferenceAccountError()).
-// 20261027 CL/LH MB-79 When the journal also has in-voucher currency rounding, the confirmation page puts it on
-//                  the difference account's row instead of a row without an account number
-//                  (confirmationRoundingOnListedAccount()), so that row shows the account's new balance.
-
+// 20261027 CL/LH MB-79 The open-post row for an automatic exchange difference is written the way manual settlement writes it - 0,001 in the settled currency at a rate worth the DKK difference - so the account statement of a foreign-currency debtor/creditor no longer shows a currency balance on a settled account (rateDifferenceOpenpostAmount()).
+// 20261027 CL/LH MB-79 Simuler and the confirmation page now book and show the same exchange differences as Bogfør: openpostRateDifference() keeps track of what the journal's earlier lines would have written to openpost (openpostOverlay()), so a journal holding an invoice and its payment, or two payments for one invoice, simulates what it posts, and the confirmation page adds the differences to its account and debtor/creditor movements (journalRateDifferences()). The same invoice reference twice ('F-1;F-1') is measured once, as openpost() settles it (openpostMatches()), and a difference account that is not in the chart of accounts is refused instead of posted to (rateDifferenceAccountError()).
+// 20261027 CL/LH MB-79 When the journal also has in-voucher currency rounding, the confirmation page puts it on the difference account's row instead of a row without an account number (confirmationRoundingOnListedAccount()), so that row shows the account's new balance.
+// 20261104 CDX/NTR Merge MB-72 settlement dates and complete payments with MB-123 exchange differences, simulation and preview.
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
@@ -1261,6 +1249,16 @@ function openpostInvoiceList($faktura) {
 	return array($faktura);
 }
 /**
+ * Normalizes the no-project values used by order invoices and journal lines (MB-72).
+ *
+ * @param string|null $projekt
+ * @return string
+ */
+function openpostProject($projekt) {
+	$projekt = trim((string)$projekt);
+	return $projekt === '0' ? '' : $projekt;
+}
+/**
  * The query openpost() uses to find the open post a new posting settles.
  *
  * @param string|int $konto_id     adresser.id of the debtor/creditor.
@@ -1281,7 +1279,13 @@ function openpostMatchQuery($konto_id,$projekt,$faktnr,$valuta,$belob,$amountWin
 	// includes/udlign_openpost.php reads it - otherwise an ordinary DKK settlement would stop working.
 	$matchValuta = ($valuta === '' || $valuta === NULL) ? 'DKK' : $valuta;
 	$qtxt = "select id,transdate,amount,valutakurs from openpost where konto_id='" . (int)$konto_id . "'";
-	$qtxt.= " and projekt='" . db_escape_string((string)$projekt) . "' and udlignet!='1'";
+	$projekt = openpostProject($projekt);
+	if ($projekt === '') {
+		$qtxt.= " and (projekt is null or projekt = '' or projekt = '0')";
+	} else {
+		$qtxt.= " and projekt='" . db_escape_string($projekt) . "'";
+	}
+	$qtxt.= " and udlignet!='1'";
 	// $faktnr arrives escaped from bogfor(); escaping it again would double any quote and lose the match.
 	$qtxt.= " and faktnr='$faktnr'";
 	$qtxt.= " and coalesce(nullif(valuta,''),'DKK')='" . db_escape_string($matchValuta) . "'";
@@ -1312,8 +1316,8 @@ function openpostMatchQuery($konto_id,$projekt,$faktnr,$valuta,$belob,$amountWin
  * @param string            $valuta   Currency letters of the new posting.
  * @param float             $belob    The counter-amount to look for ($amount*-1).
  * @param array|null        $overlay  From openpostOverlay() during Simuler, NULL when posting for real.
- * @return array<int, array{id: int|string, amount: float, valutakurs: float}> A stored match also carries
- *                                                                          its transdate.
+ * @return array<int, array{id: int|string, amount: float, valutakurs: float, transdate?: string}>
+ *         Stored matches include transdate; simulated matches do not.
  */
 function openpostMatches($konto_id,$projekt,$invoices,$valuta,$belob,$overlay=NULL) {
 	$matches = array();
@@ -1329,6 +1333,15 @@ function openpostMatches($konto_id,$projekt,$invoices,$valuta,$belob,$overlay=NU
 			$matches[] = $match;
 			$taken[] = $match['id'];
 		}
+	}
+	// MB-72: a short or excess payment must leave all named invoices open. Keep this rule in the
+	// shared matcher so posting, Simuler and the confirmation preview consume the same rows.
+	$matchedSum = 0.0;
+	foreach ($matches as $match) {
+		$matchedSum += (float)$match['amount'];
+	}
+	if ($matchedSum < $belob-0.005 || $matchedSum >= $belob+0.005) {
+		return array();
 	}
 	return $matches;
 }
@@ -1360,7 +1373,7 @@ function openpostOverlay() {
 function openpostOverlayMatch($overlay,$konto_id,$projekt,$faktnr,$valuta,$belob,$amountWindow,$taken) {
 	$matchValuta = ($valuta === '' || $valuta === NULL) ? 'DKK' : $valuta;
 	foreach ($overlay['open'] as $post) {
-		if (in_array($post['id'], $taken, true) || $post['konto_id'] != $konto_id || $post['projekt'] !== (string)$projekt) {
+		if (in_array($post['id'], $taken, true) || $post['konto_id'] != $konto_id || openpostProject($post['projekt']) !== openpostProject($projekt)) {
 			continue;
 		}
 		if ($post['faktnr'] !== $faktnr || $post['valuta'] !== $matchValuta) {
@@ -1399,7 +1412,7 @@ function openpostOverlayRecord(&$overlay,$konto_id,$projekt,$faktura,$valuta,$am
 		$overlay['open'][$id] = array(
 			'id'         => $id,
 			'konto_id'   => $konto_id,
-			'projekt'    => (string)$projekt,
+			'projekt'    => trim((string)$projekt),
 			'faktnr'     => ($faktura == "-") ? "" : (string)$faktura,
 			'valuta'     => ($valuta === '' || $valuta === NULL) ? 'DKK' : $valuta,
 			'amount'     => afrund($amount,3),
@@ -1744,6 +1757,8 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	$udlignet=0;
 	$udlign_date=$transdate;
 	$dato=date("Y-m-d");
+	$projekt = trim((string)$projekt);
+	$projektSql = db_escape_string($projekt);
 	$belob=$amount*-1;
 	$debet=str_replace(" ","",$debet);
 	$q = db_select(openpostAccountQuery($debet,$art),__FILE__ . " linje " . __LINE__);
@@ -1764,13 +1779,16 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		// the currency amounts cancelled.
 		// 20261027 CL/LH MB-79 Found by openpostMatches(), the same lookup openpostRateDifference() measures.
 		$matches=openpostMatches($konto_id,$projekt,$invoices,$valuta,$belob);
-		foreach ($matches as $r) {
-# $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
-			$udlign_date=$r['transdate'];
+		if ($matches) {
+			foreach ($matches as $r) {
+				$udlign_date = max($udlign_date, (string)$r['transdate']);
+			}
+			$udlign_date = db_escape_string($udlign_date);
+			$matchIds = array_map('intval', array_column($matches, 'id'));
 			$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
-			$qtxt.= "where id = '$r[id]'";
+			$qtxt.= "where id in (" . implode(',', $matchIds) . ")";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			// 20230626 -->
+			// One payment row and the group's latest date, even when several invoices are settled.
 			$qtxt = "insert into openpost
 			(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
 			if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
@@ -1778,10 +1796,9 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 			$qtxt.= "values ";
 			$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id',";
 			if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-			$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projekt')";
+			$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projektSql')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$udlignet=1;
-			// <-- 20230626
 		}
 		// 20261021 CL/MJ MB-79 doAlign.php writes this row after a manual settlement so the settled group's
 		// DKK value (amount*valutakurs/100) nets to zero against the difference booked on the control
@@ -1796,7 +1813,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 			$qtxt.= "kladde_id,transdate,udlign_id,bilag_id,valuta,valutakurs,projekt)";
 			$qtxt.= " values ";
 			$qtxt.= "('$konto_id','$debet','$faktura','$kursdiffamount','$bilag','$kursdiffbesk','1','$udlign_date',";
-			$qtxt.= "'$kladde_id','$transdate','$udlign_id','$bilag_id','" . db_escape_string($valuta) . "','$kursdiffkurs','$projekt')";
+			$qtxt.= "'$kladde_id','$transdate','$udlign_id','$bilag_id','" . db_escape_string($valuta) . "','$kursdiffkurs','$projektSql')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -1807,7 +1824,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		$qtxt.= "bilag_id,valuta,valutakurs,projekt)";
 		$qtxt.= " values ('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','0','$transdate','$kladde_id',";
 		if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projekt')";
+		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projektSql')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 }
