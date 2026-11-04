@@ -5,7 +5,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -- systemdata/operator_brugere.php ------------- lap 4.0.8 -- 2026-11-02 --
+// -- systemdata/operator_brugere.php ------------- ver 5.1.0 -- 2026-11-02 --
 // 20261012 CL/ASR Operator copy of admin/admin_brugere.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE

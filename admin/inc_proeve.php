@@ -2,15 +2,11 @@
 // --- admin/inc_proeve.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. Trial follow-up for the operator panel: tabs "Nye kunder" (ledgers still in the 30-day trial, with
-//                  days left) and "Overskredet prøveperiode" (trial ended without payment, with follow-up status and note).
-//                  The trial is kept in regnskab_trial (one row per ledger):
-//                    - operator_opret.php registers new ledgers (start = today, end = trial override expiry or +30 days);
-//                    - ledgers created elsewhere are picked up from the trial override, or from the creation time of the
-//                      customer database (PG_VERSION, needs superuser/pg_read_server_files) when created within the
-//                      last 60 days. Older ledgers are treated as existing customers and never enter the lists.
-//                  Paid = marked paid here, billing status 'paid' (own or payer's, see bill_payer) or "Betalt til" set
-//                  after the trial start. Closed ledgers and bookkeeper/group home ledgers are not listed. All changes are logged.
+// 20261012 CL/ASR New. Trial follow-up for the operator panel: tabs "Nye kunder" (ledgers still in the 30-day trial, with days left) and "Overskredet prøveperiode" (trial ended without payment, with follow-up status and note).
+//                 The trial is kept in regnskab_trial (one row per ledger): - operator_opret.php registers new ledgers (start = today, end = trial override expiry or +30 days); - ledgers created elsewhere are picked up from the trial override, or from the creation time of the customer database (PG_VERSION, needs superuser/pg_read_server_files) when created within the last 60 days.
+//                 Older ledgers are treated as existing customers and never enter the lists.
+//                 Paid = marked paid here, billing status 'paid' (own or payer's, see bill_payer) or "Betalt til" set after the trial start.
+//                 Closed ledgers and bookkeeper/group home ledgers are not listed. All changes are logged.
 // 20261029 CL/ASR regnskab_trial is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 
 if (!function_exists('tr_tables_ensure')) {

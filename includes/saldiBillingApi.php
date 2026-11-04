@@ -2,12 +2,9 @@
 // --- includes/saldiBillingApi.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR Moved unchanged from admin/admin_panel.php so the nightly job and the operator overview can
-//                  use the same REST client against the billing ledger on ssl3 (settings var_grp='internal_api').
-// 20261012 CL/ASR The billing ledger's URL comes from settings too (var_name 'saldi_api_base', same group) with the
-//                  old constant as default, so nothing hardcodes the billing ledger (owner's decision 12/10-2026);
-//                  the customer-side invoice overview (billing overview spec) reuses this client and these settings.
-//                  TLS certificates are now verified (verification was off; the billing ledger has a valid certificate).
+// 20261010 CL/ASR Moved unchanged from admin/admin_panel.php so the nightly job and the operator overview can use the same REST client against the billing ledger on ssl3 (settings var_grp='internal_api').
+// 20261012 CL/ASR The billing ledger's URL comes from settings too (var_name 'saldi_api_base', same group) with the old constant as default, so nothing hardcodes the billing ledger (owner's decision 12/10-2026); the customer-side invoice overview (billing overview spec) reuses this client and these settings.
+//                 TLS certificates are now verified (verification was off; the billing ledger has a valid certificate).
 // 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
 if (!defined('SALDI_API_BASE')) {
 // ---- REST API Configuration for the billing ledger (default ssl3.saldi.dk) ----

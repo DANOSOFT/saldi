@@ -2,10 +2,7 @@
 // --- admin/vr_ui.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR New. Shared view helpers for the admin-layer pages that use the new page layout
-//                  (vis_regnskaber.php, regnskab.php, partnere.php): escaping that follows the database charset,
-//                  number/date formatting, da/en texts without the uncached findtekst('plain text') path,
-//                  and the page frame (head/tabs/foot).
+// 20261010 CL/ASR New. Shared view helpers for the admin-layer pages that use the new page layout (vis_regnskaber.php, regnskab.php, partnere.php): escaping that follows the database charset, number/date formatting, da/en texts without the uncached findtekst('plain text') path, and the page frame (head/tabs/foot).
 // 20261029 CL/ASR vr_require_operator() shows a short notice until the update chain has created the panel's tables.
 
 if (!function_exists('vr_h')) {

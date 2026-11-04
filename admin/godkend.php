@@ -2,9 +2,9 @@
 // --- admin/godkend.php --- ver 5.1.0 --- 2026.10.11 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261011 CL/ASR New. Customer approval of a purchase proposal via a one-time token (no login). Shows the proposal
-//                  and its price; "Godkend" applies it (plan change today or add-on) and marks it accepted; "Afvis"
-//                  rejects. Token = 48 hex chars from random_bytes. Expired or decided proposals show a notice only.
+// 20261011 CL/ASR New. Customer approval of a purchase proposal via a one-time token (no login).
+//                 Shows the proposal and its price; "Godkend" applies it (plan change today or add-on) and marks it accepted; "Afvis" rejects.
+//                 Token = 48 hex chars from random_bytes. Expired or decided proposals show a notice only.
 include("../includes/connect.php");
 if (!function_exists('db_select')) include("../includes/db_query.php");
 include("../includes/std_func.php");

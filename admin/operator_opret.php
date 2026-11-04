@@ -24,12 +24,10 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // History of the account creation itself: includes/opretfunc.php and admin/opret.php.
-// 20261012 CL/ASR Operator copy of admin/opret.php for Saldi staff only (vr_require_operator). The original page is
-//                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
-// 20261029 CL/ASR The account is now created by create_regnskab() from includes/opretfunc.php instead of a copy of
-//                  opret(), so the page keeps only the form, the account type, plan/trial and partner choices. Company
-//                  details posted with fra_formular are passed on, as admin/opret.php does, and the administrator's
-//                  password is hashed as typed (an apostrophe was hashed escaped and the login failed).
+// 20261012 CL/ASR Operator copy of admin/opret.php for Saldi staff only (vr_require_operator).
+//                 The original page is unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
+// 20261029 CL/ASR The account is now created by create_regnskab() from includes/opretfunc.php instead of a copy of opret(), so the page keeps only the form, the account type, plan/trial and partner choices.
+//                 Company details posted with fra_formular are passed on, as admin/opret.php does, and the administrator's password is hashed as typed (an apostrophe was hashed escaped and the login failed).
 
 @session_start();
 $s_id=session_id();

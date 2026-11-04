@@ -2,12 +2,10 @@
 // --- admin/inc_installationer.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. "Egne installationer": customers who run Saldi themselves (open source) and have a support
-//                  agreement with us. They are not ledgers in this master, so they live in their own table
-//                  self_hosted. The operator registers contact, URL, version, support level, agreement period and
-//                  price, and the billing-ledger customer; payments come from the billing ledger through the same
-//                  REST API as for hosted ledgers (bill_fetch/bill_classify), cached for the list and overview.
-//                  Shown as a tab on operator_panel.php (ltab=egne) with a card per installation (?inst_id=N).
+// 20261012 CL/ASR New. "Egne installationer": customers who run Saldi themselves (open source) and have a support agreement with us.
+//                 They are not ledgers in this master, so they live in their own table self_hosted.
+//                 The operator registers contact, URL, version, support level, agreement period and price, and the billing-ledger customer; payments come from the billing ledger through the same REST API as for hosted ledgers (bill_fetch/bill_classify), cached for the list and overview.
+//                 Shown as a tab on operator_panel.php (ltab=egne) with a card per installation (?inst_id=N).
 // 20261029 CL/ASR self_hosted is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 
 if (!function_exists('inst_tables_ensure')) {

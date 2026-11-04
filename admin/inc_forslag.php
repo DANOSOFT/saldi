@@ -2,11 +2,9 @@
 // --- admin/inc_forslag.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261011 CL/ASR New. Purchase proposals (tilkøb): the operator (or later a partner) proposes a plan or an add-on;
-//                  the customer's billing contact gets a one-time link (admin/godkend.php?t=…) and nothing becomes
-//                  payable until they approve. The operator sees open proposals on the customer card and may approve
-//                  on the customer's behalf (e.g. agreed by phone) or reject. Proposals expire after 30 days.
-//                  Table partner_proposals from the panels spec §4, plus token / sent_to / expires_at.
+// 20261011 CL/ASR New. Purchase proposals (tilkøb): the operator (or later a partner) proposes a plan or an add-on; the customer's billing contact gets a one-time link (admin/godkend.php?t=…) and nothing becomes payable until they approve.
+//                 The operator sees open proposals on the customer card and may approve on the customer's behalf (e.g. agreed by phone) or reject.
+//                 Proposals expire after 30 days. Table partner_proposals from the panels spec §4, plus token / sent_to / expires_at.
 // 20261029 CL/ASR partner_proposals is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 
 if (!function_exists('fs_tables_ensure')) {

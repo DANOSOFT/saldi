@@ -22,15 +22,11 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261029 CL/ASR New. The master-database tables of the operator panel (SD-731): partners and their links, the
-//                  entitlement catalogue and per-account plans, usage snapshots, billing summaries, proposals, trials,
-//                  lifecycle, self-hosted installations and customizations, plus regnskab.lukkes_kommentar.
-//                  Called from includes/betweenUpdates.php (existing installs, on the next login to any account) and
-//                  from index/install.php (new installs). It runs once per master: a settings flag records the
-//                  schema version, so later logins only read that flag. All statements use the master connection
-//                  (db_modify/db_select with $global = true), so it works from an account login and from install.php.
-//                  An advisory lock lets one login apply it at a time, and the flag is only set once every table and
-//                  column is there.
+// 20261029 CL/ASR New. The master-database tables of the operator panel (SD-731): partners and their links, the entitlement catalogue and per-account plans, usage snapshots, billing summaries, proposals, trials, lifecycle, self-hosted installations and customizations, plus regnskab.lukkes_kommentar.
+//                 Called from includes/betweenUpdates.php (existing installs, on the next login to any account) and from index/install.php (new installs).
+//                 It runs once per master: a settings flag records the schema version, so later logins only read that flag.
+//                 All statements use the master connection (db_modify/db_select with $global = true), so it works from an account login and from install.php.
+//                 An advisory lock lets one login apply it at a time, and the flag is only set once every table and column is there.
 
 if (!function_exists('operator_panel_schema')) {
 	define('OPERATOR_PANEL_SCHEMA', '1');

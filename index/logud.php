@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// -----------index/logud.php------ ver 4.0.8 --- 2024-04-09 -------------
+// -----------index/logud.php------ ver 5.1.0 --- 2026-10-25 -------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

@@ -2,15 +2,9 @@
 // --- includes/entitlements.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in
-//                  Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the
-//                  operator's subscription card: prices on plans/addons (price_ore, billing_interval,
-//                  extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for
-//                  changes with a future effective date. Source is 'manual' until the plan is synced from the billing
-//                  ledger's recurring invoicing order (payment model B1, 12/10-2026: "Saldi invoices, Stripe collects" –
-//                  the recurring order is the truth for the plan; spec §6's per-installation Stripe webhook is dropped);
-//                  the resolver (§5.2) is the same either way. Every change is written to partner_log as
-//                  entitlement.* (the stage 2 audit_log mirrors it when it exists).
+// 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the operator's subscription card: prices on plans/addons (price_ore, billing_interval, extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for changes with a future effective date.
+//                 Source is 'manual' until the plan is synced from the billing ledger's recurring invoicing order (payment model B1, 12/10-2026: "Saldi invoices, Stripe collects" – the recurring order is the truth for the plan; spec §6's per-installation Stripe webhook is dropped); the resolver (§5.2) is the same either way.
+//                 Every change is written to partner_log as entitlement.* (the stage 2 audit_log mirrors it when it exists).
 // 20261029 CL/ASR ent_tables_ensure() no longer creates tables (update chain); it only seeds the catalogue.
 
 if (!function_exists('ent_tables_ensure')) {

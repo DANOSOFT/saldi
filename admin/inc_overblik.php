@@ -2,12 +2,9 @@
 // --- admin/inc_overblik.php --- ver 5.1.0 --- 2026.10.10 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR New. Area 5: a small commercial overview on the operator's Overblik page. Four figures from data
-//                  the panel already has: active ledgers by plan (regnskab + regnskab_entitlements), MRR from the
-//                  catalogue prices (plan + add-ons, yearly/12; "ERP by agreement" counts 0 and is listed),
-//                  customers with overdue payments (cached summary in regnskab_billing, filled when the
-//                  Betalinger tab is viewed and by the nightly job), and ledgers at >= 80 % of a limit
-//                  (latest usage_snapshots vs. effective limits). Not an analytics platform.
+// 20261010 CL/ASR New. Area 5: a small commercial overview on the operator's Overblik page.
+//                 Four figures from data the panel already has: active ledgers by plan (regnskab + regnskab_entitlements), MRR from the catalogue prices (plan + add-ons, yearly/12; "ERP by agreement" counts 0 and is listed), customers with overdue payments (cached summary in regnskab_billing, filled when the Betalinger tab is viewed and by the nightly job), and ledgers at >= 80 % of a limit (latest usage_snapshots vs. effective limits).
+//                 Not an analytics platform.
 
 if (!function_exists('ov_render')) {
 function ov_data() {
