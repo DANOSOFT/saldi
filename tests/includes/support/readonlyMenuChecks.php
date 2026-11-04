@@ -197,6 +197,30 @@ function readonly_menu_checks(): array
 		&& strpos($happyhour, "substr(\$rettigheder, 9, 1) < '1'") !== false,
 		'and names read-only (2) and a right below 1');
 
+	# ---- the card's category cleanup is a write, so it is gated like the icons beside it ---------
+	$cats = $source('/lager/productCardIncludes/showCategories.php');
+	$catDelete = strpos($cats, 'delete from grupper');
+	$check($catDelete !== false, 'the card still cleans up an orphan category');
+	$insideNoEdit = function ($code, $at) {
+		if ($at === false) {
+			return false;
+		}
+		$open = strrpos(substr($code, 0, $at), 'if (!$noEdit) {');
+		if ($open === false) {
+			return false;
+		}
+		$depth = 0;
+		for ($i = $open; $i < $at; $i++) {
+			if ($code[$i] === '{') {
+				$depth++;
+			} elseif ($code[$i] === '}' && --$depth === 0) {
+				return false;
+			}
+		}
+		return $depth > 0;
+	};
+	$check($insideNoEdit($cats, $catDelete), 'and only for a user who may edit, so a read-only view deletes nothing');
+
 	$cardSource = implode("\n", $cardLines);
 	// The href appears in the two card links only; each one is printed from the false arm of a
 	// ($noEdit) ? ternary, and the un-gated count is what a regression would change.
