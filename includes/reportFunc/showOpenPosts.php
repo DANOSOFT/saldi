@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/reportFunc/showOpenPosts.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -119,6 +119,8 @@
 //                 collide with ids used by other open branches.
 // 20261030 CDX/NTR Merge the updated aging grid and actions while preserving request precedence and one shared column count.
 // 20261030 CDX/NTR Normalize the historical author tag to uppercase for file-history validation.
+// 20261103 LOE SST-935 Right-align the amount headers over the right-aligned amount cells.
+//              css/std.css declares th{text-align:left}, which beat the align attribute.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -973,6 +975,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 .op-group-row th{font-size:90%;color:#555;padding-bottom:0;}
 .op-group-row th.op-group{text-align:center;border-bottom:1px solid #aaa;}
 .op-label-row th{border-bottom:1px solid #888;}
+.op-label-row th[align=right]{text-align:right;}
+.op-label-row th[align=center]{text-align:center;}
 .op-summary{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:0 6px 6px 6px;}
 .op-search{padding:0 6px 6px 6px;}
 a.op-filter,a.op-filter:link,a.op-filter:visited,a.op-link,a.op-link:link,a.op-link:visited{color:$linkColor;}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/notat.php --- ver 4.0.8 -- 2023-04-05 --
+// --- sager/notat.php --- ver 5.1.0 -- 2026-11-04 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2009-2023 Saldi.dk ApS
+// Copyright (c) 2009-2026 Danosoft ApS
 // --------------------------------------------------------------------------
 
 // Har lagt javascript i en separat fil ved navn 'jquery.notat.js' 
@@ -34,6 +34,7 @@
 // 20190910 PHR Button 'bilag' removed by # as it doesn't work. 
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260803 CL/SZ Upgraded TinyMCE 3.5.8 (2012, EOL) to self-hosted TinyMCE 8 (SD-604)
+// 20261104 LOE SST-939 Initialise the note-list arrays before the query, so an empty list no longer throws.
 
 @session_start();
 $s_id = session_id();
@@ -182,6 +183,12 @@ function noteliste($mine_notater) {
 	$sqlsort = urldecode($sort);
 	
 	$x = 0;
+	// The list arrays are only filled by the loop below, which does not run when the query returns
+	// nothing; count() then threw a TypeError on PHP 8, so the page stopped under the search fields
+	// for every user without notes (SST-939).
+	$notat_id = $notat = $beskrivelse = $forfatter = $sags_id = array();
+	$sagsnr = $status = $datotid = $sag_addr = array();
+	$udf_addr1 = $udf_postnr = $udf_bynavn = array();
 	if ($mine_notater=(if_isset($_GET['mine_notater']))) { #20141903-1
 		$qtxt = "select noter.id as n_id,noter.notat,noter.beskrivelse,noter.hvem,noter.assign_id,noter.datotid,noter.status,noter.sagsnr,noter.assign_to,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn from noter 
 		LEFT JOIN sager ON noter.assign_id = sager.id
