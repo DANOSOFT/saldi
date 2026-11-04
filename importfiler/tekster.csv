@@ -5358,3 +5358,14 @@
 8406	Vis besked når kostprisen er anslået	Show a message when the cost price is estimated	Vis melding når kostprisen er anslått
 8407	Forventet lev. dato	Expected del. date	Forventet lev. dato
 8408	Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer. For indkøbsordrer er datoen den forventede leveringsdato.	Order status shows how many products are in offers, orders, or purchase suggestions.<br><br>Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates. For purchase orders the date is the expected delivery date.	Ordrestatus viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.<br><br>Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer. For innkjøpsordrer er datoen den forventede leveringsdatoen.
+8409	Advarsel: %s er fratrådt pr. %s.	Warning: %s left the company on %s.	Advarsel: %s sluttet %s.
+8410	ukendt	unknown	ukjent
+8411	Aktuelle opgaver	Current tasks	Aktuelle oppgaver
+8412	Luk akkordliste	Close piecework list	Lukk akkordliste
+8413	Afregnet på seddel %s	Settled on slip %s	Avregnet på seddel %s
+8414	Fejl i brugeropsætning	Error in the user setup	Feil i brukeroppsettet
+8415	HM	ASAP	Snarest
+8416	jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec	Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec	jan,feb,mar,apr,mai,jun,jul,aug,sep,okt,nov,des
+8417	Af	By	Av
+8418	Aktuelle sager	Current projects	Aktuelle saker
+8419	Alle sager	All projects	Alle saker
