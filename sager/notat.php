@@ -35,6 +35,8 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260803 CL/SZ Upgraded TinyMCE 3.5.8 (2012, EOL) to self-hosted TinyMCE 8 (SD-604)
 // 20261104 LOE SST-939 Initialise the note-list arrays before the query, so an empty list no longer throws.
+// 20261104 CL/MMR SD-799 The project status, the "by" labels, the search suggestion labels and the list counter follow the user's language.
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
 @session_start();
 $s_id = session_id();
@@ -56,6 +58,7 @@ $modulnr = 0;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
 $funktion     = if_isset($_GET['funktion']);
 $id           = if_isset($_GET['id']);
@@ -120,7 +123,8 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 		
 		print "</div><!-- end of wrapper -->  
 		<!--<div id=\"footer\"><p>Pluder | Pluder</p></div>-->
-		<script type=\"text/javascript\" src=\"../javascript/jquery.notat.js\"></script>
+		".sager_js_sagertekst()."
+		<script type=\"text/javascript\" src=\"../javascript/jquery.notat.js?v=20261103\"></script>
 	</body>
 </html>";
 
@@ -222,7 +226,7 @@ function noteliste($mine_notater) {
 				<tr>
 					<th width=\"100\">".findtekst('438|Dato', $sprog_id)."</th>
 					<th width=\"100\">".findtekst('3159|Sagsnummer', $sprog_id)."</th>
-					<th width=\"100\">".findtekst('638|Af', $sprog_id)."</th>
+					<th width=\"100\">".findtekst('8417|Af', $sprog_id)."</th>
 					<th width=\"410\">".findtekst('914|Beskrivelse', $sprog_id)."</th>
 					<th colspan=\"2\">&nbsp;</th>
 				</tr>
@@ -254,7 +258,7 @@ function noteliste($mine_notater) {
 					<a href=\"notat.php?funktion=noteliste&amp;nysort=datotid&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:115px\">".findtekst('3161|Dato/tid', $sprog_id)."</a>
 					<a href=\"notat.php?funktion=noteliste&amp;nysort=sagsnr&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:70px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
 					<a href=\"notat.php?funktion=noteliste&amp;nysort=udf_addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:215px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
-				<a href=\"notat.php?funktion=noteliste&amp;nysort=hvem&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:80px\">".findtekst('638|Af', $sprog_id)."</a>
+				<a href=\"notat.php?funktion=noteliste&amp;nysort=hvem&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:80px\">".findtekst('8417|Af', $sprog_id)."</a>
 				<a href=\"notat.php?funktion=noteliste&amp;nysort=status&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:70px\">".findtekst('494|Status', $sprog_id)."</a>
 				<a href=\"notat.php?funktion=noteliste&amp;nysort=beskrivelse&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:255px\">".findtekst('914|Beskrivelse', $sprog_id)."</a>
 				</li>
@@ -268,7 +272,7 @@ function noteliste($mine_notater) {
 				elseif (!$status[$x]==1) $stat = findtekst('2910|Ulæst', $sprog_id);
 				else $stat = "OK";
 				print "<li><a href=\"notat.php?id=$notat_id[$x]\">
-					<span class=\"felt01\" style=\"width:115px\">".date("d-m-y",$datotid[$x])." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$datotid[$x])."&nbsp;</span>
+					<span class=\"felt01\" style=\"width:115px\">".datotidTilDatoOgTid($datotid[$x], findtekst('2883|kl.', $sprog_id))."&nbsp;</span>
 					<span class=\"felt02\" style=\"width:70px\">$sagsnr[$x]&nbsp;</span>
 					<span class=\"felt03\" style=\"width:215px\" title='$sag_addr[$x]'>$sag_addr[$x]&nbsp;</span>
 					<span class=\"felt04\" style=\"width:80px\">$forfatter[$x]&nbsp;</span>
@@ -302,7 +306,7 @@ function noteliste($mine_notater) {
 			<div class=\"content\">
 		<table border=\"0\" cellspacing=\"0\" width=\"600\" style=\"margin-left: 90px;\">
 			<tr>
-		<td><p class=\"date\">".findtekst('638|Af', $sprog_id)." $forfatter, $datotid</p></td>
+		<td><p class=\"date\">".findtekst('8417|Af', $sprog_id)." $forfatter, $datotid</p></td>
 			</tr>
 			<tr>
 		<td><h4>$beskrivelse</h4>
@@ -1212,7 +1216,7 @@ function findsag() {
 				<span class=\"felt02\" style=\"width:205px;\" title='$sag_firmanavn[$x]'>$sag_firmanavn[$x]&nbsp;</span>
 				<span class=\"felt03\" style=\"width:315px;\" title='$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]'>$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]&nbsp;</span>
 				<span class=\"felt04\" style=\"width:145px;\" title='$sag_ansvarlig[$x]'>$sag_ansvarlig[$x]&nbsp;</span>
-				<span class=\"felt05\" style=\"width:75px;$statcolor\" title='$status[$x]'>$status[$x]&nbsp;</span>";
+				<span class=\"felt05\" style=\"width:75px;$statcolor\" title='".sag_status_txt($status[$x])."'>".sag_status_txt($status[$x])."&nbsp;</span>";
 			print "</a></li>";
 		}
 			print "</ul>
