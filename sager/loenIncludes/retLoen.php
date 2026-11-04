@@ -68,7 +68,7 @@ function ret_loen() {
 	$id=if_isset($_GET['id']);
 	$gem=NULL;
 	$datoMangler = loenDatoMangler($_POST); # 20261104 SST-943
-	if ($datoMangler) $id = (int)($_POST['id'] ?? 0);
+	if ($datoMangler) $id = (int)ifset($_POST, 'id', 0);
 	transaktion('begin');
 	if (!$datoMangler && ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis']))) {
 		# 20160830 ->
@@ -690,7 +690,7 @@ function ret_loen() {
 			}
 		}
 	}
-	if ($datoMangler) $listevalg = (int)($_POST['listevalg'] ?? 0); # 20261104 SST-943 the list type that was on the screen
+	if ($datoMangler) $listevalg = (int)ifset($_POST, 'listevalg', 0); # 20261104 SST-943 the list type that was on the screen
 	$qtxt = "select var_value from settings where var_name = 'hideSalary'";
 	if ($p=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))	$hideSalary = $p['var_value'];
 	else $hideSalary = NULL;
@@ -1690,7 +1690,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
  */
 function loenDatoMangler($post) {
 	if (empty($post['gem']) && empty($post['afslut'])) return false;
-	$dato = trim((string)($post['loendato'] ?? ''));
+	$dato = trim((string)ifset($post, 'loendato', ''));
 	return (!$dato || usdate($dato) == '1970-01-01');
 }
 
