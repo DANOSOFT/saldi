@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261030 CL/MMR SST-917: Text boxes keep every space (white-space: pre), because the PDF engine prints them all.
 //                 The draft preview shows the payment term as the field holds it ("Netto"), not "Netto 8 dage".
 //                 The draft preview leaves out order-line columns at x 0, which the PDF engine never prints.
+// 20261103 CL/SZ SD-754 The order-line columns Lager and Lagernavn have a label and sample values.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -667,6 +668,8 @@ function fe_var_map() {
 			'rabat'      => array('Rabat', 'Discount'),
 			'linjesum'   => array('Linjesum', 'Line total'),
 			'lokation'   => array('Lokation', 'Location'),
+			'lager'      => array('Lager', 'Warehouse'),
+			'lagernavn'  => array('Lagernavn', 'Warehouse name'),
 		);
 	}
 	return $map;
@@ -1496,7 +1499,8 @@ if ($menu == 'T') {
     beskrivelse:[(DK_UI?'Testvare 1':'Test item 1'),(DK_UI?'Testvare 2':'Test item 2'),(DK_UI?'Testvare 3':'Test item 3')],
     antal:['2','1','4'], enhed:['stk','stk','stk'], pris:['1.250,00','3.400,00','450,00'],
     rabat:['0','10','0'], momssats:['25','25','25'], linjesum:['2.500,00','3.060,00','1.800,00'],
-    varemomssats:['25','25','25'], linjemoms:['625,00','765,00','450,00'], projekt:['P-07','P-07','P-07'], lokation:['A-1','A-2','B-1']
+    varemomssats:['25','25','25'], linjemoms:['625,00','765,00','450,00'], projekt:['P-07','P-07','P-07'], lokation:['A-1','A-2','B-1'],
+    lager:['1','2','1'], lagernavn:['Hovedlager','Butik','Hovedlager']
   };
   var GRID_MM = 5;
   var MARGIN_MM = 10;   // standard page margin (guides + snap)
