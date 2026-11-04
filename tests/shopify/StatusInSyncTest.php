@@ -15,6 +15,7 @@
 // 20261104 CL/SS SD-801 review 3: another event leaves a listed one listed; legacy orders are info; a cancellation not invoiced is listed at once.
 // 20261104 CL/SS SD-801 review 3: a cancellation before the import resolves the waiting rows; a refund with the flow off is listed.
 // 20261104 CL/SS SD-801 review 4: an older status leaves a newer listed one listed; a legacy order's refund still asks for the credit note.
+// 20261104 CL/SS SD-801 review 5: a listed event whose write fails stays listed.
 
 use PHPUnit\Framework\TestCase;
 
@@ -520,6 +521,35 @@ final class StatusInSyncTest extends TestCase
         $this->pass();
         $this->assertCount(2, $this->sql('SELECT refund_gid FROM shopify_refunds'));
         $this->assertSame([], $this->errors(), 'its replay applies it and resolves the row');
+    }
+
+    public function testAListedEventWhoseWriteFailsStaysListed(): void
+    {
+        $body = self::body('fulfillments_create.json');
+        unset($body['id'], $body['admin_graphql_api_id']);
+        $listed = $this->deliver('FULFILLMENTS_CREATE', $body, 49);
+        $this->pass();
+        $this->importOrder();
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
+        $run = $this->pass();
+
+        $this->assertSame(1, $run['dead'] + $run['failed'], 'the fulfillment has no id, so its write throws');
+        $this->assertSame([[(string)$listed]], array_map(fn(array $r): array => array_map('strval', json_decode($r['ids'], true)),
+            $this->sql("SELECT correlation->'event_row_ids' AS ids FROM shopify_errors WHERE kind = 'status.unlinked' AND resolved_at IS NULL")),
+            'still listed: it was never applied');
+    }
+
+    public function testACancellationListedWhileTheImportRanIsAppliedAndResolvedOnceTheOrderIsThere(): void
+    {
+        $this->sql("INSERT INTO shopify_order_links (shop_id, order_gid, order_name, direction, state) SELECT id, $1, '#1042', 'web', 'validated' FROM shopify_shops", [self::ORDER_GID]);
+        $this->deliver('ORDERS_CANCELLED', self::body('orders_cancelled.json'), 49);
+        $this->pass();
+        $this->assertSame([['status.unlinked', 'order.cancelled:' . self::ORDER_GID]], array_map(fn(array $e): array => [$e['kind'], $e['ref']], $this->errors()));
+
+        $this->importOrder();
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
+        $this->pass();
+        $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'), 'applied, and the waiting row is resolved');
     }
 
     public function testAnOlderOrderStatusLeavesANewerListedOneListed(): void

@@ -43,6 +43,7 @@
 // 20261104 CL/SS SD-801 review 4: only a status at least as new resolves a listed one. Listing rechecks the link under its lock.
 // 20261104 CL/SS SD-801 review 4: a cancellation locks its link before it asks for the credit note.
 // 20261104 CL/SS SD-801 review 4: only a fulfillment of a legacy order is info; a refund or cancellation asks for the credit note.
+// 20261104 CL/SS SD-801 review 5: an event comes off status.unlinked only once its write went through.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -60,8 +61,9 @@ final class ShopifyOrderLinkPending extends RuntimeException
 }
 
 /**
- * The link of the event's order with its Saldi order, when it has one; the event is then taken
- * off an open status.unlinked of the order and job type (shopify_status_unlist()). A link
+ * The link of the event's order with its Saldi order, when it has one; the handler takes the
+ * event off an open status.unlinked of the order and job type once its write went through
+ * (shopify_status_unlist()), so a write that fails leaves it listed. A link
  * cancelled before the import never gets an order: null at once, nothing listed, and an open
  * status.unlinked is resolved too, so the list does not depend on which came first. Else, within
  * 48 hours of the event's arrival, throws ShopifyOrderLinkPending so the job is deferred; after
@@ -81,7 +83,6 @@ function shopify_require_order_link(array $event, string $orderGid, array $body)
 	$type = (string)shopify_event_job_type((string)$event['topic']);
 	$link = shopify_order_link($shopId, $orderGid);
 	if ($link !== null && $link['ordre_id'] !== null) {
-		shopify_status_unlist($event, "$type:$orderGid");
 		return $link;
 	}
 	if ($link !== null && $link['state'] === 'cancelled' && $link['ordre_id'] === null) {
@@ -363,6 +364,7 @@ function shopify_handle_fulfillment(array $event): void {
 			}
 		}
 	});
+	shopify_status_unlist($event, 'fulfillment.upsert:' . $loaded['order_gid']);
 }
 
 /**
@@ -505,6 +507,7 @@ function shopify_handle_order_cancelled(array $event): void {
 		shopify_error_resolve_key($shopId, 'status.cancelled', $gid);
 		return true;
 	});
+	shopify_status_unlist($event, "order.cancelled:$gid");
 	if (!$invoiced && !shopify_status_expired($event)) {
 		throw new ShopifyOrderLinkPending("Saldi order {$link['ordre_id']} of $gid is not invoiced yet");
 	}
@@ -531,6 +534,7 @@ function shopify_handle_refund(array $event): void {
 	shopify_error_resolve_key($shopId, 'status.refund', "$refundGid:flow_off");
 	if ($link !== null) {
 		shopify_status_upsert_refund($shopId, (string)$link['order_gid'], (int)$link['ordre_id'], $loaded['body']);
+		shopify_status_unlist($event, 'refund.upsert:' . $loaded['order_gid']);
 	}
 }
 
