@@ -29,8 +29,8 @@
 // 20261103 CL/MMR SST-929 journalDocumentsDelete() only removes a folder when it is empty, so a line's folder left behind by Slet or Flyt til pulje no longer stops the journal's deletion.
 //                 A journal document whose folder can't be written keeps its row and stops the deletion without a warning.
 //                 No @ any more, because the delete in kladdeliste.php turns every warning into an error.
-// 20261104 CL/MMR SST-929 unlink(), scandir() and rmdir() run through journalDocumentsQuietly(), so a warning is a failed step (row kept, folder left) and not an
-//                 ErrorException from the kladdeliste.php handler, which ignores @ (CodeRabbit on PR #1004).
+// 20261104 CL/MMR SST-929 unlink(), scandir() and rmdir() run through journalDocumentsQuietly(), so a warning from them is a failed step (row kept, folder left) and not an ErrorException from the kladdeliste.php handler.
+//                 The warning is still written to the PHP error log, and other error types are passed on (CodeRabbit on PR #1004).
 
 /**
  * The document folder as seen from finans/ (owncloud, bilag or documents, as insertDoc.php picks it).
@@ -164,14 +164,21 @@ function journalDocumentsRemoveEmptyDir($dir)
  * Run a file operation and give its result, with a warning counting as a failure (false) instead of being shown.
  * The delete in finans/kladdeliste.php turns every warning into an ErrorException, also behind @, so a warning
  * that slips past the checks (e.g. a file added to the folder between scandir() and rmdir()) would stop the deletion.
+ * Only E_WARNING is caught, and it is written to the PHP error log; any other error type goes to the outer handler.
  *
  * @return mixed what $fn returns, or false when it raised a warning.
  */
 function journalDocumentsQuietly(callable $fn)
 {
 	$warned = false;
-	set_error_handler(static function () use (&$warned) {
+	$outer = null;
+	// A type mask would send the other types to PHP's own handler, not to the outer one, so they are passed on here
+	$outer = set_error_handler(static function ($errno, $errstr, $errfile = '', $errline = 0) use (&$warned, &$outer) {
+		if ($errno !== E_WARNING) {
+			return $outer ? $outer($errno, $errstr, $errfile, $errline) : false;
+		}
 		$warned = true;
+		error_log("journalDocuments: $errstr in $errfile:$errline");
 		return true;
 	});
 	try {

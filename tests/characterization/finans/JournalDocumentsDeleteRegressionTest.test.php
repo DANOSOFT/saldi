@@ -1,6 +1,7 @@
 <?php
 // 20261103 CL/MMR SST-929 Deleting an empty journal removes only empty folders, keeps what isn't the journal's own, and raises no warning.
 // 20261104 CL/MMR SST-929 A warning from unlink(), scandir() or rmdir() under the throwing handler is a failed step, not an exception (CodeRabbit on PR #1004).
+// 20261104 CL/MMR SST-929 The caught warning is logged, and an error of another type still reaches the outer handler (Codex round 2).
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -127,9 +128,23 @@ final class JournalDocumentsDeleteRegressionTest extends TestCase
     {
         // CodeRabbit (PR #1004): with the handler of kladdeliste.php a warning threw, also behind @, and stopped the deletion
         $missing = $this->root . '/no-such-folder/kontoudtog.pdf';
+        // the caught warnings go to the PHP error log, here a file of the test's own
+        $log = $this->root . '/php-error.log';
+        ini_set('error_log', $log);
         self::assertFalse(journalDocumentsQuietly(static fn () => unlink($missing)));
         self::assertFalse(journalDocumentsQuietly(static fn () => rmdir($missing)));
         self::assertTrue(journalDocumentsQuietly(static fn () => true), 'a step without a warning keeps its result');
+
+        // the warning is kept in the PHP error log
+        self::assertStringContainsString('journalDocuments: unlink(', (string)file_get_contents($log));
+
+        // only warnings are caught: another error type reaches the outer (throwing) handler
+        try {
+            journalDocumentsQuietly(static fn () => trigger_error('not a file warning', E_USER_WARNING));
+            self::fail('an E_USER_WARNING was swallowed');
+        } catch (ErrorException $e) {
+            self::assertSame(E_USER_WARNING, $e->getSeverity());
+        }
 
         // the test's own throwing handler is back afterwards
         $this->expectException(ErrorException::class);
