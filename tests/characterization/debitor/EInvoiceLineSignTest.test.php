@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/einvoiceLineSign.php';
 //                 A negative quantity at a positive price is accepted, so the price is never negative and the line amount keeps its sign.
 //                 The figures come from a customer's real invoices and a credit note that credits one of them (anonymised).
 //                 The last tests check that sendInvoice() uses the helper and no longer flags lines as allowances.
+// 20261104 CL/MMR SST-746 Review (PR #998): test and data-set names no longer carry a customer or real invoice numbers.
 final class EInvoiceLineSignTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';

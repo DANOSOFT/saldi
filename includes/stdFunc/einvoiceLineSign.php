@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/einvoiceLineSign.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- includes/stdFunc/einvoiceLineSign.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261102 CL/MMR SST-746 Created. The quantity and unit price an order line is sent with on an e-invoice or credit note.
 //                 A discount line (a discount item at a negative price) has a negative unit price, which Peppol does not allow (BR-27).
 //                 It is sent as a negative quantity at a positive price, so the line amount and the VAT stay as in Saldi.
+// 20261104 CL/MMR SST-746 Review (PR #998): the comments no longer name a customer or real invoice numbers.
 
 if (!function_exists('einvoice_line_quantity_price')) {
 	/**

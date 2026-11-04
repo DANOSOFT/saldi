@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- debitor/api.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -82,6 +82,7 @@
 //                 EasyUBL rejected those lines (BR-S-08, UNCL 5189), and Peppol does not allow a negative price (BR-27).
 //                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
 //                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
+// 20261104 CL/MMR SST-746 Review (PR #998): the SST-746 history line no longer names a customer's item number.
 
     @session_start();
     $s_id=session_id();
