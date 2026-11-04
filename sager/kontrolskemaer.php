@@ -23,9 +23,9 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 // 20170303 Visning af bilag, hvis tilknyttet. Søg #20170303
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
 	$bg     = "nix";
 	$header = 'nix';

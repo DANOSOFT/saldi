@@ -63,6 +63,30 @@ if (!function_exists('datotidTilTekst')) {
 	}
 }
 
+if (!function_exists('datoTekstTilDato')) {
+	/**
+	 * Reads a posted dd-mm-yyyy date and returns it normalised, or null when it is not one.
+	 *
+	 * @param mixed $tekst The value the form posted.
+	 *
+	 * @return string|null "dd-mm-yyyy" for a real calendar date, null for anything else.
+	 */
+	function datoTekstTilDato($tekst)
+	{
+		// A legacy datotid ("01-01-1970 01:00") has no second dash and a year of "1970 01:00", which
+		// checkdate() refuses with a TypeError on PHP 8; padding and a ctype_digit() test on each part
+		// sends it, and every other unparsable value, to the caller's "keep what is stored" branch.
+		$dele = array_pad(explode('-', trim((string)$tekst)), 3, '');
+		if (!ctype_digit($dele[0]) || !ctype_digit($dele[1]) || !ctype_digit($dele[2])) {
+			return NULL;
+		}
+		if (strlen($dele[2]) != 4 || !checkdate((int)$dele[1], (int)$dele[0], (int)$dele[2])) {
+			return NULL;
+		}
+		return $dele[0] . "-" . $dele[1] . "-" . $dele[2];
+	}
+}
+
 if (!function_exists('datotidTilDatoOgTid')) {
 	/**
 	 * Formats a datotid value as the "date kl. time" cell the lists print.

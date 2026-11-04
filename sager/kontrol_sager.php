@@ -711,9 +711,12 @@ function arbejdsseddel() {
 		$tjekantal    = if_isset($_POST['tjekantal']);
 		$kontrolpunkt = if_isset($_POST['kontrolpunkt']);
 		$udf_dato     = if_isset($_POST['udf_dato']);
-		list ($day, $month, $year) = explode('-', $udf_dato);
-		if (checkdate($month, $day, $year) && (strlen($year)==4)) { // Validering af dato
-			$udf_dato = $day . "-" . $month . "-" . $year;
+		// A posted date is only used when it is three whole numbers forming a real date; a legacy
+		// datotid ("01-01-1970 01:00") and any other unparsable value fall to the "now" branch, which is
+		// the existing behaviour for a sheet without a usable date.
+		$udf_datoParsed = datoTekstTilDato($udf_dato);
+		if ($udf_datoParsed !== NULL) { // Validering af dato
+			$udf_dato = $udf_datoParsed;
 			$unixdato = strtotime($udf_dato);// Formatere dato til UNIX
 		} else {
 			$datotid  = date("U");
@@ -767,13 +770,16 @@ function arbejdsseddel() {
 		$kontrolpunkt   = if_isset($_POST['kontrolpunkt']);
 		$tjekpunkter_id = if_isset($_POST['tjekpunkter_id']);
 		$udf_dato       = if_isset($_POST['udf_dato']);
-		list ($day, $month, $year) = explode('-', $udf_dato); 
-		if (checkdate($month, $day, $year) && (strlen($year)==4)) { // Validering af dato
-			$udf_dato = $day . "-" . $month . "-" . $year;
+		// Same guard as above: an unparsable value keeps the datotid the sheet already has, instead of
+		// passing "1970 01:00" to checkdate() and losing the user's other changes to a fatal.
+		$udf_datoParsed = datoTekstTilDato($udf_dato);
+		if ($udf_datoParsed !== NULL) { // Validering af dato
+			$udf_dato = $udf_datoParsed;
 			$unixdato = strtotime($udf_dato);// Formatere dato til UNIX
 		} else {
 			$r        = db_fetch_array(db_select("select datotid from tjekskema where id = '$tjekskema_id'",__FILE__ . " linje " . __LINE__)); 
 			$unixdato = $r['datotid'];
+			$udf_dato = datotidTilTekst($unixdato, 'd-m-Y');
 		}
 		$opgave = if_isset($_POST['opgave']);
 		if($opgave){

@@ -64,6 +64,23 @@ final class DatotidTilTekstTest extends TestCase
         self::assertSame('0.5', datotidTilTekst('0.5'));
     }
 
+    public function testAPostedDdMmYyyyIsReadOnlyWhenItIsARealDate(): void
+    {
+        // What the work sheet posts back: a normal date is accepted and normalised, everything else is
+        // null so the caller keeps the datotid the sheet already has instead of calling checkdate() on
+        // "1970 01:00" (SST-940 review).
+        self::assertSame('04-11-2026', datoTekstTilDato('04-11-2026'));
+        self::assertSame('01-01-1970', datoTekstTilDato('01-01-1970'));
+        self::assertSame('29-02-2024', datoTekstTilDato('29-02-2024'));
+        self::assertNull(datoTekstTilDato('01-01-1970 01:00'));
+        self::assertNull(datoTekstTilDato('01-01'));
+        self::assertNull(datoTekstTilDato(''));
+        self::assertNull(datoTekstTilDato(null));
+        self::assertNull(datoTekstTilDato('31-02-2026'));
+        self::assertNull(datoTekstTilDato('1-1-26'));
+        self::assertNull(datoTekstTilDato('aa-bb-cccc'));
+    }
+
     public function testATextValueIsEscapedForThePage(): void
     {
         // The text goes straight into the list and into the autocomplete's HTML, so the helper escapes it
