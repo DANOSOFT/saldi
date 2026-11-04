@@ -88,13 +88,31 @@ lagerCheck(strpos($movePage, 'name=\"opdater\" $mb65_noedit') === false, 'so no 
 lagerCheck(strpos($movePage, 'dkdecimal($max_antal,2)') !== false, 'while the stock figure is still shown to read-only');
 
 # ---- the card offers only the controls that read ----------------------------------------------
-$deleteGate = strpos($guard, 'if ($id && !$noEdit) {');
+# The gate nearest above the button must still be open at it: comparing first offsets lets a button
+# moved out of its if block pass, because the gate text also sits far above in another branch.
+$insideGate = function ($code, $gate, $at) {
+	if ($at === false) {
+		return false;
+	}
+	$open = strrpos(substr($code, 0, $at), $gate);
+	if ($open === false) {
+		return false;
+	}
+	$depth = 0;
+	for ($i = $open; $i < $at; $i++) {
+		if ($code[$i] === '{') {
+			$depth++;
+		} elseif ($code[$i] === '}' && --$depth === 0) {
+			return false;
+		}
+	}
+	return $depth > 0;
+};
 $deleteAt = strpos($guard, 'name=\\"deleteItem\\"');
-lagerCheck($deleteGate !== false && $deleteAt !== false && $deleteGate < $deleteAt,
-	'the delete button is not drawn for a read-only user');
-$saveGate = strpos($guard, 'if (!$noEdit) {');
+lagerCheck($insideGate($guard, 'if ($id && !$noEdit) {', $deleteAt),
+	'the delete button is drawn inside its read-only gate');
 $saveAt = strpos($guard, 'name=\\"saveItem\\"');
-lagerCheck($saveGate !== false && $saveAt !== false && $saveGate < $saveAt, 'so is the Save button');
+lagerCheck($insideGate($guard, 'if (!$noEdit) {', $saveAt), 'so is the Save button');
 lagerCheck(substr_count($guard, 'if (!$noEdit) {') >= 3, 'and the copy, item-lookup and supplier-lookup cells');
 $stockAt = strpos($guard, "name='stockHistory'");
 lagerCheck($stockAt !== false, 'Lagerhistorik is still offered, because it only reads');
@@ -134,11 +152,17 @@ lagerCheck(substr_count($list, 'if (!$mb62_readonly) print') === 3,
 # ---- a refused page offers a way back ----------------------------------------------------------
 foreach (array('/../lager/varekort.php' => 3, '/../lager/lagerflyt.php' => 1, '/../lager/ret_varenr.php' => 1, '/../lager/ret_varenralias.php' => 1) as $path => $count) {
 	$src = lagerSource($path);
-	lagerCheck(substr_count($src, "main.php#/lager/lister/vareliste.php?inframe=1") === $count,
-		basename($path) . ' sends a refused user back to the item list');
-	lagerCheck(substr_count($src, "target='_top'") === $count, basename($path) . ' names the top window, so no frame is left behind');
-	lagerCheck(substr_count($src, "findtekst('30|Tilbage', \$sprog_id) . \"</a></div>") === $count, basename($path) . ' labels it Tilbage, not Luk');
-	lagerCheck(substr_count($src, 'background:#1c7cb9') === $count, basename($path) . ' uses the Saldi blue, because the page does not load top_menu.css');
+	# A marker counted over the whole file still passes when the link is moved out of the refusal, so
+	# each refusal block is inspected on its own: from its log call to the exit that follows it.
+	preg_match_all("/error_log\\('MB-6[25]:.*?exit;/s", $src, $refusals);
+	lagerCheck(count($refusals[0]) === $count, basename($path) . ' has ' . $count . ' refusal blocks');
+	foreach ($refusals[0] as $refusal) {
+		lagerCheck(substr_count($refusal, "main.php#/lager/lister/vareliste.php?inframe=1") === 1,
+			basename($path) . ' refusal sends a refused user back to the item list');
+		lagerCheck(substr_count($refusal, "target='_top'") === 1, basename($path) . ' refusal names the top window, so no frame is left behind');
+		lagerCheck(substr_count($refusal, "findtekst('30|Tilbage', \$sprog_id) . \"</a></div>") === 1, basename($path) . ' refusal labels it Tilbage, not Luk');
+		lagerCheck(substr_count($refusal, 'background:#1c7cb9') === 1, basename($path) . ' refusal uses the Saldi blue, because the page does not load top_menu.css');
+	}
 }
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";

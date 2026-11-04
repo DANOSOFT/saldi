@@ -15,10 +15,15 @@
         } else $kat_master[$x] = 0;
     }
 
+    # MB-62 the cleanup below deletes a category row, so a read-only user's card view does not run it.
+    # An orphan is not printed either way: the walk below only reaches a category whose parent it has
+    # already used, so skipping the delete leaves the list this user sees unchanged.
+    if (!$noEdit) {
     for ($x=1;$x<=count($kat_id);$x++) {
         if ($kat_master[$x] && !in_array($kat_master[$x],$kat_id)) {
             db_modify("delete from grupper where id = '$kat_id[$x]'",__FILE__ . " linje " . __LINE__);
         }
+    }
     }
 
     print "<tr><td colspan=\"4\" valign=\"top\"><b>".findtekst(388,$sprog_id)."<!--tekst 388--></b></td></tr>\n";

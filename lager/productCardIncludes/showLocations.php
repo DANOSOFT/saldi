@@ -28,6 +28,7 @@
 // 20260810 LOE Removed right alignment from commission field
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
 // 20261104 LOE MB-62 A read-only Items user gets the shop ID as text, without the delete link.
+//              The label drops the click hint it can no longer act on.
 /**
  * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
  * @var array<int, string> $warehouseNames
@@ -259,9 +260,10 @@
 			if ($shop_id) {
 				# MB-62 the link deletes the shop binding on a plain GET, so a read-only Items user gets it as text
 				$mb62ShopLink = $noEdit ? "$shop_id" : "<a href=\"slet_shopbinding.php?id=$id\">$shop_id</a>";
+				$mb62ShopLabel = $noEdit ? "Shop ID" : "Shop ID (klik for at fjerne)";
 				print "<tr><td colspan=\"2\">
 				<input type=\"hidden\" name=\"publiceret\" value=\"$publiceret\">
-				Shop ID (klik for at fjerne)</td><td align=\"center\">$mb62ShopLink</td>";
+				$mb62ShopLabel</td><td align=\"center\">$mb62ShopLink</td>";
 			} else {
 				($publiceret)?$publiceret="checked":$publiceret="";
 				print "<tr><td colspan=\"2\">Publiceret</td><td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"publiceret\" $publiceret></td>";

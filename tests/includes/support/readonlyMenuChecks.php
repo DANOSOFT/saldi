@@ -14,6 +14,23 @@
 // 20261104 LOE MB-62: the card's happy-hour and varenr-alias links are checked too.
 
 /**
+ * Strip a piece of PHP down to its code: no block comments, no // comments, no whitespace.
+ *
+ * The rule checks below compare code, not text that merely looks like code, so a rule left in a
+ * comment cannot satisfy them.
+ *
+ * @param string $code PHP source.
+ *
+ * @return string The same code with comments and whitespace removed.
+ */
+function readonly_code_only(string $code): string
+{
+	$code = preg_replace('#/\*.*?\*/#s', '', $code);
+	$code = preg_replace('#//[^\n]*#', '', $code);
+	return preg_replace('/\s+/', '', $code);
+}
+
+/**
  * Read the MB-62 rules out of the pages and the stylesheets.
  *
  * @return array{0: int, 1: array<int, string>} Number of checks run, and the descriptions that failed.
@@ -43,8 +60,7 @@ function readonly_menu_checks(): array
 		if (!preg_match('/function check_permissions\(\$permarr\).*?\n\}/s', $src, $m)) {
 			return NULL;
 		}
-		$stripped = preg_replace('/^\s*\/\/.*$/m', '', $m[0]);
-		return preg_replace('/\s+/', '', $stripped);
+		return readonly_code_only($m[0]);
 	};
 
 	$rule = "in_array(substr(\$rettigheder, \$item, 1), array('1', '2'), true)";
@@ -59,6 +75,14 @@ function readonly_menu_checks(): array
 			$name . ' no longer tests == "1"');
 		$bodies[$name] = $body($path);
 		$check($bodies[$name] !== NULL, $name . ' still defines check_permissions');
+		# The rule has to be what the callback returns and what the function then returns: a rule left in
+		# a comment, or a callback that returns a constant beside it, would pass the text search above.
+		$filter = '/array_filter\(\$permarr,function\(\$item\)use\(\$rettigheder\)\{return'
+			. preg_quote(readonly_code_only($rule), '/') . ';\}\);/';
+		$check($bodies[$name] !== NULL && preg_match($filter, $bodies[$name]) === 1,
+			$name . ' returns the rule from the filter callback');
+		$check($bodies[$name] !== NULL && strpos($bodies[$name], 'return!empty($filtered);') !== false,
+			$name . ' and returns that filter result, not a constant');
 	}
 	$check(count(array_unique($bodies)) === 1, 'the three copies are the same function, so they cannot drift apart');
 
