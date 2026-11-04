@@ -8,13 +8,14 @@
 // Steps: ["shop", shop_key, {lager: location name}] (a fake shop with those locations, mapped),
 //        ["seed", shop_key, vare_id] (a product for the item, stocked with 0 at every location, linked),
 //        ["unstock", shop_key, vare_id, lager], ["triggers"], ["drain", limit], ["next", shop_key] (stores the next call, sends nothing), ["push", shop_key, seconds],
-//        ["worker", seconds] (one worker pass with the stock producer and handler), ["fail", root_field, mode],
+//        ["worker", seconds] (one worker pass with the stock producer and handler), ["clean"] (empties shopify_stock_dirty), ["save", shop fields] (shopify_save_shop()), ["fail", root_field, mode],
 //        ["open", shop_key, ordre_id, [vare_ids]], ["release", shop_key, ordre_id].
 // Prints JSON: one result per step (or its exception), the calls sent and every shop's available
 // quantity per SKU and location name.
 //
 // History:
 // 20261104 CL/SZ SD-756: created.
+// 20261104 CL/SZ SD-756 review: steps save and clean.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -80,6 +81,13 @@ try {
                     $store->unstock($domain($step[1]), $item, $location($step[1], (int)$step[3]));
                     $results[] = 'unstocked';
                     break;
+                case 'clean':
+                    shopify_db_rows('DELETE FROM shopify_stock_dirty');
+                    $results[] = 'clean';
+                    break;
+                case 'save':
+                    $results[] = shopify_db_transaction(fn(): int => shopify_save_shop($step[1]));
+                    break;
                 case 'triggers':
                     $results[] = shopify_db_transaction(fn(): bool => ensure_shopify_stock_triggers());
                     break;
@@ -87,7 +95,7 @@ try {
                     $results[] = shopify_stock_drain_dirty([], (int)($step[1] ?? 500));
                     break;
                 case 'next':
-                    $results[] = shopify_stock_next(shopify_shop($step[1]));
+                    $results[] = shopify_stock_next(shopify_shop($step[1]), microtime(true) + 30);
                     break;
                 case 'push':
                     $job = ['id' => 0, 'shop_id' => $shopId($step[1])];

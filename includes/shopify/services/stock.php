@@ -43,6 +43,7 @@
 // 20261102 CL/SZ SD-755: created (WP06-1).
 // 20261103 CL/SZ SD-755: shopify_split_set_lager_checked() warns on the error list while the setting is not used.
 // 20261104 CL/SZ SD-756: shopify_stock_drain_dirty() and shopify_stock_push(), the stock push to every shop (WP06-2).
+// 20261104 CL/SZ SD-756 review: the drain queues a push for a shop whose job went dead; a push's read stops at its deadline.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -238,7 +239,14 @@ function shopify_stock_drain_dirty(array $rt, int $limit = 500): array {
 			array(max(1, $limit))
 		);
 		if ($rows === array()) {
-			return array('drained' => 0, 'queued' => 0);
+			// a job that went dead leaves its shop's call and marks behind; a queued job keeps its backoff
+			$queued = 0;
+			foreach ($shops as $shop) {
+				if (shopify_queue_state_get("stock.pending:{$shop['shop_key']}") !== array() || shopify_queue_state_get("stock.dirty:{$shop['shop_key']}") !== array()) {
+					$queued += (int)shopify_queue_enqueue('stock.push', (int)$shop['id'], "{$shop['shop_key']}:stock", array(), SHOPIFY_QUEUE_PRIORITY['stock.push'])['created'];
+				}
+			}
+			return array('drained' => 0, 'queued' => $queued);
 		}
 		// Dirty ids are handed out in insert order, not commit order, so the mark is this drain's own
 		// transaction id: every drain that sees an item changes its mark, also for a row that committed late.
@@ -284,7 +292,7 @@ function shopify_stock_push(array $rt, array $job, float $deadline): array {
 		if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS || (isset($rt['heartbeat']) && !($rt['heartbeat'])())) {
 			return array('outcome' => 'yield', 'sent' => $sent);
 		}
-		$pending = shopify_queue_state_get("stock.pending:{$shop['shop_key']}") ?: shopify_stock_next($shop);
+		$pending = shopify_queue_state_get("stock.pending:{$shop['shop_key']}") ?: shopify_stock_next($shop, $deadline);
 		if ($pending === array()) {
 			// what is left waits for a barrier; an expired barrier marks nothing dirty until its sweep runs
 			$left = shopify_queue_state_get("stock.dirty:{$shop['shop_key']}") !== array();
@@ -316,7 +324,7 @@ function shopify_stock_push(array $rt, array $job, float $deadline): array {
  *
  * @return array{vars: array{key: string, input: array<string, mixed>}, rows: list<array{vare_id: int, lager: int, quantity: int}>, marks: array<int, int>, read_at: string}|array{}
  */
-function shopify_stock_next(array $shop): array {
+function shopify_stock_next(array $shop, float $deadline): array {
 	$shopId = (int)$shop['id'];
 	$set = shopify_queue_state_get("stock.dirty:{$shop['shop_key']}");
 	if ($set === array()) {
@@ -325,6 +333,9 @@ function shopify_stock_next(array $shop): array {
 	$rows = $marks = $settled = array();
 	$readAt = null;
 	foreach (array_chunk(array_map('intval', array_keys($set)), SHOPIFY_STOCK_SLICE) as $ids) {
+		if ($readAt !== null && $deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS) {
+			break;
+		}
 		$read = shopify_stock_wanted($shopId, $ids);
 		$readAt ??= $read['read_at'];
 		$deferred = array_flip(shopify_barrier_deferred($shopId, $ids));
@@ -498,10 +509,10 @@ function shopify_stock_refused(array $rt, array $shop, array $pending, array $us
 	}
 }
 
-/** Stocks the item at the location (inventoryActivate), under a key that only those two decide. */
+/** Stocks the item at the location (inventoryActivate), which does nothing to a level that is already there. */
 function shopify_stock_activate(array $rt, array $shop, array $q, float $deadline): void {
 	$res = shopify_graphql($shop, 'inventoryActivate', SHOPIFY_STOCK_ACTIVATE,
-		array('item' => $q['inventoryItemId'], 'location' => $q['locationId'], 'key' => sha1("activate|{$shop['shop_key']}|{$q['inventoryItemId']}|{$q['locationId']}")),
+		array('item' => $q['inventoryItemId'], 'location' => $q['locationId'], 'key' => shopify_stock_key()),
 		($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'idempotent'));
 	if (!$res['ok'] || $res['user_errors'] !== array()) {
 		$why = implode('; ', array_column($res['user_errors'], 'message')) ?: (string)$res['error'];

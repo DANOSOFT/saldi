@@ -15,6 +15,7 @@
 //
 // History:
 // 20261104 CL/SZ SD-756: created.
+// 20261104 CL/SZ SD-756 review: links.php is loaded; a match after the 5 minutes doesn't count.
 
 if (PHP_SAPI !== 'cli') {
     exit;
@@ -38,6 +39,7 @@ if (!is_readable("$root/includes/connect.php")) {
 chdir("$root/tools");
 include("$root/includes/connect.php");
 require_once "$root/includes/shopify/bootstrap.php";
+require_once "$root/includes/shopify/links.php";
 require_once "$root/includes/shopify/services/stock.php";
 
 const K12_LEVEL = 'query k12Level($item: ID!, $location: ID!) {
@@ -83,8 +85,9 @@ do {
         $r = shopify_graphql($t['row'], 'k12Level', K12_LEVEL, $t['vars'], ['retry_mode' => 'read', 'deadline' => microtime(true) + 20]);
         $seen = $r['ok'] ? ($r['data']['inventoryItem']['inventoryLevel']['quantities'][0]['quantity'] ?? null) : null;
         $targets[$key]['seen'] = $seen;
-        if ($seen === $want) {
-            $targets[$key]['at'] = microtime(true) - $start;
+        $elapsed = microtime(true) - $start;
+        if ($seen === $want && $elapsed <= 300) {
+            $targets[$key]['at'] = $elapsed;
         }
     }
     $open = array_filter($targets, fn(array $t): bool => $t['at'] === null);

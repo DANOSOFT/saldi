@@ -10,10 +10,12 @@
 // holds, so each dirty row is drained once; a shop that captures without publishing keeps its
 // marks; a final failure keeps a call that may have applied; an item Shopify refuses is dropped with a warning and
 // the rest is sent; a level missing at a location is activated and then set; a sellable lager without a
-// location is skipped with a warning. Skips without ShopifyEnv.
+// location is skipped with a warning; a dead job's call goes out with the next drain, and a waiting
+// job keeps its backoff; an item linked later is sent; a shop can't publish without capturing. Skips without ShopifyEnv.
 //
 // History:
 // 20261104 CL/SZ SD-756: created.
+// 20261104 CL/SZ SD-756 review: dead job, backoff, late link, publish without capture; the seeded state follows the link's time.
 
 use PHPUnit\Framework\TestCase;
 
@@ -124,7 +126,7 @@ final class StockPushTest extends TestCase
         return $run['result'];
     }
 
-    /** The steps that set up the given shops with both locations and the items linked in each. */
+    /** The steps that set up the given shops with both locations and the items linked in each; the links' own marks are cleared. */
     private function shops(array $items, array $shops = self::SHOPS): array
     {
         $steps = [];
@@ -134,6 +136,7 @@ final class StockPushTest extends TestCase
                 $steps[] = ['seed', $shop, $id];
             }
         }
+        $steps[] = ['clean'];
         return $steps;
     }
 
@@ -243,19 +246,19 @@ final class StockPushTest extends TestCase
     {
         $id = $this->item('lampe', [1 => 3]);
         $this->steps(...$this->shops([$id], ['hml']));
-        $this->sql('INSERT INTO shopify_stock_state (shop_id, vare_id, lager, quantity, acknowledged_at) SELECT id, $1, 1, 2, now() + interval \'1 minute\' FROM shopify_shops WHERE shop_key = \'hml\'', [$id]);
+        $this->sql('INSERT INTO shopify_stock_state (shop_id, vare_id, lager, quantity, acknowledged_at) SELECT l.shop_id, $1, 1, 2, l.updated_at FROM shopify_product_links l JOIN shopify_shops s ON s.id = l.shop_id WHERE s.shop_key = \'hml\' AND l.vare_id = $1', [$id]);
         $this->dirty([$id]);
 
         $failed = $this->steps(['drain'], ['fail', 'inventorySetQuantities', 'http_500x4'], ['push', 'hml']);
         $this->assertSame('RuntimeException', $failed['results'][2]['exception'] ?? null);
-        $this->assertSame('2.000', $this->sql('SELECT quantity FROM shopify_stock_state')[0]['quantity'], 'still the last acknowledged quantity');
+        $this->assertSame('2.000', $this->sql('SELECT quantity FROM shopify_stock_state WHERE lager = 1')[0]['quantity'], 'still the last acknowledged quantity');
         $key = self::sets($failed)[0]['variables']['key'];
 
         $run = $this->steps(['push', 'hml']);
         $this->assertNoException($run);
         $this->assertSame([$key], array_map(fn(array $c): string => $c['variables']['key'], self::sets($run)));
         $this->assertSame(3, $run['levels']['hml']['SD756-lampe']['Mårum']);
-        $this->assertSame('3.000', $this->sql('SELECT quantity FROM shopify_stock_state')[0]['quantity']);
+        $this->assertSame('3.000', $this->sql('SELECT quantity FROM shopify_stock_state WHERE lager = 1')[0]['quantity']);
     }
 
     public function test_an_item_behind_an_open_barrier_waits_for_its_release_or_expiry(): void
@@ -406,6 +409,57 @@ final class StockPushTest extends TestCase
         $this->assertSame(8, $run['levels']['hml']['SD756-good']['Mårum']);
         $this->assertSame('warning', $this->sql('SELECT severity FROM shopify_errors WHERE ref = $1 AND resolved_at IS NULL', ["item:$bad"])[0]['severity'] ?? null);
         $this->assertSame([], $this->sql("SELECT 1 FROM settings WHERE var_grp = 'shopify_state' AND var_name = 'stock.dirty:hml' AND var_value <> '{}'"), 'no mark is left to retry for ever');
+    }
+
+    public function test_a_dead_job_leaves_its_call_to_the_next_drain(): void
+    {
+        $this->sql("UPDATE shopify_lager SET rolle = 'ingen', prioritet = NULL WHERE lager = 2");
+        $id = $this->item('dug', [1 => 6]);
+        $this->steps(...$this->shops([$id], ['hml']));
+        $this->dirty([$id]);
+        $lost = $this->steps(['drain'], ['fail', 'inventorySetQuantities', 'http_500x4'], ['push', 'hml']);
+        $key = self::sets($lost)[0]['variables']['key'];
+        $this->sql("UPDATE shopify_jobs SET state = 'dead', finished_at = now() WHERE type = 'stock.push'");
+
+        $run = $this->steps(['worker', 30]);
+        $this->assertNoException($run);
+        $this->assertSame(3, $run['results'][0]['done'], 'one job per capturing shop, with no new stock change');
+        $this->assertSame([$key], array_map(fn(array $c): string => $c['variables']['key'], self::sets($run)));
+        $this->assertSame(6, $run['levels']['hml']['SD756-dug']['Mårum']);
+    }
+
+    public function test_a_waiting_job_keeps_its_backoff_when_nothing_new_is_drained(): void
+    {
+        $id = $this->item('vase', [1 => 1]);
+        $this->steps(...$this->shops([$id], ['hml']));
+        $this->dirty([$id]);
+        $this->steps(['drain']);
+        $this->sql("UPDATE shopify_jobs SET next_run_at = now() + interval '1 hour' WHERE type = 'stock.push'");
+        $run = $this->steps(['drain']);
+        $this->assertSame(['drained' => 0, 'queued' => 0], $run['results'][0]);
+        $this->assertSame([['late' => 't']], $this->sql("SELECT bool_and(next_run_at > now() + interval '30 minutes') AS late FROM shopify_jobs WHERE type = 'stock.push'"));
+    }
+
+    public function test_an_item_linked_after_its_mark_was_dropped_is_sent(): void
+    {
+        $this->sql("UPDATE shopify_lager SET rolle = 'ingen', prioritet = NULL WHERE lager = 2");
+        $id = $this->item('ny', [1 => 3]);
+        $this->steps(...$this->shops([], ['hml']));
+        $this->dirty([$id]);
+        $this->assertSame([], self::sets($this->steps(['drain'], ['push', 'hml'])), 'no link yet, so nothing is sent and the mark goes');
+
+        $run = $this->steps(['seed', 'hml', $id], ['worker', 30]);
+        $this->assertNoException($run);
+        $this->assertSame(3, $run['levels']['hml']['SD756-ny']['Mårum']);
+    }
+
+    public function test_a_shop_cannot_publish_stock_without_capturing_it(): void
+    {
+        $run = $this->steps(['save', ['shop_key' => 'hml', 'stock_capture_enabled' => false]],
+            ['save', ['shop_key' => 'ny', 'domain' => 'ny.myshopify.com', 'stock_publish_enabled' => true]]);
+        $this->assertSame('ShopifyConfigError', $run['results'][0]['exception'] ?? null, 'hml publishes');
+        $this->assertSame('ShopifyConfigError', $run['results'][1]['exception'] ?? null);
+        $this->assertIsInt($this->steps(['save', ['shop_key' => 'ny', 'domain' => 'ny.myshopify.com', 'stock_publish_enabled' => true, 'stock_capture_enabled' => true]])['results'][0]);
     }
 
     public function test_a_level_missing_at_the_location_is_activated_then_set(): void
