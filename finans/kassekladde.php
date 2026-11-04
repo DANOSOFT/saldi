@@ -1649,15 +1649,15 @@ if ($_POST) {
 			# SST-888 (review) a replay stages nothing: the lines it would write are already in the journal or
 			# already staged (the refused ones), and re-staging them is what duplicated rows before.
 			if (!$kk_replay) {
-			$qtxt = "insert into tmpkassekl ";
-			$qtxt.= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,debetvat,kreditvat,faktura,";
-			$qtxt.= "amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) ";
-			$qtxt.= "values ";
-			$qtxt.= "('$x', '$id[$x]', '$bilag[$x]', '$dato[$x]', '$beskrivelse[$x]', '$d_type[$x]', '$debet[$x]', ";
-			$qtxt.= "'$k_type[$x]', '$kredit[$x]', '$debetvat[$x]', '$kreditvat[$x]', '$faktura[$x]', '$belob[$x]', '$momsfri[$x]', '$afd[$x]', ";
-			$qtxt.= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
-			#cho __line__." $qtxt<br>";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				$qtxt = "insert into tmpkassekl ";
+				$qtxt.= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,debetvat,kreditvat,faktura,";
+				$qtxt.= "amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) ";
+				$qtxt.= "values ";
+				$qtxt.= "('$x', '$id[$x]', '$bilag[$x]', '$dato[$x]', '$beskrivelse[$x]', '$d_type[$x]', '$debet[$x]', ";
+				$qtxt.= "'$k_type[$x]', '$kredit[$x]', '$debetvat[$x]', '$kreditvat[$x]', '$faktura[$x]', '$belob[$x]', '$momsfri[$x]', '$afd[$x]', ";
+				$qtxt.= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
+				#cho __line__." $qtxt<br>";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 
 			if (!$kk_replay && $x == $antal - 1 && $kladde_id) { // only after last line, and never on a replay: the sum of the rows a refused save kept is not a form to balance
