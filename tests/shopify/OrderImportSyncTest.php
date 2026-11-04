@@ -13,6 +13,7 @@
 // 20261104 CL/SS SD-743: the fixture builds its own groups and chart, so it passes on a fresh tenant (CI) as on an old one.
 // 20261104 CL/SS SD-743: an order cancelled in Shopify after its creation or delivery is not delivered or posted.
 // 20261104 CL/SS SD-743 review: a set whose BOM changed after the validation is refused before any write.
+// 20261104 CL/SS SD-743 review 2: an øre difference of the posting goes on OreDif; without a valid OreDif account on every row the order is not created.
 
 use PHPUnit\Framework\TestCase;
 
@@ -98,7 +99,10 @@ final class OrderImportSyncTest extends TestCase
         $this->sql("INSERT INTO kontoplan (kontonr, beskrivelse, kontotype, moms, fra_kto, lukket, regnskabsaar) VALUES (1100, 'SD743 Varesalg', 'D', 'S1', 0, '', $1),
             (1300, 'SD743 Fragt ydet', 'D', 'S1', 0, '', $1), (2300, 'SD743 Fragt modtaget', 'D', '', 0, '', $1), (7950, 'SD743 Kassedifferencer', 'D', '', 0, '', $1),
             (56100, 'SD743 Debitorer', 'S', '', 0, '', $1), (58050, 'SD743 Kort', 'S', '', 0, '', $1), (58200, 'SD743 Kasse', 'S', '', 0, '', $1),
-            (66100, 'SD743 Salgsmoms', 'S', '', 0, '', $1)", [$this->year]);
+            (66100, 'SD743 Salgsmoms', 'S', '', 0, '', $1), (7960, 'SD743 Oredifferencer', 'D', '', 0, '', $1)", [$this->year]);
+        // the account bogfor_nu() puts an øre difference of its postings on; a new regnskab has none
+        $this->sql("DELETE FROM grupper WHERE art = 'OreDif'");
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box2) VALUES ('SD743 Oredif', '1', 'OreDif', $1, '7960')", [$this->year]);
         // the web kasse is kasse 3: cash account, VAT code and the card type Kort with its account; other cards on 58050
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box1, box2, box5, box6, box7) VALUES ('SD743 POS', '1', 'POS', $1, '3', $2, 'Kort', '58050', $3)",
             [$this->year, "58200\t58200\t58200", "S1\tS1\tS1"]);
@@ -541,6 +545,56 @@ final class OrderImportSyncTest extends TestCase
         }
         $this->assertSame([10.0, 10.0, 10.0], array_map(fn(int $id): float => (float)$this->sql('SELECT beholdning FROM lagerstatus WHERE vare_id = $1', [$id])[0]['beholdning'], [$a, $b, $c]),
             'nothing is drawn');
+    }
+
+    public function testAnOreDifferenceOfThePostingGoesOnOreDif(): void
+    {
+        // three components on three sales accounts at 25 %: their VAT is posted as three rounded 6.67, the order's as 20.01
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box3, box4, box7, box8) VALUES ('SD743 Konto 1200', '13', 'VG', $1, '1200', '1200', '', 'on'),
+            ('SD743 Konto 1400', '14', 'VG', $1, '1400', '1400', '', 'on')", [$this->year]);
+        $this->sql("INSERT INTO kontoplan (kontonr, beskrivelse, kontotype, moms, fra_kto, lukket, regnskabsaar) VALUES (1200, 'SD743 Salg 2', 'D', 'S1', 0, '', $1),
+            (1400, 'SD743 Salg 3', 'D', 'S1', 0, '', $1)", [$this->year]);
+        $set = $this->item('SAET', ['salgspris' => 0, 'samlevare' => 'on']);
+        $components = [$this->item('K1', ['salgspris' => 100]), $this->item('K2', ['salgspris' => 100, 'gruppe' => 13]), $this->item('K3', ['salgspris' => 100, 'gruppe' => 14])];
+        foreach ($components as $p => $id) {
+            $this->stock($id, 1, 10);
+            $this->sql('INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $2, 1, $3)', [$id, $set, $p + 1]);
+        }
+        foreach (['kasse' => '3', 'Kreditkort' => null] as $path => $kasse) {
+            $this->sql('UPDATE shopify_shops SET web_kasse = $1', [$kasse]);
+            $order = $this->order([self::line('SAET', 1, '100.01')]);
+            $this->assertSame('invoiced', $this->import($order)['result']['state'] ?? null, $path);
+            $o = $this->outcome($order);
+            $this->assertSame([0.0, 0], [$o['balance'], $o['open_posts']], "$path: the posting balances");
+            $this->assertSame(139.01, round((float)$o['order']['sum'] + (float)$o['order']['moms'], 2), "$path: the invoice is what was paid");
+            $this->assertSame(0.01, round((float)$this->sql('SELECT COALESCE(sum(debet), 0) - COALESCE(sum(kredit), 0) AS d FROM transaktioner WHERE ordre_id = $1 AND kontonr = 7960',
+                [$o['order']['id']])[0]['d'], 2), "$path: the øre goes on OreDif");
+        }
+    }
+
+    public function testWithoutAnOreDifAccountTheOrderIsRefusedBeforeItIsCreated(): void
+    {
+        $a = $this->item('A', ['salgspris' => 83.36]);
+        $this->stock($a, 1, 10);
+        $refused = function (string $case): void {
+            $this->sql("DELETE FROM shopify_errors");
+            $order = $this->order([self::line('A', 1, '83.36')]);
+            $this->assertSame(['refused' => ['order.create']], $this->import($order)['result'] ?? null, $case);
+            $this->assertSame([0, 'validated'], [$this->outcome($order)['orders'], $this->outcome($order)['link']], "$case: refused before it is created");
+            $this->assertStringContainsString('øredifferencer', $this->sql("SELECT message FROM shopify_errors WHERE kind = 'order.create'")[0]['message'] ?? '', $case);
+        };
+        $this->assertSame('invoiced', $this->import($this->order([self::line('A', 1, '83.36')]))['result']['state'] ?? null, 'with an OreDif account');
+
+        // bogfor_nu() would refuse the posting after the delivery if the posting came to an øre off
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box2) VALUES ('SD743 Oredif gammel', '1', 'OreDif', $1, '')", [$this->year]);
+        $refused('a second OreDif row without an account, which the legacy query may meet first');
+        $this->sql("DELETE FROM grupper WHERE art = 'OreDif'");
+        $refused('no OreDif row');
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year, box2) VALUES ('SD743 Oredif', '1', 'OreDif', $1, '9999')", [$this->year]);
+        $refused('an account that is not in this year\'s chart');
+        $this->sql("UPDATE grupper SET box2 = '58050' WHERE art = 'OreDif'");
+        $refused('a status account, which bogfor_nu() does not take for an øre');
+        $this->assertSame(9.0, (float)$this->sql('SELECT beholdning FROM lagerstatus WHERE vare_id = $1', [$a])[0]['beholdning'], 'only the first order drew stock');
     }
 
     public function testASetWhoseComponentsSwappedLagreAfterTheValidationIsRefused(): void

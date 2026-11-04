@@ -35,6 +35,7 @@
 // 20261104 CL/SS SD-743 review: an order whose link holds no order past validation (cancelled before the import) is skipped.
 // 20261104 CL/SS SD-743: an order cancelled in Shopify (the link's cancelled_at, SD-801) stops before its delivery or posting.
 // 20261104 CL/SS SD-743 review: a set must be written with the components it was validated with.
+// 20261104 CL/SS SD-743 review 2: the account check includes OreDif, which bogfor_nu() posts an øre difference of the posting on.
 
 require_once __DIR__ . '/orderIntake.php';
 require_once __DIR__ . '/customers.php';
@@ -364,6 +365,15 @@ function shopify_import_check_accounts(int $ordreId): void {
 	$o = shopify_db_rows('SELECT felt_1, felt_2, felt_4, felt_5 FROM ordrer WHERE id = $1', array($ordreId))[0];
 	$account = static fn(string $nr): bool => ctype_digit($nr)
 		&& shopify_db_rows("SELECT 1 FROM kontoplan WHERE kontonr = $1::numeric AND regnskabsaar::text = $2 AND kontotype IN ('D', 'S')", array($nr, (string)(int)$regnaar)) !== array();
+	// bogfor_nu() sums the postings it wrote, each rounded to two decimals; an øre left over goes on an OreDif row's account
+	// (whichever row its unordered query meets first, so every row must have one), which one of its branches takes only as a
+	// drift account (kontotype D); without it, it refuses the posting after the delivery has gone through
+	$drift = static fn(string $nr): bool => ctype_digit($nr)
+		&& shopify_db_rows("SELECT 1 FROM kontoplan WHERE kontonr = $1::numeric AND regnskabsaar::text = $2 AND kontotype = 'D'", array($nr, (string)(int)$regnaar)) !== array();
+	$oreDif = array_map(static fn(array $r): string => trim((string)$r['box2']), shopify_db_rows("SELECT box2 FROM grupper WHERE art = 'OreDif'"));
+	if ($oreDif === array() || in_array(false, array_map($drift, $oreDif), true)) {
+		throw new ShopifyImportError('no valid drift account for øredifferencer (Indstillinger > Diverse > Øredifferencer), which a rounding difference of the posting is put on');
+	}
 	if (trim((string)$o['felt_1']) !== '' && is_numeric($o['felt_2']) && is_numeric($o['felt_4']) && ctype_digit(trim((string)$o['felt_5'])) && (int)$o['felt_5'] > 0) {
 		$kasse = (int)$o['felt_5'];
 		$box9 = shopify_db_rows("SELECT box9 FROM grupper WHERE art = 'POS' AND kodenr::text = '2' AND fiscal_year::text = $1", array((string)(int)$regnaar))[0]['box9'] ?? '';
