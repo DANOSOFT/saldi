@@ -542,31 +542,51 @@ function brightenColor($color, $amount = 0.2) {
     iframe.src = parsedTargetUrl.href
   }
 
-  // SST-922 - pages with a fixed-height grid print only the visible screen, and only the page of
-  // rows currently shown. A page that can render itself print-friendly sets
-  // window.saldiPrintAutoprint; this then loads it with autoprint=1, prints that, and puts the
-  // user's own URL back. Every other page is printed exactly as before, because the extra
-  // parameter means nothing to it and reloading it could drop a POST-rendered screen.
+  // SST-922 - pages with a fixed-height grid print only the visible screen. Such a page hands the
+  // shell the URL of its own print view (window.saldiPrintAutoprint); the shell loads that view,
+  // prints it once it has really loaded, and then returns to what the user was looking at. A page
+  // without the property is printed exactly as before, without any reload - a screen rendered on a
+  // POST response would otherwise lose its state. One click at a time: a second click while the
+  // print view is loading is ignored, and the pending flag is always cleared.
+  let saldiPrintPending = false;
   const saldiPrintIframe = () => {
     const frame = document.getElementById('iframe_a');
     const win = frame && frame.contentWindow;
-    if (!win) return;
-    let href = '';
-    try { href = win.location.href; } catch (e) { href = ''; }
-    if (!href || href === 'about:blank' || win.saldiPrintAutoprint !== true
-        || href.indexOf('autoprint=1') !== -1) {
+    if (!win || saldiPrintPending) return;
+    let printUrl = '';
+    try { printUrl = win.saldiPrintAutoprint || ''; } catch (e) { printUrl = ''; }
+    if (typeof printUrl !== 'string' || printUrl === '') {
       win.focus();
       win.print();
       return;
     }
-    const printHref = href + (href.indexOf('?') === -1 ? '?' : '&') + 'autoprint=1';
-    const onLoad = () => {
-      frame.removeEventListener('load', onLoad);
-      try { win.focus(); win.print(); } catch (e) { /* the browser refused the dialog */ }
-      try { win.location.href = href; } catch (e) { /* the frame is already navigating back */ }
+    let href = '';
+    try { href = win.location.href; } catch (e) { href = ''; }
+    saldiPrintPending = true;
+    const done = () => {
+      frame.removeEventListener('load', done);
+      saldiPrintPending = false;
+      let loadedView = false;
+      try { loadedView = win.saldiPrintAutoprintView === true; } catch (e) { loadedView = false; }
+      if (loadedView) {
+        try { win.focus(); win.print(); } catch (e) { /* the browser refused the dialog */ }
+      }
+      // Back to the user's screen. history.back() keeps the browser's cached copy where it can,
+      // which preserves what was typed in the search boxes and how far the list was scrolled.
+      try {
+        if (href && win.history.length > 1) win.history.back();
+        else if (href) win.location.href = href;
+      } catch (e) { /* the frame is already navigating back */ }
     };
-    frame.addEventListener('load', onLoad);
-    win.location.href = printHref;
+    frame.addEventListener('load', done);
+    try {
+      win.location.href = printUrl;
+    } catch (e) {
+      frame.removeEventListener('load', done);
+      saldiPrintPending = false;
+      win.focus();
+      win.print();
+    }
   };
 
   const redirect_uri = (uri) => {

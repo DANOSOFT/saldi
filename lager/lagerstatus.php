@@ -183,6 +183,11 @@ $date=usdate($dato);
 $dato=dkdato($date);
 
 if ($date != $dd) $zStock = 'on';
+// SST-922 - the values the query will actually filter on, kept for the print URL: the form markup below
+// overwrites $zStock/$showClosed with 'checked', and http_build_query() drops nulls, so the print view
+// must carry exactly what this request used.
+$lsPrintZStock = $zStock;
+$lsPrintShowClosed = $showClosed;
 
 $x=0;
 $qtxt = "select kodenr, box9 from grupper where art = 'VG' and box8 = 'on' and fiscal_year = '$regnaar'";
@@ -333,27 +338,28 @@ global $menu;
 //             lager/rapport.php): fixed blue header bar + filter form, internal-scroll data grid
 //             with a sticky colgroup-driven column-title row, and a fixed footer with real
 //             (server-side) pagination. $menu != 'S' keeps the old, unstyled chrome unchanged.
-// SST-922 - the shell's Print button loads this page with autoprint=1: the whole filtered list on one
-// plain page, without the fixed-height grid, the search row, the buttons or the page selector.
-$autoprint = if_isset($_GET['autoprint']);
-// SST-922 - the printout follows what the screen is showing: the same page of the same page size the
-// user picked, so "Linjer pr. side" = 100 prints 100 rows and only "Alle" prints the whole list.
-if ($autoprint) {
-	$lsValidPageSizes = array(50,100,250,500,100000);
-	$lsPerPage = (int) (isset($_GET['ls_per_page']) ? $_GET['ls_per_page'] : 0);
-	if (!in_array($lsPerPage, $lsValidPageSizes)) $lsPerPage = 50;
-	$lsPage = max(1, (int) (isset($_GET['ls_page']) ? $_GET['ls_page'] : 1));
-	$lsTotalRows = 0;
-	$lsPageStart = ($lsPage - 1) * $lsPerPage;
-	$lsPageEnd = $lsPageStart + $lsPerPage;
-}
+// SST-922 - the shell's Print button prints the URL this page hands it: the whole filtered list, or the
+// page and page size the screen is showing, on one plain page without the fixed-height grid, the search
+// row, the buttons or the page selector.
+$autoprint = ifset($_GET, 'autoprint', null);
 $lsGridMode = ($menu=='S' && !$autoprint);
+// Both views paginate the same way, so the printout matches the screen: "Linjer pr. side" 100 prints 100
+// rows, page 2 prints the next 100, and only "Alle" prints the whole list.
+$lsValidPageSizes = array(50,100,250,500,100000);
+$lsPerPage = (int) (isset($_GET['ls_per_page']) ? $_GET['ls_per_page'] : 0);
+if (!in_array($lsPerPage, $lsValidPageSizes)) $lsPerPage = 50;
+$lsPage = max(1, (int) (isset($_GET['ls_page']) ? $_GET['ls_page'] : 1));
+$lsTotalRows = 0;
+$lsPageStart = ($lsPage - 1) * $lsPerPage;
+$lsPageEnd = $lsPageStart + $lsPerPage;
 // MB-31/CodeRabbit - propagate every $lsSFields numeric filter (not just varenr/varenavn/enhed),
 // same as $lsBaseUrlParams below does for pagination, so a CSV export matches what the grid shows.
 $lsCsvHref = "lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg&varenr=".urlencode((string)$varenrSoeg)."&varenavn=".urlencode((string)$varenavn)."&enhed=".urlencode((string)$enhedSoeg);
 foreach ($lsSFields as $lsSField) $lsCsvHref .= "&lss_".$lsSField."=".urlencode((string)$lsS[$lsSField]);
 
 if ($autoprint) {
+	// Marker the shell checks before it prints, so a session-expired notice is never printed.
+	print "<script>window.saldiPrintAutoprintView = true;</script>\n";
 	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody><tr><td align='center'><b>" . ucfirst(findtekst('992|Lagerstatus', $sprog_id)) . "</b>";
 	if ($dato) print " &nbsp;" . findtekst('438|Dato', $sprog_id) . ": $dato";
 	print "</td></tr></tbody></table>\n";
@@ -438,11 +444,6 @@ if ($lsGridMode) {
 // page may show slightly fewer than $lsPerPage rows if some candidates in that index range are
 // filtered out - an accepted approximation, same tradeoff made for lager/rapport.php's pagination.
 if ($lsGridMode) {
-	$lsValidPageSizes=array(50,100,250,500,100000);
-	$lsPerPage=(int) (isset($_GET['ls_per_page']) ? $_GET['ls_per_page'] : 0);
-	if (!in_array($lsPerPage,$lsValidPageSizes)) $lsPerPage=50;
-	$lsPage=(int) (isset($_GET['ls_page']) ? $_GET['ls_page'] : 0);
-	if ($lsPage<1) $lsPage=1;
 	$lsTotalRows=$vareantal;
 	$lsTotalPages=max(1,ceil($lsTotalRows/$lsPerPage));
 	if ($lsPage>$lsTotalPages) $lsPage=$lsTotalPages;
@@ -500,8 +501,17 @@ if ($lsGridMode) {
 	print "<input type='hidden' name='zStock' value='" . htmlspecialchars((string)$zStock, ENT_QUOTES) . "'>";
 	print "<input type='hidden' name='showClosed' value='" . htmlspecialchars((string)$showClosed, ENT_QUOTES) . "'>";
 	print "<input type='submit' style='position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;'>";
-	// SST-922 - tells the shell's Print button that this page has an all-rows autoprint view.
-	print "<script>window.saldiPrintAutoprint = true;</script>\n";
+	// SST-922 - the URL the shell's Print button prints: every filter in GET form plus the current page and
+	// page size, because the frame's own URL cannot be reused - the per-column search posts, so its values
+	// are not in it, and a reload of that URL would print an unfiltered list.
+	$lsPrintParams = array(
+		'dato' => $dato, 'varegruppe' => $varegruppe, 'lagervalg' => $lagervalg, 'dateType' => $dateType,
+		'zStock' => $lsPrintZStock, 'showClosed' => $lsPrintShowClosed,
+		'varenr' => $varenrSoeg, 'varenavn' => $varenavn, 'enhed' => $enhedSoeg,
+		'ls_page' => $lsPage, 'ls_per_page' => $lsPerPage, 'autoprint' => 1,
+	);
+	foreach ($lsSFields as $lsSField) $lsPrintParams['lss_' . $lsSField] = $lsS[$lsSField];
+	print "<script>window.saldiPrintAutoprint = " . json_encode("lagerstatus.php?" . http_build_query($lsPrintParams), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "; window.saldiPrintAutoprintView = false;</script>\n";
 	$lsSearchVarenr   = "<input class='inputbox' type='text' name='varenr' value='" . htmlspecialchars((string)$varenrSoeg, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
 	$lsSearchVarenavn = "<input class='inputbox' type='text' name='varenavn' value='" . htmlspecialchars((string)$varenavn, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
 	$lsSearchEnhed    = "<input class='inputbox' type='text' name='enhed' value='" . htmlspecialchars((string)$enhedSoeg, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
