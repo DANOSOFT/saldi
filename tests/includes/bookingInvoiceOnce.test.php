@@ -24,7 +24,8 @@ final class bookingInvoiceOnce extends TestCase
         $GLOBALS['__order'] = $order;
         $GLOBALS['__lockFails'] = $lockFails;
         eval('
-            function db_select($q, $where = "") {
+            function db_select($q, $where = "") { $GLOBALS["__sql"][] = $q; return $q; }
+            function booking_query_quiet($q) {
                 $GLOBALS["__sql"][] = $q;
                 return ($GLOBALS["__lockFails"] && strpos($q, "SELECT pg_advisory_lock(") === 0) ? false : $q;
             }

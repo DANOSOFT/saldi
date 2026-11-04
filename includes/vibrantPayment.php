@@ -35,7 +35,27 @@
 //                 Vibrant is only asked while the booking is pending, and rental_payment_ready() counts distinct columns.
 // 20261104 CL/MMR SST-841 CodeRabbit (PR #969): a failed advisory lock query is a failed invoice attempt, so two approvals never invoice unlocked.
 //                 Deleting a rejected booking and its order is one transaction; a failed order delete rolls the booking back and answers pending.
+//                 Both statements run through booking_query_quiet(), which logs a failure instead of printing db_select()'s alert into the JSON answer.
 //
+
+if (!function_exists('booking_query_quiet')) {
+/**
+ * Runs one statement whose failure the caller handles itself, for the JSON booking APIs. db_select() answers a failed
+ * query with a JavaScript alert in the page (and stops the request when the same error repeats), which breaks the JSON
+ * answer; here a failure is only logged on the server and returned as false. The statements are fixed SQL with
+ * integer ids, so no user text goes through it.
+ *
+ * @param string $qtxt  The SQL statement.
+ * @return resource|\PgSql\Result|false  The result, or false when the statement failed.
+ */
+function booking_query_quiet($qtxt) {
+	$result = @pg_query(db_query_connection(false), $qtxt);
+	if ($result === false) {
+		error_log("SST-841 booking query failed: " . pg_last_error(db_query_connection(false)) . " | $qtxt");
+	}
+	return $result;
+}
+}
 
 if (!function_exists('rental_payment_ready')) {
 /**
@@ -140,7 +160,7 @@ function booking_invoice_once($orderId, $invoice) {
 	}
 	// Without the lock two approvals could invoice at the same time, so a failed lock query is a failed attempt
 	// (invoice_failed, a later call retries). No lock was taken, so there is nothing to release.
-	if (!db_select("SELECT pg_advisory_lock(841, $orderId)", __FILE__ . " linje " . __LINE__)) {
+	if (!booking_query_quiet("SELECT pg_advisory_lock(841, $orderId)")) {
 		return false;
 	}
 	$done = false;
@@ -223,7 +243,7 @@ function update_booking_payment($db, $data, $invoice) {
 		transaktion('begin');
 		$qtxt = "DELETE FROM rentalperiod WHERE id = $bookingId AND expiry_time IS NOT NULL AND COALESCE(payment_id, '') = '$checked' RETURNING order_id";
 		$deleted = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($deleted && !db_select("DELETE FROM ordrer WHERE id = " . (int)$deleted['order_id'], __FILE__ . " linje " . __LINE__)) {
+		if ($deleted && !booking_query_quiet("DELETE FROM ordrer WHERE id = " . (int)$deleted['order_id'])) {
 			transaktion('rollback');
 			return array('status' => 'pending');
 		}

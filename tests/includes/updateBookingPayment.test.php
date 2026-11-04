@@ -41,6 +41,10 @@ final class updateBookingPayment extends TestCase
                 return ($GLOBALS["__orderDeleteFails"] && strpos($q, "DELETE FROM ordrer") === 0) ? false : $q;
             }
             function db_modify($q, $where = "") { $GLOBALS["__sql"][] = $q; return true; }
+            function booking_query_quiet($q) {
+                $GLOBALS["__sql"][] = $q;
+                return ($GLOBALS["__orderDeleteFails"] && strpos($q, "DELETE FROM ordrer") === 0) ? false : $q;
+            }
             function transaktion($q) { $GLOBALS["__sql"][] = "transaktion:" . $q; }
             function db_fetch_array($q) {
                 if (strpos($q, "DELETE FROM rentalperiod") === 0) return ["order_id" => $GLOBALS["__booking"]["order_id"]];
