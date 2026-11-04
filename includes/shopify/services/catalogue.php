@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/catalogue.php --- ver 5.1.0 --- 2026.10.30
+// --- includes/shopify/services/catalogue.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,13 +29,11 @@
 // products_enabled; pages only queue jobs, after their commit.
 //
 // 20261029 CL/SS SD-741: created (WP05-1).
+// 20261104 CL/SS SD-802: the VAT rate is the one POS adds (find_pris()), so a group with box7 NULL is taxable.
 
 require_once __DIR__ . '/../client.php';
 require_once __DIR__ . '/../errors.php';
 require_once __DIR__ . '/../links.php';
-if (!function_exists('vatPercent')) {
-	require_once __DIR__ . '/../../../lager/productCardIncludes/itemVat.php';
-}
 
 /** Which items are webshop items: open, in a stock item group. Aliases v = varer, g = its VG group. */
 const SHOPIFY_CATALOGUE_MANAGED = "coalesce(g.box8, '') NOT IN ('', '0') AND coalesce(v.lukket, '') NOT IN ('1', 'on')";
@@ -189,13 +187,33 @@ function shopify_catalogue_item(int $vareId): ?array {
 }
 
 /**
- * The VAT rate of an item: the item card's own vatPercent(), so Shopify and the card never differ.
+ * The VAT rate of an item: the one POS adds (shopify_catalogue_vat_rate()), so Shopify taxes what POS taxes.
  *
  * @param array<string, mixed> $item
  * @return array{rate: float}
  */
 function shopify_catalogue_vat(array $item): array {
-	return array('rate' => (float)vatPercent((int)$item['gruppe']));
+	return array('rate' => shopify_catalogue_vat_rate((int)$item['gruppe']));
+}
+
+/**
+ * The VAT rate find_pris() adds for an item group: none when the group is VAT-free (box7 set) or
+ * its account in the fiscal year has no VAT code, else the rate of that code's VAT group.
+ */
+function shopify_catalogue_vat_rate(int $gruppe): float {
+	$group = shopify_db_rows("SELECT box4, box7 FROM grupper WHERE art = 'VG' AND kodenr = $1 AND fiscal_year = $2 LIMIT 1",
+		array((string)$gruppe, shopify_catalogue_fiscal_year()))[0] ?? null;
+	if ($group === null || $group['box7']) {
+		return 0.0;
+	}
+	$moms = shopify_db_rows('SELECT moms FROM kontoplan WHERE regnskabsaar = $1 AND kontonr = $2 LIMIT 1',
+		array(shopify_catalogue_fiscal_year(), (int)$group['box4']))[0]['moms'] ?? '';
+	if (!$moms) {
+		return 0.0;
+	}
+	// as find_pris(): the VAT group by type and code, in whichever fiscal year it comes first
+	return (float)(shopify_db_rows('SELECT box2 FROM grupper WHERE art = $1 AND kodenr = $2 LIMIT 1',
+		array(substr($moms, 0, 1) . 'M', substr($moms, 1)))[0]['box2'] ?? 0);
 }
 
 function shopify_catalogue_fiscal_year(): int {

@@ -17,6 +17,7 @@
 //
 // History:
 // 20261029 CL/SS SD-741: created.
+// 20261104 CL/SS SD-802: the VAT is POS's: a group with box7 NULL is taxable, a VAT-free group is not.
 
 use PHPUnit\Framework\TestCase;
 
@@ -70,7 +71,7 @@ final class CatalogueSyncTest extends TestCase
             $this->sql("DELETE FROM $table");
         }
         $this->sql("DELETE FROM varer WHERE varenr LIKE 'SD741-%'");
-        $this->sql("DELETE FROM grupper WHERE art = 'RA' OR (art = 'VG' AND kodenr IN (900, 901, 902)) OR (art = 'SM' AND kodenr = 77)");
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' OR (art = 'VG' AND kodenr IN (900, 901, 902, 903)) OR (art = 'SM' AND kodenr = 77)");
         $this->sql("DELETE FROM kontoplan WHERE kontonr = 9001");
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, box3, box4, box5) VALUES ('RA', 1, 'RA', '01', $1, '12', $1, 'on')", [date('Y')]);
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, box4, box7, box8, fiscal_year) VALUES ('Havemøbler', 900, 'VG', '9001', '', 'on', 1), ('Montage', 901, 'VG', '9001', '', '', 1)");
@@ -700,16 +701,21 @@ final class CatalogueSyncTest extends TestCase
         $this->assertSame([], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL'), 'nothing left to conflict with');
     }
 
-    public function testAGroupWithoutAVatFreeValueHasNoVatAsOnTheItemCard(): void
+    public function testAGroupWithoutAVatFreeValueIsTaxedAsPosTaxesIt(): void
     {
-        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, box4, box7, box8, fiscal_year) VALUES ('Uden box7', 902, 'VG', '9001', NULL, 'on', 1)");
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, box4, box7, box8, fiscal_year) VALUES ('Uden box7', 902, 'VG', '9001', NULL, 'on', 1),
+            ('Momsfri', 903, 'VG', '9001', 'on', 'on', 1)");
         $id = $this->item('W1', ['gruppe' => 902]);
+        $free = $this->item('W2', ['gruppe' => 903]);
 
-        $r = $this->steps(['sync', 'hml', $id]);
+        $r = $this->steps(['sync', 'hml', $id], ['sync', 'hml', $free]);
 
         $link = $this->link($id);
-        $this->assertSame('0.00', $r['metafields'][$link['variant_gid'] . '|saldi.vat_rate']['value'], 'vatPercent() reads a NULL box7 as no VAT');
-        $this->assertFalse($r['products'][$link['product_gid']]['variants'][0]['taxable']);
+        $this->assertSame('25.00', $r['metafields'][$link['variant_gid'] . '|saldi.vat_rate']['value'], 'find_pris() adds VAT for a NULL box7');
+        $this->assertTrue($r['products'][$link['product_gid']]['variants'][0]['taxable']);
+        $freeLink = $this->link($free);
+        $this->assertSame('0.00', $r['metafields'][$freeLink['variant_gid'] . '|saldi.vat_rate']['value']);
+        $this->assertFalse($r['products'][$freeLink['product_gid']]['variants'][0]['taxable'], 'a VAT-free group stays untaxed');
     }
 
     public function testAProductHmlDeletedIsNotCreatedAgain(): void

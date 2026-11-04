@@ -41,6 +41,7 @@
 // 20261029 CL/SZ SD-749 review: register-webhooks and replay need no fiscal year; a tenant they can't use ends with a line and exit 2.
 // 20261029 CL/SS SD-741: the catalogue jobs (catalogue.upsert, catalogue.link, catalogue.seed) and the command seed.
 // 20261101 CL/SS SD-792: the customer.upsert handler (Shopify customer to debtor).
+// 20261103 CL/SS SD-802: the price.window handler (prices and offers to every shop with prices_enabled).
 // 20261103 CL/SS SD-743: the order.import handler (paid web order created, delivered and posted).
 
 if (php_sapi_name() !== 'cli') {
@@ -68,6 +69,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/events.php';
 	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
 	require_once __DIR__ . '/../includes/shopify/services/customers.php';
+	require_once __DIR__ . '/../includes/shopify/services/prices.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
@@ -86,6 +88,8 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'catalogue.seed', 'shopify_catalogue_seed_job');
 	// SD-792: a Shopify customer becomes, or updates, its debtor.
 	shopify_worker_register($registry, 'customer.upsert', 'shopify_customer_upsert_job');
+	// SD-802: the quarter-hour price window of each shop with prices_enabled.
+	shopify_worker_register($registry, 'price.window', 'shopify_prices_window_job');
 	// SD-743: a paid web order is created, delivered and posted.
 	shopify_worker_register($registry, 'order.import', 'shopify_order_import_job');
 	return array('registry' => $registry, 'producers' => $producers);
