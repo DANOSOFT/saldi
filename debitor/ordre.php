@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -175,6 +175,7 @@
 // 20261101 CL/SS SD-792 create_debtor throws DebtorNumberTakenException for a taken number; the alert it showed is shown here (core edit 8).
 // 20261103 CL/SZ SD-753 The Lager field on an open order is as wide as the longest lager name, so the name shows in full.
 //                On a closed order the Lager cell has padding, so the name no longer runs into the description.
+// 20261104 NTR Cap the Lager field width at 20ch and stop checking names once the limit is reached.
 
 @session_start();
 $s_id = session_id();
@@ -463,8 +464,16 @@ while ($r = db_fetch_array($q)) {
 	$l++;
 }
 $lagerantal = $l;
+const MAX_LAGER_BREDDE = 20;
 $lagerBredde = 4; # 20261103 CL/SZ SD-753 width of the Lager field in ch, from the longest lager name
-foreach ($lagernavn ?? array() as $navn) $lagerBredde = max($lagerBredde, mb_strlen((string)$navn) + 2);
+foreach ($lagernavn ?? array() as $navn) {
+	$lagerBredde = max($lagerBredde, mb_strlen((string)$navn) + 2);
+	// 20261104 NTR put a max width of Lager field.
+	if ($lagerBredde >= MAX_LAGER_BREDDE) {
+		$lagerBredde = MAX_LAGER_BREDDE;
+		break;
+	}
+}
 
 if (empty($sag_id)) { #20210715
 	$id = if_isset($_GET['id']);
