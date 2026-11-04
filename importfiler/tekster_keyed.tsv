@@ -1,4 +1,6 @@
 common.accept	Acceptér	Accept	Godta
+formular.line.lager	Lager	Warehouse	Lager
+formular.line.lagernavn	Lagernavn	Warehouse name	Lagernavn
 shopify.admin.error.afd	Vælg en afdeling.	Choose a department.	Velg en avdeling.
 shopify.admin.error.afd_taken	En anden shop bruger allerede denne afdeling.	Another shop already uses this department.	En annen nettbutikk bruker allerede denne avdelingen.
 shopify.admin.error.domain	Domænet skal være en *.myshopify.com-adresse.	The domain must be a *.myshopify.com address.	Domenet må være en *.myshopify.com-adresse.

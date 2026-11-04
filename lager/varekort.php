@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -134,6 +134,7 @@
 // 20261026 CL/SZ SD-750 Saving syncs the shops when any slot is open for outbound in the shopify_legacy
 //                settings, not only when box4 is set.
 // 20261029 CL/SS SD-741 A saved item (also a confirmed rename) is queued for the Shopify catalogue after the commit.
+// 20261103 CL/SS SD-802 'Tillad oversalg' (varer.oversalg), shown and saved only where the Shopify schema added the column.
 //
 ob_start(); //Starts output buffering
 
@@ -219,6 +220,9 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='va
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
 }
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='oversalg'";
+$oversellColumn = (bool) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)); // added by the Shopify schema only
+$oversalg = '';
 ($rettigheder[9] == '2') ? $noEdit = "disabled=true" : $noEdit = NULL;
 
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -417,6 +421,7 @@ if ($saveItem || $submit = trim($submit)) {
     $beholdning = if_isset($_POST, NULL, 'beholdning');
     $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $lukket = if_isset($_POST, NULL, 'lukket');
+    $oversalg = (if_isset($_POST, NULL, 'oversalg') == 'on') ? 'on' : '';
     $serienr = db_escape_string(trim(if_isset($_POST, '','serienr')));
     # Only trust the expiry fields when the section was actually rendered, so a hidden
     # section can never blank out an existing due date setup on save.
@@ -1056,6 +1061,9 @@ if ($saveItem || $submit = trim($submit)) {
                 $qtxt .= "has_due_date=$has_due_date,";
                 $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
             }
+            if ($oversellColumn) {
+                $qtxt .= "oversalg='$oversalg',";
+            }
             $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";
 
@@ -1426,6 +1434,7 @@ if ($id > 0) {
     $has_due_date = ($row['has_due_date'] === 't' || $row['has_due_date'] === true || $row['has_due_date'] == 1) ? 'on' : '';
     $default_shelf_life_days = $row['default_shelf_life_days'];
     $lukket = $row['lukket'];
+    $oversalg = $oversellColumn ? $row['oversalg'] : '';
     $notes = $row['notes'];
     $notesInternal = $row['notesinternal'];
 

@@ -26,6 +26,8 @@
 //                request statuses, one location per fulfilment, compareDigest, the payload's cost on mutations,
 //                one event id per action with a webhook id per delivery, inventoryActivate.
 // 20261103 CL/LH SD-766: second review: the metafield digest is the persisted value's, so writing the same value keeps it (B36).
+// 20261103 CL/SS SD-802: productVariantsBulkUpdate sets price and compareAtPrice (B37).
+// 20261104 CL/SS SD-808: the order fields the paid-order read selects (billing address, line totals, shipping lines, payment details).
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -86,7 +88,7 @@ final class FakeShopifyStore
 			$method = 'q' . ucfirst($root);
 			$this->handlers['query'][$root] = fn(self $store, string $domain, array $args, array $field): mixed => $this->$method($domain, $args, $field);
 		}
-		foreach (['productSet', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
+		foreach (['productSet', 'productVariantsBulkUpdate', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
 			'tagsAdd', 'tagsRemove', 'metafieldsSet', 'customerCreate', 'customerUpdate', 'refundCreate',
 			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete'] as $root) {
 			$method = 'm' . ucfirst($root);
@@ -896,6 +898,10 @@ final class FakeShopifyStore
 			'taxesIncluded' => $o['taxes_included'], 'totalTaxSet' => self::money($this->orderTax($domain, $gid), $o['currency']),
 			'taxLines' => array_map(fn(array $t): array => $this->vTaxLine($t, $o['currency']), $this->orderTaxLines($domain, $gid)),
 			'shippingAddress' => $o['shipping_address'] === null ? null : ['__typename' => 'MailingAddress'] + $o['shipping_address'],
+			// orderCreate keeps no billing address
+			'billingAddress' => null,
+			// orderCreate refuses shippingLines (B34), so an order of the store has none
+			'shippingLines' => fn(): array => [],
 			'customer' => fn(): ?array => $this->node($domain, $o['customer']),
 			'lineItems' => fn(): array => array_map(fn(array $l): array => $this->vLine($domain, $gid, $l), $this->shop($domain)['orders'][$gid]['lines']),
 			'fulfillmentOrders' => fn(array $a): array => array_values(array_map(fn(string $fo): array => $this->vFulfillmentOrder($domain, $fo),
@@ -907,7 +913,7 @@ final class FakeShopifyStore
 				$this->shop($domain)['orders'][$gid]['refunds']), 0, $a['first'] ?? null),
 			'transactions' => fn(array $a): array => array_map(fn(array $t): array => ['__typename' => 'OrderTransaction', 'id' => $t['id'],
 				'kind' => $t['kind'], 'status' => $t['status'], 'gateway' => $t['gateway'], 'test' => $o['test'],
-				'amountSet' => self::money($t['amount'], $o['currency']), 'createdAt' => $this->iso(false, $o['created']),
+				'amountSet' => self::money($t['amount'], $o['currency']), 'paymentDetails' => null, 'createdAt' => $this->iso(false, $o['created']),
 				'processedAt' => $this->iso(false, $o['created'])], array_slice($o['transactions'], 0, $a['first'] ?? null)),
 		] + $this->times($o) + $this->metafieldFields($domain, $gid);
 	}
@@ -926,6 +932,8 @@ final class FakeShopifyStore
 		return ['__typename' => 'LineItem', 'id' => $l['id'], 'sku' => $l['sku'], 'name' => $l['title'], 'title' => $l['title'],
 			'quantity' => $l['quantity'], 'currentQuantity' => $l['quantity'] - $refunded, 'unfulfilledQuantity' => $this->unfulfilled($domain, $order, $l['id']),
 			'taxable' => $l['taxable'], 'requiresShipping' => true, 'originalUnitPriceSet' => self::money($l['price'], $o['currency']),
+			// orderCreate refuses discountCode (B34), so a line has no discount
+			'originalTotalSet' => self::money($l['price'] * $l['quantity'], $o['currency']), 'discountAllocations' => [],
 			'taxLines' => function () use ($l, $o, $order): array {
 				if ($o['tax_lines'] !== []) {
 					throw new LogicException("FakeShopifyStore: LineItem.taxLines of $order is not modelled: Shopify splits its order-level tax lines across the taxable lines (B34); select Order.taxLines");
@@ -1363,6 +1371,39 @@ final class FakeShopifyStore
 		}
 		$gid = $this->applyProductSet($domain, $identifier, $a['input'], true);
 		return self::payload(['product' => $this->vProduct($domain, $gid), 'productSetOperation' => null]);
+	}
+
+	/** B37: the variants' price and compareAtPrice; every entry is checked before anything changes. */
+	private function mProductVariantsBulkUpdate(string $domain, array $a): array
+	{
+		$this->uses('B37');
+		$s = &$this->shop($domain);
+		if (!isset($s['products'][$a['productId']])) {
+			return self::payload(['product' => null, 'productVariants' => null], [self::userError(['productId'], 'Product does not exist', 'PRODUCT_DOES_NOT_EXIST')]);
+		}
+		foreach ($a['variants'] as $i => $v) {
+			if (array_diff(array_keys($v), ['id', 'price', 'compareAtPrice'])) {
+				throw new LogicException('FakeShopifyStore: productVariantsBulkUpdate models id, price and compareAtPrice only');
+			}
+			if (($s['variants'][$v['id'] ?? '']['product'] ?? null) !== $a['productId']) {
+				return self::payload(['product' => null, 'productVariants' => null],
+					[self::userError(['variants', (string)$i, 'id'], 'Product variant does not exist', 'PRODUCT_VARIANT_DOES_NOT_EXIST')]);
+			}
+			if (isset($v['price']) && (float)$v['price'] < 0) {
+				return self::payload(['product' => null, 'productVariants' => null],
+					[self::userError(['variants', (string)$i, 'price'], 'Price must be greater than or equal to 0', 'GREATER_THAN_OR_EQUAL_TO')]);
+			}
+		}
+		foreach ($a['variants'] as $v) {
+			foreach (['price', 'compareAtPrice'] as $f) {
+				if (array_key_exists($f, $v)) {
+					$s['variants'][$v['id']][$f] = $v[$f];
+				}
+			}
+			$s['variants'][$v['id']]['updated'] = $this->clock->now;
+		}
+		return self::payload(['product' => $this->vProduct($domain, $a['productId']),
+			'productVariants' => array_map(fn(array $v): array => $this->vVariant($domain, $v['id']), $a['variants'])]);
 	}
 
 	/** productSet's effect (B22); fires products/create or products/update when $fire. */

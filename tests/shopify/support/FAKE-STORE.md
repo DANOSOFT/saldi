@@ -112,7 +112,7 @@ other:
 - Root fields: `shop`, `product`, `productByIdentifier`, `products`, `productVariant(s)`,
   `inventoryItem`, `inventoryLevel`, `location(s)`, `order(s)`, `fulfillmentOrder(s)`,
   `customer(s)`, `customerByIdentifier`, `webhookSubscription(s)`, `node(s)`; mutations
-  `productSet`, `inventorySetQuantities`, `inventoryActivate`, `orderCreate`, `orderUpdate`,
+  `productSet`, `productVariantsBulkUpdate`, `inventorySetQuantities`, `inventoryActivate`, `orderCreate`, `orderUpdate`,
   `fulfillmentOrderMove`, `fulfillmentCreate`, `refundCreate`, `tagsAdd`, `tagsRemove`,
   `metafieldsSet`, `customerCreate`, `customerUpdate`, `webhookSubscriptionCreate/Update/Delete`.
 - Not modelled, so they fail loudly: draft orders, bulk operations, order cancel, fulfillment
@@ -124,7 +124,7 @@ other:
 
 ## What is assumed
 
-Of the 36 entries, 1 is verified, 27 are partly assumed (the rule is documented, a code, message or
+Of the 37 entries, 1 is verified, 28 are partly assumed (the rule is documented, a code, message or
 detail is not), and 8 are wholly assumed: B10 (bucket sizes), B14 (event ids across topics), B17
 (stock on fulfilment), B18 (order routing), B28 and B29 (error messages), B31 (stock when a
 move carries a decremented order) and B36 (a metafield digest across a write of the same value).
