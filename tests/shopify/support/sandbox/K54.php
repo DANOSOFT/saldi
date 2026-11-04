@@ -22,6 +22,7 @@
 //                A line row is found by its item number or the start of its description.
 //                Each argument must be the document its position names, and a failed print is FAIL.
 //                temp/<db> is never created here.
+// 20261104 CL/SZ SD-754: The order lines are the layout's order-line area (art 3, generelt), on every page.
 
 if (PHP_SAPI !== 'cli') {
     exit;
@@ -56,16 +57,17 @@ require_once "$root/includes/shopify/db.php";
 /**
  * A posted document's numbers, checked against what its argument position says it is.
  *
- * @return array{id: int, art: string, kundeordnr: string, fakturanr: string, ordrenr: string}
+ * @return array{id: int, art: string, kundeordnr: string, fakturanr: string, ordrenr: string, sprog: string}
  */
 function k54_document(int $ordreId, string $art, bool $web): array
 {
-    $rows = shopify_db_rows('SELECT art, status, kundeordnr, fakturanr, ordrenr FROM ordrer WHERE id = $1', [$ordreId]);
+    $rows = shopify_db_rows('SELECT art, status, kundeordnr, fakturanr, ordrenr, sprog FROM ordrer WHERE id = $1', [$ordreId]);
     if (!isset($rows[0]) || $rows[0]['art'] !== $art || (int)$rows[0]['status'] < 3) {
         throw new RuntimeException("order $ordreId is no posted " . ($art === 'DK' ? 'credit note' : 'invoice'));
     }
     $doc = ['id' => $ordreId, 'art' => $art, 'kundeordnr' => trim((string)$rows[0]['kundeordnr']),
-        'fakturanr' => trim((string)$rows[0]['fakturanr']), 'ordrenr' => trim((string)$rows[0]['ordrenr'])];
+        'fakturanr' => trim((string)$rows[0]['fakturanr']), 'ordrenr' => trim((string)$rows[0]['ordrenr']),
+        'sprog' => trim((string)$rows[0]['sprog'])];
     if ($web !== ($doc['kundeordnr'] !== '')) {
         throw new RuntimeException("order $ordreId " . ($web ? 'has no Shopify order name (kundeordnr); give a web order\'s document'
             : "has the Shopify order name {$doc['kundeordnr']}; give a store order's invoice"));
@@ -80,15 +82,36 @@ function k54_document(int $ordreId, string $art, bool $web): array
 }
 
 /**
- * The texts a document prints outside its order-line rows (a line row is a y position where one of
- * its order lines' descriptions prints).
+ * The order-line area of a document's layout, in PostScript points: the layout's 'generelt' row of
+ * art 3 holds the top line's y (ya), the number of lines (xa) and the line spacing (xb), in mm.
  *
- * @param array{id: int, art: string} $doc
+ * @param array{id: int, art: string, sprog: string} $doc
+ * @return array{0: float, 1: float} bottom and top y
+ */
+function k54_line_area(array $doc): array
+{
+    $formular = $doc['art'] === 'DK' ? 5 : 4;
+    foreach (array_unique([strtolower($doc['sprog'] !== '' ? $doc['sprog'] : 'dansk'), 'dansk']) as $sprog) {
+        $rows = shopify_db_rows("SELECT xa, ya, xb FROM formularer WHERE formular = $1 AND art = 3 AND beskrivelse = 'generelt' AND lower(sprog) = $2",
+            [$formular, $sprog]);
+        if (isset($rows[0])) {
+            $top = (float)$rows[0]['ya'];
+            return [($top - (float)$rows[0]['xa'] * (float)$rows[0]['xb']) * 2.86 - 1, $top * 2.86 + 1];
+        }
+    }
+    throw new RuntimeException("order {$doc['id']}: the layout has no order-line area (formular $formular, art 3, generelt)");
+}
+
+/**
+ * The texts a document prints outside its layout's order-line area, on every page.
+ *
+ * @param array{id: int, art: string, sprog: string} $doc
  * @return list<string>
  */
 function k54_print(array $doc, string $root): array
 {
     global $db;
+    [$lineBottom, $lineTop] = k54_line_area($doc);
     if (!is_dir("$root/temp/$db")) {
         throw new RuntimeException("temp/$db doesn't exist yet; print a document in the browser first");
     }
@@ -112,11 +135,15 @@ function k54_print(array $doc, string $root): array
         if (!is_array($documents) || $documents === []) {
             throw new K54PrintFailed("order {$doc['id']}: " . (is_string($documents) ? $documents : 'nothing was printed'));
         }
-        $items = [];
+        $texts = [];
+        $printed = false;
         foreach (glob("$work/*.ps") ?: [] as $file) {
             preg_match_all('/([0-9.]+) ([0-9.]+) moveto \(((?:[^()\\\\]|\\\\.)*)\)/', (string)file_get_contents($file), $found, PREG_SET_ORDER);
             foreach ($found as [, , $y, $text]) {
-                $items[] = [basename($file) . ":$y", trim(stripcslashes($text))];
+                $printed = true;
+                if ((float)$y < $lineBottom || (float)$y > $lineTop) {
+                    $texts[] = trim(stripcslashes($text));
+                }
             }
         }
     } finally {
@@ -126,35 +153,8 @@ function k54_print(array $doc, string $root): array
         }
         rmdir($work);
     }
-    if ($items === []) {
+    if (!$printed) {
         throw new K54PrintFailed("order {$doc['id']}: the print has no text");
-    }
-    // the print is ISO-8859-15 and wraps a long description, so a row is one that prints a line's
-    // item number or the start of its description
-    $varenre = $descriptions = [];
-    foreach (shopify_db_rows('SELECT varenr, beskrivelse FROM ordrelinjer WHERE ordre_id = $1', [$doc['id']]) as $line) {
-        if (trim((string)$line['varenr']) !== '') {
-            $varenre[trim((string)$line['varenr'])] = true;
-        }
-        if (trim((string)$line['beskrivelse']) !== '') {
-            $descriptions[] = utf8_iso8859(trim((string)$line['beskrivelse']));
-        }
-    }
-    $lineRows = [];
-    foreach ($items as [$row, $text]) {
-        $isLine = isset($varenre[$text]);
-        foreach ($descriptions as $description) {
-            $isLine = $isLine || (strlen($text) >= 3 && strpos($description, $text) === 0);
-        }
-        if ($isLine) {
-            $lineRows[$row] = true;
-        }
-    }
-    $texts = [];
-    foreach ($items as [$row, $text]) {
-        if (!isset($lineRows[$row])) {
-            $texts[] = $text;
-        }
     }
     return $texts;
 }

@@ -18,6 +18,7 @@
 // History:
 // 20261103 CL/SZ SD-754: created.
 // 20261103 CL/SZ SD-754: The web order is marked by shopify_order_links, not by ref. Older LG rows per year.
+// 20261104 CL/SZ SD-754: The LG rows use the accounting year the print runner takes as current, added when none covers today.
 
 use PHPUnit\Framework\TestCase;
 
@@ -51,12 +52,14 @@ final class FormularprintLagerFieldsTest extends TestCase
         );
         self::$debtorId = (int)$debtor['id'];
         CharacterizationEnv::rows(self::$tenant, "DELETE FROM grupper WHERE art = 'LG'");
-        // lager 3 also has another accounting year's row with another name, read last, as on a tenant from
-        // before SST-829; the current year's (1) name prints
+        // lager 3 also has a newer accounting year's row with another name, read last, as on a tenant from
+        // before SST-829; the current year's name prints
+        $year = self::currentAccountingYear();
         CharacterizationEnv::rows(
             self::$tenant,
-            "INSERT INTO grupper (beskrivelse, art, kodenr, fiscal_year) VALUES ('Hovedlager', 'LG', 3, 1), ('Butik Aarhus', 'LG', 7, 1),
-                                                                                 ('Gammelt lager', 'LG', 3, 2)"
+            "INSERT INTO grupper (beskrivelse, art, kodenr, fiscal_year) VALUES ('Hovedlager', 'LG', 3, $1), ('Butik Aarhus', 'LG', 7, $1),
+                                                                                 ('Gammelt lager', 'LG', 3, $2)",
+            [$year, $year + 1]
         );
         // the intake's order links, as includes/shopify/schema.php makes them (only the columns used here)
         CharacterizationEnv::rows(
@@ -88,6 +91,33 @@ final class FormularprintLagerFieldsTest extends TestCase
             self::$tenant = null;
             CharacterizationEnv::teardownTenant();
         }
+    }
+
+    /**
+     * The accounting year the print runner takes as current: the RA year whose period covers today
+     * (tests/characterization/support/bootstrap_ordrefunc.php). One is added when the template has none.
+     */
+    private static function currentAccountingYear(): int
+    {
+        $year = (int)date('Y');
+        $month = (int)date('m');
+        $current = 0;
+        foreach (CharacterizationEnv::rows(self::$tenant, "SELECT kodenr, box1, box2, box3, box4 FROM grupper WHERE art = 'RA'") as $ra) {
+            if (($year > (int)$ra['box2'] || ($year === (int)$ra['box2'] && $month >= (int)$ra['box1']))
+                && ($year < (int)$ra['box4'] || ($year === (int)$ra['box4'] && $month <= (int)$ra['box3']))) {
+                $current = (int)$ra['kodenr'];
+            }
+        }
+        if ($current === 0) {
+            $next = CharacterizationEnv::one(self::$tenant, "SELECT coalesce(max(kodenr), 0) + 1 AS kodenr FROM grupper WHERE art = 'RA'");
+            $current = (int)$next['kodenr'];
+            CharacterizationEnv::rows(
+                self::$tenant,
+                "INSERT INTO grupper (beskrivelse, art, kodenr, box1, box2, box3, box4, fiscal_year) VALUES ($1, 'RA', $2, '01', $3, '12', $3, $2)",
+                [(string)$year, $current, (string)$year]
+            );
+        }
+        return $current;
     }
 
     /** The K54 recipe of doc/shopify/layouts-pos50.md, on one brand's invoice and credit note. */
