@@ -14,6 +14,8 @@
 //                  An empty line in egnetekster.csv or egne_tekster.csv no longer raises "Undefined array key".
 // 20261030 CL/MMR SST-909 CodeRabbit (PR #957): an egnetekster.csv line without a text for the language (only the id, or "-") no longer replaces a text found earlier for the same id.
 //                  When an id has only such lines, egne_tekster.csv and tekster.csv are read, as before SST-909.
+// 20261102 CL/MJ The keyed TSV files are found with locateDir(), as tekster.csv already is.
+//                A page two folders deep (systemdata/shopify/) missed them and cached the fallback text for every language.
 
 if (!function_exists('findtekst_session_var')) {
 	/**
@@ -60,7 +62,11 @@ if (!function_exists('findtekst_keyed_seed')) {
 		static $seedFiles = null;
 		if ($seedFiles === null) {
 			$seedFiles = array();
-			$fileNames = array("../importfiler/egne_tekster_keyed.tsv", "../importfiler/tekster_keyed.tsv");
+			if (!function_exists('locateDir')) {
+				include_once(__DIR__ . '/locateDir.php');
+			}
+			$importDir = locateDir("importfiler");
+			$fileNames = array("$importDir/egne_tekster_keyed.tsv", "$importDir/tekster_keyed.tsv");
 			foreach ($fileNames as $fileName) {
 				$seedRows = array();
 				if (file_exists($fileName)) {
