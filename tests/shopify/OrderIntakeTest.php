@@ -8,6 +8,8 @@
 //
 // History:
 // 20261103 CL/SS SD-742: created.
+// 20261104 CL/SS SD-808: the read is paged under Shopify's query cost limit; checked against the schema and the stateful fake store.
+// 20261104 CL/SS SD-808 review: an order changed between its reads is refused as changed, retryable.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -640,28 +642,77 @@ final class OrderIntakeTest extends TestCase
 
 	// ---------------------------------------------------------------------------------- the fetch
 
-	public function testTheFetchReadsTheOrderAndRefusesAMissingOne(): void
+	public function testTheFetchReadsTheOrderInPagesAndRefusesAMissingOrTooLargeOne(): void
 	{
 		require_once __DIR__ . '/support/FakeShopify.php';
-		$node = ['id' => self::GID, 'name' => '#HML1001', 'totalPriceSet' => ['shopMoney' => ['amount' => '10']], 'lineItems' => ['nodes' => []],
-			'shippingLines' => ['nodes' => []], 'transactions' => [], 'fulfillmentOrders' => ['nodes' => []]];
-		$large = ['lineItems' => ['pageInfo' => ['hasNextPage' => true], 'nodes' => []]] + $node;
-		$fake = new FakeShopify([FakeShopify::ok(['order' => $node]), FakeShopify::ok(['order' => null]), FakeShopify::json(['errors' => [['message' => 'Access denied']]], 403),
-			FakeShopify::ok(['order' => $large])]);
-		$rt = ['graphql' => $fake->opts()];
+		$line = static fn(int $i): array => ['id' => "gid://shopify/LineItem/$i", 'sku' => "S$i", 'quantity' => 1, 'originalTotalSet' => ['shopMoney' => ['amount' => '10']]];
+		$lines = static fn(int $from, int $n, bool $more): array => ['lineItems' => ['pageInfo' => ['hasNextPage' => $more, 'endCursor' => "c$from"],
+			'nodes' => array_map($line, range($from, $from + $n - 1))]];
+		$node = ['id' => self::GID, 'name' => '#HML1001', 'totalPriceSet' => ['shopMoney' => ['amount' => '10']],
+			'shippingLines' => ['nodes' => []], 'transactions' => []] + $lines(1, 100, true);
+		$fo = static fn(int $i, bool $more, bool $moreLines = false): array => ['fulfillmentOrders' => ['pageInfo' => ['hasNextPage' => $more, 'endCursor' => "f$i"],
+			'nodes' => [['id' => "gid://shopify/FulfillmentOrder/$i", 'status' => 'OPEN', 'assignedLocation' => ['location' => ['id' => "gid://shopify/Location/$i"]],
+				'lineItems' => ['pageInfo' => ['hasNextPage' => $moreLines], 'nodes' => [['id' => "gid://shopify/FulfillmentOrderLineItem/$i", 'totalQuantity' => 1, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]]]]];
+		$ok = static fn(array $order): array => FakeShopify::ok(['order' => $order]);
 
-		$order = shopify_fetch_paid_order(FakeShopify::shop(), '1001', $rt);
-		$this->assertSame(['gid' => self::GID, 'total' => '10.00'], array_intersect_key($order, ['gid' => 1, 'total' => 1]));
-		$this->assertSame(self::GID, $fake->calls[0]['body']['variables']['id'], 'a numeric id is sent as the order GID');
+		$check = static fn(array ...$fos): array => FakeShopify::ok(['order' => ['updatedAt' => null,
+			'fulfillmentOrders' => ['nodes' => array_map(fn(array $f): array => $f['fulfillmentOrders']['nodes'][0], $fos)]]]);
+		$fake = new FakeShopify([$ok($node), $ok($lines(101, 30, false)), $ok($fo(1, true)), $ok($fo(2, false)), $check($fo(1, true), $fo(2, false))]);
+		$order = shopify_fetch_paid_order(FakeShopify::shop(), '1001', ['graphql' => $fake->opts()]);
+		$this->assertSame([self::GID, '10.00', 130], [$order['gid'], $order['total'], count($order['lines'])], 'the first page and the next one');
+		$this->assertSame('gid://shopify/Location/1', $order['lines'][0]['assigned_location']);
+		$this->assertSame([self::GID, null, 'c1', null, 'f1'], [$fake->calls[0]['body']['variables']['id'], $fake->calls[0]['body']['variables']['after'] ?? null,
+			$fake->calls[1]['body']['variables']['after'], $fake->calls[2]['body']['variables']['after'], $fake->calls[3]['body']['variables']['after']],
+			'a numeric id is sent as the order GID; each page goes on from the cursor before it');
 
-		foreach (['not_found', 'http_403', 'too_large'] as $expected) {
+		$refused = function (array $responses): string {
 			try {
-				shopify_fetch_paid_order(FakeShopify::shop(), self::GID, $rt);
-				$this->fail("expected $expected");
+				shopify_fetch_paid_order(FakeShopify::shop(), self::GID, ['graphql' => (new FakeShopify($responses))->opts()]);
+				return 'read';
 			} catch (ShopifyOrderReadError $e) {
-				$this->assertSame($expected, $e->error);
-				$this->assertFalse($e->retryable);
+				$this->assertSame($e->error === 'changed', $e->retryable, 'only a changed order is read again');
+				return $e->error;
 			}
+		};
+		$this->assertSame('not_found', $refused([FakeShopify::ok(['order' => null])]));
+		$this->assertSame('http_403', $refused([FakeShopify::json(['errors' => [['message' => 'Access denied']]], 403)]));
+		$this->assertSame('too_large', $refused([$ok($node), $ok($lines(101, 100, true)), $ok($lines(201, 100, true))]), 'past 250 lines with more to come');
+		$this->assertSame('too_large', $refused([$ok($node), $ok($lines(101, 100, true)), $ok($lines(201, 51, false))]), '251 lines');
+		$this->assertSame('read', $refused([$ok($node), $ok($lines(101, 100, true)), $ok($lines(201, 50, false)), $ok($fo(1, false)), $check($fo(1, false))]), '250 lines is the most');
+		$this->assertSame('too_large', $refused([$ok($node), $ok($lines(101, 1, false)), $ok($fo(1, false, true))]), 'a fulfillment order with more than 250 lines');
+		$moved = $fo(1, false);
+		$moved['fulfillmentOrders']['nodes'][0]['assignedLocation']['location']['id'] = 'gid://shopify/Location/9';
+		$this->assertSame('changed', $refused([$ok($node), $ok($lines(101, 1, false)), $ok($fo(1, false)), $check($moved)]), 'a fulfillment order moved after its page was read');
+		$this->assertSame('changed', $refused([$ok($node), $ok($lines(101, 1, false)), $ok($fo(1, true)), $ok($fo(2, false)), $check($fo(1, true))]), 'one closed or gone meanwhile');
+		$edited = FakeShopify::ok(['order' => ['updatedAt' => '2026-11-04T10:00:00Z', 'fulfillmentOrders' => ['nodes' => [$fo(1, false)['fulfillmentOrders']['nodes'][0]]]]]);
+		$this->assertSame('changed', $refused([$ok($node), $ok($lines(101, 1, false)), $ok($fo(1, false)), $edited]), 'the order edited between its pages');
+		$twenty = array_map(fn(int $i): array => $ok($fo($i, true)), range(1, 20));
+		$this->assertSame('too_large', $refused(array_merge([$ok($node), $ok($lines(101, 1, false))], $twenty)), 'more than 20 fulfillment orders');
+	}
+
+	public function testTheReadsMatchTheSchemaAndAReadThroughTheStoreStaysUnderTheCostLimit(): void
+	{
+		require_once __DIR__ . '/support/GraphqlSchema.php';
+		require_once __DIR__ . '/support/FakeShopifyStore.php';
+		$schema = GraphqlSchema::load();
+		foreach ([SHOPIFY_ORDER_READ, SHOPIFY_ORDER_LINES_READ, SHOPIFY_ORDER_FULFILLMENT_READ, SHOPIFY_ORDER_CHECK_READ] as $document) {
+			$this->assertSame([], $schema->validateDocument($document), $document);
 		}
+
+		// the store projects each answer onto its document and refuses one above 1000 points (MAX_COST_EXCEEDED), as Shopify does
+		$store = new FakeShopifyStore();
+		$shop = $store->addShop('fakestore', ['locations' => ['Lager 1']]);
+		$location = $store->locations($shop['domain'])[0];
+		$a = $store->seedProduct($shop['domain'], 'havestol', 'SD808-A', [$location => 5]);
+		$b = $store->seedProduct($shop['domain'], 'havebord', 'SD808-B', [$location => 5]);
+		$created = json_decode($store->request($shop['domain'], 'mutation orderCreate($order: OrderCreateOrderInput!) { orderCreate(order: $order) { order { id } userErrors { message } } }',
+			['order' => ['lineItems' => [['variantId' => $a['variant'], 'quantity' => 2], ['variantId' => $b['variant'], 'quantity' => 1]],
+				'transactions' => [['kind' => 'SALE', 'status' => 'SUCCESS', 'amountSet' => ['shopMoney' => ['amount' => '300', 'currencyCode' => 'DKK']]]]]])['body'], true);
+		$gid = $created['data']['orderCreate']['order']['id'];
+
+		$order = shopify_fetch_paid_order($shop, $gid, ['graphql' => $store->opts()]);
+		$this->assertSame([['SD808-A', 2, $location], ['SD808-B', 1, $location]],
+			array_map(fn(array $l): array => [$l['sku'], $l['quantity'], $l['assigned_location']], $order['lines']), 'every line, with the location its fulfillment order is assigned to');
+		$this->assertSame([['SALE', 'SUCCESS', '300.00']], array_map(fn(array $t): array => [$t['kind'], $t['status'], $t['amount']], $order['transactions']));
 	}
 }
