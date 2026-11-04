@@ -302,10 +302,10 @@ print "</div><!-- end of maincontent -->
 });
 </script>
 " . sager_js_tekst('loenTekst', array(
-	'fratraadt'      => findtekst('8407|Advarsel: %s er fratrådt pr. %s.', $sprog_id),
-	'ukendt'         => findtekst('8408|ukendt', $sprog_id),
+	'fratraadt'      => findtekst('8409|Advarsel: %s er fratrådt pr. %s.', $sprog_id),
+	'ukendt'         => findtekst('8410|ukendt', $sprog_id),
 	'visAkkordliste' => findtekst('3032|Vis akkordliste', $sprog_id),
-	'lukAkkordliste' => findtekst('8410|Luk akkordliste', $sprog_id),
+	'lukAkkordliste' => findtekst('8412|Luk akkordliste', $sprog_id),
 	'visning'        => sager_pagination_label(),
 	'slet'           => findtekst('1099|Slet', $sprog_id),
 )) . "<script type=\"text/javascript\" src=\"../javascript/jquery.loen.js?v=20261103b\"></script>

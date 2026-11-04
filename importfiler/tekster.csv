@@ -5356,15 +5356,14 @@
 8404	%s: %s fra åben indkøbsordre %s (varekortet: %s)	%s: %s from open purchase order %s (item card: %s)	%s: %s fra åpen innkjøpsordre %s (varekortet: %s)
 8405	%s: %s fra varekortet. Der er ingen åben indkøbsordre, så prisen kan være forældet	%s: %s from the item card. There is no open purchase order, so the price may be out of date	%s: %s fra varekortet. Det finnes ingen åpen innkjøpsordre, så prisen kan være utdatert
 8406	Vis besked når kostprisen er anslået	Show a message when the cost price is estimated	Vis melding når kostprisen er anslått
-8407	Advarsel: %s er fratrådt pr. %s.	Warning: %s left the company on %s.	Advarsel: %s sluttet %s.
-8408	ukendt	unknown	ukjent
-8409	Aktuelle opgaver	Current tasks	Aktuelle oppgaver
-8410	Luk akkordliste	Close piecework list	Lukk akkordliste
-8411	Afregnet på seddel %s	Settled on slip %s	Avregnet på seddel %s
-8412	Fejl i brugeropsætning	Error in the user setup	Feil i brukeroppsettet
-8413	HM	ASAP	Snarest
-8414	jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec	Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec	jan,feb,mar,apr,mai,jun,jul,aug,sep,okt,nov,des
-8415	Af	By	Av
-8416	Posten er opdateret	Record successfully updated	Posten er oppdatert
-8417	Aktuelle sager	Current projects	Aktuelle saker
-8418	Alle sager	All projects	Alle saker
+8409	Advarsel: %s er fratrådt pr. %s.	Warning: %s left the company on %s.	Advarsel: %s sluttet %s.
+8410	ukendt	unknown	ukjent
+8411	Aktuelle opgaver	Current tasks	Aktuelle oppgaver
+8412	Luk akkordliste	Close piecework list	Lukk akkordliste
+8413	Afregnet på seddel %s	Settled on slip %s	Avregnet på seddel %s
+8414	Fejl i brugeropsætning	Error in the user setup	Feil i brukeroppsettet
+8415	HM	ASAP	Snarest
+8416	jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec	Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec	jan,feb,mar,apr,mai,jun,jul,aug,sep,okt,nov,des
+8417	Af	By	Av
+8418	Aktuelle sager	Current projects	Aktuelle saker
+8419	Alle sager	All projects	Alle saker

@@ -319,7 +319,7 @@ function arbejdsseddelskemaliste() {
 					<tr>
 						<th width=\"100\">".findtekst('438|Dato', $sprog_id)."</th>
 						<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
-						<th width=\"100\">".findtekst('8415|Af', $sprog_id)."</th>
+						<th width=\"100\">".findtekst('8417|Af', $sprog_id)."</th>
 						<th width=\"410\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
 						<th colspan=\"6\">&nbsp;</th>
 					</tr>
@@ -377,7 +377,7 @@ function arbejdsseddelskemaliste() {
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=opg_navn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:75px\">".findtekst('2800|Opgave', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt03 $sortstyle[3]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt04 $sortstyle[4]\" style=\"width:215px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
-							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('8415|Af', $sprog_id)."</a>
+							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('8417|Af', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste&amp;nysort=sjak&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt06 $sortstyle[6]\" style=\"width:70px\">".findtekst('3123|Sjak', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste\" class=\"felt07 $sortstyle[7]\" style=\"width:60px\">".findtekst('494|Status', $sprog_id)."</a>
 					</li>
@@ -664,7 +664,7 @@ function kontrolseddelskemaliste() {
 					<tr>
 						<th width=\"100\">".findtekst('438|Dato', $sprog_id)."</th>
 						<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
-						<th width=\"100\">".findtekst('8415|Af', $sprog_id)."</th>
+						<th width=\"100\">".findtekst('8417|Af', $sprog_id)."</th>
 						<th width=\"410\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
 						<th colspan=\"6\">&nbsp;</th>
 					</tr>
@@ -722,7 +722,7 @@ function kontrolseddelskemaliste() {
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=opg_navn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:75px\">".findtekst('2800|Opgave', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt03 $sortstyle[3]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt04 $sortstyle[4]\" style=\"width:215px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
-							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('8415|Af', $sprog_id)."</a>
+							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('8417|Af', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;nysort=sjak&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt06 $sortstyle[6]\" style=\"width:70px\">".findtekst('3123|Sjak', $sprog_id)."</a>
 							<a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste\" class=\"felt07 $sortstyle[7]\" style=\"width:60px\">".findtekst('494|Status', $sprog_id)."</a>
 					</li>

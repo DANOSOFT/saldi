@@ -63,12 +63,12 @@
 			if ($vis=='nysager') {
 				print "
 				<div class=\"headerLft\"><p>&nbsp;</p>
-					<a href=\"../sager/planlaeg_sager.php?vis=aktsager\" class=\"button green small headerMM\">".findtekst('8417|Aktuelle sager', $sprog_id)."</a>
+					<a href=\"../sager/planlaeg_sager.php?vis=aktsager\" class=\"button green small headerMM\">".findtekst('8418|Aktuelle sager', $sprog_id)."</a>
 				</div>";
 			} else {
 				print "
 				<div class=\"headerLft\"><p>&nbsp;</p>
-					<a href=\"../sager/planlaeg_sager.php?vis=nysager\" class=\"button green small headerMM\">".findtekst('8418|Alle sager', $sprog_id)."</a>
+					<a href=\"../sager/planlaeg_sager.php?vis=nysager\" class=\"button green small headerMM\">".findtekst('8419|Alle sager', $sprog_id)."</a>
 				</div>";
 			}
 		}
@@ -89,7 +89,7 @@
 			if ($vis=='nyopgaver') {
 				print "
 				<div class=\"headerLft\"><p>&nbsp;</p>
-					<a href=\"../sager/planlaeg_opgaver.php?vis=aktopgaver\" class=\"button green small headerMM\">".findtekst('8409|Aktuelle opgaver', $sprog_id)."</a>
+					<a href=\"../sager/planlaeg_opgaver.php?vis=aktopgaver\" class=\"button green small headerMM\">".findtekst('8411|Aktuelle opgaver', $sprog_id)."</a>
 				</div>";
 			} else {
 				print "

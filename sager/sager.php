@@ -987,7 +987,7 @@ function sagsliste() {
 					<td><p>$sag_ansvarlig[$x]&nbsp;</p></td>
 					<td width=\"70\"><p><b>".findtekst('2129|Indtastet', $sprog_id).":</b></p></td>
 					<td><p>".findtekst('2882|d.', $sprog_id)."$dato[$x] ".findtekst('2883|kl.', $sprog_id)." $tid[$x]</p></td>
-					<td width=\"25\"><p><b>".findtekst('8415|Af', $sprog_id).":</b></p></td>
+					<td width=\"25\"><p><b>".findtekst('638|Af', $sprog_id).":</b></p></td>
 					<td><p>$oprettet_af[$x]</p></td>
 				</tr>
 			</table>

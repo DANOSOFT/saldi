@@ -1168,24 +1168,24 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						print "<table border=\"0\" cellspacing=\"0\" width=\"780\" style=\"font-size: 12px\">
 						<tr>
 							<td><b>".findtekst('65|Oprettet', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $oprettet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $oprettet)."</td>
-							<td><b>".lcfirst(findtekst('8415|Af', $sprog_id)).":</b> $oprettet_af</td>
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $oprettet_af</td>
 							<td><b>".findtekst('1134|Løbenr.', $sprog_id).":&nbsp;</b>$loen_nr</td>
 							<td><b>".findtekst('494|Status', $sprog_id).":&nbsp;</b>$status</td>
 
 						</tr>";
 					if ($afsluttet) {
 						print "<tr><td><b>".findtekst('2790|Overført', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $afsluttet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afsluttet)."</td>
-							<td><b>".lcfirst(findtekst('8415|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
 					}
 					if ($godkendt && !$afvist) { #20170524 Tilføjet '&& !$afvist'
 						print "<tr><td><b>".findtekst('2937|Godkendt', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $godkendt)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $godkendt)."</td>
-							<td><b>".lcfirst(findtekst('8415|Af', $sprog_id)).":</b> $godkendt_af</td>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $godkendt_af</td>";
  							if ($master_nr) print "<td><b>".findtekst('3034|Afr. på', $sprog_id)."&nbsp;: </b>$master_nr</td>"; #20151215
 							print "</tr>";
 					}
 					if ($afvist) {
 						print "<tr><td><b>".findtekst('3011|Afvist', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $afvist)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afvist)."</td>
-							<td><b>".lcfirst(findtekst('8415|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
 					}
 					print "</table>";
 				}

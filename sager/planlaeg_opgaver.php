@@ -218,7 +218,7 @@
 	}
 	$ganttdata = "[".rtrim($items, ",")."]";
 	// Month names and the word after the number of days in the Gantt chart, in the user's language
-	$ganttMonthNames = json_encode(array_map('trim', explode(',', findtekst('8414|jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec', $sprog_id))), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	$ganttMonthNames = json_encode(array_map('trim', explode(',', findtekst('8416|jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec', $sprog_id))), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 	$ganttDaysText = json_encode(findtekst('5025|dage', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 	
 	

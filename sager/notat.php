@@ -218,7 +218,7 @@ function noteliste($mine_notater) {
 				<tr>
 					<th width=\"100\">".findtekst('438|Dato', $sprog_id)."</th>
 					<th width=\"100\">".findtekst('3159|Sagsnummer', $sprog_id)."</th>
-					<th width=\"100\">".findtekst('8415|Af', $sprog_id)."</th>
+					<th width=\"100\">".findtekst('8417|Af', $sprog_id)."</th>
 					<th width=\"410\">".findtekst('914|Beskrivelse', $sprog_id)."</th>
 					<th colspan=\"2\">&nbsp;</th>
 				</tr>
@@ -250,7 +250,7 @@ function noteliste($mine_notater) {
 					<a href=\"notat.php?funktion=noteliste&amp;nysort=datotid&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:115px\">".findtekst('3161|Dato/tid', $sprog_id)."</a>
 					<a href=\"notat.php?funktion=noteliste&amp;nysort=sagsnr&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:70px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
 					<a href=\"notat.php?funktion=noteliste&amp;nysort=udf_addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:215px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
-				<a href=\"notat.php?funktion=noteliste&amp;nysort=hvem&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:80px\">".findtekst('8415|Af', $sprog_id)."</a>
+				<a href=\"notat.php?funktion=noteliste&amp;nysort=hvem&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:80px\">".findtekst('8417|Af', $sprog_id)."</a>
 				<a href=\"notat.php?funktion=noteliste&amp;nysort=status&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:70px\">".findtekst('494|Status', $sprog_id)."</a>
 				<a href=\"notat.php?funktion=noteliste&amp;nysort=beskrivelse&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:255px\">".findtekst('914|Beskrivelse', $sprog_id)."</a>
 				</li>
@@ -298,7 +298,7 @@ function noteliste($mine_notater) {
 			<div class=\"content\">
 		<table border=\"0\" cellspacing=\"0\" width=\"600\" style=\"margin-left: 90px;\">
 			<tr>
-		<td><p class=\"date\">".findtekst('8415|Af', $sprog_id)." $forfatter, $datotid</p></td>
+		<td><p class=\"date\">".findtekst('8417|Af', $sprog_id)." $forfatter, $datotid</p></td>
 			</tr>
 			<tr>
 		<td><h4>$beskrivelse</h4>

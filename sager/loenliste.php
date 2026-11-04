@@ -448,7 +448,7 @@ function loenliste() {
 		if ($afvist[$x] && !$afsluttet[$x]) db_modify("update loen set afsluttet='$afvist[$x]' where id='$id[$x]'",__FILE__ . " linje " . __LINE__); 
 		if ($master_id[$x]) { #20151216
 			$r2=db_fetch_array(db_select("select nummer from loen where id='$master_id[$x]'",__FILE__ . " linje " . __LINE__));
-			$master_nr[$x]=sprintf(findtekst('8411|Afregnet på seddel %s', $sprog_id), $r2['nummer']);
+			$master_nr[$x]=sprintf(findtekst('8413|Afregnet på seddel %s', $sprog_id), $r2['nummer']);
 		} else $master_nr[$x]=NULL;
 		#20130808
 		$x++;

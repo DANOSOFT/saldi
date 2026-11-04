@@ -133,12 +133,11 @@ if (!function_exists('sager_js_sagertekst')) {
 			'firma'       => findtekst('5381|Firma', $sprog_id),
 			'navn'        => findtekst('138|Navn', $sprog_id),
 			'sagsnr'      => rtrim(findtekst('2819|Sagsnr.', $sprog_id), '.'),
-			'af'          => findtekst('8415|Af', $sprog_id),
+			'af'          => findtekst('8417|Af', $sprog_id),
 			'beskrivelse' => findtekst('914|Beskrivelse', $sprog_id),
 			'dato'        => findtekst('438|Dato', $sprog_id),
 			'skema'       => findtekst('2824|Skema', $sprog_id),
 			'opgave'      => findtekst('2800|Opgave', $sprog_id),
-			'opdateret'   => findtekst('8416|Posten er opdateret', $sprog_id),
 			'visning'     => sager_pagination_label(),
 		));
 	}

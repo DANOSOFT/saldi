@@ -484,7 +484,7 @@ function ret_kunde($id) {
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=sagsnr&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[0]#sect\" id=\"felt01\" class=\"felt01 $sortstyle[0]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=udf_addr1&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[1]#sect\" class=\"felt02 $sortstyle[1]\" style=\"width:315px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=tidspkt&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[2]#sect\" class=\"felt03 $sortstyle[2]\" style=\"width:130px\">".findtekst('3207|Indtastet', $sprog_id)."</a>
-								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=oprettet_af&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[3]#sect\" class=\"felt04 $sortstyle[3]\" style=\"width:100px\">".findtekst('8415|Af', $sprog_id)."</a>
+								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=oprettet_af&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[3]#sect\" class=\"felt04 $sortstyle[3]\" style=\"width:100px\">".findtekst('8417|Af', $sprog_id)."</a>
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=ref&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[4]#sect\" class=\"felt05 $sortstyle[4]\" style=\"width:120px\">".findtekst('2793|Ansvarlig', $sprog_id)."</a>
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=status&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[5]#sect\" class=\"felt06 $sortstyle[5]\" style=\"width:75px\">".findtekst('494|Status', $sprog_id)."</a>
 								

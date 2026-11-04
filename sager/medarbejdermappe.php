@@ -642,7 +642,7 @@ function medarbejdermappe() {
 		
 		if(!$ans_id) $ans_id=$ansat_id;
 		if (!$ans_id) {
-			print "<script>alert(".json_encode(findtekst('8412|Fejl i brugeropsætning', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)."); window.location.href='medarbejdermappe.php?funktion=medarbejdermappeliste';</script>";
+			print "<script>alert(".json_encode(findtekst('8414|Fejl i brugeropsætning', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)."); window.location.href='medarbejdermappe.php?funktion=medarbejdermappeliste';</script>";
 			return;
 		}
 		$ans_id = (int)$ans_id;

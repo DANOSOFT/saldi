@@ -387,7 +387,7 @@ function updatestatus() {
     data: dataString,
     success: function(response)
        {
-         alert((window.sagerTekst || {}).opdateret || "Record successfully updated");
+         alert("Record successfully updated");
        }
   });
   return false;
@@ -399,7 +399,7 @@ $(document).ready(function () {
 	
 		//var dataString = 'status='+ status + '&sagid=' + sagid;
 		//alert (dataString);return false;
-		alert((window.sagerTekst || {}).opdateret || "Record successfully updated");return false;
+		alert("Record successfully updated");return false;
 	
 		$.ajax({
 			type: "POST",
@@ -407,7 +407,7 @@ $(document).ready(function () {
 			data: $(this).parent().serialize(),
 			success: function(response)
 				{
-					alert((window.sagerTekst || {}).opdateret || "Record successfully updated");
+					alert("Record successfully updated");
 				}
 		});
 		return false;
@@ -422,7 +422,7 @@ $(document).ready(function(){
 		item_container_id : '.paging_content',
 		num_page_links_to_display : 10,
 		//abort_on_small_lists: true,
-		nav_label_info : (window.sagerTekst || {}).visning || 'Viser {0}-{1} af {2}',
+		nav_label_info : 'Viser {0}-{1} af {2}',
 		nav_label_first : '<<',
 		nav_label_last : '>>',
 		nav_label_prev : '<',
