@@ -1,5 +1,6 @@
 <?php
 // 20261103 CL/MMR SST-929 Deleting an empty journal removes only empty folders, keeps what isn't the journal's own, and raises no warning.
+// 20261104 CL/MMR SST-929 A warning from unlink(), scandir() or rmdir() under the throwing handler is a failed step, not an exception (CodeRabbit on PR #1004).
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -120,6 +121,19 @@ final class JournalDocumentsDeleteRegressionTest extends TestCase
         }
         self::assertFileExists($journalFolder . '/kontoudtog.pdf');
         self::assertSame([1], $this->documentIds());
+    }
+
+    public function testAWarningInAFileStepIsAFailureAndNotAnException(): void
+    {
+        // CodeRabbit (PR #1004): with the handler of kladdeliste.php a warning threw, also behind @, and stopped the deletion
+        $missing = $this->root . '/no-such-folder/kontoudtog.pdf';
+        self::assertFalse(journalDocumentsQuietly(static fn () => unlink($missing)));
+        self::assertFalse(journalDocumentsQuietly(static fn () => rmdir($missing)));
+        self::assertTrue(journalDocumentsQuietly(static fn () => true), 'a step without a warning keeps its result');
+
+        // the test's own throwing handler is back afterwards
+        $this->expectException(ErrorException::class);
+        unlink($missing);
     }
 
     private function journalFolder(): string

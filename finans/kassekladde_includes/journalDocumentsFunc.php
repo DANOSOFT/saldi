@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/journalDocumentsFunc.php --- ver 5.1.0 --- 2026.11.03 ---
+// --- finans/kassekladde_includes/journalDocumentsFunc.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,8 @@
 // 20261103 CL/MMR SST-929 journalDocumentsDelete() only removes a folder when it is empty, so a line's folder left behind by Slet or Flyt til pulje no longer stops the journal's deletion.
 //                 A journal document whose folder can't be written keeps its row and stops the deletion without a warning.
 //                 No @ any more, because the delete in kladdeliste.php turns every warning into an error.
+// 20261104 CL/MMR SST-929 unlink(), scandir() and rmdir() run through journalDocumentsQuietly(), so a warning is a failed step (row kept, folder left) and not an
+//                 ErrorException from the kladdeliste.php handler, which ignores @ (CodeRabbit on PR #1004).
 
 /**
  * The document folder as seen from finans/ (owncloud, bilag or documents, as insertDoc.php picks it).
@@ -129,7 +131,7 @@ function journalDocumentsDelete($db, $kladde_id)
 	foreach (journalDocumentsList($kladde_id) as $doc) {
 		$file = $folder . '/' . basename($doc['filename']);
 		// A file in a folder that can't be written can't be deleted: checked first, so no warning is raised
-		if (is_file($file) && (!is_writable($folder) || !unlink($file))) {
+		if (is_file($file) && (!is_writable($folder) || !journalDocumentsQuietly(static fn () => unlink($file)))) {
 			$all = false;
 			continue;
 		}
@@ -151,7 +153,31 @@ function journalDocumentsDelete($db, $kladde_id)
 function journalDocumentsRemoveEmptyDir($dir)
 {
 	if (!is_dir($dir) || !is_readable($dir) || !is_writable(dirname($dir))) return false;
-	$entries = scandir($dir);
-	if ($entries === false || count($entries) > 2) return false;
-	return rmdir($dir);
+	return journalDocumentsQuietly(static function () use ($dir) {
+		$entries = scandir($dir);
+		if ($entries === false || count($entries) > 2) return false;
+		return rmdir($dir);
+	});
+}
+
+/**
+ * Run a file operation and give its result, with a warning counting as a failure (false) instead of being shown.
+ * The delete in finans/kladdeliste.php turns every warning into an ErrorException, also behind @, so a warning
+ * that slips past the checks (e.g. a file added to the folder between scandir() and rmdir()) would stop the deletion.
+ *
+ * @return mixed what $fn returns, or false when it raised a warning.
+ */
+function journalDocumentsQuietly(callable $fn)
+{
+	$warned = false;
+	set_error_handler(static function () use (&$warned) {
+		$warned = true;
+		return true;
+	});
+	try {
+		$result = $fn();
+	} finally {
+		restore_error_handler();
+	}
+	return $warned ? false : $result;
 }
