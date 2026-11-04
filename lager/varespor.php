@@ -1,6 +1,6 @@
 <?php
 
-// ------------lager/varespor.php---------------------patch 5.0.0--2026.08.19--
+// ------------lager/varespor.php---------------------patch 5.0.0--2026.11.04--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,7 +19,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2026 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 //
 // 20140626 Tilføjet lagerregulering og ændret variabelnavn for dækningsbidrag.
@@ -27,6 +27,7 @@
 // 20260819 CDX/PHR Saml fragmenterede batchlinjer, vis lager og saml lagerreguleringer nederst.
 // 20260907 CL/LH Saml kun rækker med samme linje_id (ikke modtime), bevar fortegn på
 //                lagerreguleringer og genopret tom firmanavn-celle ved slettet ordre (#495).
+// 20261104 CL/ASR Moved to Varerapport (owner, 4 Nov 2026): the page needs right 15 and the key lager.rapporter (read) instead of right 12 (Debitorrapport); it only reads data.
 
 function varesporBatchRows($table, $vareId, $excludeZero = false) {
 	if ($table !== 'batch_kob' && $table !== 'batch_salg') {
@@ -72,7 +73,8 @@ function varesporBatchRows($table, $vareId, $excludeZero = false) {
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
-$modulnr=12;
+$modulnr=15; // Varerapport (was 12, Debitorrapport; owner, 4 Nov 2026)
+$permission_key='lager.rapporter';
 
 global $menu;
  

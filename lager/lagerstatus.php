@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-11-03 ----
+// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-11-04 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,6 +67,7 @@
 //             zStock/showClosed/activity filters via $lsHasTextSearch.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261103 CL/ASR QA round 2: the GET link ret_behold=2 (Ret skæve lagertal) needs write on lager.varer.
+// 20261104 CL/ASR The item number links to the item trace (varespor.php) only for users who may open it; the trace moved to Varerapport (right 15, lager.rapporter).
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -664,7 +665,8 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		if ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		else {$linjebg=$bgcolor; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";
-		if ($popup) print "<td onClick=\"javascript:varespor=window.open('varespor.php?vare_id=$vare_id[$x]','varespor','$jsvars')\" onMouseOver=\"this.style.cursor = 'pointer'\"><u>$varenr[$x]</u><br></td>";
+		if (!batch_reports_allowed()) print "<td>$varenr[$x]<br></td>";
+		elseif ($popup) print "<td onClick=\"javascript:varespor=window.open('varespor.php?vare_id=$vare_id[$x]','varespor','$jsvars')\" onMouseOver=\"this.style.cursor = 'pointer'\"><u>$varenr[$x]</u><br></td>";
 		else print "<td><a href=varespor.php?vare_id=$vare_id[$x]>$varenr[$x]<br></td>";
 		print	"<td>$enhed[$x]<br></td><td>$beskrivelse[$x]<br></td>
 		<td align=right>".str_replace(".",",",$batch_k_antal[$x]*1)."<br></td><td align=right>".str_replace(".",",",$batch_s_antal[$x]*1)."<br></td>";

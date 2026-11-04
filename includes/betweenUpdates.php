@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,10 @@
 // 20261031 CL/ASR Texts 7031 (personal text size) and 7021 (checklists lead) reworded; the cached old wording is removed.
 // 20261103 CL/ASR QA: the audit_log indexes on objekt_type/objekt_id are made after all three columns exist (and made later where an earlier login stopped before them); the role tables, the built-in roles and the user migration run under a PostgreSQL advisory lock, so two first logins at once cannot seed the roles twice.
 // 20261103 CL/ASR QA round 2: the built-in Kun visning role loses its dangerous keys (settings.backup) once, and role rows for keys no longer in the registry are removed.
+// 20261104 CL/ASR The batch/expiry tools moved to Varerapport: the built-in Lager role gets Se Oversigt, the expiry warning and news, and the built-in Indkøb role loses the expiry warning, once and only where their Oversigt keys are still the old defaults.
+// 20261104 CL/ASR QA round 3: the PostgreSQL advisory lock now also covers the settings migrations up to the stale texts, so two first logins at once cannot insert the same settings flag twice.
+//                 The one-time role changes at the end of the file run under the same lock, check their flag again once they hold it, and run in one transaction with their flag.
+//                 Text 7815 (the restore's warning about a backup of another ledger) is reworded; the cached old wording is removed.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -157,7 +161,7 @@ $sawanehSchema = in_array($db_type, array('mysql', 'mysqli'), true) ? " AND tabl
 $sawanehMysql = in_array($db_type, array('mysql', 'mysqli'), true);
 $sawanehId = $sawanehMysql ? 'id INT NOT NULL AUTO_INCREMENT PRIMARY KEY' : 'id SERIAL PRIMARY KEY NOT NULL';
 $sawanehNow = $sawanehMysql ? 'DATETIME DEFAULT CURRENT_TIMESTAMP' : 'timestamp DEFAULT now()';
-// One login at a time creates the role tables, seeds the built-in roles and migrates the users (released after perm_migrate_users()).
+// One login at a time creates the role tables, seeds the built-in roles and migrates the users (released after the settings migrations below).
 // A session lock: it also ends with the connection if a statement stops the login.
 if (!$sawanehMysql) {
 	db_select("select pg_advisory_lock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
@@ -344,9 +348,6 @@ if (perm_tables_ready() && !db_fetch_array(db_select($qtxt, __FILE__ . " linje "
 	db_modify("delete from role_permissions where permission_key = 'settings.audit.read' and role_id in (select id from roles where role_key in ('bogholder', 'revisor'))", __FILE__ . " linje " . __LINE__);
 	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('permissions', 'audit_admin_only', '" . date('Ymd') . "', 'Audit log read removed from Bogholder and Revisor', 0)", __FILE__ . " linje " . __LINE__);
 }
-if (!$sawanehMysql) {
-	db_select("select pg_advisory_unlock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
-}
 
 // 20261001 Sawaneh Settings redesign §7.2: one row per setting. Duplicates are merged (removed rows kept in
 // settings_removed) and the unique index is added once; after that only the index lookup runs.
@@ -419,6 +420,19 @@ deleteStaleTekst(7021, array(
 	'Checklists for cases: phases, groups and check points. Moved here from Settings.',
 	'Sjekklister for saker: faser, grupper og sjekkpunkter. Flyttet hit fra Innstillinger.',
 ));
+// 20261104 CL/ASR Text 7815 (admin/restore.php) called a backup of a ledger with another name one of ANOTHER company; it compares
+// ledger names, so it now says that. Rows still holding the old wording are removed so findtekst() re-seeds the new one.
+deleteStaleTekst(7815, array(
+	'Sikkerhedskopien er fra et ANDET firma: %s. Dette regnskab hedder %s. Gendanner du, bliver regnskabets data erstattet af det andet firmas data.',
+	"The backup is from ANOTHER company: %s. This ledger is called %s. If you restore, the data of this ledger will be replaced by the other company's data.",
+	'Sikkerhetskopien er fra et ANNET firma: %s. Dette regnskapet heter %s. Hvis du gjenoppretter, blir regnskapets data erstattet av det andre firmaets data.',
+));
+// 20261104 CL/ASR The lock taken before the role tables ends here: the one-time settings rows above (landed_at, paymentDays) cannot be
+// inserted twice by two first logins at once. The time-budgeted backfill below has its own try-lock.
+if (!$sawanehMysql) {
+	db_select("select pg_advisory_unlock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
+}
+
 // 20261019 CL/LH MB-73: ordrelinjer.leveret had no default and opret_ordrelinje() never set it, so
 // linjeopdat()'s leveret+n stayed NULL. debitor/ordre.php re-syncs leveret from the delivery records
 // whenever the order is shown (the sum of batch_salg.antal for the line, order and item), but fast
@@ -449,8 +463,14 @@ backfillOrderLineDelivered($db_type);
 // once and the rights strings of its users rendered again. Role rows for keys that have left the registry
 // (dashboard.block.suggestions, 1 Nov 2026) are removed in the same step. Flagged in settings, like audit_admin_only above.
 include_once(__DIR__ . "/permissions.php");
+// 20261104 CL/ASR QA round 3: the one-time role changes below run one login at a time (the flag is read once the lock is held)
+// and each in one transaction with its flag, so a login that stops halfway leaves the role as it was.
+if (!$sawanehMysql) {
+	db_select("select pg_advisory_lock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
+}
 $qtxt = "select id from settings where var_grp = 'permissions' and var_name = 'readonly_no_dangerous'";
 if (perm_tables_ready() && !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	transaktion('begin');
 	$permDangerous = array();
 	$permKnown = array();
 	foreach (permission_registry() as $permKey => $permDef) {
@@ -466,6 +486,51 @@ if (perm_tables_ready() && !db_fetch_array(db_select($qtxt, __FILE__ . " linje "
 	}
 	db_modify("delete from role_permissions where permission_key not in (" . implode(', ', $permKnown) . ")", __FILE__ . " linje " . __LINE__);
 	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('permissions', 'readonly_no_dangerous', '" . date('Ymd') . "', 'Dangerous keys removed from Kun visning, unknown keys from all roles', 0)", __FILE__ . " linje " . __LINE__);
+	transaktion('commit');
+}
+
+// 20261104 CL/ASR The expiry report, batch overview, sales by postcode and item trace moved from Debitorrapport (right 12) to
+// Varerapport (right 15, lager.rapporter; owner, 4 Nov 2026), and the expiry warning in the bell with them. In the built-in
+// roles the warning (dashboard.block.expiry) now goes with lager.rapporter: Lager gets Se Oversigt, the warning and news,
+// Indkøb loses the warning. Applied once, to a stored built-in role only while its Oversigt keys are still the old defaults
+// (Lager none, Indkøb view, warning and news), and the rights strings of its users are rendered again. Flagged in settings.
+include_once(__DIR__ . "/permissions.php");
+$qtxt = "select id from settings where var_grp = 'permissions' and var_name = 'stock_reports_lager_rapporter'";
+if (perm_tables_ready() && !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	transaktion('begin');
+	// role_key => array(Oversigt keys of the old default (sorted), keys to add at read, keys to remove)
+	$permStockRoles = array(
+		'lager'   => array(array(), array('dashboard.view', 'dashboard.block.expiry', 'dashboard.block.news'), array()),
+		'indkoeb' => array(array('dashboard.block.expiry', 'dashboard.block.news', 'dashboard.view'), array(), array('dashboard.block.expiry')),
+	);
+	foreach ($permStockRoles as $permRoleKey => $permChange) {
+		$permRole = db_fetch_array(db_select("select id from roles where role_key = '$permRoleKey'", __FILE__ . " linje " . __LINE__));
+		if (!$permRole) {
+			continue;
+		}
+		$permRoleId = (int) $permRole['id'];
+		$permDash = array();
+		$permQ = db_select("select permission_key from role_permissions where role_id = $permRoleId and permission_key like 'dashboard.%'", __FILE__ . " linje " . __LINE__);
+		while ($permRow = db_fetch_array($permQ)) {
+			$permDash[] = (string) $permRow['permission_key'];
+		}
+		sort($permDash, SORT_STRING);
+		if ($permDash !== $permChange[0]) {
+			continue; // changed by an administrator (or already the new default): left as it is
+		}
+		foreach ($permChange[1] as $permKey) {
+			db_modify("insert into role_permissions (role_id, permission_key, level) values ($permRoleId, '" . db_escape_string($permKey) . "', 'read')", __FILE__ . " linje " . __LINE__);
+		}
+		foreach ($permChange[2] as $permKey) {
+			db_modify("delete from role_permissions where role_id = $permRoleId and permission_key = '" . db_escape_string($permKey) . "'", __FILE__ . " linje " . __LINE__);
+		}
+		perm_sync_role($permRoleId);
+	}
+	db_modify("insert into settings (var_grp, var_name, var_value, var_description, user_id) values ('permissions', 'stock_reports_lager_rapporter', '" . date('Ymd') . "', 'Expiry warning moved to the roles with Varerapport (Lager in, Indkoeb out)', 0)", __FILE__ . " linje " . __LINE__);
+	transaktion('commit');
+}
+if (!$sawanehMysql) {
+	db_select("select pg_advisory_unlock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
 }
 
 ?>

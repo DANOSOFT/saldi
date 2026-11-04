@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/admin/backup.php---ver 5.1.0--2026-11-03---------------------
+// ----------/admin/backup.php---ver 5.1.0--2026-11-04---------------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20261103 CL/ASR QA round 2: the page needs Sikkerhedskopi (settings.backup), and creating or deleting a backup needs write.
 //                 The dump command with the database password is no longer printed into the page.
 //                 The plain dump and backup.info are deleted once archived, the kept copy gets a random part in its name and is downloaded through backup_download.php, and Annullér deletes only that copy.
+// 20261104 CL/ASR Every visit removes expired work folders of the two-step restore (includes/restorePending.php), as restore.php does.
 
 @session_start();
 $s_id = session_id();
@@ -55,6 +56,8 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include_once("../includes/restorePending.php");
+restore_pending_sweep(); // an unconfirmed restore upload older than 30 minutes
 
 if (!isset($exec_path)) $exec_path="/usr/bin";
 

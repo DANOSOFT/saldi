@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,7 @@
 // 20261103 CL/ASR QA: two-factor login needs an e-mail or phone stored on the login itself (login.php reads brugere): switching it on with only the employee's e-mail stores that e-mail on the login, and the last channel cannot be cleared while two-factor is on.
 //                 An expired form (err=csrf) now says so.
 // 20261103 CL/ASR QA round 2: when the current password is missing for a contact change, the page no longer also says Dine indstillinger er gemt; it says Øvrige indstillinger er gemt only when another preference changed (text 7807).
+// 20261104 CL/ASR Advar om udløb (dage før) is shown only to users who get the expiry warning, those with Varerapport (batch_reports_allowed(), includes/stdFunc/fefo.php).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -627,10 +628,12 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
           </label>
         </div>
 			<?php } ?>
+			<?php if (function_exists('batch_reports_allowed') && batch_reports_allowed()) { // the expiry warning goes with Varerapport ?>
         <div class="ps-field">
           <label for="ps-warn"><?= $t('5006|Advar om udløb (dage før)') ?></label>
           <input class="ps-input ps-input-short" type="number" min="1" id="ps-warn" name="due_date_warning_days" value="<?= (int) $d['warnDays'] ?>">
         </div>
+			<?php } ?>
       </div>
     </section>
 

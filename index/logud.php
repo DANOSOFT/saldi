@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// -----------index/logud.php------ ver 4.0.8 --- 2024-04-09 -------------
+// -----------index/logud.php------ ver 4.0.8 --- 2026-11-04 -------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +18,7 @@ $s_id=session_id();
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20131010 Tilføjet sletning af lås fra kladdeliste.
 // 20150114 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
@@ -29,6 +29,7 @@ $s_id=session_id();
 //                  stale nav files from sessions that never logged out.
 // 20260916 Sawaneh Logout written to audit_log while the company connection is still active.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261104 CL/ASR The session's unconfirmed restore uploads (admin/restore.php) are removed at logout, and expired ones of any session (includes/restorePending.php).
 
 $title="logud";
 $css = "";
@@ -59,6 +60,10 @@ if (function_exists('nav_forget')) {
 	nav_forget();
 	nav_cleanup_old();
 }
+// An unconfirmed restore upload holds a full copy of a ledger: it does not outlive the session.
+include_once("../includes/restorePending.php");
+restore_pending_drop_session();
+restore_pending_sweep();
 session_unset();
 session_destroy();
 if(isset($_COOKIE["saldi_std"])) {

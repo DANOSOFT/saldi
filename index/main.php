@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/main.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -80,6 +80,7 @@
 //                 The personal colours ($buttonColor/$buttonTxtColor) no longer style the sidebar: the colour <style> block, the inline colour styles and brightenColor() are gone.
 // 20261103 CL/ASR QA: css/topbar.css linked as ?v=23 ([hidden] items in the top bar's menus stay hidden).
 // 20261103 CL/ASR QA round 2: Skjul oversigt and Rediger oversigt are hidden for a user without any dashboard block.
+// 20261104 CL/ASR Lager » Udløbsrapport follows the report to Varerapport (right 15 and lager.rapporter instead of right 12, owner 4 Nov 2026).
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -343,8 +344,8 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
             echo '<li><a href="#" onclick=\'update_iframe("/lager/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
           }
           # The expiry report had no menu entry at all; only accounts that use batch/expiry
-          # management see it, and only with the right the page itself requires.
-          if (check_permissions(array(12)) && batch_expiry_in_use()) {
+          # management see it, and only with the right the page itself requires (Varerapport, 15).
+          if (check_permissions(array(15)) && batch_reports_allowed() && batch_expiry_in_use()) {
             echo '<li><a href="#" onclick=\'update_iframe("/lager/udlobsrapport.php")\'>' . findtekst('5014|Udl&oslash;bsrapport', $sprog_id) . '</a></li>';
           }
           ?>

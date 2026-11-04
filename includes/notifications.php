@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/notifications.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/notifications.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,8 @@
 // 20261103 CL/ASR QA: the fiscal-year warnings are shown only to users who may change the company settings, link to Indstillinger » Regnskabsår (settingsSection.php?s=company.fiscal_years), disappear once the year is in order, and are worded in the reader's language (title and body are made when listed).
 //                 The role filter also applies to the daily e-mail summary, per recipient.
 //                 The bank item reads the stored bank connection before it calls the connection expired.
+// 20261104 CL/ASR The batch-expiry item follows lager/udlobsrapport.php to Varerapport (owner, 4 Nov 2026): it needs legacy right 15 and the key lager.rapporter instead of right 12, so it reaches exactly the users who may open the report it links to.
+//                 A user without them has a stored item removed, and the bell list and the daily summary hide the item from them as well.
 
 /**
  * @return array<string, string> type -> label text id
@@ -89,7 +91,8 @@ function notif_role_filter(int $brugerId): string
 	if (!notif_user_can($brugerId, 'dashboard.block.news')) {
 		$sql .= " and n.source_key not like 'news:%'";
 	}
-	if (!notif_user_can($brugerId, 'dashboard.block.expiry')) {
+	// The batch-expiry item links to lager/udlobsrapport.php (Varerapport): hidden from a user who may not open it.
+	if (!notif_user_can($brugerId, 'dashboard.block.expiry') || !notif_user_can($brugerId, 'lager.rapporter')) {
 		$sql .= " and n.source_key != 'batch:expiry'";
 	}
 	// The fiscal-year warnings lead to Regnskabsår, which only users who may change the company settings can use.
@@ -259,8 +262,12 @@ function notif_source_fiscal_year(int $sprogId): void
  */
 function notif_source_batches(int $brugerId, string $rettigheder, int $sprogId): void
 {
-	// Right 12 (Debitorrapport), as master's dashboard banner and lager/udlobsrapport.php ($modulnr = 12, SST-836).
-	if (substr($rettigheder, 12, 1) < '1' || !tbl_exists('batch_kob')) {
+	if (!tbl_exists('batch_kob')) {
+		return;
+	}
+	// Right 15 and the key lager.rapporter (Varerapport), as lager/udlobsrapport.php itself ($modulnr = 15, owner 4 Nov 2026).
+	if (substr($rettigheder, 15, 1) < '1' || (function_exists('perm_can') && !notif_user_can($brugerId, 'lager.rapporter'))) {
+		db_modify("delete from notifications where source_key = 'batch:expiry' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
 		return;
 	}
 	$days = function_exists('get_due_date_warning_days') ? get_due_date_warning_days($brugerId) : 30;

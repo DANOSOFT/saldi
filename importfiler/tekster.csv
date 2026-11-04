@@ -7084,3 +7084,18 @@
 7805	Tilbage til Oversigt	Back to Overview	Tilbake til Oversikt
 7806	Der er ingen nøgletal til din rolle.	There are no key figures for your role.	Det finnes ingen nøkkeltall for rollen din.
 7807	Øvrige indstillinger er gemt.	Your other settings have been saved.	Øvrige innstillinger er lagret.
+7808	Bekræft gendannelse	Confirm restore	Bekreft gjenoppretting
+7809	Filen er kontrolleret, men intet er ændret endnu. Kontrollér firma og dato, før du gendanner.	The file has been checked, but nothing has been changed yet. Check the company and date before you restore.	Filen er kontrollert, men ingenting er endret ennå. Kontroller firma og dato før du gjenoppretter.
+7810	Regnskab, der overskrives	Ledger to be overwritten	Regnskap som overskrives
+7811	Firma i sikkerhedskopien	Company in the backup	Firma i sikkerhetskopien
+7812	Sikkerhedskopien er taget	Backup taken	Sikkerhetskopien er tatt
+7813	kl.	at	kl.
+7814	Saldi-version	Saldi version	Saldi-versjon
+7815	Sikkerhedskopien er taget af regnskabet %s, men dette regnskab hedder %s. Kontrollér, at det er det rigtige firma, før du gendanner.	The backup was taken of the ledger %s, but this ledger is called %s. Check that it is the right company before you restore.	Sikkerhetskopien er tatt av regnskapet %s, men dette regnskapet heter %s. Kontroller at det er riktig firma før du gjenoppretter.
+7816	Filen indeholder ingen oplysninger om firma og dato. Kontrollér, at det er den rigtige fil, før du gendanner.	The file contains no information about company and date. Check that it is the right file before you restore.	Filen inneholder ingen opplysninger om firma og dato. Kontroller at det er riktig fil før du gjenoppretter.
+7817	Gendannelsen er afbrudt. Intet er ændret.	The restore has been cancelled. Nothing has been changed.	Gjenopprettingen er avbrutt. Ingenting er endret.
+7818	Bekræftelsen er ugyldig, udløbet eller allerede brugt. Intet er ændret. Indlæs sikkerhedskopien igen.	The confirmation is invalid, has expired or has already been used. Nothing has been changed. Upload the backup again.	Bekreftelsen er ugyldig, utløpt eller allerede brukt. Ingenting er endret. Last inn sikkerhetskopien på nytt.
+7819	Når filen er indlæst, viser næste trin firma og dato i sikkerhedskopien. Intet bliver overskrevet, før du bekræfter.	Once the file is uploaded, the next step shows the company and date in the backup. Nothing is overwritten until you confirm.	Når filen er lastet inn, viser neste trinn firma og dato i sikkerhetskopien. Ingenting blir overskrevet før du bekrefter.
+7820	Filen er ikke en SALDI-sikkerhedskopi. Intet er ændret.	The file is not a SALDI backup. Nothing has been changed.	Filen er ikke en SALDI-sikkerhetskopi. Ingenting er endret.
+7821	Regnskabet er gendannet fra sikkerhedskopien fra %s. Log ind igen.	The ledger has been restored from the backup from %s. Please log in again.	Regnskapet er gjenopprettet fra sikkerhetskopien fra %s. Logg inn igjen.
+7822	Regnskabet er gendannet fra sikkerhedskopien. Log ind igen.	The ledger has been restored from the backup. Please log in again.	Regnskapet er gjenopprettet fra sikkerhetskopien. Logg inn igjen.

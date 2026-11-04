@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissionRegistry.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/permissionRegistry.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,8 @@
 // 20261002 SS Keys per settings redesign §11.1: settings.email (was settings.smtp), settings.backup (was system.backup), settings.company.danger and settings.organisation.sensitive added; settings.integrations.keys withdrawn.
 // 20261101 CL/ASR dashboard.block.suggestions removed: the Forslag card left the dashboard (the bell holds suggestions).
 // 20261103 CL/ASR QA round 2: Kun visning no longer gets read on dangerous keys (settings.backup), and Bogholder and Revisor get no expiry block, which needs a lager key.
+// 20261104 CL/ASR The batch/expiry tools moved to Varerapport (owner, 4 Nov 2026), so the expiry warning goes to the roles with lager.rapporter: Lager gets Se Oversigt, the expiry warning and news, Indkøb loses the expiry warning.
+//                 dashboard.block.expiry derives from lager.rapporter alone (was lager.varer or lager.rapporter).
 
 /**
  * Every permission key the system knows. A key is granted at level none / read / write.
@@ -65,7 +67,7 @@ function permission_registry(): array
 		'dashboard.block.revweek'           => array('group' => 'dashboard', 'label' => '6955|Omsætning pr. dag',        'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.rapporter', 'debitor.rapporter'), 'block' => true),
 		'dashboard.block.varegrp_doughnut'  => array('group' => 'dashboard', 'label' => '6960|Omsætning pr. varegruppe', 'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.rapporter', 'lager.rapporter'), 'block' => true),
 		'dashboard.block.small'             => array('group' => 'dashboard', 'label' => '7059|Små tal',                  'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.ordre'), 'block' => true),
-		'dashboard.block.expiry'            => array('group' => 'dashboard', 'label' => '7067|Batch-/udløbsadvarsel',    'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('lager.varer', 'lager.rapporter'), 'block' => true),
+		'dashboard.block.expiry'            => array('group' => 'dashboard', 'label' => '7067|Batch-/udløbsadvarsel',    'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('lager.rapporter'), 'block' => true),
 		'dashboard.block.news'              => array('group' => 'dashboard', 'label' => '7068|Nyhedsbanner',              'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('*'), 'block' => true),
 
 		'finans.kassekladde'     => array('group' => 'finans',   'label' => '601|Kassekladde',         'legacy' => array(2),  'dangerous' => false),
@@ -161,8 +163,11 @@ function permission_default_roles(): array
 	$dashAll = array('dashboard.view' => 'read', 'dashboard.block.kpis' => 'read', 'dashboard.block.unpaid_invoices' => 'read', 'dashboard.block.revgraph' => 'read', 'dashboard.block.customergraph' => 'read',
 		'dashboard.block.revweek' => 'read', 'dashboard.block.varegrp_doughnut' => 'read', 'dashboard.block.small' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
 	$dashSalg = array('dashboard.view' => 'read', 'dashboard.block.unpaid_invoices' => 'read', 'dashboard.block.customergraph' => 'read', 'dashboard.block.varegrp_doughnut' => 'read', 'dashboard.block.small' => 'read', 'dashboard.block.news' => 'read');
-	$dashIndkoeb = array('dashboard.view' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
-	// Roles without a lager key get no expiry block, as the derive rule (lager.varer / lager.rapporter) gives at upgrade.
+	// The expiry warning leads to lager/udlobsrapport.php under Varerapport (owner, 4 Nov 2026), so only roles with
+	// lager.rapporter get it: Lager gets Oversigt with the warning and news, Indkøb keeps Oversigt and news.
+	$dashIndkoeb = array('dashboard.view' => 'read', 'dashboard.block.news' => 'read');
+	$dashLager = array('dashboard.view' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
+	// Roles without lager.rapporter get no expiry block, as the derive rule (lager.rapporter) gives at upgrade.
 	$dashNoStock = $dashAll;
 	unset($dashNoStock['dashboard.block.expiry']);
 	$legacyRead += $dashAll;
@@ -208,7 +213,7 @@ function permission_default_roles(): array
 			'levels'      => array(
 				'lager.varer' => 'write', 'lager.varemodtagelse' => 'write', 'lager.produktion' => 'write', 'lager.rapporter' => 'write',
 				'debitor.ordre' => 'read', 'kreditor.ordre' => 'read',
-			),
+			) + $dashLager,
 		),
 		'kunvisning' => array(
 			'label'       => '2475|Kun visning',
