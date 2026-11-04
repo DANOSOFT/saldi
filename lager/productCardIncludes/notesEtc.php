@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----/lager/varekort_includes/notesEtx.php----lap 4.1.0---2024-05-31-----
+// ----/lager/varekort_includes/notesEtx.php----ver 5.1.0---2026-11-03-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2020.11.22 PHR - Created this file from notes section of ../varekort.php
 // 17/05-2023 PBLM - Fixed made rental button work
 // 20230827 PHR - Changed $box8 to $stockItem
 // 20240527 MMK - Added Wolt intergration settings
 // 20260902 Sawaneh Added id pcSecNotes so the field-visibility panel can toggle the section
+// 20261103 CL/SS SD-802 'Tillad oversalg' checkbox (varer.oversalg) where the Shopify schema added the column
 
 include("../includes/topline_settings.php");
 
@@ -64,6 +65,7 @@ print "&nbsp;<input $readonly title='$title' class='inputbox' type=checkbox name
 if ($readonly) print "<input type=hidden name='samlevare' value='$samlevare'>";
 if ($lukket==0) print "<td>Udg&aring;et &nbsp;<input class='inputbox' type=checkbox name=lukket></td>";
 else print "<td>Udg&aring;et &nbsp;<input class='inputbox' type=checkbox name=lukket checked></td>";
+if ($oversellColumn) print "<td>" . findtekst(8030, $sprog_id) . "&nbsp;<input class='inputbox' type='checkbox' name='oversalg' " . ($oversalg == 'on' ? 'checked' : '') . "></td>";
 print "<td>Volt intergeret &nbsp;<input class='inputbox' type=checkbox name=volt></td>";
 print "</tbody></table></td></tr>\n";# <- Note tabel 
 print "<!-- varekort_includes/notesEtc.php end -->\n"; 

@@ -16,6 +16,7 @@
 // 20261103 CL/LH SD-766: review fixes: a basis per entry, sources re-read for API 2026-07, B31-B35 added
 //                (move bookkeeping, metafield compareDigest, one location per fulfilment, order taxes, inventoryActivate).
 // 20261103 CL/LH SD-766: second review: B36, a metafield digest stands for its persisted data (assumed).
+// 20261103 CL/SS SD-802: B37, productVariantsBulkUpdate sets price and compareAtPrice.
 
 final class FakeShopifyBehaviours
 {
@@ -244,6 +245,12 @@ final class FakeShopifyBehaviours
 			'basis' => 'assumed',
 			'source' => 'ASSUMED from ' . self::DOCS . 'objects/Metafield (compareDigest is "the data stored in the resource, represented as a digest") and ' . self::DOCS . 'mutations/metafieldsSet (it sets "if the persisted metafield value matches the digest"); neither page says what a write of the same value does',
 			'calibrated_by' => 'SD-764 (to add): read a metafield\'s compareDigest, write the same value without one, then metafieldsSet a new value with the digest read first; the 2026-07 Metafield page (' . self::DOCS . 'objects/Metafield) leaves it open',
+		],
+		'B37' => [
+			'behaviour' => 'productVariantsBulkUpdate sets the given fields of variants of one product (price and compareAtPrice modelled; compareAtPrice null clears it) and leaves the rest; an unknown product (PRODUCT_DOES_NOT_EXIST), a variant of another product (PRODUCT_VARIANT_DOES_NOT_EXIST) or a negative price answers a userError and changes nothing',
+			'basis' => 'partly',
+			'source' => self::DOCS . 'mutations/productVariantsBulkUpdate (variants of one product by productId) and the 2026-07 schema (the two error codes, GREATER_THAN_OR_EQUAL_TO); null clearing compareAtPrice, nothing changing on a refusal and the messages ASSUMED',
+			'calibrated_by' => 'SD-764 (to add): productVariantsBulkUpdate with a compareAtPrice, then with null, on the sandbox; and with a variant of another product',
 		],
 	];
 
