@@ -14,6 +14,7 @@
 //                only a stocking destination, the documented move statuses, one location per fulfilment, compareDigest,
 //                mutation cost with its payload, stable webhook ids, a basis per registry entry.
 // 20261103 CL/LH SD-766: second review: a write of the same metafield value keeps its digest valid (B36).
+// 20261103 CL/SS SD-802: productVariantsBulkUpdate sets and clears the prices (B37).
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -58,6 +59,7 @@ final class FakeShopifyStoreTest extends TestCase
 	{
 		require_once __DIR__ . '/../../includes/shopify/client.php';
 		require_once __DIR__ . '/../../includes/shopify/services/catalogue.php';
+		require_once __DIR__ . '/../../includes/shopify/services/prices.php';
 		require_once __DIR__ . '/../../includes/shopify/events.php';
 		$this->store = new FakeShopifyStore();
 		$this->shop = $this->store->addShop('fakestore', ['locations' => ['Lager 1', 'Lager 2']]);
@@ -584,6 +586,30 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertSame([['sku' => 'SD766-8']], $byId['variants']['nodes'], 'B22: the variants list replaces');
 		$this->assertSame('PRODUCT_DOES_NOT_EXIST', $gone['userErrors'][0]['code']);
 		$this->assertCount(1, $this->store->shop($this->domain)['products']);
+	}
+
+	public function testBulkVariantUpdatesSetAndClearThePricesOfOneProduct(): void
+	{
+		$p = $this->store->seedProduct($this->domain, 'havebord', 'SD802-1');
+		$other = $this->store->seedProduct($this->domain, 'skammel', 'SD802-2');
+		$send = fn(string $product, array $variant): array => $this->call('productVariantsBulkUpdate', SHOPIFY_PRICES_UPDATE,
+			['productId' => $product, 'variants' => [$variant]], ['retry_mode' => 'idempotent']);
+		$prices = fn(string $variant): array => array_intersect_key($this->store->shop($this->domain)['variants'][$variant], array_flip(['price', 'compareAtPrice']));
+
+		$on = $send($p['product'], ['id' => $p['variant'], 'price' => '999.00', 'compareAtPrice' => '1249.00']);
+		$this->assertTrue($on['ok'], json_encode($on['user_errors']));
+		$this->assertSame([['id' => $p['variant'], 'price' => '999.00', 'compareAtPrice' => '1249.00']], $on['data']['productVariantsBulkUpdate']['productVariants'], 'B37');
+		$this->assertTrue($send($p['product'], ['id' => $p['variant'], 'price' => '1249.00', 'compareAtPrice' => null])['ok']);
+		$this->assertSame(['price' => '1249.00', 'compareAtPrice' => null], $prices($p['variant']), 'B37: null clears compareAt');
+
+		$wrong = $send($p['product'], ['id' => $other['variant'], 'price' => '1.00', 'compareAtPrice' => null]);
+		$this->assertSame(['user_errors', 'PRODUCT_VARIANT_DOES_NOT_EXIST'], [$wrong['error'], $wrong['user_errors'][0]['code']], 'B37');
+		$gone = $send('gid://shopify/Product/1', ['id' => $p['variant'], 'price' => '1.00', 'compareAtPrice' => null]);
+		$this->assertSame('PRODUCT_DOES_NOT_EXIST', $gone['user_errors'][0]['code'], 'B37');
+		$negative = $send($p['product'], ['id' => $p['variant'], 'price' => '-1.00', 'compareAtPrice' => null]);
+		$this->assertSame('GREATER_THAN_OR_EQUAL_TO', $negative['user_errors'][0]['code'], 'B37');
+		$this->assertSame([['price' => '1249.00', 'compareAtPrice' => null], ['price' => '100.00', 'compareAtPrice' => null]],
+			[$prices($p['variant']), $prices($other['variant'])], 'a refusal changes nothing');
 	}
 
 	public function testSearchesOrderUpdatesAndRefunds(): void
