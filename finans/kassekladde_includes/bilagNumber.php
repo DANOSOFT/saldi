@@ -27,7 +27,17 @@
 //
 // 20261020 CL/SZ MB-81 (CodeRabbit) A line saved without a number in the same save gets one past the moved proposals
 // (bilagNextNumberReserved()), and an existing line renumbered in that save counts toward the numbers it brings.
-// 20261028 CL/LH MB-126 The "<bilag>+N" lines a save inserts before this check no longer count as another user taking the proposal.
+// 20261027 LOE SST-888 (review) the allocator also passes the highest number a staged line holds, so a
+//                replacement cannot take the number another staged line is about to be saved under.
+// 20261027 LOE SST-888 (review) a staged row with neither a date nor an amount is skipped by the save before it
+//                looks at anything else, so it cannot hold a number back.
+// 20261027 LOE SST-888 (review) a staged 0 is no amount to the save, which reads it as empty, so it does
+//                not count as content on the line either.
+// 20261027 LOE SST-888 (review) the staged-row test now mirrors the save branch for branch: the outer guard,
+//                the update of an existing line, and the insert that needs a due date or a number with something on it.
+//                A zero in a numeric column is no value there, while a zero in the description is not a zero at all.
+// 20261028 LOE SST-888 (review) the query that asks whether a proposed number is taken is never given a value
+//                the column cannot hold: asking made the save die on a value-out-of-range error instead of refusing it.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -100,21 +110,25 @@ function bilagNextNumberForJournal($kladde_id, $regnstart = null, $regnslut = nu
  *
  * @param int             $kladde_id Journal (kladdeliste.id).
  * @param array<int, int> $proposed  Line number (tmpkassekl.lobenr) => the number the page proposed on that line.
+ * @param int             $from      Series start: the journal's next number, read once per save.
  * @param array<int, int> $own_ids   Lines this save already inserted ("<bilag>+N"), which never take a proposal.
  * @return array<int, int> Taken proposal => the number the line is saved under instead; empty when none was taken.
  */
-function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
+function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0, $own_ids = array()) {
 	$kladde_id = (int)$kladde_id;
 	$replacements = array();
 	if ($kladde_id <= 0 || !$proposed) {
 		return $replacements;
 	}
+	# SST-888 (review) the series start is the journal's next number as it stood when the save began
+	if ((int)$from <= 0) {
+		$from = bilagNextNumberForJournal($kladde_id);
+	}
 	$kept = array();
-	$staged_max = 0;
+	$held = bilagStagedNumbersWillBeSaved($kladde_id);
 	$q = db_select("SELECT lobenr, id, bilag FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$bilag = (int)$r['bilag'];
-		if (bilagNumberFits((string)$r['bilag'])) $staged_max = max($staged_max, $bilag);
 		if ((int)$r['id'] > 0) {
 			continue;
 		}
@@ -123,35 +137,230 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $own_ids = array()) {
 			$kept[$bilag] = true;
 		}
 	}
+	# MB-126 the "<bilag>+N" lines this save inserted itself never take a proposal back
 	$own_ids = array_filter(array_map('intval', $own_ids));
 	$not_own = $own_ids ? " AND id NOT IN (" . implode(',', $own_ids) . ")" : '';
 	foreach (array_keys($kept) as $bilag) {
+		# SST-888 (review) a number the column cannot hold is never taken, and asking the integer
+		# column about it made the whole save die on a value-out-of-range error instead of being repaired
+		if (!bilagNumberFits((string)$bilag)) {
+			continue;
+		}
 		$taken = db_fetch_array(db_select("SELECT id FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag'$not_own LIMIT 1", __FILE__ . " linje " . __LINE__));
 		if ($taken) {
-			// Past the journal, past every number this save brings, and past a number already handed out here
-			$replacements[$bilag] = max(bilagNextNumberForJournal($kladde_id), $staged_max + 1, $replacements ? max($replacements) + 1 : 0);
+			# SST-888 (review) the replacement walks past the numbers this save already holds
+			$replacements[$bilag] = bilagNextNumberSkipping($held, array_values($replacements), $from);
+			if ($replacements[$bilag] <= 0) {
+				unset($replacements[$bilag]);   # no storable number left: the line is refused, not saved past the column
+			}
 		}
 	}
 	return $replacements;
 }
 
 /**
+ * Whether the save will take a staged line at all, branch for branch.
+ *
+ * opdater() decides in this order, and so does this helper:
+ *   1. the outer guard skips a line whose voucher number is '-' and a line with neither a date nor a debit
+ *      or credit, testing the raw columns as PHP booleans (the string '0' is empty, '0,00' is not);
+ *   2. an existing line (an id) with a number is updated, whatever else it holds;
+ *   3. otherwise the line is only stored when the insert branch is entered and takes it: the branch is
+ *      entered by a line dated another day, or one with a description, a debit, a credit or an invoice
+ *      number, and it stores the line when the line has a due date, or a number and something on it. A
+ *      line without a date of its own can inherit the date of the line above it, so it is never ruled out
+ *      by its date alone.
+ *
+ * Anything else is skipped by the save, so its number must not hold a number back from a line that is
+ * saved. A zero in a numeric column is no value there, because the save casts the debit and the credit to
+ * integers and converts the amount before it tests them.
+ *
+ * @param array $row One tmpkassekl row.
+ * @return bool True when one of opdater()'s save branches takes the line.
+ */
+function bilagStagedRowWillBeSaved($row) {
+	# the helper stays free of the page's own helpers, so it can be read and tested on its own
+	$bilag = isset($row['bilag']) ? trim((string)$row['bilag']) : '';
+	$transdate = isset($row['transdate']) ? trim((string)$row['transdate']) : '';
+	$debet = isset($row['debet']) ? trim((string)$row['debet']) : '';
+	$kredit = isset($row['kredit']) ? trim((string)$row['kredit']) : '';
+	$id = isset($row['id']) ? (int)$row['id'] : 0;
+	# 1. the outer guard, in the same order as the save
+	if ($bilag === '-') {
+		return false;
+	}
+	if (!bilagStagedValueIsSet($row, 'transdate') && !bilagStagedValueIsSet($row, 'debet') && !bilagStagedValueIsSet($row, 'kredit')) {
+		return false;
+	}
+	# 2. an existing line with an id and a number is updated
+	if ($id > 0 && $bilag !== '') {
+		return true;
+	}
+	# 3. the insert branch, which is entered by a date that is not today or by something on the line
+	$enters = !bilagStagedValueIsSet($row, 'transdate')
+		|| !bilagStagedRowIsToday($transdate)
+		|| bilagStagedValueIsSet($row, 'beskrivelse')
+		|| ((int)$debet != 0)
+		|| ((int)$kredit != 0)
+		|| bilagStagedValueIsSet($row, 'faktura');
+	if (!$enters) {
+		return false;
+	}
+	# and stores the line for its due date, or for a number with something on it
+	if (bilagStagedValueIsSet($row, 'forfaldsdate')) {
+		return true;
+	}
+	return ($bilag !== '' && bilagStagedRowHasContent($row));
+}
+
+/**
+ * Whether a staged column holds a value the way opdater() sees it: the raw text as a PHP boolean.
+ *
+ * The string '0' is empty to PHP and '0,00' is not, which is exactly what the save's outer guard uses when
+ * it decides whether a line has a date or an amount.
+ *
+ * @param array  $row   One tmpkassekl row.
+ * @param string $field The column to read.
+ * @return bool True when the column holds a value the save reads as one.
+ */
+function bilagStagedValueIsSet($row, $field) {
+	if (!isset($row[$field])) {
+		return false;
+	}
+	$text = trim((string)$row[$field]);
+	return ($text !== '' && $text !== '0');
+}
+
+/**
+ * Whether a staged date names today, the comparison opdater() makes when it enters the insert branch.
+ *
+ * The staging table keeps the operator's dd-mm-yyyy, so the day the value names is compared, not the text.
+ *
+ * @param string $date The staged transdate.
+ * @return bool True when the value names today in a format strtotime() understands.
+ */
+function bilagStagedRowIsToday($date) {
+	$date = trim((string)$date);
+	if ($date === '') {
+		return false;
+	}
+	$date_ts = strtotime($date);
+	if ($date_ts === false) {
+		return false;
+	}
+	return (date('Y-m-d', $date_ts) === date('Y-m-d'));
+}
+
+/**
+ * Whether a staged line holds anything the insert branch of opdater() would store.
+ *
+ * That branch tests the description as a string and the debit, the credit and the amount as numbers, and a
+ * staged '0' is read as empty in every one of them, which is what opdater() does too.
+ *
+ * @param array $row One tmpkassekl row.
+ * @return bool True when the line has something the save stores.
+ */
+function bilagStagedRowHasContent($row) {
+	foreach (array('beskrivelse', 'debet', 'kredit', 'amount') as $field) {
+		if (!isset($row[$field])) {
+			continue;
+		}
+		$text = trim((string)$row[$field]);
+		if ($text === '' || $text === '0') {
+			continue;
+		}
+		if ($field === 'debet' || $field === 'kredit') {
+			if ((int)$text == 0) {
+				continue;
+			}
+		} elseif ($field === 'amount' && ((float)str_replace(',', '.', $text) == 0)) {
+			# the save converts the amount through usdecimal(), so a zero written '0,00' is nothing
+			continue;
+		}
+		return true;
+	}
+	return false;
+}
+/**
+ * The voucher numbers the journal's staged lines will be saved under.
+ *
+ * Only a line the save will take can hold a number back, and only a number the column can store can be
+ * held: a line the save skips, or a value it has to repair, does not block the series.
+ *
+ * @param int $kladde_id Journal (kladdeliste.id).
+ * @return array<int, bool> Number => true for every staged number the save will use.
+ */
+function bilagStagedNumbersWillBeSaved($kladde_id) {
+	$kladde_id = (int)$kladde_id;
+	$held = array();
+	if ($kladde_id <= 0) {
+		return $held;
+	}
+	$q = db_select("SELECT * FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (!bilagStagedRowWillBeSaved($r) || !bilagNumberFits((string)$r['bilag'])) {
+			continue;
+		}
+		$held[(int)$r['bilag']] = true;
+	}
+	return $held;
+}
+
+/**
+ * The next free voucher number above the journal's series.
+ *
+ * The series starts at the journal's next number (the fiscal year's when the journal has none) and only
+ * steps over the numbers this save already holds: the ones the staged lines will be saved under, and the
+ * replacements handed out earlier in this save. Walking over those instead of starting past the highest
+ * staged number keeps a typed number far above the series from dragging every unnumbered line up with it.
+ *
+ * @param array $held Numbers the staged lines will be saved under (bilagStagedNumbersWillBeSaved()).
+ * @param array $used Replacements already handed out in this save.
+ * @param int   $from The series start: the journal's next number, read once per save.
+ * @return int The number to use, or 0 when the column cannot hold one.
+ */
+function bilagNextNumberSkipping($held, $used, $from) {
+	$next = (int)$from;
+	if ($next <= 0) {
+		return 0;
+	}
+	while (isset($held[$next]) || in_array($next, $used, true)) {
+		$next++;
+		if (!bilagNumberFits((string)$next)) {
+			return 0;
+		}
+	}
+	return bilagNumberFits((string)$next) ? $next : 0;
+}
+/**
  * bilagNextNumberForJournal() for a line saved without a number in the same save as bilagReplaceTakenProposals():
- * kept past the numbers the moved proposals get, which are not in the journal until their lines are inserted.
+ * kept past the numbers the moved proposals get, which are not in the journal until their lines are inserted,
+ * and past the highest number a staged line holds.
  *
  * @param int             $kladde_id    Journal (kladdeliste.id).
  * @param array<int, int> $replacements What bilagReplaceTakenProposals() returned.
- * @return int The voucher number to allocate.
+ * @param int             $from        The series start: the journal's next number, read once per save
+ *                                    (0 reads it now, before the save writes anything).
+ * @param array<int, int> $handed      Numbers this save has already allocated, in that order.
+ * @return int The voucher number to allocate, or 0 when the column cannot hold the next one.
  */
-function bilagNextNumberReserved($kladde_id, $replacements) {
+function bilagNextNumberReserved($kladde_id, $replacements, $from = 0, $handed = array()) {
+	# SST-888 (review) the series start is the journal's next number as it stood when the save began:
+	# a line this save has already inserted must not drag the next number along behind it
+	if ((int)$from <= 0) {
+		$from = bilagNextNumberForJournal($kladde_id);
+	}
 	# a replacement that does not fit must not raise the floor, or a free number is passed over
 	if ($replacements) {
 		foreach ($replacements as $replace_key => $replace_value) {
 			if (!bilagNumberFits((string)$replace_value)) unset($replacements[$replace_key]);
 		}
 	}
-	$next = bilagNextNumberForJournal($kladde_id);
-	return $replacements ? max($next, max($replacements) + 1) : $next;
+	# SST-888 (review) the number a staged line holds is skipped, not passed: journal max 3 with a
+	# staged 4 offers 4 to a line without a number once 4 is not held, and 5 when it is
+	# the numbers handed out earlier in this save are taken too, or two unnumbered lines get the same one
+	$used = array_merge(array_values($replacements), array_map('intval', (array)$handed));
+	return bilagNextNumberSkipping(bilagStagedNumbersWillBeSaved($kladde_id), $used, $from);
 }
 
 /**

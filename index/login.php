@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-10-08 ---
+// --- index/login.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,9 @@
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
+// 20261029 CDX/NTR Share online log permissions with the web server.
+// 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
+// 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -81,6 +84,7 @@ include("../includes/db_query.php");
 include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 require_once(__DIR__ . '/../includes/locatorClient.php');
+require_once __DIR__ . '/../includes/sharedFile.php';
 
 #print "<!--";
 $timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
@@ -295,7 +299,9 @@ if (isset($_POST['regnskab'])) {
 		if ($lukket) {
 			if (!$mastername) $mastername='SALDI';
 			if (!$mastertel) $mastertel='+45 4690 2208';
-			$fejltxt="Regnskab '$regnskab' er lukket!<br>Ring $mastertel for gen&aring;bning";
+			// Plain text: login() runs fejltxt through sanitize_input(), which strips quotes, < > and & and refuses
+			// more than 80 characters, so the old "Regnskab '<name>' er lukket!<br>..." arrived empty or garbled.
+			$fejltxt="Regnskabet er lukket. Ring $mastertel for genåbning";
 			login($regnskab,$brugernavn,$fejltxt);
  			exit;
 		}
@@ -364,10 +370,8 @@ else $languageId = 1;
 $spor = null; 
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 if ($db && !file_exists("../temp/.ht_$db.log")) {
-	$fp=fopen("../temp/.ht_$db.log","a");
-	fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-	fwrite($fp,"\\connect $db;\n");
-	fclose ($fp);
+	sharedFilePutContents(__DIR__ . "/../temp/.ht_$db.log",
+		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n", true);
 }
 if ($db) {
 	$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
@@ -864,9 +868,8 @@ if(!isset($afbryd)){
 	$db_skriv_id = NULL;
 	$dbLocation = loginLocatorInstallation($_SERVER);
 	
-	$fp=fopen("../temp/.ht_online.log","a");
-	fwrite($fp,date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n"); #20210902
-	fclose($fp);
+	sharedFilePutContents(__DIR__ . "/../temp/.ht_online.log",
+		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n", true);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";

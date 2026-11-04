@@ -4,6 +4,7 @@
 //                  lock-acquisition failure, concurrent creation and DDL-error lock release.
 // 20261028 CDX/NTR Expect the index lock when an existing column still needs its index.
 // 20261028 CDX/NTR Cover the same migration running against the master database.
+// 20261029 CL/LH Stop the eval at the end of this migration, so blocks appended after it in betweenUpdates.php are not run.
 
 namespace Saldi\Tests\TekstKeyMigration;
 
@@ -234,7 +235,12 @@ final class TekstKeyMigrationTest extends TestCase
         // Exercise only this migration, without running unrelated pending updates.
         $source = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
         $start = strpos($source, '$tekstKeyMysql =');
-        $end = strpos($source, '?>', $start);
+        // End at the close of the migration's foreach: later blocks in betweenUpdates.php are other migrations.
+		$foreachAt = strpos($source, 'foreach ($tekstKeyTargets', (int) $start);
+        self::assertNotFalse($foreachAt, 'migration foreach not found');
+        $close = strpos($source, "\n}\n", $foreachAt);
+        self::assertNotFalse($close, 'end of migration foreach not found');
+        $end = $close + 3;
         self::assertNotFalse($start);
         self::assertNotFalse($end);
         eval('namespace ' . __NAMESPACE__ . '; use RuntimeException; ' . substr($source, $start, $end - $start));

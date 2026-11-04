@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.0.0 --- 2026-10-02---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-02---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,7 @@
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
 // 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
+// 20261102 CL/ASR $regnskab_pakke: the account's package from the self-service signup, used by finans/bogfor.php.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -184,6 +185,7 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 	$db_ver = $row['version']; # 20150104
 	$regnskab = $row['regnskab'];
 	$max_posteringer = $row['posteringer'];
+	$regnskab_pakke = (string)($row['pakke'] ?? ''); // package from the self-service signup ('' = account set up by hand)
 	$lukket = $row['lukket'];
 
 	if ($lukket != 'on' && !empty($row['lukkes']) && $row['lukkes'] !== '2099-12-31') {
