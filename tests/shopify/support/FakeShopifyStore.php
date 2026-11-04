@@ -26,6 +26,7 @@
 //                request statuses, one location per fulfilment, compareDigest, the payload's cost on mutations,
 //                one event id per action with a webhook id per delivery, inventoryActivate.
 // 20261103 CL/LH SD-766: second review: the metafield digest is the persisted value's, so writing the same value keeps it (B36).
+// 20261103 CL/SS SD-802: productVariantsBulkUpdate sets price and compareAtPrice (B37).
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -86,7 +87,7 @@ final class FakeShopifyStore
 			$method = 'q' . ucfirst($root);
 			$this->handlers['query'][$root] = fn(self $store, string $domain, array $args, array $field): mixed => $this->$method($domain, $args, $field);
 		}
-		foreach (['productSet', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
+		foreach (['productSet', 'productVariantsBulkUpdate', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
 			'tagsAdd', 'tagsRemove', 'metafieldsSet', 'customerCreate', 'customerUpdate', 'refundCreate',
 			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete'] as $root) {
 			$method = 'm' . ucfirst($root);
@@ -1363,6 +1364,39 @@ final class FakeShopifyStore
 		}
 		$gid = $this->applyProductSet($domain, $identifier, $a['input'], true);
 		return self::payload(['product' => $this->vProduct($domain, $gid), 'productSetOperation' => null]);
+	}
+
+	/** B37: the variants' price and compareAtPrice; every entry is checked before anything changes. */
+	private function mProductVariantsBulkUpdate(string $domain, array $a): array
+	{
+		$this->uses('B37');
+		$s = &$this->shop($domain);
+		if (!isset($s['products'][$a['productId']])) {
+			return self::payload(['product' => null, 'productVariants' => null], [self::userError(['productId'], 'Product does not exist', 'PRODUCT_DOES_NOT_EXIST')]);
+		}
+		foreach ($a['variants'] as $i => $v) {
+			if (array_diff(array_keys($v), ['id', 'price', 'compareAtPrice'])) {
+				throw new LogicException('FakeShopifyStore: productVariantsBulkUpdate models id, price and compareAtPrice only');
+			}
+			if (($s['variants'][$v['id'] ?? '']['product'] ?? null) !== $a['productId']) {
+				return self::payload(['product' => null, 'productVariants' => null],
+					[self::userError(['variants', (string)$i, 'id'], 'Product variant does not exist', 'PRODUCT_VARIANT_DOES_NOT_EXIST')]);
+			}
+			if (isset($v['price']) && (float)$v['price'] < 0) {
+				return self::payload(['product' => null, 'productVariants' => null],
+					[self::userError(['variants', (string)$i, 'price'], 'Price must be greater than or equal to 0', 'GREATER_THAN_OR_EQUAL_TO')]);
+			}
+		}
+		foreach ($a['variants'] as $v) {
+			foreach (['price', 'compareAtPrice'] as $f) {
+				if (array_key_exists($f, $v)) {
+					$s['variants'][$v['id']][$f] = $v[$f];
+				}
+			}
+			$s['variants'][$v['id']]['updated'] = $this->clock->now;
+		}
+		return self::payload(['product' => $this->vProduct($domain, $a['productId']),
+			'productVariants' => array_map(fn(array $v): array => $this->vVariant($domain, $v['id']), $a['variants'])]);
 	}
 
 	/** productSet's effect (B22); fires products/create or products/update when $fire. */
