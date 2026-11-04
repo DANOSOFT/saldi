@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/documents/documentHttp.php --- ver 5.1.0 --- 2026.11.01
+// --- includes/documents/documentHttp.php --- ver 5.1.0 --- 2026.11.02
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 //
 // 20261030 CL/SZ SD-752: created (WP11-2).
 // 20261101 CL/SZ SD-752 review: order checked through the adapter before the render, a failed legacy query is a 503; printed output is dropped, the PDF streams.
+// 20261102 CL/SZ SD-795: comment follows render_document(), whose failed read of the order is no longer NO_DOCUMENT.
 
 require_once __DIR__ . '/dokumentLinks.php';
 
@@ -73,7 +74,7 @@ function handle_dokument_request(array $q, array $server): void
 			dokument_respond(404);
 			return;
 		}
-		// the document exists: a query failing in the legacy render reads as NO_DOCUMENT there, and is a 503 here
+		// the document exists, so whatever fails in the render from here on is a 503
 		$doc = render_document($link['ordre_id'], $link['doc_type'] === 'credit' ? 5 : 4);
 	} catch (DocumentRenderError | ShopifyDbError $e) {
 		dokument_log_failure($link, $e);

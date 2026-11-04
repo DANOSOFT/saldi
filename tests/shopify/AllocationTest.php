@@ -8,6 +8,7 @@
 //
 // History:
 // 20261028 CL/SS SD-788: created.
+// 20261102 CL/SZ SD-755: shopify_split_set_lager().
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -221,6 +222,37 @@ final class AllocationTest extends TestCase
                 $this->assertStringContainsString("assembly lager $assembly", $e->getMessage());
             }
         }
+    }
+
+    public function testTheSplitSetLagerIsTheSettingWhenSellableElseTheFirstByPriority(): void
+    {
+        $this->assertSame(self::MAARUM, shopify_split_set_lager(self::MAARUM, self::locations()));
+        foreach ([null, 0, 3, 4, 99] as $setting) {
+            $this->assertSame(1, shopify_split_set_lager($setting, self::locations()), 'setting ' . var_export($setting, true));
+        }
+        $locations = [
+            ['lager' => 5, 'rolle' => 'saelgbar', 'prioritet' => 1, 'virtual' => true],
+            ['lager' => 7, 'rolle' => 'saelgbar', 'prioritet' => 3],
+            ['lager' => 6, 'rolle' => 'saelgbar', 'prioritet' => 2],
+        ];
+        $this->assertSame(6, shopify_split_set_lager(5, $locations), 'the virtual lager is not sellable, and rows are sorted by priority');
+    }
+
+    public function testTheSplitSetLagerThrowsWhenNoLagerIsSellable(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        shopify_split_set_lager(1, [['lager' => 3, 'rolle' => 'udstilling'], ['lager' => 5, 'rolle' => 'saelgbar', 'prioritet' => 1, 'virtual' => true]]);
+    }
+
+    public function testAllocationAcceptsTheSplitSetLagerButStillRefusesZero(): void
+    {
+        $k55 = [self::X => [1 => 3000], self::Y => [1 => 2000, 2 => 6000]];
+
+        $r = shopify_allocate_order([self::set('s', 2)], self::locations(), $k55, shopify_split_set_lager(null, self::locations()));
+
+        $this->assertSame([true, 1], [$r['lines']['s']['split'], $r['lines']['s']['lager']]);
+        $this->expectException(InvalidArgumentException::class);
+        shopify_allocate_order([self::set('s', 2)], self::locations(), $k55, 0);
     }
 
     public function testLinesShareTheStockSoNothingIsCountedTwice(): void

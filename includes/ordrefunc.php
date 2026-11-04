@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -147,6 +147,16 @@
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261019 CL/LH MB-73: linjeopdat() adds the delivered quantity to coalesce(leveret,0), as NULL+n stayed NULL and fast invoicing and credit notes never recorded it.
+//                opret_ordrelinje() inserts leveret = 0.
+//                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
+//                Braces added to the brace-less ifs in the edited blocks.
+// 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
+//                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
+// 20261102 CL/SS SD-789 Core edit 3: opret_ordrelinje() $fixed_price stores the price and discount as given: no tier price,
+//                special or offer price, customer or quantity discount. Core edit 2: opret_saet() $lager_plan draws each
+//                component from the lagre the plan gives (validate_saet_lager_plan()). Default callers are unchanged.
+//                With a plan, a set price of 0 is a free set, and a missing item, item group or refused line throws.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -510,8 +520,20 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 
 	$antal *= 1;
 
-	if (!$levdate)
+	if (!$levdate) {
 		$levdate = date("Y-m-d");
+	}
+
+	// 20261027 CL/LH MB-73 (review): a line whose leveret is still NULL was created before the column got DEFAULT 0,
+	// and the one-time backfill (includes/opdat_func/backfillOrderLineDelivered.php) has not reached it yet; it runs
+	// at login, a window at a time, and API, SOAP and remoteBooking deliveries never log in. Such a line starts from
+	// its earlier delivery records, summed as the backfill and debitor/ordre.php sum them, so the result is the one
+	// the backfill followed by this delivery would give. Read before this delivery writes to batch_salg.
+	$qtxt = "select sum(batch_salg.antal) as antal from ordrelinjer, batch_salg where ordrelinjer.id = '" . (int)$linje_id . "'";
+	$qtxt .= " and ordrelinjer.leveret is null and batch_salg.linje_id = ordrelinjer.id";
+	$qtxt .= " and batch_salg.ordre_id = ordrelinjer.ordre_id and batch_salg.vare_id = ordrelinjer.vare_id";
+	$deliveredRecords = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$deliveredBefore = (float)($deliveredRecords['antal'] ?? 0);
 
 	$query = db_select("select * from grupper where art='VG' and kodenr='$gruppe' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__); #VG = Varegruppe
 	if ($row = db_fetch_array($query)) {
@@ -728,7 +750,10 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 		}
 	}
 	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
-	$qtxt = "update ordrelinjer set leveret = leveret+$antal,leveres=0 where id='$linje_id'";
+	// 20261019 CL/LH MB-73 leveret has no default and opret_ordrelinje() never set it, so NULL+$antal stayed
+	// NULL and fast invoicing (which never opens debitor/ordre.php's re-sync) left the delivered quantity unrecorded.
+	// 20261027 CL/LH MB-73 (review): a NULL line starts from $deliveredBefore (read above), not from 0.
+	$qtxt = "update ordrelinjer set leveret = coalesce(leveret,$deliveredBefore)+$antal,leveres=0 where id='$linje_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } # endfunc linjeopdat
 
@@ -1076,16 +1101,16 @@ function krediter_pos($id)
 	$projekt = array();
 	while ($r = db_fetch_array($q)) {
 		$y = $x - 1;
-		if ($x && $r['varenr'] == $varenr[$y] && $r['beskrivelse'] == 'rabat')
+		if ($x && $r['varenr'] == $varenr[$y] && $r['beskrivelse'] == 'rabat') {
 			$dontInsert = 1;
-		else {
+		} else {
 			$posnr[$x] = $r['posnr'] * 1;
 			$pris[$x] = $r['pris'] * 1;
 			$rabat[$x] = $r['rabat'] * 1;
 			$vare_id[$x] = $r['vare_id'] * 1;
 			$antal[$x] = $r['antal'] * -1;
 			$leveres[$x] = $r['leveres'] * 1;
-			$leveret[$x] = $r['leveret'] * 1;
+			$leveret[$x] = 0; # 20261019 CL/LH MB-73 nothing is returned yet; the sold line's leveret, now recorded, would cancel the return
 			$bogf_konto[$x] = $r['bogf_konto'] * 1;
 			$kred_linje_id[$x] = $r['kred_linje_id'] * 1;
 			$momsfri[$x] = db_escape_string($r['momsfri']);
@@ -3868,7 +3893,14 @@ function ansatopslag($sort, $fokus, $id)
 	exit;
 }
 ######################################################################################################################################
-function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $rabat_ny, $procent, $art, $momsfri, $posnr, $linje_id, $incl_moms, $kdo, $rabatart, $kopi, $saet, $fast_db, $lev_varenr, $lager, $linje)
+/**
+ * Adds an item line to an order (or a text line with no item).
+ *
+ * @param bool $fixed_price only true (not a truthy value): $pris (in DKK, net of VAT when $incl_moms; an order in another
+ *   currency converts it like any line) and $rabat_ny are stored as given. No tier price, special or offer price, customer
+ *   discount or quantity discount, and a 0 price stays 0 (the Shopify intake, at the paid price)
+ */
+function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $rabat_ny, $procent, $art, $momsfri, $posnr, $linje_id, $incl_moms, $kdo, $rabatart, $kopi, $saet, $fast_db, $lev_varenr, $lager, $linje, $fixed_price = false)
 { #20140426
 
 	if (!$id)
@@ -3923,6 +3955,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$fast_db = 0;
 	if (!is_numeric($rabat_ny))
 		$rabat_ny = 0;
+	$fixed_price = ($fixed_price === true); # remoteBooking/api.php passes a 22nd argument (25) that was never read
+	if ($fixed_price)
+		$pris = (float)$pris;
 	$b2b = $debitorgruppe = $debitorrabatgruppe = $omkunde = $valutakurs = 0;
 	if (!$afd)
 		$afd = 0;
@@ -4078,7 +4113,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$varegruppe = (int) $r['gruppe'];
 		$samlevare = $r['samlevare'];
 		$varerabatgruppe = $r['dvrg'] * 1;
-		if (!$pris && $b2b)
+		if (!$pris && $b2b && !$fixed_price)
 			$pris = $r['tier_price'] * 1;
 		$specialType = $r['specialtype'];
 		$special_price = $r['special_price'] * 1;
@@ -4171,12 +4206,12 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			($special_to_date > $dd || ($special_to_date == $dd && $special_to_time >= $tt))
 		)
 			$SpecialPeriod = 1;
-		if ($SpecialPeriod && $special_price && $specialType == 'percent') {
+		if ($SpecialPeriod && $special_price && $specialType == 'percent' && !$fixed_price) {
 			if ($rabat_ny == 0)
 				$rabat_ny = $special_price;
 			$special_price = 0;
 		}
-		if (!$pris) {
+		if (!$pris && !$fixed_price) {
 			$ugedag = date('N');
 			$uxtid = date("U");
 			$tidspkt = date("H:i:s");
@@ -4274,7 +4309,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				$tmpantal = $r2['antal'];
 			} else
 				print "<BODY onLoad=\"javascript:alert('Antal (" . dkdecimal($antal) . ") er for stort, reducer antal')\">";
-			if ($m_antal && $tmpantal >= $m_antal) {
+			if ($fixed_price) {
+				# no quantity discount, and the order's other lines keep theirs
+			} elseif ($m_antal && $tmpantal >= $m_antal) {
 				m_rabat($r['id'], $vare_id, $r['posnr'], $tmpantal, $id, $pris);
 			} else {
 				db_modify("update ordrelinjer set m_rabat='0' where ordre_id = '$id' and vare_id = '$vare_id'", __FILE__ . " linje " . __LINE__);
@@ -4282,7 +4319,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		} elseif ($art == 'PO' && $r['id'])
 			db_modify("delete from ordrelinjer where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
 	} else {
-		if ($kopi || $rabat_ny)
+		if ($kopi || $rabat_ny || $fixed_price)
 			$rabat = $rabat_ny;
 		else {
 			if (!$debitorrabatgruppe && !db_fetch_array(db_select("select id from grupper where art='DRG'", __FILE__ . " linje " . __LINE__))) {
@@ -4339,8 +4376,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				#				return ('0');
 				#				exit;
 			}
-			if (($samlevare && !$antal) || $antal == '')
+			if (($samlevare && !$antal) || $antal == '') {
 				$antal = 1;
+			}
 			($omkunde && $omvare) ? $omvbet = 'on' : $omvbet = '';
 			$antal *= 1;
 			$leveres *= 1;
@@ -4357,21 +4395,23 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			// 		// If no stock has it, keep the department stock as-is
 			// 	}
 			// }
-			if ($lager < 1)
+			if ($lager < 1) {
 				$lager = 1;
+			}
 			$posnr = abs($posnr); #20200813
 			#			if ($barcodeNew && !$serienr) $serienr = $barcodeNew;
-			if ($art != 'PO' && $art != 'DK' && !$webservice && $variantText)
+			if ($art != 'PO' && $art != 'DK' && !$webservice && $variantText) {
 				$beskrivelse .= " $variantText"; #20211129
+			}
 			$qtxt = "insert into ordrelinjer ";
 			$qtxt .= "(ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,procent,m_rabat,";
 			$qtxt .= "pris,vat_price,kostpris,momsfri,momssats,posnr,projekt,folgevare,rabatgruppe,";
-			$qtxt .= "bogf_konto,vat_account,kred_linje_id,kdo,serienr,variant_id,leveres,samlevare,";
+			$qtxt .= "bogf_konto,vat_account,kred_linje_id,kdo,serienr,variant_id,leveres,leveret,samlevare,";
 			$qtxt .= "omvbet,saet,fast_db,lev_varenr,tilfravalg,lager,barcode) ";
 			$qtxt .= "values ";
 			$qtxt .= "('$id','$vare_id','$varenr','$enhed','$beskrivelse','$antal','$rabat','$rabatart','$procent','$m_rabat',";
 			$qtxt .= "'$pris','$VatPrice','$kostpris','$momsfri','$varemomssats','$posnr','','$folgevare','$rabatgruppe',";
-			$qtxt .= "'$bogfkto','$vatAccount','$kred_linje_id','$kdo','$serienr','$variant_id','$leveres','$samlevare',";
+			$qtxt .= "'$bogfkto','$vatAccount','$kred_linje_id','$kdo','$serienr','$variant_id','$leveres','0','$samlevare',"; # 20261019 CL/LH MB-73 nothing is delivered yet
 			$qtxt .= "'$omvbet','$saet','$fast_db','$lev_varenr','$tilfravalgNy','$lager','$barcodeNew')";
 			#			fwrite($log, __line__." $qtxt\n");
 			if (abs($antal) < 100000000000) {
@@ -4379,8 +4419,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				if ($kundedisplay) {
 					kundedisplay($beskrivelse, $VatPrice * $antal, 0); #20201206
 				}
-			} else
+			} else {
 				print "<BODY onLoad=\"javascript:alert('Antal (" . dkdecimal($antal) . ") er for stort, reducer antal')\">";
+			}
 			if ($samlevare && !$beholdning) {
 				$r = db_fetch_array(db_select("select max(id) as id from ordrelinjer where vare_id='$vare_id' and ordre_id='$id'", __FILE__ . " linje " . __LINE__));
 				#				samlevare($id,$art,$r['id'],$vare_id,$antal); udkommenteret 20131129
@@ -4392,7 +4433,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$qtxt .= "vare_id='$vare_id' and pris != 0 and rabat='0' and ordre_id='$id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$tmpantal = $r['antal'];
-		if ($m_antal && $tmpantal >= $m_antal) {
+		if ($fixed_price) {
+			# no quantity discount, and the order's other lines keep theirs
+		} elseif ($m_antal && $tmpantal >= $m_antal) {
 			$qtxt = "select max(id) as id from ordrelinjer where ";
 			$qtxt .= "vare_id='$vare_id' and pris != 0 and rabat='0' and ordre_id='$id'";
 			$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -5540,18 +5583,56 @@ function saet_afrund($id,$sum,$moms,$difkto) {
 	db_modify("update ordrer set sum = sum+$afrunding,moms=moms+$afrundingsmoms where id='$id'",__FILE__ . " linje " . __LINE__);
 }
 */
-function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms, $lager)
+/**
+ * Adds a set to an order: one line per component, at a discount that brings them to the set price, then the set line.
+ *
+ * @param list<array{bom_id: int, lager: int, quantity_milli: int}>|null $lager_plan null: every component is drawn from
+ *   $lager, and the order's discount is undone first (gendan_saet()). A plan: each BOM occurrence (styklister.id) is drawn
+ *   from the lagre the plan gives, one line per occurrence and lager, $lager is the set line's, and every line is written
+ *   with $fixed_price, so no other price or discount moves the set off its price (a set price of 0 is a free set, not
+ *   the set item's price); see validate_saet_lager_plan()
+ * @throws InvalidArgumentException with a plan, before anything is written: the plan does not fit the set, or the set
+ *   price is not a number of 0 or more
+ * @throws DomainException with a plan: a component or the set item has no item or item group, or the components have no
+ *   price (before anything is written), or opret_ordrelinje() refused a line (after lines are written: the caller's
+ *   transaction must roll back)
+ */
+function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms, $lager, $lager_plan = null)
 {
 	global $regnaar;
 
-	gendan_saet($id);
-	if (!$antal_ny && $antal_ny != '0')
+	if ($lager_plan === null) {
+		gendan_saet($id);
+	}
+
+	if (!$antal_ny && $antal_ny != '0') {
 		$antal_ny = 1;
+	}
+
 	$antal_ny *= 1;
+	if ($lager_plan !== null) {
+		$bom = array();
+		$qtxt = "select id,vare_id,antal from styklister where indgaar_i = '" . (int)$master_id . "' order by posnr";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$qtxt = "select id from styklister where indgaar_i = '" . (int)$r['vare_id'] . "'";
+			$r['saet'] = (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$bom[] = $r;
+		}
+		$problems = (is_int($antal_ny) || (is_float($antal_ny) && floor($antal_ny) == $antal_ny))
+			? validate_saet_lager_plan($bom, $lager_plan, (int)$antal_ny)
+			: array("the number of sets ($antal_ny) is not whole");
+		if (!is_numeric($saetpris) || $saetpris < 0) {
+			$problems[] = "the set price (" . var_export($saetpris, true) . ") is not a number of 0 or more";
+		}
+		if ($problems) {
+			throw new InvalidArgumentException("opret_saet: the lager plan does not fit set $master_id: " . implode('; ', $problems));
+		}
+	}
 	if (!$antal_ny)
 		return 0;
 	$saetpris *= $antal_ny;
-	if (!$saetpris) {
+	if (!$saetpris && $lager_plan === null) {
 		$r = db_fetch_array(db_select("select salgspris from varer where id = '$master_id'", __FILE__ . " linje " . __LINE__));
 		$saetpris = $r['salgspris'];
 		if ($incl_moms) {
@@ -5570,9 +5651,10 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 	$normalsum = 0;
 
 	$x = 0;
-	$qtxt = "select vare_id,antal from styklister where indgaar_i = '$master_id' order by posnr";
+	$qtxt = "select id,vare_id,antal from styklister where indgaar_i = '$master_id' order by posnr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
+		$bom_id[$x] = (int)$r['id'];
 		$vare_id[$x] = $r['vare_id'];
 		$antal[$x] = $r['antal'] * $antal_ny;
 		$x++;
@@ -5591,6 +5673,9 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 		$qtxt = "select varer.id,varer.varenr,varer.salgspris,varer.beskrivelse,varer.gruppe,grupper.box7 ";
 		$qtxt .= "from varer,grupper where varer.id = '$vare_id[$x]' and grupper.kodenr=varer.gruppe";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($lager_plan !== null && (!$r || !saet_item_group_exists($r['gruppe']))) {
+			throw new DomainException("opret_saet: component $vare_id[$x] of set $master_id has no item or no item group");
+		}
 		$varenr[$x] = $r['varenr'];
 		$pris[$x] = afrund($r['salgspris'], 2);
 		$beskrivelse[$x] = $r['beskrivelse'];
@@ -5601,27 +5686,129 @@ function opret_saet($id, $master_id, $saetpris, $momssats, $antal_ny, $incl_moms
 		$linjepris[$x] = afrund($antal[$x] * $pris[$x], 3);
 		$normalsum += $linjepris[$x];
 	}
+	if ($lager_plan !== null) {
+		if (!$normalsum) {
+			throw new DomainException("opret_saet: the components of set $master_id have no price, so no discount can bring them to the set price");
+		}
+		$r = db_fetch_array(db_select("select gruppe from varer where id = '" . (int)$master_id . "'", __FILE__ . " linje " . __LINE__));
+		if (!$r || !saet_item_group_exists($r['gruppe'])) {
+			throw new DomainException("opret_saet: set item $master_id has no item or no item group");
+		}
+	}
 	$rabat = $normalsum - $saetpris;
 	$rabat = afrund($rabat * 100 / $normalsum, 3);
 	$tjeksum = 0;
 	for ($x = 0; $x < count($vare_id); $x++) {
-		opret_ordrelinje($id, $vare_id[$x], $varenr[$x], $antal[$x], '', $pris[$x], $rabat, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__);
+		$segments = array(array($antal[$x], $lager));
+		if ($lager_plan !== null) {
+			$segments = array();
+			foreach ($lager_plan as $draw) {
+				if ((int)$draw['bom_id'] === $bom_id[$x])
+					$segments[] = array($draw['quantity_milli'] / 1000, (int)$draw['lager']);
+			}
+		}
+		foreach ($segments as list($segmentAntal, $segmentLager)) {
+			$svar = opret_ordrelinje($id, $vare_id[$x], $varenr[$x], $segmentAntal, '', $pris[$x], $rabat, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $segmentLager, __LINE__, $lager_plan !== null);
+			if ($lager_plan !== null && !is_int($svar) && !is_float($svar)) {
+				throw new DomainException("opret_saet: the line for component $vare_id[$x] of set $master_id was refused: " . (string)$svar);
+			}
 
-		$linjesum = $antal[$x] * $pris[$x];
-		$linjesum -= afrund($linjesum * $rabat / 100, 3);
-		$tjeksum += $linjesum;
+			if ($lager_plan === null) {
+				$linjesum = $segmentAntal * $pris[$x];
+				$linjesum -= afrund($linjesum * $rabat / 100, 3);
+			} else {
+				# as momsupdat() sums the lines: a split line rounds on its own, so the set line takes what that leaves
+				$linjesum = afrund(($pris[$x] - ($pris[$x] / 100 * $rabat)) * $segmentAntal, 3);
+			}
+			$tjeksum += $linjesum;
+		}
 	}
 	$diff = afrund($saetpris - $tjeksum, 3);
 	$r = db_fetch_array(db_select("select id,varenr,salgspris,beskrivelse from varer where id = '$master_id'", __FILE__ . " linje " . __LINE__));
 	$lineDiscount = $momssats * 100 / (100 + $momssats); // Giver umiddelbart ikke mening, men det skyldes at selve samlevaren ikke er momsbelagt.
 	$lineDiscount = 0; #20220602
-	opret_ordrelinje($id, $r['id'], $r['varenr'], 1, '', $diff, $lineDiscount, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__);
+	$svar = opret_ordrelinje($id, $r['id'], $r['varenr'], 1, '', $diff, $lineDiscount, 100, 'PO', '', '', '0', $incl_moms, '', '', '', $saetnr, '', '', $lager, __LINE__, $lager_plan !== null);
+	if ($lager_plan !== null && !is_int($svar) && !is_float($svar)) {
+		throw new DomainException("opret_saet: the set line of set $master_id was refused: " . (string)$svar);
+	}
 	$lev_varenr = $saetpris . "|" . $rabat;
 	db_modify("update ordrelinjer set samlevare='on',lev_varenr='$lev_varenr',kostpris='0' where ordre_id='$id' and saet='$saetnr' and vare_id='$master_id'", __FILE__ . " linje " . __LINE__);
 	$qtxt = "select antal,pris,rabat from ordrelinjer where ordre_id='$id' and saet='$saetnr' and vare_id='$master_id'<br>";
 
 
 } #endfunc opret_saet
+
+/** The item group opret_ordrelinje() needs for a line: art VG in the fiscal year (any year when none is set yet). */
+function saet_item_group_exists($gruppe)
+{
+	global $regnaar;
+
+	$qtxt = "select id from grupper where art = 'VG' and kodenr = '" . (int)$gruppe . "'";
+	if ($regnaar)
+		$qtxt .= " and fiscal_year = '" . (int)$regnaar . "'";
+	return (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+} #endfunc saet_item_group_exists
+
+/**
+ * What is wrong with a lager plan for opret_saet(): each BOM occurrence must need a quantity and be drawn in full, in
+ * whole thousandths, from lagre given as positive numbers (ids and quantities as integers), and the set must be one BOM level.
+ *
+ * @param list<array{id: int|string, vare_id: int|string, antal: float|int|string, saet?: bool}> $bom the set's styklister
+ *   rows; saet true when the component has a BOM of its own
+ * @param list<array{bom_id: int, lager: int, quantity_milli: int}> $plan the draws, per occurrence and lager
+ * @param int $qty the number of sets
+ * @return list<string> the problems; empty when the plan fits
+ */
+function validate_saet_lager_plan(array $bom, array $plan, int $qty): array
+{
+	$problems = array();
+	if ($qty < 1)
+		$problems[] = "the number of sets ($qty) is not positive";
+	if (!$bom)
+		$problems[] = "the set has no components";
+	$need = array();
+	foreach ($bom as $row) {
+		$bomId = (int)$row['id'];
+		if (!empty($row['saet']))
+			$problems[] = "component {$row['vare_id']} (BOM occurrence $bomId) is a set itself: a plan is for one BOM level";
+		$milli = (float)$row['antal'] * $qty * 1000;
+		if (abs($milli - round($milli)) > 1e-6)
+			$problems[] = "BOM occurrence $bomId does not need a whole number of thousandths";
+		$need[$bomId] = (int)round($milli);
+		if ($need[$bomId] < 1)
+			$problems[] = "BOM occurrence $bomId needs no quantity";
+	}
+	$drawn = array();
+	$seen = array();
+	foreach ($plan as $i => $draw) {
+		$bomId = $draw['bom_id'] ?? null;
+		$lager = $draw['lager'] ?? null;
+		$milli = $draw['quantity_milli'] ?? null;
+		if (!is_int($bomId)) {
+			$problems[] = "draw $i has no integer bom_id";
+			continue;
+		}
+		if (!isset($need[$bomId])) {
+			$problems[] = "draw $i is for no BOM occurrence of the set";
+			continue;
+		}
+		if (!is_int($lager) || $lager < 1)
+			$problems[] = "draw $i of BOM occurrence $bomId has no lager";
+		if (!is_int($milli) || $milli < 1) {
+			$problems[] = "draw $i of BOM occurrence $bomId has no positive quantity";
+			continue;
+		}
+		if (isset($seen["$bomId/$lager"]))
+			$problems[] = "BOM occurrence $bomId is drawn from lager $lager twice";
+		$seen["$bomId/$lager"] = true;
+		$drawn[$bomId] = ($drawn[$bomId] ?? 0) + $milli;
+	}
+	foreach ($need as $bomId => $milli) {
+		if (($drawn[$bomId] ?? 0) !== $milli)
+			$problems[] = "BOM occurrence $bomId needs $milli thousandths, the plan draws " . ($drawn[$bomId] ?? 0);
+	}
+	return $problems;
+} #endfunc validate_saet_lager_plan
 
 function gendan_saet($id)
 {

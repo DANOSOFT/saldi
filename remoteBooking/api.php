@@ -26,7 +26,8 @@
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
 //
-
+// 20261103 NTR Removed the unused 25 in the 22nd parameter for remote booking products.
+//              It used to be disgarded by the opret_ordrelinje() function, but now it is a new parameter for a fixed_price.
 
 $header = "nix";
 $bg = "nix";
@@ -581,7 +582,7 @@ function CreateOrder($data){
     }
     $query = db_select("SELECT id FROM ordrer WHERE ordrenr = $ordrenr AND art LIKE 'D%'", __FILE__ . " linje " . __LINE__);
     $order_id = db_fetch_array($query)["id"];
-    opret_ordrelinje($order_id, $product["product_id"], $product["product_number"], $paidWeeks, $product["description"], $basePrice, $discount, '100', 'D', '', '1', '', '', '', $rabatart, '0', '', '', '', '', __LINE__, 25);
+    opret_ordrelinje($order_id, $product["product_id"], $product["product_number"], $paidWeeks, $product["description"], $basePrice, $discount, '100', 'D', '', '1', '', '', '', $rabatart, '0', '', '', '', '', __LINE__);
     db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 2, 0, 0, 0, $order_id, '" . db_escape_string("Stand: " . $product["name"]) . "')", __FILE__ . " linje " . __LINE__);
     db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 3, 0, 0, 0, $order_id, 'Udlejning: Fra $data[fromDate] til $data[toDate]')", __FILE__ . " linje " . __LINE__);
     if($discountAmount > 0){

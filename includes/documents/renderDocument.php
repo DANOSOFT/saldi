@@ -34,13 +34,14 @@
 // 20261029 CL/SZ SD-751 review: $levNr reaches formularprint()'s global $lev_nr; docblock says which data a stored PDF freezes.
 // 20261030 CL/SZ SD-751 review: the account (db_id) is in the cache key; a brand that isn't a plain file name is refused.
 // 20261102 CL/SZ SD-794: a select that fails during the render means no PDF is published.
+// 20261102 CL/SZ SD-795: a failed read of the order is a render failure, not NO_DOCUMENT.
 
 require_once __DIR__ . '/../stdFunc/renderPrintBatch.php';
 
 /**
  * A document that cannot be rendered. Code NO_DOCUMENT: the order is no posted invoice or credit note,
- * so there is no document to give; otherwise the document exists but its brand has no layout or the
- * print or PDF conversion failed.
+ * so there is no document to give; otherwise the order could not be read, or the document exists but
+ * its brand has no layout or the print or PDF conversion failed.
  */
 final class DocumentRenderError extends RuntimeException
 {
@@ -89,7 +90,11 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 	}
 	$db_select_fejl = false;
 	$qtxt = "SELECT art, status, fakturanr, sprog, afd, konto_id, firmanavn, fakturadate, sum, moms FROM ordrer WHERE id = $ordreId";
-	$order = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	if ($query === false) {
+		throw new DocumentRenderError("order $ordreId could not be read"); // a database failure, not a missing document
+	}
+	$order = db_fetch_array($query);
 	if (!$order || !in_array($order['art'], array('DO', 'DK'), true)) {
 		throw new DocumentRenderError("order $ordreId is not an invoice or credit note", DocumentRenderError::NO_DOCUMENT);
 	}

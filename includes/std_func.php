@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -105,16 +105,22 @@
 // 20261026 CL/SZ hent_shop_ordrer, sync_shop_price and sync_shop_vare call every slot (box4/box5/box6) that is open
 //                for intake or outbound in the shopify_legacy settings (SD-750); an empty box4 no longer
 //                disables box5/box6. With no settings row every slot is open, as before.
+// 20261101 CL/SS SD-792 The create_debtor PHPDoc names $headless and the exceptions of core edit 8.
+// 20261103 LOE SST-936 Include dimensionSqlFragment() for the three Finans reports.
+//              It now owns the department, employee and project filters those reports share.
+// 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
 include(__DIR__ . '/stdFunc/dkAmountValid.php');
+include(__DIR__ . '/stdFunc/dimensionSqlFragment.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/jsString.php');
+include(__DIR__ . '/stdFunc/datotidTilTekst.php');
 require_once(__DIR__ . '/shopify/coexistence.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
@@ -2320,8 +2326,11 @@ if (!function_exists('create_debtor')) {
 	 * @param string $betalingsbet - The debtor's payment terms (e.g., "Net 30", "COD").
 	 * @param int $betalingsdage - The number of payment days allowed for the debtor.
 	 * @param string $kontakt - The name or contact information of the debtor's contact person.
+	 * @param bool $headless - No page around it (the Shopify worker): a failed insert throws instead of alert() and exit.
 	 * 
-	 * @return int|null - Returns the ID of the created debtor record if successful, or NULL if there was an error.
+	 * @return int|string - The ID of the created debtor record.
+	 * @throws DebtorNumberTakenException when the account number is in use (debitor/ordre.php shows its message)
+	 * @throws RuntimeException when the insert fails in headless or webservice mode
 	 */
 	include_once(__DIR__ . '/stdFunc/createDebitor.php');
 }

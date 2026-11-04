@@ -110,5 +110,5 @@ vendor/bin/phpunit --testsuite shopify
 The sandbox check for K03 runs on the server against the deployed endpoint and cleans up after itself:
 
 ```sh
-php tests/shopify/sandbox/K03.php <tenant_db> <shop_key> https://<host>/<install>/api/shopify/webhook.php
+php tests/shopify/support/sandbox/K03.php <tenant_db> <shop_key> https://<host>/<install>/api/shopify/webhook.php
 ```
