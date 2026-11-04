@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_transaktioner.php --- patch 5.0.0 --- 2026-07-22 ---
+// --- finans/rapport_includes/moms_transaktioner.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,17 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260716 MJ R1 – Posteringer pr. momskode: alle transaktioner med momskode-kolonne,
 //                  subtotaler pr. kode og grand total. CSV-eksport.
 // 20260720 MJ  Fiscal-year-aware kvartalsgenveje (fy_start/slut vars).
 // 20260722 MJ  COALESCE(debet,0)/COALESCE(kredit,0) i beloeb: NULL-aritmetik
 //                 gav NULL (vist som 0) for rene debet- eller kreditposteringer.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                 moms_transaktioner() has braces on its one-line if/else bodies, includes its files via __DIR__ and reads filter_momskode with ifset() (no behaviour change).
+// 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
+//              The account range filter is cast as well, and the heading shows whichever bound was given.
 
 function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                              $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -42,8 +46,10 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     $regnaar    = (int)$regnaar;
     $maaned_fra = trim($maaned_fra);
     $maaned_til = trim($maaned_til);
-    $konto_fra  = trim($konto_fra);
-    $konto_til  = trim($konto_til);
+    // A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+    // not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+    $konto_fra  = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+    $konto_til  = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
 
     for ($x = 1; $x <= 12; $x++) {
         if ($maaned_fra == $md[$x]) $maaned_fra = $x;
@@ -87,31 +93,16 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     $regnstart = "$startaar-$startmaaned-$startdato";
     $regnslut  = "$slutaar-$slutmaaned-$slutdato";
 
-    $filter_kode = db_escape_string(trim(if_isset($_GET, NULL, 'filter_momskode')));
+    $filter_kode = db_escape_string(trim(ifset($_GET, 'filter_momskode', NULL)));
 
     $dim = '';
     if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
-        if ($afd || $afd == '0') $dim = "AND t.afd = $afd ";
-        if ($ansat_fra && $ansat_til) {
-            $tmp = str_replace(",", " or t.ansat=", $ansatte_id);
-            $dim .= " AND (t.ansat=$tmp) ";
-        } elseif ($ansat_fra) $dim .= "AND t.ansat = '$ansat_fra' ";
         $p_fra = str2low($projekt_fra);
         $p_til = str2low($projekt_til);
-        if ($p_fra && $p_til && $p_fra != $p_til)
-            $dim .= " AND lower(t.projekt) >= '$p_fra' AND lower(t.projekt) <= '$p_til' ";
-        elseif ($p_fra) {
-            $tmp = str_replace("?", "_", $p_fra);
-            if (substr($tmp, -1) == '_') { while (substr($tmp, -1) == '_') $tmp = substr($tmp, 0, strlen($tmp)-1); $tmp = str2low($tmp).'%'; }
-            $dim .= "AND lower(t.projekt) LIKE '$tmp' ";
-        }
+        $dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $p_fra, $p_til, 't.');
     }
 
-    $konto_filter = '';
-    if ($konto_fra && $konto_til && $konto_fra != $konto_til)
-        $konto_filter = "AND t.kontonr >= '$konto_fra' AND t.kontonr <= '$konto_til' ";
-    elseif ($konto_fra)
-        $konto_filter = "AND t.kontonr = '$konto_fra' ";
+    $konto_filter = kontoRangeSqlFragment($konto_fra, $konto_til, 't.');
 
     $kode_filter = ($filter_kode !== '') ? "AND COALESCE(kp.moms,'') = '$filter_kode' " : '';
 
@@ -127,14 +118,14 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
               . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til"
               . "&simulering=$simulering&lagerbev=$lagerbev";
 
-    $csv_btn = "<a href='$csvfile' style='color:#ffffff; text-decoration:none;'>"
+    $csv_btn = "<a href='$csvfile' download style='color:#ffffff; text-decoration:none;'>"
              . "<i class='fa fa-download'></i> CSV</a>";
 
-    include("../includes/topline_settings.php");
+    include(__DIR__ . '/../../includes/topline_settings.php');
 
     if ($menu == 'T') {
-        include_once '../includes/top_header.php';
-        include_once '../includes/top_menu.php';
+        include_once(__DIR__ . '/../../includes/top_header.php');
+        include_once(__DIR__ . '/../../includes/top_menu.php');
         print "<div id=\"header\">";
         print "<div class=\"headerbtnLft headLink\"><a href=\"$back_url\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> Luk</a></div>";
         print "<div class=\"headerTxt\">Posteringer pr. momskode</div>";
@@ -157,7 +148,7 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
         print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
         print "<td width='10%' $top_bund><a accesskey=L href='$back_url'>Luk</a></td>";
         print "<td width='80%' $top_bund>Rapport - Posteringer pr. momskode</td>";
-        print "<td width='10%' $top_bund><a href='$csvfile'>CSV</a></td>";
+        print "<td width='10%' $top_bund><a href='$csvfile' download>CSV</a></td>";
         print "</tbody></table></td></tr></table>";
     }
 
@@ -168,7 +159,20 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     print "<div style='padding:8px 12px;'>";
     print "<big><b>$firmanavn</b></big><br>";
     print "Periode: " . dkdato($regnstart) . " – " . dkdato($regnslut);
-    if ($konto_fra) print " &nbsp;|&nbsp; Konto: $konto_fra" . ($konto_til && $konto_til != $konto_fra ? "–$konto_til" : '');
+    // The account range belongs in the heading whenever either bound is set, and both values come from
+    // the request, so they are escaped here. An ordinary pair prints exactly what it printed before.
+    if ($konto_fra !== '' || $konto_til !== '') {
+        $kontoFraTxt = htmlspecialchars((string)$konto_fra, ENT_QUOTES, 'UTF-8');
+        $kontoTilTxt = htmlspecialchars((string)$konto_til, ENT_QUOTES, 'UTF-8');
+        if ($konto_fra !== '' && $konto_til !== '' && $konto_fra != $konto_til) {
+            $kontoTxt = $kontoFraTxt . '–' . $kontoTilTxt;
+        } elseif ($konto_fra !== '') {
+            $kontoTxt = $kontoFraTxt;
+        } else {
+            $kontoTxt = '–' . $kontoTilTxt;
+        }
+        print " &nbsp;|&nbsp; Konto: " . $kontoTxt;
+    }
     print "</div>";
 
     // Quarter shortcuts
@@ -348,9 +352,9 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     fclose($csv);
 
     if ($menu == 'T') {
-        include_once '../includes/topmenu/footer.php';
+        include_once(__DIR__ . '/../../includes/topmenu/footer.php');
     } else {
-        include_once '../includes/oldDesign/footer.php';
+        include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
     }
 }
 ?>

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.29
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.02
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,8 @@
 // 20261027 CL/LH MB-73 (review): the leveret backfill runs in id windows under a try-lock with a time budget per
 //                login (includes/opdat_func/backfillOrderLineDelivered.php) instead of one UPDATE at the first login.
 //                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
+// 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
+//                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -177,5 +179,75 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // second; later logins carry on from the stored window, and a login that finds the lock taken skips it.
 require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
 backfillOrderLineDelivered($db_type);
+
+// 20261102 CL/ASR Self-service signup (signup/*.php, doc/signup.md, written by PS): its tables in the master
+// database and the trial columns on regnskab. Master only (global=true); runs from any tenant's login, so the
+// tables exist before the website's form is pointed at signup/. Serialized with an advisory lock (two logins at
+// the same moment would otherwise both try the CREATE), and once done a master settings flag
+// (var_grp 'system', var_name 'signup_schema') makes it a single query per login. The flag means this block never
+// runs again: a later change to the signup tables needs a block (and flag) of its own.
+if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb']) {
+	$signupFlag = "SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'signup_schema'";
+	if (!db_fetch_array(db_select($signupFlag, __FILE__ . " linje " . __LINE__, true))) {
+		$signupMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+		$signupLock = $signupMysql ? "GET_LOCK('saldi:signup_schema', 30)" : "pg_advisory_lock(hashtext('saldi:signup_schema'))";
+		$signupUnlock = $signupMysql ? "RELEASE_LOCK('saldi:signup_schema')" : "pg_advisory_unlock(hashtext('saldi:signup_schema'))";
+		$signupLocked = db_fetch_array(db_select("SELECT $signupLock AS acquired", __FILE__ . " linje " . __LINE__, true));
+		// MySQL returns 0 when the lock was not granted in time; the next login tries again.
+		if (!$signupMysql || (int) ($signupLocked['acquired'] ?? 0) === 1) {
+			try {
+				// Another login may have finished it while this one waited for the lock.
+				if (!db_fetch_array(db_select($signupFlag, __FILE__ . " linje " . __LINE__, true))) {
+					$signupSchema = $signupMysql ? "table_schema = DATABASE()" : "table_schema = current_schema()";
+					$signupId = $signupMysql ? 'id INT AUTO_INCREMENT NOT NULL' : 'id SERIAL NOT NULL';
+					$signupNow = $signupMysql ? 'CURRENT_TIMESTAMP' : 'now()';
+					$signupHasTable = function ($table) use ($signupSchema) {
+						$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = '$table' AND $signupSchema";
+						return (bool) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
+					};
+					$signupHasColumn = function ($table, $column) use ($signupSchema) {
+						$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$table' AND column_name = '$column' AND $signupSchema";
+						return (bool) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
+					};
+					if (!$signupHasTable('signup_pending')) {
+						$qtxt = "CREATE TABLE signup_pending ($signupId, created TIMESTAMP NOT NULL DEFAULT $signupNow, status VARCHAR(20) NOT NULL DEFAULT 'pending', ";
+						$qtxt.= "pakke VARCHAR(20) NOT NULL, source VARCHAR(40), navn VARCHAR(80) NOT NULL, email VARCHAR(120) NOT NULL, tlf VARCHAR(40), ";
+						$qtxt.= "cvrnr VARCHAR(20), firmanavn VARCHAR(90) NOT NULL, addr1 VARCHAR(60), addr2 VARCHAR(60), postnr VARCHAR(10), bynavn VARCHAR(60), ";
+						$qtxt.= "regnskab VARCHAR(60) NOT NULL, token_hash VARCHAR(64), token_expires TIMESTAMP NULL, old_token_hash VARCHAR(64), resend_hash VARCHAR(64), ";
+						$qtxt.= "mails_sent INTEGER NOT NULL DEFAULT 0, last_mail TIMESTAMP NULL, ip VARCHAR(45), activated TIMESTAMP NULL, regnskab_id INTEGER, fejl TEXT, ";
+						$qtxt.= "navn_fra_cvr SMALLINT, PRIMARY KEY (id))";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+						db_modify("CREATE INDEX signup_pending_token_hash_idx ON signup_pending (token_hash)", __FILE__ . " linje " . __LINE__, true);
+						db_modify("CREATE INDEX signup_pending_email_idx ON signup_pending (email)", __FILE__ . " linje " . __LINE__, true);
+					} elseif (!$signupHasColumn('signup_pending', 'navn_fra_cvr')) {
+						// 1 = the proposed account name came from the CVR register, 0 = typed (tables from before 20261021)
+						db_modify("ALTER TABLE signup_pending ADD COLUMN navn_fra_cvr SMALLINT", __FILE__ . " linje " . __LINE__, true);
+					}
+					if (!$signupHasTable('signup_events')) {
+						$qtxt = "CREATE TABLE signup_events ($signupId, ts TIMESTAMP NOT NULL DEFAULT $signupNow, kind VARCHAR(20) NOT NULL, ";
+						$qtxt.= "ip VARCHAR(45), email VARCHAR(120), PRIMARY KEY (id))";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+						db_modify("CREATE INDEX signup_events_ts_idx ON signup_events (ts)", __FILE__ . " linje " . __LINE__, true);
+					}
+					if (!$signupHasTable('signup_cvr_cache')) {
+						$qtxt = "CREATE TABLE signup_cvr_cache (q VARCHAR(120) NOT NULL, result TEXT, fetched TIMESTAMP NOT NULL DEFAULT $signupNow, PRIMARY KEY (q))";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+					}
+					// lukkes_kommentar: admin/admin_panel.php also adds it when first opened; the signup writes why the account closes.
+					foreach (['trial_start' => 'DATE', 'trial_end' => 'DATE', 'pakke' => 'VARCHAR(20)', 'lukkes_kommentar' => 'TEXT'] as $signupColumn => $signupType) {
+						if (!$signupHasColumn('regnskab', $signupColumn)) {
+							db_modify("ALTER TABLE regnskab ADD COLUMN $signupColumn $signupType", __FILE__ . " linje " . __LINE__, true);
+						}
+					}
+					$qtxt = "INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('signup_schema', 'system', '1', ";
+					$qtxt.= "'Self-service signup tables created (includes/betweenUpdates.php, 20261102)')";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+				}
+			} finally {
+				db_select("SELECT $signupUnlock", __FILE__ . " linje " . __LINE__, true);
+			}
+		}
+	}
+}
 
 ?>
