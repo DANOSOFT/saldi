@@ -15,6 +15,8 @@
 // same reference in all five customer documents, three of them Shopify's mails) is BLOCKED until
 // DTAILS' mails are live in the sandbox. Prints one PASS/FAIL/SKIP/BLOCKED line per part: SKIP when
 // the arguments or the documents don't fit, FAIL when a print fails or shows the wrong numbers.
+// Texts inside the layout's order-line rows are left out, across the whole width of the page, so the
+// check assumes the layout puts its reference fields (numbers, order name) outside those rows.
 //
 // History:
 // 20261103 CL/SZ SD-754: created.
@@ -23,6 +25,7 @@
 //                Each argument must be the document its position names, and a failed print is FAIL.
 //                temp/<db> is never created here.
 // 20261104 CL/SZ SD-754: The order lines are the layout's order-line area (art 3, generelt), on every page.
+//                The area comes from the layout the renderer prints the lines with, in its fallback order.
 
 if (PHP_SAPI !== 'cli') {
     exit;
@@ -82,8 +85,11 @@ function k54_document(int $ordreId, string $art, bool $web): array
 }
 
 /**
- * The order-line area of a document's layout, in PostScript points: the layout's 'generelt' row of
- * art 3 holds the top line's y (ya), the number of lines (xa) and the line spacing (xb), in mm.
+ * The order-line area of a document's layout, in PostScript points, from the layout formularprint()
+ * prints the lines with (includes/formfunk.php): the order's language, then Dansk, any language and
+ * formular 3, until one has line fields. Its 'generelt' row of art 3 holds the top line's y (ya), the
+ * number of lines (xa) and the line spacing (xb), in mm. A 'generelt' row of a layout without line
+ * fields still counts when the layout used has none, as in the renderer.
  *
  * @param array{id: int, art: string, sprog: string} $doc
  * @return array{0: float, 1: float} bottom and top y
@@ -91,15 +97,32 @@ function k54_document(int $ordreId, string $art, bool $web): array
 function k54_line_area(array $doc): array
 {
     $formular = $doc['art'] === 'DK' ? 5 : 4;
-    foreach (array_unique([strtolower($doc['sprog'] !== '' ? $doc['sprog'] : 'dansk'), 'dansk']) as $sprog) {
-        $rows = shopify_db_rows("SELECT xa, ya, xb FROM formularer WHERE formular = $1 AND art = 3 AND beskrivelse = 'generelt' AND lower(sprog) = $2",
-            [$formular, $sprog]);
-        if (isset($rows[0])) {
-            $top = (float)$rows[0]['ya'];
-            return [($top - (float)$rows[0]['xa'] * (float)$rows[0]['xb']) * 2.86 - 1, $top * 2.86 + 1];
+    $sprog = strtolower($doc['sprog'] !== '' ? $doc['sprog'] : 'dansk');
+    $layouts = [
+        [$formular, $sprog], [$formular, 'dansk'], [$formular, null], [3, $sprog], [3, 'dansk'], [3, null],
+    ];
+    $generelt = null;
+    foreach ($layouts as [$form, $lang]) {
+        $rows = $lang === null
+            ? shopify_db_rows('SELECT beskrivelse, xa, ya, xb FROM formularer WHERE formular = $1 AND art = 3', [$form])
+            : shopify_db_rows('SELECT beskrivelse, xa, ya, xb FROM formularer WHERE formular = $1 AND art = 3 AND lower(sprog) = $2', [$form, $lang]);
+        $fields = 0;
+        foreach ($rows as $row) {
+            if ($row['beskrivelse'] === 'generelt') {
+                $generelt = $row;
+            } else {
+                $fields++;
+            }
+        }
+        if ($fields > 0) {
+            break;
         }
     }
-    throw new RuntimeException("order {$doc['id']}: the layout has no order-line area (formular $formular, art 3, generelt)");
+    if ($generelt === null) {
+        throw new RuntimeException("order {$doc['id']}: the layout has no order-line area (formular $formular, art 3, generelt)");
+    }
+    $top = (float)$generelt['ya'];
+    return [($top - (float)$generelt['xa'] * (float)$generelt['xb']) * 2.86 - 1, $top * 2.86 + 1];
 }
 
 /**
