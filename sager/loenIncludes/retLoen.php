@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,8 @@
 // 20260319 LOE Added $t_sum_total  
 // 20261007 LOE SD-728 'Til fordeling' shows the payslip total, so the 'Andet' lines are not counted twice.
 // 20261103 CL/MMR SD-799 The created/transferred/approved/rejected "by" labels use the author text, so English shows "by".
+// 20261104 CL/MMR SST-943 Gem and Overfør no longer save a slip, or its piecework lines, without a date.
+//                 The slip is shown as stored with the typed values put back and the messages "Dato ikke udfyldt" and "Obs - Du har ikke gemt.".
 
 function ret_loen() {
 	global $brugernavn;
@@ -64,8 +66,11 @@ function ret_loen() {
 		exit;
 	}
 	$id=if_isset($_GET['id']);
+	$gem=NULL;
+	$datoMangler = loenDatoMangler($_POST); # 20261104 SST-943
+	if ($datoMangler) $id = (int)($_POST['id'] ?? 0);
 	transaktion('begin');
-	if ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis'])) {
+	if (!$datoMangler && ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis']))) {
 		# 20160830 ->
 		$afs  = if_isset($_POST['afs']);
 		$gemt = if_isset($_POST['gemt']);
@@ -685,6 +690,7 @@ function ret_loen() {
 			}
 		}
 	}
+	if ($datoMangler) $listevalg = (int)($_POST['listevalg'] ?? 0); # 20261104 SST-943 the list type that was on the screen
 	$qtxt = "select var_value from settings where var_name = 'hideSalary'";
 	if ($p=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))	$hideSalary = $p['var_value'];
 	else $hideSalary = NULL;
@@ -917,10 +923,11 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 
 	$antal_cat=$y;
 	$datotext_error = $datotext_errortxt = NULL;
-	if($loendate=='1970-01-01') {
-		$loendate = '';
+	if ($loendate=='1970-01-01' || $datoMangler) { # 20261104 SST-943 also when Gem/Overfør was stopped for a missing date
+		if ($loendate=='1970-01-01') $loendate = '';
 		$loendato = '';
 		$datotext_errortxt = "<span style=\"color: red;\">".findtekst('3019|Dato ikke udfyldt', $sprog_id)."</span>";
+		if ($datoMangler) $datotext_errortxt .= " <span style=\"color: red;\"><b>".findtekst('5280|Obs - Du har ikke gemt.', $sprog_id)."</b></span>";
 		$datotext_error    = "style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else {
 /*
@@ -990,6 +997,11 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 	} else {
 		$loentext_errortxt = NULL;
 		$loentext_error    = NULL;
+	}
+
+	if ($datoMangler) { # 20261104 SST-943 the fields show what was typed, so the messages about the stored slip are left out
+		$sagsnr_errortxt = $sagsnr_error = $opgnr_errortxt = $opgnr_error = $loentext_errortxt = $loentext_error = NULL;
+		$feriefratil_errortxt = $feriefra_error = $ferietil_error = NULL;
 	}
 
 #######################################
@@ -1660,11 +1672,75 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						}
 						print "</div></div>
 					</form>";
+				if ($datoMangler && !$readonly) loenGenindsaet($_POST); # 20261104 SST-943
 				if ($afvis && !$afvist_pga) {
 					$txt = findtekst('3018|Skriv årsag til afvisning og klik afvis igen', $sprog_id)."!";
 					print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				}
 	print "</div><!-- end of printableArea -->";
 } # endfunc ret_loen
+
+/**
+ * Tells whether a Gem or Overfør post of the wage slip form lacks its date (SST-943).
+ * An empty field, "0", or a date that reads as 01-01-1970 (what a slip without a date is stored with) counts as missing.
+ * Afvis, Godkend, Slet and Luk are not checked: they do not save typed values, and the approver cannot type a date.
+ *
+ * @param array<string, mixed> $post The posted form fields ($_POST).
+ * @return bool True when Gem/Overfør must not save the slip.
+ */
+function loenDatoMangler($post) {
+	if (empty($post['gem']) && empty($post['afslut'])) return false;
+	$dato = trim((string)($post['loendato'] ?? ''));
+	return (!$dato || usdate($dato) == '1970-01-01');
+}
+
+/**
+ * Puts the values of a Gem/Overfør that was stopped for a missing date back into the wage slip form (SST-943).
+ * Nothing was saved, so the form is drawn from the stored slip with the same fields in the same places as the
+ * posted form. The browser then sets every posted field back to its posted value, also as the field's default,
+ * so printing and the next save use what was typed. Read-only fields keep their drawn value. The date stays empty.
+ *
+ * @param array<string, string|array<int|string, string>> $post The posted form fields ($_POST).
+ * @return void Prints a <script> element after the form.
+ */
+function loenGenindsaet($post) {
+	$felter = array();
+	foreach ($post as $navn => $vaerdi) {
+		if (is_array($vaerdi)) {
+			foreach ($vaerdi as $nr => $v) {
+				if (!is_array($v)) $felter[$navn.'['.$nr.']'] = (string)$v;
+			}
+		} else {
+			$felter[$navn] = (string)$vaerdi;
+		}
+	}
+	unset($felter['loendato']);
+	$json = json_encode($felter, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
+	if ($json === false) return;
+	print "<script type=\"text/javascript\">
+	(function (v) {
+		var f = document.forms['loen'];
+		if (!f) return;
+		for (var i = 0; i < f.elements.length; i++) {
+			var e = f.elements[i], t = (e.type || '').toLowerCase(), har = v.hasOwnProperty(e.name);
+			if (!e.name || e.disabled || e.readOnly || t == 'submit' || t == 'button') continue;
+			if (t == 'checkbox') {
+				e.checked = e.defaultChecked = har;
+			} else if (!har) {
+				continue;
+			} else if (t == 'radio') {
+				e.checked = e.defaultChecked = (e.value == v[e.name]);
+			} else if (e.tagName == 'SELECT') {
+				for (var o = 0; o < e.options.length; o++) {
+					e.options[o].defaultSelected = (e.options[o].value == v[e.name]);
+					if (e.options[o].defaultSelected) e.selectedIndex = o;
+				}
+			} else {
+				e.value = e.defaultValue = v[e.name];
+			}
+		}
+	})($json);
+	</script>\n";
+}
 
 ?>
