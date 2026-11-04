@@ -12,6 +12,7 @@
 // 20261104 CL/SS SD-743 review: an order cancelled before its import (link without an order) is not imported.
 // 20261104 CL/SS SD-743: the fixture builds its own groups and chart, so it passes on a fresh tenant (CI) as on an old one.
 // 20261104 CL/SS SD-743: an order cancelled in Shopify after its creation or delivery is not delivered or posted.
+// 20261104 CL/SS SD-743 review: a set whose BOM changed after the validation is refused before any write.
 
 use PHPUnit\Framework\TestCase;
 
@@ -511,5 +512,54 @@ final class OrderImportSyncTest extends TestCase
         $this->assertSame([[$c1, 8.0], [$c2, 9.0]], array_map(fn($s) => [(int)$s['vare_id'], (float)$s['beholdning']], $stock), 'the components are drawn');
         $lines = $this->sql('SELECT vare_id, posnr FROM ordrelinjer WHERE ordre_id = $1 ORDER BY posnr', [$o['order']['id']]);
         $this->assertSame([$c1, $c2, $set, $free], array_slice(array_map(fn($l) => (int)$l['vare_id'], $lines), 0, 4), 'the set\'s lines, the set line, then the next line');
+    }
+
+    public function testASetWhoseBomChangedAfterTheValidationIsRefusedBeforeAnyWrite(): void
+    {
+        $set = $this->item('SAET', ['salgspris' => 0, 'samlevare' => 'on']);
+        $a = $this->item('K1', ['salgspris' => 30]);
+        $b = $this->item('K2', ['salgspris' => 45]);
+        $c = $this->item('K3', ['salgspris' => 45]);
+        foreach ([$a, $b, $c] as $id) {
+            $this->stock($id, 1, 10);
+        }
+        $cases = [
+            'another item' => "UPDATE styklister SET vare_id = $c WHERE vare_id = $b AND indgaar_i = $set",
+            'the same items, one occurrence changed' => "UPDATE styklister SET vare_id = $b WHERE indgaar_i = $set AND posnr = 2",
+            'two occurrences swapped' => "UPDATE styklister SET vare_id = CASE WHEN posnr = 1 THEN $b ELSE $a END WHERE indgaar_i = $set AND posnr IN (1, 3)",
+        ];
+        foreach ($cases as $case => $change) {
+            // A twice (2 and 1), then B once
+            $this->sql("DELETE FROM styklister WHERE indgaar_i = $1", [$set]);
+            $this->sql("INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $3, 2, 1), ($1, $3, 1, 2), ($2, $3, 1, 3)", [$a, $b, $set]);
+            $order = $this->order([self::line('SAET', 1, '149.95')], ['test_sql_at_reserved' => $change]);
+            $this->sql("DELETE FROM shopify_errors");
+
+            $this->assertSame(['refused' => ['order.create']], $this->import($order)['result'] ?? null, $case);
+            $this->assertSame([0, 'validated'], [$this->outcome($order)['orders'], $this->outcome($order)['link']], "$case: nothing is written");
+            $this->assertStringContainsString('not as validated', $this->sql("SELECT message FROM shopify_errors WHERE kind = 'order.create'")[0]['message'] ?? '', $case);
+        }
+        $this->assertSame([10.0, 10.0, 10.0], array_map(fn(int $id): float => (float)$this->sql('SELECT beholdning FROM lagerstatus WHERE vare_id = $1', [$id])[0]['beholdning'], [$a, $b, $c]),
+            'nothing is drawn');
+    }
+
+    public function testASetWhoseComponentsSwappedLagreAfterTheValidationIsRefused(): void
+    {
+        $set = $this->item('SAET', ['salgspris' => 0, 'samlevare' => 'on']);
+        $a = $this->item('K1', ['salgspris' => 60]);
+        $b = $this->item('K2', ['salgspris' => 60]);
+        // A only on lager 1, B only on lager 2: the plan draws each where it is
+        $this->stock($a, 1, 10);
+        $this->stock($b, 2, 10);
+        $this->sql("INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $3, 1, 1), ($2, $3, 1, 2)", [$a, $b, $set]);
+        $plain = $this->order([self::line('SAET', 1, '149.95')]);
+        $this->assertSame('invoiced', $this->import($plain)['result']['state'] ?? null, 'the plan itself is fine');
+        $drawn = $this->sql('SELECT vare_id, lager FROM ordrelinjer WHERE ordre_id = $1 AND vare_id IN ($2, $3) ORDER BY vare_id', [$this->outcome($plain)['order']['id'], $a, $b]);
+        $this->assertSame([[$a, 1], [$b, 2]], array_map(fn(array $r): array => [(int)$r['vare_id'], (int)$r['lager']], $drawn));
+
+        $swapped = $this->order([self::line('SAET', 1, '149.95')],
+            ['test_sql_at_reserved' => "UPDATE styklister SET vare_id = CASE WHEN posnr = 1 THEN $b ELSE $a END WHERE indgaar_i = $set"]);
+        $this->assertSame(['refused' => ['order.create']], $this->import($swapped)['result'] ?? null, 'the same items and quantities, each from the other\'s lager');
+        $this->assertSame(0, $this->outcome($swapped)['orders']);
     }
 }

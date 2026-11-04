@@ -12,6 +12,7 @@
 // History:
 // 20261103 CL/SS SD-743: created.
 // 20261104 CL/SS SD-743 review: test_link_state in the order reserves its link during the read.
+// 20261104 CL/SS SD-743 review: test_sql_at_reserved in the order runs between the validation and the creation.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_import.php <test_db> '<job json>' '<order json>' [crash stage] [hold seconds]\n");
@@ -59,7 +60,10 @@ try {
             }
             return $order;
         },
-        'crash' => function (string $stage) use ($crashAt, $hold): void {
+        'crash' => function (string $stage) use ($crashAt, $hold, $order): void {
+            if ($stage === 'reserved' && isset($order['test_sql_at_reserved'])) { // the tenant changes after the validation
+                shopify_db_rows($order['test_sql_at_reserved']);
+            }
             if ($stage === 'reserved' && $hold > 0) {
                 sleep($hold);
             }

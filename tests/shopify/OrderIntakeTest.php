@@ -8,6 +8,7 @@
 //
 // History:
 // 20261103 CL/SS SD-742: created.
+// 20261104 CL/SS SD-743 review: an absent totalTaxSet is unknown; an empty shipping country falls back to billing.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -122,6 +123,8 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertSame('269.00', $o['total']);
 		$this->assertSame('53.80', $o['total_tax'], 'the VAT Shopify charged, for S09b');
+		unset($node['totalTaxSet']);
+		$this->assertNull(shopify_order_from_graphql($node)['total_tax'], 'left out by Shopify: unknown, not 0.00');
 		$this->assertSame('k@example.dk', $o['email']);
 		$this->assertSame('PAID', $o['financial_status']);
 		$this->assertSame(['sku' => 'X', 'original_total' => '200.00', 'discount' => '20.00', 'assigned_location' => 'gid://shopify/Location/2'],
@@ -261,6 +264,8 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertSame(['order.country'], self::kinds($abroad['errors']), 'the shipping country decides');
 		$this->assertSame(['order.country'], self::kinds($billedAbroad['errors']), 'the billing country when nothing is shipped');
+		$noCountry = self::validate(self::order(['shipping_address' => $address(''), 'billing_address' => $address('SE')]), self::ctx());
+		$this->assertSame(['order.country'], self::kinds($noCountry['errors']), 'the billing country when the shipping address has none');
 		$this->assertTrue($home['ok']);
 		$this->assertTrue(self::validate(self::order(), self::ctx())['ok'], 'an order without an address');
 	}

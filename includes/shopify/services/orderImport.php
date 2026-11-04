@@ -34,6 +34,7 @@
 // 20261103 CL/SS SD-743: created (WP09-2).
 // 20261104 CL/SS SD-743 review: an order whose link holds no order past validation (cancelled before the import) is skipped.
 // 20261104 CL/SS SD-743: an order cancelled in Shopify (the link's cancelled_at, SD-801) stops before its delivery or posting.
+// 20261104 CL/SS SD-743 review: a set must be written with the components it was validated with.
 
 require_once __DIR__ . '/orderIntake.php';
 require_once __DIR__ . '/customers.php';
@@ -541,6 +542,18 @@ function shopify_import_lines(int $ordreId, array $validated): void {
 			$posnr += max(0, count($new) - 1);
 			if (count($new) < 2 || abs($net - (float)$line['line_net']) > 0.001 * count($new)) {
 				throw new ShopifyImportError("set {$line['varenr']} was written as " . count($new) . " lines at $net, not at {$line['line_net']}");
+			}
+			// opret_saet() reads the BOM again and writes a row per draw of the plan: one changed since the validation would
+			// draw other items, or the same items from other lagre, so each row must be a validated draw, duplicates included
+			$bomItems = array_column($line['bom'] ?? array(), 'vare_id', 'bom_id');
+			$expected = array_map(static fn(array $d): string => (int)($bomItems[$d['bom_id']] ?? 0) . ' from lager ' . (int)$d['lager'] . ' x ' . (int)$d['quantity_milli'],
+				$line['lager_plan'] ?? array());
+			$written = array_map(static fn(array $r): string => $r['vare_id'] . ' from lager ' . $r['lager'] . ' x ' . (int)round((float)$r['antal'] * 1000),
+				array_values(array_filter($new, static fn(array $r): bool => !($r['vare_id'] === (int)$line['vare_id'] && $r['samlevare'] === 'on'))));
+			sort($expected);
+			sort($written);
+			if ($written !== $expected) {
+				throw new ShopifyImportError("set {$line['varenr']} was written as " . implode(', ', $written) . ', not as validated: ' . implode(', ', $expected));
 			}
 			continue;
 		}
