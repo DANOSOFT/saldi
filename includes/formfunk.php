@@ -97,6 +97,9 @@
 // 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
 //                opening balance and running balance then cover those posts only. A NULL
 //                udlignet counts as open, as it does in the ledger.
+// 20261103 CL/SZ SD-754 Order-line fields lager and lagernavn: the lager a line is drawn from, as number and name.
+//                A Shopify web order (one with a web row in shopify_order_links) prints every row by its line id, so a line drawn from two lagre prints both.
+//                The lager name is the current year's LG row, as in kreditor/ordre.php.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1105,7 +1108,7 @@ if (!function_exists('formularprint')) {
 
 		global $bruger_id, $brugsamletpris;
 		global $charset;
-		global $db, $db_id, $dkdato;
+		global $db, $db_id, $db_type, $dkdato;
 		global $exec_path;
 		global $form_id, $formularsprog, $psfp;
 		global $htminitxt, $htmfp;
@@ -1823,6 +1826,7 @@ if (!function_exists('formularprint')) {
 				$tmp = 0;
 				$saetnr = 0;
 				$posnr = array();
+				$lager = $lagernavn = array();
 				if ($preview) {
 					for ($x = 1; $x <= 22; $x++) {
 						$posnr[$x] = $x;
@@ -1859,9 +1863,31 @@ if (!function_exists('formularprint')) {
 
 					// Track printed line keys to avoid duplicates, but allow discounts to be printed.
 					$printedLineKeys = array();
+					// 20261103 CL/SZ SD-754 A Shopify web order prints every row by its line id: a line drawn from
+					// two lagre is two rows with the same posnr and varenr. A web order is one the intake linked in
+					// shopify_order_links; its credit note through kred_ord_id. Only tenants with the Shopify module have the table.
+					$keepSplitRows = false;
+					if (strtolower((string)$db_type) != 'mysql' && strtolower((string)$db_type) != 'mysqli') {
+						$r2 = db_fetch_array(db_select("select case when to_regclass('shopify_order_links') is null then 0 else 1 end as has_links", __FILE__ . " linje " . __LINE__));
+						if ($r2 && $r2['has_links']) {
+							$qtxt = "select l.id from shopify_order_links l, ordrer o where o.id = " . (int)$ordre_id[$o] . " ";
+							$qtxt .= "and l.direction = 'web' and (l.ordre_id = o.id or l.ordre_id = o.kred_ord_id) limit 1";
+							$keepSplitRows = (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						}
+					}
+					// One name per lager: older tenants have an LG row per accounting year (SST-829).
+					$lagerNavne = array();
+					$qtxt = "select kodenr,beskrivelse from grupper where art='LG' ";
+					$qtxt .= "order by kodenr, case when fiscal_year = " . (int)$regnaar . " then 0 else 1 end, coalesce(fiscal_year,0) desc, id desc";
+					$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					while ($r2 = db_fetch_array($q2)) {
+						if (!isset($lagerNavne[(int)$r2['kodenr']])) {
+							$lagerNavne[(int)$r2['kodenr']] = trim((string)$r2['beskrivelse']);
+						}
+					}
 
 					while ($row = db_fetch_array($q)) {
-						$printedLineKey = trim($row['posnr']) . "\t" . trim($row['varenr']);
+						$printedLineKey = $keepSplitRows ? $row['id'] : trim($row['posnr']) . "\t" . trim($row['varenr']);
 
 						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!isset($printedLineKeys[$printedLineKey]) || $row['folgevare'])) {
 							$x++;
@@ -1890,7 +1916,7 @@ if (!function_exists('formularprint')) {
 
 							$linje_id[$x] = $row['id'];
 							$linjesum[$x] = 0;
-							$pris[$x] = $procent[$x] = $rabat[$x] = $saet[$x] = $samlevare[$x] = $lager[$x] = $varemomssats[$x] = NULL;
+							$pris[$x] = $procent[$x] = $rabat[$x] = $saet[$x] = $samlevare[$x] = $lager[$x] = $lagernavn[$x] = $varemomssats[$x] = NULL;
 							if ($varenr[$x]) {
 								$vare_id[$x] = $row['vare_id'];
 								$antal[$x] = (float) $row['antal'];
@@ -1904,6 +1930,7 @@ if (!function_exists('formularprint')) {
 								$lager[$x] = (int) $row['lager'];
 								if (!$lager[$x] && $afd_lager)
 									$lager[$x] = $afd_lager;
+								$lagernavn[$x] = $lagerNavne[(int)$lager[$x]] ?? '';
 								$varemomssats[$x] = (float) $row['momssats'];
 								if (!$momsfri[$x] && !$varemomssats[$x])
 									$varemomssats[$x] = $momssats;
@@ -2094,6 +2121,7 @@ if (!function_exists('formularprint')) {
 						$tidl_lev[$x] = $tidl_lev[$y];
 						$rest[$x] = $rest[$y];
 						$lokation[$x] = $lokation[$y];
+						$lager[$x] = $lagernavn[$x] = NULL;
 						$enhed[$x] = '';
 						$rabat[$x] = $rabat[$y];
 						($incl_moms && !$b2b) ? $tmp = $m_rabat[$y] + $m_rabat[$y] * $varemomssats[$y] / 100 : $tmp = $m_rabat[$y];
@@ -2217,6 +2245,8 @@ if (!function_exists('formularprint')) {
 								'projekt' => ifset($projekt ?? array(), $x, ''),
 								'antal' => ifset($dkantal ?? array(), $x, ''),
 								'trademark' => ifset($trademark ?? array(), $x, ''),
+								'lager' => ifset($lager ?? array(), $x, '') ?: '',
+								'lagernavn' => ifset($lagernavn ?? array(), $x, ''),
 								'lev_antal' => ifset($lev_antal ?? array(), $x, ''),
 								'tidl_lev' => ifset($tidl_lev ?? array(), $x, ''),
 								'lev_rest' => ifset($rest ?? array(), $x, ''),
@@ -2311,6 +2341,11 @@ if (!function_exists('formularprint')) {
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$dkantal[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__); #ellers kommer antal ikke med paa 1. linje paa side 2 . og 3
 								elseif ($variabel[$z] == "trademark")
 									$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$trademark[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+							elseif ($variabel[$z] == "lager") { # 20261103 CL/SZ SD-754 the lager the line is drawn from
+								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", ifset($lager ?? array(), $x, '') ?: '', "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+							} elseif ($variabel[$z] == "lagernavn") {
+								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", ifset($lagernavn ?? array(), $x, ''), "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+							}
 							elseif ($variabel[$z] == "lev_antal")
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$lev_antal[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
 							elseif ($variabel[$z] == "tidl_lev")
