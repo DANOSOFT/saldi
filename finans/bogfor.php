@@ -69,19 +69,20 @@
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
 // 20261019 CL/LH MB-71: Simulation and posting are refused, naming the vouchers, while a saved row has text, amount or invoice number but no debit or credit account (unfinishedJournalVouchers()).
 //                Such rows are no longer deleted silently; only rows without any content are still dropped.
-// 20261023 CL/LH MB-71: The refusal alert text goes through jsString(), so it is no longer empty when $db_encode isn't UTF8.
 // 20261019 CL/LH MB-72: openpost() treats an empty, '0' and NULL project as the same, so a journal payment settles an invoice without a project.
 //                The settlement date is the later of invoice and payment date, not the invoice date.
+// 20261021 CL/MJ MB-79 Automatic settlement matched on the currency amount alone, so an invoice and its payment settled each other even when they were booked at different rates - and the DKK difference between the rates was left on the debtor/creditor control account. It is now booked on the currency's difference account, the way manual settlement books it, and a post only settles against another post in the same currency. openpostRateDifference() measures the difference without writing anything, so bogfor() books it into simulering as well as transaktioner and openpost() keeps its "only when not simulating" guard.
+// 20261023 CL/LH MB-71: The refusal alert text goes through jsString(), so it is no longer empty when $db_encode isn't UTF8.
 // 20261023 CL/LH MB-72: openpost() trims the project before matching and storing it, and a payment settling
 //                several invoices gives every row of the group the group's latest date.
-// 20261028 CL/LH MB-72: openpost() settles a payment naming several invoices ("A;B") only when they and the payment
-//                net to zero, and writes the payment row once instead of once per settled invoice.
-// 20261021 CL/MJ MB-79 Automatic settlement matched on the currency amount alone, so an invoice and its payment settled each other even when they were booked at different rates - and the DKK difference between the rates was left on the debtor/creditor control account. It is now booked on the currency's difference account, the way manual settlement books it, and a post only settles against another post in the same currency. openpostRateDifference() measures the difference without writing anything, so bogfor() books it into simulering as well as transaktioner and openpost() keeps its "only when not simulating" guard.
 // 20261026 CDX/MJ MB-79 Preserve exchange-difference settlement alongside current master journal validation.
 // 20261027 CL/LH MB-79 The open-post row for an automatic exchange difference is written the way manual settlement writes it - 0,001 in the settled currency at a rate worth the DKK difference - so the account statement of a foreign-currency debtor/creditor no longer shows a currency balance on a settled account (rateDifferenceOpenpostAmount()).
 // 20261027 CL/LH MB-79 Simuler and the confirmation page now book and show the same exchange differences as Bogfør: openpostRateDifference() keeps track of what the journal's earlier lines would have written to openpost (openpostOverlay()), so a journal holding an invoice and its payment, or two payments for one invoice, simulates what it posts, and the confirmation page adds the differences to its account and debtor/creditor movements (journalRateDifferences()). The same invoice reference twice ('F-1;F-1') is measured once, as openpost() settles it (openpostMatches()), and a difference account that is not in the chart of accounts is refused instead of posted to (rateDifferenceAccountError()).
 // 20261027 CL/LH MB-79 When the journal also has in-voucher currency rounding, the confirmation page puts it on the difference account's row instead of a row without an account number (confirmationRoundingOnListedAccount()), so that row shows the account's new balance.
+// 20261028 CL/LH MB-72: openpost() settles a payment naming several invoices ("A;B") only when they and the payment
+//                net to zero, and writes the payment row once instead of once per settled invoice.
 // 20261104 CDX/NTR Merge MB-72 settlement dates and complete payments with MB-123 exchange differences, simulation and preview.
+// 20261104 CDX/NTR Restore chronological order of the merged history entries.
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
