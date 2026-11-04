@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-09-18 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-10-30 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,8 +40,9 @@
 // 20260915 CDX/PHR Paginate posted and simulated VAT rows together, including the final date.
 // 20260916 CDX/PHR Show opening balances, including balance accounts without VAT or period entries.
 // 20260918 CDX/PHR Print all VAT ledger rows and totals while paginating only the screen view.
+// 20261030 CL/LAH Show all lines by default, like kontokort: per_page 0 means "Alle" and is the default.
 
-function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 50) {
+function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 0) {
 	print <<<'HTML'
 <style>
 @media screen {
@@ -68,6 +69,14 @@ HTML;
 	global $prj_navn_fra,$prj_navn_til;
 	global $sprog_id;
 	global $top_bund;
+
+	// per_page 0 is "Alle", the default. Kept apart from $per_page, which the
+	// window maths below needs as a real row count.
+	$perPageChoice = max(0, (int) $per_page);
+	if (!$perPageChoice) {
+		$page     = 1;
+		$per_page = 1000000000;
+	}
 
 	$title = 'Rapport • Kontokort med Moms';
 	
@@ -544,15 +553,16 @@ print "</table>";
 
     $offsetFrom  = (($page - 1) * $per_page) + 1;
     $offsetTo    = min($total_rows, $page * $per_page);
-    $prevUrl     = $base_url . '&per_page=' . $per_page . '&page=' . ($page - 1);
-    $nextUrl     = $base_url . '&per_page=' . $per_page . '&page=' . ($page + 1);
+    $prevUrl     = $base_url . '&per_page=' . $perPageChoice . '&page=' . ($page - 1);
+    $nextUrl     = $base_url . '&per_page=' . $perPageChoice . '&page=' . ($page + 1);
 
     // Build rows-per-page options
-    $rowCounts = [25, 50, 100, 250, 500];
+    $rowCounts = [0, 25, 50, 100, 250, 500];
     $rowCountOptions = '';
     foreach ($rowCounts as $count) {
-        $sel = ($count === $per_page) ? 'selected' : '';
-        $rowCountOptions .= "<option value='{$count}' {$sel}>{$count}</option>";
+        $sel = ($count === $perPageChoice) ? 'selected' : '';
+        $label = $count ? $count : findtekst('2498|Alle', $sprog_id);
+        $rowCountOptions .= "<option value='{$count}' {$sel}>{$label}</option>";
     }
 
     // Build page number buttons with ellipsis — matches render_table_footer pattern
@@ -562,16 +572,16 @@ print "</table>";
 
     $pageButtons = '';
     if ($startPage > 1) {
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page=1' class='navbutton'>1</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page=1' class='navbutton'>1</a>";
         if ($startPage > 2) $pageButtons .= "<span>...</span>";
     }
     for ($p = $startPage; $p <= $endPage; $p++) {
         $activeStyle = ($p === $page) ? "style='text-decoration:underline; font-weight:bold;'" : "";
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
     }
     if ($endPage < $total_pages) {
         if ($endPage < $total_pages - 1) $pageButtons .= "<span>...</span>";
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
     }
 
     print "</div>"; // closes scrollable div — MUST be before the fixed bar

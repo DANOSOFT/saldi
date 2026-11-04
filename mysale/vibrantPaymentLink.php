@@ -2,11 +2,12 @@
 // 20261006 CL/LH SST-842: Use the tenant's own Vibrant key against the production API; the hardcoded sandbox key is gone; booking id int-cast.
 // 20261023 CL/LH SST-842: Read rentalpayment.apikey as vibrantPaymentIntent.php does (table name, no trim), so the link and the status poll use the same key.
 // 20261029 CL/MMR SST-840: The account name from the request is validated before connecting; the order id is int-cast; the include uses __DIR__.
-// 20261029 CL/MMR SST-841: The payment intent Vibrant returns is stored on the booking, so only that payment can approve it;
-//                 a retry gets the link already bound to the booking;
-//                 no link is handed out for a booking cancelled meanwhile.
+// 20261029 CL/MMR SST-841: The payment intent Vibrant returns is stored on the booking, so only that payment can approve it.
+//                 A retry gets the link already bound to the booking.
+//                 No link is handed out for a booking cancelled meanwhile.
 //                 SALDI_VIBRANT_API_BASE may point the call at a local mock in tests.
 // 20261030 CL/MMR SST-913: The amount is the order's sum plus its VAT (not sum x 1.25), so VAT-free bookings are not overcharged.
+// 20261103 CL/MMR SST-841 Review (PR #969): the always-true check before handing out the stored binding is gone.
 require_once __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 include_once(__DIR__ . "/../includes/vibrantPayment.php");
@@ -78,10 +79,9 @@ if (is_string($paymentIntentId) && $paymentIntentId !== '' && is_string($betalin
 		echo json_encode(["error" => "Booking is no longer open", "id" => $customerData["id"]]);
 		exit;
 	}
-	if ((string)$bound["payment_id"] !== '') {
-		// a concurrent call bound its payment first: hand out that one, never a link the server will not check
-		$paymentIntentId = $bound["payment_id"];
-		$betalingsLink = $bound["payment_url"];
-	}
+	// Hand out the binding the booking actually has: ours, or a concurrent call's that was bound first, never a link
+	// the server will not check
+	$paymentIntentId = $bound["payment_id"];
+	$betalingsLink = $bound["payment_url"];
 }
 echo json_encode(["url" => $betalingsLink, "id" => $paymentIntentId]);

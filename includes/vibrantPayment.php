@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/vibrantPayment.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/vibrantPayment.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,11 @@
 //                 A failed invoice keeps the booking approved and is retried once per call, under a lock.
 //                 Cancelling deletes only on the payment binding it checked; links bind only to open bookings.
 //                 No schema change at request time: betweenUpdates.php and opretfunc.php add the columns.
+// 20261103 CL/MMR SST-841 CodeRabbit (PR #969): an error thrown while invoicing is a failed attempt (invoice_failed).
+//                 The advisory lock is released in a finally block, also when invoicing threw.
+// 20261103 CL/MMR SST-841 Review (PR #969): approving claims the row with UPDATE ... RETURNING, so a booking the expiry cleanup deleted is not invoiced.
+//                 An approved booking with a bound payment is invoiced (once) without asking Vibrant again.
+//                 Vibrant is only asked while the booking is pending, and rental_payment_ready() counts distinct columns.
 //
 
 if (!function_exists('rental_payment_ready')) {
@@ -40,7 +45,8 @@ if (!function_exists('rental_payment_ready')) {
  */
 function rental_payment_ready($db) {
 	$name = db_escape_string($db);
-	$qtxt = "SELECT count(*) AS n FROM information_schema.columns WHERE (table_schema = '$name' OR table_catalog = '$name')";
+	// DISTINCT: a second schema with its own rentalperiod must not make the count 4 (review on PR #969)
+	$qtxt = "SELECT count(DISTINCT column_name) AS n FROM information_schema.columns WHERE (table_schema = '$name' OR table_catalog = '$name')";
 	$qtxt.= " AND table_name = 'rentalperiod' AND column_name IN ('payment_id', 'payment_url')";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	return $r && (int)$r['n'] === 2;
@@ -120,6 +126,9 @@ if (!function_exists('booking_invoice_once')) {
  *
  * @param int      $orderId  ordrer.id of the booking.
  * @param callable $invoice  Invoices and mails the order; returns the order id on success (fakturer_ordre()).
+ * An error thrown by $invoice (also an undefined function) counts as a failed attempt and is logged; the lock is
+ * released in every case.
+ *
  * @return bool  true when the order is invoiced (now or before), false when invoicing failed.
  */
 function booking_invoice_once($orderId, $invoice) {
@@ -128,12 +137,24 @@ function booking_invoice_once($orderId, $invoice) {
 		return false;
 	}
 	db_select("SELECT pg_advisory_lock(841, $orderId)", __FILE__ . " linje " . __LINE__);
-	$order = db_fetch_array(db_select("SELECT fakturanr FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__));
-	$done = $order && !in_array(trim((string)$order['fakturanr']), array('', '0'), true);
-	if (!$done && $order) {
-		$done = (string)call_user_func($invoice, $orderId) === (string)$orderId;
+	$done = false;
+	try {
+		$order = db_fetch_array(db_select("SELECT fakturanr FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__));
+		$done = $order && !in_array(trim((string)$order['fakturanr']), array('', '0'), true);
+		if (!$done && $order) {
+			try {
+				$done = (string)call_user_func($invoice, $orderId) === (string)$orderId;
+			} catch (Throwable $e) {
+				// An error thrown while invoicing (also a missing function) is a failed attempt, so the caller answers
+				// invoice_failed and a later call retries it.
+				error_log("booking_invoice_once: invoicing order $orderId failed: " . $e->getMessage());
+				$done = false;
+			}
+		}
+	} finally {
+		// The lock is per database session, so it is released even when invoicing threw.
+		db_select("SELECT pg_advisory_unlock(841, $orderId)", __FILE__ . " linje " . __LINE__);
 	}
-	db_select("SELECT pg_advisory_unlock(841, $orderId)", __FILE__ . " linje " . __LINE__);
 	return $done;
 }
 }
@@ -149,8 +170,9 @@ if (!function_exists('update_booking_payment')) {
  * @param array    $data     The request body: id (booking id) and status.
  * @param callable $invoice  Invoices and mails an order id and returns it on success (fakturer_ordre()).
  * @return array{
- *   status: string,  "not_found", "approved", "invoice_failed", "deleted", "pending", or "not_ready" before the
- *                    account has the payment columns (someone logs in once).
+ *   status: string,  "not_found" (also when the booking was removed before it could be approved), "approved",
+ *                    "invoice_failed", "deleted", "pending", or "not_ready" before the account has the payment columns
+ *                    (someone logs in once).
  * }
  */
 function update_booking_payment($db, $data, $invoice) {
@@ -159,19 +181,31 @@ function update_booking_payment($db, $data, $invoice) {
 		return array('status' => 'not_ready');
 	}
 	$booking = db_fetch_array(db_select("SELECT order_id, expiry_time, payment_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
+	$bound = $booking && (string)$booking['payment_id'] !== '';
 	$paymentState = null;
-	if ($booking && (string)$booking['payment_id'] !== '') {
+	// Vibrant is asked only while the booking is pending. An approved booking was approved on a payment the server
+	// confirmed, so its answer cannot change the outcome, and a public request should not wait on Vibrant for it.
+	if ($bound && $booking['expiry_time']) {
 		$r = db_fetch_array(db_select("SELECT apikey FROM rentalpayment WHERE id = 1", __FILE__ . " linje " . __LINE__));
 		$paymentState = vibrant_payment_state($r ? (string)$r['apikey'] : '', (string)$booking['payment_id']);
 	}
 	$decision = booking_payment_decision($booking, (string)($data['status'] ?? ''), $paymentState);
 	$orderId = $booking ? (int)$booking['order_id'] : 0;
 	if ($decision === 'approve') {
-		db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+		// Claim the row: the expiry cleanup (rental/rental.php cleanUpExpiredBookings()) may have deleted the booking
+		// while Vibrant was asked. Then nothing is approved or invoiced.
+		$claimed = db_fetch_array(db_select("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId RETURNING order_id", __FILE__ . " linje " . __LINE__));
+		if (!$claimed) {
+			error_log("update_booking_payment: booking $bookingId was removed while its payment " . $booking['payment_id'] . " succeeded; not invoiced");
+			return array('status' => 'not_found');
+		}
+		$orderId = (int)$claimed['order_id'];
 		$decision = 'already_approved';
 	}
 	if ($decision === 'already_approved') {
-		if ($paymentState === 'succeeded' && !booking_invoice_once($orderId, $invoice)) {
+		// The approval proved the payment, so an approved booking with a bound payment is invoiced (once) whatever
+		// Vibrant answers now. A failed earlier invoice is retried here, and a missing invoice is never answered as approved.
+		if ($bound && !booking_invoice_once($orderId, $invoice)) {
 			return array('status' => 'invoice_failed');
 		}
 		return array('status' => 'approved');
