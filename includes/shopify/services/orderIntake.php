@@ -35,8 +35,8 @@
 //
 // 20261103 CL/SS SD-742: created (WP09-1).
 // 20261103 CL/SS SD-742 review: a line split over several fulfillment locations is an alarm; an order that does not fit one read is refused.
-// 20261103 CL/SS SD-742 review: batch-controlled items, a VAT group without a rate and an ambiguous SKU are refused; the unit price
-//                is rounded down so the last unit is never below it; closed fulfillment orders are no assignment.
+// 20261103 CL/SS SD-742 review: batch-controlled items, a VAT group without a rate and an ambiguous SKU are refused.
+//                The unit price is rounded down so the last unit is never below it; closed fulfillment orders are no assignment.
 // 20261103 CL/SS SD-743: the order's VAT (totalTaxSet) is read for S09b, and an order going abroad is refused.
 
 require_once __DIR__ . '/../config.php';

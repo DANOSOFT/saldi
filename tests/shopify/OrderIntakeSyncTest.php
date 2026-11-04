@@ -8,6 +8,7 @@
 //
 // History:
 // 20261103 CL/SS SD-742: created.
+// 20261104 CL/SS SD-743: today is compared in the tenant's zone (Europe/Copenhagen), so the test holds after 23:00 UTC.
 
 use PHPUnit\Framework\TestCase;
 
@@ -185,7 +186,7 @@ final class OrderIntakeSyncTest extends TestCase
         $this->assertSame(['shopify_payments' . "\x1f" . 'Visa' => 'Kort'], $ctx['payments'], 'the gateway entry without a card brand');
         $this->assertTrue($ctx['kreditkort_ok']);
         $this->assertSame(['from' => self::$year['from'], 'to' => self::$year['to']], $ctx['fiscal']);
-        $this->assertSame(date('Y-m-d'), $ctx['today']);
+        $this->assertSame((new DateTimeImmutable('now', new DateTimeZone('Europe/Copenhagen')))->format('Y-m-d'), $ctx['today'], 'the date in the tenant zone, not the test process zone');
         $this->assertNull($ctx['period_closed']);
         $this->assertSame('havemoebelland', $ctx['brand_sprog']);
     }

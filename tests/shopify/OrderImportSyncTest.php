@@ -9,6 +9,7 @@
 //
 // History:
 // 20261103 CL/SS SD-743: created.
+// 20261104 CL/SS SD-743 review: an order cancelled before its import (link without an order) is not imported.
 
 use PHPUnit\Framework\TestCase;
 
@@ -419,6 +420,26 @@ final class OrderImportSyncTest extends TestCase
         $this->assertStringContainsString('stopped at delivery_committed', $this->sql("SELECT message FROM shopify_errors WHERE kind = 'order.invoice'")[0]['message'] ?? '');
         $this->sql('UPDATE shopify_shops SET orders_enabled = true');
         $this->assertSame('invoiced', $this->import($order)['result']['state'] ?? null);
+    }
+
+    public function testAnOrderCancelledBeforeItsImportIsNotImported(): void
+    {
+        $a = $this->item('A');
+        $this->stock($a, 1, 10);
+        $order = $this->order([self::line('A', 1, '125.00')]);
+        $this->sql("INSERT INTO shopify_order_links (shop_id, order_gid, direction, order_name, state, cancelled_at) VALUES ($1, $2, 'web', $3, 'cancelled', now())",
+            [$this->shopId(), $order['gid'], $order['name']]);
+        $this->assertSame(['skipped' => "the order's link is in state cancelled without an order"], $this->import($order)['result'] ?? null);
+        $this->assertSame([0, 'cancelled'], [$this->outcome($order)['orders'], $this->outcome($order)['link']]);
+        $this->sql('UPDATE shopify_shops SET orders_enabled = false');
+        $this->assertSame(['skipped' => 'orders flow off'], $this->import($order)['result'] ?? null);
+        $this->sql('UPDATE shopify_shops SET orders_enabled = true');
+        $this->assertSame(0, (int)$this->sql("SELECT count(*) AS n FROM shopify_errors WHERE kind = 'order.invoice'")[0]['n'], 'nothing waits to be resumed');
+
+        $raced = $this->order([self::line('A', 1, '125.00')], ['test_link_state' => 'cancelled']);
+        $this->assertSame(['skipped' => "the order's link is in state cancelled without an order"], $this->import($raced)['result'] ?? null,
+            'a cancellation that reserved the link while the import validated');
+        $this->assertSame([0, 'cancelled'], [$this->outcome($raced)['orders'], $this->outcome($raced)['link']]);
     }
 
     public function testARefusedOrderWritesNothingAndItsReplayAfterTheFixCreatesIt(): void

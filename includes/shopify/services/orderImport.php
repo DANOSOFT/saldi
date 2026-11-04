@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderImport.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/shopify/services/orderImport.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // first write-back stage (order.tags), which stays queued until WP10 registers its handler.
 //
 // 20261103 CL/SS SD-743: created (WP09-2).
+// 20261104 CL/SS SD-743 review: an order whose link holds no order past validation (cancelled before the import) is skipped.
 
 require_once __DIR__ . '/orderIntake.php';
 require_once __DIR__ . '/customers.php';
@@ -51,6 +52,15 @@ final class ShopifyImportError extends DomainException
 }
 
 /**
+ * A web link that holds no order and is past validation (an order cancelled before it was
+ * imported) is never imported: logged, and the job is done.
+ */
+function shopify_import_not_importable(string $state, array $correlation): array {
+	shopify_import_log('not_importable', $correlation + array('state' => $state));
+	return array('outcome' => 'done', 'result' => array('skipped' => "the order's link is in state $state without an order"));
+}
+
+/**
  * Job order.import (prio 10, deduped on the order): imports the paid order of the payload, or
  * resumes it. Done also when the order is refused (its errors are on the error list) or not
  * imported (an echo, a shop whose orders flow is off, or a slot whose legacy intake is open);
@@ -67,7 +77,7 @@ function shopify_import_paid_order(array $job, array $services = array()): array
 	$shop = shopify_db_rows('SELECT * FROM shopify_shops WHERE id = $1', array($shopId))[0] ?? null;
 	if ($shop === null || !in_array($shop['orders_enabled'], array(true, 't', '1', 1), true)) {
 		$link = $shop === null ? null : shopify_order_link($shopId, $gid);
-		if ($link !== null && $link['direction'] === 'web' && $link['state'] !== 'invoiced') {
+		if ($link !== null && $link['direction'] === 'web' && $link['state'] !== 'invoiced' && ($link['ordre_id'] !== null || $link['state'] === 'validated')) {
 			shopify_error_open($shopId, 'order.invoice', $gid, "order {$link['order_name']} stopped at {$link['state']}: the orders flow of the shop is off; it is resumed by a replay once the flow is on", 'error');
 		}
 		return array('outcome' => 'done', 'result' => array('skipped' => 'orders flow off'));
@@ -87,6 +97,9 @@ function shopify_import_paid_order(array $job, array $services = array()): array
 			return array('outcome' => 'done', 'result' => array('skipped' => 'a store order'));
 		}
 		if ($link !== null && $link['state'] !== 'validated') {
+			if ($link['ordre_id'] === null) {
+				return shopify_import_not_importable($link['state'], $correlation);
+			}
 			return shopify_import_finish((int)$link['id'], $crash, $correlation);
 		}
 		$fetch = $services['fetch'] ?? static fn(array $s, string $g): array => shopify_fetch_paid_order($s, $g);
@@ -112,10 +125,11 @@ function shopify_import_paid_order(array $job, array $services = array()): array
 			shopify_db_transaction(fn() => shopify_intake_report($shopId, $validated, $correlation));
 			return array('outcome' => 'done', 'result' => array('refused' => array_column($validated['errors'], 'kind')));
 		}
-		$linkId = shopify_db_transaction(function () use ($shopId, $gid, $validated, $order): int {
-			$reserved = shopify_reserve_order_link($shopId, $gid, 'web', array('order_name' => $order['name'], 'state' => 'validated'));
-			return (int)$reserved['id'];
-		});
+		$reserved = shopify_db_transaction(fn() => shopify_reserve_order_link($shopId, $gid, 'web', array('order_name' => $order['name'], 'state' => 'validated')));
+		if ($reserved['state'] !== 'validated') {
+			return shopify_import_not_importable($reserved['state'], $correlation);
+		}
+		$linkId = (int)$reserved['id'];
 		$crash('reserved');
 		try {
 			shopify_create_web_order($linkId, $validated, $crash, $correlation);

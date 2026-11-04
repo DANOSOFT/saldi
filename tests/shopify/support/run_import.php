@@ -11,6 +11,7 @@
 //
 // History:
 // 20261103 CL/SS SD-743: created.
+// 20261104 CL/SS SD-743 review: test_link_state in the order reserves its link during the read.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_import.php <test_db> '<job json>' '<order json>' [crash stage] [hold seconds]\n");
@@ -52,7 +53,12 @@ try {
     shopify_bootstrap($testDb);
     ob_start(); // legacy posting prints stray HTML on some branches
     $result = shopify_import_paid_order($job, [
-        'fetch' => fn(array $shop, string $gid): array => $order,
+        'fetch' => function (array $shop, string $gid) use ($order): array {
+            if (isset($order['test_link_state'])) { // another worker reserves the link while this one validates
+                shopify_reserve_order_link((int)$shop['id'], $gid, 'web', ['order_name' => $order['name'], 'state' => $order['test_link_state']]);
+            }
+            return $order;
+        },
         'crash' => function (string $stage) use ($crashAt, $hold): void {
             if ($stage === 'reserved' && $hold > 0) {
                 sleep($hold);
