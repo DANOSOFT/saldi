@@ -24,6 +24,8 @@
 // Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260806 PHR Return to the employee folder menu if the user has no employee ID.
+// 20261103 CL/MMR SD-799 The user setup error shown when the login has no employee is translated.
+// 20261104 CL/MMR SD-799 The user-setup alert text is passed to the script as UTF-8.
 // 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 @session_start();
 $s_id                  = session_id();
@@ -642,7 +644,7 @@ function medarbejdermappe() {
 		
 		if(!$ans_id) $ans_id=$ansat_id;
 		if (!$ans_id) {
-			print "<script>alert('Fejl i brugeropsætning'); window.location.href='medarbejdermappe.php?funktion=medarbejdermappeliste';</script>";
+			print "<script>alert(".json_encode(findtekst_utf8('8414|Fejl i brugeropsætning', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)."); window.location.href='medarbejdermappe.php?funktion=medarbejdermappeliste';</script>";
 			return;
 		}
 		$ans_id = (int)$ans_id;
