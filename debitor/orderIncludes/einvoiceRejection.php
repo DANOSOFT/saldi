@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261030 CL/MJ SST-882 Created: an invoice whose e-invoice was rejected shows why at the top of the order page (debitor/ordre.php).
 // 20261104 CL/MJ SST-882 On an ISO-8859-1 order page, EasyUBL's UTF-8 message is converted before it is printed (CodeRabbit).
+//                It is escaped as UTF-8 and every character outside ASCII becomes an HTML entity, so a € no longer turns into ?.
 //                The message comes from einvoice_events, and a short explanation per kind of rejection says what to do.
 
 include_once(__DIR__ . '/../../includes/stdFunc/einvoiceEvents.php');
@@ -61,6 +62,12 @@ if (!function_exists('einvoiceRejectionHtml')) {
 		$e = function ($s) use ($charset) {
 			return htmlspecialchars((string) $s, ENT_QUOTES, $charset);
 		};
+		$message = $e($rejection['message']);
+		// EasyUBL sends UTF-8; a LATIN9 tenant stores those bytes as they came. On an ISO-8859-1 page the message is
+		// escaped as UTF-8 and every character outside ASCII becomes an entity, so one like € isn't lost.
+		if ($charset != 'UTF-8' && mb_check_encoding((string) $rejection['message'], 'UTF-8')) {
+			$message = mb_encode_numericentity(htmlspecialchars((string) $rejection['message'], ENT_QUOTES, 'UTF-8'), array(0x80, 0x10FFFF, 0, 0x1FFFFF), 'UTF-8');
+		}
 		$created = $rejection['created'] !== '' ? date('d-m-Y H:i', strtotime($rejection['created'])) : '';
 		$html = "<div class='einvoiceRejection' style='margin:6px auto;padding:8px 12px;max-width:1100px;background:#fdecea;border:1px solid #c0392b;border-radius:4px'>";
 		$html .= "<b>&#9888; " . $e($texts['title']) . "</b> <span style='color:#555'>(" . $e($rejection['status']) . ($created !== '' ? ', ' . $e($created) : '') . ")</span>";
@@ -68,7 +75,7 @@ if (!function_exists('einvoiceRejectionHtml')) {
 			$html .= "<div style='margin-top:4px'>" . $e($texts[$rejection['class']]) . "</div>";
 		}
 		if ($rejection['message'] !== '') {
-			$html .= "<div style='margin-top:4px;color:#555;white-space:pre-wrap'>" . $e($texts['message']) . ": " . $e($rejection['message']) . "</div>";
+			$html .= "<div style='margin-top:4px;color:#555;white-space:pre-wrap'>" . $e($texts['message']) . ": " . $message . "</div>";
 		}
 		return $html . "</div>\n";
 	}
@@ -91,10 +98,6 @@ if (!function_exists('einvoiceRejectionView')) {
 		}
 		$rejection = einvoice_latest_rejection($ordreId);
 		if ($rejection) {
-			// EasyUBL sends UTF-8; a LATIN9 tenant stores those bytes as they came.
-			if ($dbEncode != 'UTF8' && mb_check_encoding($rejection['message'], 'UTF-8')) {
-				$rejection['message'] = mb_convert_encoding($rejection['message'], 'ISO-8859-1', 'UTF-8');
-			}
 			print einvoiceRejectionHtml($rejection, einvoiceRejectionTexts($sprogId), $dbEncode == 'UTF8' ? 'UTF-8' : 'ISO-8859-1');
 		}
 	}

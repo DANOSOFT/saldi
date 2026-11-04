@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 // 20261030 CL/MJ SST-882 Pins how e-invoice rejections are recognised, stored and shown.
 //                The messages are the texts MEDSHOP received from Semantic/EasyUBL in October 2026, from Morten Ramsing's draft.
 //                The database part runs in child processes with stub db functions (support/einvoice_events_*.php), so no database is needed.
+// 20261104 CL/MJ SST-882 On an ISO-8859-1 page the message keeps characters outside Latin-1, such as €, as entities.
 final class EinvoiceRejectionTest extends TestCase
 {
     public static function setUpBeforeClass(): void
@@ -109,6 +110,17 @@ final class EinvoiceRejectionTest extends TestCase
         self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt; O&#039;Brien', $html);
         self::assertStringContainsString('Mangler CVR', $html);
         self::assertStringContainsString('30-10-2026 09:15', $html);
+    }
+
+    /** A LATIN9 tenant keeps EasyUBL's UTF-8 bytes; on its ISO-8859-1 page no character of the message is lost. */
+    public function testOnAnIso88591PageTheMessageKeepsEveryCharacter(): void
+    {
+        $html = einvoiceRejectionHtml(
+            ['status' => 'Rejected', 'message' => 'Beløb 100 € <b>', 'class' => 'unknown', 'created' => ''],
+            ['title' => 'E-fakturaen blev afvist', 'message' => 'Besked'],
+            'ISO-8859-1'
+        );
+        self::assertStringContainsString('Besked: Bel&#248;b 100 &#8364; &lt;b&gt;', $html);
     }
 
     public function testAnUnknownRejectionShowsOnlyTheMessage(): void
