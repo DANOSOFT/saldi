@@ -11,6 +11,7 @@
 // History:
 // 20261103 CL/LH SD-766: created.
 // 20261103 CL/SZ SD-754: K54.
+// 20261104 CL/SZ SD-756: K12 and K18.
 
 require_once __DIR__ . '/../ShopifyEnv.php';
 require_once __DIR__ . '/../FakeShopifyStore.php';
@@ -38,6 +39,20 @@ function shopify_sandbox_scenarios(): array
 			'args' => ['shop_key' => 'SALDI_SHOPIFY_SANDBOX_K03_SHOP:hml', 'endpoint_url' => 'SALDI_SHOPIFY_SANDBOX_ENDPOINT'],
 			'owner' => 'DTAILS',
 			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is WebhookEndpointTest'],
+		],
+		'K12' => [
+			'title' => 'a Ballerup POS sale reduces the Ballerup location in all three shops within 5 minutes',
+			'targets' => ['sandbox'],
+			'script' => 'K12.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K12_VARE', 'lager' => 'SALDI_SHOPIFY_SANDBOX_K12_LAGER:2'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant, right after the POS sale; on the fake it is StockPushTest'],
+		],
+		'K18' => [
+			'title' => 'a store order reduces Shopify stock by exactly the quantity sold (no double draw)',
+			'targets' => [],
+			'elsewhere' => ['status' => 'BLOCKED', 'owner' => 'WP13',
+				'detail' => 'needs BYPASS store orders (WP13) and the fulfil check on a Danosoft dev store; the push never adjusts, so Saldi\'s one draw is all Shopify gets unless a fulfilled BYPASS order draws again'],
 		],
 		'K45' => [
 			'title' => 'the document link of a posted invoice opens its PDF; a changed link opens nothing',
