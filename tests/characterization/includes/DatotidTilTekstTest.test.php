@@ -19,10 +19,13 @@ final class DatotidTilTekstTest extends TestCase
 {
     public function testATimestampIsFormatted(): void
     {
-        self::assertSame('06-06-2025', datotidTilTekst('1749197221'));
-        self::assertSame('06-06-2025', datotidTilTekst(1749197221));
-        self::assertSame('06-06-2025', datotidTilTekst('1749197221', 'd-m-Y'));
-        self::assertSame('2025', datotidTilTekst('1749197221', 'Y'));
+        // Expected values come from date() itself: the helper formats in PHP's default time zone,
+        // so a fixed string would fail in a zone where this timestamp falls on another day.
+        $ts = 1749197221;
+        self::assertSame(date('d-m-Y', $ts), datotidTilTekst((string)$ts));
+        self::assertSame(date('d-m-Y', $ts), datotidTilTekst($ts));
+        self::assertSame(date('d-m-Y', $ts), datotidTilTekst((string)$ts, 'd-m-Y'));
+        self::assertSame(date('Y', $ts), datotidTilTekst((string)$ts, 'Y'));
     }
 
     public function testATextDateIsShownAsItStands(): void
@@ -54,7 +57,7 @@ final class DatotidTilTekstTest extends TestCase
     {
         // '0' is a real timestamp and formats like one - the workaround the ticket suggests for the data.
         self::assertTrue(datotidErTidsstempel('0'));
-        self::assertSame('01-01-1970', datotidTilTekst('0'));
+        self::assertSame(date('d-m-Y', 0), datotidTilTekst('0'));
         // Values that look numeric but are not a timestamp are shown as they stand, not as 1970.
         self::assertFalse(datotidErTidsstempel('01-01-1970 01:00'));
         self::assertFalse(datotidErTidsstempel('0.5'));
@@ -67,6 +70,6 @@ final class DatotidTilTekstTest extends TestCase
         // once instead of every call site doing so; a formatted timestamp is unaffected.
         self::assertSame('&lt;b&gt;x&lt;/b&gt;', datotidTilTekst('<b>x</b>'));
         self::assertSame('a&amp;b', datotidTilDatoOgTid('a&b'));
-        self::assertSame('06-06-2025', datotidTilTekst('1749197221'));
+        self::assertSame(date('d-m-Y', 1749197221), datotidTilTekst('1749197221'));
     }
 }
