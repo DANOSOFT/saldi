@@ -16,6 +16,8 @@ groupBySeries: boolean
 groupById: boolean
 groupByIdDrawAllTitles: boolean
 dataUrl: string
+monthNames: array of the 12 month names shown in the month header (default Danish short names)
+daysText: string shown after the number of days on a block (default "dage")
 behavior: {
 	clickable: boolean,
 	draggable: boolean,
@@ -53,6 +55,8 @@ behavior: {
             groupById: false,
             groupByIdDrawAllTitles: false,
             vHeaderWidth: 100,
+            monthNames: ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"],
+            daysText: "dage",
             behavior: {
             	clickable: true,
             	draggable: true,
@@ -124,8 +128,6 @@ behavior: {
             applyLastClass(div.parent());
 		}
 		
-		//var monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-		var monthNames = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
 		var monthDates = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
 		// Creates a 3 dimensional array [year][month][day] of every day 
@@ -249,7 +251,7 @@ behavior: {
                     monthsDiv.append(jQuery("<div>", {
                         "class": "ganttview-hzheader-month",
                         "css": { "width": (w - 1) + "px" }
-                    }).append(monthNames[m] + "/" + y));
+                    }).append(opts.monthNames[m] + "/" + y));
                     for (var d in dates[y][m]) {
                         daysDiv.append(jQuery("<div>", { 
 													"class": "ganttview-hzheader-day",
@@ -391,7 +393,7 @@ behavior: {
                                 var offset = DateUtils.daysBetween(start, series.start);
                                 var block = jQuery("<div>", {
 				                      "class": "ganttview-block",
-				                      "title": series.name + ", " + size + " dage",
+				                      "title": series.name + ", " + size + " " + opts.daysText,
 				                      "css": {
 				                          "height": (parseInt(jQuery(rows[rowIdx]).css('height'), 10) - 4) + "px",
 				                          "width": ((size * cellWidth) - 9) + "px",
@@ -403,7 +405,7 @@ behavior: {
 			                    if (data[i].series[j].color) {
 			                        block.css("background-color", data[i].series[j].color);
 			                    }
-			                    block.append(jQuery("<div>", { "class": "ganttview-block-text" }).text(size + " dage"));
+			                    block.append(jQuery("<div>", { "class": "ganttview-block-text" }).text(size + " " + opts.daysText));
 		               		   jQuery(rows[rowIdx]).append(block);
 				              }
 		                 
@@ -420,7 +422,7 @@ behavior: {
                                 var offset = DateUtils.daysBetween(start, series.start);
                                 var block = jQuery("<div>", {
 				                      "class": "ganttview-block",
-				                      "title": series.title + ", " + size + " dage",
+				                      "title": series.title + ", " + size + " " + opts.daysText,
 				                      "css": {
 				                          "height": (parseInt(jQuery(rows[ listId[ id ] ]).css('height'), 10) - 4) + "px",
 				                          "width": ((size * cellWidth) - 9) + "px",
@@ -432,7 +434,7 @@ behavior: {
 			                    if (data[i].series[j].color) {
 			                        block.css("background-color", data[i].series[j].color);
 			                    }
-			                    block.append(jQuery("<div>", { "class": "ganttview-block-text" }).text(size + " dage"));
+			                    block.append(jQuery("<div>", { "class": "ganttview-block-text" }).text(size + " " + opts.daysText));
 		               		   jQuery(rows[ listId[ id ] ]).append(block);
 				              }
 	            		 }
@@ -446,7 +448,7 @@ behavior: {
                         var offset = DateUtils.daysBetween(start, series.start);
                         var block = jQuery("<div>", {
 		                      "class": "ganttview-block",
-		                      "title": series.title + ", " + size + " dage",
+		                      "title": series.title + ", " + size + " " + opts.daysText,
 		                      "css": {
 				                      "height": (parseInt(jQuery(rows[rowIdx]).css('height'), 10) - 4) + "px",
 		                          "width": ((size * cellWidth) - 9) + "px",
@@ -458,7 +460,7 @@ behavior: {
 	                    if (data[i].series[j].color) {
 	                        block.css("background-color", data[i].series[j].color);
 	                    }
-	                    block.append(jQuery("<div>", { "class": "ganttview-block-text" }).text(size + " dage"));
+	                    block.append(jQuery("<div>", { "class": "ganttview-block-text" }).text(size + " " + opts.daysText));
                		   jQuery(rows[rowIdx]).append(block);
 		              }
                       rowIdx = rowIdx + 1;
@@ -473,7 +475,7 @@ behavior: {
                     var offset = DateUtils.daysBetween(start, series.start);
                     var block = jQuery("<div>", {
                         "class": "ganttview-block",
-                        "title": series.title + ", " + size + " dage",
+                        "title": series.title + ", " + size + " " + opts.daysText,
                         "css": {
 				                    "height": (parseInt(jQuery(rows[rowIdx]).css('height'), 10) - 4) + "px",
                             "width": ((size * cellWidth) - 9) + "px",
@@ -485,7 +487,7 @@ behavior: {
                     if (data[i].series[j].color) {
                         block.css("background-color", data[i].series[j].color);
                     }
-                    block.append(jQuery("<div>", { "class": "ganttview-block-text" }).text(size + " dage"));
+                    block.append(jQuery("<div>", { "class": "ganttview-block-text" }).text(size + " " + opts.daysText));
                     jQuery(rows[rowIdx]).append(block);
                     rowIdx = rowIdx + 1;
                 }
@@ -573,7 +575,7 @@ behavior: {
                     var width = block.outerWidth();
 					var numberOfDays = Math.round(width / cellWidth) - 1;
 					block.data("block-data").end = newStart.clone().addDays(numberOfDays);
-					jQuery("div.ganttview-block-text", block).text(numberOfDays + 1 + " dage"); // her skrives antal dage!!!
+					jQuery("div.ganttview-block-text", block).text(numberOfDays + 1 + " " + opts.daysText); // her skrives antal dage!!!
 					
 					// Remove top and left properties to avoid incorrect block positioning,
         	// set position to relative to keep blocks relative to scrollbar when scrolling

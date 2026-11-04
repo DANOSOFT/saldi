@@ -42,7 +42,16 @@ if ($kontotype=='erhverv') {
 }
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<div class=\"row\"><div class=\"left\">".findtekst('668|Betalingsbet.', $sprog_id)."<!--tekst 668--></div><div class=\"right\"><select style=\"width:100px;\" name=\"betalingsbet\" onchange=\"javascript:docChange = true;\" >\n";
-print "<option>$betalingsbet</option>\n";
+// The stored term stays the value; only the shown text follows the user's language, as in the options below.
+$betalingsbet_tekst = array(
+	'Forud'     => findtekst('369|Forud', $sprog_id),
+	'Kontant'   => findtekst('370|Kontant', $sprog_id),
+	'Efterkrav' => findtekst('371|Efterkrav', $sprog_id),
+	'Netto'     => findtekst('372|Netto', $sprog_id),
+	'Lb. md.'   => findtekst('373|Lb. md.', $sprog_id),
+);
+$betalingsbet_vis = ifset($betalingsbet_tekst, (string)$betalingsbet, $betalingsbet);
+print "<option value=\"".htmlspecialchars((string)$betalingsbet)."\">".htmlspecialchars((string)$betalingsbet_vis)."</option>\n";
 if ($betalingsbet!='Forud') 	{print "<option value=\"Forud\">".findtekst('369|Forud', $sprog_id)."<!--tekst 369--></option>"; }
 if ($betalingsbet!='Kontant') 	{print "<option value=\"Kontant\">".findtekst('370|Kontant', $sprog_id)."<!--tekst 370--></option>"; }
 if ($betalingsbet!='Efterkrav') 	{print "<option value=\"Efterkrav\">".findtekst('371|Efterkrav', $sprog_id)."<!--tekst 371--></option>"; }

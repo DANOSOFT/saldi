@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -104,6 +104,7 @@
 //                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
 // 20261103 LOE SST-936 Include dimensionSqlFragment() for the three Finans reports.
 //              It now owns the department, employee and project filters those reports share.
+// 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -115,6 +116,7 @@ include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/jsString.php');
+include(__DIR__ . '/stdFunc/datotidTilTekst.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
