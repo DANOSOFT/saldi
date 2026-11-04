@@ -129,6 +129,7 @@
 //                On such a card the Kundetype select now refuses the change when it is made, with Gem's message, before anything is typed.
 // 20261104 CL/MJ SST-892 The tutorial's company-name step is only added on an Erhverv card, as the field is hidden on a private one.
 //                A saved card without a type is not locked (Gem allows any type there), and a refused change puts back the drawn type.
+//                A refused change no longer marks the card as edited, so Tilbage doesn't ask to discard changes nobody made.
 @session_start();
 $s_id = session_id();
 
@@ -1515,7 +1516,7 @@ $bg = $bgcolor5;
 print "<input type=hidden name=gl_kontotype value='$kontotype'>\n";
 // SD-774: e-invoice CVR warning above the card fields, spanning its three columns.
 if ($einvoiceCvrBanner !== '') print "<tr><td colspan=3>$einvoiceCvrBanner</td></tr>\n";
-print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true; debitorkortVisKontotype(this.value);\">\n";
+print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:if (debitorkortVisKontotype(this.value)) docChange = true;\">\n";
 if ($kontotype == 'privat') {
 
 	print "<option value=privat>" . findtekst('353|Privat', $sprog_id) . "<!--tekst 353--></option>\n";
@@ -2720,6 +2721,7 @@ function split_navn($firmanavn)
 // refuses it and reloads), so a lookup there would throw away the user's edits.
 // 20261030 CL/MJ SST-892 On such a card the type select refuses the change at once, with Gem's own message, and
 // goes back, so nothing is typed into the company name that the refused save would throw away.
+// 20261104 CL/MJ SST-892 It returns false for a refused change, and the select only marks the card as edited on true.
 $debitorkortTypeLaast = ($id && isset($an_id) && $kontotype) ? 'true' : 'false';
 print "<script type=\"text/javascript\">
 var debitorkortTypeLaast = $debitorkortTypeLaast;
@@ -2728,14 +2730,15 @@ function debitorkortVisKontotype(kontotype) {
 	if (debitorkortTypeLaast && form && form.gl_kontotype && kontotype != form.gl_kontotype.value) {
 		alert('Please delete all contacts to proceed');
 		form.kontotype.selectedIndex = 0;
-		return;
+		return false;
 	}
 	var firma = document.getElementById('debitorkort_firmanavn');
-	if (!firma) return;
+	if (!firma) return true;
 	var erhverv = (kontotype == 'erhverv');
 	firma.style.display = erhverv ? '' : 'none';
 	document.getElementById('debitorkort_fornavn').style.display = erhverv ? 'none' : '';
 	document.getElementById('debitorkort_efternavn').style.display = erhverv ? 'none' : '';
+	return true;
 }
 </script>\n";
 if (!$id) {
