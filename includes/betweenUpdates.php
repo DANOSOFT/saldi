@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.10.29
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 //                login (includes/opdat_func/backfillOrderLineDelivered.php) instead of one UPDATE at the first login.
 //                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
 // 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url (the Vibrant payment the server created for a booking).
+// 20261104 CL/MMR SST-841 CodeRabbit (PR #969): the rentalperiod table and column lookups only look at the active schema (current_schema() / DATABASE()).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -160,18 +161,24 @@ backfillOrderLineDelivered($db_type);
 // 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url hold the Vibrant payment the server created for
 // a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
 // the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
+// Both lookups are limited to the active schema, as a rentalperiod table in another schema must not decide it.
 if (isset($db) && is_string($db) && $db !== '') {
+	$rentalSchema = in_array($db_type, ['mysql', 'mysqli'], true) ? "table_schema = DATABASE()" : "table_schema = current_schema()";
 	$rentalTable = db_fetch_array(db_select(
-		"SELECT table_name FROM information_schema.tables WHERE (table_schema = '" . db_escape_string($db) . "' OR table_catalog = '" . db_escape_string($db) . "') AND table_name = 'rentalperiod'",
+		"SELECT table_name FROM information_schema.tables WHERE $rentalSchema AND table_name = 'rentalperiod'",
 		__FILE__ . " linje " . __LINE__
 	));
 	if ($rentalTable) {
-		include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
-		ensureTableAndColumns($db, 'rentalperiod', array(
-			'id' => 'SERIAL PRIMARY KEY', 'order_id' => 'INTEGER', 'rt_from' => 'numeric(15,0)', 'rt_to' => 'numeric(15,0)',
-			'item_id' => 'INTEGER', 'cust_id' => 'INTEGER', 'expiry_time' => 'TIMESTAMP', 'payment_id' => 'varchar(100)',
-			'payment_url' => 'varchar(500)'
-		));
+		$rentalColumns = array();
+		$q = db_select("SELECT column_name FROM information_schema.columns WHERE $rentalSchema AND table_name = 'rentalperiod'", __FILE__ . " linje " . __LINE__);
+		while ($q && $r = db_fetch_array($q)) {
+			$rentalColumns[] = $r['column_name'];
+		}
+		foreach (array('payment_id' => 'varchar(100)', 'payment_url' => 'varchar(500)') as $column => $type) {
+			if (!in_array($column, $rentalColumns, true)) {
+				db_modify("ALTER TABLE rentalperiod ADD COLUMN $column $type", __FILE__ . " linje " . __LINE__);
+			}
+		}
 	}
 }
 

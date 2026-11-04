@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261103 CL/MMR Created (SST-841, review by sawaneh1 on PR #969).
+ * 20261104 CL/MMR CodeRabbit (PR #969): deleting the booking and its order is one transaction; transaktion() is recorded too.
  */
 #[RunTestsInSeparateProcesses]
 final class updateBookingPayment extends TestCase
@@ -24,9 +25,10 @@ final class updateBookingPayment extends TestCase
      * @param array<string, mixed>|false $booking  rentalperiod row (order_id, expiry_time, payment_id) or false.
      * @param array<string, mixed>|false $claimed  What the approving UPDATE ... RETURNING returns.
      */
-    private static function boot($booking, ?string $vibrant, $claimed = ['order_id' => '7'], string $fakturanr = ''): void
+    private static function boot($booking, ?string $vibrant, $claimed = ['order_id' => '7'], string $fakturanr = '', bool $orderDeleteFails = false): void
     {
         $GLOBALS['__sql'] = [];
+        $GLOBALS['__orderDeleteFails'] = $orderDeleteFails;
         $GLOBALS['__booking'] = $booking;
         $GLOBALS['__claimed'] = $claimed;
         $GLOBALS['__fakturanr'] = $fakturanr;
@@ -34,9 +36,14 @@ final class updateBookingPayment extends TestCase
         $GLOBALS['__vibrantCalls'] = 0;
         eval('
             function db_escape_string($s) { return addslashes((string) $s); }
-            function db_select($q, $where = "") { $GLOBALS["__sql"][] = $q; return $q; }
+            function db_select($q, $where = "") {
+                $GLOBALS["__sql"][] = $q;
+                return ($GLOBALS["__orderDeleteFails"] && strpos($q, "DELETE FROM ordrer") === 0) ? false : $q;
+            }
             function db_modify($q, $where = "") { $GLOBALS["__sql"][] = $q; return true; }
+            function transaktion($q) { $GLOBALS["__sql"][] = "transaktion:" . $q; }
             function db_fetch_array($q) {
+                if (strpos($q, "DELETE FROM rentalperiod") === 0) return ["order_id" => $GLOBALS["__booking"]["order_id"]];
                 if (strpos($q, "information_schema.columns") !== false) return ["n" => 2];
                 if (strpos($q, "SELECT order_id, expiry_time, payment_id FROM rentalperiod") === 0) return $GLOBALS["__booking"];
                 if (strpos($q, "SELECT apikey FROM rentalpayment") === 0) return ["apikey" => "testkey"];
@@ -126,6 +133,38 @@ final class updateBookingPayment extends TestCase
         $this->assertSame(['status' => 'pending'], update_booking_payment('saldi_1', ['id' => 3, 'status' => 'approved'], $cb));
         $this->assertSame(1, $GLOBALS['__vibrantCalls']);
         $this->assertCount(0, $calls);
+    }
+
+    private const UNPAID = ['order_id' => '7', 'expiry_time' => '2026-11-03 12:00:00', 'payment_id' => ''];
+
+    /** @return list<string> the statements of the delete branch, in order */
+    private static function deleteStatements(): array
+    {
+        return array_values(array_filter($GLOBALS['__sql'], static fn ($q) => strpos($q, 'transaktion:') === 0 || strpos($q, 'DELETE ') === 0));
+    }
+
+    public function testARejectedUnpaidBookingAndItsOrderAreDeletedInOneTransaction(): void
+    {
+        self::boot(self::UNPAID, null);
+        [$cb, $calls] = self::invoice();
+        $this->assertSame(['status' => 'deleted'], update_booking_payment('saldi_1', ['id' => 3, 'status' => 'rejected'], $cb));
+        $s = self::deleteStatements();
+        $this->assertSame('transaktion:begin', $s[0]);
+        $this->assertStringStartsWith('DELETE FROM rentalperiod WHERE id = 3', $s[1]);
+        $this->assertSame('DELETE FROM ordrer WHERE id = 7', $s[2]);
+        $this->assertSame(['transaktion:commit'], array_slice($s, 3));
+        $this->assertCount(0, $calls);
+    }
+
+    public function testAFailedOrderDeleteRollsTheBookingDeleteBack(): void
+    {
+        // CodeRabbit (PR #969): the booking delete committed on its own and left an order without a booking
+        self::boot(self::UNPAID, null, ['order_id' => '7'], '', true);
+        [$cb] = self::invoice();
+        $this->assertSame(['status' => 'pending'], update_booking_payment('saldi_1', ['id' => 3, 'status' => 'rejected'], $cb));
+        $s = self::deleteStatements();
+        $this->assertSame('transaktion:rollback', end($s));
+        $this->assertNotContains('transaktion:commit', $s);
     }
 
     public function testThePaymentColumnsAreCountedOncePerName(): void

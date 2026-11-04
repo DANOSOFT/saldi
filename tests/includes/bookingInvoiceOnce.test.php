@@ -13,16 +13,21 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261103 CL/MMR Created (SST-841, CodeRabbit on PR #969).
+ * 20261104 CL/MMR CodeRabbit (PR #969): a failed lock query is a failed attempt, with no invoice and nothing to release.
  */
 #[RunTestsInSeparateProcesses]
 final class bookingInvoiceOnce extends TestCase
 {
-    private static function boot(?array $order): void
+    private static function boot(?array $order, bool $lockFails = false): void
     {
         $GLOBALS['__sql'] = [];
         $GLOBALS['__order'] = $order;
+        $GLOBALS['__lockFails'] = $lockFails;
         eval('
-            function db_select($q, $where = "") { $GLOBALS["__sql"][] = $q; return $q; }
+            function db_select($q, $where = "") {
+                $GLOBALS["__sql"][] = $q;
+                return ($GLOBALS["__lockFails"] && strpos($q, "SELECT pg_advisory_lock(") === 0) ? false : $q;
+            }
             function db_fetch_array($q) { return strpos($q, "SELECT fakturanr") === 0 ? $GLOBALS["__order"] : false; }
         ');
         require_once __DIR__ . '/../../includes/vibrantPayment.php';
@@ -35,6 +40,19 @@ final class bookingInvoiceOnce extends TestCase
         $taken = count(array_filter($GLOBALS['__sql'], static fn ($q) => $q === 'SELECT pg_advisory_lock(841, 5)'));
         $released = count(array_filter($GLOBALS['__sql'], static fn ($q) => $q === 'SELECT pg_advisory_unlock(841, 5)'));
         return [$taken, $released];
+    }
+
+    public function testAFailedLockQueryIsAFailedAttemptWithoutInvoicing(): void
+    {
+        self::boot(['fakturanr' => ''], true);
+        $called = false;
+        $done = booking_invoice_once(5, static function () use (&$called) {
+            $called = true;
+            return 5;
+        });
+        $this->assertFalse($done);
+        $this->assertFalse($called, 'no invoice without the lock');
+        $this->assertSame([1, 0], self::locks(), 'nothing to release when no lock was taken');
     }
 
     public function testAThrownExceptionIsAFailedAttemptAndTheLockIsReleased(): void

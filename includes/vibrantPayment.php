@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/vibrantPayment.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- includes/vibrantPayment.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,8 @@
 // 20261103 CL/MMR SST-841 Review (PR #969): approving claims the row with UPDATE ... RETURNING, so a booking the expiry cleanup deleted is not invoiced.
 //                 An approved booking with a bound payment is invoiced (once) without asking Vibrant again.
 //                 Vibrant is only asked while the booking is pending, and rental_payment_ready() counts distinct columns.
+// 20261104 CL/MMR SST-841 CodeRabbit (PR #969): a failed advisory lock query is a failed invoice attempt, so two approvals never invoice unlocked.
+//                 Deleting a rejected booking and its order is one transaction; a failed order delete rolls the booking back and answers pending.
 //
 
 if (!function_exists('rental_payment_ready')) {
@@ -136,7 +138,11 @@ function booking_invoice_once($orderId, $invoice) {
 	if ($orderId <= 0) {
 		return false;
 	}
-	db_select("SELECT pg_advisory_lock(841, $orderId)", __FILE__ . " linje " . __LINE__);
+	// Without the lock two approvals could invoice at the same time, so a failed lock query is a failed attempt
+	// (invoice_failed, a later call retries). No lock was taken, so there is nothing to release.
+	if (!db_select("SELECT pg_advisory_lock(841, $orderId)", __FILE__ . " linje " . __LINE__)) {
+		return false;
+	}
 	$done = false;
 	try {
 		$order = db_fetch_array(db_select("SELECT fakturanr FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__));
@@ -211,15 +217,21 @@ function update_booking_payment($db, $data, $invoice) {
 		return array('status' => 'approved');
 	}
 	if ($decision === 'delete') {
-		// only the binding the decision was made on: a payment bound meanwhile keeps the booking
+		// Only the binding the decision was made on: a payment bound meanwhile keeps the booking. The booking and its
+		// order go in one transaction, so a failed order delete keeps the booking and leaves no order without a booking.
 		$checked = db_escape_string((string)$booking['payment_id']);
+		transaktion('begin');
 		$qtxt = "DELETE FROM rentalperiod WHERE id = $bookingId AND expiry_time IS NOT NULL AND COALESCE(payment_id, '') = '$checked' RETURNING order_id";
 		$deleted = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($deleted && !db_select("DELETE FROM ordrer WHERE id = " . (int)$deleted['order_id'], __FILE__ . " linje " . __LINE__)) {
+			transaktion('rollback');
+			return array('status' => 'pending');
+		}
+		transaktion($deleted ? 'commit' : 'rollback');
 		if (!$deleted) {
 			$still = db_fetch_array(db_select("SELECT expiry_time FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
 			return array('status' => !$still ? 'deleted' : ($still['expiry_time'] ? 'pending' : 'approved'));
 		}
-		db_modify("DELETE FROM ordrer WHERE id = " . (int)$deleted['order_id'], __FILE__ . " linje " . __LINE__);
 		return array('status' => 'deleted');
 	}
 	return array('status' => $decision);
