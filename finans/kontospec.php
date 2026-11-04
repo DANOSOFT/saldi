@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontospec.php --- ver 5.0.0 --- 2026.09.29 ---
+// --- finans/kontospec.php --- ver 5.0.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20260821 CL/SZ Faktura column now links to ordre.php/pos_ordre.php via ordre_id
 // 20260826 LOE Linked to debitor/ordre.php instead of finans/ordre.php
 // 20260929 CL/SZ SD-698: Optional returside; when set, Tilbage goes back there instead of regnskab.php (used by the kassekladde account lookup).
+// 20261104 CL/MMR SST-914: Debet/Kredit filters use <> 0, so postings with a negative debet or kredit amount are shown.
 
 
 $fakturanr = array();
@@ -523,8 +524,8 @@ $grid_data = [
             'filterName' => 'Transaktionstype',
             'joinOperator' => 'OR',
             'options' => [
-                ['name' => 'Debet', 'sqlOn' => "debet > 0", 'sqlOff' => '', 'checked' => 'checked'],
-                ['name' => 'Kredit', 'sqlOn' => "kredit > 0", 'sqlOff' => '', 'checked' => 'checked'],
+                ['name' => 'Debet', 'sqlOn' => "debet <> 0", 'sqlOff' => '', 'checked' => 'checked'],
+                ['name' => 'Kredit', 'sqlOn' => "kredit <> 0", 'sqlOff' => '', 'checked' => 'checked'],
                 ['name' => 'Lagertransaktioner', 'sqlOn' => "beskrivelse LIKE '%lagertransaktion%'", 'sqlOff' => '', 'checked' => 'checked']
             ]
         ]
