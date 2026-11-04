@@ -37,9 +37,10 @@ if (!function_exists('datotidErTidsstempel')) {
 	 */
 	function datotidErTidsstempel($vaerdi)
 	{
-		// ctype_digit(), not is_numeric(): a text date such as "01-01-1970 01:00", "0.5" or "-1"
-		// is not a timestamp, though is_numeric() would call the first two of those numeric.
-		return ctype_digit((string)$vaerdi);
+		// A whole number of seconds, with the minus sign a date before 1970 has; that older range is
+		// real data in the check-sheet tables, so it must format rather than print as a raw number.
+		// Not is_numeric(): "0.5" and "01-01-1970 01:00" would pass it but are not timestamps.
+		return preg_match('/^-?\d+$/', (string)$vaerdi) === 1;
 	}
 }
 
@@ -73,10 +74,14 @@ if (!function_exists('datoTekstTilDato')) {
 	 */
 	function datoTekstTilDato($tekst)
 	{
-		// A legacy datotid ("01-01-1970 01:00") has no second dash and a year of "1970 01:00", which
-		// checkdate() refuses with a TypeError on PHP 8; padding and a ctype_digit() test on each part
-		// sends it, and every other unparsable value, to the caller's "keep what is stored" branch.
-		$dele = array_pad(explode('-', trim((string)$tekst)), 3, '');
+		// Exactly three parts: a legacy datotid ("01-01-1970 01:00") has no second dash and a year of
+		// "1970 01:00", which checkdate() refuses with a TypeError on PHP 8, and a posted value with a
+		// fourth part ("04-11-2026-junk") is not the date the caller meant either. Both, and every other
+		// unparsable value, go to the caller's "keep what is stored" branch.
+		$dele = explode('-', trim((string)$tekst));
+		if (count($dele) !== 3) {
+			return NULL;
+		}
 		if (!ctype_digit($dele[0]) || !ctype_digit($dele[1]) || !ctype_digit($dele[2])) {
 			return NULL;
 		}

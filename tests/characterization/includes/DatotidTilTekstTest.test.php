@@ -58,6 +58,9 @@ final class DatotidTilTekstTest extends TestCase
         // '0' is a real timestamp and formats like one - the workaround the ticket suggests for the data.
         self::assertTrue(datotidErTidsstempel('0'));
         self::assertSame(date('d-m-Y', 0), datotidTilTekst('0'));
+        // A date before 1970 is a negative timestamp (real check-sheet data), and formats like any other.
+        self::assertTrue(datotidErTidsstempel('-1680397200'));
+        self::assertSame(date('d-m-Y', -1680397200), datotidTilTekst('-1680397200'));
         // Values that look numeric but are not a timestamp are shown as they stand, not as 1970.
         self::assertFalse(datotidErTidsstempel('01-01-1970 01:00'));
         self::assertFalse(datotidErTidsstempel('0.5'));
@@ -79,6 +82,8 @@ final class DatotidTilTekstTest extends TestCase
         self::assertNull(datoTekstTilDato('31-02-2026'));
         self::assertNull(datoTekstTilDato('1-1-26'));
         self::assertNull(datoTekstTilDato('aa-bb-cccc'));
+        self::assertNull(datoTekstTilDato('04-11-2026-junk'));
+        self::assertNull(datoTekstTilDato('04-11-2026 12:00'));
     }
 
     public function testATextValueIsEscapedForThePage(): void
