@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 //
 // History:
 // 20261104 LOE SST-940 created.
+// 20261104 LOE SST-940 review: a trailing newline must not read as a timestamp.
 
 require_once __DIR__ . '/../../../includes/stdFunc/datotidTilTekst.php';
 
@@ -65,6 +66,10 @@ final class DatotidTilTekstTest extends TestCase
         self::assertFalse(datotidErTidsstempel('01-01-1970 01:00'));
         self::assertFalse(datotidErTidsstempel('0.5'));
         self::assertSame('0.5', datotidTilTekst('0.5'));
+        // A trailing newline ends the value, so it is not a timestamp either: it is shown as stored
+        // instead of being read as seconds. $ matches before that newline unless the pattern says D.
+        self::assertFalse(datotidErTidsstempel("-1680397200\n"));
+        self::assertSame("-1680397200\n", datotidTilTekst("-1680397200\n"));
     }
 
     public function testAPostedDdMmYyyyIsReadOnlyWhenItIsARealDate(): void

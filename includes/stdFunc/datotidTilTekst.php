@@ -26,6 +26,7 @@
 //              Those columns are text: a unix timestamp normally, but older data holds a finished date string.
 //              date() throws a TypeError on such a value in PHP 8.
 //              The Dagbog autocomplete answered 500 and the list stopped halfway through the render.
+//              A value with a trailing newline is not a timestamp either: $ alone matches before one.
 
 if (!function_exists('datotidErTidsstempel')) {
 	/**
@@ -39,8 +40,9 @@ if (!function_exists('datotidErTidsstempel')) {
 	{
 		// A whole number of seconds, with the minus sign a date before 1970 has; that older range is
 		// real data in the check-sheet tables, so it must format rather than print as a raw number.
-		// Not is_numeric(): "0.5" and "01-01-1970 01:00" would pass it but are not timestamps.
-		return preg_match('/^-?\d+$/', (string)$vaerdi) === 1;
+		// Not is_numeric(): "0.5" and "01-01-1970 01:00" would pass it but are not timestamps. The D
+		// modifier makes $ mean the end of the value, not "before the last newline".
+		return preg_match('/^-?\d+$/D', (string)$vaerdi) === 1;
 	}
 }
 
