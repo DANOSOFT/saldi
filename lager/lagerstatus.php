@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-09-25 ----
+// -----------------lager/lagerstatus.php--- ver 5.1.0 --- 2026-11-04 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -65,6 +65,8 @@
 //             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
 //             no longer matches (almost) the whole catalogue or spuriously bypasses the
 //             zStock/showClosed/activity filters via $lsHasTextSearch.
+// 20261104 LOE SST-922 The Print button printed one screen of the list instead of the whole report.
+//              autoprint=1 now renders the whole filtered list print-friendly, and @media print releases the grid.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -331,13 +333,32 @@ global $menu;
 //             lager/rapport.php): fixed blue header bar + filter form, internal-scroll data grid
 //             with a sticky colgroup-driven column-title row, and a fixed footer with real
 //             (server-side) pagination. $menu != 'S' keeps the old, unstyled chrome unchanged.
-$lsGridMode = ($menu=='S');
+// SST-922 - the shell's Print button loads this page with autoprint=1: the whole filtered list on one
+// plain page, without the fixed-height grid, the search row, the buttons or the page selector.
+$autoprint = if_isset($_GET['autoprint']);
+// SST-922 - the printout follows what the screen is showing: the same page of the same page size the
+// user picked, so "Linjer pr. side" = 100 prints 100 rows and only "Alle" prints the whole list.
+if ($autoprint) {
+	$lsValidPageSizes = array(50,100,250,500,100000);
+	$lsPerPage = (int) (isset($_GET['ls_per_page']) ? $_GET['ls_per_page'] : 0);
+	if (!in_array($lsPerPage, $lsValidPageSizes)) $lsPerPage = 50;
+	$lsPage = max(1, (int) (isset($_GET['ls_page']) ? $_GET['ls_page'] : 1));
+	$lsTotalRows = 0;
+	$lsPageStart = ($lsPage - 1) * $lsPerPage;
+	$lsPageEnd = $lsPageStart + $lsPerPage;
+}
+$lsGridMode = ($menu=='S' && !$autoprint);
 // MB-31/CodeRabbit - propagate every $lsSFields numeric filter (not just varenr/varenavn/enhed),
 // same as $lsBaseUrlParams below does for pagination, so a CSV export matches what the grid shows.
 $lsCsvHref = "lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg&varenr=".urlencode((string)$varenrSoeg)."&varenavn=".urlencode((string)$varenavn)."&enhed=".urlencode((string)$enhedSoeg);
 foreach ($lsSFields as $lsSField) $lsCsvHref .= "&lss_".$lsSField."=".urlencode((string)$lsS[$lsSField]);
 
-if ($lsGridMode) {
+if ($autoprint) {
+	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody><tr><td align='center'><b>" . ucfirst(findtekst('992|Lagerstatus', $sprog_id)) . "</b>";
+	if ($dato) print " &nbsp;" . findtekst('438|Dato', $sprog_id) . ": $dato";
+	print "</td></tr></tbody></table>\n";
+	print "<table border=0 cellpadding=2 cellspacing=0 width=100%>";
+} elseif ($lsGridMode) {
 	$lsTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
@@ -364,6 +385,9 @@ if ($lsGridMode) {
 ($zStock)?$zStock="checked='checked'":$zStock=NULL;
 ($showClosed)?$showClosed="checked='checked'":$showClosed=NULL;
 
+if ($autoprint) {
+	// no filter row, OK button or back/CSV links on the printout
+} else {
 if (!$lsGridMode) print "<form action=lagerstatus.php method=post>";
 if ($lsGridMode) print "<form action=lagerstatus.php method=post><table width='100%' cellpadding='2' cellspacing='0'><tbody><tr><td align='center'>";
 else print "<tr><td colspan=\"7\" align=\"center\">";
@@ -406,6 +430,7 @@ if ($lsGridMode) {
 	print "<td  colspan=6 align=right><input type=submit value=OK></form></td></tr>";
 	print "<tr><td colspan=9><hr></td></tr>";
 }
+}
 
 // Real (server-side) pagination for the Grid Framework footer - same $ls_page/$ls_per_page
 // query-param pattern the other Grid Framework reports use. $vareantal is the candidate item
@@ -441,6 +466,18 @@ if ($lsGridMode) {
    no real search field looked identical to the two working ones (Varenr./Beskrivelse) - blend
    them into the row instead so it's visually clear only those two are actually searchable. */
 #lsGridTable tr.ls-search-row input:disabled { background-color:$bgcolor; border-color:$bgcolor; cursor:default; }
+/* SST-922 - a plain Ctrl+P must not clip the list to one screen: release the fixed heights, drop the
+   filter bar, the per-column search row and the page selector. The Print button does better than this
+   - it loads the autoprint view, which holds every row, not just the page on screen. */
+@media print {
+	html, body { height:auto !important; overflow:visible !important; }
+	#lsPageFlex { display:block !important; height:auto !important; }
+	#lsPageFlex > div:first-child { display:none !important; }
+	#lsGridWrapper { overflow:visible !important; height:auto !important; min-height:0 !important; padding:0 !important; }
+	#lsGridTable thead { position:static !important; }
+	#lsGridTable tr.ls-search-row { display:none !important; }
+	#lsPageFlex .navbutton { display:none !important; }
+}
 </style>\n";
 	$lsColgroupHtml = "<colgroup><col style='width:10%'><col style='width:6%'><col style='width:34%'><col style='width:8%'><col style='width:8%'><col style='width:8%'><col style='width:9%'><col style='width:9%'><col style='width:8%'></colgroup>";
 	// MB-31 - standardised per-column search row (matches lager/lister/vareliste.php's
@@ -463,6 +500,8 @@ if ($lsGridMode) {
 	print "<input type='hidden' name='zStock' value='" . htmlspecialchars((string)$zStock, ENT_QUOTES) . "'>";
 	print "<input type='hidden' name='showClosed' value='" . htmlspecialchars((string)$showClosed, ENT_QUOTES) . "'>";
 	print "<input type='submit' style='position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;'>";
+	// SST-922 - tells the shell's Print button that this page has an all-rows autoprint view.
+	print "<script>window.saldiPrintAutoprint = true;</script>\n";
 	$lsSearchVarenr   = "<input class='inputbox' type='text' name='varenr' value='" . htmlspecialchars((string)$varenrSoeg, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
 	$lsSearchVarenavn = "<input class='inputbox' type='text' name='varenavn' value='" . htmlspecialchars((string)$varenavn, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
 	$lsSearchEnhed    = "<input class='inputbox' type='text' name='enhed' value='" . htmlspecialchars((string)$enhedSoeg, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
@@ -489,6 +528,7 @@ if ($lsGridMode) {
 	<th>$lsSearchTilgang</th><th>$lsSearchAfgang</th><th>$lsSearchAntal</th><th>$lsSearchKobspris</th><th>$lsSearchKostpris</th><th>$lsSearchSalgspris</th></tr>";
 	print "</thead><tbody>";
 } else {
+	if ($autoprint) print "<thead>";
 	print "<tr><td width=8%>".findtekst('917|Varenr.', $sprog_id).".</td><td width=5%>".findtekst('945|Enhed', $sprog_id)."</td><td width=48%>".findtekst('914|Beskrivelse', $sprog_id)."</td>
 	<td align=right width=5%><span title='".findtekst('1657|Antal enheder købt før den', $sprog_id)." $dato'>".findtekst('2744|Tilgang', $sprog_id)."</span></td>
 	<td align=right width=5%><span title='".findtekst('1658|Antal enheder solgt før den', $sprog_id)." $dato'>".findtekst('2745|Afgang', $sprog_id)."</span></td>
@@ -496,6 +536,7 @@ if ($lsGridMode) {
 	<td align=right width=8%><span title='".findtekst('1660|Købsværdi af lagerbeholdning (Reel købspris)', $sprog_id)."'>".findtekst('978|Købspris', $sprog_id)."</span></td>
 	<td align=right width=8%><span title='".findtekst('1661|Kostpris af lagerbeholdning (fra varekort)', $sprog_id)."'>".findtekst('950|Kostpris', $sprog_id)."</span></td>
 	<td align=right width=8%><span title='".findtekst('1662|Salgsværdi af lagerbeholdning (fra varekort)', $sprog_id)."'>".findtekst('949|Salgspris', $sprog_id)."</span></td></tr>";
+	if ($autoprint) print "</thead><tbody>";
 }
 
 if ($csv) {
@@ -551,7 +592,7 @@ for($x=1; $x<=$vareantal; $x++) {
 	// lager/rapport.php). ob_start() only intercepts print/echo output - the db_modify() stock
 	// corrections and fwrite($fp,...) CSV export below are unaffected and still run for every
 	// item regardless of page, exactly as before.
-	if ($lsGridMode) ob_start();
+	if ($lsGridMode || $autoprint) ob_start();
 	$handlet[$x]=0;
 	$batch_k_antal[$x]=0;$batch_t_antal[$x]=0;$batch_pris[$x]=0;$batch_s_antal[$x]=0;
 	// 20260921 CDX/MJ SST-801 Read the two batch sums from the totals built once before this loop
@@ -708,7 +749,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		if ($csv) {
 			$linje="$varenr[$x]".";"."$enhed[$x]".";"."$beskrivelse[$x]".";"."$batch_k_antal[$x]".";"."$batch_s_antal[$x]".";".$batch_t_antal[$x].";".dkdecimal($batch_pris[$x]).";".dkdecimal($kostpris[$x]*$batch_t_antal[$x]).";".dkdecimal($salgspris[$x]*$batch_t_antal[$x]);
 #			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
-			if ($lsGridMode) {
+			if ($lsGridMode || $autoprint) {
 				// MB-31/CodeRabbit - deferred so a search actually filters what lands in the CSV too: written
 				// to the file only for matching rows, in the unified filter step below (same $lsMatchIndices
 				// as $lsAllChunks/$lsRowValues, so the index this candidate gets here stays aligned with them).
@@ -717,7 +758,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 				fwrite($fp,"$linje\n");
 			}
 		}
-		if ($lsGridMode) {
+		if ($lsGridMode || $autoprint) {
 			// MB-31 - snapshot of this item's already-computed values, used only to filter/paginate/total
 			// below (see the unified filter block after this loop) - never re-queried, so a search costs
 			// nothing beyond a plain comparison against numbers the report was already computing anyway.
@@ -732,7 +773,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 			$lagervalue=$lagervalue+$batch_pris[$x];$kostvalue=$kostvalue+$kostpris[$x]*$batch_t_antal[$x]; $salgsvalue=$salgsvalue+($salgspris[$x]*$batch_t_antal[$x]);
 		}
 	}
-	if ($lsGridMode) {
+	if ($lsGridMode || $autoprint) {
 		// Printing is deferred to the unified filter+paginate step after this loop (see below) - every
 		// item's chunk is captured here regardless of page, same as before. Nothing is printed at all
 		// for a candidate that doesn't pass the "has activity" gate above (no $lsRowValues entry either
@@ -741,7 +782,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		if ($lsChunk !== '') $lsAllChunks[] = $lsChunk;
 	}
 }
-if ($lsGridMode) {
+if ($lsGridMode || $autoprint) {
 	// MB-31 - unified filter/paginate/grand-total step, run once here now that every item's chunk and
 	// values have been captured (see the loop above) - overrides the provisional (unfiltered)
 	// $lsTotalRows/$lsPageStart/$lsPageEnd computed early on (before any item's value could be checked

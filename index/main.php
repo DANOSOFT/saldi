@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.0.0 --- 2026.09.30 ---
+// ---- index/main.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
 // 20261012 CL/LH SALDI Assist Guide: SALDI_ASSIST_GUIDE loads the v2 widget (help and navigation, no access to the books).
 // 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
+// 20261104 LOE SST-922 The Print button loads a page's autoprint view when the page offers one.
 @session_start();
 $s_id = session_id();
 
@@ -416,8 +417,7 @@ function brightenColor($color, $amount = 0.2) {
   </ul>
 
   <div id="desc-line">
-    <a href="#" onclick="window.frames['iframe_a'].focus();
-                           window.frames['iframe_a'].print();">Print</a>
+    <a href="#" onclick="saldiPrintIframe(); return false;">Print</a>
     <p title="DB nummer <?php print $db; ?>">Saldi version <?php print $version; ?></p>
   </div>
 </div>
@@ -541,6 +541,33 @@ function brightenColor($color, $amount = 0.2) {
 
     iframe.src = parsedTargetUrl.href
   }
+
+  // SST-922 - pages with a fixed-height grid print only the visible screen, and only the page of
+  // rows currently shown. A page that can render itself print-friendly sets
+  // window.saldiPrintAutoprint; this then loads it with autoprint=1, prints that, and puts the
+  // user's own URL back. Every other page is printed exactly as before, because the extra
+  // parameter means nothing to it and reloading it could drop a POST-rendered screen.
+  const saldiPrintIframe = () => {
+    const frame = document.getElementById('iframe_a');
+    const win = frame && frame.contentWindow;
+    if (!win) return;
+    let href = '';
+    try { href = win.location.href; } catch (e) { href = ''; }
+    if (!href || href === 'about:blank' || win.saldiPrintAutoprint !== true
+        || href.indexOf('autoprint=1') !== -1) {
+      win.focus();
+      win.print();
+      return;
+    }
+    const printHref = href + (href.indexOf('?') === -1 ? '?' : '&') + 'autoprint=1';
+    const onLoad = () => {
+      frame.removeEventListener('load', onLoad);
+      try { win.focus(); win.print(); } catch (e) { /* the browser refused the dialog */ }
+      try { win.location.href = href; } catch (e) { /* the frame is already navigating back */ }
+    };
+    frame.addEventListener('load', onLoad);
+    win.location.href = printHref;
+  };
 
   const redirect_uri = (uri) => {
     window.location = (location + "").split("/").splice(0, 4).join("/") + uri
