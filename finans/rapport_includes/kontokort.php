@@ -75,6 +75,7 @@
 //                 kontokort() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
 // 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
 //              The account range is cast here as well.
+//              The print link carries the employee list the form resolved, so the printout keeps the selected range.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -276,6 +277,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		'rapportart'  => $rapportart,
 		'ansat_fra'   => $ansat_fra,
 		'ansat_til'   => $ansat_til,
+		// The employee range is resolved here, from the form's own order; the printout must not
+		// rebuild it from the two ids, which would take every id in between instead.
+		'ansatte_id'  => $ansatte_id,
 		'afd'         => $afd,
 		'projekt_fra' => $projekt_fra,
 		'projekt_til' => $projekt_til,
@@ -1238,6 +1242,7 @@ print "<tbody>";
         'rapportart'  => $rapportart,
         'ansat_fra'   => $ansat_fra,
         'ansat_til'   => $ansat_til,
+        'ansatte_id'  => $ansatte_id,
         'afd'         => $afd,
         'projekt_fra' => $projekt_fra,
         'projekt_til' => $projekt_til,

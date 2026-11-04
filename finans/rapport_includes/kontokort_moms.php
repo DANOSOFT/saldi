@@ -45,6 +45,7 @@
 //                 kontokort_moms() includes its files via __DIR__ (no behaviour change).
 // 20261103 LOE SST-936 Use dimensionSqlFragment() for the department, employee and project filters.
 //              The account range is cast here as well, like Kontokort.
+//              The print link carries the employee list the form resolved, so the printout keeps the selected range.
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 0) {
 	print <<<'HTML'
@@ -537,6 +538,9 @@ print "</table>";
         'rapportart'  => $rapportart,
         'ansat_fra'   => $ansat_fra,
         'ansat_til'   => $ansat_til,
+        // The report page resolves the employee range in the form's order; passing it on keeps the
+        // printout on the same employees instead of every id between the two bounds.
+        'ansatte_id'  => $ansatte_id,
         'afd'         => $afd,
         'projekt_fra' => $projekt_fra,
         'projekt_til' => $projekt_til,

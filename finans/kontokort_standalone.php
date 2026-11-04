@@ -33,6 +33,7 @@
 // 20261030 CL/LAH per_page defaults to 0 = all lines.
 // 20261103 LOE SST-936 Resolve the employee range into the id list kontokort() filters by.
 //              The report page builds that list from its form; this page only gets the bounds.
+//              The employee list the report page resolved is used when the print link carries it.
 @session_start();
 $s_id = session_id();
 
@@ -59,6 +60,7 @@ $konto_til   = if_isset($_GET, null, 'konto_til');
 $rapportart  = if_isset($_GET, null, 'rapportart');
 $ansat_fra   = if_isset($_GET, null, 'ansat_fra');
 $ansat_til   = if_isset($_GET, null, 'ansat_til');
+$ansatte_id_param = if_isset($_GET, null, 'ansatte_id');
 $afd         = if_isset($_GET, null, 'afd');
 $projekt_fra = if_isset($_GET, null, 'projekt_fra');
 $projekt_til = if_isset($_GET, null, 'projekt_til');
@@ -73,10 +75,14 @@ $udskriv     = if_isset($_GET, null, 'udskriv') ? true : false;
 // kontokort() filters the employee list it is given, and the report page builds that list from
 // its form. This page receives the two bounds, so the ids between them are resolved here - without
 // this a two-employee range was narrowed to the first employee.
+// The report page resolves the employee range in the form's own order - the employees between the
+// two chosen initials - and passes that list here, because rebuilding it from the two ids would take
+// every id in between and could include, or miss, an employee the form did not select. A link that
+// carries only the bounds (a bookmark, or an older print window) still resolves the range by id.
 $ansatte_id = NULL;
-if ($ansat_fra && $ansat_til && preg_match('/^\d+$/', (string)$ansat_fra) && preg_match('/^\d+$/', (string)$ansat_til)) {
-    // The form can send the bounds in either order (the report page appends from both ends), so the
-    // range is taken between the smaller and the larger id instead of assuming an order.
+if (is_string($ansatte_id_param) && preg_match('/^\d+(,\d+)*$/', $ansatte_id_param)) {
+    $ansatte_id = $ansatte_id_param;
+} elseif ($ansat_fra && $ansat_til && preg_match('/^\d+$/', (string)$ansat_fra) && preg_match('/^\d+$/', (string)$ansat_til)) {
     $ansatLav = min((int)$ansat_fra, (int)$ansat_til);
     $ansatHoej = max((int)$ansat_fra, (int)$ansat_til);
     $ansatteIder = array();
