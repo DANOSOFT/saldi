@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -131,8 +131,8 @@
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
-// 20261030 LOE MB-62 a read-only user is offered only the buttons that read, not the ones that write,
-//                 and not the Ny control in either header layout: it opens the blank card the page refuses.
+// 20261030 LOE MB-62 A read-only user is offered only the buttons that read, not the ones that write.
+//              The Ny control in either header layout is not offered either: it opens the blank card the page refuses.
 //
 ob_start(); //Starts output buffering
 
@@ -2145,7 +2145,8 @@ if ($id && !$noEdit) {
         print "value=\"$txt1099\" name=\"deleteItem\" OnClick=\"return confirm('Slet varenr $varenr ?')\"></td>";
     }
 }
-if ($id && $packagingModuleEnabled) {
+# MB-62 the packaging page only writes, so a read-only user is offered no button to it
+if ($id && $packagingModuleEnabled && !$noEdit) {
     $emb_btn   = ($sprog_id == 2) ? 'Packaging' : 'Emballage';
     $emb_btn_t = ($sprog_id == 2) ? 'Manage packaging for this product' : 'Administrér emballage for denne vare';
     print "<td align=center><a href='emballage.php?id=$id' style='text-decoration:none;'><input style='width:150px;' class='button blue medium' type='button' value='$emb_btn' title='$emb_btn_t'></a></td>";

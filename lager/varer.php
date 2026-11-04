@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- lager/varer.php --- ver 5.1.0 --- 2026-11-04 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -88,8 +88,8 @@
 //             instead of just the last one, and genbestil() now reports success so only a fully
 //             successful submission is remembered.
 // 20261023 CL/LH MB-60: Lager -> Varer also reopens the Styklister tab.
-// 20261030 LOE MB-62 a read-only user is not offered the list's Ny controls: the two list views and the
-//                 popup view all print Ny only for a user who may create an item.
+// 20261030 LOE MB-62 A read-only user is not offered the list's Ny controls.
+//              The two list views and the popup view all print Ny only for a user who may create an item.
 
 @session_start();
 $s_id=session_id();
@@ -222,7 +222,9 @@ if (isset($_GET)) {
 	$vis_lev=if_isset($_GET['vis_lev']);
 	$alle_varer=if_isset($_GET['alle_varer']);
 	
-	if (isset($_GET['forslag']) && $_GET['forslag']) {
+	// MB-62 the suggestion screen only leads to "Bestil", which writes purchase-order lines: a
+	// read-only Items user stays on the plain list.
+	if (isset($_GET['forslag']) && $_GET['forslag'] && !$mb62_readonly) {
 		$stock=1;
 		$makeSuggestion=1;
 	} else $makeSuggestion=0;
@@ -265,7 +267,11 @@ if (isset($_POST)) {
 	$lev_kto=trim($lev_kto);
 	$lev_navn=trim($lev_navn);
 
-	if (isset($_POST['genbestil_ant'])) {
+	if (isset($_POST['genbestil_ant']) && $mb62_readonly) {
+		// MB-62 a purchase-order suggestion is a write: the controls are not offered, and a posted
+		// form cannot create the lines either.
+		error_log('MB-62: purchase-order suggestion refused for user ' . $brugernavn . ' (Items right ' . substr($rettigheder, 9, 1) . ')');
+	} elseif (isset($_POST['genbestil_ant'])) {
 		// 20260925 CL/NTR MB-35 follow-up - a double-click on "Opret" (or browser Back + resend)
 		// posts this exact genbestil_ant/gb_id_*/gb_antal_* payload twice. genbestil() itself always
 		// inserts a new ordrelinjer row with no check for one already existing for the item on

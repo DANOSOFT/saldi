@@ -7,6 +7,7 @@
 	// 20261023 CL/LH Styklister is remembered too.
 	// 20261030 LOE MB-62 the goods-list top line does not offer Ny to a read-only (2) user: it opens the
 	//                 blank item card, which refuses that request.
+	// 20261104 LOE MB-62 The Serienumre tab is greyed out for a read-only Items user, who may not write there.
 	$goodsTabKeys = array('Vareliste' => 'vareliste', 'Ordrevisning' => 'ordrestatus', 'Indkøb' => 'indkob', 'Serienumre' => 'serialnumber', 'Styklister' => 'styklister');
 	if (isset($valg, $bruger_id) && isset($goodsTabKeys[$valg]) && (int)$bruger_id > 0) {
 		update_settings_value('vareliste_valg', 'lager', $goodsTabKeys[$valg], 'Last used tab in the goods list', (int)$bruger_id);
@@ -87,10 +88,18 @@
 
 		print "<td>&nbsp;</td>";
 
+		// MB-62 a read-only Items user is not offered the serial number tab: it carries the rename and
+		// delete writes. The tab stays in place, greyed, so the row keeps its shape.
+		$mb62ReadonlyItems = ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1'));
 		if ($valg=="Serienumre") {
 			print "<td width = '200px' align=center id='serial'>
 				<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
 				$icon_serialnumber ".findtekst('4980|Serienumre', $sprog_id)." 
+				</button></td>";
+		} elseif ($mb62ReadonlyItems) {
+			print "<td width = '200px' align=center id='serial'>
+				<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%; opacity:0.55; cursor:not-allowed;' disabled>
+				$icon_serialnumber ".findtekst('4980|Serienumre', $sprog_id)."
 				</button></td>";
 		} else {
 			print "<td width = '200px' align=center id='serial'>

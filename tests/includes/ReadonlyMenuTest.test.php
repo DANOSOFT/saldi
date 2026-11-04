@@ -11,8 +11,8 @@
 //
 // History:
 // 20261030 LOE MB-62: moved here from tests/test_readonly_menu.php, where phpunit.xml never ran it.
-//                 The file name carries the class name, or PHPUnit 11 looks for a class called
-//                 "readonlyMenu" and reports "Class readonlyMenu cannot be found".
+//              The file name carries the class name, or PHPUnit 11 looks for a class called "readonlyMenu".
+//              Without the matching name it reports "Class readonlyMenu cannot be found".
 
 use PHPUnit\Framework\TestCase;
 

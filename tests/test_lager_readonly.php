@@ -2,10 +2,10 @@
 // --- tests/test_lager_readonly.php --- 2026-10-30 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
-// 20261026 LOE Cover MB-65: the item list and the stock move consult the Items right, and the item
-//                 card refuses a save from a read-only user whatever the button says.
-// 20261030 LOE MB-62: the move page is checked for hiding the form rather than drawing it disabled, and the
-//                 item card for offering only the controls that read.
+// 20261026 LOE Cover MB-65: the item list and the stock move consult the Items right.
+//              The item card refuses a save from a read-only user whatever the button says.
+// 20261030 LOE MB-62: The move page is checked for hiding the form rather than drawing it disabled.
+//              The item card is checked for offering only the controls that read.
 //
 //   php tests/test_lager_readonly.php
 //

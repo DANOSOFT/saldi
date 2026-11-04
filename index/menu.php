@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------index/menu.php------ ver 5.1.0 --- 2026-10-30 ---
+// -----------index/menu.php------ ver 5.1.0 --- 2026-11-04 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -284,7 +284,8 @@ function oldmenu() {
 				}
 			}
 			#if (!$lager) {
-			if (!$lager) {
+			# MB-62 a right 2 user already has the live Varer tile above, so the greyed one is not repeated
+			if (!$lager && !in_array(substr($rettigheder, 9, 1), array('1', '2'), true)) {
 					print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(609,$sprog_id)."</td>\n";
 			}
 		}
