@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sagerIncludes/sagerTxt.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- sager/sagerIncludes/sagerTxt.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261103 CL/MMR SD-799 Created.
 //                 Shared display texts for the Stillads module, so values stored in Danish (case status, "Opgave N") and the texts of the module's JavaScript follow the user's language.
+// 20261104 CL/MMR SD-799 Texts for the scripts are converted to UTF-8 before json_encode (sager_js_utf8), so a database in another encoding still gives valid JavaScript.
 
 if (!function_exists('sag_status_txt')) {
 	/**
@@ -82,18 +83,41 @@ if (!function_exists('sager_pagination_label')) {
 	}
 }
 
+if (!function_exists('sager_js_utf8')) {
+	/**
+	 * Texts from findtekst() are in the database encoding; json_encode() needs UTF-8. Same conversion as
+	 * findtekst_utf8(), applied to a text or to every text in an array.
+	 *
+	 * @param string|array<string, string>|null $value A text or key => text.
+	 * @return string|array<string, string>|null The same value(s) in UTF-8.
+	 */
+	function sager_js_utf8($value) {
+		global $db_encode;
+		if (is_array($value)) {
+			return array_map('sager_js_utf8', $value);
+		}
+		if (is_string($value) && $db_encode != 'UTF8') {
+			return mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
+		}
+		return $value;
+	}
+}
+
 if (!function_exists('sager_js_tekst')) {
 	/**
 	 * Prints texts for the module's JavaScript as a global object, e.g. var notatTekst = {...};
 	 * The scripts read it with the Danish text as fallback, so a page without the object still works.
 	 *
 	 * @param string $name  Name of the JavaScript variable (letters only).
-	 * @param array<string, string> $texts Key => translated text.
-	 * @return string A complete <script> element.
+	 * @param array<string, string> $texts Key => translated text in the database encoding.
+	 * @return string A complete <script> element; an empty object if the texts cannot be encoded.
 	 */
 	function sager_js_tekst($name, array $texts) {
 		$name = preg_replace('/[^A-Za-z]/', '', $name);
-		$json = json_encode($texts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+		$json = json_encode(sager_js_utf8($texts), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+		if ($json === false) {
+			$json = '{}';
+		}
 		return "<script type=\"text/javascript\">var $name = $json;</script>\n";
 	}
 }

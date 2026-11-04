@@ -44,5 +44,5 @@ if ($id) {
 		if ($status=='Afsluttet') $statcolor = "statcolor_8";
 }
 
-echo json_encode(array("status" => "$status", "statustxt" => sag_status_txt($status), "statcolor" => "$statcolor"));
+echo json_encode(array("status" => "$status", "statustxt" => sager_js_utf8(sag_status_txt($status)), "statcolor" => "$statcolor"));
 ?>

@@ -1,6 +1,6 @@
 <?php
 
-// ------ sager/loenliste.php-------ver 5.1.0 ------2026-11-03------13:22---------
+// ------ sager/loenliste.php-------ver 5.1.0 ------2026-11-04------13:22---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -38,6 +38,8 @@
 // 20180612 PHR - Separat array for art_navn & alias så system kan tilrettes andre brancher (blot en start) #20180612
 // 20261103 CL/MMR SD-799 The "Alle" choice in the line count menu is translated.
 // 20261103 CL/MMR SD-799 The Type column shows every wage type again, as on the wage slip, and the "settled on slip" tooltip is translated.
+// 20261104 CL/MMR SD-799 "Settled on slip" replaces only the %s placeholder, so an edited text with a % sign cannot break the list.
+//                 stillads_14 and udvikling_2 keep the akktimer and akk_afr types in the Type column.
 
 
 function loenliste() {
@@ -106,7 +108,8 @@ function loenliste() {
 	#$art_navn[0]='regulering'; #20161011
 	#$art_alias[0]='Regulering';
 	if ($db=='stillads_14' || $db=='udvikling_2') { #20180612
-		$art_navn=array('akkord','timer','torretid','plads','skole','sygdom','barn_syg','ferie');
+		// The wage slip's types for these tenants (loenIncludes/retLoen.php) plus akktimer and akk_afr, which this list showed for stillads_14 before.
+		$art_navn=array('akkord','timer','torretid','plads','skole','sygdom','barn_syg','ferie','akktimer','akk_afr');
 		$art_alias=array(findtekst('2801|Timepris, Akkord', $sprog_id),
 						 findtekst('2802|Timeløn', $sprog_id),
 						 findtekst('2803|Timeløn, Tørretid', $sprog_id),
@@ -114,7 +117,9 @@ function loenliste() {
 						 findtekst('2805|Skoleophold', $sprog_id),
 						 findtekst('2806|Sygdom', $sprog_id),
 						 findtekst('2807|Barn syg', $sprog_id),
-						 findtekst('2808|Ferie', $sprog_id));
+						 findtekst('2808|Ferie', $sprog_id),
+						 findtekst('2809|Dyrtid', $sprog_id),
+						 findtekst('2810|Akkordafregning', $sprog_id));
 	} else {
 		// Same wage types and texts as the wage slip (loenIncludes/retLoen.php), so every slip shows its type.
 		$art_navn=array('aconto','akktimer','akk_afr','akkord','timer','kontor','plads','skole','sygdom','barn_syg','ferie');
@@ -448,7 +453,7 @@ function loenliste() {
 		if ($afvist[$x] && !$afsluttet[$x]) db_modify("update loen set afsluttet='$afvist[$x]' where id='$id[$x]'",__FILE__ . " linje " . __LINE__); 
 		if ($master_id[$x]) { #20151216
 			$r2=db_fetch_array(db_select("select nummer from loen where id='$master_id[$x]'",__FILE__ . " linje " . __LINE__));
-			$master_nr[$x]=sprintf(findtekst('8413|Afregnet på seddel %s', $sprog_id), $r2['nummer']);
+			$master_nr[$x]=str_replace('%s', $r2['nummer'], findtekst('8413|Afregnet på seddel %s', $sprog_id));
 		} else $master_nr[$x]=NULL;
 		#20130808
 		$x++;

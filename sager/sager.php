@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- sager/sager.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,7 @@
 // 20260805 CX/PHR Cache-bust autocomplete scripts after adding safe field separators.
 // 20261103 CL/MMR SD-799 Case and task statuses, "Opgave N", the datepicker and the search dropdown labels follow the user's language.
 //                 The piecework date filter's clear button shows its label again.
+// 20261104 CL/MMR SD-799 The datepicker clear-button text is passed to the script as UTF-8.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -419,7 +420,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 						showOtherMonths: true,
 						selectOtherMonths: true,
 						showButtonPanel: true,
-						closeText: ".json_encode(findtekst('1099|Slet', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).",
+						closeText: ".json_encode(findtekst_utf8('1099|Slet', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).",
 						defaultDate: $(\"#akkordfra1\").val(),
 						minDate: $(\"#akkordfra1\").val(),
 						maxDate: $(\"#akkordtil1\").val(),
@@ -442,7 +443,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 						showOtherMonths: true,
 						selectOtherMonths: true,
 						showButtonPanel: true,
-						closeText: ".json_encode(findtekst('1099|Slet', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).",
+						closeText: ".json_encode(findtekst_utf8('1099|Slet', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).",
 						minDate: $(\"#akkordfra2\").val(),
 						maxDate: $(\"#akkordtil2\").val(),
 						beforeShowDay: highLight,

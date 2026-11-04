@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/footer.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- sager/loenIncludes/footer.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20231005 PHR php8
 // 20250812 PHR Some variables set to 0 if empty  ($aa[$c], $a50[$c], $a100[$c]$as1[$c] & $as2[$c])
 // 20261103 CL/MMR SD-799 Wage slips without a project show their wage type in the user's language instead of the internal key.
+// 20261104 CL/MMR SD-799 The settlement uses the wage slip's labels for akkord and torretid on stillads_14 and udvikling_2.
 
 
 function fod_log($string)
@@ -213,6 +214,7 @@ function fod_indsaml_data($periode) {
 	global $overtid_50pct;
 	global $overtid_100pct;
 	global $sprog_id;
+	global $db;
 
 	// Wage types are stored as keys (sygdom, timer, ...); slips without a project show them with the wage slip's texts.
 	$artTekst = array(
@@ -228,6 +230,11 @@ function fod_indsaml_data($periode) {
 		'barn_syg' => findtekst('2807|Barn syg', $sprog_id),
 		'ferie'    => findtekst('2808|Ferie', $sprog_id),
 	);
+	if ($db=='stillads_14' || $db=='udvikling_2') {
+		// Same labels as the wage slip uses for these tenants (loenIncludes/retLoen.php).
+		$artTekst['akkord']   = findtekst('2801|Timepris&comma; Akkord', $sprog_id);
+		$artTekst['torretid'] = findtekst('2803|Timeløn&comma; Tørretid', $sprog_id);
+	}
 
 	$funcstarttime = microtime(true);
 

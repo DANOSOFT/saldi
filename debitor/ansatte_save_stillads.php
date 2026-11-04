@@ -1,5 +1,5 @@
 <?php
-// -------- debitor/ansatte_save_stillads.php (modul nr. 6)----------ver 5.1.0 ----- 2026.11.03----------
+// -------- debitor/ansatte_save_stillads.php (modul nr. 6)----------ver 5.1.0 ----- 2026.11.04----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,6 +18,7 @@
 // ----------------------------------------------------------------------
 // 20261103 CL/MMR SD-799 A contact is deleted when its Delete button (slet_kontakt) is posted, whatever the button's label in the user's language.
 //                 The contact and account ids from the request are cast to integers before they go into the SQL.
+// 20261104 CL/MMR SD-799 A contact is only deleted together with the customer it belongs to.
 
 if ($_GET){
 	if (isset($_GET['id'])) $ansat_id=(int)$_GET['id'];
@@ -49,7 +50,7 @@ if ($_POST){
 	$fokus=$_POST['fokus'];
 
 	if (isset($_POST['slet_kontakt']) || $submit=="Slet") {
-		if ($ansat_id) db_modify("delete from ansatte where id = '$ansat_id'",__FILE__ . " linje " . __LINE__);
+		if ($ansat_id && $konto_id) db_modify("delete from ansatte where id = '$ansat_id' and konto_id = '$konto_id'",__FILE__ . " linje " . __LINE__);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=kunder.php?funktion=ret_kunde&amp;konto_id=$konto_id\">";
 	} else {
 		if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
