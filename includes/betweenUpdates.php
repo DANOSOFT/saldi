@@ -229,9 +229,13 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb
 		}
 	}
 }
+
 // 20261029 CL/ASR SD-731 operator panel: its tables live in the master database. operator_panel_schema() uses the master
 // connection ($global = true) and runs once per master (settings flag 'operator_panel_schema'); later logins only read the flag.
-include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
-operator_panel_schema();
+// Like the signup block it only runs in a real login, where $db and $sqdb are set (not in a test that evaluates this file).
+if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
+	include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
+	operator_panel_schema();
+}
 
 ?>
