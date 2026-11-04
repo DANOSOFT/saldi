@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.10.29----------
+// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.11.03----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@
 //                  The choice is carried to the next entry (kontotype in the URL), so it is made once per journal.
 // 20261029 CL/MMR SD-785 The two texts moved to 7650 and 7651, as 7636 is also used by another change.
 //                  The restart link URL-encodes kontotype like kladde_id next to it.
+// 20261103 CL/MMR SST-932 The header bar's table no longer takes the full window height in Safari, which pushed the settlement card out of view and left the page blank.
 
 ob_start();
 @session_start();
@@ -267,7 +268,8 @@ $htmlLang = ['1' => 'da', '2' => 'en', '3' => 'no'][(string)$sprog_id] ?? 'da';
     flex-shrink: 0;
     width: 100%;
   }
-  .system-header table { width: 100%; }
+  /* height:auto overrides the table's height="100%" attribute, which WebKit (Safari) applies to the whole body. */
+  .system-header table { width: 100%; height: auto; }
 
   /* ── Full-height layout ──────────────────────────────────── */
   html, body { height: 100%; }
