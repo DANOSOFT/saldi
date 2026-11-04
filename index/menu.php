@@ -261,6 +261,9 @@ function oldmenu() {
 		}
 		if ($vis_lager) {
 			$tekst=findtekst(109,$sprog_id);
+			# MB-62 $lager is only assigned when the employee-department lookup below finds a warehouse,
+			# so a user without one read an undefined variable on PHP 8 - initialise it here.
+			$lager = NULL;
 			if (in_array(substr($rettigheder,9,1), array('1', '2'), true)) {
 				if ($popup) print "<td $stor_knap_bg onClick=\"javascript:lager=window.open('../lager/varer.php?returside=../includes/luk.php&popup=1','lager','".$jsvars."');lager.focus();\"	onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(609,$sprog_id)."</td>\n";
 				else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../lager/varer.php?returside=../index/menu.php\">".findtekst(609,$sprog_id)."</a></td>\n";

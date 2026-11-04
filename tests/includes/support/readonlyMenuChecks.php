@@ -72,6 +72,15 @@ function readonly_menu_checks(): array
 	$check($stockList !== false, 'the employee stock list button is still offered');
 	$check($employeeBranch !== false && $employeeBranch < $stockList,
 		'and for a read-only user it comes on top of the item list, not instead of it');
+	# the greyed Varer fallback ran for a read-only user as well, and read a $lager the employee lookup
+	# only assigns when it finds a warehouse: initialise it, and skip the fallback for right 1 and 2.
+	$lagerInit = strpos($menu, '$lager = NULL;');
+	$lagerFallback = strpos($menu, 'if (!$lager');
+	$check($lagerInit !== false, 'the classic menu initialises $lager before the greyed fallback');
+	$check($lagerInit !== false && $lagerFallback !== false && $lagerInit < $lagerFallback,
+		'and does so above the fallback, so it is not an undefined variable on PHP 8');
+	$check(strpos($menu, "if (!\$lager && !in_array(substr(\$rettigheder, 9, 1), array('1', '2'), true))") !== false,
+		'and the greyed Varer is not repeated for a user who already has the live one');
 
 	# ---- a user with no Items right is still refused the item list -------------------------------
 	$varer = $source('/lager/varer.php');
