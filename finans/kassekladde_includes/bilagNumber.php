@@ -1,5 +1,5 @@
 <?php
-// --- finans/kassekladde_includes/bilagNumber.php --- 20261028 LOE SST-817 ---
+// --- finans/kassekladde_includes/bilagNumber.php --- 20261105 CL/MMR SST-934 ---
 //
 // Voucher number (bilag) allocation for the cash journal.
 //

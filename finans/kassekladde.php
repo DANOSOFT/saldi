@@ -218,6 +218,7 @@
 //                 Only an empty Bilag field is given the journal's next number (SST-817), see bilagFromInput() in bilagNumber.php.
 //                 The messages show a typed 0 as 0, and kontroller()'s includes use __DIR__.
 //                 The lookup return's $_GET reads use ifset(), and kontroller()'s line-check branch has braces on every multi-line body.
+//                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -972,13 +973,13 @@ if ($_GET) {
 	if (isset($_GET['forfaldsdato'])) $forfaldsdato[$x] = db_escape_string(trim((string)$_GET['forfaldsdato']));
 	if (isset($_GET['betal_id']))     $betal_id[$x]     = db_escape_string(trim((string)$_GET['betal_id']));
 	$find            =       ifset($_GET, 'find', '');
-	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
-	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
-	$debet[$x]       =  trim(if_isset($debet, 		'',		$x));
-	$k_type[$x]      =  trim(if_isset($k_type, 		'',		$x));
-	$kredit[$x]      =  trim(if_isset($kredit, 		'',		$x));
-	$faktura[$x]     =  trim(if_isset($faktura, 	'',		$x));
-	$belob[$x]       =  trim(if_isset($belob, 		'',		$x));
+	$beskrivelse[$x] =  trim(ifset($beskrivelse, $x, ''));
+	$d_type[$x]      =  trim(ifset($d_type, $x, ''));
+	$debet[$x]       =  trim(ifset($debet, $x, ''));
+	$k_type[$x]      =  trim(ifset($k_type, $x, ''));
+	$kredit[$x]      =  trim(ifset($kredit, $x, ''));
+	$faktura[$x]     =  trim(ifset($faktura, $x, ''));
+	$belob[$x]       =  trim(ifset($belob, $x, ''));
 	$existing_row = null;
 
 	// Persistent Sorting (SST-856): only a click on a header link carries a direction, so only that may
@@ -1005,9 +1006,9 @@ if ($_GET) {
 		$debetvat_param,
 		$debet[$x],
 		$d_type[$x],
-		if_isset($existing_row, '', 'debet'),
-		if_isset($existing_row, '', 'd_type'),
-		if_isset($existing_row, '', 'debetvat'),
+		ifset($existing_row, 'debet', ''),
+		ifset($existing_row, 'd_type', ''),
+		ifset($existing_row, 'debetvat', ''),
 		$momsfri[$x],
 		$regnaar,
 		$vat_codes
@@ -1016,9 +1017,9 @@ if ($_GET) {
 		$kreditvat_param,
 		$kredit[$x],
 		$k_type[$x],
-		if_isset($existing_row, '', 'kredit'),
-		if_isset($existing_row, '', 'k_type'),
-		if_isset($existing_row, '', 'kreditvat'),
+		ifset($existing_row, 'kredit', ''),
+		ifset($existing_row, 'k_type', ''),
+		ifset($existing_row, 'kreditvat', ''),
 		$momsfri[$x],
 		$regnaar,
 		$vat_codes
@@ -1552,15 +1553,18 @@ if ($_POST) {
 		}
 		if (strpos($bilag[$x], '+') && $kladde_id) {
 			list($bilag[$x], $newLines) = explode('+', $bilag[$x]);
+			# SST-934 "0+2" is voucher 0 with two new lines under it: the 0 is kept like a typed 0 ('00'),
+			# and the new lines are written with it as the number 0
+			$bilag[$x] = bilagFromInput($bilag[$x]);
 			// 20260907 CL/LH  "+=" inserts straight into kassekladde through usdecimal() without passing
 			// kontroller(), so the amount has to be validated here as well; the line stays in tmpkassekl as typed.
 			if ($newLines == '=' && !dk_amount_is_valid($belob[$x])) {
-				alert_ugyldigt_belob($belob[$x], $bilag[$x]);
+				alert_ugyldigt_belob($belob[$x], bilagFieldValue($bilag[$x], true));
 				$fejl = 1;
 			} elseif ($newLines == '=') {
 				$kk_plus_line_ids[$x][] = indsaet_linjer(
 					$kladde_id,
-					$bilag[$x],
+					bilagFieldValue($bilag[$x], true),
 					$dato[$x],
 					$beskrivelse[$x],
 					$d_type[$x],
@@ -1583,7 +1587,7 @@ if ($_POST) {
 				for ($nl = 0; $nl < $newLines; $nl++) {
 					$kk_plus_line_ids[$x][] = indsaet_linjer(
 						$kladde_id,
-						$bilag[$x],
+						bilagFieldValue($bilag[$x], true),
 						$dato[$x],
 						'',
 						'',
