@@ -36,6 +36,7 @@
 //                 The list type selector keeps the type the piecework lines are drawn for.
 // 20261105 CL/MMR SST-943 A stopped save also says that amounts and totals are not updated until the slip is saved with a date.
 // 20261105 CL/MMR SST-943 A date that does not exist or is not a date (31-02-2026, 32-13-2026, abc) is refused like a missing date (Morten).
+// 20261105 CL/MMR SST-943 Only the documented date forms are accepted, so extra digits (0311202699) are refused instead of cut off.
 
 function ret_loen() {
 	global $brugernavn;
@@ -1710,7 +1711,8 @@ function loenDatoMangler($post) {
  * @return bool True when the date must be refused like a missing date.
  */
 function loenDatoUgyldig($dato) {
-	if (!preg_match('/^[0-9]+([-.\/ ][0-9]+){0,2}$/', $dato)) return true;
+	// Only the forms usdate() is meant for: day, ddmm, ddmmyy, ddmmyyyy, or d[-m[-yy|yyyy]] with - . / or space
+	if (!preg_match('/^([0-9]{1,2}|[0-9]{4}|[0-9]{6}|[0-9]{8}|[0-9]{1,2}[-.\/ ][0-9]{1,2}([-.\/ ]([0-9]{2}|[0-9]{4}))?)$/', $dato)) return true;
 	$tekst = preg_replace('/[.\/ ]/', '-', $dato);
 	$aar = NULL;
 	$maaned = NULL;
