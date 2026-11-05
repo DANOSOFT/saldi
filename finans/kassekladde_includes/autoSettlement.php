@@ -1,5 +1,5 @@
 <?php
-// finans/kassekladde_includes/autoSettlement.php --- 2026-10-28
+// finans/kassekladde_includes/autoSettlement.php --- 2026-11-05
 // Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Scope automatic settlement to the chosen account and validate live rows before saving.
 // 20260922 CDX/PHR Allow unfiltered suggestions without broadening malformed account filters.
@@ -7,6 +7,7 @@
 //                 can bound its SQL fetch without dropping any row the ranking could select.
 // 20261028 CL/MMR SD-785 autoSettlementSearchWhere() filters on the account type alone ("Alle debitorer" / "Alle kreditorer")
 //                 when no account number is given; before, a type without a number matched nothing.
+// 20261105 CDX/NTR Clear line approval when assigning an invoice or counterparty.
 
 /**
  * Identify the customer/supplier side, or the empty side of an imported bank line.
@@ -193,6 +194,8 @@ function saveAutoSettlement($journalId, $entryId, $openpostId, $accountId, $snap
             $typeField = $field === 'debet' ? 'd_type' : 'k_type';
             $assignments .= ", $field = '$number', $typeField = '$type'";
         }
+        // Eligibility requires an empty invoice; assigning the selected invoice always changes the line.
+        $assignments = "godkendt = FALSE, godkendt_af = NULL, godkendt_tid = NULL, " . $assignments;
         autoSettlementWrite("UPDATE kassekladde SET $assignments WHERE id = $entryId AND kladde_id = $journalId");
         autoSettlementWrite('COMMIT');
     } catch (Throwable $error) {

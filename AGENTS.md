@@ -19,6 +19,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | Schema changes (DDL, `ensureTableAndColumns()`) go at the end of `includes/betweenUpdates.php`; `admin/opret.php` and `includes/opretfunc.php` may define the initial schema when creating a new regnskab, until structure helper functions replace this setup | guardrails `migrations` | [convention_database_changes](doc/ai/convention_database_changes.md) |
 | `includes/opdat_*.php` and `includes/betweenUpdates2.php` are not edited, except in a version cut | guardrails `migrations` | [feedback_protected_update_files](doc/ai/feedback_protected_update_files.md) |
 | A new test lives where CI runs it: a `phpunit.xml` suite or `e2e/` | guardrails `test-discovery` | [tests/README.md](tests/README.md) |
+| Migration fixture runners bound the exact migration under test; never evaluate through the updater footer | PHPUnit `OrderLineDeliveredBackfillTest` | |
 | An edited PHP file gets a history line below the older ones; the header date and copyright move along | guardrails `file-history` | [convention_file_history](doc/ai/convention_file_history.md) |
 | No line-ending-only edits, no new trailing whitespace, no file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](doc/ai/feedback_whitespace_and_indentation.md) |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](doc/ai/feedback_pre_pr_test_report.md) |
@@ -27,6 +28,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | Cast or escape every outside value in SQL; HTML/JS output escaped (`jsString()`); `returside` through `nav_sanitize_returside()` | review, CodeRabbit | [convention_sql_escaping](doc/ai/convention_sql_escaping.md) |
 | SQL runs on Postgres, MySQL and MariaDB; `information_schema` queries filter on the tenant's schema | review, CodeRabbit | CI only runs Postgres |
 | A fix reaches every copy of the code it fixes (grid copies, the several save paths) | review | |
+| The approval column reserves a cell in saved and all new journal rows; unsaved rows have no approval checkbox | PHPUnit `JournalBlankRowLayoutTest`; Playwright voucher precision | |
 | Shared runtime files use a trusted shared group and parent directories; migrate foreign-owned files as an administrator, never grant access to all users | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | Shared-runtime diagnostics go to the server log without invoking request error handlers; a fallback write must not abort journal deletion | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | A symlinked migration root must target private application storage; refuse world-writable or sticky targets before changing their ownership or permissions | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |

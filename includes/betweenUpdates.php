@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.02
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.05
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 //                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
+// 20261105 CDX/NTR Retain the approval migration after master updates.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -225,6 +226,47 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb
 			} finally {
 				db_select("SELECT $signupUnlock", __FILE__ . " linje " . __LINE__, true);
 			}
+		}
+	}
+}
+
+// 20261019 ASR Delvis bogføring (kravspec "Bogfør godkendte"): per-line approval on the journal.
+// godkendt = the line may be posted on its own; godkendt_af/godkendt_tid = who and when (audit trail).
+// Serialise MySQL changes and use IF NOT EXISTS on Postgres so concurrent logins can safely apply it.
+$kkGodkMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$kkGodkColumns = array(
+	'godkendt'     => 'BOOLEAN DEFAULT FALSE',
+	'godkendt_af'  => 'VARCHAR(80) NULL',
+	'godkendt_tid' => 'TIMESTAMP NULL',
+);
+$kkGodkMissing = array();
+foreach ($kkGodkColumns as $kkGodkColumn => $kkGodkType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'kassekladde' AND column_name = '$kkGodkColumn'";
+	$qtxt .= $kkGodkMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$kkGodkMissing[$kkGodkColumn] = $kkGodkType;
+	}
+}
+if ($kkGodkMissing) {
+	if ($kkGodkMysql) {
+		$kkGodkLock = "CONCAT('saldi:kassekladde_godkendt:', MD5(DATABASE()))";
+		$kkGodkLockResult = db_fetch_array(db_select("SELECT GET_LOCK($kkGodkLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($kkGodkLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the kassekladde godkendt migration lock.');
+		}
+		try {
+			foreach ($kkGodkMissing as $kkGodkColumn => $kkGodkType) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'kassekladde' AND column_name = '$kkGodkColumn' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE kassekladde ADD COLUMN $kkGodkColumn $kkGodkType", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($kkGodkLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($kkGodkMissing as $kkGodkColumn => $kkGodkType) {
+			db_modify("ALTER TABLE kassekladde ADD COLUMN IF NOT EXISTS $kkGodkColumn $kkGodkType", __FILE__ . " linje " . __LINE__);
 		}
 	}
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/insertDoc.php --- ver 5.0.0 --- 2026-10-14 ---
+// --- includes/docsIncludes/insertDoc.php --- ver 5.1.0 --- 2026-11-05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,7 +55,12 @@
 //                  failure now answers non-2xx with a reason the pool can show.
 // 20261023 CL/LH SST-868 Merged master: the SD-722 capture records read the pool row by $poolFileName and are kept under
 //                the landed name. Text 5441 renumbered to 5452 (5441 is taken by MB-71).
+// 20261105 CDX/NTR Clear approval atomically when Save or Attach changes posting values; preserve unchanged approvals with exact text comparisons.
 
+/**
+ * Injected by includes/connect.php, via the entry page or the AJAX bootstrap below:
+ * @var string $db_type
+ */
 $sth = dirname(dirname(dirname(__FILE__)));
 
 // Bootstrap database connection when called directly via AJAX (not included from documents.php)
@@ -211,127 +216,122 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 	 * so both buttons save the same fields with the same rules for empty values.
 	 *
 	 * @param int $sourceId kassekladde.id
+	 * @param string $dbType Database driver used for exact text comparisons.
 	 * @return void
 	 */
-	function insertDocUpdateKassekladdeLine($sourceId) {
+	function insertDocUpdateKassekladdeLine($sourceId, $dbType = '') {
+		global $regnaar;
 		$sourceId = (int)$sourceId;
 		if (!$sourceId) {
 			return;
 		}
+		$values = array();
 		$bilagsnr = ifset($_POST, 'bilagsnr');
 		if ($bilagsnr) {
-			$qtxt = "update kassekladde set bilag = '" . (int)$bilagsnr . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			$values['bilag'] = (int)$bilagsnr;
 		}
-		$dato = ifset($_POST, 'dato');
-		if ($dato) {
-			$qtxt = "update kassekladde set transdate = '" . usdate($dato) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$beskrivelse = ifset($_POST, 'beskrivelse');
-		if ($beskrivelse) {
-			$qtxt = "update kassekladde set beskrivelse = '" . db_escape_string($beskrivelse) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$debet = ifset($_POST, 'debet');
-		if ($debet !== null) {
-			if ($debet !== '') {
-				if (!is_numeric(substr($debet, 0, 1))) {
-					$qtxt = "update kassekladde set d_type = '" . db_escape_string(substr($debet, 0, 1)) . "', ";
-					$qtxt .= "debet = '" . (int)substr($debet, 1) . "' where id = '$sourceId'";
-				} else {
-					$qtxt = "update kassekladde set debet = '" . (int)$debet . "' where id = '$sourceId'";
-				}
-			} else {
-				$qtxt = "update kassekladde set debet = 0, d_type = 'F' where id = '$sourceId'";
+		foreach (array('dato' => 'transdate', 'forfald' => 'forfaldsdate') as $post => $column) {
+			$value = ifset($_POST, $post);
+			if ($value) {
+				$values[$column] = usdate($value);
 			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		$kredit = ifset($_POST, 'kredit');
-		if ($kredit !== null) {
-			if ($kredit !== '') {
-				if (!is_numeric(substr($kredit, 0, 1))) {
-					$qtxt = "update kassekladde set k_type = '" . db_escape_string(substr($kredit, 0, 1)) . "', ";
-					$qtxt .= "kredit = '" . (int)substr($kredit, 1) . "' where id = '$sourceId'";
-				} else {
-					$qtxt = "update kassekladde set kredit = '" . (int)$kredit . "' where id = '$sourceId'";
-				}
-			} else {
-				$qtxt = "update kassekladde set kredit = 0, k_type = 'F' where id = '$sourceId'";
+		foreach (array('beskrivelse' => 'beskrivelse', 'fakturanr' => 'faktura') as $post => $column) {
+			$value = ifset($_POST, $post);
+			if ($value) {
+				$values[$column] = (string)$value;
 			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		foreach (array('debet' => 'd_type', 'kredit' => 'k_type') as $column => $typeColumn) {
+			$value = ifset($_POST, $column);
+			if ($value === null) {
+				continue;
+			}
+			if ($value === '') {
+				$values[$column] = 0;
+				$values[$typeColumn] = 'F';
+			} elseif (!is_numeric(substr($value, 0, 1))) {
+				$values[$typeColumn] = substr($value, 0, 1);
+				$values[$column] = (int)substr($value, 1);
+			} else {
+				$values[$column] = (int)$value;
+			}
 		}
 		$sum = ifset($_POST, 'sum');
 		if ($sum !== null && trim((string)$sum) !== '') {
-			$qtxt = "update kassekladde set amount = '" . usdecimal($sum) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$fakturanr = ifset($_POST, 'fakturanr');
-		if ($fakturanr) {
-			$qtxt = "update kassekladde set faktura = '" . db_escape_string($fakturanr) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			$values['amount'] = (float)usdecimal($sum);
 		}
 		$valuta = ifset($_POST, 'valuta');
 		if ($valuta) {
 			$postValuta = trim($valuta);
 			if (!is_numeric($postValuta)) {
-				// Currency code (e.g. "EUR") — look up the kodenr number
 				$vkLookup = db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($postValuta)) . "'", __FILE__ . " linje " . __LINE__));
-				$valutaNr = ($vkLookup && $vkLookup['kodenr']) ? (int)$vkLookup['kodenr'] : 0;
+				$values['valuta'] = ($vkLookup && $vkLookup['kodenr']) ? (int)$vkLookup['kodenr'] : 0;
 			} else {
-				$valutaNr = (int)$postValuta;
+				$values['valuta'] = (int)$postValuta;
 			}
-			$qtxt = "update kassekladde set valuta = '$valutaNr' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		$afd = ifset($_POST, 'afd');
-		if ($afd !== null && $afd !== '') {
-			$qtxt = "update kassekladde set afd = '" . (int)$afd . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$medarb = ifset($_POST, 'medarb');
-		if ($medarb !== null && $medarb !== '') {
-			$qtxt = "update kassekladde set medarb = '" . (int)$medarb . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$projekt = ifset($_POST, 'projekt');
-		if ($projekt !== null && $projekt !== '') {
-			$qtxt = "update kassekladde set projekt = '" . (int)$projekt . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		foreach (array('afd', 'medarb', 'projekt') as $column) {
+			$value = ifset($_POST, $column);
+			if ($value !== null && $value !== '') {
+				$values[$column] = $column === 'projekt' ? (string)(int)$value : (int)$value;
+			}
 		}
 		$momsfri = ifset($_POST, 'momsfri');
 		if ($momsfri !== null) {
-			// SD-725: 'on' or '' as the journal stores it; the journal shows only 'on' as ticked, so a saved 1 was lost on its next save
-			$momsfriVal = $momsfri ? 'on' : '';
-			$qtxt = "update kassekladde set momsfri = '$momsfriVal' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			$values['momsfri'] = $momsfri ? 'on' : '';
 		}
-		// SD-725: the VAT code per side. Sent by the pool's rows; a request without them leaves the codes alone.
 		$debetVat = ifset($_POST, 'debetvat');
 		$kreditVat = ifset($_POST, 'kreditvat');
 		if (($debetVat !== null || $kreditVat !== null) && poolVatColumnsReady()) {
-			global $regnaar;
 			$codes = poolVatCodes();
 			$line = db_fetch_array(db_select("select d_type, debet, k_type, kredit, momsfri from kassekladde where id = '$sourceId'", __FILE__ . " linje " . __LINE__));
 			if ($line) {
-				$momsfriLine = !empty($line['momsfri']);
-				$set = array();
-				if ($debetVat !== null) {
-					$accountCode = poolVatAccountCode(strtoupper(trim((string)$line['d_type'])) ?: 'F', (int)$line['debet'] ? (string)(int)$line['debet'] : '', $regnaar, $codes);
-					$set[] = "debetvat = '" . db_escape_string(poolVatChoose($debetVat, $accountCode, $momsfriLine, (string)$kreditVat, $codes)) . "'";
+				// VAT is resolved against the accounts and exemption this request is about to save.
+				$line = array_replace($line, $values);
+				foreach (array('debet' => $debetVat, 'kredit' => $kreditVat) as $side => $vat) {
+					if ($vat === null) {
+						continue;
+					}
+					$typeColumn = $side === 'debet' ? 'd_type' : 'k_type';
+					$accountCode = poolVatAccountCode(strtoupper(trim((string)$line[$typeColumn])) ?: 'F', (int)$line[$side] ? (string)(int)$line[$side] : '', $regnaar, $codes);
+					$otherVat = $side === 'debet' ? $kreditVat : $debetVat;
+					$values[$side . 'vat'] = poolVatChoose($vat, $accountCode, !empty($line['momsfri']), (string)$otherVat, $codes);
 				}
-				if ($kreditVat !== null) {
-					$accountCode = poolVatAccountCode(strtoupper(trim((string)$line['k_type'])) ?: 'F', (int)$line['kredit'] ? (string)(int)$line['kredit'] : '', $regnaar, $codes);
-					$set[] = "kreditvat = '" . db_escape_string(poolVatChoose($kreditVat, $accountCode, $momsfriLine, (string)$debetVat, $codes)) . "'";
-				}
-				db_modify("update kassekladde set " . implode(', ', $set) . " where id = '$sourceId'", __FILE__ . " linje " . __LINE__);
 			}
 		}
-		$forfald = ifset($_POST, 'forfald');
-		if ($forfald) {
-			$qtxt = "update kassekladde set forfaldsdate = '" . usdate($forfald) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if (!$values) {
+			return;
 		}
+		$changes = array();
+		$assignments = array();
+		foreach ($values as $column => $value) {
+			$numeric = is_int($value) || is_float($value);
+			$literal = $numeric ? (string)$value : "'" . db_escape_string((string)$value) . "'";
+			// Normalise absent text/numeric values as the journal does. Dates have no empty SQL value.
+			if (in_array($column, array('transdate', 'forfaldsdate'), true)) {
+				$changes[] = "($column IS NULL OR $column <> $literal)";
+			} else {
+				$default = $numeric ? '0' : ($column === 'projekt' ? "'0'" : "''");
+				// MySQL's default text collation can ignore case and trailing spaces. Approval
+				// covers the exact stored text, so compare binary strings for its text fields.
+				$stored = "COALESCE($column, $default)";
+				$compared = $literal;
+				if (!$numeric && in_array($dbType, array('mysql', 'mysqli'), true)) {
+					$stored = "BINARY $stored";
+					$compared = "BINARY $literal";
+				}
+				$changes[] = "$stored <> $compared";
+			}
+			$assignments[] = "$column = $literal";
+		}
+		$changed = '(' . implode(' OR ', $changes) . ')';
+		// Evaluate against the old values before assigning any posting fields (also on MySQL).
+		// The content and its approval change in the same row update, so no stale approval is observable.
+		$reset = "godkendt = CASE WHEN $changed THEN FALSE ELSE godkendt END, ";
+		$reset .= "godkendt_af = CASE WHEN $changed THEN NULL ELSE godkendt_af END, ";
+		$reset .= "godkendt_tid = CASE WHEN $changed THEN NULL ELSE godkendt_tid END, ";
+		db_modify("update kassekladde set " . $reset . implode(', ', $assignments) . " where id = '$sourceId'", __FILE__ . " linje " . __LINE__);
 	}
 }
 
@@ -388,7 +388,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
         }
     }
 
-    insertDocUpdateKassekladdeLine($sourceId);
+    insertDocUpdateKassekladdeLine($sourceId, $db_type);
 
     // Return response
     if (isset($_POST['ajax']) && $_POST['ajax']) {
@@ -506,7 +506,7 @@ if ($docFolder && $source == 'creditorOrder') {
 		}
 	}
 	if ($sourceId) {
-		insertDocUpdateKassekladdeLine($sourceId);
+		insertDocUpdateKassekladdeLine($sourceId, $db_type);
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/kassekladde.php?kladde_id=$kladde_id\">";
 	} else {
 		alert("Bilaget kunne ikke indsættes");
