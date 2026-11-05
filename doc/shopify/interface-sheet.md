@@ -36,4 +36,24 @@ shopify_split_set_lager_checked(?int $setting, array $locations): int
 
 Returns the setting when it's a sellable lager, else the first sellable lager by priority, and throws when there is none. WP09 (S09b) calls it with the rows from `shopify_availability_lagre()`, so the virtual lager is left out, and passes the result to `shopify_allocate_order()`, which keeps its strict int parameter and keeps refusing 0.
 
-`shopify_split_set_lager_checked()` does the same and needs a database: while `split_set_lager` is set and another lager is used, a warning naming both stays open on the error list (`kind` `config`, `ref` `split_set_lager`), and it's resolved once they match or the setting is unset. The stock push (WP06) calls it once per push and passes the setting on to `shopify_availability()`, which stays pure. WP09 calls it per order.
+`shopify_split_set_lager_checked()` does the same and needs a database: while `split_set_lager` is set and another lager is used, a warning naming both stays open on the error list (`kind` `config`, `ref` `split_set_lager`), and it's resolved once they match or the setting is unset. The stock push of sets (WP06-3) calls it once per push and passes the setting on to `shopify_availability()`, which stays pure; WP06-2's push sends plain items and passes null. WP09 calls it per order.
+
+## Stock push (WP06-2 → WP06-3, WP13)
+
+`includes/shopify/services/stock.php`. The worker's `stock` producer drains `shopify_stock_dirty`; the `stock.push` job sends absolute available quantities to one shop.
+
+```php
+shopify_stock_drain_dirty(array $rt, int $limit = 500): array // array{drained: int, queued: int}
+shopify_stock_push(array $rt, array $job, float $deadline): array // array{outcome: 'done'|'yield', sent?: int, gate?: string}
+```
+
+| Queue state key | Holds | Rule for every writer |
+|---|---|---|
+| `stock.dirty:<shop_key>` | `vare_id => mark`, the transaction id of the last drain that saw the item | The drain sets marks for every shop with `stock_capture_enabled`. A push removes an item only while its mark is the one it read, so an item marked again during a call is sent again. A push whose remaining items all wait for a move barrier yields for 60 seconds. |
+| `stock.pending:<shop_key>` | The shop's one unresolved `inventorySetQuantities` call: `vars` (the `key` and the `input` as sent), `rows`, `marks`, `read_at` | Written only when empty, before the call. Resent byte for byte with the same key until Shopify answers. Cleared with the `shopify_stock_state` update after an answer, or without one after a refusal, whose key is then not used again. |
+
+A stored call with an item behind an open barrier isn't sent: it may be its first send, with a quantity read before the barrier opened. It waits with its key and input, and as a shop has one pending call, the shop's other items wait with it until no barrier is open on its items. Each barrier lasts at most 30 minutes, but orders that overlap can stretch the wait. It takes a call with no answer and a barrier on one of its items.
+
+The drain also queues a push for a shop whose state holds a call or marks and has no active job, so a job that went dead doesn't strand them. `shopify_upsert_product_link()` marks an item when a listed link gets its inventory item. `shopify_save_shop()` refuses `stock_publish_enabled` without `stock_capture_enabled`.
+
+WP06-3's `stock.baseline` and `stock.reconcile` jobs send through the same `stock.pending:<shop_key>` slot, so a shop never has two unresolved stock calls. `shopify_stock_state.acknowledged_at` is the time the quantities were read, and a row counts only while it is not older than the item's product link.
