@@ -67,6 +67,7 @@
 // 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 // 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
+//                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -231,6 +232,32 @@ function sanitize_input($input, $allowed_length = 80) {
 
 	return $input;
 }
+
+/**
+ * Builds a login error message that names a value (the account name, a phone number) and still fits
+ * the 80 characters that login() and index/index.php accept for fejltxt. The value is filtered the
+ * way login() filters the message and, if the message in the user's language would be too long,
+ * shortened with "...", so the message is shown instead of being dropped.
+ *
+ * @param string $format Translated text with one %s.
+ * @param string $value  The value to put in, e.g. the account name the user typed.
+ *
+ * @return string The message, at most 80 characters, in the page charset.
+ */
+function loginFejltxt($format, $value) {
+	global $charset;
+
+	$maxLength = 80;
+	$value = sanitize_input(htmlspecialchars((string)$value, ENT_COMPAT, $charset), 1000);
+	if ($value === false) {
+		$value = '';
+	}
+	$room = $maxLength - mb_strlen(sprintf($format, ''), $charset);
+	if (mb_strlen($value, $charset) > $room) {
+		$value = mb_substr($value, 0, max(0, $room - 3), $charset) . '...';
+	}
+	return sprintf($format, $value);
+}
 /* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
 if (isset($_POST['regnskab'])) {
 	if ($regnskab = trim($_POST['regnskab'])){
@@ -308,7 +335,7 @@ if (isset($_POST['regnskab'])) {
 			if (!$mastertel) $mastertel='+45 4690 2208';
 			// Plain text: login() runs fejltxt through sanitize_input(), which strips quotes, < > and & and refuses
 			// more than 80 characters, so the old "Regnskab '<name>' er lukket!<br>..." arrived empty or garbled.
-			$fejltxt = sprintf(findtekst('8431|Regnskabet er lukket. Ring %s for genåbning', $languageId), $mastertel);
+			$fejltxt = loginFejltxt(findtekst('8431|Regnskabet er lukket. Ring %s for genåbning', $languageId), $mastertel);
 			login($regnskab,$brugernavn,$fejltxt);
  			exit;
 		}
@@ -340,7 +367,7 @@ if (isset($_POST['regnskab'])) {
 		<?php
 		exit();
 		}
-		if ($regnskab) $fejltxt = sprintf(findtekst('8429|Regnskab %s findes ikke', $languageId), $regnskab);
+		if ($regnskab) $fejltxt = loginFejltxt(findtekst('8429|Regnskab %s findes ikke', $languageId), $regnskab);
 		login($regnskab,$brugernavn,$fejltxt);
  	}
 } else {
