@@ -44,7 +44,8 @@
 //                 dropped by the join before the has_due_date check ran.
 // 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 8407) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
 // 20261030 CL/MJ Text 7636 is now 8407: #921 also adds 7636, and findtekst() keeps the first text a tenant stores for an id.
-// 20261105 CL/MMR SST-951 The order's language (Baggrund, as on a sales order) can be chosen when forms exist in more than one language.
+// 20261105 CL/MMR SST-951 The order's language (Baggrund, as on a sales order) can be chosen on a saved order when forms exist in more than one language.
+//                 A blank order has no field: the order gets its language from the supplier's group when it is created.
 //                 The mail subject and text placeholders follow the order's language instead of always Dansk.
 
 /*
@@ -102,8 +103,9 @@ print "<option value='PDF' ".((!$email || $udskriv_til=="PDF")?"selected='select
 print "<option value='email' ".(($email && $udskriv_til=="email")?"selected='selected'":"")." title=\"".findtekst(1450, $sprog_id)."\">".findtekst(652, $sprog_id)."</option>\n";
 print "</SELECT></td></tr>\n";
 #20221104 END
-// SST-951: the language of the order's documents, like the Baggrund select on a sales order (debitor/ordre.php)
-if (db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
+// SST-951: the language of the order's documents, like the Baggrund select on a sales order (debitor/ordre.php).
+// Only on a saved order: on a blank one the posted default would overwrite the language insertAccount() takes from the supplier's group.
+if ($id && db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
 	$orderSprog = empty($formularsprog) ? 'Dansk' : $formularsprog;
 	print "<tr><td></td><td></td>";
 	print "<td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\">" . findtekst('571|Baggrund', $sprog_id) . "</td>";
