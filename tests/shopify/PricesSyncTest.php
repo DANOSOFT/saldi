@@ -16,6 +16,7 @@
 // 20261103 CL/SS SD-802: created.
 // 20261104 CL/SS SD-802 review: POS's total path with odd-øre percent cases, find_pris()'s VAT (box7 NULL).
 //                A relink during a call; the worker's wiring moved to PricesTest.
+// 20261105 CL/SS SD-809: a set in a group without box8 gets its price in every shop.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -74,12 +75,13 @@ final class PricesSyncTest extends TestCase
             $this->sql("DELETE FROM $table");
         }
         $this->sql("DELETE FROM varetilbud WHERE vare_id IN (SELECT id FROM varer WHERE varenr LIKE 'SD802-%')");
+        $this->sql("DELETE FROM styklister WHERE indgaar_i IN (SELECT id FROM varer WHERE varenr LIKE 'SD802-%')");
         $this->sql("DELETE FROM varer WHERE varenr LIKE 'SD802-%'");
-        $this->sql("DELETE FROM grupper WHERE art = 'RA' OR (art = 'VG' AND kodenr IN (902, 904, 905)) OR (art = 'SM' AND kodenr = 78)");
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' OR (art = 'VG' AND kodenr IN (902, 904, 905, 906)) OR (art = 'SM' AND kodenr = 78)");
         $this->sql("DELETE FROM kontoplan WHERE kontonr = 9002");
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, box3, box4, box5) VALUES ('RA', 1, 'RA', '01', $1, '12', $1, 'on')", [date('Y')]);
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, box4, box7, box8, fiscal_year) VALUES ('Havemøbler', 902, 'VG', '9002', '', 'on', 1),
-            ('Parasoller', 904, 'VG', '9002', NULL, 'on', 1), ('Momsfri', 905, 'VG', '9002', 'on', 'on', 1)");
+            ('Parasoller', 904, 'VG', '9002', NULL, 'on', 1), ('Momsfri', 905, 'VG', '9002', 'on', 'on', 1), ('Sæt', 906, 'VG', '9002', '', '', 1)");
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, box1, box2, fiscal_year) VALUES ('Salgsmoms', 78, 'SM', '9003', '25', 1)");
         $this->sql("INSERT INTO kontoplan (kontonr, beskrivelse, moms, regnskabsaar) VALUES (9002, 'Salg', 'S78', 1)");
         $this->sql("INSERT INTO shopify_shops (shop_key, domain, is_primary, products_enabled, prices_enabled) VALUES
@@ -216,6 +218,19 @@ final class PricesSyncTest extends TestCase
             array_column($r['calls'], 'operation'), 'one product update and one metafield per shop, nothing on the unchanged run');
         $this->assertSame(['di', 'hml', 'hms'], array_keys($this->state($id)), 'state per shop, none for the shop with prices off');
         $this->assertSame(['shop_key' => 'hml', 'price' => '1249.000', 'compare_at' => null, 'retail_price' => '1999.000'], $this->state($id)['hml']);
+    }
+
+    public function testASetInAGroupWithoutBox8GetsItsPriceInEveryShop(): void
+    {
+        $part = $this->item('P1');
+        $set = $this->item('SET1', ['gruppe' => 906, 'samlevare' => 'on']);
+        $this->sql('INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $2, 2, 1)', [$part, $set]);
+        $r = $this->steps(...array_merge($this->linked($set), [['sync', 'hml'], ['sync', 'hms'], ['sync', 'di']]));
+
+        foreach (self::SHOPS as $shop) {
+            $this->assertSame(['price' => '1249.00', 'compareAtPrice' => null], $r['variants'][$shop]['SD802-SET1'], $shop);
+        }
+        $this->assertSame(['di', 'hml', 'hms'], array_keys($this->state($set)), 'the set has its price state in every shop');
     }
 
     public function testOnlyTheChangedValueIsSentAgain(): void

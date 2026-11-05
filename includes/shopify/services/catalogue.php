@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/catalogue.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/services/catalogue.php --- ver 5.1.0 --- 2026.11.05
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,18 +25,24 @@
 // Catalogue (WP05-1, K07, K11): Saldi items go to the primary shop as Shopify drafts (productSet)
 // and are linked in the other shops by exact SKU. An update sends only the Saldi-owned fields
 // (name, SKU, EAN, cost, weight, tracking, oversell policy, taxable, saldi.vat_rate), never what
-// HML owns. Webshop items = open items of a stock group (VG box8), as the legacy sync. Dark until
+// HML owns. Webshop items = open items of a stock group (VG box8) and open sets, as the legacy sync. Dark until
 // products_enabled; pages only queue jobs, after their commit.
 //
 // 20261029 CL/SS SD-741: created (WP05-1).
 // 20261104 CL/SS SD-802: the VAT rate is the one POS adds (find_pris()), so a group with box7 NULL is taxable.
+// 20261105 CL/SS SD-809: sets are webshop items too, whatever their own group, so they get a product and a price.
 
 require_once __DIR__ . '/../client.php';
 require_once __DIR__ . '/../errors.php';
 require_once __DIR__ . '/../links.php';
 
-/** Which items are webshop items: open, in a stock item group. Aliases v = varer, g = its VG group. */
-const SHOPIFY_CATALOGUE_MANAGED = "coalesce(g.box8, '') NOT IN ('', '0') AND coalesce(v.lukket, '') NOT IN ('1', 'on')";
+/**
+ * Which items are webshop items: open items in a stock item group, and open sets (an item with a bill of materials), whatever
+ * their own group, as the legacy sync reaches a set through its parts. The one owner: the catalogue scan, the seed, the item
+ * state read and the price sync all use it. Aliases v = varer, g = its VG group.
+ */
+const SHOPIFY_CATALOGUE_MANAGED = "(coalesce(g.box8, '') NOT IN ('', '0') OR EXISTS (SELECT 1 FROM styklister shopify_bom WHERE shopify_bom.indgaar_i = v.id))
+	AND coalesce(v.lukket, '') NOT IN ('1', 'on')";
 
 const SHOPIFY_CATALOGUE_PRODUCT = 'fragment catalogueProduct on Product {
 	id handle variantsCount { count }
@@ -132,7 +138,8 @@ function shopify_catalogue_owned(array $item, array $vat): array {
 			'taxable' => $vat['rate'] > 0,
 			'inventoryItem' => array(
 				'cost' => sprintf('%.2f', (float)($item['kostpris'] ?? 0)),
-				'tracked' => true, // webshop items are stock items (SHOPIFY_CATALOGUE_MANAGED)
+				// a stock item's quantity, or a set's complete sets per location (SD-757): untracked, Shopify would sell without limit
+				'tracked' => true,
 				'measurement' => array('weight' => array('value' => round($weight, 3), 'unit' => $unit === 'g' ? 'GRAMS' : 'KILOGRAMS')),
 			),
 		),

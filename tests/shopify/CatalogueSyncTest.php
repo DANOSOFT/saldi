@@ -18,6 +18,7 @@
 // History:
 // 20261029 CL/SS SD-741: created.
 // 20261104 CL/SS SD-802: the VAT is POS's: a group with box7 NULL is taxable, a VAT-free group is not.
+// 20261105 CL/SS SD-809: a set in a group without box8 becomes a draft, also through the seed; a closed set does not.
 
 use PHPUnit\Framework\TestCase;
 
@@ -70,6 +71,7 @@ final class CatalogueSyncTest extends TestCase
         foreach (['shopify_product_links', 'shopify_jobs', 'shopify_errors', 'shopify_shops'] as $table) {
             $this->sql("DELETE FROM $table");
         }
+        $this->sql("DELETE FROM styklister WHERE indgaar_i IN (SELECT id FROM varer WHERE varenr LIKE 'SD741-%')");
         $this->sql("DELETE FROM varer WHERE varenr LIKE 'SD741-%'");
         $this->sql("DELETE FROM grupper WHERE art = 'RA' OR (art = 'VG' AND kodenr IN (900, 901, 902, 903)) OR (art = 'SM' AND kodenr = 77)");
         $this->sql("DELETE FROM kontoplan WHERE kontonr = 9001");
@@ -136,6 +138,31 @@ final class CatalogueSyncTest extends TestCase
         $this->assertSame(['value' => '25.00', 'type' => 'number_decimal'], $r['metafields'][$link['variant_gid'] . '|saldi.vat_rate']);
         $this->assertSame('unchanged', $r['results'][1]['result']);
         $this->assertSame('unchanged', $r['results'][2]['result']);
+    }
+
+    public function testASetInAGroupWithoutBox8BecomesADraftAndAClosedOneDoesNot(): void
+    {
+        $part = $this->item('P1');
+        $set = $this->item('SET1', ['gruppe' => 901, 'samlevare' => 'on', 'beskrivelse' => 'Havesæt']);
+        $closed = $this->item('SET2', ['gruppe' => 901, 'samlevare' => 'on', 'lukket' => 'on']);
+        $plain = $this->item('M1', ['gruppe' => 901]);
+        foreach ([$set, $closed] as $s) {
+            $this->sql('INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $2, 4, 1)', [$part, $s]);
+        }
+
+        $r = $this->steps(['sync', 'hml', $set], ['sync', 'hml', $closed], ['sync', 'hml', $plain], ['seed', 'hml', 0, 100]);
+
+        $this->assertSame('created', $r['results'][0]['result'], 'a set is a webshop item whatever its own group');
+        $product = array_values($r['products'])[0];
+        $this->assertSame(['DRAFT', 'Havesæt', 'SD741-SET1', true], [$product['status'], $product['title'], $product['variants'][0]['sku'], $product['variants'][0]['inventoryItem']['tracked']],
+            'tracked, so the complete sets per location (SD-757) limit what Shopify sells');
+        $this->assertSame(['skipped', 'not a webshop item'], [$r['results'][1]['result'], $r['results'][1]['reason']], 'a closed set is not sent');
+        $this->assertSame(['skipped', 'not a webshop item'], [$r['results'][2]['result'], $r['results'][2]['reason']], 'nor an item of that group without a bill of materials');
+        $seeded = array_map('intval', array_column($this->sql("SELECT payload->>'vare_id' AS id FROM shopify_jobs WHERE type = 'catalogue.upsert'"), 'id'));
+        $this->assertContains($part, $seeded, 'the seed queues the stock item');
+        $this->assertContains($set, $seeded, 'and the set');
+        $this->assertNotContains($closed, $seeded);
+        $this->assertNotContains($plain, $seeded);
     }
 
     public function testAnUnchangedSaveStillNoticesADeletedProductOrAReplacedVariant(): void
