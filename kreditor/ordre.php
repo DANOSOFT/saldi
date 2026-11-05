@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -98,6 +98,8 @@
 //                  was skipped and the line fell back to varer.kostpris. samlevare() reads the
 //                  supplier's price per component for the same reason.
 // 20261030 CL/MJ SST-872 A supplier row whose price is 0 ("0.000" from the database) falls back to the item's cost price, on the typed line and in samlevare().
+// 20261105 CL/MMR SST-951 Saving the order header stores the chosen language (sprog) when that language has forms, and a restordre keeps the order's language.
+//                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
 
 @session_start();
 $s_id=session_id();
@@ -472,6 +474,13 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$omlev = if_isset($_POST, NULL, 'omlev');
 		$email = db_escape_string(trim(if_isset($_POST, NULL, 'email')));
 		$udskriv_til = trim(if_isset($_POST, NULL, 'udskriv_til'));
+		// SST-951: the order's language from the Baggrund select; only a language that has forms is saved
+		$formularsprog = null;
+		$postedSprog = trim((string)ifset($_POST, 'sprog', ''));
+		if ($postedSprog !== '') {
+			$sprogCheck = "select sprog from formularer where sprog = '" . db_escape_string($postedSprog) . "' limit 1";
+			if (db_fetch_array(db_select($sprogCheck, __FILE__ . " linje " . __LINE__))) $formularsprog = $postedSprog;
+		}
 		$mail_subj   = db_escape_string(if_isset($_POST,NULL,'mail_subj')); #20230105
 		$mail_text   = db_escape_string(str_replace("\n","<br>",if_isset($_POST,NULL,'mail_text'))); #20230105
 		$varemomssats= if_isset($_POST,NULL,'$varemomssats'); #20141106
@@ -1081,6 +1090,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 	*/
 					$qtxt.="hvem = '$brugernavn',tidspkt='$tidspkt',valuta='$valuta',valutakurs='$valutakurs',";
 					$qtxt.="email='$email', udskriv_til='$udskriv_til', projekt='$projekt[0]', ";
+					if ($formularsprog !== null) $qtxt.="sprog='" . db_escape_string($formularsprog) . "', ";
 					$qtxt.="mail_subj='$mail_subj',mail_text='$mail_text',kundeordnr='$kundeordnr' ";
 					$qtxt.="where id=$id";
 	#				exit;
@@ -1101,13 +1111,16 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			}
 			if ($opret_ny==1)	{
 				$query = db_select("select hvem from ordrer where id=$id",__FILE__ . " linje " . __LINE__);
+				// SST-951: the restordre keeps the language of the order it comes from
+				$r_sprog = db_fetch_array(db_select("select sprog from ordrer where id = '" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
+				$restSprog = db_escape_string((string)ifset($r_sprog, 'sprog', ''));
 				$qtxt = "insert into ordrer ";
 				$qtxt.= "(ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, ";
 				$qtxt.= "lev_navn,	lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, betalingsdage, ";
-				$qtxt.= "betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, sum, lev_adr, valuta, afd) values ";
+				$qtxt.= "betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, sum, lev_adr, valuta, afd, sprog) values ";
 				$qtxt.= "($ordrenr, $konto_id, '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$kontakt', ";
 				$qtxt.= "'$lev_navn',	'$lev_addr1',	'$lev_addr2',	'$lev_postnr',	'$lev_bynavn', '$lev_kontakt', '$betalingsdage', ";
-				$qtxt.= "'$betalingsbet', '$cvrnr', '$notes', '$art', '$ordredate', '$momssats', 1, '$ref', '$sum', '$lev_adr', '$valuta', '$afd')";
+				$qtxt.= "'$betalingsbet', '$cvrnr', '$notes', '$art', '$ordredate', '$momssats', 1, '$ref', '$sum', '$lev_adr', '$valuta', '$afd', '$restSprog')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$query = db_select("select id from ordrer where ordrenr='$ordrenr' order by id desc",__FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($query);
@@ -1287,6 +1300,7 @@ function ordreside($id) {
 	$addr1 = $addr2 = $betalingsbet = $bynavn = $cvrnr = $firmanavn = $kontakt = $kontonr = $land = '';
 	$lev_navn = $lev_addr1 = $lev_addr2 = $lev_bynavn = $lev_kontakt = $lev_postnr = $levdato = '';
 	$momssats = $omlev = $ordredato = $postnr = $ref = $valuta = $vis_projekt = '';
+	$formularsprog = '';
 	
 	$antal = $posnr = $salgspris = array();
 	$ordre_id=0;
@@ -1369,6 +1383,7 @@ function ordreside($id) {
 		$omlev         = $r['omvbet'];
 		$document      = $r['dokument'];
 		$email         = $r['email'];
+		$formularsprog = $r['sprog'];
 		if ($email && $r['udskriv_til']) $udskriv_til = $r['udskriv_til'];
 		else $udskriv_til = 'PDF';
 		$mail_subj=$r['mail_subj']; #20230105
