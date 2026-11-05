@@ -100,6 +100,7 @@
 // 20261030 CL/MJ SST-872 A supplier row whose price is 0 ("0.000" from the database) falls back to the item's cost price, on the typed line and in samlevare().
 // 20261105 CL/MMR SST-951 Saving the order header stores the chosen language (sprog) when that language has forms, and a restordre keeps the order's language.
 //                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
+//                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
 
 @session_start();
 $s_id=session_id();
@@ -413,67 +414,67 @@ create_tutorial("kred-order", $steps);
 $status = null;
 if(isset($_POST['status'])) $status=$_POST['status'];
 	if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_POST['copy'])) { #20120816
-		$fokus = if_isset($_POST, NULL, 'fokus');
+		$fokus = ifset($_POST, 'fokus');
 
-		if (if_isset($_POST, NULL, 'credit')) $submit = 'credit';
-		elseif (if_isset($_POST, NULL, 'copy')) $submit = 'copy';
+		if (ifset($_POST, 'credit')) $submit = 'credit';
+		elseif (ifset($_POST, 'copy')) $submit = 'copy';
 		
-		$id = (int) if_isset($_POST, 0, 'id');
-		$ordrenr = if_isset($_POST, NULL, 'ordrenr');
-		$kred_ord_id = if_isset($_POST, NULL, 'kred_ord_id');
-		$art = if_isset($_POST, NULL, 'art');
-		$konto_id = if_isset($_POST, NULL, 'konto_id');
-		$kontonr = if_isset($_POST, NULL, 'kontonr');
-		$firmanavn = db_escape_string(trim(if_isset($_POST, NULL, 'firmanavn')));
-		$addr1 = db_escape_string(trim(if_isset($_POST, NULL, 'addr1')));
-		$addr2 = db_escape_string(trim(if_isset($_POST, NULL, 'addr2')));
-		$postnr = trim(if_isset($_POST, NULL, 'postnr'));
-		$bynavn = trim(if_isset($_POST, NULL, 'bynavn'));
+		$id = (int) ifset($_POST, 'id', 0);
+		$ordrenr = ifset($_POST, 'ordrenr');
+		$kred_ord_id = ifset($_POST, 'kred_ord_id');
+		$art = ifset($_POST, 'art');
+		$konto_id = ifset($_POST, 'konto_id');
+		$kontonr = ifset($_POST, 'kontonr');
+		$firmanavn = db_escape_string(trim(ifset($_POST, 'firmanavn')));
+		$addr1 = db_escape_string(trim(ifset($_POST, 'addr1')));
+		$addr2 = db_escape_string(trim(ifset($_POST, 'addr2')));
+		$postnr = trim(ifset($_POST, 'postnr'));
+		$bynavn = trim(ifset($_POST, 'bynavn'));
 		
 		if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
-		$land = db_escape_string(trim(if_isset($_POST, NULL, 'land')));
-		$kontakt = db_escape_string(trim(if_isset($_POST, NULL, 'kontakt')));
-		$lev_navn = db_escape_string(trim(if_isset($_POST, NULL, 'lev_navn')));
-		$lev_addr1 = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr1')));
-		$lev_addr2 = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr2')));
-		$lev_postnr = if_isset($_POST, NULL, 'lev_postnr');
-		$lev_bynavn = trim(if_isset($_POST, NULL, 'lev_bynavn'));
+		$land = db_escape_string(trim(ifset($_POST, 'land')));
+		$kontakt = db_escape_string(trim(ifset($_POST, 'kontakt')));
+		$lev_navn = db_escape_string(trim(ifset($_POST, 'lev_navn')));
+		$lev_addr1 = db_escape_string(trim(ifset($_POST, 'lev_addr1')));
+		$lev_addr2 = db_escape_string(trim(ifset($_POST, 'lev_addr2')));
+		$lev_postnr = ifset($_POST, 'lev_postnr');
+		$lev_bynavn = trim(ifset($_POST, 'lev_bynavn'));
 		if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
-		$lev_kontakt = db_escape_string(trim(if_isset($_POST, NULL, 'lev_kontakt')));
-		$kundeordnr = if_isset($_POST, NULL, 'kundeordnr');
-		$ordredate = usdate(if_isset($_POST, NULL, 'ordredato'));
-		$levdate = usdate(trim(if_isset($_POST, NULL, 'levdato')));
-		$cvrnr = trim(if_isset($_POST, NULL, 'cvrnr'));
-		$betalingsbet = if_isset($_POST, NULL, 'betalingsbet');
+		$lev_kontakt = db_escape_string(trim(ifset($_POST, 'lev_kontakt')));
+		$kundeordnr = ifset($_POST, 'kundeordnr');
+		$ordredate = usdate(ifset($_POST, 'ordredato'));
+		$levdate = usdate(trim(ifset($_POST, 'levdato')));
+		$cvrnr = trim(ifset($_POST, 'cvrnr'));
+		$betalingsbet = ifset($_POST, 'betalingsbet');
 		// $betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
-		$betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
+		$betalingsdage = ifset($_POST, 'betalingsdage');
 		if ($betalingsdage === null || $betalingsdage === '') {
 			$betalingsdage = 1; // default fallback
 		}
-		$valuta = if_isset($_POST, NULL, 'valuta');
-		$projekt = if_isset($_POST, NULL, 'projekt');
-		$lev_adr = trim(if_isset($_POST, NULL, 'lev_adr'));
-		$sum = if_isset($_POST, NULL, 'sum');
-		$linjeantal = if_isset($_POST, NULL, 'linjeantal');
-		$linje_id = if_isset($_POST, NULL, 'linje_id');
-		$kred_linje_id = if_isset($_POST, NULL, 'kred_linje_id');
-		$vare_id = if_isset($_POST, NULL, 'vare_id');
-		$posnr = if_isset($_POST, NULL, 'posnr');
-		$status = if_isset($_POST, NULL, 'status');
-		$godkend = if_isset($_POST, NULL, 'godkend');
-		$kreditnota = if_isset($_POST, NULL, 'kreditnota');
-		$ref = trim(if_isset($_POST, NULL, 'ref'));
-		$afd = if_isset($_POST, 0, 'afd');
-		$lager = trim(if_isset($_POST, 0, 'lager'));
-		$fakturanr = db_escape_string(trim(if_isset($_POST, NULL, 'fakturanr')));
-		$momssats = if_isset($_POST, NULL, 'momssats');
-		$lev_varenr = if_isset($_POST, NULL, 'lev_varenr');
-		$momsfri = if_isset($_POST, NULL, 'momsfri');
-		$serienr = if_isset($_POST, NULL, 'serienr');
-		$omvbet = if_isset($_POST, NULL, 'omvbet');
-		$omlev = if_isset($_POST, NULL, 'omlev');
-		$email = db_escape_string(trim(if_isset($_POST, NULL, 'email')));
-		$udskriv_til = trim(if_isset($_POST, NULL, 'udskriv_til'));
+		$valuta = ifset($_POST, 'valuta');
+		$projekt = ifset($_POST, 'projekt');
+		$lev_adr = trim(ifset($_POST, 'lev_adr'));
+		$sum = ifset($_POST, 'sum');
+		$linjeantal = ifset($_POST, 'linjeantal');
+		$linje_id = ifset($_POST, 'linje_id');
+		$kred_linje_id = ifset($_POST, 'kred_linje_id');
+		$vare_id = ifset($_POST, 'vare_id');
+		$posnr = ifset($_POST, 'posnr');
+		$status = ifset($_POST, 'status');
+		$godkend = ifset($_POST, 'godkend');
+		$kreditnota = ifset($_POST, 'kreditnota');
+		$ref = trim(ifset($_POST, 'ref'));
+		$afd = ifset($_POST, 'afd', 0);
+		$lager = trim(ifset($_POST, 'lager', 0));
+		$fakturanr = db_escape_string(trim(ifset($_POST, 'fakturanr')));
+		$momssats = ifset($_POST, 'momssats');
+		$lev_varenr = ifset($_POST, 'lev_varenr');
+		$momsfri = ifset($_POST, 'momsfri');
+		$serienr = ifset($_POST, 'serienr');
+		$omvbet = ifset($_POST, 'omvbet');
+		$omlev = ifset($_POST, 'omlev');
+		$email = db_escape_string(trim(ifset($_POST, 'email')));
+		$udskriv_til = trim(ifset($_POST, 'udskriv_til'));
 		// SST-951: the order's language from the Baggrund select; only a language that has forms is saved
 		$formularsprog = null;
 		$postedSprog = trim((string)ifset($_POST, 'sprog', ''));
@@ -481,9 +482,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$sprogCheck = "select sprog from formularer where sprog = '" . db_escape_string($postedSprog) . "' limit 1";
 			if (db_fetch_array(db_select($sprogCheck, __FILE__ . " linje " . __LINE__))) $formularsprog = $postedSprog;
 		}
-		$mail_subj   = db_escape_string(if_isset($_POST,NULL,'mail_subj')); #20230105
-		$mail_text   = db_escape_string(str_replace("\n","<br>",if_isset($_POST,NULL,'mail_text'))); #20230105
-		$varemomssats= if_isset($_POST,NULL,'$varemomssats'); #20141106
+		$mail_subj   = db_escape_string(ifset($_POST, 'mail_subj')); #20230105
+		$mail_text   = db_escape_string(str_replace("\n","<br>",ifset($_POST, 'mail_text'))); #20230105
+		$varemomssats= ifset($_POST, '$varemomssats'); #20141106
 		// if (!$betalingsdage)  $betalingsdage = 0;
 		if ($betalingsdage === null || $betalingsdage === '') {
 			$betalingsdage = 1;
@@ -588,13 +589,13 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				if ($art=='KK') $antal[$x]=$antal[$x]*-1;
 			}
 			$y="leve".$x;
-			$leveres[$x]=if_isset($_POST,NULL,$y);
+			$leveres[$x]=ifset($_POST, $y);
 			if ($leveres[$x]){
 				$leveres[$x]=usdecimal($leveres[$x],2);
 				if ($art=='KK') $leveres[$x]=$leveres[$x]*-1;
 			} else $leveres[$x] = 0;
 			$y="lev_varenr".$x;
-			$lev_varenr[$x]=db_escape_string(trim(if_isset($_POST,NULL,$y)));
+			$lev_varenr[$x]=db_escape_string(trim(ifset($_POST, $y)));
 			$y="beskrivelse".$x;
 			$beskrivelse[$x]=db_escape_string(trim($_POST[$y]));
 			$y="pris".$x;
@@ -607,16 +608,16 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if ($godkend == "on" && $status == 0) $leveres[$x]=$antal[$x];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
-			$projekt[$x] = if_isset($projekt, NULL,$x);
+			$projekt[$x] = ifset($projekt, $x);
 			# Expiry date / batch no for batch controlled items. NULL means the inputs were not
 			# rendered for this line, so the columns must be left untouched when saving.
 			$batch_due_date[$x] = $batch_batch_no[$x] = NULL;
-			$tmp_due = if_isset($_POST, NULL, 'batch_due_date');
+			$tmp_due = ifset($_POST, 'batch_due_date');
 			if (is_array($tmp_due) && isset($tmp_due[$x])) {
 				$tmp_due = trim($tmp_due[$x]);
 				$batch_due_date[$x] = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $tmp_due)) ? $tmp_due : '';
 			}
-			$tmp_bno = if_isset($_POST, NULL, 'batch_batch_no');
+			$tmp_bno = ifset($_POST, 'batch_batch_no');
 			if (is_array($tmp_bno) && isset($tmp_bno[$x])) {
 				$batch_batch_no[$x] = db_escape_string(substr(trim($tmp_bno[$x]), 0, 100));
 			}
@@ -933,10 +934,10 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						// data for any line whose tracking flag changed since it was last saved
 						// (CodeRabbit, PR #608). $batch_due_date[$x]/$batch_batch_no[$x] are set
 						// per-line above, NULL when that line's input wasn't submitted.
-						if (if_isset($batch_due_date, NULL, $x) !== NULL) {
+						if (ifset($batch_due_date, $x) !== NULL) {
 							$qtxt.= ",batch_due_date=" . ($batch_due_date[$x] ? "'$batch_due_date[$x]'" : "NULL");
 						}
-						if (if_isset($batch_batch_no, NULL, $x) !== NULL) {
+						if (ifset($batch_batch_no, $x) !== NULL) {
 							$qtxt.= ",batch_batch_no=" . ($batch_batch_no[$x] !== '' ? "'$batch_batch_no[$x]'" : "NULL");
 						}
 						$qtxt.= " where id='$linje_id[$x]'";
@@ -1454,16 +1455,16 @@ function ordreside($id) {
 	print "<input type=\"hidden\" name=\"afd\" value=\"$afd\">";
 	print "<input type=\"hidden\" name=\"omlev\" value=\"$omlev\">";
 
-            if ($status>=3) {
-            include("orderIncludes/closedOrder.php");
-            } else {
-            if ($submit == 'split') {
-            include('orderIncludes/splitOrder.php');
-            } else {
-            include("orderIncludes/openOrder.php");
-            include('orderIncludes/openOrderLines.php');
-            }
-            }
+	if ($status>=3) {
+		include(__DIR__ . '/orderIncludes/closedOrder.php');
+	} else {
+		if ($submit == 'split') {
+			include(__DIR__ . '/orderIncludes/splitOrder.php');
+		} else {
+			include(__DIR__ . '/orderIncludes/openOrder.php');
+			include(__DIR__ . '/orderIncludes/openOrderLines.php');
+		}
+	}
             print "</tbody>
             </table>
             </td>
