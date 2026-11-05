@@ -257,6 +257,32 @@ final class StockSetsBaselineTest extends TestCase
         $this->assertCount(2, array_filter($this->errors(), fn(string $e): bool => str_contains($e, 'no bill of materials')));
     }
 
+    public function test_a_set_that_breaks_after_publishing_is_sent_as_0_and_its_warning_ends_when_it_is_fixed(): void
+    {
+        $x = $this->item('X', [1 => 4]);
+        $y = $this->item('Y', [1 => 4]);
+        $set = $this->set('SET', [$x => 1, $y => 1]);
+        $this->shop([$set]);
+        $this->dirty([$set]);
+        $this->assertSame(4, $this->steps(['drain', 100], ['push', 'hml'])['levels']['hml']['SD757-SET']['Ballerup']);
+
+        $bom = $this->sql('SELECT id, vare_id FROM styklister WHERE indgaar_i = $1', [$set]);
+        $this->sql('DELETE FROM styklister WHERE indgaar_i = $1', [$set]);
+        $this->dirty([$set]);
+        $broken = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertNoException($broken);
+        $this->assertSame(0, $broken['levels']['hml']['SD757-SET']['Ballerup'], 'what it published before can no longer be sold');
+        $this->assertCount(1, array_filter($this->errors(), fn(string $e): bool => str_contains($e, 'no bill of materials')), 'the warning stays');
+
+        foreach ($bom as $i => $c) {
+            $this->sql('INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $2, 1, $3)', [$c['vare_id'], $set, $i + 1]);
+        }
+        $this->dirty([$set]);
+        $fixed = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertSame(4, $fixed['levels']['hml']['SD757-SET']['Ballerup']);
+        $this->assertSame([], array_filter($this->errors(), fn(string $e): bool => str_starts_with($e, "item:$set")), 'Shopify took it, so the warning is resolved');
+    }
+
     public function test_the_warning_on_split_set_lager_is_raised_once_per_push_and_resolved(): void
     {
         $x = $this->item('X', [1 => 1, 2 => 0]);
@@ -747,6 +773,35 @@ final class StockSetsBaselineTest extends TestCase
         $this->assertSame(5, $run['levels']['hml']['SD757-A']['Ballerup']);
     }
 
+    public function test_a_remap_to_a_location_of_another_shop_zeroes_nothing(): void
+    {
+        $this->inStep('A', [1 => 5]);
+
+        $run = $this->steps(['remap', 'hml', 1, 'gid://shopify/Location/999999']);
+
+        $this->assertSame('ShopifyConfigError', $run['results'][0]['exception'] ?? null, json_encode($run['results'][0]));
+        $this->assertSame([], self::calls($run, 'stockSet'));
+        $this->assertSame(5, $run['levels']['hml']['SD757-A']['Ballerup']);
+    }
+
+    public function test_a_baseline_retry_before_a_remap_still_counts_as_written(): void
+    {
+        $a = $this->item('A', [1 => 5]);
+        $this->shop([$a]);
+        $this->offToBaseline();
+        $this->steps(['start_baseline', 'hml'], ['baseline', 'hml', null]);
+        $this->assertSame(5, $this->steps(['baseline', 'hml', ['prepared' => true]])['levels']['hml']['SD757-A']['Ballerup']);
+        // a rerun forgets every acknowledgement before it sends again
+        $this->sql("UPDATE shopify_shops SET stock_baseline_at = NULL WHERE shop_key = 'hml'");
+        $this->steps(['baseline', 'hml', null]);
+        $this->assertSame([], $this->state());
+
+        $run = $this->steps(['remap', 'hml', 1, null]);
+
+        $this->assertSame(1, $run['results'][0], 'the old location is zeroed');
+        $this->assertSame(0, $run['levels']['hml']['SD757-A']['Ballerup']);
+    }
+
     public function test_before_saldi_has_written_stock_a_remap_only_moves_the_mapping(): void
     {
         $a = $this->item('A', [1 => 5]);
@@ -757,7 +812,7 @@ final class StockSetsBaselineTest extends TestCase
         $run = $this->steps(['remap', 'hml', 1, $new]);
 
         $this->assertSame(0, $run['results'][0]);
-        $this->assertSame([], $run['calls'], 'the legacy integration\'s stock is left alone');
+        $this->assertSame(['stockRemapLocation'], array_column($run['calls'], 'operation'), 'only the new location is read: the legacy integration\'s stock is left alone');
         $this->assertSame($new, $this->sql('SELECT location_gid FROM shopify_location_map WHERE lager = 1')[0]['location_gid']);
     }
 

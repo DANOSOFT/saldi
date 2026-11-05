@@ -58,6 +58,8 @@
 //                A pair stocked after all goes on to the set, and an item over one call's size is left out with a warning.
 // 20261105 CL/SZ SD-757: sets and display lagre in the push (WP06-3).
 //                shopify_stock_display(), shopify_stock_reconcile(), shopify_stock_baseline() and shopify_stock_remap().
+// 20261105 CL/SZ SD-757 review: a set that breaks is sent as 0, an acknowledged item's stock warning is resolved.
+//                A remap checks the new location is the shop's, and counts a started baseline as written.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -426,7 +428,7 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 		return array();
 	}
 	$config = $rt['lager_config'] ?? shopify_lager_config();
-	$rows = $marks = $settled = $watch = array();
+	$rows = $marks = $settled = $watch = $invalid = array();
 	$readAt = null;
 	foreach (array_chunk(array_map('intval', array_keys($set)), SHOPIFY_STOCK_SLICE) as $ids) {
 		if ($readAt !== null && $deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS) {
@@ -435,6 +437,7 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 		$read = shopify_stock_wanted($shopId, $ids, $config);
 		$readAt ??= $read['read_at'];
 		$deferred = shopify_stock_deferred($shopId, $ids, $read['components']);
+		array_push($invalid, ...$read['invalid']);
 		foreach ($ids as $vareId) {
 			if (isset($deferred[$vareId])) {
 				continue;
@@ -467,6 +470,7 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 	if ($refused !== array()) {
 		shopify_stock_unmark($shop, array_intersect_key($marks, $refused));
 		$marks = array_diff_key($marks, $refused);
+		$watch = array_diff_key($watch, $refused);
 		$rows = array_values(array_filter($rows, fn(array $r): bool => !isset($refused[$r['vare_id']])));
 	}
 	if ($rows === array()) {
@@ -482,6 +486,7 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 		'rows' => array_map(fn(array $r): array => array('vare_id' => $r['vare_id'], 'lager' => $r['lager'], 'quantity' => $r['quantity']), $rows),
 		'marks' => $marks,
 		'watch' => array_values(array_unique(array_merge(...array_values($watch)))),
+		'invalid' => array_values(array_intersect($invalid, array_keys($marks))),
 		'read_at' => $readAt,
 	);
 	return shopify_stock_state_update("stock.pending:{$shop['shop_key']}", fn(array $current): array => $current ?: $pending);
@@ -511,12 +516,12 @@ function shopify_stock_deferred(int $shopId, array $ids, array $components): arr
  * mapping is skipped with a warning on the error list. A display lager without one is skipped silently:
  * the shop then doesn't show that display, and nothing can be oversold there. A set
  * that can't be published (no bill of materials, a set inside it, a quantity that doesn't work) is
- * left out with a warning, and so is every item without a listed link.
+ * sent as 0 with a warning (invalid). An item without a listed link is left out.
  *
  * @param list<int> $ids
  * @param array{lagre: list<array<string, string|null>>, split_set_lager: int|null, virtual_lager: int|null} $config
  * @return array{
- *   items: array<int, array{inventory_item_gid: string, variant_gid: string|null, pairs: array<int, array{quantity: int, udstillet: bool, location_gid: string}>}>,
+ *   items: array<int, array{inventory_item_gid: string, variant_gid: string|null, pairs: array<int, array{quantity: int, udstillet: bool, location_gid: string}>, invalid: bool}>,
  *   components: array<int, list<int>>, unmapped: list<int>, read_at: string
  * }
  */
@@ -559,7 +564,7 @@ function shopify_stock_plan(int $shopId, array $ids, array $config): array {
 		if ($link['is_set'] === 't') {
 			$bom = $boms[$vareId] ?? array();
 			if ($bom === array() || array_filter($bom, fn(array $c): bool => $c['nested']) !== array()) {
-				shopify_error_open($shopId, 'stock', "item:$vareId", "Set $vareId has no bill of materials, or a set inside it; its stock is not sent.", 'warning');
+				$items[$vareId] = shopify_stock_invalid_set($shopId, $link, $lagre, $locations, "Set $vareId has no bill of materials, or a set inside it; it is sent as 0.");
 				continue;
 			}
 		}
@@ -569,7 +574,7 @@ function shopify_stock_plan(int $shopId, array $ids, array $config): array {
 			if ($bom === array()) {
 				throw $e;
 			}
-			shopify_error_open($shopId, 'stock', "item:$vareId", "The stock of set $vareId is not sent: " . $e->getMessage(), 'warning');
+			$items[$vareId] = shopify_stock_invalid_set($shopId, $link, $lagre, $locations, "Set $vareId is sent as 0: " . $e->getMessage());
 			continue;
 		}
 		$pairs = array();
@@ -578,9 +583,27 @@ function shopify_stock_plan(int $shopId, array $ids, array $config): array {
 				$pairs[$lager] = array('quantity' => $want['available'], 'udstillet' => $want['udstillet'], 'location_gid' => $locations[$lager]);
 			}
 		}
-		$items[$vareId] = array('inventory_item_gid' => $link['inventory_item_gid'], 'variant_gid' => $link['variant_gid'], 'pairs' => $pairs);
+		$items[$vareId] = array('inventory_item_gid' => $link['inventory_item_gid'], 'variant_gid' => $link['variant_gid'], 'pairs' => $pairs, 'invalid' => false);
 	}
 	return array('items' => $items, 'components' => array_intersect_key($components, $items), 'unmapped' => array_keys($unmapped), 'read_at' => $readAt);
+}
+
+/**
+ * A set that can't be published is sent as 0 at every mapped lager it would be sent to, so a quantity
+ * published before it broke can't be sold, and its warning stays open.
+ *
+ * @return array{inventory_item_gid: string, variant_gid: string|null, pairs: array<int, array{quantity: int, udstillet: bool, location_gid: string}>, invalid: bool}
+ */
+function shopify_stock_invalid_set(int $shopId, array $link, array $lagre, array $locations, string $why): array {
+	shopify_error_open($shopId, 'stock', "item:{$link['vare_id']}", $why, 'warning');
+	$pairs = array();
+	foreach ($lagre as $l) {
+		$lager = (int)$l['lager'];
+		if (empty($l['virtual']) && in_array($l['rolle'], array('saelgbar', 'udstilling'), true) && isset($locations[$lager])) {
+			$pairs[$lager] = array('quantity' => 0, 'udstillet' => false, 'location_gid' => $locations[$lager]);
+		}
+	}
+	return array('inventory_item_gid' => $link['inventory_item_gid'], 'variant_gid' => $link['variant_gid'], 'pairs' => $pairs, 'invalid' => true);
 }
 
 /**
@@ -610,16 +633,20 @@ function shopify_stock_boms(array $setIds): array {
  *
  * @param list<int> $ids
  * @param array{lagre: list<array<string, string|null>>, split_set_lager: int|null, virtual_lager: int|null} $config
- * @return array{items: array<int, list<array{vare_id: int, lager: int, quantity: int, inventory_item_gid: string, location_gid: string}>>, components: array<int, list<int>>, read_at: string}
+ * @return array{items: array<int, list<array{vare_id: int, lager: int, quantity: int, inventory_item_gid: string, location_gid: string}>>, components: array<int, list<int>>, invalid: list<int>, read_at: string}
  */
 function shopify_stock_wanted(int $shopId, array $ids, array $config): array {
 	$plan = shopify_stock_plan($shopId, $ids, $config);
 	if ($plan['items'] === array()) {
-		return array('items' => array(), 'components' => array(), 'read_at' => $plan['read_at']);
+		return array('items' => array(), 'components' => array(), 'invalid' => array(), 'read_at' => $plan['read_at']);
 	}
 	$state = shopify_stock_acknowledged($shopId, array_keys($plan['items']));
+	$invalid = array();
 	$items = array();
 	foreach ($plan['items'] as $vareId => $item) {
+		if ($item['invalid']) {
+			$invalid[] = $vareId;
+		}
 		foreach ($item['pairs'] as $lager => $pair) {
 			if (($state[$vareId][$lager] ?? null) !== $pair['quantity']) {
 				$items[$vareId][] = array('vare_id' => $vareId, 'lager' => $lager, 'quantity' => $pair['quantity'],
@@ -627,7 +654,7 @@ function shopify_stock_wanted(int $shopId, array $ids, array $config): array {
 			}
 		}
 	}
-	return array('items' => $items, 'components' => $plan['components'], 'read_at' => $plan['read_at']);
+	return array('items' => $items, 'components' => $plan['components'], 'invalid' => $invalid, 'read_at' => $plan['read_at']);
 }
 
 /**
@@ -663,6 +690,14 @@ function shopify_stock_ack(array $shop, array $pending): void {
 		}
 		shopify_stock_clear_pending($shop, $pending);
 		shopify_stock_unmark($shop, $pending['marks']);
+		// Shopify took the items, so a warning left by an earlier refusal or a broken set is over; a set sent as 0 keeps its own
+		$keys = array();
+		foreach (array_diff(array_unique(array_column($pending['rows'], 'vare_id')), $pending['invalid'] ?? array()) as $vareId) {
+			$keys[] = shopify_error_key((int)$shop['id'], 'stock', "item:$vareId");
+		}
+		if ($keys !== array()) {
+			shopify_db_rows('UPDATE shopify_errors SET resolved_at = now() WHERE error_key = ANY($1::text[]) AND resolved_at IS NULL', array('{' . implode(',', $keys) . '}'));
+		}
 	});
 }
 
@@ -1245,7 +1280,7 @@ function shopify_stock_baseline_missing(int $shopId, array $config): array {
 			$missing["lager $lager"] = "sellable lager $lager has no location";
 		}
 		foreach ($ids as $vareId) {
-			if (!isset($plan['items'][$vareId])) {
+			if (!isset($plan['items'][$vareId]) || $plan['items'][$vareId]['invalid']) {
 				$missing[] = "item $vareId can't be published";
 				continue;
 			}
@@ -1262,8 +1297,8 @@ function shopify_stock_baseline_missing(int $shopId, array $config): array {
  * Zeroes a lager's location in the shop before the mapping changes, so a retired location keeps no
  * stock to sell, then in one transaction forgets the lager's acknowledgements, moves the mapping
  * and marks the items, so the next push sends the stock to the new location. Without a new
- * location the lager just loses its mapping. Before Saldi has written to the shop's stock (no baseline, no
- * acknowledgement at the lager), the location is the legacy integration's and only the mapping moves. The caller holds the worker lock, as a push running
+ * location the lager just loses its mapping. Before Saldi has written to the shop's stock (no baseline job,
+ * no acknowledgement at the lager), the location is the legacy integration's and only the mapping moves. The caller holds the worker lock, as a push running
  * alongside could send to the old location again (tools/shopify_worker.php remap does). Goes through the
  * shop's pending slot: a call already stored there is sent first, and one waiting for a barrier stops the
  * remap. An item Shopify refuses goes on the error list and the mapping stays, as that item could still sell at
@@ -1272,7 +1307,7 @@ function shopify_stock_baseline_missing(int $shopId, array $config): array {
  * @param array{graphql?: array<string, mixed>, deadline?: float} $rt
  * @param string|null $newLocationGid the lager's new location
  * @return int how many pairs were zeroed
- * @throws ShopifyConfigError when the lager isn't mapped, or the new location is the old one or another lager's
+ * @throws ShopifyConfigError when the lager isn't mapped, or the new location is the old one, another lager's or not the shop's
  * @throws RuntimeException when Shopify doesn't answer or refused an item; run it again
  */
 function shopify_stock_remap(array $rt, int $shopId, int $lager, ?string $newLocationGid = null): int {
@@ -1288,6 +1323,16 @@ function shopify_stock_remap(array $rt, int $shopId, int $lager, ?string $newLoc
 	if ($new !== null && shopify_db_rows('SELECT lager FROM shopify_location_map WHERE shop_id = $1 AND location_gid = $2', array($shopId, $new)) !== array()) {
 		throw new ShopifyConfigError("$new is already mapped to another lager in shop $shopId");
 	}
+	if ($new !== null) {
+		$found = shopify_graphql($shop, 'stockRemapLocation', 'query stockRemapLocation($id: ID!) { location(id: $id) { id } }', array('id' => $new),
+			($rt['graphql'] ?? array()) + array('deadline' => (float)($rt['deadline'] ?? microtime(true) + 60), 'retry_mode' => 'read'));
+		if (!$found['ok']) {
+			throw new RuntimeException("reading location $new failed: {$found['error']}");
+		}
+		if (($found['data']['location']['id'] ?? null) !== $new) {
+			throw new ShopifyConfigError("$new is not a location of shop {$shop['shop_key']}");
+		}
+	}
 	// a call already stored goes first, also one of a baseline that hasn't been answered yet: it may write the old location
 	$stored = shopify_queue_state_get("stock.pending:{$shop['shop_key']}");
 	if ($stored !== array()) {
@@ -1296,9 +1341,10 @@ function shopify_stock_remap(array $rt, int $shopId, int $lager, ?string $newLoc
 		}
 		shopify_stock_call($rt, array('id' => null), $shop, $stored, (float)($rt['deadline'] ?? microtime(true) + 3600));
 	}
-	// Saldi has written to the location only once a baseline ran or a call was acknowledged there; before that its
-	// stock is the legacy integration's, so only the mapping moves
+	// Saldi has written to the location once a baseline started (its preparation forgets every acknowledgement, so
+	// a retry leaves none) or a call was acknowledged there; before that its stock is the legacy integration's, so only the mapping moves
 	$written = $shop['stock_baseline_at'] !== null
+		|| shopify_db_rows("SELECT 1 FROM shopify_jobs WHERE shop_id = $1 AND type = 'stock.baseline' LIMIT 1", array($shopId)) !== array()
 		|| shopify_db_rows('SELECT 1 FROM shopify_stock_state WHERE shop_id = $1 AND lager = $2 LIMIT 1', array($shopId, $lager)) !== array();
 	$zeroed = $written ? shopify_stock_remap_zero($rt, $shop, $lager, $old) : 0;
 	shopify_stock_remap_finish($shop, $lager, $new);

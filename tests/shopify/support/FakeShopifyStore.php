@@ -30,6 +30,7 @@
 // 20261104 CL/SS SD-808: the order fields the paid-order read selects (billing address, line totals, shipping lines, payment details).
 // 20261105 CL/SZ SD-756: inventorySetQuantities on a pair not stocked succeeds and stays hidden until activated, as the dev store does.
 // 20261105 CL/SZ SD-757: bulkOperationRunQuery, bulkOperation(s) and the bulk download seam for the stock read (B38); setAvailable().
+// 20261105 CL/SZ SD-757 review: rootObjectCount counts the items; the bulk query must select the item id and location id.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -1401,7 +1402,7 @@ final class FakeShopifyStore
 		$op = $this->shop($domain)['bulk'][$gid];
 		$done = $op['status'] === 'COMPLETED';
 		return ['__typename' => 'BulkOperation', 'id' => $gid, 'status' => $op['status'], 'type' => 'QUERY', 'query' => $op['query'], 'errorCode' => null,
-			'objectCount' => (string)$op['lines'], 'rootObjectCount' => (string)$op['lines'], 'fileSize' => $done ? (string)strlen($op['file']) : null,
+			'objectCount' => (string)$op['lines'], 'rootObjectCount' => (string)$op['items'], 'fileSize' => $done ? (string)strlen($op['file']) : null,
 			'url' => $done && $op['file'] !== '' ? $op['url'] : null, 'partialDataUrl' => null, 'completedAt' => null, 'createdAt' => $this->iso()];
 	}
 
@@ -1414,7 +1415,7 @@ final class FakeShopifyStore
 	 */
 	private function mBulkOperationRunQuery(string $domain, array $a): array
 	{
-		if (!preg_match('/^\{\s*inventoryItems\s*\{.*inventoryLevels.*quantities\(names:\s*\["available"\]\)/s', $a['query'])) {
+		if (!preg_match('/^\{\s*inventoryItems\s*\{\s*edges\s*\{\s*node\s*\{\s*id\b.*inventoryLevels.*location\s*\{\s*id\s*\}.*quantities\(names:\s*\["available"\]\)/s', $a['query'])) {
 			throw new LogicException('FakeShopifyStore: this bulk query is not modelled (B38): ' . $a['query']);
 		}
 		$this->uses('B38');
@@ -1428,7 +1429,7 @@ final class FakeShopifyStore
 		}
 		$gid = $this->gid('BulkOperation');
 		$s['bulk'][$gid] = ['status' => 'RUNNING', 'query' => $a['query'], 'url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '.jsonl',
-			'file' => $lines === [] ? '' : implode("\n", $lines) . "\n", 'lines' => count($lines)];
+			'file' => $lines === [] ? '' : implode("\n", $lines) . "\n", 'lines' => count($lines), 'items' => count($s['items'])];
 		return self::payload(['bulkOperation' => $this->vBulk($domain, $gid)]);
 	}
 
