@@ -39,6 +39,7 @@
 // 20261105 CL/SZ MB-125 The $sProduct... arrays start empty, so 'Hent nye varer' and 'Opdater fra shop' no longer die in in_array() when varer is empty.
 // 20261105 CL/SZ MB-133 Initialize $stockVariant and $vt_id so a new variant no longer hits a fatal count() on null when the file has no qty column or variant_typer is empty.
 // 20261105 CL/SZ MB-134 Product qty column is cast to float, so a qty file no longer dies on its header line under PHP 8.
+// 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
 
 
 function varesync($valg) {
@@ -277,7 +278,7 @@ file_put_contents("../temp/$db/varesync.log","$qtxt\n",FILE_APPEND);
 							$qtxt.= "special_to_date='2099-12-31' where id = '$sProductId[$i]'";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
-						if (!in_array($sProductId[$i],$svSaldiId)) {
+						if ($shop_id[$y] && !in_array($sProductId[$i],$svSaldiId)) {
 							$qtxt = "insert into shop_varer (saldi_id,saldi_variant,shop_id,shop_variant) ";
 							$qtxt.= "values ('$sProductId[$i]','0','$shop_id[$y]','0')";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
