@@ -1,10 +1,13 @@
 <?php
-// finans/kassekladde_includes/autoSettlement.php --- 2026-09-22
+// finans/kassekladde_includes/autoSettlement.php --- 2026-11-05
 // Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Scope automatic settlement to the chosen account and validate live rows before saving.
 // 20260922 CDX/PHR Allow unfiltered suggestions without broadening malformed account filters.
 // 20260922 CL/NTR Add autoSettlementCandidateSignalWhere() so the unfiltered open_post search
 //                 can bound its SQL fetch without dropping any row the ranking could select.
+// 20261028 CL/MMR SD-785 autoSettlementSearchWhere() filters on the account type alone ("Alle debitorer" / "Alle kreditorer")
+//                 when no account number is given; before, a type without a number matched nothing.
+// 20261105 CDX/NTR Clear line approval when assigning an invoice or counterparty.
 
 /**
  * Identify the customer/supplier side, or the empty side of an imported bank line.
@@ -53,13 +56,24 @@ function autoSettlementAccountWhere($account, $type) {
     return "openpost.konto_nr = '$account' AND adresser.kontonr = '$account' AND adresser.art = '$type'";
 }
 
-/** @return string SQL predicate for an optional customer/supplier search filter. */
+/**
+ * SQL predicate for the optional customer/supplier filter on the settlement page: every
+ * customer and supplier (no number, no type), every account of one type (no number, type D
+ * or K, SD-785), or one account (number and type). Anything else matches nothing.
+ *
+ * @param mixed $account Account number from the request, '' for none.
+ * @param mixed $type    'D', 'K' or '' from the request.
+ * @return string
+ */
 function autoSettlementSearchWhere($account, $type) {
     if (!is_string($account) || !is_string($type)) return '1 = 0';
     $account = trim($account);
     $type = strtoupper(trim($type));
     if ($account === '' && $type === '') {
         return "adresser.art IN ('D', 'K') AND openpost.konto_nr = adresser.kontonr";
+    }
+    if ($account === '' && in_array($type, ['D', 'K'], true)) {
+        return "adresser.art = '$type' AND openpost.konto_nr = adresser.kontonr";
     }
     return autoSettlementAccountWhere($account, $type);
 }
@@ -180,6 +194,8 @@ function saveAutoSettlement($journalId, $entryId, $openpostId, $accountId, $snap
             $typeField = $field === 'debet' ? 'd_type' : 'k_type';
             $assignments .= ", $field = '$number', $typeField = '$type'";
         }
+        // Eligibility requires an empty invoice; assigning the selected invoice always changes the line.
+        $assignments = "godkendt = FALSE, godkendt_af = NULL, godkendt_tid = NULL, " . $assignments;
         autoSettlementWrite("UPDATE kassekladde SET $assignments WHERE id = $entryId AND kladde_id = $journalId");
         autoSettlementWrite('COMMIT');
     } catch (Throwable $error) {

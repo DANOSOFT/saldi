@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/postApproved.php --- ver 5.0.0 --- 2026-10-19 ---
+// --- finans/kassekladde_includes/postApproved.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261019 ASR Delvis bogføring ("Bogfør godkendte"): de linjer, der er markeret godkendt, flyttes til en
 //              ny kladde, som derefter bogføres med den eksisterende motor (bogfor.php røres ikke). De
@@ -30,6 +30,7 @@
 // 20261023 ASR Review (#817): the read, the move and the audit entry run in one transaction with the journal and
 //              its lines locked (FOR UPDATE), so an approval changed in another tab meanwhile waits for the move
 //              and cannot affect the moved lines; a failed write rolls everything back ('db').
+// 20261105 CDX/NTR Check pre-save approvals under row locks before moving any lines; use tekstKeys.
 
 include_once(__DIR__ . '/../../includes/auditLog.php');
 
@@ -44,6 +45,22 @@ function kk_godkendt_bool($value) {
 }
 
 /**
+ * Snapshot approved line ids before the journal save can normalise posting values.
+ *
+ * @param int $kladde_id Source journal.
+ * @return array<int, int> Approved line ids.
+ */
+function kk_approved_line_ids($kladde_id) {
+	$kladde_id = (int)$kladde_id;
+	$ids = array();
+	$q = db_select("select id from kassekladde where kladde_id = '$kladde_id' and godkendt = TRUE", __FILE__ . " linje " . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$ids[] = (int)$row['id'];
+	}
+	return $ids;
+}
+
+/**
  * Split an open journal: move every fully approved bilag to a new journal so it can be posted on its own.
  *
  * Lines are grouped on their bilag number. A group is approved only when every line in it is approved;
@@ -53,10 +70,11 @@ function kk_godkendt_bool($value) {
  * @param int    $kladde_id   The open journal (kladdeliste.bogfort = '-').
  * @param string $brugernavn  The user doing it; recorded as oprettet_af on the new journal.
  * @param int    $sprog_id    Language for the new journal's note.
+ * @param array<int, int> $expectedApprovedIds Approvals seen before saving; abort if any was lost.
  * @return array{new_kladde_id:int, moved:int, bilag:int, mixed:array<int,string>, error:string}
- *         new_kladde_id is 0 and error is set ('not_open' | 'none' | 'db') when nothing was moved.
+ *         new_kladde_id is 0 and error is set ('not_open' | 'none' | 'db' | 'approval_changed') when nothing was moved.
  */
-function kk_post_approved($kladde_id, $brugernavn, $sprog_id) {
+function kk_post_approved($kladde_id, $brugernavn, $sprog_id, $expectedApprovedIds = array()) {
 	global $db_modify_fejl;
 	$kladde_id = (int)$kladde_id;
 	$result = array('new_kladde_id' => 0, 'moved' => 0, 'bilag' => 0, 'mixed' => array(), 'error' => '');
@@ -73,12 +91,24 @@ function kk_post_approved($kladde_id, $brugernavn, $sprog_id) {
 	$kladdenote = (string)$r['kladdenote'];
 
 	$groups = array();
+	$approvedIds = array();
 	$q = db_select("select id, bilag, godkendt from kassekladde where kladde_id = '$kladde_id' order by bilag, id for update", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$key = ((int)$row['bilag'] > 0) ? 'b' . (int)$row['bilag'] : 'l' . (int)$row['id'];
 		if (!isset($groups[$key])) $groups[$key] = array('bilag' => (int)$row['bilag'], 'ids' => array(), 'approved' => 0);
 		$groups[$key]['ids'][] = (int)$row['id'];
-		if (kk_godkendt_bool($row['godkendt'])) $groups[$key]['approved']++;
+		if (kk_godkendt_bool($row['godkendt'])) {
+			$groups[$key]['approved']++;
+			$approvedIds[] = (int)$row['id'];
+		}
+	}
+
+	// Check after locking all source rows: a save that changed VAT/bilag (or a concurrent edit)
+	// must return to the journal for renewed approval before any subset is moved.
+	if (array_diff($expectedApprovedIds, $approvedIds)) {
+		transaktion('rollback');
+		$result['error'] = 'approval_changed';
+		return $result;
 	}
 
 	$moveIds = array();
@@ -101,7 +131,7 @@ function kk_post_approved($kladde_id, $brugernavn, $sprog_id) {
 	$ny_kladde_id = 1;
 	$q = db_select("select max(id) as maxid from kladdeliste", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($q)) $ny_kladde_id = (int)$row['maxid'] + 1;
-	$suffix = findtekst('5568|godkendte fra kladde', $sprog_id) . " $kladde_id " . date('d-m-Y');
+	$suffix = findtekst('journal.approval.source_note|godkendte fra kladde', $sprog_id) . " $kladde_id " . date('d-m-Y');
 	$ny_note = trim($kladdenote) !== '' ? trim($kladdenote) . " – " . $suffix : ucfirst($suffix);
 	$ny_note_sql = db_escape_string($ny_note);
 	$brugernavn_sql = db_escape_string((string)$brugernavn);

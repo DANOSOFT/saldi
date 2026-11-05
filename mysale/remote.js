@@ -1,3 +1,5 @@
+// 20261006 CL/LH SST-842: stop with a message when vibrantPaymentLink.php returns an error instead of a link.
+// 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&db=${db}`,{
         method: "GET",
@@ -338,6 +340,25 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
             }).then(response => {
                 return response.json()
             })
+            if (!quickRes || quickRes.error || !quickRes.url) {
+                // No tenant Vibrant key or Vibrant issued no link: stop instead of opening "undefined".
+                loading.style.display = "none"
+                // update booking status
+                const res = await fetch(`api.php?updateBooking&db=${db}`,{
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        "id": bookingId,
+                        "status": "rejected"
+                    })
+                }).then(response => {
+                    return response.json()
+                })
+                alert("Betalingslinket kunne ikke oprettes. Kontakt butikken.")
+                return
+            }
 
             // open payment window in a new windows
             window.open(quickRes.url, '', 'height=700,width=500')

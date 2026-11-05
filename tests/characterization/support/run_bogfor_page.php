@@ -24,7 +24,6 @@
 //
 // History:
 // 20260723 CL/LH SD-601: created.
-// 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_bogfor_page.php <simuler|bogfor> <kladde_id> <session_id>\n");
@@ -38,7 +37,7 @@ if ($mode !== 'simuler' && $mode !== 'bogfor') {
     exit(2);
 }
 
-error_reporting(E_ALL);
+error_reporting(E_ERROR | E_PARSE); // the legacy page is warning-noisy; keep child output usable
 
 $_SERVER['REQUEST_URI'] = '/saldi/finans/bogfor.php';
 $_SERVER['PHP_SELF'] = '/saldi/finans/bogfor.php';

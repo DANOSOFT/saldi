@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------lager/productCardIncludes/stockLog.php---------lap 4.1.0---2026-02-26	-----
+// ----------lager/productCardIncludes/stockLog.php---------ver 5.0.0---2026-10-19	-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2020-2020 saldi.dk aps
+// Copyright (c) 2020-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2020-07-22 MMK Inintial setup
+// 20261019 CL/LH MB-77: Purchase and sale rows are dated by kobsdate/salgsdate instead of modtime, which a later update (e.g. a stock count taking from the batch) moves to "now".
+//                Those rows show the date only.
+//                The batch_kob/batch_salg rows (ordre_id = 0, linje_id = 0) a posted stock count writes are hidden, as the count is already shown as the Optælling row.
+//                All timestamps are local wall-clock time (timestamp without time zone): to_timestamp() of regulering.tidspkt read the local time as the database session time zone, so a 23:59:59 count showed after midnight.
 
 @session_start();
 $s_id = session_id();
@@ -35,6 +39,8 @@ include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 
 $id = if_isset($_GET['id']) * 1;
+// Local time zone set by online.php, so stocklog's Unix timestamps convert to the same wall-clock time as the other rows.
+$qTimezone = db_escape_string(date_default_timezone_get());
 
 // Item info
 $r = db_fetch_array(db_select(
@@ -54,10 +60,14 @@ while ($r = db_fetch_array($q)) {
 // Unified transaction query (stocklog + batch_kob + batch_salg + regulering)
 $qtxt = "
 
+-- All sort_ts values are local wall-clock time without time zone. Mixing in a timestamptz would turn
+-- the whole column into timestamptz, read the other rows as database session time and shift them.
+
 -- 1) Manual stock adjustments entered via the product card.
 --    logtime is stored as a Unix timestamp (text), reason and initials are captured.
 SELECT
-    to_timestamp(sl.logtime::bigint)    AS sort_ts,
+    to_timestamp(sl.logtime::bigint) AT TIME ZONE '$qTimezone' AS sort_ts,
+    FALSE                               AS date_only,
     'Manuel'                            AS type,
     NULL::integer                       AS lager,
     sl.correction                       AS antal,
@@ -77,8 +87,11 @@ UNION ALL
 --    ordre_id = 0 is treated as no order (kept as individual rows via the CASE key).
 --    Rows are suppressed when a matching stocklog entry exists within 10 seconds
 --    and with the same quantity as these are auto-created entries from manual adjustments.
+--    Rows are also suppressed when they are the batch_kob row a posted stock count wrote (see below).
+--    Dated by kobsdate: modtime is set by an update trigger, so taking from the batch later re-dates it.
 SELECT
-    COALESCE(MAX(bk.modtime), MAX(bk.kobsdate)::timestamp)  AS sort_ts,
+    MAX(bk.kobsdate)::timestamp                              AS sort_ts,
+    TRUE                                                     AS date_only,
     'Indkøb'                                                 AS type,
     bk.lager,
     SUM(bk.antal)                                            AS antal,
@@ -100,6 +113,19 @@ AND NOT EXISTS (
           COALESCE(bk.modtime, bk.kobsdate::timestamp) - to_timestamp(sl.logtime::bigint)
       ))) < 10
 )
+AND NOT EXISTS (
+    -- Suppress the batch_kob row lager/optalling.php writes when a posted count found more than expected:
+    -- no order or line, dated the count date, same quantity as the count's adjustment.
+    SELECT 1 FROM regulering r
+    WHERE r.vare_id = $id
+      AND r.bogfort
+      AND bk.ordre_id = 0
+      AND bk.linje_id = 0
+      AND r.lager = bk.lager
+      AND COALESCE(r.variant_id, 0) = COALESCE(bk.variant_id, 0)
+      AND COALESCE(r.transdate, to_date(left(r.tidspkt, 8), 'YYYYMMDD')) = bk.kobsdate
+      AND (r.optalt - r.beholdning) = bk.antal
+)
 GROUP BY
     -- Group real orders by ordre_id: rows without an order each get a unique key
     CASE WHEN bk.ordre_id IS NULL OR bk.ordre_id = 0 THEN 'id_' || bk.id::text
@@ -112,9 +138,11 @@ UNION ALL
 
 -- 3) Outgoing stock from sales orders (batch_salg).
 --    antal is negated so outgoing stock shows as a negative number.
---    Same grouping logic as batch_kob.
+--    Same grouping logic and dating as batch_kob.
+--    Rows are suppressed when they are the batch_salg rows a posted stock count wrote (see below).
 SELECT
-    COALESCE(MAX(bs.modtime), MAX(bs.salgsdate)::timestamp) AS sort_ts,
+    MAX(bs.salgsdate)::timestamp                             AS sort_ts,
+    TRUE                                                     AS date_only,
     'Salg'                                                   AS type,
     bs.lager,
     -SUM(bs.antal)                                           AS antal,      -- negate: outgoing is negative
@@ -127,6 +155,28 @@ SELECT
 FROM batch_salg bs
 LEFT JOIN ordrer o ON o.id = bs.ordre_id
 WHERE bs.vare_id = $id
+AND NOT EXISTS (
+    -- Suppress the batch_salg rows lager/optalling.php writes when a posted count found less than expected:
+    -- no order or line, dated the count date. The count takes from several purchase batches (FIFO), so
+    -- it can write several rows; together they equal the count's adjustment.
+    SELECT 1 FROM regulering r
+    WHERE r.vare_id = $id
+      AND r.bogfort
+      AND bs.ordre_id = 0
+      AND bs.linje_id = 0
+      AND r.lager = bs.lager
+      AND COALESCE(r.variant_id, 0) = COALESCE(bs.variant_id, 0)
+      AND COALESCE(r.transdate, to_date(left(r.tidspkt, 8), 'YYYYMMDD')) = bs.salgsdate
+      AND (r.beholdning - r.optalt) = (
+          SELECT SUM(bs2.antal) FROM batch_salg bs2
+          WHERE bs2.vare_id = $id
+            AND bs2.ordre_id = 0
+            AND bs2.linje_id = 0
+            AND bs2.lager = bs.lager
+            AND COALESCE(bs2.variant_id, 0) = COALESCE(bs.variant_id, 0)
+            AND bs2.salgsdate = bs.salgsdate
+      )
+)
 GROUP BY
     CASE WHEN bs.ordre_id IS NULL OR bs.ordre_id = 0 THEN 'id_' || bs.id::text
          ELSE bs.ordre_id::text END,
@@ -137,14 +187,16 @@ HAVING SUM(bs.antal) <> 0
 UNION ALL
 
 -- 4) Physical inventory counts (regulering).
---    tidspkt stores the timestamp as YYYYMMDDHHMMSS text: falls back to transdate.
+--    tidspkt stores the local time as YYYYMMDDHHMMSS text: falls back to transdate.
+--    ::timestamp turns to_timestamp()'s result back into that local wall-clock time.
 --    antal = optalt - beholdning (counted minus expected = the adjustment made).
 --    bogfort = false means the count has not yet been posted to the ledger.
 SELECT
     COALESCE(
-        to_timestamp(r.tidspkt, 'YYYYMMDDHH24MISS'),
+        to_timestamp(r.tidspkt, 'YYYYMMDDHH24MISS')::timestamp,
         r.transdate::timestamp
     )                                                AS sort_ts,
+    (r.tidspkt IS NULL)                              AS date_only,
     'Optælling'                                      AS type,
     r.lager,
     (r.optalt - r.beholdning)                        AS antal,   -- delta: positive = more than expected
@@ -226,7 +278,7 @@ $typeBadge = [
             ($linjebg != $bgcolor) ? $linjebg = $bgcolor : $linjebg = $bgcolor5;
 
             $type    = $r['type'];
-            $dato    = $r['sort_ts'] ? date("d-m-Y H:i", strtotime($r['sort_ts'])) : '';
+            $dato    = $r['sort_ts'] ? date(($r['date_only'] === 't') ? "d-m-Y" : "d-m-Y H:i", strtotime($r['sort_ts'])) : '';
             $antal   = $r['antal'] * 1;
             $corrStr = ($antal >= 0 ? '+' : '') . dkdecimal($antal);
             $corrCss = ($antal >= 0)

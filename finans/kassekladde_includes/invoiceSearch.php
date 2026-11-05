@@ -1,5 +1,5 @@
 <?php
-// finans/kassekladde_includes/invoiceSearch.php --- 2026-09-22
+// finans/kassekladde_includes/invoiceSearch.php --- 2026-10-27
 // Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Require an exact customer/supplier filter for automatic settlement.
 // 20260911 Sawaneh Return the order payment ID (ordrer.betalings_id) with each open post and
@@ -7,6 +7,10 @@
 // 20260922 CDX/PHR Search across customer/supplier accounts when no filter is requested.
 // 20260922 CL/NTR Bound the unfiltered open_post query with a SQL-level candidate signal
 //                 and paged filler rows, instead of pulling every open post into PHP.
+// 20260922 CDX/PHR Aggregate payment IDs once and avoid redundant candidate counts.
+// 20261026 CL/LH Ported the payment-ID aggregation above from live and kept the SQL candidate
+//                signal paging: every query joins payment_ids instead of a per-row subquery.
+// 20261027 CL/NTR Display the payment ID that matched the search, falling back to MAX(betalings_id).
 
 ob_start();
 
@@ -60,11 +64,24 @@ if ($accountType !== 'D' && $accountType !== 'K') {
 
 $baseWhere = "(openpost.udlignet != '1' OR openpost.udlignet IS NULL)";
 
-// Payment ID lives on the invoiced order, never on the open post itself
-$paymentIdMatch = "ordrer.konto_id = openpost.konto_id AND ordrer.fakturanr = openpost.faktnr"
-    . " AND COALESCE(openpost.faktnr, '') != '' AND ordrer.art IN ('DO', 'DK', 'KO', 'KK')"
-    . " AND COALESCE(ordrer.betalings_id, '') != ''";
-$paymentIdSelect = "(SELECT MAX(ordrer.betalings_id) FROM ordrer WHERE $paymentIdMatch) AS betalings_id";
+// Payment ID lives on the invoiced order, never on the open post itself.
+// Aggregate once per account/invoice instead of scanning orders for every open post.
+// Search all payment IDs; when one matches, display a matching ID instead of the MAX.
+$paymentIdAggregate = "MAX(betalings_id)";
+$paymentSearchSelect = '';
+if ($search !== '') {
+    $paymentIdMatch = "betalings_id ILIKE '%$search_escaped%'";
+    $paymentIdAggregate = "COALESCE(MAX(CASE WHEN $paymentIdMatch THEN betalings_id END), MAX(betalings_id))";
+    $paymentSearchSelect = ", MAX(CASE WHEN $paymentIdMatch THEN 1 ELSE 0 END) AS search_match";
+}
+$paymentIdJoin = "LEFT JOIN (
+    SELECT konto_id, fakturanr, $paymentIdAggregate AS betalings_id $paymentSearchSelect
+    FROM ordrer
+    WHERE art IN ('DO', 'DK', 'KO', 'KK') AND COALESCE(betalings_id, '') != ''
+    GROUP BY konto_id, fakturanr
+) payment_ids ON payment_ids.konto_id = openpost.konto_id
+    AND payment_ids.fakturanr = openpost.faktnr AND COALESCE(openpost.faktnr, '') != ''";
+$paymentIdSelect = "payment_ids.betalings_id";
 
 if ($mode === 'open_post') {
     $baseWhere .= ' AND (' . autoSettlementSearchWhere($_GET['account'] ?? '', $_GET['accountType'] ?? '') . ')';
@@ -83,7 +100,7 @@ if ($search !== '') {
         "adresser.firmanavn ILIKE '%$search_escaped%'",
         "CAST(openpost.konto_nr AS TEXT) ILIKE '%$search_escaped%'",
         "openpost.beskrivelse ILIKE '%$search_escaped%'",
-        "EXISTS (SELECT 1 FROM ordrer WHERE $paymentIdMatch AND ordrer.betalings_id ILIKE '%$search_escaped%')"
+        "payment_ids.search_match = 1"
     );
     $amountSearch = str_replace(' ', '', $search);
     if (strpos($amountSearch, ',') !== false) {
@@ -103,6 +120,7 @@ $countQuery = db_select("
     SELECT COUNT(*) as cnt 
     FROM openpost 
     LEFT JOIN adresser ON openpost.konto_id = adresser.id
+    $paymentIdJoin
     WHERE $baseWhere
 ", __FILE__ . " line " . __LINE__);
 
@@ -144,6 +162,7 @@ if ($mode === 'open_post') {
             $paymentIdSelect
         FROM openpost
         LEFT JOIN adresser ON openpost.konto_id = adresser.id
+        $paymentIdJoin
         WHERE $baseWhere AND ($signalWhere)
         ORDER BY openpost.transdate DESC, openpost.faktnr
     ";
@@ -273,6 +292,7 @@ if ($mode === 'open_post') {
                 $paymentIdSelect
             FROM openpost
             LEFT JOIN adresser ON openpost.konto_id = adresser.id
+            $paymentIdJoin
             WHERE $fillerWhere
             ORDER BY openpost.transdate DESC, openpost.faktnr, openpost.id
             LIMIT $remaining OFFSET $fillerOffset
@@ -318,6 +338,7 @@ $qtxt = "
         $paymentIdSelect
     FROM openpost 
     LEFT JOIN adresser ON openpost.konto_id = adresser.id
+    $paymentIdJoin
     WHERE $baseWhere
     ORDER BY openpost.transdate DESC, openpost.faktnr
     LIMIT $limit OFFSET $offset

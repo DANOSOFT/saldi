@@ -12,6 +12,7 @@
 // 20260904 CL/NTR created.
 // 20261008 CL/LH products/groups list for the current fiscal year, codeNo lookup, non-group ids are 404.
 // 20261008 CL/LH inventory/warehouses lists the real warehouses with their names, numbers and stock.
+// 20261023 CL/LH warehouses: follow SST-829 (#769) - no fiscal_year filter, one row per warehouse number.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -251,7 +252,7 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertSame(404, $notAGroup['status'], 'a grupper row that is not a product group is not served as one');
     }
 
-    public function test_warehouse_list_holds_the_current_fiscal_years_warehouses(): void
+    public function test_warehouse_list_holds_each_warehouse_once_preferring_the_current_year(): void
     {
         $tenant = RestApiEnv::connect(RestApiEnv::testDb());
         $year = $this->currentFiscalYear($tenant);
@@ -260,7 +261,9 @@ final class ReferenceDataEndpointsTest extends TestCase
             $id = (int)RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', $1, $2, $3) RETURNING id", [$kodenr, $name, $year])[0]['id'];
             $seeded[$id] = ['number' => $kodenr, 'description' => $name, 'qty' => $qty];
         }
-        RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', 93, 'other year', $1)", [$year + 100]);
+        // SST-829 (#769): the list has no fiscal_year filter, but a warehouse that still has a copy
+        // per accounting year is listed once, by its current-year row.
+        RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', 91, 'Holbæk other year', $1)", [$year + 100]);
         $product = (int)RestApiEnv::rows($tenant, 'SELECT id FROM varer ORDER BY id LIMIT 1')[0]['id'];
         foreach ($seeded as $w) {
             RestApiEnv::rows($tenant, 'INSERT INTO lagerstatus (lager, vare_id, variant_id, beholdning) VALUES ($1, $2, 0, $3)', [$w['number'], $product, $w['qty']]);
@@ -272,7 +275,7 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertSame(200, $res['status'], $res['body']);
         $ids = array_map(fn($w) => (int)$w['id'], $res['json']['data']);
         sort($ids);
-        $this->assertSame($expected, $ids, 'the real warehouses, not the id -1 placeholder');
+        $this->assertSame($expected, $ids, 'each real warehouse once by its current-year row, not the id -1 placeholder');
 
         $withStock = $this->get("inventory/warehouses/?productId=$product");
         $this->assertSame(200, $withStock['status'], $withStock['body']);

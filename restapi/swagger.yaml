@@ -1641,6 +1641,12 @@ paths:
                     success: false
                     message: "Product with SKU 'PROD001' already exists."
                     data: null
+                invalid_number:
+                  summary: Invalid number format
+                  value:
+                    success: false
+                    message: "Invalid number format for fields: salesPrice. Send a JSON number or a string such as \"1250.50\" - dot as decimal separator, no thousands separator."
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -1760,6 +1766,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_number:
+                  summary: Invalid number format
+                  value:
+                    success: false
+                    message: "Invalid number format for fields: costPrice, group (whole number). Send a JSON number or a string such as \"1250.50\" - dot as decimal separator, no thousands separator."
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -4383,6 +4396,12 @@ components:
     # Product Schemas
     CreateProductRequest:
       type: object
+      description: |
+        Number format: the numeric fields (salesPrice, costPrice, minInventory, maxInventory,
+        netweight, grossweight, length, width, height, colli_webfreight and group) take a JSON
+        number (`1.5`) or a string matching `^-?\d+(\.\d+)?$` (`"1.50"`) - dot as decimal
+        separator, no thousands separator, no spaces. `group` must be a whole number. Any other
+        value, such as the Danish-formatted `"1,50"`, is rejected with HTTP 400 and nothing is saved.
       required:
         - sku
       properties:
@@ -4515,6 +4534,12 @@ components:
 
     UpdateProductRequest:
       type: object
+      description: |
+        Number format: the numeric fields (salesPrice, costPrice, minInventory, maxInventory,
+        netweight, grossweight, length, width, height, colli_webfreight and group) take a JSON
+        number (`1.5`) or a string matching `^-?\d+(\.\d+)?$` (`"1.50"`) - dot as decimal
+        separator, no thousands separator, no spaces. `group` must be a whole number. Any other
+        value, such as the Danish-formatted `"1,50"`, is rejected with HTTP 400 and nothing is saved.
       required:
         - id
       properties:

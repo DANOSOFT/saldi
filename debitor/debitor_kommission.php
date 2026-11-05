@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitor_kommission.php -----patch 4.1.0 ----2025-04-15--------------
+// --- debitor/debitor_kommission.php -----ver 5.0.0 ----2026-10-27--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Kommission view - separate file for better grid differentiation
 // 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
+// 20260915 CDX/PHR Restore server sender/Reply-To and own SMTP for MySale invitations.
+// 20261027 NTR - CodeRabbit Review - if there's 2 semicolons/commas in a row or it's the a end comma, skip the empty address when adding recipients to PHPMailer. As well as skipping duplicate addresses by using array_unique() on the list of recipients. This prevents PHPMailer from throwing an exception when trying to add an empty or duplicate address.
+// 20261027 CL/NTR Trim and case-insensitively deduplicate invitation recipients before adding them.
+
 
 #ob_start();
 @session_start();
@@ -130,8 +134,9 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 	# Hent egen stamdata
 	$qtxt="select * from adresser where art='S'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$afsendermail=$r['email'];
 	$afsendernavn=$r['firmanavn'];
+	$invitationSender = $r;
+	require_once(__DIR__ . '/commissionMail.php');
 
 	for ($i=0;$i<count($debId);$i++) {
 		$mailToI = isset($mailTo[$i]) ? $mailTo[$i] : NULL;
@@ -147,13 +152,31 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 				$mailText .= "Bedste hilsner<br>{$afsendernavn}<br>";
 			}
 			if ($subject && $mailText) {
-				$headers  = "From: $afsendernavn <$afsendermail>\r\n";
-				$headers .= "Reply-To: $afsendermail\r\n";
-				$headers .= "MIME-Version: 1.0\r\n";
-				$headers .= "Content-Type: text/html; charset=$charset\r\n";
-				$svar = mail($custMail[$i], $subject, $mailText, $headers) ? NULL : "Mailer Error: mail() failed";
+				try {
+					$mail = commissionMail($invitationSender, $db, $_SERVER['SERVER_NAME'], $charset);
+					$recipientOk = true;
+					// Trim before deduplicating and skip empty entries ("a@x.dk;;", "a@x.dk; a@x.dk");
+					// PHPMailer rejects a repeated address case-insensitively, so key on lowercase.
+					$recipients = array();
+					foreach (explode(';', str_replace(',', ';', $custMail[$i])) as $recipient) {
+						$recipient = trim($recipient);
+						if ($recipient !== '' && !isset($recipients[strtolower($recipient)])) {
+							$recipients[strtolower($recipient)] = $recipient;
+						}
+					}
+					foreach ($recipients as $recipient) {
+						$recipientOk = $mail->addAddress($recipient) && $recipientOk;
+					}
+					$mail->Subject = $subject;
+					$mail->Body = $mailText;
+					$svar = ($recipientOk && $mail->send()) ? NULL : 'Mailer Error: ' . $mail->ErrorInfo;
+				} catch (\InvalidArgumentException $e) {
+					$svar = $e->getMessage();
+				}
 				if ($svar) {
-					echo $svar."<br>";
+					// 20261027 NTR - CodeRabbit Review - $svar needs to be escaped to prevent XSS when outputting the error message. Use htmlspecialchars() with ENT_QUOTES and UTF-8 encoding. 
+					// If sending fails, show the error and exit to prevent further processing
+					echo htmlspecialchars($svar, ENT_QUOTES, 'UTF-8')."<br>";
 					exit;
 				}
 				echo "Mail sendt til $custName[$i] &lt;$custMail[$i]&gt;<br>";

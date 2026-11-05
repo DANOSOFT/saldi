@@ -27,6 +27,7 @@
 // ----------------------------------------------------------------------
 //
 // LN 20190513 Move the handling of vare_id here
+// 20261023 CL/LH MB-95 opret_saet() call in the "på beløb" branch passed 6 of 7 arguments; now matches the call further down.
 
 if ($vare_id) {
 	$r=db_fetch_array(db_select("select varenr from varer where id = '$vare_id'",__FILE__ . " linje " . __LINE__));
@@ -114,7 +115,7 @@ if ($vare_id) {
 			if (strlen($varenr_ny)==12 && is_numeric($varenr_ny)) $qtxt.=" or stregkode='0$varenr_ny'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			if ($r['samlevare']) {
-				opret_saet($id,$r['id'],$pris_ny,$momssats,$antal_ny,$lager_ny);
+				opret_saet($id,$r['id'],usdecimal($pris_ny,2),$momssats,$antal_ny,'on',$lager_ny); #20261023
 			} else $linje_id=opret_ordrelinje($id,$r['id'],$varenr_ny,1,'',usdecimal($pris_ny,2),0,100,'PO','','','0','on','','','','','','0',$lager_ny,__LINE__); #20140226
 		}
 		$varenr_ny=NULL;

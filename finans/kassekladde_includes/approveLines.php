@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/approveLines.php --- ver 5.0.0 --- 2026-10-19 ---
+// --- finans/kassekladde_includes/approveLines.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261019 ASR Delvis bogføring: AJAX-endpoint der sætter/fjerner "Godkendt" på kladdelinjer
 //              (kassekladde.godkendt/godkendt_af/godkendt_tid). Kun åbne kladder (bogfort '-'),
@@ -30,6 +30,7 @@
 //
 // Request (POST): kladde_id, ids (kommasepareret liste af kassekladde.id), godkendt (1|0)
 // Response (JSON): {ok, approved, total} eller {ok:false, error}
+// 20261105 CDX/NTR Keep the finance permission check when integrating master.
 
 ob_start();
 session_start();

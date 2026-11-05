@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// --------------index/login.php----------lap 3.4.8------2015-01-27------
+// --------------includes/login.php----------ver 5.1.0------2026-10-29------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,7 +19,7 @@ ob_start(); //Starter output buffering
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2013.09.19 Tjekkede ikke om der var opdateringer ved login i "hovedregnskab" Søg 20130919
 // 2014.01.06	Tilføjet opslag i tmp_kode. Søg tmp_kode
@@ -27,6 +27,9 @@ ob_start(); //Starter output buffering
 // 2015.01.04 Initerer variablen $nextver så den bypasser versionskontrol i online.php
 // 2015.01.14 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
 // 2015.01.27 PHR	- Tilføjet rettigheder da man ellers bliver smidt af ved forsøg på login med tmp kode.  
+// 20261029 CDX/NTR Share login logs and temporary directories with the web server.
+
+require_once __DIR__ . '/sharedFile.php';
 
 @session_start();
 $s_id=session_id();
@@ -135,10 +138,8 @@ if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($r
 }
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 if ($db && !file_exists("../temp/.ht_$db.log")) {
-	$fp=fopen("../temp/.ht_$db.log","a");
-	fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-	fwrite($fp,"\\connect $db;\n");
-	fclose ($fp);
+	sharedFilePutContents("../temp/.ht_$db.log",
+		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n", true);
 }
 if ((isset($regnskabsaar))&&($db)){
 	db_modify("insert into online (session_id, brugernavn, db, dbuser, regnskabsaar, logtime) values ('$s_id', '".db_escape_string($brugernavn)."', '$db', '$dbuser', '$regnskabsaar', '$unixtime')",__FILE__ . " linje " . __LINE__);
@@ -150,7 +151,7 @@ else db_modify("delete from online where db=''",__FILE__ . " linje " . __LINE__)
 ## Versions kontrol / opdatering af database.
 if (($regnskab)&&($regnskab!=$sqdb)) {
 	if (!file_exists("../temp/$db")) {
-		mkdir("../temp/$db");
+		sharedDirectory("../temp/$db");
 	}
 #	if (!$dbver) {
 	include("../includes/online.php");
@@ -231,9 +232,8 @@ ob_end_flush();	//Sender det "bufferede" output afsted...
 
 if(!isset($afbryd)){
 	$db_skriv_id=NULL;
-	$fp=fopen("../temp/online.log","a");
-	fwrite($fp,date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$brugernavn."\n");
-	fclose($fp);
+	sharedFilePutContents(__DIR__ . "/../temp/online.log",
+		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$brugernavn."\n", true);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";

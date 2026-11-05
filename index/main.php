@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.0.0 --- 2026.09.30 ---
+// ---- index/main.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,7 +40,11 @@
 //                 ordre.php?inframe=1 = empty new order. Track the shell-written hash explicitly and
 //                 ignore the inframe flag when deciding whether the iframe already shows the target.
 // 20260914 CDX/LH Removed the Guides sidebar entry and its popup.
+// 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
+// 20261012 CL/LH SALDI Assist Guide: SALDI_ASSIST_GUIDE loads the v2 widget (help and navigation, no access to the books).
+// 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
+// 20261104 LOE SST-922 The Print button loads a page's autoprint view when the page offers one.
 @session_start();
 $s_id = session_id();
 
@@ -235,7 +239,7 @@ function brightenColor($color, $amount = 0.2) {
         <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(5))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';
@@ -413,8 +417,7 @@ function brightenColor($color, $amount = 0.2) {
   </ul>
 
   <div id="desc-line">
-    <a href="#" onclick="window.frames['iframe_a'].focus();
-                           window.frames['iframe_a'].print();">Print</a>
+    <a href="#" onclick="saldiPrintIframe(); return false;">Print</a>
     <p title="DB nummer <?php print $db; ?>">Saldi version <?php print $version; ?></p>
   </div>
 </div>
@@ -539,6 +542,67 @@ function brightenColor($color, $amount = 0.2) {
     iframe.src = parsedTargetUrl.href
   }
 
+  // SST-922 - pages with a fixed-height grid print only the visible screen. Such a page hands the
+  // shell the URL of its own print view (window.saldiPrintAutoprint); the shell loads that view into a
+  // separate, off-screen frame, prints it once it has really loaded, and removes the frame again. The
+  // visible iframe is never navigated, so what the user typed in the search boxes and how far the list
+  // is scrolled are untouched. A page without the property is printed exactly as before.
+  let saldiPrintPending = false;
+  const saldiPrintIframe = () => {
+    const frame = document.getElementById('iframe_a');
+    const win = frame && frame.contentWindow;
+    if (!win || saldiPrintPending) return;
+    let printUrl = '';
+    try { printUrl = win.saldiPrintAutoprint || ''; } catch (e) { printUrl = ''; }
+    if (typeof printUrl !== 'string' || printUrl === '') {
+      win.focus();
+      win.print();
+      return;
+    }
+    // The page hands over its own relative URL (lagerstatus.php?...), so resolve it against the report's
+    // address, not the shell's - otherwise the new frame asks the shell's directory for the page.
+    try {
+      printUrl = new URL(printUrl, win.location.href).href;
+    } catch (e) {
+      win.focus();
+      win.print();
+      return;
+    }
+    saldiPrintPending = true;
+    const printFrame = document.createElement('iframe');
+    printFrame.setAttribute('aria-hidden', 'true');
+    printFrame.tabIndex = -1;
+    // Off-screen rather than display:none: some browsers refuse to print a frame that is not laid out.
+    printFrame.style.cssText = 'position:fixed;left:-10000px;top:0;width:1024px;height:768px;border:0;';
+    let loadTimeout = null;
+    const cleanup = () => {
+      saldiPrintPending = false;
+      if (loadTimeout) { clearTimeout(loadTimeout); loadTimeout = null; }
+      if (printFrame.parentNode) printFrame.parentNode.removeChild(printFrame);
+    };
+    // If the frame never loads (a dead request, or a redirect the browser drops), the pending flag
+    // must not stay set - otherwise the Print button would be dead until the shell is reloaded.
+    loadTimeout = setTimeout(cleanup, 20000);
+    printFrame.addEventListener('load', () => {
+      let loadedView = false;
+      try { loadedView = printFrame.contentWindow.saldiPrintAutoprintView === true; } catch (e) { loadedView = false; }
+      if (!loadedView) {
+        // session expired, or anything else replaced the print view - never print that
+        cleanup();
+        return;
+      }
+      try {
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+      } catch (e) { /* the browser refused the dialog */ }
+      // print() returns after the dialog is closed in Chrome and Firefox; give the print job a moment
+      // before the document it printed disappears with the frame.
+      setTimeout(cleanup, 1000);
+    }, { once: true });
+    printFrame.src = printUrl;
+    document.body.appendChild(printFrame);
+  };
+
   const redirect_uri = (uri) => {
     window.location = (location + "").split("/").splice(0, 4).join("/") + uri
   }
@@ -656,8 +720,15 @@ function brightenColor($color, $amount = 0.2) {
 /* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
    endpointet ligger i includes/saldi_assist_token.php. SALDI_ASSIST_WIDGET_URL
    kan saettes i webserverens miljoe til en test-instans; standard er produktion. */
-$assistWidgetUrl = getenv('SALDI_ASSIST_WIDGET_URL') ?: 'https://wuweiworkai.com/chaty-v2/widget.js';
 $assistVersion = isset($version) ? (string)$version : '';
+// Guide (v2-widgeten uden adgang til regnskabets tal), se includes/saldi_assist_guide.php.
+require_once __DIR__ . '/../includes/saldi_assist_guide.php';
+$assistGuideMode = (string)getenv('SALDI_ASSIST_GUIDE');
+$assistGuide = saldi_assist_guide_enabled(
+  $assistGuideMode,
+  $assistGuideMode === 'pilot' ? saldi_assist_guide_tenant_setting() : null
+);
+$assistWidgetUrl = saldi_assist_widget_url((string)getenv('SALDI_ASSIST_WIDGET_URL'), $assistGuide);
 ?>
 <script src="../javascript/saldi-assist-navigate.js"></script>
 <script>
@@ -666,7 +737,7 @@ $assistVersion = isset($version) ? (string)$version : '';
   // (inkl. advarslen om ugemte aendringer).
   if (typeof update_iframe === 'function') { window.update_iframe = update_iframe; }
 </script>
-<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+<script src="<?= htmlspecialchars($assistWidgetUrl, ENT_QUOTES, 'UTF-8') ?>" data-widget-id="saldi" data-brand="SALDI" data-lang="da" data-app-version="<?= htmlspecialchars($assistVersion, ENT_QUOTES, 'UTF-8') ?>"<?= $assistGuide ? ' data-assistant="v2"' : '' ?> defer></script>
 <script>window.SaldiAssist = { appVersion: <?= json_encode($assistVersion) ?>, correlationId: <?= json_encode($assist_correlation_id ?? null) ?>, errorCategory: <?= json_encode($assist_error_category ?? null) ?>, getContextToken: function (sessionHash) { return fetch('../includes/saldi_assist_token.php?embed_session=' + encodeURIComponent(sessionHash), {credentials:'same-origin'}).then(function (r) { return r.ok ? r.json() : null }).then(function (j) { return j && j.token ? j.token : null }) }, navigate: window.SaldiAssistNavigate };</script>
 <?php if (getenv('SALDI_ASSIST_RECORDS_ENABLED') === '1') { ?>
 <script src="../javascript/saldi-assist-records.js"></script>

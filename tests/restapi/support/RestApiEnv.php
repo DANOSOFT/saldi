@@ -46,6 +46,9 @@
 //                 regnskab rows by name, so concurrent runs, stale leftovers
 //                 and unrelated accounts are never touched.
 //                 The master db name is validated like the test/template names.
+// 20261022 CL/NTR Removed the bootstrapTenantOnce()/$bootstrapped pair the master merge duplicated (fatal on load);
+//                 bootstrapTenantOnce() now keys on $ownedDb, so a class teardown makes the next class re-provision.
+//                 bootstrapTenant() no longer opens a stray master connection it never closed.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
@@ -200,6 +203,22 @@ final class RestApiEnv
             $out[] = $row;
         }
         return $out;
+    }
+
+    /**
+     * Provision the tenant unless this process already owns one, and reuse
+     * the one it owns.
+     *
+     * Guarded by $ownedDb rather than a separate flag: teardownTenant() clears
+     * it when it drops the tenant, so the next class clones a fresh one instead
+     * of logging in to a database that no longer exists.
+     */
+    public static function bootstrapTenantOnce(): void
+    {
+        if (self::$ownedDb !== null) {
+            return;
+        }
+        self::bootstrapTenant();
     }
 
     /**

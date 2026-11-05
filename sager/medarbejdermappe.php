@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/medarbejdemappe.php --- lap 5.0.0 --- 2026-08-06 ---
+// --- sager/medarbejdermappe.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2012-2026 DANOSOFT ApS
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260806 PHR Return to the employee folder menu if the user has no employee ID.
+// 20261103 CL/MMR SD-799 The user setup error shown when the login has no employee is translated.
+// 20261104 CL/MMR SD-799 The user-setup alert text is passed to the script as UTF-8.
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 @session_start();
 $s_id                  = session_id();
 
@@ -564,7 +567,7 @@ function vis_mappe() {
 					print "<td class=\"dragHandle\">&nbsp;</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['navn']."</td>\n";
-					print "<td align=\"left\" style=\"#width:100%;\">".date("d-m-Y",$r['datotid'])."</td>\n";
+					print "<td align=\"left\" style=\"#width:100%;\">".datotidTilTekst($r['datotid'], 'd-m-Y')."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['hvem']."</td>\n";
 					print "<td class=\"alignRight\"><a href=\"../mappe/$db/$mappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></td>\n";
 					print "<td title=\"".findtekst('3113|Ret bilagstekst', $sprog_id)."\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_bilag&amp;mappe_id=$mappe_id&amp;bilag_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
@@ -641,7 +644,7 @@ function medarbejdermappe() {
 		
 		if(!$ans_id) $ans_id=$ansat_id;
 		if (!$ans_id) {
-			print "<script>alert('Fejl i brugeropsætning'); window.location.href='medarbejdermappe.php?funktion=medarbejdermappeliste';</script>";
+			print "<script>alert(".json_encode(findtekst_utf8('8414|Fejl i brugeropsætning', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)."); window.location.href='medarbejdermappe.php?funktion=medarbejdermappeliste';</script>";
 			return;
 		}
 		$ans_id = (int)$ans_id;
@@ -1085,7 +1088,7 @@ function vis_ansatmappe() {
 					print "<td class=\"dragHandle\">&nbsp;</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['navn']."</td>\n";
-					print "<td align=\"left\" style=\"#width:100%;\">".date("d-m-Y",$r['datotid'])."</td>\n";
+					print "<td align=\"left\" style=\"#width:100%;\">".datotidTilTekst($r['datotid'], 'd-m-Y')."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['hvem']."</td>\n";
 					print "<td class=\"alignRight\"><a href=\"../ansatmappe/$db/$ans_id/$ansatmappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></td>\n";
 					print "<td title=\"".findtekst('3113|Ret bilagstekst', $sprog_id)."\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_ansatbilag&amp;ansatmappe_id=$ansatmappe_id&amp;ansatbilag_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";

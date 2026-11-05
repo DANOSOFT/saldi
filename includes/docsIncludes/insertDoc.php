@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/insertDoc.php --- patch 4.1.0 --- 2024-03-29 ---
+// --- includes/docsIncludes/insertDoc.php --- ver 5.1.0 --- 2026-11-05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230706 LOE Some modifications relating to bilag_id and kassekladde made 
 //20230806 LOE bilag directory explicitly created, globalId initilized to 1
@@ -37,9 +37,25 @@
 //                     Removed the unbounded print_r($_REQUEST) dump to /tmp/debug_insert.log.
 //                     $_POST reads in the edited blocks go through ifset(). A posted amount of "0"
 //                     is stored instead of being skipped as empty.
+// 20261004 CL/SZ SD-725 The line's VAT codes (debetvat, kreditvat) are saved when posted, by the journal's rules (poolVatChoose()).
+//                "u/m" (momsfri) is stored as 'on' or '', as the journal stores it, instead of 1 or 0.
+// 20261003 CL/SZ SD-722 Before the pool row is deleted, a document attached from the pool writes its correction records and keeps its snapshot (poolCaptureRecordAttach()).
+// 20261004 CL/SZ Pool account check: a posted Debet or Kredit that doesn't exist, is closed, or isn't an account number is refused before anything is saved or attached.
+//                Save answers success false with the message and the fields; attach answers 422 with the message in <pool-account-problem>, since documents.php has printed its page head by then.
+//                Such a line used to be saved (text as account 0), and the journal then refused every save until it was fixed.
+// 20261006 CL/SZ Pool account check: a posted Dato outside an open fiscal year is refused the same way (the journal's checkOpenFiscalYear()), marked on Dato.
+//                Saved anyway, the journal refused every save with "Dato (...) udenfor regnskabsår" until the line was found and fixed.
 // 20261007 CL/SZ SD-716 A company without a globalId setting (e.g. one just created) no longer gets alert('Missing global ID') printed in front
 //                of the pool's JSON answer: the save went through, but the pool showed "not valid JSON" and left the document unattached in the pool.
 //                globalId stays 1 as before; the missing setting is written to the error log.
+// 20261014 MJ SST-868 A document whose name is already taken on the order or journal line is
+//                  attached under the next free name instead of being dropped. It used to be
+//                  skipped and the request still answered with the success redirect, so the
+//                  user saw the pool reload with the file still in it and no message. A
+//                  failure now answers non-2xx with a reason the pool can show.
+// 20261023 CL/LH SST-868 Merged master: the SD-722 capture records read the pool row by $poolFileName and are kept under
+//                the landed name. Text 5441 renumbered to 5452 (5441 is taken by MB-71).
+// 20261105 CDX/NTR Clear approval atomically when Save or Attach changes posting values; preserve unchanged approvals.
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -90,6 +106,104 @@ if (preg_match('#[/\\\\]|\.\.#', (string)$db) || !isset($db) || empty(trim($db))
 
 $docFolder.= "/$db";
 if ($poolFile && !isset($fileName)) $fileName = $poolFile;
+// SST-868: the name in the pool and the name the document lands under are no longer the same
+// thing - a collision on the target gets suffixed - so the pool side keeps its own variable.
+// It is what the move reads, what pool_files is cleaned up by and what the .info file is named
+// after; $fileName becomes the landed name and is what documents.filename stores.
+$poolFileName = isset($fileName) ? basename($fileName) : NULL;
+$reservation = NULL;
+
+if (!function_exists('insertDocFreeTarget')) {
+	/**
+	 * Reserves the name a document will land under in $dir.
+	 *
+	 * AI scan names every pool upload <Leverandør>_<fakturadato>.pdf (SST-854), so two documents
+	 * from one supplier on one date arrive with the same name - a packing list and a commercial
+	 * invoice, say. The pool only suffixes while both are still in the pool; once the first has
+	 * moved onto an order the name is free there again, and the second collides with it. This
+	 * picks the first free "name_N.ext" instead, the way the pool does, through FileReservation
+	 * so that two concurrent attachments cannot settle on the same name.
+	 *
+	 * The reservation is an empty placeholder the caller overwrites in place. Discard it if the
+	 * move never happens; never unlink it first.
+	 *
+	 * @param string $dir       Target directory, which must already exist.
+	 * @param string $fileName  Wanted file name.
+	 * @return FileReservation|null  Null when there is no extension to suffix around, the
+	 *                               directory is not writable, or no candidate name was free.
+	 */
+	function insertDocFreeTarget($dir, $fileName) {
+		require_once(__DIR__ . '/FileReservation.php');
+		// pathinfo() drops any directory part of its own accord, so the reserved name cannot
+		// carry a path out of $dir however the caller got hold of it.
+		$ext  = pathinfo((string)$fileName, PATHINFO_EXTENSION);
+		$base = pathinfo((string)$fileName, PATHINFO_FILENAME);
+		// reserve() builds "$base.$ext"; with no extension that would be "name.", so there is
+		// nothing safe to reserve and the caller reports the failure instead of inventing a name.
+		if ($ext === '' || $base === '') return NULL;
+		return FileReservation::reserve($dir, $base, $ext, array($ext));
+	}
+}
+
+if (!function_exists('insertDocAttachFailed')) {
+	/**
+	 * Ends the request with a failure the user can actually see.
+	 *
+	 * The pool attaches through fetch() and reads the answer with response.text() without ever
+	 * evaluating it, so an alert() printed from here is invisible however the output buffers are
+	 * handled - which is why a failed attach used to look exactly like a successful one. A non-2xx
+	 * response carrying a message is what docPool.php's error branch shows. On a plain page load,
+	 * where headers are already out, alert() still works and is used instead.
+	 *
+	 * @param FileReservation|null $reservation  Placeholder to drop; nothing was written to it.
+	 * @return void  Does not return.
+	 */
+	function insertDocAttachFailed($reservation = NULL) {
+		global $sprog_id;
+		if ($reservation) $reservation->discard();
+		$message = findtekst('5452|Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.', $sprog_id);
+		while (ob_get_level()) {
+			ob_end_clean();
+		}
+		if (headers_sent()) {
+			alert($message);
+		} else {
+			http_response_code(500);
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode(array('success' => false, 'message' => $message));
+		}
+		exit;
+	}
+}
+
+include_once(__DIR__ . '/poolAccountInfo.php'); // SD-725: the VAT code rules; the account check
+
+if (!function_exists('insertDocAccountProblems')) {
+	/**
+	 * The posted Debet, Kredit and Dato that can't be saved on kassekladde line $sourceId (or a new line), by the journal's rules.
+	 *
+	 * @param int|string|null $sourceId kassekladde.id, empty for a new line.
+	 * @return array<int, array{field: string, text: string, message: string}>
+	 */
+	function insertDocAccountProblems($sourceId) {
+		global $regnaar, $sprog_id;
+		if (!array_key_exists('debet', $_POST) && !array_key_exists('kredit', $_POST) && !array_key_exists('dato', $_POST)) return array();
+		$line = null;
+		if ((int)$sourceId > 0) {
+			$line = db_fetch_array(db_select("select d_type, k_type from kassekladde where id = '" . (int)$sourceId . "'", __FILE__ . " linje " . __LINE__)) ?: null;
+		}
+		$problems = poolAccountProblems($_POST, $line, $regnaar, $sprog_id);
+		$dato = trim((string)ifset($_POST, 'dato'));
+		if ($dato !== '') {
+			if (!function_exists('checkOpenFiscalYear')) include_once(__DIR__ . '/../stdFunc/checkOpenFiscalYear.php');
+			if (!checkOpenFiscalYear(usdate($dato))) {
+				$text = trim(findtekst('1595|udenfor regnskabsår', $sprog_id));
+				$problems[] = array('field' => 'Dato', 'text' => $text, 'message' => trim(findtekst('635|Dato', $sprog_id)) . " $dato $text");
+			}
+		}
+		return $problems;
+	}
+}
 
 if (!function_exists('insertDocUpdateKassekladdeLine')) {
 	/**
@@ -101,107 +215,126 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 	 * @return void
 	 */
 	function insertDocUpdateKassekladdeLine($sourceId) {
+		global $regnaar;
 		$sourceId = (int)$sourceId;
 		if (!$sourceId) {
 			return;
 		}
+		$values = array();
 		$bilagsnr = ifset($_POST, 'bilagsnr');
 		if ($bilagsnr) {
-			$qtxt = "update kassekladde set bilag = '" . (int)$bilagsnr . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			$values['bilag'] = (int)$bilagsnr;
 		}
-		$dato = ifset($_POST, 'dato');
-		if ($dato) {
-			$qtxt = "update kassekladde set transdate = '" . usdate($dato) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$beskrivelse = ifset($_POST, 'beskrivelse');
-		if ($beskrivelse) {
-			$qtxt = "update kassekladde set beskrivelse = '" . db_escape_string($beskrivelse) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$debet = ifset($_POST, 'debet');
-		if ($debet !== null) {
-			if ($debet !== '') {
-				if (!is_numeric(substr($debet, 0, 1))) {
-					$qtxt = "update kassekladde set d_type = '" . db_escape_string(substr($debet, 0, 1)) . "', ";
-					$qtxt .= "debet = '" . (int)substr($debet, 1) . "' where id = '$sourceId'";
-				} else {
-					$qtxt = "update kassekladde set debet = '" . (int)$debet . "' where id = '$sourceId'";
-				}
-			} else {
-				$qtxt = "update kassekladde set debet = 0, d_type = 'F' where id = '$sourceId'";
+		foreach (array('dato' => 'transdate', 'forfald' => 'forfaldsdate') as $post => $column) {
+			$value = ifset($_POST, $post);
+			if ($value) {
+				$values[$column] = usdate($value);
 			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		$kredit = ifset($_POST, 'kredit');
-		if ($kredit !== null) {
-			if ($kredit !== '') {
-				if (!is_numeric(substr($kredit, 0, 1))) {
-					$qtxt = "update kassekladde set k_type = '" . db_escape_string(substr($kredit, 0, 1)) . "', ";
-					$qtxt .= "kredit = '" . (int)substr($kredit, 1) . "' where id = '$sourceId'";
-				} else {
-					$qtxt = "update kassekladde set kredit = '" . (int)$kredit . "' where id = '$sourceId'";
-				}
-			} else {
-				$qtxt = "update kassekladde set kredit = 0, k_type = 'F' where id = '$sourceId'";
+		foreach (array('beskrivelse' => 'beskrivelse', 'fakturanr' => 'faktura') as $post => $column) {
+			$value = ifset($_POST, $post);
+			if ($value) {
+				$values[$column] = (string)$value;
 			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		foreach (array('debet' => 'd_type', 'kredit' => 'k_type') as $column => $typeColumn) {
+			$value = ifset($_POST, $column);
+			if ($value === null) {
+				continue;
+			}
+			if ($value === '') {
+				$values[$column] = 0;
+				$values[$typeColumn] = 'F';
+			} elseif (!is_numeric(substr($value, 0, 1))) {
+				$values[$typeColumn] = substr($value, 0, 1);
+				$values[$column] = (int)substr($value, 1);
+			} else {
+				$values[$column] = (int)$value;
+			}
 		}
 		$sum = ifset($_POST, 'sum');
 		if ($sum !== null && trim((string)$sum) !== '') {
-			$qtxt = "update kassekladde set amount = '" . usdecimal($sum) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$fakturanr = ifset($_POST, 'fakturanr');
-		if ($fakturanr) {
-			$qtxt = "update kassekladde set faktura = '" . db_escape_string($fakturanr) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			$values['amount'] = (float)usdecimal($sum);
 		}
 		$valuta = ifset($_POST, 'valuta');
 		if ($valuta) {
 			$postValuta = trim($valuta);
 			if (!is_numeric($postValuta)) {
-				// Currency code (e.g. "EUR") — look up the kodenr number
 				$vkLookup = db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($postValuta)) . "'", __FILE__ . " linje " . __LINE__));
-				$valutaNr = ($vkLookup && $vkLookup['kodenr']) ? (int)$vkLookup['kodenr'] : 0;
+				$values['valuta'] = ($vkLookup && $vkLookup['kodenr']) ? (int)$vkLookup['kodenr'] : 0;
 			} else {
-				$valutaNr = (int)$postValuta;
+				$values['valuta'] = (int)$postValuta;
 			}
-			$qtxt = "update kassekladde set valuta = '$valutaNr' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		$afd = ifset($_POST, 'afd');
-		if ($afd !== null && $afd !== '') {
-			$qtxt = "update kassekladde set afd = '" . (int)$afd . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$medarb = ifset($_POST, 'medarb');
-		if ($medarb !== null && $medarb !== '') {
-			$qtxt = "update kassekladde set medarb = '" . (int)$medarb . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$projekt = ifset($_POST, 'projekt');
-		if ($projekt !== null && $projekt !== '') {
-			$qtxt = "update kassekladde set projekt = '" . (int)$projekt . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		foreach (array('afd', 'medarb', 'projekt') as $column) {
+			$value = ifset($_POST, $column);
+			if ($value !== null && $value !== '') {
+				$values[$column] = (int)$value;
+			}
 		}
 		$momsfri = ifset($_POST, 'momsfri');
 		if ($momsfri !== null) {
-			$momsfriVal = $momsfri ? 1 : 0;
-			$qtxt = "update kassekladde set momsfri = '$momsfriVal' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			$values['momsfri'] = $momsfri ? 'on' : '';
 		}
-		$forfald = ifset($_POST, 'forfald');
-		if ($forfald) {
-			$qtxt = "update kassekladde set forfaldsdate = '" . usdate($forfald) . "' where id = '$sourceId'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$debetVat = ifset($_POST, 'debetvat');
+		$kreditVat = ifset($_POST, 'kreditvat');
+		if (($debetVat !== null || $kreditVat !== null) && poolVatColumnsReady()) {
+			$codes = poolVatCodes();
+			$line = db_fetch_array(db_select("select d_type, debet, k_type, kredit, momsfri from kassekladde where id = '$sourceId'", __FILE__ . " linje " . __LINE__));
+			if ($line) {
+				// VAT is resolved against the accounts and exemption this request is about to save.
+				$line = array_replace($line, $values);
+				foreach (array('debet' => $debetVat, 'kredit' => $kreditVat) as $side => $vat) {
+					if ($vat === null) {
+						continue;
+					}
+					$typeColumn = $side === 'debet' ? 'd_type' : 'k_type';
+					$accountCode = poolVatAccountCode(strtoupper(trim((string)$line[$typeColumn])) ?: 'F', (int)$line[$side] ? (string)(int)$line[$side] : '', $regnaar, $codes);
+					$otherVat = $side === 'debet' ? $kreditVat : $debetVat;
+					$values[$side . 'vat'] = poolVatChoose($vat, $accountCode, !empty($line['momsfri']), (string)$otherVat, $codes);
+				}
+			}
 		}
+		if (!$values) {
+			return;
+		}
+		$changes = array();
+		$assignments = array();
+		foreach ($values as $column => $value) {
+			$numeric = is_int($value) || is_float($value);
+			$literal = $numeric ? (string)$value : "'" . db_escape_string((string)$value) . "'";
+			// Normalise absent text/numeric values as the journal does. Dates have no empty SQL value.
+			if (in_array($column, array('transdate', 'forfaldsdate'), true)) {
+				$changes[] = "($column IS NULL OR $column <> $literal)";
+			} else {
+				$default = $numeric ? '0' : "''";
+				$changes[] = "COALESCE($column, $default) <> $literal";
+			}
+			$assignments[] = "$column = $literal";
+		}
+		$changed = '(' . implode(' OR ', $changes) . ')';
+		// Evaluate against the old values before assigning any posting fields (also on MySQL).
+		// The content and its approval change in the same row update, so no stale approval is observable.
+		$reset = "godkendt = CASE WHEN $changed THEN FALSE ELSE godkendt END, ";
+		$reset .= "godkendt_af = CASE WHEN $changed THEN NULL ELSE godkendt_af END, ";
+		$reset .= "godkendt_tid = CASE WHEN $changed THEN NULL ELSE godkendt_tid END, ";
+		db_modify("update kassekladde set " . $reset . implode(', ', $assignments) . " where id = '$sourceId'", __FILE__ . " linje " . __LINE__);
 	}
 }
 
 // Handle updateOnly action (Save button) — early return, no file handling needed
 if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
+    // An account the journal would refuse is not saved, and no new line is created for it
+    if ($source == 'kassekladde' && ($accountProblems = insertDocAccountProblems($sourceId))) {
+        $accountMessage = implode("\n", array_column($accountProblems, 'message'));
+        if (isset($_POST['ajax']) && $_POST['ajax']) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $accountMessage, 'fields' => array_map(function ($p) { return array('field' => $p['field'], 'text' => $p['text']); }, $accountProblems)]);
+            exit;
+        }
+        alert($accountMessage);
+        exit;
+    }
     // If source is kassekladde and no sourceId, create a new entry first
     if ($source == 'kassekladde' && !$sourceId) {
         if (!$kladde_id) {
@@ -272,9 +405,12 @@ if ($docFolder && $source == 'creditorOrder') {
 #	if (!file_exists("$docFolder/creditor/orders"))                 #cho __line__;
 	$filePath = "/creditor/orders/$sourceId";
 	if (!file_exists("$docFolder/$filePath")) mkdir ("$docFolder/$filePath",0777);
-		if (!file_exists("$docFolder/$filePath/$fileName")) {
-			$showDoc = "$docFolder/$filePath/$fileName";
-		} else alert("$docFolder/$filePath/$fileName allready exists");
+		// SST-868: a name already taken here is suffixed rather than refused. The old form only
+		// alerted and then assigned $showDoc regardless, so it pointed at the document already on
+		// the order and the new one was silently left in the pool.
+		$reservation = insertDocFreeTarget("$docFolder/$filePath", $fileName);
+		if (!$reservation) insertDocAttachFailed();
+		$fileName = $reservation->baseName() . '.' . $reservation->ext();
 		$showDoc = "$docFolder/$filePath/$fileName";
 } elseif ($docFolder && $source == 'debitorOrdrer') {
 	if (!file_exists("$docFolder"))                 mkdir ("$docFolder/",0777);
@@ -282,13 +418,23 @@ if ($docFolder && $source == 'creditorOrder') {
 	if (!file_exists("$docFolder/debitor/orders"))  mkdir ("$docFolder/debitor/orders",0777);
 	$filePath = "/debitor/orders/$sourceId";
 	if (!file_exists("$docFolder/$filePath")) mkdir ("$docFolder/$filePath",0777);
-		if (!file_exists("$docFolder/$filePath/$fileName")) {
-			$showDoc = "$docFolder/$filePath/$fileName";
-		} else alert("$docFolder/$filePath/$fileName allready exists");
+		// SST-868: a name already taken here is suffixed rather than refused. The old form only
+		// alerted and then assigned $showDoc regardless, so it pointed at the document already on
+		// the order and the new one was silently left in the pool.
+		$reservation = insertDocFreeTarget("$docFolder/$filePath", $fileName);
+		if (!$reservation) insertDocAttachFailed();
+		$fileName = $reservation->baseName() . '.' . $reservation->ext();
 		$showDoc = "$docFolder/$filePath/$fileName";
 } elseif ($docFolder && $source == 'kassekladde') {
 	if (!$kladde_id) {
 		alert("Ingen aktiv kassekladde");
+		exit;
+	}
+	// Nothing is attached to a line with an account the journal would refuse; the pool shows the message
+	if ($accountProblems = insertDocAccountProblems($sourceId)) {
+		if (!headers_sent()) http_response_code(422);
+		// The page head documents.php printed may already be on its way, so the message is marked for the pool to find
+		echo '<pool-account-problem>' . json_encode(implode("\n", array_column($accountProblems, 'message')), JSON_HEX_TAG) . '</pool-account-problem>';
 		exit;
 	}
 	if (!$sourceId) {
@@ -359,12 +505,19 @@ if ($docFolder && $source == 'creditorOrder') {
 	$safeKladde = (int)$kladde_id;       // path segments must be numeric IDs
 	$safeSource = (int)$sourceId;
 	$path = "$docFolder/finance/$safeKladde/$safeSource/";
-	$showDoc = $path.$fileName;
-	$targetDir = dirname($showDoc);
+	$targetDir = rtrim($path, '/');
 	if (!is_dir($targetDir) && !mkdir($targetDir, 0777, true) && !is_dir($targetDir)) {
 		print "creation of $targetDir failed<br>";
 		exit;
 	}
+	// SST-868: reserved after the directory exists, so a line that already has a document of
+	// this name gets the next free one. In the journal the names collide even more often than
+	// on an order, because AI scan reads the buyer as the supplier and names many uploads
+	// Havemoebelland_ApS_<dato>.pdf.
+	$reservation = insertDocFreeTarget($targetDir, $fileName);
+	if (!$reservation) insertDocAttachFailed();
+	$fileName = $reservation->baseName() . '.' . $reservation->ext();
+	$showDoc = $path.$fileName;
 	$filePath = "/finance/$safeKladde/$safeSource";
 }
 
@@ -381,18 +534,18 @@ docPoolLog("  pulje path: $docFolder/pulje/$fileName");
 docPoolLog("  pulje exists: " . (file_exists("$docFolder/pulje/$fileName") ? 'YES' : 'NO'));
 docPoolLog("  showDoc exists: " . (isset($showDoc) && file_exists($showDoc) ? 'YES' : 'NO')); */
 
-if (!file_exists($showDoc)) {
-	/* docPoolLog("showDoc does not exist, proceeding with move/upload"); */
-	
-	if ($insertFile && file_exists("$docFolder/pulje/$fileName")) {
-		$renameResult = rename("$docFolder/pulje/$fileName",$showDoc);
-		/* docPoolLog("rename result: " . ($renameResult ? 'SUCCESS' : 'FAILED')); */
-	} else {
-		/* docPoolLog("trying move_uploaded_file"); */
-		move_uploaded_file($_FILES['uploadedFile']['tmp_name'],"$showDoc");
+// SST-868: $showDoc is the empty placeholder the reservation above created, so it always
+// exists by now and the old "is the target free?" guard would never be true again. What
+// decides is whether the move landed on it; a move that did not leaves nothing behind.
+$insertDocMoved = false;
+if ($insertFile || isset($_FILES['uploadedFile']['tmp_name'])) {
+	if ($insertFile && file_exists("$docFolder/pulje/$poolFileName")) {
+		$insertDocMoved = rename("$docFolder/pulje/$poolFileName",$showDoc);
+	} elseif (isset($_FILES['uploadedFile']['tmp_name'])) {
+		$insertDocMoved = move_uploaded_file($_FILES['uploadedFile']['tmp_name'],"$showDoc");
 	}
 	
-	if(file_exists($showDoc)) {
+	if($insertDocMoved) {
 		/* docPoolLog("showDoc now exists, inserting into documents table"); */
 		if (!$sourceId) {
 			if ($source == 'kassekladde') {
@@ -445,13 +598,26 @@ if (!file_exists($showDoc)) {
 		}
 
 		// Clean up pool_files database entry after successful move from pulje
-		if ($insertFile && $fileName) {
-			$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
+		if ($insertFile && $poolFileName) {
+			// SD-722: what was captured against what was saved, before the snapshot goes with the pool row. Never fails the attach.
+			if ($source == 'kassekladde' && $sourceId) {
+				try {
+					include_once(__DIR__ . '/poolCapture.php');
+					// Included inside docPool() too, where only some of online.php's globals are in scope
+					$captureUserId = $bruger_id ?? ($GLOBALS['bruger_id'] ?? null);
+					// SST-868: the snapshot is read from the pool row ($poolFileName); the records are kept under
+					// the name the document landed under, which is what documents.filename and the report look up.
+					poolCaptureRecordAttach($fileName, (int)$sourceId, $showDoc, $captureUserId === null ? null : (int)$captureUserId, (string)($brugernavn ?? ($GLOBALS['brugernavn'] ?? '')), $poolFileName);
+				} catch (Throwable $e) {
+					error_log("insertDoc capture records for $poolFileName failed: " . $e->getMessage());
+				}
+			}
+			$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($poolFileName) ."'";
 			@db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			/* docPoolLog("deleted from pool_files: $fileName"); */
 			
 			// Also delete any orphaned .info file
-			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+			$baseName = pathinfo($poolFileName, PATHINFO_FILENAME);
 			$infoFile = "$docFolder/pulje/$baseName.info";
 			if (file_exists($infoFile)) {
 				@unlink($infoFile);
@@ -459,15 +625,9 @@ if (!file_exists($showDoc)) {
 			}
 		}
 
-		} else {
-			/* docPoolLog("ERROR: Move from pool Failed"); */
-			alert("Move from pool Failed");
-		}
-	} else {
-		/* docPoolLog("ERROR: showDoc already exists"); */
-	 alert("$showDoc allready exists");
-}
-if (file_exists($showDoc)) {
+		} else insertDocAttachFailed($reservation);
+	} else insertDocAttachFailed($reservation);
+if ($insertDocMoved) {
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$params&showDoc=$showDoc\">";
 	// Check if we're processing multiple files - if so, don't redirect yet
 	if (isset($processingMultiple) && $processingMultiple) {
@@ -496,7 +656,7 @@ if (file_exists($showDoc)) {
 		echo '</body></html>';
 		exit;
 	}
-} else alert("Move to $showDoc failed");
+} else insertDocAttachFailed($reservation);
 
 print "<tr><td width='100%' valign = 'top' align='center'>";
 if($source == 'kassekladde'){

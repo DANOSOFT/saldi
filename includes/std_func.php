@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,16 +100,23 @@
 // 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
 //                  13-digit string is treated as an EAN-13 candidate (is_numeric also
 //                  accepted decimals, signs and scientific notation).
+// 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
+//                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
+// 20261103 LOE SST-936 Include dimensionSqlFragment() for the three Finans reports.
+//              It now owns the department, employee and project filters those reports share.
+// 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
 include(__DIR__ . '/stdFunc/dkAmountValid.php');
+include(__DIR__ . '/stdFunc/dimensionSqlFragment.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/jsString.php');
+include(__DIR__ . '/stdFunc/datotidTilTekst.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -877,7 +884,11 @@ if (!function_exists('reducer')) {
 
 if (!function_exists('active_fiscal_years')) {
 	/**
-	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 not 'on'), newest first.
+	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 NULL or ''), newest first.
+	 *
+	 * box10 is the deleted marker: 'on' for years deleted before 2025-07-01 or auto-marked by
+	 * systemdata/regnskabsaar.php, a date('U') timestamp for years deleted by
+	 * systemdata/fiscalYearInc/deleteFiscalYear.php. Only an empty box10 is a live year, as in regnskabsaar.php.
 	 *
 	 * @return array<int, array{
 	 *   kodenr: string,       Fiscal year number as fetched (grupper.kodenr).
@@ -885,7 +896,7 @@ if (!function_exists('active_fiscal_years')) {
 	 * }>
 	 */
 	function active_fiscal_years() {
-		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
+		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 = '') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		$years = array();
 		while ($r = db_fetch_array($q)) {

@@ -63,7 +63,10 @@ final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
         self::assertSame('', trim($includeOutput), 'sys_div_func.php emitted output at include time');
 
         $db = self::TENANT_DB;
-        $connection = @db_connect($sqhost, $squser, $sqpass, $db);
+        // db_connect() exits the process on an empty host (connect.php already
+        // included into another suite's local scope), which would end the whole
+        // PHPUnit run - skip instead.
+        $connection = $sqhost ? @db_connect($sqhost, $squser, $sqpass, $db) : false;
         if (!$connection) {
             // tearDownAfterClass() is not guaranteed to run after a setUpBeforeClass() skip, so
             // restore the cwd here rather than relying on it to undo the chdir() above.
