@@ -269,7 +269,7 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 		foreach (array('afd', 'medarb', 'projekt') as $column) {
 			$value = ifset($_POST, $column);
 			if ($value !== null && $value !== '') {
-				$values[$column] = (int)$value;
+				$values[$column] = $column === 'projekt' ? (string)(int)$value : (int)$value;
 			}
 		}
 		$momsfri = ifset($_POST, 'momsfri');
@@ -307,7 +307,7 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 			if (in_array($column, array('transdate', 'forfaldsdate'), true)) {
 				$changes[] = "($column IS NULL OR $column <> $literal)";
 			} else {
-				$default = $numeric ? '0' : "''";
+				$default = $numeric ? '0' : ($column === 'projekt' ? "'0'" : "''");
 				$changes[] = "COALESCE($column, $default) <> $literal";
 			}
 			$assignments[] = "$column = $literal";

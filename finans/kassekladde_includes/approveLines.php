@@ -22,11 +22,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 ASR Delvis bogføring: AJAX-endpoint der sætter/fjerner "Godkendt" på kladdelinjer
-//              (kassekladde.godkendt/godkendt_af/godkendt_tid). Kun åbne kladder (bogfort '-'),
-//              kun linjer der hører til kladden. Skriver journal.lines_approved/_unapproved i audit_log.
-// 20261023 ASR Review (#817): $modulnr = 2 (finans) as in kassekladde.php, so online.php's module-rights check
-//              runs for this endpoint too; with 0 the check is skipped and any logged-in user could approve lines.
+// 20261019 ASR Delvis bogføring: AJAX-endpoint der sætter/fjerner "Godkendt" på kladdelinjer (kassekladde.godkendt/godkendt_af/godkendt_tid). Kun åbne kladder (bogfort '-'), kun linjer der hører til kladden. Skriver journal.lines_approved/_unapproved i audit_log.
+// 20261023 ASR Review (#817): $modulnr = 2 (finans) as in kassekladde.php, so online.php's module-rights check runs for this endpoint too; with 0 the check is skipped and any logged-in user could approve lines.
 //
 // Request (POST): kladde_id, ids (kommasepareret liste af kassekladde.id), godkendt (1|0)
 // Response (JSON): {ok, approved, total} eller {ok:false, error}

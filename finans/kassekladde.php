@@ -213,12 +213,8 @@
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
 // 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated,
 //                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
-// 20261019 ASR Delvis bogføring: kolonnen "Godkendt" (flueben pr. linje, gemmes straks via kassekladde_includes/approveLines.php)
-//              og knappen "Bogfør godkendte" (kassekladde_includes/postApproved.php): godkendte bilag flyttes til en ny kladde,
-//              som bogføres med den eksisterende motor; resten bliver stående her. Kolonnen kan slås fra under tandhjulet.
-// 20261023 ASR Review (#817): a 'Gem' that changes an approved line's content clears its approval (compared with the stored
-//              row, so an unchanged save keeps it); 'Bogfør godkendte' is disabled while an approval is still being saved;
-//              lines with bilag 0 are grouped per line in the confirm dialog, as the server does; texts moved to 5560-5570.
+// 20261019 ASR Delvis bogføring: kolonnen "Godkendt" (flueben pr. linje, gemmes straks via kassekladde_includes/approveLines.php) og knappen "Bogfør godkendte" (kassekladde_includes/postApproved.php): godkendte bilag flyttes til en ny kladde, som bogføres med den eksisterende motor; resten bliver stående her. Kolonnen kan slås fra under tandhjulet.
+// 20261023 ASR Review (#817): a 'Gem' that changes an approved line's content clears its approval (compared with the stored row, so an unchanged save keeps it); 'Bogfør godkendte' is disabled while an approval is still being saved; lines with bilag 0 are grouped per line in the confirm dialog, as the server does; texts moved to 5560-5570.
 // 20261105 CDX/NTR Preserve save safeguards on merge and abort partial posting when the save removes approvals; use tekstKeys.
 
 
@@ -792,7 +788,7 @@ if (
 
 
 $kk_toggle_cols = array(
-    'godkendt' => 'Godkendt',
+    'godkendt' => findtekst('journal.approval.label|Godkendt', $sprog_id),
     'vat_d' => 'Moms (Debet)',
     'vat_k' => 'Moms (Kredit)',
     'afd'   => 'Afd.',

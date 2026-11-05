@@ -37,8 +37,8 @@ final class JournalApprovalTest extends TestCase {
         $this->db->exec("CREATE TEMP TABLE kladdeliste (id INTEGER PRIMARY KEY, bogfort TEXT, kladdenote TEXT, kladdedate DATE, oprettet_af TEXT);
             CREATE TEMP TABLE kassekladde (id INTEGER PRIMARY KEY, kladde_id INTEGER, bilag INTEGER, godkendt BOOLEAN,
                 godkendt_af TEXT, godkendt_tid TIMESTAMP, transdate DATE, forfaldsdate DATE, beskrivelse TEXT,
-                debet INTEGER, kredit INTEGER, d_type TEXT, k_type TEXT, amount NUMERIC, faktura TEXT, valuta INTEGER,
-                momsfri TEXT, afd INTEGER, medarb INTEGER, projekt INTEGER, debetvat TEXT, kreditvat TEXT, valutakurs NUMERIC);
+                debet NUMERIC(15,0), kredit NUMERIC(15,0), d_type TEXT, k_type TEXT, amount NUMERIC, faktura TEXT, valuta INTEGER,
+                momsfri TEXT, afd INTEGER, medarb INTEGER, projekt TEXT, debetvat TEXT, kreditvat TEXT, valutakurs NUMERIC);
             CREATE TEMP TABLE approval_audit (action TEXT, details TEXT);
             CREATE TEMP TABLE adresser (id INTEGER, kontonr TEXT, art TEXT);
             CREATE TEMP TABLE openpost (id INTEGER, konto_id INTEGER, konto_nr TEXT, faktnr TEXT, udlignet TEXT);

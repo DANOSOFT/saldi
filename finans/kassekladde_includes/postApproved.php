@@ -22,14 +22,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 ASR Delvis bogføring ("Bogfør godkendte"): de linjer, der er markeret godkendt, flyttes til en
-//              ny kladde, som derefter bogføres med den eksisterende motor (bogfor.php røres ikke). De
-//              ikke-godkendte linjer bliver stående i den oprindelige kladde, som beholder sit id og navn.
-//              Et bilag bogføres helt eller slet ikke: et bilag med både godkendte og ikke-godkendte linjer
-//              bliver stående og rapporteres tilbage ('mixed'). Skriver journal.partial_post i audit_log.
-// 20261023 ASR Review (#817): the read, the move and the audit entry run in one transaction with the journal and
-//              its lines locked (FOR UPDATE), so an approval changed in another tab meanwhile waits for the move
-//              and cannot affect the moved lines; a failed write rolls everything back ('db').
+// 20261019 ASR Delvis bogføring ("Bogfør godkendte"): de linjer, der er markeret godkendt, flyttes til en ny kladde, som derefter bogføres med den eksisterende motor (bogfor.php røres ikke). De ikke-godkendte linjer bliver stående i den oprindelige kladde, som beholder sit id og navn. Et bilag bogføres helt eller slet ikke: et bilag med både godkendte og ikke-godkendte linjer bliver stående og rapporteres tilbage ('mixed'). Skriver journal.partial_post i audit_log.
+// 20261023 ASR Review (#817): the read, the move and the audit entry run in one transaction with the journal and its lines locked (FOR UPDATE), so an approval changed in another tab meanwhile waits for the move and cannot affect the moved lines; a failed write rolls everything back ('db').
 // 20261105 CDX/NTR Check pre-save approvals under row locks before moving any lines; use tekstKeys.
 
 include_once(__DIR__ . '/../../includes/auditLog.php');
