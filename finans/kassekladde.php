@@ -217,6 +217,7 @@
 //                 A line saved under 0 shows 0 and keeps it when the journal is saved again, and lines under 0 are not held to one date.
 //                 Only an empty Bilag field is given the journal's next number (SST-817), see bilagFromInput() in bilagNumber.php.
 //                 The messages show a typed 0 as 0, and kontroller()'s includes use __DIR__.
+//                 The lookup return's $_GET reads use ifset(), and kontroller()'s line-check branch has braces on every multi-line body.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -935,42 +936,42 @@ $r = db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' 
 ($r['box4'])  ? $forskellige_datoer = 1 : $forskellige_datoer = 0;
 ($r['box10']) ? $vis_bet_id = 1         : $vis_bet_id = 0;
 if ($_GET) {
-	$returside = if_isset($_GET, null, 'returside');
+	$returside = ifset($_GET, 'returside', null);
 	// A card opened from a journal row (SD-698) appends returside=<this journal> to its Tilbage link;
 	// as the journal's own back target that would loop, so fall back to the default.
 	if ($returside && basename((string)parse_url($returside, PHP_URL_PATH)) == 'kassekladde.php') $returside = null;
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
-	$sort            =       if_isset($_GET, 		null,   'sort');
-	$kksort          =       if_isset($_GET,        null,   'kksort'); #sortering i kassekladde
-	$kkdir_get       =       if_isset($_GET,        null,   'kkdir');
-	$kladde_id       = (int) if_isset($_GET,        0,      'kladde_id');
-	$funktion        =       if_isset($_GET, 		null,	'funktion');
-	$x               = (int) if_isset($_GET, 		0,      'x');
-	$id[$x]          =       if_isset($_GET, 		null,	'id');
-	$lobenr[$x]      =       if_isset($_GET, 		null,	'lobenr');
-	$kladde_id       = (int) if_isset($_GET, 		0,		'kladde_id');
+	$sort            =       ifset($_GET, 'sort', null);
+	$kksort          =       ifset($_GET, 'kksort', null); #sortering i kassekladde
+	$kkdir_get       =       ifset($_GET, 'kkdir', null);
+	$kladde_id       = (int) ifset($_GET, 'kladde_id', 0);
+	$funktion        =       ifset($_GET, 'funktion', null);
+	$x               = (int) ifset($_GET, 'x', 0);
+	$id[$x]          =       ifset($_GET, 'id', null);
+	$lobenr[$x]      =       ifset($_GET, 'lobenr', null);
+	$kladde_id       = (int) ifset($_GET, 'kladde_id', 0);
 	# SST-934 a typed 0 comes back from a lookup as '00' (bilagFromInput()); every other value stays an integer
-	$bilag[$x]       = (if_isset($_GET, '', 'bilag') === '00') ? '00' : (int) if_isset($_GET, 0, 'bilag');
-	$dato[$x]        =       if_isset($_GET, 		'',		'dato');
-	$beskrivelse[$x] =       if_isset($_GET, 		'',		'beskrivelse');
-	$d_type[$x]      =       if_isset($_GET, 		'',		'd_type');
-	$debet[$x]       =       if_isset($_GET, 		'',		'debet');
-	$k_type[$x]      =       if_isset($_GET, 		'',		'k_type');
-	$kredit[$x]      =       if_isset($_GET, 		'',		'kredit');
-	$debetvat_param  = 		 if_isset($_GET, 		null,	'dvat');
-	$kreditvat_param = 		 if_isset($_GET, 		null,	'kvat');
-	$faktura[$x]     =       if_isset($_GET, 		'',		'faktura');
-	$belob[$x]       =       if_isset($_GET, 		'',		'belob');
-	$momsfri[$x]     =       if_isset($_GET, 		'',		'momsfri');
-	$afd[$x]         =       if_isset($_GET, 		'',		'afd');
-	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
-	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
-	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	$bilag[$x]       = (ifset($_GET, 'bilag', '') === '00') ? '00' : (int) ifset($_GET, 'bilag', 0);
+	$dato[$x]        =       ifset($_GET, 'dato', '');
+	$beskrivelse[$x] =       ifset($_GET, 'beskrivelse', '');
+	$d_type[$x]      =       ifset($_GET, 'd_type', '');
+	$debet[$x]       =       ifset($_GET, 'debet', '');
+	$k_type[$x]      =       ifset($_GET, 'k_type', '');
+	$kredit[$x]      =       ifset($_GET, 'kredit', '');
+	$debetvat_param  = 		 ifset($_GET, 'dvat', null);
+	$kreditvat_param = 		 ifset($_GET, 'kvat', null);
+	$faktura[$x]     =       ifset($_GET, 'faktura', '');
+	$belob[$x]       =       ifset($_GET, 'belob', '');
+	$momsfri[$x]     =       ifset($_GET, 'momsfri', '');
+	$afd[$x]         =       ifset($_GET, 'afd', '');
+	$projekt[$x]     =       ifset($_GET, 'projekt', '');
+	$ansat[$x]       =       ifset($_GET, 'ansat', '');
+	$valuta[$x]      =       ifset($_GET, 'valuta', '');
 	// SD-730: the open-posts links (an invoice row, Indsæt, Luk) carry these, so the line keeps them
 	if (isset($_GET['forfaldsdato'])) $forfaldsdato[$x] = db_escape_string(trim((string)$_GET['forfaldsdato']));
 	if (isset($_GET['betal_id']))     $betal_id[$x]     = db_escape_string(trim((string)$_GET['betal_id']));
-	$find            =       if_isset($_GET, 		'',		'find');
+	$find            =       ifset($_GET, 'find', '');
 	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
 	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
 	$debet[$x]       =  trim(if_isset($debet, 		'',		$x));
@@ -4444,9 +4445,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($d_type == "F" && strlen($debet) == 1 && !is_numeric($debet) && $debet != '0') {
 				$debet = strtoupper($debet);
 				$query = db_select("select kontonr from kontoplan where genvej='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query))
+				if ($row = db_fetch_array($query)) {
 					$debet = $row["kontonr"];
-				else {
+				} else {
 					$txt1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$txt2 = findtekst('1586| Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 					$alerttekst = addslashes($debet . " " . $txt1 . " " . bilagFieldValue($bilag, true) . $txt2); # 20230306 added spaces
@@ -4504,9 +4505,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if (!$fejl && $k_type == "F" && strlen($kredit) == 1 && !is_numeric($kredit) && $kredit != '0') {
 				$qtxt = "select kontonr from kontoplan where genvej='" . strtoupper($kredit) . "' and regnskabsaar='$regnaar'";
 				$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query))
+				if ($row = db_fetch_array($query)) {
 					$kredit = $row['kontonr'];
-				else {
+				} else {
 					$alert1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$alert2 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
@@ -4571,8 +4572,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (isset($accountNumbers[kk_account_key($debet)])) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($kreditornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
-				} else
+				} else {
 					$debet = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
@@ -4591,8 +4593,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (isset($accountNumbers[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($kreditornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Kreditor (K)';
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
-				} else
+				} else {
 					$kredit = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
@@ -4610,8 +4613,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (isset($accountNumbers[kk_account_key($debet)])) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($debitornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Debitor (D)';
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
-				} else
+				} else {
 					$debet = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
@@ -4629,21 +4633,26 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (isset($accountNumbers[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($debitornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Debitor (D)';
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
-				} else
+				} else {
 					$kredit = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ($d_type == "K" && strtoupper($debet) == "K")
+			if ($d_type == "K" && strtoupper($debet) == "K") {
 				$debet = 0;
-			if ($d_type == "D" && strtoupper($debet) == "D")
+			}
+			if ($d_type == "D" && strtoupper($debet) == "D") {
 				$debet = 0;
-			if ($k_type == "K" && strtoupper($kredit) == "K")
+			}
+			if ($k_type == "K" && strtoupper($kredit) == "K") {
 				$kredit = 0;
-			if ($k_type == "D" && strtoupper($kredit) == "D")
+			}
+			if ($k_type == "D" && strtoupper($kredit) == "D") {
 				$kredit = 0;
+			}
 			$transdate = usdate($dato);
 			#cho __line__." $transdate<br>";
 			list($year, $month, $day) = explode('-', $transdate);
@@ -4662,8 +4671,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$fejl = 1;
 				#			$transdate=date("Y-m-d");
 			}
-			if (!isset($afd) || !$afd)
+			if (!isset($afd) || !$afd) {
 				$afd = 0;
+			}
 			if (!$fejl && $afd) {
 				$qtxt = "select id from grupper where art='AFD' and kodenr='$afd'";
 				if (!$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -4689,8 +4699,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
-			if (!$valuta)
+			if (!$valuta) {
 				$valuta = $baseCurrency;
+			}
 			if ($id && !$fejl && $valuta != $baseCurrency) {
 				if (!$row = db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1='$valuta'", __FILE__ . " linje " . __LINE__))) {
 					$alert1 = findtekst('1069|Valuta', $sprog_id); #20210720
@@ -4701,8 +4712,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$alerttekst = addslashes($alert1 . " " . $valuta . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4);
 					alert($alerttekst);
 					$fejl = 1;
-				} else
+				} else {
 					$valutakode = $row['kodenr'];
+				}
 				$valdate = usdate($dato);
 				$qtxt = "select kurs from valuta where gruppe='$valutakode' and valdate <= '$valdate' order by valdate desc limit 1";
 				if ($id && !$fejl && $row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
