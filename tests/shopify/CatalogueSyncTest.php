@@ -19,6 +19,8 @@
 // 20261029 CL/SS SD-741: created.
 // 20261104 CL/SS SD-802: the VAT is POS's: a group with box7 NULL is taxable, a VAT-free group is not.
 // 20261105 CL/SS SD-809: a set in a group without box8 becomes a draft, also through the seed; a closed set does not.
+// 20261105 CL/SS SD-809 review: an item with a bill of materials but no samlevare, or with a set inside, is not a webshop item.
+// 20261105 CL/SS SD-809 review: saving a component queues a set that became a webshop item and lets go of one that stopped.
 
 use PHPUnit\Framework\TestCase;
 
@@ -163,6 +165,64 @@ final class CatalogueSyncTest extends TestCase
         $this->assertContains($set, $seeded, 'and the set');
         $this->assertNotContains($closed, $seeded);
         $this->assertNotContains($plain, $seeded);
+    }
+
+    public function testABillOfMaterialsWithoutSamlevareOrWithASetInsideIsNotAWebshopItem(): void
+    {
+        $part = $this->item('P1');
+        $set = $this->item('SET3', ['gruppe' => 901, 'samlevare' => 'on']);
+        $unflagged = $this->item('BOM1', ['gruppe' => 901]);
+        $nested = $this->item('NEST1', ['gruppe' => 901, 'samlevare' => 'on']);
+        foreach ([[$part, $set], [$part, $unflagged], [$set, $nested]] as [$component, $parent]) {
+            $this->sql('INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $2, 2, 1)', [$component, $parent]);
+        }
+
+        $r = $this->steps(['sync', 'hml', $unflagged], ['sync', 'hml', $nested], ['sync', 'hml', $set], ['seed', 'hml', 0, 100]);
+
+        $this->assertSame(['skipped', 'not a webshop item'], [$r['results'][0]['result'], $r['results'][0]['reason']],
+            'intake sells it as a plain item without drawing its components, so it gets no product');
+        $this->assertSame(['skipped', 'not a webshop item'], [$r['results'][1]['result'], $r['results'][1]['reason']],
+            'intake refuses a set inside a set (one BOM level)');
+        $this->assertSame('created', $r['results'][2]['result'], 'the inner set is a set of its own');
+        $seeded = array_map('intval', array_column($this->sql("SELECT payload->>'vare_id' AS id FROM shopify_jobs WHERE type = 'catalogue.upsert'"), 'id'));
+        $this->assertContains($set, $seeded);
+        $this->assertNotContains($unflagged, $seeded);
+        $this->assertNotContains($nested, $seeded);
+    }
+
+    public function testSavingAComponentChecksTheSetsItIsIn(): void
+    {
+        $part = $this->item('P1');
+        $component = $this->item('C1', ['gruppe' => 901, 'samlevare' => 'on']);
+        $set = $this->item('SET4', ['gruppe' => 901, 'samlevare' => 'on']);
+        $this->sql('INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $2, 1, 1), ($2, $3, 1, 1)', [$part, $component, $set]);
+        $setJobs = fn(): array => $this->sql("SELECT s.shop_key, j.type, j.correlation->>'source' AS source FROM shopify_jobs j JOIN shopify_shops s ON s.id = j.shop_id
+            WHERE j.payload->>'vare_id' = $1 ORDER BY s.shop_key", [(string)$set]);
+
+        $this->sql('DELETE FROM styklister WHERE indgaar_i = $1', [$component]);
+        $this->steps(['saved', $component]);
+        $this->assertSame([['shop_key' => 'hml', 'type' => 'catalogue.upsert', 'source' => 'component'], ['shop_key' => 'hms', 'type' => 'catalogue.link', 'source' => 'component']],
+            $setJobs(), 'its component is no set any more, so the set is a webshop item and is queued in every shop');
+
+        $this->sql('DELETE FROM shopify_jobs');
+        $r = $this->steps(['discover', 'hms', $set], ['sync', 'hml', $set], ['saved', $component]);
+        $this->assertSame(['unlisted', 'created'], [$r['results'][0]['result'], $r['results'][1]['result']]);
+        $this->assertSame([['shop_key' => 'hms', 'type' => 'catalogue.link', 'source' => 'component']], $setJobs(),
+            'an unlisted link is no product, so the set is queued again in that shop only');
+
+        $this->sql('DELETE FROM shopify_jobs');
+        $r = $this->steps(['discover', 'hms', $set], ['saved', $component]);
+        $this->assertSame('linked', $r['results'][0]['result']);
+        $this->assertSame([], $setJobs(), 'a set that already has its product is not queued again for each save of a component');
+
+        $this->sql('INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $2, 1, 1)', [$part, $component]);
+        $shopId = (string)$this->sql("SELECT id FROM shopify_shops WHERE shop_key = 'hms'")[0]['id'];
+        $this->sql("INSERT INTO shopify_errors (shop_id, error_key, kind, ref, message, severity) VALUES ($1, $2, 'catalogue.rejected', $3, 'old', 'warning')",
+            [$shopId, hash('sha256', implode("\x1f", [$shopId, 'catalogue.rejected', "vare:$set"])), "vare:$set"]);
+        $this->steps(['saved', $component]);
+        $this->assertSame([], $setJobs());
+        $this->assertSame([], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL AND ref = $1', ["vare:$set"]),
+            'its component is a set again, so the set is let go and its catalogue error resolved');
     }
 
     public function testAnUnchangedSaveStillNoticesADeletedProductOrAReplacedVariant(): void
