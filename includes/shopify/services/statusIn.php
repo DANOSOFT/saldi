@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.05
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // 20261104 CL/SS SD-801 review 4: only a fulfillment of a legacy order is info; a refund or cancellation asks for the credit note.
 // 20261104 CL/SS SD-801 review 5: an event comes off status.unlinked only once its write went through.
 // 20261104 CL/SS SD-744: ORDERS_UPDATED stores the delivery date EasyRoutes writes on the order (easyroutes_levdato).
+// 20261105 CL/SS SD-744 review: on a tie on updated_at, a status with the EasyRoutes date wins over one without it.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -393,12 +394,11 @@ function shopify_handle_order_updated(array $event): void {
 		$row = shopify_db_rows("SELECT flags->'status' AS status FROM shopify_order_links WHERE id = $1 FOR UPDATE", array((int)$link['id']));
 		$stored = json_decode((string)($row[0]['status'] ?? ''), true);
 		if (is_array($stored)) {
+			// the date is part of the status, so a tie on updated_at is decided over it too; a status stored before the date
+			// was read has no such key and counts as one without a date, so both are always compared in the same shape
+			$stored += array('easyroutes_levdato' => null);
 			ksort($stored); // jsonb reorders the keys; $status is built in key order
-			// the date is part of the status, so a tie on updated_at is broken over it too; a status stored before the date
-			// was read has no such key, and is compared without it, so its own event's replay adds the date once
-			$compared = array_key_exists('easyroutes_levdato', $stored) ? $status : array_diff_key($status, array('easyroutes_levdato' => true));
-			$upgrade = $compared !== $status && shopify_status_json($compared) === shopify_status_json($stored);
-			if (!$upgrade && !shopify_status_newer($status['updated_at'], shopify_status_json($compared), $stored['updated_at'] ?? null, shopify_status_json($stored))) {
+			if (!shopify_status_order_newer($status, $stored)) {
 				return $stored;
 			}
 		}
@@ -414,11 +414,7 @@ function shopify_handle_order_updated(array $event): void {
 		if (!is_array($body)) {
 			return false;
 		}
-		$old = shopify_status_of($body);
-		if (!array_key_exists('easyroutes_levdato', $stored)) { // compared as the stored one was projected, before the date was read
-			unset($old['easyroutes_levdato']);
-		}
-		return !shopify_status_newer($old['updated_at'], shopify_status_json($old), $stored['updated_at'] ?? null, shopify_status_json($stored));
+		return !shopify_status_order_newer(shopify_status_of($body), $stored);
 	});
 }
 
@@ -435,6 +431,19 @@ function shopify_status_easyroutes_date(array $body): ?string {
 		}
 	}
 	return null;
+}
+
+/**
+ * Whether order status $status replaces the stored one: the later updated_at, as shopify_status_newer() decides. On a tie,
+ * a status that has the EasyRoutes date wins over one that has none, else an update in the same second as EasyRoutes' write
+ * would clear the date; otherwise the greater body. Both carry the date key (null for none).
+ */
+function shopify_status_order_newer(array $status, array $stored): bool {
+	if (($status['updated_at'] ?? null) === ($stored['updated_at'] ?? null)
+		&& (($status['easyroutes_levdato'] ?? null) === null) !== (($stored['easyroutes_levdato'] ?? null) === null)) {
+		return ($status['easyroutes_levdato'] ?? null) !== null;
+	}
+	return shopify_status_newer($status['updated_at'] ?? null, shopify_status_json($status), $stored['updated_at'] ?? null, shopify_status_json($stored));
 }
 
 /** What the link keeps of an order body under flags.status, in key order: its status and the EasyRoutes date. */
