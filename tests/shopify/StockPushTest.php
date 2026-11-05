@@ -9,7 +9,7 @@
 // commits after the push read is sent even when its dirty row has the lower id; a drain skips the rows another one
 // holds, so each dirty row is drained once; a shop that captures without publishing keeps its
 // marks; a final failure keeps a call that may have applied; an item Shopify refuses is dropped with a warning and
-// the rest is sent; a pair not stocked is activated before the push, and an item refused there is left out; a sellable lager without a
+// the rest is sent; a pair not stocked is activated before the push, and an item refused there is left out; a stored call waits for an open barrier; a lost activation can't leave its quantity in Shopify; a pair the read misses goes on to the set; an item over one call's size is left out; a sellable lager without a
 // location is skipped with a warning; a dead job's call goes out with the next drain, and a waiting
 // job keeps its backoff; an item linked later is sent; a shop can't publish without capturing. Skips without ShopifyEnv.
 //
@@ -18,6 +18,7 @@
 // 20261104 CL/SZ SD-756 review: dead job, backoff, late link, publish without capture; the seeded state follows the link's time.
 // 20261105 CL/SZ SD-756: a pair not stocked is activated before the push, not after a refusal Shopify doesn't give.
 //                An item Shopify refuses to stock is left out with a warning.
+// 20261105 CL/SZ SD-756 review: a stored call and an open barrier, a lost activation, a pair the read misses, an item over one call's size.
 
 use PHPUnit\Framework\TestCase;
 
@@ -140,6 +141,18 @@ final class StockPushTest extends TestCase
         }
         $steps[] = ['clean'];
         return $steps;
+    }
+
+    /** The steps of a shop 'hml' with $n sellable lagre, each mapped to its location L<lager>. */
+    private function lagre(int $n): array
+    {
+        $this->sql('DELETE FROM shopify_lager');
+        $names = [];
+        for ($i = 1; $i <= $n; $i++) {
+            $this->sql("INSERT INTO shopify_lager (lager, rolle, prioritet) VALUES ($1, 'saelgbar', $1)", [$i]);
+            $names[$i] = "L$i";
+        }
+        return [['shop', 'hml', $names]];
     }
 
     private function dirty(array $ids): void
@@ -513,6 +526,73 @@ final class StockPushTest extends TestCase
         $this->assertNoException($run);
         $this->assertSame(['stockLevels', 'stockActivate', 'stockSet'], array_column($run['calls'], 'operation'));
         $this->assertSame(['Mårum' => 3, 'Ballerup' => 6], $run['levels']['hml']['SD756-bord']);
+    }
+
+    public function test_a_stored_call_waits_for_an_open_barrier_with_its_key_and_input(): void
+    {
+        $id = $this->item('sofa', [1 => 5]);
+        $this->steps(...$this->shops([$id], ['hml']));
+        $this->dirty([$id]);
+        $vars = $this->steps(['drain'], ['next', 'hml'])['results'][1]['vars'];
+
+        $held = $this->steps(['open', 'hml', 900100, [$id]], ['push', 'hml']);
+        $this->assertNoException($held);
+        $this->assertSame([], self::sets($held), 'a call read before the barrier opened is not sent past it');
+        $this->assertSame('yield', $held['results'][1]['outcome']);
+        $this->assertSame(60, $held['results'][1]['run_after']);
+
+        $sent = $this->steps(['release', 'hml', 900100], ['push', 'hml']);
+        $this->assertNoException($sent);
+        $this->assertEquals($vars, self::sets($sent)[0]['variables'], 'the same key and input go out after the release');
+    }
+
+    public function test_a_lost_activation_cannot_leave_shopify_on_its_quantity(): void
+    {
+        $id = $this->item('reol', [1 => 3, 2 => 8]);
+        $this->steps(...$this->shops([$id], ['hml']));
+        $this->dirty([$id]);
+        $this->assertNoException($this->steps(['drain'], ['push', 'hml']));
+
+        $this->steps(['unstock', 'hml', $id, 2]);
+        $this->sql('UPDATE lagerstatus SET beholdning = 6 WHERE vare_id = $1 AND lager = 2', [$id]);
+        $this->dirty([$id]);
+        $lost = $this->steps(['drain'], ['fail', 'inventoryActivate', 'timeout_after_applyx4'], ['push', 'hml']);
+        $this->assertSame(6, $lost['levels']['hml']['SD756-reol']['Ballerup'], 'the activation applied, its answer was lost');
+
+        // Saldi goes back to the acknowledged number before the retry
+        $this->sql('UPDATE lagerstatus SET beholdning = 8 WHERE vare_id = $1 AND lager = 2', [$id]);
+        $run = $this->steps(['push', 'hml']);
+        $this->assertNoException($run);
+        $this->assertSame(8, $run['levels']['hml']['SD756-reol']['Ballerup']);
+    }
+
+    public function test_a_pair_the_read_misses_goes_on_to_the_set(): void
+    {
+        $id = $this->item('lampe', [51 => 4]);
+        $this->steps(...$this->lagre(51), ...[['seed', 'hml', $id], ['clean']]);
+        $this->dirty([$id]);
+
+        $run = $this->steps(['drain'], ['push', 'hml']);
+        $this->assertNoException($run);
+        $this->assertSame(['stockLevels', 'stockActivate', 'stockSet'], array_column($run['calls'], 'operation'), 'the 51st location is past the read');
+        $this->assertSame(4, $run['levels']['hml']['SD756-lampe']['L51']);
+        $this->assertSame([], $this->sql("SELECT 1 FROM shopify_errors WHERE ref = $1 AND resolved_at IS NULL", ["item:$id"]));
+    }
+
+    public function test_an_item_over_one_calls_size_is_left_out_with_a_warning(): void
+    {
+        $big = $this->item('stor', [1 => 1]);
+        $small = $this->item('lille', [1 => 4]);
+        $this->steps(...$this->lagre(251), ...[['seed', 'hml', $big], ['seed', 'hml', $small], ['clean']]);
+        $this->sql("INSERT INTO shopify_stock_state (shop_id, vare_id, variant_id, lager, quantity, acknowledged_at)
+            SELECT l.shop_id, l.vare_id, 0, g.lager, 0, l.updated_at FROM shopify_product_links l, shopify_lager g WHERE l.vare_id = $1 AND g.lager > 1", [$small]);
+        $this->dirty([$big, $small]);
+
+        $run = $this->steps(['drain'], ['push', 'hml']);
+        $this->assertNoException($run);
+        $this->assertSame([4], array_column(self::sets($run)[0]['variables']['input']['quantities'], 'quantity'), 'the item behind it goes out');
+        $this->assertSame('warning', $this->sql("SELECT severity FROM shopify_errors WHERE ref = $1 AND resolved_at IS NULL", ["item:$big"])[0]['severity'] ?? null);
+        $this->assertSame([], $this->steps(['next', 'hml'])['results'][0], 'its mark is gone');
     }
 
     public function test_a_sellable_lager_without_a_location_is_skipped_with_a_warning(): void

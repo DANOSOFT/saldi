@@ -1584,6 +1584,9 @@ final class FakeShopifyStore
 				throw new LogicException('FakeShopifyStore: inventoryActivate with available and onHand apart is not modelled (B35)');
 			}
 			$s['levels'][$item][$location] = ['available' => (int)$available, 'on_hand' => (int)$available] + $this->emptyLevel();
+		} elseif (isset($a['available'])) {
+			return self::payload(['inventoryLevel' => $this->vLevel($domain, $item, $location)],
+				[self::userError(['available'], 'Not allowed to set available quantity when the item is already active at the location.')]);
 		}
 		return self::payload(['inventoryLevel' => $this->vLevel($domain, $item, $location)]);
 	}

@@ -46,6 +46,8 @@
 // 20261104 CL/SZ SD-756 review: the drain queues a push for a shop whose job went dead; a push's read stops at its deadline.
 // 20261105 CL/SZ SD-756: each call reads where its items are stocked and stocks the rest first, as Shopify hides a quantity set on a pair not stocked.
 //                An item Shopify refuses to stock is left out with a warning, so it can't hold back the shop.
+// 20261105 CL/SZ SD-756 review: a pending call waits for an open barrier, an activation forgets the pair's acknowledgement.
+//                A pair stocked after all goes on to the set, and an item over one call's size is left out with a warning.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -296,7 +298,12 @@ function shopify_stock_push(array $rt, array $job, float $deadline): array {
 		if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS || (isset($rt['heartbeat']) && !($rt['heartbeat'])())) {
 			return array('outcome' => 'yield', 'sent' => $sent);
 		}
-		$pending = shopify_queue_state_get("stock.pending:{$shop['shop_key']}") ?: shopify_stock_next($rt, $shop, $deadline);
+		$pending = shopify_queue_state_get("stock.pending:{$shop['shop_key']}");
+		if ($pending !== array() && shopify_barrier_deferred($shopId, array_keys($pending['marks'])) !== array()) {
+			// held as it is: this may be its first send, with a quantity read before the barrier opened
+			return array('outcome' => 'yield', 'sent' => $sent, 'run_after' => SHOPIFY_STOCK_DEFERRED_SECONDS);
+		}
+		$pending = $pending ?: shopify_stock_next($rt, $shop, $deadline);
 		if ($pending === array()) {
 			// what is left waits for a barrier, or ran out of time stocking its items; an expired barrier marks nothing dirty until its sweep runs
 			$left = shopify_queue_state_get("stock.dirty:{$shop['shop_key']}") !== array();
@@ -348,6 +355,11 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 				continue;
 			}
 			$item = $read['items'][$vareId] ?? array();
+			if (count($item) > SHOPIFY_STOCK_BATCH) {
+				shopify_error_open($shopId, 'stock', "item:$vareId", 'Item ' . $vareId . ' has ' . count($item) . ' quantities, more than one call takes; it is not sent.', 'warning');
+				$settled[$vareId] = (int)$set[$vareId];
+				continue;
+			}
 			if (count($rows) + count($item) > SHOPIFY_STOCK_BATCH) {
 				break 2;
 			}
@@ -523,7 +535,7 @@ function shopify_stock_refused(array $shop, array $pending, array $userErrors): 
  * An item Shopify refuses to stock goes on the error list as a warning and is left out, so one item
  * cannot hold back the shop.
  *
- * @param list<array{vare_id: int, quantity: int, inventory_item_gid: string, location_gid: string}> $rows
+ * @param list<array{vare_id: int, lager: int, quantity: int, inventory_item_gid: string, location_gid: string}> $rows
  * @return array<int, true>|null the items refused, null when the time ran out; the marks stay and the next run goes on
  * @throws RuntimeException when Shopify doesn't answer
  */
@@ -549,6 +561,8 @@ function shopify_stock_levels_ready(array $rt, array $shop, array $rows, float $
 		if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS) {
 			return null;
 		}
+		// the activation writes a quantity, so a lost answer must not leave the old acknowledgement in step
+		shopify_db_rows('DELETE FROM shopify_stock_state WHERE shop_id = $1 AND vare_id = $2 AND variant_id = 0 AND lager = $3', array((int)$shop['id'], $row['vare_id'], $row['lager']));
 		$why = shopify_stock_activate($rt, $shop, $row, $deadline);
 		if ($why !== null) {
 			$refused[$row['vare_id']] = true;
@@ -560,7 +574,8 @@ function shopify_stock_levels_ready(array $rt, array $shop, array $rows, float $
 
 /**
  * Stocks the item at the location (inventoryActivate) with the quantity wanted, so a quantity hidden
- * there is never shown. Only for a pair read as not stocked: Shopify refuses a quantity on a stocked one.
+ * there is never shown. For a pair read as not stocked; one that is stocked after all answers its level
+ * with a refusal of the quantity, and the set that follows sends it.
  *
  * @return string|null Shopify's refusal, null when the item is stocked
  * @throws RuntimeException when Shopify doesn't answer
@@ -569,10 +584,10 @@ function shopify_stock_activate(array $rt, array $shop, array $row, float $deadl
 	$res = shopify_graphql($shop, 'inventoryActivate', SHOPIFY_STOCK_ACTIVATE,
 		array('item' => $row['inventory_item_gid'], 'location' => $row['location_gid'], 'available' => $row['quantity'], 'key' => shopify_stock_key()),
 		($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'idempotent'));
-	if ($res['user_errors'] !== array()) {
+	if ($res['user_errors'] !== array() && ($res['data']['inventoryActivate']['inventoryLevel'] ?? null) === null) {
 		return implode('; ', array_column($res['user_errors'], 'message'));
 	}
-	if (!$res['ok']) {
+	if ($res['user_errors'] === array() && !$res['ok']) {
 		throw new RuntimeException("inventoryActivate of {$row['inventory_item_gid']} at {$row['location_gid']} failed: {$res['error']}");
 	}
 	return null;
