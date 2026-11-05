@@ -29,6 +29,7 @@
 // 20261103 CL/SS SD-802: productVariantsBulkUpdate sets price and compareAtPrice (B37).
 // 20261104 CL/SS SD-808: the order fields the paid-order read selects (billing address, line totals, shipping lines, payment details).
 // 20261105 CL/SZ SD-756: inventorySetQuantities on a pair not stocked succeeds and stays hidden until activated, as the dev store does.
+// 20261105 CL/SZ SD-757: bulkOperationRunQuery, bulkOperation(s) and the bulk download seam for the stock read (B38); setAvailable().
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -85,13 +86,13 @@ final class FakeShopifyStore
 		$this->schema = GraphqlSchema::load();
 		foreach (['shop', 'product', 'productByIdentifier', 'products', 'productVariant', 'productVariants', 'inventoryItem',
 			'inventoryLevel', 'location', 'locations', 'order', 'orders', 'fulfillmentOrder', 'fulfillmentOrders', 'customer',
-			'customers', 'customerByIdentifier', 'webhookSubscription', 'webhookSubscriptions', 'node', 'nodes'] as $root) {
+			'customers', 'customerByIdentifier', 'webhookSubscription', 'webhookSubscriptions', 'node', 'nodes', 'bulkOperations', 'bulkOperation'] as $root) {
 			$method = 'q' . ucfirst($root);
 			$this->handlers['query'][$root] = fn(self $store, string $domain, array $args, array $field): mixed => $this->$method($domain, $args, $field);
 		}
 		foreach (['productSet', 'productVariantsBulkUpdate', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
 			'tagsAdd', 'tagsRemove', 'metafieldsSet', 'customerCreate', 'customerUpdate', 'refundCreate',
-			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete'] as $root) {
+			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete', 'bulkOperationRunQuery'] as $root) {
 			$method = 'm' . ucfirst($root);
 			$this->handlers['mutation'][$root] = fn(self $store, string $domain, array $args, array $field): mixed => $this->$method($domain, $args, $field);
 		}
@@ -177,6 +178,32 @@ final class FakeShopifyStore
 			throw new LogicException("FakeShopifyStore: $item is not stocked at $location");
 		}
 		unset($s['levels'][$item][$location]);
+	}
+
+	/** A quantity changed in the shop's admin, not through Saldi: what the nightly read looks for. */
+	public function setAvailable(string $domain, string $item, string $location, int $quantity): void
+	{
+		$this->setQuantity($domain, $item, $location, 'available', $quantity);
+	}
+
+	/**
+	 * The download seam of shopify_bulk_download() for this store's bulk files.
+	 *
+	 * @return callable(string, resource, float, float): array{status: int, errno: int}
+	 */
+	public function bulkDownloader(): callable
+	{
+		return function (string $url, $fh, float $connect, float $timeout): array {
+			foreach ($this->shops as $s) {
+				foreach ($s['bulk'] ?? [] as $op) {
+					if ($op['url'] === $url) {
+						fwrite($fh, $op['file']);
+						return ['status' => 200, 'errno' => 0];
+					}
+				}
+			}
+			return ['status' => 404, 'errno' => 0];
+		};
 	}
 
 	/** A webhook subscription without a request, as register-webhooks would leave it. */
@@ -1351,7 +1378,59 @@ final class FakeShopifyStore
 		return array_map(fn(string $id): ?array => $this->node($domain, $id), $a['ids']);
 	}
 
+	private function qBulkOperations(string $domain, array $a): array
+	{
+		return array_map(fn(string $gid): array => $this->vBulk($domain, $gid), array_reverse(array_keys($this->shop($domain)['bulk'] ?? [])));
+	}
+
+	/** B38: the first look at a new operation finds it RUNNING, the next COMPLETED. */
+	private function qBulkOperation(string $domain, array $a): ?array
+	{
+		$s = &$this->shop($domain);
+		if (!isset($s['bulk'][$a['id']])) {
+			return null;
+		}
+		$this->uses('B38');
+		$view = $this->vBulk($domain, $a['id']);
+		$s['bulk'][$a['id']]['status'] = 'COMPLETED';
+		return $view;
+	}
+
+	private function vBulk(string $domain, string $gid): array
+	{
+		$op = $this->shop($domain)['bulk'][$gid];
+		$done = $op['status'] === 'COMPLETED';
+		return ['__typename' => 'BulkOperation', 'id' => $gid, 'status' => $op['status'], 'type' => 'QUERY', 'query' => $op['query'], 'errorCode' => null,
+			'objectCount' => (string)$op['lines'], 'rootObjectCount' => (string)$op['lines'], 'fileSize' => $done ? (string)strlen($op['file']) : null,
+			'url' => $done && $op['file'] !== '' ? $op['url'] : null, 'partialDataUrl' => null, 'completedAt' => null, 'createdAt' => $this->iso()];
+	}
+
 	// ---- mutations: catalogue and stock ------------------------------------------------------
+
+	/**
+	 * B38: a bulk read of every inventory item's available levels, which is all it models. The file is
+	 * written when the operation starts, so a later change isn't in it: one line per item, then
+	 * one per level with the item as __parentId.
+	 */
+	private function mBulkOperationRunQuery(string $domain, array $a): array
+	{
+		if (!preg_match('/^\{\s*inventoryItems\s*\{.*inventoryLevels.*quantities\(names:\s*\["available"\]\)/s', $a['query'])) {
+			throw new LogicException('FakeShopifyStore: this bulk query is not modelled (B38): ' . $a['query']);
+		}
+		$this->uses('B38');
+		$s = &$this->shop($domain);
+		$lines = [];
+		foreach (array_keys($s['items']) as $item) {
+			$lines[] = json_encode(['id' => $item]);
+			foreach ($s['levels'][$item] ?? [] as $location => $level) {
+				$lines[] = json_encode(['location' => ['id' => $location], 'quantities' => [['name' => 'available', 'quantity' => $level['available']]], '__parentId' => $item]);
+			}
+		}
+		$gid = $this->gid('BulkOperation');
+		$s['bulk'][$gid] = ['status' => 'RUNNING', 'query' => $a['query'], 'url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '.jsonl',
+			'file' => $lines === [] ? '' : implode("\n", $lines) . "\n", 'lines' => count($lines)];
+		return self::payload(['bulkOperation' => $this->vBulk($domain, $gid)]);
+	}
 
 	private function mProductSet(string $domain, array $a): array
 	{

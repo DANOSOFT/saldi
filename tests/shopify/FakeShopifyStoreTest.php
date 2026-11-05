@@ -15,6 +15,7 @@
 //                mutation cost with its payload, stable webhook ids, a basis per registry entry.
 // 20261103 CL/LH SD-766: second review: a write of the same metafield value keeps its digest valid (B36).
 // 20261103 CL/SS SD-802: productVariantsBulkUpdate sets and clears the prices (B37).
+// 20261105 CL/SZ SD-757: a bulk read of the stock levels (B38).
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -660,6 +661,30 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertSame($this->store->request($this->domain, 'query { products(first: 5) { nodes { id handle } } }', [])['body'],
 			$copy->request($this->domain, 'query { products(first: 5) { nodes { id handle } } }', [])['body']);
 		$this->assertSame($this->store->gid('X'), $copy->gid('X'), 'ids go on from the same number');
+	}
+
+	public function testABulkReadListsTheStockedLevelsAsTheyWereWhenItStarted(): void
+	{
+		require_once __DIR__ . '/../../includes/shopify/services/stock.php';
+		$p = $this->store->seedProduct($this->domain, 'bulk', 'BULK-1', [$this->l1 => 5]);
+		$this->store->unstock($this->domain, $p['item'], $this->l2);
+		$started = shopify_bulk_start($this->shop, SHOPIFY_STOCK_BULK_LEVELS, $this->store->opts());
+		$this->assertSame('RUNNING', $started['bulk']['status']);
+		$this->store->setAvailable($this->domain, $p['item'], $this->l1, 9);
+
+		$this->assertFalse(shopify_bulk_poll($this->shop, $started['bulk']['id'], $this->store->opts())['done'], 'B38: running at the first look');
+		$done = shopify_bulk_poll($this->shop, $started['bulk']['id'], $this->store->opts());
+		$this->assertTrue($done['done']);
+		$file = tempnam(sys_get_temp_dir(), 'sd757_');
+		$got = shopify_bulk_download($done['bulk']['url'], $file, ['download' => $this->store->bulkDownloader(), 'log' => fn(): null => null]);
+		$lines = array_map(fn(string $l): array => json_decode($l, true), file($file, FILE_IGNORE_NEW_LINES));
+		unlink($file);
+
+		$this->assertTrue($got['ok']);
+		$mine = array_values(array_filter($lines, fn(array $l): bool => ($l['id'] ?? $l['__parentId']) === $p['item']));
+		$this->assertSame(['id' => $p['item']], $mine[0], 'the item comes first');
+		$this->assertSame(['location' => ['id' => $this->l1], 'quantities' => [['name' => 'available', 'quantity' => 5]], '__parentId' => $p['item']], $mine[1], 'the file has the level from the start');
+		$this->assertCount(2, $mine, 'a pair not stocked has no line');
 	}
 
 	public function testTheRegistryListsExactlyTheBehavioursTheFakesEncode(): void
