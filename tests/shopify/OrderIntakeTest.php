@@ -8,9 +8,11 @@
 //
 // History:
 // 20261103 CL/SS SD-742: created.
+// 20261104 CL/SS SD-743 review: an absent totalTaxSet is unknown; an empty shipping country falls back to billing.
 // 20261104 CL/SS SD-808: the read is paged under Shopify's query cost limit; checked against the schema and the stateful fake store.
 // 20261104 CL/SS SD-808 review: an order changed between its reads is refused as changed, retryable.
 // 20261104 CL/SS SD-808 review: all 250 lines are assembled; an edit between two reads of the store is caught.
+// 20261104 CL/SS SD-743 review 2: a kasse VAT code of 0 is refused.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -101,7 +103,7 @@ final class OrderIntakeTest extends TestCase
 		$node = [
 			'id' => self::GID, 'name' => '#HML1001', 'createdAt' => '2026-11-03T10:00:00Z', 'sourceName' => 'web', 'sourceIdentifier' => null,
 			'tags' => ['vip'], 'note' => null, 'email' => ' k@example.dk ', 'phone' => null, 'taxesIncluded' => true, 'currencyCode' => 'DKK',
-			'displayFinancialStatus' => 'paid', 'totalPriceSet' => ['shopMoney' => ['amount' => '269.0']], 'customer' => ['id' => 'gid://shopify/Customer/7'],
+			'displayFinancialStatus' => 'paid', 'totalPriceSet' => ['shopMoney' => ['amount' => '269.0']], 'totalTaxSet' => ['shopMoney' => ['amount' => '53.8']], 'customer' => ['id' => 'gid://shopify/Customer/7'],
 			'lineItems' => ['nodes' => [
 				['id' => 'gid://shopify/LineItem/1', 'sku' => ' X ', 'name' => 'Bord', 'quantity' => 2, 'variant' => ['id' => 'gid://shopify/ProductVariant/11'],
 					'product' => null, 'originalTotalSet' => ['shopMoney' => ['amount' => '200']],
@@ -124,6 +126,9 @@ final class OrderIntakeTest extends TestCase
 		$o = shopify_order_from_graphql($node);
 
 		$this->assertSame('269.00', $o['total']);
+		$this->assertSame('53.80', $o['total_tax'], 'the VAT Shopify charged, for S09b');
+		unset($node['totalTaxSet']);
+		$this->assertNull(shopify_order_from_graphql($node)['total_tax'], 'left out by Shopify: unknown, not 0.00');
 		$this->assertSame('k@example.dk', $o['email']);
 		$this->assertSame('PAID', $o['financial_status']);
 		$this->assertSame(['sku' => 'X', 'original_total' => '200.00', 'discount' => '20.00', 'assigned_location' => 'gid://shopify/Location/2'],
@@ -253,6 +258,22 @@ final class OrderIntakeTest extends TestCase
 		$this->assertTrue($old['ok'], 'posted on the intake date: an order from last year taken in this one is fine');
 	}
 
+	public function testAnOrderGoingAbroadIsRefusedSinceItMayCarryAnotherCountrysVat(): void
+	{
+		$address = static fn(string $country): array => ['firstName' => 'K', 'lastName' => 'K', 'company' => '', 'address1' => 'Vej 1', 'address2' => '',
+			'zip' => '1000', 'city' => 'By', 'country' => $country, 'countryCodeV2' => $country, 'phone' => ''];
+		$abroad = self::validate(self::order(['shipping_address' => $address('SE'), 'billing_address' => $address('DK')]), self::ctx());
+		$billedAbroad = self::validate(self::order(['billing_address' => $address('de')]), self::ctx());
+		$home = self::validate(self::order(['shipping_address' => $address('dk'), 'billing_address' => $address('SE')]), self::ctx());
+
+		$this->assertSame(['order.country'], self::kinds($abroad['errors']), 'the shipping country decides');
+		$this->assertSame(['order.country'], self::kinds($billedAbroad['errors']), 'the billing country when nothing is shipped');
+		$noCountry = self::validate(self::order(['shipping_address' => $address(''), 'billing_address' => $address('SE')]), self::ctx());
+		$this->assertSame(['order.country'], self::kinds($noCountry['errors']), 'the billing country when the shipping address has none');
+		$this->assertTrue($home['ok']);
+		$this->assertTrue(self::validate(self::order(), self::ctx())['ok'], 'an order without an address');
+	}
+
 	public function testAnIntakeDateInAClosedVatPeriodIsRefused(): void
 	{
 		$v = self::validate(self::order(), self::ctx(['period_closed' => 'Perioden 11-2026 er lukket for bogfoering']));
@@ -325,7 +346,7 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertTrue($v['ok'], 'S09b writes the sum and VAT itself; the difference is reported, not refused');
 		$this->assertSame(['order.rounding'], self::kinds($v['alarms']));
-		$this->assertStringContainsString('comes to 0.15', $v['alarms'][0]['message']);
+		$this->assertStringContainsString('come to 0.15', $v['alarms'][0]['message']);
 	}
 
 	public function testSetComponentsAndTheFreightItemAreCheckedLikeLineItems(): void
@@ -349,6 +370,7 @@ final class OrderIntakeTest extends TestCase
 		$pos = self::ctx()['pos'];
 		$noCash = self::validate(self::order(), self::ctx(['pos' => ['kasse_account_ok' => false] + $pos]));
 		$noVat = self::validate(self::order(), self::ctx(['pos' => ['kasse_vat' => ''] + $pos]));
+		$zeroVat = self::validate(self::order(), self::ctx(['pos' => ['kasse_vat' => '0'] + $pos]));
 		$noCard = self::validate(self::order(), self::ctx(['pos' => ['card_accounts' => [], 'fallback_card_account_ok' => false] + $pos]));
 		$fallback = self::validate(self::order(), self::ctx(['pos' => ['card_accounts' => []] + $pos]));
 		$namedWithoutAccount = self::validate(self::order(), self::ctx(['pos' => ['card_accounts' => ['visa/dankort' => false]] + $pos]));
@@ -356,6 +378,11 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertSame(['config.pos'], self::kinds($noCash['errors']));
 		$this->assertSame(['config.pos'], self::kinds($noVat['errors']));
+		$this->assertSame(['config.pos'], self::kinds($zeroVat['errors']), 'a 0 stops the posting as an empty code does');
+		$free = static fn(int $id, string $nr): array => self::item($id, $nr, ['vat_rate' => 0.0]);
+		$vatFree = self::ctx(['by_variant' => ['gid://shopify/ProductVariant/11' => $free(100, 'X')], 'by_sku' => ['X' => $free(100, 'X'), 'Y' => $free(101, 'Y')],
+			'items' => [100 => $free(100, 'X'), 101 => $free(101, 'Y'), 900 => $free(900, 'FRAGT'), 901 => $free(901, 'FRAGT-STD'), 902 => $free(902, 'AFHENT')]]);
+		$this->assertTrue(self::validate(self::order(), ['pos' => ['kasse_vat' => '0'] + $pos] + $vatFree)['ok'], 'an invoice without VAT needs no VAT code');
 		$this->assertSame(['config.pos'], self::kinds($noCard['errors']));
 		$this->assertTrue($fallback['ok'], 'the account for other cards takes an unlisted type');
 		$this->assertSame(['config.pos'], self::kinds($namedWithoutAccount['errors']),
@@ -616,7 +643,7 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertTrue($v['ok'], json_encode($v['errors']));
 		$this->assertSame(['order.rounding'], self::kinds($v['alarms']));
-		$this->assertStringContainsString('comes to 101.02', $v['alarms'][0]['message'], 'two rows of 40.012 with 10.00 VAT each, the set line 0, plus 1.00');
+		$this->assertStringContainsString('come to 101.02', $v['alarms'][0]['message'], 'two rows of 40.012 with 10.00 VAT each, the set line 0, plus 1.00');
 	}
 
 	/** Mixed rates take the VAT per row, so a line split over two lagre rounds twice. */
@@ -637,7 +664,7 @@ final class OrderIntakeTest extends TestCase
 
 		$this->assertSame([1, 2], array_column($v['lines'][0]['segments'], 'lager'), 'one unit from each lager');
 		$this->assertSame(['order.rounding'], self::kinds($v['alarms']));
-		$this->assertStringContainsString('comes to 101.02', $v['alarms'][0]['message'], '2 rows of 40.012 with 10.00 VAT each, plus 1.00 without');
+		$this->assertStringContainsString('come to 101.02', $v['alarms'][0]['message'], '2 rows of 40.012 with 10.00 VAT each, plus 1.00 without');
 		$this->assertSame(25.0, $v['header']['momssats'], 'the highest rate of the lines, for S09b to write and lend');
 	}
 

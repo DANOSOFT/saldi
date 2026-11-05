@@ -43,6 +43,7 @@
 // 20261101 CL/SS SD-792: the customer.upsert handler (Shopify customer to debtor).
 // 20261103 CL/SS SD-802: the price.window handler (prices and offers to every shop with prices_enabled).
 // 20261103 CL/SS SD-801: the status handlers fulfillment.upsert, order.status, order.cancelled and refund.upsert.
+// 20261103 CL/SS SD-743: the order.import handler (paid web order created, delivered and posted).
 // 20261104 CL/SZ SD-756: the stock producer drains shopify_stock_dirty after the events; the stock.push handler.
 
 if (php_sapi_name() !== 'cli') {
@@ -72,6 +73,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/services/customers.php';
 	require_once __DIR__ . '/../includes/shopify/services/prices.php';
 	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
+	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
 	require_once __DIR__ . '/../includes/shopify/services/stock.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
@@ -101,6 +103,8 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'order.status', 'shopify_order_status_job');
 	shopify_worker_register($registry, 'order.cancelled', 'shopify_order_cancelled_job');
 	shopify_worker_register($registry, 'refund.upsert', 'shopify_refund_upsert_job');
+	// SD-743: a paid web order is created, delivered and posted.
+	shopify_worker_register($registry, 'order.import', 'shopify_order_import_job');
 	// SD-756: absolute stock per location to each shop.
 	shopify_worker_register($registry, 'stock.push', fn(array $job, float $deadline, callable $heartbeat): array
 		=> shopify_stock_push(array('heartbeat' => $heartbeat), $job, $deadline));

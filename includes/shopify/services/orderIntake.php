@@ -37,8 +37,11 @@
 // 20261103 CL/SS SD-742 review: a line split over several fulfillment locations is an alarm; an order that does not fit one read is refused.
 // 20261103 CL/SS SD-742 review: batch-controlled items, a VAT group without a rate and an ambiguous SKU are refused.
 //                The unit price is rounded down so the last unit is never below it; closed fulfillment orders are no assignment.
+// 20261103 CL/SS SD-743: the order's VAT (totalTaxSet) is read for S09b, and an order going abroad is refused.
+// 20261104 CL/SS SD-743 review: an absent totalTaxSet stays unknown, and an empty shipping country falls back to billing.
 // 20261104 CL/SS SD-808: the paid order is read in pages, each document under Shopify's query cost limit of 1000.
 // 20261104 CL/SS SD-808 review: an order changed while it was read in pages is refused as changed, and retried.
+// 20261104 CL/SS SD-743 review 2: a kasse VAT code of 0 and a VAT account 1 are refused, as the posting stops at them.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -58,6 +61,8 @@ const SHOPIFY_TAG_SHORTAGE = 'saldi-mangler-lager';
 const SHOPIFY_PAYMENT_UNKNOWN = 'Ukendt kort';
 /** The header's payment terms; also the posting of an order whose payments do not fit felt_1..felt_5 (DIV/3 box10). */
 const SHOPIFY_PAYMENT_FALLBACK = 'Kreditkort';
+/** An order going elsewhere may carry another country's VAT (Shopify Markets), which the intake cannot post. */
+const SHOPIFY_INTAKE_COUNTRY = 'DK';
 /** A variant item's stock is allocated under this base plus its variant id, so two variants of one item never share stock. */
 const SHOPIFY_INTAKE_VARIANT_STOCK = 1000000000000;
 /** Transactions that are money received. */
@@ -73,7 +78,7 @@ const SHOPIFY_ORDER_LINE_FIELDS = 'id sku name quantity currentQuantity variant 
  */
 const SHOPIFY_ORDER_READ = 'query paidOrderRead($id: ID!) { order(id: $id) {
 	id name createdAt updatedAt sourceName sourceIdentifier tags note email phone taxesIncluded currencyCode displayFinancialStatus
-	totalPriceSet { shopMoney { amount currencyCode } }
+	totalPriceSet { shopMoney { amount currencyCode } } totalTaxSet { shopMoney { amount } }
 	customer { id }
 	shippingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
 	billingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
@@ -187,7 +192,7 @@ function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array())
  * @param array<string, mixed> $o the order node as shopify_fetch_paid_order() puts it together from its reads
  * @return array{gid: string, name: string, created_at: string, source_name: string, source_identifier: string,
  *   tags: list<string>, note: string, email: string, phone: string, taxes_included: bool, currency: string,
- *   total: string, financial_status: string, customer_gid: string|null, shipping_address: array<string, string>|null,
+ *   total: string, total_tax: string|null, financial_status: string, customer_gid: string|null, shipping_address: array<string, string>|null,
  *   billing_address: array<string, string>|null,
  *   lines: list<array{gid: string, sku: string, name: string, quantity: int, current_quantity: int, variant_gid: string|null, product_gid: string|null,
  *     original_total: string, discount: string, assigned_location: string|null, assigned_locations: list<string>}>,
@@ -267,6 +272,8 @@ function shopify_order_from_graphql(array $o): array {
 		'taxes_included' => (bool)($o['taxesIncluded'] ?? false),
 		'currency' => (string)($o['currencyCode'] ?? ''),
 		'total' => $money($o['totalPriceSet'] ?? array()),
+		// Shopify may leave it out: unknown, not 0.00, so the VAT check is skipped rather than refusing the order
+		'total_tax' => isset($o['totalTaxSet']['shopMoney']['amount']) ? $money($o['totalTaxSet']) : null,
 		'financial_status' => strtoupper((string)($o['displayFinancialStatus'] ?? '')),
 		'customer_gid' => isset($o['customer']['id']) ? (string)$o['customer']['id'] : null,
 		'shipping_address' => $address($o['shippingAddress'] ?? null),
@@ -410,6 +417,14 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 	}
 	if (empty($order['taxes_included'])) {
 		$error('order.taxes', "order $name has prices without VAT; the intake takes Shopify's prices as VAT-inclusive");
+	}
+	// an address without a country reads as '', so the billing country is the fallback for an empty one, not only a missing one
+	$destination = strtoupper(trim((string)($order['shipping_address']['countryCodeV2'] ?? '')));
+	if ($destination === '') {
+		$destination = strtoupper(trim((string)($order['billing_address']['countryCodeV2'] ?? '')));
+	}
+	if ($destination !== '' && $destination !== SHOPIFY_INTAKE_COUNTRY) {
+		$error('order.country', "order $name goes to $destination; the intake posts Danish VAT only, so an order abroad is entered by hand");
 	}
 
 	// lines
@@ -583,7 +598,9 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 			if (empty($pos['kasse_account_ok'])) {
 				$error('config.pos', "kasse $webKasse has no valid cash account (POS settings): order $name cannot be posted");
 			}
-			if (trim((string)($pos['kasse_vat'] ?? '')) === '') {
+			// bogfor_nu() asks for the code only when the invoice carries VAT, and tests it as PHP does, so a 0 stops it as an empty one does
+			$carriesVat = max(array_merge(array(0.0), array_map('floatval', array_column($lines, 'vat_rate')), array((float)($freight['vat_rate'] ?? 0)))) > 0;
+			if ($carriesVat && !trim((string)($pos['kasse_vat'] ?? ''))) {
 				$error('config.pos', "kasse $webKasse has no VAT code (POS settings): order $name cannot be posted");
 			}
 			foreach (array_keys($byType) as $type) {
@@ -650,7 +667,7 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 		}
 		$invoiced = shopify_intake_invoice_total($lines, $freight, $ctx['items'] ?? array());
 		if (abs($invoiced - (float)$order['total']) > 0.005) {
-			$alarm('order.rounding', "order $name: the invoice comes to " . number_format($invoiced, 2, '.', '') . ", Shopify's total is {$order['total']}");
+			$alarm('order.rounding', "order $name: the lines come to " . number_format($invoiced, 2, '.', '') . ", Shopify's total is {$order['total']}; the difference is put on the VAT");
 		}
 	}
 
@@ -670,6 +687,7 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 		'momssats' => $vatRates === array() ? 0.0 : (float)max($vatRates),
 		'taxes_included' => (bool)$order['taxes_included'],
 		'total' => (string)$order['total'],
+		'total_tax' => isset($order['total_tax']) ? (string)$order['total_tax'] : null,
 		'currency' => (string)$order['currency'],
 		'shipping_address' => $order['shipping_address'],
 		'billing_address' => $order['billing_address'],
@@ -909,6 +927,10 @@ function shopify_intake_item(int $vareId, int $variantId, int $year, int $afd = 
 			$sm = $code > 0 ? shopify_db_rows("SELECT box1, box2 FROM grupper WHERE art = 'SM' AND kodenr::text = $1 AND fiscal_year::text = $2", array((string)$code, (string)$year)) : array();
 			if ($sm === array() || trim((string)$sm[0]['box1']) === '') {
 				$problem = $depVat ? "is sold by department $afd, whose VAT group has no VAT account" : "has sales account $sales without a VAT code with a VAT account";
+			} elseif (is_numeric(trim((string)$sm[0]['box1'])) && (int)trim((string)$sm[0]['box1']) === 1) {
+				// bogfor_nu() stops at a VAT posting on account 1 (a leftover exit), after the delivery; the line keeps the
+				// VAT account as a number, so 01 is account 1 too
+				$problem = "has VAT group $code with VAT account 1, which the posting cannot use";
 			} elseif ((float)$sm[0]['box2'] <= 0) {
 				// opret_ordrelinje() takes the rate only when it is set, else the order's
 				$problem = "has VAT group $code without a rate in a group that is not VAT-free";
