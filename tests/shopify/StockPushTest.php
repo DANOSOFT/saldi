@@ -9,13 +9,14 @@
 // commits after the push read is sent even when its dirty row has the lower id; a drain skips the rows another one
 // holds, so each dirty row is drained once; a shop that captures without publishing keeps its
 // marks; a final failure keeps a call that may have applied; an item Shopify refuses is dropped with a warning and
-// the rest is sent; a level missing at a location is activated and then set; a sellable lager without a
+// the rest is sent; a pair not stocked is activated before its first push; a sellable lager without a
 // location is skipped with a warning; a dead job's call goes out with the next drain, and a waiting
 // job keeps its backoff; an item linked later is sent; a shop can't publish without capturing. Skips without ShopifyEnv.
 //
 // History:
 // 20261104 CL/SZ SD-756: created.
 // 20261104 CL/SZ SD-756 review: dead job, backoff, late link, publish without capture; the seeded state follows the link's time.
+// 20261105 CL/SZ SD-756: a pair not stocked is activated before its first push, not after a refusal Shopify doesn't give.
 
 use PHPUnit\Framework\TestCase;
 
@@ -462,7 +463,7 @@ final class StockPushTest extends TestCase
         $this->assertIsInt($this->steps(['save', ['shop_key' => 'ny', 'domain' => 'ny.myshopify.com', 'stock_publish_enabled' => true, 'stock_capture_enabled' => true]])['results'][0]);
     }
 
-    public function test_a_level_missing_at_the_location_is_activated_then_set(): void
+    public function test_a_pair_not_stocked_is_activated_before_its_first_push(): void
     {
         $id = $this->item('hynde', [1 => 3, 2 => 8]);
         $this->steps(...$this->shops([$id], ['hml']), ...[['unstock', 'hml', $id, 2]]);
@@ -470,9 +471,23 @@ final class StockPushTest extends TestCase
 
         $run = $this->steps(['drain'], ['push', 'hml']);
         $this->assertNoException($run);
-        $this->assertSame(['stockSet', 'stockActivate', 'stockSet'], array_column($run['calls'], 'operation'));
-        $this->assertNotSame($run['calls'][0]['variables']['key'], $run['calls'][2]['variables']['key'], 'a refused key is not used again');
+        $this->assertSame(['stockLevels', 'stockActivate', 'stockSet'], array_column($run['calls'], 'operation'));
         $this->assertSame(['Mårum' => 3, 'Ballerup' => 8], $run['levels']['hml']['SD756-hynde']);
+    }
+
+    public function test_a_pair_already_acknowledged_is_not_read_again(): void
+    {
+        $id = $this->item('bord', [1 => 3, 2 => 8]);
+        $this->steps(...$this->shops([$id], ['hml']));
+        $this->dirty([$id]);
+        $this->assertSame(['stockLevels', 'stockSet'], array_column($this->steps(['drain'], ['push', 'hml'])['calls'], 'operation'), 'both pairs are stocked, so nothing is activated');
+
+        $this->sql('UPDATE lagerstatus SET beholdning = 2 WHERE vare_id = $1 AND lager = 1', [$id]);
+        $this->dirty([$id]);
+        $run = $this->steps(['drain'], ['push', 'hml']);
+        $this->assertNoException($run);
+        $this->assertSame(['stockSet'], array_column($run['calls'], 'operation'));
+        $this->assertSame(['Mårum' => 2, 'Ballerup' => 8], $run['levels']['hml']['SD756-bord']);
     }
 
     public function test_a_sellable_lager_without_a_location_is_skipped_with_a_warning(): void

@@ -28,6 +28,7 @@
 // 20261103 CL/LH SD-766: second review: the metafield digest is the persisted value's, so writing the same value keeps it (B36).
 // 20261103 CL/SS SD-802: productVariantsBulkUpdate sets price and compareAtPrice (B37).
 // 20261104 CL/SS SD-808: the order fields the paid-order read selects (billing address, line totals, shipping lines, payment details).
+// 20261105 CL/SZ SD-756: inventorySetQuantities on a pair not stocked succeeds and stays hidden until activated, as the dev store does.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -1523,7 +1524,7 @@ final class FakeShopifyStore
 	{
 		$this->uses('B20');
 		$in = $a['input'];
-		$s = $this->shop($domain);
+		$s = &$this->shop($domain);
 		$errors = [];
 		if (!in_array($in['name'], ['available', 'on_hand'], true)) {
 			$errors[] = self::userError(['input', 'name'], "The quantity name must be either 'available' or 'on_hand'.", 'INVALID_NAME');
@@ -1534,11 +1535,9 @@ final class FakeShopifyStore
 				$errors[] = self::userError(array_merge($path, ['inventoryItemId']), 'The specified inventory item could not be found.', 'INVALID_INVENTORY_ITEM');
 			} elseif (!isset($s['locations'][$q['locationId']])) {
 				$errors[] = self::userError(array_merge($path, ['locationId']), 'The specified location could not be found.', 'INVALID_LOCATION');
-			} elseif (!isset($s['levels'][$q['inventoryItemId']][$q['locationId']])) {
-				$errors[] = self::userError(array_merge($path, ['locationId']), 'The item is not stocked at the location.', 'ITEM_NOT_STOCKED_AT_LOCATION');
 			} elseif (!array_key_exists('changeFromQuantity', $q)) {
 				$errors[] = self::userError(array_merge($path, ['changeFromQuantity']), 'changeFromQuantity is required; send null to skip the check.');
-			} elseif ($q['changeFromQuantity'] !== null && $errors === []
+			} elseif ($q['changeFromQuantity'] !== null && $errors === [] && isset($s['levels'][$q['inventoryItemId']][$q['locationId']])
 				&& $s['levels'][$q['inventoryItemId']][$q['locationId']][$in['name']] !== $q['changeFromQuantity']) {
 				$errors[] = self::userError(array_merge($path, ['changeFromQuantity']), 'The specified compare quantity does not match the current quantity.', 'CHANGE_FROM_QUANTITY_STALE');
 			}
@@ -1548,6 +1547,10 @@ final class FakeShopifyStore
 		}
 		$changes = [];
 		foreach ($in['quantities'] as $q) {
+			if (!isset($s['levels'][$q['inventoryItemId']][$q['locationId']])) {
+				$s['hidden'][$q['inventoryItemId']][$q['locationId']] = (int)$q['quantity'];
+				continue;
+			}
 			$before = $this->shop($domain)['levels'][$q['inventoryItemId']][$q['locationId']];
 			$this->setQuantity($domain, $q['inventoryItemId'], $q['locationId'], $in['name'], (int)$q['quantity']);
 			$after = $this->shop($domain)['levels'][$q['inventoryItemId']][$q['locationId']];
@@ -1564,7 +1567,7 @@ final class FakeShopifyStore
 			'reason' => $in['reason'], 'referenceDocumentUri' => $in['referenceDocumentUri'] ?? null, 'createdAt' => $this->iso(), 'changes' => $changes]]);
 	}
 
-	/** B35: stocks an item at a location; available and on_hand start at zero unless given. */
+	/** B35: stocks an item at a location; available and on_hand start at zero unless given, or at a quantity set while it wasn't stocked (B20). */
 	private function mInventoryActivate(string $domain, array $a): array
 	{
 		$s = &$this->shop($domain);
@@ -1575,7 +1578,8 @@ final class FakeShopifyStore
 		}
 		$this->uses('B35');
 		if (!isset($s['levels'][$item][$location])) {
-			$available = $a['available'] ?? $a['onHand'] ?? 0;
+			$available = $a['available'] ?? $a['onHand'] ?? $s['hidden'][$item][$location] ?? 0;
+			unset($s['hidden'][$item][$location]);
 			if (isset($a['available'], $a['onHand']) && $a['available'] !== $a['onHand']) {
 				throw new LogicException('FakeShopifyStore: inventoryActivate with available and onHand apart is not modelled (B35)');
 			}

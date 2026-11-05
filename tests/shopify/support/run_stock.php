@@ -16,6 +16,7 @@
 // History:
 // 20261104 CL/SZ SD-756: created.
 // 20261104 CL/SZ SD-756 review: steps save and clean.
+// 20261105 CL/SZ SD-756: shopify_stock_next() takes the runtime.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -95,7 +96,7 @@ try {
                     $results[] = shopify_stock_drain_dirty([], (int)($step[1] ?? 500));
                     break;
                 case 'next':
-                    $results[] = shopify_stock_next(shopify_shop($step[1]), microtime(true) + 30);
+                    $results[] = shopify_stock_next(['graphql' => $store->opts()], shopify_shop($step[1]), microtime(true) + 30);
                     break;
                 case 'push':
                     $job = ['id' => 0, 'shop_id' => $shopId($step[1])];

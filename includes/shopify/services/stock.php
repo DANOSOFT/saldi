@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.05
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 // 20261103 CL/SZ SD-755: shopify_split_set_lager_checked() warns on the error list while the setting is not used.
 // 20261104 CL/SZ SD-756: shopify_stock_drain_dirty() and shopify_stock_push(), the stock push to every shop (WP06-2).
 // 20261104 CL/SZ SD-756 review: the drain queues a push for a shop whose job went dead; a push's read stops at its deadline.
+// 20261105 CL/SZ SD-756: a pair sent for the first time is stocked first, as Shopify hides a quantity set on a pair not stocked.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -214,6 +215,9 @@ const SHOPIFY_STOCK_SLICE = 500;
 const SHOPIFY_STOCK_SET = 'mutation stockSet($input: InventorySetQuantitiesInput!, $key: String!) {
 	inventorySetQuantities(input: $input) @idempotent(key: $key) { inventoryAdjustmentGroup { id } userErrors { field message code } }
 }';
+const SHOPIFY_STOCK_LEVELS = 'query stockLevels($ids: [ID!]!) {
+	nodes(ids: $ids) { ... on InventoryItem { id inventoryLevels(first: 50) { nodes { location { id } } } } }
+}';
 const SHOPIFY_STOCK_ACTIVATE = 'mutation stockActivate($item: ID!, $location: ID!, $key: String!) {
 	inventoryActivate(inventoryItemId: $item, locationId: $location) @idempotent(key: $key) { inventoryLevel { id } userErrors { field message } }
 }';
@@ -287,14 +291,13 @@ function shopify_stock_push(array $rt, array $job, float $deadline): array {
 			: array('outcome' => 'done', 'sent' => 0, 'gate' => 'closed');
 	}
 	$sent = 0;
-	$activated = array();
 	while (true) {
 		if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS || (isset($rt['heartbeat']) && !($rt['heartbeat'])())) {
 			return array('outcome' => 'yield', 'sent' => $sent);
 		}
-		$pending = shopify_queue_state_get("stock.pending:{$shop['shop_key']}") ?: shopify_stock_next($shop, $deadline);
+		$pending = shopify_queue_state_get("stock.pending:{$shop['shop_key']}") ?: shopify_stock_next($rt, $shop, $deadline);
 		if ($pending === array()) {
-			// what is left waits for a barrier; an expired barrier marks nothing dirty until its sweep runs
+			// what is left waits for a barrier, or ran out of time stocking its items; an expired barrier marks nothing dirty until its sweep runs
 			$left = shopify_queue_state_get("stock.dirty:{$shop['shop_key']}") !== array();
 			return $left ? array('outcome' => 'yield', 'sent' => $sent, 'run_after' => SHOPIFY_STOCK_DEFERRED_SECONDS) : array('outcome' => 'done', 'sent' => $sent);
 		}
@@ -314,7 +317,7 @@ function shopify_stock_push(array $rt, array $job, float $deadline): array {
 			}
 			throw new RuntimeException("$message; the same call is resent");
 		}
-		shopify_stock_refused($rt, $shop, $pending, $res['user_errors'], $deadline, $activated);
+		shopify_stock_refused($shop, $pending, $res['user_errors']);
 	}
 }
 
@@ -324,7 +327,7 @@ function shopify_stock_push(array $rt, array $job, float $deadline): array {
  *
  * @return array{vars: array{key: string, input: array<string, mixed>}, rows: list<array{vare_id: int, lager: int, quantity: int}>, marks: array<int, int>, read_at: string}|array{}
  */
-function shopify_stock_next(array $shop, float $deadline): array {
+function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 	$shopId = (int)$shop['id'];
 	$set = shopify_queue_state_get("stock.dirty:{$shop['shop_key']}");
 	if ($set === array()) {
@@ -358,7 +361,7 @@ function shopify_stock_next(array $shop, float $deadline): array {
 	if ($settled !== array()) {
 		shopify_stock_unmark($shop, $settled);
 	}
-	if ($rows === array()) {
+	if ($rows === array() || !shopify_stock_levels_ready($rt, $shop, $rows, $deadline)) {
 		return array();
 	}
 	$quantities = array();
@@ -382,7 +385,7 @@ function shopify_stock_next(array $shop, float $deadline): array {
  * skipped, with a warning on the error list.
  *
  * @param list<int> $ids
- * @return array{items: array<int, list<array{vare_id: int, lager: int, quantity: int, inventory_item_gid: string, location_gid: string}>>, read_at: string}
+ * @return array{items: array<int, list<array{vare_id: int, lager: int, quantity: int, inventory_item_gid: string, location_gid: string, first: bool}>>, read_at: string}
  */
 function shopify_stock_wanted(int $shopId, array $ids): array {
 	$param = shopify_barrier_int_array($ids);
@@ -432,7 +435,7 @@ function shopify_stock_wanted(int $shopId, array $ids): array {
 				continue;
 			}
 			$items[$vareId][] = array('vare_id' => $vareId, 'lager' => $lager, 'quantity' => $want['available'],
-				'inventory_item_gid' => $link['inventory_item_gid'], 'location_gid' => $locations[$lager]);
+				'inventory_item_gid' => $link['inventory_item_gid'], 'location_gid' => $locations[$lager], 'first' => !isset($state[$vareId][$lager]));
 		}
 	}
 	if ($unmapped !== array()) {
@@ -468,17 +471,15 @@ function shopify_stock_clear_pending(array $shop, array $pending): void {
 
 /**
  * Shopify refused the call, so nothing of it was set and its key keeps answering the refusal: the
- * pending slot is cleared and the next call is built again. A level missing at a location is
- * activated, once per push. Any other refusal of a named quantity, or a level still missing after
- * activating, drops that item's mark with a warning, so one item cannot hold back the shop; it is
- * sent again when it is marked again. A refusal that names no quantity fails the job.
+ * pending slot is cleared and the next call is built again. A refusal of a named quantity drops
+ * that item's mark with a warning, so one item cannot hold back the shop; it is sent again when
+ * it is marked again. A refusal that names no quantity fails the job.
  *
  * @param list<array<string, mixed>> $userErrors
- * @param array<string, true> $activated the item and location pairs this push activated
- * @throws RuntimeException for a refusal that names no quantity, or a failed activation
+ * @throws RuntimeException for a refusal that names no quantity
  * @throws LogicException when Shopify says the key was reused with other input
  */
-function shopify_stock_refused(array $rt, array $shop, array $pending, array $userErrors, float $deadline, array &$activated): void {
+function shopify_stock_refused(array $shop, array $pending, array $userErrors): void {
 	shopify_stock_clear_pending($shop, $pending);
 	$shopId = (int)$shop['id'];
 	$drop = array();
@@ -494,12 +495,6 @@ function shopify_stock_refused(array $rt, array $shop, array $pending, array $us
 			shopify_error_open($shopId, 'stock', 'inventorySetQuantities', $message);
 			throw new RuntimeException($message);
 		}
-		$pair = "{$q['inventoryItemId']}|{$q['locationId']}";
-		if ($code === 'ITEM_NOT_STOCKED_AT_LOCATION' && !isset($activated[$pair])) {
-			$activated[$pair] = true;
-			shopify_stock_activate($rt, $shop, $q, $deadline);
-			continue;
-		}
 		$vareId = $pending['rows'][$index]['vare_id'];
 		$drop[$vareId] = (int)($pending['marks'][$vareId] ?? 0);
 		shopify_error_open($shopId, 'stock', "item:$vareId", "Shopify refused the stock of item $vareId at {$q['locationId']}: " . (string)$error['message'], 'warning');
@@ -509,14 +504,53 @@ function shopify_stock_refused(array $rt, array $shop, array $pending, array $us
 	}
 }
 
+/**
+ * Stocks the rows' items where Shopify doesn't yet, for the pairs sent for the first time. An
+ * inventorySetQuantities on a pair that isn't stocked answers success and keeps the quantity hidden
+ * until the pair is activated, so a push there must not go out first.
+ *
+ * @param list<array{inventory_item_gid: string, location_gid: string, first: bool}> $rows
+ * @return bool false when the time ran out; the marks stay and the next run goes on
+ * @throws RuntimeException when Shopify doesn't answer
+ */
+function shopify_stock_levels_ready(array $rt, array $shop, array $rows, float $deadline): bool {
+	$first = array_filter($rows, fn(array $r): bool => $r['first']);
+	if ($first === array()) {
+		return true;
+	}
+	$res = shopify_graphql($shop, 'stockLevels', SHOPIFY_STOCK_LEVELS, array('ids' => array_values(array_unique(array_column($first, 'inventory_item_gid')))),
+		($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'read'));
+	if (!$res['ok']) {
+		throw new RuntimeException("reading the stocked locations failed: {$res['error']}");
+	}
+	$known = $stocked = array();
+	foreach (array_filter($res['data']['nodes']) as $node) {
+		$known[$node['id']] = true;
+		foreach ($node['inventoryLevels']['nodes'] as $level) {
+			$stocked["{$node['id']}|{$level['location']['id']}"] = true;
+		}
+	}
+	foreach ($first as $row) {
+		// an item Shopify doesn't know is left to the set, whose refusal drops only that item
+		if (!isset($known[$row['inventory_item_gid']]) || isset($stocked["{$row['inventory_item_gid']}|{$row['location_gid']}"])) {
+			continue;
+		}
+		if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS) {
+			return false;
+		}
+		shopify_stock_activate($rt, $shop, $row, $deadline);
+	}
+	return true;
+}
+
 /** Stocks the item at the location (inventoryActivate), which does nothing to a level that is already there. */
-function shopify_stock_activate(array $rt, array $shop, array $q, float $deadline): void {
+function shopify_stock_activate(array $rt, array $shop, array $row, float $deadline): void {
 	$res = shopify_graphql($shop, 'inventoryActivate', SHOPIFY_STOCK_ACTIVATE,
-		array('item' => $q['inventoryItemId'], 'location' => $q['locationId'], 'key' => shopify_stock_key()),
+		array('item' => $row['inventory_item_gid'], 'location' => $row['location_gid'], 'key' => shopify_stock_key()),
 		($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'idempotent'));
 	if (!$res['ok'] || $res['user_errors'] !== array()) {
 		$why = implode('; ', array_column($res['user_errors'], 'message')) ?: (string)$res['error'];
-		throw new RuntimeException("inventoryActivate of {$q['inventoryItemId']} at {$q['locationId']} failed: $why");
+		throw new RuntimeException("inventoryActivate of {$row['inventory_item_gid']} at {$row['location_gid']} failed: $why");
 	}
 }
 
