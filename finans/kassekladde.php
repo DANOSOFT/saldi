@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -213,6 +213,12 @@
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
 // 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated,
 //                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
+// 20261105 CL/MMR SST-934 Voucher number 0 can be used again: a 0 the user types, also on the lines "=*" fills, is saved as 0.
+//                 A line saved under 0 shows 0 and keeps it when the journal is saved again, and lines under 0 are not held to one date.
+//                 Only an empty Bilag field is given the journal's next number (SST-817), see bilagFromInput() in bilagNumber.php.
+//                 The messages show a typed 0 as 0, and kontroller()'s includes use __DIR__.
+//                 The lookup return's $_GET reads use ifset(), and kontroller()'s line-check branch has braces on every multi-line body.
+//                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -931,48 +937,49 @@ $r = db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' 
 ($r['box4'])  ? $forskellige_datoer = 1 : $forskellige_datoer = 0;
 ($r['box10']) ? $vis_bet_id = 1         : $vis_bet_id = 0;
 if ($_GET) {
-	$returside = if_isset($_GET, null, 'returside');
+	$returside = ifset($_GET, 'returside', null);
 	// A card opened from a journal row (SD-698) appends returside=<this journal> to its Tilbage link;
 	// as the journal's own back target that would loop, so fall back to the default.
 	if ($returside && basename((string)parse_url($returside, PHP_URL_PATH)) == 'kassekladde.php') $returside = null;
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
-	$sort            =       if_isset($_GET, 		null,   'sort');
-	$kksort          =       if_isset($_GET,        null,   'kksort'); #sortering i kassekladde
-	$kkdir_get       =       if_isset($_GET,        null,   'kkdir');
-	$kladde_id       = (int) if_isset($_GET,        0,      'kladde_id');
-	$funktion        =       if_isset($_GET, 		null,	'funktion');
-	$x               = (int) if_isset($_GET, 		0,      'x');
-	$id[$x]          =       if_isset($_GET, 		null,	'id');
-	$lobenr[$x]      =       if_isset($_GET, 		null,	'lobenr');
-	$kladde_id       = (int) if_isset($_GET, 		0,		'kladde_id');
-	$bilag[$x]       = (int) if_isset($_GET, 		0,		'bilag');
-	$dato[$x]        =       if_isset($_GET, 		'',		'dato');
-	$beskrivelse[$x] =       if_isset($_GET, 		'',		'beskrivelse');
-	$d_type[$x]      =       if_isset($_GET, 		'',		'd_type');
-	$debet[$x]       =       if_isset($_GET, 		'',		'debet');
-	$k_type[$x]      =       if_isset($_GET, 		'',		'k_type');
-	$kredit[$x]      =       if_isset($_GET, 		'',		'kredit');
-	$debetvat_param  = 		 if_isset($_GET, 		null,	'dvat');
-	$kreditvat_param = 		 if_isset($_GET, 		null,	'kvat');
-	$faktura[$x]     =       if_isset($_GET, 		'',		'faktura');
-	$belob[$x]       =       if_isset($_GET, 		'',		'belob');
-	$momsfri[$x]     =       if_isset($_GET, 		'',		'momsfri');
-	$afd[$x]         =       if_isset($_GET, 		'',		'afd');
-	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
-	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
-	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	$sort            =       ifset($_GET, 'sort', null);
+	$kksort          =       ifset($_GET, 'kksort', null); #sortering i kassekladde
+	$kkdir_get       =       ifset($_GET, 'kkdir', null);
+	$kladde_id       = (int) ifset($_GET, 'kladde_id', 0);
+	$funktion        =       ifset($_GET, 'funktion', null);
+	$x               = (int) ifset($_GET, 'x', 0);
+	$id[$x]          =       ifset($_GET, 'id', null);
+	$lobenr[$x]      =       ifset($_GET, 'lobenr', null);
+	$kladde_id       = (int) ifset($_GET, 'kladde_id', 0);
+	# SST-934 a typed 0 comes back from a lookup as '00' (bilagFromInput()); every other value stays an integer
+	$bilag[$x]       = (ifset($_GET, 'bilag', '') === '00') ? '00' : (int) ifset($_GET, 'bilag', 0);
+	$dato[$x]        =       ifset($_GET, 'dato', '');
+	$beskrivelse[$x] =       ifset($_GET, 'beskrivelse', '');
+	$d_type[$x]      =       ifset($_GET, 'd_type', '');
+	$debet[$x]       =       ifset($_GET, 'debet', '');
+	$k_type[$x]      =       ifset($_GET, 'k_type', '');
+	$kredit[$x]      =       ifset($_GET, 'kredit', '');
+	$debetvat_param  = 		 ifset($_GET, 'dvat', null);
+	$kreditvat_param = 		 ifset($_GET, 'kvat', null);
+	$faktura[$x]     =       ifset($_GET, 'faktura', '');
+	$belob[$x]       =       ifset($_GET, 'belob', '');
+	$momsfri[$x]     =       ifset($_GET, 'momsfri', '');
+	$afd[$x]         =       ifset($_GET, 'afd', '');
+	$projekt[$x]     =       ifset($_GET, 'projekt', '');
+	$ansat[$x]       =       ifset($_GET, 'ansat', '');
+	$valuta[$x]      =       ifset($_GET, 'valuta', '');
 	// SD-730: the open-posts links (an invoice row, Indsæt, Luk) carry these, so the line keeps them
 	if (isset($_GET['forfaldsdato'])) $forfaldsdato[$x] = db_escape_string(trim((string)$_GET['forfaldsdato']));
 	if (isset($_GET['betal_id']))     $betal_id[$x]     = db_escape_string(trim((string)$_GET['betal_id']));
-	$find            =       if_isset($_GET, 		'',		'find');
-	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
-	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
-	$debet[$x]       =  trim(if_isset($debet, 		'',		$x));
-	$k_type[$x]      =  trim(if_isset($k_type, 		'',		$x));
-	$kredit[$x]      =  trim(if_isset($kredit, 		'',		$x));
-	$faktura[$x]     =  trim(if_isset($faktura, 	'',		$x));
-	$belob[$x]       =  trim(if_isset($belob, 		'',		$x));
+	$find            =       ifset($_GET, 'find', '');
+	$beskrivelse[$x] =  trim(ifset($beskrivelse, $x, ''));
+	$d_type[$x]      =  trim(ifset($d_type, $x, ''));
+	$debet[$x]       =  trim(ifset($debet, $x, ''));
+	$k_type[$x]      =  trim(ifset($k_type, $x, ''));
+	$kredit[$x]      =  trim(ifset($kredit, $x, ''));
+	$faktura[$x]     =  trim(ifset($faktura, $x, ''));
+	$belob[$x]       =  trim(ifset($belob, $x, ''));
 	$existing_row = null;
 
 	// Persistent Sorting (SST-856): only a click on a header link carries a direction, so only that may
@@ -999,9 +1006,9 @@ if ($_GET) {
 		$debetvat_param,
 		$debet[$x],
 		$d_type[$x],
-		if_isset($existing_row, '', 'debet'),
-		if_isset($existing_row, '', 'd_type'),
-		if_isset($existing_row, '', 'debetvat'),
+		ifset($existing_row, 'debet', ''),
+		ifset($existing_row, 'd_type', ''),
+		ifset($existing_row, 'debetvat', ''),
 		$momsfri[$x],
 		$regnaar,
 		$vat_codes
@@ -1010,9 +1017,9 @@ if ($_GET) {
 		$kreditvat_param,
 		$kredit[$x],
 		$k_type[$x],
-		if_isset($existing_row, '', 'kredit'),
-		if_isset($existing_row, '', 'k_type'),
-		if_isset($existing_row, '', 'kreditvat'),
+		ifset($existing_row, 'kredit', ''),
+		ifset($existing_row, 'k_type', ''),
+		ifset($existing_row, 'kreditvat', ''),
 		$momsfri[$x],
 		$regnaar,
 		$vat_codes
@@ -1155,9 +1162,9 @@ if ($_POST) {
 		$belob[$x] = $momsfri[$x] = $afd[$x] = $projekt[$x] = $ansat[$x] = $valuta[$x] = $forfaldsdato[$x] = $betal_id[$x] = NULL;
 
 		$y = "bila" . $x;
-		$bilag[$x] = trim(if_isset($_POST[$y], ''));
-		if (!$bilag[$x])
-			$bilag[$x] = '0'; # PHR 02.09.06
+		# SST-934 an empty field is read as '0' (PHR 02.09.06) and is given the journal's next number when saved;
+		# a typed 0 is carried as '00', so it is saved as 0
+		$bilag[$x] = bilagFromInput(if_isset($_POST[$y], ''));
 		// MB-81 The number the page proposed on this line, so opdater() can tell a kept proposal from a typed number
 		$bilagForslag[$x] = (int)ifset($_POST, "bilf$x", 0);
 		$y = "dato" . $x;
@@ -1539,21 +1546,25 @@ if ($_POST) {
 		) { #20210920
 			$bilag[$x] = '-';
 		}
-		if (!$forskellige_datoer && $bilag[$x] && $bilag[$x] != '-' && $bilag[$x] == $bilag[$x - 1] && $dato[$x] != $dato[$x - 1] && $bilagssum[$x - 1]) {
+		# SST-934 a 0 typed in Bilag is no voucher here either: lines under 0 have never been held to one date
+		if (!$forskellige_datoer && $bilag[$x] && $bilag[$x] != '-' && (int)$bilag[$x] !== 0 && $bilag[$x] == $bilag[$x - 1] && $dato[$x] != $dato[$x - 1] && $bilagssum[$x - 1]) {
 			$alert3 = findtekst('1581|Forskellige datoer i bilag', $sprog_id); //Forskellige datoer i bilag
 			print "<BODY onLoad=\"javascript:alert('$alert3 $bilag[$x]')\">";
 		}
 		if (strpos($bilag[$x], '+') && $kladde_id) {
 			list($bilag[$x], $newLines) = explode('+', $bilag[$x]);
+			# SST-934 "0+2" is voucher 0 with two new lines under it: the 0 is kept like a typed 0 ('00'),
+			# and the new lines are written with it as the number 0
+			$bilag[$x] = bilagFromInput($bilag[$x]);
 			// 20260907 CL/LH  "+=" inserts straight into kassekladde through usdecimal() without passing
 			// kontroller(), so the amount has to be validated here as well; the line stays in tmpkassekl as typed.
 			if ($newLines == '=' && !dk_amount_is_valid($belob[$x])) {
-				alert_ugyldigt_belob($belob[$x], $bilag[$x]);
+				alert_ugyldigt_belob($belob[$x], bilagFieldValue($bilag[$x], true));
 				$fejl = 1;
 			} elseif ($newLines == '=') {
 				$kk_plus_line_ids[$x][] = indsaet_linjer(
 					$kladde_id,
-					$bilag[$x],
+					bilagFieldValue($bilag[$x], true),
 					$dato[$x],
 					$beskrivelse[$x],
 					$d_type[$x],
@@ -1576,7 +1587,7 @@ if ($_POST) {
 				for ($nl = 0; $nl < $newLines; $nl++) {
 					$kk_plus_line_ids[$x][] = indsaet_linjer(
 						$kladde_id,
-						$bilag[$x],
+						bilagFieldValue($bilag[$x], true),
 						$dato[$x],
 						'',
 						'',
@@ -1605,8 +1616,10 @@ if ($_POST) {
 			$alerttxt = findtekst('1582|Ulovlig værdi i bilagsfelt (Bilag nr', $sprog_id); //Forskellige datoer i bilag
 			print "<BODY onLoad=\"javascript:alert('$alerttxt $bilag[$x])')\">";
 			$fejl = 1;
-		} elseif (($bilag[$x]) && ($bilag[$x] != "-") && ($bilag[$x] != "->") && (substr($bilag[$x], -1) != 'r') && ($bilag[$x] != "<-"))
-			$bilag[$x] = $bilag[$x] * 1; //20160909 undtaget * til brug for bilagsrenum
+		} elseif (($bilag[$x]) && ($bilag[$x] != "-") && ($bilag[$x] != "->") && (substr($bilag[$x], -1) != 'r') && ($bilag[$x] != "<-")) {
+			# SST-934 a typed 0 stays '00': as the number 0 it would read as an empty field and be given the next number
+			if (bilagIsUnnumbered($bilag[$x]) || (int)$bilag[$x] !== 0) $bilag[$x] = $bilag[$x] * 1; //20160909 undtaget * til brug for bilagsrenum
+		}
 		if ($bilag[$x] == "-") {
 			$dato[$x] = $beskrivelse[$x] = $d_type[$x] = $debet[$x] = $k_type[$x] = $kredit[$x] = $faktura[$x] = $belob[$x] = $momsfri[$x] = $afd[$x] =
 				$projekt[$x] = $ansat[$x] = $valuta[$x] = $forfaldsdato[$x] = $betal_id[$x] = '';
@@ -3379,9 +3392,12 @@ if ($kladde_id) {
 	kkJournalLock($kladde_id);
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	# SST-934 a staged '0' is an empty Bilag field, a saved 0 is voucher number 0 (bilagFieldValue())
+	$kk_rows_staged = false;
 	if ($row = db_fetch_array($q)) {
 		$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 		$fejl = 1;
+		$kk_rows_staged = true;
 	} else {
 	################### 
 		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
@@ -3765,7 +3781,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		# SST-888 (review) a line without a number shows an empty voucher field, not a 0 the user reads as a number;
 		# anything else is escaped and printed as it was typed, so a rejected value ("abc", or one carrying a quote)
 		# comes back for correction without breaking out of the value attribute
-		$kk_bila_vaerdi = (isset($bilag[$y]) && !in_array((string)$bilag[$y], array('', '0'), true)) ? htmlspecialchars((string)$bilag[$y], ENT_QUOTES) : '';
+		# SST-934 but a line saved under 0 shows 0, so the next save keeps it instead of numbering the line
+		$kk_bila_vaerdi = isset($bilag[$y]) ? htmlspecialchars(bilagFieldValue($bilag[$y], !$kk_rows_staged), ENT_QUOTES) : '';
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$kk_bila_vaerdi\" onchange='javascript:docChange = true;'>";
 		if (!$id[$y] && !empty($kkForslag[$y])) print "<input type='hidden' name='bilf$y' value='" . (int)$kkForslag[$y] . "'>";
 		print "</td>";
@@ -3979,6 +3996,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// ($bilag[$x-1] + 1) offered nothing when that row was empty and repeated a lower number when
 		// the journal had already used a higher one.
 		$next = (isset($bilag[$x]) && (int)$bilag[$x] > 0) ? (int)$bilag[$x] : $kk_next_bilag;
+		# SST-934 a 0 typed on this line is kept too
+		$kk_nul_tastet = isset($bilag[$x]) && !bilagIsUnnumbered($bilag[$x]) && (int)$bilag[$x] === 0;
+		if ($kk_nul_tastet) $next = 0;
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
@@ -4025,7 +4045,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		// MB-81 bilf$x carries the proposal, so the save can tell it from a number the user typed
 		# SST-888 (review) and the new line shows an empty field when no number is offered, not a 0
-		$kk_next_vaerdi = ((int)$next > 0) ? (int)$next : '';
+		$kk_next_vaerdi = ((int)$next > 0) ? (int)$next : ($kk_nul_tastet ? '0' : '');
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$kk_next_vaerdi\" onchange='javascript:docChange = true;'>";
 		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_next_bilag . "'></td>\n";
@@ -4398,7 +4418,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// nothing downstream converts it: the row inserted from POST keeps the operator's raw text, opdater()
 		// never runs while $fejl is set, and the error re-render shows the text as typed.
 		if ($bilag != "-" && !dk_amount_is_valid($belob)) {
-			alert_ugyldigt_belob($belob, $bilag);
+			# SST-934 the messages show a typed 0 ('00') as 0
+			alert_ugyldigt_belob($belob, bilagFieldValue($bilag, true));
 			$fejl = 1;
 		} elseif (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {
 			if ((!$bilag) && ($bilag != '0')) $bilag = $prebilag;
@@ -4428,12 +4449,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($d_type == "F" && strlen($debet) == 1 && !is_numeric($debet) && $debet != '0') {
 				$debet = strtoupper($debet);
 				$query = db_select("select kontonr from kontoplan where genvej='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query))
+				if ($row = db_fetch_array($query)) {
 					$debet = $row["kontonr"];
-				else {
+				} else {
 					$txt1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$txt2 = findtekst('1586| Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
-					$alerttekst = addslashes($debet . " " . $txt1 . " " . $bilag . $txt2); # 20230306 added spaces
+					$alerttekst = addslashes($debet . " " . $txt1 . " " . bilagFieldValue($bilag, true) . $txt2); # 20230306 added spaces
 					alert($alerttekst);
 					$fejl = 1;
 				}
@@ -4459,7 +4480,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($i == 1) {
 					$debet = $findarray[0];
 				} elseif ($i > 1) {
-					include('kassekladde_includes/financeLookup.php');
+					include(__DIR__ . '/kassekladde_includes/financeLookup.php');
 					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			} elseif (($k_type == "F") && (strlen($kredit) > 1) && (!is_numeric($kredit))) {
@@ -4481,20 +4502,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				}
 				if ($i == 1) $kredit = $findarray[0]; //20240523
 				elseif ($i > 1) {
-					include('kassekladde_includes/financeLookup.php');
+					include(__DIR__ . '/kassekladde_includes/financeLookup.php');
 					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			}
 			if (!$fejl && $k_type == "F" && strlen($kredit) == 1 && !is_numeric($kredit) && $kredit != '0') {
 				$qtxt = "select kontonr from kontoplan where genvej='" . strtoupper($kredit) . "' and regnskabsaar='$regnaar'";
 				$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query))
+				if ($row = db_fetch_array($query)) {
 					$kredit = $row['kontonr'];
-				else {
+				} else {
 					$alert1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$alert2 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
-					$alerttekst = addslashes($kredit . " " . $alert1 . " " . $bilag . $alert2); # 20230306 added spaces
+					$alerttekst = addslashes($kredit . " " . $alert1 . " " . bilagFieldValue($bilag, true) . $alert2); # 20230306 added spaces
 					alert($alerttekst);
 					$fejl = 1;
 				}
@@ -4512,9 +4533,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$hint = '';
 					if (isset($debitornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Debitor (D)';
 					elseif (isset($kreditornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Kreditor (K)';
-					$alerttekst = addslashes($alerttxt1 . " '" . $debet . "' " . $alerttxt2 . " " . $bilag . $alerttxt3 . $hint); # 20230306 added ' and spaces
+					$alerttekst = addslashes($alerttxt1 . " '" . $debet . "' " . $alerttxt2 . " " . bilagFieldValue($bilag, true) . $alerttxt3 . $hint); # 20230306 added ' and spaces
 				} elseif (isset($lukket[kk_account_key($debet)])) {
-					$alerttekst = addslashes($alerttxt4 . " " . $debet . " " . $alerttxt5 . " " . $bilag . $alerttxt3); # 20230306 added spaces
+					$alerttekst = addslashes($alerttxt4 . " " . $debet . " " . $alerttxt5 . " " . bilagFieldValue($bilag, true) . $alerttxt3); # 20230306 added spaces
 				}
 				if ($alerttekst) {
 					alert("$alerttekst");
@@ -4533,9 +4554,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$hint = '';
 					if (isset($debitornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Debitor (D)';
 					elseif (isset($kreditornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Kreditor (K)';
-					$alerttekst = addslashes($alert1 . " '" . $kredit . "' " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
+					$alerttekst = addslashes($alert1 . " '" . $kredit . "' " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
 				} elseif (isset($lukket[kk_account_key($kredit)])) {
-					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alerttxt4 . " " . $bilag . $alert4);
+					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alerttxt4 . " " . bilagFieldValue($bilag, true) . $alert4);
 				}
 				if ($alerttekst) {
 					alert($alerttekst);
@@ -4554,9 +4575,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$hint = '';
 					if (isset($accountNumbers[kk_account_key($debet)])) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($kreditornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Kreditor (K)';
-					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} else
+					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
+				} else {
 					$debet = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
@@ -4574,9 +4596,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$hint = '';
 					if (isset($accountNumbers[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($kreditornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Kreditor (K)';
-					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} else
+					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
+				} else {
 					$kredit = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
@@ -4593,9 +4616,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$hint = '';
 					if (isset($accountNumbers[kk_account_key($debet)])) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($debitornr[kk_account_key($debet)])) $hint = ' - Kontoen findes som Debitor (D)';
-					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} else
+					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
+				} else {
 					$debet = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
@@ -4612,28 +4636,33 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$hint = '';
 					if (isset($accountNumbers[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Finanskonto (F)';
 					elseif (isset($debitornr[kk_account_key($kredit)])) $hint = ' - Kontoen findes som Debitor (D)';
-					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
-				} else
+					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4 . $hint);
+				} else {
 					$kredit = $svar;
+				}
 				if ($alerttekst) {
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if ($d_type == "K" && strtoupper($debet) == "K")
+			if ($d_type == "K" && strtoupper($debet) == "K") {
 				$debet = 0;
-			if ($d_type == "D" && strtoupper($debet) == "D")
+			}
+			if ($d_type == "D" && strtoupper($debet) == "D") {
 				$debet = 0;
-			if ($k_type == "K" && strtoupper($kredit) == "K")
+			}
+			if ($k_type == "K" && strtoupper($kredit) == "K") {
 				$kredit = 0;
-			if ($k_type == "D" && strtoupper($kredit) == "D")
+			}
+			if ($k_type == "D" && strtoupper($kredit) == "D") {
 				$kredit = 0;
+			}
 			$transdate = usdate($dato);
 			#cho __line__." $transdate<br>";
 			list($year, $month, $day) = explode('-', $transdate);
 			$ym = $year . $month;
 
-			if (!function_exists('checkOpenFiscalYear')) include_once('../includes/stdFunc/checkOpenFiscalYear.php');
+			if (!function_exists('checkOpenFiscalYear')) include_once(__DIR__ . '/../includes/stdFunc/checkOpenFiscalYear.php');
 			if (!checkOpenFiscalYear($transdate)) {
 			#if (!$fejl && $dato && ($ym < $aarstart || $ym > $aarslut)) {
 				$alert1 = findtekst('635|Dato', $sprog_id);
@@ -4641,13 +4670,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
 				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 				#'Dato ('.$dato.') udenfor regnskabs&aring;r (Bilag nr '.$bilag.') Kladden er IKKE gemt!';
-				$alerttekst = $alert1 . " (" . $dato . ") " . $alert2 . " " . $alert3 . " " . $bilag .")";
+				$alerttekst = $alert1 . " (" . $dato . ") " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) .")";
 				alert($alerttekst);
 				$fejl = 1;
 				#			$transdate=date("Y-m-d");
 			}
-			if (!isset($afd) || !$afd)
+			if (!isset($afd) || !$afd) {
 				$afd = 0;
+			}
 			if (!$fejl && $afd) {
 				$qtxt = "select id from grupper where art='AFD' and kodenr='$afd'";
 				if (!$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -4655,7 +4685,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
 					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
 					$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
-					$alerttekst = addslashes($alert1 . " " . $afd . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
+					$alerttekst = addslashes($alert1 . " " . $afd . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4);
 					alert($alerttekst);
 					$fejl = 1;
 				}
@@ -4668,13 +4698,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
 					$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 
-					$alerttekst = addslashes($alert1 . " " . $projekt . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
+					$alerttekst = addslashes($alert1 . " " . $projekt . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4);
 					alert($alerttekst);
 					$fejl = 1;
 				}
 			}
-			if (!$valuta)
+			if (!$valuta) {
 				$valuta = $baseCurrency;
+			}
 			if ($id && !$fejl && $valuta != $baseCurrency) {
 				if (!$row = db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1='$valuta'", __FILE__ . " linje " . __LINE__))) {
 					$alert1 = findtekst('1069|Valuta', $sprog_id); #20210720
@@ -4682,11 +4713,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
 					$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 
-					$alerttekst = addslashes($alert1 . " " . $valuta . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
+					$alerttekst = addslashes($alert1 . " " . $valuta . " " . $alert2 . " " . $alert3 . " " . bilagFieldValue($bilag, true) . $alert4);
 					alert($alerttekst);
 					$fejl = 1;
-				} else
+				} else {
 					$valutakode = $row['kodenr'];
+				}
 				$valdate = usdate($dato);
 				$qtxt = "select kurs from valuta where gruppe='$valutakode' and valdate <= '$valdate' order by valdate desc limit 1";
 				if ($id && !$fejl && $row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -4814,6 +4846,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					if (!$transdate)
 						$transdate = date("Y-m-d");
 					$bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+					# SST-934 a 0 the user typed, or the 0 the line was saved under, is a voucher number
+					$kk_nul_tastet = ($bilag === 0 && !bilagIsUnnumbered($r['bilag']));
 					if ($bilag > 2147483647) {
 						# SST-888 (review) the replacement comes from the same allocator as every other site, so it
 						# skips this save's own numbers and cannot pick one the column cannot hold
@@ -4826,7 +4860,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 					# 20260928 LOE SST-817 Saving a row that is stuck on bilag 0 repairs its number instead of
 					# writing the 0 back; a positive number the user entered is kept as it is.
-					if ($bilag <= 0) {
+					# SST-934 only a line whose field was left empty: a typed or saved 0 is kept
+					if ($bilag <= 0 && !$kk_nul_tastet) {
 						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
 						if ($bilag > 0) {
 							$kk_bilag_givet[] = (int)$bilag;
@@ -4860,6 +4895,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$qtxt = NULL;
 					if ($forfaldsdate) {
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+						# SST-934 a 0 the user typed is a voucher number
+						$kk_nul_tastet = ($insert_bilag === 0 && !bilagIsUnnumbered($r['bilag']));
 						if ($insert_bilag > 2147483647) {
 							# SST-888 (review) same rule in the insert branch: the allocator hands out the replacement,
 							# so it skips this save's own numbers and never picks one the column cannot hold
@@ -4873,7 +4910,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# 20260928 LOE SST-817 A line saved without a voucher number is given the journal's
 						# next one instead of 0, so a balanced line advances the series and no number is
 						# reused while the journal is open.
-						if ($insert_bilag <= 0) {
+						if ($insert_bilag <= 0 && !$kk_nul_tastet) {
 							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
 							if ($insert_bilag > 0) {
 								$kk_bilag_givet[] = (int)$insert_bilag;
@@ -4935,9 +4972,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							db_modify("update tmpkassekl set bilag = '" . db_escape_string($bilag_tjek["bilag"]) . "' where kladde_id = '" . db_escape_string($kladde_id) . "' and bilag = '" . db_escape_string($bilag_tjek["original"]) . "'", __FILE__ . " linje " . __LINE__);
 						}
 						$insert_bilag = $bilag_tjek['bilag'];
+						# SST-934 a 0 the user typed is a voucher number
+						$kk_nul_tastet = (!$bilag_tjek['replaced'] && $insert_bilag === 0 && !bilagIsUnnumbered($r['bilag']));
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
-						if ($insert_bilag <= 0) {
+						if ($insert_bilag <= 0 && !$kk_nul_tastet) {
 							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
 							if ($insert_bilag > 0) {
 								$kk_bilag_givet[] = (int)$insert_bilag;
