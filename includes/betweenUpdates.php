@@ -45,7 +45,7 @@
 //                 Text 7815 (the restore's warning about a backup of another ledger) is reworded; the cached old wording is removed.
 // 20261104 CL/ASR QA round 3: the till account per currency is copied once from the tab list in grupper VK box4 to the settings rows VK/till_account_<currency> per till (includes/opdat_func/migrateTillAccounts.php), so switching the currency on in the till no longer loses it.
 //                 box4 is left as it is, and a till that already has a row for the currency keeps it.
-// 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so it stays the last one.
+// 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so MB-73 and the signup block stay at the end.
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
 
 /**
@@ -434,7 +434,8 @@ deleteStaleTekst(7815, array(
 	'Sikkerhetskopien er fra et ANNET firma: %s. Dette regnskapet heter %s. Hvis du gjenoppretter, blir regnskapets data erstattet av det andre firmaets data.',
 ));
 // 20261104 CL/ASR The lock taken before the role tables ends here: the one-time settings rows above (landed_at, paymentDays) cannot be
-// inserted twice by two first logins at once. The time-budgeted backfill below has its own try-lock.
+// inserted twice by two first logins at once. The one-time role changes below take the lock again for their own section,
+// and the time-budgeted MB-73 backfill after them has its own try-lock.
 if (!$sawanehMysql) {
 	db_select("select pg_advisory_unlock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
 }
