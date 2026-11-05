@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 //                 The slip is shown as stored with the typed values put back and the messages "Dato ikke udfyldt" and "Obs - Du har ikke gemt.".
 // 20261104 CL/MMR SST-943 A stopped save also skips the writes made while the slip is drawn (sum, duplicate lines, master_id); vis_liste() gets it as a parameter.
 //                 The list type selector keeps the type the piecework lines are drawn for.
+// 20261105 CL/MMR SST-943 A stopped save also says that amounts and totals are not updated until the slip is saved with a date.
 
 function ret_loen() {
 	global $brugernavn;
@@ -929,7 +930,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 		if ($loendate=='1970-01-01') $loendate = '';
 		$loendato = '';
 		$datotext_errortxt = "<span style=\"color: red;\">".findtekst('3019|Dato ikke udfyldt', $sprog_id)."</span>";
-		if ($datoMangler) $datotext_errortxt .= " <span style=\"color: red;\"><b>".findtekst('5280|Obs - Du har ikke gemt.', $sprog_id)."</b></span>";
+		if ($datoMangler) $datotext_errortxt .= " <span style=\"color: red;\"><b>".findtekst('5280|Obs - Du har ikke gemt.', $sprog_id)."</b> ".findtekst('8420|Beløb og summer er ikke opdateret, før sedlen er gemt med dato.', $sprog_id)."</span>";
 		$datotext_error    = "style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else {
 /*
