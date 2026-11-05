@@ -37,6 +37,7 @@
 // 20261105 CL/MMR SST-943 A stopped save also says that amounts and totals are not updated until the slip is saved with a date.
 // 20261105 CL/MMR SST-943 A date that does not exist or is not a date (31-02-2026, 32-13-2026, abc) is refused like a missing date (Morten).
 // 20261105 CL/MMR SST-943 Only the documented date forms are accepted, so extra digits (0311202699) are refused instead of cut off.
+// 20261105 CL/MMR SST-943 A four-digit year is read as written: a year before 1000 (05-11-0026) is refused, only two digits are a short year (CodeRabbit).
 
 function ret_loen() {
 	global $brugernavn;
@@ -1706,6 +1707,8 @@ function loenDatoMangler($post) {
  * typed text the same way usdate() does (dd-mm-yyyy with - . / or space, dd-mm, ddmm, ddmmyy, ddmmyyyy, or just the
  * day) and checks that usdate() keeps that day, month and year. The short forms (15, 0311, 03-11-26) still work.
  * A date that reads as 01-01-1970 (how a slip without a date is stored) also counts as invalid.
+ * A four-digit year is read as written, so a year before 1000 (05-11-0026, 05110026) is refused; only a two-digit
+ * year is a short year (26 = 2026), as usdate() reads it (CodeRabbit on PR #1025).
  *
  * @param string $dato The typed date (already trimmed, not empty).
  * @return bool True when the date must be refused like a missing date.
@@ -1715,21 +1718,28 @@ function loenDatoUgyldig($dato) {
 	if (!preg_match('/^([0-9]{1,2}|[0-9]{4}|[0-9]{6}|[0-9]{8}|[0-9]{1,2}[-.\/ ][0-9]{1,2}([-.\/ ]([0-9]{2}|[0-9]{4}))?)$/', $dato)) return true;
 	$tekst = preg_replace('/[.\/ ]/', '-', $dato);
 	$aar = NULL;
+	$aarTekst = '';
 	$maaned = NULL;
 	if (strpos($tekst, '-') !== false) {
 		$dele = explode('-', $tekst);
 		$dag = (int)$dele[0];
 		if (isset($dele[1]) && $dele[1] !== '') $maaned = (int)$dele[1];
-		if (isset($dele[2]) && $dele[2] !== '') $aar = (int)$dele[2];
+		if (isset($dele[2]) && $dele[2] !== '') $aarTekst = $dele[2];
 	} elseif (strlen($tekst) <= 2) {
 		$dag = (int)$tekst;
 		$maaned = (int)date('m');
 	} else {
 		$dag = (int)substr($tekst, 0, 2);
 		$maaned = (int)substr($tekst, 2, 2);
-		if (strlen($tekst) > 4) $aar = (int)substr($tekst, 4, strlen($tekst) > 6 ? 4 : 2);
+		if (strlen($tekst) > 4) $aarTekst = substr($tekst, 4, strlen($tekst) > 6 ? 4 : 2);
 	}
-	if ($aar !== NULL && $aar < 100) $aar += ($aar < 80) ? 2000 : 1900;
+	if ($aarTekst !== '') {
+		// a four-digit year is the year as written: 0026 is not 2026, and no wage slip is dated before 1000
+		if (strlen($aarTekst) == 4 && (int)$aarTekst < 1000) return true;
+		$aar = (int)$aarTekst;
+		// only a two-digit year is a short year, read the way usdate() reads it
+		if (strlen($aarTekst) == 2) $aar += ($aar < 80) ? 2000 : 1900;
+	}
 	$gemt = usdate($dato);
 	if ($gemt == '1970-01-01') return true;
 	list($gAar, $gMaaned, $gDag) = array_map('intval', explode('-', $gemt));
