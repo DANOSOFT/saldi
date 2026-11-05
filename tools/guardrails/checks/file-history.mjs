@@ -16,6 +16,8 @@
 // 20261027 CL/LH Created.
 // 20261028 CL/LH Accept history blocks that are indented like the rest of their file's block.
 // 20261029 CL/MJ Enforce aligned sentence-only continuations for new history entries (PR #874).
+// 20261029 CDX/MJ Reject newly added history after a leading PHPDoc instead of inside the header.
+// 20261030 CL/MJ Only a /** block counts as that PHPDoc, so history after a plain /* note in the header (includes/grid.php) is not flagged.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -57,6 +59,30 @@ export default {
       const header = headerLength(lines);
       const historyLines = [];
       for (let line = 1; line <= header; line++) if (HISTORY.test(lines[line - 1])) historyLines.push(line);
+      // A leading PHPDoc ends headerLength(), but is not executable code. Catch entries
+      // mistakenly placed between that PHPDoc and the first declaration as well. Only a
+      // /** block is a PHPDoc: some headers (includes/grid.php) keep a plain /* ... */ note
+      // inside the header and their history lines after it, and those are not misplaced.
+      let inComment = false;
+      let afterPhpDoc = false;
+      for (let i = header; i < lines.length; i++) {
+        const text = lines[i].trim();
+        if (inComment) {
+          if (text.includes("*/")) inComment = false;
+          continue;
+        }
+        if (text.startsWith("/*")) {
+          // A /*****\ licence banner (includes/barcode.php) also starts with /**; a docblock opener is /** alone or followed by space.
+          if (/^\/\*\*(\s|$)/.test(text)) afterPhpDoc = true;
+          inComment = !text.includes("*/");
+          continue;
+        }
+        if (afterPhpDoc && HISTORY.test(lines[i]) && file.added.has(i + 1)) {
+          findings.push({ path: file.path, line: i + 1,
+            message: "history entry is outside the header block; put it immediately after the existing // history lines, before PHPDoc." });
+        }
+        if (text && !text.startsWith("//") && !text.startsWith("#")) break;
+      }
       const added = historyLines.filter((line) => file.added.has(line));
       const sinceFork = ctx.addedSinceFork(file.path);
       const existing = historyLines.filter((line) => !file.added.has(line) && !sinceFork.has(line));
