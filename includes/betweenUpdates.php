@@ -38,7 +38,6 @@
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
  * @var string $db_type
- * @var string $db
  */
 
 // ===== PROTECTED: when a version is cut (see doc/ai/convention_database_changes.md), COPY this =====
