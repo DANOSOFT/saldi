@@ -64,6 +64,8 @@ final class JournalApprovalTest extends TestCase {
         return [
             'amount' => [['sum' => '999,00'], 'amount', '999'],
             'zero amount' => [['sum' => '0'], 'amount', '0'],
+            'case-only text' => [['beskrivelse' => 'bank'], 'beskrivelse', 'bank'],
+            'text with trailing space' => [['beskrivelse' => 'Bank '], 'beskrivelse', 'Bank '],
             'text with quote' => [['beskrivelse' => "Supplier's invoice"], 'beskrivelse', "Supplier's invoice"],
             'date' => [['dato' => '02-11-2026'], 'transdate', '2026-11-02'],
             'voucher number' => [['bilagsnr' => '9'], 'bilag', '9'],

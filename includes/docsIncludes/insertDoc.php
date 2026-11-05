@@ -55,8 +55,12 @@
 //                  failure now answers non-2xx with a reason the pool can show.
 // 20261023 CL/LH SST-868 Merged master: the SD-722 capture records read the pool row by $poolFileName and are kept under
 //                the landed name. Text 5441 renumbered to 5452 (5441 is taken by MB-71).
-// 20261105 CDX/NTR Clear approval atomically when Save or Attach changes posting values; preserve unchanged approvals.
+// 20261105 CDX/NTR Clear approval atomically when Save or Attach changes posting values; preserve unchanged approvals with exact text comparisons.
 
+/**
+ * Injected by includes/connect.php, via the entry page or the AJAX bootstrap below:
+ * @var string $db_type
+ */
 $sth = dirname(dirname(dirname(__FILE__)));
 
 // Bootstrap database connection when called directly via AJAX (not included from documents.php)
@@ -212,9 +216,10 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 	 * so both buttons save the same fields with the same rules for empty values.
 	 *
 	 * @param int $sourceId kassekladde.id
+	 * @param string $dbType Database driver used for exact text comparisons.
 	 * @return void
 	 */
-	function insertDocUpdateKassekladdeLine($sourceId) {
+	function insertDocUpdateKassekladdeLine($sourceId, $dbType = '') {
 		global $regnaar;
 		$sourceId = (int)$sourceId;
 		if (!$sourceId) {
@@ -308,7 +313,15 @@ if (!function_exists('insertDocUpdateKassekladdeLine')) {
 				$changes[] = "($column IS NULL OR $column <> $literal)";
 			} else {
 				$default = $numeric ? '0' : ($column === 'projekt' ? "'0'" : "''");
-				$changes[] = "COALESCE($column, $default) <> $literal";
+				// MySQL's default text collation can ignore case and trailing spaces. Approval
+				// covers the exact stored text, so compare binary strings for its text fields.
+				$stored = "COALESCE($column, $default)";
+				$compared = $literal;
+				if (!$numeric && in_array($dbType, array('mysql', 'mysqli'), true)) {
+					$stored = "BINARY $stored";
+					$compared = "BINARY $literal";
+				}
+				$changes[] = "$stored <> $compared";
 			}
 			$assignments[] = "$column = $literal";
 		}
@@ -375,7 +388,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
         }
     }
 
-    insertDocUpdateKassekladdeLine($sourceId);
+    insertDocUpdateKassekladdeLine($sourceId, $db_type);
 
     // Return response
     if (isset($_POST['ajax']) && $_POST['ajax']) {
@@ -493,7 +506,7 @@ if ($docFolder && $source == 'creditorOrder') {
 		}
 	}
 	if ($sourceId) {
-		insertDocUpdateKassekladdeLine($sourceId);
+		insertDocUpdateKassekladdeLine($sourceId, $db_type);
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/kassekladde.php?kladde_id=$kladde_id\">";
 	} else {
 		alert("Bilaget kunne ikke indsættes");
