@@ -1,5 +1,5 @@
 <?php
-// --- /systemdata/formularimport.php-----patch 4.0.8 ----2023-07-22--------------
+// --- /systemdata/formularimport.php-----ver 5.1.0 ----2023-07-22--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 $s_id=session_id();
 
 include("../includes/connect.php");
+$permission_key = 'settings.import_export';
 include("../includes/online.php");
 include("../includes/db_query.php");
 include("../includes/formularimport.php");

@@ -1,5 +1,5 @@
 <?php
-// ------------- kreditor/korntofusion.php ---------- ver 5.0.0 ----2026-10-01-----------
+// ------------- kreditor/korntofusion.php ---------- ver 5.1.0 ----2026-11-03-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -24,11 +24,13 @@
 // 20130224 kopieret fra debitor og tilrettet. (Bør lægges under includes)
 // 20261001 CL/SZ SD-698: returside is URL-encoded in the links back to kreditorkort.php and in the form action,
 //                so a returside with its own query string (e.g. kassekladde.php?tjek=..&kladde_id=..) survives the round trip.
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 8, kreditor.konti) instead of the debitor one, so Indkøb opens the page and Salg does not.
 
 @session_start();
 $s_id=session_id();
 
-$modulnr=6;
+$modulnr=8; // Kreditorkonti (was 6, Debitorkonti)
+$permission_key = 'kreditor.konti';
 $title="Fusioner kreditorer";
 $css="../css/standard.css";
 

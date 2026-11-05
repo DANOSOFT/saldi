@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/contraSuggestionLookup.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- finans/kassekladde_includes/contraSuggestionLookup.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261003 CL/SZ SD-722 Created: the contra account suggested for a kreditor (contraSuggestion()), and the user's "Udfyld modkonto automatisk".
 //                Read-only, JSON. The company and user come from the session.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 //
 // Request: kreditor=<kreditor account number>  kladde_id=<journal>
 // Answer:  {"suggestion": {account, type, name, moms, text, count, reason, source} or null, "auto": bool}
@@ -34,6 +35,7 @@ session_start();
 $s_id = session_id();
 $title = 'contraSuggestionLookup';
 $modulnr = 0;
+$permission_key = 'finans.kassekladde'; // 20261023 ASR Merge into redesign: modulnr 0 is no key (roles & permissions, phase 3)
 $bg = 'nix';
 $header = 'nix';
 $webservice = true;

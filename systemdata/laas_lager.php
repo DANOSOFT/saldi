@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------systemdata/laas_lager.php---------------------Patch 3.7.0-----2017.05.15---
+// ---------systemdata/laas_lager.php---------------------ver 5.1.0-----2017.05.15---
 // LICENS
 //
 // // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -30,6 +30,8 @@
 $s_id=session_id();
 
 include("../includes/connect.php");
+$modulnr = 2; // 20261004 Sawaneh Security 4.0 (A8), same as regnskabskort.php which opens it
+$permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/mobilepay/mobilepay.php --- lap 4.1.0 --- 2024.02.27 ---
+// --- payments/mobilepay/mobilepay.php --- ver 5.1.0 --- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 #print '<head>';
 #print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
@@ -34,8 +35,14 @@
 $s_id = session_id();
 
 include ("../../includes/connect.php");
+$permission_key = 'system.indstillinger';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
+// 20261018 Sawaneh Review 2 (PR #803): deletes the webhooks at Vipps - integrations write, by POST with the session's token.
+if (function_exists('require_permission')) {
+	require_permission('settings.integrations', 'write');
+}
+perm_require_post_csrf(false);
 include ("../../includes/stdFunc/dkDecimal.php");
 include ("../../includes/stdFunc/usDecimal.php");
 

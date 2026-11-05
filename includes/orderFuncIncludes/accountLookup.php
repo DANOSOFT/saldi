@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//---includes/orderFuncIncludes/accountLookup.php ---patch 5.0.0 ----2026-10-08 ---
+//---includes/orderFuncIncludes/accountLookup.php ---ver 5.1.0 ----2026-10-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 //                 o_art=KO along on row select so supplier choice survives
 // 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
 // 20261008 CDX/PHR Include open accounts with a NULL closed flag in order lookups.
+// 20261019 SS Review 2 (PR #803): inactive debtor groups left out of the new-customer group dropdown.
 
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
@@ -327,7 +328,8 @@ HTML;
 
     // Fetch debtor groups for dropdown
     $grp_options = '';
-    $qtxt = "select * from grupper where art='DG' and fiscal_year = '$regnaar' order by kodenr";
+    $hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
+    $qtxt = "select * from grupper where art='DG' and fiscal_year = '$regnaar'" . ($hasInactive ? " and coalesce(inaktiv, false) = false" : '') . " order by kodenr";
     $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     while ($r = db_fetch_array($q)) {
         $grp_nr = htmlspecialchars($r['kodenr']);

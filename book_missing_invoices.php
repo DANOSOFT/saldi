@@ -10,6 +10,7 @@ global $regnaar;
 // Include necessary files
 include("../includes/connect.php");
 include("../includes/std_func.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");  // This sets $db from session
 include("../includes/ordrefunc.php"); // Contains the bogfor() function
 

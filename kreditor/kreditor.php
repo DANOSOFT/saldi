@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------kreditor/kreditor.php---lap 4.0.8------2025-04-15----
+// ---------------kreditor/kreditor.php---ver 5.1.0------2026-11-03----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2018.03.08 Indhold kopieret dra debitor/debitor.php og tilrettet til kreditor
 // 20210331 LOE Translated some of these texts to English
@@ -33,6 +33,7 @@
 // 01072025 PBLM Added openKreditorKort function to open creditor card in same window
 // 20251127 LOE Modified to use grid table structure. 
 // 20260506 sawaneh fixed not directing to new account creation when the look for that account does not exist
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 8, kreditor.konti) instead of the debitor one, so Indkøb opens the page and Salg does not.
 
 #ob_start();
 @session_start();
@@ -62,7 +63,8 @@ function openKreditorKort(kreditorId) {
 </script>
 ";
 $css = "../css/standard.css";
-$modulnr = 6;
+$modulnr = 8; // Kreditorkonti (was 6, Debitorkonti)
+$permission_key = 'kreditor.konti';
 $firmanavn = NULL;
 
 include("../includes/connect.php");

@@ -1,5 +1,5 @@
 <?php
-// -------------kreditor/ordre2csv.php----------patch 5.0.0------2026-07-06----
+// -------------kreditor/ordre2csv.php----------ver 5.1.0------2026-09-16----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,11 +14,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2026 Danosoft.ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 03/02/2025 PBLM fixed lev_varenummer
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260706 MJ CSV filename now uses creditorSuggestion/creditorOrder/creditorInvoice prefix and order number.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();
@@ -26,6 +27,7 @@ $title = "Ordreeksport";
 $css = "../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

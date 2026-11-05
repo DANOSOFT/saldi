@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- ver 5.1.0 --- 2026-11-02---
+// --- lager/rapport.php --- ver 5.1.0 --- 2026-11-04---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -108,6 +108,7 @@
 //             no longer matches (almost) the whole catalogue.
 // 20261027 CL/LH MB-73: 'Bestilt' (Ordered) counts purchase order lines only (ordrer.art = 'KO', as the product card's incoming list).
 //             It found open lines by leveret < antal alone, which NULL never matched, so open sales lines counted as ordered once leveret starts at 0.
+// 20261104 CL/ASR The form's POST only picks filters and opens a report (each report page has its own gate), so it counts as a read: a read-only role can open Lagerstatus, Prisliste, Lageroptælling and Salg pr. postnummer from here.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -115,6 +116,7 @@ $css="../css/standard.css";
 
 $title="Varerapport";
 $modulnr=15;
+$permission_post_read = true; // the form only picks filters and redirects to the report pages, which check their own rights
 
 $vk_kost=NULL;
 

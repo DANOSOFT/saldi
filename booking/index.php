@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- booking/index.php --- lap 4.0.8 --- 2023-03-23 ---
+// --- booking/index.php --- ver 5.1.0 --- 2023-03-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,7 @@ if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$qtxt.= "'0',0,'". date('U') ."',FALSE,'1')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
+	$permission_key = 'any';
 	include ('../includes/online.php');
 	if ($username == 'booking') {
 		$qtxt = "select rettigheder from brugere where brugernavn = 'booking'";

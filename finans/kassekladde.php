@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -211,8 +211,8 @@
 //                The date a row was drawn with (transdate[]) is matched by line id, not screen row, since those lines shift the rows
 //                below them; by row a debtor line could take another line's date and lose a due date typed by hand.
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
-// 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated,
-//                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
+// 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated, numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
+// 20261103 CL/ASR QA round 2: the GET link ompost (Tilbagefør postering) needs write on the journal.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -277,6 +277,10 @@ register_shutdown_function(function() {
 $s_id = session_id();
 $title = "Kassekladde";
 $modulnr = 2;
+// Tilbageføring (ompost / ompost_til) writes a journal line from a GET link, so it needs write.
+if (!empty($_GET['ompost'])) {
+	$permission_level = 'write';
+}
 $css = "../css/standard.css";
 $afd = $amount = $ansat = $ansat_id = $belob = $beskrivelse = $betal_id = $bilag = $dato = $d_type = $debet = $debetvat = array();
 $faktura = $forfaldsdate = $forfaldsdato = $id = $k_type = $kontonr = $kredit = $kreditvat = $lobenr = $momsfri = $projekt = $valuta = array();

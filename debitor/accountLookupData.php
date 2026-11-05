@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/accountLookupData.php --- patch 5.0.0--- 2026.10.08
+// --- debitor/accountLookupData.php --- ver 5.1.0--- 2026.10.08
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20260501 PHR removed K (creditors) from address lookup
 // 20260827 CDX/PHR Restored supplier lookup when o_art is KO.
 // 20261008 CDX/PHR Include NULL closed flags in AJAX account lookup, matching the initial grid.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 
 header('Content-Type: application/json');
@@ -35,6 +36,7 @@ try {
     $s_id = session_id();
 
     include_once('../includes/connect.php');
+    $permission_key = 'debitor.konti';
     include_once('../includes/online.php');
     global $bruger_id;
     // Verify includes loaded properly

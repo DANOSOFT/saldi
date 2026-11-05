@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 //
 //20260430 LOE Created standalone version of kontokort repoort for easy navigation
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261030 CL/LAH per_page defaults to 0 = all lines.
 // 20261103 LOE SST-936 Resolve the employee range into the id list kontokort_moms() filters by.
 //              The employee list the report page resolved is used when the print link carries it.
@@ -35,6 +36,7 @@ $s_id = session_id();
 $css = "../css/standard.css";
 include("../includes/var_def.php");
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
  include("../includes/std_func.php");
 

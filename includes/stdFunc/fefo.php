@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/fefo.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/stdFunc/fefo.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 //                 into the query (CodeRabbit, PR #608).
 // 20260930 LOE SST-836 Added batch_expiry_in_use() for the expiry report's menu entry.
 // 20261011 CL/ASR Added batch_missing_info_count() and batch_txt() for lager/batch_udfyld.php and its entry points.
+// 20261104 CL/ASR Added batch_reports_allowed() and batch_edit_allowed() for the menus and links into the batch/expiry tools, which moved to Varerapport (right 15, lager.rapporter).
 
 if (!function_exists('fefo_order_clause')) {
 	/**
@@ -178,6 +179,46 @@ if (!function_exists('batch_expiry_in_use')) {
 		}
 		$qtxt = "SELECT 1 FROM grupper WHERE art = 'VG' AND box9 = 'on' AND fiscal_year = '$regnaar' LIMIT 1";
 		return $in_use = (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	}
+}
+
+if (!function_exists('batch_reports_allowed')) {
+	/**
+	 * Whether the user may open the batch/expiry reports filed under Varerapport (lager/udlobsrapport.php,
+	 * batch_oversigt.php, salg_rapport.php and varespor.php, owner 4 Nov 2026): legacy right 15, as the page
+	 * gate in includes/online.php checks it, and the key lager.rapporter once the company enforces roles.
+	 * Menus and links use it, so nobody clicks into a refusal.
+	 *
+	 * @return bool True when the user may open the reports.
+	 */
+	function batch_reports_allowed() {
+		global $rettigheder;
+		if ($rettigheder && substr((string)$rettigheder, 15, 1) < '1') {
+			return false;
+		}
+		if (function_exists('perm_enforcement_mode') && perm_enforcement_mode() === 'deny') {
+			return perm_can('lager.rapporter');
+		}
+		return true;
+	}
+}
+
+if (!function_exists('batch_edit_allowed')) {
+	/**
+	 * Whether the user may change batches in lager/batch_udfyld.php: write on Varer (legacy right 9 = '1', key
+	 * lager.varer at write), so a read-only user is not offered the links that edit batches.
+	 *
+	 * @return bool True when the user may edit batches.
+	 */
+	function batch_edit_allowed() {
+		global $rettigheder;
+		if ($rettigheder && substr((string)$rettigheder, 9, 1) !== '1') {
+			return false;
+		}
+		if (function_exists('perm_enforcement_mode') && perm_enforcement_mode() === 'deny') {
+			return perm_can('lager.varer', 'write');
+		}
+		return true;
 	}
 }
 

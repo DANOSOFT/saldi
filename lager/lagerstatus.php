@@ -61,14 +61,18 @@
 //             is covered, and guarded on positive remaining stock so already-zero/negative-stock
 //             items still value at 0. Verified against IBON's real saldi_821 dump (SST-764).
 // 20260908 CDX/LH Cancel linked purchase credits before selecting the remaining stock value.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20260925 CL/NTR Escape a Varenr./Beskrivelse/Enhed search term's own '%'/'_' via the new
 //             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
 //             no longer matches (almost) the whole catalogue or spuriously bypasses the
 //             zStock/showClosed/activity filters via $lsHasTextSearch.
+// 20261103 CL/ASR QA round 2: the GET link ret_behold=2 (Ret skæve lagertal) needs write on lager.varer.
 // 20261104 LOE SST-922 The Print button printed one screen of the list instead of the whole report.
 //              autoprint=1 now renders the whole filtered list print-friendly, and @media print releases the grid.
 //              A search that matches nothing no longer fatals in the print view.
 //              The filters that URL sends are read without warnings too.
+// 20261104 CL/ASR The item number links to the item trace (varespor.php) only for users who may open it; the trace moved to Varerapport (right 15, lager.rapporter).
+// 20261104 CL/ASR Final QA: the page is opened from Varerapport (lager/rapport.php, right 15), so reading it needs lager.rapporter instead of lager.varer; Ret skæve lagertal (ret_behold=2) still needs write on lager.varer.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -108,6 +112,13 @@ $kostvalue=0;$lagervalue=0;$salgsvalue=0;
 $dateType = 'levdate';
 
 include("../includes/connect.php");
+// Opened from Varerapport (lager/rapport.php, right 15): reading needs the report key.
+$permission_key = 'lager.rapporter';
+// "Ret skæve lagertal" (ret_behold=2) rewrites stock figures from a GET link, so it needs write on Varer.
+if (isset($_GET['ret_behold']) && (string) $_GET['ret_behold'] === '2') {
+	$permission_key = 'lager.varer';
+	$permission_level = 'write';
+}
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
@@ -712,7 +723,8 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		if ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		else {$linjebg=$bgcolor; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";
-		if ($popup) print "<td onClick=\"javascript:varespor=window.open('varespor.php?vare_id=$vare_id[$x]','varespor','$jsvars')\" onMouseOver=\"this.style.cursor = 'pointer'\"><u>$varenr[$x]</u><br></td>";
+		if (!batch_reports_allowed()) print "<td>$varenr[$x]<br></td>";
+		elseif ($popup) print "<td onClick=\"javascript:varespor=window.open('varespor.php?vare_id=$vare_id[$x]','varespor','$jsvars')\" onMouseOver=\"this.style.cursor = 'pointer'\"><u>$varenr[$x]</u><br></td>";
 		else print "<td><a href=varespor.php?vare_id=$vare_id[$x]>$varenr[$x]<br></td>";
 		print	"<td>$enhed[$x]<br></td><td>$beskrivelse[$x]<br></td>
 		<td align=right>".str_replace(".",",",$batch_k_antal[$x]*1)."<br></td><td align=right>".str_replace(".",",",$batch_s_antal[$x]*1)."<br></td>";

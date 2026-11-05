@@ -1,5 +1,5 @@
 <?php
-// -------------------debitor/prislister.php------------patch 3.2.9----2013-02-10--------------
+// -------------------debitor/prislister.php------------ver 5.1.0----2026-09-16--------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ---------------------------------------------------------------------------
 
 // 2013.02.10 break ændret til break 1
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -30,6 +31,7 @@ $title="Prislister";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

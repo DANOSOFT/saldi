@@ -13,6 +13,24 @@
         $side = "settings";
         include "header.php";
         include(__DIR__ . "/../includes/tutorial.php");
+        // 20261102 CL/ASR Opened from Indstillinger (settings=1 on the hub's Booking row and in the settings menu; owner, 2 Nov 2026: every page
+        //                 reached from the settings keeps the settings menu) the page shows the standard settings layout
+        //                 (includes/settings/layout.php): breadcrumb Indstillinger / Salg / Booking, Tilbage to the hub, the Salg group's menu with
+        //                 Booking marked, and the booking settings below unchanged.
+        //                 Opened from Booking (no marker) the page is exactly as on master: Booking has its own menu, so the always-shown
+        //                 Tilbage of 1 Nov is gone.
+        include_once(__DIR__ . "/../includes/settings/hub.php"); // settings_opened_from_settings()
+        $fromSettings = settings_opened_from_settings();
+        if ($fromSettings) {
+            include_once(__DIR__ . "/../includes/settings/layout.php");
+            // The layout sits where it sits on every settings page: Booking's content column (rental/header.php) loses its Bootstrap padding.
+            // The booking form fills the content column from its top (not 80 % wide, centred, 5 rem down); the layout's title replaces its
+            // heading.
+            print "<style>.row > .col.content:has(> .st-page) { padding: 0 !important; }"
+                . " .st-frame-main > form.form { width: auto; max-width: 46rem; margin: 0; }"
+                . " .st-frame-main > form.form > h3:first-child { display: none; }</style>\n";
+            settings_layout_open();
+        }
     ?>
     <form class="form width-80">
         <h3>Indstillinger</h3>
@@ -144,6 +162,7 @@
             Hjælp  
         </button>
     </form>
+<?php if ($fromSettings) { settings_layout_close(); } ?>
 </div>
 </div>
     <script src="bootstrap.min.js"></script>

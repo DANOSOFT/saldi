@@ -1,5 +1,5 @@
 <?php
-// ----------------------------- systemdata/tekster.php ----------------- ver 5.0.0 -- 2026-10-28 --
+// ----------------------------- systemdata/tekster.php ----------------- ver 5.1.0 -- 2026-11-03 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,10 @@
 //                  Copying a language matches rows by tekst_id or tekst_key.
 // 20261028 CL/NTR Saving or copying a text clears its findtekst() session cache entry.
 //                  Texts are HTML-escaped so quotes and angle brackets no longer break the table.
+// 20260928 SS Phase 4: top-menu branch removed; top.php is the only frame.
+// 20261102 CL/ASR Opened without ?sprog_id (Oversættelser under Indstillinger > Sprog & lokalisering links plain tekster.php) the page showed "Sprog_id not found" and no texts; it now edits the texts of the language the user is logged in with, as the section says.
+//                 The language id is a number (it is printed in the page's links).
+// 20261103 CL/ASR QA round 2: the page needs Virksomhed (settings.company), where Oversættelser sits, instead of the general settings fallback.
 
 /**
  * Injected by ../includes/connect.php, included below:
@@ -35,6 +39,7 @@ $s_id=session_id();
 $modulnr=1;
 $css="../css/standard.css";
 $title="Tekster";
+$permission_key = 'settings.company'; // Oversættelser sits under Virksomhed > Sprog & lokalisering (QA round 2)
 #$rightoptxt="<a href=\"tekster.php?ryd=1\" >ryd</a>"; #20210819 
 
 include("../includes/connect.php");
@@ -43,19 +48,7 @@ include("../includes/std_func.php");
 
 if (!isset ($sprog)) $sprog = null;
 global $db; 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\"></div>\n";
-#	print "<span class=\"headerTxt\">Systemsetup</span>\n";     
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";       
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_div_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-} else include("top.php");
+include("top.php");
 
 
 // if($mod = if_isset($_GET['mod'])){ #20210819
@@ -93,13 +86,12 @@ if ($menu=='T') {
 
 // }
 
-if ($ryd=ifset($_GET, ['ryd'])) {
-	db_modify("delete from tekster where sprog_id='$sprog_id'",__FILE__ . " linje " . __LINE__);
-}
-$sort=if_isset($_GET['sort']);
-if (!$sort) $sort="tekst";
 
-$sprog_id=ifset($_GET, ['sprog_id']);
+// 20261005 Sawaneh ?ryd=1 (delete every text of the language on a GET) removed - settings redesign G1.3.
+$sort=if_isset($_GET['sort']);
+if (!in_array($sort, array('tekst', 'tekst_id', 'id'), true)) $sort="tekst"; // 20260928 Sawaneh Security 4.0 (A12): column whitelist
+
+$sprog_id=(int) (ifset($_GET, ['sprog_id']) ?: $sprog_id); // 20261102 CL/ASR none given: the language the user is logged in with
 $kopier=ifset($_GET, ['kopier']);
 #$title= findtekst('30|Tilbage', $sprog_id); #20210818
 

@@ -22,6 +22,7 @@ $regnskabsaar=$_GET['regnskabsaar'];
 @session_start();
 $s_id=session_id();
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/db_query.php");
   

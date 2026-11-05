@@ -1,5 +1,5 @@
 <?php
-// ------------- api/hent_ordrer.php ---------- lap 3.5.3----2015.04.21-------
+// ------------- api/hent_ordrer.php ---------- ver 5.1.0----2015.04.21-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -31,6 +31,7 @@ print "<meta name=\"google\" content=\"notranslate\">";
 print "</head><body>";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");

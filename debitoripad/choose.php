@@ -1,5 +1,5 @@
 <?php
-// ------------------debitoripad/choose.php--------lap 3.2.9----2024.06.07--
+// ------------------debitoripad/choose.php--------ver 5.1.0----2024.06.07--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -29,6 +29,7 @@ $css="../css/debitoripad.css";
 $title="batch";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/db_query.php");

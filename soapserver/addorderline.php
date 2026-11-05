@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/addordreline.php -----ver 3.4.1---- 2014.04.26 ----------
+// #----------------- soapserver/addordreline.php -----ver 5.1.0---- 2014.04.26 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -33,6 +33,7 @@ function addorderline($string) {
 	list($s_id,$tmp)=explode(chr(9),$string);
 	if (!$s_id) return('1'.chr(9)."Missing session ID");
 	include ("../includes/connect.php");
+	$permission_key = 'any';
 	include ("../includes/online.php");
 	include ("../includes/ordrefunc.php");
 

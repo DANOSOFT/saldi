@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------/systemdata/exporter_adresser.php-----patch 4.0.8 ----2023-07-22--
+// -------/systemdata/exporter_adresser.php-----ver 5.1.0 ----2026-11-02--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,23 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20170430 PHR  Tilføjet bank_reg og bank_konto
 // 20210714 LOE  Translated some text.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
+//                 It goes to the settings page the user came from, or the hub; Alt+L kept.
+// 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops between settings pages; settings_back_button() adds Alt+L itself.
+//                 The kit is linked as ?v=20261102.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+//                 The old blue-grey bottom bar under the content is gone; in the content column it was an empty strip right under the form.
 
 @session_start();
 $s_id=session_id();
@@ -34,23 +45,20 @@ $title="Eksporter adresser";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'settings.import_export';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 $art=if_isset($_POST['art']);
-$returside="diverse.php?sektion=div_io";
+$returside="settingsSection.php?s=import_export.data";
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+settings_layout_open();
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
-print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
-
-       <td align='center' style='$topStyle'>".findtekst(1384, $sprog_id)."<br></td>
-
-       <td width=\"170px\" style='$topStyle'><br></td></tr>
-       </tbody></table></td></tr>"; # <- tabel 1.1.1
 
 print "</tr></tbody></table></td></tr>";
 print "<td align=center valign=top>";
@@ -82,12 +90,8 @@ print "</tbody></table>";
 print "</tbody>";
 print "</table>";
 print "</td></tr>";
-print "<tr><td align = \"center\" valign = \"bottom\">";
-print "<table width=\"100%\" align=\"center\" border=\"1\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<td width=\"100%\" bgcolor=\"$bgcolor2\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>";
 print "</tbody></table>";
-print "</td></tr>";
-print "</tbody></table>";
+settings_layout_close();
 print "</body></html>";
 
 

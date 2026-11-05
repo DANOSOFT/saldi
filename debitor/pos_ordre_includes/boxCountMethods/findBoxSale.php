@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- ver 5.0.0 --- 2026.10.19 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- ver 5.1.0 --- 2026.10.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,7 @@
 //                Ordinary invoices with a transaction on the register no longer inflate the turnover.
 //                A sale without payment type is logged and shown as "Ukendt betalingstype" instead of a nameless bucket.
 //                A missing (NULL) payment type no longer reaches substr()/strtolower().
+// 20261009 SS The till account per currency comes from settings VK/till_account_<currency> per till (decision 22); box4 list only as fallback.
 function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	$reportOrderIds = array();
 	echo "<!-- function findBoxSale begin -->"; 
@@ -96,8 +97,12 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	}
 	if ($valuta!=$baseCurrency) {
 		$r = db_fetch_array(db_select("select * from grupper where art = 'VK' and box1='$valuta'",__FILE__ . " linje " . __LINE__));
-		$kassekonti=explode(chr(9),$r['box4']);
-		if (!$kassekonti[$kasse-1]) {
+		// Decision 22 (2026-10-09): the till account per currency lives in settings VK/till_account_<currency> per till;
+		// the old tab list in box4 is read only while no key is stored (box4 '1' is the "used in till" flag).
+		$kassekonti = (trim((string) $r['box4']) === '1') ? array() : explode(chr(9), (string) $r['box4']);
+		$tillAccount = trim((string) get_settings_value('till_account_' . $valuta, 'VK', '', NULL, (int) $kasse));
+		if ($tillAccount !== '') $kassekonti[$kasse-1] = $tillAccount;
+		if (empty($kassekonti[$kasse-1])) {
 			return("Kontonr mangler for $valuta"); #20160824 
 			exit;
 		}

@@ -1,5 +1,5 @@
 <?php
-// -------------debitor/ubl2ordre.php----------lap 3.2.9-----2012-12-20----
+// -------------debitor/ubl2ordre.php----------ver 5.1.0-----2012-12-20----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -30,6 +30,7 @@ $css="../css/standard.css";
 $title="OIOUBL import";
 	
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

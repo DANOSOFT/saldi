@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// ---------debitor/oioubl_dok.php----patch 3.6.1---2015-12-23---------
+// ---------debitor/oioubl_dok.php----ver 5.1.0---2015-12-23---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -35,6 +35,7 @@ $css="../css/standard.css";
 #$form=array();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/oioublfunk.php");

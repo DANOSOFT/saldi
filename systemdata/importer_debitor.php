@@ -1,5 +1,5 @@
 <?php
-// ------systemdata/importer_debitor.php---lap 3.0.9--2010-12-20--------
+// ------systemdata/importer_debitor.php---ver 5.1.0--2026-11-02--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,20 +14,39 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261005 SS Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a 30-day cookie.
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261009 SS The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
+// 20261031 CL/ASR The posted column mapping is escaped before update_settings_value(), which takes its arguments as given again (master's contract, the caller escapes).
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
+//                 It goes to the settings page the user came from, or the hub; Alt+L kept.
+// 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops between settings pages; settings_back_button() adds Alt+L itself.
+//                 The kit is linked as ?v=20261102.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+//                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
 
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
 $title="Importer_adresser";
-$returside="diverse.php?sektion=div_io";
+$returside="settingsSection.php?s=import_export.data";
 include("../includes/connect.php");
+$permission_key = 'settings.import_export';
 include("../includes/online.php");
 include("../includes/std_func.php");
+$title = findtekst('1356|Importér', $sprog_id) . ' ' . findtekst('908|Debitorer', $sprog_id);
 include("../includes/topline_settings.php");
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+settings_layout_open(array('title' => $title));
 print "<div align=\"center\">";
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
@@ -35,13 +54,6 @@ print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
-print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
-
-       <td align='center' style='$topStyle'>".$title."<br></td>
-
-       <td width=\"170px\" style='$topStyle'><br></td></tr>
-       </tbody></table></td></tr>"; # <- tabel 1.1.1
 
 print "</tr></tbody></table></td></tr>";
 
@@ -76,6 +88,7 @@ if($_POST) {
 }
 
 print "</tbody></table>";
+settings_layout_close();
 #####################################################################################################
 function upload($bilag){
 
@@ -119,9 +132,8 @@ if ($feltnavn) {
  		if ($tmp) $tmp=$tmp.";".$feltnavn[$y];
 		else $tmp=$feltnavn[$y];
 	}
-	setcookie("saldi_debimp",$tmp,time()+60*60*24*30);
-} elseif (isset($_COOKIE['saldi_debimp'])) {
-	$tmp = $_COOKIE['saldi_debimp'];
+	update_settings_value('debitor', 'importMapping', db_escape_string($tmp), 'Debitor import: columns');
+} elseif (($tmp = get_settings_value('debitor', 'importMapping', '')) || ($tmp = (isset($_COOKIE['saldi_debimp']) ? $_COOKIE['saldi_debimp'] : ''))) {
 	$feltnavn=explode(";",$tmp);
 }
 print "<tr><td width=100% align=center><table width=\"100%\" border=\"1\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/pos_ryk_knap.php ---------- lap 3.9.9----2023.03.15-------
+// ------------- systemdata/pos_ryk_knap.php ---------- ver 5.1.0----2023.03.15-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,8 @@
 $s_id = session_id();
 
 include ("../includes/connect.php");
+$modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
+$permission_key = 'system.indstillinger';
 include ("../includes/online.php");
 include ("../includes/std_func.php");
 

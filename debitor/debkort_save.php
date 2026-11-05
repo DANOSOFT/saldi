@@ -1,5 +1,5 @@
 <?php
-// ---------------------debitor/debkort_save.php----lap 3.4.1---2014-05-05---
+// ---------------------debitor/debkort_save.php----ver 5.1.0---2014-05-05---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -175,6 +175,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 					}
 					$felt_1.=" : $regnskab"; 
 				}
+			 $permission_key = 'debitor.konti';
 			 include("../includes/online.php");
 			}
 		}

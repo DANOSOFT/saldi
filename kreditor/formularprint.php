@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// ---------kreditor/formularprint.php-----patch 3.2.9---2013-06-18------
+// ---------kreditor/formularprint.php-----ver 5.1.0---2013-06-18------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -26,6 +26,7 @@ $s_id=session_id();
 // 
 
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");

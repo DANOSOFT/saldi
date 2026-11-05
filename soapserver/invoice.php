@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/invoice.php -----ver 3.2.4---- 2011.10.25 ----------
+// #----------------- soapserver/invoice.php -----ver 5.1.0---- 2011.10.25 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -31,6 +31,7 @@ function invoice($string) {
 	if (!$s_id) return('1'.chr(9)."Missing session ID");
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
+	$permission_key = 'any';
 	include ("../includes/online.php");
 	include ("../includes/std_func.php");
 	include ("../includes/ordrefunc.php");

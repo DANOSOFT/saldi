@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- bordplaner/bordplan.php ---------- lap 3.9.9----2023.03.15-------
+// ------------- bordplaner/bordplan.php ---------- ver 5.1.0----2023.03.15-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@ $css = "./planner/style.css";
 $pages = $takenTables = array();
 
 include ("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include ("../includes/online.php");
 include ("../includes/std_func.php");
 

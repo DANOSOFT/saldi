@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/importer.php --- ver 5.0.0 -- 2026.05.25 ---
+// --- finans/importer.php --- ver 5.1.0 -- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20130415 - Fejl hvis linje starter med separatortegn.
@@ -41,6 +41,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260525 CL/PHR - Debitor/kreditor bruger debet/kredit(konto) som fallback hvis feltet er tomt
 // 20260525 CL/PHR - Kolonnevalg gemmes nu også ved Flyt (ikke kun ved Vis)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();
@@ -48,6 +49,7 @@ $css = "../css/standard.css";
 
 $title = "Import til kassekladde";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");

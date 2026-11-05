@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.1 --- 2025.08.13 ---
+// ---- index/dashboard.php --- ver 5.1.0 --- 2026.11.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,529 +21,528 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2025 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20241004 MMK
 //20241018 LOE checks that some variables are set before using.
 //20250513 Sawaneh display number of users online.
 //20250805 LOE added close button to settings popup. and also added weekly graph snippet
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260922 Sawaneh Dashboard cleanup (topbar spec 5): heading, year/language selectors and buttons removed.
+// 20260927 Sawaneh News and batch-expiry banners removed (now notifications in the bell).
+// 20260930 Sawaneh "Review roles" card for administrators after the migration to roles (roles spec §6.3).
+// 20260930 Sawaneh check_permissions() moved to includes/std_func.php (roles spec §4.4).
+// 20261008 Sawaneh The VAT widget is hidden when not VAT registered and shows the current VAT period (decision 19).
+// 20261008 Sawaneh Rebuilt on Adam's prototype_dashboard_tema.html v5: KPI cards with trend, revenue per month and per day,
+//                  customers per hour, revenue per item group, orders, active users and suggestions on the Saldi theme
+//                  (light/dark); "Rediger oversigt" is a drawer whose choices are per user and saved at once; the numbers
+//                  come from dashboardIncludes/dashData.php. Texts 6920-6929, 6944-6949, 6951-6999.
+// 20261009 Sawaneh Front page on prototype v8.13 (addendum 3): blocks in the user's order (settings dashboard_layout/order), the KPI band, Ubetalte salgsfakturaer (§5.9), Ufakturerede ordrer with the largest order, the suggestions list, 'Ingen omsætning endnu'. Texts 7032-7065.
+// 20261009 Sawaneh Oversigt access keys (front-page addendum 4): dashboard.view gates the page, dashboard.block.* the blocks and the drawer.
+// 20261011 Sawaneh Review: the block order is saved (action=order, cleared by reset); the old Finans-only gate replaced by
+//                  dashboard.view, so Salg/Indkøb roles get the page their keys promise.
+// 20261012 Sawaneh Test pass: the view key only refuses in deny mode (perm_refuse above), observe mode shows the page; widget
+//                  choices are per user with the fixed defaults, no fallback to old company-wide rows.
+// 20261014 Sawaneh Review: chart data only in the page JSON for blocks the role allows; fiscal-year dates zero-padded
+//                  (string compares dropped months 1-9 of the year to date).
+// 20261010 Sawaneh Ufakturerede ordrer: key figures 1 and 3 of addendum 3 §7 (delivered over 14 days ago, ready to invoice now). Texts 7072-7073.
+// 20261031 CL/ASR The drawer's widget key and block order are escaped before update_settings_value(): it takes its arguments as given again (master's contract, the caller escapes).
+// 20261101 CL/ASR Restyled on prototype D ("Som ordrelisten"): flat panels with a grey header band, the KPI strip without sparklines, Omsætning pr. varegruppe as a table with share bars, Ubetalte salgsfakturaer with the due groups as a table and a stacked bar, the small cards with lists and buttons, "Rediger oversigt" as a panel at the top right.
+// 20261101 CL/ASR "Aktive medarbejdere" and "Forslag klar til bekræftelse" removed (Adam): the topbar shows who is online and the
+//                  bell holds the suggestions. Små tal now holds Ufakturerede ordrer only; the online-count queries are gone.
+// 20261101 CL/ASR Rows packed by width need (dashboard.js packGrid): no block is stretched wider than it needs; css v6, js v7.
+// 20261101 CL/ASR Ubetalte salgsfakturaer (with Ufakturerede ordrer) right under the key figures by default (Adam). Omsætning pr.
+//                  varegruppe holds every group: all show when its row has room, else "Se alle" unfolds them in place (it linked to
+//                  rapportart=salgsstat, which opened Kontokort). Text 7702 Vis færre. css v7, js v8.
+// 20261101 CL/ASR Kunder pr. time moved before Omsætning pr. dag in the default order, so when it is switched on it shares that row
+//                  instead of standing alone at the end (Omsætning pr. varegruppe then takes the last row).
+//                 Blocks, switches, order, access keys and links are unchanged.
+//                 Fiscal months and this week's days after today have no figure yet ("–", no bar), as in the prototype.
+//                 Texts 7700-7701.
+// 20261103 CL/ASR QA: the months to date are counted over the fiscal year's own months (dashData.php), not always 12.
+// 20261103 CL/ASR QA round 2: the VAT figure needs Finansrapport, each POS shortcut needs the right for its page, and a role without any block (Indkøb) gets a short note with links to its modules instead of an empty page.
 @session_start();
 $s_id = session_id();
+ob_start();
 
 global $sprog_id;
 
-$css = "../css/dashboard.css?v=1";
+$css = "../css/dashboard.css?v=7";
 print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
 include ("../includes/connect.php");
-# get superUsers
-$qtxt = "SELECT brugernavn FROM brugere";
-$result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-$superUsers = array();
-while ($row = db_fetch_array($result)) {
-    $superUsers[] = $row['brugernavn'];
-}
 # Get database name of current online user
 $qtxt = "SELECT db FROM online WHERE session_id='$s_id' limit 1";
 $db = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
-# Get list of active users
-$superUsersPlaceholders = implode("','", $superUsers);
-$qtxt = "SELECT brugernavn, logtime FROM online WHERE db='$db' AND brugernavn NOT IN ('$superUsersPlaceholders')";
-$online_people = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-# Get amount of active users
-$timestamp = (int) date("U") - (60*60);
-$qtxt = "SELECT count(brugernavn) FROM online WHERE db='$db' AND logtime > '$timestamp' AND revisor is not true AND brugernavn NOT IN ('$superUsersPlaceholders')";
-$online_people_amount = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
-
-$newssnippet = get_settings_value("nyhed", "dashboard", "");
-
+$permission_key = 'any';
 include ("../includes/online.php");
 include ("../includes/stdFunc/dkDecimal.php");
+include_once("../includes/notifications.php");
+include_once("dashboardIncludes/dashData.php");
+include_once(__DIR__ . "/dashboardIncludes/unpaidInvoices.php");
+include_once("dashboardIncludes/roleReview.php");
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
 $row = db_fetch_array($query);
-
 $box1 = (int)$row['box1'];
 $box2 = (int)$row['box2'];
 $box3 = (int)$row['box3'];
 $box4 = (int)$row['box4'];
-
 $startmaaned = if_isset($box1, 1);
 $startaar = if_isset($box2, 2000);
 $slutmaaned = if_isset($box3, 1);
 $slutaar = if_isset($box4, 2001);
-
 $slutdato=31;
-$regnskabsaar=$row['beskrivelse'];
-
 while (!checkdate($slutmaaned,$slutdato,$slutaar)){
 	$slutdato=$slutdato-1;
 	if ($slutdato<28) break 1;
 }
+$regnstart = sprintf('%04d-%02d-01', $startaar, $startmaaned);
+$regnslut = sprintf('%04d-%02d-%02d', $slutaar, $slutmaaned, $slutdato);
 
-$regnstart = $startaar. "-" . $startmaaned . "-" . '01';
-$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
+if (!isset($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$brugerId = (int) $bruger_id;
+$canEditAccounts = function_exists('perm_can') ? perm_can('settings.finance', 'write') : (substr((string) $rettigheder, 1, 1) === '1');
 
-include ("dashboardIncludes/revenue_graph.php");
-include ("dashboardIncludes/customer_graph.php");
-
-include ("dashboardIncludes/pos_row.php");
-
-
-
-function check_permissions($permarr) {
-	global $rettigheder;
-	$filtered = array_filter($permarr, function ($item) use ($rettigheder) {
-		return (substr($rettigheder, $item, 1) == "1");
-	});
-	return !empty($filtered);
+// The widgets (prototype keys = the old dashboard_toggles names; weekkpi is new and starts from the old revweek).
+$widgetDefaults = array('weekkpi' => 'on', 'revmonth' => 'on', 'revyear' => 'on', 'vatcount' => 'on', 'ordercount' => 'on',
+	'revgraph' => 'on', 'revweek' => 'on', 'customergraph' => 'off', 'varegrp_doughnut' => 'on', 'unpaid_invoices' => 'on');
+// The blocks and their default order (front-page spec §4, §8.2/§8.4); the user's order is one JSON list per user.
+$blockDefaults = array('kpis', 'unpaid_invoices', 'small', 'revgraph', 'customergraph', 'revweek', 'varegrp_doughnut');
+/**
+ * The user's block order: saved list filtered to known blocks, missing blocks inserted at their default position.
+ */
+function dash_order(int $userId, array $defaults): array
+{
+	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'dashboard_layout' and var_name = 'order' and user_id = $userId order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+	$saved = $r ? json_decode((string) $r['var_value'], true) : null;
+	$order = array();
+	if (is_array($saved)) {
+		foreach ($saved as $id) {
+			if (is_string($id) && in_array($id, $defaults, true) && !in_array($id, $order, true)) {
+				$order[] = $id;
+			}
+		}
+	}
+	foreach ($defaults as $i => $id) {
+		if (!in_array($id, $order, true)) {
+			array_splice($order, min($i, count($order)), 0, array($id));
+		}
+	}
+	return $order;
+}
+/**
+ * A widget switch: the user's own choice, else the company's old choice, else the default.
+ */
+function dash_toggle(string $key, int $userId, string $default): bool
+{
+	$k = db_escape_string($key);
+	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'dashboard_toggles' and var_name = '$k' and user_id = $userId order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+	if (!$r && $key === 'weekkpi') {
+		$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'dashboard_toggles' and var_name = 'revweek' and user_id = $userId order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+	}
+	$v = $r ? trim((string) $r['var_value']) : $default;
+	return $v !== 'off';
 }
 
-global $regnaar;
+// Saved at once from the drawer (JSON answers); the shell's older ?hidden= path still works.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($_POST['cookieLanguageId'])) {
+	$ok = hash_equals((string) $_SESSION['csrf_token'], (string) ifset($_POST, 'csrf_token', ''));
+	$res = array('ok' => $ok);
+	if ($ok) {
+		$action = (string) $_POST['action'];
+		if ($action === 'widget' && isset($widgetDefaults[(string) ifset($_POST, 'key', '')])) {
+			update_settings_value(db_escape_string((string) $_POST['key']), 'dashboard_toggles', !empty($_POST['on']) ? 'on' : 'off', 'Dashboard widget (per user)', $brugerId);
+		} elseif ($action === 'hide') {
+			update_settings_value('hide_dash', 'dashboard', !empty($_POST['hidden']) ? 1 : 0, 'Whether the overview is hidden for the user', $brugerId);
+		} elseif ($action === 'order') {
+			$order = json_decode((string) ifset($_POST, 'order', ''), true);
+			$order = is_array($order) ? array_values(array_filter($order, 'is_string')) : array();
+			update_settings_value('order', 'dashboard_layout', db_escape_string(json_encode($order)), 'Dashboard block order (per user)', $brugerId);
+		} elseif ($action === 'reset') {
+			db_modify("delete from settings where var_grp in ('dashboard_toggles', 'dashboard_layout') and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
+			update_settings_value('hide_dash', 'dashboard', 0, 'Whether the overview is hidden for the user', $brugerId);
+		} elseif ($action === 'accounts' && $canEditAccounts) {
+			update_settings_value('kontomin', 'dashboard_values', (int) ifset($_POST, 'kontomin', 0), 'Dashboard revenue accounts from');
+			update_settings_value('kontomaks', 'dashboard_values', (int) ifset($_POST, 'kontomaks', 2000), 'Dashboard revenue accounts to');
+			$res['reload'] = true;
+		} else {
+			$res['ok'] = false;
+		}
+	}
+	ob_end_clean();
+	header('Content-Type: application/json; charset=utf-8');
+	print json_encode($res);
+	exit;
+}
+if (isset($_GET['hidden']) && ($_GET['hidden'] == '1' || $_GET['hidden'] == '0')) {
+	update_settings_value("hide_dash", "dashboard", (int) $_GET['hidden'], "Whether the overview is hidden for the user", $brugerId);
+}
 
-# If the user has finans -> regnskab or finans -> reports level access
- if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
-	$qtxt = "SELECT firmanavn FROM adresser WHERE art='S'";
-	$name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
+$kontomin = (int) get_settings_value("kontomin", "dashboard_values", 0);
+$kontomaks = (int) get_settings_value("kontomaks", "dashboard_values", 2000);
+$hide_dash = get_settings_value("hide_dash", "dashboard", "0", $brugerId) === "1";
+$widgets = array();
+foreach ($widgetDefaults as $k => $def) {
+	$widgets[$k] = dash_toggle($k, $brugerId, $def);
+}
+$vatRegistration = vat_registration();
+// The VAT figure links to the VAT return (finans/rapport.php), so it is shown only to whoever may open Finansrapport.
+if (function_exists('perm_can') && !perm_can('finans.rapporter', 'read')) {
+	$vatRegistration['registered'] = false;
+}
+if (!$vatRegistration['registered']) {
+	$widgets['vatcount'] = false;
+}
+// Who may see which block: the role keys of front-page addendum 4 (derived from the module keys for users without a role),
+// the unpaid card also needs the Debitorkonti/Debitorrapport rights (§5.9.5).
+$dashKey = function (string $id): bool { return !function_exists('perm_can') || perm_can('dashboard.block.' . $id); };
+$blockAccess = array();
+foreach ($blockDefaults as $bid) {
+	$blockAccess[$bid] = $dashKey($bid) && ($bid !== 'unpaid_invoices' || check_permissions(array(6, 12)));
+}
+// Se Oversigt (addendum 4 §2.1): refused once enforcement is on, logged while it only observes.
+if (function_exists('perm_can') && !perm_can('dashboard.view')) {
+	if (perm_enforcement_mode() === 'deny') {
+		perm_refuse('dashboard.view (read)', '/index/dashboard.php');
+	}
+	perm_log_once('would_deny', 'dashboard.view /index/dashboard.php');
+}
+$blockOrder = dash_order($brugerId, $blockDefaults);
 
+$h = function ($s) use ($charset) {
+	return htmlspecialchars((string) $s, ENT_QUOTES, $charset === 'UTF-8' ? 'UTF-8' : 'ISO-8859-1');
+};
+$tx = function ($t) use ($sprog_id) {
+	return findtekst($t, $sprog_id);
+};
+$u8 = function ($s) use ($charset) {
+	return $charset === 'UTF-8' ? (string) $s : mb_convert_encoding((string) $s, 'UTF-8', 'ISO-8859-1');
+};
+// Numbers follow the user's language: 1.234,5 in Danish and Norwegian, 1,234.5 in English.
+$GLOBALS['dashDec'] = ((int) $sprog_id === 2) ? '.' : ',';
+$GLOBALS['dashThou'] = ((int) $sprog_id === 2) ? ',' : '.';
+$money = function ($v) {
+	return number_format(round(abs((float) $v)), 0, $GLOBALS['dashDec'], $GLOBALS['dashThou']) . ' kr';
+};
+
+print "<link rel='stylesheet' href='../css/saldi-theme.css?v=7'>";
+if ((function_exists('perm_can') ? false : !check_permissions(array(3,4))) || is_null($regnaar)) {
 	print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
-
-	# Titlebar
-	print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap'>";
-	print "<h1>".findtekst('2574|Velkommen', $sprog_id)." - $name</h1>";
-  	if (is_null($regnaar)) {
+	if (is_null($regnaar)) {
 		print "<p>".findtekst('2575|Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår', $sprog_id)."</p>";
 	}
-	print "<div style='display: flex; gap: 2em'>";
-	$qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
-	$state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$qtxt = "SELECT id FROM settings WHERE var_name = 'orderXpress' AND var_value='on'";
-	$orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if ($state) {
-		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>".findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
-	} elseif ($orderXpress) {
-		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>".findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
-	}
-
-	print "</div>";
-	print "</div>";
-	// Expiry warning for users without finance access but with inventory access
-	if (check_permissions(array(12))) {
-		$_expiry_warn_days = get_due_date_warning_days($bruger_id);
-		$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, 
-                            COUNT(*) AS batch_count
-		                 FROM batch_kob bk
-		                 WHERE bk.due_date IS NOT NULL AND bk.rest > 0
-		                 AND bk.due_date <= CURRENT_DATE + interval '$_expiry_warn_days days'";
-		$_expiry_r = db_fetch_array(db_select($_expiry_qtxt, __FILE__ . " linje " . __LINE__));
-		if ($_expiry_r && intval($_expiry_r['batch_count']) > 0) {
-			$_exp_items = intval($_expiry_r['item_count']);
-			$_exp_batches = intval($_expiry_r['batch_count']);
-			$_expired_qtxt = "SELECT COUNT(*) FROM batch_kob WHERE due_date IS NOT NULL AND rest > 0 AND due_date < CURRENT_DATE";
-			$_expired_r = db_fetch_array(db_select($_expired_qtxt, __FILE__ . " linje " . __LINE__));
-			$_exp_expired = intval($_expired_r[0]);
-			$_exp_bg = $_exp_expired > 0 ? '#ffcccc' : '#ffffcc';
-			$_exp_border = $_exp_expired > 0 ? '#e00' : '#cc0';
-			$_exp_msg = findtekst('5021|Advarsel', $sprog_id) . ': ';
-			if ($_exp_expired > 0) {
-				$_exp_msg .= $_exp_expired . ' ' . findtekst('5022|batch(er) er udl&oslash;bet', $sprog_id) . '. ';
-			}
-			$_exp_msg .= $_exp_batches . ' ' . findtekst('5023|batch(er) p&aring;', $sprog_id) . ' ' . $_exp_items . ' ' . findtekst('5024|vare(r) udl&oslash;ber inden for', $sprog_id) . ' ' . $_expiry_warn_days . ' ' . findtekst('5025|dage', $sprog_id) . '.';
-			print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; margin-top:1em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.hash='/lager/udlobsrapport.php'\">";
-			print "<b>$_exp_msg</b> " . findtekst('5026|Klik for at se udl&oslash;bsrapporten', $sprog_id) . ".";
-			print "</div>";
-		}
-	}
-
-//	print "<p title='For at få adgang skal du aktivere finansmodulet for brugeren'>Du har ikke adgang til at se virksomhedsoversigten</p>";
 	print "<img src='../img/Saldi_Main_Logo.png' style='position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40%'></img>";
+	print "</div>";
 	exit;
- }
-
-
-print '<script src="../javascript/chart.js"></script>';
-print '<script src="../javascript/apexcharts.js"></script>';
-
-function generateArray() {
-    $result = array();
-    for ($i = 0; $i < 24; $i++) {
-        $key = str_pad($i, 2, '0', STR_PAD_LEFT);
-        $result[$key] = 0;
-    }
-    return $result;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['cookieLanguageId'])) {
-   // Only process dashboard settings if this is NOT a language change request
-   $data = file_get_contents("php://input");
-   update_settings_value("kontomin",         "dashboard_values", if_isset($_POST['kontomin'],          "0"),    "Show the revenue this month per last month");
-   update_settings_value("kontomaks",        "dashboard_values", if_isset($_POST['kontomaks'],         "2000"), "Show the revenue this month per last month");
-   update_settings_value("revweek",          "dashboard_toggles", if_isset($_POST['revweek'],          "off"),  "Show the revenue this week per last week");
-   update_settings_value("revmonth",         "dashboard_toggles", if_isset($_POST['revmonth'],         "off"),  "Show the revenue this month per last month");
-   update_settings_value("revyear",          "dashboard_toggles", if_isset($_POST['revyear'],          "off"),  "Show the revenue this year per last year");
-   update_settings_value("ordercount",       "dashboard_toggles", if_isset($_POST['ordercount'],       "off"),  "Show the amount of orders currently active that are not older than 30 days");
-   update_settings_value("onlineusers",      "dashboard_toggles", if_isset($_POST['onlineusers'],      "off"),  "Show the amount of orders currently active that are not older than 30 days");
-   update_settings_value("revgraph",         "dashboard_toggles", if_isset($_POST['revgraph'],         "off"),  "Show the revenue graph");
-   update_settings_value("customergraph",    "dashboard_toggles", if_isset($_POST['customergraph'],    "off"),  "Sho wthe customer graph per hour");
-   update_settings_value("vatcount",         "dashboard_toggles", if_isset($_POST['vatcount'],         "off"),   "Show the vat");
-   update_settings_value("varegrp_doughnut", "dashboard_toggles", if_isset($_POST['varegrpdoughnut'],  "off"),   "Show the sales of varegrupper in the year in a doughnut");
-}
+$data = dash_data(array('regnstart' => $regnstart, 'regnslut' => $regnslut, 'regnaar' => $regnaar, 'kontomin' => $kontomin, 'kontomaks' => $kontomaks,
+	'sprog_id' => (int) $sprog_id, 'bruger_id' => $brugerId, 'vat' => $vatRegistration));
 
-if (isset($_GET['close_snippet']) && $_GET['close_snippet'] == '1') {
-   update_settings_value("closed_news_snippet", "dashboard", $newssnippet, "The newssnippet that was closed by the user");
-}
-if (isset($_GET['hidden']) && $_GET['hidden'] == '1') {
-   update_settings_value("hide_dash", "dashboard", 1, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
-}
-if (isset($_GET['hidden']) && $_GET['hidden'] == '0') {
-   update_settings_value("hide_dash", "dashboard", 0, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
-}
+// Prototype D ("Som ordrelisten"): flat panels with a grey header band, the KPI strip, tables with share bars. Every block
+// keeps its data, switch, order and access key; the charts are drawn by dashboard.js at the box's real width.
+$num = function ($v, int $dec = 0) {
+	return str_replace('-', '&minus;', number_format((float) $v, $dec, $GLOBALS['dashDec'], $GLOBALS['dashThou']));
+};
+$bigKr = function ($v) use ($num, $tx, $h) {
+	$v = (float) $v;
+	return abs($v) >= 1000000 ? $num($v / 1000000, 2) . ' ' . $h($tx('6997|mio. kr')) : $num(round($v)) . ' kr';
+};
+$delta = function ($d) use ($num) {
+	if ($d === null) {
+		return '';
+	}
+	$up = $d >= 0;
+	return "<span class='db-delta " . ($up ? 'db-up' : 'db-down') . "'><svg class='ic' viewBox='0 0 24 24' aria-hidden='true'><path d='" . ($up ? 'M5 15h14l-7-8z' : 'm11.998 17 7-8h-14z') . "'/></svg>"
+		. "<span class='sr-only'>" . ($up ? '+' : '&minus;') . "</span>" . $num(abs($d), 1) . " %</span>";
+};
+$gone = function (bool $on) {
+	return $on ? '' : ' gone';
+};
+// A block's header band: bold title, grey subtitle, controls on the right.
+$blockHead = function (string $title, string $sub, string $tools) use ($h) {
+	return "<div class='db-h'><h2 class='db-t'>" . $h($title) . ($sub !== '' ? "<span class='db-sub'>" . $h($sub) . "</span>" : '') . "</h2>"
+		. ($tools !== '' ? "<div class='db-tools'>$tools</div>" : '') . "</div>";
+};
+// A KPI cell: label band, the number with its change against last year, a grey note.
+$kpiCell = function (string $key, string $title, string $sub, array $k, string $note, bool $on) use ($h, $bigKr, $delta, $gone) {
+	print "<div class='db-cell" . $gone($on) . "' data-widget='" . $h($key) . "'><div class='db-lbl'>" . $h($title) . ($sub !== '' ? "<small>" . $h($sub) . "</small>" : '') . "</div>"
+		. "<div class='db-val'><span>" . $bigKr($k['value']) . "</span>" . $delta($k['delta']) . "</div>"
+		. ($note !== '' ? "<div class='db-note'>$note</div>" : '') . "</div>";
+};
 
-$kontomin = get_settings_value("kontomin", "dashboard_values", 0);
-$kontomaks = get_settings_value("kontomaks", "dashboard_values", 2000);
+$noRevenue = !array_sum($data['month']['now']) && !array_sum($data['month']['last']);
+$emptyRevenue = "<div class='db-ph'>" . $h($tx('7053|Ingen omsætning endnu')) . "</div>";
+$blocks = array();
 
-$revweek = get_settings_value("revweek", "dashboard_toggles", "on");
-$revmonth = get_settings_value("revmonth", "dashboard_toggles", "on");
-$revyear = get_settings_value("revyear", "dashboard_toggles", "on");
-$ordercount = get_settings_value("ordercount", "dashboard_toggles", "on");
-$onlineusers = get_settings_value("onlineusers", "dashboard_toggles", "off");
-$revgraph = get_settings_value("revgraph", "dashboard_toggles", "on");
-$customergraph = get_settings_value("customergraph", "dashboard_toggles", "off");
-$vat_count = get_settings_value("vatcount", "dashboard_toggles", "on");
-$varegrp_doughnut = get_settings_value("varegrp_doughnut", "dashboard_toggles", "on");
+// Nøgletal: four cells in one panel (addendum 3 §4a)
+$blocks['kpis'] = function () use ($data, $widgets, $tx, $h, $money, $kpiCell) {
+	print "<section class='blk db-sec db-kpis' data-block='kpis' style='--w:1' aria-label='" . $h($tx('2158|Nøgletal')) . "'>";
+	$w = $data['weekkpi'];
+	$diff = $w['value'] - $w['last'];
+	$kpiCell('weekkpi', $tx('6920|Omsætning denne uge'), $tx('6922|ex moms'), $w, $h(sprintf($tx($diff >= 0 ? '6924|%s mere end samme uge sidste år' : '6925|%s mindre end samme uge sidste år'), $money($diff))), $widgets['weekkpi']);
+	$m = $data['revmonth'];
+	$diff = $m['value'] - $m['last'];
+	$kpiCell('revmonth', $tx('6921|Omsætning denne måned'), $tx('6922|ex moms'), $m, $h($money($diff) . ' ' . $tx($diff >= 0 ? '2385|mere end sidste år til dato' : '2386|mindre end sidste år til dato')), $widgets['revmonth']);
+	$y = $data['revyear'];
+	$diff = $y['value'] - $y['last'];
+	$kpiCell('revyear', $tx('2160|Omsætning for året'), $tx('6922|ex moms'), $y, $h($money($diff) . ' ' . $tx($diff >= 0 ? '2385|mere end sidste år til dato' : '2386|mindre end sidste år til dato')), $widgets['revyear']);
+	if ($data['vatcount'] !== null) {
+		$v = $data['vatcount'];
+		$period = date('j.n.', strtotime($v['from'])) . '&ndash;' . date('j.n.Y', strtotime($v['to']));
+		$deadline = date('j.n.Y', strtotime($v['deadline']));
+		$kpiCell('vatcount', $tx('6923|Momsangivelse for perioden'), '', $v, $period . ' &middot; ' . $h(sprintf($tx('6926|Frist %s'), $deadline)) . " &middot; <a href='../finans/rapport.php?rapportart=momsangivelse'>" . $h($tx('6927|Se angivelse')) . "</a>", $widgets['vatcount']);
+	}
+	print "</section>";
+};
 
-$closed_newssnippet = get_settings_value("closed_news_snippet", "dashboard", "");
-$hide_dash = get_settings_value("hide_dash", "dashboard", "0", $user=$bruger_id);
+// Omsætning pr. måned
+$blocks['revgraph'] = function () use ($data, $widgets, $tx, $h, $noRevenue, $emptyRevenue, $gone, $blockHead) {
+	$mo = $data['month'];
+	$tools = $noRevenue ? '' : "<button type='button' class='db-link' id='tblToggle'>" . $h($tx('6944|Vis som tabel')) . "</button>"
+		. "<select class='db-fld' id='cmpSel'><option value='both'>" . $h(sprintf($tx('6946|%s mod %s'), $mo['nowLabel'], $mo['lastLabel'])) . "</option><option value='now'>" . $h(sprintf($tx('6947|Kun %s'), $mo['nowLabel'])) . "</option></select>";
+	print "<section class='blk db-sec" . $gone($widgets['revgraph']) . "' data-widget='revgraph' data-block='revgraph' style='--w:.6667'>"
+		. $blockHead($tx('6928|Omsætning pr. måned'), $tx('6929|ekskl. moms'), $tools) . "<div class='db-b'>"
+		. ($noRevenue ? $emptyRevenue : "<div id='monthView'><div class='db-leg'><span><i class='db-sw sw-now'></i>" . $h($mo['nowLabel']) . "</span>"
+		. "<span id='legLast'><i class='db-sw sw-last'></i>" . $h($mo['lastLabel'] . ' ' . $tx('6948|(sidste år)')) . "</span><span><i class='db-sw sw-best'></i>" . $h($tx('6949|Bedste måned')) . "</span></div>"
+		. "<div class='db-chartbox' id='monthChart'></div></div><div id='monthTbl' hidden></div>") . "</div></section>";
+};
 
-/*
-# Omsætning i et tidsrum
+// Kunder pr. time
+$blocks['customergraph'] = function () use ($widgets, $tx, $h, $gone, $blockHead) {
+	$sel = "<select class='db-fld' id='heatSel'>";
+	foreach (array(30, 7, 90) as $span) {
+		$sel .= "<option value='$span'>" . $h(sprintf($tx('6952|%s dage'), $span)) . "</option>";
+	}
+	$sel .= "</select>";
+	print "<section class='blk db-sec" . $gone($widgets['customergraph']) . "' data-widget='customergraph' data-block='customergraph' style='--w:.3333'>"
+		. $blockHead($tx('6951|Kunder pr. time'), '', $sel) . "<div class='db-b'><div class='db-chartbox' id='heat'></div>"
+		. "<div class='db-ramp'>" . $h($tx('6953|Få')) . "<span></span><i class='q1'></i><i class='q2'></i><i class='q3'></i><i class='q4'></i><i class='q5'></i><i class='q6'></i><i class='q7'></i><span></span>" . $h($tx('6954|Mange')) . "</div></div></section>";
+};
 
-SELECT SUM(T.kredit - T.debet)
-FROM transaktioner T
-WHERE T.transdate >= '2024-01-01'
-AND T.transdate <= '2024-02-01'
-AND T.kontonr < 2000;
-
-# Ufakturerede ordrer
-SELECT count(*) FROM "ordrer" WHERE "status" < '3' AND "ordredate" > '2024-03-09'
-
- */
-
-function formatNumber($number, $dkFormat = true) {
-    global $sprog_id;
-    $suffix = '';
-    if ($number >= 1000 && $number < 1000000) {
-        $number = $number / 1000;
-        $suffix = ' '.findtekst('2166|tusind', $sprog_id);
-    } elseif ($number >= 1000000 && $number < 1000000000) {
-        $number = $number / 1000000;
-        $suffix = ' '.findtekst('2167|millioner', $sprog_id);
-    } elseif ($number >= 1000000000 && $number < 1000000000000) {
-        $number = $number / 1000000000;
-        $suffix = ' '.findtekst('2168|milliarder', $sprog_id);
-    } elseif ($number >= 1000000000000) {
-	$number = $number / 1000000000000;
-        $suffix = ' '.findtekst('2169|billioner', $sprog_id);
-    }
-
-    if ($dkFormat) {
-        return dkDecimal($number, 2) . $suffix;
-    }
-    return $number . $suffix;
-}
-
-function key_value($title, $value, $description="") {
-	print "
-<div style='
-	flex: 1;
-	background-color: #fff;
-	border-radius: 5px;
-	box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
-	padding: 1.4em 2em;
-' class='keynumberbox'>
-	<h4 style='margin: 0; color: #999'>$title</h4>
-	<h2 style='margin: 0'>$value</h2>
-	$description
-</div>
-";
-}
-
-$qtxt = "SELECT firmanavn FROM adresser WHERE art='S'";
-$name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
-
-print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
-
-# Newsbar
-if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) && $newssnippet != '') {
-	print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'dashboard.php?close_snippet=1'\">x</span></div>";
-}
-
-# Expiry warning banner — show if user has inventory access (module 12)
-if (check_permissions(array(12))) {
-	$_expiry_warn_days = get_due_date_warning_days($bruger_id);
-	$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, COUNT(*) AS batch_count
-	                 FROM batch_kob bk
-	                 WHERE bk.due_date IS NOT NULL AND bk.rest > 0
-	                 AND bk.due_date <= CURRENT_DATE + interval '$_expiry_warn_days days'";
-	$_expiry_r = db_fetch_array(db_select($_expiry_qtxt, __FILE__ . " linje " . __LINE__));
-	if ($_expiry_r && intval($_expiry_r['batch_count']) > 0) {
-		$_exp_items = intval($_expiry_r['item_count']);
-		$_exp_batches = intval($_expiry_r['batch_count']);
-		// Count already expired
-		$_expired_qtxt = "SELECT COUNT(*) FROM batch_kob WHERE due_date IS NOT NULL AND rest > 0 AND due_date < CURRENT_DATE";
-		$_expired_r = db_fetch_array(db_select($_expired_qtxt, __FILE__ . " linje " . __LINE__));
-		$_exp_expired = intval($_expired_r[0]);
-
-		$_exp_bg = $_exp_expired > 0 ? '#ffcccc' : '#ffffcc';
-		$_exp_border = $_exp_expired > 0 ? '#e00' : '#cc0';
-		$_exp_msg = findtekst('5021|Advarsel', $sprog_id) . ': ';
-		if ($_exp_expired > 0) {
-			$_exp_msg .= $_exp_expired . ' ' . findtekst('5022|batch(er) er udl&oslash;bet', $sprog_id) . '. ';
+// Omsætning pr. dag
+$blocks['revweek'] = function () use ($data, $widgets, $tx, $h, $noRevenue, $emptyRevenue, $gone, $blockHead) {
+	$wk = $data['weeks']['list'];
+	$sel = '';
+	if (!$noRevenue) {
+		$sel = "<select class='db-fld' id='weekSel'>";
+		foreach ($wk as $wrow) {
+			$sel .= "<option value='" . (int) $wrow['no'] . '-' . (int) $wrow['year'] . "'>" . $h(sprintf($tx('6956|Uge %s'), $wrow['no'])) . "</option>";
 		}
-		$_exp_msg .= $_exp_batches . ' ' . findtekst('5023|batch(er) p&aring;', $sprog_id) . ' ' . $_exp_items . ' ' . findtekst('5024|vare(r) udl&oslash;ber inden for', $sprog_id) . ' ' . $_expiry_warn_days . ' ' . findtekst('5025|dage', $sprog_id) . '.';
-		print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.hash='/lager/udlobsrapport.php'\">";
-		print "<b>$_exp_msg</b> " . findtekst('5026|Klik for at se udl&oslash;bsrapporten', $sprog_id) . ".";
-		print "</div>";
+		$sel .= "</select>";
+	}
+	print "<section class='blk db-sec" . $gone($widgets['revweek']) . "' data-widget='revweek' data-block='revweek' style='--w:.5'>"
+		. $blockHead($tx('6955|Omsætning pr. dag'), $tx('6929|ekskl. moms'), $sel) . "<div class='db-b'>"
+		. ($noRevenue ? $emptyRevenue : "<div class='db-leg'><span><i class='db-sw sw-now'></i><span id='wkNow'>" . $h(sprintf($tx('6957|Uge %s, %s'), $wk[0]['no'], $wk[0]['year'])) . "</span></span>"
+		. "<span><i class='db-sw sw-last'></i><span id='wkLast'>" . $h(sprintf($tx('6958|Samme uge %s'), $wk[0]['lastYear'])) . "</span></span><span><i class='db-sw sw-best'></i>" . $h($tx('6959|Bedste dag')) . "</span></div>"
+		. "<div class='db-chartbox' id='dayChart'></div>") . "</div></section>";
+};
+
+// Omsætning pr. varegruppe: the five largest groups and the rest as a table with share bars
+$blocks['varegrp_doughnut'] = function () use ($data, $widgets, $tx, $h, $num, $gone, $blockHead) {
+	$dn = $data['donut'];
+	// "Se alle" unfolds the list in place (it linked to rapportart=salgsstat, which rapport.php does not know, so it opened Kontokort).
+	$more = $h(sprintf($tx('6962|Se alle %s'), $dn['count']));
+	$tools = $dn['count'] > 5 ? "<button type='button' class='db-link db-vg-more' aria-expanded='false' data-more='$more' data-less='" . $h($tx('7702|Vis færre')) . "'>$more</button>" : '';
+	print "<section class='blk db-sec" . $gone($widgets['varegrp_doughnut']) . "' data-widget='varegrp_doughnut' data-block='varegrp_doughnut' style='--w:.5'>"
+		. $blockHead($tx('6960|Omsætning pr. varegruppe'), $tx('6961|regnskabsåret'), $tools) . "<div class='db-b'>";
+	if (!$dn['items']) {
+		print "<div class='db-ph'>" . $h($tx('7053|Ingen omsætning endnu')) . "</div></div></section>";
+		return;
+	}
+	$top = max(array_map(function ($it) { return (float) $it[1]; }, $dn['items']));
+	print "<table class='dt dt-fixed db-vg'><colgroup><col class='c-name'><col><col class='c-pct'><col class='c-amt'></colgroup>"
+		. "<thead><tr><th>" . $h($tx('429|Varegruppe')) . "</th><th></th><th class='dt-num'>" . $h($tx('6975|Andel')) . "</th><th class='dt-num'>" . $h($tx('1166|Omsætning')) . "</th></tr></thead><tbody>";
+	// Every group is in the table: the five largest always, the rest (vg-x) and the "Øvrige" row (vg-oth) swap when the
+	// table shows them all - when its row has room (dashboard.js fitGroups) or after "Se alle".
+	$rows = $dn['count'] > 5 ? array_merge(array_slice($dn['all'], 0, 5), array_slice($dn['all'], 5), array_slice($dn['items'], 5, 1)) : $dn['items'];
+	foreach ($rows as $i => $it) {
+		$bar = $top > 0 ? round((float) $it[1] / $top * 100, 1) : 0;
+		$cls = $it[2] ? " class='vg-oth'" : ($i >= 5 ? " class='vg-x'" : '');
+		print "<tr$cls><td title='" . $h($it[0]) . "'>" . $h($it[0]) . "</td><td><span class='db-hbar" . ($it[2] ? ' oth' : '') . "' style='width:$bar%'></span></td>"
+			. "<td class='dt-num db-pct'>" . $num($it[1], 1) . " %</td><td class='dt-num'>" . $num(round((float) $it[3])) . "</td></tr>";
+	}
+	print "</tbody><tfoot><tr><td>" . $h($tx('2373|I alt')) . "</td><td></td><td class='dt-num'>" . $num(100, 1) . " %</td><td class='dt-num'>" . $num(round((float) $dn['total'])) . "</td></tr></tfoot></table></div></section>";
+};
+
+// Ubetalte salgsfakturaer (§5.9, addendum 3 §6): the due groups on the left, the oldest invoices on the right
+$unpaid = $blockAccess['unpaid_invoices'] ? dash_unpaid((string) $baseCurrency) : null;
+$blocks['unpaid_invoices'] = function () use ($unpaid, $widgets, $tx, $h, $num, $gone, $blockHead) {
+	if ($unpaid === null) {
+		return;
+	}
+	print "<section class='blk db-sec" . $gone($widgets['unpaid_invoices']) . "' data-widget='unpaid_invoices' data-block='unpaid_invoices' style='--w:1'>"
+		. $blockHead($tx('7032|Ubetalte salgsfakturaer'), $tx('7700|inkl. moms'), '');
+	if (!$unpaid['count']) {
+		print "<div class='db-b'><div class='db-ph db-ok'><svg class='ic' viewBox='0 0 24 24' aria-hidden='true'><path d='m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z'/></svg>" . $h($tx('7047|Ingen ubetalte salgsfakturaer')) . "</div></div></section>";
+		return;
+	}
+	$groups = array('late' => $tx('7035|Forfalden over 15 dage'), 'warn' => $tx('7034|Forfalden 1–15 dage'), 'ok' => $tx('7033|Ikke forfalden'));
+	$count = (int) $unpaid['count'];
+	$stack = '';
+	$rows = '';
+	foreach ($groups as $g => $name) {
+		$sum = (float) $unpaid['groups'][$g]['sum'];
+		if ($sum > 0) {
+			$stack .= "<i class='sw-$g' data-g='$g' style='flex:" . round($sum, 2) . " 1 0'></i>";
+		}
+		$rows .= "<tr data-g='$g' tabindex='0'><td><i class='db-dot sw-$g'></i>" . $h($name) . "</td><td class='dt-num'>" . (int) $unpaid['groups'][$g]['n'] . "</td><td class='dt-num'>" . $num($sum, 2) . "</td></tr>";
+	}
+	print "<div class='db-unp'><div class='db-unp-l'><div class='db-lbl'>" . $h($tx('2373|I alt')) . "</div>"
+		. "<div class='db-val'><span>" . $num($unpaid['total'], 2) . " kr</span><small>" . $h($count === 1 ? $tx('7049|1 faktura') : sprintf($tx('7048|%s fakturaer'), $count)) . "</small></div>"
+		. "<div class='db-stack' aria-hidden='true'>$stack</div>"
+		. "<table class='dt db-grp' id='unpGrp'><thead><tr><th>" . $h($tx('7701|Forfaldsgruppe')) . "</th><th class='dt-num'>" . $h($tx('916|Antal')) . "</th><th class='dt-num'>" . $h($tx('934|Beløb')) . "</th></tr></thead><tbody>$rows</tbody></table></div>";
+	print "<div class='db-unp-r'><table class='dt dt-fixed db-inv' id='unpTbl'><colgroup><col class='c-nr'><col><col class='c-due'><col class='c-amt'><col class='c-st'></colgroup>"
+		. "<thead><tr><th>" . $h($tx('828|Fakturanr.')) . "</th><th>" . $h($tx('35|Kunde')) . "</th><th>" . $h($tx('1070|Forfald')) . "</th><th class='dt-num'>" . $h($tx('934|Beløb')) . "</th><th>" . $h($tx('494|Status')) . "</th></tr></thead><tbody>";
+	foreach ($unpaid['list'] as $i => $o) {   // the oldest of each due group; the first 8 show until a group is picked
+		$over = (int) $o['over'];
+		$age = $over > 0 ? ($over === 1 ? $tx('7063|1 dag over') : sprintf($tx('7042|%s dage over'), $over)) : ($over === 0 ? $tx('7043|forfalder i dag') : ($over === -1 ? $tx('7064|om 1 dag') : sprintf($tx('7044|om %s dage'), -$over)));
+		$href = $h($o['href']);
+		$nr = (string) $o['nr'];
+		$due = substr((string) $o['due'], 0, 10);
+		$due = preg_match('/^\d{4}-\d{2}-\d{2}$/', $due) ? substr($due, 8, 2) . '-' . substr($due, 5, 2) . '-' . substr($due, 0, 4) : $due;
+		print "<tr data-g='" . $h($o['g']) . "' data-href='$href' title='" . $h(sprintf($tx('7065|Åbn %s'), $nr !== '' ? $nr : $o['kunde'])) . "'" . ($nr === '' ? " tabindex='0'" : '') . ($i >= 8 ? ' hidden' : '') . ">"
+			. "<td>" . ($nr !== '' ? "<a href='$href'>" . $h($nr) . "</a>" : '') . "</td><td>" . $h($o['kunde']) . "</td><td>" . $h($due) . "</td>"
+			. "<td class='dt-num'>" . $num($o['amount'], 2) . "</td><td><i class='db-dot sw-" . $h($o['g']) . "'></i><span class='db-age'>" . $h($age) . "</span></td></tr>";
+	}
+	print "</tbody></table><div class='db-unp-f'><a class='db-link' href='../debitor/rapport.php?rapportart=openpost'>" . $h(sprintf($tx('7037|Vis alle (%s)'), $count)) . "</a><span class='db-grow'></span>";
+	if ((float) $unpaid['unapplied'] != 0) {
+		$parts = explode('%s', $tx('7045|Ikke-udlignede indbetalinger og kreditnotaer: %s'), 2);
+		print "<span>" . $h($parts[0]) . "<b>" . $num($unpaid['unapplied'], 2) . " kr</b>" . (isset($parts[1]) ? $h($parts[1]) : '') . "</span>"
+			. "<a class='db-link' href='../debitor/rapport.php?rapportart=openpost'>" . $h($tx('1066|Udlign')) . "</a>";
+	}
+	print "</div></div></div></section>";
+};
+
+// Små tal: ufakturerede ordrer (addendum 3 §7)
+$blocks['small'] = function () use ($data, $widgets, $tx, $h, $num, $gone) {
+	$kr = function ($v) use ($num) {
+		return $num($v, 2) . ' kr';
+	};
+	print "<section class='blk db-sec db-small' data-block='small' style='--w:1' aria-label='" . $h($tx('7059|Små tal')) . "'>";
+	$o = $data['orders'];
+	print "<div class='db-cell" . $gone($widgets['ordercount']) . "' data-widget='ordercount'><div class='db-lbl'>" . $h($tx('2161|Ufakturerede ordrer')) . "<small>" . $h($tx('6922|ex moms')) . "</small></div>"
+		. "<div class='db-val'><span>" . $num((int) $o['count']) . "</span><small>" . $kr($o['sum']) . "</small></div>"
+		. "<ul class='db-kv'><li><span>" . $h($tx('7072|Leveret for over 14 dage siden')) . "</span><b>" . (int) $o['late']['count'] . ' &middot; ' . $kr($o['late']['sum']) . "</b></li>"
+		. ($o['largest'] ? "<li><span>" . $h($tx('7051|Største ufakturerede')) . "</span><b>" . $h($o['largest']['name']) . ' &middot; ' . $kr($o['largest']['sum']) . "</b></li>" : '')
+		. "<li><span>" . $h($tx('7073|Klar til fakturering nu')) . "</span><b>" . (int) $o['ready']['count'] . ' &middot; ' . $kr($o['ready']['sum']) . "</b></li></ul>"
+		. "<div class='db-acts'><a class='btn btn-sm btn-secondary' href='../debitor/ordreliste.php'>" . $h($tx('6967|Gå til ordrer')) . "</a></div></div>";
+	print "</section>";
+};
+
+print "<div class='dash'>";
+role_review_card($brugerId, (int) $sprog_id);
+print "<div class='grid" . ($hide_dash ? ' all-hidden' : '') . "' id='grid'>";
+$shownBlocks = 0;
+foreach ($blockOrder as $bid) {
+	if (isset($blocks[$bid]) && (!isset($blockAccess[$bid]) || $blockAccess[$bid])) {
+		$blocks[$bid]();
+		$shownBlocks++;
 	}
 }
 
-# Titlebar
-print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em; align-items: center;'>";
-print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
-
-print "<div style='display: flex; gap: 2em;'>";
-
-# Regnaar selector
-include "dashboardIncludes/regnaar.php";
-include "dashboardIncludes/language.php";
-print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
-if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
-
-# Kassesystem eller ej
-$qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
-$state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-$qtxt = "SELECT id FROM settings WHERE var_name = 'orderXpress' AND var_value='on'";
-$orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-if ($state) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>".findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
-} elseif ($orderXpress) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>".findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
-} else {
-	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
+// POS shortcuts, as before; each link only for whoever may open its page, and no block when none is left.
+$dashMay = function (string $key, string $level = 'read'): bool { return !function_exists('perm_can') || perm_can($key, $level); };
+$pos = db_fetch_array(db_select("SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'", __FILE__ . " linje " . __LINE__));
+$posLinks = '';
+if ($pos) {
+	if ($dashMay('lager.varer')) $posLinks .= "<a class='btn btn-sm btn-secondary' href='../lager/varer.php?returside=../index/dashboard.php'>" . $h($tx('2584|Åbn vareliste')) . "</a>";
+	if ($dashMay('lager.varer', 'write')) $posLinks .= "<a class='btn btn-sm btn-secondary' href='../lager/varekort.php?returside=../index/dashboard.php'>" . $h($tx('2585|Opret vare')) . "</a>";
+	if ($dashMay('settings.pos')) $posLinks .= "<a class='btn btn-sm btn-secondary' href='../systemdata/posmenuer.php'>" . $h($tx('2586|Menu opsætning')) . "</a>";
+	if ($dashMay('debitor.rapporter')) $posLinks .= "<a class='btn btn-sm btn-secondary' href='../debitor/rapport.php'>" . $h($tx('2587|Åbn rapporter')) . "</a>";
 }
-
-print "</div>";
-print "</div>";
-
-if ($hide_dash === "1" || is_null($regnaar)) {
-	exit;
+if ($posLinks !== '') {
+	print "<section class='blk db-sec db-pos' style='--w:1'>" . $blockHead($tx('2771|POS-muligheder'), '', '') . "<div class='db-b db-links'>" . $posLinks . "</div></section>";
+} elseif (!$shownBlocks) {
+	// No block for this role (e.g. Indkøb): a short note and the user's own modules instead of an empty page.
+	$dashModules = array(
+		array('finans.kassekladde', '../finans/kladdeliste.php', '601|Kassekladde'),
+		array('debitor.ordre', '../debitor/ordreliste.php', '1255|Debitorordre'),
+		array('kreditor.ordre', '../kreditor/ordreliste.php', '1257|Kreditorordre'),
+		array('kreditor.konti', '../kreditor/kreditor.php', '1258|Kreditorkonti'),
+		array('lager.varer', '../lager/lister/vareliste.php', '609|Varer'),
+		array('lager.varemodtagelse', '../lager/modtageliste.php', '182|Varemodtagelse'),
+	);
+	$moduleLinks = '';
+	foreach ($dashModules as $m) {
+		if ($dashMay($m[0])) $moduleLinks .= "<a class='btn btn-sm btn-secondary' href='" . $m[1] . "'>" . $h($tx($m[2])) . "</a>";
+	}
+	print "<section class='blk db-sec db-empty' style='--w:1'>" . $blockHead($tx('2224|Oversigt'), '', '') . "<div class='db-b'>"
+		. "<p style='margin:0 0 12px'>" . $h($tx('7806|Der er ingen nøgletal til din rolle.')) . "</p>"
+		. ($moduleLinks !== '' ? "<div class='db-links'>" . $moduleLinks . "</div>" : '') . "</div></section>";
 }
+print "</div>"; // grid
+print "<div class='db-sec dash-hidden' id='dashHidden'><div class='db-ph'><div><b>" . $h($tx('6993|Oversigten er skjult')) . "</b><br>" . $h($tx('6994|Du kan altid slå den til igen.')) . "<br>"
+	. "<button type='button' class='btn btn-sm btn-secondary' id='showDash'>" . $h($tx('6995|Vis oversigt')) . "</button></div></div></div>";
+print "</div>"; // dash
 
-print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
+// "Rediger oversigt" (opened from the user chip menu): a panel at the top right, like the prototype's popover.
+print "<div class='db-tip' id='tip' role='status' aria-live='polite'></div><div class='scrim' id='scrim'></div>";
+print "<aside class='drawer' id='drawer' role='dialog' aria-modal='true' aria-labelledby='drawerTitle'>"
+	. "<header><h2 id='drawerTitle'>" . $h($tx('5605|Rediger oversigt')) . "</h2>"
+	. "<button type='button' class='btn btn-icon btn-sm' id='drawerClose' title='" . $h($tx('2172|Luk')) . "' aria-label='" . $h($tx('2172|Luk')) . "'><svg class='ic' viewBox='0 0 24 24' aria-hidden='true'><path d='m16.192 6.344-4.243 4.242-4.242-4.242-1.414 1.414L10.535 12l-4.242 4.242 1.414 1.414 4.242-4.242 4.243 4.242 1.414-1.414L13.364 12l4.242-4.242z'/></svg></button></header>"
+	. "<p class='drawer-note'>" . $h($tx('6977|Vælg, hvad du vil se på din forside. Ændringer vises og gemmes med det samme.')) . "</p>"
+	. "<div class='body' id='drawerBody'></div>"
+	. "<footer><span class='saved' id='savedMsg'><svg class='ic' viewBox='0 0 24 24' aria-hidden='true'><path d='m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z'/></svg>" . $h($tx('3322|Gemt')) . "</span>"
+	. "<button type='button' class='btn btn-sm btn-secondary' id='dashReset'>" . $h($tx('5717|Nulstil til standard')) . "</button>"
+	. "<button type='button' class='btn btn-sm btn-secondary' id='drawerDone'>" . $h($tx('6697|Færdig')) . "</button></footer></aside>";
 
-
-# #######################################
-#  Omsætning for ugen
-# #######################################
-if( $revweek === "on") {
-  include("./dashboardIncludes/revenue_week.php");
+// The blocks for the drawer (§8.2/§8.3): id, name, description, the cards inside Nøgletal and Små tal.
+$kpiItems = array(array('weekkpi', $u8($tx('6920|Omsætning denne uge')), ''), array('revmonth', $u8($tx('6921|Omsætning denne måned')), ''), array('revyear', $u8($tx('2160|Omsætning for året')), ''));
+if ($vatRegistration['registered']) {
+	$kpiItems[] = array('vatcount', $u8($tx('520|Momsangivelse')), $u8($tx('6980|Beløb og frist for perioden')));
 }
-
-# #######################################
-#
-#	Samlet for Måneden
-#
-# #######################################
-
-if ($revmonth === "on") {
-	include("./dashboardIncludes/revenue_month.php");
+$blockList = array(
+	array('id' => 'kpis', 'name' => $u8($tx('2158|Nøgletal')), 'desc' => $u8($tx('7061|Omsætning og moms')), 'items' => $kpiItems),
+	array('id' => 'revgraph', 'name' => $u8($tx('6928|Omsætning pr. måned')), 'desc' => $u8($tx('6983|Sammenlignet med sidste år'))),
+	array('id' => 'customergraph', 'name' => $u8($tx('6951|Kunder pr. time')), 'desc' => $u8($tx('6985|Hvornår på ugen der er travlt'))),
+	array('id' => 'revweek', 'name' => $u8($tx('6955|Omsætning pr. dag')), 'desc' => $u8($tx('6984|Ugen dag for dag'))),
+	array('id' => 'varegrp_doughnut', 'name' => $u8($tx('6960|Omsætning pr. varegruppe')), 'desc' => $u8($tx('6986|Fordeling i regnskabsåret'))),
+	array('id' => 'unpaid_invoices', 'name' => $u8($tx('7032|Ubetalte salgsfakturaer')), 'desc' => $u8($tx('7050|Forfaldne beløb og hvilke fakturaer det er'))),
+	array('id' => 'small', 'name' => $u8($tx('7059|Små tal')), 'desc' => $u8($tx('2161|Ufakturerede ordrer')), 'items' => array(
+		array('ordercount', $u8($tx('2161|Ufakturerede ordrer')), $u8($tx('7097|Leverede ordrer, der ikke er faktureret'))))),
+);
+$blockList = array_values(array_filter($blockList, function ($b) use ($blockAccess) { return !isset($blockAccess[$b['id']]) || $blockAccess[$b['id']]; }));
+$unpaidJs = null;
+if ($unpaid !== null && $unpaid['count']) {
+	$unpaidJs = array('groups' => $unpaid['groups'], 'total' => $unpaid['total'], 'count' => $unpaid['count']);
 }
-
-# #######################################
-#
-#	Samlet for året
-#
-# #######################################
-
-if ($revyear === "on") {
-	include("./dashboardIncludes/revenue_year.php");
+// Fiscal months begun by today: later months have no figure yet (no bar, "–" in the tooltip and the table, as the prototype).
+$monthsToDate = 0;
+for ($i = 0; $i < count($data['month']['labels']); $i++) {
+	if (date('Y-m-01', mktime(0, 0, 0, (int) substr($regnstart, 5, 2) + $i, 1, (int) substr($regnstart, 0, 4))) <= date('Y-m-d')) {
+		$monthsToDate++;
+	}
 }
-
-# #######################################
-#
-#	Åbne ordre
-#
-# #######################################
-
-if ($ordercount === "on") {
-	$currentDate = new DateTime();
-
-	$currentDate->sub(new DateInterval('P30D'));
-	$thirtyDaysAgo = $currentDate->format('Y-m-d');
-
-  # Check hurtigfakt
-  if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'",__FILE__ . " linje " . __LINE__))) {
-    $qtxt = "SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status <= 3 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'";
-  } else {
-    $qtxt = "SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status = 2 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'";
-  }
-
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	$data = db_fetch_array($q);
-	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
-	$active_total = formatNumber($data[1]);
-	key_value(findtekst('2378|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2381|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('2382|ufaktureret', $sprog_id)."</span>");
-}
-
-# #######################################
-#
-#	Momsrapport
-#
-# #######################################
-
-if ($vat_count == "on") {
-	include ("dashboardIncludes/vat_func.php");
-	vat_info($regnstart, $regnslut);
-}
-
-# #######################################
-#
-#	Online brugere
-#
-# #######################################
-
-if ($onlineusers === "on") {
-	key_value(findtekst('2379|Aktive medarbejdere', $sprog_id), $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2380|Har været aktive inden for den sidste time', $sprog_id)."</span>");
-}
-
-# Close the contianer div
-print "</div>";
-print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
-
-# #######################################
-#
-#	Omsætningsgraf
-#
-# #######################################
-
-if ($revgraph === "on") {
-	revenue_graph($regnstart, $regnslut);
-}
-if ($customergraph === "on") {
-	customer_graph();
-}
-
-if ($revweek === "on") {
-  include ("dashboardIncludes/weekly_graph.php");
-	weekly_graph($regnstart, $regnslut);
-}
-
-if ($varegrp_doughnut === "on") {
-  include("dashboardIncludes/varegrp_doughnut.php");
-  varegrp_doughnut( $regnstart, $regnslut);
-}
-
-print "</div>";
-print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
-
-$qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
-$state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-if ($state) {
-	pos_row();
-}
-print "</div>";
-print "</div>";
-
-// #######################################
-// Editor Popup
-// #######################################
-
-print "
-<div style='display: none' id='settingpopup'>
-  <!-- Popup Background -->
-  <div onclick=\"document.getElementById('settingpopup').style.display='none'\" style='top: 0; position: fixed; height: 100vh; width: 100vw; background-color: #00000030'></div>
-
-  <!-- Popup Content -->
-  <div style='width: 600px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed;'>
-    <!-- Close Button -->
-    <button onclick=\"document.getElementById('settingpopup').style.display='none'\"
-        style='position: absolute; top: 0.5em; right: 0.5em; border: none; background: transparent; font-size: 1.2em; cursor: pointer; color: #e00;'>&times;</button>
-
-
-    <h3>" . findtekst('2151|Opsæt din oversigt', $sprog_id) . "</h3>
-<form method='post'>
-  <table>
-        <!-- Kontonumre Section -->
-    <tr>
-      <th>".findtekst('2152|Kontonumre', $sprog_id)."</th>
-      <th></th>
-    </tr>
-    <tr>
-          <td>".findtekst('2153|Min.', $sprog_id)." ".strtolower(findtekst('1166|Omsætning', $sprog_id))."</td>
-      <td><input type='text' name='kontomin' value='$kontomin' /></td>
-          <td>".findtekst('2155|Er du i tvivl om dine kontotal?', $sprog_id)."</td>
-    </tr>
-    <tr>
-          <td>".findtekst('2154|Maks.', $sprog_id)." ".strtolower(findtekst('1166|Omsætning', $sprog_id))."</td>
-      <td><input type='text' name='kontomaks' value='$kontomaks' /></td>
-          <td>".findtekst('2156|Se vores guide', $sprog_id)." <a href='https://site.saldi.dk/saldi-manualer/omsaetningstal' target='_blank'>".findtekst('2157|her', $sprog_id)."</a>.</td>
-    </tr>
-
-        <!-- Nøgletal Section -->
-    <tr>
-      <th>".findtekst('2158|Nøgletal', $sprog_id)."</th>
-      <th></th>
-    </tr>
-    <tr>
-          <td>".findtekst('2159|Omsætning for måneden', $sprog_id)."</td>
-          <td><input type='checkbox' name='revmonth' " . ($revmonth === "on" ? "checked" : "") . " /></td>
-    </tr>
-    <tr>
-      <td>".findtekst('2160|Omsætning for året', $sprog_id)."</td>
-          <td><input type='checkbox' name='revyear' " . ($revyear === "on" ? "checked" : "") . " /></td>
-    </tr>
-    <tr>
-          <td>".findtekst('2161|Ufakturerede ordrer', $sprog_id)."</td>
-          <td><input type='checkbox' name='ordercount' " . ($ordercount === "on" ? "checked" : "") . " /></td>
-    </tr>
-    <tr>
-      <td>".findtekst('2379|Aktive medarbejdere', $sprog_id)."</td>
-          <td><input type='checkbox' name='onlineusers' " . ($onlineusers === "on" ? "checked" : "") . " /></td>
-    </tr>
-        <tr>
-          <td>".findtekst('520|Momsangivelse', $sprog_id)."</td>
-          <td><input type='checkbox' name='vatcount' " . ($vat_count === "on" ? "checked" : "") . " /></td>
-        </tr>
-
-        <!-- Grafer Section -->
-    <tr>
-      <th>".findtekst('2162|Grafer', $sprog_id)."</th>
-      <th></th>
-    </tr>
-    <tr>
-          <td>".findtekst('2678|Graf over ugentlig omsætning', $sprog_id)."</td>
-          <td><input type='checkbox' name='revweek' " . ($revweek === "on" ? "checked" : "") . " /></td>
-    </tr>
-    <tr>
-      <td>".findtekst('2163|Omsætningsgraf', $sprog_id)."</td>
-          <td><input type='checkbox' name='revgraph' " . ($revgraph === "on" ? "checked" : "") . " /></td>
-    </tr>
-    <tr>
-      <td>".findtekst('2164|Kundefordeling', $sprog_id)."</td>
-          <td><input type='checkbox' name='customergraph' " . ($customergraph === "on" ? "checked" : "") . " /></td>
-        </tr>
-        <tr>
-          <td>".findtekst('2576|Varegruppeomsætning', $sprog_id)."</td>
-          <td><input type='checkbox' name='varegrpdoughnut' " . ($varegrp_doughnut === "on" ? "checked" : "") . " /></td>
-    </tr>
-  </table>
-  <button type='submit'>".findtekst('3|Gem', $sprog_id)."</button>
-</form>
-  </div>
-</div>
-";
-
-?>
+$locales = array(1 => 'da-DK', 2 => 'en-GB', 3 => 'nb-NO');
+$js = array(
+	'csrf' => $_SESSION['csrf_token'],
+	'locale' => isset($locales[(int) $sprog_id]) ? $locales[(int) $sprog_id] : 'da-DK',
+	'widgets' => $widgets, 'hidden' => $hide_dash, 'blocks' => $blockList, 'order' => $blockOrder, 'defaultOrder' => $blockDefaults,
+	'defaultOff' => array_keys(array_filter($widgetDefaults, function ($v) { return $v === 'off'; })),
+	'month' => !$blockAccess['revgraph'] ? null : array('labels' => array_map($u8, $data['month']['labels']), 'now' => $data['month']['now'], 'last' => $data['month']['last'], 'nowLabel' => $u8($data['month']['nowLabel']), 'lastLabel' => $u8($data['month']['lastLabel']), 'toDate' => $monthsToDate),
+	'weeks' => $blockAccess['revweek'] ? $data['weeks'] + array('dayToDate' => (int) date('N')) : null, 'days' => array_map($u8, $data['days']), 'heat' => $blockAccess['customergraph'] ? $data['heat'] : null, 'heatDefault' => '30',
+	'unpaid' => $unpaidJs,
+	'accounts' => array('kontomin' => $kontomin, 'kontomaks' => $kontomaks, 'canEdit' => $canEditAccounts, 'guide' => 'https://site.saldi.dk/saldi-manualer/omsaetningstal'),
+	'txt' => array(
+		'avgCust' => $u8($tx('6974|Gns. kunder pr. time')), 'at' => $u8($tx('6996|kl.')), 'vsLast' => $u8($tx('6973|mod sidste år')),
+		'showTable' => $u8($tx('6944|Vis som tabel')), 'showGraph' => $u8($tx('6945|Vis som graf')),
+		'week' => $u8($tx('6957|Uge %s, %s')), 'sameWeek' => $u8($tx('6958|Samme uge %s')), 'month' => $u8($tx('1217|Måned')), 'change' => $u8($tx('6976|Ændring')),
+		'mioShort' => $u8($tx('6998|mio.')), 'thousandShort' => $u8($tx('6999|t.')), 'noRevenue' => $u8($tx('7053|Ingen omsætning endnu')),
+		'showDash' => $u8($tx('6978|Vis oversigten')), 'showDashHelp' => $u8($tx('6979|Slå fra, hvis du hellere vil starte på en tom forside')),
+		'accounts' => $u8($tx('6987|Omsætningskonti')), 'companyWide' => $u8($tx('6988|Gælder hele regnskabet')), 'fromAcc' => $u8($tx('6989|Fra kontonr.')), 'toAcc' => $u8($tx('6990|Til kontonr.')),
+		'accountsHelp' => $u8($tx('6991|Bestemmer, hvilke konti der tæller som omsætning i nøgletal og grafer. Er du i tvivl?')), 'seeGuide' => $u8($tx('6992|Se guiden')),
+		'contentOrder' => $u8($tx('7054|Indhold og rækkefølge')), 'dragHint' => $u8($tx('7055|Træk i ⋮⋮ for at flytte')), 'moveLabel' => $u8($tx('7056|Flyt %s. Alt+pil op/ned')),
+		'movedTo' => $u8($tx('7057|%s flyttet til plads %s af %s')), 'shownOf' => $u8($tx('7058|%s af %s vises')), 'showCards' => $u8($tx('7062|Vis kort i %s')),
+		'dueOk' => $u8($tx('7033|Ikke forfalden')), 'dueWarn' => $u8($tx('7034|Forfalden 1–15 dage')), 'dueLate' => $u8($tx('7035|Forfalden over 15 dage')),
+		'amount' => $u8($tx('934|Beløb')), 'count' => $u8($tx('916|Antal')),
+	),
+);
+print "<script>window.SALDI_DASH = " . json_encode($js, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PARTIAL_OUTPUT_ON_ERROR) . ";</script>\n";
+print "<script src='../javascript/dashboard.js?v=8'></script>\n";

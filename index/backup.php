@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head><title>SALDI - backup</title><meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head>
 <?php
-// --------------------------------------/index/backup.php---lap 1.05----------------------------
+// --------------------------------------/index/backup.php---ver 5.1.0----------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,6 +21,7 @@
   @session_start();
   $s_id=session_id();
   include("../includes/connect.php");
+  $permission_key = 'settings.backup'; // 20261002 Sawaneh key renamed per settings redesign §11.1
   include("../includes/online.php");
   include("../includes/db_query.php");
 

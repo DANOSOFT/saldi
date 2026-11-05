@@ -2,7 +2,7 @@
 <?php
   @session_start();
   $s_id=session_id();
- // -------------------includes/luk.php-----lap 3.1.67----2026.09.24------------------
+ // -------------------includes/luk.php-----ver 5.1.0----2026.09.24------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -57,6 +57,7 @@ include(__DIR__ . "/std_func.php");
 include(__DIR__ . "/connect.php");
 require_once __DIR__ . '/stdFunc/unlockRecord.php';
 $kilde = $_GET['kilde'] ?? null;
+$permission_key = 'any';
 if ($kilde!='online.php') {
 	include(__DIR__ . "/online.php");
 }

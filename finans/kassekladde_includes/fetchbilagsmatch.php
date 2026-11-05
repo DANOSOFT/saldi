@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.0.0 --- 2026-10-12 ---
+// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.1.0 --- 2026-10-12 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -21,7 +21,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260507 NTR - Added batch invoice matching
 // 20260721 CL/SZ - Replaced the raw OR-join (amount = OR date =) with a weighted scoring
@@ -54,6 +54,7 @@
 //                The header named the wrong file (kassekladde.php); corrected.
 // 20261012 CL/SZ SD-730 Each match carries its pool row's version (poolMetadataVersion()): since SST-777 docPool.php refuses an
 //                   attach without it, so "Match valgte" attached nothing.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
     // Start buffering
     ob_start();
@@ -61,6 +62,7 @@
     @session_start();
     $s_id=session_id();
     include("../../includes/connect.php");
+    $permission_key = 'finans.kassekladde';
     include("../../includes/online.php");
     require_once __DIR__ . "/../../includes/docsIncludes/poolArchive.php";
     require_once __DIR__ . "/../../includes/docsIncludes/poolMetadata.php";

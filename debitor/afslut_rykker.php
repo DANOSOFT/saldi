@@ -1,6 +1,6 @@
 <?php #topkode_start
 
-// -----------------------debitor/afslut_rykker.php-----lap 2.1.0--2009.10.12-------
+// -----------------------debitor/afslut_rykker.php-----ver 5.1.0--2009.10.12-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,6 +25,7 @@ $topniveau=NULL;
 $rykker_id=array();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/openpost.php");

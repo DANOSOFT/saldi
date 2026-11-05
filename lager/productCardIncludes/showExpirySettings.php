@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productCardIncludes/showExpirySettings.php --- patch 4.2.0 --- 2026-04-16 ---
+// --- lager/productCardIncludes/showExpirySettings.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Expiry date settings section on item card.
 // Shows toggle for has_due_date and input for default_shelf_life_days.
@@ -31,6 +31,7 @@
 //                  by the field-visibility panel), so the old hr separator
 //                  inside the 'Diverse' box is gone. Label/field colspans
 //                  aligned with the other sections (2/4).
+// 20261104 CL/ASR The Batch oversigt button is shown only to users who may open the batch overview, which moved to Varerapport (right 15, lager.rapporter).
 global $has_due_date, $default_shelf_life_days;
 
 $has_due_date_checked = ($has_due_date == 'on') ? 'checked' : '';
@@ -56,7 +57,7 @@ print "</td></tr>\n";
 // Show "View batches" button if item has ID (is saved)
 // Preserve return path so Back on batch_oversigt comes back here (with upstream returside intact)
 global $id, $stockItem;
-if ($id && $stockItem) {
+if ($id && $stockItem && batch_reports_allowed()) {
 	$_back = "varekort.php?id=$id";
 	if (!empty($returside)) {
 		$_back .= "&returside=" . urlencode($returside);

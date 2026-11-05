@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolCaptureReport.php --- ver 5.0.0 --- 2026-10-21 ---
+// --- includes/docsIncludes/poolCaptureReport.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 //                The company and the user come from the session, never from the request (SST-776).
 // 20261021 CL/SZ SD-722 (CodeRabbit) A new report's id is this user's report of this document (poolCaptureReportId()); by the content hash alone,
 //                a document without a hash took the id of another document's report, and "deliver" sent that one.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id = session_id();
@@ -36,6 +37,7 @@ $s_id = session_id();
 $bg = 'nix';
 $header = 'nix';
 $modulnr = 0;
+$permission_key = 'finans.kassekladde|debitor.ordre|kreditor.ordre|debitor.konti|kreditor.konti'; // 20261023 ASR Merge into redesign: modulnr 0 is no key; the viewer (documents.php) that shows the report uses these keys
 $webservice = true; // online.php answers an expired session with a return instead of its html box
 ob_start(); // online.php writes html, which must not end up in the JSON answer
 include(__DIR__ . '/../connect.php');

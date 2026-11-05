@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/stockLog.php---------lap 3.9.4---2020-07-22	-----
+// ----------/lager/stockLog.php---------ver 5.1.0---2020-07-22	-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@ $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

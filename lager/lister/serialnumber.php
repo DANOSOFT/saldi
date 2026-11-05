@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/serialnumber.php --- patch 5.0.0 --- 2026-07-10 ---
+// ---- lager/lister/serialnumber.php --- ver 5.1.0 --- 2026-09-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2026 Danosoft.ApS
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
@@ -36,6 +36,7 @@
 // 20260929 CL/NTR Cancelling the rename prompt no longer opens the rename confirmation.
 // 20260929 CL/NTR Replaced addslashes() with json_encode() (+ htmlspecialchars() in onclick attributes) for JS string literals, so translated text cannot break out of the script or attribute context.
 // 20260930 CL/NTR JS string literals are built with jsString() from std_func: legacy (non-UTF8) text is converted to UTF-8 part by part and the output stays ASCII.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id = session_id();
@@ -48,6 +49,7 @@ $title = "Serienr.";
 
 include ("../../includes/std_func.php");
 include ("../../includes/connect.php");
+$permission_key = 'lager.varer';
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
 

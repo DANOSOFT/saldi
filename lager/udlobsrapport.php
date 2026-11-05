@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/udlobsrapport.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- lager/udlobsrapport.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,13 +26,21 @@
 // 20260930 LOE SST-836 The report has menu entries now, so it takes its return page from the link
 //                  that opened it and offers the per-item batch overview from the item number.
 // 20261011 CL/ASR Notice with link to batch_udfyld.php when batches in stock lack expiry date/batch number.
+// 20261104 CL/ASR Moved to Varerapport (owner, 4 Nov 2026): the page needs right 15 and the key lager.rapporter (read) instead of right 12 (Debitorrapport); it only reads data.
+//                 The link to batch_udfyld.php is shown only to users who may change batches (write on Varer).
+// 20261104 CL/ASR Eksporter CSV sends the CSV alone: the page's output before it (the page head, the header and the filter) is buffered and discarded.
 
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
-$modulnr = 12;
+$modulnr = 15; // Varerapport (was 12, Debitorrapport; owner, 4 Nov 2026)
+$permission_key = 'lager.rapporter';
 
 global $menu;
+
+// The CSV export sends its own headers: everything printed before it (includes/online.php's page head, the header and the
+// filter below) is buffered and discarded there.
+if (!empty($_GET['csv'])) ob_start();
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -101,7 +109,9 @@ if ($menu == 'T') {
 // Stock received before batch/expiry handling was turned on has no expiry date and is left out below
 if (!$export_csv && ($mangler = batch_missing_info_count())) {
 	print "<div style='background:#fff7e6;border-left:4px solid #b45309;padding:.6em 1em;margin:.4em 0'>";
-	print "$mangler " . batch_txt('missing') . " &nbsp; <a href='batch_udfyld.php?returside=" . urlencode('udlobsrapport.php') . "'>" . batch_txt('fill_now') . "</a></div>";
+	print "$mangler " . batch_txt('missing');
+	if (batch_edit_allowed()) print " &nbsp; <a href='batch_udfyld.php?returside=" . urlencode('udlobsrapport.php') . "'>" . batch_txt('fill_now') . "</a>";
+	print "</div>";
 }
 
 // Filter form
@@ -156,6 +166,7 @@ $warning_days = get_due_date_warning_days($bruger_id);
 
 // CSV export
 if ($export_csv) {
+	while (ob_get_level()) ob_end_clean();
 	header('Content-Type: text/csv; charset=utf-8');
 	header('Content-Disposition: attachment; filename="udlobsrapport_' . date('Y-m-d') . '.csv"');
 	$fp = fopen('php://output', 'w');

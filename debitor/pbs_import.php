@@ -1,5 +1,5 @@
 <?php
-// ------------debitor/import.php------- patch 3.5.8---20135-09-04------
+// ------------debitor/import.php------- ver 5.1.0---22026-09-16------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,7 +18,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2015 DANOSOFT ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 2012-08-22 Tilrettet til leverandørservice
@@ -26,6 +26,7 @@
 // 2013-05-16 Afmelding af leverandørservice#20130516
 // 2015.09.04 Viser kundenavn og viser også detaljer selvom der hverken er til eller framelding.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -33,6 +34,7 @@ $css="../css/standard.css";
 
 $title="Import fra PBS";
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

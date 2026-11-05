@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- patch 4.1.1 --- 2025.03.22 ---
+// --- kreditor/modtag.php --- ver 5.1.0 --- 2026.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2013.08.30 Fejl v. "interne shops" (Rotary) de der blev forsøgt kald til ikke eksisterende url.Søn 20130830
@@ -49,11 +49,13 @@
 //             so box9-only items already relied on this validation (MB-36).
 // 20260917 SZ Guard the box9 lookup above against a missing grupper row (CodeRabbit,
 //             PR #608) - degrades to "not tracked" instead of a PHP warning.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
 
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

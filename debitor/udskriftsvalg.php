@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------debitor/udskriftsvalg.php----------------lap 3.6.9----2017-05-05-------------
+// ----------debitor/udskriftsvalg.php----------------ver 5.1.0----2017-05-05-------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -42,6 +42,7 @@ $css="../css/standard.css";
 
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

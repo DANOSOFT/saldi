@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mysale.php -----patch 4.0.8 ----2023-09-18--------------
+// --- mysale/mysale.php -----ver 5.1.0 ----2026-09-16--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20200617 PHR Design issues
 // 20200702 PHR Looking in 'labels' for 'minpris'
@@ -40,6 +40,7 @@
 // 20230918 PHR Check if db exists 
 // 20260915 CDX/PHR Resolve the shop from a logged-in Saldi session before customer lookup.
 // 20260915 CDX/PHR Customer logout returns to customer-number entry and preserves the staff session.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();
 $s_id=session_id();
@@ -229,6 +230,7 @@ if ($account && !$resetPW) {
 	$qtxt.= "('$s_id','". db_escape_string($account) ."','". db_escape_string($db) ."','". db_escape_string($squser) ."',";
 	$qtxt.= "'0',0,'". date('U') ."',FALSE,'1')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$permission_key = 'any';
 	include ('../includes/online.php');
 
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' and ";

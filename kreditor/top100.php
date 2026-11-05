@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------kreditor/top100.php-------lap 4.1.1------2025-11-12---
+// ----------kreditor/top100.php-------ver 5.1.0------2026-11-03---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,16 +20,18 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20170201	PHR Fjernet fejltekst i bunden.
 // 20190205 PHR $sum=dkdecimal(!isset ($r['totalsum'])) ændret til $sum=if_isset ($r['totalsum']); 
 // 20201121 PHR added valutakurs 
 // 20251112 LOE From debitor/top100
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 13, kreditor.rapporter) instead of the debitor one, so Indkøb opens the page and Salg does not.
 
 @session_start();
 $s_id=session_id();
-$modulnr=12;
+$modulnr=13; // Kreditorrapport (was 12, Debitorrapport)
+$permission_key = 'kreditor.rapporter';
 $title="Top 100";
 
 $css="../css/standard.css";

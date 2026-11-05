@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatusmailer.php--- lap 4.0.7 --- 2024-08-06 ----
+// -----------------lager/lagerstatusmailer.php--- ver 5.1.0 --- 2026-09-30 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,8 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20260930 SS When run from the login, the login's own permission key stays in force (Deny mode refused users without Varer at login).
 
 @session_start();
 $s_id=session_id();
@@ -33,6 +34,7 @@ $kostvalue=0;$lagervalue=0;$salgsvalue=0;
 $dateType = 'levdate';
 
 include("../includes/connect.php");
+if (!isset($permission_key)) $permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

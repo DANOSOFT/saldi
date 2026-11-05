@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----patch 5.0.0 ----2026-03-05--------------
+// --- index/index.php -----ver 5.1.0 ----2026-11-04--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20140321	Tilføjet link til glemt kode
 // 20161104	Div ændringer relateret til bedre sikkerhed
@@ -40,6 +40,7 @@
 // 20250426 LOE Set cookie path to '/' for languageId to make it accessible across all pages on the site; as used in restore file
 // 20260302 LOE Added eye icon to toggle password visibility and added the necessary JavaScript for that functionality.
 // 20260305 PHR Language Id counted one too many
+// 20261104 CL/ASR After a restore (admin/restore.php, ?restored=) the form says the ledger was restored from the backup and from when (texts 7821-7822).
 @session_start();
 
 if (!isset($_SESSION['nonce'])) {
@@ -238,6 +239,18 @@ print "</form>\n";
 print "						<form id=\"login1form\" name=\"login1\" METHOD=\"POST\" ACTION=\"index.php\">\n";
 print "						<input type=\"hidden\" name=\"vent\" value=\"$vent\">\n";
 if (!$fejltxt && file_exists('alert.txt')) $fejltxt=file_get_contents('alert.txt'); 
+if (!$fejltxt && isset($_GET['restored'])) {
+	// Only digits of the backup's time reach the page; anything else gives the sentence without a date.
+	$restoredWhen = '';
+	if (preg_match('/^(\d{4})(\d{2})(\d{2})-?(\d{2})(\d{2})$/', (string) $_GET['restored'], $m)) {
+		$restoredWhen = "$m[3]-$m[2]-$m[1] " . findtekst('7813|kl.', $languageId) . " $m[4]:$m[5]";
+	}
+	$restoredTxt = ($restoredWhen !== '')
+		? str_replace('%s', $restoredWhen, findtekst('7821|Regnskabet er gendannet fra sikkerhedskopien fra %s. Log ind igen.', $languageId))
+		: findtekst('7822|Regnskabet er gendannet fra sikkerhedskopien. Log ind igen.', $languageId);
+	print "<label role=\"status\" class=\"restore-done\" style=\"text-align:center;color:#15803d;\">$restoredTxt</label>\n";
+	print "<label><br></label>\n";
+}
 if ($fejltxt) {
 	print "<label style=\"text-align:center;color:red;\">$fejltxt</label>\n";
 	print "<label><br></label>\n";

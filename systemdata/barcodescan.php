@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/barcodescan.php-----patch 4.1.1 ----2025-04-14-----
+// --------------systemdata/barcodescan.php-----ver 5.1.0 ----2026-11-02-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,90 +21,70 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240828 LOE created this file
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu): opened from Indstillinger > Integrationer > App (Vis QR-kode til app-login) the page had no way back.
+//                 It shows the breadcrumb Indstillinger / Virksomhed / Integrationer / Vis QR-kode til app-login, Tilbage to the App panel and the Virksomhed menu with Integrationer marked; the QR code and its texts are unchanged, their styles only reach the page's own box.
+//                 The login is checked by includes/online.php as on every page, and the code's address is the session's own company ($db), not the first online row with the same user name (another company's, when two share a user name).
 
 session_start();
+$s_id = session_id();
+$title = "QR Code Page";
+$css = "../css/standard.css";
+$permission_key = 'any'; // every logged-in user may show the code, as before
 
 include("../includes/connect.php");
+include("../includes/online.php");
 include("../includes/std_func.php");
-$data = $h4Style= null;
-    if (isset($_SESSION['UserName'])) {
-    
-        $brugernavn= $_SESSION['UserName'];
-    } elseif(isset($brugernavn)){
-        $brugernavn = null;
-    }
+include_once("../includes/settings/layout.php");
 
-    $r = db_fetch_array(db_select("select * from online WHERE brugernavn ='$brugernavn'",__FILE__ . " linje " . __LINE__));
-
-		
- if($r && if_isset($r['session_id'])){
-
-    $db_name = trim($r['db']); //to locate the db used for the email
-    $saldiEmail = "bilag_".$db_name."@".$_SERVER['SERVER_NAME'];
-    $data = $saldiEmail;
-           
- }else{
-    $error = "Invalid user detail";
-    $h4Style = !empty($error) ? 'style="color: red;"' : '';
- }
-
-
-
- ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Page</title>
+$data = $h4Style = $error = null;
+if (!empty($db)) {
+	$data = "bilag_" . $db . "@" . $_SERVER['SERVER_NAME']; // the company's address, for the app
+} else {
+	$error = "Invalid user detail";
+	$h4Style = 'style="color: red;"';
+}
+settings_layout_open(array(
+	'at' => 'barcodescan', 'title' => findtekst('6095|Vis QR-kode til app-login', $sprog_id),
+	'back' => 'settingsSection.php?s=integrations.connections&item=app',
+));
+?>
     <style>
-        body {
+        .bc-page {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f4f4f4;
         }
-        .container {
+        .bc-page .container {
             display: flex;
-            width: 80%;
             max-width: 1200px;
-            margin: 0 auto;
             background-color: #fff;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             padding: 20px;
         }
-        .column {
+        .bc-page .column {
             flex: 1;
             padding: 20px;
         }
-        .barcode-column {
+        .bc-page .barcode-column {
             text-align: center;
             overflow: hidden;
         }
-        .description {
+        .bc-page .description {
             margin-bottom: 20px;
         }
-        h4 {
+        .bc-page h4 {
             color: red;
         }
-        img {
+        .bc-page img {
             width: 300px; /* Adjust image size for the QR Code */
             height: auto;
         }
     </style>
     <!-- QR Code Library -->
     <script language="javascript" type="text/javascript" src="../javascript/qrcode.min.js"></script>
-</head>
-<body>
+    <div class="bc-page">
     <div class="container">
         <div class="column">
             <!-- Left column content -->
@@ -113,14 +93,13 @@ $data = $h4Style= null;
                 if (!empty($error)) {
                     echo htmlspecialchars($error);
                 } else {
-                    echo "Hello " . htmlspecialchars($brugernavn);
+                    echo "Hello " . htmlspecialchars((string) $brugernavn_raw);
                 }
                 ?>
             </h4>
         </div>
         <div class="column barcode-column">
             <!-- Center column with barcode -->
-           
             <!-- Image for QR Code -->
             <img id="qrcode-img" alt="QR Code" />
         </div>
@@ -132,21 +111,19 @@ $data = $h4Style= null;
             </div>
         </div>
     </div>
+    </div>
 
     <script>
         window.onload = function() {
-            var data = "<?php echo $data; ?>"; // PHP variable for data
+            var data = <?php echo json_encode((string) $data); ?>; // PHP variable for data
 
             // Error handling in JavaScript
             var errorMessageElement = document.getElementById("error-message");
 
             if (data) {
-               
-
                 // Generate QR code only if there's data
                 QRCode.toDataURL(data, function (err, url) {
                     if (err) {
-            
                         errorMessageElement.textContent = "Error generating QR code.";
                     } else {
                         // Set the src attribute of the img tag to the generated QR code URL
@@ -159,5 +136,6 @@ $data = $h4Style= null;
             }
         };
     </script>
+<?php settings_layout_close(); ?>
 </body>
 </html>

@@ -59,10 +59,12 @@
 // 20261029 CL/MMR SD-785 The two texts moved to 7650 and 7651, as 7636 is also used by another change.
 //                  The restart link URL-encodes kontotype like kladde_id next to it.
 // 20261103 CL/MMR SST-932 The header bar's table no longer takes the full window height in Safari, which pushed the settlement card out of view and left the page blank.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 ob_start();
 @session_start();
 $s_id = session_id();
+$permission_key = 'finans.kassekladde';
 
 #$css = "../css/standard.css";
 include(__DIR__ . "/../includes/connect.php");

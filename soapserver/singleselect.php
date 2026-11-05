@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/singleselect.php -----ver 3.2.3---- 2011.10.11 ----------
+// #----------------- soapserver/singleselect.php -----ver 5.1.0---- 2011.10.11 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,6 +27,7 @@ function singleselect($string) {
 	$webservice='1';
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
+	$permission_key = 'any';
 	include ("../includes/online.php");
 	$fp=fopen("../temp/soap.log","a");
 	fwrite($fp,"A: ".$singleselect."\n");

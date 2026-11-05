@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------lager/productCardIncludes/stockLog.php---------ver 5.0.0---2026-10-19	-----
+// ----------lager/productCardIncludes/stockLog.php---------ver 5.1.0---2026-11-03	-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 //                Those rows show the date only.
 //                The batch_kob/batch_salg rows (ordre_id = 0, linje_id = 0) a posted stock count writes are hidden, as the count is already shown as the Optælling row.
 //                All timestamps are local wall-clock time (timestamp without time zone): to_timestamp() of regulering.tidspkt read the local time as the database session time zone, so a 23:59:59 count showed after midnight.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id = session_id();
@@ -35,6 +36,7 @@ $css = "../../css/standard.css?v=20";
 
 include("../../includes/std_func.php");
 include("../../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 

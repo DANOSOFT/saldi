@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- patch 4.1.0 --- 2024-05-29 ---
+// --- debitor/ordreliste.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20240529 PHR Block for deleteting invoiced orders
@@ -29,13 +29,41 @@
 // 20261006 CL/LH SST-850: Settings password is verified server-side (checkPassword/settingsUnlocked) and never sent to the browser.
 //                Stored with password_hash(); legacy clear-text values are upgraded on first correct entry. The unlock is bound
 //                to the stored hash, and the endpoints behind the protected pages require it too.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
+// 20261103 CL/ASR QA round 2: the key and level follow the action; changes need write, the booking settings need settings.sales, and the SMTP login and the Vibrant key need write on settings.email and settings.integrations.
+//                 The stored password and API key are no longer sent back to the browser; an empty field keeps them.
 
     @session_start();
     $s_id=session_id();
     $header = "nix";
     $bg = "nix";
     include("../includes/connect.php");
+    // The key and level follow the action (the GET name the booking pages call): booking work is debitor.konti and needs
+    // write when it changes data, the booking settings are Salg settings, and the stored SMTP login and Vibrant key are
+    // secrets, so reading or saving them needs write on E-mail / Integrationer.
+    $rentalWriteActions = array('createBooking', 'deleteBooking', 'updateBooking', 'createItem', 'updateItem', 'deleteItem',
+        'insertClosedDay', 'deleteClosedDay', 'createOrder', 'updateOrder', 'deleteProduct', 'createReservation',
+        'editReservationComment', 'editReservationDates', 'deleteReservation', 'deleteReservationByItem', 'updateRemoteProduct',
+        'updateSettings', 'updateMail', 'updatePayment');
+    $rentalOwnKey = array('updateSettings' => 'settings.sales', 'getMailInfo' => 'settings.email', 'updateMail' => 'settings.email',
+        'getPayment' => 'settings.integrations', 'updatePayment' => 'settings.integrations');
+    $permission_key = 'debitor.konti';
+    foreach ($rentalOwnKey as $rentalAction => $rentalKey) {
+        if (isset($_GET[$rentalAction])) {
+            $permission_key = $rentalKey;
+            break;
+        }
+    }
+    if ($permission_key !== 'debitor.konti' || array_intersect($rentalWriteActions, array_keys($_GET))) {
+        $permission_level = 'write';
+    }
     include("../includes/online.php");
+    // A request that names a settings action and booking work as well needs both keys.
+    if ($permission_key !== 'debitor.konti' && array_diff(array_intersect($rentalWriteActions, array_keys($_GET)), array_keys($rentalOwnKey))) {
+        require_permission('debitor.konti', 'write');
+    }
     include_once("../includes/stdFunc/ensureTableAndColumns.php");
 
     // "Brug adgangskode" (SST-850): true when no password protection applies or this session has
@@ -1270,10 +1298,15 @@
         rentalRequireUnlocked($db);
         $data = json_decode(file_get_contents('php://input'), true);
         $query = db_select("SELECT * FROM rentalmail", __FILE__ . " linje " . __LINE__);
+        $mailUser = db_escape_string((string) ($data["username"] ?? ""));
+        $mailPass = (string) ($data["password"] ?? "");
+        $mailHost = db_escape_string((string) ($data["host"] ?? ""));
         if(db_num_rows($query) > 0){
-            $query = db_modify("UPDATE rentalmail SET username = '$data[username]', password = '$data[password]', host = '$data[host]' WHERE id = 1", __FILE__ . " linje " . __LINE__);
+            // The stored password is never sent to the browser; an empty field keeps it.
+            $passSet = ($mailPass === "") ? "" : ", password = '" . db_escape_string($mailPass) . "'";
+            $query = db_modify("UPDATE rentalmail SET username = '$mailUser'$passSet, host = '$mailHost' WHERE id = 1", __FILE__ . " linje " . __LINE__);
         }else{
-            $query = db_modify("INSERT INTO rentalmail (username, password, host) VALUES ('$data[username]', '$data[password]', '$data[host]')", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("INSERT INTO rentalmail (username, password, host) VALUES ('$mailUser', '" . db_escape_string($mailPass) . "', '$mailHost')", __FILE__ . " linje " . __LINE__);
         }
         if($query){
             echo json_encode("Mail indstillingerne er nu opdateret");
@@ -1286,6 +1319,11 @@
         rentalRequireUnlocked($db);
         $query = db_select("SELECT * FROM rentalmail", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
+        if ($res) {
+            // Only whether a password is stored, never the password itself.
+            $res["has_password"] = ((string) ($res["password"] ?? "")) !== "";
+            $res["password"] = "";
+        }
         echo json_encode($res);
     }
 
@@ -1293,6 +1331,11 @@
         rentalRequireUnlocked($db);
         $query = db_select("SELECT * FROM rentalpayment", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
+        if ($res) {
+            // Only whether an API key is stored, never the key itself.
+            $res["has_apikey"] = ((string) ($res["apikey"] ?? "")) !== "";
+            $res["apikey"] = "";
+        }
         echo json_encode($res);
     }
 
@@ -1300,10 +1343,14 @@
         rentalRequireUnlocked($db);
         $data = json_decode(file_get_contents('php://input'), true);
         $query = db_select("SELECT * FROM rentalpayment", __FILE__ . " linje " . __LINE__);
+        $payKey = (string) ($data["apiKey"] ?? "");
+        $payTerms = db_escape_string((string) ($data["tradeConditions"] ?? ""));
         if(db_num_rows($query) > 0){
-            $query = db_modify("UPDATE rentalpayment SET apikey = '$data[apiKey]', trade_conditions = '$data[tradeConditions]' WHERE id = 1", __FILE__ . " linje " . __LINE__);
+            // An empty API key field keeps the stored key.
+            $keySet = ($payKey === "") ? "" : "apikey = '" . db_escape_string($payKey) . "', ";
+            $query = db_modify("UPDATE rentalpayment SET {$keySet}trade_conditions = '$payTerms' WHERE id = 1", __FILE__ . " linje " . __LINE__);
         }else{
-            $query = db_modify("INSERT INTO rentalpayment (apikey, trade_conditions) VALUES ('$data[apiKey]', '$data[tradeConditions]')", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("INSERT INTO rentalpayment (apikey, trade_conditions) VALUES ('" . db_escape_string($payKey) . "', '$payTerms')", __FILE__ . " linje " . __LINE__);
         }
         if($query){
             echo json_encode("Betalings indstillingerne er nu opdateret");
@@ -1687,7 +1734,7 @@
                 if (!is_numeric($debitorrabatgruppe)) $debitorrabatgruppe=0;
                 if ( !is_numeric($varerabatgruppe)  ) $varerabatgruppe=0;
                 if (!isset($rabat)) $rabat = 0;
-                $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+                $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
                 if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
                     $rabat=$r2['rabat'];
                     $rabatart=$r2['rabatart'];

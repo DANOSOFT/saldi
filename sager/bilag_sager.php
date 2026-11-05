@@ -22,6 +22,7 @@
 // ----------------------------------------------------------------------
 // Tilføjet fase og kategori fra sagstyring
 // 20170303	Tilføjet tilknytning af bilag til kontrolskema i funktion ret_bilag. Søg #20170303
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261103 CL/MMR SD-799 The task names of the forms ("Opgave N") follow the user's language.
 // 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
@@ -29,6 +30,7 @@
 $s_id = session_id();
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');

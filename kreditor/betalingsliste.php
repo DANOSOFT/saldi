@@ -1,5 +1,5 @@
 <?php
-// ---------kreditor/betalingsliste.php-----------------------Patch 4.1.1---2025.11.25---
+// ---------kreditor/betalingsliste.php-----------------------ver 5.1.0---2026.11.03---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,15 +15,17 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 //
 // 20211102 MSC - Implementing new design
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 13, kreditor.rapporter) instead of the debitor one, so Indkøb opens the page and Salg does not.
 
 @session_start();
 $s_id=session_id();
 
-$modulnr=12;
+$modulnr=13; // Kreditorrapport (was 12, Debitorrapport)
+$permission_key = 'kreditor.rapporter';
 $title="Betalingsliste";
 $css="../css/standard.css";
 

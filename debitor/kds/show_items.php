@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___|_\_\
 //
-// ---- payments/vibrant.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- payments/vibrant.php --- ver 5.1.0 --- 2026.10.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240301 PHR Added $printfile and call to saldiprint.php
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261001 SS KDS colours are named color_1, color_2... (one row per setting name).
 
 @session_start();
 $s_id = session_id();
@@ -31,6 +33,7 @@ $s_id = session_id();
 // Include necessary files if not already included
 if (!function_exists('get_settings_value')) {
     include ("../../includes/connect.php");
+    $permission_key = 'debitor.ordre';
     include ("../../includes/online.php");
     include ("../../includes/std_func.php");
     include ("../../includes/stdFunc/dkDecimal.php");
@@ -52,7 +55,7 @@ for ($i = 0; $i < $columns; $i++) {
 $display_style = trim($display_style) . ";";
 
 $colors = array();
-$q = db_select("select var_value from settings where var_name='color' and var_grp='KDS' ORDER BY CAST(SPLIT_PART(var_value, '-', 1) AS INTEGER)", __FILE__ . " linje " . __LINE__);
+$q = db_select("select var_value from settings where var_name like 'color%' and var_grp='KDS' ORDER BY CAST(SPLIT_PART(var_value, '-', 1) AS INTEGER)", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
     $row = explode("-", $r["var_value"]);
     array_push($colors, $row);

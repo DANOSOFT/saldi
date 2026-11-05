@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/multiselect.php -----ver 3.2.3---- 2011.10.11 ----------
+// #----------------- soapserver/multiselect.php -----ver 5.1.0---- 2011.10.11 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,6 +27,7 @@ function multiselect($string) {
 	$webservice='1';
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
+	$permission_key = 'any';
 	include ("../includes/online.php");
 
 	$linje=NULL;

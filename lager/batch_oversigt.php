@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/batch_oversigt.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- lager/batch_oversigt.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,15 +20,19 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Batch overview for a given item. Shows all batches with expiry info.
 // 20261011 CL/ASR Link to batch_udfyld.php and count of batches missing batch number/expiry date.
+// 20261104 CL/ASR Moved to Varerapport (owner, 4 Nov 2026): the page needs right 15 and the key lager.rapporter (read) instead of right 12 (Debitorrapport); it only reads data.
+//                 The button to batch_udfyld.php is shown only to users who may change batches (write on Varer).
+// 20261104 CL/ASR The return page (returside) is a plain page with a simple query string, as in udlobsrapport.php, else Lagerstatus, and it is escaped in the back link.
 
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
-$modulnr = 12;
+$modulnr = 15; // Varerapport (was 12, Debitorrapport; owner, 4 Nov 2026)
+$permission_key = 'lager.rapporter';
 
 global $menu, $bruger_id, $buttonStyle, $topStyle;
 
@@ -39,9 +43,13 @@ include("../includes/topline_settings.php");
 
 $title = findtekst('5004|Batch oversigt', $sprog_id);
 
-if (isset($_GET['returside']) && $_GET['returside']) $returside = $_GET['returside'];
-elseif ($popup) $returside = "../includes/luk.php";
-else $returside = "lagerstatus.php";
+// A plain page in this folder with a simple query string, as udlobsrapport_returside(); anything else (a full URL, a ../ path,
+// markup) falls back, so the value can neither break out of the link nor redirect elsewhere.
+$returside = trim((string) ifset($_GET, 'returside', ''));
+if ($returside === '' || !preg_match('/^[A-Za-z0-9_]+\.php(\?[A-Za-z0-9_=&%.+-]*)?$/', $returside)) {
+	$returside = $popup ? "../includes/luk.php" : "lagerstatus.php";
+}
+$returside = htmlspecialchars($returside, ENT_QUOTES, 'UTF-8');
 
 $vare_id = intval($_GET['vare_id']);
 $query = db_select("select * from varer where id=$vare_id", __FILE__ . " linje " . __LINE__);
@@ -86,7 +94,7 @@ $udfyld = "batch_udfyld.php?vare_id=$vare_id&returside=" . urlencode($self);
 $mangler = batch_missing_info_count($vare_id);
 print "<tr><td colspan='8'>";
 if ($mangler) print "<span style='color:#b45309'>$mangler " . batch_txt('missing') . "</span> &nbsp; ";
-print "<a href='$udfyld'><button type='button' class='LightButton'>" . batch_txt('edit') . "</button></a>";
+if (batch_edit_allowed()) print "<a href='$udfyld'><button type='button' class='LightButton'>" . batch_txt('edit') . "</button></a>";
 print "</td></tr>";
 print "<tr><td><br></td></tr>";
 

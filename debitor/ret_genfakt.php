@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- lap 5.0.0 --- 2025-01-21 ---
+// --- debitor/ret_genfakt.php --- ver 5.1.0 --- 2026-09-16 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 16.08.2012 søg 20120816 - Udskriv_til i rødt hvis stamkort siger pbs og dette ikke er valgt.
@@ -40,6 +40,7 @@
 // 2017.05.30 Betalingsdage sættes til 0 hvis ikke sat. Søg 20170530
 // 20241216 PHR PHP8
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -58,6 +59,7 @@ $title="Ret abonnementsordrer";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");

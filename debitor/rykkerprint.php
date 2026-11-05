@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2019 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20120815 søg 20120815 V. Logoplacering blev ikke fundet v. opslag. 
@@ -32,6 +32,7 @@
 // 20170206	Søger efter teksten inkasso i felt 5 og sender mail til inkassofirma hvis den findes
 // 20170324 PHR Tilføjet id i kald til udskriv.php
 // 20190116 PHR kke nædret noget, blot en datoopdatering da der ligger forskellige versioner fra 2017 på ssl.   
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 @session_start();
 $s_id=session_id();
@@ -47,6 +48,7 @@ $konto_id = explode(";", $kontoliste);
 
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");
@@ -54,6 +56,7 @@ include("../includes/formfunk.php");
 rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$regnaar,0);
 
 # 20120815 næste 8 linjer remmet, bliver vist ikke brigt til noget
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 #$query = db_select("select * from formularer where formular = $formular and art = 1 and beskrivelse = 'LOGO'",__FILE__ . " linje " . __LINE__);
 #if ($row = db_fetch_array($query)) {
 #	$logo_X=$row['xa']*2.86;
