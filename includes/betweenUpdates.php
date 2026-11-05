@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.05
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,8 @@
 //                 Text 7815 (the restore's warning about a backup of another ledger) is reworded; the cached old wording is removed.
 // 20261104 CL/ASR QA round 3: the till account per currency is copied once from the tab list in grupper VK box4 to the settings rows VK/till_account_<currency> per till (includes/opdat_func/migrateTillAccounts.php), so switching the currency on in the till no longer loses it.
 //                 box4 is left as it is, and a till that already has a row for the currency keeps it.
+// 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so it stays the last one.
+//                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -437,31 +439,6 @@ if (!$sawanehMysql) {
 	db_select("select pg_advisory_unlock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
 }
 
-// 20261019 CL/LH MB-73: ordrelinjer.leveret had no default and opret_ordrelinje() never set it, so
-// linjeopdat()'s leveret+n stayed NULL. debitor/ordre.php re-syncs leveret from the delivery records
-// whenever the order is shown (the sum of batch_salg.antal for the line, order and item), but fast
-// invoicing never shows it, so invoiced and credited lines kept leveret NULL.
-// The default is set only while it is still missing, checked in the current tenant's database/schema
-// like the column checks now in includes/opdat_5.0.php. SET DEFAULT is a catalog change only; existing
-// rows are not rewritten.
-$leveretMysql = in_array($db_type, ['mysql', 'mysqli'], true);
-// 20261027 CL/LH MB-73 (review): MariaDB reports a missing default as the text 'NULL', not as NULL.
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'ordrelinjer' AND column_name = 'leveret'";
-$qtxt .= " AND (column_default IS NULL OR column_default = 'NULL')";
-$qtxt .= $leveretMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
-if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE ordrelinjer ALTER COLUMN leveret SET DEFAULT 0", __FILE__ . " linje " . __LINE__);
-}
-// One-time backfill, flagged in settings like the pool_files backfills in opdat_5.0.php: leveret becomes the same
-// batch_salg sum ordre.php shows, for sales, credit note and POS lines that have delivery records. Lines
-// without any (not delivered, text lines) are left as they are, as ordre.php leaves them. Purchase lines are
-// excluded: their receipts are in batch_kob and kreditor/ordre.php keeps their leveret.
-// 20261027 CL/LH MB-73 (review): as one UPDATE this took 4.5 minutes at the first login on a large POS tenant.
-// backfillOrderLineDelivered() runs it in windows of ordrelinjer ids under a try-lock and stops after about a
-// second; later logins carry on from the stored window, and a login that finds the lock taken skips it.
-require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
-backfillOrderLineDelivered($db_type);
-
 // 20261103 CL/ASR QA round 2 (restricted roles): the built-in Kun visning role got read on every key with a legacy position,
 // dangerous ones too, and read on Sikkerhedskopi (settings.backup) let it create a full backup. Its dangerous rows are removed
 // once and the rights strings of its users rendered again. Role rows for keys that have left the registry
@@ -537,6 +514,39 @@ if (!$sawanehMysql) {
 	db_select("select pg_advisory_unlock(hashtext('saldi_roles_migration'))", __FILE__ . " linje " . __LINE__);
 }
 
+// 20261104 CL/ASR Decision 22 (2026-10-09) moved the till account per currency from the tab list in grupper VK box4
+// (index kasse-1, the old POS settings page) to settings VK/till_account_<currency> per till (pos_id), and made box4
+// the "used in the till" flag. Saving that flag ('1'/'0') overwrites a list, so the accounts are copied to the new
+// rows once, under a lock and in one transaction with the flag system/vk_till_accounts_migrated. box4 is not changed:
+// findBoxSale() and posbogfor() read the new rows first and the list only while no row is stored.
+require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
+migrateTillAccounts($db_type);
+
+// 20261019 CL/LH MB-73: ordrelinjer.leveret had no default and opret_ordrelinje() never set it, so
+// linjeopdat()'s leveret+n stayed NULL. debitor/ordre.php re-syncs leveret from the delivery records
+// whenever the order is shown (the sum of batch_salg.antal for the line, order and item), but fast
+// invoicing never shows it, so invoiced and credited lines kept leveret NULL.
+// The default is set only while it is still missing, checked in the current tenant's database/schema
+// like the column checks now in includes/opdat_5.0.php. SET DEFAULT is a catalog change only; existing
+// rows are not rewritten.
+$leveretMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+// 20261027 CL/LH MB-73 (review): MariaDB reports a missing default as the text 'NULL', not as NULL.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'ordrelinjer' AND column_name = 'leveret'";
+$qtxt .= " AND (column_default IS NULL OR column_default = 'NULL')";
+$qtxt .= $leveretMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE ordrelinjer ALTER COLUMN leveret SET DEFAULT 0", __FILE__ . " linje " . __LINE__);
+}
+// One-time backfill, flagged in settings like the pool_files backfills in opdat_5.0.php: leveret becomes the same
+// batch_salg sum ordre.php shows, for sales, credit note and POS lines that have delivery records. Lines
+// without any (not delivered, text lines) are left as they are, as ordre.php leaves them. Purchase lines are
+// excluded: their receipts are in batch_kob and kreditor/ordre.php keeps their leveret.
+// 20261027 CL/LH MB-73 (review): as one UPDATE this took 4.5 minutes at the first login on a large POS tenant.
+// backfillOrderLineDelivered() runs it in windows of ordrelinjer ids under a try-lock and stops after about a
+// second; later logins carry on from the stored window, and a login that finds the lock taken skips it.
+require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
+backfillOrderLineDelivered($db_type);
+
 // 20261102 CL/ASR Self-service signup (signup/*.php, doc/signup.md, written by PS): its tables in the master
 // database and the trial columns on regnskab. Master only (global=true); runs from any tenant's login, so the
 // tables exist before the website's form is pointed at signup/. Serialized with an advisory lock (two logins at
@@ -606,13 +616,5 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb
 		}
 	}
 }
-
-// 20261104 CL/ASR Decision 22 (2026-10-09) moved the till account per currency from the tab list in grupper VK box4
-// (index kasse-1, the old POS settings page) to settings VK/till_account_<currency> per till (pos_id), and made box4
-// the "used in the till" flag. Saving that flag ('1'/'0') overwrites a list, so the accounts are copied to the new
-// rows once, under a lock and in one transaction with the flag system/vk_till_accounts_migrated. box4 is not changed:
-// findBoxSale() and posbogfor() read the new rows first and the list only while no row is stored.
-require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
-migrateTillAccounts($db_type);
 
 ?>
