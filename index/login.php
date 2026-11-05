@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- index/login.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,7 @@
 // 20261029 CDX/NTR Share online log permissions with the web server.
 // 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
+// 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -85,6 +86,12 @@ include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 require_once(__DIR__ . '/../includes/locatorClient.php');
 require_once __DIR__ . '/../includes/sharedFile.php';
+
+// Nobody is logged in yet, so the messages on this page use the language chosen on the login page.
+$languageId = (int) ifset($_COOKIE, 'languageId', 1);
+if ($languageId < 1 || $languageId > 3) {
+	$languageId = 1;
+}
 
 #print "<!--";
 $timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
@@ -301,7 +308,7 @@ if (isset($_POST['regnskab'])) {
 			if (!$mastertel) $mastertel='+45 4690 2208';
 			// Plain text: login() runs fejltxt through sanitize_input(), which strips quotes, < > and & and refuses
 			// more than 80 characters, so the old "Regnskab '<name>' er lukket!<br>..." arrived empty or garbled.
-			$fejltxt="Regnskabet er lukket. Ring $mastertel for genåbning";
+			$fejltxt = sprintf(findtekst('8431|Regnskabet er lukket. Ring %s for genåbning', $languageId), $mastertel);
 			login($regnskab,$brugernavn,$fejltxt);
  			exit;
 		}
@@ -333,7 +340,7 @@ if (isset($_POST['regnskab'])) {
 		<?php
 		exit();
 		}
-		if ($regnskab) $fejltxt="Regnskab $regnskab findes ikke";
+		if ($regnskab) $fejltxt = sprintf(findtekst('8429|Regnskab %s findes ikke', $languageId), $regnskab);
 		login($regnskab,$brugernavn,$fejltxt);
  	}
 } else {
@@ -362,8 +369,6 @@ if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
     $_POST['fortsaet'] = true;
 }
 
-if(isset($_COOKIE['languageId'])) $languageId = $_COOKIE['languageId']; #20220618
-else $languageId = 1;
 #$qtxt = "select id, var_value from settings where var_name = 'languageId'";
 #$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
 #($r['var_value'])? $languageId = $r['var_value'] : $languageId = 1;
@@ -433,9 +438,9 @@ if (isset ($brug_timestamp)) {
 	if ($accepted_ips != null && $accepted_ips != '') {
 		$accepted_ips = explode(',', $accepted_ips);
 		if (!in_array($ip_address, $accepted_ips)) {
-			$fejltxt = "Din IP-adresse er ikke godkendt til at logge ind.";
+			$fejltxt = findtekst('8432|Din IP-adresse er ikke godkendt til at logge ind.', $languageId);
 			echo "<script type='text/javascript'>
-				alert(" . json_encode($fejltxt) . ");
+				alert(" . json_encode(mb_convert_encoding($fejltxt, 'UTF-8', $charset), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");
 					window.location.href = 'index.php';
 				</script>";
 			exit;
@@ -469,7 +474,7 @@ if (isset ($brug_timestamp)) {
 					$regnskabsaar=$r['regnskabsaar'];
 					$ansat_id=$r['ansat_id']*1;
 				} 
-			} elseif ($tmp_kode==$password) $fejltxt="Midlertidig adgangskode udløbet";
+			} elseif ($tmp_kode==$password) $fejltxt = findtekst('8430|Midlertidig adgangskode udløbet', $languageId);
 		}
 	}
 }
@@ -641,11 +646,11 @@ if ($userId) {
 			<input type="hidden" name="timestamp" value="<?= time() ?>">
 			
 			<div class="force-logout-container">
-				<h2 class="force-logout-title">Max antal samtidige brugere (<?= $bruger_max ?>) er overskredet</h2>
+				<h2 class="force-logout-title"><?= sprintf(findtekst('8424|Max antal samtidige brugere (%s) er overskredet', $languageId), $bruger_max) ?></h2>
 				
-				<p class="force-logout-info">Aktive brugere: <?= htmlspecialchars($activeUsers) ?></p>
+				<p class="force-logout-info"><?= findtekst('8425|Aktive brugere:', $languageId) ?> <?= htmlspecialchars($activeUsers) ?></p>
 				
-				<p class="force-logout-info">Vælg en bruger at logge ud:</p>
+				<p class="force-logout-info"><?= findtekst('8426|Vælg en bruger at logge ud:', $languageId) ?></p>
 				<select name="user_to_logout" class="force-logout-select">
 					<?php
 					if($db_type == 'mysql' || $db_type == 'mysqli') {
@@ -670,14 +675,14 @@ if ($userId) {
 							date("H:i:s", strtotime($row['logtime'])) : 
 							date("H:i:s", $row['logtime']);
 						echo '<option value="' . htmlspecialchars($row['brugernavn']) . '">' 
-							. htmlspecialchars($row['brugernavn']) . ' (Sidst aktiv: ' . $last_active . ')</option>';
+							. htmlspecialchars($row['brugernavn']) . ' (' . findtekst('8427|Sidst aktiv', $languageId) . ': ' . $last_active . ')</option>';
 					}
 					?>
 				</select>
 				
 				<div class="force-logout-buttons">
-					<input type="submit" name="force_logout" value="Log ud og fortsæt" class="btn btn-primary">
-					<input type="button" value="Afbryd" onclick="window.location.href='index.php'" class="btn btn-secondary">
+					<input type="submit" name="force_logout" value="<?= htmlspecialchars(findtekst('8428|Log ud og fortsæt', $languageId), ENT_QUOTES, $charset) ?>" class="btn btn-primary">
+					<input type="button" value="<?= htmlspecialchars(findtekst('81|Afbryd', $languageId), ENT_QUOTES, $charset) ?>" onclick="window.location.href='index.php'" class="btn btn-secondary">
 				</div>
 			</div>
 		</form>
@@ -699,7 +704,7 @@ if ($userId) {
 		if ($r = db_fetch_array($q)) {
 			$last_time = $r['logtime'];
 			if (!$fortsaet && (time() - $last_time < 3600)) {
-				online($regnskab, $db, $userId, $brugernavn, $password, $timestamp, $s_id);
+				online($regnskab, $db, $userId, $brugernavn, $password, $timestamp, $s_id, $languageId);
 			} elseif (!$fortsaet) {
 				$qtxt = "DELETE FROM online 
 						WHERE (brugernavn = '$asIs' OR lower(brugernavn) = '$low' OR upper(brugernavn) = '$up') 
@@ -944,17 +949,32 @@ if (!$sag_rettigheder&&$rettigheder) {
 	include("../includes/connect.php");
 	db_modify("delete from online where session_id='$s_id'",__FILE__ . " linje " . __LINE__);
 	include("../includes/std_func.php");
-	$fejltxt='Fejl i brugernavn eller adgangskode';
+	$fejltxt = findtekst('8421|Fejl i brugernavn eller adgangskode', $languageId);
 	login($regnskab,$brugernavn,$fejltxt);
 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
 	exit;
 }
 
-function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
+/**
+ * Ask whether to continue when the user already has an active session, or send a wrong password
+ * back to the login page. Prints the form and ends the request.
+ *
+ * @param string $regnskab   Account name from the login form.
+ * @param string $db         Database of the account.
+ * @param int    $userId     Id of the user in brugere.
+ * @param string $brugernavn Username.
+ * @param string $password   Password from the login form, posted again when the user continues.
+ * @param string $timestamp  Timestamp from the login form.
+ * @param string $s_id       Session id of this login.
+ * @param int    $languageId Language of the texts (1 Danish, 2 English, 3 Norwegian), chosen on the login page.
+ *
+ * @return void
+ */
+function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id,$languageId) {
 	global $charset;
 	global $sqhost,$squser,$sqpass;
 	global $dbuser,$dbpass,$db_type;
-    global $nonce;
+	global $nonce;
 	if (!$dbuser) $dbuser = $squser;
 	if (!$dbpass) $dbpass = $sqpass;
 	if (isset($_POST['vent'])) { #20250325
@@ -964,13 +984,13 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 			echo "<script nonce='{$nonce}'>alert('$message');</script>";
 		
 			echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
-        	exit;
+			exit;
 		}
 		$vent = htmlspecialchars($_POST['vent'], ENT_QUOTES, 'UTF-8'); 
 	}
 
 	if ($db_type=='mysql') {
-	if (!mysql_select_db("$db")) die( "Unable to connect to MySQL"); #20170911
+		if (!mysql_select_db("$db")) die( "Unable to connect to MySQL"); #20170911
 	} else {
 		$connection = db_connect ("'$sqhost'", "'$dbuser'", "'$dbpass'", "'$db'", __FILE__ . " linje " . __LINE__);
 		if (!$connection) die( "Unable to connect to PostgreSQL");
@@ -988,14 +1008,14 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 		print "<INPUT TYPE=\"hidden\" NAME=\"timestamp\" VALUE=\"$timestamp\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"vent\" VALUE=\"$vent\">";
 		print "<table width=50% align=center border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-		print "<tr><td colspan=\"2\" align=\"center\" valign=\"center\"> <big><b>Brugeren <i>$brugernavn</i> er allerede logget ind.</b></big></td></tr>";
-		print "<tr><td colspan=\"2\" align=\"center\"> <big><b>Vil du forts&aelig;tte?</b></big></td></tr>";
+		print "<tr><td colspan=\"2\" align=\"center\" valign=\"center\"> <big><b>" . sprintf(findtekst('8422|Brugeren %s er allerede logget ind.', $languageId), "<i>$brugernavn</i>") . "</b></big></td></tr>";
+		print "<tr><td colspan=\"2\" align=\"center\"> <big><b>" . findtekst('8423|Vil du fortsætte?', $languageId) . "</b></big></td></tr>";
 		print "<tr>";
 		print "<tr><td><br></td></tr>";
 		print "<tr><td><br></td></tr>";
 		print "<tr><td><br></td></tr>";
-		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"afbryd\" VALUE=\"Afbryd\"></td>";
-		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"fortsaet\" VALUE=\"Forts&aelig;t\"></td>";
+		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"afbryd\" VALUE=\"" . htmlspecialchars(findtekst('81|Afbryd', $languageId), ENT_QUOTES, $charset) . "\"></td>";
+		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"fortsaet\" VALUE=\"" . htmlspecialchars(findtekst('1991|Fortsæt', $languageId), ENT_QUOTES, $charset) . "\"></td>";
 		print "</tr>";
 	} else {
 		print "<FORM METHOD=POST NAME=\"login\" ACTION=\"index.php\">";
@@ -1004,7 +1024,7 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 		print "<INPUT TYPE=\"hidden\" NAME=\"password\" VALUE=\"$password\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"timestamp\" VALUE=\"$timestamp\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"vent\" VALUE=\"$vent\">";
-		print "<INPUT TYPE=\"hidden\" NAME=\"fejltxt\" VALUE=\"Fejl i brugernavn eller adgangskode\">";
+		print "<INPUT TYPE=\"hidden\" NAME=\"fejltxt\" VALUE=\"" . htmlspecialchars(findtekst('8421|Fejl i brugernavn eller adgangskode', $languageId), ENT_QUOTES, $charset) . "\">";
 #		print "<tr><td colspan=\"2\" align=\"center\" valign=\"center\"> <big><b>Fejl i brugernavn eller adgangskode</b></big></td></tr>";
 #		print "<tr>";
 #		print "<tr><td><br></td></tr>";
