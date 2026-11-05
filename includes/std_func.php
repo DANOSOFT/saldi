@@ -106,6 +106,7 @@
 //              It now owns the department, employee and project filters those reports share.
 // 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
+//                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1148,6 +1149,7 @@ if (!function_exists('tekstboks')) {
 	function tekstboks($bokstekst, $bokstype = 'advarsel', $boksid = 'boks1', $boksflytbar = 'span', $boksplacering = 'mm')
 	{
 		global $sprog_id;
+		global $charset;
 
 		$boksindhold = "\n<!-- Tekstboks " . $boksid . " - start -->\n";
 
@@ -1217,7 +1219,7 @@ if (!function_exists('tekstboks')) {
 		$boksindhold .= "<p style='font-size: 12pt; text-align:center'>\n";
 		$boksindhold .= "<button type='button' style='width:100px; height:30px'";
 		$boksindhold .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'none';\">";
-		$boksindhold .= htmlspecialchars(findtekst_utf8('2172|Luk', $sprog_id), ENT_QUOTES, 'UTF-8') . "</button>\n";
+		$boksindhold .= htmlspecialchars(findtekst('2172|Luk', $sprog_id), ENT_QUOTES, $charset) . "</button>\n";
 		if ($boksflytbar === 'span') {
 			$boksindhold .= "<br />";
 			$boksindhold .= bokshjoerne($boksid, 'tv', 'span');
@@ -1275,6 +1277,7 @@ if (!function_exists('bokshjoerne')) {
 		 * @note The `onClick` event changes the position of the box with the specified ID to the selected corner when clicked.
 		 */
 		global $sprog_id;
+		global $charset;
 
 		if (!$visning) {
 			return "";
@@ -1284,25 +1287,25 @@ if (!function_exists('bokshjoerne')) {
 			$vertikal_kant = $kant_oppe;
 			$horisontal_kant = $kant_venstre;
 			$tv_tegn = '&#9700;';
-			$popopbesked = findtekst_utf8('8441|Op til venstre', $sprog_id);
+			$popopbesked = findtekst('8441|Op til venstre', $sprog_id);
 		} elseif ($hjoerne == 'th') {
 			$vertikal_kant = $kant_oppe;
 			$horisontal_kant = $kant_hoejre;
 			$tv_tegn = '&#9701;';
-			$popopbesked = findtekst_utf8('8442|Op til højre', $sprog_id);
+			$popopbesked = findtekst('8442|Op til højre', $sprog_id);
 		} elseif ($hjoerne == 'bv') {
 			$vertikal_kant = $kant_nede;
 			$horisontal_kant = $kant_venstre;
 			$tv_tegn = '&#9699;';
-			$popopbesked = findtekst_utf8('8443|Ned til venstre', $sprog_id);
+			$popopbesked = findtekst('8443|Ned til venstre', $sprog_id);
 		} elseif ($hjoerne == 'bh') {
 			$vertikal_kant = $kant_nede;
 			$horisontal_kant = $kant_hoejre;
 			$tv_tegn = '&#9698;';
-			$popopbesked = findtekst_utf8('8444|Ned til højre', $sprog_id);
+			$popopbesked = findtekst('8444|Ned til højre', $sprog_id);
 		}
 
-		$bokshjoerne = "<" . $visning . " title='" . htmlspecialchars($popopbesked, ENT_QUOTES, 'UTF-8') . "'";
+		$bokshjoerne = "<" . $visning . " title='" . htmlspecialchars($popopbesked, ENT_QUOTES, $charset) . "'";
 		$bokshjoerne .= " onClick=\"document.getElementById('" . $boksid . "').style.top = '" . $vertikal_kant . "';";
 		$bokshjoerne .= " document.getElementById('" . $boksid . "').style.left = '" . $horisontal_kant . "'; \">";
 		$bokshjoerne .= $tv_tegn . "</" . $visning . ">\n";
@@ -1401,6 +1404,7 @@ if (!function_exists('infoboks')) {
 		 *                  The symbol's tooltip is in the user's language ($sprog_id, set by includes/online.php).
 		 */
 		global $sprog_id;
+		global $charset;
 
 		$infoboks = "";
 		$infoboks .= tekstboks($infotekst, $infotype, $boksid);
@@ -1408,8 +1412,8 @@ if (!function_exists('infoboks')) {
 			return "";
 		}
 
-		$hjaelpTitel = findtekst_utf8('8445|Hjælpetekst til siden', $sprog_id);
-		$infoboks .= "<" . $visning . " title='" . htmlspecialchars($hjaelpTitel, ENT_QUOTES, 'UTF-8') . "'";
+		$hjaelpTitel = findtekst('8445|Hjælpetekst til siden', $sprog_id);
+		$infoboks .= "<" . $visning . " title='" . htmlspecialchars($hjaelpTitel, ENT_QUOTES, $charset) . "'";
 		$infoboks .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'block'; \">";
 		$infoboks .= $infosymbol . "</" . $visning . ">\n";
 		return $infoboks;

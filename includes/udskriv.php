@@ -54,6 +54,7 @@
 //                The route now follows where the print started (bulk/list/order) instead of the area file,
 //                which only records the list tab the last order was opened from.
 // 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
+//                 The print-batch error is escaped in the page charset.
 
 @session_start();
 $s_id=session_id();
@@ -208,7 +209,7 @@ if ($valg) {
 			);
 		} catch (RuntimeException $error) {
 			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
-			print '<p>' . htmlspecialchars(findtekst_utf8('8446|PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, 'UTF-8') . '</p>';
+			print '<p>' . htmlspecialchars(findtekst('8446|PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, $charset) . '</p>';
 			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
 			exit;
 		}
