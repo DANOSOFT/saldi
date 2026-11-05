@@ -35,6 +35,7 @@
 // 20261104 CL/MMR SST-943 A stopped save also skips the writes made while the slip is drawn (sum, duplicate lines, master_id); vis_liste() gets it as a parameter.
 //                 The list type selector keeps the type the piecework lines are drawn for.
 // 20261105 CL/MMR SST-943 A stopped save also says that amounts and totals are not updated until the slip is saved with a date.
+// 20261105 CL/MMR SST-943 A date that does not exist or is not a date (31-02-2026, 32-13-2026, abc) is refused like a missing date (Morten).
 
 function ret_loen() {
 	global $brugernavn;
@@ -1685,7 +1686,8 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 
 /**
  * Tells whether a Gem or Overfør post of the wage slip form lacks its date (SST-943).
- * An empty field, "0", or a date that reads as 01-01-1970 (what a slip without a date is stored with) counts as missing.
+ * An empty field, "0", a date that reads as 01-01-1970 (what a slip without a date is stored with), and a date that
+ * does not exist or is not a date (loenDatoUgyldig()) count as missing.
  * Afvis, Godkend, Slet and Luk are not checked: they do not save typed values, and the approver cannot type a date.
  *
  * @param array<string, mixed> $post The posted form fields ($_POST).
@@ -1694,7 +1696,45 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 function loenDatoMangler($post) {
 	if (empty($post['gem']) && empty($post['afslut'])) return false;
 	$dato = trim((string)ifset($post, 'loendato', ''));
-	return (!$dato || usdate($dato) == '1970-01-01');
+	return (!$dato || loenDatoUgyldig($dato));
+}
+
+/**
+ * Tells whether a typed wage slip date does not exist or is not a date (SST-943, Morten 2026-11-05).
+ * usdate() never refuses: 31-02-2026 becomes 28-02-2026 and 32-13-2026 or "abc" become today. This reads the
+ * typed text the same way usdate() does (dd-mm-yyyy with - . / or space, dd-mm, ddmm, ddmmyy, ddmmyyyy, or just the
+ * day) and checks that usdate() keeps that day, month and year. The short forms (15, 0311, 03-11-26) still work.
+ * A date that reads as 01-01-1970 (how a slip without a date is stored) also counts as invalid.
+ *
+ * @param string $dato The typed date (already trimmed, not empty).
+ * @return bool True when the date must be refused like a missing date.
+ */
+function loenDatoUgyldig($dato) {
+	if (!preg_match('/^[0-9]+([-.\/ ][0-9]+){0,2}$/', $dato)) return true;
+	$tekst = preg_replace('/[.\/ ]/', '-', $dato);
+	$aar = NULL;
+	$maaned = NULL;
+	if (strpos($tekst, '-') !== false) {
+		$dele = explode('-', $tekst);
+		$dag = (int)$dele[0];
+		if (isset($dele[1]) && $dele[1] !== '') $maaned = (int)$dele[1];
+		if (isset($dele[2]) && $dele[2] !== '') $aar = (int)$dele[2];
+	} elseif (strlen($tekst) <= 2) {
+		$dag = (int)$tekst;
+		$maaned = (int)date('m');
+	} else {
+		$dag = (int)substr($tekst, 0, 2);
+		$maaned = (int)substr($tekst, 2, 2);
+		if (strlen($tekst) > 4) $aar = (int)substr($tekst, 4, strlen($tekst) > 6 ? 4 : 2);
+	}
+	if ($aar !== NULL && $aar < 100) $aar += ($aar < 80) ? 2000 : 1900;
+	$gemt = usdate($dato);
+	if ($gemt == '1970-01-01') return true;
+	list($gAar, $gMaaned, $gDag) = array_map('intval', explode('-', $gemt));
+	if ($dag < 1 || $gDag != $dag) return true;
+	if ($maaned !== NULL && $gMaaned != $maaned) return true;
+	if ($aar !== NULL && $gAar != $aar) return true;
+	return false;
 }
 
 /**
