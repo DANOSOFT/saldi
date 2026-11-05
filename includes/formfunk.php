@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -103,6 +103,7 @@
 // 20261103 CL/SZ SD-754 Order-line fields lager and lagernavn: the lager a line is drawn from, as number and name.
 //                A Shopify web order (one with a web row in shopify_order_links) prints every row by its line id, so a line drawn from two lagre prints both.
 //                The lager name is the current year's LG row, as in kreditor/ordre.php.
+// 20261105 CL/SZ SD-794 review: the employee lookups escape the order's ref, and if($ordre_...) reads the same columns as the value.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -337,7 +338,7 @@ if (!function_exists('skriv')) {
 									$variabel = "bynavn";
 								}
 								$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
-								$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn = '$ref'", __FILE__ . " linje " . __LINE__);
+								$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn = '" . db_escape_string($ref) . "'", __FILE__ . " linje " . __LINE__);
 							}
 							if ($tabel != "formular") {
 								$r2 = db_fetch_array($q2);
@@ -627,9 +628,11 @@ if (!function_exists('find_form_tekst')) {
 							#						$streng[$y]=substr($streng[$y],0,strlen($streng[$y])-1);
 							list($if_tabel, $if_variabel) = explode("_", $streng[$y], 2); #07.10.2007 -->
 							if (substr($if_tabel, 1) == "ordre") {
-								$qtxt = "select $if_variabel from ordrer where id=$id";
+								// the same column names as the value below reads
+								$if_kolonne = array('rykkerdate' => 'fakturadate', 'tlf' => 'phone', 'kundenr' => 'kontonr')[$if_variabel] ?? $if_variabel;
+								$qtxt = "select $if_kolonne from ordrer where id=$id";
 								$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-								$tmp = $r[$if_variabel];
+								$tmp = $r[$if_kolonne];
 								if (!$tmp) { #Variablen er ikke fundet så der skal ikke udskrives noget.
 									$udskriv = 0;
 									$row['beskrivelse'] = "";
@@ -755,7 +758,7 @@ if (!function_exists('find_form_tekst')) {
 						if ($variabel == "by")
 							$variabel = "bynavn";
 						$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
-						$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn='$ref'", __FILE__ . " linje " . __LINE__);
+						$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn='" . db_escape_string($ref) . "'", __FILE__ . " linje " . __LINE__);
 					} elseif ($formular == 11 && ($tabel == "forfalden" || $tabel == "skyldig")) { #20191107 finder forfalden_sum / skyldig_sum på kontokort
 						$opensum = 0;
 						$dd = date("Y-m-d");

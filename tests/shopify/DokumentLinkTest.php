@@ -15,6 +15,7 @@
 // 20261101 CL/SZ SD-752 review: a failing legacy query in the render, a link whose order changed kind.
 // 20261102 CL/SZ SD-794: a query failing during the print publishes no PDF; the retry gets the document; set prices without a valid rebate item and a line without an item still render.
 // 20261103 CL/SZ SD-794: the layout fields $ansat_by and $ordre_kundenr print their value.
+// 20261105 CL/SZ SD-794 review: also with an apostrophe in the order's ref, and if($ordre_kundenr).
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -121,13 +122,13 @@ final class DokumentLinkTest extends TestCase
 
     /** @return array{id: int, fakturanr: string} a posted invoice (DO) or credit note (DK), 2 x 125.00 at 25% VAT */
     #[DataProvider('layoutFields')]
-    public function testLayoutFieldsTheEditorsOfferPrintTheirValue(string $side, string $field, string $expected): void
+    public function testLayoutFieldsTheEditorsOfferPrintTheirValue(string $side, string $field, string $expected, string $ref = 'Lay Out'): void
     {
         $doc = $this->posted();
         $token = self::token($this->link($doc['id']));
         $conn = ShopifyEnv::connect(self::$db);
-        ShopifyEnv::rows($conn, "UPDATE ordrer SET ref = 'Lay Out' WHERE id = $1", [$doc['id']]);
-        ShopifyEnv::rows($conn, "INSERT INTO ansatte (konto_id, navn, bynavn) SELECT id, 'Lay Out', 'Ansatby' FROM adresser WHERE art = 'S' LIMIT 1");
+        ShopifyEnv::rows($conn, "UPDATE ordrer SET ref = $2 WHERE id = $1", [$doc['id'], $ref]);
+        ShopifyEnv::rows($conn, "INSERT INTO ansatte (konto_id, navn, bynavn) SELECT id, $1, 'Ansatby' FROM adresser WHERE art = 'S' LIMIT 1", [$ref]);
         if ($side === '!S') {
             // that row only prints on a page break, so the invoice needs more lines than a page holds
             ShopifyEnv::rows($conn, "INSERT INTO ordrelinjer (ordre_id, vare_id, varenr, beskrivelse, enhed, posnr, antal, pris, rabat, momssats, procent)"
@@ -139,7 +140,7 @@ final class DokumentLinkTest extends TestCase
             $response = $this->get("?t=$token");
         } finally {
             ShopifyEnv::rows($conn, 'DELETE FROM formularer WHERE id = $1', [(int)$row['id']]);
-            ShopifyEnv::rows($conn, "DELETE FROM ansatte WHERE navn = 'Lay Out'");
+            ShopifyEnv::rows($conn, 'DELETE FROM ansatte WHERE navn = $1', [$ref]);
             pg_close($conn);
         }
 
@@ -154,10 +155,13 @@ final class DokumentLinkTest extends TestCase
         }
     }
 
-    /** @return array<string, array{string, string, string}> */
+    /** @return array<string, array{0: string, 1: string, 2: string, 3?: string}> */
     public static function layoutFields(): array
     {
         return [
+            'ansat by, a ref with an apostrophe' => ['A', '$ansat_by', 'Ansatby', "Lay O'Out"],
+            'ansat by, a ref with an apostrophe, in the page header' => ['!S', '$ansat_by', 'Ansatby', "Lay O'Out"],
+            'if(kundenr)' => ['A', 'if($ordre_kundenr)Kunde $ordre_kundenr', '91950'],
             'ansat by' => ['A', '$ansat_by', 'Ansatby'],
             'kundenr' => ['A', '$ordre_kundenr', '91950'],
             'ansat by, in the page header' => ['!S', '$ansat_by', 'Ansatby'],
