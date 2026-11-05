@@ -216,6 +216,7 @@
 // 20261019 ASR Delvis bogføring: kolonnen "Godkendt" (flueben pr. linje, gemmes straks via kassekladde_includes/approveLines.php) og knappen "Bogfør godkendte" (kassekladde_includes/postApproved.php): godkendte bilag flyttes til en ny kladde, som bogføres med den eksisterende motor; resten bliver stående her. Kolonnen kan slås fra under tandhjulet.
 // 20261023 ASR Review (#817): a 'Gem' that changes an approved line's content clears its approval (compared with the stored row, so an unchanged save keeps it); 'Bogfør godkendte' is disabled while an approval is still being saved; lines with bilag 0 are grouped per line in the confirm dialog, as the server does; texts moved to 5560-5570.
 // 20261105 CDX/NTR Preserve save safeguards on merge and abort partial posting when the save removes approvals; use tekstKeys.
+// 20261105 CDX/NTR Document approval controls, asynchronous saving, and the partial-post confirmation.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -5286,9 +5287,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<script>
 		(function(){
 			var T=$kkGodkTxt,pending=0; // pending = approval saves still in flight; the server reads godkendt from the database, so 'Bogfør godkendte' waits for them
+			/** @returns {HTMLInputElement[]} Approval checkboxes for stored lines shown in this journal. */
 			function boxes(){return Array.prototype.slice.call(document.querySelectorAll('input.kk-godkendt'));}
+			/** Disable partial posting until every asynchronous approval save has settled. @returns {void} */
 			function postBtn(){var b=document.getElementById('kkPostApproved');if(b)b.disabled=pending>0;}
+			/** Refresh the approved-line counter and select-all state after a toggle or failed save. @returns {void} */
 			function count(){var all=boxes(),n=0;all.forEach(function(b){if(b.checked)n++;});var el=document.getElementById('kk-godkendt-status');if(!el){var bal=document.getElementById('kk-balance-status');if(!bal)return;el=document.createElement('span');el.id='kk-godkendt-status';el.style.cssText='display:inline-block;white-space:nowrap;background:#fff;border:1px solid #ddd;border-radius:4px;padding:2px 10px;font-size:12px;margin-left:4px;';bal.parentNode.insertBefore(el,bal.nextSibling);}el.textContent=T.label+': '+n+' '+T.of+' '+all.length;var m=document.getElementById('kkGodkendtAlle');if(m){m.checked=all.length>0&&n===all.length;m.indeterminate=n>0&&n<all.length;}}
+			/**
+			 * Persist approval changes and restore the previous checkbox state when the request fails.
+			 * @param {string[]} ids Stored line ids belonging to this journal.
+			 * @param {boolean} on Requested approval state.
+			 * @param {function(): void} revert Restore the pre-request selection on failure.
+			 * @returns {void}
+			 */
 			function save(ids,on,revert){var fd=new FormData();fd.append('kladde_id',T.kladde);fd.append('ids',ids.join(','));fd.append('godkendt',on?'1':'0');pending++;postBtn();
 				fetch('kassekladde_includes/approveLines.php',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){if(!d||!d.ok){throw new Error(d&&d.error?d.error:'');}}).catch(function(){revert();count();alert(T.failed);}).then(function(){pending--;postBtn();});}
 			document.addEventListener('change',function(e){
@@ -5296,6 +5307,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if(t&&t.id==='kkGodkendtAlle'){var on=t.checked,ids=[],prev=[];boxes().forEach(function(b){prev.push([b,b.checked]);b.checked=on;ids.push(b.getAttribute('data-line-id'));});count();if(ids.length)save(ids,on,function(){prev.forEach(function(p){p[0].checked=p[1];});});return;}
 				if(t&&t.classList.contains('kk-godkendt')){var was=!t.checked;count();save([t.getAttribute('data-line-id')],t.checked,function(){t.checked=was;});}
 			});
+			/**
+			 * Confirm only fully approved voucher groups, using the server's per-line rule for bilag zero.
+			 * @returns {boolean} Whether the form may submit after pending saves and mixed vouchers are checked.
+			 */
 			window.kkConfirmPostApproved=function(){if(pending>0)return false;var all=boxes(),groups={},n=0;all.forEach(function(b){var bl=parseInt(b.getAttribute('data-bilag'),10);var k=bl>0?String(bl):('l'+b.getAttribute('data-line-id'));if(!groups[k])groups[k]={t:0,a:0};groups[k].t++;if(b.checked){groups[k].a++;n++;}}); // bilag 0 = one group per line, as kk_post_approved() does
 				if(!n){alert(T.none);return false;}
 				var mixed=[],bilag=0,lines=0;Object.keys(groups).forEach(function(k){var g=groups[k];if(g.a===g.t){bilag++;lines+=g.t;}else if(g.a>0){mixed.push(k);}});

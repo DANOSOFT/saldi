@@ -1,5 +1,6 @@
 <?php
 // 20261105 CDX/NTR Cover doc-pool and settlement approval invalidation and partial posting after a normalising save.
+// 20261105 CDX/NTR Document fixture setup, data providers, and approval regression expectations.
 
 namespace JournalApprovalFixture;
 
@@ -10,6 +11,12 @@ use PHPUnit\Framework\TestCase;
 final class JournalApprovalTest extends TestCase {
     private PDO $db;
 
+    /**
+     * Create fresh temporary tables and load real helpers without running page request handlers.
+     *
+     * The default SQLite connection needs no app bootstrap; SALDI_CHAR_DSN selects an isolated
+     * PostgreSQL connection to exercise the same SQL with production column types.
+     */
     protected function setUp(): void {
         $dsn = getenv('SALDI_CHAR_DSN') ?: 'sqlite::memory:';
         if (str_starts_with($dsn, 'sqlite:') && !in_array('sqlite', PDO::getAvailableDrivers(), true)) {
@@ -50,16 +57,34 @@ final class JournalApprovalTest extends TestCase {
         $GLOBALS['regnaar'] = 2026;
     }
 
+    /**
+     * Roll back an unfinished fixture transaction and release request/database state between cases.
+     */
     protected function tearDown(): void {
         if (isset($this->db) && $this->db->inTransaction()) $this->db->rollBack();
         $_POST = array();
         unset($GLOBALS['journalApprovalDb']);
     }
 
+    /**
+     * Read one fixture line, including approval metadata, for before/after comparisons.
+     *
+     * @param int $id Fixture line id.
+     * @return array<string, mixed> Stored posting values and approval metadata.
+     */
     private function row(int $id = 10): array {
         return $this->db->query('SELECT * FROM kassekladde WHERE id = ' . $id)->fetch(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Posting-field edits that must invalidate approval without touching the other journal line.
+     *
+     * @return array<string, array{
+     *     0: array<string, string>, Submitted document-pool form fields.
+     *     1: string, Column whose saved value is asserted.
+     *     2: string, Expected saved value as text.
+     * }>
+     */
     public static function edits(): array {
         return [
             'amount' => [['sum' => '999,00'], 'amount', '999'],
@@ -83,6 +108,13 @@ final class JournalApprovalTest extends TestCase {
         ];
     }
 
+    /**
+     * Exercise the shared Save/Attach helper and require all approval metadata to clear on an edit.
+     *
+     * @param array<string, string> $post Submitted field changes.
+     * @param string $column Column checked after saving.
+     * @param string $expected Expected saved value.
+     */
     #[DataProvider('edits')]
     public function testDocPoolEditClearsOnlyTheChangedLinesApproval(array $post, string $column, string $expected): void {
         $_POST = $post;
@@ -95,6 +127,9 @@ final class JournalApprovalTest extends TestCase {
         self::assertTrue(kk_godkendt_bool($this->row(11)['godkendt']));
     }
 
+    /**
+     * Repeat an unchanged full-field save to verify neither shared entry path revokes approval.
+     */
     public function testUnchangedSaveAndAttachKeepApproval(): void {
         $_POST = ['bilagsnr' => '1', 'dato' => '01-11-2026', 'beskrivelse' => 'Bank', 'debet' => '1610',
             'kredit' => '5800', 'sum' => '80,00', 'afd' => '0', 'medarb' => '0', 'projekt' => '0',
@@ -105,6 +140,9 @@ final class JournalApprovalTest extends TestCase {
         self::assertSame($before, $this->row());
     }
 
+    /**
+     * Treat absent optional values and their normalised zero/empty form values as the same approval.
+     */
     public function testUnchangedSaveWithAbsentOptionalFieldsKeepsApproval(): void {
         $this->db->exec('UPDATE kassekladde SET afd=NULL, projekt=NULL, momsfri=NULL WHERE id=10');
         $_POST = ['afd' => '0', 'projekt' => '0', 'momsfri' => ''];
@@ -112,8 +150,18 @@ final class JournalApprovalTest extends TestCase {
         self::assertTrue(kk_godkendt_bool($this->row()['godkendt']));
     }
 
+    /**
+     * Exercise invoice assignment with an existing counterparty and with a blank account side.
+     *
+     * @return array<int, array{0: bool}> Whether the counterparty already exists on the line.
+     */
     public static function settlements(): array { return [[true], [false]]; }
 
+    /**
+     * Assign a verified open invoice and require approval metadata to clear in the same transaction.
+     *
+     * @param bool $existing Whether settlement must retain or fill the counterparty.
+     */
     #[DataProvider('settlements')]
     public function testSettlementClearsApprovalForExistingAndNewCounterparty(bool $existing): void {
         $this->db->exec("UPDATE kassekladde SET debet=" . ($existing ? '3000' : '0') . ", d_type='" . ($existing ? 'K' : 'F') . "' WHERE id=10;
@@ -127,6 +175,9 @@ final class JournalApprovalTest extends TestCase {
         self::assertNull($this->row()['godkendt_tid']);
     }
 
+    /**
+     * Reject a stale snapshot before writing, preserving the complete line and closing the transaction.
+     */
     public function testRejectedSettlementPreservesApprovalAndRollsBack(): void {
         $before = $this->row();
         try {
@@ -139,8 +190,18 @@ final class JournalApprovalTest extends TestCase {
         self::assertFalse($this->db->inTransaction());
     }
 
+    /**
+     * Save-time normalisations that can revoke approval before the partial-post move.
+     *
+     * @return array<int, array{0: string}> Posting column changed by the simulated save.
+     */
     public static function normalisations(): array { return [['debetvat'], ['bilag']]; }
 
+    /**
+     * Simulate a save revoking one approval and ensure no otherwise-approved subset is moved.
+     *
+     * @param string $column Posting field normalised by the save.
+     */
     #[DataProvider('normalisations')]
     public function testLostApprovalStopsEveryMoveBeforeJournalCreation(string $column): void {
         $expected = kk_approved_line_ids(1);
@@ -153,6 +214,9 @@ final class JournalApprovalTest extends TestCase {
         self::assertFalse($this->db->inTransaction());
     }
 
+    /**
+     * Verify the normal path moves both approved vouchers and commits the partial-post audit entry.
+     */
     public function testUnchangedApprovedLinesMoveAndAuditTogether(): void {
         $result = kk_post_approved(1, 'bookkeeper', 1, kk_approved_line_ids(1));
         self::assertSame('', $result['error']);
@@ -162,6 +226,9 @@ final class JournalApprovalTest extends TestCase {
         self::assertSame('journal.partial_post', $this->db->query('SELECT action FROM approval_audit')->fetchColumn());
     }
 
+    /**
+     * Keep an entire mixed voucher in the source while moving the independently approved voucher.
+     */
     public function testMixedVoucherStaysWhileApprovedVoucherMoves(): void {
         $this->db->exec("INSERT INTO kassekladde (id,kladde_id,bilag,godkendt) VALUES (12,1,1,FALSE)");
         $result = kk_post_approved(1, 'bookkeeper', 1, kk_approved_line_ids(1));
@@ -170,6 +237,9 @@ final class JournalApprovalTest extends TestCase {
         self::assertSame(1, (int)$this->row()['kladde_id']);
     }
 
+    /**
+     * Treat each unnumbered line as its own voucher group when selecting approved rows.
+     */
     public function testZeroVoucherLinesAreIndependentGroups(): void {
         $this->db->exec('UPDATE kassekladde SET bilag=0; UPDATE kassekladde SET godkendt=FALSE WHERE id=11');
         $result = kk_post_approved(1, 'bookkeeper', 1);
@@ -177,6 +247,9 @@ final class JournalApprovalTest extends TestCase {
         self::assertSame([], $result['mixed']);
     }
 
+    /**
+     * Inject a failed move after journal creation and require both the new journal and audit to roll back.
+     */
     public function testFailedMoveRollsBackNewJournal(): void {
         $GLOBALS['journalApprovalFailMove'] = true;
         $result = kk_post_approved(1, 'bookkeeper', 1);
@@ -186,6 +259,9 @@ final class JournalApprovalTest extends TestCase {
         self::assertSame(0, (int)$this->db->query('SELECT count(*) FROM approval_audit')->fetchColumn());
     }
 
+    /**
+     * Refuse closed journals and empty approval sets without leaking the transaction to later work.
+     */
     public function testClosedAndEmptyJournalsLeaveNoTransactionOpen(): void {
         self::assertSame('not_open', kk_post_approved(2, 'bookkeeper', 1)['error']);
         self::assertFalse($this->db->inTransaction());
