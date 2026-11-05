@@ -38,6 +38,10 @@
 //                A zero in a numeric column is no value there, while a zero in the description is not a zero at all.
 // 20261028 LOE SST-888 (review) the query that asks whether a proposed number is taken is never given a value
 //                the column cannot hold: asking made the save die on a value-out-of-range error instead of refusing it.
+// 20261105 CL/MMR SST-934 Voucher number 0 can be used.
+//                 The save has always read an empty Bilag field as '0', and since SST-817 a line saved with that '0' is given the journal's next number, so a typed 0 was replaced too.
+//                 A typed 0, and a line already saved under 0, now travel through the save as '00' (bilagFromInput()).
+//                 Only an empty field is numbered (bilagIsUnnumbered()), and the page shows a saved 0 as 0 (bilagFieldValue()).
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -430,4 +434,52 @@ function bilagSafeNumber($raw, $kladde_id, $regnstart = null, $regnslut = null) 
 	# replaced = true is the caller's signal to refuse the line instead of writing it
 	if (!bilagNumberFits((string)$result['bilag'])) $result['bilag'] = 0;
 	return $result;
+}
+
+/**
+ * The Bilag field as the save carries it (SST-934).
+ *
+ * kassekladde.php has always read an empty field as '0': kontroller() keeps that '0' and does not give the line
+ * the number of the line above, and opdater() gives it the journal's next number (SST-817). A zero the user typed
+ * is carried as '00' instead. That is numeric and 0 like any zero, but PHP does not read it as empty, so
+ * kontroller() leaves it as it is and opdater() saves the line under 0.
+ *
+ * @param mixed $raw The posted field.
+ * @return string '0' for an empty field, '00' for a zero ("0", "00", ...), otherwise the trimmed value.
+ */
+function bilagFromInput($raw) {
+	$value = is_scalar($raw) ? trim((string)$raw) : '';
+	if ($value === '') return '0';
+	if (preg_match('/^0+$/', $value)) return '00';
+	return $value;
+}
+
+/**
+ * Whether a staged line has no voucher number, so the save gives it the journal's next one (SST-817).
+ *
+ * @param mixed $staged tmpkassekl.bilag (text), as bilagFromInput() and kontroller() leave it.
+ * @return bool False for a zero the user typed ('00') and for a positive number; true for an empty field
+ *              ('', NULL or the '0' an empty field is read as) and for anything else (a negative or not a number).
+ */
+function bilagIsUnnumbered($staged) {
+	$value = is_scalar($staged) ? trim((string)$staged) : '';
+	if (preg_match('/^0{2,}$/', $value)) return false;
+	return !(ctype_digit($value) && ltrim($value, '0') !== '');
+}
+
+/**
+ * The value the Bilag field shows.
+ *
+ * A saved line's 0 is a voucher number, and showing it as an empty field would let the next save number the
+ * line (SST-934). A staged '0' is an empty field, so it stays empty.
+ *
+ * @param mixed $value The line's bilag: kassekladde.bilag for a saved line, tmpkassekl.bilag for a staged one.
+ * @param bool  $saved True when the value is kassekladde.bilag, false when it is tmpkassekl.bilag.
+ * @return string '' for a line without a number, '0' for a zero, otherwise the value as it is.
+ */
+function bilagFieldValue($value, $saved) {
+	$value = is_scalar($value) ? trim((string)$value) : '';
+	if ($value === '') return '';
+	if (preg_match('/^0+$/', $value)) return ($saved || $value !== '0') ? '0' : '';
+	return $value;
 }
