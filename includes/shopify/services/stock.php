@@ -279,7 +279,7 @@ function shopify_stock_drain_dirty(array $rt, int $limit = 500): array {
  * shopify_stock_state and the dirty set move on only once it has. Items with an open move barrier
  * keep their mark, and the job yields while only those are left. The exception is a stored call with such an item: it
  * waits with its key and input, and as a shop has one pending call, the shop's other items wait with it, until the
- * barrier ends (SHOPIFY_BARRIER_MINUTES at most). Gated on stock_publish_enabled and stock_baseline_at;
+ * no barrier is open on its items (each lasts at most SHOPIFY_BARRIER_MINUTES). Gated on stock_publish_enabled and stock_baseline_at;
  * a closed gate yields while marks wait, so they go out once publishing starts.
  *
  * @param array{heartbeat?: callable(): bool, graphql?: array<string, mixed>} $rt
