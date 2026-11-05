@@ -217,6 +217,7 @@
 // 20261023 ASR Review (#817): a 'Gem' that changes an approved line's content clears its approval (compared with the stored row, so an unchanged save keeps it); 'Bogfør godkendte' is disabled while an approval is still being saved; lines with bilag 0 are grouped per line in the confirm dialog, as the server does; texts moved to 5560-5570.
 // 20261105 CDX/NTR Preserve save safeguards on merge and abort partial posting when the save removes approvals; use tekstKeys.
 // 20261105 CDX/NTR Document approval controls, asynchronous saving, and the partial-post confirmation.
+// 20261105 CDX/NTR Reserve the approval column in every supplementary blank row so journal inputs stay aligned.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -4165,8 +4166,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	for ($z = $x; $z <= $y; $z++) {
 		print "<tr>";
 
-		if ($vis_bilag && !$fejl)
+		if ($vis_bilag && !$fejl) {
 			print "<td><br></td>\n";
+		}
+		if (!empty($kk_godkendt_col)) {
+			print "<td class='kk-col-godkendt'></td>";
+		}
 
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;' name='bila$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
@@ -4179,20 +4184,25 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$z", '', $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_afd)
+		if ($vis_afd) {
 			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_ansat)
+		}
+		if ($vis_ansat) {
 			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_projekt)
+		}
+		if ($vis_projekt) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='proj$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_valuta)
+		}
+		if ($vis_valuta) {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:40px;' name='valu$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
+		}
 		#print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=forf$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 		#print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=b_id$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_forfald) {
 			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
-			if ($vis_bet_id)
+			if ($vis_bet_id) {
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
+			}
 		}
 		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
 			print "<td></td>\n";

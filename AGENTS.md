@@ -28,6 +28,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | Cast or escape every outside value in SQL; HTML/JS output escaped (`jsString()`); `returside` through `nav_sanitize_returside()` | review, CodeRabbit | [convention_sql_escaping](doc/ai/convention_sql_escaping.md) |
 | SQL runs on Postgres, MySQL and MariaDB; `information_schema` queries filter on the tenant's schema | review, CodeRabbit | CI only runs Postgres |
 | A fix reaches every copy of the code it fixes (grid copies, the several save paths) | review | |
+| The approval column reserves a cell in saved and all new journal rows; unsaved rows have no approval checkbox | PHPUnit `JournalBlankRowLayoutTest`; Playwright voucher precision | |
 | Shared runtime files use a trusted shared group and parent directories; migrate foreign-owned files as an administrator, never grant access to all users | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | Shared-runtime diagnostics go to the server log without invoking request error handlers; a fallback write must not abort journal deletion | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | A symlinked migration root must target private application storage; refuse world-writable or sticky targets before changing their ownership or permissions | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
