@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/config.php --- ver 5.1.0 --- 2026.11.01
+// --- includes/shopify/config.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 20261022 Sawaneh SD-735 review: secret saves serialized per secret, brand compared lower-cased on both sides.
 // 20261027 Sawaneh SD-736: saving a shop ensures the stock triggers in the same transaction, once the schema is current.
 // 20261101 CL/SS SD-792: shopify_customer_number() allocates under create_debtor()'s lock, from a configurable start.
+// 20261104 CL/SZ SD-756: a shop with stock_publish_enabled needs stock_capture_enabled.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/schema.php';
@@ -93,6 +94,10 @@ function shopify_save_shop(array $shop): int {
 		$values['domain'] = strtolower((string)$values['domain']);
 	}
 	$existing = shopify_shop($key);
+	$flag = fn(string $name): bool => in_array($values[$name] ?? $existing[$name] ?? false, array(true, 't', 'true', 'on', 1, '1'), true);
+	if ($flag('stock_publish_enabled') && !$flag('stock_capture_enabled')) {
+		throw new ShopifyConfigError('a shop that publishes stock must capture it: without stock_capture_enabled no change reaches the push');
+	}
 	if ($existing) {
 		if ($values !== array()) {
 			shopify_config_update('shopify_shops', $values, 'shop_key = $%d', array($key), true);

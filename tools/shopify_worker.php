@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.03
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 // 20261103 CL/SS SD-802: the price.window handler (prices and offers to every shop with prices_enabled).
 // 20261103 CL/SS SD-801: the status handlers fulfillment.upsert, order.status, order.cancelled and refund.upsert.
 // 20261103 CL/SS SD-743: the order.import handler (paid web order created, delivered and posted).
+// 20261104 CL/SZ SD-756: the stock producer drains shopify_stock_dirty after the events; the stock.push handler.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -73,6 +74,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/services/prices.php';
 	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
+	require_once __DIR__ . '/../includes/shopify/services/stock.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
 	shopify_worker_register($registry, 'webhook.health', 'shopify_webhook_health_job');
@@ -80,6 +82,10 @@ function shopify_worker_wiring(): array {
 		// SD-748: received webhook events become queued jobs, ORDERS_PAID first.
 		'events' => function (array $ctx, float $deadline): array {
 			return shopify_promote_events();
+		},
+		// SD-756: stock changes become one stock.push per shop (run-loop step 4).
+		'stock' => function (array $ctx, float $deadline): array {
+			return shopify_stock_drain_dirty($ctx);
 		},
 	);
 	shopify_worker_register($registry, 'mail.alert', 'shopify_mail_alert_job');
@@ -99,6 +105,9 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'refund.upsert', 'shopify_refund_upsert_job');
 	// SD-743: a paid web order is created, delivered and posted.
 	shopify_worker_register($registry, 'order.import', 'shopify_order_import_job');
+	// SD-756: absolute stock per location to each shop.
+	shopify_worker_register($registry, 'stock.push', fn(array $job, float $deadline, callable $heartbeat): array
+		=> shopify_stock_push(array('heartbeat' => $heartbeat), $job, $deadline));
 	return array('registry' => $registry, 'producers' => $producers);
 }
 
