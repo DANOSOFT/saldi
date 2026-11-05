@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -135,6 +135,7 @@
 //                settings, not only when box4 is set.
 // 20261029 CL/SS SD-741 A saved item (also a confirmed rename) is queued for the Shopify catalogue after the commit.
 // 20261103 CL/SS SD-802 'Tillad oversalg' (varer.oversalg), shown and saved only where the Shopify schema added the column.
+// 20261105 CL/SS SD-809 A part added from Vareopslag queues the set for the Shopify catalogue, so a new set doesn't wait for its next save.
 //
 ob_start(); //Starts output buffering
 
@@ -298,6 +299,8 @@ if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0) {
     if ($vare_id != $id) {
         db_modify("insert into styklister (vare_id, indgaar_i, antal) values ('$vare_id', '$id', '1')", __FILE__ . " linje " . __LINE__);
         db_modify("update varer set delvare =  'on' where id = '$vare_id'", __FILE__ . " linje " . __LINE__);
+        include_once(__DIR__ . '/../includes/shopify/services/catalogue.php');
+        shopify_catalogue_item_saved((int) $id);
     }
 }
 if ($delete_category = (int) if_isset($_GET, NULL, 'delete_category')) {

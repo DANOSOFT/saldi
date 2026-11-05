@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/catalogue.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/services/catalogue.php --- ver 5.1.0 --- 2026.11.05
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,18 +25,30 @@
 // Catalogue (WP05-1, K07, K11): Saldi items go to the primary shop as Shopify drafts (productSet)
 // and are linked in the other shops by exact SKU. An update sends only the Saldi-owned fields
 // (name, SKU, EAN, cost, weight, tracking, oversell policy, taxable, saldi.vat_rate), never what
-// HML owns. Webshop items = open items of a stock group (VG box8), as the legacy sync. Dark until
+// HML owns. Webshop items = open items of a stock group (VG box8) and open sets, as the legacy sync. Dark until
 // products_enabled; pages only queue jobs, after their commit.
 //
 // 20261029 CL/SS SD-741: created (WP05-1).
 // 20261104 CL/SS SD-802: the VAT rate is the one POS adds (find_pris()), so a group with box7 NULL is taxable.
+// 20261105 CL/SS SD-809: sets are webshop items too, whatever their own group, so they get a product and a price.
+// 20261105 CL/SS SD-809 review: only a set intake sells as one (samlevare on, one BOM level), not any item with a bill of materials.
+// 20261105 CL/SS SD-809 review: an item card save also checks the sets the item is a component of.
 
 require_once __DIR__ . '/../client.php';
 require_once __DIR__ . '/../errors.php';
 require_once __DIR__ . '/../links.php';
 
-/** Which items are webshop items: open, in a stock item group. Aliases v = varer, g = its VG group. */
-const SHOPIFY_CATALOGUE_MANAGED = "coalesce(g.box8, '') NOT IN ('', '0') AND coalesce(v.lukket, '') NOT IN ('1', 'on')";
+/**
+ * Which items are webshop items: open items in a stock item group, and open sets, whatever their own group, as the legacy
+ * sync reaches a set through its parts. A set is what order intake sells as one (shopify_intake_item()): samlevare on, a bill
+ * of materials, and no component that has one itself (one BOM level). The one owner: the catalogue scan, the seed, the item
+ * state read and the price sync all use it. Aliases v = varer, g = its VG group.
+ */
+const SHOPIFY_CATALOGUE_MANAGED = "(coalesce(g.box8, '') NOT IN ('', '0')
+		OR (trim(coalesce(v.samlevare, '')) = 'on'
+			AND EXISTS (SELECT 1 FROM styklister shopify_bom WHERE shopify_bom.indgaar_i = v.id)
+			AND NOT EXISTS (SELECT 1 FROM styklister shopify_bom JOIN styklister shopify_sub ON shopify_sub.indgaar_i = shopify_bom.vare_id WHERE shopify_bom.indgaar_i = v.id)))
+	AND coalesce(v.lukket, '') NOT IN ('1', 'on')";
 
 const SHOPIFY_CATALOGUE_PRODUCT = 'fragment catalogueProduct on Product {
 	id handle variantsCount { count }
@@ -132,7 +144,8 @@ function shopify_catalogue_owned(array $item, array $vat): array {
 			'taxable' => $vat['rate'] > 0,
 			'inventoryItem' => array(
 				'cost' => sprintf('%.2f', (float)($item['kostpris'] ?? 0)),
-				'tracked' => true, // webshop items are stock items (SHOPIFY_CATALOGUE_MANAGED)
+				// a stock item's quantity, or a set's complete sets per location (SD-757): untracked, Shopify would sell without limit
+				'tracked' => true,
 				'measurement' => array('weight' => array('value' => round($weight, 3), 'unit' => $unit === 'g' ? 'GRAMS' : 'KILOGRAMS')),
 			),
 		),
@@ -609,6 +622,10 @@ function shopify_catalogue_enqueue(array $shop, int $vareId, array $correlation 
  * card's commit; queues a webshop item for every shop with products_enabled, $delaySeconds from now so
  * what the page still writes after its commit is in. Never calls Shopify and never stops the
  * page: a failure is written to the PHP error log.
+ *
+ * Whether a set is a webshop item depends on its components too (one BOM level), so the sets the
+ * item is a component of are checked as well: one that became a webshop item is queued if it has
+ * no product yet in the shop (no link, or an unlisted one), and one that stopped being one is let go like the item itself.
  */
 function shopify_catalogue_item_saved(int $vareId, int $delaySeconds = 0): void {
 	if ($vareId <= 0 || !shopify_schema_is_postgres()) {
@@ -620,14 +637,32 @@ function shopify_catalogue_item_saved(int $vareId, int $delaySeconds = 0): void 
 		if ($item === null) {
 			return;
 		}
-		shopify_catalogue_in_worker_zone(function () use ($shops, $item, $vareId, $delaySeconds): void {
+		$parents = array();
+		foreach (shopify_db_rows('SELECT DISTINCT indgaar_i FROM styklister WHERE vare_id = $1 AND indgaar_i <> $1', array($vareId)) as $row) {
+			$parent = shopify_catalogue_item((int)$row['indgaar_i']);
+			if ($parent !== null) {
+				$parents[(int)$row['indgaar_i']] = $parent['managed'];
+			}
+		}
+		shopify_catalogue_in_worker_zone(function () use ($shops, $item, $vareId, $parents, $delaySeconds): void {
+			$letGo = function (array $shop, int $id): void {
+				// closed or moved out of the stock groups: items waiting for its products may take their turn
+				shopify_catalogue_requeue_waiters($shop, shopify_product_link((int)$shop['id'], $id)['variant_gid'] ?? null);
+				shopify_catalogue_resolve_item((int)$shop['id'], $id);
+			};
 			foreach ($shops as $shop) {
 				if (!$item['managed']) {
-					// closed or moved out of the stock groups: items waiting for its products may take their turn
-					shopify_catalogue_requeue_waiters($shop, shopify_product_link((int)$shop['id'], $vareId)['variant_gid'] ?? null);
-					shopify_catalogue_resolve_item((int)$shop['id'], $vareId);
+					$letGo($shop, $vareId);
 				} else {
 					shopify_catalogue_enqueue($shop, $vareId, array('source' => 'varekort'), shopify_catalogue_db_time($delaySeconds));
+				}
+				foreach ($parents as $parentId => $managed) {
+					if (!$managed) {
+						$letGo($shop, $parentId);
+					} elseif ((string)(shopify_product_link((int)$shop['id'], $parentId)['variant_gid'] ?? '') === '') {
+						// no link, or an unlisted one (discovery found no product in the shop): not on Shopify yet
+						shopify_catalogue_enqueue($shop, $parentId, array('source' => 'component'), shopify_catalogue_db_time($delaySeconds));
+					}
 				}
 			}
 		});
