@@ -15,6 +15,7 @@
 //
 // History:
 // 20261027 CL/LH MB-73 (review): created.
+// 20261105 CDX/NTR Stop at the backfill call so later journal migrations cannot run against the order-only fixture.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_leveret_backfill.php <db> <segment|function> [budget] [window]\n");
@@ -64,10 +65,13 @@ try {
     if ($mode === 'segment') {
         $source = file_get_contents("$repo/includes/betweenUpdates.php");
         $start = strpos($source, '// 20261019 CL/LH MB-73: ordrelinjer.leveret had no default');
-        $end = strrpos($source, '?>');
+        $endMarker = 'backfillOrderLineDelivered($db_type);';
+        $end = $start === false ? false : strpos($source, $endMarker, $start);
         if ($start === false || $end === false || $end < $start) {
             throw new RuntimeException('MB-73 block not found in includes/betweenUpdates.php');
         }
+        // Include the final backfill call, and exclude all migrations appended after it.
+        $end += strlen($endMarker);
         $db_type = 'postgresql';
         // eval()'d code has no __DIR__ of its own; point it at includes/
         $segment = str_replace('__DIR__', var_export("$repo/includes", true), substr($source, $start, $end - $start));
