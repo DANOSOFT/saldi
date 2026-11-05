@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissions.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- includes/permissions.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,8 @@
 //                 The users given Administrator when the roles are seeded are written to the audit log and counted in the migration summary, and the migration's audit rows are written as the user system without an IP address (audit_log() takes $system).
 //                 perm_migration_summary_live() counts the administrators, the users with a role and the roles still to review from the users themselves, for the review banner and the dashboard card.
 //                 perm_review_done() no longer deletes the custom role a user leaves, so the change can be undone by giving the role back.
+// 20261105 CL/ASR A rights string position is read like the old module gate reads it (perm_legacy_positions()): any character from '1' up is access.
+//                 The migration turned '3'..'9' into no access and wrote that back, so a user with such a string lost every module at the first login.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 
@@ -97,14 +99,32 @@ function audit_ready(): bool
 // ------------------------------------------------------------------ legacy <-> levels
 
 /**
+ * A legacy rettigheder string with every position read the way the old module gate in online.php reads it: that gate
+ * refuses a position only when its character sorts below '1' (substr($rettigheder, $modulnr, 1) < '1'), so '0', a space
+ * or a missing position is no access and any other character ('3'..'9', a letter) is full access, like '1'. '2' (read,
+ * from a role) is kept. The length is not changed.
+ */
+function perm_legacy_positions(string $rettigheder): string
+{
+	$out = '';
+	$len = strlen($rettigheder);
+	for ($i = 0; $i < $len; $i++) {
+		$c = $rettigheder[$i];
+		$out .= ($c === '1' || $c === '2') ? $c : (strcmp($c, '1') >= 0 ? '1' : '0');
+	}
+	return $out;
+}
+
+/**
  * Levels implied by a legacy rettigheder string. Position values: '1' write, '2' read,
- * else none. Keys without a legacy position follow the Indstillinger bit (1) - that is
+ * else none (perm_legacy_positions() first). Keys without a legacy position follow the Indstillinger bit (1) - that is
  * exactly what those users can do today, so nothing changes until a role is assigned.
  *
  * @return array<string, string>
  */
 function perm_levels_from_legacy(string $rettigheder): array
 {
+	$rettigheder = perm_legacy_positions($rettigheder);
 	$levels = array();
 	$settingsBit = substr($rettigheder, 1, 1);
 	$settingsLevel = ($settingsBit === '1') ? 'write' : (($settingsBit === '2') ? 'read' : 'none');
@@ -917,7 +937,7 @@ function perm_normalize_legacy(string $rettigheder): string
 	if ($rettigheder === '') {
 		return '';
 	}
-	return substr(str_pad(preg_replace('/[^012]/', '0', $rettigheder), 16, '0'), 0, 16);
+	return substr(str_pad(perm_legacy_positions($rettigheder), 16, '0'), 0, 16);
 }
 
 /**
