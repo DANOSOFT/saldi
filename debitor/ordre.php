@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -176,6 +176,7 @@
 // 20261105 CL/MMR SD-807 The order page shows Digitalt, the payment terms (Forud, Efterkrav, Netto, Lb. md., Konto), Nt/Bt and DB/DG (also in the line tooltips) in the user's language.
 //                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
 //                 Labels are escaped in the page charset, so a stored value with æøå keeps its option value on a non-UTF8 database.
+// 20261106 CL/MMR SD-813 The delete-line question, the delivery tooltips, the Copy tooltip and the cost price tooltip follow the user's language.
 
 @session_start();
 $s_id = session_id();
@@ -4535,7 +4536,7 @@ function ordreside($id, $regnskab)
 			else print "value=\"$beskrivelse[$x]\"'>";
 
 			print "<td title='$title'>" . str_replace("\n", "<br>", $beskrivelse[$x]) . "&nbsp;</td>\n";
-			print "<input type='hidden' name='pris$x' value='" . dkdecimal($pris[$x], 3) . "'><td align='right' title='Kostpris $dk_kostpris[$x]'>$dkpris<br></td>\n";
+			print "<input type='hidden' name='pris$x' value='" . dkdecimal($pris[$x], 3) . "'><td align='right' title='" . htmlspecialchars(findtekst('950|Kostpris', $sprog_id), ENT_QUOTES, $charset) . " $dk_kostpris[$x]'>$dkpris<br></td>\n";
 			#			print "<input type='hidden' name='pris$x' value='$dkpris'><td align='right'>$dkpris<br></td>\n";
 			print "<input type='hidden' name='raba$x' value='" . dkdecimal($rabat[$x], 5) . "'><td align='right'>$dkrabat<br></td>\n";
 			print "<input type='hidden' name='proc$x' value='$dkprocent'>";
@@ -4667,7 +4668,7 @@ function ordreside($id, $regnskab)
 			print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" ";
 			// print "value=\"".findtekst('1100||Kopier', $sprog_id)."\" name=\"b_submit\" ";
 			print "value=\"" . findtekst('1100||Kopier', $sprog_id) . "\" name=\"copy\" ";
-			print "title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog) . "\"></td>\n";
+			print "title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id) . "\"></td>\n";
 		}
 		if ($mail_fakt) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id) . "\"";
 		else if ($udskriv_til == "Digitalt") $tmp = "value=\"Send\" title=\"" . findtekst('2539|Send faktura digitalt', $sprog_id) . "\"";
@@ -7222,18 +7223,18 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			$beholdning = dkdecimal($beholdning, 2);
 			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -1);
 			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -2);
-			if (!$lagervare) $beholdning = "ikke lagerført";
+			if (!$lagervare) $beholdning = findtekst('8480|ikke lagerført', $sprog_id);
 			$levdiff = afrund(abs($antal) - abs($tidl_lev), 2) != 0; #NTR - 20260518
 			if ($samlevare && $saet) {
 
 				$tmp = NULL;
 			} else {
 				if (abs($antal) != abs($tidl_lev)) {
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Mangler fortsat at " . $lever_modtag . "e resten.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8482|Mangler fortsat at modtage resten.', $sprog_id) : findtekst('8481|Mangler fortsat at levere resten.', $sprog_id)) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				} else {
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8484|Intet modtaget endnu.', $sprog_id) : findtekst('8483|Intet leveret endnu.', $sprog_id)) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
-				print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+				print "<td title=\"" . sprintf($art == 'DK' ? findtekst('8486|Tidligere modtaget %s på denne ordre.', $sprog_id) : findtekst('8485|Tidligere leveret %s på denne ordre.', $sprog_id), $dk_tidl_lev) . "\">($dk_tidl_lev)</td>\n";
 				// 20261008 MJ SST-833 This opens batch(), not serienummer(), so it no longer uses the
 				// serial-number icon and alt text. MEDSHOP read the serial icon on an item with no
 				// serial number as the feature misbehaving. 1496 is the text already on its title.
@@ -7267,7 +7268,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		}
 		print "<td valign = 'top' align='right' title='$txt2130'>";
 		print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
-		print "onclick=\"if (confirm('Slet linje $x?')) { document.getElementsByName('posn$x')[1].value='-'; ";
+		print "onclick=\"if (confirm(" . htmlspecialchars(jsString(array(sprintf(findtekst('8479|Slet linje %s?', $sprog_id), $x))), ENT_QUOTES, $charset) . ")) { document.getElementsByName('posn$x')[1].value='-'; ";
 		print "var __swF=document.getElementsByName('ordre')[0]; if(__swF){__swF.dataset.swSkipPreflight='1';} ";
 		print "document.getElementsByName('ordre')[0].submit.click(); }\">$delBtn</button></td>\n";
 	} else print "<td></td>";

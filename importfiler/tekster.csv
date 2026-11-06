@@ -5408,3 +5408,12 @@
 8458	CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?	The VAT lookup will overwrite existing fields. Do you want to update them?	Oppslaget vil overskrive eksisterende felt. Vil du oppdatere dem?
 8459	Nej, behold nuværende	No, keep current	Nei, behold nåværende
 8460	Ja, opdater	Yes, update	Ja, oppdater
+8479	Slet linje %s?	Delete line %s?	Slett linje %s?
+8480	ikke lagerført	not stocked	ikke lagerført
+8481	Mangler fortsat at levere resten.	The rest is still to be delivered.	Resten mangler fortsatt å bli levert.
+8482	Mangler fortsat at modtage resten.	The rest is still to be received.	Resten mangler fortsatt å bli mottatt.
+8483	Intet leveret endnu.	Nothing delivered yet.	Ingenting levert ennå.
+8484	Intet modtaget endnu.	Nothing received yet.	Ingenting mottatt ennå.
+8485	Tidligere leveret %s på denne ordre.	Previously delivered %s on this order.	Tidligere levert %s på denne ordren.
+8486	Tidligere modtaget %s på denne ordre.	Previously received %s on this order.	Tidligere mottatt %s på denne ordren.
+8487	kr.	DKK	kr.
