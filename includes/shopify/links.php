@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/links.php --- ver 5.0.0 --- 2026.10.22
+// --- includes/shopify/links.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,8 @@
 //
 // 20261022 Sawaneh SD-735: created (WP01-2).
 // 20261022 Sawaneh SD-735 review: empty flags encode as an object, flag keys must be namespaces.
+// 20261103 CL/SS SD-801: the status namespace (inbound order status) is listed.
+// 20261104 CL/SZ SD-756: a product link with an inventory item marks the item for the stock push.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/schema.php';
@@ -103,7 +105,7 @@ function shopify_reserve_order_link(int $shopId, ?string $orderGid, string $dire
 
 /**
  * Moves an order link to a new state and sets the given columns; flags are merged into the
- * jsonb by top-level namespace (intake, allocation_v1, writeback_v1, note_ops, credits, draft),
+ * jsonb by top-level namespace (intake, allocation_v1, writeback_v1, note_ops, credits, draft, status),
  * so one package never wipes another's entries. Returns the updated row.
  *
  * @param array<string, mixed> $set columns of SHOPIFY_ORDER_LINK_COLUMNS except state, plus flags
@@ -164,7 +166,12 @@ function shopify_upsert_product_link(int $shopId, int $vareId, int $variantId, a
 			$values[$column] = shopify_gid((string)$values[$column], $resource);
 		}
 	}
-	return shopify_link_upsert('shopify_product_links', array('shop_id' => $shopId, 'vare_id' => $vareId, 'variant_id' => $variantId), $values, '(shop_id, vare_id, variant_id)');
+	$link = shopify_link_upsert('shopify_product_links', array('shop_id' => $shopId, 'vare_id' => $vareId, 'variant_id' => $variantId), $values, '(shop_id, vare_id, variant_id)');
+	// a push drops the mark of an item without a link, so a new link has to mark the item again
+	if ((isset($values['inventory_item_gid']) || !empty($values['listed'])) && $link['inventory_item_gid'] !== null && $link['listed'] === 't') {
+		shopify_db_rows('INSERT INTO shopify_stock_dirty (vare_id) SELECT $1::int WHERE EXISTS (SELECT 1 FROM shopify_shops WHERE stock_capture_enabled)', array($vareId));
+	}
+	return $link;
 }
 
 /** @return array<string, string|null>|null */

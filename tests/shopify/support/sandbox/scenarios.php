@@ -10,6 +10,9 @@
 //
 // History:
 // 20261103 CL/LH SD-766: created.
+// 20261103 CL/SZ SD-754: K54.
+// 20261104 CL/SZ SD-756: K12 and K18.
+// 20261105 CL/SZ SD-756: K18 waits on WP13 only; the BYPASS fulfil check is done.
 
 require_once __DIR__ . '/../ShopifyEnv.php';
 require_once __DIR__ . '/../FakeShopifyStore.php';
@@ -38,6 +41,20 @@ function shopify_sandbox_scenarios(): array
 			'owner' => 'DTAILS',
 			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is WebhookEndpointTest'],
 		],
+		'K12' => [
+			'title' => 'a Ballerup POS sale reduces the Ballerup location in all three shops within 5 minutes',
+			'targets' => ['sandbox'],
+			'script' => 'K12.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K12_VARE', 'lager' => 'SALDI_SHOPIFY_SANDBOX_K12_LAGER:2'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant, right after the POS sale; on the fake it is StockPushTest'],
+		],
+		'K18' => [
+			'title' => 'a store order reduces Shopify stock by exactly the quantity sold (no double draw)',
+			'targets' => [],
+			'elsewhere' => ['status' => 'BLOCKED', 'owner' => 'WP13',
+				'detail' => 'needs WP13\'s store orders on the sandboxes. The BYPASS fulfil check held on a dev store (SD-764, 2026-11-05): fulfilling a BYPASS order changes no stock, so the push is the only thing that moves it'],
+		],
 		'K45' => [
 			'title' => 'the document link of a posted invoice opens its PDF; a changed link opens nothing',
 			'targets' => ['sandbox'],
@@ -45,6 +62,15 @@ function shopify_sandbox_scenarios(): array
 			'args' => ['ordre_id' => 'SALDI_SHOPIFY_SANDBOX_K45_ORDRE'],
 			'owner' => 'DTAILS',
 			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is DokumentLinkTest'],
+		],
+		'K54' => [
+			'title' => 'a web order\'s invoice and credit note show the Shopify order name and their own number, a store order\'s invoice its number; none shows the order number',
+			'targets' => ['sandbox'],
+			'script' => 'K54.php',
+			'args' => ['web_invoice_id' => 'SALDI_SHOPIFY_SANDBOX_K54_WEB_INVOICE', 'web_credit_note_id' => 'SALDI_SHOPIFY_SANDBOX_K54_WEB_CREDIT',
+				'store_invoice_id' => 'SALDI_SHOPIFY_SANDBOX_K54_STORE_INVOICE'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is FormularprintLagerFieldsTest'],
 		],
 		'X01' => [
 			'title' => 'one web order across the lanes: item, webhooks, customer, order, allocation, move, fulfilment, invoice, stock',

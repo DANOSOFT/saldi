@@ -26,6 +26,9 @@
 //                request statuses, one location per fulfilment, compareDigest, the payload's cost on mutations,
 //                one event id per action with a webhook id per delivery, inventoryActivate.
 // 20261103 CL/LH SD-766: second review: the metafield digest is the persisted value's, so writing the same value keeps it (B36).
+// 20261103 CL/SS SD-802: productVariantsBulkUpdate sets price and compareAtPrice (B37).
+// 20261104 CL/SS SD-808: the order fields the paid-order read selects (billing address, line totals, shipping lines, payment details).
+// 20261105 CL/SZ SD-756: inventorySetQuantities on a pair not stocked succeeds and stays hidden until activated, as the dev store does.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -86,7 +89,7 @@ final class FakeShopifyStore
 			$method = 'q' . ucfirst($root);
 			$this->handlers['query'][$root] = fn(self $store, string $domain, array $args, array $field): mixed => $this->$method($domain, $args, $field);
 		}
-		foreach (['productSet', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
+		foreach (['productSet', 'productVariantsBulkUpdate', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
 			'tagsAdd', 'tagsRemove', 'metafieldsSet', 'customerCreate', 'customerUpdate', 'refundCreate',
 			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete'] as $root) {
 			$method = 'm' . ucfirst($root);
@@ -896,6 +899,10 @@ final class FakeShopifyStore
 			'taxesIncluded' => $o['taxes_included'], 'totalTaxSet' => self::money($this->orderTax($domain, $gid), $o['currency']),
 			'taxLines' => array_map(fn(array $t): array => $this->vTaxLine($t, $o['currency']), $this->orderTaxLines($domain, $gid)),
 			'shippingAddress' => $o['shipping_address'] === null ? null : ['__typename' => 'MailingAddress'] + $o['shipping_address'],
+			// orderCreate keeps no billing address
+			'billingAddress' => null,
+			// orderCreate refuses shippingLines (B34), so an order of the store has none
+			'shippingLines' => fn(): array => [],
 			'customer' => fn(): ?array => $this->node($domain, $o['customer']),
 			'lineItems' => fn(): array => array_map(fn(array $l): array => $this->vLine($domain, $gid, $l), $this->shop($domain)['orders'][$gid]['lines']),
 			'fulfillmentOrders' => fn(array $a): array => array_values(array_map(fn(string $fo): array => $this->vFulfillmentOrder($domain, $fo),
@@ -907,7 +914,7 @@ final class FakeShopifyStore
 				$this->shop($domain)['orders'][$gid]['refunds']), 0, $a['first'] ?? null),
 			'transactions' => fn(array $a): array => array_map(fn(array $t): array => ['__typename' => 'OrderTransaction', 'id' => $t['id'],
 				'kind' => $t['kind'], 'status' => $t['status'], 'gateway' => $t['gateway'], 'test' => $o['test'],
-				'amountSet' => self::money($t['amount'], $o['currency']), 'createdAt' => $this->iso(false, $o['created']),
+				'amountSet' => self::money($t['amount'], $o['currency']), 'paymentDetails' => null, 'createdAt' => $this->iso(false, $o['created']),
 				'processedAt' => $this->iso(false, $o['created'])], array_slice($o['transactions'], 0, $a['first'] ?? null)),
 		] + $this->times($o) + $this->metafieldFields($domain, $gid);
 	}
@@ -926,6 +933,8 @@ final class FakeShopifyStore
 		return ['__typename' => 'LineItem', 'id' => $l['id'], 'sku' => $l['sku'], 'name' => $l['title'], 'title' => $l['title'],
 			'quantity' => $l['quantity'], 'currentQuantity' => $l['quantity'] - $refunded, 'unfulfilledQuantity' => $this->unfulfilled($domain, $order, $l['id']),
 			'taxable' => $l['taxable'], 'requiresShipping' => true, 'originalUnitPriceSet' => self::money($l['price'], $o['currency']),
+			// orderCreate refuses discountCode (B34), so a line has no discount
+			'originalTotalSet' => self::money($l['price'] * $l['quantity'], $o['currency']), 'discountAllocations' => [],
 			'taxLines' => function () use ($l, $o, $order): array {
 				if ($o['tax_lines'] !== []) {
 					throw new LogicException("FakeShopifyStore: LineItem.taxLines of $order is not modelled: Shopify splits its order-level tax lines across the taxable lines (B34); select Order.taxLines");
@@ -1365,6 +1374,39 @@ final class FakeShopifyStore
 		return self::payload(['product' => $this->vProduct($domain, $gid), 'productSetOperation' => null]);
 	}
 
+	/** B37: the variants' price and compareAtPrice; every entry is checked before anything changes. */
+	private function mProductVariantsBulkUpdate(string $domain, array $a): array
+	{
+		$this->uses('B37');
+		$s = &$this->shop($domain);
+		if (!isset($s['products'][$a['productId']])) {
+			return self::payload(['product' => null, 'productVariants' => null], [self::userError(['productId'], 'Product does not exist', 'PRODUCT_DOES_NOT_EXIST')]);
+		}
+		foreach ($a['variants'] as $i => $v) {
+			if (array_diff(array_keys($v), ['id', 'price', 'compareAtPrice'])) {
+				throw new LogicException('FakeShopifyStore: productVariantsBulkUpdate models id, price and compareAtPrice only');
+			}
+			if (($s['variants'][$v['id'] ?? '']['product'] ?? null) !== $a['productId']) {
+				return self::payload(['product' => null, 'productVariants' => null],
+					[self::userError(['variants', (string)$i, 'id'], 'Product variant does not exist', 'PRODUCT_VARIANT_DOES_NOT_EXIST')]);
+			}
+			if (isset($v['price']) && (float)$v['price'] < 0) {
+				return self::payload(['product' => null, 'productVariants' => null],
+					[self::userError(['variants', (string)$i, 'price'], 'Price must be greater than or equal to 0', 'GREATER_THAN_OR_EQUAL_TO')]);
+			}
+		}
+		foreach ($a['variants'] as $v) {
+			foreach (['price', 'compareAtPrice'] as $f) {
+				if (array_key_exists($f, $v)) {
+					$s['variants'][$v['id']][$f] = $v[$f];
+				}
+			}
+			$s['variants'][$v['id']]['updated'] = $this->clock->now;
+		}
+		return self::payload(['product' => $this->vProduct($domain, $a['productId']),
+			'productVariants' => array_map(fn(array $v): array => $this->vVariant($domain, $v['id']), $a['variants'])]);
+	}
+
 	/** productSet's effect (B22); fires products/create or products/update when $fire. */
 	private function applyProductSet(string $domain, array $identifier, array $input, bool $fire): string
 	{
@@ -1482,7 +1524,7 @@ final class FakeShopifyStore
 	{
 		$this->uses('B20');
 		$in = $a['input'];
-		$s = $this->shop($domain);
+		$s = &$this->shop($domain);
 		$errors = [];
 		if (!in_array($in['name'], ['available', 'on_hand'], true)) {
 			$errors[] = self::userError(['input', 'name'], "The quantity name must be either 'available' or 'on_hand'.", 'INVALID_NAME');
@@ -1493,11 +1535,9 @@ final class FakeShopifyStore
 				$errors[] = self::userError(array_merge($path, ['inventoryItemId']), 'The specified inventory item could not be found.', 'INVALID_INVENTORY_ITEM');
 			} elseif (!isset($s['locations'][$q['locationId']])) {
 				$errors[] = self::userError(array_merge($path, ['locationId']), 'The specified location could not be found.', 'INVALID_LOCATION');
-			} elseif (!isset($s['levels'][$q['inventoryItemId']][$q['locationId']])) {
-				$errors[] = self::userError(array_merge($path, ['locationId']), 'The item is not stocked at the location.', 'ITEM_NOT_STOCKED_AT_LOCATION');
 			} elseif (!array_key_exists('changeFromQuantity', $q)) {
 				$errors[] = self::userError(array_merge($path, ['changeFromQuantity']), 'changeFromQuantity is required; send null to skip the check.');
-			} elseif ($q['changeFromQuantity'] !== null && $errors === []
+			} elseif ($q['changeFromQuantity'] !== null && $errors === [] && isset($s['levels'][$q['inventoryItemId']][$q['locationId']])
 				&& $s['levels'][$q['inventoryItemId']][$q['locationId']][$in['name']] !== $q['changeFromQuantity']) {
 				$errors[] = self::userError(array_merge($path, ['changeFromQuantity']), 'The specified compare quantity does not match the current quantity.', 'CHANGE_FROM_QUANTITY_STALE');
 			}
@@ -1507,6 +1547,10 @@ final class FakeShopifyStore
 		}
 		$changes = [];
 		foreach ($in['quantities'] as $q) {
+			if (!isset($s['levels'][$q['inventoryItemId']][$q['locationId']])) {
+				$s['hidden'][$q['inventoryItemId']][$q['locationId']] = (int)$q['quantity'];
+				continue;
+			}
 			$before = $this->shop($domain)['levels'][$q['inventoryItemId']][$q['locationId']];
 			$this->setQuantity($domain, $q['inventoryItemId'], $q['locationId'], $in['name'], (int)$q['quantity']);
 			$after = $this->shop($domain)['levels'][$q['inventoryItemId']][$q['locationId']];
@@ -1523,7 +1567,7 @@ final class FakeShopifyStore
 			'reason' => $in['reason'], 'referenceDocumentUri' => $in['referenceDocumentUri'] ?? null, 'createdAt' => $this->iso(), 'changes' => $changes]]);
 	}
 
-	/** B35: stocks an item at a location; available and on_hand start at zero unless given. */
+	/** B35: stocks an item at a location; available and on_hand start at zero unless given, or at a quantity set while it wasn't stocked (B20). */
 	private function mInventoryActivate(string $domain, array $a): array
 	{
 		$s = &$this->shop($domain);
@@ -1534,11 +1578,15 @@ final class FakeShopifyStore
 		}
 		$this->uses('B35');
 		if (!isset($s['levels'][$item][$location])) {
-			$available = $a['available'] ?? $a['onHand'] ?? 0;
+			$available = $a['available'] ?? $a['onHand'] ?? $s['hidden'][$item][$location] ?? 0;
+			unset($s['hidden'][$item][$location]);
 			if (isset($a['available'], $a['onHand']) && $a['available'] !== $a['onHand']) {
 				throw new LogicException('FakeShopifyStore: inventoryActivate with available and onHand apart is not modelled (B35)');
 			}
 			$s['levels'][$item][$location] = ['available' => (int)$available, 'on_hand' => (int)$available] + $this->emptyLevel();
+		} elseif (isset($a['available'])) {
+			return self::payload(['inventoryLevel' => $this->vLevel($domain, $item, $location)],
+				[self::userError(['available'], 'Not allowed to set available quantity when the item is already active at the location.')]);
 		}
 		return self::payload(['inventoryLevel' => $this->vLevel($domain, $item, $location)]);
 	}

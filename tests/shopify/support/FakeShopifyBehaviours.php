@@ -16,6 +16,8 @@
 // 20261103 CL/LH SD-766: review fixes: a basis per entry, sources re-read for API 2026-07, B31-B35 added
 //                (move bookkeeping, metafield compareDigest, one location per fulfilment, order taxes, inventoryActivate).
 // 20261103 CL/LH SD-766: second review: B36, a metafield digest stands for its persisted data (assumed).
+// 20261103 CL/SS SD-802: B37, productVariantsBulkUpdate sets price and compareAtPrice.
+// 20261105 CL/SZ SD-756: B17 held and B20's item not stocked corrected, from a dev store.
 
 final class FakeShopifyBehaviours
 {
@@ -129,7 +131,7 @@ final class FakeShopifyBehaviours
 			'behaviour' => 'fulfilling a BYPASS order changes no inventory; fulfilling a decremented order lowers on_hand by the quantity and committed by what the line had committed (available by the rest)',
 			'basis' => 'assumed',
 			'source' => 'ASSUMED',
-			'calibrated_by' => 'SD-764: BYPASS store order, create, fulfil, read inventory before and after',
+			'calibrated_by' => 'SD-764: BYPASS store order, create, fulfil, read inventory before and after (held on a dev store 2026-11-05, fulfilled in the admin)',
 		],
 		'B18' => [
 			'behaviour' => 'order routing: each line is assigned to the first active location (in creation order) with enough available stock, else the first location; lines of one location share a fulfillment order',
@@ -144,7 +146,7 @@ final class FakeShopifyBehaviours
 			'calibrated_by' => 'calibration probes connection_without_first, locations, products (pageInfo shape)',
 		],
 		'B20' => [
-			'behaviour' => 'inventorySetQuantities sets absolute quantities by name available or on_hand (the other moves by the same delta); every quantity needs changeFromQuantity (null skips the check); a stale one answers CHANGE_FROM_QUANTITY_STALE and sets nothing; an item not stocked at the location answers ITEM_NOT_STOCKED_AT_LOCATION',
+			'behaviour' => 'inventorySetQuantities sets absolute quantities by name available or on_hand (the other moves by the same delta); every quantity needs changeFromQuantity (null skips the check); a stale one answers CHANGE_FROM_QUANTITY_STALE and sets nothing; on an item not stocked at the location it answers success and keeps the quantity hidden until inventoryActivate (dev store, 2026-11-05)',
 			'basis' => 'partly',
 			'source' => self::DOCS . 'mutations/inventorySetQuantities (absolute set, changeFromQuantity required as of 2026-04 with null to skip, CHANGE_FROM_QUANTITY_STALE); the other codes from the 2026-07 schema and when they fire ASSUMED, the error for an omitted changeFromQuantity ASSUMED',
 			'calibrated_by' => 'none in SD-764; SD-756 (stock push) on the sandbox',
@@ -244,6 +246,12 @@ final class FakeShopifyBehaviours
 			'basis' => 'assumed',
 			'source' => 'ASSUMED from ' . self::DOCS . 'objects/Metafield (compareDigest is "the data stored in the resource, represented as a digest") and ' . self::DOCS . 'mutations/metafieldsSet (it sets "if the persisted metafield value matches the digest"); neither page says what a write of the same value does',
 			'calibrated_by' => 'SD-764 (to add): read a metafield\'s compareDigest, write the same value without one, then metafieldsSet a new value with the digest read first; the 2026-07 Metafield page (' . self::DOCS . 'objects/Metafield) leaves it open',
+		],
+		'B37' => [
+			'behaviour' => 'productVariantsBulkUpdate sets the given fields of variants of one product (price and compareAtPrice modelled; compareAtPrice null clears it) and leaves the rest; an unknown product (PRODUCT_DOES_NOT_EXIST), a variant of another product (PRODUCT_VARIANT_DOES_NOT_EXIST) or a negative price answers a userError and changes nothing',
+			'basis' => 'partly',
+			'source' => self::DOCS . 'mutations/productVariantsBulkUpdate (variants of one product by productId) and the 2026-07 schema (the two error codes, GREATER_THAN_OR_EQUAL_TO); null clearing compareAtPrice, nothing changing on a refusal and the messages ASSUMED',
+			'calibrated_by' => 'SD-764 (to add): productVariantsBulkUpdate with a compareAtPrice, then with null, on the sandbox; and with a variant of another product',
 		],
 	];
 
