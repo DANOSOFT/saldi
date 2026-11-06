@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/glemt_kode.php ---  ver 5.1.0 --- 2026.11.05 ---
+// --- index/glemt_kode.php ---  ver 5.1.0 --- 2026.11.06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 20261105 CL/MMR SD-807 The page, its messages and the help text use the language chosen on the login page (languageId cookie, 1-3).
 //                 Send and Retur are recognised by their button name, so the translated button texts still work.
 //                 The BCC line and the send error are translated too; the send error escapes the address.
+// 20261106 CL/MMR SD-812 The mail with the temporary password, the user list and the account list use the same language; the names in it are escaped.
 $nonce = base64_encode(random_bytes(16));
 header("Content-Security-Policy: script-src 'self' 'nonce-$nonce'; object-src 'none';");
 
@@ -178,7 +179,7 @@ if (isset($_POST['retur'])) {
 		$tp=date("H:i",$tidspunkt);
 		$mailtext='';
 		if (($bruger_id || $ansat_id || $email || $db==$sqdb) && $db) { #20150127
-			$subjekt="Midlertidig adgangskode til Saldi";
+			$subjekt = findtekst('8466|Midlertidig adgangskode til Saldi', $sprog_id);
 			$tmp_kode=substr(str_shuffle( "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" ),5,10);
 			if (!$email && $firmamail) {
 				$email=$firmamail;
@@ -188,15 +189,19 @@ if (isset($_POST['retur'])) {
 			$dd=date("d-m-Y",$tidspunkt);
 			$tp=date("H:i",$tidspunkt);
 #		$fp=fopen("$filnavn","w");
-			if ($navn) $mailtext.="Kære $navn<br><br>";
-			$mailtext.="I dag den $dd kl. $tp er der blevet rekvireret en midlertidig adgangskode til"; 
-			if ($brugernavn) $mailtext.=" brugeren $brugernavn i";
-			$mailtext.=" regnskabet $regnskab <br><br>";
+			if ($navn) {
+				$mailtext .= sprintf(findtekst('8467|Kære %s', $sprog_id), htmlspecialchars((string)$navn, ENT_QUOTES, $charset)) . "<br><br>";
+			}
+			if ($brugernavn) {
+				$mailtext .= sprintf(findtekst('8468|I dag den %s kl. %s er der blevet rekvireret en midlertidig adgangskode til brugeren %s i regnskabet %s', $sprog_id), $dd, $tp, htmlspecialchars((string)$brugernavn, ENT_QUOTES, $charset), htmlspecialchars((string)$regnskab, ENT_QUOTES, $charset)) . " <br><br>";
+			} else {
+				$mailtext .= sprintf(findtekst('8469|I dag den %s kl. %s er der blevet rekvireret en midlertidig adgangskode til regnskabet %s', $sprog_id), $dd, $tp, htmlspecialchars((string)$regnskab, ENT_QUOTES, $charset)) . " <br><br>";
+			}
 			$tidspunkt+=3600;
 			$dd=date("d-m-Y",$tidspunkt);
 			$tp=date("H:i",$tidspunkt);
-			$mailtext.="Indtil den $dd kl. $tp kan anvendes adgangskoden: $tmp_kode<br><br>";
-			$mailtext.="Efter login kan adgangskoden ændres under \"Indstillinger -> Brugere\"<br><br>";
+			$mailtext .= sprintf(findtekst('8470|Indtil den %s kl. %s kan anvendes adgangskoden: %s', $sprog_id), $dd, $tp, $tmp_kode) . "<br><br>";
+			$mailtext .= findtekst('8471|Efter login kan adgangskoden ændres under "Indstillinger -> Brugere"', $sprog_id) . "<br><br>";
 			$tmp_kode=$tidspunkt."|".$tmp_kode;
 			#$tmp_kode=$tidspunkt."_".$tmp_kode;
 			$i = 0;
@@ -212,13 +217,15 @@ if (isset($_POST['retur'])) {
 			#var_dump($tmp_kode.':'.$bruger_id); exit;
 			db_modify("update brugere set tmp_kode='$tmp_kode' where id='$bruger_id'",__LINE__);
 		} elseif (!$ansat_id && !$regnskaber && $db) {
-			$subjekt="Brugerliste til regnskabet $regnskab";
-			$mailtext.="I dag den $dd kl. $tp er der blevet rekvireret en brugerliste til regnskabet $regnskab <br><br>Brugerne er: $brugere.	<br><br>";
+			$subjekt = sprintf(findtekst('8472|Brugerliste til regnskabet %s', $sprog_id), $regnskab);
+			$mailtext .= sprintf(findtekst('8473|I dag den %s kl. %s er der blevet rekvireret en brugerliste til regnskabet %s', $sprog_id), $dd, $tp, htmlspecialchars((string)$regnskab, ENT_QUOTES, $charset)) . " <br><br>";
+			$mailtext .= sprintf(findtekst('8474|Brugerne er: %s.', $sprog_id), htmlspecialchars((string)$brugere, ENT_QUOTES, $charset)) . "\t<br><br>";
 		} elseif ($regnskaber) {
-			$subjekt="Saldi regnskab";
-			$mailtext.="I dag den $dd kl. $tp er der blevet rekvireret en liste over regnskaber tilknyttet $firmamail<br><br>$firmamail et tilknyttet : $regnskaber.	<br><br>";
+			$subjekt = findtekst('8475|Saldi regnskab', $sprog_id);
+			$mailtext .= sprintf(findtekst('8476|I dag den %s kl. %s er der blevet rekvireret en liste over regnskaber tilknyttet %s', $sprog_id), $dd, $tp, htmlspecialchars((string)$firmamail, ENT_QUOTES, $charset)) . "<br><br>";
+			$mailtext .= sprintf(findtekst('8477|%s et tilknyttet : %s.', $sprog_id), htmlspecialchars((string)$firmamail, ENT_QUOTES, $charset), htmlspecialchars((string)$regnskaber, ENT_QUOTES, $charset)) . "\t<br><br>";
 		}
-		$mailtext.="God fornøjelse fra dit Saldi team<br>";
+		$mailtext .= findtekst('8478|God fornøjelse fra dit Saldi team', $sprog_id) . "<br>";
 #		fclose ($fp);
 /*
 		ini_set("include_path", ".:../phpmailer");
