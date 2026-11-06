@@ -44,6 +44,8 @@
 //                 A Dyrtid slip without a date that is already linked to the slip is not stamped either (CodeRabbit).
 //                 The date rule has one owner, akkDyrtidMedDatoSql(), used by the transfer and by the list of slips without a date.
 //                 Overfør locks the listed Dyrtid slips before the date check, and a slip transferred after its form was opened is not saved over (Codex).
+//                 The transfer locks the case, then the akkordafregning, then its Dyrtid slips, in the same order as Afvis and Godkend.
+//                 Two transfers on one case wait for each other instead of deadlocking.
 
 function ret_loen() {
 	global $brugernavn;
@@ -324,7 +326,7 @@ function ret_loen() {
 			$sag_ref = NULL;
 		}
 		if ($afslut && $loen_art=='akk_afr' && $sag_id) { # 20261106 SST-961
-			// Lock the Dyrtid slips on the list until commit, so nobody can change their date between this check and the transfer.
+			// Lock the case, this slip and the Dyrtid slips on its list until commit, so nobody can change a date between this check and the transfer.
 			akkDyrtidLaas($id, $sag_id, $opg_id);
 		}
 		if ($afslut && $loen_art=='akk_afr' && $sag_id && akkDyrtidUdenDato($id, $sag_id, $opg_id)) { # 20261106 SST-961
@@ -1864,6 +1866,10 @@ function akkDyrtidListeSql($id, $sag_id, $opg_id) {
  * Locks the Dyrtid slips on an akkordafregning's list (with or without a date) until the transaction of
  * ret_loen() ends. Overfør calls it before it checks their dates, so another user cannot change a date between
  * the check and the transfer; a save of such a slip waits until the transfer is committed.
+ * Lock order: the case, then the akkordafregning, then the slips in id order. Afvis and Godkend also lock the
+ * akkordafregning before its slips, and the case lock makes two transfers on one case wait for each other, because
+ * the transfer UPDATE also takes dated open Dyrtid slips on the case's other tasks. So no two of these paths can
+ * wait for each other in a circle (deadlock).
  *
  * @param int $id     The akkordafregning (loen.id).
  * @param int $sag_id The case (sager.id).
@@ -1871,7 +1877,9 @@ function akkDyrtidListeSql($id, $sag_id, $opg_id) {
  * @return void
  */
 function akkDyrtidLaas($id, $sag_id, $opg_id) {
-	$q = db_select("select id from loen where " . akkDyrtidListeSql($id, $sag_id, $opg_id) . " for update", __FILE__ . " linje " . __LINE__);
+	db_select("select id from sager where id='" . (int)$sag_id . "' for update", __FILE__ . " linje " . __LINE__);
+	db_select("select id from loen where id='" . (int)$id . "' for update", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select id from loen where " . akkDyrtidListeSql($id, $sag_id, $opg_id) . " order by id for update", __FILE__ . " linje " . __LINE__);
 	while (db_fetch_array($q)) {
 		// the rows are only locked
 	}
