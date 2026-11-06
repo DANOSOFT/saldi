@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-01 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -153,11 +153,15 @@
 //                Braces added to the brace-less ifs in the edited blocks.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
 //                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
+// 20261029 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 // 20261101 CL/MJ SST-910 linjeopdat(): a return on an item without batch control goes back into the purchase batches.
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
+// 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
+require_once __DIR__ . '/sharedFile.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -4390,9 +4394,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		# exit;
 		($webservice) ? $leveres = $antal : $leveres = 0;
 		if ($id && is_numeric($posnr)) {
-			$momslog = fopen("../temp/$db/momslog.log", "a");
-			fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-			fclose($momslog);
+			sharedFilePutContents("../temp/$db/momslog.log", "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n", true);
 			if ($varemomssats && !$vatAccount) {
 				$alerttxt = __LINE__ . " Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
 				alert($alerttxt);
