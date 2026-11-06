@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.05
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,8 @@
 // 20261104 CL/SS SD-801 review 4: a cancellation locks its link before it asks for the credit note.
 // 20261104 CL/SS SD-801 review 4: only a fulfillment of a legacy order is info; a refund or cancellation asks for the credit note.
 // 20261104 CL/SS SD-801 review 5: an event comes off status.unlinked only once its write went through.
+// 20261104 CL/SS SD-744: ORDERS_UPDATED stores the delivery date EasyRoutes writes on the order (easyroutes_levdato).
+// 20261105 CL/SS SD-744 review: on a tie on updated_at, a status with the EasyRoutes date wins over one without it.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -54,6 +56,11 @@ require_once __DIR__ . '/../coexistence.php';
 /** How long an event waits for its Saldi order, from when it was received, and how often it looks. */
 const SHOPIFY_STATUS_DEFER_HOURS = 48;
 const SHOPIFY_STATUS_DEFER_SECONDS = 300;
+/**
+ * The order's note attribute EasyRoutes writes the delivery date it assigned in (YYYY-MM-DD). The plan's default
+ * until a real EasyRoutes order shows the key and format (SD-744, DTAILS Aa4); this is the one place to change.
+ */
+const SHOPIFY_EASYROUTES_DATE_ATTRIBUTE = 'Leveringsdato';
 
 /** The event's order has no Saldi order yet: the job yields and tries again (not a failed attempt). */
 final class ShopifyOrderLinkPending extends RuntimeException
@@ -368,9 +375,10 @@ function shopify_handle_fulfillment(array $event): void {
 }
 
 /**
- * Applies an ORDERS_UPDATED event: the order's financial and fulfillment status, with its
- * updated_at, in the link's flags (namespace status), unless the stored status is newer. The
- * fulfillments themselves come with their own events; the EasyRoutes date is SD-744.
+ * Applies an ORDERS_UPDATED event: the order's financial and fulfillment status and the delivery
+ * date EasyRoutes wrote on it, with its updated_at, in the link's flags (namespace status) and the
+ * date also in easyroutes_levdato, unless the stored status is newer. The fulfillments themselves
+ * come with their own events.
  *
  * @param array{shop_id: int, event_row_id: int, topic: string} $event
  * @throws ShopifyOrderLinkPending while the order has no Saldi order
@@ -386,13 +394,17 @@ function shopify_handle_order_updated(array $event): void {
 		$row = shopify_db_rows("SELECT flags->'status' AS status FROM shopify_order_links WHERE id = $1 FOR UPDATE", array((int)$link['id']));
 		$stored = json_decode((string)($row[0]['status'] ?? ''), true);
 		if (is_array($stored)) {
+			// the date is part of the status, so a tie on updated_at is decided over it too; a status stored before the date
+			// was read has no such key and counts as one without a date, so both are always compared in the same shape
+			$stored += array('easyroutes_levdato' => null);
 			ksort($stored); // jsonb reorders the keys; $status is built in key order
-			if (!shopify_status_newer($status['updated_at'], shopify_status_json($status), $stored['updated_at'] ?? null, shopify_status_json($stored))) {
+			if (!shopify_status_order_newer($status, $stored)) {
 				return $stored;
 			}
 		}
-		shopify_db_rows('UPDATE shopify_order_links SET flags = flags || $2::jsonb, updated_at = now() WHERE id = $1',
-			array((int)$link['id'], shopify_link_json(array('status' => $status))));
+		// the date follows the newest body, as the status does: one that no longer carries it clears it
+		shopify_db_rows('UPDATE shopify_order_links SET flags = flags || $2::jsonb, easyroutes_levdato = $3, updated_at = now() WHERE id = $1',
+			array((int)$link['id'], shopify_link_json(array('status' => $status)), $status['easyroutes_levdato']));
 		return $status;
 	});
 	// a listed status no newer than the stored one is replaced by it
@@ -402,14 +414,41 @@ function shopify_handle_order_updated(array $event): void {
 		if (!is_array($body)) {
 			return false;
 		}
-		$old = shopify_status_of($body);
-		return !shopify_status_newer($old['updated_at'], shopify_status_json($old), $stored['updated_at'] ?? null, shopify_status_json($stored));
+		return !shopify_status_order_newer(shopify_status_of($body), $stored);
 	});
 }
 
-/** What the link keeps of an order body under flags.status, in key order. */
+/**
+ * The delivery date EasyRoutes wrote on the order: its note attribute SHOPIFY_EASYROUTES_DATE_ATTRIBUTE (the name in any
+ * case) as Y-m-d, or null when the order has none or it holds no valid date.
+ */
+function shopify_status_easyroutes_date(array $body): ?string {
+	foreach ((array)($body['note_attributes'] ?? array()) as $attribute) {
+		if (is_array($attribute) && strcasecmp(trim((string)($attribute['name'] ?? '')), SHOPIFY_EASYROUTES_DATE_ATTRIBUTE) === 0) {
+			$value = trim((string)($attribute['value'] ?? ''));
+			$date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+			return $date !== false && $date->format('Y-m-d') === $value ? $value : null;
+		}
+	}
+	return null;
+}
+
+/**
+ * Whether order status $status replaces the stored one: the later updated_at, as shopify_status_newer() decides. On a tie,
+ * a status that has the EasyRoutes date wins over one that has none, else an update in the same second as EasyRoutes' write
+ * would clear the date; otherwise the greater body. Both carry the date key (null for none).
+ */
+function shopify_status_order_newer(array $status, array $stored): bool {
+	if (($status['updated_at'] ?? null) === ($stored['updated_at'] ?? null)
+		&& (($status['easyroutes_levdato'] ?? null) === null) !== (($stored['easyroutes_levdato'] ?? null) === null)) {
+		return ($status['easyroutes_levdato'] ?? null) !== null;
+	}
+	return shopify_status_newer($status['updated_at'] ?? null, shopify_status_json($status), $stored['updated_at'] ?? null, shopify_status_json($stored));
+}
+
+/** What the link keeps of an order body under flags.status, in key order: its status and the EasyRoutes date. */
 function shopify_status_of(array $body): array {
-	return array('financial_status' => shopify_status_text($body['financial_status'] ?? null),
+	return array('easyroutes_levdato' => shopify_status_easyroutes_date($body), 'financial_status' => shopify_status_text($body['financial_status'] ?? null),
 		'fulfillment_status' => shopify_status_text($body['fulfillment_status'] ?? null), 'updated_at' => shopify_status_utc($body['updated_at'] ?? null));
 }
 

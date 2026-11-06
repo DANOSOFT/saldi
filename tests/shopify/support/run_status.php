@@ -6,11 +6,12 @@
 //   php run_status.php <test_db> '<steps json>'
 // Steps: ["promote"] (received events become jobs, as the worker's events producer does),
 //        ["work"] (one worker pass with the status handlers as tools/shopify_worker.php wires them, no producers),
-//        ["read_model", ordre_id], ["debtor_model", adresser_id].
+//        ["read_model", ordre_id], ["debtor_model", adresser_id], ["panel", ordre_id] (the order screen's Shopify panel, with findtekst's defaults).
 // Prints JSON: one result per step (or its exception).
 //
 // History:
 // 20261103 CL/SS SD-801: created.
+// 20261104 CL/SS SD-744: step panel renders the order's Shopify panel (debitor/orderIncludes/shopifyPanel.php).
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_status.php <test_db> '<steps json>'\n");
@@ -71,6 +72,16 @@ try {
                     break;
                 case 'debtor_model':
                     $results[] = shopify_debtor_read_model((int)$step[1]);
+                    break;
+                case 'panel':
+                    if (!function_exists('findtekst')) {
+                        function findtekst($text, $sprogId)
+                        {
+                            return explode('|', (string)$text, 2)[1] ?? (string)$text;
+                        }
+                    }
+                    require_once ShopifyEnv::repoRoot() . '/debitor/orderIncludes/shopifyPanel.php';
+                    $results[] = shopify_order_panel((int)$step[1], 1);
                     break;
                 default:
                     throw new LogicException("unknown step {$step[0]}");
