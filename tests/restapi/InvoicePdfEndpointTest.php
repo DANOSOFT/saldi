@@ -5,11 +5,14 @@
 // invoice of the caller's account comes back as its PDF, rendered by render_document(), with the
 // document's own number in the file name; a missing, unposted or non-invoice id gives 404 and no
 // document. The posted-invoice case needs pdftk and ghostscript on the web server; when the
-// render fails there (500) and this machine has no pdftk either, that case is skipped with the reason.
+// render fails there (500) and this machine has no pdftk either, that case is skipped with the reason;
+// the failed-query and fiscal-year cases skip only when a normal invoice can't be rendered.
 //
 // History:
 // 20261029 CL/SZ SD-751: created.
+// 20261102 CL/SZ SD-794: a query failing during the print gives 500 and caches nothing; no fiscal year still renders.
 // 20261102 CL/SZ SD-795: a failed read of the order gives 500, not 404.
+// 20261105 CL/SZ SD-794 review: those two cases skip only when the server can't render a normal invoice, not on their own 500.
 
 use PHPUnit\Framework\TestCase;
 
@@ -83,6 +86,15 @@ final class InvoicePdfEndpointTest extends TestCase
             'body' => $body, 'json' => is_array($json) ? $json : null];
     }
 
+    /** Skips when the server can't render a PDF at all (no pdftk there), judged on an order of its own, so the case's own result never decides. */
+    private function skipUnlessTheServerRenders(): void
+    {
+        $control = $this->getPdf($this->order()['id']);
+        if ($control['status'] !== 200) {
+            $this->markTestSkipped('the server could not render a normal invoice: ' . $control['body']);
+        }
+    }
+
     public function test_a_posted_invoice_comes_back_as_its_pdf(): void
     {
         $invoice = $this->order();
@@ -95,6 +107,46 @@ final class InvoicePdfEndpointTest extends TestCase
         $this->assertSame(200, $res['status'], $res['body']);
         $this->assertSame('application/pdf', $res['type']);
         $this->assertSame("inline; filename=\"fakt{$invoice['fakturanr']}.pdf\"", $res['disposition']);
+        $this->assertStringStartsWith('%PDF-', $res['body']);
+    }
+
+    public function test_a_query_failing_during_the_print_gives_500_and_a_retry_gets_the_pdf(): void
+    {
+        $this->skipUnlessTheServerRenders();
+        $invoice = $this->order();
+        $conn = RestApiEnv::connect(RestApiEnv::testDb());
+        // the print reads batch_salg once for this order's one line, so this is one failure: db_select() alerts and the print goes on
+        RestApiEnv::rows($conn, 'ALTER TABLE batch_salg RENAME TO batch_salg_away');
+        try {
+            $failed = $this->getPdf($invoice['id']);
+        } finally {
+            RestApiEnv::rows($conn, 'ALTER TABLE batch_salg_away RENAME TO batch_salg');
+            pg_close($conn);
+        }
+
+        $this->assertSame(500, $failed['status'], $failed['body']);
+        $this->assertStringNotContainsString('%PDF-', $failed['body']);
+
+        $retry = $this->getPdf($invoice['id']);
+        $this->assertSame(200, $retry['status'], $retry['body']);
+        $this->assertStringStartsWith('%PDF-', $retry['body']);
+    }
+
+    public function test_an_invoice_renders_without_a_current_fiscal_year(): void
+    {
+        $this->skipUnlessTheServerRenders();
+        $invoice = $this->order();
+        $conn = RestApiEnv::connect(RestApiEnv::testDb());
+        // BaseEndpoint only logs a warning when there is no fiscal year, so $regnaar reaches the print empty
+        RestApiEnv::rows($conn, "UPDATE grupper SET art = 'RA_away' WHERE art = 'RA'");
+        try {
+            $res = $this->getPdf($invoice['id']);
+        } finally {
+            RestApiEnv::rows($conn, "UPDATE grupper SET art = 'RA' WHERE art = 'RA_away'");
+            pg_close($conn);
+        }
+
+        $this->assertSame(200, $res['status'], $res['body']);
         $this->assertStringStartsWith('%PDF-', $res['body']);
     }
 

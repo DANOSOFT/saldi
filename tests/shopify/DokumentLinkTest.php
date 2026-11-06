@@ -13,7 +13,11 @@
 // History:
 // 20261030 CL/SZ SD-752: created.
 // 20261101 CL/SZ SD-752 review: a failing legacy query in the render, a link whose order changed kind.
+// 20261102 CL/SZ SD-794: a query failing during the print publishes no PDF; the retry gets the document; set prices without a valid rebate item and a line without an item still render.
+// 20261103 CL/SZ SD-794: the layout fields $ansat_by and $ordre_kundenr print their value.
+// 20261105 CL/SZ SD-794 review: also with an apostrophe in the order's ref, and if($ordre_kundenr).
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/ShopifyEnv.php';
@@ -117,6 +121,54 @@ final class DokumentLinkTest extends TestCase
     }
 
     /** @return array{id: int, fakturanr: string} a posted invoice (DO) or credit note (DK), 2 x 125.00 at 25% VAT */
+    #[DataProvider('layoutFields')]
+    public function testLayoutFieldsTheEditorsOfferPrintTheirValue(string $side, string $field, string $expected, string $ref = 'Lay Out'): void
+    {
+        $doc = $this->posted();
+        $token = self::token($this->link($doc['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        ShopifyEnv::rows($conn, "UPDATE ordrer SET ref = $2 WHERE id = $1", [$doc['id'], $ref]);
+        ShopifyEnv::rows($conn, "INSERT INTO ansatte (konto_id, navn, bynavn) SELECT id, $1, 'Ansatby' FROM adresser WHERE art = 'S' LIMIT 1", [$ref]);
+        if ($side === '!S') {
+            // that row only prints on a page break, so the invoice needs more lines than a page holds
+            ShopifyEnv::rows($conn, "INSERT INTO ordrelinjer (ordre_id, vare_id, varenr, beskrivelse, enhed, posnr, antal, pris, rabat, momssats, procent)"
+                . " SELECT $1, 0, 'L1', 'Linkvare', 'stk', n, 1, 0, 0, 25, 100 FROM generate_series(2, 120) AS n", [$doc['id']]);
+        }
+        $row = ShopifyEnv::one($conn, "INSERT INTO formularer (formular, art, side, beskrivelse, justering, xa, ya, xb, str, color, font, fed, kursiv, sprog)"
+            . " VALUES (4, 2, $1, $2, 'V', 20, 150, 0, 10, 0, 'Helvetica', '', '', 'Dansk') RETURNING id", [$side, $field]);
+        try {
+            $response = $this->get("?t=$token");
+        } finally {
+            ShopifyEnv::rows($conn, 'DELETE FROM formularer WHERE id = $1', [(int)$row['id']]);
+            ShopifyEnv::rows($conn, 'DELETE FROM ansatte WHERE navn = $1', [$ref]);
+            pg_close($conn);
+        }
+
+        $this->assertSame(200, $response['status'], $response['body']);
+        $this->assertSame('%PDF-', substr($response['body'], 0, 5));
+        if (trim((string)shell_exec('command -v pdftotext 2>/dev/null')) !== '') {
+            $pdf = tempnam(sys_get_temp_dir(), 'sd794');
+            file_put_contents($pdf, $response['body']);
+            $text = (string)shell_exec('pdftotext ' . escapeshellarg($pdf) . ' -');
+            unlink($pdf);
+            $this->assertStringContainsString($expected, $text);
+        }
+    }
+
+    /** @return array<string, array{0: string, 1: string, 2: string, 3?: string}> */
+    public static function layoutFields(): array
+    {
+        return [
+            'ansat by, a ref with an apostrophe' => ['A', '$ansat_by', 'Ansatby', "Lay O'Out"],
+            'ansat by, a ref with an apostrophe, in the page header' => ['!S', '$ansat_by', 'Ansatby', "Lay O'Out"],
+            'if(kundenr)' => ['A', 'if($ordre_kundenr)Kunde $ordre_kundenr', '91950'],
+            'ansat by' => ['A', '$ansat_by', 'Ansatby'],
+            'kundenr' => ['A', '$ordre_kundenr', '91950'],
+            'ansat by, in the page header' => ['!S', '$ansat_by', 'Ansatby'],
+            'kundenr, in the page header' => ['!S', '$ordre_kundenr', '91950'],
+        ];
+    }
+
     private function posted(string $art = 'DO', int $status = 3): array
     {
         $nr = (string)++self::$next;
@@ -408,6 +460,70 @@ final class DokumentLinkTest extends TestCase
         $this->assertSame(404, $response['status']);
         $this->assertSame('Not found', $response['body']);
         $this->assertSame($pdfs, glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_doc_*.pdf') ?: []);
+    }
+
+    public function testAQueryFailingDuringThePrintPublishesNoPdfAndARetryGetsTheDocument(): void
+    {
+        $doc = $this->posted();
+        $token = self::token($this->link($doc['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        // the print reads batch_salg once for this order's one line, so this is one failure: db_select() alerts and the print goes on
+        $pdfs = glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_doc_*.pdf') ?: [];
+        ShopifyEnv::rows($conn, 'ALTER TABLE batch_salg RENAME TO batch_salg_away');
+        try {
+            $failed = $this->get("?t=$token");
+        } finally {
+            ShopifyEnv::rows($conn, 'ALTER TABLE batch_salg_away RENAME TO batch_salg');
+            pg_close($conn);
+        }
+
+        $this->assertSame(503, $failed['status'], $failed['body']);
+        $this->assertSame('Unavailable', $failed['body']);
+        $this->assertSame($pdfs, glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_doc_*.pdf') ?: [], 'nothing is cached');
+
+        $retry = $this->get("?t=$token");
+        $this->assertSame(200, $retry['status'], $retry['body']);
+        $this->assertSame('%PDF-', substr($retry['body'], 0, 5));
+    }
+
+    #[DataProvider('rebateItems')]
+    public function testSetPricesWithoutAValidRebateItemStillRenderTheInvoice(string $rebateItem): void
+    {
+        $token = self::token($this->link($this->posted()['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        // a rebate item that is no number has to stay harmless now that a failed query stops the PDF
+        $saved = ShopifyEnv::one($conn, "SELECT box2, box14 FROM grupper WHERE art = 'DIV' AND kodenr = '3'");
+        ShopifyEnv::rows($conn, "UPDATE grupper SET box2 = $1, box14 = 'on' WHERE art = 'DIV' AND kodenr = '3'", [$rebateItem]);
+        try {
+            $response = $this->get("?t=$token");
+        } finally {
+            ShopifyEnv::rows($conn, "UPDATE grupper SET box2 = $1, box14 = $2 WHERE art = 'DIV' AND kodenr = '3'", [$saved['box2'], $saved['box14']]);
+            pg_close($conn);
+        }
+
+        $this->assertSame(200, $response['status'], $response['body']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function rebateItems(): array
+    {
+        return ['empty' => [''], 'not a number' => ['RABAT'], 'past int4, as an EAN' => ['5701234567890']];
+    }
+
+    public function testALineWithoutAnItemStillRendersTheInvoiceEveryTime(): void
+    {
+        $doc = $this->posted();
+        $token = self::token($this->link($doc['id']));
+        $conn = ShopifyEnv::connect(self::$db);
+        // what restapi/services/OrderLineService.php writes for a product it doesn't know
+        ShopifyEnv::rows($conn, 'UPDATE ordrelinjer SET vare_id = NULL WHERE ordre_id = $1', [$doc['id']]);
+        pg_close($conn);
+
+        foreach ([1, 2] as $request) {
+            $response = $this->get("?t=$token");
+            $this->assertSame(200, $response['status'], "request $request: {$response['body']}");
+            $this->assertSame('%PDF-', substr($response['body'], 0, 5));
+        }
     }
 
     public function testAnEmptySecretRowIsReplacedOnceAndLinksStayStable(): void
