@@ -1,5 +1,8 @@
 <?php
 // 20260914 CDX/LH Save document corrections atomically and reject stale manual edits.
+// 20261027 CL/LH Account 0 is "not set", as the journal stores an empty account. A stored account the journal can't use
+//                (0, another year's, closed, or an app's suggestion that isn't in kontoplan) no longer refuses "Indsæt" and
+//                Bilagsmatch with 422; the line keeps its empty Debet. A typed Debet/Kredit is still checked (#732).
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
 
@@ -24,7 +27,8 @@ function poolMetadataAccount($account, int $year): string {
 		throw new InvalidArgumentException('Invalid account', 422);
 	}
 	$account = trim((string)$account);
-	if ($account === '') {
+	// The journal stores an empty account as 0, and apps send it the same way: not set, not an account that doesn't exist
+	if ($account === '' || (ctype_digit($account) && (int)$account === 0)) {
 		return '';
 	}
 	if (!ctype_digit($account) || !db_fetch_array(db_select(
@@ -109,9 +113,15 @@ function poolJournalSuggestedAccount($account, string $source, int $sourceId, in
 		if (!$target) {
 			throw new InvalidArgumentException('Invalid journal line', 422);
 		}
-		if (!empty($target['debet'])) {
+		if ((float)$target['debet'] != 0) {
 			return '';
 		}
 	}
-	return poolMetadataAccount($account, $year);
+	// The stored account is only a suggestion (an app's or an AI scan's, or saved for another year).
+	// One the journal can't use is left out, and the line keeps its empty Debet; the attach goes on.
+	try {
+		return poolMetadataAccount($account, $year);
+	} catch (InvalidArgumentException $error) {
+		return '';
+	}
 }

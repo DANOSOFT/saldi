@@ -24,6 +24,16 @@ jobs:
     name: PHPUnit + Playwright
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Every docker compose call in this job (bootstrap-stack.sh and
+      # e2e/seed-user.mjs too) adds the CI file, which keeps the stack away from
+      # the production locator.
+      COMPOSE_FILE: docker-compose.yml:tools/ci/compose.ci.yml
+      # Local-only credentials for the throwaway stack this job installs.
+      # SALDI_E2E_TENANT_DB is exported by tools/ci/bootstrap-stack.sh.
+      SALDI_PGPASS: password
+      SALDI_E2E_ACCOUNT: saldi_chatbot_test
+      SALDI_E2E_PASSWORD: e2etest-ci-local-2026
 
     steps:
       - uses: actions/checkout@v4
@@ -49,8 +59,35 @@ jobs:
       - name: Install Saldi (master database + accounting entity)
         run: bash tools/ci/bootstrap-stack.sh
 
+      - name: Create a scratch database for the fixture suites
+        # The kreditor lock and batch-posting suites, the open-post settle-date
+        # report and the active-fiscal-years test build their own schemas or
+        # temporary tables. They get a database of their own, apart from the
+        # tenant.
+        run: docker compose exec -T -e PGPASSWORD="$SALDI_PGPASS" postgres createdb -U user saldi_char_fixture
+
       - name: PHPUnit
-        run: docker compose exec -T -w /var/www/html/saldi web php vendor/bin/phpunit --testdox
+        # tests/characterization posts real journals, invoices and stock moves
+        # through the pages, against a clone of the tenant bootstrap-stack.sh
+        # installed. Each suite skips itself when its setting is missing, so a
+        # run without these variables is green without having touched them.
+        env:
+          FIXTURE_PG: host=postgres dbname=saldi_char_fixture user=user password=${{ env.SALDI_PGPASS }}
+        run: >-
+          docker compose exec -T
+          -e SALDI_CHAR_PGUSER=user
+          -e SALDI_CHAR_PGPASS="$SALDI_PGPASS"
+          -e SALDI_CHAR_TEMPLATE_DB="$SALDI_E2E_TENANT_DB"
+          -e SALDI_CHAR_PG_DSN="$FIXTURE_PG"
+          -e SALDI_CHAR_DSN="pgsql:host=postgres;dbname=saldi_char_fixture"
+          -e ACTIVE_FISCAL_YEARS_PG="$FIXTURE_PG"
+          -w /var/www/html/saldi web
+          php vendor/bin/phpunit --testdox --log-junit /tmp/phpunit-junit.xml
+
+      - name: No unexpected skipped tests
+        run: >-
+          docker compose exec -T -w /var/www/html/saldi web
+          php tools/ci/check-skips.php /tmp/phpunit-junit.xml
 
       - uses: actions/setup-node@v4
         with:

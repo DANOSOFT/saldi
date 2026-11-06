@@ -15,11 +15,8 @@
 #   2. admin/opret.php    - creates an accounting entity: its own database,
 #                           ~116 tables, and the seed data from importfiler/.
 #
-# Both are single form posts. Step 2 needs no session, which is a defect in
-# its own right - see doc/TESTING_FINDINGS.md P1-4 and
-# tests/restapi/AdminOpretAuthorizationTest.php. This script does not rely on
-# that: it posts as the administrator it just created. If the hole is closed,
-# the login below keeps this working.
+# Both are single form posts. Step 2 requires an administrator session, so the
+# script logs in as the administrator it just created before posting.
 #
 # Idempotent-ish: it refuses to run against a master database that already
 # has accounting entities, so it cannot quietly wipe a working stack.
@@ -35,6 +32,8 @@
 # 20260725 CL/LH Created for the end-to-end coverage push.
 # 20261022 CL/NTR A failing entity check now stops the script instead of counting as zero and dropping the master db.
 #                 The regnskab-table check is assigned before the test, so its failure also stops the script.
+# 20261023 CL/LH Log in through index/login.php; the index.php post never created a session.
+#                Export SALDI_E2E_TENANT_DB to GITHUB_ENV for the e2e steps.
 
 set -euo pipefail
 
@@ -120,13 +119,14 @@ echo "connect.php written, master database $MASTER_DB created"
 
 say "step 2: create the accounting entity '$ACCOUNT'"
 cookies="$(mktemp)"
-# Log in as the administrator we just created, so this works whether or not
-# admin/opret.php still accepts unauthenticated posts.
+# Log in as the administrator we just created; admin/opret.php needs a session.
+# Post to index/login.php directly: index/index.php only answers with a form
+# that submits itself to login.php from JavaScript, which curl never runs.
 curl -fsS -o /dev/null -c "$cookies" -b "$cookies" \
   --data-urlencode "regnskab=$MASTER_DB" \
   --data-urlencode "brugernavn=$ADMIN" \
   --data-urlencode "password=$ADMIN_PW" \
-  "$BASE_URL/index/index.php" || true
+  "$BASE_URL/index/login.php"
 
 opret_out="$(mktemp)"
 curl -fsS -o "$opret_out" -c "$cookies" -b "$cookies" \
@@ -155,6 +155,11 @@ tables="$(docker compose exec -T -e "PGPASSWORD=$PG_PASS" postgres \
 if [ "${tables:-0}" -lt 50 ]; then
   echo "tenant $tenant_db has only $tables tables - the schema did not install" >&2
   exit 1
+fi
+
+# Hand the tenant to the later CI steps (e2e/seed-user.mjs, the Playwright specs).
+if [ -n "${GITHUB_ENV:-}" ]; then
+  echo "SALDI_E2E_TENANT_DB=$tenant_db" >> "$GITHUB_ENV"
 fi
 
 say "done"

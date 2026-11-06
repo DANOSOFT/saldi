@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,7 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
+// 20260917 CL/LH Delivery note always prints the delivery address; vis_lev_addr no longer gates formular 3 (Havemoebelland).
 // 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
 //             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
@@ -86,6 +87,13 @@
 //             konto_til was ignored. The revived query also treats a NULL lukket as open.
 // 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
 // 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
+// 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
+//                holds the last printed order by then.
+// 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
+//                opening balance and running balance then cover those posts only. A NULL
+//                udlignet counts as open, as it does in the ledger.
+// 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
+//                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -652,7 +660,7 @@ if (!function_exists('find_form_tekst')) {
 					list($tabel, $variabel) = explode("_", $streng[$x], 2);
 
 					if (($tabel == "ordre") && (($variabel == "lev_navn") || ($variabel == "lev_addr1") || ($variabel == "lev_addr2") || ($variabel == "lev_postnr") || ($variabel == "lev_bynavn") || ($variabel == "lev_kontakt")) && (($formular == 3) || get_settings_value("showBothAddrExtra", "ordre", "off") === "on")) {
-						$variabel = tjek_lev_addr($variabel, $id);
+						$variabel = tjek_lev_addr($variabel, $id, $formular);
 					}
 					if ($tabel == "afdeling" && $variabel == "note") {
 						$qtxt = "select afd from ordrer where id=$id";
@@ -811,7 +819,7 @@ if (!function_exists('find_form_tekst')) {
 								$streng[$x] = dkdecimal($r2[$variabel], 2);
 							} elseif ($variabel == "felt_3" || $variabel == "felt_4") {
 								$r3 = db_fetch_array(db_select("select felt_4 from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-								if ($r3['felt_4'] * 1 == 0) {
+								if ((float)$r3['felt_4'] == 0) { #20261103 CL/SZ SD-797 a felt_4 that is no number counts as 0; '* 1' threw a TypeError
 									$streng[$x] = '';
 								} elseif ($variabel == "felt_3")
 									$streng[$x] = $r2[$variabel];
@@ -964,16 +972,19 @@ if (!function_exists('find_forfaldsdato')) {
 }
 
 if (!function_exists('tjek_lev_addr')) {
-	function tjek_lev_addr($variabel, $id)
+	function tjek_lev_addr($variabel, $id, $formular = NULL)
 	{
 		print "<!--function tjek_lev_addr start-->";
 		if ($variabel == "lev_navn")
 			$tmp = "firmanavn";
 		else
 			$tmp = substr($variabel, 4);
-		// 20260709 Sawaneh SD-562: when "show both" is enabled, only print the delivery address
-		// on the delivery note if the order's Show-delivery-address flag (vis_lev_addr) is on.
-		$vis_lev_cond = (get_settings_value("showBothAddrExtra", "ordre", "off") === "on") ? " and vis_lev_addr='on'" : "";
+		// 20260917 CL/LH The delivery note (formular 3) always uses the delivery address when one is set.
+		// In "show both" mode the order's Show-delivery-address flag (vis_lev_addr) only gates the other forms.
+		$vis_lev_cond = "";
+		if ($formular != 3 && get_settings_value("showBothAddrExtra", "ordre", "off") === "on") {
+			$vis_lev_cond = " and vis_lev_addr='on'";
+		}
 		$query = db_select("select $tmp from ordrer where id=$id and lev_navn!='' and lev_addr1!='' and lev_postnr!='' and lev_bynavn!=''$vis_lev_cond", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			return $variabel;
@@ -1106,6 +1117,7 @@ if (!function_exists('formularprint')) {
 		if ($vis_saet)
 			$brugsamletpris = 'on';
 
+		$bulkPrint = ($id == -1);
 		if ($id == -1) {	# Saa er der flere fakturaer
 			$ordre_antal = $_GET['ordre_antal'];
 			$ordreliste = $_GET['skriv'];
@@ -2408,7 +2420,7 @@ if (!function_exists('formularprint')) {
 			}
 			// 20260807 MJ urlencode returside saa search-parametre ikke laekaer som separate GET-parametre i udskriv.php
 			// 20260812 MJ Brug is_string-guard saa array-input ikke giver PHP-advarsel (null/array -> tom streng)
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art" . ($bulkPrint ? '&amp;bulk=1' : '') . "&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
@@ -2904,6 +2916,12 @@ if (!function_exists('kontoprint')) {
 		global $s_id;
 		global $pdftk,$ps2pdf,$weasyprint;
 
+		$kilde = ifset($_GET, 'kilde', NULL);
+		if (!$kilde) {
+			$kilde = ifset($_POST, 'kilde', NULL);
+		}
+		$openPostOnly = ($kilde == 'openpost');
+
 		$dkkforfalden = $nomailantal = $mailantal = 0;
 		$mailsprog = 'Dansk';
 		($dato_fra) ? $dato_fra = usdate($dato_fra) : $dato_fra = "1970-01-01";
@@ -3053,7 +3071,11 @@ if (!function_exists('kontoprint')) {
 					}
 					if ($dato_fra > '1970-01-01') {
 						$saldo = 0;
-						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra' order by transdate";
+						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra'";
+						if ($openPostOnly) {
+							$qtxt .= " and (udlignet != '1' or udlignet is null)";
+						}
+						$qtxt .= " order by transdate";
 						$q1 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 						while ($r1 = db_fetch_array($q1)) {
 							if ($kontovaluta == $r1['valuta'])
@@ -3098,7 +3120,11 @@ if (!function_exists('kontoprint')) {
 						$dksaldo = "0,00";
 					}
 					$y = $y - 4;
-					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til' order by transdate,id";
+					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til'";
+					if ($openPostOnly) {
+						$qxt .= " and (udlignet != '1' or udlignet is null)";
+					}
+					$qxt .= " order by transdate,id";
 					$q1 = db_select("$qxt", __FILE__ . " linje " . __LINE__);
 					while ($r1 = db_fetch_array($q1)) {
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/restore.php --- lap 5.0.0 --- 2026-07-02 ---
+// --- admin/restore.php --- lap 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20160609 PHR if ($POST) fungerer ikke mere, hvis ikke det angives hvad der postes.  
 // 20200308 PHR Varius changes related til Centos 8 / mariadb /postgresql 9x
@@ -38,6 +38,8 @@
 // 20260127 LOE Updated migrateMySQLToPostgreSQL for some isolated fixes.
 // 20260129 PHR Added some str_replace  and a call to connect.php before lookup in 'regnskab'
 // 20260702 CX/PHR Close target PostgreSQL connection and terminate active sessions before DROP DATABASE in restore
+// 20261015 CDX/PHR Copy the restored tenant version to the master database before the next login.
+// 20261027 CL/NTR Catch restore failures at both call sites and show them to the admin instead of a blank page.
 
 @session_start();
 $s_id=session_id();
@@ -212,7 +214,11 @@ if ($menu=='T') {
 			$backup_encode=if_isset($_POST, NULL, 'backup_encode');
 			$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
 			$filnavn=if_isset($_POST, NULL,'filnavn');
-			restore($filnavn,$backup_encode,$backup_dbtype);
+			try {
+				restore($filnavn,$backup_encode,$backup_dbtype);
+			} catch (RuntimeException $e) {
+				printRestoreFailure($e);
+			}
 		} else {
 		
 			if (!if_isset($_POST,NULL,'mysql_db') ) {
@@ -287,7 +293,11 @@ if ($menu=='T') {
 					}elseif(stripos(trim($result), 'PostgreSQL') !== false){
 						$backup_encode=if_isset($_POST, NULL, 'backup_encode');
 						$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
-						restore($backupfil,$backup_encode,$backup_dbtype);
+						try {
+							restore($backupfil,$backup_encode,$backup_dbtype);
+						} catch (RuntimeException $e) {
+							printRestoreFailure($e);
+						}
 					}
 					fclose($handle);
 				} else {
@@ -524,17 +534,44 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 		db_create($db);
 		print "<!-- Saldi-kommentar for at skjule uddata til siden \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
 		$mysql = $psql = NULL;
+		$restoreExitCode = null;
 		if (substr($db_type,0,5)=='mysql') {
 			if (file_exists("/usr/bin/mysql")) $mysql = "/usr/bin/mysql";
 			elseif (file_exists("/bin/mysql")) $mysql = "/usr/mysql";
 			else echo "mysql not found<br>";
-			if ($mysql) system("$mysql -u $squser --password=$sqpass -h $sqhost $db < $filnavn2");
+			if ($mysql) system("$mysql -u $squser --password=$sqpass -h $sqhost $db < $filnavn2", $restoreExitCode);
 		} else {
 			if (file_exists("/usr/bin/psql")) $psql = "/usr/bin/psql";
 			elseif (file_exists("/bin/psql")) $psql = "/usr/psql";
 			else echo "psql not found<br>";
-			if ($psql) system("export PGPASSWORD=$sqpass\n$psql -h $sqhost -U $squser $db < $filnavn2");
+			if ($psql) system("export PGPASSWORD=$sqpass\n$psql -h $sqhost -U $squser $db < $filnavn2", $restoreExitCode);
 		}
+		if ($restoreExitCode !== 0) {
+			throw new RuntimeException('Database restore failed. The existing data has already been replaced; the backup files have been retained.');
+		}
+		// Read the version from the imported data, not the running application or old tenant.
+		db_close($connection);
+		$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . ' linje ' . __LINE__);
+		if ($db_type === 'mysql') {
+			mysql_select_db($db);
+		} elseif ($db_type === 'mysqli') {
+			mysqli_select_db($connection, $db);
+		}
+		$restoredVersionRow = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'VE'", __FILE__ . ' linje ' . __LINE__));
+		$restoredVersion = trim((string) ifset($restoredVersionRow, 'box1', ''));
+		if ($restoredVersion === '') {
+			throw new RuntimeException('The restored database has no version. The existing data has already been replaced; the backup files have been retained.');
+		}
+		db_close($connection);
+		$connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . ' linje ' . __LINE__);
+		if ($db_type === 'mysql') {
+			mysql_select_db($sqdb);
+		} elseif ($db_type === 'mysqli') {
+			mysqli_select_db($connection, $sqdb);
+		}
+		$restoredVersionSql = db_escape_string($restoredVersion);
+		$restoredDbSql = db_escape_string($db);
+		db_modify("UPDATE regnskab SET version = '$restoredVersionSql' WHERE db = '$restoredDbSql'", __FILE__ . ' linje ' . __LINE__);
 		db_close($connection);
 		print "<BODY ONLOAD=\"javascript:alert('Regnskabet er genskabt. Du skal logge ind igen!')\">";
 	
@@ -559,6 +596,21 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 
 print "</div></div></div>";
 ##########################
+/**
+ * Shows a restore() failure to the admin. restore() throws after it has opened the
+ * "<!--" comment that hides the import output, so the comment is closed first.
+ *
+ * @param RuntimeException $e
+ * @return void
+ */
+function printRestoreFailure(RuntimeException $e) {
+	$message = $e->getMessage();
+	error_log('restore.php: ' . $message);
+	print "--> \n";
+	print "<p style='color: red; font-weight: bold;'>" . htmlspecialchars($message, ENT_QUOTES) . "</p>";
+	print "<script>alert(" . json_encode($message) . ");</script>";
+}
+
 function renderRestoreForm($db, $backupfil, $restoreV = 'Submit') {
 	echo '<p style="color: red; font-weight: bold;">Please note: This operation may take up to 12 minutes to complete.</p>';
 
