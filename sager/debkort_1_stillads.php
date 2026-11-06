@@ -64,7 +64,7 @@ if ($betalingsbet_lc!='kontant') 	{print "<option value=\"Kontant\">".findtekst(
 if ($betalingsbet_lc!='efterkrav') 	{print "<option value=\"Efterkrav\">".findtekst('371|Efterkrav', $sprog_id)."<!--tekst 371--></option>"; }
 if ($betalingsbet_lc!='netto'){print "<option value=\"Netto\">".findtekst('372|Netto', $sprog_id)."<!--tekst 372--></option>"; }
 if ($betalingsbet_lc!='lb. md.'){print "<option value=\"Lb. md.\">".findtekst('373|Lb. md.', $sprog_id)."<!--tekst 373--></option>";}
-if (($betalingsbet=='Kontant')||($betalingsbet=='Efterkrav')||($betalingsbet=='Forud')) {$betalingsdage='';}
+if (in_array($betalingsbet_lc, array('kontant', 'efterkrav', 'forud'), true)) {$betalingsdage='';}
 
 elseif (!$betalingsdage) {$betalingsdage='Nul';}
 if ($betalingsdage){

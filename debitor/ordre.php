@@ -177,6 +177,7 @@
 //                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
 //                 Labels are escaped in the page charset, so a stored value with æøå keeps its option value on a non-UTF8 database.
 // 20261106 CL/MMR SD-813 The delete-line question, the delivery tooltips, the Copy tooltip and the cost price tooltip follow the user's language.
+//                 The delete tooltip of a fully delivered line is translated too; the tooltips are escaped and use str_replace for the number (CodeRabbit).
 
 @session_start();
 $s_id = session_id();
@@ -4668,7 +4669,7 @@ function ordreside($id, $regnskab)
 			print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" ";
 			// print "value=\"".findtekst('1100||Kopier', $sprog_id)."\" name=\"b_submit\" ";
 			print "value=\"" . findtekst('1100||Kopier', $sprog_id) . "\" name=\"copy\" ";
-			print "title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id) . "\"></td>\n";
+			print "title=\"" . htmlspecialchars(findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id), ENT_QUOTES, $charset) . "\"></td>\n";
 		}
 		if ($mail_fakt) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id) . "\"";
 		else if ($udskriv_til == "Digitalt") $tmp = "value=\"Send\" title=\"" . findtekst('2539|Send faktura digitalt', $sprog_id) . "\"";
@@ -7230,11 +7231,11 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 				$tmp = NULL;
 			} else {
 				if (abs($antal) != abs($tidl_lev)) {
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8482|Mangler fortsat at modtage resten.', $sprog_id) : findtekst('8481|Mangler fortsat at levere resten.', $sprog_id)) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+					print "<td title=\"" . htmlspecialchars(findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8482|Mangler fortsat at modtage resten.', $sprog_id) : findtekst('8481|Mangler fortsat at levere resten.', $sprog_id)), ENT_QUOTES, $charset) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				} else {
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8484|Intet modtaget endnu.', $sprog_id) : findtekst('8483|Intet leveret endnu.', $sprog_id)) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+					print "<td title=\"" . htmlspecialchars(findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8484|Intet modtaget endnu.', $sprog_id) : findtekst('8483|Intet leveret endnu.', $sprog_id)), ENT_QUOTES, $charset) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
-				print "<td title=\"" . sprintf($art == 'DK' ? findtekst('8486|Tidligere modtaget %s på denne ordre.', $sprog_id) : findtekst('8485|Tidligere leveret %s på denne ordre.', $sprog_id), $dk_tidl_lev) . "\">($dk_tidl_lev)</td>\n";
+				print "<td title=\"" . htmlspecialchars(str_replace('%s', $dk_tidl_lev, $art == 'DK' ? findtekst('8486|Tidligere modtaget %s på denne ordre.', $sprog_id) : findtekst('8485|Tidligere leveret %s på denne ordre.', $sprog_id)), ENT_QUOTES, $charset) . "\">($dk_tidl_lev)</td>\n";
 				// 20261008 MJ SST-833 This opens batch(), not serienummer(), so it no longer uses the
 				// serial-number icon and alt text. MEDSHOP read the serial icon on an item with no
 				// serial number as the feature misbehaving. 1496 is the text already on its title.
@@ -7261,14 +7262,14 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		$delBtn = "<svg xmlns='http://www.w3.org/2000/svg ' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#d0021b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg> ";
 		if (abs($antal) == abs($tidl_lev)) {
 			# Fully delivered
-			$txt2130 = "Do you want to delete this item and return it to stock?";
+			$txt2130 = findtekst('8488|Vil du slette denne vare og lægge den tilbage på lager?', $sprog_id);
 		} else {
 			# Not fully delivered
 			$txt2130 = findtekst('2130|Slet ordrelinje', $sprog_id);
 		}
-		print "<td valign = 'top' align='right' title='$txt2130'>";
+		print "<td valign = 'top' align='right' title='" . htmlspecialchars($txt2130, ENT_QUOTES, $charset) . "'>";
 		print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
-		print "onclick=\"if (confirm(" . htmlspecialchars(jsString(array(sprintf(findtekst('8479|Slet linje %s?', $sprog_id), $x))), ENT_QUOTES, $charset) . ")) { document.getElementsByName('posn$x')[1].value='-'; ";
+		print "onclick=\"if (confirm(" . htmlspecialchars(jsString(array(str_replace('%s', $x, findtekst('8479|Slet linje %s?', $sprog_id)))), ENT_QUOTES, $charset) . ")) { document.getElementsByName('posn$x')[1].value='-'; ";
 		print "var __swF=document.getElementsByName('ordre')[0]; if(__swF){__swF.dataset.swSkipPreflight='1';} ";
 		print "document.getElementsByName('ordre')[0].submit.click(); }\">$delBtn</button></td>\n";
 	} else print "<td></td>";
