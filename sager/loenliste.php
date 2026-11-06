@@ -1,6 +1,6 @@
 <?php
 
-// ------ sager/loenliste.php-------ver 5.1.0 ------2026-11-04------13:22---------
+// ------ sager/loenliste.php-------ver 5.1.0 ------2026-11-05------13:22---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -40,6 +40,8 @@
 // 20261103 CL/MMR SD-799 The Type column shows every wage type again, as on the wage slip, and the "settled on slip" tooltip is translated.
 // 20261104 CL/MMR SD-799 "Settled on slip" replaces only the %s placeholder, so an edited text with a % sign cannot break the list.
 //                 stillads_14 and udvikling_2 keep the akktimer and akk_afr types in the Type column.
+// 20261105 CL/LH The list is drawn to the end when a lookup finds nothing (no employees, case responsibles, cases or categories) instead of dying on count() of an unset list.
+//                Without a user group with the create/edit-case right, the responsible query is skipped instead of failing in implode().
 
 
 function loenliste() {
@@ -261,6 +263,7 @@ function loenliste() {
 #		$cat_navn[$x]=$r['box1'];
 #		$x++;
 #	}
+	$cat_id=array();
 	$q=db_select("select id,kodenr,beskrivelse from grupper where art ='VG' and box10='on' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$cat_id[$x]=$r['kodenr'];
@@ -269,6 +272,7 @@ function loenliste() {
 	}
 	// Query til ansatte
 	$x=0;
+	$ansatte_id=$ansatte_init=array();
 	$q=db_select("select id,initialer,navn from ansatte where slutdate ='9999-12-31' order by navn",__FILE__ . " linje " . __LINE__); #20161108
 	while($r=db_fetch_array($q)) {
 		$ansatte_id[$x]=$r['id'];
@@ -285,6 +289,7 @@ function loenliste() {
 		$x++;
 	}
 	$x=0;
+	$sagsnr=array();
 	$q=db_select("select id,sagsnr,ref,udf_addr1 from sager",__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
 		$sagid[$x]=$r['id']; // Bruges til at overfører 'ref' fra sager til 'loen'. Kan udkommenteres efter brug!!
@@ -296,6 +301,7 @@ function loenliste() {
 	
 	// Query til ansvarlig
 	$x=0;
+	$gruppeid=array();
 	$q=db_select("select * from grupper where art='brgrp'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -305,14 +311,16 @@ function loenliste() {
 		if($rettigheder[$x]==1) $gruppeid[$x]=$gruppe_id[$x]; // finder de gruppe_id'er som har rettighed til opret/ret sag
 	} 
 	
-	$in_str = "'".implode("', '", $gruppeid)."'"; // formatere '$gruppeid[]' til f.eks. '52','77' osv.
-	
 	$x=0;
-	$q=db_select("select * from ansatte where konto_id=1 and gruppe IN ($in_str) order by id",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$ansvarlig[$x]=htmlspecialchars($r['navn']);
-		$gruppe[$x]=$r['gruppe']; // gruppe_id fra 'grupper'
-		$x++;
+	$ansvarlig=array();
+	if ($gruppeid) {
+		$in_str = "'".implode("', '", $gruppeid)."'"; // formatere '$gruppeid[]' til f.eks. '52','77' osv.
+		$q=db_select("select * from ansatte where konto_id=1 and gruppe IN ($in_str) order by id",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			$ansvarlig[$x]=htmlspecialchars($r['navn']);
+			$gruppe[$x]=$r['gruppe']; // gruppe_id fra 'grupper'
+			$x++;
+		}
 	}
 	/*
 	print "<pre>";

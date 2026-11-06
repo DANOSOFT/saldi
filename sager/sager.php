@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- sager/sager.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,8 @@
 // 20261103 CL/MMR SD-799 Case and task statuses, "Opgave N", the datepicker and the search dropdown labels follow the user's language.
 //                 The piecework date filter's clear button shows its label again.
 // 20261104 CL/MMR SD-799 The datepicker clear-button text is passed to the script as UTF-8.
+// 20261105 CL/LH sagsliste() and ret_sag(): the Ansvarlig and Beregner lists start empty, so a tenant without case responsibles gets an empty dropdown instead of a count() TypeError.
+//                Without a user group with the create/edit-case right, the responsible query is skipped instead of failing in implode().
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -744,6 +746,7 @@ function sagsliste() {
 	
 	// Query til ansvarlig
 	$x=0;
+	$gruppeid=array();
 	$q=db_select("select * from grupper where art='brgrp'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -753,14 +756,16 @@ function sagsliste() {
 		if($rettigheder[$x]==1) $gruppeid[$x]=$gruppe_id[$x]; // finder de gruppe_id'er som har rettighed til opret/ret sag
 	} 
 	
-	$in_str = "'".implode("', '", $gruppeid)."'"; // formatere '$gruppeid[]' til f.eks. '52','77' osv.
-	
 	$x=0;
-	$q=db_select("select * from ansatte where konto_id=1 and gruppe IN ($in_str) order by id",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$ansvarlig[$x]=htmlspecialchars($r['navn']);
-		$gruppe[$x]=$r['gruppe']; // gruppe_id fra 'grupper'
-		$x++;
+	$ansvarlig=array();
+	if ($gruppeid) {
+		$in_str = "'".implode("', '", $gruppeid)."'"; // formatere '$gruppeid[]' til f.eks. '52','77' osv.
+		$q=db_select("select * from ansatte where konto_id=1 and gruppe IN ($in_str) order by id",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			$ansvarlig[$x]=htmlspecialchars($r['navn']);
+			$gruppe[$x]=$r['gruppe']; // gruppe_id fra 'grupper'
+			$x++;
+		}
 	}
 	
 /*
@@ -2902,6 +2907,7 @@ function ret_sag() {
 	
 	// Query til ansvarlig
 	$x=0;
+	$gruppeid=array();
 	$q=db_select("select * from grupper where art='brgrp'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -2910,13 +2916,15 @@ function ret_sag() {
 		if($rettigheder[$x]==1) $gruppeid[$x]=$gruppe_id[$x]; // finder de gruppe_id'er som har rettighed til opret/ret sag
 	} 
 	
-	$in_str = "'".implode("', '", $gruppeid)."'"; // formatere '$gruppeid[]' til f.eks. '52','77' osv.
-	
 	$x=0;
-	$q=db_select("select * from ansatte where konto_id=1 and gruppe IN ($in_str) order by id",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$ansvarlig[$x]=htmlspecialchars($r['navn']);
-		$x++;
+	$ansvarlig=array();
+	if ($gruppeid) {
+		$in_str = "'".implode("', '", $gruppeid)."'"; // formatere '$gruppeid[]' til f.eks. '52','77' osv.
+		$q=db_select("select * from ansatte where konto_id=1 and gruppe IN ($in_str) order by id",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			$ansvarlig[$x]=htmlspecialchars($r['navn']);
+			$x++;
+		}
 	}
 	
 	// query til kunde-info
