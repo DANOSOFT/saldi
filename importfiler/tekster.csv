@@ -5375,3 +5375,41 @@
 8417	Af	By	Av
 8418	Aktuelle sager	Current projects	Aktuelle saker
 8419	Alle sager	All projects	Alle saker
+8420	Beløb og summer er ikke opdateret, før sedlen er gemt med dato.	Amounts and totals are not updated until the slip is saved with a date.	Beløp og summer er ikke oppdatert før seddelen er lagret med dato.
+8421	Fejl i brugernavn eller adgangskode	Wrong username or password	Feil brukernavn eller passord
+8422	Brugeren %s er allerede logget ind.	The user %s is already logged in.	Brukeren %s er allerede logget inn.
+8423	Vil du fortsætte?	Do you want to continue?	Vil du fortsette?
+8424	Max antal samtidige brugere (%s) er overskredet	Maximum number of simultaneous users (%s) exceeded	Maks antall samtidige brukere (%s) er overskredet
+8425	Aktive brugere:	Active users:	Aktive brukere:
+8426	Vælg en bruger at logge ud:	Select a user to log out:	Velg en bruker som skal logges ut:
+8427	Sidst aktiv	Last active	Sist aktiv
+8428	Log ud og fortsæt	Log out and continue	Logg ut og fortsett
+8429	Regnskab %s findes ikke	Account %s does not exist	Regnskap %s finnes ikke
+8430	Midlertidig adgangskode udløbet	Temporary password expired	Midlertidig passord er utløpt
+8431	Regnskabet er lukket. Ring %s for genåbning	The account is closed. Call %s to reopen it	Regnskapet er stengt. Ring %s for gjenåpning
+8432	Din IP-adresse er ikke godkendt til at logge ind.	Your IP address is not approved for logging in.	IP-adressen din er ikke godkjent for innlogging.
+8433	Din session er udløbet - du skal logge ind igen	Your session has expired - please log in again	Økten din er utløpt - du må logge inn igjen
+8434	Regnskabet er lukket	The account is closed	Regnskapet er stengt
+8435	Glemt kode	Forgot password	Glemt passord
+8436	Regnskab %s ikke fundet	Account %s not found	Regnskap %s ikke funnet
+8437	Hverken bruger %s eller regnskab %s er tilknyttet en mailadresse	Neither user %s nor account %s is linked to an email address	Verken bruker %s eller regnskap %s er knyttet til en e-postadresse
+8438	Brugernavnet %s findes ikke i regnskabet %s!\n Lad feltet være tomt for at få sendt en liste over oprettede brugere	The username %s does not exist in the account %s!\n Leave the field empty to receive a list of the users that have been created	Brukernavnet %s finnes ikke i regnskapet %s!\n La feltet stå tomt for å få tilsendt en liste over opprettede brukere
+8439	Skriv navn på regnskab, dit brugernavn og klik send, så vil det blive sendt en mail med en midlertidig adgangskode til den mailadresse som hører til brugernavnet.<br><br>Er det ikke tilknyttet en mail til brugernavnet, sendes mailen til den mailadresse der er registreret på regnskabet.<br><br>Har du glemt navnet på regnskabet, skal du skrive din mailadresse i feltet "Brugernavn" og klikke på send, så bliver navn på det regnskab som er knyttet til mailadressen sendt sammen med brugernavn til mailadressen.<br><br>Har du glemt dit brugernavn, så skriv navnet på dit regnskab i feltet "Regnskab" og der vil blive sendt en liste over brugere til den mail som er knyttet til regnskabet.	Enter the name of the account and your username and click Send. A mail with a temporary password is then sent to the email address that belongs to the username.<br><br>If no email address is linked to the username, the mail is sent to the email address registered on the account.<br><br>If you have forgotten the name of the account, enter your email address in the "Username" field and click Send. The name of the account linked to that email address is then sent to it together with the username.<br><br>If you have forgotten your username, enter the name of your account in the "Account" field, and a list of users is sent to the email address linked to the account.	Skriv inn navnet på regnskapet og brukernavnet ditt og klikk Send. Da sendes en e-post med et midlertidig passord til e-postadressen som hører til brukernavnet.<br><br>Hvis ingen e-postadresse er knyttet til brukernavnet, sendes e-posten til e-postadressen som er registrert på regnskapet.<br><br>Hvis du har glemt navnet på regnskapet, skriver du e-postadressen din i feltet "Brukernavn" og klikker Send. Da sendes navnet på regnskapet som er knyttet til e-postadressen, sammen med brukernavnet til e-postadressen.<br><br>Hvis du har glemt brukernavnet ditt, skriver du navnet på regnskapet ditt i feltet "Regnskap", så sendes en liste over brukere til e-postadressen som er knyttet til regnskapet.
+8440	Et %s regnskab	A %s account	Et %s regnskap
+8441	Op til venstre	Top left	Opp til venstre
+8442	Op til højre	Top right	Opp til høyre
+8443	Ned til venstre	Bottom left	Ned til venstre
+8444	Ned til højre	Bottom right	Ned til høyre
+8445	Hjælpetekst til siden	Help text for this page	Hjelpetekst til siden
+8446	PDF-udskriften kunne ikke oprettes. Kontakt support.	The PDF printout could not be created. Contact support.	PDF-utskriften kunne ikke opprettes. Kontakt support.
+8447	PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.	The PDF file could not be created or is no longer available. Generate the printout again.	PDF-filen kunne ikke opprettes eller er ikke lenger tilgjengelig. Lag utskriften på nytt.
+8448	Udskriftsvalg	Print options	Utskriftsvalg
+8449	BCC til	BCC to	BCC til
+8450	Fejl i afsendelse til	Error sending to	Feil ved sending til
+8451	Medarbejdernummer eksisterer i forvejen	Employee number already exists	Ansattnummer eksisterer allerede
+8452	Medarbejder skal have et navn	Employee must have a name	Ansatt må ha et navn
+8456	DB	CM	DB
+8457	Nt/Bt	Net/Gross	Nt/Bt
+8458	CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?	The VAT lookup will overwrite existing fields. Do you want to update them?	Oppslaget vil overskrive eksisterende felt. Vil du oppdatere dem?
+8459	Nej, behold nuværende	No, keep current	Nei, behold nåværende
+8460	Ja, opdater	Yes, update	Ja, oppdater

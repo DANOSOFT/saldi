@@ -11,6 +11,9 @@
 // History:
 // 20261103 CL/LH SD-766: created.
 // 20261103 CL/SZ SD-754: K54.
+// 20261104 CL/SZ SD-756: K12 and K18.
+// 20261105 CL/SZ SD-756: K18 waits on WP13 only; the BYPASS fulfil check is done.
+// 20261105 CL/SZ SD-757: K09, K13, K19 and K55.
 
 require_once __DIR__ . '/../ShopifyEnv.php';
 require_once __DIR__ . '/../FakeShopifyStore.php';
@@ -31,6 +34,37 @@ function shopify_sandbox_scenarios(): array
 			'targets' => ['fake', 'sandbox'],
 			'run' => 'shopify_sandbox_k05',
 		],
+		'K09' => [
+			'title' => 'a set with two components shows the right quantity in Shopify',
+			'targets' => ['sandbox'],
+			'script' => 'K09.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K09_SET'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is StockSetsBaselineTest'],
+		],
+		'K13' => [
+			'title' => 'display stock is shown as udstillet and is not sellable',
+			'targets' => ['sandbox'],
+			'script' => 'K13.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K13_VARE', 'lager' => 'SALDI_SHOPIFY_SANDBOX_K13_LAGER'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is StockSetsBaselineTest'],
+		],
+		'K19' => [
+			'title' => 'a stock baseline is set per shop, with every pair acknowledged',
+			'targets' => ['sandbox'],
+			'script' => 'K19.php',
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is StockSetsBaselineTest'],
+		],
+		'K55' => [
+			'title' => 'a set shows complete sets per lager and the cross-location ones on the split-set lager, never more than the lagre can assemble',
+			'targets' => ['sandbox'],
+			'script' => 'K55.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K55_SET'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is StockSetsBaselineTest'],
+		],
 		'K03' => [
 			'title' => 'the same webhook twice gives one inbox row; a wrong signature gets 401',
 			'targets' => ['sandbox'],
@@ -38,6 +72,20 @@ function shopify_sandbox_scenarios(): array
 			'args' => ['shop_key' => 'SALDI_SHOPIFY_SANDBOX_K03_SHOP:hml', 'endpoint_url' => 'SALDI_SHOPIFY_SANDBOX_ENDPOINT'],
 			'owner' => 'DTAILS',
 			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is WebhookEndpointTest'],
+		],
+		'K12' => [
+			'title' => 'a Ballerup POS sale reduces the Ballerup location in all three shops within 5 minutes',
+			'targets' => ['sandbox'],
+			'script' => 'K12.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K12_VARE', 'lager' => 'SALDI_SHOPIFY_SANDBOX_K12_LAGER:2'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant, right after the POS sale; on the fake it is StockPushTest'],
+		],
+		'K18' => [
+			'title' => 'a store order reduces Shopify stock by exactly the quantity sold (no double draw)',
+			'targets' => [],
+			'elsewhere' => ['status' => 'BLOCKED', 'owner' => 'WP13',
+				'detail' => 'needs WP13\'s store orders on the sandboxes. The BYPASS fulfil check held on a dev store (SD-764, 2026-11-05): fulfilling a BYPASS order changes no stock, so the push is the only thing that moves it'],
 		],
 		'K45' => [
 			'title' => 'the document link of a posted invoice opens its PDF; a changed link opens nothing',

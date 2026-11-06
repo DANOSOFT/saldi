@@ -103,6 +103,8 @@
 // 20261103 CL/SZ SD-754 Order-line fields lager and lagernavn: the lager a line is drawn from, as number and name.
 //                A Shopify web order (one with a web row in shopify_order_links) prints every row by its line id, so a line drawn from two lagre prints both.
 //                The lager name is the current year's LG row, as in kreditor/ordre.php.
+// 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
+//                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
 // 20261105 CL/SZ SD-794 review: the employee lookups escape the order's ref, and if($ordre_...) reads the same columns as the value.
 
 #use PHPMailer\PHPMailer\PHPMailer;
@@ -844,7 +846,7 @@ if (!function_exists('find_form_tekst')) {
 								$streng[$x] = dkdecimal($r2[$variabel], 2);
 							} elseif ($variabel == "felt_3" || $variabel == "felt_4") {
 								$r3 = db_fetch_array(db_select("select felt_4 from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-								if ($r3['felt_4'] * 1 == 0) {
+								if ((float)$r3['felt_4'] == 0) { #20261103 CL/SZ SD-797 a felt_4 that is no number counts as 0; '* 1' threw a TypeError
 									$streng[$x] = '';
 								} elseif ($variabel == "felt_3")
 									$streng[$x] = $r2[$variabel];

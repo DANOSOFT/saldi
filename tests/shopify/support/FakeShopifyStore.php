@@ -28,6 +28,10 @@
 // 20261103 CL/LH SD-766: second review: the metafield digest is the persisted value's, so writing the same value keeps it (B36).
 // 20261103 CL/SS SD-802: productVariantsBulkUpdate sets price and compareAtPrice (B37).
 // 20261104 CL/SS SD-808: the order fields the paid-order read selects (billing address, line totals, shipping lines, payment details).
+// 20261105 CL/SZ SD-756: inventorySetQuantities on a pair not stocked succeeds and stays hidden until activated, as the dev store does.
+// 20261105 CL/SZ SD-757: bulkOperationRunQuery, bulkOperation(s) and the bulk download seam for the stock read (B38); setAvailable().
+// 20261105 CL/SZ SD-757 review: rootObjectCount counts the items; the bulk query must select the item id and location id, not an alias named id.
+// 20261106 CL/SZ SD-757 review: the stock bulk read can ask for committed too; holdForOrder().
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -84,13 +88,13 @@ final class FakeShopifyStore
 		$this->schema = GraphqlSchema::load();
 		foreach (['shop', 'product', 'productByIdentifier', 'products', 'productVariant', 'productVariants', 'inventoryItem',
 			'inventoryLevel', 'location', 'locations', 'order', 'orders', 'fulfillmentOrder', 'fulfillmentOrders', 'customer',
-			'customers', 'customerByIdentifier', 'webhookSubscription', 'webhookSubscriptions', 'node', 'nodes'] as $root) {
+			'customers', 'customerByIdentifier', 'webhookSubscription', 'webhookSubscriptions', 'node', 'nodes', 'bulkOperations', 'bulkOperation'] as $root) {
 			$method = 'q' . ucfirst($root);
 			$this->handlers['query'][$root] = fn(self $store, string $domain, array $args, array $field): mixed => $this->$method($domain, $args, $field);
 		}
 		foreach (['productSet', 'productVariantsBulkUpdate', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
 			'tagsAdd', 'tagsRemove', 'metafieldsSet', 'customerCreate', 'customerUpdate', 'refundCreate',
-			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete'] as $root) {
+			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete', 'bulkOperationRunQuery'] as $root) {
 			$method = 'm' . ucfirst($root);
 			$this->handlers['mutation'][$root] = fn(self $store, string $domain, array $args, array $field): mixed => $this->$method($domain, $args, $field);
 		}
@@ -176,6 +180,38 @@ final class FakeShopifyStore
 			throw new LogicException("FakeShopifyStore: $item is not stocked at $location");
 		}
 		unset($s['levels'][$item][$location]);
+	}
+
+	/** An unpaid order holds $qty at a location: available moves to committed, as orderCreate with a decrement does (B01). */
+	public function holdForOrder(string $domain, string $item, string $location, int $qty): void
+	{
+		$this->commit($domain, $item, $location, $qty);
+	}
+
+	/** A quantity changed in the shop's admin, not through Saldi: what the nightly read looks for. */
+	public function setAvailable(string $domain, string $item, string $location, int $quantity): void
+	{
+		$this->setQuantity($domain, $item, $location, 'available', $quantity);
+	}
+
+	/**
+	 * The download seam of shopify_bulk_download() for this store's bulk files.
+	 *
+	 * @return callable(string, resource, float, float): array{status: int, errno: int}
+	 */
+	public function bulkDownloader(): callable
+	{
+		return function (string $url, $fh, float $connect, float $timeout): array {
+			foreach ($this->shops as $s) {
+				foreach ($s['bulk'] ?? [] as $op) {
+					if ($op['url'] === $url) {
+						fwrite($fh, $op['file']);
+						return ['status' => 200, 'errno' => 0];
+					}
+				}
+			}
+			return ['status' => 404, 'errno' => 0];
+		};
 	}
 
 	/** A webhook subscription without a request, as register-webhooks would leave it. */
@@ -1350,7 +1386,60 @@ final class FakeShopifyStore
 		return array_map(fn(string $id): ?array => $this->node($domain, $id), $a['ids']);
 	}
 
+	private function qBulkOperations(string $domain, array $a): array
+	{
+		return array_map(fn(string $gid): array => $this->vBulk($domain, $gid), array_reverse(array_keys($this->shop($domain)['bulk'] ?? [])));
+	}
+
+	/** B38: the first look at a new operation finds it RUNNING, the next COMPLETED. */
+	private function qBulkOperation(string $domain, array $a): ?array
+	{
+		$s = &$this->shop($domain);
+		if (!isset($s['bulk'][$a['id']])) {
+			return null;
+		}
+		$this->uses('B38');
+		$view = $this->vBulk($domain, $a['id']);
+		$s['bulk'][$a['id']]['status'] = 'COMPLETED';
+		return $view;
+	}
+
+	private function vBulk(string $domain, string $gid): array
+	{
+		$op = $this->shop($domain)['bulk'][$gid];
+		$done = $op['status'] === 'COMPLETED';
+		return ['__typename' => 'BulkOperation', 'id' => $gid, 'status' => $op['status'], 'type' => 'QUERY', 'query' => $op['query'], 'errorCode' => null,
+			'objectCount' => (string)$op['lines'], 'rootObjectCount' => (string)$op['items'], 'fileSize' => $done ? (string)strlen($op['file']) : null,
+			'url' => $done && $op['file'] !== '' ? $op['url'] : null, 'partialDataUrl' => null, 'completedAt' => null, 'createdAt' => $this->iso()];
+	}
+
 	// ---- mutations: catalogue and stock ------------------------------------------------------
+
+	/**
+	 * B38: a bulk read of every inventory item's available levels, which is all it models. The file is
+	 * written when the operation starts, so a later change isn't in it: one line per item, then
+	 * one per level with the item as __parentId.
+	 */
+	private function mBulkOperationRunQuery(string $domain, array $a): array
+	{
+		if (!preg_match('/^\{\s*inventoryItems\s*\{\s*edges\s*\{\s*node\s*\{\s*id\b(?!\s*:).*inventoryLevels.*location\s*\{\s*id\s*\}.*quantities\(names:\s*\[("available"(?:\s*,\s*"committed")?)\]\)/s', $a['query'], $q)) {
+			throw new LogicException('FakeShopifyStore: this bulk query is not modelled (B38): ' . $a['query']);
+		}
+		$this->uses('B38');
+		$s = &$this->shop($domain);
+		$names = array_map(fn(string $n): string => trim($n, " \""), explode(',', $q[1]));
+		$lines = [];
+		foreach (array_keys($s['items']) as $item) {
+			$lines[] = json_encode(['id' => $item]);
+			foreach ($s['levels'][$item] ?? [] as $location => $level) {
+				$lines[] = json_encode(['location' => ['id' => $location], 'quantities' => array_map(fn(string $n): array => ['name' => $n, 'quantity' => $level[$n]], $names), '__parentId' => $item]);
+			}
+		}
+		$gid = $this->gid('BulkOperation');
+		$s['bulk'][$gid] = ['status' => 'RUNNING', 'query' => $a['query'], 'url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '.jsonl',
+			'file' => $lines === [] ? '' : implode("\n", $lines) . "\n", 'lines' => count($lines), 'items' => count($s['items'])];
+		return self::payload(['bulkOperation' => $this->vBulk($domain, $gid)]);
+	}
 
 	private function mProductSet(string $domain, array $a): array
 	{
@@ -1523,7 +1612,7 @@ final class FakeShopifyStore
 	{
 		$this->uses('B20');
 		$in = $a['input'];
-		$s = $this->shop($domain);
+		$s = &$this->shop($domain);
 		$errors = [];
 		if (!in_array($in['name'], ['available', 'on_hand'], true)) {
 			$errors[] = self::userError(['input', 'name'], "The quantity name must be either 'available' or 'on_hand'.", 'INVALID_NAME');
@@ -1534,11 +1623,9 @@ final class FakeShopifyStore
 				$errors[] = self::userError(array_merge($path, ['inventoryItemId']), 'The specified inventory item could not be found.', 'INVALID_INVENTORY_ITEM');
 			} elseif (!isset($s['locations'][$q['locationId']])) {
 				$errors[] = self::userError(array_merge($path, ['locationId']), 'The specified location could not be found.', 'INVALID_LOCATION');
-			} elseif (!isset($s['levels'][$q['inventoryItemId']][$q['locationId']])) {
-				$errors[] = self::userError(array_merge($path, ['locationId']), 'The item is not stocked at the location.', 'ITEM_NOT_STOCKED_AT_LOCATION');
 			} elseif (!array_key_exists('changeFromQuantity', $q)) {
 				$errors[] = self::userError(array_merge($path, ['changeFromQuantity']), 'changeFromQuantity is required; send null to skip the check.');
-			} elseif ($q['changeFromQuantity'] !== null && $errors === []
+			} elseif ($q['changeFromQuantity'] !== null && $errors === [] && isset($s['levels'][$q['inventoryItemId']][$q['locationId']])
 				&& $s['levels'][$q['inventoryItemId']][$q['locationId']][$in['name']] !== $q['changeFromQuantity']) {
 				$errors[] = self::userError(array_merge($path, ['changeFromQuantity']), 'The specified compare quantity does not match the current quantity.', 'CHANGE_FROM_QUANTITY_STALE');
 			}
@@ -1548,6 +1635,10 @@ final class FakeShopifyStore
 		}
 		$changes = [];
 		foreach ($in['quantities'] as $q) {
+			if (!isset($s['levels'][$q['inventoryItemId']][$q['locationId']])) {
+				$s['hidden'][$q['inventoryItemId']][$q['locationId']] = (int)$q['quantity'];
+				continue;
+			}
 			$before = $this->shop($domain)['levels'][$q['inventoryItemId']][$q['locationId']];
 			$this->setQuantity($domain, $q['inventoryItemId'], $q['locationId'], $in['name'], (int)$q['quantity']);
 			$after = $this->shop($domain)['levels'][$q['inventoryItemId']][$q['locationId']];
@@ -1564,7 +1655,7 @@ final class FakeShopifyStore
 			'reason' => $in['reason'], 'referenceDocumentUri' => $in['referenceDocumentUri'] ?? null, 'createdAt' => $this->iso(), 'changes' => $changes]]);
 	}
 
-	/** B35: stocks an item at a location; available and on_hand start at zero unless given. */
+	/** B35: stocks an item at a location; available and on_hand start at zero unless given, or at a quantity set while it wasn't stocked (B20). */
 	private function mInventoryActivate(string $domain, array $a): array
 	{
 		$s = &$this->shop($domain);
@@ -1575,11 +1666,15 @@ final class FakeShopifyStore
 		}
 		$this->uses('B35');
 		if (!isset($s['levels'][$item][$location])) {
-			$available = $a['available'] ?? $a['onHand'] ?? 0;
+			$available = $a['available'] ?? $a['onHand'] ?? $s['hidden'][$item][$location] ?? 0;
+			unset($s['hidden'][$item][$location]);
 			if (isset($a['available'], $a['onHand']) && $a['available'] !== $a['onHand']) {
 				throw new LogicException('FakeShopifyStore: inventoryActivate with available and onHand apart is not modelled (B35)');
 			}
 			$s['levels'][$item][$location] = ['available' => (int)$available, 'on_hand' => (int)$available] + $this->emptyLevel();
+		} elseif (isset($a['available'])) {
+			return self::payload(['inventoryLevel' => $this->vLevel($domain, $item, $location)],
+				[self::userError(['available'], 'Not allowed to set available quantity when the item is already active at the location.')]);
 		}
 		return self::payload(['inventoryLevel' => $this->vLevel($domain, $item, $location)]);
 	}
