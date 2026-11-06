@@ -6809,15 +6809,6 @@ function formatOrderUnitPrice($price)
 }
 
 /**
- * The label of a stored payment term (ordrer.betalingsbet) in the user's language.
- * The stored value stays the Danish key; the texts are the ones the debitor card and the POS payment select (Konto) use.
- * A value without a text of its own is shown as stored.
- *
- * @param string|null $betalingsbet Stored payment term, e.g. 'Netto' or 'Lb. md.'.
- * @param int|string  $sprog_id     The user's language id.
- * @return string HTML-ready label.
- */
-/**
  * Puts values into a translated text with sprintf(). A custom translation whose format sprintf() cannot use
  * (too few values, an unknown placeholder) falls back to the built-in Danish text, so a translation can never
  * stop the order page. Valid formats such as %s, %1$s and %% work as usual.
@@ -6836,6 +6827,15 @@ function orderTekstFormat($tekst, $standard, ...$vaerdier)
 	}
 }
 
+/**
+ * The label of a stored payment term (ordrer.betalingsbet) in the user's language.
+ * The stored value stays the Danish key; the texts are the ones the debitor card and the POS payment select (Konto) use.
+ * A value without a text of its own is shown as stored.
+ *
+ * @param string|null $betalingsbet Stored payment term, e.g. 'Netto' or 'Lb. md.'.
+ * @param int|string  $sprog_id     The user's language id.
+ * @return string HTML-ready label.
+ */
 function orderPaymentTermLabel($betalingsbet, $sprog_id)
 {
 	global $charset;
