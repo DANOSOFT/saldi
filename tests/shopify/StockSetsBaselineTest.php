@@ -9,6 +9,7 @@
 // 20261105 CL/SZ SD-757: created.
 // 20261106 CL/SZ SD-757 review: a moved-on acknowledgement blocks the stamp unless dirty, committed stock defers a pair.
 //                A stored zero call waits for its items' barriers; the sandbox scripts print lines the runner reads.
+//                A set inside a set doesn't keep the baseline from stamping.
 
 declare(strict_types=1);
 
@@ -584,6 +585,23 @@ final class StockSetsBaselineTest extends TestCase
         $this->assertTrue($run['results'][0]['stamped'], 'its dirty row becomes a mark the push sends');
         $this->sql("UPDATE shopify_shops SET stock_publish_enabled = true WHERE shop_key = 'hml'");
         $this->assertSame(2, $this->steps(['drain', 100], ['push', 'hml'])['levels']['hml']['SD757-A']['Ballerup']);
+    }
+
+    public function test_a_set_inside_a_set_is_sent_as_0_with_its_warning_and_the_baseline_still_stamps(): void
+    {
+        $plain = $this->item('P', [1 => 3]);
+        $inner = $this->set('INNER', [$plain => 1]);
+        $nested = $this->set('NESTED', [$inner => 1]);
+        $this->shop([$plain, $nested]);
+        $this->offToBaseline();
+
+        $run = $this->steps(['baseline', 'hml', null], ['baseline', 'hml', ['prepared' => true]]);
+
+        $this->assertNoException($run);
+        $this->assertTrue($run['results'][1]['stamped'], 'one set Å32 keeps off the web holds back no shop');
+        $this->assertSame(3, $run['levels']['hml']['SD757-P']['Ballerup']);
+        $this->assertSame(0, $run['levels']['hml']['SD757-NESTED']['Ballerup']);
+        $this->assertNotEmpty(array_filter($this->errors(), fn(string $e): bool => str_starts_with($e, "set:$nested")), 'its warning stays');
     }
 
     public function test_a_change_during_the_baseline_goes_with_it(): void

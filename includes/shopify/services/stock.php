@@ -63,6 +63,7 @@
 //                A remap checks the new location is the shop's, and counts a started baseline as written.
 // 20261106 CL/SZ SD-757 review: the baseline stamps only on Saldi's quantities, the remap's zero call waits for its items' barriers.
 //                The reconcile defers a pair while Shopify has stock committed there.
+//                A set that can't be published no longer keeps the baseline from stamping (Å32, Lui).
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -1280,8 +1281,9 @@ function shopify_stock_baseline(array $rt, array $job, float $deadline): array {
 
 /**
  * What keeps a shop's baseline from being complete: a pair without an acknowledgement, or acknowledged at
- * another quantity than Saldi's while its item isn't marked or dirty (a refusal dropped the mark), a set that
- * can't be published or a sellable lager without a location. A display lager without one doesn't count.
+ * another quantity than Saldi's while its item isn't marked or dirty (a refusal dropped the mark), or a sellable
+ * lager without a location. A display lager without one doesn't count, nor does a set that can't be published:
+ * it is sent as 0 with its set:<vare_id> warning, and the rest of the shop goes live.
  *
  * @return list<string> a line per problem, none when every pair is acknowledged
  */
@@ -1308,7 +1310,8 @@ function shopify_stock_baseline_missing(int $shopId, array $config): array {
 			$missing["lager $lager"] = "sellable lager $lager has no location";
 		}
 		foreach ($ids as $vareId) {
-			if (!isset($plan['items'][$vareId]) || $plan['items'][$vareId]['invalid']) {
+			// a set that can't be published keeps its own warning and counts once its 0 is acknowledged (Å32)
+			if (!isset($plan['items'][$vareId])) {
 				$missing[] = "item $vareId can't be published";
 				continue;
 			}
