@@ -172,6 +172,7 @@
 //                read the offset before the call, so it warned when there was no konto_id or no adresser row.
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
+// 20261030 CL/MJ SST-882 An invoice whose e-invoice was rejected shows EasyUBL's message and what to do, under the title bar (orderIncludes/einvoiceRejection.php).
 // 20261105 CL/MMR SD-807 The order page shows Digitalt, the payment terms (Forud, Efterkrav, Netto, Lb. md., Konto), Nt/Bt and DB/DG (also in the line tooltips) in the user's language.
 //                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
 //                 Labels are escaped in the page charset, so a stored value with æøå keeps its option value on a non-UTF8 database.
@@ -214,6 +215,7 @@ include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
+include_once(__DIR__ . '/orderIncludes/einvoiceRejection.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -3877,6 +3879,8 @@ function ordreside($id, $regnskab)
 		if ($returside == "ordreliste.php") sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 		else sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 	}
+	// SST-882: why the e-invoice was rejected, when it was (orderIncludes/einvoiceRejection.php).
+	einvoiceRejectionView($id, $art, $status, $sprog_id, $db_encode);
 	// -- Stock-warning banner: sits between the title bar (rendered by sidehoved()) and the order form.
 	if ($id && function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
 		// Count active vs. deleted approvals. Deleted-line approvals stay in the

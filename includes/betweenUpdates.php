@@ -33,6 +33,7 @@
 //                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
+// 20261030 CL/MJ SST-882 New table einvoice_events: every e-invoice status and message per invoice.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -228,5 +229,11 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb
 		}
 	}
 }
+
+// 20261030 CL/MJ SST-882 einvoice_events keeps every status EasyUBL reports for an e-invoice and every failed
+// send, with the message. Before this the message went only to temp/, so a rejected invoice could not say why.
+include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
+include_once(__DIR__ . '/stdFunc/einvoiceEvents.php');
+ensureTableAndColumns($db, 'einvoice_events', einvoice_events_columns());
 
 ?>
