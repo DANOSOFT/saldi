@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rows.php --- ver 5.1.0 --- 2026.10.19 ---
+// ---- includes/settings/rows.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261008 SS Table option 'confirm_skip' (button text, explanation) for the confirm box. Warehouse usage follows
 // 20261018 SS Review 2 (PR #803): an empty cell in a number column is written as NULL (SettingsService::sqlValue). master's warehouseDeletion.php (history, order lines, departments; duplicates may go).
 // 20261019 SS Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
+// 20261105 CL/LH A background's usage counts customers and suppliers through their group's language (DG/KG box4); adresser has no sprog column, so the old count failed on every background row.
 
 /**
  * The tables of a rows section with their defaults filled in.
@@ -249,8 +250,10 @@ function settings_rows_usage(array $t, array $row): array
 				$add("select count(*) as n from varer where " . db_cast('gruppe', 'text') . " = '$esc'", 6427);
 				break;
 			case 'background':
-				// G6.2: customers, suppliers and orders name their background (form language) by its name.
-				$add("select count(*) as n from adresser where sprog = '$esc'", 6682);
+				// G6.2: orders name their background (form language) by its name. Customers and suppliers take it from
+				// their group (DG/KG box4, in any fiscal year and any case); a new customer order copies it from there.
+				$add("select count(*) as n from adresser a where exists (select 1 from grupper g where g.kodenr = a.gruppe"
+					. " and ((a.art = 'D' and g.art = 'DG') or (a.art = 'K' and g.art = 'KG')) and lower(g.box4) = lower('$esc'))", 6682);
 				$add("select count(*) as n from ordrer where sprog = '$esc'", 6422);
 				break;
 			case 'currency':
