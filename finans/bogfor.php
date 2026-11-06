@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.1.0 --- 2026-11-04 ---
+// ---------------finans/bogfor.php---------- ver 5.1.0 --- 2026-11-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -84,6 +84,7 @@
 // 20261102 CL/ASR The old "+1000 postings for kr. 30,-" offer is not shown to accounts with a package from the self-service signup.
 // 20261104 CDX/NTR Merge MB-72 settlement dates and complete payments with MB-123 exchange differences, simulation and preview.
 // 20261104 CDX/NTR Restore chronological order of the merged history entries.
+// 20261106 CL/LH MB-123 The confirmation page puts each voucher's currency rounding on that voucher's own difference account, as posting books it, instead of the whole journal's rounding on the last currency line's account (confirmationRoundingByAccount()).
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -315,6 +316,7 @@ $valutadiff=0;
 $valutaposter=0;
 
 $dkkamount=array();
+$voucherDiffkonto=array();
 if ($kladde_id) {
 	$posteringer=0;
 	// A row with an amount but no account was refused at the top of the page, so the preview never deletes rows.
@@ -340,6 +342,7 @@ if ($kladde_id) {
 			if ($row['valuta'] && $row['amount'] && ($row['debet']||$row['kredit']))  {
 				$valutaposter++;
 				list($dkkamount[$posteringer],$diffkonto,$valutakurs)=valutaopslag($amount[$posteringer],$row['valuta'],$row['transdate']);
+				$voucherDiffkonto[$y]=$diffkonto;
 #				if ($row['debet']) $valutadiff=$valutadiff+$dkkamount[$posteringer];
 #				if ($row['kredit']) $valutadiff=$valutadiff-$dkkamount[$posteringer];
 #				$valutadiff=round($valutadiff+0.0001,3);
@@ -514,11 +517,16 @@ for ($y=0; $y<$kontoantal; $y++) {
 // 20261027 CL/LH MB-79 An exchange difference gives the currency's difference account a row above. The in-voucher
 // currency rounding further down then goes on that row: printed as a row of its own it had no account number,
 // raised PHP warnings and showed a new balance that left out the exchange difference.
+// 20261106 CL/LH MB-123 Each voucher's rounding goes on that voucher's own difference account, as posting books it.
 $diff=afrund($debetsum-$kreditsum,3);
 if (abs($diff) < $valutaposter/100) $valutadiff=$diff;
-$roundingOnListedAccount=false;
+$roundingRows=array();
 if ($valutadiff && abs($valutadiff) < $valutaposter/100 && isset($diffkonto)) {
-	$roundingOnListedAccount=confirmationRoundingOnListedAccount($kontoliste,$kontodebet,$kontokredit,$diffkonto,$valutadiff);
+	foreach (confirmationRoundingByAccount($valutadiff,$tjeksum,$voucherDiffkonto,$diffkonto) as $konto => $rounding) {
+		if (!confirmationRoundingOnListedAccount($kontoliste,$kontodebet,$kontokredit,$konto,$rounding)) {
+			$roundingRows[$konto]=$rounding;
+		}
+	}
 }
 
 print "<form name=kassekladde action=bogfor.php?funktion=$funktion method=post>";
@@ -568,26 +576,23 @@ if (abs($diff) < $valutaposter/100) {
 	$valutadiff=$diff;
 } 
 
-if ($roundingOnListedAccount) {
-	// Already on the difference account's row and in the totals above.
+if ($valutadiff && abs($valutadiff) < $valutaposter/100) {
+	// Rounding on an account listed above is already in its row and the totals; the rest gets a row per account.
 	$diff=$diff-$valutadiff;
-} elseif ($valutadiff && abs($valutadiff) < $valutaposter/100) {
-	if (isset($diffkonto)&&(!in_array($diffkonto,$kontoliste) && $diffkonto>0)) { 
-		$y++;
-		$kontoliste[$y]=$diffkonto;
-		$kontokredit[$y]=0;
-		$kontodebet[$y]=0;
-	}
-	if ($valutadiff > 0) {
-		$k_sum=$k_sum+$valutadiff;
-		$kontokredit[$y]=$valutadiff;
-		$diff=$diff-$valutadiff;
+}
+foreach ($roundingRows as $konto => $rounding) {
+	$y++;
+	$kontoliste[$y]=$konto;
+	$kontokredit[$y]=0;
+	$kontodebet[$y]=0;
+	if ($rounding > 0) {
+		$k_sum=$k_sum+$rounding;
+		$kontokredit[$y]=$rounding;
 	} else {
-		$d_sum=$d_sum-$valutadiff;
-		$kontodebet[$y]=$valutadiff*-1;
-		$diff=$diff-$valutadiff;
+		$d_sum=$d_sum-$rounding;
+		$kontodebet[$y]=$rounding*-1;
 	}
-	$query = db_select("select * from kontoplan where kontonr='$diffkonto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from kontoplan where kontonr='" . db_escape_string((string)$konto) . "' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		$saldo=$row['saldo'];
 		$a=dkdecimal($saldo);
@@ -1618,6 +1623,39 @@ function confirmationRoundingOnListedAccount($kontoliste,&$kontodebet,&$kontokre
 		}
 	}
 	return false;
+}
+/**
+ * Splits the confirmation page's currency rounding over the vouchers' own difference accounts, the way
+ * bogfor() books each voucher's rounding on that voucher's account. A voucher's share is its DKK imbalance
+ * when that is below 0,10, posting's limit. What no voucher accounts for stays on $diffkonto, the account
+ * of the journal's last currency line, as before.
+ *
+ * @param float                              $valutadiff       The journal's rounding; positive is credited.
+ * @param array<int|string,float>            $tjeksum          DKK debit minus credit per voucher.
+ * @param array<int|string,string|int|null>  $voucherDiffkonto Difference account of each voucher's last currency line.
+ * @param string|int|null                    $diffkonto        Difference account of the journal's last currency line.
+ * @return array<int|string,float>                             Rounding per difference account.
+ */
+function confirmationRoundingByAccount($valutadiff,$tjeksum,$voucherDiffkonto,$diffkonto) {
+	$rounding=array();
+	$rest=$valutadiff;
+	foreach ($voucherDiffkonto as $bilag => $konto) {
+		$share=isset($tjeksum[$bilag]) ? afrund($tjeksum[$bilag],3) : 0;
+		if ($share && abs($share) < 0.1 && $konto > 0) {
+			$rounding[$konto]=(isset($rounding[$konto]) ? $rounding[$konto] : 0)+$share;
+			$rest-=$share;
+		}
+	}
+	$rest=afrund($rest,3);
+	if ($rest) {
+		$konto=(string)$diffkonto;
+		$rounding[$konto]=(isset($rounding[$konto]) ? $rounding[$konto] : 0)+$rest;
+	}
+	foreach ($rounding as $konto => $amount) {
+		$rounding[$konto]=afrund($amount,3);
+		if (!$rounding[$konto]) unset($rounding[$konto]);
+	}
+	return $rounding;
 }
 /**
  * The posting text an exchange difference carries, in both the ledger and the open-post ledger, worded

@@ -4,6 +4,7 @@
 // 20261027 CL/LH MB-79 Simuler measures against what the journal's earlier lines would have written to openpost, the confirmation page gets the same differences (journalRateDifferences()), a reference given twice is measured once, and a difference account missing from the chart of accounts is refused.
 // 20261027 CL/LH MB-79 The confirmation page's in-voucher currency rounding goes on the difference account's row.
 // 20261104 CDX/NTR Verify MB-72 project matching, group dates and complete payments with MB-123 differences and simulation in both equalizers.
+// 20261106 CL/LH MB-123 Pin per-voucher rounding accounts on the confirmation page, per-currency anchors in both equalizers, single-invoice-sized payments and the exit after a refused difference.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -111,7 +112,8 @@ final class ExchangeRateSettlementTest extends TestCase
         foreach (['openpostAccountQuery', 'openpostInvoiceList', 'openpostMatchQuery',
                   'openpostMatches', 'openpostOverlay', 'openpostOverlayMatch', 'openpostOverlayRecord',
                   'openpostRateDifferenceAmount', 'openpostRateDifference', 'journalLineOpenpostSides',
-                  'journalRateDifferences', 'confirmationRoundingOnListedAccount', 'rateDifferenceText',
+                  'journalRateDifferences', 'confirmationRoundingOnListedAccount', 'confirmationRoundingByAccount',
+                  'rateDifferenceText',
                   'rateDifferenceOpenpostAmount', 'rateDifferenceAccounts', 'rateDifferenceAccountError',
                   'bookRateDifference', 'openpost'] as $needed) {
             self::assertStringContainsString('function ' . $needed . '(', $lift,
@@ -480,7 +482,8 @@ final class ExchangeRateSettlementTest extends TestCase
 
     public function testShortAndExcessMultiInvoicePaymentsLeaveEveryPostOpen(): void
     {
-        foreach ([-90, -110] as $payment) {
+        // -40 and -60 each match one invoice of the group; the group still needs all 100.
+        foreach ([-40, -60, -90, -110] as $payment) {
             $this->db->exec('DELETE FROM openpost');
             $this->post('D', '2200', 'PART-A', 40, self::EUR, 745, '2026-09-01', 1);
             $this->post('D', '2200', 'PART-B', 60, self::EUR, 745, '2026-09-02', 2);
@@ -527,6 +530,20 @@ final class ExchangeRateSettlementTest extends TestCase
             $rows = $this->openposts();
             self::assertSame('2026-10-10', $rows[0]['udlign_date'], $name);
             self::assertSame('2026-10-10', $rows[1]['udlign_date'], $name);
+        }
+    }
+
+    public function testBothEqualizersAnchorEachCurrencyOfAnInvoiceNumber(): void
+    {
+        // An earlier EUR post took the only anchor for F-960, so the USD pair with the same number stayed open.
+        foreach (['equalizeMatchingRecords', 'equalizeOrderMatchingRecords'] as $name) {
+            $this->db->exec('DELETE FROM openpost');
+            $this->openRow('F-960', 100, 'EUR', 745);
+            $this->openRow('F-960', 200, 'USD', 680);
+            $this->openRow('F-960', -200, 'USD', 680);
+            $equalize = __NAMESPACE__ . '\\' . $name;
+            $equalize();
+            self::assertSame(['0', '1', '1'], $this->settledFlags(), $name);
         }
     }
 
@@ -594,8 +611,8 @@ final class ExchangeRateSettlementTest extends TestCase
         $guard = substr($src, $from, $insert - $from);
         self::assertMatchesRegularExpression('/\$accountError\s*=\s*rateDifferenceAccountError\(\$diffkonto/', $guard,
             'a missing or unknown currency difference account would be posted to');
-        self::assertStringContainsString("transaktion('rollback')", $guard,
-            'and the journal would be left half posted');
+        self::assertMatchesRegularExpression("/transaktion\\('rollback'\\);.*?\\bexit;/s", $guard,
+            'and the journal would be left half posted, or posting would carry on after the rollback');
     }
 
     public function testADifferenceAccountMustBeSetUpAndExistInTheFiscalYear(): void
@@ -898,5 +915,23 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertFalse(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, '', 0.01),
             'and with no difference account it is left to the page\'s existing error');
         self::assertSame($before, [$kontodebet, $kontokredit]);
+    }
+
+    public function testEachVouchersRoundingGoesOnThatVouchersOwnDifferenceAccount(): void
+    {
+        // Voucher 1 is in EUR with 0,01 rounding, voucher 2 in USD with -0,02. The journal's last currency line is
+        // USD, and the page used to put the whole -0,01 on 7961.
+        self::assertSame([7960 => 0.01, 7961 => -0.02],
+            confirmationRoundingByAccount(-0.01, [1 => 0.01, 2 => -0.02], [1 => '7960', 2 => '7961'], '7961'));
+        self::assertSame([7960 => 0.03],
+            confirmationRoundingByAccount(0.03, [1 => 0.01, 3 => 0.02], [1 => '7960', 3 => '7960'], '7960'),
+            'two vouchers on one account add up');
+        self::assertSame([7960 => 0.01, 7961 => 0.02],
+            confirmationRoundingByAccount(0.03, [1 => 0.01, 4 => 0.0], [1 => '7960', 4 => '7961'], '7961'),
+            'what no voucher accounts for stays on the last currency line\'s account, as before');
+        self::assertSame(['' => 0.01],
+            confirmationRoundingByAccount(0.01, [1 => 0.01], [1 => ''], ''),
+            'with no difference account it is left to the page\'s existing error');
+        self::assertSame([], confirmationRoundingByAccount(0.0, [1 => 0.0], [1 => '7960'], '7960'));
     }
 }

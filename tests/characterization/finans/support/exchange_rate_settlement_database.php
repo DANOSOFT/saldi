@@ -1,6 +1,7 @@
 <?php
 // 20261021 CL/MJ MB-79 Run the open-post settlement queries against an isolated in-memory database.
 // 20261027 CL/LH MB-79 Stubs for findtekst() and postingLineAmounts(), which the confirmation page's lookups call.
+// 20261106 CL/LH MB-123 afrund() applies production's rounding correction.
 
 namespace Saldi\Tests\ExchangeRateSettlement;
 
@@ -28,8 +29,20 @@ function db_escape_string($value) {
     return str_replace("'", "''", (string)$value);
 }
 
+// The same correction as afrund() in includes/std_func.php, so a figure on a half-øre step rounds the same way.
 function afrund($tal, $decimaler) {
-    return round((float)$tal, (int)$decimaler);
+    $tal = (float)$tal;
+    $decimaler = (int)$decimaler;
+    $tmp = 0.001;
+    for ($x = 1; $x < $decimaler; $x++) {
+        $tmp = $tmp / 10;
+    }
+    if ($tal > 0) {
+        $tal = round($tal + $tmp, $decimaler);
+    } elseif ($tal < 0) {
+        $tal = round($tal - $tmp, $decimaler);
+    }
+    return $tal;
 }
 
 function dkdecimal($tal, $decimaler = null) {
