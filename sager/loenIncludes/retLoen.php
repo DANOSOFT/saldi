@@ -42,6 +42,7 @@
 //                 A Dyrtid slip without a date on its list is named in red with a link, and it cannot be transferred until the slip has a date.
 //                 When the transfer is refused, the slip keeps the transfer state stored in the database and is saved like a Gem (Codex).
 //                 A Dyrtid slip without a date that is already linked to the slip is not stamped either (CodeRabbit).
+//                 The date rule has one owner, akkDyrtidMedDatoSql(), used by the transfer and by the list of slips without a date.
 
 function ret_loen() {
 	global $brugernavn;
@@ -409,7 +410,8 @@ function ret_loen() {
 				}
 			}
 			if ($afslut && $loen_art=='akk_afr') {
-				$qtxt="update loen set afsluttet='$afsluttet',afsluttet_af='$afsluttet_af',master_id='$id' where (master_id='$id' and (coalesce(art,'') != 'akktimer' or loendate > '1970-01-01')) or (sag_id='$sag_id' and art='akktimer' and afsluttet='' and id != '$id' and loendate > '1970-01-01')"; # 20261106 SST-961
+				$qtxt="update loen set afsluttet='$afsluttet',afsluttet_af='$afsluttet_af',master_id='$id' where (master_id='$id' or (sag_id='$sag_id' and art='akktimer' and afsluttet='' and id != '$id')) "; # 20261106 SST-961
+				$qtxt.= "and (coalesce(art,'') != 'akktimer' or " . akkDyrtidMedDatoSql() . ")"; // Dyrtid slips without a date are never stamped
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				for ($i=0;$i<count($ansat_id);$i++) {
 #cho __line__." $i $loen_date[$i] ".$loen_date[$i-1]." select * from loen where loendate='".usdate($loen_date[$i])."' and art = 'akktimer' and sag_id='$sag_id' and opg_id='$opg_id' and (master_id is NULL or master_id='0')<br>";
@@ -1820,6 +1822,17 @@ function loenGenindsaet($post) {
 }
 
 /**
+ * The one SQL rule for "this Dyrtid slip has a date" (SST-961). A missing date is stored as 01-01-1970, so a
+ * date up to 01-01-1970 (also a typo year such as 0201) or NULL counts as no date. Overfør of an akkordafregning
+ * only stamps Dyrtid slips that meet it, and akkDyrtidUdenDato() lists the ones that do not, so both use this rule.
+ *
+ * @return string SQL condition on loen.loendate, true only for a real date.
+ */
+function akkDyrtidMedDatoSql() {
+	return "coalesce(loendate > '1970-01-01', false)";
+}
+
+/**
  * The Dyrtid slips without a date on an akkordafregning's list: the same rows as the list in ret_loen()
  * (same case and task, art 'akktimer', not the slip itself, not linked to another slip, not rejected).
  * A missing date is stored as 01-01-1970; a year up to 1970 is treated the same way. Such a slip is
@@ -1837,7 +1850,7 @@ function akkDyrtidUdenDato($id, $sag_id, $opg_id) {
 	$opg_id = (int)$opg_id;
 	$slips  = array();
 	$qtxt = "select id,nummer,afvist from loen where sag_id='$sag_id' and opg_id='$opg_id' and art='akktimer' and id != '$id' ";
-	$qtxt.= "and (master_id='$id' or master_id='0' or master_id is NULL) and (loendate is NULL or loendate <= '1970-01-01') order by nummer";
+	$qtxt.= "and (master_id='$id' or master_id='0' or master_id is NULL) and not " . akkDyrtidMedDatoSql() . " order by nummer";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (!trim((string)$r['afvist'])) {
