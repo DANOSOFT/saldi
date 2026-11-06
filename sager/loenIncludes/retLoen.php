@@ -40,7 +40,7 @@
 // 20261105 CL/MMR SST-943 A four-digit year is read as written: a year before 1000 (05-11-0026) is refused, only two digits are a short year (CodeRabbit).
 // 20261106 CL/MMR SST-961 Overfør of an akkordafregning no longer takes Dyrtid slips without a date along.
 //                 A Dyrtid slip without a date on its list is named in red with a link, and it cannot be transferred until the slip has a date.
-//                 When the transfer is refused, the slip keeps the transfer state stored in the database (Codex).
+//                 When the transfer is refused, the slip keeps the transfer state stored in the database and is saved like a Gem (Codex).
 
 function ret_loen() {
 	global $brugernavn;
@@ -325,6 +325,7 @@ function ret_loen() {
 			// Its transfer state comes from the database, not from the form (an open slip stays open).
 			$afslut = NULL;
 			$afs    = NULL;
+			$gemt   = 1; // this pass counts as the first Gem pass, so one more follows as for a Gem
 			$stored = db_fetch_array(db_select("select afsluttet,afsluttet_af from loen where id='" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
 			$afsluttet    = db_escape_string($stored ? (string)$stored['afsluttet'] : '');
 			$afsluttet_af = db_escape_string($stored ? (string)$stored['afsluttet_af'] : '');
