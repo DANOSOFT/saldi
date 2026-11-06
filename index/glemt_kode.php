@@ -33,6 +33,7 @@
 //                 Send and Retur are recognised by their button name, so the translated button texts still work.
 //                 The BCC line and the send error are translated too; the send error escapes the address.
 // 20261106 CL/MMR SD-812 The mail with the temporary password, the user list and the account list use the same language; the names in it are escaped.
+// 20261106 CL/MMR SD-812 Review (Saul): the account list sentence reads «er tilknyttet:» (new text 8489), and the plain-text part of the mail also decodes apostrophes.
 $nonce = base64_encode(random_bytes(16));
 header("Content-Security-Policy: script-src 'self' 'nonce-$nonce'; object-src 'none';");
 
@@ -223,7 +224,7 @@ if (isset($_POST['retur'])) {
 		} elseif ($regnskaber) {
 			$subjekt = findtekst('8475|Saldi regnskab', $sprog_id);
 			$mailtext .= sprintf(findtekst('8476|I dag den %s kl. %s er der blevet rekvireret en liste over regnskaber tilknyttet %s', $sprog_id), $dd, $tp, htmlspecialchars((string)$firmamail, ENT_QUOTES, $charset)) . "<br><br>";
-			$mailtext .= sprintf(findtekst('8477|%s et tilknyttet : %s.', $sprog_id), htmlspecialchars((string)$firmamail, ENT_QUOTES, $charset), htmlspecialchars((string)$regnskaber, ENT_QUOTES, $charset)) . "\t<br><br>";
+			$mailtext .= sprintf(findtekst('8489|%s er tilknyttet: %s.', $sprog_id), htmlspecialchars((string)$firmamail, ENT_QUOTES, $charset), htmlspecialchars((string)$regnskaber, ENT_QUOTES, $charset)) . "\t<br><br>";
 		}
 		$mailtext .= findtekst('8478|God fornøjelse fra dit Saldi team', $sprog_id) . "<br>";
 #		fclose ($fp);
@@ -267,7 +268,7 @@ if (isset($_POST['retur'])) {
 #		$mail->AddAttachment("$filnavn","$fakturanavn","base64","application/pdf");      // attachment
 		$mail->IsHTML(true);                               // send as HTML
 
-		$ren_text=html_entity_decode($mailtext,ENT_COMPAT,$charset);
+		$ren_text=html_entity_decode($mailtext,ENT_QUOTES,$charset);
 		$ren_text=str_replace("<br>","\n",$ren_text);
 		$ren_text=str_replace("<b>","*",$ren_text);
 		$ren_text=str_replace("</b>","*",$ren_text);
