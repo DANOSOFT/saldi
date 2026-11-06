@@ -173,6 +173,7 @@
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
 // 20261030 CL/MJ SST-882 An invoice whose e-invoice was rejected shows EasyUBL's message and what to do, under the title bar (orderIncludes/einvoiceRejection.php).
+// 20261104 CL/MMR SST-918 The product note (note_on_orderline) is looked up by the matched item's id, so a variant picked in the quick search or typed as its barcode gets its parent's note (CodeRabbit on PR #979).
 // 20261105 CL/MMR SD-807 The order page shows Digitalt, the payment terms (Forud, Efterkrav, Netto, Lb. md., Konto), Nt/Bt and DB/DG (also in the line tooltips) in the user's language.
 //                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
 //                 Labels are escaped in the page charset, so a stored value with æøå keeps its option value on a non-UTF8 database.
@@ -2394,11 +2395,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 							$_noteColExists = !empty($_chk);
 						}
 						if ($_noteColExists) {
-							$noteQtxt = "SELECT notes, note_on_orderline FROM varer
-										WHERE varenr = '" . db_escape_string($varenr[0]) . "'
-										OR varenr_alias = '" . db_escape_string($varenr[0]) . "'
-										OR stregkode = '" . db_escape_string($varenr[0]) . "'
-										LIMIT 1";
+							// by the matched item's id: a variant barcode in $varenr[0] is not in varer, its parent is
+							$noteQtxt = "SELECT notes, note_on_orderline FROM varer WHERE id = '" . (int)$exact_match_check['id'] . "' LIMIT 1";
 							if ($noteVare = db_fetch_array(db_select($noteQtxt, __FILE__ . " linje " . __LINE__))) {
 								$noteEnabled = (
 									$noteVare['note_on_orderline'] === 't' ||
