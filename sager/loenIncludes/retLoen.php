@@ -41,6 +41,7 @@
 // 20261106 CL/MMR SST-961 Overfør of an akkordafregning no longer takes Dyrtid slips without a date along.
 //                 A Dyrtid slip without a date on its list is named in red with a link, and it cannot be transferred until the slip has a date.
 //                 When the transfer is refused, the slip keeps the transfer state stored in the database and is saved like a Gem (Codex).
+//                 A Dyrtid slip without a date that is already linked to the slip is not stamped either (CodeRabbit).
 
 function ret_loen() {
 	global $brugernavn;
@@ -408,7 +409,7 @@ function ret_loen() {
 				}
 			}
 			if ($afslut && $loen_art=='akk_afr') {
-				$qtxt="update loen set afsluttet='$afsluttet',afsluttet_af='$afsluttet_af',master_id='$id' where master_id='$id' or (sag_id='$sag_id' and art='akktimer' and afsluttet='' and id != '$id' and loendate > '1970-01-01')"; # 20261106 SST-961
+				$qtxt="update loen set afsluttet='$afsluttet',afsluttet_af='$afsluttet_af',master_id='$id' where (master_id='$id' and (coalesce(art,'') != 'akktimer' or loendate > '1970-01-01')) or (sag_id='$sag_id' and art='akktimer' and afsluttet='' and id != '$id' and loendate > '1970-01-01')"; # 20261106 SST-961
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				for ($i=0;$i<count($ansat_id);$i++) {
 #cho __line__." $i $loen_date[$i] ".$loen_date[$i-1]." select * from loen where loendate='".usdate($loen_date[$i])."' and art = 'akktimer' and sag_id='$sag_id' and opg_id='$opg_id' and (master_id is NULL or master_id='0')<br>";
