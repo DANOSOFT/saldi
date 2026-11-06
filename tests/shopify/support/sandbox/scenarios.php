@@ -13,6 +13,7 @@
 // 20261103 CL/SZ SD-754: K54.
 // 20261104 CL/SZ SD-756: K12 and K18.
 // 20261105 CL/SZ SD-756: K18 waits on WP13 only; the BYPASS fulfil check is done.
+// 20261105 CL/SZ SD-757: K09, K13, K19 and K55.
 
 require_once __DIR__ . '/../ShopifyEnv.php';
 require_once __DIR__ . '/../FakeShopifyStore.php';
@@ -32,6 +33,37 @@ function shopify_sandbox_scenarios(): array
 			'title' => 'authenticated access to all three sandboxes; production disabled',
 			'targets' => ['fake', 'sandbox'],
 			'run' => 'shopify_sandbox_k05',
+		],
+		'K09' => [
+			'title' => 'a set with two components shows the right quantity in Shopify',
+			'targets' => ['sandbox'],
+			'script' => 'K09.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K09_SET'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is StockSetsBaselineTest'],
+		],
+		'K13' => [
+			'title' => 'display stock is shown as udstillet and is not sellable',
+			'targets' => ['sandbox'],
+			'script' => 'K13.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K13_VARE', 'lager' => 'SALDI_SHOPIFY_SANDBOX_K13_LAGER'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is StockSetsBaselineTest'],
+		],
+		'K19' => [
+			'title' => 'a stock baseline is set per shop, with every pair acknowledged',
+			'targets' => ['sandbox'],
+			'script' => 'K19.php',
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is StockSetsBaselineTest'],
+		],
+		'K55' => [
+			'title' => 'a set shows complete sets per lager and the cross-location ones on the split-set lager, never more than the lagre can assemble',
+			'targets' => ['sandbox'],
+			'script' => 'K55.php',
+			'args' => ['vare_id' => 'SALDI_SHOPIFY_SANDBOX_K55_SET'],
+			'owner' => 'DTAILS',
+			'elsewhere' => ['status' => 'SKIP', 'detail' => 'runs on the server that hosts the sandbox tenant; on the fake it is StockSetsBaselineTest'],
 		],
 		'K03' => [
 			'title' => 'the same webhook twice gives one inbox row; a wrong signature gets 401',

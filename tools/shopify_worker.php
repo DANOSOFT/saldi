@@ -32,6 +32,9 @@
 //        php tools/shopify_worker.php register-webhooks --db=<tenant> [--base-url=https://...] [--shop=<shop_key>]
 //        php tools/shopify_worker.php replay --db=<tenant> --shop=<shop_key> --file=<day file> [--promote=1]
 //        php tools/shopify_worker.php seed --db=<tenant> --shop=<shop_key> [--batch=250]
+//        php tools/shopify_worker.php baseline --db=<tenant> --shop=<shop_key>
+//        php tools/shopify_worker.php reconcile --db=<tenant> --shop=<shop_key>
+//        php tools/shopify_worker.php remap --db=<tenant> --shop=<shop_key> --lager=<kodenr> [--location=gid://shopify/Location/...]
 //        php tools/shopify_worker.php set-app --db=<tenant> --shop=<shop_key> --client-id=<id> < client-secret
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
@@ -47,6 +50,7 @@
 // 20261103 CL/SS SD-743: the order.import handler (paid web order created, delivered and posted).
 // 20261103 CL/MJ SD-790: the shop.uninstalled handler and the command set-app (the app's client ID and secret).
 // 20261104 CL/SZ SD-756: the stock producer drains shopify_stock_dirty after the events; the stock.push handler.
+// 20261105 CL/SZ SD-757: the stock.display, stock.reconcile and stock.baseline handlers; commands baseline, reconcile and remap.
 // 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 
 if (php_sapi_name() !== 'cli') {
@@ -62,6 +66,9 @@ function shopify_worker_commands(): array {
 		'register-webhooks' => 'shopify_worker_cmd_register_webhooks',
 		'replay' => 'shopify_worker_cmd_replay',
 		'seed' => 'shopify_worker_cmd_seed',
+		'baseline' => 'shopify_worker_cmd_baseline',
+		'reconcile' => 'shopify_worker_cmd_reconcile',
+		'remap' => 'shopify_worker_cmd_remap',
 		'set-app' => 'shopify_worker_cmd_set_app',
 	);
 }
@@ -113,6 +120,13 @@ function shopify_worker_wiring(): array {
 	// SD-756: absolute stock per location to each shop.
 	shopify_worker_register($registry, 'stock.push', fn(array $job, float $deadline, callable $heartbeat): array
 		=> shopify_stock_push(array('heartbeat' => $heartbeat), $job, $deadline));
+	// SD-757: the saldi.udstillet metafield, the nightly drift read and the go-live baseline.
+	shopify_worker_register($registry, 'stock.display', fn(array $job, float $deadline, callable $heartbeat): array
+		=> shopify_stock_display(array('heartbeat' => $heartbeat), $job, $deadline));
+	shopify_worker_register($registry, 'stock.reconcile', fn(array $job, float $deadline, callable $heartbeat): array
+		=> shopify_stock_reconcile(array('heartbeat' => $heartbeat), $job, $deadline));
+	shopify_worker_register($registry, 'stock.baseline', fn(array $job, float $deadline, callable $heartbeat): array
+		=> shopify_stock_baseline(array('heartbeat' => $heartbeat), $job, $deadline));
 	// SD-790: the app was uninstalled; the token goes and every flow is switched off.
 	shopify_worker_register($registry, 'shop.uninstalled', 'shopify_shop_uninstalled_job');
 	return array('registry' => $registry, 'producers' => $producers);
@@ -126,13 +140,8 @@ function shopify_worker_cmd_run(array $opts): int {
 		fwrite(STDERR, "usage: php tools/shopify_worker.php run --db=<tenant> [--max-seconds=50]\n");
 		return 2;
 	}
-	$dir = dirname(__DIR__) . "/temp/$db";
-	if (!is_dir($dir)) {
-		@mkdir($dir, 0777, true);
-	}
-	$lock = @fopen("$dir/.ht_shopify_worker.lock", 'c');
+	$lock = shopify_worker_lock_file($db);
 	if ($lock === false) {
-		fwrite(STDERR, "shopify worker: lock file $dir/.ht_shopify_worker.lock cannot be opened; nothing run\n");
 		return 3;
 	}
 	if (!flock($lock, LOCK_EX | LOCK_NB)) {
@@ -157,6 +166,23 @@ function shopify_worker_cmd_run(array $opts): int {
 		flock($lock, LOCK_UN);
 		fclose($lock);
 	}
+}
+
+/**
+ * Opens the tenant's worker lock file, not yet locked. False, with the reason on stderr, when it can't be opened.
+ *
+ * @return resource|false
+ */
+function shopify_worker_lock_file(string $db) {
+	$dir = dirname(__DIR__) . "/temp/$db";
+	if (!is_dir($dir)) {
+		@mkdir($dir, 0777, true);
+	}
+	$lock = @fopen("$dir/.ht_shopify_worker.lock", 'c');
+	if ($lock === false) {
+		fwrite(STDERR, "shopify worker: lock file $dir/.ht_shopify_worker.lock cannot be opened; nothing run\n");
+	}
+	return $lock;
 }
 
 /**
@@ -317,6 +343,49 @@ function shopify_worker_cmd_seed(array $opts): int {
 }
 
 /**
+ * The shop row of a stock command, null with the reason on stderr when --db or --shop can't be used.
+ *
+ * @param array<string, string> $opts
+ * @return array<string, mixed>|null
+ */
+function shopify_worker_stock_shop(array $opts, string $usage): ?array {
+	if (($opts['shop'] ?? '') === '') {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
+		return null;
+	}
+	if (!shopify_worker_boot($opts, $usage)) {
+		return null;
+	}
+	require_once __DIR__ . '/../includes/shopify/services/stock.php';
+	$shop = shopify_shop($opts['shop']);
+	if ($shop === null) {
+		fwrite(STDERR, "shopify worker: unknown shop {$opts['shop']}\n");
+	}
+	return $shop;
+}
+
+/**
+ * Queues the stock baseline of --shop (one stock.baseline job, which the worker run sends in chunks; see
+ * shopify_stock_start_baseline()). Prints the job.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_baseline(array $opts): int {
+	$shop = shopify_worker_stock_shop($opts, 'baseline --db=<tenant> --shop=<shop_key>');
+	if ($shop === null) {
+		return 2;
+	}
+	try {
+		$job = shopify_stock_start_baseline(array(), (int)$shop['id']);
+	} catch (ShopifyConfigError $e) {
+		fwrite(STDERR, 'baseline: ' . $e->getMessage() . "\n");
+		return 2;
+	}
+	echo json_encode(array('shop' => $shop['shop_key'], 'job' => $job)) . "\n";
+	return 0;
+}
+
+/**
  * Stores the client ID of --shop's app, and the client secret when one is given on stdin (one
  * line, so it stays out of the shell history and the process list). The secret is the shop's
  * webhook secret too: Shopify signs the app's webhooks with it. Prints what was set.
@@ -346,6 +415,63 @@ function shopify_worker_cmd_set_app(array $opts): int {
 	});
 	echo json_encode(array('shop' => $opts['shop'], 'client_id' => 'set', 'client_secret' => $secret === '' ? 'unchanged' : 'set'), JSON_UNESCAPED_SLASHES) . "\n";
 	return 0;
+}
+
+/**
+ * Queues a stock reconcile of --shop now, besides the nightly slot. The shop must publish stock. Prints the job.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_reconcile(array $opts): int {
+	$shop = shopify_worker_stock_shop($opts, 'reconcile --db=<tenant> --shop=<shop_key>');
+	if ($shop === null) {
+		return 2;
+	}
+	if ($shop['stock_publish_enabled'] !== 't' || $shop['stock_baseline_at'] === null) {
+		fwrite(STDERR, "reconcile: shop {$shop['shop_key']} doesn't publish stock yet\n");
+		return 2;
+	}
+	$job = shopify_queue_enqueue('stock.reconcile', (int)$shop['id'], "{$shop['shop_key']}:manual", array(), SHOPIFY_QUEUE_PRIORITY['stock.reconcile']);
+	echo json_encode(array('shop' => $shop['shop_key']) + $job) . "\n";
+	return 0;
+}
+
+/**
+ * Zeroes --lager's location in --shop and moves the lager to --location, or leaves it unmapped without
+ * one (shopify_stock_remap()). Waits for the worker lock and holds it, so no push runs meanwhile. Prints
+ * how many pairs were zeroed; exits 1 when Shopify refused or didn't answer, and then the mapping stays.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_remap(array $opts): int {
+	$usage = 'remap --db=<tenant> --shop=<shop_key> --lager=<kodenr> [--location=gid://shopify/Location/...]';
+	if (!ctype_digit((string)($opts['lager'] ?? ''))) {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
+		return 2;
+	}
+	$shop = shopify_worker_stock_shop($opts, $usage);
+	if ($shop === null) {
+		return 2;
+	}
+	$lock = shopify_worker_lock_file($opts['db']);
+	if ($lock === false) {
+		return 3;
+	}
+	flock($lock, LOCK_EX);
+	try {
+		$zeroed = shopify_stock_remap(array(), (int)$shop['id'], (int)$opts['lager'], $opts['location'] ?? null);
+		echo json_encode(array('shop' => $shop['shop_key'], 'lager' => (int)$opts['lager'], 'zeroed' => $zeroed)) . "\n";
+		return 0;
+	} catch (ShopifyConfigError | InvalidArgumentException $e) {
+		fwrite(STDERR, 'remap: ' . $e->getMessage() . "\n");
+		return 2;
+	} catch (RuntimeException $e) {
+		fwrite(STDERR, 'remap: ' . $e->getMessage() . "\n");
+		return 1;
+	} finally {
+		flock($lock, LOCK_UN);
+		fclose($lock);
+	}
 }
 
 /**

@@ -18,6 +18,8 @@
 // 20261103 CL/LH SD-766: second review: B36, a metafield digest stands for its persisted data (assumed).
 // 20261103 CL/SS SD-802: B37, productVariantsBulkUpdate sets price and compareAtPrice.
 // 20261105 CL/SZ SD-756: B17 held and B20's item not stocked corrected, from a dev store.
+// 20261105 CL/SZ SD-757: B38, the bulk read of the stock levels.
+// 20261106 CL/SZ SD-757 review: B38 gives committed too when the query asks for it.
 
 final class FakeShopifyBehaviours
 {
@@ -252,6 +254,12 @@ final class FakeShopifyBehaviours
 			'basis' => 'partly',
 			'source' => self::DOCS . 'mutations/productVariantsBulkUpdate (variants of one product by productId) and the 2026-07 schema (the two error codes, GREATER_THAN_OR_EQUAL_TO); null clearing compareAtPrice, nothing changing on a refusal and the messages ASSUMED',
 			'calibrated_by' => 'SD-764 (to add): productVariantsBulkUpdate with a compareAtPrice, then with null, on the sandbox; and with a variant of another product',
+		],
+		'B38' => [
+			'behaviour' => 'bulkOperationRunQuery over inventoryItems gives a JSONL file: one line per item, then one per stocked level with the item as __parentId and the location and the quantities the query names on it (available, and committed when asked); the level of a pair not stocked has no line. The fake finds a new operation RUNNING on the first poll and COMPLETED on the next, and writes the file when it starts',
+			'basis' => 'partly',
+			'source' => self::DOCS . 'mutations/bulkOperationRunQuery (the file and __parentId); the line shapes read from the dev store on 2026-11-05 (SD-757); the moment the data is read and the RUNNING step ASSUMED',
+			'calibrated_by' => 'done for the line shapes on the dev store (SD-757, 2026-11-05): 3001 lines, each level after its item; the moment of the read not checked',
 		],
 	];
 

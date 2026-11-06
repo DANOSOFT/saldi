@@ -9,7 +9,10 @@
 //        ["seed", shop_key, vare_id] (a product for the item, stocked with 0 at every location, linked),
 //        ["unstock", shop_key, vare_id, lager], ["triggers"], ["drain", limit], ["next", shop_key] (stores the next call, sends nothing), ["push", shop_key, seconds],
 //        ["worker", seconds] (one worker pass with the stock producer and handler), ["clean"] (empties shopify_stock_dirty), ["save", shop fields] (shopify_save_shop()), ["fail", root_field, mode],
-//        ["open", shop_key, ordre_id, [vare_ids]], ["release", shop_key, ordre_id].
+//        ["open", shop_key, ordre_id, [vare_ids]], ["release", shop_key, ordre_id],
+//        ["display", shop_key, seconds], ["udstillet", shop_key, vare_id] (the metafield's value), ["level", shop_key, vare_id, lager, quantity] (changed in the shop's admin),
+//        ["start_baseline", shop_key], ["baseline", shop_key, checkpoint, seconds], ["reconcile", shop_key, checkpoint, lines_per_run, seconds], ["kill_file", shop_key, bulk operation id], ["file", shop_key, bulk operation id],
+//        ["location", shop_key, name] (a new location, its GID as the result), ["remap", shop_key, lager, new location GID or null].
 // Prints JSON: one result per step (or its exception), the calls sent and every shop's available
 // quantity per SKU and location name.
 //
@@ -17,6 +20,8 @@
 // 20261104 CL/SZ SD-756: created.
 // 20261104 CL/SZ SD-756 review: steps save and clean.
 // 20261105 CL/SZ SD-756: shopify_stock_next() takes the runtime.
+// 20261105 CL/SZ SD-757: steps for the display metafield, baseline, reconcile and remap.
+// 20261106 CL/SZ SD-757 review: step hold, stock an unpaid order keeps committed.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -117,6 +122,48 @@ try {
                     break;
                 case 'release':
                     $results[] = shopify_barrier_release($shopId($step[1]), (int)$step[2]);
+                    break;
+                case 'display':
+                    $results[] = shopify_stock_display(['graphql' => $store->opts()], ['id' => 0, 'shop_id' => $shopId($step[1])], microtime(true) + (float)($step[2] ?? 30));
+                    break;
+                case 'udstillet':
+                    $variant = shopify_product_link($shopId($step[1]), (int)$step[2])['variant_gid'];
+                    $results[] = $store->shop($domain($step[1]))['metafields'][$variant]['saldi.udstillet']['value'] ?? null;
+                    break;
+                case 'level':
+                    $store->setAvailable($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid'], $location($step[1], (int)$step[3]), (int)$step[4]);
+                    $results[] = 'changed';
+                    break;
+                case 'hold':
+                    $store->holdForOrder($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid'], $location($step[1], (int)$step[3]), (int)$step[4]);
+                    $results[] = 'held';
+                    break;
+                case 'start_baseline':
+                    $results[] = shopify_stock_start_baseline([], $shopId($step[1]));
+                    break;
+                case 'baseline':
+                    $results[] = shopify_stock_baseline(['graphql' => $store->opts()], ['id' => 0, 'shop_id' => $shopId($step[1]), 'checkpoint' => $step[2] ?? null], microtime(true) + (float)($step[3] ?? 30));
+                    break;
+                case 'reconcile':
+                    $rt = ['graphql' => $store->opts(), 'download' => ['download' => $store->bulkDownloader(), 'log' => fn(): null => null]];
+                    if (isset($step[3])) {
+                        $rt['lines_per_run'] = (int)$step[3];
+                    }
+                    $results[] = shopify_stock_reconcile($rt, ['id' => 0, 'shop_id' => $shopId($step[1]), 'checkpoint' => $step[2] ?? null], microtime(true) + (float)($step[4] ?? 30));
+                    break;
+                case 'kill_file':
+                    @unlink(shopify_stock_reconcile_file(shopify_shop($step[1]), $step[2]));
+                    $results[] = 'gone';
+                    break;
+                case 'file':
+                    $path = shopify_stock_reconcile_file(shopify_shop($step[1]), $step[2]);
+                    $results[] = ['path' => $path, 'exists' => is_file($path)];
+                    break;
+                case 'location':
+                    $results[] = $store->addLocation($domain($step[1]), $step[2]);
+                    break;
+                case 'remap':
+                    $results[] = shopify_stock_remap(['graphql' => $store->opts()], $shopId($step[1]), (int)$step[2], $step[3] ?? null);
                     break;
                 default:
                     throw new LogicException("unknown step {$step[0]}");
