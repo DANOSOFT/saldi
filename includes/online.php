@@ -5,7 +5,7 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-04---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-05---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,7 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 // 20261104 CL/ASR A fatal PHP error (E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR) on an HTML page with a session shows the error box of includes/errorReport.php, so the user can send a report.
 //                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
 //                 A page load also shows the box of an earlier page that moved on before it could be seen (a meta refresh right after a failed query).
+// 20261105 CL/LH The tenant's lower grupper version goes to regnskab.version through tjek4opdat_skriv_version(), which writes only under the update lock, as at login.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -246,11 +247,11 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				if ($r['box1'] < $db_ver) {
 					$db_ver = $r['box1'];
-					include("../includes/connect.php");
-					db_modify("update regnskab set version = '$db_ver' where id = '$db_id'", __FILE__ . " linje " . __LINE__);
+					include(__DIR__ . '/connect.php');
+					include_once(__DIR__ . '/tjek4opdat.php');
+					tjek4opdat_skriv_version($db_ver);
 #				}
 				if ($version > $db_ver && $title != 'Aaben regnskab') {
-					include("../includes/tjek4opdat.php");
 					tjek4opdat($db_ver, $version);
 				}
 #			} else {

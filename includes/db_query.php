@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.0 ----2026-11-04--------------
+// --- includes/db_query.php ---ver 5.1.0 ----2026-11-05--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,6 +67,8 @@
 // 20261104 CL/ASR A failed query shows the error box of includes/errorReport.php (saldi_error_box()) instead of the alert that told everyone to call 4690 2208.
 //                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
+// 20261105 CL/LH db_query_connection() selects the master database on the master connection it opens, which db_connect() does not do on MySQL/MariaDB.
+//                A global query there failed with "No database selected", so tjek4opdat() could not read the version another login had reached.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -238,6 +240,7 @@ if (!function_exists('db_query_connection')) {
 			if (empty($global_connection)) {
 				$current_connection = $connection;
 				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
+				db_select_database($global_connection, $sqdb);
 				$connection = $current_connection;
 			}
 			return $global_connection;

@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// --------------includes/login.php----------ver 5.1.0------2026-10-29------
+// --------------includes/login.php----------ver 5.1.0------2026-11-05------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -29,6 +29,7 @@ ob_start(); //Starter output buffering
 // 2015.01.27 PHR	- Tilføjet rettigheder da man ellers bliver smidt af ved forsøg på login med tmp kode.  
 // 20261001 Sawaneh The temporary password is read with tmp_code_check() (type|expire|code, as in index/login.php).
 // 20261029 CDX/NTR Share login logs and temporary directories with the web server.
+// 20261105 CL/LH The version read at login goes to regnskab.version through tjek4opdat_skriv_version(), which writes only under the update lock, as in index/login.php.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -161,8 +162,8 @@ if (($regnskab)&&($regnskab!=$sqdb)) {
 	$query = db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		if (!$dbver || $dbver>$row['box1']) $dbver=$row['box1'];
-		include("../includes/connect.php");
-		db_modify("update regnskab set version = '$dbver' where id='$db_id'",__FILE__ . " linje " . __LINE__);
+		include(__DIR__ . '/connect.php');
+		tjek4opdat_skriv_version($dbver);
 #		}	else {
 #			$dbver=0;
 #			db_modify("insert into grupper (beskrivelse, art, box1) values ('Version', 'VE', '0')",__FILE__ . " linje " . __LINE__);

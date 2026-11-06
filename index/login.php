@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- index/login.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -72,6 +72,8 @@
 // 20261029 CDX/NTR Share online log permissions with the web server.
 // 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
+// 20261105 CL/LH The version read at login goes to regnskab.version through tjek4opdat_skriv_version(), which writes only under the update lock.
+//                Written straight away, a version read before another login updated the regnskab took regnskab.version back, and the update ran again.
 
 if (isset($_GET['invite'])) {
 	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
@@ -435,9 +437,9 @@ if ( $db && $db!=$sqdb ) {
 		$qtxt="select box1 from grupper where art = 'VE'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			if (!$dbver || $dbver>$r['box1']) $dbver=$r['box1'];
-			include("../includes/connect.php");
-			if ($dbver) db_modify("update regnskab set version = '$dbver' where id='$db_id'",__FILE__ . " linje " . __LINE__);
-			include("../includes/online.php"); #20211008 moved from line 259
+			include(__DIR__ . '/../includes/connect.php');
+			if ($dbver) tjek4opdat_skriv_version($dbver);
+			include(__DIR__ . '/../includes/online.php'); #20211008 moved from line 259
 		}
 	}
 	if ($dbver<$version) {
