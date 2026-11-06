@@ -1,5 +1,5 @@
 <?php	
-// ------------- debitor/massefakt.php ----- (modul nr 6)------ lap 2.0.9----2009-09-14-------
+// ------------- debitor/massefakt.php ----- (modul nr 6)------ ver 5.1.0----2026-11-05-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,8 +14,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261105 CL/LH Bulk invoicing of more than ten orders goes on to the next batch instead of dying in explode(): the redirect joins the undeliverable orders with implode() and carries valg, and the next batch reads them back as order ids from index 1.
+//                The ordre_id and ordre_antal URL values are cast to int.
 
 @session_start();
 $s_id=session_id();
@@ -70,16 +72,17 @@ if ($tmp<$aarstart || $tmp>$aarslut) {
 	exit;
 }
 
-$ordre_id=(if_isset($_GET['ordre_id']));
-$ordre_antal=(if_isset($_GET['ordre_antal']));
-$rest=(if_isset($_GET['rest']));
-$rest_id=array(if_isset($_GET['rest_id']));
+$ordre_id=(int)($_GET['ordre_id'] ?? 0);
+$ordre_antal=(int)($_GET['ordre_antal'] ?? 0);
+# Orders that cannot be delivered, from index 1; each batch passes them on to the next as a comma-separated list.
+$rest_id=array();
+foreach (explode(",",(string)($_GET['rest_id'] ?? '')) as $tmp) {
+	if ((int)$tmp) $rest_id[count($rest_id)+1]=(int)$tmp;
+}
+$rest=count($rest_id);
 $skriv=(if_isset($_GET['skriv']));
 
 if (!$ordre_id) $ordre_id=1;
-if (!$ordre_antal) $ordre_antal=0;
-if (!$rest) $rest=0;
-if (!$rest_id) $rest_id=array();
 
 $x=0;
 while ($ordre_id) {
@@ -106,8 +109,8 @@ while ($ordre_id) {
 		if ($valg=='tilbud') $qtxt="select count(*) as antal from ordrer where status='0' and art='DO'";
 		else $qtxt= "select count(*) as antal from ordrer where (status='1' or status='2') and art='DO'";
 		if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) echo "Vent - $r[antal] ordrer tilbage<br>"; 
-		$tmp=explode($rest_id);
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=massefakt.php?ordre_id=$ordre_id&ordre_antal=$ordre_antal&rest=$rest&rest_id=$tmp&skriv=$skriv\">";
+		$tmp=implode(",",$rest_id);
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=massefakt.php?valg=".urlencode($valg)."&ordre_id=$ordre_id&ordre_antal=$ordre_antal&rest=$rest&rest_id=$tmp&skriv=$skriv\">";
 		exit;
 	}
 }
