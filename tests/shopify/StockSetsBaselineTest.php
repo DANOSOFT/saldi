@@ -280,7 +280,26 @@ final class StockSetsBaselineTest extends TestCase
         $this->dirty([$set]);
         $fixed = $this->steps(['drain', 100], ['push', 'hml']);
         $this->assertSame(4, $fixed['levels']['hml']['SD757-SET']['Ballerup']);
-        $this->assertSame([], array_filter($this->errors(), fn(string $e): bool => str_starts_with($e, "item:$set")), 'Shopify took it, so the warning is resolved');
+        $this->assertSame([], array_filter($this->errors(), fn(string $e): bool => str_starts_with($e, "set:$set")), 'the set publishes again, so the warning is resolved');
+    }
+
+    public function test_a_set_repaired_with_no_stock_ends_its_warning_without_a_call(): void
+    {
+        $x = $this->item('X', []);
+        $y = $this->item('Y', []);
+        $set = $this->set('SET', []);
+        $this->shop([$set]);
+        $this->dirty([$set]);
+        $broken = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertSame(0, $broken['levels']['hml']['SD757-SET']['Ballerup']);
+        $this->assertCount(1, array_filter($this->errors(), fn(string $e): bool => str_starts_with($e, "set:$set")));
+
+        $this->sql('INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $3, 1, 1), ($2, $3, 1, 2)', [$x, $y, $set]);
+        $this->dirty([$set]);
+        $fixed = $this->steps(['drain', 100], ['push', 'hml']);
+
+        $this->assertSame([], array_values(array_filter($fixed['calls'], fn(array $c): bool => $c['operation'] === 'stockSet')), 'still 0 everywhere, so nothing is sent');
+        $this->assertSame([], array_filter($this->errors(), fn(string $e): bool => str_starts_with($e, "set:$set")), 'the warning ends anyway');
     }
 
     public function test_the_warning_on_split_set_lager_is_raised_once_per_push_and_resolved(): void

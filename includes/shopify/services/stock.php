@@ -59,6 +59,7 @@
 // 20261105 CL/SZ SD-757: sets and display lagre in the push (WP06-3).
 //                shopify_stock_display(), shopify_stock_reconcile(), shopify_stock_baseline() and shopify_stock_remap().
 // 20261105 CL/SZ SD-757 review: a set that breaks is sent as 0, an acknowledged item's stock warning is resolved.
+//                A broken set warns on set:<vare_id>, resolved as soon as the set publishes again.
 //                A remap checks the new location is the shop's, and counts a started baseline as written.
 
 require_once __DIR__ . '/allocation.php';
@@ -428,7 +429,7 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 		return array();
 	}
 	$config = $rt['lager_config'] ?? shopify_lager_config();
-	$rows = $marks = $settled = $watch = $invalid = array();
+	$rows = $marks = $settled = $watch = array();
 	$readAt = null;
 	foreach (array_chunk(array_map('intval', array_keys($set)), SHOPIFY_STOCK_SLICE) as $ids) {
 		if ($readAt !== null && $deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS) {
@@ -437,7 +438,6 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 		$read = shopify_stock_wanted($shopId, $ids, $config);
 		$readAt ??= $read['read_at'];
 		$deferred = shopify_stock_deferred($shopId, $ids, $read['components']);
-		array_push($invalid, ...$read['invalid']);
 		foreach ($ids as $vareId) {
 			if (isset($deferred[$vareId])) {
 				continue;
@@ -486,7 +486,6 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 		'rows' => array_map(fn(array $r): array => array('vare_id' => $r['vare_id'], 'lager' => $r['lager'], 'quantity' => $r['quantity']), $rows),
 		'marks' => $marks,
 		'watch' => array_values(array_unique(array_merge(...array_values($watch)))),
-		'invalid' => array_values(array_intersect($invalid, array_keys($marks))),
 		'read_at' => $readAt,
 	);
 	return shopify_stock_state_update("stock.pending:{$shop['shop_key']}", fn(array $current): array => $current ?: $pending);
@@ -557,7 +556,7 @@ function shopify_stock_plan(int $shopId, array $ids, array $config): array {
 	) as $row) {
 		$stock[(int)$row['vare_id']][(int)$row['lager']] = (int)$row['milli'];
 	}
-	$items = array();
+	$items = $valid = array();
 	foreach ($links as $link) {
 		$vareId = (int)$link['vare_id'];
 		$bom = array();
@@ -584,6 +583,13 @@ function shopify_stock_plan(int $shopId, array $ids, array $config): array {
 			}
 		}
 		$items[$vareId] = array('inventory_item_gid' => $link['inventory_item_gid'], 'variant_gid' => $link['variant_gid'], 'pairs' => $pairs, 'invalid' => false);
+		if ($bom !== array()) {
+			$valid[] = shopify_error_key($shopId, 'stock', "set:$vareId");
+		}
+	}
+	if ($valid !== array()) {
+		// a set that publishes again ends its warning, also when it needs no new quantity
+		shopify_db_rows('UPDATE shopify_errors SET resolved_at = now() WHERE error_key = ANY($1::text[]) AND resolved_at IS NULL', array('{' . implode(',', $valid) . '}'));
 	}
 	return array('items' => $items, 'components' => array_intersect_key($components, $items), 'unmapped' => array_keys($unmapped), 'read_at' => $readAt);
 }
@@ -595,7 +601,7 @@ function shopify_stock_plan(int $shopId, array $ids, array $config): array {
  * @return array{inventory_item_gid: string, variant_gid: string|null, pairs: array<int, array{quantity: int, udstillet: bool, location_gid: string}>, invalid: bool}
  */
 function shopify_stock_invalid_set(int $shopId, array $link, array $lagre, array $locations, string $why): array {
-	shopify_error_open($shopId, 'stock', "item:{$link['vare_id']}", $why, 'warning');
+	shopify_error_open($shopId, 'stock', "set:{$link['vare_id']}", $why, 'warning');
 	$pairs = array();
 	foreach ($lagre as $l) {
 		$lager = (int)$l['lager'];
@@ -633,20 +639,16 @@ function shopify_stock_boms(array $setIds): array {
  *
  * @param list<int> $ids
  * @param array{lagre: list<array<string, string|null>>, split_set_lager: int|null, virtual_lager: int|null} $config
- * @return array{items: array<int, list<array{vare_id: int, lager: int, quantity: int, inventory_item_gid: string, location_gid: string}>>, components: array<int, list<int>>, invalid: list<int>, read_at: string}
+ * @return array{items: array<int, list<array{vare_id: int, lager: int, quantity: int, inventory_item_gid: string, location_gid: string}>>, components: array<int, list<int>>, read_at: string}
  */
 function shopify_stock_wanted(int $shopId, array $ids, array $config): array {
 	$plan = shopify_stock_plan($shopId, $ids, $config);
 	if ($plan['items'] === array()) {
-		return array('items' => array(), 'components' => array(), 'invalid' => array(), 'read_at' => $plan['read_at']);
+		return array('items' => array(), 'components' => array(), 'read_at' => $plan['read_at']);
 	}
 	$state = shopify_stock_acknowledged($shopId, array_keys($plan['items']));
-	$invalid = array();
 	$items = array();
 	foreach ($plan['items'] as $vareId => $item) {
-		if ($item['invalid']) {
-			$invalid[] = $vareId;
-		}
 		foreach ($item['pairs'] as $lager => $pair) {
 			if (($state[$vareId][$lager] ?? null) !== $pair['quantity']) {
 				$items[$vareId][] = array('vare_id' => $vareId, 'lager' => $lager, 'quantity' => $pair['quantity'],
@@ -654,7 +656,7 @@ function shopify_stock_wanted(int $shopId, array $ids, array $config): array {
 			}
 		}
 	}
-	return array('items' => $items, 'components' => $plan['components'], 'invalid' => $invalid, 'read_at' => $plan['read_at']);
+	return array('items' => $items, 'components' => $plan['components'], 'read_at' => $plan['read_at']);
 }
 
 /**
@@ -690,9 +692,9 @@ function shopify_stock_ack(array $shop, array $pending): void {
 		}
 		shopify_stock_clear_pending($shop, $pending);
 		shopify_stock_unmark($shop, $pending['marks']);
-		// Shopify took the items, so a warning left by an earlier refusal or a broken set is over; a set sent as 0 keeps its own
+		// Shopify took the items, so a warning left by an earlier refusal is over (a broken set's own warning is set:<vare_id>)
 		$keys = array();
-		foreach (array_diff(array_unique(array_column($pending['rows'], 'vare_id')), $pending['invalid'] ?? array()) as $vareId) {
+		foreach (array_unique(array_column($pending['rows'], 'vare_id')) as $vareId) {
 			$keys[] = shopify_error_key((int)$shop['id'], 'stock', "item:$vareId");
 		}
 		if ($keys !== array()) {

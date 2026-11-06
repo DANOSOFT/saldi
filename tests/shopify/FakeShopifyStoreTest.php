@@ -685,6 +685,15 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertSame(['id' => $p['item']], $mine[0], 'the item comes first');
 		$this->assertSame(['location' => ['id' => $this->l1], 'quantities' => [['name' => 'available', 'quantity' => 5]], '__parentId' => $p['item']], $mine[1], 'the file has the level from the start');
 		$this->assertCount(2, $mine, 'a pair not stocked has no line');
+
+		$alias = str_replace('node { id inventoryLevels', 'node { id: sku inventoryLevels', SHOPIFY_STOCK_BULK_LEVELS);
+		$this->assertNotSame(SHOPIFY_STOCK_BULK_LEVELS, $alias);
+		try {
+			shopify_bulk_start($this->shop, $alias, $this->store->opts());
+			$this->fail('an alias named id is not the item id');
+		} catch (LogicException $e) {
+			$this->assertStringContainsString('not modelled (B38)', $e->getMessage());
+		}
 	}
 
 	public function testTheRegistryListsExactlyTheBehavioursTheFakesEncode(): void

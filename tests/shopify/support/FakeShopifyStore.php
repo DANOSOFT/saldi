@@ -30,7 +30,7 @@
 // 20261104 CL/SS SD-808: the order fields the paid-order read selects (billing address, line totals, shipping lines, payment details).
 // 20261105 CL/SZ SD-756: inventorySetQuantities on a pair not stocked succeeds and stays hidden until activated, as the dev store does.
 // 20261105 CL/SZ SD-757: bulkOperationRunQuery, bulkOperation(s) and the bulk download seam for the stock read (B38); setAvailable().
-// 20261105 CL/SZ SD-757 review: rootObjectCount counts the items; the bulk query must select the item id and location id.
+// 20261105 CL/SZ SD-757 review: rootObjectCount counts the items; the bulk query must select the item id and location id, not an alias named id.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -1415,7 +1415,7 @@ final class FakeShopifyStore
 	 */
 	private function mBulkOperationRunQuery(string $domain, array $a): array
 	{
-		if (!preg_match('/^\{\s*inventoryItems\s*\{\s*edges\s*\{\s*node\s*\{\s*id\b.*inventoryLevels.*location\s*\{\s*id\s*\}.*quantities\(names:\s*\["available"\]\)/s', $a['query'])) {
+		if (!preg_match('/^\{\s*inventoryItems\s*\{\s*edges\s*\{\s*node\s*\{\s*id\b(?!\s*:).*inventoryLevels.*location\s*\{\s*id\s*\}.*quantities\(names:\s*\["available"\]\)/s', $a['query'])) {
 			throw new LogicException('FakeShopifyStore: this bulk query is not modelled (B38): ' . $a['query']);
 		}
 		$this->uses('B38');
