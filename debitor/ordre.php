@@ -179,6 +179,7 @@
 // 20261106 CL/MMR SD-813 The delete-line question, the delivery tooltips, the Copy tooltip and the cost price tooltip follow the user's language.
 //                 The delete tooltip of a fully delivered line is translated too; the tooltips are escaped (CodeRabbit).
 //                 A translation with a format sprintf() cannot use falls back to the Danish text (orderTekstFormat()), so it cannot stop the page.
+//                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 
 @session_start();
 $s_id = session_id();
@@ -6814,7 +6815,7 @@ function formatOrderUnitPrice($price)
  * stop the order page. Valid formats such as %s, %1$s and %% work as usual.
  *
  * @param string $tekst     The translated text from findtekst().
- * @param string $standard  The built-in Danish text with the same placeholders.
+ * @param string $standard  The built-in Danish text with the same placeholders (UTF-8, converted to the page charset here).
  * @param mixed  ...$vaerdier The values to put in.
  * @return string The formatted text (not escaped).
  */
@@ -6823,6 +6824,11 @@ function orderTekstFormat($tekst, $standard, ...$vaerdier)
 	try {
 		return sprintf((string)$tekst, ...$vaerdier);
 	} catch (\ArgumentCountError | \ValueError $e) {
+		global $db_encode;
+		// findtekst() returns ISO-8859-1 on a non-UTF8 database, so the Danish fallback must be converted the same way.
+		if ($db_encode != "UTF8") {
+			$standard = mb_convert_encoding($standard, 'ISO-8859-1', 'UTF-8');
+		}
 		return sprintf($standard, ...$vaerdier);
 	}
 }
