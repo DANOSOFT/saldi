@@ -52,7 +52,7 @@ if (!function_exists('bank_import_clean_columns')) {
 		$allowed = bank_import_column_names();
 		$columns = array();
 		for ($y = 0; $y <= (int)$feltantal; $y++) {
-			$name = isset($feltnavn[$y]) ? trim((string)$feltnavn[$y]) : '';
+			$name = trim((string)ifset($feltnavn, $y, ''));
 			$columns[$y] = in_array($name, $allowed, true) ? $name : '';
 		}
 		return $columns;

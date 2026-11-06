@@ -34,6 +34,7 @@ final class BankImportColumnsTest extends TestCase
                 $GLOBALS["__settings"]["$grp/$name/$user"] = $value;
             }
         ');
+        require_once __DIR__ . '/../../../includes/std_func.php'; // the real ifset(); its settings helpers are guarded by function_exists
         require self::FILE;
     }
 
