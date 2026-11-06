@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.02
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,8 +31,10 @@
 // 20261027 CL/LH MB-73 (review): the leveret backfill runs in id windows under a try-lock with a time budget per
 //                login (includes/opdat_func/backfillOrderLineDelivered.php) instead of one UPDATE at the first login.
 //                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url (the Vibrant payment the server created for a booking).
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
+// 20261104 CL/MMR SST-841 CodeRabbit (PR #969): the rentalperiod table and column lookups only look at the active schema (current_schema() / DATABASE()).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -158,6 +160,29 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // second; later logins carry on from the stored window, and a login that finds the lock taken skips it.
 require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
 backfillOrderLineDelivered($db_type);
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url hold the Vibrant payment the server created for
+// a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
+// the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
+// Both lookups are limited to the active schema, as a rentalperiod table in another schema must not decide it.
+if (isset($db) && is_string($db) && $db !== '') {
+	$rentalSchema = in_array($db_type, ['mysql', 'mysqli'], true) ? "table_schema = DATABASE()" : "table_schema = current_schema()";
+	$rentalTable = db_fetch_array(db_select(
+		"SELECT table_name FROM information_schema.tables WHERE $rentalSchema AND table_name = 'rentalperiod'",
+		__FILE__ . " linje " . __LINE__
+	));
+	if ($rentalTable) {
+		$rentalColumns = array();
+		$q = db_select("SELECT column_name FROM information_schema.columns WHERE $rentalSchema AND table_name = 'rentalperiod'", __FILE__ . " linje " . __LINE__);
+		while ($q && $r = db_fetch_array($q)) {
+			$rentalColumns[] = $r['column_name'];
+		}
+		foreach (array('payment_id' => 'varchar(100)', 'payment_url' => 'varchar(500)') as $column => $type) {
+			if (!in_array($column, $rentalColumns, true)) {
+				db_modify("ALTER TABLE rentalperiod ADD COLUMN $column $type", __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+}
 
 // 20261102 CL/ASR Self-service signup (signup/*.php, doc/signup.md, written by PS): its tables in the master
 // database and the trial columns on regnskab. Master only (global=true); runs from any tenant's login, so the
