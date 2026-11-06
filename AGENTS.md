@@ -31,6 +31,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | Shared-runtime diagnostics go to the server log without invoking request error handlers; a fallback write must not abort journal deletion | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | A symlinked migration root must target private application storage; refuse world-writable or sticky targets before changing their ownership or permissions | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | Budget saves require both posted counts (`kontoantal`, `maanedantal`) before any includes or database writes | PHPUnit `BudgetSubmissionTest` | |
+| Every delete of a debtor or creditor (`adresser`) asks `account_has_entries()` before the delete and its cleanup, so open posts and orders keep their owner; hiding Slet is not enough | PHPUnit `AccountDeletePathsTest`, `AccountDeleteKeepsEntriesTest` | `includes/stdFunc/accountHasEntries.php` |
 | Ledger, posting and migration changes get Nicolai's review | review | |
 | CodeRabbit findings are answered before a human is asked to review | review | |
 | Braces on multi-line bodies; `__DIR__` includes; `@var` provenance blocks; controller/view split; PHPDoc shapes; keep `<?= 'text' ?>` tags | review | [doc/ai/MEMORY.md](doc/ai/MEMORY.md) |

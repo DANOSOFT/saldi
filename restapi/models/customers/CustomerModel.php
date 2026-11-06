@@ -1,5 +1,7 @@
 <?php
 
+include_once __DIR__ . '/../../../includes/stdFunc/accountHasEntries.php';
+
 class CustomerModel
 {
     // Properties to match database columns from adresser table
@@ -261,13 +263,25 @@ class CustomerModel
     }
 
     /**
-     * Delete the current customer
+     * Whether open posts or orders still point at this customer, so it cannot be deleted
+     *
+     * @see account_has_entries() in includes/stdFunc/accountHasEntries.php
+     * @return bool
+     */
+    public function hasEntries()
+    {
+        return $this->id && account_has_entries($this->id);
+    }
+
+    /**
+     * Delete the current customer, unless open posts or orders still point at it
      * 
      * @return bool Success status
      */
     public function delete($art)
     {
-        if (!$this->id) {
+        // 20261105 CL/LH An invoiced customer was deleted and left its open posts and orders without an owner.
+        if (!$this->id || $this->hasEntries()) {
             return false;
         }
 

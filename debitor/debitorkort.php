@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-10-31 ---
+// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -127,6 +127,7 @@
 // 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261031 CL/ASR The debtor-group dropdown leaves out inactive groups only when grupper.inaktiv exists, as includes/orderFuncIncludes/accountLookup.php does.
 //                 The card still opens on a database the settings migration has not reached yet.
+// 20261105 CL/LH A posted Slet keeps a customer that open posts or orders point at and says why (account_has_entries()); hiding the button alone did not stop the delete.
 @session_start();
 $s_id = session_id();
 
@@ -146,6 +147,7 @@ include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
 include_once(__DIR__ . '/debitorkortIncludes/einvoiceCvrBanner.php');
+include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
@@ -1105,8 +1107,10 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				exit;
 			}
 		}
+	} elseif (account_has_entries($id)) {
+		print account_has_entries_alert();
 	} else {
-		
+		$id = (int)$id;
 		db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from kontakt_emails where konto_id = $id", __FILE__ . " linje " . __LINE__);

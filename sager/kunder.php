@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/kunder.php --- ver 5.1.0 --- 2026-11-03---
+// --- sager/kunder.php --- ver 5.1.0 --- 2026-11-05---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20260731 Sawaneh Loads cvrapiopslag.js so CVR lookup also works on the customer card under sager
 // 20261103 CL/MMR SD-799 The project status, the "by" label, the search suggestion labels, the list counter and the refused CVR lookup message follow the user's language.
 //                 The contact's Delete button has its own name, so it also deletes when its label is not the Danish "Slet".
+// 20261105 CL/LH Slet kunde keeps a customer that open posts or orders point at and says why, instead of deleting it and leaving them without an owner (account_has_entries()).
 
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id = session_id();
@@ -57,6 +58,7 @@
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
+	include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
 
 	if (isset($_GET['sag_id']))      $sagid = (int)$_GET['sag_id'];
 	elseif (isset($_POST['sag_id'])) $sagid = (int)$_POST['sag_id'];
@@ -293,7 +295,10 @@ function ret_kunde($id) {
 	//if (!$id) { header("location:kunder.php?funktion=kundeliste"); exit(); }
 	
 	// Her slettes kunde og ansatte
-	if (isset($_POST['slet_kunde']) && $id) {
+	if (isset($_POST['slet_kunde']) && $id && account_has_entries($id)) {
+		print account_has_entries_alert();
+	} elseif (isset($_POST['slet_kunde']) && $id) {
+		$id=(int)$id;
 		$x=0;
 		$q=db_select("SELECT * FROM ansatte WHERE konto_id = '$id'",__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {

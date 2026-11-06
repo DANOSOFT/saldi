@@ -1,5 +1,5 @@
 <?php
-// ---------------------debitor/debkort_save.php----ver 5.1.0---2014-05-05---
+// ---------------------debitor/debkort_save.php----ver 5.1.0---2026-11-05---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 2014.05.05 indsat  >>|| $_POST['firmanavn']<< da man ikke kunne oprette nye kunder. (PHR - Danosoft) Søg20140505
+// 20261105 CL/LH Slet keeps a customer that open posts or orders point at and says why, instead of leaving them without an owner (account_has_entries()).
+
+include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
 
 if ($delete_category=if_isset($_GET['delete_category'])) {
 	$r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
@@ -387,6 +390,8 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 #				}
 #			}
 		}
+	} elseif (account_has_entries($id)) {
+		print account_has_entries_alert();
 	} else {
 		db_modify("delete from adresser where id = $id",__FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id",__FILE__ . " linje " . __LINE__);

@@ -2,6 +2,7 @@
 require_once('../../includes/connect.php');
 require_once('../../includes/db_query.php');
 require_once(__DIR__ . '/../../includes/std_func.php');
+require_once(__DIR__ . '/../../includes/stdFunc/accountHasEntries.php');
 require_once('includes/AuthMiddleware.php');
 
 // Set headers
@@ -148,6 +149,13 @@ function handleDelete() {
         return;
     }
     
+    // 20261105 CL/LH Deleting an invoiced account left its open posts and orders without an owner.
+    if (account_has_entries($id)) {
+        http_response_code(409);
+        echo json_encode(['error' => true, 'message' => 'Address has open posts or orders and cannot be deleted']);
+        return;
+    }
+
     $query = "DELETE FROM adresser WHERE id = " . $id;
     
     if (db_modify($query, __FILE__ . " linje " . __LINE__)) {

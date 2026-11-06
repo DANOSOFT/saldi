@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---ver 5.1.0 --- 2026-10-31 ------
+// ----------kreditor/kreditorkort.php---ver 5.1.0 --- 2026-11-05 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,7 @@
 // 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261031 CL/ASR The inactive-group filter in the creditor group dropdown is only added when grupper has the inaktiv column, as in includes/orderFuncIncludes/accountLookup.php.
 //                 A ledger whose database update has not added the column yet still lists its groups instead of failing the query.
+// 20261105 CL/LH A posted Slet keeps a creditor that open posts or orders point at and says why (account_has_entries()); only linked items stopped the delete.
 
 
 @session_start();
@@ -70,6 +71,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/kreditorCreate.php");
+include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
 include("../includes/topline_settings.php");
 # window.onbeforeunload = confirmBrowseAway;
 
@@ -199,8 +201,11 @@ if ($_POST) {
 			}
 		}
 	} else {
+		$id = (int)$id;
 		if (db_fetch_array(db_select("select vare_id from vare_lev where lev_id = '$id'", __FILE__ . " linje " . __LINE__))) {
 			print "<BODY onLoad=\"javascript:alert('Det er tilknyttet varer til denne kreditor')\">\n";
+		} elseif (account_has_entries($id)) {
+			print account_has_entries_alert();
 		} else {
 			db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 			$id = 0;

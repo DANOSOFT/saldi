@@ -9,7 +9,9 @@
 //
 // History:
 // 20260904 CL/NTR created.
+// 20261105 CL/LH A customer or creditor that open posts or orders point at is refused with 409 and kept.
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/RestApiEnv.php';
@@ -216,6 +218,38 @@ final class CustomersEndpointTest extends TestCase
         $rows = RestApiEnv::rows($tenant, 'SELECT id FROM adresser WHERE id = $1', [$id]);
         pg_close($tenant);
         $this->assertSame([], $rows, 'adresser row removed');
+    }
+
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function accountsWithEntries(): array
+    {
+        return [
+            'debtor with an open post' => [self::CUSTOMERS, 'openpost'],
+            'debtor with an order' => [self::CUSTOMERS, 'ordrer'],
+            'creditor with an open post' => [self::CREDITORS, 'openpost'],
+            'creditor with an order' => [self::CREDITORS, 'ordrer'],
+        ];
+    }
+
+    /** The cards offer no Slet here; deleting the account would orphan its open post or order. */
+    #[DataProvider('accountsWithEntries')]
+    public function test_account_that_an_open_post_or_order_points_at_is_refused_409_and_kept(string $path, string $table): void
+    {
+        $create = $this->create($path, $this->customerBody('entries'));
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
+
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        RestApiEnv::rows($tenant, "INSERT INTO $table (konto_id) VALUES ($1)", [$id]);
+
+        $del = RestApiEnv::http('DELETE', $path . '?id=' . $id, null, RestApiEnv::authHeaders());
+
+        $this->assertSame(409, $del['status'], $del['body']);
+        $this->assertFalse($del['json']['success']);
+        $this->assertSame(200, $this->read($path, $id)['status'], 'the account is still there');
+        $owned = RestApiEnv::rows($tenant, "SELECT count(*) AS n FROM $table t JOIN adresser a ON a.id = t.konto_id WHERE t.konto_id = $1", [$id]);
+        pg_close($tenant);
+        $this->assertSame([['n' => '1']], $owned, "the $table row keeps its owner");
     }
 
     public function test_reading_or_deleting_a_nonexistent_customer_returns_404(): void

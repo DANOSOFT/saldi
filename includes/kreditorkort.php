@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2026-05-01 ------
+// ----------kreditor/kreditorkort.php---ver 5.1.0 --- 2026-11-05 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20130224 Tilføjet kontofusion
 // 20140319 addslashes erstattet med db_escape_string
@@ -31,6 +31,7 @@
 //             (int)'' compared to '' is now a string comparison ("0" != ""), true, where PHP 7
 //             compared both as 0. Skip the check when the field is blank, same fix as
 //             debitor/debkort_save.php (SD-513)
+// 20261105 CL/LH A posted Slet keeps a creditor that open posts or orders point at and says why (account_has_entries()), as kreditor/kreditorkort.php does.
 
 @session_start();
 $s_id = session_id();
@@ -46,6 +47,7 @@ include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/stdFunc/accountHasEntries.php');
 include("../includes/topline_settings.php");
 # window.onbeforeunload = confirmBrowseAway;
 
@@ -183,8 +185,11 @@ if ($_POST) {
 			}
 		}
 	} else {
+		$id = (int)$id;
 		if (db_fetch_array(db_select("select vare_id from vare_lev where lev_id = '$id'", __FILE__ . " linje " . __LINE__))) {
 			print "<BODY onLoad=\"javascript:alert('Det er tilknyttet varer til denne kreditor')\">\n";
+		} elseif (account_has_entries($id)) {
+			print account_has_entries_alert();
 		} else {
 			db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 			$id = 0;
