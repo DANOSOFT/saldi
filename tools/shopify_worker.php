@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.05
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.06
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 //        php tools/shopify_worker.php baseline --db=<tenant> --shop=<shop_key>
 //        php tools/shopify_worker.php reconcile --db=<tenant> --shop=<shop_key>
 //        php tools/shopify_worker.php remap --db=<tenant> --shop=<shop_key> --lager=<kodenr> [--location=gid://shopify/Location/...]
+//        php tools/shopify_worker.php set-app --db=<tenant> --shop=<shop_key> --client-id=<id> < client-secret
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
 // 20261028 Sawaneh SD-738: the alarm mail (mail.alert) and the call-log purge (runtime.purge) are wired in.
@@ -47,8 +48,10 @@
 // 20261103 CL/SS SD-802: the price.window handler (prices and offers to every shop with prices_enabled).
 // 20261103 CL/SS SD-801: the status handlers fulfillment.upsert, order.status, order.cancelled and refund.upsert.
 // 20261103 CL/SS SD-743: the order.import handler (paid web order created, delivered and posted).
+// 20261103 CL/MJ SD-790: the shop.uninstalled handler and the command set-app (the app's client ID and secret).
 // 20261104 CL/SZ SD-756: the stock producer drains shopify_stock_dirty after the events; the stock.push handler.
 // 20261105 CL/SZ SD-757: the stock.display, stock.reconcile and stock.baseline handlers; commands baseline, reconcile and remap.
+// 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -66,6 +69,7 @@ function shopify_worker_commands(): array {
 		'baseline' => 'shopify_worker_cmd_baseline',
 		'reconcile' => 'shopify_worker_cmd_reconcile',
 		'remap' => 'shopify_worker_cmd_remap',
+		'set-app' => 'shopify_worker_cmd_set_app',
 	);
 }
 
@@ -82,6 +86,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
 	require_once __DIR__ . '/../includes/shopify/services/stock.php';
+	require_once __DIR__ . '/../includes/shopify/oauth.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
 	shopify_worker_register($registry, 'webhook.health', 'shopify_webhook_health_job');
@@ -122,6 +127,8 @@ function shopify_worker_wiring(): array {
 		=> shopify_stock_reconcile(array('heartbeat' => $heartbeat), $job, $deadline));
 	shopify_worker_register($registry, 'stock.baseline', fn(array $job, float $deadline, callable $heartbeat): array
 		=> shopify_stock_baseline(array('heartbeat' => $heartbeat), $job, $deadline));
+	// SD-790: the app was uninstalled; the token goes and every flow is switched off.
+	shopify_worker_register($registry, 'shop.uninstalled', 'shopify_shop_uninstalled_job');
 	return array('registry' => $registry, 'producers' => $producers);
 }
 
@@ -375,6 +382,38 @@ function shopify_worker_cmd_baseline(array $opts): int {
 		return 2;
 	}
 	echo json_encode(array('shop' => $shop['shop_key'], 'job' => $job)) . "\n";
+	return 0;
+}
+
+/**
+ * Stores the client ID of --shop's app, and the client secret when one is given on stdin (one
+ * line, so it stays out of the shell history and the process list). The secret is the shop's
+ * webhook secret too: Shopify signs the app's webhooks with it. Prints what was set.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_set_app(array $opts): int {
+	$usage = 'set-app --db=<tenant> --shop=<shop_key> --client-id=<id> < client-secret';
+	if (($opts['shop'] ?? '') === '' || !preg_match('/^[A-Za-z0-9_-]{1,100}$/', $opts['client-id'] ?? '')) {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
+		return 2;
+	}
+	if (!shopify_worker_boot($opts, $usage)) {
+		return 2;
+	}
+	if (shopify_shop($opts['shop']) === null) {
+		fwrite(STDERR, "set-app: unknown shop {$opts['shop']}\n");
+		return 2;
+	}
+	require_once __DIR__ . '/../includes/shopify/oauth.php';
+	$secret = trim((string)fgets(STDIN));
+	shopify_db_transaction(function () use ($opts, $secret) {
+		shopify_save_secret($opts['shop'], SHOPIFY_OAUTH_CLIENT_ID, $opts['client-id']);
+		if ($secret !== '') {
+			shopify_save_secret($opts['shop'], SHOPIFY_WEBHOOK_SECRET, $secret);
+		}
+	});
+	echo json_encode(array('shop' => $opts['shop'], 'client_id' => 'set', 'client_secret' => $secret === '' ? 'unchanged' : 'set'), JSON_UNESCAPED_SLASHES) . "\n";
 	return 0;
 }
 

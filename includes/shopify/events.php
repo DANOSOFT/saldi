@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/events.php --- ver 5.1.0 --- 2026.10.29
+// --- includes/shopify/events.php --- ver 5.1.0 --- 2026.11.03
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20261029 CL/SZ SD-749 review: a shop with a wrong domain or API version kills the health job on purpose (doc).
 // 20261029 CL/SZ SD-749 review: a health job that can't restore raises it on the error list; the base URL's host is lower-cased.
 // 20261029 CL/SZ SD-749 review: a health job that restores everything resolves the shop's open webhook.health error.
+// 20261103 CL/MJ SD-790: APP_UNINSTALLED is subscribed and becomes a shop.uninstalled job.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -61,6 +62,7 @@ const SHOPIFY_EVENT_ROUTES = array(
 	'FULFILLMENTS_*' => 'fulfillment.upsert',
 	'CUSTOMERS_*' => 'customer.upsert',
 	'REFUNDS_CREATE' => 'refund.upsert',
+	'APP_UNINSTALLED' => 'shop.uninstalled',
 );
 
 /** Shopify's mandatory compliance topics share the CUSTOMERS_ prefix but are not customer upserts. */
@@ -505,6 +507,7 @@ function shopify_event_log(string $what, array $entry): void {
 const SHOPIFY_WEBHOOK_TOPICS = array(
 	'ORDERS_CREATE', 'ORDERS_PAID', 'ORDERS_UPDATED', 'ORDERS_CANCELLED', 'ORDERS_FULFILLED',
 	'CUSTOMERS_CREATE', 'CUSTOMERS_UPDATE', 'FULFILLMENTS_CREATE', 'FULFILLMENTS_UPDATE', 'REFUNDS_CREATE',
+	'APP_UNINSTALLED',
 );
 
 /** The receiver below the install's base URL; a subscription to it, for the shop's key, is ours. */

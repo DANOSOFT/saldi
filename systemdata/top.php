@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/top.php --- ver 4.1.1 --- 2025-04-14 ---
+// --- systemdata/top.php --- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20181102 PHR Oprydning, udefinerede variabler.
@@ -23,6 +23,7 @@
 // 20220103 PHR Checks for error in text id 778 - can be removed in 2023
 // 20250414 LOE Barcode button added for app
 // 20260710 SZ Added Settings search box to sidebar (settingsSearch.php/.js/.css)
+// 20261102 CL/MJ SD-761: Shopify button, shown once the tenant has a Shopify shop.
 
 $small=NULL;
 if (!isset($css)) $css=NULL;
@@ -114,6 +115,11 @@ print "      <tr><td><a href=\"syssetup.php?valg=moms\" accesskey=\"M\">
 
       <tr><td><a href=\"diverse.php?valg=diverse\" accesskey=\"I\">
       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(782, $sprog_id)."</button></a></td></tr>";
+include_once __DIR__ . '/shopify/adminModel.php';
+if (shopify_admin_menu_visible()) {
+	print "<tr><td><a href=\"shopify/shops.php\">
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('shopify.admin.menu|Shopify', $sprog_id)."</button></a></td></tr>";
+}
 
 print "</tbody></table>";# <-tabel 1.1.2
 print "</td><td align=\"center\" valign=\"top\" height=\"99%\"><br>";

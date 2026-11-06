@@ -17,6 +17,7 @@
 // 20261028 CL/SZ SD-749: rebased on #911; the worker test leaves out runtime.purge, due from 07:15.
 // 20261029 CL/SZ SD-749 review: register-webhooks goes on after a misconfigured shop; setUp clears the stored base URL.
 // 20261029 CL/SZ SD-749 review: register-webhooks needs no fiscal year and stores the host lower-cased.
+// 20261103 CL/MJ SD-790: a misconfigured shop fails every topic in SHOPIFY_WEBHOOK_TOPICS, APP_UNINSTALLED included.
 
 use PHPUnit\Framework\TestCase;
 
@@ -200,7 +201,7 @@ final class WebhookEndpointTest extends TestCase
 
         $this->assertSame(1, $run['exit'], $run['stderr']);
         $lines = array_map(fn(string $l): array => json_decode($l, true), explode("\n", trim($run['stdout'])));
-        $this->assertSame([['hml', 10], ['old', 10]], array_map(fn(array $r): array => [$r['shop'], $r['failed']], $lines), $run['stdout']);
+        $this->assertSame([['hml', 11], ['old', 11]], array_map(fn(array $r): array => [$r['shop'], $r['failed']], $lines), $run['stdout']);
         $this->assertStringContainsString('not a *.myshopify.com domain', $lines[0]['errors'][0]);
         $this->assertStringContainsString("API version '2020-01'", $lines[1]['errors'][0]);
     }

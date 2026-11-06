@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/queue.php --- ver 5.1.0 --- 2026.10.30
+// --- includes/shopify/queue.php --- ver 5.1.0 --- 2026.11.03
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 //                 reports the jobs it recovered, so a crash can alarm.
 // 20261029 CL/SS SD-741: shopify_queue_enqueue_coalesced() for producers of changed data: a follow-up behind a
 //                running job, and shopify_queue_hasten() brings a waiting one forward.
+// 20261103 CL/MJ SD-790: shop.uninstalled runs first after the alarm mail.
 
 require_once __DIR__ . '/db.php';
 
@@ -43,6 +44,7 @@ final class ShopifyQueueError extends RuntimeException
 /** Priorities of the plan's table (P:72); lower is claimed first. */
 const SHOPIFY_QUEUE_PRIORITY = array(
 	'mail.alert' => 5,
+	'shop.uninstalled' => 8,
 	'order.import' => 10, 'order.tags' => 10,
 	'order.move' => 15,
 	'store.export' => 20, 'customer.export' => 20, 'order.references' => 20, 'order.document' => 20,

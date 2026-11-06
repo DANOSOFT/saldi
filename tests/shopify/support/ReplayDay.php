@@ -20,6 +20,7 @@
 //                TABLES compared whole and their changes kept in expected.json; drain() counts the handlers that ran.
 // 20261103 CL/LH SD-766: second review: tables() keeps ids and references, leaving out only VOLATILE; its portable read
 //                for expected.json reads REFS as business keys.
+// 20261103 CL/MJ SD-790: the day subscribes every topic but APP_UNINSTALLED, so its IDs stay as recorded.
 
 require_once __DIR__ . '/FakeShopifyStore.php';
 require_once __DIR__ . '/WebhookReplayer.php';
@@ -285,7 +286,8 @@ final class ReplayDay
 		$store = new FakeShopifyStore();
 		$d = $store->addShop(self::SHOP['shop_key'], ['domain' => self::SHOP['domain'], 'name' => 'HML (synthetic)', 'locations' => ['Lager 1', 'Lager 2']])['domain'];
 		[$l1, $l2] = $store->locations($d);
-		foreach (SHOPIFY_WEBHOOK_TOPICS as $topic) {
+		// The recorded day has no uninstall: without APP_UNINSTALLED (SD-790) its IDs stay as recorded.
+		foreach (array_diff(SHOPIFY_WEBHOOK_TOPICS, ['APP_UNINSTALLED']) as $topic) {
 			$store->subscribe($d, $topic, self::WEBHOOK_URI);
 		}
 		$products = [];
