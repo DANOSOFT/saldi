@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/kunder.php --- lap 4.0.8 --- 2023-09-27---
+// --- sager/kunder.php --- ver 5.1.0 --- 2026-11-05---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2012-2023 saldi.dk aps
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Har rettet KONTOANSVARLIG i 'depkort_2_stillads.php'
 // Diverse html rettelser i 'debkort_1_stillads.php' + 'debkort_2_stillads.php' + 'debkort_4_stillads.php'
@@ -31,6 +31,9 @@
 // 20170119 PK - Har indsat 'Ansvarlig' i listen med sager fra kunde.
 // 20230927 PHR Page title now set in online.php
 // 20260731 Sawaneh Loads cvrapiopslag.js so CVR lookup also works on the customer card under sager
+// 20261103 CL/MMR SD-799 The project status, the "by" label, the search suggestion labels, the list counter and the refused CVR lookup message follow the user's language.
+//                 The contact's Delete button has its own name, so it also deletes when its label is not the Danish "Slet".
+// 20261105 CL/MMR SD-807 The CVR lookup's overwrite question and its two buttons follow the user's language.
 
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id = session_id();
@@ -54,6 +57,7 @@
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
 	if (isset($_GET['sag_id']))      $sagid = (int)$_GET['sag_id'];
 	elseif (isset($_POST['sag_id'])) $sagid = (int)$_POST['sag_id'];
@@ -110,7 +114,9 @@
 			print "</div><!-- end of maincontent -->
 			</div><!-- end of wrapper -->  
 		<!-- <div id=\"footer\"><p>Pluder | Pluder</p></div> -->
-		<script type=\"text/javascript\" src=\"../javascript/jquery.kunder.js\"></script>";
+		".sager_js_sagertekst()."
+		<script type=\"text/javascript\" src=\"../javascript/jquery.kunder.js?v=20261103\"></script>";
+		$cvr_afvist = findtekst('5409|cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.', $sprog_id);
 		// These come from the tekster table, which administration can edit, and they are
 		// printed straight into a <script> block. Without JSON_HEX_TAG a translation holding
 		// "</script>" would close the block and everything after it would be parsed as html -
@@ -121,7 +127,13 @@
 			'QUOTA_EXCEEDED' => findtekst('3375|Kvoten for CVR-opslag er opbrugt.', $sprog_id),
 			'NOT_FOUND'      => findtekst('3376|CVR-nummeret blev ikke fundet.', $sprog_id),
 			'INVALID_VAT'    => findtekst('3377|CVR-nummeret er ikke gyldigt.', $sprog_id),
-			'soeger'         => findtekst('3378|Søger...', $sprog_id)
+			'BLOCKED'        => $cvr_afvist,
+			'BANNED'         => $cvr_afvist,
+			'INVALID_UA'     => $cvr_afvist,
+			'soeger'         => findtekst('3378|Søger...', $sprog_id),
+			'overskriv'      => findtekst('8458|CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?', $sprog_id),
+			'behold'         => findtekst('8459|Nej, behold nuværende', $sprog_id),
+			'opdater'        => findtekst('8460|Ja, opdater', $sprog_id)
 		), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
 		print "<script type=\"text/javascript\">var cvrLookupProxy = 'cvrLookupProxy.php'; var cvrAutoFelter = ['cvrnr']; var cvrTekster = $cvr_tekster;</script>
 		<script type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>";
@@ -476,7 +488,7 @@ function ret_kunde($id) {
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=sagsnr&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[0]#sect\" id=\"felt01\" class=\"felt01 $sortstyle[0]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=udf_addr1&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[1]#sect\" class=\"felt02 $sortstyle[1]\" style=\"width:315px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=tidspkt&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[2]#sect\" class=\"felt03 $sortstyle[2]\" style=\"width:130px\">".findtekst('3207|Indtastet', $sprog_id)."</a>
-								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=oprettet_af&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[3]#sect\" class=\"felt04 $sortstyle[3]\" style=\"width:100px\">".findtekst('638|Af', $sprog_id)."</a>
+								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=oprettet_af&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[3]#sect\" class=\"felt04 $sortstyle[3]\" style=\"width:100px\">".findtekst('8417|Af', $sprog_id)."</a>
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=ref&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[4]#sect\" class=\"felt05 $sortstyle[4]\" style=\"width:120px\">".findtekst('2793|Ansvarlig', $sprog_id)."</a>
 								<a href=\"kunder.php?funktion=ret_kunde&amp;nysort=status&amp;sort=$sort&amp;konto_id=$id&amp;nysortstyle=$sortarray[5]#sect\" class=\"felt06 $sortstyle[5]\" style=\"width:75px\">".findtekst('494|Status', $sprog_id)."</a>
 								
@@ -517,7 +529,7 @@ function ret_kunde($id) {
 						<span class=\"felt03\" style=\"width:130px;\">$dato[$x] ".findtekst('2883|kl.', $sprog_id)." $tid[$x]&nbsp;</span>
 						<span class=\"felt04\" style=\"width:100px;\" title='$oprettet_af[$x]'>$oprettet_af[$x]&nbsp;</span>
 						<span class=\"felt05\" style=\"width:120px;\" title='$sag_ansvarlig[$x]'>$sag_ansvarlig[$x]&nbsp;</span>
-						<span class=\"felt06\" style=\"width:75px;$statcolor\" title='$sag_status[$x]'>$sag_status[$x]&nbsp;</span>";
+						<span class=\"felt06\" style=\"width:75px;$statcolor\" title='".sag_status_txt($sag_status[$x])."'>".sag_status_txt($sag_status[$x])."&nbsp;</span>";
 					print "</a></li>\n";
 				}
 				//print "<li style=\"display:none;\">&nbsp;</li>";
@@ -573,12 +585,12 @@ function ret_kunde_ansat($konto_id) {
 		$gruppe_beskrivelse[$x]=$r['beskrivelse'];
 		$x++;
 	}
-	include "../debitor/ansatte_save_stillads.php";
-	include "../debitor/ansatte_load.php";
+	include __DIR__ . '/../debitor/ansatte_save_stillads.php';
+	include __DIR__ . '/../debitor/ansatte_load.php';
 	print "<div class=\"content\">\n";
 	print "<form name=\"ansatte\" action=\"kunder.php?funktion=ret_kunde_ansat&amp;konto_id=$konto_id&amp;sag_id=$sagid\" method=\"post\">\n";
 	//print "<table border=\"0\"><tbody><tr><td><table><tbody>";
-	include "kunder_ansat.php";
+	include __DIR__ . '/kunder_ansat.php';
 	/* Har udkommenteret login til kunde kontakt 20161206
 	print "<div style=\"float:left; margin-right:70px; width:379px;\">\n";
 	print "<div class=\"contentA\">\n";
@@ -605,7 +617,7 @@ function ret_kunde_ansat($konto_id) {
 	print "<hr>\n";
 	print "<div class=\"contentA\" style=\"text-align:center;\">\n";
 	#	print "<input type=submit accesskey=\"g\" value=\"Gem / opdat&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\">";
-	print "<input type=\"submit\" class=\"button gray medium\" accesskey=\"g\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"submit\"><input type=\"submit\" class=\"button rosy medium textSpaceLarge\" accesskey=\"s\" value=\"".findtekst('1099|Slet', $sprog_id)."\" onclick=\"return confirm('".findtekst('2901|Er du sikker på du vil slette denne kontakt', $sprog_id)."?');\" name=\"submit\">\n";
+	print "<input type=\"submit\" class=\"button gray medium\" accesskey=\"g\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"submit\"><input type=\"submit\" class=\"button rosy medium textSpaceLarge\" accesskey=\"s\" value=\"".findtekst('1099|Slet', $sprog_id)."\" onclick=\"return confirm('".findtekst('2901|Er du sikker på du vil slette denne kontakt', $sprog_id)."?');\" name=\"slet_kontakt\">\n";
 	print "</div><!-- end of contentA -->\n";
 	print "	</form>\n";
 	print "</div><!-- end of content -->\n";
