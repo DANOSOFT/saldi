@@ -5408,3 +5408,5 @@
 8458	CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?	The VAT lookup will overwrite existing fields. Do you want to update them?	Oppslaget vil overskrive eksisterende felt. Vil du oppdatere dem?
 8459	Nej, behold nuværende	No, keep current	Nei, behold nåværende
 8460	Ja, opdater	Yes, update	Ja, oppdater
+8461	Dyrtidssedler uden dato	Premium time slips without a date	Dyrtidssedler uten dato
+8462	Akkordafregningen kan ikke overføres, før sedlerne har en dato. En overført seddel skal først afvises af en godkender.	The piecework settlement cannot be transferred until the slips have a date. A transferred slip must first be rejected by an approver.	Akkordoppgjøret kan ikke overføres før sedlene har en dato. En overført seddel må først avvises av en godkjenner.
