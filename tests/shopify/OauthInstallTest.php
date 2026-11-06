@@ -10,6 +10,7 @@
 // 20261103 CL/MJ SD-790: created.
 // 20261103 CL/MJ SD-790 review: a form-encoded signature over reserved characters verifies.
 // 20261103 CL/MJ SD-790 review: a stale callback leaves the newer install's state.
+// 20261106 CL/MJ SD-790 review: a reinstall started before the uninstall job runs completes and resolves the uninstalled error.
 
 use PHPUnit\Framework\TestCase;
 
@@ -231,6 +232,25 @@ final class OauthInstallTest extends TestCase
         $conn = ShopifyEnv::connect(self::$db);
         $this->assertSame('t', ShopifyEnv::one($conn, 'SELECT orders_enabled FROM shopify_shops')['orders_enabled']);
         pg_close($conn);
+    }
+
+    public function testAReinstallStartedBeforeTheUninstallJobRunsCompletesAndResolvesTheUninstall(): void
+    {
+        $this->install('2026-11-03T08:00:00Z');
+        $event = $this->uninstallEvent('2026-11-03T09:00:00Z');
+        $state = $this->begin();
+
+        $this->run_('uninstall', ['job' => ['id' => 1, 'shop_id' => $this->shopId(), 'payload' => ['event_row_id' => $event]]]);
+        $this->assertNull($this->setting('access_token'), 'the uninstall took the old token');
+        $answer = ['status' => 200, 'body' => json_encode(['access_token' => 'shpat_new', 'scope' => 'write_products'])];
+        $run = $this->request(self::signed(['code' => 'code-2', 'shop' => self::DOMAIN, 'state' => $state, 'timestamp' => (string)(self::NOW + 20)]), self::NOW + 20, $answer);
+
+        $this->assertSame([302, 'installed'], self::answer($run), 'the pending state survived the uninstall');
+        $this->assertSame('shpat_new', $this->setting('access_token'));
+        $conn = ShopifyEnv::connect(self::$db);
+        $open = ShopifyEnv::rows($conn, "SELECT kind FROM shopify_errors WHERE kind = 'shop.uninstalled' AND resolved_at IS NULL");
+        pg_close($conn);
+        $this->assertSame([], $open, 'the reinstall resolves the uninstalled error');
     }
 
     // ---- helpers ---------------------------------------------------------------------------

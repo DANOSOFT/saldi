@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.04
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.06
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,7 @@
 // 20261103 CL/SS SD-743: the order.import handler (paid web order created, delivered and posted).
 // 20261103 CL/MJ SD-790: the shop.uninstalled handler and the command set-app (the app's client ID and secret).
 // 20261104 CL/SZ SD-756: the stock producer drains shopify_stock_dirty after the events; the stock.push handler.
+// 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -325,16 +326,14 @@ function shopify_worker_cmd_seed(array $opts): int {
 function shopify_worker_cmd_set_app(array $opts): int {
 	$usage = 'set-app --db=<tenant> --shop=<shop_key> --client-id=<id> < client-secret';
 	if (($opts['shop'] ?? '') === '' || !preg_match('/^[A-Za-z0-9_-]{1,100}$/', $opts['client-id'] ?? '')) {
-		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage
-");
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
 		return 2;
 	}
 	if (!shopify_worker_boot($opts, $usage)) {
 		return 2;
 	}
 	if (shopify_shop($opts['shop']) === null) {
-		fwrite(STDERR, "set-app: unknown shop {$opts['shop']}
-");
+		fwrite(STDERR, "set-app: unknown shop {$opts['shop']}\n");
 		return 2;
 	}
 	require_once __DIR__ . '/../includes/shopify/oauth.php';
@@ -345,8 +344,7 @@ function shopify_worker_cmd_set_app(array $opts): int {
 			shopify_save_secret($opts['shop'], SHOPIFY_WEBHOOK_SECRET, $secret);
 		}
 	});
-	echo json_encode(array('shop' => $opts['shop'], 'client_id' => 'set', 'client_secret' => $secret === '' ? 'unchanged' : 'set'), JSON_UNESCAPED_SLASHES) . "
-";
+	echo json_encode(array('shop' => $opts['shop'], 'client_id' => 'set', 'client_secret' => $secret === '' ? 'unchanged' : 'set'), JSON_UNESCAPED_SLASHES) . "\n";
 	return 0;
 }
 

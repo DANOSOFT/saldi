@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/oauth.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/oauth.php --- ver 5.1.0 --- 2026.11.06
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20261103 CL/MJ SD-790 review: the signature also verifies over form-encoded values, as Shopify's libraries sign them.
 // 20261103 CL/MJ SD-790 review: a state that doesn't match is kept, so a stale callback can't cancel a newer install.
 // 20261104 CL/MJ SD-790 review: the app also asks for read_fulfillments, which the FULFILLMENTS_CREATE and FULFILLMENTS_UPDATE webhooks need.
+// 20261106 CL/MJ SD-790 review: an uninstall keeps a pending install's state, and an install resolves the shop's open shop.uninstalled error.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -149,11 +150,15 @@ function shopify_oauth_request(array $query, array $opts = array()): array {
 	if (!function_exists('shopify_queue_enqueue')) {
 		require_once __DIR__ . '/queue.php';
 	}
+	if (!function_exists('shopify_error_resolve_key')) {
+		require_once __DIR__ . '/errors.php';
+	}
 	shopify_db_transaction(function () use ($shop, $key, $token, $now) {
 		shopify_db_rows('SELECT pg_advisory_xact_lock(hashtext($1))', array("shopify_oauth:$key"));
 		shopify_save_secret($key, 'access_token', $token['access_token']);
 		shopify_save_secret($key, SHOPIFY_OAUTH_INSTALLED_AT, gmdate('Y-m-d\TH:i:s\Z', $now));
 		shopify_queue_enqueue('webhook.health', (int)$shop['id'], "$key:install:$now", array('slot' => 'install'), SHOPIFY_QUEUE_PRIORITY['webhook.health']);
+		shopify_error_resolve_key((int)$shop['id'], 'shop.uninstalled', $key);
 	});
 	shopify_event_log('oauth_installed', array('shop' => $key, 'scope' => $token['scope']));
 	return array('status' => 302, 'outcome' => 'installed', 'location' => "https://$domain/admin/apps");
@@ -222,7 +227,8 @@ function shopify_shop_uninstalled_job(array $job, float $deadline, callable $hea
 			shopify_event_log('uninstall_superseded', array('shop' => $key, 'installed_at' => $installed, 'triggered_at' => $triggered));
 			return;
 		}
-		foreach (array('access_token', SHOPIFY_OAUTH_INSTALLED_AT, SHOPIFY_OAUTH_STATE) as $name) {
+		// a pending state is a reinstall already under way, so it stays
+		foreach (array('access_token', SHOPIFY_OAUTH_INSTALLED_AT) as $name) {
 			shopify_save_secret($key, $name, '');
 		}
 		$flows = array('shop_key' => $key);
