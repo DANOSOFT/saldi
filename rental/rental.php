@@ -29,8 +29,8 @@
 // 20261006 CL/LH SST-850: Settings password is verified server-side (checkPassword/settingsUnlocked) and never sent to the browser.
 //                Stored with password_hash(); legacy clear-text values are upgraded on first correct entry. The unlock is bound
 //                to the stored hash, and the endpoints behind the protected pages require it too.
-// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened, so an
-//                unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 
     @session_start();
     $s_id=session_id();

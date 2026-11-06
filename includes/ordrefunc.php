@@ -153,8 +153,8 @@
 //                Braces added to the brace-less ifs in the edited blocks.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
 //                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
-// 20261029 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened, so an
-//                unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261029 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 

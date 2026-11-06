@@ -25,8 +25,8 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
-// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened, so an
-//                unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 //
 
 
