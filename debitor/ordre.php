@@ -177,7 +177,8 @@
 //                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
 //                 Labels are escaped in the page charset, so a stored value with æøå keeps its option value on a non-UTF8 database.
 // 20261106 CL/MMR SD-813 The delete-line question, the delivery tooltips, the Copy tooltip and the cost price tooltip follow the user's language.
-//                 The delete tooltip of a fully delivered line is translated too; the tooltips are escaped and use str_replace for the number (CodeRabbit).
+//                 The delete tooltip of a fully delivered line is translated too; the tooltips are escaped (CodeRabbit).
+//                 A translation with a format sprintf() cannot use falls back to the Danish text (orderTekstFormat()), so it cannot stop the page.
 
 @session_start();
 $s_id = session_id();
@@ -6816,6 +6817,25 @@ function formatOrderUnitPrice($price)
  * @param int|string  $sprog_id     The user's language id.
  * @return string HTML-ready label.
  */
+/**
+ * Puts values into a translated text with sprintf(). A custom translation whose format sprintf() cannot use
+ * (too few values, an unknown placeholder) falls back to the built-in Danish text, so a translation can never
+ * stop the order page. Valid formats such as %s, %1$s and %% work as usual.
+ *
+ * @param string $tekst     The translated text from findtekst().
+ * @param string $standard  The built-in Danish text with the same placeholders.
+ * @param mixed  ...$vaerdier The values to put in.
+ * @return string The formatted text (not escaped).
+ */
+function orderTekstFormat($tekst, $standard, ...$vaerdier)
+{
+	try {
+		return sprintf((string)$tekst, ...$vaerdier);
+	} catch (\ArgumentCountError | \ValueError $e) {
+		return sprintf($standard, ...$vaerdier);
+	}
+}
+
 function orderPaymentTermLabel($betalingsbet, $sprog_id)
 {
 	global $charset;
@@ -7235,7 +7255,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 				} else {
 					print "<td title=\"" . htmlspecialchars(findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8484|Intet modtaget endnu.', $sprog_id) : findtekst('8483|Intet leveret endnu.', $sprog_id)), ENT_QUOTES, $charset) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
-				print "<td title=\"" . htmlspecialchars(str_replace('%s', $dk_tidl_lev, $art == 'DK' ? findtekst('8486|Tidligere modtaget %s på denne ordre.', $sprog_id) : findtekst('8485|Tidligere leveret %s på denne ordre.', $sprog_id)), ENT_QUOTES, $charset) . "\">($dk_tidl_lev)</td>\n";
+				print "<td title=\"" . htmlspecialchars($art == 'DK' ? orderTekstFormat(findtekst('8486|Tidligere modtaget %s på denne ordre.', $sprog_id), 'Tidligere modtaget %s på denne ordre.', $dk_tidl_lev) : orderTekstFormat(findtekst('8485|Tidligere leveret %s på denne ordre.', $sprog_id), 'Tidligere leveret %s på denne ordre.', $dk_tidl_lev), ENT_QUOTES, $charset) . "\">($dk_tidl_lev)</td>\n";
 				// 20261008 MJ SST-833 This opens batch(), not serienummer(), so it no longer uses the
 				// serial-number icon and alt text. MEDSHOP read the serial icon on an item with no
 				// serial number as the feature misbehaving. 1496 is the text already on its title.
@@ -7269,7 +7289,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		}
 		print "<td valign = 'top' align='right' title='" . htmlspecialchars($txt2130, ENT_QUOTES, $charset) . "'>";
 		print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
-		print "onclick=\"if (confirm(" . htmlspecialchars(jsString(array(str_replace('%s', $x, findtekst('8479|Slet linje %s?', $sprog_id)))), ENT_QUOTES, $charset) . ")) { document.getElementsByName('posn$x')[1].value='-'; ";
+		print "onclick=\"if (confirm(" . htmlspecialchars(jsString(array(orderTekstFormat(findtekst('8479|Slet linje %s?', $sprog_id), 'Slet linje %s?', $x))), ENT_QUOTES, $charset) . ")) { document.getElementsByName('posn$x')[1].value='-'; ";
 		print "var __swF=document.getElementsByName('ordre')[0]; if(__swF){__swF.dataset.swSkipPreflight='1';} ";
 		print "document.getElementsByName('ordre')[0].submit.click(); }\">$delBtn</button></td>\n";
 	} else print "<td></td>";
