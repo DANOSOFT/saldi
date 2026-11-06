@@ -213,6 +213,8 @@
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
 // 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated,
 //                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
+// 20261103 CL/LH SD-796 window.saldiBaseCurrency gives accountAutocomplete.js the base currency, so an invoice pick can tell an invoice in another currency than the line and write its Beløb and Valuta again.
+//                accountAutocomplete.js?v= bumped.
 // 20261105 CL/MMR SST-934 Voucher number 0 can be used again: a 0 the user types, also on the lines "=*" fills, is saved as 0.
 //                 A line saved under 0 shows 0 and keeps it when the journal is saved again, and lines under 0 are not held to one date.
 //                 Only an empty Bilag field is given the journal's next number (SST-817), see bilagFromInput() in bilagNumber.php.
@@ -596,6 +598,7 @@ $langId = !empty($sprog_id) ? intval($sprog_id) : 1;
 // A text from the tekster table as a JavaScript string literal: a quote or </script> in a translation can't break the script
 print '<script>
 	window.saldiLanguage = ' . $langId . ';
+	window.saldiBaseCurrency = ' . jsString(array($baseCurrency)) . ';
 	window.saldiTranslations = {
     selectAccount: "' . findtekst('586', $langId) . ' ' . findtekst('592', $langId) . '",
     selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
@@ -698,7 +701,7 @@ print "<script>
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.6">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.15" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.16" defer></script>';
 // SD-721: "Opret kreditor" in the lookup panel when a kreditor search finds nothing
 include_once("../includes/kreditorFromCvr.php");
 print kreditorCvrClientScript($sprog_id, '1');
