@@ -158,8 +158,10 @@
 // 20261101 CL/MJ SST-910 linjeopdat(): a return on an item without batch control goes back into the purchase batches.
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
+// 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
+require_once __DIR__ . '/sharedFile.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -4392,11 +4394,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		# exit;
 		($webservice) ? $leveres = $antal : $leveres = 0;
 		if ($id && is_numeric($posnr)) {
-			$momslog = fopen("../temp/$db/momslog.log", "a");
-			if ($momslog) { #20261029
-				fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-				fclose($momslog);
-			}
+			sharedFilePutContents("../temp/$db/momslog.log", "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n", true);
 			if ($varemomssats && !$vatAccount) {
 				$alerttxt = __LINE__ . " Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
 				alert($alerttxt);
