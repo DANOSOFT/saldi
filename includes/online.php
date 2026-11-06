@@ -70,6 +70,7 @@
 // 20261105 CL/MMR SD-807 'Session expired' uses the language chosen on the login page (languageId cookie), as there is no online row, and 'Account closed' is translated.
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
+//                 Their blocks include std_func.php through __DIR__.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -183,7 +184,7 @@ if ($sqdb == 'udvikling') $labelprint = 1;
 $kundedisplay = 0;
 
 if ($modulnr && $modulnr < 100 && $db == $sqdb) { #Lukker vinduet hvis revisorbruger er logget af
-	include($relativePath . "includes/std_func.php");
+	include(__DIR__ . '/std_func.php');
 	$txt = findtekst('8464|Du har logget ud - vinduet lukkes', $sprog_id);
 	print tekstboks($txt);
 	print "<meta http-equiv=\"refresh\" content=\"4;URL=../includes/luk.php\">";
@@ -371,7 +372,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$css = NULL;
 	}
 	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
-		include($relativePath . "includes/std_func.php");
+		include(__DIR__ . '/std_func.php');
 		$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
 		print tekstboks($txt);
 		exit;
