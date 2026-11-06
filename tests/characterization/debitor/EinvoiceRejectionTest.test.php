@@ -9,25 +9,15 @@ use PHPUnit\Framework\TestCase;
 //                The messages are the texts MEDSHOP received from Semantic/EasyUBL in October 2026, from Morten Ramsing's draft.
 //                The database part runs in child processes with stub db functions (support/einvoice_events_*.php), so no database is needed.
 // 20261104 CL/MJ SST-882 On an ISO-8859-1 page the message keeps characters outside Latin-1, such as €, as entities.
+// 20261106 CL/MJ SST-882 The production files are loaded with require_once instead of cut out by marker (CodeRabbit on PR #985).
 final class EinvoiceRejectionTest extends TestCase
 {
     public static function setUpBeforeClass(): void
     {
         $root = dirname(__DIR__, 3);
-        require_once $root . '/includes/stdFunc/einvoiceErrors.php';
-        if (!function_exists('einvoiceRejectionHtml')) {
-            // The view's pure builder, without the include's own einvoiceEvents.php (which needs db functions).
-            $src = (string) file_get_contents($root . '/debitor/orderIncludes/einvoiceRejection.php');
-            $start = strpos($src, "if (!function_exists('einvoiceRejectionHtml'))");
-            $end = strpos($src, "if (!function_exists('einvoiceRejectionView'))");
-            eval(substr($src, $start, $end - $start));
-        }
-        if (!function_exists('einvoice_event_is_rejection')) {
-            $src = (string) file_get_contents($root . '/includes/stdFunc/einvoiceEvents.php');
-            $start = strpos($src, "if (!function_exists('einvoice_event_is_rejection'))");
-            $end = strpos($src, "if (!function_exists('einvoice_latest_rejection'))");
-            eval(substr($src, $start, $end - $start));
-        }
+        // Both files only define functions, so their db and text calls run only when a test calls them.
+        require_once $root . '/includes/stdFunc/einvoiceEvents.php';
+        require_once $root . '/debitor/orderIncludes/einvoiceRejection.php';
     }
 
     /** @return array<string, array{0: string, 1: string, 2: string, 3: bool, 4: bool}> */
@@ -94,7 +84,7 @@ final class EinvoiceRejectionTest extends TestCase
     }
 
     #[DataProvider('events')]
-    public function testOnlyARealRejectionIsShown(?array $event, bool $shown): void
+    public function testOnlyAFailureStatusWithTextCountsAsARejection(?array $event, bool $shown): void
     {
         self::assertSame($shown, einvoice_event_is_rejection($event));
     }
