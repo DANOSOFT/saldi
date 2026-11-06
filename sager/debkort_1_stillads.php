@@ -50,13 +50,20 @@ $betalingsbet_tekst = array(
 	'Netto'     => findtekst('372|Netto', $sprog_id),
 	'Lb. md.'   => findtekst('373|Lb. md.', $sprog_id),
 );
-$betalingsbet_vis = ifset($betalingsbet_tekst, (string)$betalingsbet, $betalingsbet);
+// Matched without regard to case, so a stored 'lb. md.' is shown like 'Lb. md.'; the stored value is kept as the option value (SD-813).
+$betalingsbet_lc = strtolower(trim((string)$betalingsbet));
+$betalingsbet_vis = (string)$betalingsbet;
+foreach ($betalingsbet_tekst as $betalingsbet_noegle => $betalingsbet_oversat) {
+	if (strtolower($betalingsbet_noegle) === $betalingsbet_lc) {
+		$betalingsbet_vis = $betalingsbet_oversat;
+	}
+}
 print "<option value=\"".htmlspecialchars((string)$betalingsbet)."\">".htmlspecialchars((string)$betalingsbet_vis)."</option>\n";
-if ($betalingsbet!='Forud') 	{print "<option value=\"Forud\">".findtekst('369|Forud', $sprog_id)."<!--tekst 369--></option>"; }
-if ($betalingsbet!='Kontant') 	{print "<option value=\"Kontant\">".findtekst('370|Kontant', $sprog_id)."<!--tekst 370--></option>"; }
-if ($betalingsbet!='Efterkrav') 	{print "<option value=\"Efterkrav\">".findtekst('371|Efterkrav', $sprog_id)."<!--tekst 371--></option>"; }
-if ($betalingsbet!='Netto'){print "<option value=\"Netto\">".findtekst('372|Netto', $sprog_id)."<!--tekst 372--></option>"; }
-if ($betalingsbet!='Lb. md.'){print "<option value=\"Lb. md.\">".findtekst('373|Lb. md.', $sprog_id)."<!--tekst 373--></option>";}
+if ($betalingsbet_lc!='forud') 	{print "<option value=\"Forud\">".findtekst('369|Forud', $sprog_id)."<!--tekst 369--></option>"; }
+if ($betalingsbet_lc!='kontant') 	{print "<option value=\"Kontant\">".findtekst('370|Kontant', $sprog_id)."<!--tekst 370--></option>"; }
+if ($betalingsbet_lc!='efterkrav') 	{print "<option value=\"Efterkrav\">".findtekst('371|Efterkrav', $sprog_id)."<!--tekst 371--></option>"; }
+if ($betalingsbet_lc!='netto'){print "<option value=\"Netto\">".findtekst('372|Netto', $sprog_id)."<!--tekst 372--></option>"; }
+if ($betalingsbet_lc!='lb. md.'){print "<option value=\"Lb. md.\">".findtekst('373|Lb. md.', $sprog_id)."<!--tekst 373--></option>";}
 if (($betalingsbet=='Kontant')||($betalingsbet=='Efterkrav')||($betalingsbet=='Forud')) {$betalingsdage='';}
 
 elseif (!$betalingsdage) {$betalingsdage='Nul';}
