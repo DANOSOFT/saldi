@@ -30,6 +30,8 @@
 //                 gav NULL (vist som 0) for rene debet- eller kreditposteringer.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 //                 moms_transaktioner() has braces on its one-line if/else bodies, includes its files via __DIR__ and reads filter_momskode with ifset() (no behaviour change).
+// 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
+//              The account range filter is cast as well, and the heading shows whichever bound was given.
 
 function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                              $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -44,8 +46,10 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     $regnaar    = (int)$regnaar;
     $maaned_fra = trim($maaned_fra);
     $maaned_til = trim($maaned_til);
-    $konto_fra  = trim($konto_fra);
-    $konto_til  = trim($konto_til);
+    // A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+    // not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+    $konto_fra  = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+    $konto_til  = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
 
     for ($x = 1; $x <= 12; $x++) {
         if ($maaned_fra == $md[$x]) $maaned_fra = $x;
@@ -93,28 +97,12 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
 
     $dim = '';
     if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
-        if ($afd || $afd == '0') $dim = "AND t.afd = $afd ";
-        if ($ansat_fra && $ansat_til) {
-            $tmp = str_replace(",", " or t.ansat=", $ansatte_id);
-            $dim .= " AND (t.ansat=$tmp) ";
-        } elseif ($ansat_fra) $dim .= "AND t.ansat = '$ansat_fra' ";
         $p_fra = str2low($projekt_fra);
         $p_til = str2low($projekt_til);
-        if ($p_fra && $p_til && $p_fra != $p_til) {
-            $dim .= " AND lower(t.projekt) >= '$p_fra' AND lower(t.projekt) <= '$p_til' ";
-        } elseif ($p_fra) {
-            $tmp = str_replace("?", "_", $p_fra);
-            if (substr($tmp, -1) == '_') { while (substr($tmp, -1) == '_') $tmp = substr($tmp, 0, strlen($tmp)-1); $tmp = str2low($tmp).'%'; }
-            $dim .= "AND lower(t.projekt) LIKE '$tmp' ";
-        }
+        $dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $p_fra, $p_til, 't.');
     }
 
-    $konto_filter = '';
-    if ($konto_fra && $konto_til && $konto_fra != $konto_til) {
-        $konto_filter = "AND t.kontonr >= '$konto_fra' AND t.kontonr <= '$konto_til' ";
-    } elseif ($konto_fra) {
-        $konto_filter = "AND t.kontonr = '$konto_fra' ";
-    }
+    $konto_filter = kontoRangeSqlFragment($konto_fra, $konto_til, 't.');
 
     $kode_filter = ($filter_kode !== '') ? "AND COALESCE(kp.moms,'') = '$filter_kode' " : '';
 
@@ -171,7 +159,20 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     print "<div style='padding:8px 12px;'>";
     print "<big><b>$firmanavn</b></big><br>";
     print "Periode: " . dkdato($regnstart) . " – " . dkdato($regnslut);
-    if ($konto_fra) print " &nbsp;|&nbsp; Konto: $konto_fra" . ($konto_til && $konto_til != $konto_fra ? "–$konto_til" : '');
+    // The account range belongs in the heading whenever either bound is set, and both values come from
+    // the request, so they are escaped here. An ordinary pair prints exactly what it printed before.
+    if ($konto_fra !== '' || $konto_til !== '') {
+        $kontoFraTxt = htmlspecialchars((string)$konto_fra, ENT_QUOTES, 'UTF-8');
+        $kontoTilTxt = htmlspecialchars((string)$konto_til, ENT_QUOTES, 'UTF-8');
+        if ($konto_fra !== '' && $konto_til !== '' && $konto_fra != $konto_til) {
+            $kontoTxt = $kontoFraTxt . '–' . $kontoTilTxt;
+        } elseif ($konto_fra !== '') {
+            $kontoTxt = $kontoFraTxt;
+        } else {
+            $kontoTxt = '–' . $kontoTilTxt;
+        }
+        print " &nbsp;|&nbsp; Konto: " . $kontoTxt;
+    }
     print "</div>";
 
     // Quarter shortcuts

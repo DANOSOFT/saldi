@@ -21,6 +21,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | A new test lives where CI runs it: a `phpunit.xml` suite or `e2e/` | guardrails `test-discovery` | [tests/README.md](tests/README.md) |
 | PHP header history is ordered by `YYYYMMDD`, oldest first, including merged or restored entries; an edited file gets a history line, and the header date and copyright move along | guardrails `file-history` | [convention_file_history](doc/ai/convention_file_history.md) |
 | No line-ending-only edits, no new trailing whitespace, no file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](doc/ai/feedback_whitespace_and_indentation.md) |
+| Keep simple function calls on one line; when a call needs wrapping, put every argument on its own line | review | |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](doc/ai/feedback_pre_pr_test_report.md) |
 | Header-history continuations start a new sentence and align with the description after the date/tag | guardrails `file-history` | [convention_file_history](doc/ai/convention_file_history.md) |
 | Bump `ver` on the header line for a behaviour change, not for formatting | guardrails `file-version` | [convention_file_history](doc/ai/convention_file_history.md) |

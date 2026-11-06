@@ -36,6 +36,7 @@
 // 20260803 CL/SZ Upgraded TinyMCE 3.5.8 (2012, EOL) to self-hosted TinyMCE 8 (SD-604)
 // 20261104 LOE SST-939 Initialise the note-list arrays before the query, so an empty list no longer throws.
 // 20261104 CL/MMR SD-799 The project status, the "by" labels, the search suggestion labels and the list counter follow the user's language.
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
 @session_start();
 $s_id = session_id();
@@ -271,7 +272,7 @@ function noteliste($mine_notater) {
 				elseif (!$status[$x]==1) $stat = findtekst('2910|Ulæst', $sprog_id);
 				else $stat = "OK";
 				print "<li><a href=\"notat.php?id=$notat_id[$x]\">
-					<span class=\"felt01\" style=\"width:115px\">".date("d-m-y",$datotid[$x])." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$datotid[$x])."&nbsp;</span>
+					<span class=\"felt01\" style=\"width:115px\">".datotidTilDatoOgTid($datotid[$x], findtekst('2883|kl.', $sprog_id))."&nbsp;</span>
 					<span class=\"felt02\" style=\"width:70px\">$sagsnr[$x]&nbsp;</span>
 					<span class=\"felt03\" style=\"width:215px\" title='$sag_addr[$x]'>$sag_addr[$x]&nbsp;</span>
 					<span class=\"felt04\" style=\"width:80px\">$forfatter[$x]&nbsp;</span>
