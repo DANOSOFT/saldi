@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-02---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-05---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,6 +67,8 @@
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
 // 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
 // 20261102 CL/ASR $regnskab_pakke: the account's package from the self-service signup, used by finans/bogfor.php.
+// 20261105 CL/MMR SD-807 'Session expired' uses the language chosen on the login page (languageId cookie), as there is no online row, and 'Account closed' is translated.
+//                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -154,8 +156,13 @@ if ($r = db_fetch_array($q)) {
 	else {
 		if (!$nextver) { # 20150125
 			// check if std_func exists in the includes folder
-			include($relativePath . "includes/std_func.php");
-			$txt = '&nbsp;Din session er udl&oslash;bet - du skal logge ind igen';
+			include(__DIR__ . '/std_func.php');
+			// No online row, so the texts (also the close button of tekstboks()) use the language chosen on the login page.
+			$sprog_id = (int) ifset($_COOKIE, 'languageId', 1);
+			if ($sprog_id < 1 || $sprog_id > 3) {
+				$sprog_id = 1;
+			}
+			$txt = '&nbsp;' . findtekst('8433|Din session er udløbet - du skal logge ind igen', $sprog_id);
 			print tekstboks($txt);
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/logud.php\">";
 			exit;
@@ -265,7 +272,14 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	} else $baseCurrency = 'DKK';
 	if (!$revisor) {
 		if ($lukket) {
-			echo "regnskabet er lukket";
+			// Some pages include online.php before std_func.php, so findtekst() may not be loaded yet.
+			include_once(__DIR__ . '/std_func.php');
+			// During login there is no online row yet (the closing date has just passed), so use the language chosen on the login page.
+			$closedLanguageId = (ifset($title) == 'login') ? (int) ifset($_COOKIE, 'languageId', 1) : (int) $sprog_id;
+			if ($closedLanguageId < 1 || $closedLanguageId > 3) {
+				$closedLanguageId = 1;
+			}
+			echo findtekst('8434|Regnskabet er lukket', $closedLanguageId);
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/index.php\">";
 			exit;
 		}
