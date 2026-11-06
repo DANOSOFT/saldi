@@ -11,6 +11,7 @@
 //
 // History:
 // 20261105 CL/SZ SD-757: created.
+// 20261106 CL/SZ SD-757 review: the status takes its colon before the shop key, as the runner reads a result line.
 
 if (PHP_SAPI !== 'cli') {
     exit;
@@ -30,10 +31,10 @@ $failed = false;
 foreach ($shops as $shop) {
     $missing = shopify_stock_baseline_missing((int)$shop['id'], shopify_lager_config());
     if ($shop['stock_baseline_at'] !== null && $missing === []) {
-        echo "K19 PASS {$shop['shop_key']}: baseline from {$shop['stock_baseline_at']}, every pair acknowledged\n";
+        echo "K19 PASS: {$shop['shop_key']}: baseline from {$shop['stock_baseline_at']}, every pair acknowledged\n";
     } else {
         $failed = true;
-        echo "K19 FAIL {$shop['shop_key']}: stock_baseline_at " . json_encode($shop['stock_baseline_at']) . ', ' . count($missing) . ' missing: ' . implode('; ', array_slice($missing, 0, 5)) . "\n";
+        echo "K19 FAIL: {$shop['shop_key']}: stock_baseline_at " . json_encode($shop['stock_baseline_at']) . ', ' . count($missing) . ' missing: ' . implode('; ', array_slice($missing, 0, 5)) . "\n";
     }
 }
 exit($failed ? 1 : 0);

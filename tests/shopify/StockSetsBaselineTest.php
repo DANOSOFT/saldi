@@ -7,6 +7,8 @@
 //
 // History:
 // 20261105 CL/SZ SD-757: created.
+// 20261106 CL/SZ SD-757 review: a moved-on acknowledgement blocks the stamp unless dirty, committed stock defers a pair.
+//                A stored zero call waits for its items' barriers; the sandbox scripts print lines the runner reads.
 
 declare(strict_types=1);
 
@@ -34,6 +36,8 @@ final class StockSetsBaselineTest extends TestCase
         }
         try {
             self::$db = ShopifyEnv::testDb('_s');
+            // a fresh checkout has no temp/ (gitignored); the reconcile makes only the tenant's folder below it
+            is_dir(ShopifyEnv::repoRoot() . '/temp') || mkdir(ShopifyEnv::repoRoot() . '/temp', 0770);
             ShopifyEnv::cloneTenant(self::$db);
             ShopifyEnv::registerTenant(self::$db);
             $run = ShopifyEnv::runSchema(self::$db, 'ensure');
@@ -533,6 +537,55 @@ final class StockSetsBaselineTest extends TestCase
         $this->assertTrue($ok['results'][1]['stamped'], 'lager 4 is a display with no location');
     }
 
+    public function test_an_acknowledgement_saldi_moved_on_from_blocks_the_stamp_until_it_is_sent(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $b = $this->item('B', [1 => 4]);
+        $this->shop([$a, $b]);
+        $this->offToBaseline();
+        // B is refused, so the first run doesn't stamp; A is acknowledged at 3
+        $this->sql("UPDATE shopify_product_links SET inventory_item_gid = 'gid://shopify/InventoryItem/999999' WHERE vare_id = $1", [$b]);
+        $this->assertFalse($this->steps(['baseline', 'hml', null], ['baseline', 'hml', ['prepared' => true]])['results'][1]['stamped']);
+        // A changes to 1 and its mark is lost, as when Shopify refused the call that carried it
+        $this->sql('UPDATE lagerstatus SET beholdning = 1 WHERE vare_id = $1 AND lager = 1', [$a]);
+        $this->sql('DELETE FROM shopify_stock_dirty WHERE vare_id = $1', [$a]);
+        $this->sql("UPDATE shopify_product_links SET inventory_item_gid = NULL, listed = false WHERE vare_id = $1", [$b]);
+
+        $run = $this->steps(['baseline', 'hml', ['prepared' => true]]);
+
+        $this->assertNoException($run);
+        $this->assertFalse($run['results'][0]['stamped'], 'Shopify has 3, Saldi 1');
+        $this->assertSame(3, $run['levels']['hml']['SD757-A']['Ballerup']);
+        $this->assertStringContainsString("item $a at lager 1: acknowledged 3, Saldi 1", implode(' ', $this->errors()));
+        $this->assertNull($this->baselineAt());
+
+        // marked again, it goes out and the stamp follows
+        $this->dirty([$a]);
+        $done = $this->steps(['drain', 100], ['baseline', 'hml', ['prepared' => true]]);
+        $this->assertTrue($done['results'][1]['stamped']);
+        $this->assertSame(1, $done['levels']['hml']['SD757-A']['Ballerup']);
+    }
+
+    public function test_a_change_not_drained_yet_at_the_end_of_the_baseline_does_not_block_the_stamp(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $this->shop([$a]);
+        $this->offToBaseline();
+        $this->steps(['baseline', 'hml', null]);
+        $sent = $this->steps(['baseline', 'hml', ['prepared' => true]]);
+        $this->assertTrue($sent['results'][0]['stamped']);
+        // the same check again, with a sale after the last send that no drain has seen yet
+        $this->sql('UPDATE shopify_shops SET stock_baseline_at = NULL');
+        $this->sql('UPDATE lagerstatus SET beholdning = 2 WHERE vare_id = $1 AND lager = 1', [$a]);
+        $this->dirty([$a]);
+
+        $run = $this->steps(['baseline', 'hml', ['prepared' => true]]);
+
+        $this->assertTrue($run['results'][0]['stamped'], 'its dirty row becomes a mark the push sends');
+        $this->sql("UPDATE shopify_shops SET stock_publish_enabled = true WHERE shop_key = 'hml'");
+        $this->assertSame(2, $this->steps(['drain', 100], ['push', 'hml'])['levels']['hml']['SD757-A']['Ballerup']);
+    }
+
     public function test_a_change_during_the_baseline_goes_with_it(): void
     {
         $a = $this->item('A', [1 => 3]);
@@ -672,6 +725,24 @@ final class StockSetsBaselineTest extends TestCase
 
         $this->assertSame('done', $out['outcome'], json_encode($out));
         $this->assertSame(0, $out['drifted']);
+    }
+
+    public function test_a_pair_with_stock_committed_in_shopify_is_deferred_not_corrected(): void
+    {
+        $id = $this->inStep('A', [1 => 5, 2 => 4]);
+        // an unpaid order holds 2 at Ballerup: available 3 there, Saldi still 5
+        $this->assertNoException($this->steps(['hold', 'hml', $id, 1, 2]));
+        // at Kolding the order is held as well, but available is back at Saldi's 4: nothing to defer
+        $this->assertNoException($this->steps(['hold', 'hml', $id, 2, 1], ['level', 'hml', $id, 2, 4]));
+
+        $out = $this->reconcile();
+
+        $this->assertSame(0, $out['drifted']);
+        $this->assertSame(1, $out['deferred']);
+        $this->assertStringContainsString("item $id at lager 1 deferred: Shopify 3 with 2 committed, Saldi 5", implode(' ', $this->errors()));
+        $push = $this->steps(['push', 'hml']);
+        $this->assertSame([], self::calls($push, 'stockSet'), 'the reserved unit is not put on sale again');
+        $this->assertSame(3, $push['levels']['hml']['SD757-A']['Ballerup']);
     }
 
     public function test_a_lost_file_is_fetched_again(): void
@@ -872,6 +943,35 @@ final class StockSetsBaselineTest extends TestCase
         $this->assertTrue($done['results'][0]['stamped']);
         $this->assertSame(5, $done['levels']['hml']['SD757-A']['Ballerup ny']);
         $this->assertSame(0, $done['levels']['hml']['SD757-A']['Ballerup']);
+    }
+
+    public function test_an_unanswered_zero_call_waits_for_a_barrier_on_its_items(): void
+    {
+        $a = $this->item('A', [1 => 5]);
+        $this->shop([$a]);
+        $this->dirty([$a]);
+        $this->assertNoException($this->steps(['drain', 100], ['push', 'hml']));
+        $failed = $this->steps(['fail', 'inventorySetQuantities', 'timeout_after_applyx4'], ['remap', 'hml', 1, null]);
+        $this->assertSame('RuntimeException', $failed['results'][1]['exception'] ?? null, json_encode($failed['results'][1]));
+
+        $run = $this->steps(['open', 'hml', 7005, [$a]], ['push', 'hml']);
+
+        $this->assertSame([], self::calls($run, 'stockSet'), 'the stored zero call waits for the barrier');
+        $this->assertNotEmpty(self::calls($this->steps(['release', 'hml', 7005], ['push', 'hml']), 'stockSet'), 'and goes once it has gone');
+    }
+
+    public function test_the_stock_sandbox_scripts_print_lines_the_runner_reads(): void
+    {
+        $lines = 0;
+        foreach (['stockCheck', 'K09', 'K13', 'K19', 'K55'] as $script) {
+            $source = (string)file_get_contents(__DIR__ . "/support/sandbox/$script.php");
+            preg_match_all('/echo\s+(?:"(?:K\d+|\$k)|STOCK_CHECK_K\s*\.\s*\')\s*(?:PASS|FAIL|SKIP|BLOCKED)(.)/', $source, $m);
+            foreach ($m[1] as $after) {
+                $this->assertSame(':', $after, "$script: the runner needs the colon right after the status (scenarios.php)");
+                $lines++;
+            }
+        }
+        $this->assertGreaterThan(10, $lines);
     }
 
     public function test_a_stored_call_goes_first_and_a_lager_without_a_mapping_is_refused(): void

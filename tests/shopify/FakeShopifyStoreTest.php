@@ -16,6 +16,7 @@
 // 20261103 CL/LH SD-766: second review: a write of the same metafield value keeps its digest valid (B36).
 // 20261103 CL/SS SD-802: productVariantsBulkUpdate sets and clears the prices (B37).
 // 20261105 CL/SZ SD-757: a bulk read of the stock levels (B38).
+// 20261106 CL/SZ SD-757 review: the bulk read gives committed beside available.
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -683,7 +684,7 @@ final class FakeShopifyStoreTest extends TestCase
 		$this->assertTrue($got['ok']);
 		$mine = array_values(array_filter($lines, fn(array $l): bool => ($l['id'] ?? $l['__parentId']) === $p['item']));
 		$this->assertSame(['id' => $p['item']], $mine[0], 'the item comes first');
-		$this->assertSame(['location' => ['id' => $this->l1], 'quantities' => [['name' => 'available', 'quantity' => 5]], '__parentId' => $p['item']], $mine[1], 'the file has the level from the start');
+		$this->assertSame(['location' => ['id' => $this->l1], 'quantities' => [['name' => 'available', 'quantity' => 5], ['name' => 'committed', 'quantity' => 0]], '__parentId' => $p['item']], $mine[1], 'the file has the level from the start');
 		$this->assertCount(2, $mine, 'a pair not stocked has no line');
 
 		$alias = str_replace('node { id inventoryLevels', 'node { id: sku inventoryLevels', SHOPIFY_STOCK_BULK_LEVELS);

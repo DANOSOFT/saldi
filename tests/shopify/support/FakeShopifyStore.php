@@ -31,6 +31,7 @@
 // 20261105 CL/SZ SD-756: inventorySetQuantities on a pair not stocked succeeds and stays hidden until activated, as the dev store does.
 // 20261105 CL/SZ SD-757: bulkOperationRunQuery, bulkOperation(s) and the bulk download seam for the stock read (B38); setAvailable().
 // 20261105 CL/SZ SD-757 review: rootObjectCount counts the items; the bulk query must select the item id and location id, not an alias named id.
+// 20261106 CL/SZ SD-757 review: the stock bulk read can ask for committed too; holdForOrder().
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -179,6 +180,12 @@ final class FakeShopifyStore
 			throw new LogicException("FakeShopifyStore: $item is not stocked at $location");
 		}
 		unset($s['levels'][$item][$location]);
+	}
+
+	/** An unpaid order holds $qty at a location: available moves to committed, as orderCreate with a decrement does (B01). */
+	public function holdForOrder(string $domain, string $item, string $location, int $qty): void
+	{
+		$this->commit($domain, $item, $location, $qty);
 	}
 
 	/** A quantity changed in the shop's admin, not through Saldi: what the nightly read looks for. */
@@ -1415,16 +1422,17 @@ final class FakeShopifyStore
 	 */
 	private function mBulkOperationRunQuery(string $domain, array $a): array
 	{
-		if (!preg_match('/^\{\s*inventoryItems\s*\{\s*edges\s*\{\s*node\s*\{\s*id\b(?!\s*:).*inventoryLevels.*location\s*\{\s*id\s*\}.*quantities\(names:\s*\["available"\]\)/s', $a['query'])) {
+		if (!preg_match('/^\{\s*inventoryItems\s*\{\s*edges\s*\{\s*node\s*\{\s*id\b(?!\s*:).*inventoryLevels.*location\s*\{\s*id\s*\}.*quantities\(names:\s*\[("available"(?:\s*,\s*"committed")?)\]\)/s', $a['query'], $q)) {
 			throw new LogicException('FakeShopifyStore: this bulk query is not modelled (B38): ' . $a['query']);
 		}
 		$this->uses('B38');
 		$s = &$this->shop($domain);
+		$names = array_map(fn(string $n): string => trim($n, " \""), explode(',', $q[1]));
 		$lines = [];
 		foreach (array_keys($s['items']) as $item) {
 			$lines[] = json_encode(['id' => $item]);
 			foreach ($s['levels'][$item] ?? [] as $location => $level) {
-				$lines[] = json_encode(['location' => ['id' => $location], 'quantities' => [['name' => 'available', 'quantity' => $level['available']]], '__parentId' => $item]);
+				$lines[] = json_encode(['location' => ['id' => $location], 'quantities' => array_map(fn(string $n): array => ['name' => $n, 'quantity' => $level[$n]], $names), '__parentId' => $item]);
 			}
 		}
 		$gid = $this->gid('BulkOperation');

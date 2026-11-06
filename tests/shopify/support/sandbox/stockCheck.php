@@ -8,6 +8,7 @@
 //
 // History:
 // 20261105 CL/SZ SD-757: created.
+// 20261106 CL/SZ SD-757 review: the status takes its colon before the shop key, as the runner reads a result line.
 
 $stockCheckTenant = (string)$argv[1];
 if (!preg_match('/^saldi_shopify_test_[a-z0-9_]+$/', $stockCheckTenant)) {
@@ -95,15 +96,15 @@ function stock_check_set(int $vareId): int {
     $most = $needs === [] ? 0 : shopify_availability_total($stock, $needs, array_values($sellable));
     foreach ($shops as $key => $row) {
         if (is_string($row)) {
-            echo "$k SKIP $key: $row\n";
+            echo "$k SKIP: $key: $row\n";
             continue;
         }
         $total = array_sum(array_map('intval', array_intersect_key($row['shown'], array_flip($sellable))));
         if ($row['shown'] === $row['want'] && $total === $most) {
-            echo "$k PASS $key: " . json_encode($row['shown']) . ", $total in total, as many as the sellable lagre can assemble\n";
+            echo "$k PASS: $key: " . json_encode($row['shown']) . ", $total in total, as many as the sellable lagre can assemble\n";
         } else {
             $failed = true;
-            echo "$k FAIL $key: shows " . json_encode($row['shown']) . ", Saldi wants " . json_encode($row['want']) . "; total $total, the lagre can assemble $most\n";
+            echo "$k FAIL: $key: shows " . json_encode($row['shown']) . ", Saldi wants " . json_encode($row['want']) . "; total $total, the lagre can assemble $most\n";
         }
     }
     return $failed ? 1 : 0;

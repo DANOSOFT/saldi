@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.05
+// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.06
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,6 +61,8 @@
 // 20261105 CL/SZ SD-757 review: a set that breaks is sent as 0, an acknowledged item's stock warning is resolved.
 //                A broken set warns on set:<vare_id>, resolved as soon as the set publishes again.
 //                A remap checks the new location is the shop's, and counts a started baseline as written.
+// 20261106 CL/SZ SD-757 review: the baseline stamps only on Saldi's quantities, the remap's zero call waits for its items' barriers.
+//                The reconcile defers a pair while Shopify has stock committed there.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -246,7 +248,7 @@ const SHOPIFY_STOCK_DISPLAY_SET = 'mutation stockDisplaySet($metafields: [Metafi
 	metafieldsSet(metafields: $metafields) { metafields { id } userErrors { field message code } }
 }';
 /** The nightly bulk read: every inventory item's levels, one JSONL line each after the item's own line. */
-const SHOPIFY_STOCK_BULK_LEVELS = '{ inventoryItems { edges { node { id inventoryLevels { edges { node { location { id } quantities(names: ["available"]) { name quantity } } } } } } } }';
+const SHOPIFY_STOCK_BULK_LEVELS = '{ inventoryItems { edges { node { id inventoryLevels { edges { node { location { id } quantities(names: ["available", "committed"]) { name quantity } } } } } } } }';
 /** Lines of the bulk file, or items of the final check, compared per database read. */
 const SHOPIFY_STOCK_RECONCILE_CHUNK = 500;
 /** Seconds between looks at a running bulk operation. */
@@ -982,12 +984,16 @@ function shopify_stock_reconcile_file(array $shop, string $op): string {
  * corrected by the push: its acknowledgement is forgotten and its item marked, in one transaction.
  * So this job sends no stock call and never changes Saldi. A pair is left alone while its item is
  * marked or behind a barrier, when it was acknowledged after the read started (the file is older
- * than that), and when a call holding it was unanswered as the read started. What was corrected goes on the error list as one warning, resolved by the next clean night.
+ * than that), and when a call holding it was unanswered as the read started. A pair that differs while Shopify has
+ * stock committed there is deferred, not corrected: an unpaid order lowered available and Saldi only counts it once
+ * paid, so a correction would put the reserved unit on sale again. What was corrected or deferred goes on the error
+ * list as one warning, resolved by the next clean night. The checks run outside the correcting transaction, so the
+ * caller holds the worker lock, which keeps a push or remap from committing in between (tools/shopify_worker.php does).
  *
  * @param array{heartbeat?: callable(): bool, graphql?: array<string, mixed>, download?: array<string, mixed>, lines_per_run?: int} $rt
  *   lines_per_run: a test seam, yield after each chunk of this many items
  * @param array{id: int, shop_id: int, checkpoint?: array<string, mixed>|null} $job
- * @return array{outcome: string, checkpoint?: array<string, mixed>, run_after?: int, gate?: string, compared?: int, drifted?: int}
+ * @return array{outcome: string, checkpoint?: array<string, mixed>, run_after?: int, gate?: string, compared?: int, drifted?: int, deferred?: int}
  * @throws RuntimeException when the read can't be started, polled or downloaded; the job retries
  */
 function shopify_stock_reconcile(array $rt, array $job, float $deadline): array {
@@ -1022,19 +1028,20 @@ function shopify_stock_reconcile(array $rt, array $job, float $deadline): array 
 			shopify_error_open($shopId, 'stock', 'reconcile', "The nightly stock read ended without a file: $read", 'warning');
 			return array('outcome' => 'done', 'compared' => 0, 'drifted' => 0);
 		}
-		$cp += array('offset' => 0, 'compared' => 0, 'drifted' => 0, 'named' => array(), 'corrected' => array());
+		$cp += array('offset' => 0, 'compared' => 0, 'drifted' => 0, 'deferred' => 0, 'named' => array(), 'corrected' => array());
 	}
 	$out = shopify_stock_reconcile_scan($rt, $shop, $file, $cp, shopify_stock_checked_config(), $deadline);
 	if ($out !== null) {
 		return $out;
 	}
 	@unlink($file);
-	if ($cp['drifted'] > 0) {
-		shopify_error_open($shopId, 'stock', 'reconcile', "The nightly read found {$cp['drifted']} of {$cp['compared']} pairs differing from Saldi and corrects them through the push: " . implode('; ', $cp['named']), 'warning');
+	$deferred = $cp['deferred'] ?? 0;
+	if ($cp['drifted'] > 0 || $deferred > 0) {
+		shopify_error_open($shopId, 'stock', 'reconcile', "The nightly read found {$cp['drifted']} of {$cp['compared']} pairs differing from Saldi and corrects them through the push, and deferred $deferred while Shopify has stock committed there: " . implode('; ', $cp['named']), 'warning');
 	} else {
 		shopify_error_resolve_key($shopId, 'stock', 'reconcile');
 	}
-	return array('outcome' => 'done', 'compared' => $cp['compared'], 'drifted' => $cp['drifted']);
+	return array('outcome' => 'done', 'compared' => $cp['compared'], 'drifted' => $cp['drifted'], 'deferred' => $deferred);
 }
 
 /**
@@ -1084,7 +1091,7 @@ function shopify_stock_reconcile_scan(array $rt, array $shop, string $file, arra
 			if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS || (isset($rt['heartbeat']) && !($rt['heartbeat'])()) || $chunk < 1) {
 				return array('outcome' => 'yield', 'checkpoint' => $cp);
 			}
-			$levels = array();
+			$levels = $held = array();
 			while (true) {
 				$at = ftell($fh);
 				$line = fgets($fh);
@@ -1102,14 +1109,18 @@ function shopify_stock_reconcile_scan(array $rt, array $shop, string $file, arra
 					}
 					$levels[(string)$row['id']] = array();
 				} elseif (isset($row['location']['id'])) {
-					$levels[$row['__parentId']][$row['location']['id']] = (int)($row['quantities'][0]['quantity'] ?? 0);
+					$quantities = array_column($row['quantities'] ?? array(), 'quantity', 'name');
+					$levels[$row['__parentId']][$row['location']['id']] = (int)($quantities['available'] ?? 0);
+					if ((int)($quantities['committed'] ?? 0) > 0) {
+						$held[$row['__parentId']][$row['location']['id']] = (int)$quantities['committed'];
+					}
 				}
 			}
 			if ($levels === array()) {
 				return null;
 			}
 			$cp['offset'] = ftell($fh);
-			shopify_stock_reconcile_compare($shop, $levels, $cp, $config);
+			shopify_stock_reconcile_compare($shop, $levels, $cp, $config, $held);
 			if (isset($rt['lines_per_run'])) {
 				return array('outcome' => 'yield', 'checkpoint' => $cp);
 			}
@@ -1123,9 +1134,10 @@ function shopify_stock_reconcile_scan(array $rt, array $shop, string $file, arra
  * Compares whole items' levels with what Saldi wants and corrects what differs.
  *
  * @param array<string, array<string, int>> $levels inventory item gid => location gid => available, every item of the chunk
- * @param array<string, mixed> $cp compared, drifted and named are updated in place
+ * @param array<string, mixed> $cp compared, drifted, deferred and named are updated in place
+ * @param array<string, array<string, int>> $held inventory item gid => location gid => committed, where above 0
  */
-function shopify_stock_reconcile_compare(array $shop, array $levels, array &$cp, array $config): void {
+function shopify_stock_reconcile_compare(array $shop, array $levels, array &$cp, array $config, array $held = array()): void {
 	$shopId = (int)$shop['id'];
 	$ids = array_map(fn(array $r): int => (int)$r['vare_id'], shopify_db_rows(
 		'SELECT vare_id FROM shopify_product_links WHERE shop_id = $1 AND variant_id = 0 AND listed AND inventory_item_gid = ANY($2::text[])',
@@ -1157,6 +1169,14 @@ function shopify_stock_reconcile_compare(array $shop, array $levels, array &$cp,
 			$has = array_key_exists($pair['location_gid'], $levels[$item['inventory_item_gid']]);
 			$cp['compared']++;
 			if (isset($recent[$vareId][$lager]) || ($has && $levels[$item['inventory_item_gid']][$pair['location_gid']] === $pair['quantity'])) {
+				continue;
+			}
+			$committed = $held[$item['inventory_item_gid']][$pair['location_gid']] ?? 0;
+			if ($committed > 0) {
+				$cp['deferred'] = ($cp['deferred'] ?? 0) + 1;
+				if (count($cp['named']) < SHOPIFY_STOCK_RECONCILE_NAMED) {
+					$cp['named'][] = "item $vareId at lager $lager deferred: Shopify {$levels[$item['inventory_item_gid']][$pair['location_gid']]} with $committed committed, Saldi {$pair['quantity']}";
+				}
 				continue;
 			}
 			$drift[$vareId][] = $lager;
@@ -1214,7 +1234,7 @@ function shopify_stock_baseline_problem(array $shop): ?string {
  * them all through the shop's pending slot, with chunks as long as a worker pass. It bypasses the
  * publish gate; ordinary pushes stay blocked on stock_baseline_at. Changes during the baseline
  * are drained into the same marks and go with it. stock_baseline_at is stamped only when every pair
- * has an acknowledgement; otherwise one error lists what's missing, the stamp stays unset and
+ * has an acknowledgement of Saldi's quantity, or its item is marked or dirty again; otherwise one error lists what's missing, the stamp stays unset and
  * the baseline can be run again.
  *
  * @param array{heartbeat?: callable(): bool, graphql?: array<string, mixed>} $rt
@@ -1259,7 +1279,8 @@ function shopify_stock_baseline(array $rt, array $job, float $deadline): array {
 }
 
 /**
- * What keeps a shop's baseline from being complete: a pair without an acknowledgement, a set that
+ * What keeps a shop's baseline from being complete: a pair without an acknowledgement, or acknowledged at
+ * another quantity than Saldi's while its item isn't marked or dirty (a refusal dropped the mark), a set that
  * can't be published or a sellable lager without a location. A display lager without one doesn't count.
  *
  * @return list<string> a line per problem, none when every pair is acknowledged
@@ -1278,6 +1299,11 @@ function shopify_stock_baseline_missing(int $shopId, array $config): array {
 		$after = end($ids);
 		$plan = shopify_stock_plan($shopId, $ids, $config);
 		$state = shopify_stock_acknowledged($shopId, $ids);
+		$marked = shopify_queue_state_get('stock.dirty:' . shopify_db_rows('SELECT shop_key FROM shopify_shops WHERE id = $1', array($shopId))[0]['shop_key']);
+		// a change not drained yet becomes a mark after the stamp just the same
+		foreach (shopify_db_rows('SELECT DISTINCT vare_id FROM shopify_stock_dirty WHERE vare_id = ANY($1::int[])', array(shopify_barrier_int_array($ids))) as $row) {
+			$marked[(int)$row['vare_id']] = true;
+		}
 		foreach ($plan['unmapped'] as $lager) {
 			$missing["lager $lager"] = "sellable lager $lager has no location";
 		}
@@ -1289,6 +1315,9 @@ function shopify_stock_baseline_missing(int $shopId, array $config): array {
 			foreach ($plan['items'][$vareId]['pairs'] as $lager => $pair) {
 				if (!isset($state[$vareId][$lager])) {
 					$missing[] = "item $vareId at lager $lager has no acknowledgement";
+				} elseif ($state[$vareId][$lager] !== $pair['quantity'] && !isset($marked[$vareId])) {
+					// a refusal dropped the mark of a later change; a marked item still goes out with the push
+					$missing[] = "item $vareId at lager $lager: acknowledged {$state[$vareId][$lager]}, Saldi {$pair['quantity']}";
 				}
 			}
 		}
@@ -1384,6 +1413,7 @@ function shopify_stock_remap_zero(array $rt, array $shop, int $lager, string $ol
 					=> array('inventoryItemId' => $l['inventory_item_gid'], 'locationId' => $old, 'quantity' => 0, 'changeFromQuantity' => null), $links))),
 				'rows' => array_map(fn(array $l): array => array('vare_id' => (int)$l['vare_id'], 'lager' => $lager, 'quantity' => 0), $links),
 				'marks' => array(),
+				'watch' => array_map(fn(array $l): int => (int)$l['vare_id'], $links),
 				'read_at' => shopify_db_rows('SELECT now()::timestamp AS at')[0]['at'],
 			);
 			$pending = shopify_stock_state_update($slot, fn(array $current): array => $current ?: $pending);

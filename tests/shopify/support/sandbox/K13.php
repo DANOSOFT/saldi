@@ -11,6 +11,7 @@
 //
 // History:
 // 20261105 CL/SZ SD-757: created.
+// 20261106 CL/SZ SD-757 review: the status takes its colon before the shop key, as the runner reads a result line.
 
 if (PHP_SAPI !== 'cli') {
     exit;
@@ -30,20 +31,20 @@ if ($shops === []) {
 $failed = false;
 foreach ($shops as $key => $row) {
     if (is_string($row)) {
-        echo "K13 SKIP $key: $row\n";
+        echo "K13 SKIP: $key: $row\n";
         continue;
     }
     if (!array_key_exists($lager, $row['want'])) {
-        echo "K13 SKIP $key: lager $lager has no location in this shop\n";
+        echo "K13 SKIP: $key: lager $lager has no location in this shop\n";
         continue;
     }
     $name = shopify_graphql(shopify_shop($key), 'k13Location', 'query k13Location($id: ID!) { location(id: $id) { name } }', ['id' => shopify_location((int)shopify_shop($key)['id'], $lager)], ['retry_mode' => 'read', 'deadline' => microtime(true) + 20])['data']['location']['name'] ?? null;
     $listed = is_array($row['udstillet']) && in_array($name, $row['udstillet'], true);
     if ($row['shown'][$lager] === 0 && $row['want'][$lager] === 0 && $row['display'][$lager] && $listed) {
-        echo "K13 PASS $key: 0 sellable at $name, and saldi.udstillet lists it: " . json_encode($row['udstillet'], JSON_UNESCAPED_UNICODE) . "\n";
+        echo "K13 PASS: $key: 0 sellable at $name, and saldi.udstillet lists it: " . json_encode($row['udstillet'], JSON_UNESCAPED_UNICODE) . "\n";
     } else {
         $failed = true;
-        echo "K13 FAIL $key: shows " . json_encode($row['shown'][$lager]) . " at $name; Saldi has it there: " . json_encode($row['display'][$lager]) . '; saldi.udstillet ' . json_encode($row['udstillet'], JSON_UNESCAPED_UNICODE) . "\n";
+        echo "K13 FAIL: $key: shows " . json_encode($row['shown'][$lager]) . " at $name; Saldi has it there: " . json_encode($row['display'][$lager]) . '; saldi.udstillet ' . json_encode($row['udstillet'], JSON_UNESCAPED_UNICODE) . "\n";
     }
 }
 exit($failed ? 1 : 0);

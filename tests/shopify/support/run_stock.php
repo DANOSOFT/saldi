@@ -21,6 +21,7 @@
 // 20261104 CL/SZ SD-756 review: steps save and clean.
 // 20261105 CL/SZ SD-756: shopify_stock_next() takes the runtime.
 // 20261105 CL/SZ SD-757: steps for the display metafield, baseline, reconcile and remap.
+// 20261106 CL/SZ SD-757 review: step hold, stock an unpaid order keeps committed.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -132,6 +133,10 @@ try {
                 case 'level':
                     $store->setAvailable($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid'], $location($step[1], (int)$step[3]), (int)$step[4]);
                     $results[] = 'changed';
+                    break;
+                case 'hold':
+                    $store->holdForOrder($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid'], $location($step[1], (int)$step[3]), (int)$step[4]);
+                    $results[] = 'held';
                     break;
                 case 'start_baseline':
                     $results[] = shopify_stock_start_baseline([], $shopId($step[1]));
