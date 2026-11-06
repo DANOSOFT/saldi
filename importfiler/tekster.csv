@@ -5408,3 +5408,19 @@
 8458	CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?	The VAT lookup will overwrite existing fields. Do you want to update them?	Oppslaget vil overskrive eksisterende felt. Vil du oppdatere dem?
 8459	Nej, behold nuværende	No, keep current	Nei, behold nåværende
 8460	Ja, opdater	Yes, update	Ja, oppdater
+8463	Du har skiftet regnskab fra %s til %s, handling afbrudt	You switched account from %s to %s, the action was cancelled	Du har byttet regnskap fra %s til %s, handlingen ble avbrutt
+8464	Du har logget ud - vinduet lukkes	You have logged out - the window will close	Du har logget ut - vinduet lukkes
+8465	Du har ikke nogen rettigheder her - din aktivitet er blevet logget	You do not have access here - your activity has been logged	Du har ingen rettigheter her - aktiviteten din er logget
+8466	Midlertidig adgangskode til Saldi	Temporary password for Saldi	Midlertidig passord til Saldi
+8467	Kære %s	Dear %s	Kjære %s
+8468	I dag den %s kl. %s er der blevet rekvireret en midlertidig adgangskode til brugeren %s i regnskabet %s	Today, %s at %s, a temporary password was requested for the user %s in the account %s	I dag den %s kl. %s ble det bedt om et midlertidig passord til brukeren %s i regnskapet %s
+8469	I dag den %s kl. %s er der blevet rekvireret en midlertidig adgangskode til regnskabet %s	Today, %s at %s, a temporary password was requested for the account %s	I dag den %s kl. %s ble det bedt om et midlertidig passord til regnskapet %s
+8470	Indtil den %s kl. %s kan anvendes adgangskoden: %s	Until %s at %s you can use the password: %s	Frem til %s kl. %s kan dette passordet brukes: %s
+8471	Efter login kan adgangskoden ændres under "Indstillinger -> Brugere"	After logging in you can change the password under "Settings -> Users"	Etter innlogging kan passordet endres under "Innstillinger -> Brukere"
+8472	Brugerliste til regnskabet %s	User list for the account %s	Brukerliste for regnskapet %s
+8473	I dag den %s kl. %s er der blevet rekvireret en brugerliste til regnskabet %s	Today, %s at %s, a user list was requested for the account %s	I dag den %s kl. %s ble det bedt om en brukerliste for regnskapet %s
+8474	Brugerne er: %s.	The users are: %s.	Brukerne er: %s.
+8475	Saldi regnskab	Saldi account	Saldi-regnskap
+8476	I dag den %s kl. %s er der blevet rekvireret en liste over regnskaber tilknyttet %s	Today, %s at %s, a list of the accounts linked to %s was requested	I dag den %s kl. %s ble det bedt om en liste over regnskap knyttet til %s
+8477	%s et tilknyttet : %s.	%s is linked to: %s.	%s er knyttet til: %s.
+8478	God fornøjelse fra dit Saldi team	Best regards from your Saldi team	Hilsen ditt Saldi-team
