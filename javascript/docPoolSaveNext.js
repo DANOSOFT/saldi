@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-20 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.1.0 --- 2026-11-06 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -36,6 +36,8 @@
 //                takes an address with it (F5 would transfer again, and two quick address writes made the menu reload the page over and over).
 // 20261015 CL/SZ SD-720 (CodeRabbit) A split bilag ticks only the rows this save created; a line that was already there keeps the box as the user left it.
 // 20261020 CL/SZ SD-720 (CodeRabbit) An amount with a dot that is not a thousands separator ("12.50", saved as 1250) or a space inside it is not an amount.
+// 20261106 CL/LH SD-722 Before saving, poolCapture.js takes away a Debet the contra account suggestion wrote for the kreditor Kredit held before.
+//                Enter in Kredit saves without a change event, so that Debet was saved against the kreditor typed after it.
 (function () {
     'use strict';
 
@@ -278,6 +280,8 @@
         if (busy || !c || c.readOnly) return;
         var entries = editableEntries();
         if (!entries.length) return;
+        // SD-722: a Debet the contra account suggestion wrote for another kreditor than Kredit holds now is taken away, and nothing is saved (poolCapture.js)
+        if (window.poolCapture && typeof window.poolCapture.beforeSave === 'function' && window.poolCapture.beforeSave(entries)) return;
         var missing = firstMissing(entries);
         if (missing) {
             missing.focus();

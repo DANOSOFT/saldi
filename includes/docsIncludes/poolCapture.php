@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolCapture.php --- ver 5.0.0 --- 2026-10-21 ---
+// --- includes/docsIncludes/poolCapture.php --- ver 5.1.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

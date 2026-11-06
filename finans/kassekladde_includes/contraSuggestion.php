@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/contraSuggestion.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- finans/kassekladde_includes/contraSuggestion.php --- ver 5.1.0 --- 2026-10-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,11 +26,10 @@
 //                Not tied to the pool page: contraSuggestionLookup.php serves it, so the bilag app can show the same suggestion.
 //                The sources are tried in order; a fixed "Standardmodkonto" (release plan 2.2) goes in front of the history when it is built.
 //                A closed account (kontoplan.lukket) is not suggested; poolAccountInfo() only left out missing accounts and headings.
-// 20261026 CL/LH The suggestion is the account most of the last 5 bilag went to (was: the newest account and its run); the other
-//                accounts come along as "alternatives" with their counts, and "total" says how many bilag were looked at.
+// 20261026 CL/LH The suggestion is the account most of the last 5 bilag went to (was: the newest account and its run); the other accounts come along as "alternatives" with their counts, and "total" says how many bilag were looked at.
 //                "Udfyld modkonto automatisk" is on by default; off is stored as modk_off (was: on stored as modk_auto).
-//                The history is read with up to 100 rows, so the 5 bilag are 5 bilag also when some are spread over several lines;
-//                a bilag is its journal, number and date. Every alternative brings its own reason.
+//                The history is read with up to 100 rows, so the 5 bilag are 5 bilag also when some are spread over several lines; a bilag is its journal, number and date.
+//                Every alternative brings its own reason.
 
 include_once(__DIR__ . '/journalHistory.php');
 include_once(__DIR__ . '/../../includes/docsIncludes/poolAccountInfo.php');

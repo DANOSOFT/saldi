@@ -5,8 +5,7 @@
 //                A posted bilag that is also a journal line is shown once. Every row says where it came from (kilde: bogfort or kladde).
 // 20261014 CL/SZ SD-722 With SST-818's counter-account filter and limit 5 in the query: the journal lines of the posted bilag already shown
 //                are left out in the query as well, so a kreditor with posted bilag still gets 5 suggestions.
-// 20261026 CL/LH sidste_5_forslag() takes the number of rows ($maxRows, still 5 for the panel) and every row says its kladde_id,
-//                so the contra account suggestion can count the last 5 bilag even when a bilag is spread over several lines.
+// 20261026 CL/LH sidste_5_forslag() takes the number of rows ($maxRows, still 5 for the panel) and every row says its kladde_id, so the contra account suggestion can count the last 5 bilag even when a bilag is spread over several lines.
 
 /**
  * Find recent counter-accounts without losing their customer/supplier/finance identity.

@@ -251,7 +251,39 @@ final class poolCapture extends TestCase
         $this->assertSame([4, 2, 1], array_column($rank['accounts'], 'count'));
     }
 
+    /**
+     * The reason texts as findtekst() caches them in the session. In a full run the real findtekst() (includes/stdFunc/findTxt.php)
+     * is defined before this file's stand-in and, with no database, answers from the session or fails; the stand-in ignores the session.
+     *
+     * @var array<string, string>
+     */
+    private const REASON_TEXTS = [
+        'text_7663_1' => 'Foreslået fordi $antal af de sidste $total bilag fra denne kreditor blev bogført på konto $konto',
+        'text_5372_1' => 'Foreslået fordi de sidste $antal bilag fra denne kreditor blev bogført på konto $konto',
+        'text_5373_1' => 'Foreslået fordi det seneste bilag fra denne kreditor blev bogført på konto $konto',
+    ];
+
     public function testTheReasonSaysHowManyOfTheBilag(): void
+    {
+        $before = [];
+        foreach (self::REASON_TEXTS as $key => $text) {
+            $before[$key] = $_SESSION[$key] ?? null;
+            $_SESSION[$key] = $text;
+        }
+        try {
+            $this->assertReasons();
+        } finally {
+            foreach ($before as $key => $value) {
+                if ($value === null) {
+                    unset($_SESSION[$key]);
+                } else {
+                    $_SESSION[$key] = $value;
+                }
+            }
+        }
+    }
+
+    private function assertReasons(): void
     {
         $this->assertSame('Foreslået fordi de sidste 5 bilag fra denne kreditor blev bogført på konto 15011', contraSuggestionReason(5, '15011', 1, 5));
         $this->assertSame('Foreslået fordi 3 af de sidste 5 bilag fra denne kreditor blev bogført på konto 15011', contraSuggestionReason(3, '15011', 1, 5));

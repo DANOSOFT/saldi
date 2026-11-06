@@ -1,4 +1,4 @@
-// --- javascript/poolCapture.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/poolCapture.js --- ver 5.1.0 --- 2026-11-06 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-722 Created: data capture in the document pool.
 //                "Aflæst" on a field "Overfør data" filled with what the extraction read, until the user changes it or saves.
@@ -15,6 +15,9 @@
 //                instead of a box with a sentence and a button. Filled in by default; not filled in, it is Debet's dashed placeholder,
 //                taken with Enter, Tab or a click on the account's name. "1 anden ▾" / Alt+↓ lists the other accounts of the last bilag with their counts,
 //                and "Søg anden konto" hands over to the lookup. A suggestion from a single bilag is never filled in.
+// 20261106 CL/LH (review) Debet is filled in only on a new line; a saved line, which may be collapsed out of view, shows the placeholder.
+//                A Debet the suggestion wrote follows Kredit also when Enter in Kredit saves without a change event (beforeSave(), called by docPoolSaveNext.js).
+//                Back on a kreditor rejected with "×", the line no longer keeps the suggestion of the kreditor shown in between.
 (function () {
     'use strict';
 
@@ -293,8 +296,14 @@
             total: suggestion.total || suggestion.count,
             reason: suggestion.reason
         };
-        // One bilag is too little to write the account in without asking
-        renderSuggestion(entry, state, 0, auto && suggestion.count > 1);
+        // One bilag is too little to write the account in without asking. A saved line, which may be collapsed out of view,
+        // only shows it: "Gem alle" would otherwise save an account nobody saw or typed
+        renderSuggestion(entry, state, 0, auto && suggestion.count > 1 && isNewLine(entry));
+    }
+
+    /** A line not yet saved: "new", or "new2" ... from a split (docPoolSplit.js). */
+    function isNewLine(entry) {
+        return /^bilagEntry_new/.test(entry.id);
     }
 
     /**
@@ -566,31 +575,68 @@
         if (list && !list.box.contains(e.target)) closeList();
     }, true);
 
+    /** Kredit as typed: a "K1234" counts as kreditor 1234 also before docPoolAccounts.js has split it on change. */
+    function kreditOf(f) {
+        var value = f.kredit.value.trim();
+        var type = f.kreditType ? f.kreditType.value.trim().toUpperCase() : '';
+        var prefixed = value.match(/^K(\d+)$/i);
+        if (prefixed) { type = 'K'; value = prefixed[1]; }
+        return { type: type, value: value };
+    }
+
+    /** A Debet the suggestion wrote follows Kredit: another kreditor, or none, takes it away again. True when it did. */
+    function followKredit(entry) {
+        var f = rowFields(entry);
+        if (!f.debet || !f.kredit || !f.debet.classList.contains('pool-suggested')) return false;
+        var kredit = kreditOf(f);
+        var current = entry.querySelector('.pool-suggest');
+        if (current && kredit.type === 'K' && current.dataset.kreditor === kredit.value) return false;
+        unmark(f.debet);
+        clearAccount(f.debet);
+        removeSuggestion(entry);
+        return true;
+    }
+
+    /**
+     * Before "Gem og næste" saves (docPoolSaveNext.js). Enter in Kredit saves without a change event, so a Debet the suggestion
+     * wrote for the kreditor Kredit held before would be saved against the one typed now. Such a Debet is taken away, the new
+     * kreditor's suggestion is asked for, and true stops the save: the user sees the new account before the next Enter saves.
+     * @param {HTMLElement[]} entries The lines about to be saved.
+     * @return {boolean}
+     */
+    function beforeSave(entries) {
+        var stopped = false;
+        entries.forEach(function (entry) {
+            if (!followKredit(entry)) return;
+            stopped = true;
+            // The rest of the page (Kredit's name, docPoolAccounts.js's split of "K1234") catches up, and considerRow() asks again
+            rowFields(entry).kredit.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        return stopped;
+    }
+
     /** Kredit holds a kreditor and Debet is empty: ask for the contra account. A typed Debet is never replaced. */
     function considerRow(entry) {
         var c = cfg();
         if (!c || c.readOnly || !c.suggestUrl || !entry) return;
         var f = rowFields(entry);
         if (!f.debet || !f.kredit || f.debet.readOnly || f.kredit.readOnly) return;
-        var value = f.kredit.value.trim();
-        var type = f.kreditType ? f.kreditType.value.trim().toUpperCase() : '';
-        var prefixed = value.match(/^K(\d+)$/i);
-        if (prefixed) { type = 'K'; value = prefixed[1]; }
+        var kredit = kreditOf(f);
+        var type = kredit.type;
+        var value = kredit.value;
+        followKredit(entry);
         var current = entry.querySelector('.pool-suggest');
-        // A Debet the suggestion wrote follows Kredit: another kreditor, or none, takes it away again
-        if (f.debet.classList.contains('pool-suggested') && (!current || current.dataset.kreditor !== value || type !== 'K')) {
-            unmark(f.debet);
-            clearAccount(f.debet);
-            removeSuggestion(entry);
-            current = null;
-        }
         if (type !== 'K' || !/^\d+$/.test(value)) {
             removeSuggestion(entry);
             return;
         }
         if (current && current.dataset.kreditor === value) return;
-        // Rejected with "×" (or put aside with "Søg anden konto"): not offered again for this kreditor on this line
-        if (entry.dataset.suggestRejected === value) return;
+        // Rejected with "×" (or put aside with "Søg anden konto"): not offered again for this kreditor on this line,
+        // and another kreditor's suggestion shown meanwhile goes
+        if (entry.dataset.suggestRejected === value) {
+            removeSuggestion(entry);
+            return;
+        }
         if (f.debet.value.trim() !== '') {
             removeSuggestion(entry);
             return;
@@ -831,7 +877,7 @@
         considerAll();
     }
 
-    window.poolCapture = { mark: mark, consider: considerRow, openReport: openReport };
+    window.poolCapture = { mark: mark, consider: considerRow, beforeSave: beforeSave, openReport: openReport };
 
     // A document opened in place (SD-719) brings its own config
     document.addEventListener('poolswitch', function () {
