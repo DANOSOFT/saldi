@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowsView.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/rowsView.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,8 +33,28 @@
 // 20261103 CL/ASR QA: "Gælder regnskabsåret" shows each year by its name (grupper RA beskrivelse, e.g.
 //                 2026), not its number (1, 2).
 //                 After a refused save a cell's data-orig is the stored value, not the posted one, so Fortryd and the unsaved-changes warning still see the change.
+// 20261105 CL/LH settings_rows_fields_by_sub(): a field the user may not see at all ('hide_without') is left out, so its sub-section has no empty heading (Momsperioder on Regnskabsår without Kassekladde).
 
 include_once(__DIR__ . '/rows.php');
+
+/**
+ * The section's fields per sub-section, drawn above its tables. Actions and mini rows are drawn elsewhere, and a field
+ * the user may not see at all (st_field_access() 'none', i.e. 'hide_without') is left out, so a sub-section holding
+ * only such fields gets no empty heading.
+ *
+ * @param array<string, array<string, mixed>> $defs the section's definitions, key => definition
+ * @return array<string, array<string, array<string, mixed>>> sub-section => key => definition
+ */
+function settings_rows_fields_by_sub(array $defs): array
+{
+	$fieldsBySub = array();
+	foreach ($defs as $key => $def) {
+		if (!in_array($def['type'], array('action', 'mini'), true) && st_field_access($def) !== 'none') {
+			$fieldsBySub[$def['sub']][$key] = $def;
+		}
+	}
+	return $fieldsBySub;
+}
 
 /**
  * @param array<string, mixed> $c everything the section view computed, plus 'tables', 'year', 'years', 'rowsPosted'
@@ -54,12 +74,7 @@ function settings_rows_render(array $c): void
 	foreach ($section['subsections'] as $sub => $label) {
 		$subs[$sub] = $label;
 	}
-	$fieldsBySub = array();
-	foreach ($defs as $key => $def) {
-		if (!in_array($def['type'], array('action', 'mini'), true)) {
-			$fieldsBySub[$def['sub']][$key] = $def;
-		}
-	}
+	$fieldsBySub = settings_rows_fields_by_sub($defs);
 	$tablesBySub = array();
 	foreach ($tables as $tableId => $t) {
 		$tablesBySub[$t['sub']][$tableId] = $t;

@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-04 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-05 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -70,6 +70,8 @@
 //                 "Opdater kostpriser" runs in a new tab ('blank'), as on master: the worker ends with window.close().
 //                 The gear context of Kasseoptælling and Kommission is debitor/cashCountHistory.php (debitor/kasseoptaelling.php does not exist).
 // 20261104 CL/ASR Final QA: Landekonfiguration (company.data.country) shows its default Danmark while adresser.land is empty ('empty_is_default'), as its help text says.
+// 20261105 CL/LH Regnskabsår has master's Momsperioder button again (company.fiscal_years.vat_periods, a link to finans/moms_periode.php): master moved it there from the Finans sidebar, and the old page became a redirect without it.
+//                It shows for whoever may open that page (finans.kassekladde, read is enough) and is left out for everyone else.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -181,7 +183,7 @@ if (!function_exists('getSettingsSections')) {
 			),
 			'company.fiscal_years' => array(
 				'group' => 'company', 'section' => 'fiscal_years', 'number' => 'G1.2', 'label' => 894, 'icon' => 'bx-calendar', 'kind' => 'rows',
-				'lead' => 6547, 'subsections' => array('years' => 894),
+				'lead' => 6547, 'subsections' => array('years' => 894, 'vat_periods' => 3366),
 				'tables' => array(
 					'years' => array('sub' => 'years', 'label' => 894, 'add' => 508, 'empty' => 6565, 'storage' => array('grupper', 'RA'), 'no_add' => true,
 						'usage' => 'fiscal_year', 'on_delete' => 'fiscal_year_empty', 'row_locked' => 'fiscal_year_deleted', 'create' => 'fiscal_year',
@@ -1065,6 +1067,12 @@ if (!function_exists('getSettingsSections')) {
 			'import_export.backup.take' => array('sub' => 'backup', 'type' => 'link', 'label' => 1245, 'help' => 6663, 'href' => '../admin/backup.php?backup=1', 'button' => 1245, 'audit' => false),
 			'import_export.backup.restore' => array('sub' => 'restore', 'type' => 'link', 'label' => 1247, 'help' => 6664, 'href' => '../admin/restore.php', 'button' => 1247, 'audit' => false,
 				'permission' => 'system.backup.restore'),
+
+			// ---------------------------------------------------------------- G1.2 Fiscal years: master's Momsperioder button (SD-646 open/close VAT periods)
+			// Gated like the page it opens (finans/moms_periode.php: $modulnr 2, Kassekladde): readers may look, others don't see it.
+			'company.fiscal_years.vat_periods' => array('sub' => 'vat_periods', 'type' => 'link', 'label' => 3366, 'href' => '../finans/moms_periode.php', 'button' => 6157, 'audit' => false,
+				'permission' => 'finans.kassekladde', 'needs' => 'read', 'hide_without' => true, 'legacy' => array(array(778, 3366)),
+				'keywords' => array('momsperiode', 'luk momsperiode', 'åbn momsperiode', 'periodelåsning', 'vat period', 'close vat period')),
 
 			// ---------------------------------------------------------------- G1.4 Subscription & account (Saldi-hosted only)
 			'company.account.name' => array('sub' => 'account', 'type' => 'text', 'label' => 6635, 'help' => 6636, 'maxlength' => 80, 'validate' => array('ledger_name'),
