@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/betalinger.php --- Patch 4.0.8 --- 2023.06.18 ---
+// --- debitor/betalinger.php --- ver 5.1.0 --- 2026.10.30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 //
 // 2015.11.04 Kopieret fra kreditor og tilrettet til debitorer (phr)
@@ -42,6 +42,8 @@
 // 20230618 PHR BUG correction: When fetch from 'kontokort' the CURRENT list is now updated, if account exists in list.  
 // 20220901 MSC - Implementing new design
 // 20231213 MSC - Implementing new design
+// 20261030 CL/MMR SST-920: Removed the «Udlign konti» format from the bank format list.
+//                 It called udlignKonti(), which does not exist, so «Udskriv og luk» ended on a blank page after the list was already locked as sent.
 
 $dan_liste = $gem = $listenote = $slet_ugyldige = $udskriv = NULL;
 
@@ -388,7 +390,6 @@ if ($udskriv) {
 	elseif ($format == 'nordea') udskriv_nordea($db_id, $bruger_id, $liste_id);
 	elseif ($format == 'sdc') udskriv_sdc($db_id, $bruger_id, $liste_id);
 	elseif ($format == 'xml' || $format == 'norskeBank') udskriv_xml($db_id, $bruger_id, $liste_id);
-	elseif ($format == 'udlign') udlignKonti($db_id, $bruger_id, $liste_id);
 } else {
 	print "<form name=\"betalinger\" action=\"betalinger.php?liste_id=$liste_id\" method=\"post\">";
 	$r = db_fetch_array(db_select("select listenote, bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
@@ -597,7 +598,6 @@ if ($udskriv) {
 				print "<option value=\"sdc\">SDC</option>";
 				print "<option value=\"xml\">XML</option>";
 				print "<option value=\"norskeBank\">Norske Bank XML</option>";
-				print "<option value=\"udlign\">Udlign konti</option>";
 				print "</select>";
 				print "&nbsp;•&nbsp;<input type=submit accesskey=\"u\" value=\"Udskriv og luk\" name=\"udskriv\">";
 			} else {
