@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 //                 is checked in the source, because the page cannot be run without a database.
 //                 The transfer locks the case, then the akkordafregning (the order of Afvis and Godkend), then the slips in id order,
 //                 so two transfers on one case and a transfer against Afvis or Godkend cannot deadlock.
+//                 The source is read with LF line endings, so the test also runs on a CRLF checkout (CodeRabbit).
 #[RunTestsInSeparateProcesses]
 final class AkkordTransferLockTest extends TestCase
 {
@@ -19,7 +20,8 @@ final class AkkordTransferLockTest extends TestCase
 
     private static function source(): string
     {
-        return (string)file_get_contents(self::RET_LOEN);
+        // a Windows checkout may have CRLF line endings
+        return str_replace("\r\n", "\n", (string)file_get_contents(self::RET_LOEN));
     }
 
     /** Lifts one top-level function from retLoen.php. */
@@ -29,6 +31,7 @@ final class AkkordTransferLockTest extends TestCase
         $a = strpos($src, "function $name(");
         self::assertNotFalse($a, "$name() is gone from sager/loenIncludes/retLoen.php");
         $b = strpos($src, "\n}\n", $a);
+        self::assertNotFalse($b, "$name() has no closing brace in sager/loenIncludes/retLoen.php");
         eval(substr($src, $a, $b - $a + 2));
     }
 
