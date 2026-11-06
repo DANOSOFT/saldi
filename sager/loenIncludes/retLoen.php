@@ -43,6 +43,7 @@
 //                 When the transfer is refused, the slip keeps the transfer state stored in the database and is saved like a Gem (Codex).
 //                 A Dyrtid slip without a date that is already linked to the slip is not stamped either (CodeRabbit).
 //                 The date rule has one owner, akkDyrtidMedDatoSql(), used by the transfer and by the list of slips without a date.
+//                 Overfør locks the listed Dyrtid slips before the date check, and a slip transferred after its form was opened is not saved over (Codex).
 
 function ret_loen() {
 	global $brugernavn;
@@ -322,6 +323,10 @@ function ret_loen() {
 			$sag_id  = 0;
 			$sag_ref = NULL;
 		}
+		if ($afslut && $loen_art=='akk_afr' && $sag_id) { # 20261106 SST-961
+			// Lock the Dyrtid slips on the list until commit, so nobody can change their date between this check and the transfer.
+			akkDyrtidLaas($id, $sag_id, $opg_id);
+		}
 		if ($afslut && $loen_art=='akk_afr' && $sag_id && akkDyrtidUdenDato($id, $sag_id, $opg_id)) { # 20261106 SST-961
 			// A Dyrtid slip without a date is on the list: the slip is saved as with Gem and not transferred.
 			// Its transfer state comes from the database, not from the form (an open slip stays open).
@@ -387,12 +392,18 @@ function ret_loen() {
 		if ($id) {
 			if ($loen_art=='aconto' || $loen_art=='regulering') $sum=usdecimal($dksum);
 			if ($loen_art != 'akk_afr') $datoer = ''; # 20240409
-			$qtxt      = "select afvist, afvist_af from loen where id='$id'";
+			$qtxt      = "select afvist, afvist_af, afsluttet, afsluttet_af from loen where id='" . (int)$id . "' for update"; # 20261106 SST-961 locked until commit
 			$r         = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$afvist    = $r['afvist'];
 			$afvist_af = $r['afvist_af'];
 			if ($afvist && $afvist_af) {
 				alert("".findtekst('3037|Denne seddel er afvist af', $sprog_id)." $afvist_af");
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
+				exit;
+			}
+			// 20261106 SST-961: the slip was transferred after this form was opened (e.g. with its akkordafregning); the old form is not saved over it.
+			if (trim((string)$r['afsluttet']) && !trim((string)ifset($_POST, 'afsluttet', ''))) {
+				print "<script type='text/javascript'>alert(" . jsString(array(findtekst('8490|Denne seddel er overført af', $sprog_id) . ' ' . $r['afsluttet_af'])) . ");</script>";
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
 				exit;
 			}
@@ -1833,6 +1844,40 @@ function akkDyrtidMedDatoSql() {
 }
 
 /**
+ * The SQL condition for the Dyrtid slips on an akkordafregning's list (same case and task, art 'akktimer', not
+ * the slip itself, linked to this slip or to none), as the list in ret_loen() draws them. Rejected slips are
+ * left out by the callers, as in the list. Used by akkDyrtidUdenDato() and akkDyrtidLaas().
+ *
+ * @param int $id     The akkordafregning (loen.id).
+ * @param int $sag_id The case (sager.id).
+ * @param int $opg_id The task (opgaver.id); 0 = no task.
+ * @return string SQL condition on loen, values cast to int.
+ */
+function akkDyrtidListeSql($id, $sag_id, $opg_id) {
+	$id     = (int)$id;
+	$sag_id = (int)$sag_id;
+	$opg_id = (int)$opg_id;
+	return "sag_id='$sag_id' and opg_id='$opg_id' and art='akktimer' and id != '$id' and (master_id='$id' or master_id='0' or master_id is NULL)";
+}
+
+/**
+ * Locks the Dyrtid slips on an akkordafregning's list (with or without a date) until the transaction of
+ * ret_loen() ends. Overfør calls it before it checks their dates, so another user cannot change a date between
+ * the check and the transfer; a save of such a slip waits until the transfer is committed.
+ *
+ * @param int $id     The akkordafregning (loen.id).
+ * @param int $sag_id The case (sager.id).
+ * @param int $opg_id The task (opgaver.id); 0 = no task.
+ * @return void
+ */
+function akkDyrtidLaas($id, $sag_id, $opg_id) {
+	$q = db_select("select id from loen where " . akkDyrtidListeSql($id, $sag_id, $opg_id) . " for update", __FILE__ . " linje " . __LINE__);
+	while (db_fetch_array($q)) {
+		// the rows are only locked
+	}
+}
+
+/**
  * The Dyrtid slips without a date on an akkordafregning's list: the same rows as the list in ret_loen()
  * (same case and task, art 'akktimer', not the slip itself, not linked to another slip, not rejected).
  * A missing date is stored as 01-01-1970; a year up to 1970 is treated the same way. Such a slip is
@@ -1845,12 +1890,8 @@ function akkDyrtidMedDatoSql() {
  * @return array<int, array{id: int, nummer: string}> One entry per slip, ordered by number.
  */
 function akkDyrtidUdenDato($id, $sag_id, $opg_id) {
-	$id     = (int)$id;
-	$sag_id = (int)$sag_id;
-	$opg_id = (int)$opg_id;
-	$slips  = array();
-	$qtxt = "select id,nummer,afvist from loen where sag_id='$sag_id' and opg_id='$opg_id' and art='akktimer' and id != '$id' ";
-	$qtxt.= "and (master_id='$id' or master_id='0' or master_id is NULL) and not " . akkDyrtidMedDatoSql() . " order by nummer";
+	$slips = array();
+	$qtxt = "select id,nummer,afvist from loen where " . akkDyrtidListeSql($id, $sag_id, $opg_id) . " and not " . akkDyrtidMedDatoSql() . " order by nummer";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (!trim((string)$r['afvist'])) {
