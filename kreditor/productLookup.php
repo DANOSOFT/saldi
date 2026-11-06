@@ -307,21 +307,6 @@ $columns[] = array(
     }
 );
 
-if ($kontonr) {
-    $columns[] = array(
-        "field" => "toggle_view",
-        "headerName" => $vis 
-            ? "<a href='productLookup.php?sort=$sort&id=$id&fokus=$fokus&lager=$lager&konto_id=$konto_id&kontonr=$kontonr'><span title='" . findtekst(1517, $sprog_id) . "'>" . findtekst(565, $sprog_id) . "</span></a>"
-            : "<a href='productLookup.php?sort=$sort&id=$id&fokus=$fokus&vis=1&lager=$lager&konto_id=$konto_id&kontonr=$kontonr'><span title='" . findtekst(1518, $sprog_id) . "'>" . findtekst(1519, $sprog_id) . "</span></a>",
-        "width" => "0.5",
-        "sortable" => false,
-        "searchable" => false,
-        "render" => function ($value, $row, $column) {
-            return "<td></td>";
-        }
-    );
-}
-
 // Build WHERE conditions
 $where_conditions = array();
 
