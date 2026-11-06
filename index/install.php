@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-10-23---
+//------------index/install.php----ver 5.1.0---2026-10-29---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,7 @@
 // 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
 // 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
 // 20261023 CL/NTR Added tekst_key to tekster table, and added an index on (sprog_id, tekst_key) for faster lookups. This is needed for the new translation system to work properly.
+// 20261029 CL/ASR SD-731: a new install also creates the operator panel's master tables (operator_panel_schema()).
 
 session_start();
 ob_start(); //Starter output buffering
@@ -320,6 +321,8 @@ if (isset($_POST['opret'])){
 	$qtxt = "CREATE TABLE settings ";
 	$qtxt.= "(id serial NOT NULL, var_name text, var_grp text, var_value text, var_description text, user_id integer, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php"); # the operator panel's master tables (SD-731)
+	operator_panel_schema();
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
 	$qtxt.= "('timezone','globals','Europe/Copenhagen','Global Timezone','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);

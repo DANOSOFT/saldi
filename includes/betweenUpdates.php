@@ -31,6 +31,7 @@
 // 20261027 CL/LH MB-73 (review): the leveret backfill runs in id windows under a try-lock with a time budget per
 //                login (includes/opdat_func/backfillOrderLineDelivered.php) instead of one UPDATE at the first login.
 //                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
+// 20261029 CL/ASR SD-731: the operator panel's master-database tables (includes/opdat_func/operatorPanelSchema.php).
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 
@@ -227,6 +228,14 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb
 			}
 		}
 	}
+}
+
+// 20261029 CL/ASR SD-731 operator panel: its tables live in the master database. operator_panel_schema() uses the master
+// connection ($global = true) and runs once per master (settings flag 'operator_panel_schema'); later logins only read the flag.
+// Like the signup block it only runs in a real login, where $db and $sqdb are set (not in a test that evaluates this file).
+if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
+	include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
+	operator_panel_schema();
 }
 
 ?>
