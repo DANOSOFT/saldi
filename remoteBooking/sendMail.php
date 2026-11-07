@@ -72,7 +72,7 @@
             $mail->send();
         }catch(Exception $e){
             file_put_contents("../temp/$db/error-$timestamp.json", $e->errorMessage());
-            echo json_encode(["msg" => "Mail kunne ikke sendes til $userEmail"]);
+            echo json_encode(["sent" => false, "msg" => "Mail kunne ikke sendes til $userEmail"]);
             exit;
         }
     }else{
@@ -96,9 +96,9 @@
             $mail->send();
         }catch(Exception $e){
             file_put_contents("../temp/$db/error-$timestamp.json", $e->errorMessage());
-            echo json_encode(["msg" => "Mail kunne ikke sendes til $userEmail"]);
+            echo json_encode(["sent" => false, "msg" => "Mail kunne ikke sendes til $userEmail"]);
             exit;
         }
     }
 
-    echo json_encode(["msg" => "Mail sendt til $userEmail"]);
+    echo json_encode(["sent" => true, "msg" => "Mail sendt til $userEmail"]);

@@ -1,6 +1,7 @@
 // 20261006 CL/LH SST-842: stop with a message when vibrantPaymentLink.php returns an error instead of a link.
 // 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
 // 20261105 CL/LH createBooking's refusal (409: the period is no longer free, 400: no booking) is shown, and no payment link is asked for.
+// 20261105 CL/LH After the payment the page says the confirmation was mailed only when sendMail.php answers sent: true.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${db}`,{
         method: "GET",
@@ -484,10 +485,10 @@ const calendarView = async (main, product, weeks, price, db) => {
                     main.innerHTML = `
                         <div class="w-2/3 mx-auto text-white text-center mt-4">
                             <h3>Tak for din bestilling!</h3>
-                            <p>Vi har sendt en ordrebekræftelse mail med ordre.</p>
+                            <p id="mailStatus">Sender ordrebekræftelsen på mail ...</p>
                         </div>
                     `
-                    // TODO: send email ?
+                    // sendMail.php answers sent: true only when the confirmation went out. Say it was mailed only then.
                     const emailRes = await fetch(`sendMail.php`,{
                         method: "POST",
                         headers: {
@@ -503,9 +504,10 @@ const calendarView = async (main, product, weeks, price, db) => {
                         })
                     }).then(response => {
                         return response.json()
-                    })
-                    console.log(emailRes)
-                    
+                    }).catch(() => ({}))
+                    document.querySelector("#mailStatus").textContent = emailRes && emailRes.sent === true
+                        ? "Vi har sendt en ordrebekræftelse mail med ordre."
+                        : "Ordrebekræftelsen kunne ikke sendes på mail. Kontakt udlejeren."
                 }else if(status.state === "failed"){
                     clearInterval(interval)
                     loading.style.display = "none"
