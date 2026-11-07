@@ -69,6 +69,8 @@
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
 // 20261105 CL/LH db_query_connection() selects the master database on the master connection it opens, which db_connect() does not do on MySQL/MariaDB.
 //                A global query there failed with "No database selected", so tjek4opdat() could not read the version another login had reached.
+// 20261105 CL/LH db_escape_string() escapes for $db_type 'mysql' through mysqli_real_escape_string() on the mysqli connection db_connect() opens for it, as for 'mysqli'.
+//                It called mysql_real_escape_string(), which PHP 7 removed, so every escaped value was a fatal error there.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -590,8 +592,7 @@ if (!function_exists('db_escape_string')) {
 		if (!mb_check_encoding($qtext, 'UTF-8')) {
 			$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
 		}
-		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
-		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
+		if ($db_type=="mysql" || $db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20261105 'mysql' has a mysqli connection too (db_connect())
 		else return pg_escape_string($connection, "$qtext");
 	}
 }

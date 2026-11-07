@@ -23,6 +23,12 @@
 // there, so the code of a customer at one shop signed in the same e-mail's
 // customer at another, or another customer with that e-mail at the same shop.
 //
+// The "Mine bookinger" page, mysale/mybooking.php, looks the regnskab up from
+// the link in ?id= in the master's mysale table. It put the link into the SQL
+// as it came, so ?id=x' failed the query (unterminated quoted string) and the
+// page alerted, and ?id=' OR '1'='1 found the regnskab of whichever link came
+// first. Its copy in remoteBooking.php and getDB.php already escaped it.
+//
 // Driven through the scripts themselves in a child process, with and without
 // a session cookie. The sessions are made by mySaleSignIn() itself, or by
 // mysale.php from a temporary code. The scripts only take account database
@@ -34,6 +40,7 @@
 //
 // History:
 // 20261105 CL/LH Created.
+// 20261105 CL/LH mysale/mybooking.php looks a link with a quote in it up as text (testlab round 1, DEVY-14).
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../../../mysale/shopLookup.php';
@@ -378,5 +385,50 @@ final class PublicBookingReadsTest extends CharacterizationTestCase
 
         $this->assertStringNotContainsString('mysale.php?id=', $page['html'], 'the page goes on to a Mit salg link');
         $this->assertNotSame($page['sid'], $page['session']['mySalePw'] ?? null, 'the session is signed in: ' . json_encode($page['session']));
+    }
+
+    /**
+     * Opens mysale/mybooking.php?id=$link without a sign-in, the way a link in a mail opens it.
+     *
+     * @return array{html:string, db:mixed} what the page printed, and the regnskab it found for the link (null for none)
+     */
+    private function openMyBooking(string $link): array
+    {
+        $res = $this->runChildJson('run_mysale_page.php', ['id=' . rawurlencode($link), 'chartest' . bin2hex(random_bytes(12)), 'mybooking.php']);
+        $html = (string) $res['html'];
+        $this->assertStringContainsString('mybooking.js', $html, 'the page is drawn');
+        return ['html' => $html, 'db' => $res['db'] ?? null];
+    }
+
+    public function test_mybooking_finds_the_regnskab_of_a_link(): void
+    {
+        $page = $this->openMyBooking(self::$people['A']['customer']['link']);
+
+        $this->assertSame(self::$tenants['A'], $page['db'], "the regnskab of the customer's Mit salg link");
+    }
+
+    /**
+     * Links with a quote in them; '<link>' stands for A's customer's link.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function quotedLinks(): array
+    {
+        return [
+            "a lone quote (the testlab's probe)"                                 => ["x'"],
+            "a customer's link with a quote after it"                            => ["<link>'"],
+            'a quote that ends the text and adds a condition true for every row' => ["' OR '1'='1"],
+        ];
+    }
+
+    #[DataProvider('quotedLinks')]
+    public function test_mybooking_looks_a_link_with_a_quote_up_as_text(string $link): void
+    {
+        $link = str_replace('<link>', self::$people['A']['customer']['link'], $link);
+
+        $page = $this->openMyBooking($link);
+
+        $this->assertStringNotContainsString("<script type='text/javascript'>alert(", $page['html'], 'the lookup failed and the page alerted: ' . $page['html']);
+        $this->assertNull($page['db'], 'no Mit salg link is that text, so the page has no regnskab');
     }
 }
