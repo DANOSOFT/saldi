@@ -49,6 +49,16 @@ docker-compose stack.
   and 404s on a `grupper` row that is not a product group;
   `inventory/warehouses/` lists the current fiscal year's warehouses with
   their names, numbers and per-warehouse stock of a product.
+- `InventoryStatusEndpointTest` — `inventory/status/`: the quantity a POST,
+  PUT or PATCH sets is booked as bought/sold batches, so Lagerstatus, the
+  item total and a variant's total over all warehouses agree with it; a
+  partly used batch keeps the right remainder; concurrent requests for one
+  row leave its batches equal to its quantity; a row the API set before
+  without batches is booked when written again; a row's warehouse, product
+  and variant cannot be changed; stock taken out of warehouse 1 comes out
+  of batches saved without a warehouse or variant; a second row for one
+  warehouse and variant is refused without booking; a quantity with a
+  fourth decimal is booked as the row stores it.
 
 Tests that need a token the API would never issue (expired, wrong type,
 foreign account id) sign it with the install's own secret via
@@ -120,3 +130,4 @@ production registry.
 <!-- 20260904 CL/NTR Added the refresh/bearer/customers/products/accounts/orderlines/reference-data suites, the non-docker run recipe, the per-process random password from tests/TestCredentials.php, and the per-class tenant teardown. -->
 <!-- 20260928 CL/NTR Tenant db and account names carry a per-process suffix; teardown removes only the db and regnskab ids that bootstrap recorded. -->
 <!-- 20261008 CL/LH Products paging/field-name/filtered-paging, product-group list and warehouse list cases. -->
+<!-- 20261105 CL/LH InventoryStatusEndpointTest. -->

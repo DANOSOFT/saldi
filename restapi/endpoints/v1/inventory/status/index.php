@@ -162,10 +162,11 @@ class InventoryStatusEndpoint extends BaseEndpoint
         
         $result = $status->adjustQuantity($data->amount);
         
-        if ($result) {
+        // 20261105 CL/LH A refusal from save() is a message, which the truthy test answered as a success.
+        if ($result === true) {
             $this->sendResponse(true, $status->toArray(), 'Inventory quantity adjusted successfully');
         } else {
-            $this->sendResponse(false, null, 'Failed to adjust inventory quantity', 400);
+            $this->sendResponse(false, null, is_string($result) ? $result : 'Failed to adjust inventory quantity', 400);
         }
     }
 
@@ -182,10 +183,10 @@ class InventoryStatusEndpoint extends BaseEndpoint
         
         $result = $status->updateQuantity($data->quantity);
         
-        if ($result) {
+        if ($result === true) {
             $this->sendResponse(true, $status->toArray(), 'Inventory quantity updated successfully');
         } else {
-            $this->sendResponse(false, null, 'Failed to update inventory quantity', 400);
+            $this->sendResponse(false, null, is_string($result) ? $result : 'Failed to update inventory quantity', 400);
         }
     }
 

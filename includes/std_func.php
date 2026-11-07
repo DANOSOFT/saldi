@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -112,6 +112,15 @@
 // 20261103 LOE SST-936 Include dimensionSqlFragment() for the three Finans reports.
 //              It now owns the department, employee and project filters those reports share.
 // 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
+// 20261105 CL/LH sync_shop_price() and sync_shop_vare() open rest_api.log from this file's directory instead of the caller's.
+//                From the REST API's endpoint directories the relative path missed, and fwrite() on the failed open threw.
+//                lagerreguler() reads the API row with ?? so a tenant without one gives no warning.
+//                lagerreguler() takes a partly used batch's share off batch_kob.rest; it added it, so rest exceeded the stock left.
+//                It locks the item row until the caller's transaction ends, so two stock changes of one item do not interleave.
+//                variant_beholdning becomes the variant's stock in all warehouses instead of the one warehouse just set.
+//                lagerreguler() rounds the new stock to three decimals before taking the difference, as the row stores it.
+//                Added stock_rows_condition(), which lagerreguler() takes stock out by and the REST API counts stock by.
+//                A batch without a warehouse or variant is now taken out too, instead of a sale of no batch being booked.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1662,6 +1671,29 @@ if (!function_exists('regnstartslut')) {
 	}
 }
 
+if (!function_exists('stock_rows_condition')) {
+	/**
+	 * The SQL condition for one item's rows in one warehouse and variant, in lagerstatus, batch_kob or batch_salg.
+	 *
+	 * Warehouse 1 also takes rows saved without a warehouse (lager 0 or NULL), which the item card and Lagerstatus
+	 * move there. Variant 0 also takes rows saved without a variant (variant_id NULL), as kreditor/modtag.php and
+	 * lager/lagerregulering.php write batches. lagerreguler() takes stock out of the batches this picks, and the
+	 * REST API's LagerStatusModel counts them, so the stock it counts is the stock lagerreguler() can take out.
+	 *
+	 * @param int $vare_id Item id
+	 * @param int $lager Warehouse number; below 1 counts as 1
+	 * @param int $variant_id Variant id, 0 for the item without a variant
+	 * @return string The condition, without a leading "and"
+	 */
+	function stock_rows_condition($vare_id, $lager, $variant_id) {
+		$vare_id = (int) $vare_id;
+		$lager = (int) $lager;
+		$variant_id = (int) $variant_id;
+		$warehouse = ($lager <= 1) ? "(lager is null or lager<=1)" : "lager='$lager'";
+		return "vare_id='$vare_id' and coalesce(variant_id,0)='$variant_id' and $warehouse";
+	}
+}
+
 if (!function_exists('lagerreguler')) {
 	function lagerreguler($vare_id, $ny_beholdning, $kostpris, $lager, $transdate, $variant_id) {
 		/**
@@ -1686,14 +1718,24 @@ if (!function_exists('lagerreguler')) {
 
 		$qtxt = "select box4 from grupper where art='API'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$api_fil = trim($r['box4']);
+		$api_fil = trim($r['box4'] ?? '');
 
-		if ($lager < 1)
+		$lager = (int) $lager;
+		if ($lager < 1) {
 			$lager = 1;
+		}
 
-		$ny_beholdning = (float) $ny_beholdning;
+		# Rounded to the three decimals lagerstatus.beholdning and the batches keep, before the difference is taken,
+		# so the row and the batches booked from the difference end at the same stock.
+		$ny_beholdning = round((float) $ny_beholdning, 3);
 		$vare_id = (int) $vare_id;
 		$variant_id = (int) $variant_id;
+		$kostpris = (float) $kostpris;
+		$transdate = db_escape_string($transdate);
+
+		# The item row stays locked until the caller's transaction ends (the REST API's LagerStatusModel::save(), the
+		# item card), so another stock change of this item cannot read the stock between this one's read and its writes.
+		db_select("select id from varer where id='$vare_id' for update", __FILE__ . " linje " . __LINE__);
 
 		$x = 0;
 		$qtxt = "update lagerstatus set variant_id='0' where vare_id='$vare_id' and variant_id is NULL";
@@ -1707,19 +1749,25 @@ if (!function_exists('lagerreguler')) {
 			# $qtxt = "delete from lagerstatus where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and id !='$r[id]'";
 			#		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$existingStock = $r['beholdning'];
-			$diff = $ny_beholdning - $existingStock;
+			$diff = round($ny_beholdning - $existingStock, 3);
 			if ($diff) {
 #				echo "Updating";
 #						echo $ny_beholdning;
 				$qtxt = "update lagerstatus set beholdning='$ny_beholdning' where id='$r[id]'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				$qtxt = "update variant_varer set variant_beholdning='$ny_beholdning' where id='$variant_id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 		} else {
 			$qtxt = "insert into lagerstatus(vare_id,variant_id,beholdning,lager) values ('$vare_id','$variant_id','$ny_beholdning','$lager')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$diff = "$ny_beholdning";
+		}
+		# A variant's stock is its stock in every warehouse, as lager/optalling.php counts it, not the one set here.
+		if ($variant_id) {
+			$qtxt = "select sum(beholdning) as beholdning from lagerstatus where vare_id='$vare_id' and variant_id='$variant_id'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$variantStock = (float) ($r['beholdning'] ?? 0);
+			$qtxt = "update variant_varer set variant_beholdning='$variantStock' where id='$variant_id'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		# Når en lager ændring laves, der ikke har en lerveringsorder bhgskal den indsættes før lagerstyringen giver mening
 		if ($diff > 0) {
@@ -1729,7 +1777,9 @@ if (!function_exists('lagerreguler')) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
 			$diff *= -1;
-			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by " . fefo_order_clause();
+			# Also the batches saved without a warehouse or variant. Left out, the stock taken out was written as a sale
+			# of no batch, and they kept a rest the item no longer had, which later sales could take again.
+			$qtxt = "select id,rest,pris from batch_kob where " . stock_rows_condition($vare_id, $lager, $variant_id) . " and rest>'0' order by " . fefo_order_clause();
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($diff && $r = db_fetch_array($q)) {
 				$pris = (float)$r['pris'];
@@ -1740,10 +1790,11 @@ if (!function_exists('lagerreguler')) {
 					$qtxt .= "values";
 					$qtxt .= "('$r[id]','$vare_id','$variant_id','0','$transdate','$transdate','0','$r[rest]','$pris','1','$lager')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$diff -= $r['rest'];
+					$diff = round($diff - $r['rest'], 3);
 				} else {
 					if (!$diff) $diff = 0;
-					$qtxt = "update batch_kob set rest=rest+$diff where id='$r[id]'";
+					# The batch keeps what is left of it after the $diff taken out here
+					$qtxt = "update batch_kob set rest=rest-$diff where id='$r[id]'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					$qtxt = "insert into batch_salg(batch_kob_id,vare_id,variant_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager)";
 					$qtxt .= "values";
@@ -1975,7 +2026,7 @@ if(!function_exists("sync_shop_price")){
 	  $shop_id = $rand = ''; # never assigned in this function, kept empty as in the original url
 	  $failed = 0;
 	  $api_fil =$api_fil2=$api_fil3= NULL;
-	  $log = fopen("../temp/$db/rest_api.log", "a");
+	  $log = fopen(__DIR__ . "/../temp/$db/rest_api.log", "a");
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
 	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -2032,7 +2083,7 @@ if (!function_exists('sync_shop_vare')) {
 		$costPrice = 0;
 		$failed = 0;
 		$api_fil =$api_fil2=$api_fil3= NULL;
-		$log = fopen("../temp/$db/rest_api.log", "a");
+		$log = fopen(__DIR__ . "/../temp/$db/rest_api.log", "a");
 		$qtxt = "select box4, box5, box6 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
