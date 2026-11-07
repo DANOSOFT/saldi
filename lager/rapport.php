@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- ver 5.1.0 --- 2026-11-04---
+// --- lager/rapport.php --- ver 5.1.0 --- 2026-11-05---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -109,6 +109,7 @@
 // 20261027 CL/LH MB-73: 'Bestilt' (Ordered) counts purchase order lines only (ordrer.art = 'KO', as the product card's incoming list).
 //             It found open lines by leveret < antal alone, which NULL never matched, so open sales lines counted as ordered once leveret starts at 0.
 // 20261104 CL/ASR The form's POST only picks filters and opens a report (each report page has its own gate), so it counts as a read: a read-only role can open Lagerstatus, Prisliste, Lageroptælling and Salg pr. postnummer from here.
+// 20261105 CL/LH Group totals with Beregn lagerbeh./værdi put Købspris, Salgspris, DB, DG and Værdi under their own column titles, on screen and in the CSV, also with Kun salg / DB.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -1557,7 +1558,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			}
 
 			if ($lagertal && (!isset($v_gr[$x+1]) || $v_gr[$x]!=$v_gr[$x+1])) {
-				 $vg=$v_gr[$x];
+				$vg=$v_gr[$x];
 				if (!isset($g_solgt[$vg])) $g_solgt[$vg]=NULL;
 				if (!isset($g_sum[$vg])) $g_sum[$vg]=NULL;
 				if (!isset($g_moms[$vg])) $g_moms[$vg]=NULL;
@@ -1566,25 +1567,23 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$qtxt="select beskrivelse from grupper where art='VG' and fiscal_year = '$regnaar' and kodenr='$vg'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
+				// One cell per header column, on screen and in the CSV, so Købspris, Salgspris, DB, DG and Værdi sit under their own titles.
 				print "<tr bgcolor='$linjebg'><td><b>$r[beskrivelse]</b></td>";
-				fwrite($csvfile, $r['beskrivelse'].";");
-				if (!$kun_salg) {
-					print "<td colspan='4'></td>";
+				fwrite($csvfile, $r['beskrivelse']);
+				if ($kun_salg) {
+					print "<td colspan='6'></td>";
+					fwrite($csvfile, ";;;;;;");
+				} else {
+					print "<td colspan='7'></td>";
 					print "<td align='right'><b>".dkdecimal($g_Ksum[$vg],2)."</b></td>";
-					fwrite($csvfile, ";;;;". dkdecimal($g_Ksum[$vg],2));
-				}	elseif ($lagertal) { #20210109
-					print "<td colspan='2'></td>";
-					fwrite($csvfile, ";;");
+					print "<td></td>";
+					fwrite($csvfile, ";;;;;;;;". dkdecimal($g_Ksum[$vg],2).";");
 				}
-				print "<td></td>";
-				fwrite($csvfile, ";");
 				print "<td align='right'><b>".dkdecimal($g_sum[$vg],2)."</b></td>";
 				fwrite($csvfile, ";". dkdecimal($g_sum[$vg],2));
-				if (!$lagertal) { #20210109
-					print "<td align='right'><b>".dkdecimal($g_moms[$vg],2)."</b></td>";
-					fwrite($csvfile, ";". dkdecimal($g_moms[$vg],2));
-					print "<td></td>";
-					fwrite($csvfile, ";");
+				if (!$kun_salg) {
+					print "<td colspan='2'></td>";
+					fwrite($csvfile, ";;");
 				}
 				print "<td align='right'><b>".dkdecimal($g_dkBi[$vg],2)."</b></td>";
 				fwrite($csvfile, ";". dkdecimal($g_dkBi[$vg],2));
@@ -1592,16 +1591,20 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				else $v_dg=100;
 				print "<td align='right'><b>".dkdecimal($v_dg,2)."%</b></td>";
 				fwrite($csvfile, ";". dkdecimal($v_dg,2));
-				print "<td></td>";
-				fwrite($csvfile, ";");
-				if ($lagertal && $g_stockvalue[$vg]) print "<td align='right'><b>".dkdecimal($g_stockvalue[$vg],2)."</b></td>";
-				fwrite($csvfile, ";".dkdecimal($g_stockvalue[$vg],2));
+				if ($kun_salg) {
+					print "<td></td>";
+					fwrite($csvfile, ";");
+				} elseif ($lagertal && count($lagergruppe)) {
+					print "<td></td>";
+					print "<td align='right'><b>".($g_stockvalue[$vg] ? dkdecimal($g_stockvalue[$vg],2) : "")."</b></td>";
+					fwrite($csvfile, ";;".dkdecimal($g_stockvalue[$vg],2));
+				}
 				print "</tr>\n\n";
 				fwrite($csvfile, "\r\n");
 				$g_solgt[$vg]=$g_sum[$vg]=0;
 				if (isset($v_gr[$x+1])) {
-				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-				print "<tr bgcolor='$linjebg'><td colspan=\"$cols\"><hr></td></tr>\n";
+					($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
+					print "<tr bgcolor='$linjebg'><td colspan=\"$cols\"><hr></td></tr>\n";
 					fwrite($csvfile, "-------------\r\n");
 					$qtxt="select beskrivelse from grupper where art='VG' and fiscal_year = '$regnaar' and kodenr='".$v_gr[$x+1]."'";
 					if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
