@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,6 +60,8 @@
 // 20261103 CL/ASR QA: Gendan goes through the normal save (settings_section_save()): the field must be visible, writable and not locked, the old value is validated, and the follow-ups (on_save, settings_after_section_save) run; a value that was not set is restored as the default the readers used.
 //                 Masked history rows (SettingsService::historyMasked(): secrets, CPR, bank, salary) offer no Gendan and are refused.
 //                 A row error no longer saves the page's fields (dry run, spec §7.3).
+// 20261105 CL/LH Every posted form carries thisDb again, as Stamdata did in stamkort.php, so a form drawn before the session moved to another regnskab is refused by online.php and saves nothing there.
+//                The refusal shows online.php's message instead of the settings hub.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -71,7 +73,15 @@
 
 @session_start();
 $s_id = session_id();
-ob_start();
+// Every form this page posts carries the regnskab it was drawn in (thisDb), as Stamdata did in stamkort.php: includes/online.php refuses
+// the post when the session has moved to another regnskab since (admin/aaben_regnskab.php keeps the session and its CSRF token).
+// online.php sets $db below, so the field is added on output, as diverse.php adds its token.
+ob_start(function ($buffer) {
+	$thisDb = '<input type="hidden" name="thisDb" value="' . htmlspecialchars(isset($GLOBALS['db']) ? (string) $GLOBALS['db'] : '', ENT_QUOTES) . '">';
+	return preg_replace_callback('/<form\b[^>]*\bmethod=["\']?post\b[^>]*>/i', function ($m) use ($thisDb) {
+		return $m[0] . $thisDb;
+	}, $buffer);
+});
 
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -86,6 +96,11 @@ $permission_post_read = false;
 
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST === null) {
+	// online.php refused a form from another regnskab (thisDb), printed why with the way to the front page, and emptied $_POST and $_GET.
+	ob_end_flush();
+	exit;
+}
 // The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
 print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><link rel='stylesheet' href='../css/unified-components.css?v=20261102b'>\n";
 include(__DIR__ . "/../includes/std_func.php");
