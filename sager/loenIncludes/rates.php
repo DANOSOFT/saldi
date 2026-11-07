@@ -5,7 +5,9 @@ function satser() {
 	global $db;
 	$visLønninger='checked';
 	global $sprog_id;
-	$krTekst = findtekst('8487|kr.', $sprog_id); # 20261106 SD-813 currency unit after the amounts
+	# 20261106 SD-813 currency unit after the amounts
+	# 20261107 SD-813 escaped once here, so a custom translation cannot add markup in the eleven places it is printed (Saul, CodeRabbit)
+	$krTekst = htmlspecialchars(findtekst('8487|kr.', $sprog_id), ENT_QUOTES, $charset);
 	
 	#'plads','skole','sygdom','barn_syg');
 	
