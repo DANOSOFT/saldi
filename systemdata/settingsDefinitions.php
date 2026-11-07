@@ -72,6 +72,8 @@
 // 20261104 CL/ASR Final QA: Landekonfiguration (company.data.country) shows its default Danmark while adresser.land is empty ('empty_is_default'), as its help text says.
 // 20261105 CL/LH Regnskabsår has master's Momsperioder button again (company.fiscal_years.vat_periods, a link to finans/moms_periode.php): master moved it there from the Finans sidebar, and the old page became a redirect without it.
 //                It shows for whoever may open that page (finans.kassekladde, read is enough) and is left out for everyone else.
+// 20261105 CL/LH Lagre: the Afd. select's blank choice is '' ('options_none'), what a warehouse without a department stores (box1 '' or NULL), not the till's '0'.
+//                Opening the page no longer shows "1 ugemt ændring" and asks before you leave, Gem no longer writes '0' into box1, and a department 0 stays selectable and kept.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -280,7 +282,9 @@ if (!function_exists('getSettingsSections')) {
 						'columns' => array(
 							'kodenr' => array('label' => 2248, 'type' => 'code'),
 							'beskrivelse' => array('label' => 914, 'type' => 'text', 'required' => true),
-							'box1' => array('label' => 2464, 'type' => 'select', 'options_from' => 'departments', 'options_literal' => true),
+							// A warehouse without a department stores '' (as the old lagre page did, and as warehouses_to_departments reads it);
+							// '0' is department 0.
+							'box1' => array('label' => 2464, 'type' => 'select', 'options_from' => 'departments', 'options_literal' => true, 'options_none' => ''),
 						)),
 				),
 				'legacy' => array(array(608)), 'old' => array('lagre' => array(608)),

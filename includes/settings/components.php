@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- includes/settings/components.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,8 @@
 // 20261102 CL/ASR settings_back_button() takes the access key (default 'l', Alt+L), so callers no longer patch its markup.
 // 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the data processing agreement); only links to pages that change data are disabled.
 // 20261104 CL/ASR Final QA: a setting marked 'empty_is_default' also shows its default when its stored value is empty (Landekonfiguration: an empty adresser.land is Danmark), so the field is not blank and saving the page does not change it.
+// 20261105 CL/LH st_options(): the department list's blank choice is the field's 'options_none' (default '0', a till's and an employee's "no department").
+//                A warehouse's Afd. passes '' (grupper LG box1), so a blank Afd. matches an option and a department 0 stays a choice of its own.
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -445,7 +447,8 @@ function st_display_value(array $def, string $raw): string
 }
 
 /**
- * The options of a select: as defined, or computed ('options_from') from the company's own lists.
+ * The options of a select: as defined, or computed ('options_from') from the company's own lists. The department
+ * list's blank choice is 'options_none' (default '0').
  *
  * @return array<string, mixed> value => text id, or value => literal text when 'options_literal' is set
  */
@@ -464,7 +467,8 @@ function st_options(array $def): array
 				$cache[$from][(string) $r['kodenr']] = $r['kodenr'] . ' : ' . $r['beskrivelse'];
 			}
 		} elseif ($from === 'departments') {
-			$cache[$from] = array('0' => '');
+			// The blank choice is added on the way out: its value depends on the field ('options_none').
+			$cache[$from] = array();
 			$q = db_select("select kodenr, beskrivelse from grupper where art = 'AFD' order by kodenr", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$cache[$from][(string) $r['kodenr']] = (string) $r['beskrivelse'];
@@ -546,6 +550,12 @@ function st_options(array $def): array
 				$cache[$from][(string) $r['id']] = (string) $r['brugernavn'];
 			}
 		}
+	}
+	if ($from === 'departments') {
+		// "No department" is '0' for a till and an employee, and a department 0 takes that place in their list.
+		// A warehouse stores it as '' ('options_none' => ''), so its blank choice is '' and a department 0 stays a choice of its own.
+		$none = isset($def['options_none']) ? (string) $def['options_none'] : '0';
+		return array_replace(array($none => ''), $cache[$from]);
 	}
 	return $cache[$from];
 }
