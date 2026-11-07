@@ -5,6 +5,7 @@
 // 20261030 CL/MJ SST-883 Moved here from tests/integration/ so PostingWarehousePgTest runs it in CI's characterization suite.
 // 20261030 CL/MJ SST-883 An account without warehouses keeps the line's warehouse, including levering()'s default 1.
 // 20261104 CL/MJ SST-883 A removed warehouse without a department warehouse goes to the lowest defined one, not 0.
+// 20261107 CL/MJ SST-883 The ordrelinjer fixture has the columns linjeopdat() reads since MB-73 and SST-910: ordre_id, vare_id, kred_linje_id and kostpris.
 require_once __DIR__ . '/../../../../includes/std_func.php';
 if (!extension_loaded('pgsql') || (!getenv('SALDI_TEST_PG_DSN') && !getenv('SALDI_TEST_PG'))) {
     echo "SKIP: set SALDI_TEST_PG=1 or SALDI_TEST_PG_DSN for PostgreSQL integration tests.\n";
@@ -43,7 +44,7 @@ try {
     db_modify("CREATE TEMP TABLE grupper (id serial, art text, kodenr integer, fiscal_year integer, box1 text, box2 text, box3 text, box4 text, box8 text, box9 text) ON COMMIT DROP");
     db_modify('CREATE TEMP TABLE ansatte (navn text, afd integer) ON COMMIT DROP');
     db_modify('CREATE TEMP TABLE varer (id integer, beholdning numeric, lukket text) ON COMMIT DROP');
-    db_modify('CREATE TEMP TABLE ordrelinjer (id integer, fast_db numeric, bogf_konto integer, leveret numeric, leveres numeric) ON COMMIT DROP');
+    db_modify('CREATE TEMP TABLE ordrelinjer (id integer, fast_db numeric, bogf_konto integer, leveret numeric, leveres numeric, ordre_id integer, vare_id integer, kred_linje_id integer, kostpris numeric) ON COMMIT DROP');
     db_modify('CREATE TEMP TABLE lagerstatus (id serial, vare_id integer, variant_id integer, lager integer, beholdning numeric) ON COMMIT DROP');
     db_modify('CREATE TEMP TABLE variant_varer (id integer, variant_beholdning numeric) ON COMMIT DROP');
     db_modify('CREATE TEMP TABLE batch_kob (id serial, vare_id integer, linje_id integer, ordre_id integer, rest numeric, antal numeric, pris numeric, lager integer, variant_id integer) ON COMMIT DROP');
