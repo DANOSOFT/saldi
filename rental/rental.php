@@ -38,6 +38,7 @@
 //                It is built on the scheme, host and port the page was opened on instead of https on the default port.
 // 20261105 CL/LH createBooking and updateBooking refuse days the stand has another booking on (rental_period_booked()), with the stand locked from that check until the booking is committed (rental_begin_stand_lock()), as the public booking does.
 //                A period that ends before it starts and a booking or stand that does not exist are refused too, and updateBooking reads the order's status from its row instead of from the query result.
+// 20261105 CL/LH CreateOrder gives opret_ordrelinje() the order's VAT rate (global $momssats), so the item line gets the item's rate (25%) instead of 0%, and the order's VAT on its header is its lines' VAT.
 
     @session_start();
     $s_id=session_id();
@@ -1893,6 +1894,8 @@
     } # endfunc opret_orderlinje
 
     function CreateOrder($data){
+        global $momssats; // opret_ordrelinje() gives the item line no higher rate than the order's, which it reads from here
+        $momssats = 25;
         file_put_contents("order.txt", "data: " . print_r($data, true) . "\n", FILE_APPEND);
         $query = db_select("SELECT * FROM rentalitems WHERE id = $data[item_id]", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
@@ -2016,9 +2019,9 @@
         $date = date("Y-m-d");
         $ordrenr = get_next_order_number('DO');
         if($invoiceDate){
-            $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], 25, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
         }else{
-            $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], 25, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
         }
         $query = db_select("SELECT id FROM ordrer WHERE ordrenr = $ordrenr AND art LIKE 'D%'", __FILE__ . " linje " . __LINE__);
         $order_id = db_fetch_array($query)["id"];

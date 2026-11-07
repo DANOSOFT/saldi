@@ -31,6 +31,9 @@
 // 20261105 CL/LH getOrder is removed: nothing called it, and it answered anyone with the full order and its lines for a booking id.
 // 20261105 CL/LH createCust answers a handle for the customer instead of the customer's id (rental_booking_customer_handle()), so an e-mail that is already a customer's no longer tells anyone who that customer is.
 //                createBooking books for the customer the session's handle stands for (rental_booking_customer()) and refuses a customer id.
+// 20261105 CL/LH CreateOrder gives opret_ordrelinje() the order's VAT rate (global $momssats), so the item line gets the item's rate (25%) instead of 0% and approving the booking invoices its order, which fakturer_ordre() refused while the lines had no VAT.
+//                When no fiscal year covers today, the script takes the newest one for every request, the highest number also where grupper.kodenr is text, so CreateOrder finds the item's rate there, opening the order in debitor/ordre.php no longer drops its VAT, and approving the booking posts its invoice there instead of stopping at an empty fiscal year.
+//                CreateOrder looks the item group and the VAT code up by a quoted number, which Postgres compares with a text kodenr too.
 //
 
 
@@ -63,6 +66,10 @@ while($row = db_fetch_array($query)){
         // Do something with $kodenr
         $regnaar = $kodenr;
     }
+}
+if (!$regnaar) { // no fiscal year covers today: the newest, where a booking's order finds the item's VAT rate (CreateOrder, opret_ordrelinje()) and its approval posts the invoice (fakturer_ordre())
+    $r_ra = db_fetch_array(db_select("SELECT max(" . db_cast("kodenr", "integer") . ") AS kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__)); // a number also where kodenr is text, so 10 is newer than 9
+    $regnaar = $r_ra ? (int)$r_ra["kodenr"] : 0;
 }
 
 $baseCurrency = get_settings_value("baseCurrency", "globals", "");
@@ -431,6 +438,7 @@ if(isset($_GET["getClosedDates"])){
 
 function CreateOrder($data){
     global $regnaar;
+    global $momssats; // opret_ordrelinje() gives the item line no higher rate than the order's, which it reads from here
     $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
     $currentYear = date('Y');
     $currentMonth = date('m');
@@ -439,7 +447,7 @@ function CreateOrder($data){
     $query = db_select("SELECT gruppe FROM varer WHERE varenr = '" . db_escape_string((string)ifset($data, "sku", "")) . "'", __FILE__ . " linje " . __LINE__);
     $gruppe = db_fetch_array($query)["gruppe"];
 
-    $q_vg = db_select("SELECT beskrivelse, kodenr, box4, box7 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND art = 'VG' AND kodenr = " . (int)$gruppe, __FILE__ . " linje " . __LINE__);
+    $q_vg = db_select("SELECT beskrivelse, kodenr, box4, box7 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND art = 'VG' AND kodenr = '" . (int)$gruppe . "'", __FILE__ . " linje " . __LINE__);
     $r_vg = db_fetch_array($q_vg);
 
     if ($r_vg && is_array($r_vg)) {
@@ -451,7 +459,7 @@ function CreateOrder($data){
 
             if ($momstype) {
                 $momstype = trim($momstype, 'S');
-                $q_moms = db_select("SELECT box2 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND kode = 'S' AND kodenr = " . (int)$momstype . " AND art = 'SM'", __FILE__ . " linje " . __LINE__);
+                $q_moms = db_select("SELECT box2 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND kode = 'S' AND kodenr = '" . (int)$momstype . "' AND art = 'SM'", __FILE__ . " linje " . __LINE__);
                 $moms_result = db_fetch_array($q_moms);
                 $momssats = $moms_result ? $moms_result["box2"] : 0;
             } else {
