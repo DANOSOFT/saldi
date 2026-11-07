@@ -2,6 +2,8 @@
 // 20260915 CDX/PHR Shop/customer lookup for the existing MySale portal.
 // 20260915 CDX/PHR Clear customer state on logout while retaining the Saldi staff login.
 // 20260917 CL/LH Ignore customer rows (rettigheder='0') when resolving the staff session.
+// 20261105 CL/LH A Mit salg sign-in is for one customer of one regnskab: mySaleSignIn() records both and mySaleSignedInAs() asks for both.
+//                Logout also clears the regnskab.
 
 /**
  * @return bool Whether a valid customer logout was requested.
@@ -11,10 +13,42 @@ function mySaleCustomerLogout(array &$session, $token) {
 		|| !hash_equals($session['mySaleLogoutToken'], $token)) {
 		return false;
 	}
-	foreach (array('mySalePw', 'mySaleAcId', 'mySale', 'linkLog', 'mySaleLogoutToken') as $key) {
+	foreach (array('mySalePw', 'mySaleAcId', 'mySaleDb', 'mySale', 'linkLog', 'mySaleLogoutToken') as $key) {
 		unset($session[$key]);
 	}
 	return true;
+}
+
+/**
+ * Signs the Mit salg session in as a customer of a regnskab: the adresser id and the database that row is in.
+ * mySaleSignedInAs() asks for both, so a sign-in at one shop is no claim to the customer with the same id at another.
+ *
+ * @param array<string, mixed> $session   $_SESSION
+ * @param string               $sessionId session_id() of the request that signed the customer in
+ * @param int|string           $accountId adresser.id of the customer
+ * @param string               $db        the regnskab's database
+ * @return void
+ */
+function mySaleSignIn(array &$session, $sessionId, $accountId, $db) {
+	$session['mySalePw'] = $sessionId;
+	$session['mySaleAcId'] = $accountId;
+	$session['mySaleDb'] = $db;
+}
+
+/**
+ * Whether the Mit salg session is signed in (mySaleSignIn()) as this customer of this regnskab.
+ * A session from a sign-in that recorded no regnskab is not.
+ *
+ * @param array<string, mixed> $session   $_SESSION
+ * @param string               $sessionId session_id() of this request
+ * @param int|string           $accountId adresser.id the request is about
+ * @param string               $db        the regnskab's database the request is about
+ * @return bool
+ */
+function mySaleSignedInAs(array $session, $sessionId, $accountId, $db) {
+	return is_string($sessionId) && $sessionId !== '' && ($session['mySalePw'] ?? null) === $sessionId
+		&& (int)$accountId > 0 && (int)($session['mySaleAcId'] ?? 0) === (int)$accountId
+		&& is_string($db) && $db !== '' && ($session['mySaleDb'] ?? null) === $db;
 }
 
 /** @return void */

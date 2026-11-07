@@ -30,6 +30,8 @@
 // 20261105 CL/LH getClosedDates answers an empty list when no day is closed, instead of a message object the booking calendar cannot map over.
 // 20261105 CL/LH createBooking refuses a period that is not one, a stand that does not exist, and a stand that is booked or blocked on any calendar day of the period (rental_period_taken()), with the stand locked from that check until its hold is committed (rental_begin_stand_lock()).
 // 20261105 CL/LH updateBooking deletes a rejected hold's order lines (ordrelinjer) with its order, instead of leaving them behind.
+// 20261105 CL/LH getOrder and getUser are removed: nothing called them, and they answered anyone with the full order or customer row for an id.
+//                getAllBookingsByUser answers only the customer the Mit salg session signed in at this regnskab (mySaleSignedInAs()), and 403 with an empty list otherwise.
 
 
 $header = "nix";
@@ -38,6 +40,7 @@ include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 include_once(__DIR__ . "/../includes/stdFunc/rentalPeriodTaken.php");
+include_once(__DIR__ . "/shopLookup.php");
 $db = public_tenant_db(ifset($_GET, "db", ""));
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
@@ -230,22 +233,6 @@ if(isset($_GET["updateBooking"])){
 
 }
 
-if(isset($_GET["getOrder"])){
-    $id = (int)$_GET["getOrder"];
-    $query = db_select("SELECT * FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__);
-    $res = db_fetch_array($query);
-    $orderId = $res ? (int)$res["order_id"] : 0;
-    $query = db_select("SELECT * FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-    $order = db_fetch_array($query);
-    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
-    $orderLines = [];
-    while($row = db_fetch_array($query)){
-        $orderLines[] = $row;
-    }
-    $order["orderLines"] = $orderLines;
-    echo json_encode($order);
-}
-
 if(isset($_GET["getClosedDates"])){
     $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
     $i = 0;
@@ -258,15 +245,19 @@ if(isset($_GET["getClosedDates"])){
     echo json_encode($closedDays);
 }
 
-if(isset($_GET["getUser"])){
-    $id = (int)$_GET["getUser"];
-    $query = db_select("SELECT * FROM adresser WHERE id = $id", __FILE__ . " linje " . __LINE__);
-    $res = db_fetch_array($query);
-    echo json_encode($res);
-}
-
 if(isset($_GET["getAllBookingsByUser"])){
     $id = (int)$_GET["getAllBookingsByUser"];
+    // Only for the customer Mit salg signed in at this regnskab (mySaleSignIn() in mysale.php, once it has accepted the
+    // customer's link, and the password when the customer has one): the same id at another shop is another customer.
+    // The session is only read.
+    if (session_status() === PHP_SESSION_NONE && isset($_COOKIE[session_name()])) {
+        @session_start(['read_and_close' => true]);
+    }
+    if (!mySaleSignedInAs($_SESSION ?? array(), session_id(), $id, $db)) {
+        http_response_code(403);
+        echo json_encode([]); // a list all the same: mybooking.js sends the visitor to mysale.php to sign in
+        exit;
+    }
     // make a join for rentalitem on item_id from rentalperiod to id in rentalitems
     $query = db_select("SELECT rp.id, rp.rt_from, rp.rt_to, ri.item_name FROM rentalperiod rp LEFT JOIN rentalitems ri ON rp.item_id = ri.id WHERE rp.cust_id = $id", __FILE__ . " linje " . __LINE__);
     $bookings = [];

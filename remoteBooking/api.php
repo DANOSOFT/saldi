@@ -28,6 +28,7 @@
 // 20261105 CL/LH getClosedDates answers an empty list when no day is closed, instead of a message object the booking calendar cannot map over.
 // 20261105 CL/LH createBooking refuses a period that is not one, a stand that does not exist, and a stand that is booked or blocked on any calendar day of the period (rental_period_taken()), with the stand locked from that check until its hold is committed (rental_begin_stand_lock()).
 // 20261105 CL/LH updateBooking deletes a rejected hold's order lines (ordrelinjer) with its order, instead of leaving them behind.
+// 20261105 CL/LH getOrder is removed: nothing called it, and it answered anyone with the full order and its lines for a booking id.
 //
 
 
@@ -407,22 +408,6 @@ if(isset($_GET["updateBooking"])){
         fakturer_ordre($orderId, "email", 0);
         echo json_encode(["status" => "approved"]);
     }
-}
-
-if(isset($_GET["getOrder"])){
-    $id = (int)$_GET["getOrder"];
-    $query = db_select("SELECT * FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__);
-    $res = db_fetch_array($query);
-    $orderId = $res ? (int)$res["order_id"] : 0;
-    $query = db_select("SELECT * FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-    $order = db_fetch_array($query);
-    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
-    $orderLines = [];
-    while($row = db_fetch_array($query)){
-        $orderLines[] = $row;
-    }
-    $order["orderLines"] = $orderLines;
-    echo json_encode($order);
 }
 
 if(isset($_GET["getClosedDates"])){
