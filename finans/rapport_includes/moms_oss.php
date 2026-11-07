@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_oss.php --- patch 5.0.0 --- 2026-07-23 ---
+// --- finans/rapport_includes/moms_oss.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260716 MJ R2 – OSS B2C EU-salg: oversigt over momspligtige salg og opkraevet
 //                  moms pr. land og sats til brug ved OSS-momsangivelse.
@@ -41,6 +41,9 @@
 //                 OSS-oversigt filtreres til B2C-EU; oevrige vises separat.
 // 20260729 NTR - Reported by CodeRabbit - topline-settings should be before print not after.
 //              - Reported by CodeRabbit - transactions that's not a varer nor a service doesn't add up to total as neither beloab_varer nor beloab_ydelser gets assigned, now beloab_andet takes the unknown transactions, for future use.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                 moms_oss() includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast the department filter, and match nothing when it is not a whole number.
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -97,7 +100,9 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $regnslut  = "$slutaar-$slutmaaned-$slutdato";
 
     $dim = '';
-    if ($afd || $afd == '0') $dim = "AND t.afd = $afd ";
+    if ($afd || $afd == '0') {
+        $dim = preg_match('/^\d+$/', (string)$afd) ? "AND t.afd = " . (int)$afd . " " : "AND 1 = 0 ";
+    }
 
     $csvfile = "../temp/$db/moms_oss.csv";
     $csv     = fopen($csvfile, "w");
@@ -110,9 +115,9 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
               . "&ansat_fra=$ansat_fra&ansat_til=$ansat_til"
               . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til"
               . "&simulering=$simulering&lagerbev=$lagerbev";
-    $csv_btn   = "<a href='$csvfile' style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
+    $csv_btn   = "<a href='$csvfile' download style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
     $print_btn = "<button onclick='window.print()' style='background:transparent;border:none;color:#fff;cursor:pointer;padding:0;'><i class='fa fa-print'></i> Print</button>";
-    include("../includes/topline_settings.php");
+    include(__DIR__ . '/../../includes/topline_settings.php');
 
     print "<style>@media print{"
         . ".no-print,button,form,a[href*='rapport.php'],a[href*='confirmClose']{display:none!important}"
@@ -122,8 +127,8 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 
     if ($menu == 'T') {
-        include_once '../includes/top_header.php';
-        include_once '../includes/top_menu.php';
+        include_once(__DIR__ . '/../../includes/top_header.php');
+        include_once(__DIR__ . '/../../includes/top_menu.php');
         print "<div id=\"header\">";
         print "<div class=\"headerbtnLft headLink\"><a href=\"$back_url\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> Luk</a></div>";
         print "<div class=\"headerTxt\">OSS B2C EU-salg</div>";
@@ -147,7 +152,7 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
         print "<td width='10%' $top_bund><a accesskey=L href='$back_url'>Luk</a></td>";
         print "<td width='80%' $top_bund>Rapport - OSS B2C EU-salg</td>";
-        print "<td width='10%' $top_bund><a href='$csvfile'>CSV</a></td>";
+        print "<td width='10%' $top_bund><a href='$csvfile' download>CSV</a></td>";
         print "</tbody></table></td></tr></table>";
     }
 
@@ -180,9 +185,9 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         print "og udfyld feltet <b>Land (OSS)</b> for de SM-momskoder, der vedrører salg til EU-privatpersoner.";
         print "</div>";
         if ($menu == 'T') {
-            include_once '../includes/topmenu/footer.php';
+            include_once(__DIR__ . '/../../includes/topmenu/footer.php');
         } else {
-            include_once '../includes/oldDesign/footer.php';
+            include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
         }
         fclose($csv);
         return;
@@ -631,9 +636,9 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     fclose($csv);
 
     if ($menu == 'T') {
-        include_once '../includes/topmenu/footer.php';
+        include_once(__DIR__ . '/../../includes/topmenu/footer.php');
     } else {
-        include_once '../includes/oldDesign/footer.php';
+        include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
     }
 }
 ?>
