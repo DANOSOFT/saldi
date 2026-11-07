@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- mysale/api.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 //                 The includes in the entry block now use __DIR__.
 //
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
+// 20261105 CL/LH getClosedDates answers an empty list when no day is closed, instead of a message object the booking calendar cannot map over.
 
 
 $header = "nix";
@@ -223,10 +224,7 @@ if(isset($_GET["getOrder"])){
 if(isset($_GET["getClosedDates"])){
     $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
     $i = 0;
-    if(db_num_rows($query) <= 0){
-        echo json_encode(["msg" => "Der er ingen lukkede dage", "success" => false]);
-        exit();
-    }
+    $closedDays = []; // a list even when no day is closed: remote.js maps over it to build the calendar
     while($res = db_fetch_array($query)){
         $closedDays[$i]["id"] = $res["id"];
         $closedDays[$i]["date"] = $res["day"];
