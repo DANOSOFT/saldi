@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------------finans/hentordrer.php-------ver 5.1.0----2026-09-16-----------
+// -------------------finans/hentordrer.php-------ver 5.1.0----2026-11-05-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -29,6 +29,7 @@
 // 20170303 PHR fjernet et par semikolons fra db_select som gav injektionsadvarsel.
 // 20170321 PHR Blokeret POS ordrer. Det giver bare bøvl. 20170321
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261105 CL/LH Flyt til kladde no longer dies on split(), which PHP 7 removed; the invoice date is split with explode().
 
 
 @session_start();
@@ -397,7 +398,7 @@ function flytordre($kladde_id, $ordre_id) {
 	$x=0;
 	$query = db_select("select * from ordrer where status=3 and id='$ordre_id' order by fakturadate",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
-		list ($year, $month, $day) = split ('-', $row['fakturadate']);
+		list ($year, $month, $day) = explode('-', $row['fakturadate']);
 		$ym=$year.$month;
 		if (($ym>=$aarstart)&&($ym<=$aarslut)) {
 			$id=$row['id'];
