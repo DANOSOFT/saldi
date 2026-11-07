@@ -180,7 +180,8 @@
 //                 The delete tooltip of a fully delivered line is translated too; the tooltips are escaped (CodeRabbit).
 //                 A translation with a format sprintf() cannot use falls back to the Danish text (orderTekstFormat()), so it cannot stop the page.
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
-// 20261107 CL/MMR SD-813 A translated format with a width over 100 (e.g. %100000000s) also falls back to the Danish text, so it cannot exhaust the memory (CodeRabbit).
+// 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
+//                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
 
 @session_start();
 $s_id = session_id();
@@ -6811,9 +6812,46 @@ function formatOrderUnitPrice($price)
 }
 
 /**
- * Puts values into a translated text with sprintf(). A custom translation whose format sprintf() cannot use
- * (too few values, an unknown placeholder, a width over 100) falls back to the built-in Danish text, so a
- * translation can never stop the order page. Valid formats such as %s, %1$s, %5s and %% work as usual.
+ * Fills values into a text that may only use the placeholders %s (the next value), %1$s to %99$s (that value)
+ * and %% (a percent sign), the forms the order page's translated texts need. Any other % sequence (a width,
+ * padding, another conversion, a % at the end) makes the text unusable, so a translation can never build a huge
+ * string or stop the page. One pass over the text; sprintf() is not used.
+ *
+ * @param string $tekst    The text with placeholders.
+ * @param array  $vaerdier The values, in order.
+ * @return string|null The filled-in text, or null when the text uses another format or a value that is not there.
+ */
+function orderTekstUdfyld($tekst, array $vaerdier)
+{
+	$ud     = '';
+	$fra    = 0;
+	$naeste = 0;
+	while (($pct = strpos($tekst, '%', $fra)) !== false) {
+		$ud   .= substr($tekst, $fra, $pct - $fra);
+		$efter = substr($tekst, $pct + 1, 4);
+		if ($efter !== '' && $efter[0] === '%') {
+			$ud .= '%';
+			$fra = $pct + 2;
+		} elseif ($efter !== '' && $efter[0] === 's') {
+			if (!array_key_exists($naeste, $vaerdier)) return null;
+			$ud .= (string)$vaerdier[$naeste++];
+			$fra = $pct + 2;
+		} elseif (preg_match('/^([1-9][0-9]?)\$s/', $efter, $m)) {
+			$nr = (int)$m[1] - 1;
+			if (!array_key_exists($nr, $vaerdier)) return null;
+			$ud .= (string)$vaerdier[$nr];
+			$fra = $pct + 1 + strlen($m[0]);
+		} else {
+			return null;
+		}
+	}
+	return $ud . substr($tekst, $fra);
+}
+
+/**
+ * Puts values into a translated text. The translation may use %s, %1$s and %% (orderTekstUdfyld()); a custom
+ * translation with any other format (a width, padding, another conversion, too few values) falls back to the
+ * built-in Danish text, so a translation can never stop the order page.
  *
  * @param string $tekst     The translated text from findtekst().
  * @param string $standard  The built-in Danish text with the same placeholders (UTF-8, converted to the page charset here).
@@ -6822,21 +6860,14 @@ function formatOrderUnitPrice($price)
  */
 function orderTekstFormat($tekst, $standard, ...$vaerdier)
 {
-	try {
-		// A very large width or padding would build a string big enough to exhaust the memory; refuse it like an unusable format.
-		// %% is a literal percent sign; flags and a custom padding ('x) may come in any order before the width.
-		if (preg_match_all('/%(?:%|(?:\d+\$)?(?:[-+ 0]|\'.)*(\d+))/', (string)$tekst, $bredder) && max(array_map('intval', $bredder[1])) > 100) {
-			throw new \ValueError('format width over 100');
-		}
-		return sprintf((string)$tekst, ...$vaerdier);
-	} catch (\ArgumentCountError | \ValueError $e) {
-		global $db_encode;
-		// findtekst() returns ISO-8859-1 on a non-UTF8 database, so the Danish fallback must be converted the same way.
-		if ($db_encode != "UTF8") {
-			$standard = mb_convert_encoding($standard, 'ISO-8859-1', 'UTF-8');
-		}
-		return sprintf($standard, ...$vaerdier);
+	$udfyldt = orderTekstUdfyld((string)$tekst, $vaerdier);
+	if ($udfyldt !== null) return $udfyldt;
+	global $db_encode;
+	// findtekst() returns ISO-8859-1 on a non-UTF8 database, so the Danish fallback must be converted the same way.
+	if ($db_encode != "UTF8") {
+		$standard = mb_convert_encoding($standard, 'ISO-8859-1', 'UTF-8');
 	}
+	return (string)orderTekstUdfyld($standard, $vaerdier);
 }
 
 /**
