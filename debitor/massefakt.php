@@ -16,9 +16,7 @@
 //
 // Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261022 CL/MJ SST-876 Names the items the webshops would not take, at both exits: this page
-//                 invoices ten orders and then hands over to itself for the next ten, and
-//                 anything printed after that refresh is never written.
+// 20261022 CL/MJ SST-876 Names the items the webshops would not take, at both exits: this page invoices ten orders and then hands over to itself for the next ten, and anything printed after that refresh is never written.
 // ----------------------------------------------------------------------
 // 20261028 CDX/MJ SST-876 Maintain file history metadata for the webshop synchronization review.
 // 20261029 CDX/MJ SST-876 Match the header version to the mass-invoicing warning behavior.

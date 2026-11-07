@@ -130,17 +130,9 @@
 //                  had been commented out, so on an account with warehouses a location typed
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
-// 20261016 CL/MJ SST-876 Saving the card reports a webshop that refuses the stock update
-//                  instead of discarding the answer. This is the path Havemoebelland found
-//                  did push a figure through, so it is also the path where a refusal has to
-//                  become visible rather than look like success.
-// 20261019 CL/MJ SST-876 (review) The warning on the stock-change confirmation path names the
-//                  item. It read $varenr, which is only filled from the post further down the
-//                  file, so on that one path the message stopped after "for:".
-// 20261021 CL/MJ SST-876 (review) An assembled item reports a refusal too. That branch hands
-//                  over to vareproduktion.php and exits, so it never reached the check at the
-//                  end of the block and a refusal recorded while the variants were saved only
-//                  reached the log.
+// 20261016 CL/MJ SST-876 Saving the card reports a webshop that refuses the stock update instead of discarding the answer. This is the path Havemoebelland found did push a figure through, so it is also the path where a refusal has to become visible rather than look like success.
+// 20261019 CL/MJ SST-876 (review) The warning on the stock-change confirmation path names the item. It read $varenr, which is only filled from the post further down the file, so on that one path the message stopped after "for:".
+// 20261021 CL/MJ SST-876 (review) An assembled item reports a refusal too. That branch hands over to vareproduktion.php and exits, so it never reached the check at the end of the block and a refusal recorded while the variants were saved only reached the log.
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
 //
 // 20261027 CDX/MJ SST-876 Retain master read-only protections while merging SST-876 stock-sync warnings.

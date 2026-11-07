@@ -152,11 +152,7 @@
 //                opret_ordrelinje() inserts leveret = 0.
 //                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
 //                Braces added to the brace-less ifs in the edited blocks.
-// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells
-//                 the webshops once when every line is posted. An item on two lines was two
-//                 sends, and a set the lines share was sent once per line: item 13054 is a
-//                 component in 33 sets, so one order line was 198 webshop calls and the 30
-//                 second budget skipped everything after it.
+// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells the webshops once when every line is posted. An item on two lines was two sends, and a set the lines share was sent once per line: item 13054 is a component in 33 sets, so one order line was 198 webshop calls and the 30 second budget skipped everything after it.
 // 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
 // 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery

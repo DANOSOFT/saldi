@@ -1,7 +1,6 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
-// 20261022 CL/MJ SST-876 Step 1: how many webshop calls one document is worth, measured by running
-//                  the real sync_shop_vare().
+// 20261022 CL/MJ SST-876 Step 1: how many webshop calls one document is worth, measured by running the real sync_shop_vare().
 //
 // The ticket's own step 1 says to restore a pos_50 backup. pos_50 is Havemoebelland's live data
 // and we do not test against customer data, and it is not needed: what has to be reproduced is an

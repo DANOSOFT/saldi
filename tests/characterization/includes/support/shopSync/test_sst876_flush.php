@@ -1,7 +1,6 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
-// 20261022 CL/MJ SST-876 Verify that a document sends each item once, and that what could not be
-//                  delivered is delivered later rather than lost.
+// 20261022 CL/MJ SST-876 Verify that a document sends each item once, and that what could not be delivered is delivered later rather than lost.
 //
 // sync_shop_vare() itself needs a tenant database, so it is replaced here: it is wrapped in
 // if (!function_exists(...)) like everything else in std_func.php, so the stub below is the one
