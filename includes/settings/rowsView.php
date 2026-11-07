@@ -34,6 +34,8 @@
 //                 2026), not its number (1, 2).
 //                 After a refused save a cell's data-orig is the stored value, not the posted one, so Fortryd and the unsaved-changes warning still see the change.
 // 20261105 CL/LH settings_rows_fields_by_sub(): a field the user may not see at all ('hide_without') is left out, so its sub-section has no empty heading (Momsperioder on Regnskabsår without Kassekladde).
+// 20261105 CL/LH A table card says whether its table has the inaktiv flag as data-can-inactive, not data-inactive, which only the eye carries.
+//                settingsRows.js took a click into a cell for a click on the eye (closest('[data-inactive]') found the card) and threw a TypeError on the card's missing row.
 
 include_once(__DIR__ . '/rows.php');
 
@@ -284,7 +286,7 @@ function settings_rows_render(array $c): void
   <div class="st-snack" id="st-snack" role="status" hidden></div>
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
-<script src="../javascript/settingsRows.js?v=5"></script>
+<script src="../javascript/settingsRows.js?v=6"></script>
 	<?php
 }
 
@@ -373,7 +375,7 @@ function settings_rows_table(array $c, string $tableId, array $t, array $posted,
           </div>
 					<?php } ?>
         </div>
-        <div class="st-card st-rows" data-table="<?= st_h($tableId) ?>" data-inactive="<?= $t['inactive'] ? '1' : '0' ?>">
+        <div class="st-card st-rows" data-table="<?= st_h($tableId) ?>" data-can-inactive="<?= $t['inactive'] ? '1' : '0' ?>">
           <table class="st-rt" aria-labelledby="tbl-<?= st_h($tableId) ?>-h"<?= (!$rows && !$postedRows) ? ' hidden' : '' ?>>
             <thead>
               <tr>

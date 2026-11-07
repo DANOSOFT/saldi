@@ -1,4 +1,6 @@
-// ---- javascript/settingsRows.js --- lap 5.0.0 --- 2026.11.03 ---
+// ---- javascript/settingsRows.js --- ver 5.1.0 --- 2026.11.05 ---
+// 20261105 CL/LH A table card's inaktiv flag is data-can-inactive (rowsView.php), so only the eye is a [data-inactive] target.
+//                A click into a cell found the card, which has no row, and threw "Cannot read properties of null (reading 'dataset')".
 // 20261103 CL/ASR QA: a switch among the page's fields (Momsregistreret on Moms) toggles (click, Space): its hidden value and aria-checked;
 //                 Fortryd also puts the switches and the discount matrix's cells and types back, and ?field= / #key lights up the field.
 // 20261006 Sawaneh A row action can ask for one value in its dialog (data-input), e.g. the new control account.
@@ -204,7 +206,7 @@
 			}
 			var code = tr.dataset.code || '';
 			if (tr.dataset.use) {
-				var canInactive = card.dataset.inactive === '1' && !tr.classList.contains('st-row-inactive');
+				var canInactive = card.dataset.canInactive === '1' && !tr.classList.contains('st-row-inactive');
 				openDialog(fmt(cfg.cannotTitle, code), fmt(cfg.usedBody, tr.dataset.use), canInactive ? cfg.inactiveVerb : '', { action: 'row_inactive', table: card.dataset.table, id: tr.dataset.row, value: '1' }, false);
 				document.getElementById('st-dialog-cancel').textContent = cfg.close || '';
 				return;
