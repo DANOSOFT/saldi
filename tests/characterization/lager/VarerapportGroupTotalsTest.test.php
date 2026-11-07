@@ -21,11 +21,18 @@
 // an older copy of the page that writes the same file, had the same line and
 // no +moms in its CSV header at all, so the VAT column is read there too.
 //
+// And it covers "DG shows 100,00% on rows where DB or Salgspris is 0": an item
+// sold at its cost price (DB 0 on a Salgspris of 8,00), an item not sold at
+// all, their group total and Summeret all showed DG 100,00%, in both copies of
+// the page. DG is DB / Salgspris, and 0,00% without a Salgspris, as on a sale
+// line of the detailed report.
+//
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20261105 CL/LH Created.
 // 20261105 CL/LH An item's CSV line has its VAT under +moms, as the page under Moms, also from includes/rapport.php.
+// 20261105 CL/LH DG is 0,00% on an item's line, the group total and Summeret where DB or Salgspris is 0, also from includes/rapport.php.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -65,6 +72,15 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
         'b' => ['Salgspris' => '30,00', 'Moms' => '7,50'],
     ];
 
+    /**
+     * Two items of one stock group for the DG cases: 'e' sold at its cost price, so DB 0,00 on a
+     * Salgspris of 8,00, and 'u' bought but not sold, so no Salgspris and no DB.
+     */
+    private const ZERO_DG_ITEMS = [
+        'e' => ['kostpris' => 8.0, 'salgspris' => 8.0, 'bought' => 2, 'sold' => 1],
+        'u' => ['kostpris' => 65.5, 'salgspris' => 100.0, 'bought' => 1, 'sold' => 0],
+    ];
+
     /** Varenr. prefix of this test's items, so the report shows only them. */
     private string $token = '';
     private int $group = 0;
@@ -97,22 +113,33 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
     protected function setUp(): void
     {
         $this->token = 'vgt' . bin2hex(random_bytes(4));
-        $items = [];
-        foreach (self::ITEMS as $suffix => $item) {
-            $items[$suffix] = self::$fx->item([
+    }
+
+    /**
+     * Seed $items in one stock group, each bought and sold on DAY as given (no order line for 0).
+     *
+     * @param array<string, array{kostpris: float, salgspris: float, bought: int, sold: int}> $items Varenr. suffix => item
+     */
+    private function seed(array $items): void
+    {
+        $created = [];
+        foreach ($items as $suffix => $item) {
+            $created[$suffix] = self::$fx->item([
                 'varenr' => $this->token . $suffix,
                 'kostpris' => $item['kostpris'],
                 'salgspris' => $item['salgspris'],
             ]);
-            $this->itemIds[] = $items[$suffix]['id'];
+            $this->itemIds[] = $created[$suffix]['id'];
             // For a day before today the report takes the cost price from kostpriser, as it stood before the period's end.
             self::rows(
                 'INSERT INTO kostpriser (vare_id, transdate, kostpris) VALUES ($1, $2, $3)',
-                [$items[$suffix]['id'], self::FROM, $item['kostpris']]
+                [$created[$suffix]['id'], self::FROM, $item['kostpris']]
             );
         }
-        $this->group = $items['a']['gruppe'];
-        $this->assertSame($this->group, $items['b']['gruppe'], 'both items are in one stock group');
+        $this->group = reset($created)['gruppe'];
+        foreach ($created as $one) {
+            $this->assertSame($this->group, $one['gruppe'], 'the items are in one stock group');
+        }
         $row = self::one(
             "SELECT beskrivelse FROM grupper WHERE art = 'VG' AND fiscal_year = $1 AND kodenr = $2",
             [self::$regnaar, $this->group]
@@ -125,13 +152,21 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
         $this->addressIds = [$creditor['id'], $debtor['id']];
         $purchase = [];
         $sale = [];
-        foreach (self::ITEMS as $suffix => $item) {
-            $purchase[] = ['item' => $items[$suffix], 'antal' => $item['bought'], 'pris' => $item['kostpris']];
-            $sale[] = ['item' => $items[$suffix], 'antal' => $item['sold'], 'pris' => $item['salgspris']];
+        foreach ($items as $suffix => $item) {
+            if ($item['bought']) {
+                $purchase[] = ['item' => $created[$suffix], 'antal' => $item['bought'], 'pris' => $item['kostpris']];
+            }
+            if ($item['sold']) {
+                $sale[] = ['item' => $created[$suffix], 'antal' => $item['sold'], 'pris' => $item['salgspris']];
+            }
         }
         // Both invoiced (status 3), so the purchase is not open and counts nothing under Bestilt.
-        $this->batches('batch_kob', self::$fx->creditorOrder($creditor, $purchase, ['status' => 3, 'ordredate' => self::DAY])['id']);
-        $this->batches('batch_salg', self::$fx->order($debtor, $sale, ['status' => 3, 'ordredate' => self::DAY])['id']);
+        if ($purchase) {
+            $this->batches('batch_kob', self::$fx->creditorOrder($creditor, $purchase, ['status' => 3, 'ordredate' => self::DAY])['id']);
+        }
+        if ($sale) {
+            $this->batches('batch_salg', self::$fx->order($debtor, $sale, ['status' => 3, 'ordredate' => self::DAY])['id']);
+        }
     }
 
     /** The stock movement an invoiced order leaves: one batch row per line, dated DAY. */
@@ -196,8 +231,9 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
     /**
      * The report for this test's items, as the front page's OK button opens it, every row on one page.
      * $pageDir 'includes' opens includes/rapport.php, the older copy of lager/rapport.php.
+     * $only narrows it to the items whose Varenr. goes on with it after the test's prefix.
      */
-    private function report(bool $kunSalg, string $pageDir = 'lager'): string
+    private function report(bool $kunSalg, string $pageDir = 'lager', string $only = ''): string
     {
         $query = [
             'submit' => 'ok',
@@ -205,7 +241,7 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
             'date_from' => self::FROM,
             'date_to' => self::TO,
             // The copy in includes/ matches Varenr. exactly unless it has a *, lager/rapport.php matches any part.
-            'varenr' => $pageDir === 'includes' ? $this->token . '*' : $this->token,
+            'varenr' => $pageDir === 'includes' ? $this->token . $only . '*' : $this->token . $only,
             'lagertal' => 'on',
             'vr_per_page' => '100000',
         ];
@@ -310,6 +346,7 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
     #[DataProvider('layouts')]
     public function test_the_group_total_puts_each_amount_under_its_own_column_title(bool $grid, bool $kunSalg, int $width): void
     {
+        $this->seed(self::ITEMS);
         $this->useLayout($grid ? 'S' : '');
         $html = $this->report($kunSalg);
 
@@ -366,6 +403,7 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
     #[DataProvider('vatPages')]
     public function test_an_items_csv_line_has_its_vat_under_moms_as_the_page(string $pageDir, bool $grid, string $vatTitle): void
     {
+        $this->seed(self::ITEMS);
         $this->useLayout($grid ? 'S' : '');
         $html = $this->report(false, $pageDir);
         $suffixOf = [];
@@ -416,6 +454,107 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
                 ['Salgspris' => $line['Salgspris'] ?? '(no column)', '+moms' => $line['+moms'] ?? '(no column)'],
                 "item $varenr in the CSV: the VAT the page shows under $vatTitle, not the Salgspris again"
             );
+        }
+    }
+
+    /**
+     * What stands under $title in a row, by the position of $title among $titles.
+     *
+     * @param list<string>|null $titles
+     * @param list<string> $cells
+     */
+    private static function under(?array $titles, array $cells, string $title): string
+    {
+        $i = $titles === null ? false : array_search($title, $titles, true);
+        return $i === false ? "(no $title title)" : ($cells[$i] ?? '(no cell)');
+    }
+
+    /** @return array<string, array{string, bool}> the page's directory, grid layout */
+    public static function dgPages(): array
+    {
+        return [
+            'grid layout' => ['lager', true],
+            'classic layout' => ['lager', false],
+            'includes/rapport.php' => ['includes', false],
+        ];
+    }
+
+    #[DataProvider('dgPages')]
+    public function test_dg_is_zero_where_db_or_salgspris_is_zero(string $pageDir, bool $grid): void
+    {
+        $this->seed(self::ZERO_DG_ITEMS);
+        $this->useLayout($grid ? 'S' : '');
+        // includes/rapport.php has no DG on its group total, and the titles over its CSV Summeret line are shifted.
+        $lager = $pageDir === 'lager';
+        $item = [
+            'e' => ['Salgspris' => '8,00', 'DB' => '0,00', 'DG' => '0,00'],
+            'u' => ['Salgspris' => '0,00', 'DB' => '0,00', 'DG' => '0,00'],
+        ];
+        // First both items (Salgspris 8,00 and DB 0,00 in the group and in Summeret), then only the unsold one (no Salgspris at all).
+        foreach (['' => ['e', 'u'], 'u' => ['u']] as $only => $suffixes) {
+            $html = $this->report(false, $pageDir, $only);
+            $this->assertSame($grid, str_contains($html, "id='vrGridTable'"), $grid ? 'the grid layout is used' : 'the classic layout is used');
+            $suffixOf = [];
+            $expectPage = [];
+            $expectCsv = [];
+            foreach ($suffixes as $suffix) {
+                $varenr = $this->token . $suffix;
+                $suffixOf[$varenr] = $suffix;
+                $expectPage["item $varenr"] = "Salgspris {$item[$suffix]['Salgspris']}, DB {$item[$suffix]['DB']}, DG {$item[$suffix]['DG']}%";
+                $expectCsv["item $varenr"] = "Salgspris {$item[$suffix]['Salgspris']}, DB {$item[$suffix]['DB']}, DG {$item[$suffix]['DG']}";
+            }
+            if ($lager) {
+                $expectPage['group total'] = 'DG 0,00%';
+                $expectCsv['group total'] = 'DG 0,00';
+            }
+            $expectPage['Summeret'] = 'DG 0,00%';
+            if ($lager) {
+                $expectCsv['Summeret'] = 'DG 0,00';
+            }
+
+            $rows = self::tableRows($html);
+            $titles = null;
+            $page = [];
+            foreach ($rows as $i => $columns) {
+                $first = $columns[0] ?? '';
+                if ($titles === null && $first === 'Varenr.') {
+                    $titles = $columns;
+                } elseif (isset($suffixOf[$first])) {
+                    $page["item $first"] = 'Salgspris ' . self::under($titles, $columns, 'Salgspris')
+                        . ', DB ' . self::under($titles, $columns, 'DB') . ', DG ' . self::under($titles, $columns, 'DG');
+                } elseif ($lager && $first === $this->groupName && count($columns) > 2) {
+                    $page['group total'] = 'DG ' . self::under($titles, $columns, 'DG');
+                } elseif ($first === 'Summeret') {
+                    $page['Summeret'] = 'DG ' . self::under($columns, $rows[$i + 1] ?? [], 'DG'); // the row below it holds the sums
+                }
+            }
+            $this->assertNotNull($titles, "the report has no column titles:\n" . substr(strip_tags($html), 0, 3000));
+            ksort($expectPage);
+            ksort($page);
+            $this->assertSame($expectPage, $page, "DG on the page, report on Varenr. {$this->token}$only");
+
+            $this->assertFileExists(self::csvPath(), 'the report wrote its CSV');
+            $csv = (string)file_get_contents(self::csvPath());
+            $lines = preg_split('/\r?\n/', $csv);
+            $csvTitles = null;
+            $csvRows = [];
+            foreach ($lines as $i => $line) {
+                $fields = str_getcsv($line, ';', '"', '');
+                $first = $fields[0] ?? '';
+                if ($csvTitles === null && $first === 'Varenr') {
+                    $csvTitles = $fields;
+                } elseif (isset($suffixOf[$first])) {
+                    $csvRows["item $first"] = 'Salgspris ' . self::under($csvTitles, $fields, 'Salgspris')
+                        . ', DB ' . self::under($csvTitles, $fields, 'DB') . ', DG ' . self::under($csvTitles, $fields, 'DG');
+                } elseif ($lager && $first === $this->groupName && count($fields) > 2) {
+                    $csvRows['group total'] = 'DG ' . self::under($csvTitles, $fields, 'DG');
+                } elseif ($lager && $first === 'Summeret') {
+                    $csvRows['Summeret'] = 'DG ' . self::under($fields, str_getcsv($lines[$i + 1] ?? '', ';', '"', ''), 'DG');
+                }
+            }
+            ksort($expectCsv);
+            ksort($csvRows);
+            $this->assertSame($expectCsv, $csvRows, "DG in the CSV, report on Varenr. {$this->token}$only:\n" . substr($csv, 0, 2000));
         }
     }
 }

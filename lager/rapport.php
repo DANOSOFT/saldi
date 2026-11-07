@@ -111,6 +111,7 @@
 // 20261104 CL/ASR The form's POST only picks filters and opens a report (each report page has its own gate), so it counts as a read: a read-only role can open Lagerstatus, Prisliste, Lageroptælling and Salg pr. postnummer from here.
 // 20261105 CL/LH Group totals with Beregn lagerbeh./værdi put Købspris, Salgspris, DB, DG and Værdi under their own column titles, on screen and in the CSV, also with Kun salg / DB.
 // 20261105 CL/LH An item's line in salgsrapport.csv has its VAT under +moms, as the Moms column on screen; it repeated the Salgspris.
+// 20261105 CL/LH DG on an item's line, a group total and Summeret is DB / Salgspris, and 0,00% when Salgspris is 0, as on a sale line; it showed 100,00% whenever DB or Salgspris was 0.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -1399,8 +1400,8 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		}
 		}
 		$t_s_pris=afrund($t_s_pris,2); #20190830
-		if ($t_s_pris && $t_dkBi) $t_dg=$t_dkBi*100/$t_s_pris;
-		else $t_dg=100;
+		if ($t_s_pris) $t_dg=$t_dkBi*100/$t_s_pris;
+		else $t_dg=0;
 		if ($detaljer) {
 			print "<tr" . ($vrDetailMode ? " class='vr-col-title-row'" : "") . ">";
 			print "<td>".findtekst('982|Salgsdato', $sprog_id)."</td>";
@@ -1588,8 +1589,8 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				}
 				print "<td align='right'><b>".dkdecimal($g_dkBi[$vg],2)."</b></td>";
 				fwrite($csvfile, ";". dkdecimal($g_dkBi[$vg],2));
-				if ($g_sum[$vg] && $g_dkBi[$vg]) $v_dg=$g_dkBi[$vg]*100/$g_sum[$vg];
-				else $v_dg=100;
+				if ($g_sum[$vg]) $v_dg=$g_dkBi[$vg]*100/$g_sum[$vg];
+				else $v_dg=0;
 				print "<td align='right'><b>".dkdecimal($v_dg,2)."%</b></td>";
 				fwrite($csvfile, ";". dkdecimal($v_dg,2));
 				if ($kun_salg) {
@@ -1698,8 +1699,8 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		}
 	}
 	if (!$detaljer) {
-		if ($tt_s_pris && $tt_dkBi) $tt_dg=$tt_dkBi*100/$tt_s_pris;
-		else $tt_dg=100;
+		if ($tt_s_pris) $tt_dg=$tt_dkBi*100/$tt_s_pris;
+		else $tt_dg=0;
 		($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 		print "<tr bgcolor='$linjebg'><td colspan=\"$cols\"><hr></td></tr>\n";
 		fwrite($csvfile, "-------------\r\n");

@@ -56,6 +56,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
 // 20261105 CL/LH An item's line in salgsrapport.csv has its VAT under a +moms column, as the +Moms column on screen; it repeated the Salgspris, and the header had no +moms, so it stood under Reguleret.
+// 20261105 CL/LH DG on an item's line and Summeret is DB / Salgspris, and 0,00% when Salgspris is 0, as on a sale line; it showed 100,00% whenever DB or Salgspris was 0.
 
 @session_start();
 $s_id = session_id();
@@ -759,8 +760,8 @@ function varegruppe($date_from, $date_to, $varenr, $varenavn, $varegruppe, $deta
 			}
 		}
 		$t_s_pris = afrund($t_s_pris, 2); #20190830
-		if ($t_s_pris && $t_dkBi) $t_dg = $t_dkBi * 100 / $t_s_pris;
-		else $t_dg = 100;
+		if ($t_s_pris) $t_dg = $t_dkBi * 100 / $t_s_pris;
+		else $t_dg = 0;
 		if ($detaljer) {
 			print "<tr><td>Salgsdato</td><td align=\"right\">Antal</td><td align=\"right\">Pris</td><td align=\"right\">Moms</td><td align=\"right\">Incl.moms</td><td align=\"right\">Kostpris</td><td align=\"right\">DB</td><td align=\"right\">DG</td><td align=\"right\">Ordre</td></tr>";
 			fwrite($csvfile, "Salgsdato;Antal;Pris;Moms;Incl.moms;Kostpris;DB;DG\r\n");
@@ -920,8 +921,8 @@ function varegruppe($date_from, $date_to, $varenr, $varenavn, $varegruppe, $deta
 		}
 	}
 	if (!$detaljer) {
-		if ($tt_s_pris && $tt_dkBi) $tt_dg = $tt_dkBi * 100 / $tt_s_pris;
-		else $tt_dg = 100;
+		if ($tt_s_pris) $tt_dg = $tt_dkBi * 100 / $tt_s_pris;
+		else $tt_dg = 0;
 		print "<tr><td colspan=\"$cols\"><hr></td></tr>";
 		fwrite($csvfile, "-------------\r\n");
 		if ($kun_salg) {
