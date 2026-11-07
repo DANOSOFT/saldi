@@ -29,6 +29,8 @@
 // 20261105 CL/LH createBooking refuses a period that is not one, a stand that does not exist, and a stand that is booked or blocked on any calendar day of the period (rental_period_taken()), with the stand locked from that check until its hold is committed (rental_begin_stand_lock()).
 // 20261105 CL/LH updateBooking deletes a rejected hold's order lines (ordrelinjer) with its order, instead of leaving them behind.
 // 20261105 CL/LH getOrder is removed: nothing called it, and it answered anyone with the full order and its lines for a booking id.
+// 20261105 CL/LH createCust answers a handle for the customer instead of the customer's id (rental_booking_customer_handle()), so an e-mail that is already a customer's no longer tells anyone who that customer is.
+//                createBooking books for the customer the session's handle stands for (rental_booking_customer()) and refuses a customer id.
 //
 
 
@@ -38,6 +40,7 @@ include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 include_once(__DIR__ . "/../includes/stdFunc/rentalPeriodTaken.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalBookingCustomer.php");
 $db = public_tenant_db(ifset($_GET, "id", ""));
 include(__DIR__ . "/../includes/ordrefunc.php");
 
@@ -153,7 +156,11 @@ if(isset($_GET["createBooking"])){
     $data = json_decode(file_get_contents('php://input'), true);
     if (!is_array($data)) $data = array();
     $data["item_id"] = (int)ifset($data, "item_id", 0);
-    $data["cust_id"] = (int)ifset($data, "cust_id", 0);
+    // cust_id is the handle createCust answered this visitor, not an adresser id: it stands for the customer createCust found or made.
+    if (session_status() === PHP_SESSION_NONE && isset($_COOKIE[session_name()])) {
+        session_start(["read_and_close" => true]);
+    }
+    $data["cust_id"] = rental_booking_customer($_SESSION ?? array(), ifset($data, "cust_id", ""), $db);
     $data["weeks"] = (float)ifset($data, "weeks", 0);
     if ($data["item_id"] <= 0 || $data["cust_id"] <= 0) {
         http_response_code(400);
@@ -239,7 +246,7 @@ if(isset($_GET["createCust"])){
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($ch);
         curl_close($ch);
-        echo json_encode(["id" => $id]);
+        echo json_encode(["id" => rental_booking_customer_handle($db, $id)]); // not the id: the e-mail is no claim to the customer
         return;
     }
     $query = db_select("SELECT kontonr FROM adresser WHERE kontonr::integer BETWEEN 1000 AND 9999 ORDER BY kontonr ASC", __FILE__ . " linje " . __LINE__);
@@ -282,7 +289,7 @@ if(isset($_GET["createCust"])){
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
     curl_close($ch);
-    echo json_encode(["id" => $id]);
+    echo json_encode(["id" => rental_booking_customer_handle($db, $id)]);
 }
 
 function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {

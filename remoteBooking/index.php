@@ -1,8 +1,12 @@
 <?php
+// 20261105 CL/LH The page makes the visitor's session before it sends anything (rental_booking_customer_session()), so createCust from two tabs that send the form at once keeps both customers in one session, and each tab books.
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalBookingCustomer.php");
 $db = public_tenant_db(ifset($_GET, "db", ""));
+// createCust keeps the customer for the form in this session and createBooking looks it up there: the browser gets the cookie now, not from createCust.
+rental_booking_customer_session($db);
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 
 $query = db_select("SELECT trade_conditions FROM rentalpayment", __FILE__ . " linje " . __LINE__);

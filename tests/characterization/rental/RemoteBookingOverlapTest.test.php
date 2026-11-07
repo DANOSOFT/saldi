@@ -43,8 +43,11 @@
 //
 // History:
 // 20261105 CL/LH Created.
+// 20261105 CL/LH remoteBooking/api.php is asked for a booking with the handle createCust gives the visitor's session, not the customer's id (rental_booking_customer_issue()).
+//                Two requests at once come from two visitors, each with a session of its own.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
+require_once __DIR__ . '/../../../includes/stdFunc/rentalBookingCustomer.php';
 
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -302,9 +305,14 @@ final class RemoteBookingOverlapTest extends CharacterizationTestCase
         return ['updateBooking', CharacterizationEnv::SESSION_ID, 'localhost:5000', 'http', $body];
     }
 
-    /** @return list<string> run_public_booking_api.php's arguments for that request */
+    /** @return list<string> run_public_booking_api.php's arguments for that request, from a visitor with a session of its own */
     private static function bookingArgs(string $script, string $param, int $stand, string $from, string $to): array
     {
+        $customer = self::$fixture['customer'];
+        $session = [];
+        if ($script === 'remoteBooking/api.php') { // its page names the customer by the handle createCust gave the session
+            $customer = rental_booking_customer_issue($session, self::$booking, $customer);
+        }
         $body = json_encode([
             'product_id' => 1,
             'start_date' => $from,
@@ -312,11 +320,11 @@ final class RemoteBookingOverlapTest extends CharacterizationTestCase
             'weeks' => 1,
             'price' => 100,
             'item_id' => $stand,
-            'cust_id' => self::$fixture['customer'],
+            'cust_id' => $customer,
             'sku' => self::$fixture['sku'],
             'unit' => 'stk',
         ]);
-        return [$script, 'createBooking&' . $param . '=' . rawurlencode(self::$booking), $body];
+        return [$script, 'createBooking&' . $param . '=' . rawurlencode(self::$booking), $body, 'chartest' . bin2hex(random_bytes(12)), json_encode($session)];
     }
 
     /** The stands by the names the importer's CSV gives them (rentalitems.item_name). */
@@ -520,8 +528,8 @@ final class RemoteBookingOverlapTest extends CharacterizationTestCase
     {
         $before = self::counts();
 
-        $request = ['run_public_booking_api.php', self::bookingArgs($script, $param, self::$fixture['stand'], '2026-12-11', '2026-12-18')];
-        $answers = $this->atOnce([$request, $request]);
+        $request = fn(): array => ['run_public_booking_api.php', self::bookingArgs($script, $param, self::$fixture['stand'], '2026-12-11', '2026-12-18')];
+        $answers = $this->atOnce([$request(), $request()]);
 
         $refused = array_filter($answers, static fn(array $answer): bool => $answer['status'] === 409);
         $this->assertCount(1, $refused, "one request books the stand and the other gets 409; $script answered: " . json_encode($answers));

@@ -20,8 +20,10 @@
 //
 // History:
 // 20261105 CL/LH Created.
+// 20261105 CL/LH remoteBooking/api.php is asked for the hold with the handle createCust gives the visitor's session, not the customer's id (rental_booking_customer_issue()).
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
+require_once __DIR__ . '/../../../includes/stdFunc/rentalBookingCustomer.php';
 
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -112,6 +114,11 @@ final class RemoteBookingRejectTest extends CharacterizationTestCase
     /** @return array{hold:int, order:int} the hold the booking page made on the stand for a week from 01-03-2027, and its order */
     private function hold(string $script, string $param, int $stand): array
     {
+        $customer = self::$fixture['customer'];
+        $session = [];
+        if ($script === 'remoteBooking/api.php') { // its page names the customer by the handle createCust gave the session
+            $customer = rental_booking_customer_issue($session, self::$booking, $customer);
+        }
         $body = json_encode([
             'product_id' => 1,
             'start_date' => '2027-03-01',
@@ -119,11 +126,11 @@ final class RemoteBookingRejectTest extends CharacterizationTestCase
             'weeks' => 1,
             'price' => 100,
             'item_id' => $stand,
-            'cust_id' => self::$fixture['customer'],
+            'cust_id' => $customer,
             'sku' => self::$fixture['sku'],
             'unit' => 'stk',
         ]);
-        $res = $this->runChildJson('run_public_booking_api.php', [$script, 'createBooking&' . $param . '=' . rawurlencode(self::$booking), $body]);
+        $res = $this->runChildJson('run_public_booking_api.php', [$script, 'createBooking&' . $param . '=' . rawurlencode(self::$booking), $body, 'chartest' . bin2hex(random_bytes(12)), json_encode($session)]);
         $hold = (int) (json_decode(trim($res['body']), true)['id'] ?? 0);
         $this->assertGreaterThan(0, $hold, "$script made no hold; it said: " . $res['body']);
         $conn = CharacterizationEnv::connect(self::$booking);
