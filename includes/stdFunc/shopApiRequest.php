@@ -27,18 +27,9 @@
 //                  not the host), and the shared php error log gets scheme/host/path
 //                  instead of the query string and the response body.
 // 20261016 CL/MJ SST-876 A 2xx answer whose body is a rejection now counts as a failure.
-//                  Havemoebelland's stock stopped reaching DirekteImport.dk and Saldi
-//                  reported nothing for days, because the shop adapter answers 200 to
-//                  everything and only the status was looked at.
-// 20261022 CL/MJ SST-876 An endpoint is degraded by scheme, host, port and path, not by host
-//                  alone. Three shop adapters on one hosting account shared one failure
-//                  state, so one dead adapter stopped the other two shops for the rest of
-//                  the request.
-// 20261022 CL/MJ SST-876 Added shopApiRequestParallel(): the three webshops are called at
-//                  once, so the budget is charged the slowest of them rather than the sum of
-//                  all three. The degradation map, the failure counts and the budget moved
-//                  into shopApiSyncState() so both senders share one copy, and the judgement
-//                  of a shop's answer moved into shopApiOutcome() so they cannot drift apart.
+//                Havemoebelland's stock stopped reaching DirekteImport.dk and Saldi reported nothing for days, because the shop adapter answers 200 to everything and only the status was looked at.
+// 20261022 CL/MJ SST-876 An endpoint is degraded by scheme, host, port and path, not by host alone. Three shop adapters on one hosting account shared one failure state, so one dead adapter stopped the other two shops for the rest of the request.
+// 20261022 CL/MJ SST-876 Added shopApiRequestParallel(): the three webshops are called at once, so the budget is charged the slowest of them rather than the sum of all three. The degradation map, the failure counts and the budget moved into shopApiSyncState() so both senders share one copy, and the judgement of a shop's answer moved into shopApiOutcome() so they cannot drift apart.
 // 20261023 CDX/MJ SST-876 Preserve each payload context when batching multiple items across shops.
 // 20261027 CDX/MJ SST-876 Read parallel transfer completion results and shell curl exit status so incomplete HTTP 200 responses remain retryable failures.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.

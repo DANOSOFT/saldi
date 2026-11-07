@@ -157,11 +157,7 @@
 //                  a credit note could post stock to a warehouse that had since been taken out
 //                  of use - where it counts in "i alt" and in the figure sent to the webshops
 //                  but shows in no warehouse column and lagerflyt cannot move it.
-// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells
-//                 the webshops once when every line is posted. An item on two lines was two
-//                 sends, and a set the lines share was sent once per line: item 13054 is a
-//                 component in 33 sets, so one order line was 198 webshop calls and the 30
-//                 second budget skipped everything after it.
+// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells the webshops once when every line is posted. An item on two lines was two sends, and a set the lines share was sent once per line: item 13054 is a component in 33 sets, so one order line was 198 webshop calls and the 30 second budget skipped everything after it.
 // 20261026 CDX/MJ SST-883 Keep warehouse validation alongside the latest SST-876 document batching and sales warnings.
 // 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
 // 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.

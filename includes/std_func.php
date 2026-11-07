@@ -100,23 +100,9 @@
 // 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
 //                  13-digit string is treated as an EAN-13 candidate (is_numeric also
 //                  accepted decimals, signs and scientific notation).
-// 20261016 CL/MJ SST-876 sync_shop_vare(): a variant now publishes this warehouse's figure as
-//                  stock and the sum of every warehouse as totalStock, like the non-variant
-//                  branch and lager/shopStockIncludes/sync.php already did. It used to send
-//                  whichever single lagerstatus row came back first and no total at all.
-//                  The fiscal_year in the stock-keeping lookup is cast, the dead
-//                  is_integer() shop_id branch is gone, and shopSyncFailed() lets callers
-//                  tell a real failure from an account with no webshop. shopSyncAlert()
-//                  carries the one sentence the three user-facing call sites share.
-// 20261022 CL/MJ SST-876 sync_shop_vare() takes a mode: 'stock' sends only the stock calls,
-//                  which is all a receipt, a sale or a regulation changes, so eight calls per
-//                  item become three. Every send goes to all three shops in one round, and a
-//                  parent set is sent once per request rather than once per line that belongs
-//                  to it. shopSyncMark()/shopSyncFlush() let a document send each item once
-//                  with its final figure; shopSyncDrainQueue() delivers what an earlier
-//                  request could not, reading the figures again rather than trusting a queued
-//                  one; shopSyncFailedItems() and shopSyncAlertFailedItems() carry the item
-//                  numbers to whichever page has a user to tell after it has committed.
+// 20261016 CL/MJ SST-876 sync_shop_vare(): a variant now publishes this warehouse's figure as stock and the sum of every warehouse as totalStock, like the non-variant branch and lager/shopStockIncludes/sync.php already did. It used to send whichever single lagerstatus row came back first and no total at all.
+//                The fiscal_year in the stock-keeping lookup is cast, the dead is_integer() shop_id branch is gone, and shopSyncFailed() lets callers tell a real failure from an account with no webshop. shopSyncAlert() carries the one sentence the three user-facing call sites share.
+// 20261022 CL/MJ SST-876 sync_shop_vare() takes a mode: 'stock' sends only the stock calls, which is all a receipt, a sale or a regulation changes, so eight calls per item become three. Every send goes to all three shops in one round, and a parent set is sent once per request rather than once per line that belongs to it. shopSyncMark()/shopSyncFlush() let a document send each item once with its final figure; shopSyncDrainQueue() delivers what an earlier request could not, reading the figures again rather than trusting a queued one; shopSyncFailedItems() and shopSyncAlertFailedItems() carry the item numbers to whichever page has a user to tell after it has committed.
 // 20261023 CDX/MJ SST-876 Batch document lines before sets, bound backlog work, and report only the document items.
 // 20261026 CDX/MJ SST-876 Share parent-set payload construction with queue recovery, including non-stock-managed sets.
 // 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
