@@ -10,6 +10,8 @@
 // History:
 // 20260904 CL/NTR created.
 // 20261105 CL/LH A customer or creditor that open posts or orders point at is refused with 409 and kept.
+// 20261105 CL/LH A creditor sent twice, or moved onto another creditor's phone, is refused with 400 like a debtor.
+//                A creditor may share a debtor's email and phone.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -157,6 +159,64 @@ final class CustomersEndpointTest extends TestCase
         $this->assertSame(400, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
         $this->assertStringContainsString('already in use', $res['json']['message']);
+    }
+
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function accountKinds(): array
+    {
+        return [
+            'debtor' => [self::CUSTOMERS, 'D'],
+            'creditor' => [self::CREDITORS, 'K'],
+        ];
+    }
+
+    /** The cards refuse a second account with the same number; the API makes the phone the kontonr. */
+    #[DataProvider('accountKinds')]
+    public function test_the_same_body_posted_twice_is_refused_400_and_stored_once(string $path, string $art): void
+    {
+        $body = $this->customerBody('repeat');
+        $first = $this->create($path, $body);
+        $this->assertSame(201, $first['status'], $first['body']);
+
+        $repeat = $this->create($path, $body);
+
+        $this->assertSame(400, $repeat['status'], $repeat['body']);
+        $this->assertFalse($repeat['json']['success']);
+        $this->assertStringContainsString('already in use', $repeat['json']['message']);
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT kontonr FROM adresser WHERE art = $1 AND tlf = $2', [$art, $body['phone']]);
+        pg_close($tenant);
+        $this->assertSame([['kontonr' => $body['phone']]], $rows, 'one account with that kontonr');
+    }
+
+    #[DataProvider('accountKinds')]
+    public function test_update_onto_the_phone_of_another_account_of_the_same_art_is_refused_400(string $path, string $art): void
+    {
+        $taken = $this->customerBody('taken');
+        $this->assertSame(201, $this->create($path, $taken)['status']);
+        $create = $this->create($path, $this->customerBody('mover'));
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
+
+        $put = RestApiEnv::http('PUT', $path . '?id=' . $id, ['phone' => $taken['phone']], RestApiEnv::authHeaders());
+
+        $this->assertSame(400, $put['status'], $put['body']);
+        $this->assertStringContainsString('already in use', $put['json']['message']);
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT count(*) AS n FROM adresser WHERE art = $1 AND tlf = $2', [$art, $taken['phone']]);
+        pg_close($tenant);
+        $this->assertSame([['n' => '1']], $rows, 'the phone, and so the kontonr, stays on one account');
+    }
+
+    /** A supplier that is also a customer: debtor and creditor numbers are kept apart, as on the cards. */
+    public function test_a_creditor_may_share_email_and_phone_with_a_debtor(): void
+    {
+        $body = $this->customerBody('both');
+        $this->assertSame(201, $this->create(self::CUSTOMERS, $body)['status']);
+
+        $creditor = $this->create(self::CREDITORS, $body);
+
+        $this->assertSame(201, $creditor['status'], $creditor['body']);
     }
 
     public function test_search_finds_the_created_customer_only(): void

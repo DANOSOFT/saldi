@@ -414,19 +414,22 @@ class CustomerModel
     }
 
     /**
-     * Check if email already exists for another customer
+     * Check if email already exists for another account of the same art
      * 
      * @param string $email Email to check
+     * @param string $art 'D' for debtors, 'K' for creditors
      * @param int|null $excludeId ID to exclude from check (for updates)
      * @return bool True if email exists
      */
-    public static function emailExists($email, $excludeId = null)
+    public static function emailExists($email, $art, $excludeId = null)
     {
+        // 20261105 CL/LH Both checks looked at debtors only, so a creditor POST sent twice was stored twice with the same kontonr.
         $email = db_escape_string($email);
-        $qtxt = "SELECT id FROM adresser WHERE art = 'D' AND email = '$email'";
+        $art = db_escape_string($art);
+        $qtxt = "SELECT id FROM adresser WHERE art = '$art' AND email = '$email'";
         
         if ($excludeId) {
-            $qtxt .= " AND id NOT IN ($excludeId)";
+            $qtxt .= " AND id NOT IN (" . (int)$excludeId . ")";
         }
         
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -434,19 +437,23 @@ class CustomerModel
     }
 
     /**
-     * Check if phone number already exists for another customer
+     * Check if phone number already exists for another account of the same art
      * 
+     * The phone number is also the kontonr save() gives a new account.
+     *
      * @param string $tlf Phone number to check
+     * @param string $art 'D' for debtors, 'K' for creditors
      * @param int|null $excludeId ID to exclude from check (for updates)
      * @return bool True if phone exists
      */
-    public static function phoneExists($tlf, $excludeId = null)
+    public static function phoneExists($tlf, $art, $excludeId = null)
     {
         $tlf = db_escape_string($tlf);
-        $qtxt = "SELECT id FROM adresser WHERE art = 'D' AND tlf = '$tlf'";
+        $art = db_escape_string($art);
+        $qtxt = "SELECT id FROM adresser WHERE art = '$art' AND tlf = '$tlf'";
         
         if ($excludeId) {
-            $qtxt .= " AND id != $excludeId";
+            $qtxt .= " AND id != " . (int)$excludeId;
         }
         
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
