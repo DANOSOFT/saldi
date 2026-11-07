@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----ver 5.1.0 ----2026-11-04--------------
+// --- index/index.php -----ver 5.1.0 ----2026-11-05--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 // 20260302 LOE Added eye icon to toggle password visibility and added the necessary JavaScript for that functionality.
 // 20260305 PHR Language Id counted one too many
 // 20261104 CL/ASR After a restore (admin/restore.php, ?restored=) the form says the ledger was restored from the backup and from when (texts 7821-7822).
+// 20261105 CL/LH In an iframe the page reloads the window above it with its own query string, so a restore's ?restored= notice and the filled-in ledger name reach the top window instead of being lost on the way out of main.php's iframe.
 @session_start();
 
 if (!isset($_SESSION['nonce'])) {
@@ -88,8 +89,8 @@ $hm=$rs=$bn=null; #20211007
 $huskmig = null;
 print  "<script nonce='{$nonce}'>
 if(window.self !== window.top) {
-	// Run this code if in an iframe
-	parent.location.href = '../index/index.php';
+	// Run this code if in an iframe; the query goes along (admin/restore.php's ?restored=)
+	parent.location.href = '../index/index.php' + window.location.search;
 }
 </script>";
 

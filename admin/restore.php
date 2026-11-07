@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/restore.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- admin/restore.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,10 @@
 //                 A successful restore writes its own audit row (restore_done) to the restored ledger, whose earlier rows the backup replaced, and the login page says the ledger was restored and from when (texts 7821-7822).
 //                 Work folders are also cleaned up from Sikkerhedskopi and at logout (includes/restorePending.php), a refused confirmation removes its pending upload, and the admin panel's audit rows no longer carry the master database's user id.
 //                 The warning about another company compares the backup's ledger name and says so (text 7815), the English sentence loses its double full stop, and the card uses the page's font with the checkbox on the line of its label.
+// 20261105 CL/LH A successful restore no longer reads $popup, undefined in restore(): a popup window is the request's popup=1, as elsewhere on this page (restore_done_redirect()).
+//                The alert inside the comment that hides the import output, which never showed, is gone; the login page's notice (texts 7821-7822) is the message, and index/index.php now takes its ?restored= along out of main.php's iframe.
+//                A popup window sends the window that opened it to that login page and closes, instead of the BODY tag without its > and luk.php, which the restore had already logged out.
+//                The ledger name is URL-encoded in the login address.
 
 @session_start();
 $s_id=session_id();
@@ -904,6 +908,27 @@ function restore_handle_migration() {
 	return array(true, '');
 }
 
+/**
+ * Leaves the page after a restore, which logged out every session of the ledger: to the login page, which says the ledger
+ * was restored and from when (index/index.php, ?restored=). From main.php's iframe the login page's frame check takes
+ * the query along to the top window. A popup window (popup=1) sends the window that opened it there and closes; without
+ * that window it shows the login page itself.
+ *
+ * @param string $regnskab the ledger's name, filled in on the login page
+ * @param string $backupdate the backup's date and time from backup.info (YYYYMMDD-HHMM)
+ * @param bool $popup whether this request is a popup window (popup=1 on the URL)
+ * @return string the HTML that leaves the page
+ */
+function restore_done_redirect($regnskab, $backupdate, $popup) {
+	$restored = preg_replace('/[^0-9-]/', '', substr((string) $backupdate, 0, 20)) ?: '1';
+	$url = '../index/index.php?regnskab=' . rawurlencode((string) $regnskab) . '&restored=' . rawurlencode($restored);
+	if ($popup) {
+		$js = jsString(array($url));
+		return "<script>if (window.opener && !window.opener.closed) {window.opener.location.href = $js; window.close();} else {window.location.href = $js;}</script>";
+	}
+	return "<meta http-equiv=\"refresh\" content=\"0;URL=" . htmlspecialchars($url, ENT_QUOTES) . "\">";
+}
+
 function restore($filnavn,$backup_encode,$backup_dbtype,$backupdate=''){
 
 	global $connection;
@@ -1046,15 +1071,10 @@ function restore($filnavn,$backup_encode,$backup_dbtype,$backupdate=''){
 		$restoredDbSql = db_escape_string($db);
 		db_modify("UPDATE regnskab SET version = '$restoredVersionSql' WHERE db = '$restoredDbSql'", __FILE__ . ' linje ' . __LINE__);
 		db_close($connection);
-		print "<BODY ONLOAD=\"javascript:alert('Regnskabet er genskabt. Du skal logge ind igen!')\">";
-	
 		unlink($filnavn);
 		unlink($filnavn2);
 		print "--> \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
-		if ($popup) {
-			print "<BODY ONLOAD=\"JavaScript:opener.location.reload();\"";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-		} else print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&amp;restored=".rawurlencode(preg_replace('/[^0-9-]/', '', substr((string) $backupdate, 0, 20)) ?: '1')."\">"; // 20261104 CL/ASR the login page says the ledger was restored
+		print restore_done_redirect($regnskab, $backupdate, !empty($_GET['popup'])); // the login page says the ledger was restored
 		print "</tbody></table>";
 		return true;
 	} else {
