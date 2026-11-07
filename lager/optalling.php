@@ -1,6 +1,6 @@
 <?php
 
-// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-10-01 --
+// -- lager/optalling.php ------------------- ver 5.1.0 -- 2026-11-05 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,10 @@
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 // 20261001 CDX/PHR Show each warehouse number once, preferring its current-year name, and reuse the list during item lookup.
 // 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
+// 20261105 CL/LH Bogfør adds up an item's counts per item and variant, and asks for a recount when the stock changed between them.
+//                Variant 0 comes back from the database as '0' and never matched the NULL kept for it, so each count replaced the one before.
+//                The recount list finds the item by its varenr instead of querying id=''.
+//                vis_optalling() escapes that varenr and lists every item only for NULL, so the recount shows an item like O'RING or 0 alone.
 
 @session_start();
 $s_id = session_id();
@@ -189,7 +193,8 @@ $lagernr = array_keys($warehouseNames);
 $lagernavn = array_values($warehouseNames);
 
 global $menu;
-$vnr = $varenr;
+# 20261105 vis_optalling() lists every count for NULL only. This page looks up no item numbered "0" (if ($varenr) above), so it lists them all then, as before.
+$vnr = ($varenr) ? $varenr : NULL;
 
 $loGridMode = ($menu == 'S');
 
@@ -424,6 +429,15 @@ if ($loGridMode) {
 }
 
 
+/**
+ * Prints the unposted counts on a warehouse, of one item or of all of them.
+ *
+ * @param int|string $lager Warehouse number.
+ * @param string|null $vnr Varenr of the item to show, as stored in varer (unescaped; "0" is an item
+ *                         number too), or NULL for every counted item with the totals below them.
+ * @param int $gentael 1 when the list asks for a recount; passed on in the delete links.
+ * @return int The number of counts listed.
+ */
 function vis_optalling($lager, $vnr, $gentael)
 {
 	global $bgcolor, $bgcolor2;
@@ -434,20 +448,24 @@ function vis_optalling($lager, $vnr, $gentael)
 
 	$behold = $kpris = $lagervalue = $opt = $vareantal = 0;
 	$x = 0;
+	$lager = (int)$lager;
+	$oneItem = ($vnr !== NULL);
 
 	#pdat_behold();
-	if ($lager <= 1)
+	if ($lager <= 1) {
 		db_modify("update lagerstatus set lager = '1' where lager < '1'", __FILE__ . " linje " . __LINE__);
+	}
 	#	return (NULL);
 	$vare_id[0] = NULL;
-	if ($vnr)
-		$qtxt = "select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt,regulering.variant_id,regulering.lager from regulering,varer where varer.varenr='$vnr' and varer.id=regulering.vare_id and regulering.lager='$lager' and varer.id=regulering.vare_id and regulering.bogfort = '0' order by regulering.tidspkt";
-	else
+	if ($oneItem) {
+		$qtxt = "select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt,regulering.variant_id,regulering.lager from regulering,varer where varer.varenr='" . db_escape_string($vnr) . "' and varer.id=regulering.vare_id and regulering.lager='$lager' and varer.id=regulering.vare_id and regulering.bogfort = '0' order by regulering.tidspkt";
+	} else {
 		$qtxt = "select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt,regulering.variant_id,regulering.lager from regulering,varer where varer.id=regulering.vare_id and regulering.lager='$lager' and regulering.bogfort = '0' order by varer.varenr,regulering.tidspkt";
+	}
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$beholddiff[$x] = 0;
-		if ($vnr && $x && $vare_id[$x] == $r['id'] && $variant_id[$x] && $variant_id[$x] == $r['variant_id']) {
+		if ($oneItem && $x && $vare_id[$x] == $r['id'] && $variant_id[$x] && $variant_id[$x] == $r['variant_id']) {
 			$optalt[$x] += $r['optalt'];
 		} else {
 			$x++;
@@ -546,22 +564,25 @@ function vis_optalling($lager, $vnr, $gentael)
 		else
 			$gruppe = "gruppe = '" . $tmp . "'";
 	}
-	if (!$vnr) {
+	if (!$oneItem) {
 		print "<tr><td colspan=\"8\"><hr></td></tr>";
 		$vareantal = 0;
-		if ($gruppe)
+		if ($gruppe) {
 			$r = db_fetch_array(db_select("select count(id) as antal from varer where ($gruppe) and lukket != 'on'", __FILE__ . " linje " . __LINE__));
+		}
 		$vareantal += $r['antal'];
 		#		if ($antal) {	
 		print "<tr><td colspan=\"8\">";
-		if ($antal)
+		if ($antal) {
 			print findtekst('2232|Optalt i alt', $sprog_id) . " $antal " . findtekst('2233|varer ud fra en samlet vareliste på', $sprog_id) . " $vareantal " . findtekst('2234|lagerførte varer.', $sprog_id);
+		}
 		print findtekst('2197|Klik', $sprog_id) . " <a href=optalling.php?vis_ej_optalt=1&dato=$dato&lager=$lager>" . findtekst('2157|her', $sprog_id) . "</a> " . findtekst('2198|for liste over ikke optalte varer', $sprog_id);
 		print "<td></tr>";
 		print "<tr><td colspan=\"8\">";
 		#21130109 - linjen herunder
-		if ($antal)
+		if ($antal) {
 			print "Klik <a href=\"optalling.php?nulstil=1&lager=$lager&dato=$dato\" onclick=\"return confirm('Vi du nulstille hele optællingen?')\">her</a> for at \"0-stille\" listen";
+		}
 		print "<td></tr>";
 		#		}
 	}
@@ -665,13 +686,15 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 	$qtxt = "select * from regulering where bogfort='0' and lager='$lager' order by vare_id,variant_id,id";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (!in_array($r['vare_id'], $reg_vare_id) || !in_array($r['variant_id'], $reg_variant_id)) {
+		# 20261105 One entry per item and variant: variant_id 0 arrives as '0', which in_array() never found among the NULLs.
+		$id = $r['vare_id'];
+		if ($r['variant_id']) {
+			$id .= "." . $r['variant_id']; #20180703
+		}
+		if (!isset($reg_diff[$id])) {
 			$x++;
 			$reg_vare_id[$x] = $r['vare_id'];
-			($r['variant_id']) ? $reg_variant_id[$x] = $r['vare_id'] . "." . $r['variant_id'] : $reg_variant_id[$x] = NULL; #20180703
-			$id = $reg_vare_id[$x];
-			if ($reg_variant_id[$x])
-				$id = $reg_variant_id[$x];
+			$reg_variant_id[$x] = ($r['variant_id']) ? $id : NULL;
 			$reg_id[$x] = $id;
 			$reg_diff[$id] = 0;
 			$gl_beholdning[$id] = $r['beholdning'];
@@ -691,16 +714,16 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 	if ($y) {
 		print "<tr><td colspan=\"8\" align=\"center\"><b><big>Følgende varer har ændret antal under optællingen og skal optælles igen.</big></b></td></tr>";
 		print "<tr><td colspan=\"8\" align=\"center\"><hr></td></tr>";
-		for ($x = 0; $x < count($reg_vare_id); $x++) {
-			$id = $reg_vare_id[$x];
-			if ($reg_diff[$id]) {
-				if (is_integer($id)) {
-					$r = db_fetch_array(db_select("select varenr from varer where id='$id'", __FILE__ . " linje " . __LINE__));
-					vis_optalling($lager, $r['varenr'], 1);
-				} else {
-					list($a, $b) = explode(".", $id);
-					$r = db_fetch_array(db_select("select variant_stregkode as stregkode from variant_varer where id='$b'", __FILE__ . " linje " . __LINE__));
-					vis_optalling($lager, $r['stregkode'], 1);
+		# 20261105 vis_optalling() finds an item by its varenr, also for a variant; list each item once.
+		# A string, also for an item without a number, since NULL would list every count.
+		$listed = array();
+		for ($x = 0; $x < count($reg_id); $x++) {
+			$item_id = (int)$reg_vare_id[$x];
+			if ($reg_diff[$reg_id[$x]] && !in_array($item_id, $listed)) {
+				$listed[] = $item_id;
+				$r = db_fetch_array(db_select("select varenr from varer where id = $item_id", __FILE__ . " linje " . __LINE__));
+				if ($r) {
+					vis_optalling($lager, (string)$r['varenr'], 1);
 				}
 			}
 		}
