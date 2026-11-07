@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- ver 5.1.0 --- 2026-11-04 ----
+// -----------------lager/lagerstatus.php--- ver 5.1.0 --- 2026-11-05 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -73,6 +73,7 @@
 //              The filters that URL sends are read without warnings too.
 // 20261104 CL/ASR The item number links to the item trace (varespor.php) only for users who may open it; the trace moved to Varerapport (right 15, lager.rapporter).
 // 20261104 CL/ASR Final QA: the page is opened from Varerapport (lager/rapport.php, right 15), so reading it needs lager.rapporter instead of lager.varer; Ret skæve lagertal (ret_behold=2) still needs write on lager.varer.
+// 20261105 CL/LH The CSV link carries the Dato select's choice (dateType) and a GET request reads it, so the CSV, the page links and the Print view keep Fakturadato; they counted by Leveringsdato.
 
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -158,7 +159,7 @@ else {
 // meant showClosed silently reset on every plain GET navigation, incl. Grid Framework pagination.
 if (isset($_GET['dato']) && $_GET['dato']) {
 	$dato       = $_GET['dato'];
-	$dateType   = 'levdate';
+	$dateType   = ifset($_GET, 'dateType', null);
 	$varegruppe = ifset($_GET, 'varegruppe', null);
 	$lagervalg  = ifset($_GET, 'lagervalg', null);
 	$zStock     = ifset($_GET, 'zStock', null);
@@ -188,7 +189,8 @@ if (isset($_POST['dato']) && $_POST['dato']) {
 	foreach ($lsSFields as $lsSField) $lsS[$lsSField] = isset($_POST['lss_'.$lsSField]) ? trim($_POST['lss_'.$lsSField]) : null;
 	setcookie("saldi_lagerstatus", $varegruppe);
 }
-if (!$dateType) $dateType   = 'levdate';
+// The Dato select offers these two; anything else counts as Leveringsdato, as in the queries below.
+if ($dateType !== 'fakturadate') $dateType = 'levdate';
 $csv=ifset($_GET, 'csv', null);
 
 $dd=date("Y-m-d");
@@ -367,7 +369,8 @@ $lsPageStart = ($lsPage - 1) * $lsPerPage;
 $lsPageEnd = $lsPageStart + $lsPerPage;
 // MB-31/CodeRabbit - propagate every $lsSFields numeric filter (not just varenr/varenavn/enhed),
 // same as $lsBaseUrlParams below does for pagination, so a CSV export matches what the grid shows.
-$lsCsvHref = "lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg&varenr=".urlencode((string)$varenrSoeg)."&varenavn=".urlencode((string)$varenavn)."&enhed=".urlencode((string)$enhedSoeg);
+// The date basis (dateType) goes along too, or the CSV is counted by Leveringsdato.
+$lsCsvHref = "lagerstatus.php?dato=$dato&dateType=".urlencode($dateType)."&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg&varenr=".urlencode((string)$varenrSoeg)."&varenavn=".urlencode((string)$varenavn)."&enhed=".urlencode((string)$enhedSoeg);
 foreach ($lsSFields as $lsSField) $lsCsvHref .= "&lss_".$lsSField."=".urlencode((string)$lsS[$lsSField]);
 
 if ($autoprint) {
