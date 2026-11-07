@@ -6824,7 +6824,8 @@ function orderTekstFormat($tekst, $standard, ...$vaerdier)
 {
 	try {
 		// A very large width or padding would build a string big enough to exhaust the memory; refuse it like an unusable format.
-		if (preg_match_all('/%(?:\d+\$)?[-+ 0]*(?:\'.)?(\d+)/', (string)$tekst, $bredder) && max(array_map('intval', $bredder[1])) > 100) {
+		// %% is a literal percent sign; flags and a custom padding ('x) may come in any order before the width.
+		if (preg_match_all('/%(?:%|(?:\d+\$)?(?:[-+ 0]|\'.)*(\d+))/', (string)$tekst, $bredder) && max(array_map('intval', $bredder[1])) > 100) {
 			throw new \ValueError('format width over 100');
 		}
 		return sprintf((string)$tekst, ...$vaerdier);
