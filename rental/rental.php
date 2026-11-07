@@ -36,6 +36,8 @@
 //                 The stored password and API key are no longer sent back to the browser; an empty field keeps them.
 // 20261105 CL/LH The public booking link (getRemoteLink) uses ?db=, which remoteBooking/index.php reads, instead of ?id=.
 //                It is built on the scheme, host and port the page was opened on instead of https on the default port.
+// 20261105 CL/LH createBooking and updateBooking refuse days the stand has another booking on (rental_period_booked()), with the stand locked from that check until the booking is committed (rental_begin_stand_lock()), as the public booking does.
+//                A period that ends before it starts and a booking or stand that does not exist are refused too, and updateBooking reads the order's status from its row instead of from the query result.
 
     @session_start();
     $s_id=session_id();
@@ -67,6 +69,7 @@
         require_permission('debitor.konti', 'write');
     }
     include_once("../includes/stdFunc/ensureTableAndColumns.php");
+    include_once(__DIR__ . "/../includes/stdFunc/rentalPeriodTaken.php");
 
     // "Brug adgangskode" (SST-850): true when no password protection applies or this session has
     // entered the current password. The unlock marker is bound to the stored hash, so enabling or
@@ -301,13 +304,29 @@
         $from = intval($from);
         $customer_id = intval($customer_id);
         $item_id = intval($item_id);
-        $query = db_select("SELECT * FROM rentalperiod WHERE item_id = $item_id AND cust_id = $customer_id AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
-        if(db_num_rows($query) > 0){
+        if($to < $from){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Du kan ikke vælge en til dato som er før fra dato"]);
+            exit();
+        }
+        // The page only knows the bookings it loaded: one made since, or one a public booking is saving now, is refused here.
+        // The stand stays locked from the check until this booking is committed, so a public or staff save of it at the same time
+        // waits and then finds this one. A block does not count: the page lets staff book over one after asking.
+        if(!rental_begin_stand_lock($item_id)){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Standen findes ikke"]);
+            exit();
+        }
+        if(rental_period_booked($item_id, $from, $to)){
+            transaktion('rollback');
+            http_response_code(409);
+            echo json_encode(["success" => false, "msg" => "Der er allerede en booking i den valgte periode"]);
             exit();
         }
         $query = db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id) VALUES ($item_id, $customer_id, $from, $to, 0)", __FILE__ . " linje " . __LINE__);
         $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $item_id AND cust_id = $customer_id AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
         $id = db_fetch_array($query)["id"];
+        transaktion('commit');
         if($query){
             echo json_encode(["id" => $id, "msg" => "Booking oprettet"]);
         }else{
@@ -353,19 +372,52 @@
             echo json_encode(["msg" => "Der gik noget galt!"]);
             exit();
         }
-        $id = db_escape_string($data["booking_id"]);
-        $from = db_escape_string($data["from"]);
-        $to = db_escape_string($data["to"]);
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $data["item_id"] = $res["item_id"];
-        $order_id = $res["order_id"];
-        $res = db_select("SELECT status FROM ordrer WHERE id = $order_id", __FILE__ . " linje " . __LINE__);
-        if($res["status"] >= 3){
-            $query = db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
+        $id = (int)$data["booking_id"];
+        $from = (int)$data["from"];
+        $to = (int)$data["to"];
+        if($to < $from){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Du kan ikke vælge en til dato som er før fra dato"]);
+            exit();
+        }
+        // As in createBooking: another booking of the stand on one of the new days is refused, with the stand locked from the
+        // check until the move is committed. The booking's own days do not count.
+        // Its stand is read before the transaction: on MySQL and MariaDB a read in it before the lock would fix the snapshot
+        // the check reads, and hide a booking committed while this move waited for the lock (rental_begin_stand_lock()).
+        $res = db_fetch_array(db_select("SELECT item_id FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__));
+        if(!$res){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Bookingen findes ikke"]);
+            exit();
+        }
+        $item_id = (int)$res["item_id"];
+        if(!rental_begin_stand_lock($item_id)){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Standen findes ikke"]);
+            exit();
+        }
+        // The booking and its order as they are once the lock is given.
+        $res = db_fetch_array(db_select("SELECT order_id FROM rentalperiod WHERE id = $id AND item_id = $item_id", __FILE__ . " linje " . __LINE__));
+        if(!$res){
+            transaktion('rollback');
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Bookingen findes ikke"]);
+            exit();
+        }
+        if(rental_period_booked($item_id, $from, $to, $id)){
+            transaktion('rollback');
+            http_response_code(409);
+            echo json_encode(["success" => false, "msg" => "Der er allerede en booking i det valgte tidsrum"]);
+            exit();
+        }
+        $data["item_id"] = $item_id;
+        $order_id = (int)$res["order_id"];
+        $order = db_fetch_array(db_select("SELECT status FROM ordrer WHERE id = $order_id", __FILE__ . " linje " . __LINE__));
+        db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
+        transaktion('commit');
+        if($order && $order["status"] >= 3){
             echo json_encode(["msg" => "Booking opdateret", "status" => 2]);
         }else{
-            db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
             echo json_encode(["msg" => "Booking opdateret", "booking_id" => $id, "status" => 1]);
         }
     }

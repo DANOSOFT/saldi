@@ -26,6 +26,7 @@
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
 // 20261105 CL/LH getClosedDates answers an empty list when no day is closed, instead of a message object the booking calendar cannot map over.
+// 20261105 CL/LH createBooking refuses a period that is not one, a stand that does not exist, and a stand that is booked or blocked on any calendar day of the period (rental_period_taken()), with the stand locked from that check until its hold is committed (rental_begin_stand_lock()).
 //
 
 
@@ -34,6 +35,7 @@ $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalPeriodTaken.php");
 $db = public_tenant_db(ifset($_GET, "id", ""));
 include(__DIR__ . "/../includes/ordrefunc.php");
 
@@ -157,8 +159,13 @@ if(isset($_GET["createBooking"])){
         exit;
     }
     // make timestamp to unix timestamp
-    $from = strtotime($data["start_date"]);
-    $to = strtotime($data["end_date"]);
+    $from = strtotime((string)ifset($data, "start_date", ""));
+    $to = strtotime((string)ifset($data, "end_date", ""));
+    if ($from === false || $to === false || $to < $from) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
     $expiryTime = time() + 360;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
     $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
@@ -169,9 +176,23 @@ if(isset($_GET["createBooking"])){
             $to = strtotime("+1 day", $to);
         }
     }
+    // The calendar only offers free days, but the request can name any stand and period: check the period as extended above.
+    // The stand stays locked from the check until its hold is committed, so a second request for it waits and then finds the hold.
+    if (!rental_begin_stand_lock($data["item_id"])) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
+    if (rental_period_taken($data["item_id"], $from, $to)) {
+        transaktion('rollback');
+        http_response_code(409);
+        echo json_encode(["error" => "The stand is not free in that period"]);
+        exit;
+    }
     db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
     $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
     $data["booking_id"] = db_fetch_array($query)["id"];
+    transaktion('commit');
     if($data["unit"] == "Dag"){
         $data["days"] = $data["weeks"];
     }else{

@@ -10,6 +10,8 @@
 //
 // argv: 1 = the script, remoteBooking/api.php or mysale/api.php
 //       2 = query string, e.g. "getClosedDates&id=saldi_7"
+//       3 = optional request body, e.g. the JSON createBooking reads; sent as
+//           a POST and read by the script from php://input
 //
 // Prints one JSON line on stdout:
 //   status - the HTTP status the script set (false when it set none)
@@ -17,20 +19,24 @@
 //
 // History:
 // 20261105 CL/LH Created for RemoteBookingClosedDatesTest.
+// 20261105 CL/LH An optional third argument is the request body, read as php://input (ChartestRequestBody, RemoteBookingOverlapTest).
 
 if ($argc < 3 || !in_array($argv[1], ['remoteBooking/api.php', 'mysale/api.php'], true)) {
-    fwrite(STDERR, "usage: php run_public_booking_api.php <remoteBooking/api.php|mysale/api.php> <query string>\n");
+    fwrite(STDERR, "usage: php run_public_booking_api.php <remoteBooking/api.php|mysale/api.php> <query string> [request body]\n");
     exit(2);
 }
 $chartestScript = $argv[1];
 $chartestQuery = $argv[2];
+$chartestBody = $argv[3] ?? null;
+
+require_once __DIR__ . '/ChartestRequestBody.php';
 
 error_reporting(E_ALL);
 set_error_handler(static function (): bool {
     return true; // keep the legacy includes' warnings off stdout
 });
 
-$_SERVER['REQUEST_METHOD'] = 'GET';
+$_SERVER['REQUEST_METHOD'] = $chartestBody === null ? 'GET' : 'POST';
 $_SERVER['REQUEST_URI'] = '/saldi/' . $chartestScript . '?' . $chartestQuery;
 $_SERVER['PHP_SELF'] = '/saldi/' . $chartestScript;
 $_SERVER['SCRIPT_NAME'] = '/saldi/' . $chartestScript;
@@ -42,6 +48,10 @@ $_SERVER['HTTP_USER_AGENT'] = 'chartest';
 parse_str($chartestQuery, $_GET);
 $_POST = [];
 $_REQUEST = $_GET;
+if ($chartestBody !== null) {
+    $_SERVER['CONTENT_TYPE'] = 'application/json';
+    ChartestRequestBody::register($chartestBody);
+}
 
 chdir(dirname(__DIR__, 3) . '/' . dirname($chartestScript));
 

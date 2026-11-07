@@ -1,5 +1,6 @@
 // 20261006 CL/LH SST-842: stop with a message when vibrantPaymentLink.php returns an error instead of a link.
 // 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
+// 20261105 CL/LH createBooking's refusal (409: the period is no longer free, 400: no booking) is shown, and no payment link is asked for.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${db}`,{
         method: "GET",
@@ -392,16 +393,22 @@ const calendarView = async (main, product, weeks, price, db) => {
                 "unit": product.unit,
             }
 
-            const response = await fetch(`api.php?createBooking&id=${db}`,{
+            const booking = await fetch(`api.php?createBooking&id=${db}`,{
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify(data)
-            }).then(response => {
-                return response.json()
             })
-            
+            const response = await booking.json().catch(() => ({}))
+            // api.php refuses a stand booked or blocked since the calendar was drawn (409), and a booking it cannot make (400).
+            // Then there is no hold to pay for: say so and stop before the payment link.
+            if (!booking.ok || !response.id) {
+                alert(booking.status === 409
+                    ? "Den valgte periode er ikke længere ledig. Opdater siden, og vælg en anden periode."
+                    : "Bookingen kunne ikke oprettes. Kontakt udlejeren.")
+                return
+            }
             const bookingId = response.id
             const loading = document.querySelector("#loading")
             loading.style.display = "flex"

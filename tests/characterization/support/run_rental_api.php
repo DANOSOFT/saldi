@@ -13,6 +13,8 @@
 //       3 = Host header, e.g. "localhost:5000"
 //       4 = "https" for a request over TLS, "proxy-https" for one a reverse
 //           proxy took over TLS for (X-Forwarded-Proto), "http" otherwise
+//       5 = optional request body, e.g. the JSON createBooking reads; sent as
+//           a POST and read by the script from php://input
 //
 // Prints one JSON line on stdout:
 //   status - the HTTP status the script set
@@ -20,22 +22,26 @@
 //
 // History:
 // 20261105 CL/LH Created for RemoteBookingLinkTest.
+// 20261105 CL/LH An optional fifth argument is the request body, read as php://input (ChartestRequestBody, RemoteBookingOverlapTest).
 
 if ($argc < 5) {
-    fwrite(STDERR, "usage: php run_rental_api.php <query string> <session_id> <host> <http|https|proxy-https>\n");
+    fwrite(STDERR, "usage: php run_rental_api.php <query string> <session_id> <host> <http|https|proxy-https> [request body]\n");
     exit(2);
 }
 $chartestQuery = $argv[1];
 $chartestSessionId = $argv[2];
 $chartestHost = $argv[3];
 $chartestScheme = $argv[4];
+$chartestBody = $argv[5] ?? null;
+
+require_once __DIR__ . '/ChartestRequestBody.php';
 
 error_reporting(E_ALL);
 set_error_handler(static function (): bool {
     return true; // keep the legacy includes' warnings off stdout
 });
 
-$_SERVER['REQUEST_METHOD'] = 'GET';
+$_SERVER['REQUEST_METHOD'] = $chartestBody === null ? 'GET' : 'POST';
 $_SERVER['REQUEST_URI'] = '/saldi/rental/rental.php?' . $chartestQuery;
 $_SERVER['PHP_SELF'] = '/saldi/rental/rental.php';
 $_SERVER['SCRIPT_NAME'] = '/saldi/rental/rental.php';
@@ -53,6 +59,9 @@ if ($chartestScheme === 'https') {
 parse_str($chartestQuery, $_GET);
 $_POST = [];
 $_REQUEST = $_GET;
+if ($chartestBody !== null) {
+    ChartestRequestBody::register($chartestBody);
+}
 
 ini_set('session.save_path', sys_get_temp_dir());
 session_id($chartestSessionId);
