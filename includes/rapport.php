@@ -57,6 +57,7 @@
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
 // 20261105 CL/LH An item's line in salgsrapport.csv has its VAT under a +moms column, as the +Moms column on screen; it repeated the Salgspris, and the header had no +moms, so it stood under Reguleret.
 // 20261105 CL/LH DG on an item's line and Summeret is DB / Salgspris, and 0,00% when Salgspris is 0, as on a sale line; it showed 100,00% whenever DB or Salgspris was 0.
+// 20261105 CL/LH Kun salg / DB lists the items sold on an order in the period; it also listed items with only a receipt or a stock regulation.
 
 @session_start();
 $s_id = session_id();
@@ -497,11 +498,14 @@ function varegruppe($date_from, $date_to, $varenr, $varenavn, $varegruppe, $deta
 	# finder alle konti med bevaegelser i den anfoerte periode eller aabne poster fra foer perioden
 	$qtxt = "select batch_salg.vare_id,batch_salg.pris,varer.gruppe,varer.beskrivelse from batch_salg,varer";
 	if ($afd || $ref) $qtxt .= ",ordrer";
-	$qtxt .= " where batch_salg.fakturadate<='$date_to' and batch_salg.vare_id = varer.id";  # 20181003
-	if ($afd) $qtxt .= " and batch_salg.ordre_id = ordrer.id and ordrer.afd='$afd'";
-	if ($ref) $qtxt .= " and batch_salg.ordre_id = ordrer.id and (ordrer.ref='$ref_navn' or ordrer.ref='$ref_brugernavn')";
+	$qtxt .= " where batch_salg.fakturadate<='" . db_escape_string($date_to) . "' and batch_salg.vare_id = varer.id";  # 20181003
+	// 20261105 CL/LH Kun salg / DB lists the items sold in the period: a sale on an order (ordre_id 0 is a
+	// stock regulation, count or move) with a quantity, invoiced from date_from, as in lager/rapport.php.
+	if ($kun_salg) $qtxt .= " and batch_salg.fakturadate>='" . db_escape_string($date_from) . "' and batch_salg.ordre_id != 0 and batch_salg.antal != 0";
+	if ($afd) $qtxt .= " and batch_salg.ordre_id = ordrer.id and ordrer.afd='" . db_escape_string($afd) . "'";
+	if ($ref) $qtxt .= " and batch_salg.ordre_id = ordrer.id and (ordrer.ref='" . db_escape_string($ref_navn) . "' or ordrer.ref='" . db_escape_string($ref_brugernavn) . "')";
 	if ($lagertal) $qtxt .= " order by varer.gruppe,varer.beskrivelse";
-	else $qtxt .= " and batch_salg.fakturadate>='$date_from' order by varer.beskrivelse";
+	else $qtxt .= " and batch_salg.fakturadate>='" . db_escape_string($date_from) . "' order by varer.beskrivelse";
 	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		if ((in_array(trim($row['vare_id']), $vare_id)) && (!in_array(trim($row['vare_id']), $v_id))) {
@@ -511,17 +515,20 @@ function varegruppe($date_from, $date_to, $varenr, $varenavn, $varegruppe, $deta
 			$v_navn[$x] = trim(strip_tags($row['beskrivelse']));
 		}
 	}
-	$qtxt = "select batch_kob.fakturadate,batch_kob.vare_id,batch_kob.pris,varer.gruppe,varer.beskrivelse ";
-	$qtxt .= "from batch_kob,varer where batch_kob.fakturadate<='$date_to' and batch_kob.vare_id = varer.id "; #20181003
-	if ($lagertal) $qtxt .= "order by gruppe,varer.beskrivelse";
-	else $qtxt .= " and batch_kob.fakturadate>='$date_from' order by varer.beskrivelse";
-	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($row = db_fetch_array($query)) {
-		if ((in_array(trim($row['vare_id']), $vare_id)) && (!in_array(trim($row['vare_id']), $v_id))) {
-			$x++;
-			$v_id[$x] = trim($row['vare_id']);
-			$v_gr[$x] = trim($row['gruppe']);
-			$v_navn[$x] = trim(strip_tags($row['beskrivelse']));
+	// 20261105 CL/LH Kun salg / DB shows no purchases, so a receipt alone does not put an item in it.
+	if (!$kun_salg) {
+		$qtxt = "select batch_kob.fakturadate,batch_kob.vare_id,batch_kob.pris,varer.gruppe,varer.beskrivelse ";
+		$qtxt .= "from batch_kob,varer where batch_kob.fakturadate<='" . db_escape_string($date_to) . "' and batch_kob.vare_id = varer.id "; #20181003
+		if ($lagertal) $qtxt .= "order by gruppe,varer.beskrivelse";
+		else $qtxt .= " and batch_kob.fakturadate>='" . db_escape_string($date_from) . "' order by varer.beskrivelse";
+		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($row = db_fetch_array($query)) {
+			if ((in_array(trim($row['vare_id']), $vare_id)) && (!in_array(trim($row['vare_id']), $v_id))) {
+				$x++;
+				$v_id[$x] = trim($row['vare_id']);
+				$v_gr[$x] = trim($row['gruppe']);
+				$v_navn[$x] = trim(strip_tags($row['beskrivelse']));
+			}
 		}
 	}
 	if ($lagertal) {

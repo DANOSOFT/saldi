@@ -27,12 +27,20 @@
 // the page. DG is DB / Salgspris, and 0,00% without a Salgspris, as on a sale
 // line of the detailed report.
 //
+// And "Kun salg / DB drops every November seller and lists three purchase-only
+// items": with Kun salg / DB the page took an item's sales from the period's
+// last day only, so an item sold on the 28th was missing, and it still listed
+// items with only a receipt in the period. The test also has an item with
+// only a stock regulation, which is not a sale either. includes/rapport.php
+// listed the sold item, but also the other two.
+//
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20261105 CL/LH Created.
 // 20261105 CL/LH An item's CSV line has its VAT under +moms, as the page under Moms, also from includes/rapport.php.
 // 20261105 CL/LH DG is 0,00% on an item's line, the group total and Summeret where DB or Salgspris is 0, also from includes/rapport.php.
+// 20261105 CL/LH Kun salg / DB lists only the items sold on an order in the period, with and without Beregn lagerbeh./værdi, also from includes/rapport.php.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -79,6 +87,17 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
     private const ZERO_DG_ITEMS = [
         'e' => ['kostpris' => 8.0, 'salgspris' => 8.0, 'bought' => 2, 'sold' => 1],
         'u' => ['kostpris' => 65.5, 'salgspris' => 100.0, 'bought' => 1, 'sold' => 0],
+    ];
+
+    /**
+     * Three items of one stock group for Kun salg / DB, all moving on DAY, before the period's last
+     * day: 's' sold on an order (10 at 53,76 with cost 30,40, as the lab's A), 'k' only bought
+     * (a receipt) and 'r' only regulated (a stock regulation, which seedRegulation() adds).
+     */
+    private const KUN_SALG_ITEMS = [
+        's' => ['kostpris' => 30.4, 'salgspris' => 53.76, 'bought' => 0, 'sold' => 10],
+        'k' => ['kostpris' => 13.85, 'salgspris' => 20.0, 'bought' => 5, 'sold' => 0],
+        'r' => ['kostpris' => 31.6, 'salgspris' => 50.0, 'bought' => 0, 'sold' => 0],
     ];
 
     /** Varenr. prefix of this test's items, so the report shows only them. */
@@ -232,8 +251,9 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
      * The report for this test's items, as the front page's OK button opens it, every row on one page.
      * $pageDir 'includes' opens includes/rapport.php, the older copy of lager/rapport.php.
      * $only narrows it to the items whose Varenr. goes on with it after the test's prefix.
+     * $lagertal is the front page's Beregn lagerbeh./værdi.
      */
-    private function report(bool $kunSalg, string $pageDir = 'lager', string $only = ''): string
+    private function report(bool $kunSalg, string $pageDir = 'lager', string $only = '', bool $lagertal = true): string
     {
         $query = [
             'submit' => 'ok',
@@ -242,9 +262,11 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
             'date_to' => self::TO,
             // The copy in includes/ matches Varenr. exactly unless it has a *, lager/rapport.php matches any part.
             'varenr' => $pageDir === 'includes' ? $this->token . $only . '*' : $this->token . $only,
-            'lagertal' => 'on',
             'vr_per_page' => '100000',
         ];
+        if ($lagertal) {
+            $query['lagertal'] = 'on';
+        }
         if ($kunSalg) {
             $query['kun_salg'] = 'on';
         }
@@ -556,5 +578,95 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
             ksort($csvRows);
             $this->assertSame($expectCsv, $csvRows, "DG in the CSV, report on Varenr. {$this->token}$only:\n" . substr($csv, 0, 2000));
         }
+    }
+
+    /**
+     * A stock regulation of -1 on DAY for the item $varenr, as lager/lagerregulering.php writes it:
+     * a batch_salg row without an order or an order line.
+     */
+    private function seedRegulation(string $varenr, float $kostpris): void
+    {
+        $item = self::one('SELECT id FROM varer WHERE varenr = $1', [$varenr]);
+        $this->assertNotNull($item, "item $varenr exists");
+        self::rows(
+            "INSERT INTO batch_salg (batch_kob_id, vare_id, linje_id, salgsdate, fakturadate, ordre_id, antal, pris, lev_nr, lager)
+             VALUES (0, $1, 0, $2, $2, 0, 1, $3, 1, 1)",
+            [(int)$item['id'], self::DAY, $kostpris]
+        );
+    }
+
+    /**
+     * Solgt and Salgspris of each of this test's items in $html and in the CSV the request wrote,
+     * read under their column titles, by Varenr.
+     *
+     * @return array{page: array<string, string>, csv: array<string, string>}
+     */
+    private function itemSales(string $html): array
+    {
+        $titles = null;
+        $page = [];
+        foreach (self::tableRows($html) as $columns) {
+            $first = $columns[0] ?? '';
+            if ($titles === null && $first === 'Varenr.') {
+                $titles = $columns;
+            } elseif (str_starts_with($first, $this->token)) {
+                $page[$first] = 'Solgt ' . self::under($titles, $columns, 'Solgt') . ', Salgspris ' . self::under($titles, $columns, 'Salgspris');
+            }
+        }
+        $this->assertNotNull($titles, "the report has no column titles:\n" . substr(strip_tags($html), 0, 3000));
+
+        $this->assertFileExists(self::csvPath(), 'the report wrote its CSV');
+        $csv = (string)file_get_contents(self::csvPath());
+        $csvTitles = null;
+        $lines = [];
+        foreach (preg_split('/\r?\n/', $csv) as $line) {
+            $fields = str_getcsv($line, ';', '"', '');
+            $first = $fields[0] ?? '';
+            if ($csvTitles === null && $first === 'Varenr') {
+                $csvTitles = $fields;
+            } elseif (str_starts_with($first, $this->token)) {
+                $lines[$first] = 'Solgt ' . self::under($csvTitles, $fields, 'Solgt') . ', Salgspris ' . self::under($csvTitles, $fields, 'Salgspris');
+            }
+        }
+        ksort($page);
+        ksort($lines);
+        return ['page' => $page, 'csv' => $lines];
+    }
+
+    /** @return array<string, array{string, bool, bool}> the page's directory, grid layout, Beregn lagerbeh./værdi */
+    public static function kunSalgPages(): array
+    {
+        return [
+            'grid layout' => ['lager', true, false],
+            'grid layout, Beregn lagerbeh./værdi' => ['lager', true, true],
+            'classic layout' => ['lager', false, false],
+            'classic layout, Beregn lagerbeh./værdi' => ['lager', false, true],
+            // The older copy of the page has the same Kun salg / DB report. It has only the classic layout.
+            'includes/rapport.php' => ['includes', false, false],
+            'includes/rapport.php, Beregn lagerbeh./værdi' => ['includes', false, true],
+        ];
+    }
+
+    #[DataProvider('kunSalgPages')]
+    public function test_kun_salg_lists_the_items_sold_in_the_period(string $pageDir, bool $grid, bool $lagertal): void
+    {
+        $this->seed(self::KUN_SALG_ITEMS);
+        $this->seedRegulation($this->token . 'r', self::KUN_SALG_ITEMS['r']['kostpris']);
+        $this->useLayout($grid ? 'S' : '');
+        [$sold, $bought, $regulated] = [$this->token . 's', $this->token . 'k', $this->token . 'r'];
+
+        // The full report lists every item that moved in the period.
+        $html = $this->report(false, $pageDir, '', $lagertal);
+        $this->assertSame($grid, str_contains($html, "id='vrGridTable'"), $grid ? 'the grid layout is used' : 'the classic layout is used');
+        $all = $this->itemSales($html);
+        $this->assertSame([$bought, $regulated, $sold], array_keys($all['page']), 'the full report lists the sold, the bought and the regulated item');
+
+        // Kun salg / DB lists only the item sold on an order in the period, with its sale.
+        $html = $this->report(true, $pageDir, '', $lagertal);
+        $this->assertSame($grid, str_contains($html, "id='vrGridTable'"), $grid ? 'the grid layout is used' : 'the classic layout is used');
+        $kunSalg = $this->itemSales($html);
+        $expected = [$sold => 'Solgt 10,00, Salgspris 537,60'];
+        $this->assertSame($expected, $kunSalg['page'], 'Kun salg / DB on the page: the item sold on 28-11-2025, not the bought or the regulated one');
+        $this->assertSame($expected, $kunSalg['csv'], 'Kun salg / DB in the CSV');
     }
 }

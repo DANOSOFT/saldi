@@ -112,6 +112,8 @@
 // 20261105 CL/LH Group totals with Beregn lagerbeh./værdi put Købspris, Salgspris, DB, DG and Værdi under their own column titles, on screen and in the CSV, also with Kun salg / DB.
 // 20261105 CL/LH An item's line in salgsrapport.csv has its VAT under +moms, as the Moms column on screen; it repeated the Salgspris.
 // 20261105 CL/LH DG on an item's line, a group total and Summeret is DB / Salgspris, and 0,00% when Salgspris is 0, as on a sale line; it showed 100,00% whenever DB or Salgspris was 0.
+// 20261105 CL/LH Kun salg / DB lists the items sold on an order in the period; it took only the last day's sales and added items with only a receipt.
+//                Items with only a stock regulation in the period are left out too.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -706,12 +708,15 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	# finder alle konti med bevaegelser i den anfoerte periode eller aabne poster fra foer perioden
 	$qtxt="select batch_salg.vare_id,batch_salg.pris,varer.gruppe,varer.beskrivelse from batch_salg,varer";
 	if ($afd || $ref) $qtxt.=",ordrer";
-	$qtxt.= " where batch_salg.fakturadate<='$date_to' and batch_salg.vare_id = varer.id ";  # 20181003
-	if ($kun_salg) $qtxt.= "and batch_salg.fakturadate >= '$date_to' "; #20220320
-	if ($afd) $qtxt.="and batch_salg.ordre_id = ordrer.id and ordrer.afd='$afd' ";
-	if ($ref) $qtxt.="and batch_salg.ordre_id = ordrer.id and (ordrer.ref='$ref_navn' or ordrer.ref='$ref_brugernavn') ";
+	$qtxt.= " where batch_salg.fakturadate<='".db_escape_string($date_to)."' and batch_salg.vare_id = varer.id ";  # 20181003
+	// 20261105 CL/LH Kun salg / DB lists the items sold in the period: a sale on an order (ordre_id 0 is a
+	// stock regulation, count or move) with a quantity, invoiced from date_from. It compared with date_to,
+	// so only the last day's sales counted (#20220320).
+	if ($kun_salg) $qtxt.= "and batch_salg.fakturadate >= '".db_escape_string($date_from)."' and batch_salg.ordre_id != 0 and batch_salg.antal != 0 ";
+	if ($afd) $qtxt.="and batch_salg.ordre_id = ordrer.id and ordrer.afd='".db_escape_string($afd)."' ";
+	if ($ref) $qtxt.="and batch_salg.ordre_id = ordrer.id and (ordrer.ref='".db_escape_string($ref_navn)."' or ordrer.ref='".db_escape_string($ref_brugernavn)."') ";
 	if ($lagertal) $qtxt.="order by varer.gruppe,varer.beskrivelse ";
-	else $qtxt.="and batch_salg.fakturadate>='$date_from' order by varer.beskrivelse ";
+	else $qtxt.="and batch_salg.fakturadate>='".db_escape_string($date_from)."' order by varer.beskrivelse ";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$row_vare_id = trim($row['vare_id']);
@@ -724,20 +729,23 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			$ov_qty[$x]=0;
 		}
 	}
-	$qtxt="select batch_kob.fakturadate,batch_kob.vare_id,batch_kob.pris,varer.gruppe,varer.beskrivelse ";
-	$qtxt.="from batch_kob,varer where batch_kob.fakturadate<='$date_to' and batch_kob.vare_id = varer.id "; #20181003
-	if ($lagertal) $qtxt.="order by gruppe,varer.beskrivelse";
-	else $qtxt.=" and batch_kob.fakturadate>='$date_from' order by varer.beskrivelse";
-	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($row = db_fetch_array($query)) {
-		$row_vare_id = trim($row['vare_id']);
-		if (isset($vare_id_lookup[$row_vare_id]) && !isset($v_id_lookup[$row_vare_id])) {
-			$x++;
-			$v_id[$x]=$row_vare_id;
-			$v_id_lookup[$row_vare_id]=1;
-			$v_gr[$x]=trim($row['gruppe']);
-			$v_navn[$x]=trim(strip_tags($row['beskrivelse']));
-			$ov_qty[$x]=0;
+	// 20261105 CL/LH Kun salg / DB shows no purchases, so a receipt alone does not put an item in it.
+	if (!$kun_salg) {
+		$qtxt="select batch_kob.fakturadate,batch_kob.vare_id,batch_kob.pris,varer.gruppe,varer.beskrivelse ";
+		$qtxt.="from batch_kob,varer where batch_kob.fakturadate<='".db_escape_string($date_to)."' and batch_kob.vare_id = varer.id "; #20181003
+		if ($lagertal) $qtxt.="order by gruppe,varer.beskrivelse";
+		else $qtxt.=" and batch_kob.fakturadate>='".db_escape_string($date_from)."' order by varer.beskrivelse";
+		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($row = db_fetch_array($query)) {
+			$row_vare_id = trim($row['vare_id']);
+			if (isset($vare_id_lookup[$row_vare_id]) && !isset($v_id_lookup[$row_vare_id])) {
+				$x++;
+				$v_id[$x]=$row_vare_id;
+				$v_id_lookup[$row_vare_id]=1;
+				$v_gr[$x]=trim($row['gruppe']);
+				$v_navn[$x]=trim(strip_tags($row['beskrivelse']));
+				$ov_qty[$x]=0;
+			}
 		}
 	}
 	# finding items ordered and not put in stock.
