@@ -13,6 +13,7 @@
 // 20261008 CL/LH products/groups list for the current fiscal year, codeNo lookup, non-group ids are 404.
 // 20261008 CL/LH inventory/warehouses lists the real warehouses with their names, numbers and stock.
 // 20261023 CL/LH warehouses: follow SST-829 (#769) - no fiscal_year filter, one row per warehouse number.
+// 20261105 CL/LH products/groups stores the five boolean options as 'on' or '' on POST and PUT, and reads them back.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -250,6 +251,38 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertNotEmpty($other);
         $notAGroup = $this->get('products/groups/?id=' . (int)$other[0]['id']);
         $this->assertSame(404, $notAGroup['status'], 'a grupper row that is not a product group is not served as one');
+    }
+
+    /** box6..box10 of a product group as SALDI's own settings page stores them, ticked = 'on'. */
+    private function groupOptionBoxes($tenant, int $id): array
+    {
+        return RestApiEnv::rows($tenant, 'SELECT box6, box7, box8, box9, box10 FROM grupper WHERE id = $1', [$id])[0];
+    }
+
+    public function test_product_group_options_are_stored_as_on_and_read_back(): void
+    {
+        $options = ['reversePayment' => true, 'taxFree' => false, 'inventory' => true, 'batch' => true, 'operation' => false];
+        $post = RestApiEnv::http('POST', self::V1 . 'products/groups/', ['codeNo' => 9701, 'description' => 'REST options test'] + $options, RestApiEnv::authHeaders());
+        $this->assertSame(201, $post['status'], $post['body']);
+        $id = (int)$post['json']['data']['id'];
+
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        try {
+            $this->assertSame(['box6' => 'on', 'box7' => '', 'box8' => 'on', 'box9' => 'on', 'box10' => ''], $this->groupOptionBoxes($tenant, $id), 'inventory true is Lager ført (box8 = on), not 1');
+            $get = $this->get("products/groups/?id=$id");
+            $this->assertSame(200, $get['status'], $get['body']);
+            $this->assertSame($options, array_intersect_key($get['json']['data'], $options));
+
+            $options = ['reversePayment' => false, 'taxFree' => true, 'inventory' => false, 'batch' => false, 'operation' => true];
+            $put = RestApiEnv::http('PUT', self::V1 . "products/groups/?id=$id", $options, RestApiEnv::authHeaders());
+            $this->assertSame(200, $put['status'], $put['body']);
+            $this->assertSame(['box6' => '', 'box7' => 'on', 'box8' => '', 'box9' => '', 'box10' => 'on'], $this->groupOptionBoxes($tenant, $id));
+            $get = $this->get("products/groups/?id=$id");
+            $this->assertSame($options, array_intersect_key($get['json']['data'], $options));
+        } finally {
+            RestApiEnv::rows($tenant, 'DELETE FROM grupper WHERE id = $1', [$id]);
+            pg_close($tenant);
+        }
     }
 
     public function test_warehouse_list_holds_each_warehouse_once_preferring_the_current_year(): void

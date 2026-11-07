@@ -383,6 +383,18 @@ class VareGruppeModel
         return $this->sellOutsideEuAccount;
     }
 
+    /**
+     * The API's boolean options as SALDI stores them: 'on' when ticked, '' when not.
+     *
+     * @param mixed $value JSON true/false; "on", "1", 1 and "true" also count as ticked
+     * @return string 'on' or ''
+     */
+    private static function checkboxValue($value)
+    {
+        // 20261105 CL/LH A JSON true was stored as '1', which SALDI and toArray() read as not ticked.
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'on' : '';
+    }
+
     // Setter methods
     public function setCodeNo($codeNo)
     {
@@ -398,23 +410,23 @@ class VareGruppeModel
     }
     public function setReversePayment($reversePayment)
     {
-        $this->reversePayment = $reversePayment;
+        $this->reversePayment = self::checkboxValue($reversePayment);
     }
     public function setTaxFree($taxFree)
     {
-        $this->taxFree = $taxFree;
+        $this->taxFree = self::checkboxValue($taxFree);
     }
     public function setInventory($inventory)
     {
-        $this->inventory = $inventory;
+        $this->inventory = self::checkboxValue($inventory);
     }
     public function setBatch($batch)
     {
-        $this->batch = $batch;
+        $this->batch = self::checkboxValue($batch);
     }
     public function setOperation($operation)
     {
-        $this->operation = $operation;
+        $this->operation = self::checkboxValue($operation);
     }
     public function setBuyAccount($buyAccount)
     {
