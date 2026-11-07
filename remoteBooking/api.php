@@ -27,6 +27,7 @@
 //                 The includes in the entry block now use __DIR__.
 // 20261105 CL/LH getClosedDates answers an empty list when no day is closed, instead of a message object the booking calendar cannot map over.
 // 20261105 CL/LH createBooking refuses a period that is not one, a stand that does not exist, and a stand that is booked or blocked on any calendar day of the period (rental_period_taken()), with the stand locked from that check until its hold is committed (rental_begin_stand_lock()).
+// 20261105 CL/LH updateBooking deletes a rejected hold's order lines (ordrelinjer) with its order, instead of leaving them behind.
 //
 
 
@@ -391,6 +392,9 @@ if(isset($_GET["updateBooking"])){
         $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
         $orderId = $res ? (int)$res["order_id"] : 0;
+        if ($orderId > 0) { // order_id is 0 for a hold whose order was not made: it has no lines to delete
+            db_modify("DELETE FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
+        }
         db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
         db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
         echo json_encode(["status" => "deleted"]);
