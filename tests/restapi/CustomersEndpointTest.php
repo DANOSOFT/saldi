@@ -12,6 +12,7 @@
 // 20261105 CL/LH A customer or creditor that open posts or orders point at is refused with 409 and kept.
 // 20261105 CL/LH A creditor sent twice, or moved onto another creditor's phone, is refused with 400 like a debtor.
 //                A creditor may share a debtor's email and phone.
+// 20261105 CL/LH The create response of a debtor and a creditor carries the kontonr it stored.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -168,6 +169,26 @@ final class CustomersEndpointTest extends TestCase
             'debtor' => [self::CUSTOMERS, 'D'],
             'creditor' => [self::CREDITORS, 'K'],
         ];
+    }
+
+    /** A new account is numbered after its phone; the create answers with that kontonr, as the GET and SQL do. */
+    #[DataProvider('accountKinds')]
+    public function test_create_response_carries_the_kontonr_it_stored(string $path, string $art): void
+    {
+        $body = $this->customerBody('kontonr');
+
+        $create = $this->create($path, $body);
+
+        $this->assertSame(201, $create['status'], $create['body']);
+        $data = $create['json']['data'];
+        $this->assertSame($body['phone'], $data['kontonr'], 'the create response names the kontonr');
+        $this->assertSame($body['phone'], $data['kundenr']);
+        $id = (int)$data['id'];
+        $this->assertSame($data['kontonr'], $this->read($path, $id)['json']['data']['kontonr'], 'the GET agrees');
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT kontonr FROM adresser WHERE id = $1 AND art = $2', [$id, $art]);
+        pg_close($tenant);
+        $this->assertSame([['kontonr' => $body['phone']]], $rows, 'SQL agrees');
     }
 
     /** The cards refuse a second account with the same number; the API makes the phone the kontonr. */

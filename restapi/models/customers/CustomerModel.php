@@ -132,6 +132,10 @@ class CustomerModel
 
         // Set default values
         $this->gruppe = $this->gruppe ?: 1;
+        // 20261105 CL/LH A new account's kontonr fell back to its phone in SQL only, so the create response said kontonr null.
+        if (!$this->id && !$this->kontonr) {
+            $this->kontonr = $this->tlf;
+        }
         
         // Handle integer fields - set to NULL if empty/null, otherwise ensure they're integers
         $betalingsdage = ($this->betalingsdage === null || $this->betalingsdage === '') ? 'NULL' : (int)$this->betalingsdage;
