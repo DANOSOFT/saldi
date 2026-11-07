@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.0 ----2026-11-03------------
+// --- systemdata/diverse.php -----ver 5.1.0 ----2026-11-05------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,6 +125,8 @@
 // 20261031 CL/ASR Merge of master into redesign: save_webshop_invoice_order_date() (SST-911) runs after the CSRF check, like every other save on this page.
 // 20261101 CL/ASR Settings hub: div_valg redirects to Indstillinger » Ansatte, where its last field (Tilføj ekstra felter på ansatte, DIV/2 box3) lives now.
 // 20261103 CL/ASR QA: the integration and variant-import sections declare their own key before online.php (settings.integrations, settings.import_export), so a role with only that key is not refused once enforcement is 'deny'. sektion=label and sektion=kreditor_io redirect to Varer » Lager and Import & eksport instead of an empty page.
+// 20261105 CL/LH kontoindstillinger saves the regnskab's new name, the reset and the delete again where Abonnement & konto (G1.4) does not exist (no hosted module), as before the redesign.
+//                With the hosted module these posts are ignored here, so the password of the G1.4 danger zone stays the only way there.
 
 @session_start();
 $s_id = session_id();
@@ -655,6 +657,43 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		
 		
 		// 20261005 Sawaneh G1.3/G1.4: rename, base currency, time zone, reset and delete are saved by the new sections.
+		// Abonnement & konto (G1.4) exists only where the hosted module is on; elsewhere the old page keeps rename,
+		// reset and delete (sys_div_func.php kontoindstillinger()), and they are saved here, as before the redesign.
+		if (!settings_has_module('hosted')) {
+			if (isset($_POST['newName']) && trim((string) $_POST['newName']) !== '') {
+				$newName = trim((string) $_POST['newName']);
+				$qtxt = "select id from regnskab where regnskab = '" . db_escape_string($newName) . "' and db <> '" . db_escape_string((string) $db) . "'";
+				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true))) {
+					$alert1 = findtekst('1742|Der findes allerede et regnskab med navnet', $sprog_id);
+					$alert2 = findtekst('1743|Navn ikke ændret', $sprog_id);
+					print "<BODY onLoad=\"JavaScript:alert(" . htmlspecialchars(jsString(array("$alert1 $newName! $alert2")), ENT_QUOTES, 'UTF-8') . ")\">";
+				} else {
+					settings_virtual_set('ledger_name', $newName); // as Abonnement & konto saves it (includes/settings/virtualStorage.php)
+					$regnskab = $newName;
+				}
+			} elseif (!empty($_POST['nulstil'])) { #20170731
+				require_once(__DIR__ . '/resetAccount.php');
+				try {
+					resetAccount(!empty($_POST['behold_debkred']), !empty($_POST['behold_varer']), $db_type, $db);
+					$regnaar = 1;
+					print tekstboks('regnskab nulstillet');
+				} catch (Throwable $error) { # 20260917 en fejl må ikke ende som en hvid fejlside
+					print tekstboks('Regnskabet blev ikke nulstillet: ' . $error->getMessage());
+				}
+			} elseif (isset($_POST['slet'])) {
+				if (ifset($_POST, 'slet_regnskab', '') === 'on') { #20185024
+					$logintekst = db_escape_string('slettet af ' . $brugernavn_raw . ' den ' . date('Ymd H.i')); // $brugernavn_raw: includes/online.php
+					db_modify("update regnskab set lukket = 'on', logintekst = '$logintekst' where id = '" . (int) $db_id . "'", __FILE__ . " linje " . __LINE__, true);
+					db_modify("delete from online where db = '" . db_escape_string((string) $db) . "'", __FILE__ . " linje " . __LINE__, true);
+					include(__DIR__ . '/../includes/online.php');
+					print "Sletter";
+				} else {
+					$tekst1 = findtekst('852|Slet regnskab', $sprog_id);
+					$alert  = findtekst('1744|For at slette dit regnskab skal du afmærke feltet ved', $sprog_id);
+					print "<script>alert(" . jsString(array("$alert $tekst1: $regnskab")) . ");</script>";
+				}
+			}
+		}
 	} elseif ($sektion == 'tjekliste') {
 		// 20261009 Sawaneh Checklists moved to the Sager module (settings redesign §4, phase 4e).
 		header('Location: ../sager/tjeklister.php');

@@ -86,6 +86,9 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 //                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
 //                 A page load also shows the box of an earlier page that moved on before it could be seen (a meta refresh right after a failed query).
 // 20261105 CL/LH The tenant's lower grupper version goes to regnskab.version through tjek4opdat_skriv_version(), which writes only under the update lock, as at login.
+// 20261105 CL/LH A form drawn in another regnskab (thisDb) ends the request after the message, instead of running the page on an emptied $_POST and $_GET.
+//                On diverse.php (Kontoindstillinger) that died in the settings permission gate and the page chrome.
+//                The posted thisDb in the message goes through jsString(), so a forged value cannot run script.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -191,9 +194,12 @@ if ($r = db_fetch_array($q)) {
 	}
 }
 if (isset($_POST['thisDb']) && $db && strpos($db,'_') && $db != $_POST['thisDb']) {
-	alert ("Du har skiftet regnskab fra $_POST[thisDb] til $db, handling afbrudt");
+	include_once(__DIR__ . '/stdFunc/jsString.php');
+	$postedDb = is_scalar($_POST['thisDb']) ? (string) $_POST['thisDb'] : ''; // posted by the form, so escaped for the script below
+	print "<script type='text/javascript'>alert(" . jsString(array("Du har skiftet regnskab fra $postedDb til $db, handling afbrudt")) . ");</script>";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
 	$_POST = $_GET = NULL;
+	exit; // the rest of this file and the page do not run on the emptied request (the settings gate and the page chrome need arrays)
 }
 
 $labelprint = 0;

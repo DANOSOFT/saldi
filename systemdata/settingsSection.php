@@ -62,6 +62,7 @@
 //                 A row error no longer saves the page's fields (dry run, spec §7.3).
 // 20261105 CL/LH Every posted form carries thisDb again, as Stamdata did in stamkort.php, so a form drawn before the session moved to another regnskab is refused by online.php and saves nothing there.
 //                The refusal shows online.php's message instead of the settings hub.
+// 20261105 CL/LH online.php now ends a refused request itself, so the page's own check for it after the include is gone.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -95,12 +96,7 @@ $permission_key = 'any';
 $permission_post_read = false;
 
 include(__DIR__ . "/../includes/connect.php");
-include(__DIR__ . "/../includes/online.php");
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST === null) {
-	// online.php refused a form from another regnskab (thisDb), printed why with the way to the front page, and emptied $_POST and $_GET.
-	ob_end_flush();
-	exit;
-}
+include(__DIR__ . "/../includes/online.php"); // a form from another regnskab (thisDb) ends there, with online.php's message
 // The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
 print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><link rel='stylesheet' href='../css/unified-components.css?v=20261102b'>\n";
 include(__DIR__ . "/../includes/std_func.php");
