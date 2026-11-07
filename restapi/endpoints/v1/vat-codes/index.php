@@ -1,4 +1,5 @@
 <?php
+// 20261105 CL/LH List the SM/KM/EM/YM VAT codes of the current fiscal year (api_current_fiscal_year()), rate from box2 and description from beskrivelse.
 /**
  * GET /vat-codes
  * Get list of VAT codes (momskoder)
@@ -50,8 +51,11 @@ class VatCodesEndpoint extends BaseEndpoint
             return;
         }
         
-        // Get VAT codes from grupper table where art = 'S' (momssatser)
-        $qtxt = "SELECT kodenr, box1 as rate, box2 as description FROM grupper WHERE art = 'S' ORDER BY kodenr";
+        // The VAT codes are the grupper rows art SM/KM/EM/YM of a fiscal year, as vat/ and the Moms page read them:
+        // box1 is the account, box2 the rate. grupper has no art 'S', so the old query always came back empty.
+        $fiscalYear = (int)api_current_fiscal_year();
+        $qtxt = "SELECT kodenr, box2 AS rate, beskrivelse AS description FROM grupper "
+            . "WHERE art IN ('SM', 'KM', 'EM', 'YM') AND fiscal_year = $fiscalYear ORDER BY kode, kodenr";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
         $vatCodes = [];

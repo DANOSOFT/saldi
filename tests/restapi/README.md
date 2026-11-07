@@ -48,7 +48,8 @@ docker-compose stack.
   `dashboard/stats.php`: all require a token, answer with the JSON envelope
   and documented shape, read-only ones refuse POST with 405; `products/groups/`
   lists the groups of the fiscal year covering today, finds one by `codeNo`,
-  and 404s on a `grupper` row that is not a product group;
+  and 404s on a `grupper` row that is not a product group; `vat-codes/`
+  lists that year's VAT codes (`grupper` art SM/KM/EM/YM, rate from box2);
   `inventory/warehouses/` lists the current fiscal year's warehouses with
   their names, numbers and per-warehouse stock of a product.
 - `InventoryStatusEndpointTest` — `inventory/status/`: the quantity a POST,
@@ -135,3 +136,4 @@ production registry.
 <!-- 20261105 CL/LH InventoryStatusEndpointTest. -->
 <!-- 20261105 CL/LH AccountsEndpointTest: a duplicate or fractional account number is refused. -->
 <!-- 20261105 CL/LH AccountsEndpointTest: a PUT without vat keeps the account's VAT code. -->
+<!-- 20261105 CL/LH ReferenceDataEndpointsTest: vat-codes/ lists the current fiscal year's VAT codes. -->

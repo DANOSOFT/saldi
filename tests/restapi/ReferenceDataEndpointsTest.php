@@ -15,6 +15,7 @@
 // 20261023 CL/LH warehouses: follow SST-829 (#769) - no fiscal_year filter, one row per warehouse number.
 // 20261105 CL/LH products/groups stores the five boolean options as 'on' or '' on POST and PUT, and reads them back.
 // 20261105 CL/LH products/groups reads buyOutsideEuAccount from box13, not box2 (Lagertræk), and a PUT keeps it.
+// 20261105 CL/LH vat-codes lists the current fiscal year's SM/KM/EM/YM rows with the rate from box2, not an empty list.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -132,18 +133,34 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertSame(404, $missing['status'], $missing['body']);
     }
 
-    public function test_vat_codes_answers_with_json_list_of_code_rate_description(): void
+    public function test_vat_codes_lists_the_current_fiscal_years_vat_codes(): void
     {
-        $res = $this->get('vat-codes/');
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $year = $this->currentFiscalYear($tenant);
+        // A VAT code of another fiscal year must not be listed.
+        $otherYear = (int)RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kode, kodenr, beskrivelse, box1, box2, fiscal_year) VALUES ('SM', 'S', 97, 'REST vat-codes other year', '66100', '12.5', $1) RETURNING id", [$year + 100])[0]['id'];
+        try {
+            $expected = array_map(
+                fn($r) => ['code' => (int)$r['kodenr'], 'rate' => (float)$r['box2'], 'description' => $r['beskrivelse']],
+                RestApiEnv::rows($tenant, "SELECT kodenr, box2, beskrivelse FROM grupper WHERE art IN ('SM', 'KM', 'EM', 'YM') AND fiscal_year = $1 ORDER BY kode, kodenr", [$year])
+            );
+            $this->assertNotEmpty($expected, 'template tenant has VAT codes in the current fiscal year');
 
-        $this->assertSame(200, $res['status'], $res['body']);
-        $this->assertIsArray($res['json'], 'response is JSON, not a PHP error page');
-        $this->assertTrue($res['json']['success']);
-        $this->assertIsArray($res['json']['data']);
-        foreach ($res['json']['data'] as $code) {
-            $this->assertIsInt($code['code']);
-            $this->assertIsFloat($code['rate']);
-            $this->assertArrayHasKey('description', $code);
+            $res = $this->get('vat-codes/');
+
+            $this->assertSame(200, $res['status'], $res['body']);
+            $this->assertIsArray($res['json'], 'response is JSON, not a PHP error page');
+            $this->assertTrue($res['json']['success']);
+            foreach ($res['json']['data'] as $code) {
+                $this->assertIsInt($code['code']);
+                // JSON drops a whole rate's fraction (25.0 is sent as 25).
+                $this->assertIsNumeric($code['rate']);
+            }
+            $actual = array_map(fn($c) => ['code' => $c['code'], 'rate' => (float)$c['rate'], 'description' => $c['description']], $res['json']['data']);
+            $this->assertSame($expected, $actual, 'the SM/KM/EM/YM rows of the current fiscal year, rate from box2 and description from beskrivelse');
+        } finally {
+            RestApiEnv::rows($tenant, 'DELETE FROM grupper WHERE id = $1', [$otherYear]);
+            pg_close($tenant);
         }
     }
 
