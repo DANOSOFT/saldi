@@ -29,6 +29,7 @@
 // 20261018 SS Review 2 (PR #803): an empty cell in a number column is written as NULL (SettingsService::sqlValue). master's warehouseDeletion.php (history, order lines, departments; duplicates may go).
 // 20261019 SS Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
 // 20261105 CL/LH A background's usage counts customers and suppliers through their group's language (DG/KG box4); adresser has no sprog column, so the old count failed on every background row.
+// 20261105 CL/LH A bool cell is ticked only for its true_value, as SALDI reads it (Varegrupper showed Lagerført for box8 = '1', which the stock code treats as not stock-managed); saving, 'requires' and the standard set read it the same way.
 
 /**
  * The tables of a rows section with their defaults filled in.
@@ -96,9 +97,10 @@ function settings_rows_standard(array $t): array
 	$out = array();
 	foreach ($rows as $row) {
 		$r = array();
-		foreach (array_keys($t['columns']) as $col) {
+		foreach ($t['columns'] as $col => $def) {
 			if (isset($row[$col])) {
-				$r[$col] = (string) $row[$col];
+				// A bool cell as the editor shows a stored one ('1' ticked, '' not), so the seeded checkbox is ticked only for true_value.
+				$r[$col] = $def['type'] === 'bool' ? settings_rows_form_value($def, (string) $row[$col]) : (string) $row[$col];
 			}
 		}
 		if ($r) {
@@ -329,6 +331,27 @@ function settings_rows_derived(string $name, array $row): string
 }
 
 /**
+ * Whether a stored bool cell is ticked: only the column's true_value ('on' unless the column names another), as SALDI's
+ * own code reads it. A product group is Lagerført for box8 = 'on' (lager/lagerstatus.php, includes/ordrefunc.php); a
+ * '1' there, as the REST API once wrote it, is not stock-managed and so is not shown ticked.
+ */
+function settings_rows_bool_on(array $def, string $raw): bool
+{
+	return trim($raw) === (string) $def['true_value'];
+}
+
+/**
+ * Whether a cell counts as filled in for a 'requires' rule: a bool cell when it is ticked, any other cell when it holds a value.
+ */
+function settings_rows_filled(array $def, ?string $raw): bool
+{
+	if ($raw === null) {
+		return false;
+	}
+	return $def['type'] === 'bool' ? settings_rows_bool_on($def, $raw) : $raw !== '';
+}
+
+/**
  * The stored string shown in a cell.
  */
 function settings_rows_form_value(array $def, string $raw): string
@@ -337,7 +360,7 @@ function settings_rows_form_value(array $def, string $raw): string
 		return $raw === '' ? '' : str_replace('.', ',', rtrim(rtrim(number_format((float) $raw, 4, '.', ''), '0'), '.'));
 	}
 	if ($def['type'] === 'bool') {
-		return (trim($raw) !== '' && trim($raw) !== (string) $def['false_value']) ? '1' : '';
+		return settings_rows_bool_on($def, $raw) ? '1' : '';
 	}
 	if ($def['type'] === 'date' && preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $raw, $m)) {
 		return $m[3] . '-' . $m[2] . '-' . $m[1];
@@ -440,10 +463,8 @@ function settings_rows_same(array $def, string $stored, string $raw): bool
 		return abs((float) $stored - (float) $raw) < 0.000001;
 	}
 	if ($def['type'] === 'bool') {
-		$on = function ($v) use ($def) {
-			return trim((string) $v) !== '' && trim((string) $v) !== (string) $def['false_value'];
-		};
-		return $on($stored) === $on($raw);
+		// A stored '1' is not ticked, so ticking it writes true_value and leaving it alone keeps the stored value.
+		return settings_rows_bool_on($def, $stored) === settings_rows_bool_on($def, $raw);
 	}
 	if ($def['type'] === 'date') {
 		return substr(trim($stored), 0, 10) === $raw;
@@ -526,8 +547,8 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 			}
 			foreach ($t['columns'] as $col => $def) {
 				// "requires": when this cell is filled in, another one must be too (batch control needs stock-managed).
-				if (is_array($def['requires']) && !isset($rowErrors[$col]) && isset($clean[$col]) && $clean[$col] !== ''
-					&& (!isset($clean[$def['requires'][0]]) || $clean[$def['requires'][0]] === '')) {
+				if (is_array($def['requires']) && !isset($rowErrors[$col]) && settings_rows_filled($def, $clean[$col] ?? null)
+					&& !settings_rows_filled($t['columns'][$def['requires'][0]], $clean[$def['requires'][0]] ?? null)) {
 					$rowErrors[$col] = (int) $def['requires'][1];
 				}
 			}
