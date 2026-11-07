@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/glemt_kode.php ---  ver 5.1.0 --- 2026.11.03 ---
+// --- index/glemt_kode.php ---  ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,9 @@
 // 20250616 PHR Removed preg_match as it prevented special chars in user / account name and enabled composer | phpmailer
 // 20260225 PHR Some enhancements...
 // 20261103 CL/ASR The password-reset token in brugere.tmp_kode starts with 'reset|', the shared format the user system reads (invitations use 'invite|').
+// 20261105 CL/LH Recovery mail goes through the regnskab's own SMTP server: the stamdata lookup reads felt_1-felt_4 and firmanavn, not only email.
+//                It fell back to localhost on every regnskab, so no recovery mail was sent where localhost has no mail server.
+//                Only that server gets the login (felt_2/felt_3) and the stamdata e-mail as sender, set by stamdata_smtp(); Saldi's own on localhost stays anonymous.
 $nonce = base64_encode(random_bytes(16));
 header("Content-Security-Policy: script-src 'self' 'nonce-$nonce'; object-src 'none';");
 
@@ -39,6 +42,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/db_query.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/../includes/stdFunc/stamdataSmtp.php');
 
 if ($db_encode=="UTF8") $charset="UTF-8";
 else $charset="ISO-8859-1";
@@ -53,6 +57,7 @@ $brugernavn=NULL;
 $regnskab=NULL;
 $regnskaber=NULL;
 $navn=NULL;
+$stamdata=NULL;
 
 #if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
 #if (isset ($_GET['navn'])) $brugernavn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
@@ -128,19 +133,12 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 			}
 		} elseif (strpos($brugernavn,'@')) $email=strtolower($brugernavn);
 		
-		if ($db!=$sqdb && $row = db_fetch_array(db_select("select email from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))){
+		if ($db!=$sqdb && $row = db_fetch_array(db_select("select firmanavn, email, felt_1, felt_2, felt_3, felt_4 from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))){
 			// $firmanavn=$row['firmanavn'];
 			// $firmamail=$row['email'];
 			$firmanavn = isset($row['firmanavn']) ? $row['firmanavn'] : null;
 			$firmamail = isset($row['email']) ? $row['email'] : null;
-
-			// ($row['felt_1'])?$smtp=$row['felt_1']:$smtp='localhost';
-			// ($row['felt_2'])?$smtp_user=$row['felt_2']:$smtp_user=NULL;
-			// ($row['felt_3'])?$smtp_pwd=$row['felt_3']:$smtp_pwd=NULL;
-			$smtp = isset($row['felt_1']) ? $row['felt_1'] : 'localhost';
-			$smtp_user = isset($row['felt_2']) ? $row['felt_2'] : NULL;
-			$smtp_pwd = isset($row['felt_3']) ? $row['felt_3'] : NULL;
-
+			$stamdata = $row; // its email and felt_1-felt_4 pick the mail server and sender in stamdata_smtp()
 		}
 	} elseif ($brugernavn && strpos($brugernavn,'@')) {
 		$regnskaber=NULL;
@@ -233,14 +231,7 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 	);
 		$mail->IsSMTP();                                   // send via SMTP
 		$mail->CharSet  =  "$charset";
-		if (!$smtp) $smtp='localhost';
-		$mail->Host  = $smtp; // SMTP servers 
-		if ($smtp_user) {
-			$mail->SMTPAuth = true;     // turn on SMTP authentication
-			$mail->Username = $smtp_user;  // SMTP username
-			$mail->Password = $smtp_pwd; // SMTP password
-		} else $mail->SMTPAuth = false;
-		$mail->From = 'kan_ikke_besvares@saldi.dk';
+		stamdata_smtp($mail, $stamdata, 'kan_ikke_besvares@saldi.dk'); // the regnskab's own SMTP server with its login and sender, else Saldi's own on localhost
 		$mail->FromName = $firmanavn;
 		if ($firmamail && $firmanavn) $mail->AddReplyTo($firmamail,$firmanavn);
 		if ($email) $mail->AddAddress($email);

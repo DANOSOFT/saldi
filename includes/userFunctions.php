@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/userFunctions.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/userFunctions.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,8 @@
 // 20261006 SS Onboarding step 5: user_invite_error() checks a new invitation (name, role, e-mail, duplicate name, R5) for the welcome guide; user_send_mail() takes an optional attachment (the guide's test invoice).
 // 20261103 CL/ASR QA: keeping a migrated role (Behold nuværende) has the same checks as a role change: not one's own role and only users within the actor's own access.
 //                 The last login from the audit log is read on PHP's clock (st_local_time()), like the rest of Indstillinger.
+// 20261105 CL/LH user_send_mail() takes server, login and sender from stamdata_smtp(), as Glemt adgangskode does.
+//                Saldi's own mail server on localhost no longer gets a login left in felt_2/felt_3, and the regnskab's own server gets the stamdata e-mail as sender, not kan_ikke_besvares@saldi.dk.
 
 include_once(__DIR__ . '/permissions.php');
 
@@ -511,6 +513,7 @@ function user_send_mail(string $to, string $subject, string $body, string $attac
 		return false;
 	}
 	require_once $autoload;
+	require_once __DIR__ . '/stdFunc/stamdataSmtp.php';
 	$firm = db_fetch_array(db_select("select * from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
 	$firmName = user_company_name();
 	$firmMail = $firm ? trim((string) $firm['email']) : '';
@@ -520,19 +523,8 @@ function user_send_mail(string $to, string $subject, string $body, string $attac
 		$mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
 		$mail->IsSMTP();
 		$mail->CharSet = $enc;
-		$mail->Host = ($firm && $firm['felt_1']) ? (string) $firm['felt_1'] : 'localhost';
-		if ($firm && $firm['felt_2']) {
-			$mail->SMTPAuth = true;
-			$mail->Username = (string) $firm['felt_2'];
-			$mail->Password = (string) $firm['felt_3'];
-			if (!empty($firm['felt_4'])) {
-				$mail->SMTPSecure = strtolower((string) $firm['felt_4']);
-			}
-		} else {
-			$mail->SMTPAuth = false;
-		}
+		stamdata_smtp($mail, $firm, 'kan_ikke_besvares@saldi.dk');
 		$mail->Timeout = 10;
-		$mail->From = 'kan_ikke_besvares@saldi.dk';
 		$mail->FromName = $firmName;
 		if ($firmMail !== '' && filter_var($firmMail, FILTER_VALIDATE_EMAIL)) {
 			$mail->AddReplyTo($firmMail, $firmName);
