@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- ver 5.0.0 --- 2026-10-07 ---  
+// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,15 @@
 // 20260126 PHR *1 replaced by (float) in $medarb_loen
 // 20260319 LOE Added $t_sum_total  
 // 20261007 LOE SD-728 'Til fordeling' shows the payslip total, so the 'Andet' lines are not counted twice.
+// 20261103 CL/MMR SD-799 The created/transferred/approved/rejected "by" labels use the author text, so English shows "by".
+// 20261104 CL/MMR SST-943 Gem and Overfør no longer save a slip, or its piecework lines, without a date.
+//                 The slip is shown as stored with the typed values put back and the messages "Dato ikke udfyldt" and "Obs - Du har ikke gemt.".
+// 20261104 CL/MMR SST-943 A stopped save also skips the writes made while the slip is drawn (sum, duplicate lines, master_id); vis_liste() gets it as a parameter.
+//                 The list type selector keeps the type the piecework lines are drawn for.
+// 20261105 CL/MMR SST-943 A stopped save also says that amounts and totals are not updated until the slip is saved with a date.
+// 20261105 CL/MMR SST-943 A date that does not exist or is not a date (31-02-2026, 32-13-2026, abc) is refused like a missing date (Morten).
+// 20261105 CL/MMR SST-943 Only the documented date forms are accepted, so extra digits (0311202699) are refused instead of cut off.
+// 20261105 CL/MMR SST-943 A four-digit year is read as written: a year before 1000 (05-11-0026) is refused, only two digits are a short year (CodeRabbit).
 
 function ret_loen() {
 	global $brugernavn;
@@ -63,8 +72,11 @@ function ret_loen() {
 		exit;
 	}
 	$id=if_isset($_GET['id']);
+	$gem=NULL;
+	$datoMangler = loenDatoMangler($_POST); # 20261104 SST-943
+	if ($datoMangler) $id = (int)ifset($_POST, 'id', 0);
 	transaktion('begin');
-	if ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis'])) {
+	if (!$datoMangler && ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis']))) {
 		# 20160830 ->
 		$afs  = if_isset($_POST['afs']);
 		$gemt = if_isset($_POST['gemt']);
@@ -684,6 +696,7 @@ function ret_loen() {
 			}
 		}
 	}
+	if ($datoMangler) $listevalg = (int)ifset($_POST, 'listevalg', 0); # 20261104 SST-943 the list type that was on the screen
 	$qtxt = "select var_value from settings where var_name = 'hideSalary'";
 	if ($p=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))	$hideSalary = $p['var_value'];
 	else $hideSalary = NULL;
@@ -696,7 +709,7 @@ function ret_loen() {
 #cho "Bundet på seddel nr $master_nr<br>";
 			}	else {
 #cho "update loen set master_id='0',godkendt='' where id='$id'<br>";
-				db_modify("update loen set master_id='0' where id='$id'",__FILE__ . " linje " . __LINE__); #20161012 Fjernet godkendt='' da udbetalte sedler bliver afregnet igen.
+				if (!$datoMangler) db_modify("update loen set master_id='0' where id='$id'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped #20161012 Fjernet godkendt='' da udbetalte sedler bliver afregnet igen.
 				$master_id = NULL;
 				$master_nr = NULL;
 #				$godkendt=NULL; #20161012
@@ -846,7 +859,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 				$aa_sum+=($r['ned_160']*$r['pris_ned']*1.6);
 				$aa_sum+=($r['ned_30m']*$r['pris_ned']*0.1);
 				$x++;
-			} else db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__);
+			} elseif (!$datoMangler) db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped
 
 #cho "$r[vare_id] || $r[tekst] $r[op] $r[ned]<br>";
 #cho "$r[op]*$r[pris_op] | $r[ned]*$r[pris_ned] |".$r['op']*$r['pris_op']."|".$r['ned']*$r['pris_ned']."| aa_sum $aa_sum<br>";
@@ -916,10 +929,11 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 
 	$antal_cat=$y;
 	$datotext_error = $datotext_errortxt = NULL;
-	if($loendate=='1970-01-01') {
-		$loendate = '';
+	if ($loendate=='1970-01-01' || $datoMangler) { # 20261104 SST-943 also when Gem/Overfør was stopped for a missing date
+		if ($loendate=='1970-01-01') $loendate = '';
 		$loendato = '';
 		$datotext_errortxt = "<span style=\"color: red;\">".findtekst('3019|Dato ikke udfyldt', $sprog_id)."</span>";
+		if ($datoMangler) $datotext_errortxt .= " <span style=\"color: red;\"><b>".findtekst('5280|Obs - Du har ikke gemt.', $sprog_id)."</b> ".findtekst('8420|Beløb og summer er ikke opdateret, før sedlen er gemt med dato.', $sprog_id)."</span>";
 		$datotext_error    = "style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else {
 /*
@@ -989,6 +1003,11 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 	} else {
 		$loentext_errortxt = NULL;
 		$loentext_error    = NULL;
+	}
+
+	if ($datoMangler) { # 20261104 SST-943 the fields show what was typed, so the messages about the stored slip are left out
+		$sagsnr_errortxt = $sagsnr_error = $opgnr_errortxt = $opgnr_error = $loentext_errortxt = $loentext_error = NULL;
+		$feriefratil_errortxt = $feriefra_error = $ferietil_error = NULL;
 	}
 
 #######################################
@@ -1167,24 +1186,24 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						print "<table border=\"0\" cellspacing=\"0\" width=\"780\" style=\"font-size: 12px\">
 						<tr>
 							<td><b>".findtekst('65|Oprettet', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $oprettet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $oprettet)."</td>
-							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $oprettet_af</td>
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $oprettet_af</td>
 							<td><b>".findtekst('1134|Løbenr.', $sprog_id).":&nbsp;</b>$loen_nr</td>
 							<td><b>".findtekst('494|Status', $sprog_id).":&nbsp;</b>$status</td>
 
 						</tr>";
 					if ($afsluttet) {
 						print "<tr><td><b>".findtekst('2790|Overført', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $afsluttet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afsluttet)."</td>
-							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
 					}
 					if ($godkendt && !$afvist) { #20170524 Tilføjet '&& !$afvist'
 						print "<tr><td><b>".findtekst('2937|Godkendt', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $godkendt)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $godkendt)."</td>
-							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $godkendt_af</td>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $godkendt_af</td>";
  							if ($master_nr) print "<td><b>".findtekst('3034|Afr. på', $sprog_id)."&nbsp;: </b>$master_nr</td>"; #20151215
 							print "</tr>";
 					}
 					if ($afvist) {
 						print "<tr><td><b>".findtekst('3011|Afvist', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $afvist)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afvist)."</td>
-							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
 					}
 					print "</table>";
 				}
@@ -1480,7 +1499,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					//print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">";
 				}
 				#cho "update loen set sum='$sum' where id='$id'<br>";
-				if (!$afsluttet || $afslut) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604
+				if ((!$afsluttet || $afslut) && !$datoMangler) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604 # 20261104 SST-943 not when the save was stopped
 
 #				print "<tbody class=\"akkordTableBody\">
 #					<tr>
@@ -1530,7 +1549,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 
 				print "<tbody>";
 				include('loenIncludes/visListe.php');
-				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal);
+				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler); # 20261104 SST-943
 				print "<tr>
 					<td colspan=\"13\" class=\"tableSagerBorder\"><b>".findtekst('3006|Lønlinjer ialt', $sprog_id).":</b></td>
 					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
@@ -1659,11 +1678,126 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						}
 						print "</div></div>
 					</form>";
+				if ($datoMangler && !$readonly) loenGenindsaet($_POST); # 20261104 SST-943
 				if ($afvis && !$afvist_pga) {
 					$txt = findtekst('3018|Skriv årsag til afvisning og klik afvis igen', $sprog_id)."!";
 					print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				}
 	print "</div><!-- end of printableArea -->";
 } # endfunc ret_loen
+
+/**
+ * Tells whether a Gem or Overfør post of the wage slip form lacks its date (SST-943).
+ * An empty field, "0", a date that reads as 01-01-1970 (what a slip without a date is stored with), and a date that
+ * does not exist or is not a date (loenDatoUgyldig()) count as missing.
+ * Afvis, Godkend, Slet and Luk are not checked: they do not save typed values, and the approver cannot type a date.
+ *
+ * @param array<string, mixed> $post The posted form fields ($_POST).
+ * @return bool True when Gem/Overfør must not save the slip.
+ */
+function loenDatoMangler($post) {
+	if (empty($post['gem']) && empty($post['afslut'])) return false;
+	$dato = trim((string)ifset($post, 'loendato', ''));
+	return (!$dato || loenDatoUgyldig($dato));
+}
+
+/**
+ * Tells whether a typed wage slip date does not exist or is not a date (SST-943, Morten 2026-11-05).
+ * usdate() never refuses: 31-02-2026 becomes 28-02-2026 and 32-13-2026 or "abc" become today. This reads the
+ * typed text the same way usdate() does (dd-mm-yyyy with - . / or space, dd-mm, ddmm, ddmmyy, ddmmyyyy, or just the
+ * day) and checks that usdate() keeps that day, month and year. The short forms (15, 0311, 03-11-26) still work.
+ * A date that reads as 01-01-1970 (how a slip without a date is stored) also counts as invalid.
+ * A four-digit year is read as written, so a year before 1000 (05-11-0026, 05110026) is refused; only a two-digit
+ * year is a short year (26 = 2026), as usdate() reads it (CodeRabbit on PR #1025).
+ *
+ * @param string $dato The typed date (already trimmed, not empty).
+ * @return bool True when the date must be refused like a missing date.
+ */
+function loenDatoUgyldig($dato) {
+	// Only the forms usdate() is meant for: day, ddmm, ddmmyy, ddmmyyyy, or d[-m[-yy|yyyy]] with - . / or space
+	if (!preg_match('/^([0-9]{1,2}|[0-9]{4}|[0-9]{6}|[0-9]{8}|[0-9]{1,2}[-.\/ ][0-9]{1,2}([-.\/ ]([0-9]{2}|[0-9]{4}))?)$/', $dato)) return true;
+	$tekst = preg_replace('/[.\/ ]/', '-', $dato);
+	$aar = NULL;
+	$aarTekst = '';
+	$maaned = NULL;
+	if (strpos($tekst, '-') !== false) {
+		$dele = explode('-', $tekst);
+		$dag = (int)$dele[0];
+		if (isset($dele[1]) && $dele[1] !== '') $maaned = (int)$dele[1];
+		if (isset($dele[2]) && $dele[2] !== '') $aarTekst = $dele[2];
+	} elseif (strlen($tekst) <= 2) {
+		$dag = (int)$tekst;
+		$maaned = (int)date('m');
+	} else {
+		$dag = (int)substr($tekst, 0, 2);
+		$maaned = (int)substr($tekst, 2, 2);
+		if (strlen($tekst) > 4) $aarTekst = substr($tekst, 4, strlen($tekst) > 6 ? 4 : 2);
+	}
+	if ($aarTekst !== '') {
+		// a four-digit year is the year as written: 0026 is not 2026, and no wage slip is dated before 1000
+		if (strlen($aarTekst) == 4 && (int)$aarTekst < 1000) return true;
+		$aar = (int)$aarTekst;
+		// only a two-digit year is a short year, read the way usdate() reads it
+		if (strlen($aarTekst) == 2) $aar += ($aar < 80) ? 2000 : 1900;
+	}
+	$gemt = usdate($dato);
+	if ($gemt == '1970-01-01') return true;
+	list($gAar, $gMaaned, $gDag) = array_map('intval', explode('-', $gemt));
+	if ($dag < 1 || $gDag != $dag) return true;
+	if ($maaned !== NULL && $gMaaned != $maaned) return true;
+	if ($aar !== NULL && $gAar != $aar) return true;
+	return false;
+}
+
+/**
+ * Puts the values of a Gem/Overfør that was stopped for a missing date back into the wage slip form (SST-943).
+ * Nothing was saved, so the form is drawn from the stored slip with the same fields in the same places as the
+ * posted form. The browser then sets every posted field back to its posted value, also as the field's default,
+ * so printing and the next save use what was typed. Read-only fields keep their drawn value. The date stays empty,
+ * and the list type selector keeps the type the piecework lines are drawn for (a type change is not applied).
+ *
+ * @param array<string, string|array<int|string, string>> $post The posted form fields ($_POST).
+ * @return void Prints a <script> element after the form.
+ */
+function loenGenindsaet($post) {
+	$felter = array();
+	foreach ($post as $navn => $vaerdi) {
+		if (is_array($vaerdi)) {
+			foreach ($vaerdi as $nr => $v) {
+				if (!is_array($v)) $felter[$navn.'['.$nr.']'] = (string)$v;
+			}
+		} else {
+			$felter[$navn] = (string)$vaerdi;
+		}
+	}
+	unset($felter['loendato']);
+	unset($felter['listevalg_ny']); # the list type stays the one the piecework lines are drawn for
+	$json = json_encode($felter, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
+	if ($json === false) return;
+	print "<script type=\"text/javascript\">
+	(function (v) {
+		var f = document.forms['loen'];
+		if (!f) return;
+		for (var i = 0; i < f.elements.length; i++) {
+			var e = f.elements[i], t = (e.type || '').toLowerCase(), har = v.hasOwnProperty(e.name);
+			if (!e.name || e.disabled || e.readOnly || t == 'submit' || t == 'button') continue;
+			if (t == 'checkbox') {
+				e.checked = e.defaultChecked = har;
+			} else if (!har) {
+				continue;
+			} else if (t == 'radio') {
+				e.checked = e.defaultChecked = (e.value == v[e.name]);
+			} else if (e.tagName == 'SELECT') {
+				for (var o = 0; o < e.options.length; o++) {
+					e.options[o].defaultSelected = (e.options[o].value == v[e.name]);
+					if (e.options[o].defaultSelected) e.selectedIndex = o;
+				}
+			} else {
+				e.value = e.defaultValue = v[e.name];
+			}
+		}
+	})($json);
+	</script>\n";
+}
 
 ?>

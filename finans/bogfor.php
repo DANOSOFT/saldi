@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-10-28 ---
+// ---------------finans/bogfor.php---------- ver 5.1.0 --- 2026-11-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -76,6 +76,7 @@
 //                several invoices gives every row of the group the group's latest date.
 // 20261028 CL/LH MB-72: openpost() settles a payment naming several invoices ("A;B") only when they and the payment
 //                net to zero, and writes the payment row once instead of once per settled invoice.
+// 20261102 CL/ASR The old "+1000 postings for kr. 30,-" offer is not shown to accounts with a package from the self-service signup.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -703,7 +704,9 @@ if (!$fejl) { #20140228
 	print "<input type=hidden name=kladde_id value=$kladde_id>";
 	if ($funktion=='bogfor') {
 		$onclick="";
-		if (($sqdb=="saldi" || $sqdb=='gratis'|| $sqdb=='develop') && $max_posteringer && $max_posteringer<=8500 && $d_sum>0) {
+		// Not for accounts with a package from the self-service signup ($regnskab_pakke, includes/online.php): their
+		// postings follow the price list on saldi.dk, not this old "+1000 for kr. 30,-" offer, and sales handles more.
+		if (($sqdb=="saldi" || $sqdb=='gratis'|| $sqdb=='develop') && $max_posteringer && $max_posteringer<=8500 && $d_sum>0 && empty($regnskab_pakke)) {
 			$y=date('Y')-1;$m=date('m');$d=date('d');
 			while (!checkdate($m, $d, $y)) { #Skudår !
 				$d=$d-1;

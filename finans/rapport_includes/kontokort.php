@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----ver 5.0.0 ----2026-09-30-----
+// --- finans/rapport_includes/kontokort.php-----ver 5.1.0 ----2026-11-03-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,11 +67,20 @@
 //                  Simulated rows are left out in that mode, since simulated journals are among them.
 //                  Lines with an account setup error are listed once above the report instead of one alert each.
 //                  Unposted rows on a foreign-currency account use the account currency's rate, like posted rows.
+// 20261030 CL/LAH Show all lines by default: per_page 0 means "Alle" and is now the default, with
+//                  "Alle" first in Linjer pr. side. The prev/next arrows kept dropping per_page.
+// 20261030 CDX/NTR Count screen rows first and retain only the account being rendered, including Alle.
+//                  Preserve print mode's complete row list for normal and unposted reports.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                 kontokort() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
+//              The account range is cast here as well.
+//              The print link carries the employee list the form resolved, so the printout keeps the selected range.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                    $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
                    $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,
-                   $simulering, $lagerbev, $page = 1, $per_page = 50, $udskriv = false){
+                   $simulering, $lagerbev, $page = 1, $per_page = 0, $udskriv = false){
 
 	global $afd_navn, $ansatte, $ansatte_id;
 	global $bgcolor, $bgcolor4, $bgcolor5;
@@ -94,16 +103,20 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	// renders the report in one pass instead, so the printout is the whole
 	// kontokort regardless of where the user was on screen.
 	$udskriv = $udskriv ? true : false;
-	if ($udskriv) {
+	// per_page 0 is "Alle", the default. Kept apart from $per_page, which the
+	// window maths below needs as a real row count.
+	$perPageChoice = max(0, (int) $per_page);
+	if ($udskriv || !$perPageChoice) {
 		$page     = 1;
 		$per_page = 1000000000;
 	}
 
 	$query = db_select("select firmanavn, cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query))
+	if ($row = db_fetch_array($query)) {
 		$firmanavn = $row['firmanavn'];
-		$vatNo     = $row['cvrnr'];
-		$regnaar = (int)$regnaar; #fordi den er i tekstformat og skal vaere numerisk
+	}
+	$vatNo     = $row['cvrnr'];
+	$regnaar = (int)$regnaar; #fordi den er i tekstformat og skal vaere numerisk
 
 	#	list ($aar_fra, $maaned_fra) = explode(" ", $maaned_fra);
 #	list ($aar_til, $maaned_til) = explode(" ", $maaned_til);
@@ -113,8 +126,15 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	$aar_fra = trim($aar_fra);
 	$aar_til = trim($aar_til);
 
-	$konto_fra = trim($konto_fra);
-	$konto_til = trim($konto_til);
+	// A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+	$konto_fra = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+	$konto_til = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
+	// The queries filter through kontoRangeSqlFragment(); these two are only compared in PHP, where
+	// an empty bound is the whole range.
+	$konto_fraSql = ($konto_fra === '') ? 0 : (preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX);
+	$konto_tilSql = ($konto_til === '') ? PHP_INT_MAX : (preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0);
+	$kontoSql = kontoRangeSqlFragment($konto_fra, $konto_til);
 
 	$mf = (int)$maaned_fra;
 	$mt = (int)$maaned_til;
@@ -146,10 +166,11 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	$slutdato = 31;
 
 	if ($aar_fra < $aar_til) { #20210107
-		if ($maaned_til > $slutmaaned)
+		if ($maaned_til > $slutmaaned) {
 			$aar_til = $aar_fra;
-		elseif ($maaned_fra < $startmaaned)
+		} elseif ($maaned_fra < $startmaaned) {
 			$aar_fra = $aar_til;
+		}
 	}
 	$regnaarstart = $startaar . "-" . $startmaaned . "-" . '01';
 
@@ -189,33 +210,42 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 
 
-	if ($aar_fra)
+	if ($aar_fra) {
 		$startaar = $aar_fra;
-	if ($aar_til)
+	}
+	if ($aar_til) {
 		$slutaar = $aar_til;
-	if ($maaned_fra)
+	}
+	if ($maaned_fra) {
 		$startmaaned = $maaned_fra;
-	if ($maaned_til)
+	}
+	if ($maaned_til) {
 		$slutmaaned = $maaned_til;
-	if ($dato_fra)
+	}
+	if ($dato_fra) {
 		$startdato = $dato_fra;
-	if ($dato_til)
+	}
+	if ($dato_til) {
 		$slutdato = $dato_til;
+	}
 
 	$startdato *= 1;
-	if ($startdato < 10)
+	if ($startdato < 10) {
 		$startdato = '0' . $startdato;
+	}
 
 	while (!checkdate($startmaaned, $startdato, $startaar)) {
 		$startdato = $startdato - 1;
-		if ($startdato < 28)
+		if ($startdato < 28) {
 			break 1;
+		}
 	}
 
 	while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 		$slutdato = $slutdato - 1;
-		if ($slutdato < 28)
+		if ($slutdato < 28) {
 			break 1;
+		}
 	}
 
 	$regnstart = $startaar . "-" . $startmaaned . "-" . $startdato;
@@ -223,7 +253,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$title = "Rapport • " . ($ubogfort ? findtekst('5327|Kontokort med u-bogført', $sprog_id) : "Kontokort");
 
-	include("../includes/topline_settings.php");
+	include(__DIR__ . '/../../includes/topline_settings.php');
 #print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: white;\">";
 
 	#	print "  <a accesskey=L href=\"rapport.php?rapportart=Kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
@@ -247,6 +277,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		'rapportart'  => $rapportart,
 		'ansat_fra'   => $ansat_fra,
 		'ansat_til'   => $ansat_til,
+		// The employee range is resolved here, from the form's own order; the printout must not
+		// rebuild it from the two ids, which would take every id in between instead.
+		'ansatte_id'  => $ansatte_id,
 		'afd'         => $afd,
 		'projekt_fra' => $projekt_fra,
 		'projekt_til' => $projekt_til,
@@ -274,8 +307,8 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	if ($menu == 'T') {
 		$leftbutton = "<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> &nbsp;Luk</a>";
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
+		include_once(__DIR__ . '/../../includes/top_header.php');
+		include_once(__DIR__ . '/../../includes/top_menu.php');
 		print "<div id=\"header\">";
 		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
 		print "<div class=\"headerTxt\">$title</div>";
@@ -299,9 +332,10 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 		print "<td width='70%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
-		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
-		if (!$udskriv)
+		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' download style='color:#ffffff'>csv</a></td>\n";
+		if (!$udskriv) {
 			print "<td width='5%' align='center' style='$buttonStyle'><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\" style='color:#ffffff'>$txtUdskriv</a></td>\n";
+		}
 
 		print "</tbody></table>";
 		print "</td></tr>";
@@ -333,9 +367,10 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
 		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$closeArt&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
 		print "<td width=\"70%\" $top_bund>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>";
-		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
-		if (!$udskriv)
+		print "<td width=\"10%\" $top_bund><a href='$csvfile' download>csv</a></td>";
+		if (!$udskriv) {
 			print "<td width=\"10%\" $top_bund><a href=\"javascript:void(0);\" onclick=\"$udskrivJs\" title=\"$titUdskriv\">$txtUdskriv</a></td>";
+		}
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";
 		$tmp = $rapportTitel;
@@ -346,26 +381,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	
 	$dim = '';
 	if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
-		if ($afd || $afd == '0')
-			$dim = "and afd = $afd ";
-		if ($ansat_fra && $ansat_til) {
-			$tmp = str_replace(",", " or ansat=", $ansatte_id);
-			$dim = $dim . " and (ansat=$tmp) ";
-		} elseif ($ansat_fra)
-			$dim = $dim . "and ansat = '$ansat_fra' ";
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til)
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_')
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 	$x = 0;
 	$valdate = array();
@@ -384,7 +402,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
 	$x = 0;
 	$kontonr = array();
-	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
+	$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' " . $kontoSql . "order by kontonr";
 	$q = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$kontonr[$x] = $row['kontonr'] * 1;
@@ -393,10 +411,11 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		$kontomoms[$x] = $row['moms'];
 		$kontovaluta[$x] = $row['valuta'];
 		$kontokurs[$x] = $row['valutakurs'];
-		if (!$dim && $kontotype[$x] == "S")
+		if (!$dim && $kontotype[$x] == "S") {
 			$primo[$x] = afrund($row['primo'], 2);
-		else
+		} else {
 			$primo[$x] = 0;
+		}
 		if ($primo[$x] && $kontovaluta[$x]) {
 			for ($y = 0; $y <= count($valkode); $y++) {
 				if ($valkode[$y] == $kontovaluta[$x] && $valdate[$y] <= $regnstart) {
@@ -404,21 +423,22 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 					break 1;
 				}
 			}
-		} else
+		} else {
 			$primokurs[$x] = 100;
+		}
 		$x++;
 	}
 
 	$ktonr = array();
 	$x = 0;
-	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim";
+	$qtxt = "select distinct(kontonr) as kontonr from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' " . $kontoSql . "$dim";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$ktonr[$x] = $r['kontonr'];
 		$x++;
 	}
 	if ($includeSimulated) {
-		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim";
+		$qtxt = "select distinct(kontonr) as kontonr from simulering where transdate>='$regnstart' and transdate<='$regnslut' " . $kontoSql . "$dim";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['kontonr'], $ktonr)) {
@@ -459,7 +479,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		$unposted         = $preview['entries'];
 		$unpostedProblems = $preview['problems'];
 		foreach ($unposted as $unpostedKonto => $unpostedEntries) {
-			if ($unpostedKonto < $konto_fra || $unpostedKonto > $konto_til || in_array($unpostedKonto, $ktonr)) continue;
+			if ($unpostedKonto < $konto_fraSql || $unpostedKonto > $konto_tilSql || in_array($unpostedKonto, $ktonr)) continue;
 			foreach ($unpostedEntries as $entry) {
 				if ($entry['transdate'] >= $periodStart) {
 					$ktonr[] = $unpostedKonto;
@@ -498,22 +518,26 @@ print "</tr>";
 print "</table>";
 if ($csv) fwrite($csv, ";; $startdato / $mf - $slutdato / $mt\n");
 if ($ansat_fra) {
-    if (!$ansat_til || $ansat_fra == $ansat_til)
+    if (!$ansat_til || $ansat_fra == $ansat_til) {
         print "<tr><td>Medarbejder</td><td>$ansatte</td></tr>";
-    else
+    } else {
         print "<tr><td>Medarbejdere</td><td>$ansatte</td></tr>";
+    }
 }
-if ($afd || $afd == '0')
+if ($afd || $afd == '0') {
     print "<tr><td>Afdeling</td><td>$afd_navn</td></tr>";
+}
 if ($projekt_fra) {
     print "<td>Projekt:</td><td>";
     if (!strstr($projekt_fra, "?")) {
-        if ($projekt_til && $projekt_fra != $projekt_til)
+        if ($projekt_til && $projekt_fra != $projekt_til) {
             print "Fra: $projekt_fra, $prj_navn_fra<br>Til : $projekt_til, $prj_navn_til";
-        else
+        } else {
             print "$projekt_fra, $prj_navn_fra";
-    } else
+        }
+    } else {
         print "$projekt_fra, $prj_navn_fra";
+    }
     print "</td></tr>";
 }
 if ($menu != 'T') print "</tbody></table>";
@@ -542,17 +566,19 @@ print "</div>";
 // Browsers routinely clip a scrollable element to its visible box when
 // printing, so the print view does not use one at all; @media print releases it
 // for a plain Ctrl+P of the paginated screen.
-if ($udskriv)
+if ($udskriv) {
 	print "<div class=\"kontokort-data\">";
-else
+} else {
 	print "<div class=\"kontokort-data\" style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
+}
 print "<table style=\"width:100%; border-collapse:collapse;\" class='dataTable' id='datapg'>";
 
 // Sticky header
-if ($udskriv)
+if ($udskriv) {
 	print "<thead>";
-else
+} else {
 	print "<thead style=\"position: sticky; top: 0; background-color: #eeeef0; z-index: 10;\">";
+}
 print "<tr>";
 // SST-809 .dataTable is table-layout:fixed, and with no width on any column the
 // six share the width equally. On paper, where the page is narrower than the
@@ -580,9 +606,11 @@ print "<tbody>";
 	// a shorter report than the one being printed, so every page boundary after
 	// the first injected row landed in the wrong place - which is why page 2 of
 	// a simulated kontokort opened mid-account, on rows that were not where the
-	// user left off. The rows are now built once below, counted from the built
-	// list, and printed from that same list, so the count and the page cannot
-	// describe different reports.
+	// user left off. Counting and rendering below use the same row construction
+	// and filtering, so the count and the page cannot describe different reports.
+	// Screen mode counts first without retaining row lists, then rebuilds only
+	// visible accounts and releases each after rendering it. This also bounds
+	// memory for Alle, where every account is visible. Print keeps all rows.
 	$total_rows     = 0;
 	$accountRows    = array();
 	$accountRowList = array();
@@ -592,566 +620,592 @@ print "<tbody>";
 	$windowFrom     = ($page - 1) * $per_page;
 	$windowTo       = $windowFrom + $per_page;
 
-	for ($x = 0; $x < count($kontonr); $x++) {
-		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
-			$kontosum = $primo[$x];
-			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,pos,bilag,id", __FILE__ . " linje " . __LINE__);
-			while ($row = db_fetch_array($query)) {
-				$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
-			}
-			if (!$ubogfort) {
-				$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id", __FILE__ . " linje " . __LINE__);
-				while ($row = db_fetch_array($query)) {
-					$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+	foreach (array(false, true) as $renderRows) {
+		$retainRows = $udskriv || $renderRows;
+		$rowOffset = 0;
+		for ($x = 0; $x < count($kontonr); $x++) {
+			if ($renderRows) {
+				if (!isset($accountRows[$x])) {
+					continue;
+				}
+				$acct_cnt = $accountRows[$x];
+				if (!$accountOnPage[$x]) {
+					$rowOffset += $acct_cnt;
+					continue;
 				}
 			}
-			foreach (if_array($unposted, $kontonr[$x]) as $entry) {
-				if ($entry['transdate'] < $periodStart) $kontosum = $kontosum + afrund($entry['debet'], 2) - afrund($entry['kredit'], 2);
-			}
-			$accountPrimo[$x] = $kontosum;
-			$print = 1;
-			$tr = 0;
-			$transdate = array();
-			// $qtxt = "select * from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim ";
-			// $qtxt .= "order by transdate,pos,bilag,id";
-			// $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			#########
-			$qtxt  = "SELECT * FROM transaktioner 
-           WHERE kontonr=$kontonr[$x] 
-             AND transdate>='$regnstart' AND transdate<='$regnslut' $dim ";
-			$qtxt .= "ORDER BY transdate, pos, bilag, id";
-			// No LIMIT — fetch all rows so kontosum stays accurate across pages
-			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__); 
-			###########
-			while ($row = db_fetch_array($query)) {
-				$transdate[$tr] = $row['transdate'];
-				$bilag[$tr] = $row['bilag'];
-				$kladde_id[$tr] = $row['kladde_id'];
-				$beskrivelse[$tr] = $row['beskrivelse'];
-				$debet[$tr] = $row['debet'];
-				$kredit[$tr] = $row['kredit'];
-				$transvaluta[$tr] = $row['valuta'];
-				if ($kontovaluta[$x]) {
-					for ($y = 0; $y <= count($valkode); $y++) {
-						if ($valkode[$y] == $kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]) {
-							$transkurs[$tr] = $valkurs[$y];
-							break 1;
+			if (!$renderRows || !$udskriv) {
+				if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+					$kontosum = $primo[$x];
+					$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,pos,bilag,id", __FILE__ . " linje " . __LINE__);
+					while ($row = db_fetch_array($query)) {
+						$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+					}
+					if (!$ubogfort) {
+						$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id", __FILE__ . " linje " . __LINE__);
+						while ($row = db_fetch_array($query)) {
+							$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 						}
 					}
-				} else
-					$transkurs[$tr] = 100;
-				$tr++;
-			}
-
-			if ($lagerbev && $aut_lager && (in_array($kontonr[$x], $varekob) || in_array($kontonr[$x], $varelager_i) || in_array($kontonr[$x], $varelager_u))) {
-				$z = 0;
-				$lager = array();
-				$kld = $tvl = $tks = array();
-				$gruppe = array();
-				$q = db_select("select kodenr,box1,box2 from grupper where art = 'VG' and box8 = 'on' and (box1 = '$kontonr[$x]' or box2 = '$kontonr[$x]' or box3 = '$kontonr[$x]' or box11 = '$kontonr[$x]' or box13 = '$kontonr[$x]')", __FILE__ . " linje " . __LINE__);
-				while ($r = db_fetch_array($q)) {
-					if ($r['box1']) {
-						#						$lager_i[$z]=$r['box1'];
-#						$lager_u[$z]=$r['box2'];
-						$gruppe[$z] = $r['kodenr'];
-						$z++;
+					foreach (if_array($unposted, $kontonr[$x]) as $entry) {
+						if ($entry['transdate'] < $periodStart) $kontosum = $kontosum + afrund($entry['debet'], 2) - afrund($entry['kredit'], 2);
 					}
-				}
-				$y = 0;
-				$vare_id = array();
-				for ($z = 0; $z < count($gruppe); $z++) {
-					$q = db_select("select id,kostpris from varer where gruppe = '$gruppe[$z]' order by id", __FILE__ . " linje " . __LINE__);
-					while ($r = db_fetch_array($q)) {
-						$vare_id[$y] = $r['id'];
-						$kostpris[$y] = $r['kostpris'];
-						$y++;
-					}
-				}
-				$z = -1;
-				$kobsdate = array();
-				$kobsdebet = array();
-				$kobskredit = array();
-				$q = db_select("select vare_id,ordre_id,antal,kobsdate from batch_kob where kobsdate >= '$regnstart' and kobsdate <= '$regnslut' order by kobsdate,vare_id", __FILE__ . " linje " . __LINE__); #20170516
-				while ($r = db_fetch_array($q)) {
-					if ($z >= 0 && isset($kobsdate[$z]) && $r['kobsdate'] == $kobsdate[$z] && $r['ordre_id'] && $r['ordre_id'] == $soid[$z]) {
-						for ($y = 0; $y < count($vare_id); $y++) {
-							if ($r['vare_id'] == $vare_id[$y]) {
-								if ($kontotype[$x] == 'D') {
-									if ($r['antal'] > 0)
-										$kobskredit[$z] += $r['antal'] * $kostpris[$y];
-									else
-										$kobsdebet[$z] -= $r['antal'] * $kostpris[$y];
-								} elseif (in_array($kontonr[$x], $varelager_i)) {
-									if ($r['antal'] > 0)
-										$kobsdebet[$z] += $r['antal'] * $kostpris[$y];
-									else
-										$kobskredit[$z] -= $r['antal'] * $kostpris[$y];
+					$accountPrimo[$x] = $kontosum;
+					$print = 1;
+					$tr = 0;
+					$transdate = array();
+					// $qtxt = "select * from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim ";
+					// $qtxt .= "order by transdate,pos,bilag,id";
+					// $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					#########
+					$qtxt  = "SELECT * FROM transaktioner 
+		           WHERE kontonr=$kontonr[$x] 
+		             AND transdate>='$regnstart' AND transdate<='$regnslut' $dim ";
+					$qtxt .= "ORDER BY transdate, pos, bilag, id";
+					// No LIMIT — fetch all rows so kontosum stays accurate across pages
+					$query = db_select($qtxt, __FILE__ . " linje " . __LINE__); 
+					###########
+					while ($row = db_fetch_array($query)) {
+						$transdate[$tr] = $row['transdate'];
+						$bilag[$tr] = $row['bilag'];
+						$kladde_id[$tr] = $row['kladde_id'];
+						$beskrivelse[$tr] = $row['beskrivelse'];
+						$debet[$tr] = $row['debet'];
+						$kredit[$tr] = $row['kredit'];
+						$transvaluta[$tr] = $row['valuta'];
+						if ($kontovaluta[$x]) {
+							for ($y = 0; $y <= count($valkode); $y++) {
+								if ($valkode[$y] == $kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]) {
+									$transkurs[$tr] = $valkurs[$y];
+									break 1;
 								}
 							}
+						} else {
+							$transkurs[$tr] = 100;
 						}
-					} else {
-						for ($y = 0; $y < count($vare_id); $y++) {
-							if ($r['vare_id'] == $vare_id[$y]) {
-								if ($kontotype[$x] == 'D') {
-									$z++;
-									$koid[$z] = $r['ordre_id'];
-									if (isset($koid[$z - 1]) && $koid[$z] == $koid[$z - 1])
-										$kobsfakt[$z] = $kobsfakt[$z - 1];
-									else {
-										$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$koid[$z]'", __FILE__ . " linje " . __LINE__));
-										$kobsfakt[$z] = $r2['fakturanr'];
-									}
-									$kobsdate[$z] = $r['kobsdate'];
-									if ($r['antal'] > 0) {
-										$kobskredit[$z] = $r['antal'] * $kostpris[$y];
-										$kobsdebet[$z] = 0;
-									} else {
-										$kobsdebet[$z] = $r['antal'] * $kostpris[$y] * -1;
-										$kobskredit[$z] = 0;
-									}
-									#									$z++;
-								} elseif (in_array($kontonr[$x], $varelager_i)) {
-									$z++;
-									$koid[$z] = $r['ordre_id'];
-									if (isset($koid[$z - 1]) && $koid[$z] == $koid[$z - 1])
-										$kobsfakt[$z] = $kobsfakt[$z - 1];
-									else {
-										$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$koid[$z]'", __FILE__ . " linje " . __LINE__));
-										$kobsfakt[$z] = $r2['fakturanr'];
-									}
-									$kobsdate[$z] = $r['kobsdate'];
-									if ($r['antal'] > 0) {
-										$kobsdebet[$z] = $r['antal'] * $kostpris[$y];
-										$kobskredit[$z] = 0;
-									} else {
-										$kobskredit[$z] = $r['antal'] * $kostpris[$y] * -1;
-										$kobsdebet[$z] = 0;
-									}
-									#									$z++;
-								}
-							}
-						}
-					}
-				}
-				$z = -1;
-				$salgsdate = array();
-				$salgsdebet = array();
-				$salgkredit = array();
-				$q = db_select("select ordre_id,vare_id,antal,salgsdate from batch_salg where salgsdate >= '$regnstart' and salgsdate <= '$regnslut' order by salgsdate,vare_id", __FILE__ . " linje " . __LINE__);
-				while ($r = db_fetch_array($q)) {
-					if ($z >= 0 && isset($salgsdate[$z]) && $r['salgsdate'] == $salgsdate[$z] && $r['ordre_id'] && $r['ordre_id'] == $soid[$z]) {
-						for ($y = 0; $y < count($vare_id); $y++) {
-							if ($r['vare_id'] == $vare_id[$y]) {
-								if ($kontotype[$x] == 'D') {
-									if ($r['antal'] > 0)
-										$salgsdebet[$z] += $r['antal'] * $kostpris[$y];
-									else
-										$salgskredit[$z] -= $r['antal'] * $kostpris[$y];
-								} elseif (in_array($kontonr[$x], $varelager_u)) {
-									if ($r['antal'] > 0)
-										$salgskredit[$z] += $r['antal'] * $kostpris[$y];
-									else
-										$salgsdebet[$z] -= $r['antal'] * $kostpris[$y];
-								}
-							}
-						}
-					} else {
-
-						for ($y = 0; $y < count($vare_id); $y++) {
-							if ($r['vare_id'] == $vare_id[$y]) {
-								if ($kontotype[$x] == 'D') {
-									$z++;
-									$soid[$z] = $r['ordre_id'];
-									if ($soid[$z] == $soid[$z - 1])
-										$salgsfakt[$z] = $salgsfakt[$z - 1];
-									else {
-										$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$soid[$z]'", __FILE__ . " linje " . __LINE__));
-										$salgsfakt[$z] = $r2['fakturanr'];
-									}
-									$salgsdate[$z] = $r['salgsdate'];
-									if ($r['antal'] > 0) {
-										$salgsdebet[$z] = $r['antal'] * $kostpris[$y];
-										$salgskredit[$z] = 0;
-									} else {
-										$salgskredit[$z] = $r['antal'] * $kostpris[$y] * -1;
-										$salgsdebet[$z] = 0;
-									}
-									#									$z++;
-								} elseif (in_array($kontonr[$x], $varelager_u)) {
-									$z++;
-									$soid[$z] = $r['ordre_id'];
-									if (isset($soid[$z - 1]) && $soid[$z] == $soid[$z - 1])
-										$salgsfakt[$z] = $salgsfakt[$z - 1];
-									else {
-										$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$soid[$z]'", __FILE__ . " linje " . __LINE__));
-										$salgsfakt[$z] = $r2['fakturanr'];
-									}
-									$salgsdate[$z] = $r['salgsdate'];
-									if ($r['antal'] > 0) {
-										$salgskredit[$z] = $r['antal'] * $kostpris[$y];
-										$salgsdebet[$z] = 0;
-									} else {
-										$salgsdebet[$z] = $r['antal'] * $kostpris[$y] * -1;
-										$salgskredit[$z] = 0;
-									}
-									#									$z++;
-								}
-							}
-						}
-					}
-				}
-				$dato = $regnstart;
-				$y = 0;
-				$tr = 0;
-				$kd = 0;
-				$sd = 0;
-				$trd = array();
-				while ($dato <= $regnslut) {
-					while (isset($transdate[$tr]) && $transdate[$tr] == $dato) {
-						$trd[$y] = $dato;
-						$bil[$y] = $bilag[$tr];
-						$besk[$y] = $beskrivelse[$tr];
-						$deb[$y] = $debet[$tr];
-						$kre[$y] = $kredit[$tr];
-						// SST-809 review: these three move with the row. Rebuilding only the five
-						// above left them on their pre-merge positions, so a posting showed another
-						// row's kassekladde link and a currency account would have converted at
-						// another row's rate.
-						$kld[$y] = $kladde_id[$tr] ?? null;
-						$tvl[$y] = $transvaluta[$tr] ?? null;
-						$tks[$y] = $transkurs[$tr] ?? 100;
 						$tr++;
-						$y++;
 					}
-					while (isset($kobsdate[$kd]) && $kobsdate[$kd] == $dato) {
-						$trd[$y] = $dato;
-						$bil[$y] = 0;
-						$besk[$y] = "lagertransaktion - Køb  F: $kobsfakt[$kd]";
-						$deb[$y] = $kobsdebet[$kd];
-						$kre[$y] = $kobskredit[$kd];
-						$kld[$y] = null;
-						$tvl[$y] = null;
-						$tks[$y] = 100;
-						$kd++;
-						$y++;
-					}
-					while (isset($salgsdate[$sd]) && $salgsdate[$sd] == $dato) {
-						$trd[$y] = $dato;
-						$bil[$y] = 0;
-						$besk[$y] = "lagertransaktion - Salg  F: $salgsfakt[$sd]";
-						$deb[$y] = $salgsdebet[$sd];
-						$kre[$y] = $salgskredit[$sd];
-						$kld[$y] = null;
-						$tvl[$y] = null;
-						$tks[$y] = 100;
-						$sd++;
-						$y++;
-					}
-					list($yy, $mm, $dd) = explode("-", $dato);
-					$dd++;
-					if (!checkdate($mm, $dd, $yy)) {
-						$dd = 1;
-						$mm++;
-						if ($mm > 12) {
-							$mm = 1;
-							$yy++;
+
+					if ($lagerbev && $aut_lager && (in_array($kontonr[$x], $varekob) || in_array($kontonr[$x], $varelager_i) || in_array($kontonr[$x], $varelager_u))) {
+						$z = 0;
+						$lager = array();
+						$kld = $tvl = $tks = array();
+						$gruppe = array();
+						$q = db_select("select kodenr,box1,box2 from grupper where art = 'VG' and box8 = 'on' and (box1 = '$kontonr[$x]' or box2 = '$kontonr[$x]' or box3 = '$kontonr[$x]' or box11 = '$kontonr[$x]' or box13 = '$kontonr[$x]')", __FILE__ . " linje " . __LINE__);
+						while ($r = db_fetch_array($q)) {
+							if ($r['box1']) {
+								#						$lager_i[$z]=$r['box1'];
+		#						$lager_u[$z]=$r['box2'];
+								$gruppe[$z] = $r['kodenr'];
+								$z++;
+							}
+						}
+						$y = 0;
+						$vare_id = array();
+						for ($z = 0; $z < count($gruppe); $z++) {
+							$q = db_select("select id,kostpris from varer where gruppe = '$gruppe[$z]' order by id", __FILE__ . " linje " . __LINE__);
+							while ($r = db_fetch_array($q)) {
+								$vare_id[$y] = $r['id'];
+								$kostpris[$y] = $r['kostpris'];
+								$y++;
+							}
+						}
+						$z = -1;
+						$kobsdate = array();
+						$kobsdebet = array();
+						$kobskredit = array();
+						$q = db_select("select vare_id,ordre_id,antal,kobsdate from batch_kob where kobsdate >= '$regnstart' and kobsdate <= '$regnslut' order by kobsdate,vare_id", __FILE__ . " linje " . __LINE__); #20170516
+						while ($r = db_fetch_array($q)) {
+							if ($z >= 0 && isset($kobsdate[$z]) && $r['kobsdate'] == $kobsdate[$z] && $r['ordre_id'] && $r['ordre_id'] == $soid[$z]) {
+								for ($y = 0; $y < count($vare_id); $y++) {
+									if ($r['vare_id'] == $vare_id[$y]) {
+										if ($kontotype[$x] == 'D') {
+											if ($r['antal'] > 0) {
+												$kobskredit[$z] += $r['antal'] * $kostpris[$y];
+											} else {
+												$kobsdebet[$z] -= $r['antal'] * $kostpris[$y];
+											}
+										} elseif (in_array($kontonr[$x], $varelager_i)) {
+											if ($r['antal'] > 0) {
+												$kobsdebet[$z] += $r['antal'] * $kostpris[$y];
+											} else {
+												$kobskredit[$z] -= $r['antal'] * $kostpris[$y];
+											}
+										}
+									}
+								}
+							} else {
+								for ($y = 0; $y < count($vare_id); $y++) {
+									if ($r['vare_id'] == $vare_id[$y]) {
+										if ($kontotype[$x] == 'D') {
+											$z++;
+											$koid[$z] = $r['ordre_id'];
+											if (isset($koid[$z - 1]) && $koid[$z] == $koid[$z - 1]) {
+												$kobsfakt[$z] = $kobsfakt[$z - 1];
+											} else {
+												$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$koid[$z]'", __FILE__ . " linje " . __LINE__));
+												$kobsfakt[$z] = $r2['fakturanr'];
+											}
+											$kobsdate[$z] = $r['kobsdate'];
+											if ($r['antal'] > 0) {
+												$kobskredit[$z] = $r['antal'] * $kostpris[$y];
+												$kobsdebet[$z] = 0;
+											} else {
+												$kobsdebet[$z] = $r['antal'] * $kostpris[$y] * -1;
+												$kobskredit[$z] = 0;
+											}
+											#									$z++;
+										} elseif (in_array($kontonr[$x], $varelager_i)) {
+											$z++;
+											$koid[$z] = $r['ordre_id'];
+											if (isset($koid[$z - 1]) && $koid[$z] == $koid[$z - 1]) {
+												$kobsfakt[$z] = $kobsfakt[$z - 1];
+											} else {
+												$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$koid[$z]'", __FILE__ . " linje " . __LINE__));
+												$kobsfakt[$z] = $r2['fakturanr'];
+											}
+											$kobsdate[$z] = $r['kobsdate'];
+											if ($r['antal'] > 0) {
+												$kobsdebet[$z] = $r['antal'] * $kostpris[$y];
+												$kobskredit[$z] = 0;
+											} else {
+												$kobskredit[$z] = $r['antal'] * $kostpris[$y] * -1;
+												$kobsdebet[$z] = 0;
+											}
+											#									$z++;
+										}
+									}
+								}
+							}
+						}
+						$z = -1;
+						$salgsdate = array();
+						$salgsdebet = array();
+						$salgkredit = array();
+						$q = db_select("select ordre_id,vare_id,antal,salgsdate from batch_salg where salgsdate >= '$regnstart' and salgsdate <= '$regnslut' order by salgsdate,vare_id", __FILE__ . " linje " . __LINE__);
+						while ($r = db_fetch_array($q)) {
+							if ($z >= 0 && isset($salgsdate[$z]) && $r['salgsdate'] == $salgsdate[$z] && $r['ordre_id'] && $r['ordre_id'] == $soid[$z]) {
+								for ($y = 0; $y < count($vare_id); $y++) {
+									if ($r['vare_id'] == $vare_id[$y]) {
+										if ($kontotype[$x] == 'D') {
+											if ($r['antal'] > 0) {
+												$salgsdebet[$z] += $r['antal'] * $kostpris[$y];
+											} else {
+												$salgskredit[$z] -= $r['antal'] * $kostpris[$y];
+											}
+										} elseif (in_array($kontonr[$x], $varelager_u)) {
+											if ($r['antal'] > 0) {
+												$salgskredit[$z] += $r['antal'] * $kostpris[$y];
+											} else {
+												$salgsdebet[$z] -= $r['antal'] * $kostpris[$y];
+											}
+										}
+									}
+								}
+							} else {
+
+								for ($y = 0; $y < count($vare_id); $y++) {
+									if ($r['vare_id'] == $vare_id[$y]) {
+										if ($kontotype[$x] == 'D') {
+											$z++;
+											$soid[$z] = $r['ordre_id'];
+											if ($soid[$z] == $soid[$z - 1]) {
+												$salgsfakt[$z] = $salgsfakt[$z - 1];
+											} else {
+												$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$soid[$z]'", __FILE__ . " linje " . __LINE__));
+												$salgsfakt[$z] = $r2['fakturanr'];
+											}
+											$salgsdate[$z] = $r['salgsdate'];
+											if ($r['antal'] > 0) {
+												$salgsdebet[$z] = $r['antal'] * $kostpris[$y];
+												$salgskredit[$z] = 0;
+											} else {
+												$salgskredit[$z] = $r['antal'] * $kostpris[$y] * -1;
+												$salgsdebet[$z] = 0;
+											}
+											#									$z++;
+										} elseif (in_array($kontonr[$x], $varelager_u)) {
+											$z++;
+											$soid[$z] = $r['ordre_id'];
+											if (isset($soid[$z - 1]) && $soid[$z] == $soid[$z - 1]) {
+												$salgsfakt[$z] = $salgsfakt[$z - 1];
+											} else {
+												$r2 = db_fetch_array(db_select("select fakturanr from ordrer where id='$soid[$z]'", __FILE__ . " linje " . __LINE__));
+												$salgsfakt[$z] = $r2['fakturanr'];
+											}
+											$salgsdate[$z] = $r['salgsdate'];
+											if ($r['antal'] > 0) {
+												$salgskredit[$z] = $r['antal'] * $kostpris[$y];
+												$salgsdebet[$z] = 0;
+											} else {
+												$salgsdebet[$z] = $r['antal'] * $kostpris[$y] * -1;
+												$salgskredit[$z] = 0;
+											}
+											#									$z++;
+										}
+									}
+								}
+							}
+						}
+						$dato = $regnstart;
+						$y = 0;
+						$tr = 0;
+						$kd = 0;
+						$sd = 0;
+						$trd = array();
+						while ($dato <= $regnslut) {
+							while (isset($transdate[$tr]) && $transdate[$tr] == $dato) {
+								$trd[$y] = $dato;
+								$bil[$y] = $bilag[$tr];
+								$besk[$y] = $beskrivelse[$tr];
+								$deb[$y] = $debet[$tr];
+								$kre[$y] = $kredit[$tr];
+								// SST-809 review: these three move with the row. Rebuilding only the five
+								// above left them on their pre-merge positions, so a posting showed another
+								// row's kassekladde link and a currency account would have converted at
+								// another row's rate.
+								$kld[$y] = $kladde_id[$tr] ?? null;
+								$tvl[$y] = $transvaluta[$tr] ?? null;
+								$tks[$y] = $transkurs[$tr] ?? 100;
+								$tr++;
+								$y++;
+							}
+							while (isset($kobsdate[$kd]) && $kobsdate[$kd] == $dato) {
+								$trd[$y] = $dato;
+								$bil[$y] = 0;
+								$besk[$y] = "lagertransaktion - Køb  F: $kobsfakt[$kd]";
+								$deb[$y] = $kobsdebet[$kd];
+								$kre[$y] = $kobskredit[$kd];
+								$kld[$y] = null;
+								$tvl[$y] = null;
+								$tks[$y] = 100;
+								$kd++;
+								$y++;
+							}
+							while (isset($salgsdate[$sd]) && $salgsdate[$sd] == $dato) {
+								$trd[$y] = $dato;
+								$bil[$y] = 0;
+								$besk[$y] = "lagertransaktion - Salg  F: $salgsfakt[$sd]";
+								$deb[$y] = $salgsdebet[$sd];
+								$kre[$y] = $salgskredit[$sd];
+								$kld[$y] = null;
+								$tvl[$y] = null;
+								$tks[$y] = 100;
+								$sd++;
+								$y++;
+							}
+							list($yy, $mm, $dd) = explode("-", $dato);
+							$dd++;
+							if (!checkdate($mm, $dd, $yy)) {
+								$dd = 1;
+								$mm++;
+								if ($mm > 12) {
+									$mm = 1;
+									$yy++;
+								}
+							}
+							$dd *= 1;
+							$mm *= 1;
+							if (strlen($dd) < 2) {
+								$dd = '0' . $dd;
+							}
+							if (strlen($mm) < 2) {
+								$mm = '0' . $mm;
+							}
+							$dato = $yy . "-" . $mm . "-" . $dd;
+						}
+						for ($y = 0; $y < count($trd); $y++) {
+							$transdate[$y] = $trd[$y];
+							$bilag[$y] = $bil[$y];
+							$beskrivelse[$y] = $besk[$y];
+							$debet[$y] = $deb[$y];
+							$kredit[$y] = $kre[$y];
+							$kladde_id[$y] = $kld[$y];
+							$transvaluta[$y] = $tvl[$y];
+							$transkurs[$y] = $tks[$y];
 						}
 					}
-					$dd *= 1;
-					$mm *= 1;
-					if (strlen($dd) < 2)
-						$dd = '0' . $dd;
-					if (strlen($mm) < 2)
-						$mm = '0' . $mm;
-					$dato = $yy . "-" . $mm . "-" . $dd;
-				}
-				for ($y = 0; $y < count($trd); $y++) {
-					$transdate[$y] = $trd[$y];
-					$bilag[$y] = $bil[$y];
-					$beskrivelse[$y] = $besk[$y];
-					$debet[$y] = $deb[$y];
-					$kredit[$y] = $kre[$y];
-					$kladde_id[$y] = $kld[$y];
-					$transvaluta[$y] = $tvl[$y];
-					$transkurs[$y] = $tks[$y];
-				}
-			}
-			$sim_transdate = array();
-			if ($includeSimulated) {
-				$sim = 0;
-				$sim_kontonr = array();
-				$q = db_select("select * from simulering where kontonr='$kontonr[$x]' and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id", __FILE__ . " linje " . __LINE__);
-				while ($r = db_fetch_array($q)) {
-					$sim_id[$sim] = $r['id'];
-					$sim_transdate[$sim] = $r['transdate'];
-					$sim_bilag[$sim] = $r['bilag'];
-					$sim_kontonr[$sim] = $r['kontonr'];
-					$sim_beskrivelse[$sim] = $r['beskrivelse'];
-					$sim_debet[$sim] = $r['debet'];
-					$sim_kredit[$sim] = $r['kredit'];
-					$a = 0;
-					while ($a < count($transdate) && $sim_transdate[$sim] > $transdate[$a]) {
-						$a++;
-					}
-					for ($b = count($transdate); $b > $a; $b--) {
-						$transdate[$b] = $transdate[$b - 1];
-						$bilag[$b] = $bilag[$b - 1];
-						$beskrivelse[$b] = $beskrivelse[$b - 1];
-						$debet[$b] = $debet[$b - 1];
-						$kredit[$b] = $kredit[$b - 1];
-						$kladde_id[$b] = $kladde_id[$b - 1] ?? null;
-						$transvaluta[$b] = $transvaluta[$b - 1] ?? null;
-						$transkurs[$b] = $transkurs[$b - 1] ?? 100;
-					}
-					$transdate[$b] = $sim_transdate[$sim];
-					$bilag[$b] = $sim_bilag[$sim];
-					$beskrivelse[$b] = $sim_beskrivelse[$sim] . "(Simuleret)";
-					$debet[$b] = $sim_debet[$sim];
-					$kredit[$b] = $sim_kredit[$sim];
-					$kladde_id[$b] = $r['kladde_id'];
-					$transvaluta[$b] = $r['valuta'];
-					$transkurs[$b] = $r['valutakurs'] ?: 100;
-					$sim_transdate[$sim] = NULL;
-					$sim++;
-				}
-			}
-			// Unposted rows go after the posted rows of the same date.
-			$isUnposted = array();
-			foreach (if_array($unposted, $kontonr[$x]) as $entry) {
-				if ($entry['transdate'] < $periodStart) continue;
-				$a = 0;
-				while ($a < count($transdate) && $entry['transdate'] >= $transdate[$a]) {
-					$a++;
-				}
-				for ($b = count($transdate); $b > $a; $b--) {
-					$transdate[$b]   = $transdate[$b - 1];
-					$bilag[$b]       = $bilag[$b - 1];
-					$beskrivelse[$b] = $beskrivelse[$b - 1];
-					$debet[$b]       = $debet[$b - 1];
-					$kredit[$b]      = $kredit[$b - 1];
-					$kladde_id[$b]   = $kladde_id[$b - 1] ?? null;
-					$transvaluta[$b] = $transvaluta[$b - 1] ?? null;
-					$transkurs[$b]   = $transkurs[$b - 1] ?? 100;
-					$isUnposted[$b]  = $isUnposted[$b - 1] ?? false;
-				}
-				$transdate[$b]   = $entry['transdate'];
-				$bilag[$b]       = $entry['bilag'];
-				$beskrivelse[$b] = $entry['beskrivelse'] . " (" . findtekst('5330|Ikke bogført', $sprog_id) . ", kladde $entry[kladde_id])";
-				$debet[$b]       = $entry['debet'];
-				$kredit[$b]      = $entry['kredit'];
-				$kladde_id[$b]   = $entry['kladde_id'];
-				$transvaluta[$b] = $entry['valuta'];
-				// Show the DKK amount in the account's currency at that date, the same way as posted rows.
-				$transkurs[$b]   = 100;
-				if ($kontovaluta[$x]) {
-					for ($v = 0; $v < count($valkode); $v++) {
-						if ($valkode[$v] == $kontovaluta[$x] && $valdate[$v] <= $entry['transdate']) {
-							$transkurs[$b] = $valkurs[$v];
-							break;
+					$sim_transdate = array();
+					if ($includeSimulated) {
+						$sim = 0;
+						$sim_kontonr = array();
+						$q = db_select("select * from simulering where kontonr='$kontonr[$x]' and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id", __FILE__ . " linje " . __LINE__);
+						while ($r = db_fetch_array($q)) {
+							$sim_id[$sim] = $r['id'];
+							$sim_transdate[$sim] = $r['transdate'];
+							$sim_bilag[$sim] = $r['bilag'];
+							$sim_kontonr[$sim] = $r['kontonr'];
+							$sim_beskrivelse[$sim] = $r['beskrivelse'];
+							$sim_debet[$sim] = $r['debet'];
+							$sim_kredit[$sim] = $r['kredit'];
+							$a = 0;
+							while ($a < count($transdate) && $sim_transdate[$sim] > $transdate[$a]) {
+								$a++;
+							}
+							for ($b = count($transdate); $b > $a; $b--) {
+								$transdate[$b] = $transdate[$b - 1];
+								$bilag[$b] = $bilag[$b - 1];
+								$beskrivelse[$b] = $beskrivelse[$b - 1];
+								$debet[$b] = $debet[$b - 1];
+								$kredit[$b] = $kredit[$b - 1];
+								$kladde_id[$b] = $kladde_id[$b - 1] ?? null;
+								$transvaluta[$b] = $transvaluta[$b - 1] ?? null;
+								$transkurs[$b] = $transkurs[$b - 1] ?? 100;
+							}
+							$transdate[$b] = $sim_transdate[$sim];
+							$bilag[$b] = $sim_bilag[$sim];
+							$beskrivelse[$b] = $sim_beskrivelse[$sim] . "(Simuleret)";
+							$debet[$b] = $sim_debet[$sim];
+							$kredit[$b] = $sim_kredit[$sim];
+							$kladde_id[$b] = $r['kladde_id'];
+							$transvaluta[$b] = $r['valuta'];
+							$transkurs[$b] = $r['valutakurs'] ?: 100;
+							$sim_transdate[$sim] = NULL;
+							$sim++;
 						}
 					}
-				}
-				$isUnposted[$b]  = true;
-			}
+					// Unposted rows go after the posted rows of the same date.
+					$isUnposted = array();
+					foreach (if_array($unposted, $kontonr[$x]) as $entry) {
+						if ($entry['transdate'] < $periodStart) continue;
+						$a = 0;
+						while ($a < count($transdate) && $entry['transdate'] >= $transdate[$a]) {
+							$a++;
+						}
+						for ($b = count($transdate); $b > $a; $b--) {
+							$transdate[$b]   = $transdate[$b - 1];
+							$bilag[$b]       = $bilag[$b - 1];
+							$beskrivelse[$b] = $beskrivelse[$b - 1];
+							$debet[$b]       = $debet[$b - 1];
+							$kredit[$b]      = $kredit[$b - 1];
+							$kladde_id[$b]   = $kladde_id[$b - 1] ?? null;
+							$transvaluta[$b] = $transvaluta[$b - 1] ?? null;
+							$transkurs[$b]   = $transkurs[$b - 1] ?? 100;
+							$isUnposted[$b]  = $isUnposted[$b - 1] ?? false;
+						}
+						$transdate[$b]   = $entry['transdate'];
+						$bilag[$b]       = $entry['bilag'];
+						$beskrivelse[$b] = $entry['beskrivelse'] . " (" . findtekst('5330|Ikke bogført', $sprog_id) . ", kladde $entry[kladde_id])";
+						$debet[$b]       = $entry['debet'];
+						$kredit[$b]      = $entry['kredit'];
+						$kladde_id[$b]   = $entry['kladde_id'];
+						$transvaluta[$b] = $entry['valuta'];
+						// Show the DKK amount in the account's currency at that date, the same way as posted rows.
+						$transkurs[$b]   = 100;
+						if ($kontovaluta[$x]) {
+							for ($v = 0; $v < count($valkode); $v++) {
+								if ($valkode[$v] == $kontovaluta[$x] && $valdate[$v] <= $entry['transdate']) {
+									$transkurs[$b] = $valkurs[$v];
+									break;
+								}
+							}
+						}
+						$isUnposted[$b]  = true;
+					}
 
 		
-			// SST-809 Collapse the parallel arrays this account just built into one
-			// list of rows, and let every value the print pass needs travel with
-			// its own row. That also repairs the Lagerbevaegelser path: it rebuilt
-			// transdate/bilag/beskrivelse/debet/kredit in merged order but left
-			// kladde_id/valuta/valutakurs on the old indexes, so a currency
-			// account converted a row's amounts at a different row's rate.
-			$built = array();
-			for ($tr = 0; $tr < count($transdate); $tr++) {
-				if (!$transdate[$tr]) {
-					continue;
+					// SST-809 Collapse the parallel arrays this account just built into one
+					// list of rows, and let every value the print pass needs travel with
+					// its own row. That also repairs the Lagerbevaegelser path: it rebuilt
+					// transdate/bilag/beskrivelse/debet/kredit in merged order but left
+					// kladde_id/valuta/valutakurs on the old indexes, so a currency
+					// account converted a row's amounts at a different row's rate.
+					$built = array();
+					$acct_cnt = 0;
+					for ($tr = 0; $tr < count($transdate); $tr++) {
+						if (!$transdate[$tr]) {
+							continue;
+						}
+						$rowdebet  = isset($debet[$tr])  ? $debet[$tr]  : 0;
+						$rowkredit = isset($kredit[$tr]) ? $kredit[$tr] : 0;
+						// A posting with nothing in either amount column moves no balance.
+						// The row count has excluded those ever since pagination arrived,
+						// but the renderer tested the raw values - and pg_fetch_array()
+						// hands numeric(15,3) back as the string "0.000", which PHP reads
+						// as true. So the page carried a row the pagination did not know
+						// about. Decide it numerically, once, here.
+						if ((float) $rowdebet == 0 && (float) $rowkredit == 0) {
+							continue;
+						}
+						$acct_cnt++;
+						if (!$retainRows) {
+							continue;
+						}
+						$built[] = array(
+							'transdate'   => $transdate[$tr],
+							'bilag'       => isset($bilag[$tr]) ? $bilag[$tr] : '',
+							'beskrivelse' => isset($beskrivelse[$tr]) ? $beskrivelse[$tr] : '',
+							'debet'       => $rowdebet,
+							'kredit'      => $rowkredit,
+							'kladde_id'   => isset($kladde_id[$tr]) ? $kladde_id[$tr] : NULL,
+							'valuta'      => isset($transvaluta[$tr]) ? $transvaluta[$tr] : NULL,
+							'kurs'        => (isset($transkurs[$tr]) && $transkurs[$tr]) ? $transkurs[$tr] : 100,
+							'unposted'    => !empty($isUnposted[$tr]),
+						);
+					}
+					if (!$renderRows) {
+						$acctFrom = $total_rows;
+						$accountOffset[$x] = $acctFrom;
+						$acctTo   = $total_rows + $acct_cnt;
+
+						// Which accounts this page shows is decided here, once, while the
+						// running offset is known, and the print pass below just obeys it.
+						// An account whose rows overlap the page's window is on the page. One
+						// with no printable rows - holding only an opening balance, or only
+						// zero-amount postings - has no span to overlap with, so it belongs
+						// on whichever page its position falls in. The old test,
+						// rows_to_skip >= acct_cnt, was true for those accounts on every
+						// page because both sides were zero, so an account with a primo and
+						// no movements in the period was dropped from the report entirely -
+						// even though the condition above exists to include it.
+						if ($acct_cnt) {
+							$accountOnPage[$x] = ($acctFrom < $windowTo && $acctTo > $windowFrom);
+						} else {
+							// An account with no printable rows is placed after the loop, once total_pages
+							// is known - see below. Set false here only so the retention line underneath
+							// has a value to read; there is nothing to retain for it either way.
+							$accountOnPage[$x] = false;
+						}
+
+						$accountRows[$x]    = $acct_cnt;
+						if ($udskriv) {
+							$accountRowList[$x] = $built;
+						}
+						$total_rows         = $acctTo;
+					} else {
+						$accountRowList[$x] = $built;
+					}
 				}
-				$rowdebet  = isset($debet[$tr])  ? $debet[$tr]  : 0;
-				$rowkredit = isset($kredit[$tr]) ? $kredit[$tr] : 0;
-				// A posting with nothing in either amount column moves no balance.
-				// The row count has excluded those ever since pagination arrived,
-				// but the renderer tested the raw values - and pg_fetch_array()
-				// hands numeric(15,3) back as the string "0.000", which PHP reads
-				// as true. So the page carried a row the pagination did not know
-				// about. Decide it numerically, once, here.
-				if ((float) $rowdebet == 0 && (float) $rowkredit == 0) {
-					continue;
-				}
-				$built[] = array(
-					'transdate'   => $transdate[$tr],
-					'bilag'       => isset($bilag[$tr]) ? $bilag[$tr] : '',
-					'beskrivelse' => isset($beskrivelse[$tr]) ? $beskrivelse[$tr] : '',
-					'debet'       => $rowdebet,
-					'kredit'      => $rowkredit,
-					'kladde_id'   => isset($kladde_id[$tr]) ? $kladde_id[$tr] : NULL,
-					'valuta'      => isset($transvaluta[$tr]) ? $transvaluta[$tr] : NULL,
-					'kurs'        => (isset($transkurs[$tr]) && $transkurs[$tr]) ? $transkurs[$tr] : 100,
-					'unposted'    => !empty($isUnposted[$tr]),
-				);
 			}
-			$acct_cnt = count($built);
-			$acctFrom = $total_rows;
-			$accountOffset[$x] = $acctFrom;
-			$acctTo   = $total_rows + $acct_cnt;
-
-			// Which accounts this page shows is decided here, once, while the
-			// running offset is known, and the print pass below just obeys it.
-			// An account whose rows overlap the page's window is on the page. One
-			// with no printable rows - holding only an opening balance, or only
-			// zero-amount postings - has no span to overlap with, so it belongs
-			// on whichever page its position falls in. The old test,
-			// rows_to_skip >= acct_cnt, was true for those accounts on every
-			// page because both sides were zero, so an account with a primo and
-			// no movements in the period was dropped from the report entirely -
-			// even though the condition above exists to include it.
-			if ($acct_cnt) {
-				$accountOnPage[$x] = ($acctFrom < $windowTo && $acctTo > $windowFrom);
-			} else {
-				// An account with no printable rows is placed after the loop, once total_pages
-				// is known - see below. Set false here only so the retention line underneath
-				// has a value to read; there is nothing to retain for it either way.
-				$accountOnPage[$x] = false;
-			}
-
-			// The balance has to run over every row of an account, so it is all
-			// of that account's rows or none of them. For the accounts this page
-			// does not show there is no reason to hold them: a full year of
-			// postings across the whole chart of accounts is a lot of memory,
-			// and before pagination this loop only ever held one account's rows.
-			$accountRows[$x]    = $acct_cnt;
-			$accountRowList[$x] = $accountOnPage[$x] ? $built : array();
-			$total_rows         = $acctTo;
-		}
-	}
-
-	$total_pages  = max(1, ceil($total_rows / $per_page));
-
-	// An account with no printable rows sits at a single offset instead of spanning a
-	// range, so the half-open window test above cannot place one whose offset is exactly
-	// total_rows - a primo-only account after the last row. With total_rows an exact
-	// multiple of per_page there is no page whose window contains it, and it was dropped
-	// from every screen page while print mode (one huge page) still showed it: the same
-	// screen-versus-print divergence this report is being fixed for. total_pages is only
-	// known now, so those accounts are placed here, on the page their offset falls on and
-	// never past the last one.
-	foreach ($accountRows as $x => $acct_cnt) {
-		if ($acct_cnt) {
-			continue;
-		}
-		$acctPage = min($total_pages, (int) floor($accountOffset[$x] / $per_page) + 1);
-		$accountOnPage[$x] = ($acctPage == $page);
-	}
-	$rowOffset = 0;
-
-	for ($x = 0; $x < count($kontonr); $x++) {
-		if (!isset($accountRows[$x])) {
-			continue;
-		}
-		$acct_cnt = $accountRows[$x];
-		if (!$accountOnPage[$x]) {
-			$rowOffset += $acct_cnt;
-			continue;
-		}
-
-		$linjebg = $bgcolor5;
-		print "<tr><td colspan=6><hr></td></tr>";
-		fwrite($csv, "-----------\n");
-		print "<tr bgcolor=\"$bgcolor5\">
-				<td></td>
-				<td></td>
-				<td colspan=4>
-					<b>$kontonr[$x]</b> :
-					<b>$kontobeskrivelse[$x]</b> :
-					<b>$kontomoms[$x]</b>
-				</td>
-			</tr>";
-
-		fwrite($csv, ";;$kontonr[$x] : " . mb_convert_encoding($kontobeskrivelse[$x], 'ISO-8859-1', 'UTF-8') . " : $kontomoms[$x]\n");
-
-		print "<tr><td colspan=6><hr></td></tr>";
-		fwrite($csv, "-----------\n");
-
-		$kontosum = $accountPrimo[$x];
-		if ($primokurs[$x])
-			$tmp = $kontosum * 100 / $primokurs[$x];
-		else
-			$tmp = $kontosum;
-		#if (!$dim) #20180226
-		print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>" . dkdecimal($tmp, 2) . "</td></tr>";
-		fwrite($csv, ";;Primosaldo;;;" . dkdecimal($tmp, 2) . "\n");
-
-		foreach ($accountRowList[$x] as $i => $row) {
-			// The balance runs across every row of the account, including rows an
-			// earlier page already showed, so the Saldo column is correct from the
-			// first line of whichever page is being rendered.
-			$kontosum += afrund($row['debet'], 2) - afrund($row['kredit'], 2);
-			$rowIndex = $rowOffset + $i;
-			if ($rowIndex < $windowFrom) {
+			if (!$renderRows) {
 				continue;
 			}
-			if ($rowIndex >= $windowTo) {
-				break;
-			}
 
-				($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
-				$rowClass = empty($row['unposted']) ? '' : " class='unpostedRow'";
-				print "<tr bgcolor=\"$linjebg\"$rowClass><td class=\"kontokort-dato\">  " . dkdato($row['transdate']) . " </td>";
-					fwrite($csv, dkdato($row['transdate']) . ";");
-					($row['kladde_id']) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id={$row['kladde_id']}&visipop=on')\"" : $js = NULL;
-					print "<td title='Kladde: {$row['kladde_id']}' $js>{$row['bilag']}</td><td>$kontonr[$x] : {$row['beskrivelse']} </td>";
-					fwrite($csv, "{$row['bilag']};$kontonr[$x] : " . mb_convert_encoding($row['beskrivelse'], 'ISO-8859-1', 'UTF-8') . ";");
-					// SST-769 A rate adjustment is posted in DKK only (valuta = -1, valutakurs = 100),
-					// so there is no foreign-currency amount to convert. Showing 0,00 left a row that
-					// moved the balance with no visible amount, which is why MEDSHOP could not
-					// reconcile their currency accounts. Show the DKK figure, labelled in the column
-					// so it is never read as an amount in the account's own currency, and export the
-					// bare number so the CSV still reconciles.
-					if ($kontovaluta[$x]) {
-						if ($row['valuta'] == '-1') {
-							$csvval = $row['debet'] * 1;
-							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
-							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
+			$linjebg = $bgcolor5;
+			print "<tr><td colspan=6><hr></td></tr>";
+			fwrite($csv, "-----------\n");
+			print "<tr bgcolor=\"$bgcolor5\">
+					<td></td>
+					<td></td>
+					<td colspan=4>
+						<b>$kontonr[$x]</b> :
+						<b>$kontobeskrivelse[$x]</b> :
+						<b>$kontomoms[$x]</b>
+					</td>
+				</tr>";
+
+			fwrite($csv, ";;$kontonr[$x] : " . mb_convert_encoding($kontobeskrivelse[$x], 'ISO-8859-1', 'UTF-8') . " : $kontomoms[$x]\n");
+
+			print "<tr><td colspan=6><hr></td></tr>";
+			fwrite($csv, "-----------\n");
+
+			$kontosum = $accountPrimo[$x];
+			if ($primokurs[$x]) {
+				$tmp = $kontosum * 100 / $primokurs[$x];
+			} else {
+				$tmp = $kontosum;
+			}
+			#if (!$dim) #20180226
+			print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>" . dkdecimal($tmp, 2) . "</td></tr>";
+			fwrite($csv, ";;Primosaldo;;;" . dkdecimal($tmp, 2) . "\n");
+
+			foreach ($accountRowList[$x] as $i => $row) {
+				// The balance runs across every row of the account, including rows an
+				// earlier page already showed, so the Saldo column is correct from the
+				// first line of whichever page is being rendered.
+				$kontosum += afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+				$rowIndex = $rowOffset + $i;
+				if ($rowIndex < $windowFrom) {
+					continue;
+				}
+				if ($rowIndex >= $windowTo) {
+					break;
+				}
+
+					($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
+					$rowClass = empty($row['unposted']) ? '' : " class='unpostedRow'";
+					print "<tr bgcolor=\"$linjebg\"$rowClass><td class=\"kontokort-dato\">  " . dkdato($row['transdate']) . " </td>";
+						fwrite($csv, dkdato($row['transdate']) . ";");
+						($row['kladde_id']) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id={$row['kladde_id']}&visipop=on')\"" : $js = NULL;
+						print "<td title='Kladde: {$row['kladde_id']}' $js>{$row['bilag']}</td><td>$kontonr[$x] : {$row['beskrivelse']} </td>";
+						fwrite($csv, "{$row['bilag']};$kontonr[$x] : " . mb_convert_encoding($row['beskrivelse'], 'ISO-8859-1', 'UTF-8') . ";");
+						// SST-769 A rate adjustment is posted in DKK only (valuta = -1, valutakurs = 100),
+						// so there is no foreign-currency amount to convert. Showing 0,00 left a row that
+						// moved the balance with no visible amount, which is why MEDSHOP could not
+						// reconcile their currency accounts. Show the DKK figure, labelled in the column
+						// so it is never read as an amount in the account's own currency, and export the
+						// bare number so the CSV still reconciles.
+						if ($kontovaluta[$x]) {
+							if ($row['valuta'] == '-1') {
+								$csvval = $row['debet'] * 1;
+								$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
+								$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
+							} else {
+								$csvval = $row['debet'] * 100 / $row['kurs'];
+								$vis    = dkdecimal($csvval, 2);
+								$title  = "DKK " . dkdecimal($row['debet'] * 1, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
+							}
 						} else {
-							$csvval = $row['debet'] * 100 / $row['kurs'];
+							$csvval = $row['debet'];
 							$vis    = dkdecimal($csvval, 2);
-							$title  = "DKK " . dkdecimal($row['debet'] * 1, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
+							$title  = NULL;
 						}
-					} else {
-						$csvval = $row['debet'];
-						$vis    = dkdecimal($csvval, 2);
-						$title  = NULL;
-					}
-					print "<td align=\"right\" title=\"$title\">$vis</td>";
-					fwrite($csv, dkdecimal($csvval, 2) . ";");
-					if ($kontovaluta[$x]) {
-						if ($row['valuta'] == '-1') {
-							$csvval = $row['kredit'] * 1;
-							$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
-							$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
+						print "<td align=\"right\" title=\"$title\">$vis</td>";
+						fwrite($csv, dkdecimal($csvval, 2) . ";");
+						if ($kontovaluta[$x]) {
+							if ($row['valuta'] == '-1') {
+								$csvval = $row['kredit'] * 1;
+								$vis    = $csvval ? 'DKK ' . dkdecimal($csvval, 2) : dkdecimal(0, 2);
+								$title  = findtekst('5234|Kursregulering bogført i DKK', $sprog_id);
+							} else {
+								$csvval = $row['kredit'] * 100 / $row['kurs'];
+								$vis    = dkdecimal($csvval, 2);
+								$title  = "DKK " . dkdecimal($row['kredit'] * 1, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
+							}
 						} else {
-							$csvval = $row['kredit'] * 100 / $row['kurs'];
+							$csvval = $row['kredit'];
 							$vis    = dkdecimal($csvval, 2);
-							$title  = "DKK " . dkdecimal($row['kredit'] * 1, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
+							$title  = NULL;
 						}
-					} else {
-						$csvval = $row['kredit'];
-						$vis    = dkdecimal($csvval, 2);
-						$title  = NULL;
-					}
-					print "<td align=\"right\" title=\"$title\">$vis</td>";
-					fwrite($csv, dkdecimal($csvval, 2) . ";");
-					#$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
-					if ($kontovaluta[$x]) {
-						$tmp = $kontosum * 100 / $row['kurs'];
-						$title = "DKK " . dkdecimal($kontosum, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
-					} else {
-						$tmp = $kontosum;
-						$title = NULL;
-					}
-					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td></tr>";
-					fwrite($csv, dkdecimal($tmp, 2) . "\n");
+						print "<td align=\"right\" title=\"$title\">$vis</td>";
+						fwrite($csv, dkdecimal($csvval, 2) . ";");
+						#$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+						if ($kontovaluta[$x]) {
+							$tmp = $kontosum * 100 / $row['kurs'];
+							$title = "DKK " . dkdecimal($kontosum, 2) . " Kurs: " . dkdecimal($row['kurs'], 2);
+						} else {
+							$tmp = $kontosum;
+							$title = NULL;
+						}
+						print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td></tr>";
+						fwrite($csv, dkdecimal($tmp, 2) . "\n");
+			}
+			$rowOffset += $acct_cnt;
+			if (!$udskriv) {
+				unset($accountRowList[$x], $built);
+			}
 		}
-		$rowOffset += $acct_cnt;
+
+		if (!$renderRows) {
+
+			$total_pages  = max(1, ceil($total_rows / $per_page));
+
+			// An account with no printable rows sits at a single offset instead of spanning a
+			// range, so the half-open window test above cannot place one whose offset is exactly
+			// total_rows - a primo-only account after the last row. With total_rows an exact
+			// multiple of per_page there is no page whose window contains it, and it was dropped
+			// from every screen page while print mode (one huge page) still showed it: the same
+			// screen-versus-print divergence this report is being fixed for. total_pages is only
+			// known now, so those accounts are placed here, on the page their offset falls on and
+			// never past the last one.
+			foreach ($accountRows as $x => $acct_cnt) {
+				if ($acct_cnt) {
+					continue;
+				}
+				$acctPage = min($total_pages, (int) floor($accountOffset[$x] / $per_page) + 1);
+				$accountOnPage[$x] = ($acctPage == $page);
+			}
+		}
 	}
 
 	print "<tr><td colspan=6></td></tr>";
@@ -1188,6 +1242,7 @@ print "<tbody>";
         'rapportart'  => $rapportart,
         'ansat_fra'   => $ansat_fra,
         'ansat_til'   => $ansat_til,
+        'ansatte_id'  => $ansatte_id,
         'afd'         => $afd,
         'projekt_fra' => $projekt_fra,
         'projekt_til' => $projekt_til,
@@ -1212,27 +1267,28 @@ print "<tbody>";
 
     $pageButtons = '';
     if ($startPage > 1) {
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page=1' class='navbutton'>1</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page=1' class='navbutton'>1</a>";
         if ($startPage > 2) $pageButtons .= "<span>...</span>";
     }
     for ($p = $startPage; $p <= $endPage; $p++) {
         $activeStyle = ($p === $page) ? "style='text-decoration:underline; font-weight:bold;'" : "";
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
     }
     if ($endPage < $total_pages) {
         if ($endPage < $total_pages - 1) $pageButtons .= "<span>...</span>";
-        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$perPageChoice}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
     }
 
-    $prevUrl = $base_url . '&page=' . ($page - 1);
-    $nextUrl = $base_url . '&page=' . ($page + 1);
+    $prevUrl = $base_url . '&per_page=' . $perPageChoice . '&page=' . ($page - 1);
+    $nextUrl = $base_url . '&per_page=' . $perPageChoice . '&page=' . ($page + 1);
 
    // Build rows-per-page options
-    $rowCounts = [25, 50, 100, 250, 500];
+    $rowCounts = [0, 25, 50, 100, 250, 500];
     $rowCountOptions = '';
     foreach ($rowCounts as $count) {
-        $sel = ($count === $per_page) ? 'selected' : '';
-        $rowCountOptions .= "<option value='{$count}' {$sel}>{$count}</option>";
+        $sel = ($count === $perPageChoice) ? 'selected' : '';
+        $label = $count ? $count : findtekst('2498|Alle', $sprog_id);
+        $rowCountOptions .= "<option value='{$count}' {$sel}>{$label}</option>";
     }
 
     // SST-809 Screen only: this is the bar that printed as a meaningless footer.
@@ -1312,9 +1368,9 @@ print "<tbody>";
 	fclose($csv);
 
 	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
+		include_once(__DIR__ . '/../../includes/topmenu/footer.php');
 	} else {
-		include_once '../includes/oldDesign/footer.php';
+		include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
 	}
 }# endfunc kontokort
 #################################################################################################

@@ -15,16 +15,23 @@
 	});
  // Her er function til autocomplete
 	$(document).ready(function(){
+			// Labels in the user's language from kunder.php (sager_js_sagertekst), with the Danish as fallback.
+			var tekst = window.sagerTekst || {};
+			var firmaTekst = tekst.firma || 'Firma';
+			var adresseTekst = tekst.adresse || 'Adresse';
+			var nrTekst = tekst.nr || 'Nr';
+			var navnTekst = tekst.navn || 'Navn';
+
 			function formatItemNr(row) {
-				return row[0] + " - <b>Firma:</b> <i>" + row[1] + "</i> - <b>Adresse:</b> <i>" + row[2] + "</i>";
+				return row[0] + " - <b>" + firmaTekst + ":</b> <i>" + row[1] + "</i> - <b>" + adresseTekst + ":</b> <i>" + row[2] + "</i>";
 			}
 			
 			function formatItemNavn(row) {
-				return row[0] + " - <b>Nr:</b> <i>" + row[1] + "</i> - <b>Adresse:</b> <i>" + row[2] + "</i>";
+				return row[0] + " - <b>" + nrTekst + ":</b> <i>" + row[1] + "</i> - <b>" + adresseTekst + ":</b> <i>" + row[2] + "</i>";
 			}
 			
 			function formatItemAddr(row) {
-				return row[0] + " - <b>Nr:</b> <i>" + row[2] + "</i> - <b>Navn:</b> <i>" + row[1] + "</i>";
+				return row[0] + " - <b>" + nrTekst + ":</b> <i>" + row[2] + "</i> - <b>" + navnTekst + ":</b> <i>" + row[1] + "</i>";
 			}
 		
 			function formatResult(row) {
@@ -91,12 +98,13 @@
 */
 	// function til pagination
 $(document).ready(function(){
+	var tekst = window.sagerTekst || {};
 	$('#paging_container').pajinate({
 		items_per_page : 50,
 		item_container_id : '.paging_content',
 		num_page_links_to_display : 10,
 		abort_on_small_lists: true,
-		nav_label_info : 'Viser {0}-{1} af {2}',
+		nav_label_info : tekst.visning || 'Viser {0}-{1} af {2}',
 		nav_label_first : '<<',
 		nav_label_last : '>>',
 		nav_label_prev : '<',
@@ -106,12 +114,13 @@ $(document).ready(function(){
 
 	// function til pagination sagliste
 $(document).ready(function(){
+	var tekst = window.sagerTekst || {};
 	$('#paging_container_sager').pajinate({
 		items_per_page : 50,
 		item_container_id : '.paging_content_sager',
 		num_page_links_to_display : 10,
 		abort_on_small_lists: true,
-		nav_label_info : 'Viser {0}-{1} af {2}',
+		nav_label_info : tekst.visning || 'Viser {0}-{1} af {2}',
 		nav_label_first : '<<',
 		nav_label_last : '>>',
 		nav_label_prev : '<',

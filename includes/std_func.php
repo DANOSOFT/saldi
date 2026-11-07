@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -127,18 +127,25 @@
 // 20261029 CDX/MJ SST-876 Include deferred item labels in the documented report state.
 // 20261030 CL/MJ SST-876 The webshop warnings are load listeners (shopSyncOnLoad()) instead of <BODY onLoad>.
 //                A browser keeps only the first onload, so the warning was lost after levering()'s cost-price alert.
+// 20261103 LOE SST-936 Include dimensionSqlFragment() for the three Finans reports.
+//              It now owns the department, employee and project filters those reports share.
+// 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
+// 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
+//                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
 include(__DIR__ . '/stdFunc/dkAmountValid.php');
+include(__DIR__ . '/stdFunc/dimensionSqlFragment.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/shopSyncQueue.php');
 require_once(__DIR__ . '/stdFunc/shopSyncDocument.php');
 include(__DIR__ . '/stdFunc/jsString.php');
+include(__DIR__ . '/stdFunc/datotidTilTekst.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -1153,8 +1160,24 @@ if (!function_exists('str2up')) {
 # Tekstvinduer i CSS i stedet for JavaScript Alert - 20141031 - 20141121 - 20141212
 # boksflytbar=span giver kun div, boksflytbar=td giver en tabel i en div boksflybar=0 giver ingen mulighed for at flytte. 
 if (!function_exists('tekstboks')) {
+	/**
+	 * Builds a message box in CSS (used instead of a JavaScript alert) with a close button.
+	 *
+	 * The close button and the corner tooltips are in the user's language ($sprog_id, set by includes/online.php).
+	 *
+	 * @param string $bokstekst     The message, as HTML. Printed as is.
+	 * @param string $bokstype      'fejl' (red), 'advarsel' (orange), 'info' (blue, hidden until shown) or 'popop' (green).
+	 * @param string $boksid        Id of the box element.
+	 * @param string $boksflytbar   'span' puts the corner links under the button, 'td' puts them in a table around
+	 *                              the text, anything else gives no corner links.
+	 * @param string $boksplacering Two letters: vertical m/t/b (middle/top/bottom), horizontal m/v/h (middle/left/right).
+	 * @return string The HTML of the box.
+	 */
 	function tekstboks($bokstekst, $bokstype = 'advarsel', $boksid = 'boks1', $boksflytbar = 'span', $boksplacering = 'mm')
 	{
+		global $sprog_id;
+		global $charset;
+
 		$boksindhold = "\n<!-- Tekstboks " . $boksid . " - start -->\n";
 
 		if ($boksflytbar === 'td') {
@@ -1188,23 +1211,30 @@ if (!function_exists('tekstboks')) {
 			$bokskant = '#00ff00'; # 20150313
 			$boksbaggrund = '#eeffff';
 		}
-		if (substr($boksplacering, 0, 1) == 'm')
+		if (substr($boksplacering, 0, 1) == 'm') {
 			$boksvertikal = '30%';
-		if (substr($boksplacering, 0, 1) == 't')
+		}
+		if (substr($boksplacering, 0, 1) == 't') {
 			$boksvertikal = '1%';
-		if (substr($boksplacering, 0, 1) == 'b')
+		}
+		if (substr($boksplacering, 0, 1) == 'b') {
 			$boksvertikal = '68%';
-		if (substr($boksplacering, 1, 1) == 'm')
+		}
+		if (substr($boksplacering, 1, 1) == 'm') {
 			$bokshorisontal = '30%';
-		if (substr($boksplacering, 1, 1) == 'v')
+		}
+		if (substr($boksplacering, 1, 1) == 'v') {
 			$bokshorisontal = '1%';
-		if (substr($boksplacering, 1, 1) == 'h')
+		}
+		if (substr($boksplacering, 1, 1) == 'h') {
 			$bokshorisontal = '68%';
+		}
 
 
 		$boksindhold .= "\n<div id='" . $boksid . "' style='position:fixed; margin:10px; z-index:100; border:solid 4px " . $bokskant . "; padding:1px; background:" . $boksbaggrund . ";";
-		if ($bokstype === 'info')
+		if ($bokstype === 'info') {
 			$boksindhold .= " display:none;";
+		}
 		$boksindhold .= " top:" . $boksvertikal . "; left:" . $bokshorisontal . "; width:320px;'>\n";
 		if ($boksflytbar === 'td') {
 			$boksindhold .= "<table><tr>\n";
@@ -1215,7 +1245,8 @@ if (!function_exists('tekstboks')) {
 		$boksindhold .= $bokstekst . "</p>\n";
 		$boksindhold .= "<p style='font-size: 12pt; text-align:center'>\n";
 		$boksindhold .= "<button type='button' style='width:100px; height:30px'";
-		$boksindhold .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'none';\">Luk</button>\n";
+		$boksindhold .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'none';\">";
+		$boksindhold .= htmlspecialchars(findtekst('2172|Luk', $sprog_id), ENT_QUOTES, $charset) . "</button>\n";
 		if ($boksflytbar === 'span') {
 			$boksindhold .= "<br />";
 			$boksindhold .= bokshjoerne($boksid, 'tv', 'span');
@@ -1256,6 +1287,7 @@ if (!function_exists('bokshjoerne')) {
 		 * This function creates a box with a clickable icon in one of the four corners (top-left, top-right, bottom-left, bottom-right).
 		 * When the user clicks the icon, the box moves to the corresponding corner. The function supports different HTML elements
 		 * (`td`, `span`, etc.) for displaying the box, and allows customization of the position for the box's corners and the icon.
+		 * The icon's tooltip names the corner in the user's language ($sprog_id, set by includes/online.php).
 		 *
 		 * @param string $boksid - The ID of the box element that will be moved to the specified corner when clicked.
 		 * @param string $hjoerne - The corner to which the box should move. Accepts values:
@@ -1271,33 +1303,36 @@ if (!function_exists('bokshjoerne')) {
 		 * 
 		 * @note The `onClick` event changes the position of the box with the specified ID to the selected corner when clicked.
 		 */
+		global $sprog_id;
+		global $charset;
 
-		if (!$visning)
+		if (!$visning) {
 			return "";
+		}
 
 		if ($hjoerne == 'tv') {
 			$vertikal_kant = $kant_oppe;
 			$horisontal_kant = $kant_venstre;
 			$tv_tegn = '&#9700;';
-			$popopbesked = 'Op til venstre';
+			$popopbesked = findtekst('8441|Op til venstre', $sprog_id);
 		} elseif ($hjoerne == 'th') {
 			$vertikal_kant = $kant_oppe;
 			$horisontal_kant = $kant_hoejre;
 			$tv_tegn = '&#9701;';
-			$popopbesked = 'Op til højre';
+			$popopbesked = findtekst('8442|Op til højre', $sprog_id);
 		} elseif ($hjoerne == 'bv') {
 			$vertikal_kant = $kant_nede;
 			$horisontal_kant = $kant_venstre;
 			$tv_tegn = '&#9699;';
-			$popopbesked = 'Ned til venstre';
+			$popopbesked = findtekst('8443|Ned til venstre', $sprog_id);
 		} elseif ($hjoerne == 'bh') {
 			$vertikal_kant = $kant_nede;
 			$horisontal_kant = $kant_hoejre;
 			$tv_tegn = '&#9698;';
-			$popopbesked = 'Ned til højre';
+			$popopbesked = findtekst('8444|Ned til højre', $sprog_id);
 		}
 
-		$bokshjoerne = "<" . $visning . " title='" . $popopbesked . "'";
+		$bokshjoerne = "<" . $visning . " title='" . htmlspecialchars($popopbesked, ENT_QUOTES, $charset) . "'";
 		$bokshjoerne .= " onClick=\"document.getElementById('" . $boksid . "').style.top = '" . $vertikal_kant . "';";
 		$bokshjoerne .= " document.getElementById('" . $boksid . "').style.left = '" . $horisontal_kant . "'; \">";
 		$bokshjoerne .= $tv_tegn . "</" . $visning . ">\n";
@@ -1393,14 +1428,19 @@ if (!function_exists('infoboks')) {
 		 * @param string $boksid - The unique ID for the information box, used to show/hide the box (default is an empty string).
 		 * 
 		 * @return string - The HTML markup for the clickable element with the information symbol and the tooltip functionality.
+		 *                  The symbol's tooltip is in the user's language ($sprog_id, set by includes/online.php).
 		 */
+		global $sprog_id;
+		global $charset;
 
 		$infoboks = "";
 		$infoboks .= tekstboks($infotekst, $infotype, $boksid);
-		if (!$visning)
+		if (!$visning) {
 			return "";
+		}
 
-		$infoboks .= "<" . $visning . " title='Hjælpetekst til siden'";
+		$hjaelpTitel = findtekst('8445|Hjælpetekst til siden', $sprog_id);
+		$infoboks .= "<" . $visning . " title='" . htmlspecialchars($hjaelpTitel, ENT_QUOTES, $charset) . "'";
 		$infoboks .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'block'; \">";
 		$infoboks .= $infosymbol . "</" . $visning . ">\n";
 		return $infoboks;
