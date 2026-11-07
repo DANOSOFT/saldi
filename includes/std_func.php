@@ -121,6 +121,9 @@
 //                lagerreguler() rounds the new stock to three decimals before taking the difference, as the row stores it.
 //                Added stock_rows_condition(), which lagerreguler() takes stock out by and the REST API counts stock by.
 //                A batch without a warehouse or variant is now taken out too, instead of a sale of no batch being booked.
+// 20261105 CL/LH stock_rows_condition() compares the variant with a number instead of a quoted one, as Postgres and MySQL already read it.
+//                sqlite, which the stock count tests post on, never finds coalesce()'s integer equal to a quoted number.
+//                lager/optalling.php puts a counted stock on the oldest of these rows.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1690,7 +1693,7 @@ if (!function_exists('stock_rows_condition')) {
 		$lager = (int) $lager;
 		$variant_id = (int) $variant_id;
 		$warehouse = ($lager <= 1) ? "(lager is null or lager<=1)" : "lager='$lager'";
-		return "vare_id='$vare_id' and coalesce(variant_id,0)='$variant_id' and $warehouse";
+		return "vare_id='$vare_id' and coalesce(variant_id,0)=$variant_id and $warehouse";
 	}
 }
 

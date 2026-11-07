@@ -2,6 +2,8 @@
 // 20261105 CL/LH Pins that Bogfør in Lageroptælling adds up an item's counts and demands a recount when its stock changed between them (testlab stock-count-import-recount).
 //                The recount list runs the real vis_optalling() on sqlite, so an item number is looked up as text, also O'RING or 0.
 // 20261105 CL/LH Pins that opening the final posting link again, with nothing left to post, writes nothing and does not die with a TypeError.
+// 20261105 CL/LH Pins that zeroing an item with two lagerstatus rows for one variant and warehouse sets both to 0 and keeps their shelf locations.
+//                A variant's count ends on one row through both bogfor() and opdat_behold(), also with a second warehouse, and the import sets one row.
 
 namespace Saldi\Tests\StockCountRecount;
 
@@ -55,6 +57,11 @@ function transaktion($action) {
     $GLOBALS['stockCountDb']->exec($action);
 }
 
+/** importer() moves the upload into ../temp/<db>/; the test's file is no upload, so it is copied. */
+function move_uploaded_file($from, $to) {
+    return copy($from, $to);
+}
+
 /**
  * bogfor() in lager/optalling.php used to open a new entry for every row of a variant-0 item. The
  * database returns variant_id 0 as the string '0', and in_array() never found it among the NULLs kept
@@ -72,10 +79,20 @@ function transaktion($action) {
  * and without "nulstil" opdat_behold() died on count() the same way. On PHP 7 it went on and, with
  * "nulstil", set every item to 0, also the items just counted. bogfor() and opdat_behold() are lifted
  * whole for this and post on the sqlite database.
+ *
+ * The posting wrote an item's new stock to the first lagerstatus row the database returned for its
+ * variant and warehouse. An item with two such rows kept its old stock on the other one, so zeroing
+ * set its batches and varer to 0 while the warehouse still summed to -2. The other row may hold the
+ * item's shelf location in lok1-lok5, so it is set to 0 and not deleted. opdat_behold(), which the
+ * posting runs next for items with variants, wrote the stock again on the variant's last row on any
+ * warehouse, so a count could end on two rows. The import set every row to the stock. All three now
+ * write through set_warehouse_stock(), lifted with opdat_behold() and run with the real
+ * stock_rows_condition() from includes/std_func.php, and importer() is lifted whole.
  */
 final class StockCountRecountTest extends TestCase
 {
     private const OPTALLING = __DIR__ . '/../../../lager/optalling.php';
+    private const STD_FUNC = __DIR__ . '/../../../includes/std_func.php';
 
     /** The testlab's items A, B and C (varenr, kostpris), and an item with variants. */
     private const ITEMS = [
@@ -95,10 +112,10 @@ final class StockCountRecountTest extends TestCase
         $db->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, true);
         $db->exec("CREATE TABLE regulering (id INTEGER PRIMARY KEY, vare_id INTEGER, variant_id INTEGER, lager INTEGER,
             beholdning TEXT, optalt TEXT, tidspkt TEXT, bogfort TEXT)");
-        $db->exec("CREATE TABLE varer (id INTEGER PRIMARY KEY, varenr TEXT, beskrivelse TEXT, kostpris TEXT,
+        $db->exec("CREATE TABLE varer (id INTEGER PRIMARY KEY, varenr TEXT, stregkode TEXT, beskrivelse TEXT, kostpris TEXT,
             gruppe INTEGER, lukket TEXT, beholdning NUMERIC DEFAULT 0)");
         $db->exec("CREATE TABLE lagerstatus (id INTEGER PRIMARY KEY AUTOINCREMENT, lager INTEGER, vare_id INTEGER,
-            variant_id INTEGER, beholdning TEXT)");
+            variant_id INTEGER, beholdning TEXT, lok1 TEXT, lok2 TEXT, lok3 TEXT, lok4 TEXT, lok5 TEXT)");
         $db->exec("CREATE TABLE variant_varer (id INTEGER PRIMARY KEY, vare_id INTEGER, variant_stregkode TEXT,
             variant_beholdning NUMERIC DEFAULT 0)");
         $db->exec("CREATE TABLE grupper (id INTEGER PRIMARY KEY AUTOINCREMENT, art TEXT, kodenr TEXT, box2 TEXT,
@@ -142,7 +159,9 @@ final class StockCountRecountTest extends TestCase
     /**
      * Evaluates vis_optalling(), the page's "$vnr = ...;" as page_vnr($varenr), and bogfor()'s
      * grouping loop and recount list, from "$x = -1;" up to the accept link, as
-     * recount_check($lager, $godkend_regdif). bogfor() and opdat_behold() are evaluated whole.
+     * recount_check($lager, $godkend_regdif). bogfor() and opdat_behold() are evaluated whole, the latter
+     * with the functions up to gentael(), set_warehouse_stock() among them, and importer() and
+     * stock_rows_condition() too.
      */
     private static function lift(): void
     {
@@ -179,6 +198,19 @@ final class StockCountRecountTest extends TestCase
         self::assertNotFalse($from, 'opdat_behold() is no longer in lager/optalling.php');
         self::assertNotFalse($to, 'gentael() no longer follows opdat_behold()');
         $posting .= "\n" . substr($src, $from, $to - $from);
+        $from = strpos($src, 'function importer(');
+        $to = strpos($src, "\n}\n?>", (int)$from);
+        self::assertNotFalse($from, 'importer() is no longer in lager/optalling.php');
+        self::assertNotFalse($to, 'importer() is no longer the last function of lager/optalling.php');
+        $posting .= "\n" . substr($src, $from, $to + 2 - $from);
+
+        $std = file_get_contents(self::STD_FUNC);
+        self::assertNotFalse($std, 'could not read includes/std_func.php');
+        $from = strpos($std, 'function stock_rows_condition(');
+        $to = strpos($std, "\n\t}\n", (int)$from);
+        self::assertNotFalse($from, 'stock_rows_condition() is no longer in includes/std_func.php');
+        self::assertNotFalse($to, 'stock_rows_condition() no longer ends with a brace on one tab');
+        $posting .= "\n" . substr($std, $from, $to + 3 - $from);
 
         eval('namespace ' . __NAMESPACE__ . '; ' . $renderer
             . "\nfunction page_vnr(\$varenr) { " . $page[0] . " return \$vnr; }"
@@ -311,6 +343,209 @@ final class StockCountRecountTest extends TestCase
         self::assertSame($before, [self::stockOf(13), self::stockOf(18)], 'A and B keep the stock they were counted at');
         self::assertStringNotContainsString('Lagerregulering udført', $output);
         self::assertStringNotContainsString('endelig lagerregulering', $output, 'no link to post an empty count');
+    }
+
+    /**
+     * @return array<string, array{list<array{int, ?int, int, ?string}>}> item 4064's lagerstatus rows on
+     *     warehouse 1, oldest first: id, variant_id, beholdning, the shelf location in lok1-lok5
+     */
+    public static function stockRowsOfAnItemAtMinusTwo(): array
+    {
+        return [
+            'as in the golden: the old stock on a row without a variant' => [[[4312, null, -2, null], [4313, 0, 0, null]]],
+            'the only location on the newer row' => [[[4312, null, -2, null], [4313, 0, 0, 'A-01-03']]],
+            'the old stock and the only location on the newer row' => [[[4312, 0, 0, null], [4313, 0, -2, 'A-01-03']]],
+            'a location on each row' => [[[4312, 0, -2, 'A-01-03'], [4313, 0, 0, 'B-02-01']]],
+            'one row, without a variant' => [[[4312, null, -2, 'A-01-03']]],
+        ];
+    }
+
+    /**
+     * The testlab's item 4064: sold 2 it never had, so its batches add up to -2, and it has two
+     * lagerstatus rows on warehouse 1, 4312 with the -2 and variant NULL, and 4313 with 0 and variant 0.
+     * Zeroing the uncounted items set the batches and varer to 0 but wrote the 0 to whichever variant-0
+     * row the database returned first, so the other row kept its -2 and the warehouse still summed to -2.
+     * A row with variant NULL was not found at all unless an item lookup on the page had set it to 0.
+     * Product cards and labels read lok1 from any of the item's rows on the warehouse, so a row that
+     * goes to 0 keeps its shelf location.
+     *
+     * @param list<array{int, ?int, int, ?string}> $stockRows
+     */
+    #[DataProvider('stockRowsOfAnItemAtMinusTwo')]
+    public function testZeroingAnItemSetsEachOfItsStockRowsToZeroAndKeepsTheirLocations(array $stockRows): void
+    {
+        $db = $GLOBALS['stockCountDb'];
+        self::addItem($db, 4064, '5702855125352', 'Hjerteophæng rød 35 cm', 35.0);
+        $db->exec("UPDATE varer SET beholdning = -2 WHERE id = 4064");
+        $db->exec("INSERT INTO batch_salg (batch_kob_id,vare_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager,variant_id)
+            VALUES (0,4064,1,'2025-10-16','2025-10-16',1,2,35,1,1,0)");
+        $insert = $db->prepare("INSERT INTO lagerstatus (id,lager,vare_id,variant_id,beholdning,lok1,lok2,lok3,lok4,lok5)
+            VALUES (?,1,4064,?,?,?,?,?,?,?)");
+        $expected = [];
+        foreach ($stockRows as $n => [$id, $variant, $stock, $location]) {
+            $locations = $location === null ? ['', null, null, null, null] : [$location, "$location/2", "$location/3", "$location/4", "$location/5"];
+            $insert->execute([$id, $variant, number_format($stock, 3, '.', ''), ...$locations]);
+            $expected[] = [(string)$id, $n === 0 || $variant !== null ? '0' : null, 0.0, ...$locations];
+        }
+        self::bought(13, 21);
+        self::counted([[1, 13, 0, 21, 21]]);
+
+        $output = $this->post('on', '2');
+
+        self::assertStringContainsString('Lagerregulering udført.', $output);
+        $rows = array_map(
+            static fn(array $row): array => [$row[0], $row[1], (float)$row[2], ...array_slice($row, 3)],
+            $db->query("SELECT id, variant_id, beholdning, lok1, lok2, lok3, lok4, lok5 FROM lagerstatus WHERE vare_id = 4064 ORDER BY id")
+                ->fetchAll(PDO::FETCH_NUM)
+        );
+        self::assertSame($expected, $rows, 'every row is kept at 0 with its locations, the oldest as variant 0, so no row keeps the old -2');
+        self::assertEqualsWithDelta(0.0, (float)$db->query("SELECT beholdning FROM varer WHERE id = 4064")->fetchColumn(), .000001);
+        self::assertSame(['varer' => '21', 'lagerstatus' => '21', 'batch_salg' => '0:0'], self::stockOf(13), 'A counted at its stock is left alone');
+    }
+
+    /**
+     * @return array<string, array{list<array{int, int, int, string}>, array<int, int>}> item 50's lagerstatus rows
+     *     for variant 7, oldest first (id, warehouse, beholdning, shelf location in lok1), and each row's stock after
+     *     6 are counted on warehouse 1
+     */
+    public static function stockRowsOfAVariant(): array
+    {
+        return [
+            'the stock on the newer row' => [[[4312, 1, 0, 'A-01-03'], [4313, 1, 4, 'B-02-01']], [4312 => 6, 4313 => 0]],
+            'the stock on the older row' => [[[4312, 1, 4, 'A-01-03'], [4313, 1, 0, 'B-02-01']], [4312 => 6, 4313 => 0]],
+            'one row' => [[[4312, 1, 4, 'A-01-03']], [4312 => 6]],
+            'and a row on warehouse 2' => [
+                [[4312, 1, 0, 'A-01-03'], [4313, 1, 4, 'B-02-01'], [4314, 2, 3, 'C-03-02']],
+                [4312 => 6, 4313 => 0, 4314 => 3],
+            ],
+            'and two rows on warehouse 2' => [
+                [[4312, 1, 4, 'A-01-03'], [4314, 2, 0, 'C-03-02'], [4315, 2, 3, 'D-04-01']],
+                [4312 => 6, 4314 => 3, 4315 => 0],
+            ],
+        ];
+    }
+
+    /**
+     * Variant 7 of item 50 has 4 on warehouse 1 in its batches, and 6 are counted there. Bogfør put the 6 on the
+     * variant's row it found first. opdat_behold(), which the posting runs next and which sets an item with variants
+     * from its batches, kept only the variant's last row on any warehouse and put the warehouse's stock on that one,
+     * and it added a row for each other warehouse with stock. With two rows on warehouse 1 both ended at 6, and the
+     * warehouse at 12 while the batches and the item had 6. Both stages now put the stock on the oldest row of the
+     * variant and warehouse and set the others to 0, so no row is added and each keeps its warehouse and location.
+     *
+     * @param list<array{int, int, int, string}> $stockRows
+     * @param array<int, int> $after
+     */
+    #[DataProvider('stockRowsOfAVariant')]
+    public function testACountOfAVariantEndsOnOneRowAfterBothPostingStages(array $stockRows, array $after): void
+    {
+        $db = $GLOBALS['stockCountDb'];
+        $db->exec("INSERT INTO grupper (art,kodenr) VALUES ('LG','1'),('LG','2')");
+        $db->exec("DELETE FROM lagerstatus WHERE vare_id = 50 AND variant_id = 7");
+        $insert = $db->prepare("INSERT INTO lagerstatus (id,lager,vare_id,variant_id,beholdning,lok1) VALUES (?,?,50,7,?,?)");
+        $perWarehouse = [];
+        foreach ($stockRows as [$id, $lager, $stock, $location]) {
+            $insert->execute([$id, $lager, number_format($stock, 3, '.', ''), $location]);
+            $perWarehouse[$lager] = ($perWarehouse[$lager] ?? 0) + $stock;
+        }
+        $buy = $db->prepare("INSERT INTO batch_kob (vare_id,linje_id,kobsdate,fakturadate,ordre_id,antal,pris,rest,lager,variant_id)
+            VALUES (50,0,'2025-12-01','2025-12-01',0,?,10,?,?,?)");
+        foreach ($perWarehouse as $lager => $stock) {
+            $buy->execute([$stock, $stock, $lager, 7]);
+        }
+        $buy->execute([4, 4, 1, 70]);
+        $buy->execute([5, 5, 1, 8]);
+        $db->exec("UPDATE variant_varer SET variant_beholdning = CASE id WHEN 7 THEN " . array_sum($perWarehouse) . " WHEN 70 THEN 4 ELSE 5 END");
+        $db->exec("UPDATE varer SET beholdning = " . (array_sum($perWarehouse) + 9) . " WHERE id = 50");
+        self::counted([[1, 50, 7, $perWarehouse[1], 6]]);
+
+        $output = $this->post('', '2');
+
+        self::assertStringContainsString('Lagerregulering udført.', $output);
+        $rows = $db->query("SELECT id, lager, beholdning, lok1 FROM lagerstatus WHERE vare_id = 50 AND variant_id = 7 ORDER BY id")
+            ->fetchAll(PDO::FETCH_NUM);
+        self::assertSame(
+            array_map(static fn(array $row): array => [(string)$row[0], (string)$row[1], (float)$after[$row[0]], $row[3]], $stockRows),
+            array_map(static fn(array $row): array => [$row[0], $row[1], (float)$row[2], $row[3]], $rows),
+            'the count is on the oldest row of warehouse 1, the other rows keep their warehouse and location, and no row is added'
+        );
+        $one = static fn(string $sql): float => (float)$db->query($sql)->fetchColumn();
+        $batches = $one("SELECT sum(antal) FROM batch_kob WHERE vare_id = 50 AND variant_id = 7")
+            - $one("SELECT coalesce(sum(antal), 0) FROM batch_salg WHERE vare_id = 50 AND variant_id = 7");
+        self::assertEqualsWithDelta(6 + ($perWarehouse[2] ?? 0), $batches, .000001, '2 bought in on warehouse 1');
+        self::assertEqualsWithDelta($batches, (float)array_sum($after), .000001, 'the variant\'s rows add up to its batches');
+        self::assertEqualsWithDelta($batches, $one("SELECT variant_beholdning FROM variant_varer WHERE id = 7"), .000001);
+        self::assertEqualsWithDelta($batches + 9, $one("SELECT beholdning FROM varer WHERE id = 50"), .000001);
+        self::assertEqualsWithDelta($batches + 9, $one("SELECT sum(beholdning) FROM lagerstatus WHERE vare_id = 50"), .000001, 'the item\'s rows add up to its stock');
+    }
+
+    /**
+     * @return array<string, array{list<array{int, ?int, int, string}>}> item 4064's lagerstatus rows on warehouse 1,
+     *     oldest first: id, variant_id, beholdning, shelf location in lok1
+     */
+    public static function stockRowsAtTheImport(): array
+    {
+        return [
+            'as in the golden: the stock on a row without a variant' => [[[4312, null, -2, 'A-01-03'], [4313, 0, 0, 'B-02-01']]],
+            'the stock on the newer row' => [[[4312, 0, 0, 'A-01-03'], [4313, 0, -2, 'B-02-01']]],
+        ];
+    }
+
+    /**
+     * Importing a count file writes each item's stock on the count date to lagerstatus. It set every variant-0 row
+     * of the item on the warehouse to it, so item 4064, at -2 in its batches with two rows, summed to -4 there. It now
+     * writes as the posting does: -2 on the oldest row, 0 on the other, both kept with their location.
+     *
+     * @param list<array{int, ?int, int, string}> $stockRows
+     */
+    #[DataProvider('stockRowsAtTheImport')]
+    public function testTheImportPutsAnItemsStockOnOneRow(array $stockRows): void
+    {
+        $db = $GLOBALS['stockCountDb'];
+        self::addItem($db, 4064, '5702855125352', 'Hjerteophæng rød 35 cm', 35.0);
+        $db->exec("INSERT INTO batch_salg (batch_kob_id,vare_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager,variant_id)
+            VALUES (0,4064,1,'2025-10-16','2025-10-16',1,2,35,1,1,0)");
+        $insert = $db->prepare("INSERT INTO lagerstatus (id,lager,vare_id,variant_id,beholdning,lok1) VALUES (?,1,4064,?,?,?)");
+        foreach ($stockRows as [$id, $variant, $stock, $location]) {
+            $insert->execute([$id, $variant, number_format($stock, 3, '.', ''), $location]);
+        }
+
+        // importer() moves the upload to ../temp/<db>/<bruger_id>.csv and lists unknown items next to it.
+        $work = sys_get_temp_dir() . '/stock-count-import-' . bin2hex(random_bytes(4));
+        mkdir("$work/temp/test_39", 0700, true);
+        mkdir("$work/lager");
+        file_put_contents("$work/optaelling.csv", "5702855125352;0\n");
+        $globals = ['db' => $GLOBALS['db'] ?? null, 'bruger_id' => $GLOBALS['bruger_id'] ?? null];
+        $GLOBALS['db'] = 'test_39';
+        $GLOBALS['bruger_id'] = 1;
+        $_POST['dato'] = '31-12-2025';
+        $_FILES['uploadfile'] = ['name' => 'optaelling.csv', 'tmp_name' => "$work/optaelling.csv", 'error' => 0];
+        $cwd = getcwd();
+        chdir("$work/lager");
+        ob_start();
+        try {
+            importer('1', '31-12-2025');
+        } finally {
+            $output = (string)ob_get_clean();
+            chdir((string)$cwd);
+            unset($_POST['dato'], $_FILES['uploadfile']);
+            $GLOBALS['db'] = $globals['db'];
+            $GLOBALS['bruger_id'] = $globals['bruger_id'];
+            array_map('unlink', array_merge(glob("$work/temp/test_39/*") ?: [], ["$work/optaelling.csv"]));
+            array_map('rmdir', ["$work/temp/test_39", "$work/temp", "$work/lager", $work]);
+        }
+
+        self::assertStringContainsString('1 varenumre importeret i liste', $output);
+        $counts = array_map(
+            static fn(array $row): array => [$row[0], $row[1], (float)$row[2], (float)$row[3], $row[4]],
+            $db->query("SELECT vare_id, variant_id, optalt, beholdning, bogfort FROM regulering")->fetchAll(PDO::FETCH_NUM)
+        );
+        self::assertSame([['4064', '0', 0.0, -2.0, '0']], $counts, 'the count of 0 is listed against the -2 in the batches');
+        $rows = array_map(
+            static fn(array $row): array => [$row[0], $row[1], (float)$row[2], $row[3]],
+            $db->query("SELECT id, variant_id, beholdning, lok1 FROM lagerstatus WHERE vare_id = 4064 ORDER BY id")->fetchAll(PDO::FETCH_NUM)
+        );
+        self::assertSame([['4312', '0', -2.0, 'A-01-03'], ['4313', '0', 0.0, 'B-02-01']], $rows, 'the -2 is on the oldest row, as variant 0, and the other row is 0');
     }
 
     public function testACountIsStillPosted(): void

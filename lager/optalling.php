@@ -55,6 +55,12 @@
 //                vis_optalling() escapes that varenr and lists every item only for NULL, so the recount shows an item like O'RING or 0 alone.
 // 20261105 CL/LH Bogfør with no unposted count on the warehouse, as when the final posting link is opened again, posts nothing and says so.
 //                It died with a TypeError on PHP 8, since $reg_id was only set in the loop over the counts.
+// 20261105 CL/LH Bogfør, opdat_behold() and the import put an item's stock on its oldest lagerstatus row for the variant and warehouse and set the others to 0.
+//                Bogfør updated whichever row came first, so a second row kept its old stock, as -2 next to the 0 of an item zeroed.
+//                opdat_behold() then wrote a variant's stock on its last row on any warehouse, so two rows held the count, and added a row on every other warehouse with stock.
+//                The import set every row to the stock.
+//                The other rows are kept with their shelf locations in lok1-lok5, through set_warehouse_stock().
+//                A row with variant NULL or warehouse 0 counts as variant 0 or warehouse 1, as stock_rows_condition() reads them.
 
 @session_start();
 $s_id = session_id();
@@ -868,13 +874,8 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 													 $b=0;
 													}else list($a,$b)=explode(".",$id);
 						*/
-						$qtxt = "select id from lagerstatus where vare_id = '$vare_id[$v]' and variant_id = '$variant_id[$v]' and lager = '$lager'";
-						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						if ($r['id'])
-							$qtxt = "update lagerstatus set beholdning = '$ny_beholdning[$id]' where id = '$r[id]'";
-						elseif ($ny_beholdning[$id])
-							$qtxt = "insert into lagerstatus (vare_id,variant_id,lager,beholdning) values ('$vare_id[$v]','$variant_id[$v]','$lager','$ny_beholdning[$id]')";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						# 20261105 On the row opdat_behold() writes too, with any other row for the variant and warehouse set to 0.
+						set_warehouse_stock($vare_id[$v], $variant_id[$v], $lager, $ny_beholdning[$id]);
 						if ($reguleres[0] < 0) {
 							$tmp = $reguleres[0] * -1;
 							$qtxt = "insert into batch_kob(vare_id,linje_id,kobsdate,fakturadate,ordre_id,antal,pris,rest,lager,variant_id)";
@@ -1079,20 +1080,6 @@ function opdat_behold($reg_vare_id)
 			}
 		}
 	}
-	$qtxt = "select * from lagerstatus order by vare_id,variant_id,lager,id";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$l = 0;
-		for ($x = 0; $x < count($vare_id); $x++) {
-			for ($v = 0; $v < count($variant_id[$x]); $v++) {
-				if ($r['vare_id'] == $vare_id[$x] && $r['variant_id'] == $variant_id[$x][$v]) {
-					$ls_id[$x][$v][$l] = $r['id'];
-					$ls_beholdning[$x][$v][$l] = $r['beholdning'];
-					$l++;
-				}
-			}
-		}
-	}
 	for ($x = 0; $x < count($vare_id); $x++) {
 		$ny_beholdning = 0;
 		if (in_array($gruppe[$x], $v_grp)) { #if tilføjet 20170915
@@ -1124,14 +1111,8 @@ function opdat_behold($reg_vare_id)
 						$ny_variant_beholdning -= $r['ny_beholdning'] * 1;
 						$ny_lager_beholdning -= $r['ny_beholdning'] * 1;
 
-						if ($ny_lager_beholdning != $ls_beholdning[$x][$v][$l]) {
-							if ($ls_id[$x][$v][$l]) {
-								$qtxt = "update lagerstatus set beholdning='$ny_lager_beholdning' where id='" . $ls_id[$x][$v][$l] . "'";
-							} else {
-								$qtxt = "insert into lagerstatus (lager,vare_id,variant_id,beholdning) values ('$lager[$l]','$vare_id[$x]','" . $variant_id[$x][$v] . "','$ny_lager_beholdning')";
-							}
-							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-						}
+						# 20261105 On the row Bogfør put the count on, not the variant's last row on any warehouse.
+						set_warehouse_stock($vare_id[$x], $variant_id[$x][$v], $lager[$l], $ny_lager_beholdning);
 					}
 					if ($ny_variant_beholdning != $variant_beholdning[$x][$v]) {
 						$qtxt = "update variant_varer set variant_beholdning='$ny_variant_beholdning' where id='" . $variant_id[$x][$v] . "'";
@@ -1178,6 +1159,54 @@ function opdat_behold($reg_vare_id)
 					}
 				}
 		*/
+	}
+}
+
+/**
+ * Sets an item's stock on a warehouse in lagerstatus, for one variant or for the item without variants.
+ *
+ * The stock goes on the oldest of the rows stock_rows_condition() picks, the row lagerreguler() and the page's
+ * item lookup keep too, and any other of those rows is set to 0, so the warehouse sums to the stock once.
+ * Bogfør, opdat_behold() and the import write through here, so they put an item's stock on the same row.
+ * The other rows are kept, as their lok1-lok5 may hold the item's only shelf location.
+ * The row the stock goes on gets the variant and warehouse, so the lookups that ask for them find it.
+ * A row is added only for stock other than 0.
+ *
+ * @param int|string $vare_id Item id
+ * @param int|string|null $variant_id Variant id, 0 for the item without variants
+ * @param int|string $lager Warehouse number; below 1 counts as 1
+ * @param float|string|null $beholdning The stock, kept to the three decimals of lagerstatus.beholdning
+ * @return void
+ */
+function set_warehouse_stock($vare_id, $variant_id, $lager, $beholdning)
+{
+	$vare_id = (int)$vare_id;
+	$variant_id = (int)$variant_id;
+	$lager = max(1, (int)$lager);
+	$beholdning = round((float)$beholdning, 3);
+
+	$rows = array();
+	$qtxt = "select id, lager, variant_id, beholdning from lagerstatus where " . stock_rows_condition($vare_id, $lager, $variant_id) . " order by id";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$rows[] = $r;
+	}
+	if (!$rows) {
+		if ($beholdning) {
+			$qtxt = "insert into lagerstatus (vare_id,variant_id,lager,beholdning) values ($vare_id,$variant_id,$lager,'$beholdning')";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		return;
+	}
+	$first = array_shift($rows);
+	if (round((float)$first['beholdning'], 3) != $beholdning || $first['variant_id'] === NULL || (int)$first['lager'] != $lager) {
+		$qtxt = "update lagerstatus set beholdning = '$beholdning', variant_id = $variant_id, lager = $lager where id = " . (int)$first['id'];
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+	foreach ($rows as $r) {
+		if ((float)$r['beholdning']) {
+			db_modify("update lagerstatus set beholdning = 0 where id = " . (int)$r['id'], __FILE__ . " linje " . __LINE__);
+		}
 	}
 }
 
@@ -1401,8 +1430,8 @@ function importer($lager, $dato)
 						$qtxt = "insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ";
 						$qtxt .= "('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id',$lager)";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-						$qtxt = "update lagerstatus set beholdning = '$beholdning' where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id'";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						# 20261105 On one row, as Bogfør does; it set every row for the variant and warehouse to the stock.
+						set_warehouse_stock($vare_id, $variant_id, $lager, $beholdning);
 						$indsat++;
 					} elseif ($r = db_fetch_array(db_select("select id,vare_id from variant_varer where lower(variant_stregkode)='" . db_escape_string($varenr) . "'", __FILE__ . " linje " . __LINE__))) {
 						$variant_id = $r['id'] * 1;
