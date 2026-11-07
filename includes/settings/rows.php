@@ -30,6 +30,9 @@
 // 20261019 SS Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
 // 20261105 CL/LH A background's usage counts customers and suppliers through their group's language (DG/KG box4); adresser has no sprog column, so the old count failed on every background row.
 // 20261105 CL/LH A bool cell is ticked only for its true_value, as SALDI reads it (Varegrupper showed Lagerført for box8 = '1', which the stock code treats as not stock-managed); saving, 'requires' and the standard set read it the same way.
+// 20261105 CL/LH Valuta counts a currency's postings, journal lines, orders and open items, and a rate's postings, for all rows of the table in one read per table (settings_rows_count_each()).
+//                The count per row read transaktioner (no index on valuta) once for every currency and every rate, so the section took about 15 s to open on a book with 1M postings.
+//                The database still judges each row's own condition, so a code compares as before (case and trailing spaces on MySQL and MariaDB).
 
 /**
  * The tables of a rows section with their defaults filled in.
@@ -157,34 +160,92 @@ function settings_rows_load(array $t, ?int $year): array
 		foreach ($t['columns'] as $col => $def) {
 			$row['cells'][$col] = ($def['type'] === 'derived' || $def['transient']) ? '' : (isset($r[$col]) ? (string) $r[$col] : '');
 		}
-		$usage = settings_rows_usage($t, $row);
+		$rows[$row['id']] = $row;
+	}
+	// The usage once every row is read, so a count over a large table is made for all rows at once; $counted holds
+	// those counts for this load only, so each load counts what is in the database at that moment.
+	$counted = array();
+	foreach ($rows as $id => $row) {
+		$usage = settings_rows_usage($t, $row, $rows, $counted);
 		$row['usage'] = $usage['count'];
 		$row['usage_text'] = $usage['text'];
 		$row['locked'] = $t['row_locked'] !== null && function_exists('settings_rows_hook_locked') && settings_rows_hook_locked((string) $t['row_locked'], $row);
-		$rows[$row['id']] = $row;
+		$rows[$id] = $row;
 	}
 	return $rows;
 }
 
 /**
+ * How many rows of $from meet each condition, as "select count(*) from $from where <condition>" gives it, with one
+ * read of $from for up to 1000 conditions (one sum(case when <condition> ...) column each; Postgres allows 1664
+ * columns). The database judges every condition, so it compares exactly as that count does (a case-insensitive
+ * collation or trailing spaces on MySQL and MariaDB, a date column against a date).
+ *
+ * @param string             $from   a table, or a grouped subquery with its alias, from the code
+ * @param array<int, string> $conds  key => condition, every outside value in it already cast or escaped
+ * @param string             $weight what a row of $from counts for: 1, or the count column of a grouped subquery
+ * @return array<int, int> key => number of rows
+ */
+function settings_rows_count_each(string $from, array $conds, string $weight = '1'): array
+{
+	$counts = array();
+	foreach (array_chunk(array_values(array_unique($conds)), 1000) as $chunk) {
+		$sums = array();
+		foreach ($chunk as $i => $cond) {
+			$sums[] = "sum(case when $cond then $weight else 0 end) as n$i";
+		}
+		$r = db_fetch_array(db_select("select " . implode(', ', $sums) . " from $from", __FILE__ . " linje " . __LINE__));
+		foreach ($chunk as $i => $cond) {
+			$counts[$cond] = $r ? (int) $r["n$i"] : 0;
+		}
+	}
+	$out = array();
+	foreach ($conds as $key => $cond) {
+		$out[$key] = $counts[$cond];
+	}
+	return $out;
+}
+
+/**
  * Where a row is referenced, as a count and a short text ("14 ordrer · 3 ansatte"), for the delete dialog (spec §8.2).
  *
+ * @param array<int, array<string, mixed>> $rows    the rows loaded with $row (settings_rows_load()), or none
+ * @param array<string, array<int, int>>   $counted the counts made for $rows so far, kept by the caller between its rows
  * @return array{count: int, text: string}
  */
-function settings_rows_usage(array $t, array $row): array
+function settings_rows_usage(array $t, array $row, array $rows = array(), array &$counted = array()): array
 {
 	$parts = array();
 	$total = 0;
 	$code = isset($row['cells'][$t['code_col']]) ? trim((string) $row['cells'][$t['code_col']]) : '';
 	$esc = db_escape_string($code);
 	$isInt = ($code !== '' && ctype_digit($code));
-	$add = function (string $sql, int $textId) use (&$parts, &$total) {
-		$r = db_fetch_array(db_select($sql, __FILE__ . " linje " . __LINE__));
-		$n = $r ? (int) $r['n'] : 0;
+	$addCount = function (int $n, int $textId) use (&$parts, &$total) {
 		if ($n > 0) {
 			$parts[] = sprintf(st_txt($textId), number_format($n, 0, ',', '.'));
 			$total += $n;
 		}
+	};
+	$add = function (string $sql, int $textId) use ($addCount) {
+		$r = db_fetch_array(db_select($sql, __FILE__ . " linje " . __LINE__));
+		$addCount($r ? (int) $r['n'] : 0, $textId);
+	};
+	// A count over a table with no index on the column it tests is made for every row in $rows at once
+	// (settings_rows_count_each()), so the table is read once for all of them, not once per row. $cond gives a row's
+	// condition from its escaped code and stored row: the WHERE of that row's own count, judged by the database.
+	$addEach = function (string $from, callable $cond, int $textId, string $weight = '1') use ($t, $row, $rows, &$counted, $addCount) {
+		$key = $textId . ' ' . $from;
+		if (!isset($counted[$key][$row['id']])) {
+			$conds = array();
+			foreach (isset($rows[$row['id']]) ? $rows : array($row['id'] => $row) as $id => $r) {
+				$c = isset($r['cells'][$t['code_col']]) ? trim((string) $r['cells'][$t['code_col']]) : '';
+				if ($c !== '') {
+					$conds[$id] = $cond(db_escape_string($c), isset($r['raw']) ? $r['raw'] : array());
+				}
+			}
+			$counted[$key] = settings_rows_count_each($from, $conds, $weight) + (isset($counted[$key]) ? $counted[$key] : array());
+		}
+		$addCount($counted[$key][$row['id']], $textId);
 	};
 	if ($t['usage'] === 'fiscal_year' && function_exists('settings_fiscal_year_usage')) {
 		foreach (settings_fiscal_year_usage($row) as $u) {
@@ -259,17 +320,23 @@ function settings_rows_usage(array $t, array $row): array
 				$add("select count(*) as n from ordrer where sprog = '$esc'", 6422);
 				break;
 			case 'currency':
+				// Postings, journal lines, orders and open items have no index on valuta, so each is counted for all
+				// currencies at once. Postings and journal lines name the currency by its number, orders and open
+				// items by its code.
 				$k = isset($row['raw']['kodenr']) ? (int) $row['raw']['kodenr'] : 0;
 				$add("select count(*) as n from kontoplan where valuta = $k", 6601);
-				$add("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$k'", 6423);
-				$add("select count(*) as n from kassekladde where valuta = $k", 6566);
-				$add("select count(*) as n from ordrer where valuta = '$esc'", 6422);
-				$add("select count(*) as n from openpost where valuta = '$esc'", 6568);
+				$addEach('transaktioner', fn (string $escaped, array $raw) => db_cast('valuta', 'text') . " = '" . (int) ($raw['kodenr'] ?? 0) . "'", 6423);
+				$addEach('kassekladde', fn (string $escaped, array $raw) => "valuta = " . (int) ($raw['kodenr'] ?? 0), 6566);
+				$addEach('ordrer', fn (string $escaped) => "valuta = '$escaped'", 6422);
+				$addEach('openpost', fn (string $escaped) => "valuta = '$escaped'", 6568);
 				$add("select count(*) as n from valuta where gruppe = $k", 6602);
 				break;
 			case 'currency_rate':
+				// The postings in the currency on or after the rate's date, for all the currency's rates at once. The
+				// postings are counted per date first, so each rate's date is compared once per date, not per posting.
 				$g = isset($row['raw']['gruppe']) ? (int) $row['raw']['gruppe'] : 0;
-				$add("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$g' and transdate >= '$esc'", 6423);
+				$addEach("(select transdate, count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$g' group by transdate) d",
+					fn (string $escaped) => "transdate >= '$escaped'", 6423, 'n');
 				break;
 			case 'discount_debtor_group':
 				if ($isInt) {
