@@ -1,10 +1,12 @@
 <?php
 // 20261105 CL/LH Pins that Bogfør in Lageroptælling adds up an item's counts and demands a recount when its stock changed between them (testlab stock-count-import-recount).
 //                The recount list runs the real vis_optalling() on sqlite, so an item number is looked up as text, also O'RING or 0.
+// 20261105 CL/LH Pins that opening the final posting link again, with nothing left to post, writes nothing and does not die with a TypeError.
 
 namespace Saldi\Tests\StockCountRecount;
 
 use PDO;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 function db_select($sql, $source = null) {
@@ -39,6 +41,20 @@ function findtekst($textId, $languageID) {
     return $parts[1] ?? $parts[0];
 }
 
+function usdate($date) {
+    [$day, $month, $year] = explode('-', (string)$date);
+    return "$year-$month-$day";
+}
+
+function dkdato($date) {
+    [$year, $month, $day] = explode('-', (string)$date);
+    return "$day-$month-$year";
+}
+
+function transaktion($action) {
+    $GLOBALS['stockCountDb']->exec($action);
+}
+
 /**
  * bogfor() in lager/optalling.php used to open a new entry for every row of a variant-0 item. The
  * database returns variant_id 0 as the string '0', and in_array() never found it among the NULLs kept
@@ -50,6 +66,12 @@ function findtekst($textId, $languageID) {
  * bogfor() is a page function that prints, posts and exits, so its grouping loop and recount list are
  * lifted from the shipped source, together with vis_optalling() and the page's own $vnr, and run on an
  * in-memory sqlite database that returns every value as a string, as pg_fetch_array() does.
+ *
+ * Opening the link for the final posting again, after it ran, left no unposted count. bogfor() filled
+ * $reg_id only in its loop over those counts, so on PHP 8 in_array($id, $reg_id) died with a TypeError,
+ * and without "nulstil" opdat_behold() died on count() the same way. On PHP 7 it went on and, with
+ * "nulstil", set every item to 0, also the items just counted. bogfor() and opdat_behold() are lifted
+ * whole for this and post on the sqlite database.
  */
 final class StockCountRecountTest extends TestCase
 {
@@ -74,14 +96,23 @@ final class StockCountRecountTest extends TestCase
         $db->exec("CREATE TABLE regulering (id INTEGER PRIMARY KEY, vare_id INTEGER, variant_id INTEGER, lager INTEGER,
             beholdning TEXT, optalt TEXT, tidspkt TEXT, bogfort TEXT)");
         $db->exec("CREATE TABLE varer (id INTEGER PRIMARY KEY, varenr TEXT, beskrivelse TEXT, kostpris TEXT,
-            gruppe INTEGER, lukket TEXT)");
+            gruppe INTEGER, lukket TEXT, beholdning NUMERIC DEFAULT 0)");
         $db->exec("CREATE TABLE lagerstatus (id INTEGER PRIMARY KEY AUTOINCREMENT, lager INTEGER, vare_id INTEGER,
             variant_id INTEGER, beholdning TEXT)");
-        $db->exec("CREATE TABLE variant_varer (id INTEGER PRIMARY KEY, vare_id INTEGER, variant_stregkode TEXT)");
-        $db->exec("CREATE TABLE grupper (id INTEGER PRIMARY KEY AUTOINCREMENT, art TEXT, kodenr TEXT, box8 TEXT,
-            fiscal_year TEXT)");
+        $db->exec("CREATE TABLE variant_varer (id INTEGER PRIMARY KEY, vare_id INTEGER, variant_stregkode TEXT,
+            variant_beholdning NUMERIC DEFAULT 0)");
+        $db->exec("CREATE TABLE grupper (id INTEGER PRIMARY KEY AUTOINCREMENT, art TEXT, kodenr TEXT, box2 TEXT,
+            box5 TEXT, box8 TEXT, fiscal_year TEXT)");
+        $db->exec("CREATE TABLE batch_kob (id INTEGER PRIMARY KEY AUTOINCREMENT, vare_id INTEGER, linje_id INTEGER,
+            kobsdate TEXT, fakturadate TEXT, ordre_id INTEGER, antal NUMERIC, pris NUMERIC, rest NUMERIC,
+            lager INTEGER, variant_id INTEGER)");
+        $db->exec("CREATE TABLE batch_salg (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_kob_id INTEGER,
+            vare_id INTEGER, linje_id INTEGER, salgsdate TEXT, fakturadate TEXT, ordre_id INTEGER, antal NUMERIC,
+            pris NUMERIC, lev_nr INTEGER, lager INTEGER, variant_id INTEGER)");
+        $db->exec("INSERT INTO grupper (art,kodenr,box2) VALUES ('RA','1','2025')");
         $db->exec("INSERT INTO grupper (art,kodenr,box8,fiscal_year) VALUES ('VG','2','on','1')");
-        $db->exec("INSERT INTO variant_varer VALUES (7,50,'VAR-50-7'),(70,50,'VAR-50-70'),(8,50,'VAR-50-8')");
+        $db->exec("INSERT INTO variant_varer (id,vare_id,variant_stregkode) VALUES (7,50,'VAR-50-7'),(70,50,'VAR-50-70'),
+            (8,50,'VAR-50-8')");
         $db->exec("INSERT INTO lagerstatus (lager,vare_id,variant_id,beholdning) VALUES (1,13,0,'20.000'),(1,18,0,'8.000'),
             (1,102,0,'15.000'),(1,50,7,'4.000'),(1,50,70,'4.000'),(1,50,8,'5.000')");
         foreach (self::ITEMS as $id => [$varenr, $beskrivelse, $kostpris]) {
@@ -111,7 +142,7 @@ final class StockCountRecountTest extends TestCase
     /**
      * Evaluates vis_optalling(), the page's "$vnr = ...;" as page_vnr($varenr), and bogfor()'s
      * grouping loop and recount list, from "$x = -1;" up to the accept link, as
-     * recount_check($lager, $godkend_regdif).
+     * recount_check($lager, $godkend_regdif). bogfor() and opdat_behold() are evaluated whole.
      */
     private static function lift(): void
     {
@@ -138,11 +169,23 @@ final class StockCountRecountTest extends TestCase
         self::assertNotFalse($to, 'the recount list no longer ends with the accept link');
         $code = substr($src, $from, $to - $from);
 
+        $from = strpos($src, 'function bogfor(');
+        $to = strpos($src, '} # endfunc bogfor', (int)$from);
+        self::assertNotFalse($from, 'bogfor() is no longer in lager/optalling.php');
+        self::assertNotFalse($to, 'bogfor() no longer ends with "} # endfunc bogfor"');
+        $posting = substr($src, $from, $to + 1 - $from);
+        $from = strpos($src, 'function opdat_behold(');
+        $to = strpos($src, "\nfunction gentael(", (int)$from);
+        self::assertNotFalse($from, 'opdat_behold() is no longer in lager/optalling.php');
+        self::assertNotFalse($to, 'gentael() no longer follows opdat_behold()');
+        $posting .= "\n" . substr($src, $from, $to - $from);
+
         eval('namespace ' . __NAMESPACE__ . '; ' . $renderer
             . "\nfunction page_vnr(\$varenr) { " . $page[0] . " return \$vnr; }"
             . "\nfunction recount_check(\$lager, \$godkend_regdif) { \$y = 0; "
-            . $code . "\n }\n return array('y' => \$y, 'reg_id' => \$reg_id ?? array(), 'reg_diff' => \$reg_diff,"
+            . $code . "\n }\n return array('y' => \$y, 'reg_id' => \$reg_id, 'reg_diff' => \$reg_diff,"
             . " 'reg_variant_id' => \$reg_variant_id, 'reguleres' => \$reguleres); }");
+        eval('namespace ' . __NAMESPACE__ . '; ' . $posting);
         $lifted = true;
     }
 
@@ -195,6 +238,93 @@ final class StockCountRecountTest extends TestCase
     private static function afterASaleAndASecondCount(): array
     {
         return [[2855, 13, 0, 21, 21], [2856, 18, 0, 8, 7], [2857, 102, 0, 15, 17], [2858, 13, 0, 20, 1]];
+    }
+
+    /** Buys $antal of an item into warehouse 1 before the count date, so it has that stock. */
+    private static function bought(int $item, float $antal): void
+    {
+        $db = $GLOBALS['stockCountDb'];
+        $db->prepare("INSERT INTO batch_kob (vare_id,linje_id,kobsdate,fakturadate,ordre_id,antal,pris,rest,lager,variant_id)
+            VALUES (?,0,'2025-12-01','2025-12-01',0,?,10,?,1,0)")->execute([$item, $antal, $antal]);
+        $db->prepare("UPDATE varer SET beholdning = beholdning + ? WHERE id = ?")->execute([$antal, $item]);
+        $db->prepare("UPDATE lagerstatus SET beholdning = ? WHERE vare_id = ? AND variant_id = 0 AND lager = 1")
+            ->execute([$antal, $item]);
+    }
+
+    /** Runs bogfor() for warehouse 1 on 31-12-2025, as the page does for its posting links, and returns what it printed. */
+    private function post(string $nulstil_ej_optalt, string $bogfor): string
+    {
+        $GLOBALS['nulstil_ej_optalt'] = $nulstil_ej_optalt; // opdat_behold() reads the page's variable
+        $GLOBALS['stockCountSql'] = [];
+        ob_start();
+        try {
+            bogfor('1', $nulstil_ej_optalt, '31-12-2025', $bogfor, '');
+        } finally {
+            $output = (string)ob_get_clean();
+        }
+        return $output;
+    }
+
+    /** @return array{varer: string, lagerstatus: string, batch_salg: string} */
+    private static function stockOf(int $item): array
+    {
+        $db = $GLOBALS['stockCountDb'];
+        $one = static function (string $sql) use ($db, $item): string {
+            $statement = $db->prepare($sql);
+            $statement->execute([$item]);
+            return (string)$statement->fetchColumn();
+        };
+        return [
+            'varer' => $one("SELECT beholdning FROM varer WHERE id = ?"),
+            'lagerstatus' => $one("SELECT beholdning FROM lagerstatus WHERE vare_id = ? AND variant_id = 0 AND lager = 1"),
+            'batch_salg' => $one("SELECT count(*) || ':' || coalesce(sum(antal), 0) FROM batch_salg WHERE vare_id = ?"),
+        ];
+    }
+
+    /** @return array<string, array{string, string}> nulstil_ej_optalt, bogfor */
+    public static function replays(): array
+    {
+        return [
+            'final posting with zeroing' => ['on', '2'],
+            'final posting' => ['', '2'],
+            'preview with zeroing' => ['on', '1'],
+        ];
+    }
+
+    /**
+     * The testlab's replay: A and B were counted and posted, A at 21 and B at 7, and the link for the
+     * final posting is opened again.
+     */
+    #[DataProvider('replays')]
+    public function testOpeningThePostingAgainWithNothingCountedPostsNothing(string $nulstil_ej_optalt, string $bogfor): void
+    {
+        self::bought(13, 21);
+        self::bought(18, 7);
+        $GLOBALS['stockCountDb']->exec("INSERT INTO regulering VALUES (1,13,0,1,'21.000','21.000','202512312359','1'),
+            (2,18,0,1,'8.000','7.000','202512312359','1')");
+        $before = [self::stockOf(13), self::stockOf(18)];
+
+        $output = $this->post($nulstil_ej_optalt, $bogfor);
+
+        self::assertStringContainsString('Der er ingen optalte varer at bogføre.', $output);
+        self::assertSame([], preg_grep('/^\s*(insert|update|delete)\b/i', $GLOBALS['stockCountSql']), 'nothing is written');
+        self::assertSame($before, [self::stockOf(13), self::stockOf(18)], 'A and B keep the stock they were counted at');
+        self::assertStringNotContainsString('Lagerregulering udført', $output);
+        self::assertStringNotContainsString('endelig lagerregulering', $output, 'no link to post an empty count');
+    }
+
+    public function testACountIsStillPosted(): void
+    {
+        self::bought(13, 21);
+        self::counted([[1, 13, 0, 21, 20]]);
+
+        $output = $this->post('', '2');
+
+        self::assertStringContainsString('Lagerregulering udført.', $output);
+        self::assertStringNotContainsString('Der er ingen optalte varer', $output);
+        self::assertSame(['varer' => '20', 'lagerstatus' => '20', 'batch_salg' => '1:1'], self::stockOf(13), 'A is adjusted from 21 to the 20 counted');
+        $unposted = $GLOBALS['stockCountDb']->query("SELECT count(*) FROM regulering WHERE bogfort = '0'")->fetchColumn();
+        self::assertSame('0', (string)$unposted, 'the count is posted');
     }
 
     /** @param array{state: array<string, mixed>, output: string} $result */

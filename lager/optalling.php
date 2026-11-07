@@ -53,6 +53,8 @@
 //                Variant 0 comes back from the database as '0' and never matched the NULL kept for it, so each count replaced the one before.
 //                The recount list finds the item by its varenr instead of querying id=''.
 //                vis_optalling() escapes that varenr and lists every item only for NULL, so the recount shows an item like O'RING or 0 alone.
+// 20261105 CL/LH Bogfør with no unposted count on the warehouse, as when the final posting link is opened again, posts nothing and says so.
+//                It died with a TypeError on PHP 8, since $reg_id was only set in the loop over the counts.
 
 @session_start();
 $s_id = session_id();
@@ -643,7 +645,7 @@ function vis_ej_optalt($lager)
 ###########################################################################################################
 function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 {
-	global $bruger_id, $db, $regnaar;
+	global $bruger_id, $db, $regnaar, $sprog_id;
 
 	$r = db_fetch_array(db_select("select * from grupper where kodenr='$regnaar' and art='RA'", __FILE__ . " linje " . __LINE__));
 	$startaar = $r['box2'] * 1;
@@ -683,6 +685,7 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 	$reg_diff = array();
 	$reguleres = array();
 	$reg_variant_id = array();
+	$reg_id = array();
 	$qtxt = "select * from regulering where bogfort='0' and lager='$lager' order by vare_id,variant_id,id";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -732,6 +735,12 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 		print "document.optalling.optalt.focus();\n";
 		print "</script>\n";
 		exit;
+	}
+	# 20261105 Nothing is counted on this warehouse, as when the final posting link is opened again after it ran.
+	# Posting it would set every item to 0 with nulstil_ej_optalt, also the items just counted, so stop before anything is written.
+	if (!$reg_id) {
+		print "<tr><td colspan=\"8\" align=\"center\">" . findtekst('stock_count.nothing_to_post|Der er ingen optalte varer at bogføre.', $sprog_id) . "</td></tr>";
+		return;
 	}
 	print "<tr><td colspan=\"8\" align=\"center\">Røde linjer er ikke optalte og reguleres til 0, grønne reguleres i henhold til optælling.</td></tr>";
 	print "<tr><td colspan=\"8\" align=\"center\"><hr></td></tr>";
