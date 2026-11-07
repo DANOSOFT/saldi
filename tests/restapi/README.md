@@ -38,7 +38,8 @@ docker-compose stack.
 - `AccountsEndpointTest` — `accounts/` (kontoplan): list, create → read-back
   stamped with the latest fiscal year, missing description → 400, a number
   the fiscal year already has → 400 on POST and on a renumbering PUT, a
-  number that is not a whole number from 1 → 400, update, 404, DELETE → 405.
+  number that is not a whole number from 1 → 400, update, a PUT without `vat`
+  keeps the VAT code and one with `vat` stores it, 404, DELETE → 405.
 - `OrderLinesEndpointTest` — `debitor/orderlines/`: parameter validation,
   free-text line on a fresh order → list/read-back with position numbers,
   posted order refuses lines, PUT/DELETE → 405.
@@ -133,3 +134,4 @@ production registry.
 <!-- 20261008 CL/LH Products paging/field-name/filtered-paging, product-group list and warehouse list cases. -->
 <!-- 20261105 CL/LH InventoryStatusEndpointTest. -->
 <!-- 20261105 CL/LH AccountsEndpointTest: a duplicate or fractional account number is refused. -->
+<!-- 20261105 CL/LH AccountsEndpointTest: a PUT without vat keeps the account's VAT code. -->

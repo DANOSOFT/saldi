@@ -11,6 +11,7 @@
 // 20261105 CL/LH A kontonr the fiscal year already has is refused with 400 on POST and on a renumbering PUT, and nothing is stored.
 //                A PUT that keeps its number is saved even when an older duplicate shares it.
 //                A number that is not a whole number from 1 is refused with 400, so a fraction is never rounded onto the next account.
+// 20261105 CL/LH A PUT without vat keeps the account's VAT code, and one with vat stores the new code.
 
 use PHPUnit\Framework\TestCase;
 
@@ -228,6 +229,38 @@ final class AccountsEndpointTest extends TestCase
         $this->assertSame(200, $put['status'], $put['body']);
         $this->assertTrue($put['json']['success']);
         $this->assertSame('after', $this->read($id)['json']['data']['beskrivelse']);
+    }
+
+    private function storedMoms(int $id): ?string
+    {
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT moms FROM kontoplan WHERE id = $1', [$id]);
+        pg_close($tenant);
+        return $rows[0]['moms'] ?? null;
+    }
+
+    /** A PUT changes only the fields it sends: one without vat keeps the account's VAT code, one with vat stores it. */
+    public function test_a_put_without_vat_keeps_the_vat_code_and_one_with_vat_changes_it(): void
+    {
+        $create = $this->create(['accountNumber' => $this->freeAccountNumber(), 'description' => 'Apitest konto æøå', 'accountType' => 'D', 'vat' => 'S1']);
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
+        $this->assertSame('S1', $this->read($id)['json']['data']['moms'], 'the VAT code reads back as stored');
+
+        $put = RestApiEnv::http('PUT', self::ACCOUNTS, ['id' => $id, 'description' => 'Apitest konto Ærø'], RestApiEnv::authHeaders());
+
+        $this->assertSame(200, $put['status'], $put['body']);
+        $this->assertSame('S1', $put['json']['data']['moms']);
+        $this->assertSame('S1', $this->storedMoms($id), 'a description-only PUT leaves kontoplan.moms alone');
+        $read = $this->read($id)['json']['data'];
+        $this->assertSame('Apitest konto Ærø', $read['beskrivelse']);
+        $this->assertSame('S1', $read['moms']);
+
+        $put = RestApiEnv::http('PUT', self::ACCOUNTS, ['id' => $id, 'vat' => 'K1'], RestApiEnv::authHeaders());
+
+        $this->assertSame(200, $put['status'], $put['body']);
+        $this->assertSame('K1', $this->storedMoms($id));
+        $this->assertSame('Apitest konto Ærø', $this->read($id)['json']['data']['beskrivelse']);
     }
 
     public function test_reading_or_updating_a_nonexistent_account_returns_404(): void

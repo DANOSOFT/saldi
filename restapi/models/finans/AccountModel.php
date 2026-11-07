@@ -70,7 +70,7 @@ class AccountModel {
             $this->storedKontonr = $r['kontonr'];
             $this->beskrivelse = $r['beskrivelse'];
             $this->kontotype = $r['kontotype'];
-            $this->moms = !empty($r['moms']) ? new VatModel($id=NULL, $vatcode=$r['moms']) : NULL;
+            $this->moms = ($r['moms'] ?? '') !== '' ? $r['moms'] : NULL;
             $this->fra_kto = $r['fra_kto'];
             $this->til_kto = $r['til_kto'];
             $this->lukket = $r['lukket'];
@@ -105,7 +105,7 @@ class AccountModel {
             $this->kontonr = (int)$r['kontonr'];
             $this->beskrivelse = $r['beskrivelse'];
             $this->kontotype = $r['kontotype'];
-            $this->moms = !empty($r['moms']) ? new VatModel($id=NULL, $vatcode=$r['moms']) : NULL;
+            $this->moms = ($r['moms'] ?? '') !== '' ? $r['moms'] : NULL;
             $this->fra_kto = (int)$r['fra_kto'];
             $this->til_kto = (int)$r['til_kto'];
             $this->lukket = $r['lukket'];
@@ -153,6 +153,8 @@ class AccountModel {
         // 20261105 CL/LH A kontonr is a whole number from 1, and one its fiscal year already has is refused on create and on renumbering, as on the account card.
         //                Before, a repeated POST inserted a second row and answered with the first row's id.
         //                The number is checked and stored as one integer, so 1001.6 no longer passes the check as 1001 and is rounded to 1002 by the database.
+        // 20261105 CL/LH moms is the account's VAT code as kontoplan stores it (S1), so a PUT without vat writes back the code it read.
+        //                Before, it held a VatModel that was never loaded and the update wrote '' over the code, and a PUT with vat failed on the string.
         $kontonr = (is_int($this->kontonr) || (is_string($this->kontonr) && ctype_digit($this->kontonr))) ? (int)$this->kontonr : 0;
         if ($kontonr < 1 || $kontonr > self::MAX_KONTONR) {
             return "Account number must be a whole number from 1 to " . self::MAX_KONTONR;
@@ -167,7 +169,7 @@ class AccountModel {
                 kontonr = '$this->kontonr', 
                 beskrivelse = '$this->beskrivelse', 
                 kontotype = '$this->kontotype', 
-                moms = '".($this->moms !== NULL ? $this->moms->getMomskode().$this->moms->getNr() : "")."',
+                moms = '" . db_escape_string((string)$this->moms) . "',
                 fra_kto = '$this->fra_kto', 
                 til_kto = '$this->til_kto', 
                 lukket = '$this->lukket', 
