@@ -110,6 +110,7 @@
 //             It found open lines by leveret < antal alone, which NULL never matched, so open sales lines counted as ordered once leveret starts at 0.
 // 20261104 CL/ASR The form's POST only picks filters and opens a report (each report page has its own gate), so it counts as a read: a read-only role can open Lagerstatus, Prisliste, Lageroptælling and Salg pr. postnummer from here.
 // 20261105 CL/LH Group totals with Beregn lagerbeh./værdi put Købspris, Salgspris, DB, DG and Værdi under their own column titles, on screen and in the CSV, also with Kun salg / DB.
+// 20261105 CL/LH An item's line in salgsrapport.csv has its VAT under +moms, as the Moms column on screen; it repeated the Salgspris.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -1526,7 +1527,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				print "<td align='right'>".dkdecimal($t_s_pris,2)."</td>";
 				fwrite($csvfile, dkdecimal($t_s_pris,2).";");
 				print "<td align='right'>".dkdecimal($t_moms,2)."</td>";
-				fwrite($csvfile, dkdecimal($t_s_pris,2).";");
+				fwrite($csvfile, dkdecimal($t_moms,2).";");
 				print "<td align='right'>".dkdecimal($t_regul,2)."</td>";
 				fwrite($csvfile, dkdecimal($t_regul,2).";");
 				print "<td align='right'>".dkdecimal($t_dkBi,2)."</td>";

@@ -15,10 +15,17 @@
 // and in the classic one, and reads every cell of the group total under the
 // column title it stands below, on the page and in the CSV.
 //
+// It also covers the testlab finding "salgsrapport.csv +moms column holds
+// Salgspris instead of VAT": an item's line in the CSV repeated its Salgspris
+// under +moms, where the page shows the VAT under Moms. includes/rapport.php,
+// an older copy of the page that writes the same file, had the same line and
+// no +moms in its CSV header at all, so the VAT column is read there too.
+//
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20261105 CL/LH Created.
+// 20261105 CL/LH An item's CSV line has its VAT under +moms, as the page under Moms, also from includes/rapport.php.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -51,6 +58,12 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
 
     /** The same totals in the CSV, where DG has no % and the columns have their CSV titles. */
     private const CSV_TOTALS = ['Købspris' => '450,00', 'Salgspris' => '430,00', 'DB' => '260,00', 'DG' => '60,47', 'Værdi' => '280,00'];
+
+    /** Each item's Salgspris and the VAT on it: the order lines have momssats 25, so 4*100 with 100,00 and 1*30 with 7,50. */
+    private const ITEM_SALES = [
+        'a' => ['Salgspris' => '400,00', 'Moms' => '100,00'],
+        'b' => ['Salgspris' => '30,00', 'Moms' => '7,50'],
+    ];
 
     /** Varenr. prefix of this test's items, so the report shows only them. */
     private string $token = '';
@@ -180,15 +193,19 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
         $this->layoutBefore = $row === null ? null : (string)$row['box3'];
     }
 
-    /** The report for this test's items, as the front page's OK button opens it, every row on one page. */
-    private function report(bool $kunSalg): string
+    /**
+     * The report for this test's items, as the front page's OK button opens it, every row on one page.
+     * $pageDir 'includes' opens includes/rapport.php, the older copy of lager/rapport.php.
+     */
+    private function report(bool $kunSalg, string $pageDir = 'lager'): string
     {
         $query = [
             'submit' => 'ok',
             'varegruppe' => (string)$this->group,
             'date_from' => self::FROM,
             'date_to' => self::TO,
-            'varenr' => $this->token,
+            // The copy in includes/ matches Varenr. exactly unless it has a *, lager/rapport.php matches any part.
+            'varenr' => $pageDir === 'includes' ? $this->token . '*' : $this->token,
             'lagertal' => 'on',
             'vr_per_page' => '100000',
         ];
@@ -198,8 +215,27 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
         if (is_file(self::csvPath())) {
             unlink(self::csvPath()); // so the CSV read below is this request's
         }
-        $res = self::runChild('run_varerapport_page.php', [CharacterizationEnv::SESSION_ID, http_build_query($query)]);
+        $res = self::runChild('run_varerapport_page.php', [CharacterizationEnv::SESSION_ID, http_build_query($query), $pageDir]);
         return $res['stdout'];
+    }
+
+    /**
+     * The columns of every table row in the page, in page order.
+     *
+     * @return list<list<string>>
+     */
+    private static function tableRows(string $html): array
+    {
+        $doc = new DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $doc->loadHTML('<?xml encoding="UTF-8">' . $html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $rows = [];
+        foreach ($doc->getElementsByTagName('tr') as $row) {
+            $rows[] = self::columns($row);
+        }
+        return $rows;
     }
 
     /**
@@ -277,15 +313,9 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
         $this->useLayout($grid ? 'S' : '');
         $html = $this->report($kunSalg);
 
-        $doc = new DOMDocument();
-        $previous = libxml_use_internal_errors(true);
-        $doc->loadHTML('<?xml encoding="UTF-8">' . $html);
-        libxml_clear_errors();
-        libxml_use_internal_errors($previous);
         $titles = null;
         $total = null;
-        foreach ($doc->getElementsByTagName('tr') as $row) {
-            $columns = self::columns($row);
+        foreach (self::tableRows($html) as $columns) {
             if ($titles === null && ($columns[0] ?? '') === 'Varenr.') {
                 $titles = $columns;
             } elseif (($columns[0] ?? '') === $this->groupName && count($columns) > 2) {
@@ -320,5 +350,72 @@ final class VarerapportGroupTotalsTest extends CharacterizationTestCase
         $this->assertCount($width, $csvTitles, 'the CSV has the report\'s columns: ' . implode(' | ', $csvTitles));
         $csvTotals = $kunSalg ? array_diff_key(self::CSV_TOTALS, ['Købspris' => 1, 'Værdi' => 1]) : self::CSV_TOTALS;
         $this->assertSame($this->expected($csvTitles, $csvTotals, 'Varenr'), self::underTitles($csvTitles, $csvTotal));
+    }
+
+    /** @return array<string, array{string, bool, string}> the page's directory, grid layout, the page's title over the VAT */
+    public static function vatPages(): array
+    {
+        return [
+            'grid layout' => ['lager', true, 'Moms'],
+            'classic layout' => ['lager', false, 'Moms'],
+            // The older copy of the page writes the same salgsrapport.csv. It has only the classic layout.
+            'includes/rapport.php' => ['includes', false, '+Moms'],
+        ];
+    }
+
+    #[DataProvider('vatPages')]
+    public function test_an_items_csv_line_has_its_vat_under_moms_as_the_page(string $pageDir, bool $grid, string $vatTitle): void
+    {
+        $this->useLayout($grid ? 'S' : '');
+        $html = $this->report(false, $pageDir);
+        $suffixOf = [];
+        foreach (array_keys(self::ITEM_SALES) as $suffix) {
+            $suffixOf[$this->token . $suffix] = $suffix;
+        }
+
+        $titles = null;
+        $pageLines = [];
+        foreach (self::tableRows($html) as $columns) {
+            if ($titles === null && ($columns[0] ?? '') === 'Varenr.') {
+                $titles = $columns;
+            } elseif (isset($suffixOf[$columns[0] ?? ''])) {
+                $pageLines[$suffixOf[$columns[0]]] = $columns;
+            }
+        }
+        $this->assertNotNull($titles, "the report has no column titles:\n" . substr(strip_tags($html), 0, 3000));
+        $this->assertSame($grid, str_contains($html, "id='vrGridTable'"), $grid ? 'the grid layout is used' : 'the classic layout is used');
+
+        $this->assertFileExists(self::csvPath(), 'the report wrote its CSV');
+        $csv = (string)file_get_contents(self::csvPath());
+        $csvTitles = null;
+        $csvLines = [];
+        foreach (preg_split('/\r?\n/', $csv) as $line) {
+            $fields = str_getcsv($line, ';', '"', '');
+            if ($csvTitles === null && ($fields[0] ?? '') === 'Varenr') {
+                $csvTitles = $fields;
+            } elseif (isset($suffixOf[$fields[0] ?? ''])) {
+                $csvLines[$suffixOf[$fields[0]]] = $fields;
+            }
+        }
+        $this->assertNotNull($csvTitles, "the CSV has no column titles:\n" . substr($csv, 0, 2000));
+
+        foreach (self::ITEM_SALES as $suffix => $sale) {
+            $varenr = $this->token . $suffix;
+            $this->assertArrayHasKey($suffix, $pageLines, "item $varenr has a line on the page");
+            $this->assertArrayHasKey($suffix, $csvLines, "item $varenr has a line in the CSV:\n" . substr($csv, 0, 2000));
+            $page = array_combine($titles, array_pad(array_slice($pageLines[$suffix], 0, count($titles)), count($titles), '(no cell)'));
+            $this->assertSame(
+                ['Salgspris' => $sale['Salgspris'], $vatTitle => $sale['Moms']],
+                ['Salgspris' => $page['Salgspris'] ?? '(no column)', $vatTitle => $page[$vatTitle] ?? '(no column)'],
+                "item $varenr on the page"
+            );
+            $this->assertCount(count($csvTitles), $csvLines[$suffix], "item $varenr's CSV line has the CSV's columns: " . implode(' | ', $csvLines[$suffix]));
+            $line = array_combine($csvTitles, $csvLines[$suffix]);
+            $this->assertSame(
+                ['Salgspris' => $sale['Salgspris'], '+moms' => $sale['Moms']],
+                ['Salgspris' => $line['Salgspris'] ?? '(no column)', '+moms' => $line['+moms'] ?? '(no column)'],
+                "item $varenr in the CSV: the VAT the page shows under $vatTitle, not the Salgspris again"
+            );
+        }
     }
 }

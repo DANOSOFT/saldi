@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------lager/rapport.php------------patch 3.9.0-------2020.04.08----
+// -----------includes/rapport.php------------ver 5.1.0-------2026.11.05----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2013.02.10 Break ændret til break 1
 // 2013.03.18 $modulnr ændret fra 12  til 15
@@ -55,6 +55,7 @@
 // 2020.04.08 PHR	- Added Vat to summary repport
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
+// 20261105 CL/LH An item's line in salgsrapport.csv has its VAT under a +moms column, as the +Moms column on screen; it repeated the Salgspris, and the header had no +moms, so it stood under Reguleret.
 
 @session_start();
 $s_id = session_id();
@@ -556,7 +557,7 @@ function varegruppe($date_from, $date_to, $varenr, $varenavn, $varegruppe, $deta
 			<td align=\"right\"><b>DB</b></td>
 			<td align=\"right\"><b>DG</b></td>
 			<td align=\"right\"><b>K&oslash;bspris</b></td>";
-			fwrite($csvfile, "Varenr;Enhed;Beskrivelse;Købt;Købspris;Solgt;Salgspris;Reguleret;DB;DG;Købspris");
+			fwrite($csvfile, "Varenr;Enhed;Beskrivelse;Købt;Købspris;Solgt;Salgspris;+moms;Reguleret;DB;DG;Købspris");
 			if (count($lagergruppe) && $lagertal) {
 				print "<td align=\"right\"><b>Beholdning</b></td>
 				<td align=\"right\"><b>Værdi</b></td>";
@@ -863,7 +864,7 @@ function varegruppe($date_from, $date_to, $varenr, $varenavn, $varegruppe, $deta
 				print "<td align=right>" . dkdecimal($t_s_pris, 2) . "</td>";
 				fwrite($csvfile, dkdecimal($t_s_pris, 2) . ";");
 				print "<td align=right>" . dkdecimal($t_moms, 2) . "</td>";
-				fwrite($csvfile, dkdecimal($t_s_pris, 2) . ";");
+				fwrite($csvfile, dkdecimal($t_moms, 2) . ";");
 				print "<td align=right>" . dkdecimal($t_regul, 2) . "</td>";
 				fwrite($csvfile, dkdecimal($t_regul, 2) . ";");
 				print "<td align=right>" . dkdecimal($t_dkBi, 2) . "</td>";
