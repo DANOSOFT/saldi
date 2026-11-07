@@ -70,7 +70,9 @@ class VareGruppeModel
             $this->sellAccount = $r['box4'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box4']) : NULL;
             $this->buyEuAccount = $r['box11'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box11']) : NULL;
             $this->sellEuAccount = $r['box12'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box12']) : NULL;
-            $this->buyOutsideEuAccount = $r['box2'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box2']) : NULL;
+            // 20261105 CL/LH buyOutsideEuAccount is box13 (Alt. varekøbskonto uden for EU), the slot save() writes.
+            //                Both loaders read box2 (Lagertræk), so GET showed that account and a PUT without the field copied it into box13.
+            $this->buyOutsideEuAccount = $r['box13'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box13']) : NULL;
             $this->sellOutsideEuAccount = $r['box14'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box14']) : NULL;
 
             return true;
@@ -108,7 +110,7 @@ class VareGruppeModel
             $this->sellAccount = $r['box4'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box4']) : NULL;
             $this->buyEuAccount = $r['box11'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box11']) : NULL;
             $this->sellEuAccount = $r['box12'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box12']) : NULL;
-            $this->buyOutsideEuAccount = $r['box2'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box2']) : NULL;
+            $this->buyOutsideEuAccount = $r['box13'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box13']) : NULL;
             $this->sellOutsideEuAccount = $r['box14'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box14']) : NULL;
 
             return true;

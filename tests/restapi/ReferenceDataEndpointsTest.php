@@ -14,6 +14,7 @@
 // 20261008 CL/LH inventory/warehouses lists the real warehouses with their names, numbers and stock.
 // 20261023 CL/LH warehouses: follow SST-829 (#769) - no fiscal_year filter, one row per warehouse number.
 // 20261105 CL/LH products/groups stores the five boolean options as 'on' or '' on POST and PUT, and reads them back.
+// 20261105 CL/LH products/groups reads buyOutsideEuAccount from box13, not box2 (Lagertræk), and a PUT keeps it.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -279,6 +280,45 @@ final class ReferenceDataEndpointsTest extends TestCase
             $this->assertSame(['box6' => '', 'box7' => 'on', 'box8' => '', 'box9' => '', 'box10' => 'on'], $this->groupOptionBoxes($tenant, $id));
             $get = $this->get("products/groups/?id=$id");
             $this->assertSame($options, array_intersect_key($get['json']['data'], $options));
+        } finally {
+            RestApiEnv::rows($tenant, 'DELETE FROM grupper WHERE id = $1', [$id]);
+            pg_close($tenant);
+        }
+    }
+
+    /** The six account slots of a product group, as GET answers them: kontonr or null. */
+    private function groupAccountNumbers(array $group): array
+    {
+        return array_map(fn($account) => is_array($account) ? (int)$account['kontonr'] : null, $group['accounts']);
+    }
+
+    public function test_product_group_buy_outside_eu_account_is_box13_and_survives_a_put(): void
+    {
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $year = $this->currentFiscalYear($tenant);
+        $numbers = array_map('intval', array_column(RestApiEnv::rows($tenant, "SELECT DISTINCT kontonr FROM kontoplan WHERE regnskabsaar = $1 AND kontotype IN ('D', 'S') ORDER BY kontonr LIMIT 7", [$year]), 'kontonr'));
+        $this->assertCount(7, $numbers, 'template tenant has seven accounts in the current fiscal year');
+        $stockOut = array_pop($numbers);
+        $accounts = array_combine(['buyAccount', 'sellAccount', 'buyEuAccount', 'sellEuAccount', 'buyOutsideEuAccount', 'sellOutsideEuAccount'], $numbers);
+
+        $post = RestApiEnv::http('POST', self::V1 . 'products/groups/', ['codeNo' => 9702, 'description' => 'REST accounts test'] + $accounts, RestApiEnv::authHeaders());
+        $this->assertSame(201, $post['status'], $post['body']);
+        $id = (int)$post['json']['data']['id'];
+        $boxes = fn() => RestApiEnv::rows($tenant, 'SELECT box2, box3, box4, box11, box12, box13, box14 FROM grupper WHERE id = $1', [$id])[0];
+        try {
+            $stored = array_map('strval', array_combine(['box3', 'box4', 'box11', 'box12', 'box13', 'box14'], $numbers));
+            $this->assertSame(['box2' => null] + $stored, $boxes(), 'buyOutsideEuAccount is stored in box13');
+
+            // Lagertræk, as SALDI's settings page stores it, must not show up as the outside-EU purchase account.
+            RestApiEnv::rows($tenant, 'UPDATE grupper SET box2 = $1 WHERE id = $2', [(string)$stockOut, $id]);
+            $get = $this->get("products/groups/?id=$id");
+            $this->assertSame(200, $get['status'], $get['body']);
+            $this->assertSame($accounts, $this->groupAccountNumbers($get['json']['data']), 'GET reads buyOutsideEuAccount from box13, not box2');
+
+            $put = RestApiEnv::http('PUT', self::V1 . "products/groups/?id=$id", ['description' => 'REST accounts test renamed'], RestApiEnv::authHeaders());
+            $this->assertSame(200, $put['status'], $put['body']);
+            $this->assertSame(['box2' => (string)$stockOut] + $stored, $boxes(), 'a PUT without the accounts keeps every slot');
+            $this->assertSame($accounts, $this->groupAccountNumbers($this->get("products/groups/?id=$id")['json']['data']));
         } finally {
             RestApiEnv::rows($tenant, 'DELETE FROM grupper WHERE id = $1', [$id]);
             pg_close($tenant);
