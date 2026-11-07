@@ -3,11 +3,14 @@
 function satser() {
 	global $charset;
 	global $db;
+	global $db_encode;
 	$visLønninger='checked';
 	global $sprog_id;
 	# 20261106 SD-813 currency unit after the amounts
 	# 20261107 SD-813 escaped once here, so a custom translation cannot add markup in the eleven places it is printed (Saul, CodeRabbit)
-	$krTekst = htmlspecialchars(findtekst('8487|kr.', $sprog_id), ENT_QUOTES, $charset);
+	# 20261107 SD-813 loen.php skips the charset of online.php ($header 'nix'), so it is taken from the database encoding here (CodeRabbit)
+	$krCharset = $charset ? $charset : (($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1');
+	$krTekst = htmlspecialchars(findtekst('8487|kr.', $sprog_id), ENT_QUOTES, $krCharset);
 	
 	#'plads','skole','sygdom','barn_syg');
 	

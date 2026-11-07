@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-06 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -180,6 +180,7 @@
 //                 The delete tooltip of a fully delivered line is translated too; the tooltips are escaped (CodeRabbit).
 //                 A translation with a format sprintf() cannot use falls back to the Danish text (orderTekstFormat()), so it cannot stop the page.
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
+// 20261107 CL/MMR SD-813 A translated format with a width over 100 (e.g. %100000000s) also falls back to the Danish text, so it cannot exhaust the memory (CodeRabbit).
 
 @session_start();
 $s_id = session_id();
@@ -6811,8 +6812,8 @@ function formatOrderUnitPrice($price)
 
 /**
  * Puts values into a translated text with sprintf(). A custom translation whose format sprintf() cannot use
- * (too few values, an unknown placeholder) falls back to the built-in Danish text, so a translation can never
- * stop the order page. Valid formats such as %s, %1$s and %% work as usual.
+ * (too few values, an unknown placeholder, a width over 100) falls back to the built-in Danish text, so a
+ * translation can never stop the order page. Valid formats such as %s, %1$s, %5s and %% work as usual.
  *
  * @param string $tekst     The translated text from findtekst().
  * @param string $standard  The built-in Danish text with the same placeholders (UTF-8, converted to the page charset here).
@@ -6822,6 +6823,10 @@ function formatOrderUnitPrice($price)
 function orderTekstFormat($tekst, $standard, ...$vaerdier)
 {
 	try {
+		// A very large width or padding would build a string big enough to exhaust the memory; refuse it like an unusable format.
+		if (preg_match_all('/%(?:\d+\$)?[-+ 0]*(?:\'.)?(\d+)/', (string)$tekst, $bredder) && max(array_map('intval', $bredder[1])) > 100) {
+			throw new \ValueError('format width over 100');
+		}
 		return sprintf((string)$tekst, ...$vaerdier);
 	} catch (\ArgumentCountError | \ValueError $e) {
 		global $db_encode;
