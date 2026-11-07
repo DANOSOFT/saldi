@@ -1,2 +1,3 @@
 account.delete_has_entries	Kontoen har åbne poster eller ordrer og kan ikke slettes.	The account has open items or orders and cannot be deleted.	Kontoen har åpne poster eller ordrer og kan ikke slettes.
 common.accept	Acceptér	Accept	Godta
+reminder.next_level_not_due	Der er ikke oprettet en ny rykker for løbenr. %s, fordi betalingsfristen for den forrige rykker ikke er overskredet.	No new reminder was created for serial no. %s, because the payment deadline of the previous reminder has not passed.	Det er ikke opprettet en ny purring for løpenr. %s, fordi betalingsfristen for forrige purring ikke er overskredet.
