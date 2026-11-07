@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- debitor/ordreliste.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,8 @@
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
 // 20261103 CL/ASR QA round 2: the key and level follow the action; changes need write, the booking settings need settings.sales, and the SMTP login and the Vibrant key need write on settings.email and settings.integrations.
 //                 The stored password and API key are no longer sent back to the browser; an empty field keeps them.
+// 20261105 CL/LH The public booking link (getRemoteLink) uses ?db=, which remoteBooking/index.php reads, instead of ?id=.
+//                It is built on the scheme, host and port the page was opened on instead of https on the default port.
 
     @session_start();
     $s_id=session_id();
@@ -1385,9 +1387,11 @@
     }
 
     if(isset($_GET["getRemoteLink"])){
-        $serverName = $_SERVER['SERVER_NAME'];
+        // The public booking link: on the scheme, host and port this page was opened on, with the regnskab in ?db=,
+        // the parameter remoteBooking/index.php and index.js read.
+        $remoteHost = preg_replace('/[^A-Za-z0-9.:\-\[\]]/', '', (string) ifset($_SERVER, 'HTTP_HOST', ifset($_SERVER, 'SERVER_NAME', 'localhost')));
         $firstFolder = explode('/', trim($_SERVER['REQUEST_URI'], '/'))[0];
-        echo json_encode("https://".$serverName."/".$firstFolder."/remoteBooking/index.php?id=".$db);
+        echo json_encode((saldi_request_is_https() ? "https" : "http")."://".$remoteHost."/".$firstFolder."/remoteBooking/index.php?db=".rawurlencode($db));
     }
 
     function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_ny,$procent,$art,$momsfri,$posnr,$linje_id,$incl_moms,$kdo,$rabatart,$kopi,$saet,$fast_db,$lev_varenr,$lager,$linje) { #20140426
