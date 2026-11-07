@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -213,6 +213,9 @@
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
 // 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated, numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
 // 20261103 CL/ASR QA round 2: the GET link ompost (Tilbagefør postering) needs write on the journal.
+// 20261105 CL/LH Hent showed only when the order settings row (grupper DIV/3) was missing, and every regnskab is created with it.
+//                Invoices left at status 3 with immediate posting unticked could therefore not be fetched into the journal.
+//                It now shows while sales or purchases are not posted right away and a non-POS order waits, as hentordrer.php lists them.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -4282,9 +4285,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if (!$fejl) {
 				print "<td align='center'><span title='" . findtekst('1546|Simulering af bogføring viser bevægelser i kontoplanen', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='s' value='" . findtekst('1064|Simulér', $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1547|Bogfør - der foretages først en simulering, som du skal bekræfte', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='b' value='" . findtekst('1065|Bogfør', $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span></td>";
+				// Hent is how invoices that were not posted right away (status 3) reach the journal. DIV/3 box5 holds
+				// "<sales>;<purchases>", each 'on' when those invoices are posted right away, read as includes/ordrefunc.php
+				// and kreditor/bogfor.php read it: a value without ';' (before 3.6) applies to both, and without the row
+				// neither is. POS orders follow their own setting and hentordrer.php does not list them, so they do not
+				// show Hent on their own.
 				$qtxt = "select box5 from grupper where art = 'DIV' and kodenr = '3'";
-				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$qtxt = "select id from ordrer where status=3";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$straksbogfor = explode(';', $r ? (string)$r['box5'] : '');
+				if (!$straksbogfor[0] || !($straksbogfor[1] ?? $straksbogfor[0])) {
+					$qtxt = "select id from ordrer where art != 'PO' and status = 3";
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 						print "<td align='center'><span title='" . findtekst('1548|Henter afsluttede ordrer fra ordreliste', $sprog_id) . "'><input type='submit' style='width:120px;float:left' accesskey='h' value='" . findtekst('1078|Hent', $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span></td>";
 					}
