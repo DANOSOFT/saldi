@@ -11,6 +11,9 @@ use PHPUnit\Framework\TestCase;
 //                showQtyDiscounts.php read the decimals of a whole number that has none.
 //                showLocations.php read the location of a warehouse with no lagerstatus row.
 //                Each include runs here as varekort.php runs it, in the caller's scope with the card's variables set, against a fake database (support/product_card_includes_database.php).
+// 20261105 CL/LH Changing Aktuel and saving logged two more warnings in the same session (testlab round 1, warehouses-transfer-receipt, step 4).
+//                showLocations.php read $linjebg before setting it when the item has stocklog rows.
+//                hiddenVars.php printed $lagerantal on the stock change confirmation, a variable varekort.php never sets.
 #[RunTestsInSeparateProcesses]
 #[PreserveGlobalState(false)]
 final class ProductCardIncludesWarningsTest extends TestCase
@@ -143,16 +146,69 @@ final class ProductCardIncludesWarningsTest extends TestCase
             array("/ordrer\.art = '(KO|DO)'/", array()),
             array('/from stocklog where item_id = 13/', array()),
         );
-        [$html, $problems] = self::render('showLocations.php', array(
-            'sprog_id' => 1, 'stockItem' => 'on', 'warehouseNames' => array(1 => 'Hovedlager', 2 => 'Filial'), 'id' => 13,
-            'vare_varianter' => array(), 'variantVarerId' => array(), 'location' => '', 'folgevarenr' => '',
-            'operation' => 0, 'montage' => 0, 'demontage' => 0, 'min_lager' => 0, 'max_lager' => 0, 'volume_lager' => 0,
-            'beholdning' => 4, 'fifo' => null, 'samlevare' => '', 'bgcolor' => '#ffffff', 'bgcolor5' => '#e0e0f0',
-            'provisionsfri' => '', 'shopurl' => null, 'shop_id' => null, 'publiceret' => '',
-        ));
+        [$html, $problems] = self::locations(array(1 => 'Hovedlager', 2 => 'Filial'), 4);
 
         self::assertSame(array(), $problems);
         self::assertStringContainsString('name="lagerlok[1]"value="A-12"', $html);
         self::assertStringContainsString('name="lagerlok[2]"value=""', $html);
+    }
+
+    /**
+     * Renders showLocations.php for stock item 13 with the card's variables, against ProductCardIncludesDb::$plan.
+     *
+     * @param array<int, string> $warehouseNames
+     * @return array{0: string, 1: array<int, string>}
+     */
+    private static function locations(array $warehouseNames, int $beholdning): array
+    {
+        return self::render('showLocations.php', array(
+            'sprog_id' => 1, 'stockItem' => 'on', 'warehouseNames' => $warehouseNames, 'id' => 13,
+            'vare_varianter' => array(), 'variantVarerId' => array(), 'location' => '', 'folgevarenr' => '',
+            'operation' => 0, 'montage' => 0, 'demontage' => 0, 'min_lager' => 0, 'max_lager' => 0, 'volume_lager' => 0,
+            'beholdning' => $beholdning, 'fifo' => null, 'samlevare' => '', 'bgcolor' => '#ffffff', 'bgcolor5' => '#e0e0f0',
+            'provisionsfri' => '', 'shopurl' => null, 'shop_id' => null, 'publiceret' => '',
+        ));
+    }
+
+    public function testAnItemWithStockLogRowsShowsTheLogTooltipWithoutWarnings(): void
+    {
+        // A confirmed stock change writes a stocklog row, and the card then links Aktuel to the log with a tooltip of the last five.
+        ProductCardIncludesDb::$plan = array(
+            array("/sum\(antal\) as antal from batch_kob where vare_id = '13' and lager = '1'/", array(array('antal' => '6'))),
+            array("/sum\(antal\) as antal from batch_salg where vare_id = '13' and lager = '1'/", array(array('antal' => null))),
+            array("/select lok1 from lagerstatus where vare_id = '13' and lager = '1'/", array(array('lok1' => 'A-12'))),
+            array("/sum\(beholdning\) as beholdning from lagerstatus where vare_id = '13' and lager = '1'/", array(array('beholdning' => '6'))),
+            array("/ordrer\.art = '(KO|DO)'/", array()),
+            array('/from stocklog where item_id = 13/', array(
+                array('username' => 'admin', 'initials' => 'LH', 'reason' => 'Optælling', 'correction' => '2', 'logtime' => '1793936009'),
+                array('username' => 'admin', 'initials' => 'LH', 'reason' => 'Varemodtagelse', 'correction' => '4', 'logtime' => '1793935800'),
+            )),
+        );
+        [$html, $problems] = self::locations(array(1 => 'Hovedlager'), 6);
+
+        self::assertSame(array(), $problems);
+        self::assertSame(1, preg_match("/overlib\('(.*?)', WIDTH=800\)/s", $html, $tooltip), 'no Log tooltip in: ' . $html);
+        preg_match_all('/<tr (bgcolor=[^>]*)>/', $tooltip[1], $rows);
+        // The header row has the page background, and the log rows alternate from there.
+        self::assertSame(array('bgcolor=#ffffff', 'bgcolor=#e0e0f0', 'bgcolor=#ffffff'), $rows[1]);
+        self::assertStringContainsString('<td>admin</td><td>LH</td><td align=right>2,00</td>', $tooltip[1]);
+    }
+
+    public function testTheStockChangeConfirmationPostsTheWarehouseCountWithoutWarnings(): void
+    {
+        // confirmStockChange.php includes hiddenVars.php when Aktuel changes and stock changes must be confirmed.
+        // These are the card's variables at that point (lager/varekort.php:1239), where the warehouses are counted in $numberOfStocks.
+        [$html, $problems] = self::render('hiddenVars.php', array(
+            'beskrivelse' => array(0 => 'Testvare'), 'fokus' => '', 'gruppe' => 1, 'lev' => null, 'id' => 13, 'ordre_id' => 0,
+            'publiceret' => '', 'returside' => '', 'varenr' => 'A1', 'vare_sprogantal' => 0, 'vare_lev_id' => null,
+            'oldDescription' => 'Testvare', 'vare_tekst_id' => array(), 'vare_sprog_id' => array(),
+            'warehouseNames' => array(1 => 'Hovedlager', 2 => 'Filial'), 'numberOfStocks' => 2,
+            'lagerbeh' => array(1 => '4', 2 => '0'), 'ny_lagerbeh' => array(1 => '6', 2 => '0'),
+        ));
+
+        self::assertSame(array(), $problems);
+        // The value the card's own form posts as lagerantal (lager/varekort.php:1682).
+        self::assertStringContainsString("name='lagerantal' value='2'", $html);
+        self::assertStringContainsString("name='ny_lagerbeh[1]' value=\"6\"", $html);
     }
 }

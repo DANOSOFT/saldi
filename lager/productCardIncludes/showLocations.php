@@ -28,6 +28,7 @@
 // 20260810 LOE Removed right alignment from commission field
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
 // 20261105 CL/LH A warehouse with no lagerstatus row for the item shows an empty location instead of reading lok1 from a missing row (array offset on false).
+// 20261105 CL/LH The stock log tooltip's header row sets $linjebg instead of toggling it before it is set (undefined variable once the item has stocklog rows).
 /**
  * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
  * @var array<int, string> $warehouseNames
@@ -214,7 +215,7 @@
 						$s++;
 					}
 					if ($s) {
-						($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
+						$linjebg="bgcolor=$bgcolor";
 						$txt = "<table><tr $linjebg><td>$txt990</td><td>$txt647</td><td>$txt916</td><td>$txt930</td></tr>";
 						for ($s=0;$s<count($usNa);$s++) {
 							($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
