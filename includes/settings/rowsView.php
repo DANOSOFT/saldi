@@ -36,6 +36,8 @@
 // 20261105 CL/LH settings_rows_fields_by_sub(): a field the user may not see at all ('hide_without') is left out, so its sub-section has no empty heading (Momsperioder on Regnskabsår without Kassekladde).
 // 20261105 CL/LH A table card says whether its table has the inaktiv flag as data-can-inactive, not data-inactive, which only the eye carries.
 //                settingsRows.js took a click into a cell for a click on the eye (closest('[data-inactive]') found the card) and threw a TypeError on the card's missing row.
+// 20261105 CL/LH settingsRows.js?v=7, whose Gem posts only the cells that changed and the new rows, so a long table (a variant's values) stays under PHP's max_input_vars.
+//                The new version keeps a cached copy of the old script, which posted every cell, from being used.
 
 include_once(__DIR__ . '/rows.php');
 
@@ -286,7 +288,7 @@ function settings_rows_render(array $c): void
   <div class="st-snack" id="st-snack" role="status" hidden></div>
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
-<script src="../javascript/settingsRows.js?v=6"></script>
+<script src="../javascript/settingsRows.js?v=7"></script>
 	<?php
 }
 
