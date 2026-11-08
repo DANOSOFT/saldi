@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,7 @@
 //                 An expired form (err=csrf) now says so.
 // 20261103 CL/ASR QA round 2: when the current password is missing for a contact change, the page no longer also says Dine indstillinger er gemt; it says Øvrige indstillinger er gemt only when another preference changed (text 7807).
 // 20261104 CL/ASR Advar om udløb (dage før) is shown only to users who get the expiry warning, those with Varerapport (batch_reports_allowed(), includes/stdFunc/fefo.php).
+// 20261108 CL/ASR css/personalSettings.css and css/saldi-kit.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -67,7 +68,7 @@ $s_id = session_id();
 ob_start();
 
 $title = "Personlige indstillinger";
-$css = "../css/personalSettings.css?v=20261101";
+$css = "../css/personalSettings.css?v=20261108";
 $permission_key = 'any';
 
 include(__DIR__ . "/../includes/connect.php");
@@ -471,7 +472,7 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 	$flashIcons = array('ok' => 'bx-check-circle', 'warn' => 'bx-error', 'err' => 'bx-x-circle');
 	?>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'>
+<link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'>
 <script>document.title = <?= json_encode(mb_convert_encoding(findtekst('5500|Personlige indstillinger', $sprogId), 'UTF-8', $charset)) ?>;</script>
 <div class="ps-page">
   <div class="sk ps-backbar"><?= settings_back_button() /* opened from anywhere in Saldi, like the hub: the last page outside the settings, or Oversigt */ ?></div>

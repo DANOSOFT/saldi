@@ -1,20 +1,24 @@
-/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.02 ---
+/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.08 ---
    20261101 CL/ASR The shared UI kit for pages on the new design (prototype D "Som ordrelisten", as index/dashboard.php):
                    the design tokens and the components the settings pages need, everything scoped under .sk.
    20261101 CL/ASR No zebra on .sk-list rows: they are navigation (the settings hub, the left menu, lists of roles), and the owner found
                    alternating colours there confusing. Zebra stays on real data tables (.sk-table).
    20261102 CL/ASR The Tilbage button of every settings page (.sk-back, settings_back_button()) is placed here, above the title, once:
                    the hub, Brugere & roller and the moved map each carried a copy of the rule.
+   20261108 CL/ASR The page ground is Saldi's classic page colour (--page, #eeeef0, as the body of the classic pages), not white:
+                   panels, lists, tables, menus and fields stay white on it, so they stand out (owner, 8 Nov 2026).
 
    HOW TO USE
    1. Load it after includes/online.php (which links css/saldi-fonts.css on the shell, the dashboard and systemdata pages):
-        print "<link rel='stylesheet' href='../css/saldi-theme.css?v=7'>\n<link rel='stylesheet' href='../css/saldi-kit.css?v=20261101'>\n";
+        print "<link rel='stylesheet' href='../css/saldi-theme.css?v=8'>\n<link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'>\n";
       saldi-theme.css gives the colours for light and dark; without it the kit falls back to the light values.
       A module that moves to the kit must also be in $uiChromePage in includes/online.php (fonts, data-theme, text size).
    2. Scope: the page's root element carries the class sk (a <div> or <body>, never <html>: sizes are in rem and follow
       the user's text size). Nothing here applies outside .sk, so linking this file cannot restyle a classic page.
       Drawers, dialogs and toasts go inside the same root. A whole kit page uses <div class="sk sk-page">, which also
-      paints the frame white. Page CSS is only for what the kit lacks, scoped under .sk as well (.sk .ur-matrix { … }).
+      paints the frame in Saldi's page colour (--sk-bg = --page, #eeeef0, the same ground as every classic page). Put content
+      on it in white panels (.sk-panel), never as bare rows or tables on the ground, and do not paint a page white again.
+      Page CSS is only for what the kit lacks, scoped under .sk as well (.sk .ur-matrix { … }).
    3. Classes (all sk-; one filled button per page; status = dot + text; no shadows except on floating layers):
       page     .sk-page · .sk-head > (.sk-head-tx > a.sk-back + h1.sk-title + p.sk-lead) + .sk-head-acts; .sk-back = the settings
                pages' Tilbage (a .sk-btn.sk-btn-sm above the title)
@@ -49,7 +53,7 @@
 /* ---- tokens: the dashboard's values (css/dashboard.css, prototype saldi-premium.css), mapped onto css/saldi-theme.css and
    css/saldi-fonts.css. Font sizes and heights in rem (13 px = .8125rem), so the text-size choice still works. ---- */
 .sk {
-	--sk-bg: var(--surface, #ffffff); --sk-surface: var(--surface, #ffffff); --sk-surface-2: var(--surface-2, #f7f9fc);
+	--sk-bg: var(--page, #eeeef0); --sk-surface: var(--surface, #ffffff); --sk-surface-2: var(--surface-2, #f7f9fc);
 	--sk-border: var(--border, #e4e8ef); --sk-grid: var(--grid, #eef1f6);
 	--sk-text: var(--text, #0b1a3a); --sk-text-2: var(--text-2, #5b6b85); --sk-text-3: var(--text-3, #8a97ad); --sk-link: var(--link, #1b68bd);
 	--sk-good: var(--good, #15803d); --sk-bad: var(--bad, #c2410c); --sk-good-bg: var(--good-bg, #e8f6ee); --sk-bad-bg: var(--bad-bg, #fdecec);
@@ -106,8 +110,8 @@
 .sk .sk-n { font-weight: 400; color: var(--sk-text-3); font-variant-numeric: tabular-nums; }
 .sk .sk-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
-/* ---- page: white frame, 16/28 px padding as the dashboard; title and lead left, actions right ---- */
-html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--surface, #ffffff) !important; }   /* beats old page CSS that forces a body colour; 20261101 the white comes from here, so .sk-page needs no min-height (100vh plus its padding scrolled short pages) */
+/* ---- page: Saldi's page colour as the frame, 16/28 px padding as the dashboard; title and lead left, actions right ---- */
+html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--page, #eeeef0) !important; }   /* beats old page CSS that forces a body colour; the ground comes from here, so .sk-page needs no min-height (100vh plus its padding scrolled short pages) */
 /* border-box: the root is not covered by .sk *, and min-height 100vh plus the 16 + 96 px padding scrolled every short page by 112 px */
 .sk.sk-page, .sk .sk-page { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--sk-gap); min-width: 0; padding: 16px var(--sk-page-x) 96px; background: var(--sk-bg); }
 .sk .sk-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 24px; }

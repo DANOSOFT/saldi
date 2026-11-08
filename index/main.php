@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.0 --- 2026-11-04 ---
+// ---- index/main.php --- ver 5.1.0 --- 2026-11-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -83,6 +83,7 @@
 // 20261104 CL/ASR Lager » Udløbsrapport follows the report to Varerapport (right 15 and lager.rapporter instead of right 12, owner 4 Nov 2026).
 // 20261104 LOE SST-922 The Print button loads a page's autoprint view when the page offers one.
 // 20261104 CL/ASR Merge: the top bar's Print side goes through saldiPrintIframe() as well, so it also prints a page's autoprint view (SST-922).
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 (--page in light is Saldi's classic page colour #eeeef0).
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -151,7 +152,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 <script>window.SALDI_CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;</script>
 <link href='../css/sidebar_style.css?v=26' rel='stylesheet'>
 <link href='../css/topbar.css?v=23' rel='stylesheet'>
-<link href='../css/saldi-theme.css?v=7' rel='stylesheet'>
+<link href='../css/saldi-theme.css?v=8' rel='stylesheet'>
 <script>document.documentElement.classList.add('saldi-shell');</script>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">
 

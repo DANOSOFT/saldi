@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/settingsMoved.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- systemdata/settingsMoved.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 //                 The page is built from css/saldi-kit.css under .sk and has the Tilbage button above its title like every settings page (owner, 1 Nov 2026).
 // 20261101 CL/ASR Tilbage has 8 px to the title and Alt+L, as on the other settings pages.
 // 20261102 CL/ASR Tilbage goes to the hub with Alt+L from settings_back_button(); css/saldi-kit.css (?v=20261102) places it, so the page's own rule is gone.
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 and css/saldi-kit.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -36,13 +37,13 @@
 $s_id = session_id();
 
 $title = "Indstillinger";
-$css = "../css/saldi-theme.css?v=7";
+$css = "../css/saldi-theme.css?v=8";
 $modulnr = 0;
 $permission_key = 'any';
 
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'>\n";
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'>\n";
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");

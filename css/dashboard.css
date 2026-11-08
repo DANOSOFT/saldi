@@ -3,12 +3,14 @@
    Ubetalte salgsfakturaer, key-figure lists, the website gradient on the CTA card.
    20261009 Sawaneh Font sizes in rem with a 12 px floor, Saldi Grotesk for card titles and drawer headings, Inter for content,
    axis text at a fixed 0.78rem (--axis set by dashboard.js). Front-page addendum 3 §3 and §5.1.
-/* ---- css/dashboard.css --- ver 5.1.0 --- 2026.11.01 ---
+/* ---- css/dashboard.css --- ver 5.1.0 --- 2026.11.08 ---
    20261008 Sawaneh Oversigt rebuilt on Adam's prototype_dashboard_tema.html v5: cards, KPI, charts, heatmap, ring, the
                     "Rediger oversigt" drawer and the tooltip. Colours come from css/saldi-theme.css (light/dark).
    20261101 CL/ASR Rewritten on prototype D ("Som ordrelisten", prototype_premium/dashboard.html + saldi-premium.css): flat panels with 4 px corners and a grey 28 px header band, the KPI strip with label bands, bar charts and heatmap at their real size, tables with 24 px rows and a grey bold header (zebra), share bars, the unpaid card with a stacked bar, the kit's buttons, switch, tooltip and panel for "Rediger oversigt".
                    White page, no entry animation, no personal colour.
-                   Only linked by index/dashboard.php. */
+                   Only linked by index/dashboard.php.
+   20261108 CL/ASR The page ground is Saldi's classic page colour (--page, #eeeef0), as on every classic page; the panels stay white
+                   on it (owner, 8 Nov 2026: white on white had too little contrast). */
 /* Tokens: css/saldi-theme.css (same names as the prototype kit). The kit's own controls, row and radius tokens are not in the app
    theme, so they are scoped here with a db- prefix. Font sizes in rem (13 px = .8125rem) so the text-size choice still works. */
 :root {
@@ -27,7 +29,7 @@
 /* ---- page ---- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; }
-html, body { background: var(--surface); }
+html, body { background: var(--page, #eeeef0); }
 body { min-height: 100vh; font: 400 var(--db-fs)/1.4 var(--font-ui, Inter, system-ui, sans-serif); color: var(--text); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 h2, p, ul { margin: 0; padding: 0; }
 a { color: var(--link); text-decoration: none; }

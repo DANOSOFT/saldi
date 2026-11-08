@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/dashboard.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,13 +61,14 @@
 //                 Texts 7700-7701.
 // 20261103 CL/ASR QA: the months to date are counted over the fiscal year's own months (dashData.php), not always 12.
 // 20261103 CL/ASR QA round 2: the VAT figure needs Finansrapport, each POS shortcut needs the right for its page, and a role without any block (Indkøb) gets a short note with links to its modules instead of an empty page.
+// 20261108 CL/ASR css/dashboard.css ?v=8 and css/saldi-theme.css ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels stay white (owner, 8 Nov 2026).
 @session_start();
 $s_id = session_id();
 ob_start();
 
 global $sprog_id;
 
-$css = "../css/dashboard.css?v=7";
+$css = "../css/dashboard.css?v=8";
 print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
@@ -231,7 +232,7 @@ $money = function ($v) {
 	return number_format(round(abs((float) $v)), 0, $GLOBALS['dashDec'], $GLOBALS['dashThou']) . ' kr';
 };
 
-print "<link rel='stylesheet' href='../css/saldi-theme.css?v=7'>";
+print "<link rel='stylesheet' href='../css/saldi-theme.css?v=8'>";
 if ((function_exists('perm_can') ? false : !check_permissions(array(3,4))) || is_null($regnaar)) {
 	print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
 	if (is_null($regnaar)) {

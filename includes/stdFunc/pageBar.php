@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageBar.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- includes/stdFunc/pageBar.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // 20261018 SS Review 2 (PR #803): page_bar_back_ok() - a back link from the request may not run a script.
 // 20261031 CL/ASR Settings pages only: no dark-theme switch and no gear in the page toolbar (the gear is in the topbar).
 //                 The shell no longer hides Tilbage.
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 (--page is Saldi's classic page colour #eeeef0 now; no page_bar page uses it).
 
 if (!function_exists('page_bar_back_ok')) {
 	/**
@@ -104,7 +105,7 @@ function page_bar(array $o): void
 		$assets = true;
 		// Pages sit one level (debitor/) or two levels (lager/lister/) below the install root.
 		$rel = function_exists('get_relative') ? rtrim(get_relative(), '/') : '..';
-		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=7'><link rel='stylesheet' href='$rel/css/page.css?v=2'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
+		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=8'><link rel='stylesheet' href='$rel/css/page.css?v=2'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
 	}
 	$style = "--user-primary:" . $h(!empty($buttonColor) ? $buttonColor : '#114691') . ";--user-primary-text:" . $h(!empty($buttonTxtColor) ? $buttonTxtColor : '#ffffff');
 	print "<div class='pg' style='$style'>";

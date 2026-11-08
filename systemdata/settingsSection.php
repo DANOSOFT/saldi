@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,6 +60,7 @@
 // 20261103 CL/ASR QA: Gendan goes through the normal save (settings_section_save()): the field must be visible, writable and not locked, the old value is validated, and the follow-ups (on_save, settings_after_section_save) run; a value that was not set is restored as the default the readers used.
 //                 Masked history rows (SettingsService::historyMasked(): secrets, CPR, bank, salary) offer no Gendan and are refused.
 //                 A row error no longer saves the page's fields (dry run, spec §7.3).
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8, css/saldi-kit.css and css/unified-components.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -79,7 +80,7 @@ if (!isset($_SESSION['csrf_token'])) {
 $csrfToken = $_SESSION['csrf_token'];
 
 $title = "Indstillinger";
-$css = "../css/saldi-theme.css?v=7";
+$css = "../css/saldi-theme.css?v=8";
 $modulnr = 0; // the section's own permission key is required below
 $permission_key = 'any';
 $permission_post_read = false;
@@ -87,7 +88,7 @@ $permission_post_read = false;
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
 // The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'><link rel='stylesheet' href='../css/unified-components.css?v=20261102b'>\n";
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'><link rel='stylesheet' href='../css/unified-components.css?v=20261108'>\n";
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");

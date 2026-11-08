@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRoles.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- systemdata/usersRoles.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 //                 "Slet helt" is offered only to users the log saw being created (as user_delete() decides), not to every older user.
 //                 A migrated custom role that an administrator saves loses its migrated_ key, so it is not deleted with its last holder.
 //                 Audit-log times (list and CSV) on PHP's clock (st_local_time()).
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -59,7 +60,7 @@ $s_id = session_id();
 ob_start();
 
 $title = "Brugere & roller";
-$css = "../css/saldi-theme.css?v=7"; // the light/dark tokens; usersRolesIncludes/view.php links the kit and css/usersRoles.css after it
+$css = "../css/saldi-theme.css?v=8"; // the light/dark tokens; usersRolesIncludes/view.php links the kit and css/usersRoles.css after it
 $modulnr = 0; // no legacy gate: the page checks its own keys below
 $permission_key = 'settings.users.manage|settings.roles.manage|settings.audit.read';
 

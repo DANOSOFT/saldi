@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settings.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- systemdata/settings.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,7 @@
 // 20261102 CL/ASR No Tilbage on the hub itself (owner): it is the settings start page; the sub-pages keep theirs.
 //                 The kit and css/settingsHub.css are linked as ?v=20261102 (the kit places Tilbage now).
 // 20261103 CL/ASR QA: settings_hub_json() converts a single string too on latin-1 installations (array_walk_recursive() on a string was a fatal error).
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 and css/saldi-kit.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -181,7 +182,7 @@ function settings_hub_view(array $vm, int $sprogId): void
 	}
 	$cols = array_values(array_filter($cols));
 	?>
-<link rel='stylesheet' href='../css/saldi-theme.css?v=7'><link rel='stylesheet' href='../css/saldi-kit.css?v=20261102'>
+<link rel='stylesheet' href='../css/saldi-theme.css?v=8'><link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <script>document.title = <?= settings_hub_json(st_txt('122|Indstillinger')) ?>;</script>
 <?php if (function_exists('page_help')) { page_help(array('shortcuts' => '[data-keys]')); } ?>

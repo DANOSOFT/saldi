@@ -19,6 +19,8 @@
         //                 Booking marked, and the booking settings below unchanged.
         //                 Opened from Booking (no marker) the page is exactly as on master: Booking has its own menu, so the always-shown
         //                 Tilbage of 1 Nov is gone.
+        // 20261108 CL/ASR Opened from Indstillinger the booking form is a white panel (as .st-card) on the settings pages' ground #eeeef0 (owner, 8 Nov 2026).
+        //                 Bootstrap's disabled field (#e9ecef) and grey captions (#6c757d) were made for white and faded on the grey ground.
         include_once(__DIR__ . "/../includes/settings/hub.php"); // settings_opened_from_settings()
         $fromSettings = settings_opened_from_settings();
         if ($fromSettings) {
@@ -27,7 +29,7 @@
             // The booking form fills the content column from its top (not 80 % wide, centred, 5 rem down); the layout's title replaces its
             // heading.
             print "<style>.row > .col.content:has(> .st-page) { padding: 0 !important; }"
-                . " .st-frame-main > form.form { width: auto; max-width: 46rem; margin: 0; }"
+                . " .st-frame-main > form.form { width: auto; max-width: 46rem; margin: 0; padding: 0 1rem 1rem; background: var(--st-surface, #fff); border: 1px solid var(--st-border, #e4e8ef); border-radius: var(--st-r, 4px); }"
                 . " .st-frame-main > form.form > h3:first-child { display: none; }</style>\n";
             settings_layout_open();
         }

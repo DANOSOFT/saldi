@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/labels.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- systemdata/labels.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,13 +28,15 @@
 // 20261101 CL/ASR Review: css/unified-components.css linked as ?v=20261101e, the version the section pages and the old pages' frame link.
 // 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops; settings_back_button() adds Alt+L itself.
 // 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b, the version the other settings pages link.
+// 20261108 CL/ASR css/unified-components.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
+//                 The list of labels (.lb-names) is a white panel on that ground, as the left menu beside it.
 
 @session_start();
 $s_id = session_id();
 ob_start();
 
 $title = "Mærkater";
-$css = "../css/unified-components.css?v=20261102b";
+$css = "../css/unified-components.css?v=20261108";
 $permission_key = 'settings.items';
 $permission_level = 'read';
 
@@ -166,7 +168,7 @@ $typeSelect = '<select class="st-input st-select" name="labelType"' . $dis . '><
 .lb-new { margin: 12px 0 0; }
 .lb-sect { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
 .lb-list h2, .lb-editor h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
-.lb-names { margin: 0; padding: 0; border-left: 0; }
+.lb-names { margin: 0; padding: 4px; border: 1px solid var(--st-border); border-radius: var(--st-r); background: var(--st-surface); }
 .lb-names a { display: flex; justify-content: space-between; gap: 8px; min-height: 36px; padding: 6px 10px; border-radius: 8px; color: var(--st-text); text-decoration: none; }
 .lb-names a:hover { background: var(--st-surface-2); }
 .lb-names a.on { background: var(--st-surface); box-shadow: 0 0 0 1px var(--st-border); font-weight: 500; }

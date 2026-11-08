@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/importer_varianter.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- systemdata/importer_varianter.php --- ver 5.1.0 --- 2026.11.08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,12 +26,13 @@
 // 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
 //                 The left menu of Køb & lager with Varianter marked (Varer), Tilbage above the title back to Varianter, the breadcrumb Indstillinger / Køb & lager / Varianter / this page.
 //                 The two import forms sit in the content column beside the menu, unchanged; the layout links css/unified-components.css, the page's head links the theme tokens (css/saldi-theme.css) as the section pages.
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 
 @session_start();
 $s_id = session_id();
 
 $title = "Importér varianter";
-$css = "../css/saldi-theme.css?v=7"; // the theme tokens, as the section pages; the layout links css/unified-components.css
+$css = "../css/saldi-theme.css?v=8"; // the theme tokens, as the section pages; the layout links css/unified-components.css
 $permission_key = 'settings.import_export';
 $permission_level = 'write';
 

@@ -13,6 +13,10 @@
  *                 iframe, without its own head, scrim or shadow). Linked as ?v=20261102b.
  * 20261103 CL/ASR The direct sub-group heading (.st-menu-head) is gone again (owner, 3 Nov 2026: a heading is never a link in Indstillinger);
  *                 its rules are removed. No new ?v=: a cached copy only has rules that match nothing now.
+ * 20261108 CL/ASR The ground of the settings pages is Saldi's classic page colour #eeeef0 (.st-page, html:has(.st-page), body:has(.st-page); owner, 8 Nov 2026).
+ *                 The cards, menu, fields and save bar stay white on it, and the Stamdata embed (.st-embed) stays white.
+ *                 The save bar is closed all round and the '?' by the page title (.st-qhelp) keeps a white fill, so neither looks cut off or faded on the ground.
+ *                 Linked as ?v=20261108.
  */
 
 /* ============================================
@@ -713,13 +717,17 @@ button.btn-primary:hover {
             load the kit and carry the root class sk) with the light values as fallback for the pages that do not
             (top.php, labels.php, settingsMoved.php, importer_varianter.php). Class names are unchanged and the classes
             those pages share keep their selector weight, so javascript/settings*.js and the pages' own CSS keep working.
+   20261108 CL/ASR The page ground is Saldi's classic page colour (--st-page = the kit's --sk-bg / --page, #eeeef0), not white;
+            the cards, menu, fields and save bar stay white on it (owner, 8 Nov 2026). The Stamdata embed stays white, as
+            the person card around it. The save bar is closed at the bottom too (border and corners all round), so at the end of
+            the form it does not look cut off on the ground; the '?' by the page title keeps a white fill, as Tilbage.
    One set of components for every generated settings section. No page-specific CSS.
    ============================================ */
 
 .st-page {
   --st-surface: var(--sk-surface, var(--surface, #ffffff));
   --st-surface-2: var(--sk-surface-2, var(--surface-2, #f7f9fc));
-  --st-page: var(--st-surface);
+  --st-page: var(--sk-bg, var(--page, #eeeef0));
   --st-border: var(--sk-border, var(--border, #e4e8ef));
   --st-grid: var(--st-border);
   --st-text: var(--sk-text, var(--text, #0b1a3a));
@@ -780,13 +788,13 @@ button.btn-primary:hover {
   display: flex;
   flex-direction: column;
   gap: var(--st-gap);
-  background: var(--st-surface);
+  background: var(--st-page);
   color: var(--st-text);
   font: 400 var(--st-fs)/1.4 var(--st-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--surface, #ffffff) !important; }
+html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--page, #eeeef0) !important; }
 .st-page *, .st-page *::before, .st-page *::after { box-sizing: border-box; }
 .st-page [hidden] { display: none !important; }
 .st-page :focus-visible { outline: 2px solid var(--st-focus); outline-offset: 1px; }
@@ -1044,7 +1052,7 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-errors a { color: var(--st-bad); }
 
 /* shown only while something is unsaved: the kit's sticky foot bar at the bottom of the form */
-.st-page .st-savebar { position: sticky; bottom: 0; z-index: 20; background: var(--st-surface); border: 1px solid var(--st-border); border-bottom: 0; border-radius: var(--st-r) var(--st-r) 0 0; }
+.st-page .st-savebar { position: sticky; bottom: 0; z-index: 20; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); }
 .st-savebar-in { min-height: 2.875rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0; padding: 8px var(--st-pad); }
 .st-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs); font-weight: 500; color: var(--st-text); }
 .st-savebar-btns { display: inline-flex; align-items: center; gap: 8px; }
@@ -1233,7 +1241,7 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-rfilter select.st-input { text-align: left; }
 .st-input.st-input-date, .st-dbody .st-input.st-input-date { width: 7.5rem; }
 /* the "?" in the page head: a quiet 18 px circle (the kit's help-circle), the section text in the kit's popover */
-.st-page .st-qhelp { flex: none; width: 1.125rem; height: 1.125rem; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0; vertical-align: middle; border: 1px solid currentColor; border-radius: 50%; background: transparent; color: var(--st-text-3); font: 600 .6875rem/1 var(--st-font); text-decoration: none; cursor: pointer; transition: color var(--st-t); }
+.st-page .st-qhelp { flex: none; width: 1.125rem; height: 1.125rem; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0; vertical-align: middle; border: 1px solid currentColor; border-radius: 50%; background: var(--st-surface); color: var(--st-text-3); font: 600 .6875rem/1 var(--st-font); text-decoration: none; cursor: pointer; transition: color var(--st-t); }
 .st-page .st-qhelp:hover, .st-page .st-qhelp[aria-expanded="true"] { color: var(--st-link); text-decoration: none; }
 .st-qwrap { position: relative; display: inline-flex; vertical-align: middle; }
 .st-qpop { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 20rem; max-width: calc(100vw - 32px); padding: 8px var(--st-pad); border: 1px solid var(--st-border); border-radius: var(--st-r); background: var(--st-surface); box-shadow: var(--st-shadow-win); color: var(--st-text); font: 400 var(--st-fs)/1.45 var(--st-font); letter-spacing: 0; }
@@ -1315,8 +1323,8 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 
 /* ---- 20261102 CL/ASR the employee drawer embedded in the person card of Brugere & ansatte (usersRoles.php, the Stamdata tab; listView.php
    prints .st-embed): the drawer fills the iframe, its name is in the card's head, and the card's scrim and X close it. ---- */
-html:has(> body .st-embed), html:has(> body .st-embed) > body { height: 100%; margin: 0; overflow: hidden; }
-.st-page.st-embed { display: flex; flex-direction: column; height: 100vh; max-width: none; margin: 0; padding: 0; }
+html:has(> body .st-embed), html:has(> body .st-embed) > body { height: 100%; margin: 0; overflow: hidden; background: var(--surface, #ffffff) !important; }
+.st-page.st-embed { display: flex; flex-direction: column; height: 100vh; max-width: none; margin: 0; padding: 0; background: var(--st-surface); }
 .st-page.st-embed > .st-notes { flex: none; width: auto; margin: 8px 16px 0; }
 .st-page.st-embed > .st-drawer { position: static; flex: 1 1 auto; width: auto; min-height: 0; border: 0; border-radius: 0; box-shadow: none; animation: none; }
 .st-page.st-embed :is(.st-dhead, .st-skip, #st-scrim) { display: none; }
