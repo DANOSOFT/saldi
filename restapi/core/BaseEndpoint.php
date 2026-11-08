@@ -1,4 +1,10 @@
 <?php
+// 20261105 CL/LH An endpoint that names its module's permission key ($permissionKey) refuses a user without that module's right with 403 (checkModuleRight()).
+//                The level is the user's role's when one is assigned (perm_user_levels()), as on the web, and the rights string's position must be open.
+//                A level below the request's is refused once the enforcement mode is 'deny' (or on a dangerous key), as on the web.
+//                The token was the only check, so a user with Debitorordre alone read the chart of accounts and the purchase orders.
+//                checkAuthorization() selects the account database and sets global $db to it, as includes/online.php does on the web.
+//                On MySQL/MariaDB tbl_exists() looked in no schema, so the role and the enforcement mode were never read and read-only could write under 'deny'.
 
 include_once __DIR__ . "/../../includes/db_query.php";
 include_once __DIR__ . "/../../includes/connect.php";
@@ -34,6 +40,14 @@ abstract class BaseEndpoint
     protected $db;
     protected $userId;
     protected $username;
+
+    /**
+     * Permission key (includes/permissionRegistry.php) of the Saldi module whose data the endpoint serves, the key that
+     * module's pages declare; null when every user with a valid token may call it. See checkModuleRight().
+     *
+     * @var string|null
+     */
+    protected $permissionKey = null;
 
     public function __construct()
     {
@@ -147,6 +161,11 @@ abstract class BaseEndpoint
         }
         
         write_log("Authorization successful", $logDb, 'INFO');
+
+        if (!$this->checkModuleRight()) {
+            write_log("Module right {$this->permissionKey} missing for user {$this->username}", $logDb, 'WARNING');
+            $this->sendResponse(false, null, "This user has no access to this function in Saldi ({$this->permissionKey}). Contact your administrator.", 403);
+        }
         ob_end_clean(); // Clear any buffered output before processing request
 
         try {
@@ -259,13 +278,18 @@ abstract class BaseEndpoint
                 return false;
             }
             
-            // Connect to the selected account database
-            global $sqhost, $squser, $sqpass;
+            // Connect to the selected account database. db_connect() selects no database on MySQL/MariaDB;
+            // db_select_database() does (on Postgres the connection is to that database already).
+            global $sqhost, $squser, $sqpass, $db;
             $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
-            if (!$conn) {
+            if (!$conn || !db_select_database($conn, $this->db)) {
                 $this->sendResponse(false, null, 'Database connection failed', 500);
                 return false;
             }
+            // The includes read the account database from global $db, as includes/online.php sets it on the web:
+            // tbl_exists() looks in that schema on MySQL/MariaDB, and checkModuleRight() asks it for the role tables
+            // and the settings table.
+            $db = $this->db;
 
             // 20261008 CL/LH: the models read the fiscal year from global $regnaar, which nothing
             // set on the JWT path - see api_current_fiscal_year() in auth.php.
@@ -282,6 +306,56 @@ abstract class BaseEndpoint
         // No valid authentication provided
         $this->sendResponse(false, null, 'Valid Bearer token required. Login via POST /auth/login.php with username, password and account_name.', 401);
         return false;
+    }
+
+    /**
+     * True when the token's user may make this request: the endpoint names no module, or the user passes both gates
+     * includes/online.php puts in front of that module's pages, for the user in brugere of the account database
+     * checkAuthorization() connected to.
+     * 1. The module gate: the key's position in the rights string (brugere.rettigheder) must be open, read as
+     *    perm_levels_from_legacy() reads it (a character from '1' up). A closed position is refused every method.
+     * 2. The role gate (perm_enforce_request()): the user's effective level for the key, from perm_user_levels(), the
+     *    assigned role's levels when the user has a role and the rights string's otherwise. A role is rendered into the
+     *    rights string, but that string is not the role: a role with Kassesystem and no Debitorordre opens position 5 for
+     *    the till, so the level has to come from the role. A GET needs read; any other method writes and needs write.
+     *    A level below that is refused where perm_enforce_request() refuses it: once the company's enforcement mode
+     *    (settings permissions/enforce) is 'deny', or always for a dangerous key. Until then the request is let through
+     *    and logged, as the web lets that user in and logs it.
+     * A user without a rights string (NULL, '' or '0'), or no longer in brugere, holds no right and is refused; online.php
+     * refuses such a user only on the chart-of-accounts pages.
+     *
+     * @return bool
+     */
+    protected function checkModuleRight()
+    {
+        if ($this->permissionKey === null) {
+            return true;
+        }
+        $key = $this->permissionKey;
+        $userId = (int) $this->userId;
+        $r = ($userId > 0) ? db_fetch_array(db_select("select rettigheder from brugere where id = $userId", __FILE__ . " linje " . __LINE__)) : false;
+        if (!$r) {
+            return false;
+        }
+        $rettigheder = trim((string) $r['rettigheder']);
+        $position = perm_levels_from_legacy($rettigheder);
+        if (perm_level_valid(isset($position[$key]) ? $position[$key] : 'none') === 'none') {
+            return false;
+        }
+        $levels = perm_user_levels($userId, $rettigheder);
+        $level = perm_level_valid(isset($levels[$key]) ? $levels[$key] : 'none');
+        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : 'GET';
+        $need = in_array($method, array('GET', 'HEAD'), true) ? 'read' : 'write';
+        $rank = perm_level_rank();
+        if ($rank[$level] >= $rank[$need]) {
+            return true;
+        }
+        $registry = permission_registry();
+        if (perm_enforcement_mode() === 'deny' || !empty($registry[$key]['dangerous'])) {
+            return false;
+        }
+        write_log("User {$this->username} holds $key at $level and $method needs $need; enforcement mode 'deny' would refuse it", $this->getLogDb(), 'WARNING');
+        return true;
     }
 
     protected function sendResponse($success, $data = null, $message = '', $httpCode = 200)

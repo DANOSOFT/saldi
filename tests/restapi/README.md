@@ -62,6 +62,33 @@ docker-compose stack.
   of batches saved without a warehouse or variant; a second row for one
   warehouse and variant is refused without booking; a quantity with a
   fourth decimal is booked as the row stores it.
+- `ModuleRightsTest` — module rights on the endpoints that name one: a
+  user with Debitorordre alone (`0000010000000000`) gets 403 and no data
+  from `accounts/` and from `creditor/orders/` and `creditor/orderlines/`,
+  a refused POST stores nothing, and the same user still reads
+  `debitor/orders/` and `debitor/invoices/`; `1`, `2` (read) or `9` at the
+  module's position opens it; a user without a rights string (NULL, `''`,
+  `'0'`) is refused every module. Read-only (`2`) is refused POST and PUT
+  once enforcement is `deny` and may write while it is `log`. `type` or
+  `art` in the body cannot change the order type `debitor/orders/`,
+  `debitor/invoices/` and `creditor/orders/` create, and each order lines
+  endpoint reads and adds lines only on its own side's orders, also with
+  SQL in the id. An assigned role decides the level: a role with
+  Kassesystem and no Debitorordre (`0000020000000000`) is refused
+  Debitorordre once enforcement is `deny`. SQL in an order's `status` or a
+  line's `positionNumber` is a 400 that stores nothing, and quotes in an
+  order's text are stored as written.
+- `ModuleRightsMysqlTest` — the same role and enforcement checks on
+  MySQL/MariaDB (`$db_type` `mysqli` and `mysql`), without HTTP:
+  `BaseEndpoint::checkAuthorization()` with a signed token, then
+  `checkModuleRight()`. CI has no MySQL, so
+  `support/mysql_account_database_stand_in.php` answers as a MySQL account
+  database (no database selected until `db_select_database()`,
+  `information_schema` per schema); `tbl_exists()` and the permission
+  functions are the real ones. Read-only Kontoplan is refused POST and PUT
+  under `deny` and may POST under `log`, the till role is refused
+  Debitorordre under `deny`, and the checks run on the account database the
+  token names.
 
 Tests that need a token the API would never issue (expired, wrong type,
 foreign account id) sign it with the install's own secret via
@@ -75,7 +102,8 @@ is covered at engine level by `tests/characterization/` (SD-601).
 ## Seeded API user
 
 The HTTP suites log in as `apitest`, a user `RestApiEnv::bootstrapTenant()`
-seeds into the throwaway tenant with a password generated per process by
+seeds into the throwaway tenant with every module right (rights string
+`11111111111111111111`) and a password generated per process by
 `tests/TestCredentials.php` (see [tests/README.md](../README.md)). Nothing to
 set up; to log in by hand while `SALDI_REST_KEEP_TENANT=1` keeps the tenant,
 pass `SALDI_TEST_PASSWORD_RESTAPI=...` on the same run.
@@ -137,3 +165,4 @@ production registry.
 <!-- 20261105 CL/LH AccountsEndpointTest: a duplicate or fractional account number is refused. -->
 <!-- 20261105 CL/LH AccountsEndpointTest: a PUT without vat keeps the account's VAT code. -->
 <!-- 20261105 CL/LH ReferenceDataEndpointsTest: vat-codes/ lists the current fiscal year's VAT codes. -->
+<!-- 20261105 CL/LH ModuleRightsTest (read-only writes under deny, order types per endpoint); the seeded API user holds every module right. Review: roles, SQL in body fields. -->

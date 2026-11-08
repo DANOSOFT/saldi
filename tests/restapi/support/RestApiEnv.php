@@ -49,6 +49,8 @@
 // 20261022 CL/NTR Removed the bootstrapTenantOnce()/$bootstrapped pair the master merge duplicated (fatal on load);
 //                 bootstrapTenantOnce() now keys on $ownedDb, so a class teardown makes the next class re-provision.
 //                 bootstrapTenant() no longer opens a stray master connection it never closed.
+// 20261105 CL/LH The seeded API user holds every module right (the rights string install.php gives the first administrator), not 'admin'.
+//                The REST API now checks the endpoint's module right, and 'admin' only opens positions 0-4 of the rights string.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
@@ -281,7 +283,7 @@ final class RestApiEnv
         pg_query_params(
             $tenant,
             "INSERT INTO brugere (brugernavn, kode, email, rettigheder, status) VALUES ($1, $2, $3, $4, true)",
-            [self::user(), md5(self::password()), 'apitest@example.invalid', 'admin']
+            [self::user(), md5(self::password()), 'apitest@example.invalid', '11111111111111111111']
         );
         pg_close($tenant);
     }

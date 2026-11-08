@@ -1,10 +1,20 @@
 <?php
+// 20261105 CL/LH createOrder() takes the order type from the endpoint; 'type' or 'art' in the body no longer changes it.
+//                {"art":"DO","type":"KO"} on debitor/orders/ created a purchase order for a user without the Kreditorordre right.
+//                DECIMAL_FIELDS and INTEGER_FIELDS name the body's numbers for the endpoints' check, and the debtor and currency lookups cast or escape what they put in SQL.
 
 require_once __DIR__ . '/../../includes/std_func.php';
 require_once __DIR__ . '/../models/orders/OrderModel.php';
 
 class OrderService
 {
+    /**
+     * Number fields of an order body, English and Danish names (mapApiToDanish()), which the endpoints check with
+     * BaseEndpoint::validateNumericFields() before createOrder(); OrderModel::save() casts them as well.
+     */
+    public const DECIMAL_FIELDS = ['vatRate', 'momssats', 'sum', 'costPrice', 'kostpris', 'vat', 'moms'];
+    public const INTEGER_FIELDS = ['accountId', 'konto_id', 'paymentDays', 'betalingsdage', 'status', 'customerGroup', 'kundegruppe'];
+
     /**
      * Map English property names to Danish database column names
      */
@@ -79,11 +89,18 @@ class OrderService
      * Create a new order with validation and business logic
      * 
      * @param object $data Order data from request (can use English or Danish property names)
+     * @param string $art  Order type (ordrer.art) the calling endpoint serves, 'DO' or 'KO'. It wins over 'type' and 'art'
+     *                     in the body, so an endpoint creates only its own module's orders.
      * @return array Result with success status and data/message
      */
-    public static function createOrder($data)
+    public static function createOrder($data, $art)
     {
         try {
+            // An empty or non-object body is a 400, as a missing field is
+            if (!is_object($data)) {
+                return ['success' => false, 'message' => 'Request body must be a JSON object'];
+            }
+
             // Map English property names to Danish
             $mappedData = self::mapApiToDanish($data);
             
@@ -121,7 +138,7 @@ class OrderService
             
             // Set required fields using mapped data
             $order->setMomssats($mappedData->momssats ?? 0);
-            $order->setArt($mappedData->art ?? 'DO');
+            $order->setArt($art);
             
             // Check if user exists by phone number and get/create konto_id and kontonr
             $debtorInfo = self::getOrCreateDebtor($mappedData);
@@ -266,9 +283,10 @@ class OrderService
      */
     private static function getUserByKontoId($konto_id)
     {
+        $konto_id = (int) $konto_id;
         if (!$konto_id) return null;
         
-        $qtxt = "SELECT id, kontonr, betalingsbet, betalingsdage, addr1, bynavn, tlf, email, postnr, firmanavn FROM adresser WHERE id = '$konto_id'";
+        $qtxt = "SELECT id, kontonr, betalingsbet, betalingsdage, addr1, bynavn, tlf, email, postnr, firmanavn FROM adresser WHERE id = $konto_id";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if ($r = db_fetch_array($q)) {
             return $r;
@@ -284,6 +302,7 @@ class OrderService
      */
     private static function getUserByPhone($phone)
     {
+        $phone = db_escape_string((string) $phone);
         $qtxt = "SELECT id, kontonr, betalingsbet, betalingsdage, addr1, bynavn, tlf, email, postnr, firmanavn FROM adresser WHERE tlf = '$phone'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
@@ -314,15 +333,21 @@ class OrderService
         $cvrnr = $mappedData->cvrnr ?? '';
         $kontakt = $mappedData->kontakt ?? '';
         // Handle kundegruppe - default to 1 if not provided
-        $kundegruppe = $mappedData->kundegruppe ?? 1;
+        $kundegruppe = (int) ($mappedData->kundegruppe ?? 1);
 
-        // Insert new debitor
+        // Insert new debitor; the text from the body is escaped
+        $text = [];
+        foreach (['firmanavn' => $mappedData->firmanavn ?? '', 'telefon' => $mappedData->telefon ?? '', 'email' => $mappedData->email ?? '',
+            'addr1' => $addr1, 'addr2' => $addr2, 'postnr' => $postnr, 'bynavn' => $bynavn, 'land' => $land, 'ean' => $ean,
+            'cvrnr' => $cvrnr, 'kontakt' => $kontakt] as $field => $value) {
+            $text[$field] = db_escape_string((string) $value);
+        }
         $qtxt = "INSERT INTO adresser (
             firmanavn, tlf, email, addr1, addr2, postnr, bynavn, land, 
             ean, cvrnr, kontonr, betalingsbet, betalingsdage, art, gruppe, kontakt
         ) VALUES (
-            '{$mappedData->firmanavn}', '{$mappedData->telefon}', '{$mappedData->email}', '$addr1', '$addr2', 
-            '$postnr', '$bynavn', '$land', '$ean', '$cvrnr', '$nextKontonr', 'netto', 8, 'D', '$kundegruppe', '$kontakt'
+            '{$text['firmanavn']}', '{$text['telefon']}', '{$text['email']}', '{$text['addr1']}', '{$text['addr2']}',
+            '{$text['postnr']}', '{$text['bynavn']}', '{$text['land']}', '{$text['ean']}', '{$text['cvrnr']}', '$nextKontonr', 'netto', 8, 'D', $kundegruppe, '{$text['kontakt']}'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -373,6 +398,7 @@ class OrderService
      */
     private static function getLastInsertId($tlf)
     {
+        $tlf = db_escape_string((string) $tlf);
         $qtxt = "SELECT id FROM adresser WHERE tlf = '$tlf' LIMIT 1";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
@@ -427,6 +453,7 @@ class OrderService
             return 100; // No conversion needed for base currency
         }
 
+        $valuta = db_escape_string((string) $valuta);
         $qtxt = "SELECT box2 FROM grupper WHERE art = 'VK' AND box1 = '$valuta'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         

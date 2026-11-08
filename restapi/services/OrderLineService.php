@@ -1,9 +1,20 @@
 <?php
+// 20261105 CL/LH createOrderLine() adds a line only to an order of the endpoint's own types (orderHasArt()); any other order is "Order not found".
+//                debitor/orderlines/ added lines to a purchase order for a user without the Kreditorordre right.
+//                DECIMAL_FIELDS and INTEGER_FIELDS name the body's numbers for the endpoints' check, and the line's SQL casts the numbers and escapes the text.
+//                A quote in positionNumber or vatFree added a second row to the INSERT, a line on any order.
 
 require_once __DIR__ . '/../models/orderlines/OrderLineModel.php';
 
 class OrderLineService 
 {
+    /**
+     * Number fields of an order line body, English and Danish names (mapApiToDanish()), which the endpoints check with
+     * BaseEndpoint::validateNumericFields() before createOrderLine(); insertNewOrderLine() casts them as well.
+     */
+    public const DECIMAL_FIELDS = ['quantity', 'antal', 'discount', 'rabat', 'percentage', 'procent', 'price', 'pris'];
+    public const INTEGER_FIELDS = ['orderId', 'ordre_id', 'productId', 'vare_id', 'positionNumber', 'posnr'];
+
     private $regnaar;
     private $momssats;
 
@@ -59,9 +70,29 @@ class OrderLineService
     }
 
     /**
-     * Main function to create order line for REST API
+     * True when order $orderId exists and its type (ordrer.art) is one of $arts. The order lines endpoints serve only
+     * their own module's orders: debitor/orderlines/ the sales side, creditor/orderlines/ the purchase side.
+     *
+     * @param mixed         $orderId Order id from the request; cast to int.
+     * @param array<string> $arts    Order types the endpoint serves.
+     * @return bool
      */
-    public function createOrderLine($data, $db = 'unknown') 
+    public static function orderHasArt($orderId, array $arts)
+    {
+        $orderId = (int) $orderId;
+        $r = ($orderId > 0) ? db_fetch_array(db_select("SELECT art FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__)) : false;
+        return $r && in_array((string) $r['art'], $arts, true);
+    }
+
+    /**
+     * Main function to create order line for REST API
+     *
+     * @param object        $data      Request body.
+     * @param array<string> $orderArts Order types (ordrer.art) the calling endpoint serves; a line for any other order is
+     *                                 refused as "Order not found".
+     * @return array Result with success, data or message, and status_code on a refusal.
+     */
+    public function createOrderLine($data, array $orderArts)
     {
         try {
             // Map English field names to Danish
@@ -79,11 +110,11 @@ class OrderLineService
                 ];
             }
 
-            $orderId = $params['ordre_id'];
+            $orderId = (int) $params['ordre_id'];
 
-            // Validate order exists and status
-            $orderInfo = $this->getOrderInfo($orderId);
-            // Order not found
+            // Validate order exists, is one of this endpoint's order types, and status
+            $orderInfo = self::orderHasArt($orderId, $orderArts) ? $this->getOrderInfo($orderId) : null;
+            // Order not found, or another module's order
             if (!$orderInfo) {
                 return [
                     'success' => false, 
@@ -234,7 +265,7 @@ class OrderLineService
     {
         if (!$varenr) return null;
 
-        $varenr_up = strtoupper($varenr);
+        $varenr_up = db_escape_string(strtoupper((string) $varenr));
         
         $qtxt = "SELECT id, vare_id, variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
         if (strlen($varenr) == 12 && is_numeric($varenr)) {
@@ -258,8 +289,9 @@ class OrderLineService
             $vare_id = $variantInfo['vare_id'];
         }
 
+        $vare_id = (int) $vare_id;
         if ($vare_id) {
-            $qtxt = "SELECT * FROM varer WHERE id='$vare_id'";
+            $qtxt = "SELECT * FROM varer WHERE id = $vare_id";
         } elseif ($varenr) {
             $varenr_escaped = db_escape_string($varenr);
             $varenr_low = strtolower($varenr_escaped);
@@ -384,38 +416,46 @@ class OrderLineService
             $params = $data['params'];
 
             // Get next position number
-            $posnr = $this->getNextPositionNumber($orderId, $params['posnr'] ?? null);
+            $posnr = (int) $this->getNextPositionNumber($orderId, $params['posnr'] ?? null);
 
             // Build description
             $beskrivelse = $params['beskrivelse'] ?? ($productInfo ? $productInfo['beskrivelse'] : '');
 
             // Prepare values for insertion - handle NULL values properly
-            $vare_id = $productInfo ? $productInfo['id'] : 'NULL';
+            $vare_id = $productInfo ? (int) $productInfo['id'] : 'NULL';
             $varenr = $productInfo ? $productInfo['varenr'] : ($params['varenr'] ?? '');
             $enhed = $productInfo ? $productInfo['enhed'] : ($params['enhed'] ?? '');
             $antal = $params['antal'];
-            $procent = $params['procent'];
-            $momsfri = $params['momsfri'];
-            $variant_id = $variantInfo ? $variantInfo['id'] : 'NULL';
+            $procent = (float) $params['procent'];
+            $momsfri = db_escape_string((string) $params['momsfri']);
+            $variant_id = $variantInfo ? (int) $variantInfo['id'] : 'NULL';
+            $orderId = (int) $orderId;
+            $antalSql = (float) $antal;
+            $rabat = (float) $pricing['discount'];
+            $pris = (float) $pricing['price'];
+            $vatPrice = (float) $pricing['vat_price'];
+            $kostpris = (float) $pricing['cost'];
+            $momssats = (float) $pricing['vat_rate'];
+            $vatAccount = (int) $pricing['vat_account'];
 
             // Escape strings
-            $beskrivelse = db_escape_string($beskrivelse);
-            $varenr = db_escape_string($varenr);
-            $enhed = db_escape_string($enhed);
+            $beskrivelse = db_escape_string((string) $beskrivelse);
+            $varenr = db_escape_string((string) $varenr);
+            $enhed = db_escape_string((string) $enhed);
 
             // Insert the order line - use NULL for integer fields when no value
             $qtxt = "INSERT INTO ordrelinjer (
                 ordre_id, vare_id, varenr, enhed, beskrivelse, antal, rabat, procent,
                 pris, vat_price, kostpris, momsfri, momssats, posnr, vat_account, variant_id
             ) VALUES (
-                '$orderId', $vare_id, '$varenr', '$enhed', '$beskrivelse', '$antal', 
-                '{$pricing['discount']}', '$procent', '{$pricing['price']}', '{$pricing['vat_price']}', 
-                '{$pricing['cost']}', '$momsfri', '{$pricing['vat_rate']}', '$posnr', 
-                '{$pricing['vat_account']}', $variant_id
+                $orderId, $vare_id, '$varenr', '$enhed', '$beskrivelse', $antalSql,
+                $rabat, $procent, $pris, $vatPrice,
+                $kostpris, '$momsfri', $momssats, $posnr,
+                $vatAccount, $variant_id
             )";
 
             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            $qtxt = "SELECT id FROM ordrelinjer WHERE ordre_id = '$orderId' AND posnr = '$posnr' ORDER BY id DESC LIMIT 1";
+            $qtxt = "SELECT id FROM ordrelinjer WHERE ordre_id = $orderId AND posnr = $posnr ORDER BY id DESC LIMIT 1";
             $result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
             if (!$result) {
                 error_log("Failed to insert order line: $qtxt");

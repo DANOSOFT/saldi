@@ -1,4 +1,6 @@
 <?php
+// 20261105 CL/LH loadFromId() casts the id to int and escapes the order type; "0 OR art='KO'" in ?id= read a purchase order through debitor/orders/.
+//                save() casts the numbers and escapes the text; status "0', '987654', '100', 'KO', ..." made debitor/orders/ store a purchase order.
 
 class OrderModel
 {
@@ -59,6 +61,8 @@ class OrderModel
      */
     private function loadFromId($id, $art)
     {
+        $id = (int) $id;
+        $art = db_escape_string((string) $art);
         $qtxt = "SELECT * FROM ordrer WHERE id = $id AND art = '$art'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -113,21 +117,24 @@ class OrderModel
      */
     public function save()
     {
-        // Insert new order - fix the field names to match database
-        $qtxt = "INSERT INTO ordrer (
-            konto_id, firmanavn, email, momssats, addr1, addr2, postnr, bynavn, land,
-            lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, ean, cvrnr,
-            ordredate, notes, betalt, sum, kostpris, moms, valuta, betalingsbet, betalingsdage,
-            kontonr, ref, status, ordrenr, valutakurs, art, fakturadate
-        ) VALUES (
-            '$this->konto_id', '$this->firmanavn', '$this->email', '$this->momssats',
-            '$this->addr1', '$this->addr2', '$this->postnr', '$this->bynavn', '$this->land',
-            '$this->lev_navn', '$this->lev_addr1', '$this->lev_addr2', '$this->lev_postnr', '$this->lev_bynavn',
-            '$this->lev_land', '$this->ean', '$this->cvrnr', '$this->ordredate', '$this->notes',
-            '$this->betalt', '$this->sum', '$this->kostpris', '$this->moms', '$this->valuta',
-            '$this->betalingsbet', '$this->betalingsdage', '$this->kontonr', '$this->ref',
-            '$this->status', '$this->ordrenr', '$this->valutakurs', '$this->art', '$this->fakturadate'
-        )";
+        // The values come from the request body: numbers are cast, text is escaped. A quote in one
+        // (status "0', '987654', '100', 'KO', ...") stood in for the values after it, the order type included.
+        $numbers = array(
+            'konto_id' => (int) $this->konto_id, 'momssats' => (float) $this->momssats, 'sum' => (float) $this->sum,
+            'kostpris' => (float) $this->kostpris, 'moms' => (float) $this->moms, 'betalingsdage' => (int) $this->betalingsdage,
+            'status' => (int) $this->status, 'ordrenr' => (int) $this->ordrenr, 'valutakurs' => (float) $this->valutakurs,
+        );
+        $columns = array(
+            'konto_id', 'firmanavn', 'email', 'momssats', 'addr1', 'addr2', 'postnr', 'bynavn', 'land',
+            'lev_navn', 'lev_addr1', 'lev_addr2', 'lev_postnr', 'lev_bynavn', 'lev_land', 'ean', 'cvrnr',
+            'ordredate', 'notes', 'betalt', 'sum', 'kostpris', 'moms', 'valuta', 'betalingsbet', 'betalingsdage',
+            'kontonr', 'ref', 'status', 'ordrenr', 'valutakurs', 'art', 'fakturadate',
+        );
+        $values = array();
+        foreach ($columns as $column) {
+            $values[] = array_key_exists($column, $numbers) ? $numbers[$column] : "'" . db_escape_string((string) $this->$column) . "'";
+        }
+        $qtxt = "INSERT INTO ordrer (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $values) . ")";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
         $resultArray = explode("\t", $result);
@@ -144,7 +151,7 @@ class OrderModel
             }
             
             // Fallback: try to find the order by unique fields
-            $qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$this->ordrenr' AND kontonr = '$this->kontonr' ORDER BY id DESC LIMIT 1";
+            $qtxt = "SELECT id FROM ordrer WHERE ordrenr = " . (int) $this->ordrenr . " AND kontonr = '" . db_escape_string((string) $this->kontonr) . "' ORDER BY id DESC LIMIT 1";
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
             
             if ($q && ($r = db_fetch_array($q))) {
