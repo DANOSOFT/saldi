@@ -14,6 +14,7 @@
 //
 // History:
 // 20261105 CL/LH Created.
+// 20261105 CL/LH systemdata/gdprInc/gdprLogic.php is deleted, so it is no longer an exception.
 
 use PHPUnit\Framework\TestCase;
 
@@ -27,7 +28,6 @@ final class AccountDeletePathsTest extends TestCase
         'includes/settings/actions.php' => 'settings_gdpr_inactive() only selects accounts that no open post or order points at',
         'systemdata/importer_kreditor.php' => 'the row is inserted again with the same id straight after',
         'systemdata/resetAccount.php' => 'the reset empties the whole ledger, open posts and orders included',
-        'systemdata/gdprInc/gdprLogic.php' => 'included nowhere: systemdata/gdpr.php redirects to the settings page (includes/settings/actions.php)',
     ];
 
     /** @return array<string, bool> repo-relative path of each file whose code (not its comments) deletes adresser rows => whether it calls account_has_entries() */

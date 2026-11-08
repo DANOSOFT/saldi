@@ -20,8 +20,14 @@ use PHPUnit\Framework\TestCase;
  * employees; both Ansvarlig blocks in sager.php end with an empty list and skip the query when nobody qualifies.
  * The database layer is a double that answers from fixture rows per query.
  *
+ * Sager » Løn » Lønafregning (loen.php?funktion=loenafregning → loenafregning() → fod_indsaml_data() in
+ * sager/loenIncludes/footer.php) had the same gap on test_39: $ansatte_id was only filled in the employee loop, so
+ * count($ansatte_id) threw at footer.php:294. Pins: the settlement of a tenant without employees is drawn to the
+ * end with no employee filter on the wage-slip queries, and a tenant with one employee keeps that filter.
+ *
  * History:
  * 20261105 CL/LH Created.
+ * 20261105 CL/LH The settlement (loenafregning) of a tenant without employees, and of one with a single employee.
  */
 #[RunTestsInSeparateProcesses]
 final class EmptyLookupListsTest extends TestCase
@@ -155,6 +161,69 @@ final class EmptyLookupListsTest extends TestCase
         self::assertWholePage($html);
         self::assertStringContainsString('<a href="loen.php?id=9&amp;funktion=ret_loen">', $html);
         self::assertStringNotContainsString('Ingen resultater', $html);
+    }
+
+    /**
+     * Runs loenafregning() (the Lønafregning page, opened with refresh=on as the menu does) against the given rows.
+     *
+     * @param array<string, array<int, array<string, mixed>>> $tables rows per query, keyed by a fragment of its SQL
+     */
+    private static function renderSettlement(array $tables): string
+    {
+        self::stubDatabase($tables + ["from grupper where art='loen'" => [['box4' => '2026-01-05']]]);
+        require_once dirname(__DIR__, 3) . '/includes/std_func.php';
+        require_once dirname(__DIR__, 3) . '/sager/loenIncludes/footer.php';
+        require_once dirname(__DIR__, 3) . '/sager/loenIncludes/afregning.php';
+
+        $GLOBALS['db'] = 'test_39';
+        $GLOBALS['sprog_id'] = 1;
+        $GLOBALS['brugernavn'] = 'e2etest';
+        $GLOBALS['ansat_id'] = '';
+        $GLOBALS['sag_rettigheder'] = '1111111';
+        $GLOBALS['bgcolor'] = '#eeeeee';
+        $GLOBALS['charset'] = 'UTF-8';
+        $GLOBALS['overtid_50pct'] = 0;
+        $GLOBALS['overtid_100pct'] = 0;
+        $_GET = ['funktion' => 'loenafregning', 'refresh' => 'on'];
+        $_POST = [];
+
+        ob_start();
+        try {
+            loenafregning();
+        } finally {
+            $html = (string) ob_get_clean();
+        }
+        return $html;
+    }
+
+    /** @return string[] the wage-slip queries fod_indsaml_data() and the page send */
+    private static function wageSlipQueries(): array
+    {
+        return array_values(array_filter($GLOBALS['__lookupQueries'], fn (string $q): bool => strpos($q, 'FROM loen ') !== false));
+    }
+
+    /** test_39: nobody employed, nothing booked. */
+    public function test_a_tenant_without_employees_gets_the_whole_settlement(): void
+    {
+        $html = self::renderSettlement([]);
+
+        self::assertStringContainsString('<!-- end of full container -->', $html, 'the settlement is drawn to the end');
+        self::assertStringContainsString('I alt', $html, 'with its total row');
+        $queries = self::wageSlipQueries();
+        self::assertNotSame([], $queries);
+        foreach ($queries as $q) {
+            self::assertStringNotContainsString('ansatte like', $q, 'no employee filter without exactly one employee');
+        }
+    }
+
+    /** The legacy filter: with exactly one employee in the tenant, the settlement reads only that employee's slips. */
+    public function test_a_tenant_with_one_employee_keeps_the_employee_filter(): void
+    {
+        $html = self::renderSettlement(['FROM ansatte' => [['id' => '7', 'navn' => 'Jens Jensen']]]);
+
+        self::assertStringContainsString('<!-- end of full container -->', $html);
+        $filtered = array_filter(self::wageSlipQueries(), fn (string $q): bool => strpos($q, "ansatte like '%7%'") !== false);
+        self::assertCount(4, $filtered, "fod_indsaml_data()'s three slip queries and the page's own");
     }
 
     public function test_a_tenant_with_employees_still_lists_them(): void

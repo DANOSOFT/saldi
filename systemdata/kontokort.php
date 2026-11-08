@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----ver 5.1.0 ----2026-11-02------
+// --- systemdata/kontokort.php -----ver 5.1.0 ----2026-11-05------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,8 @@
 // 20261102 CL/ASR Opened from Kontoplan under Indstillinger (settings=1; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): breadcrumb Indstillinger / Finans / Kontoplan / Kontokort, Tilbage to Kontoplan, previous, next and Ny above, the Finans group's menu with Kontoplan marked.
 //                 The form, the redirect after Gem and the way back to Kontoplan carry the marker on.
 //                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
+// 20261105 CL/LH A refused save (number below 1 or already taken) of a Drift or Status account draws the form again instead of a count() TypeError: Map til's standard accounts are read whenever the form shows Map til, not only for a saved account.
+//                The empty last line of importfiler/kontoplan.txt no longer warns Undefined array key.
 
 @session_start();
 $s_id = session_id();
@@ -284,21 +286,6 @@ if (isset($_POST['slet'])) {
 	}
 }
 if ($id > 0) {
-	$tmpA = explode("\n",file_get_contents("../importfiler/kontoplan.txt"));
-	$d = $s = 0;
-	for ($i = 0;$i < count($tmpA);$i++) {
-		list($n,$b,$t) = explode(chr(9),$tmpA[$i],4);
-		if ($t == 'D') {
-			$stdDkt[$d]  = $n;
-			$stdDtxt[$d] = $b;
-			$d++;		
-		} elseif ($t == 'S') {
-			$stdSkt[$s]  = $n;
-			$stdStxt[$s] = $b;
-			$s++;		
-		}
-	}
-	
 	$q = db_select("select * from kontoplan where id = '$id'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($q)) {
 		$id = $r['id'];
@@ -359,6 +346,24 @@ if ($id > 0) {
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	($r = db_fetch_array($q)) ? $slet = 0 : $slet = 1;
 
+}
+if ($kontotype == 'D' || $kontotype == 'S') {
+	// The standard accounts Map til offers, also when a refused save (number below 1 or taken) draws the form again without an id.
+	$stdDkt = $stdDtxt = $stdSkt = $stdStxt = array();
+	$tmpA = explode("\n",file_get_contents("../importfiler/kontoplan.txt"));
+	$d = $s = 0;
+	for ($i = 0;$i < count($tmpA);$i++) {
+		list($n,$b,$t) = array_pad(explode(chr(9),$tmpA[$i],4), 3, ''); // the file's last line is empty
+		if ($t == 'D') {
+			$stdDkt[$d]  = $n;
+			$stdDtxt[$d] = $b;
+			$d++;
+		} elseif ($t == 'S') {
+			$stdSkt[$s]  = $n;
+			$stdStxt[$s] = $b;
+			$s++;
+		}
+	}
 }
 /*
 if ($kontotype == 'H')

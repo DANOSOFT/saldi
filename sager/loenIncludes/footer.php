@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/footer.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- sager/loenIncludes/footer.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20250812 PHR Some variables set to 0 if empty  ($aa[$c], $a50[$c], $a100[$c]$as1[$c] & $as2[$c])
 // 20261103 CL/MMR SD-799 Wage slips without a project show their wage type in the user's language instead of the internal key.
 // 20261104 CL/MMR SD-799 The settlement uses the wage slip's labels for akkord and torretid on stillads_14 and udvikling_2.
+// 20261105 CL/LH The settlement no longer stops on a count() TypeError when the tenant has no employees: $ansatte_id starts as an empty list.
 
 
 function fod_log($string)
@@ -249,6 +250,7 @@ function fod_indsaml_data($periode) {
 		$qtxt = "SELECT * FROM ansatte ORDER BY navn";
 	}
 
+	$ansatte_id = array(); // counted by the wage-slip queries below, also when there are no employees
 	$ansat_navn_by_id = array();
 
 	$x = 0;
