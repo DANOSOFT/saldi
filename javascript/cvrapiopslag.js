@@ -1,4 +1,4 @@
-// --- javascript/cvrapiopslag.js --- ver 5.1.0 --- 2026-10-30 ---
+// --- javascript/cvrapiopslag.js --- ver 5.1.0 --- 2026-11-05 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -38,8 +38,11 @@
 // The name is quoted in the selector because of the brackets.
 // 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
 //                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
+// 20261029 CL/MJ SST-892 applyFormFields() calls cvrEfterOpslag(data) when the page defines it; the debitor card uses it to switch a private card to Erhverv.
 // 20261030 CL/MMR SST-916 Ticking "Auto-lookup CVR nr." after the CVR-nr. was typed now looks the number up straight away.
 //                 Before, the box was only read on a keystroke or when the field was left, so ticking it afterwards did nothing.
+// 20261105 CL/MMR SD-807 The overwrite question and its two buttons come from cvrTekster (overskriv, behold, opdater), so a page can show them in the user's language.
+//                 cvrFejlTekst keeps the Danish texts as the fallback, and they are set with .text() instead of being built into the html.
 
 
 var cvrFeltAlias = { email: ['email', 'kontakt_email_val[1]'] };
@@ -132,6 +135,8 @@ function applyFormFields(data) {
 		var el = $("[name='" + cvrFeltNavn(key) + "']");
 		if (el.length) el.val(data[key]);
 	}
+	// A page can react to the values it was given, e.g. the debitor card shows the company name.
+	if (typeof cvrEfterOpslag === 'function') cvrEfterOpslag(data);
 }
 
 function showConfirmOverlay(existingData, incomingData) {
@@ -141,12 +146,16 @@ function showConfirmOverlay(existingData, incomingData) {
 		'<div id="cvr-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;' +
 		'background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">' +
 		'<div style="background:#fff;padding:24px;border-radius:6px;max-width:420px;width:90%;box-shadow:0 4px 16px rgba(0,0,0,0.3);">' +
-		'<p style="margin:0 0 16px;font-size:15px;">CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?</p>' +
+		'<p id="cvr-overlay-tekst" style="margin:0 0 16px;font-size:15px;"></p>' +
 		'<div style="display:flex;gap:12px;justify-content:flex-end;">' +
-		'<button type="button" id="cvr-btn-no"  style="padding:8px 16px;">Nej, behold nuværende</button>' +
-		'<button type="button" id="cvr-btn-yes" style="padding:8px 16px;">Ja, opdater</button>' +
+		'<button type="button" id="cvr-btn-no"  style="padding:8px 16px;"></button>' +
+		'<button type="button" id="cvr-btn-yes" style="padding:8px 16px;"></button>' +
 		'</div></div></div>'
 	);
+	// The texts can come from the tekster table (cvrTekster), so they are set as text, never as html.
+	overlay.find('#cvr-overlay-tekst').text(cvrTekst('overskriv'));
+	overlay.find('#cvr-btn-no').text(cvrTekst('behold'));
+	overlay.find('#cvr-btn-yes').text(cvrTekst('opdater'));
 
 	$('body').append(overlay);
 
@@ -243,7 +252,10 @@ var cvrFejlTekst = {
 	INVALID_UA:     'cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.',
 	NOT_FOUND:      'CVR-nummeret blev ikke fundet.',
 	INVALID_VAT:    'CVR-nummeret er ikke gyldigt.',
-	soeger:         'Søger...'
+	soeger:         'Søger...',
+	overskriv:      'CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?',
+	behold:         'Nej, behold nuværende',
+	opdater:        'Ja, opdater'
 };
 function cvrTekst(noegle) {
 	if (typeof cvrTekster !== 'undefined' && cvrTekster && cvrTekster[noegle]) return cvrTekster[noegle];

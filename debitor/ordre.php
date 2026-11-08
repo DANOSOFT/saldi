@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -176,7 +176,11 @@
 // 20261103 CL/SZ SD-753 The Lager field on an open order is as wide as the longest lager name, so the name shows in full.
 //                On a closed order the Lager cell has padding, so the name no longer runs into the description.
 // 20261104 NTR Cap the Lager field width at 20ch and stop checking names once the limit is reached.
+// 20261104 CL/MMR SST-918 The product note (note_on_orderline) is looked up by the matched item's id, so a variant picked in the quick search or typed as its barcode gets its parent's note (CodeRabbit on PR #979).
 // 20261104 CL/SS SD-744: a read-only Shopify panel above the order lines (orderIncludes/shopifyPanel.php), for Shopify orders only.
+// 20261105 CL/MMR SD-807 The order page shows Digitalt, the payment terms (Forud, Efterkrav, Netto, Lb. md., Konto), Nt/Bt and DB/DG (also in the line tooltips) in the user's language.
+//                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
+//                 Labels are escaped in the page charset, so a stored value with æøå keeps its option value on a non-UTF8 database.
 
 @session_start();
 $s_id = session_id();
@@ -2410,11 +2414,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 							$_noteColExists = !empty($_chk);
 						}
 						if ($_noteColExists) {
-							$noteQtxt = "SELECT notes, note_on_orderline FROM varer
-										WHERE varenr = '" . db_escape_string($varenr[0]) . "'
-										OR varenr_alias = '" . db_escape_string($varenr[0]) . "'
-										OR stregkode = '" . db_escape_string($varenr[0]) . "'
-										LIMIT 1";
+							// by the matched item's id: a variant barcode in $varenr[0] is not in varer, its parent is
+							$noteQtxt = "SELECT notes, note_on_orderline FROM varer WHERE id = '" . (int)$exact_match_check['id'] . "' LIMIT 1";
 							if ($noteVare = db_fetch_array(db_select($noteQtxt, __FILE__ . " linje " . __LINE__))) {
 								$noteEnabled = (
 									$noteVare['note_on_orderline'] === 't' ||
@@ -4138,7 +4139,9 @@ function ordreside($id, $regnskab)
 		if ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
-		} else print "<option>$udskriv_til</option>\n";
+		} else {
+			print "<option value=\"" . htmlspecialchars((string) $udskriv_til, ENT_QUOTES, $charset) . "\">" . orderPrintToLabel($udskriv_til, $sprog_id) . "</option>\n";
+		}
 		if ($udskriv_til != "PDF") print "<option>PDF</option>\n";
 		if ($showLocalPrint && $localPrint != 'on') print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
@@ -4191,9 +4194,7 @@ function ordreside($id, $regnskab)
 		}
 		print "<tr class='tableTexting2'><td><b>" . findtekst('82|Genfakturer', $sprog_id) . "</b></td><td><input class = 'inputbox' type = 'text' name=\"genfakt\" size=\"7\" value=\"$genfakt\">&nbsp;<input class='button gray small' type=\"submit\" value=\"OK\" name=\"b_submit\"></td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('935|Betaling', $sprog_id) . "</b></td><td>";
-		if ($betalingsbet == 'Kreditkort') print $txt283;
-		elseif ($betalingsbet == 'Kontant') print $txt370;
-		else print $betalingsbet;
+		print orderPaymentTermLabel($betalingsbet, $sprog_id);
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td>";
@@ -4593,7 +4594,7 @@ function ordreside($id, $regnskab)
 					if ($art == 'DK' && is_numeric($tmp) && $samlevare[$x] != 'on') $tmp *= -1;
 					$tmp = dkdecimal($tmp, 2);
 				}
-				print "<td align=\"right\" title=\"Kostpris $dk_lineCost[$x] * db: $dk_db[$x] * dg: $dk_dg[$x]%\">" . $tmp . "</td>\n";
+				print "<td align=\"right\" title=\"" . htmlspecialchars(findtekst('950|Kostpris', $sprog_id), ENT_QUOTES, $charset) . " $dk_lineCost[$x] * " . htmlspecialchars(findtekst('8456|DB', $sprog_id), ENT_QUOTES, $charset) . ": $dk_db[$x] * " . htmlspecialchars(findtekst('4989|DG', $sprog_id), ENT_QUOTES, $charset) . ": $dk_dg[$x]%\">" . $tmp . "</td>\n";
 			} else print "<td>&nbsp;</td>\n";
 			print "<input type=\"hidden\" name=\"projekt[$x]\" value=\"$projekt[$x]\">\n";
 			
@@ -5057,8 +5058,11 @@ function ordreside($id, $regnskab)
 		if ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
-		} elseif ($udskriv_til == "PBS" && $lev_pbs != 'B') print "<option value=\"PBS\">PBS</option>\n";
-		else print "<option>$udskriv_til</option>\n";
+		} elseif ($udskriv_til == "PBS" && $lev_pbs != 'B') {
+			print "<option value=\"PBS\">PBS</option>\n";
+		} else {
+			print "<option value=\"" . htmlspecialchars((string) $udskriv_til, ENT_QUOTES, $charset) . "\">" . orderPrintToLabel($udskriv_til, $sprog_id) . "</option>\n";
+		}
 		if ($udskriv_til != "PDF") print "<option>PDF</option>\n";
 		if ($showLocalPrint && $localPrint != 'on') print "<option value='localPrint'>" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
 		if ($udskriv_til != "PDF-tekst") print "<option value='PDF-tekst' title=\"" . findtekst('1448|Udskrives som PDF uden baggrund', $sprog_id) . "\">" . findtekst('1449|PDF-tekst', $sprog_id) . "</option>\n";
@@ -5066,7 +5070,7 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til != "ingen") print "<option value='ingen'>" . findtekst('2541|Ingen', $sprog_id) . "</option>\n"; #PHR 20170501
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		#if ($udskriv_til!="oioubl") print "<option value='oioubl' title=\"".findtekst('1451|Kun ved fakturering/kreditering.', $sprog_id)."\">oioubl</option>\n"; #PHR 20090803
-		if ($udskriv_til != "Digitalt") print "<option value='Digitalt' title='" . findtekst('1451|Kun ved fakturering/kreditering.', $sprog_id) . "'>Digitalt</option>\n"; #PBLM 12/06-2023
+		if ($udskriv_til != "Digitalt") print "<option value='Digitalt' title='" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "'>" . findtekst('2532|Digitalt', $sprog_id) . "</option>\n"; #PBLM 12/06-2023
 		#		if ($udskriv_til!="edifakt") print "<option title=\"Kun ved fakturering/kreditering.\">edifakt</option>\n"; #PHR 20140201
 		if ($udskriv_til != "historik" && db_fetch_array(db_select("select * from grupper where ART = 'bilag' and (box6='on' or (box1 !='' and box2 !='' and box3 !=''))", __FILE__ . " linje " . __LINE__))) {
 			print "<option title=\"" . findtekst('1453|Gem en kopi og vedhæft kundens historik', $sprog_id) . "\">" . findtekst('907|Historik', $sprog_id) . "</option>\n";
@@ -5166,7 +5170,7 @@ function ordreside($id, $regnskab)
 				print "<td>";
 				print "<input type='hidden' name='betalingsbet' value='$betalingsbet'>";
 				print "<input type='hidden' name='betalingsdage' value='0'>";
-				print "$betalingsbet";
+				print orderPaymentTermLabel($betalingsbet, $sprog_id);
 				print "</td>";
 				if ($betalingsbet == 'Netto') print "<td></td>";
 			} else {
@@ -5180,10 +5184,10 @@ function ordreside($id, $regnskab)
 					if (!in_array($betalingsbet, $kontobet)) $betalingsbet = 'Netto';
 					print "<td colspan='2'><select class = 'inputbox' style=\"width:96px\" name='betalingsbet'>";
 					for ($x = 0; $x < count($kontobet); $x++) {
-						if ($kontobet[$x] == $betalingsbet) print "<option value='$kontobet[$x]'>$kontobet[$x]</option>";
+						if ($kontobet[$x] == $betalingsbet) print "<option value='$kontobet[$x]'>" . orderPaymentTermLabel($kontobet[$x], $sprog_id) . "</option>";
 					}
 					for ($x = 0; $x < count($kontobet); $x++) {
-						if ($kontobet[$x] != $betalingsbet) print "<option value='$kontobet[$x]'>$kontobet[$x]</option>";
+						if ($kontobet[$x] != $betalingsbet) print "<option value='$kontobet[$x]'>" . orderPaymentTermLabel($kontobet[$x], $sprog_id) . "</option>";
 					}
 					print "</select>&nbsp;";
 					print "<input type='text' style='text-align:right;width:25px' name='betalingsdage' value='$betalingsdage'></td>";
@@ -5191,9 +5195,7 @@ function ordreside($id, $regnskab)
 				elseif (in_array($felt_1, $korttyper)) $betalingsbet = 'Kreditkort';
 				if ($felt_1 != 'Konto') {
 					$betalingsdage = 0;
-					if ($betalingsbet == 'Kreditkort') print "<td colspan='2'>$txt283";
-					elseif ($betalingsbet == 'Kontant') print "<td colspan='2'>$txt370";
-					else print "<td colspan='2'>$betalingsbet";
+					print "<td colspan='2'>" . orderPaymentTermLabel($betalingsbet, $sprog_id);
 					print "<input type='hidden' name='betalingsbet' value='$betalingsbet'>";
 					print "<input type='hidden' name='betalingsdage' value='0'>";
 					print "</td>";
@@ -5219,17 +5221,15 @@ function ordreside($id, $regnskab)
 				if (!$betalingsbet) $betalingsbet = "Netto";
 				print "<td colspan=\"2\"><select class = 'inputbox' style=\"width:96px\" name=\"betalingsbet\" $disabled>\n";
 				print "<option style='color: red !important;' value = '$betalingsbet'>";
-				if ($betalingsbet == 'Kreditkort') print $txt283;
-				elseif ($betalingsbet == 'Kontant') print $txt370;
-				else print $betalingsbet;
+				print orderPaymentTermLabel($betalingsbet, $sprog_id);
 				print "</option>\n";
 				if (!$betalt) {
-					if ($betalingsbet != 'Forud')      print "<option>Forud</option>\n";
+					if ($betalingsbet != 'Forud')      print "<option value = 'Forud'>" . findtekst('369|Forud', $sprog_id) . "</option>\n";
 					if ($betalingsbet != 'Kontant')    print "<option value = 'Kontant'>$txt370</option>\n";
 					if ($betalingsbet != 'Kreditkort') print "<option value = 'Kreditkort'>$txt283</option>\n";
-					if ($betalingsbet != 'Efterkrav')  print "<option value = 'Efterkrav'>Efterkrav</option>\n";
-					if ($betalingsbet != 'Netto')      print "<option value = 'Netto'>Netto</option>\n";
-					if ($betalingsbet != 'Lb. md.')    print "<option value = 'Lb. md.'>Lb. md.</option>\n";
+					if ($betalingsbet != 'Efterkrav')  print "<option value = 'Efterkrav'>" . findtekst('371|Efterkrav', $sprog_id) . "</option>\n";
+					if ($betalingsbet != 'Netto')      print "<option value = 'Netto'>" . findtekst('372|Netto', $sprog_id) . "</option>\n";
+					if ($betalingsbet != 'Lb. md.')    print "<option value = 'Lb. md.'>" . findtekst('373|Lb. md.', $sprog_id) . "</option>\n";
 				}
 				if ($betalingsbet == 'Kontant' || $betalingsbet == 'Efterkrav' || $betalingsbet == 'Forud' || $betalingsbet == 'Kreditkort') $betalingsdage = '';
 				elseif (!$betalingsdage) $betalingsdage = 'Nul';
@@ -6349,7 +6349,7 @@ function ordreside($id, $regnskab)
 
 			print "<tr><td colspan='12'><table bordercolor='#FFFFFF' border='1' cellspacing='0' cellpadding='0' width='100%'><tbody>\n"; # Tabel 4.5.1 ->
 			print "<tr>\n";
-			print "<td width=\"14.2%\" align=\"center\">Nt/Bt " . number_format($tNetWeight, 1, ',', '.') . "/";
+			print "<td width=\"14.2%\" align=\"center\">" . findtekst('8457|Nt/Bt', $sprog_id) . " " . number_format($tNetWeight, 1, ',', '.') . "/";
 			print number_format($tGrossWeight, 1, ',', '.') . " Kg</td>\n";
 			print "<td width=\"14.2%\" align=\"center\">";
 			print findtekst("2373|I alt", $sprog_id) . " " . rtrim(rtrim(dkdecimal($r["total"], 3), '0'), ",") . " / ";
@@ -6358,9 +6358,11 @@ function ordreside($id, $regnskab)
 			print findtekst('2372|Nettosum', $sprog_id) . " " . dkdecimal($sum, 2) . "</td>\n";
 			if ($vis_saet) $dkb = $sum - $kostsum;
 			else $dkb = $dbsum;
+			$dbLabel = htmlspecialchars(findtekst('8456|DB', $sprog_id), ENT_QUOTES, $charset);
+			$dgLabel = htmlspecialchars(findtekst('4989|DG', $sprog_id), ENT_QUOTES, $charset);
 			if (get_settings_value("showDB", "ordre", "") != "on") {
-				print "<td width=\"14.2%\" align=\"center\"  title=\"DB: $baseCurrency " . dkdecimal($dkb * $valutakurs / 100, 2) . "\">";
-				if (!$vis_saet) print "DB: " . dkdecimal($dkb, 2);
+				print "<td width=\"14.2%\" align=\"center\"  title=\"$dbLabel: $baseCurrency " . dkdecimal($dkb * $valutakurs / 100, 2) . "\">";
+				if (!$vis_saet) print "$dbLabel: " . dkdecimal($dkb, 2);
 			} else {
 				print "<td width=\"14.2%\" align=\"center\" >";
 			}
@@ -6368,8 +6370,8 @@ function ordreside($id, $regnskab)
 			if ($sum) $dg_sum = ($dkb * 100 / $sum);
 			else $dg_sum = dkdecimal(0, 2);
 			if (get_settings_value("showDG", "ordre", "") != "on") {
-				print "<td width=\"14.2%\" align=\"center\"  title=\"DG:" . dkdecimal($dg_sum, 2) . "%\">";
-				if (!$vis_saet) print "DG: " . dkdecimal($dg_sum, 2) . "%";
+				print "<td width=\"14.2%\" align=\"center\"  title=\"$dgLabel:" . dkdecimal($dg_sum, 2) . "%\">";
+				if (!$vis_saet) print "$dgLabel: " . dkdecimal($dg_sum, 2) . "%";
 			} else {
 				print "<td width=\"14.2%\" align=\"center\" >";
 			}
@@ -6377,7 +6379,7 @@ function ordreside($id, $regnskab)
 			print "<td width=\"14.2%\" align=\"center\" align=\"center\">";
 			print findtekst('770|Moms', $sprog_id) . ":&nbsp;" . dkdecimal($moms, 2) . "</td>\n";
 			if (get_settings_value("showDG", "ordre", "") != "on") {
-				print "<td width=\"14.2%\" align=\"center\" align=\"center\" title=\"DG:" . dkdecimal($dg_sum, 2) . "%\">";
+				print "<td width=\"14.2%\" align=\"center\" align=\"center\" title=\"$dgLabel:" . dkdecimal($dg_sum, 2) . "%\">";
 			} else {
 				print "<td width=\"14.2%\" align=\"center\" align=\"center\" >";
 			}
@@ -6826,10 +6828,65 @@ function formatOrderUnitPrice($price)
 	return substr($formatted, -1) === '0' ? substr($formatted, 0, -1) : $formatted;
 }
 
+/**
+ * The label of a stored payment term (ordrer.betalingsbet) in the user's language.
+ * The stored value stays the Danish key; the texts are the ones the debitor card and the POS payment select (Konto) use.
+ * A value without a text of its own is shown as stored.
+ *
+ * @param string|null $betalingsbet Stored payment term, e.g. 'Netto' or 'Lb. md.'.
+ * @param int|string  $sprog_id     The user's language id.
+ * @return string HTML-ready label.
+ */
+function orderPaymentTermLabel($betalingsbet, $sprog_id)
+{
+	global $charset;
+	$texts = array(
+		'Forud'      => '369|Forud',
+		'Kontant'    => '370|Kontant',
+		'Efterkrav'  => '371|Efterkrav',
+		'Netto'      => '372|Netto',
+		'Lb. md.'    => '373|Lb. md.',
+		'Kreditkort' => '283|Kreditkort',
+		'Konto'      => '440|Konto',
+	);
+	$betalingsbet = (string) $betalingsbet;
+	if (isset($texts[$betalingsbet])) {
+		return findtekst($texts[$betalingsbet], $sprog_id);
+	}
+	return htmlspecialchars($betalingsbet, ENT_QUOTES, $charset);
+}
+
+/**
+ * The label of a stored "Udskriv til" value (ordrer.udskriv_til) in the user's language.
+ * The option keeps the stored value in its value attribute, so only the shown text changes.
+ * A value without a text of its own (PDF, oioubl, PBS) is shown as stored.
+ *
+ * @param string|null $udskriv_til Stored value, e.g. 'PDF', 'email' or 'Digitalt'.
+ * @param int|string  $sprog_id    The user's language id.
+ * @return string HTML-ready label.
+ */
+function orderPrintToLabel($udskriv_til, $sprog_id)
+{
+	global $charset;
+	$texts = array(
+		'PDF-tekst' => '1449|PDF-tekst',
+		'email'     => '652|E-mail',
+		'ingen'     => '2541|Ingen',
+		'Digitalt'  => '2532|Digitalt',
+		'historik'  => '907|Historik',
+	);
+	$udskriv_til = (string) $udskriv_til;
+	if (isset($texts[$udskriv_til])) {
+		return findtekst($texts[$udskriv_til], $sprog_id);
+	}
+	return htmlspecialchars($udskriv_til, ENT_QUOTES, $charset);
+}
+
 function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $leveres_ialt, $tidl_lev_ialt, $levdiff, $masterprojekt, $linje_id, $kred_linje_id, $posnr, $varenr, $beskrivelse, $enhed, $lager, $pris, $rabat, $rabatart, $procent, $antal, $leveres, $leveret, $vare_id, $momsfri, $rabatgruppe, $m_rabat, $varemomssats, $serienr, $samlevare, $folgevare, $projekt, $kdo, $kobs_ordre_pris, $ko_ant, $kostpris, $dkb, $dg, $dk_db, $dk_dg, $readonly, $omvbet, $saet, $saetnr, $grossWeight, $netWeight, $itemLength, $itemWidth, $itemHeight, $volume, $linje)
 {
 	print "<!--function ordrelinjer start-->";
 	global $art;
+	global $charset;
 	global $brugsamletpris;
 	global $difkto;
 	global $genfakt;
@@ -6998,7 +7055,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		// TR and hidden inputs already printed above
 		
 		print "<td valign='top'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='posn$x' value='$ny_pos' $disabled></td>\n";
-		$title = "Nt/Bt " . number_format($grossWeight, 1, ',', '.') . "/" . number_format($netWeight, 1, ',', '.') . " kg. ";
+		$title = htmlspecialchars(findtekst('8457|Nt/Bt', $sprog_id), ENT_QUOTES, $charset) . " " . number_format($grossWeight, 1, ',', '.') . "/" . number_format($netWeight, 1, ',', '.') . " kg. ";
 		$title .= "L: " . number_format($itemLength, 0, ',', '.') . " B: " . number_format($itemWidth, 0, ',', '.') . " ";
 		$title .= "H: " . number_format($itemHeight, 0, ',', '.') . " =  " . number_format($volume, 0, ',', '.') . " cm&sup3;";
 		print "<td valign='top' title='$title'>";
@@ -7033,11 +7090,14 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		elseif ($saetnr || ($rvnr && $rabat)) $dis = NULL;
 		else $dis = $disabled;
 		print "<td valign = 'top' title=\"$title\"><textarea class=\"autosize inputbox ordreText comment\" $readonly rows=\"1\" cols=\"58\" name=\"beskrivelse$x\" onchange=\"javascript:docChange = true;\" $dis>$beskrivelse</textarea></td>\n";
+	// The DB/DG labels of the price and sum tooltips below
+	$dbLabel = htmlspecialchars(findtekst('8456|DB', $sprog_id), ENT_QUOTES, $charset);
+	$dgLabel = htmlspecialchars(findtekst('4989|DG', $sprog_id), ENT_QUOTES, $charset);
 	if ($saet) {
 		// Hidden inputs pris, raba, posn are already in $hidden_inputs
 		if ($samlevare) {
 			// Print Price and Discount for main item ONLY
-			print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - db: $dk_db - dg: $dk_dg%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n";
+			print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - $dbLabel: $dk_db - $dgLabel: $dk_dg%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n";
 			$title = $dkantal . "*" . dkdecimal(($rabat / 100) * $pris, 2) . "% = " . dkdecimal($antal * ($rabat / 100) * $pris, 2);
 			print "<td valign = 'top' title=\"$title\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right\" size=\"4\" name=\"raba$x\" value=\"$dkrabat\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n";
 		} else {
@@ -7048,7 +7108,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		// Hidden inputs are in $hidden_inputs
 		print "<td></td><td></td>";
 	} elseif (!$rvnr) {
-		print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - db: $db_original - dg: $dg_original%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n"; #2013.11.29 Fjerner 0,00 ved fokus, og tilføjer 0,00 hvis feltet er tomt
+		print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - $dbLabel: $db_original - $dgLabel: $dg_original%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n"; #2013.11.29 Fjerner 0,00 ved fokus, og tilføjer 0,00 hvis feltet er tomt
 		$title = $dkantal . "*" . dkdecimal(($rabat / 100) * $pris, 2) . "% = " . dkdecimal($antal * ($rabat / 100) * $pris, 2);
 		print "<td valign = 'top' title=\"$title\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right\" size=\"4\" name=\"raba$x\" value=\"$dkrabat\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n";
 	} else print "<td></td><td></td>";
@@ -7076,7 +7136,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	} else $tmp = NULL;
 	if ($saet) {
 		if ($samlevare) {
-			print "<td valign = 'top' align=\"right\" title=\"db: $dk_db - dg: $dk_dg%\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"10\" value=\"$tmp\" $disabled></td>\n";
+			print "<td valign = 'top' align=\"right\" title=\"$dbLabel: $dk_db - $dgLabel: $dk_dg%\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"10\" value=\"$tmp\" $disabled></td>\n";
 		} else {
 			print "<td></td>";
 		}
@@ -7089,9 +7149,9 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		}
 		list($lev_vnr) = explode("|", $r['lev_varenr']);
-		print "<td valign = 'top' align=\"right\" title=\"db: $dk_db - dg: $dk_dg%\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"10\" value=\"" . dkdecimal($lev_vnr, 2) . "\" disabled></td>\n";
+		print "<td valign = 'top' align=\"right\" title=\"$dbLabel: $dk_db - $dgLabel: $dk_dg%\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"10\" value=\"" . dkdecimal($lev_vnr, 2) . "\" disabled></td>\n";
 	} else {
-		print "<td valign = 'top' align=\"right\" title=\"db: $dk_db - dg: $dk_dg%\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"10\" value=\"$tmp\" $disabled></td>\n";
+		print "<td valign = 'top' align=\"right\" title=\"$dbLabel: $dk_db - $dgLabel: $dk_dg%\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"10\" value=\"$tmp\" $disabled></td>\n";
 	}
 	if ($vis_projekt && !$masterprojekt) {
 		print "<td><select class = 'inputbox' name=\"projekt[$x]\">\n";
