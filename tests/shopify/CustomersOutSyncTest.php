@@ -6,7 +6,8 @@
 // debtor nor changes this one (K31). An email another customer has parks the export; a phone
 // another customer has is left out with an info row. A lost create response is looked up, never
 // sent twice, and a create that can only be found by its tag waits until the search caught up.
-// A job that died after its create finds the customer by its tag.
+// A job that died after its create finds the customer by its tag. A later update of an exported
+// debtor's customer leaves the name Saldi gave it. A parked export is looked up before any create.
 //
 // History:
 // 20261108 CL/SS SD-803: created.
@@ -232,7 +233,89 @@ final class CustomersOutSyncTest extends TestCase
 
         $this->assertTrue($r['results'][0]['created'], 'the running job read the export before it was reopened');
         $this->assertSame([['state' => 'queued']], $this->sql("SELECT state FROM shopify_jobs WHERE type = 'customer.export' AND id = $1", [$r['results'][0]['id']]));
-        $this->assertSame('pending', $this->export($id)['state']);
+        $this->assertSame('create_started', $this->export($id)['state']);
+    }
+
+    public function testAnUpdateFromShopifyLeavesAnExportedDebtorsNameUnlessTheAddressHasACompany(): void
+    {
+        $company = $this->debtor('SD803Q', ['firmanavn' => 'SD803 Firma ApS', 'kontakt' => 'Hans Peter Jensen', 'tlf' => '12 34 56 78']);
+        $person = $this->debtor('SD803R', ['firmanavn' => 'Bo Hansen']);
+        $this->steps(['enqueue', 'hml', $company], ['job', 'hml', $company], ['echo', 'hml', $company], ['enqueue', 'hml', $person], ['job', 'hml', $person], ['echo', 'hml', $person]);
+
+        // the customers add a phone and correct the name in Shopify
+        $r = $this->steps(['echo', 'hml', $company, ['phone' => '+4587654321', 'updated_at' => '2030-01-01T10:00:00Z']],
+            ['echo', 'hml', $person, ['first_name' => 'Bo', 'last_name' => 'Hansen-Larsen', 'updated_at' => '2030-01-01T10:00:00Z']]);
+
+        $this->assertSame(['outcome' => 'done'], $r['results'][0]);
+        $this->assertSame(['SD803 Firma ApS', 'Hans Peter Jensen', '+4587654321'], array_values($this->sql('SELECT firmanavn, kontakt, mobile FROM adresser WHERE id = $1', [$company])[0]),
+            'the company keeps its name and contact; the phone comes in');
+        $this->assertSame(['Bo Hansen', ''], array_values($this->sql('SELECT firmanavn, kontakt FROM adresser WHERE id = $1', [$person])[0]), 'the name is Saldi\'s, it was sent out from here');
+
+        $r = $this->steps(['echo', 'hml', $company, ['updated_at' => '2030-01-02T10:00:00Z',
+            'default_address' => ['company' => 'SD803 Nyt Firma A/S', 'address1' => 'Vejen 1', 'zip' => '8000', 'city' => 'Aarhus', 'country' => 'Danmark']]]);
+        $this->assertSame(['outcome' => 'done'], $r['results'][0]);
+        $this->assertSame(['SD803 Nyt Firma A/S', 'Hans Peter Jensen', 'Vejen 1'], array_values($this->sql('SELECT firmanavn, kontakt, addr1 FROM adresser WHERE id = $1', [$company])[0]),
+            'a company on the address is the customer\'s own name, as for any customer');
+    }
+
+    public function testAnExportThatNeverLinkedLeavesTheInboundNameUpdate(): void
+    {
+        // a customer made in Shopify comes in as a new debtor; an export row of that debtor never got linked
+        $r = $this->steps(['remote', 'hml', ['firstName' => 'Inge', 'lastName' => 'Holm', 'tags' => [$this->tag(999999)]]], ['echo', 'hml', 999999]);
+        $this->assertSame(['outcome' => 'done'], $r['results'][1]);
+        $id = (int)$this->sql("SELECT id FROM adresser WHERE btrim(kontonr) ~ '^2900[0-9]{4}$'")[0]['id'];
+        $this->sql("INSERT INTO shopify_customer_exports (shop_id, adresser_id, state, correlation_tag) SELECT id, $1, 'parked', 'x' FROM shopify_shops WHERE shop_key = 'hml'", [$id]);
+
+        $r = $this->steps(['echo', 'hml', $id, ['last_name' => 'Holm-Berg', 'updated_at' => '2030-01-01T10:00:00Z']]);
+
+        $this->assertSame(['outcome' => 'done'], $r['results'][0]);
+        $this->assertSame('Inge Holm-Berg', $this->sql('SELECT firmanavn FROM adresser WHERE id = $1', [$id])[0]['firmanavn'], 'only a linked export keeps the name');
+    }
+
+    public function testALinkedExportQueuedAgainRightAwayWaitsForTheSearch(): void
+    {
+        $id = $this->debtor('SD803V', ['email' => '']);
+        $this->steps(['enqueue', 'hml', $id], ['job', 'hml', $id]);
+        $this->sql('DELETE FROM shopify_customer_links');
+
+        $r = $this->steps(['enqueue', 'hml', $id], ['job_lag', 'hml', $id]);
+
+        $this->assertSame('yield', $r['results'][1]['outcome'], 'its create was just now: the search may not show it yet');
+        $this->assertSame(0, self::creates($r), 'no second customer with the tag');
+        $this->assertSame('create_started', $this->export($id)['state']);
+    }
+
+    public function testAParkedExportIsLookedUpBeforeAnythingIsCreated(): void
+    {
+        $id = $this->debtor('SD803S', ['email' => '']);
+        $other = $this->debtor('SD803T', ['email' => '']);
+        $this->steps(['enqueue', 'hml', $id], ['job', 'hml', $id]);
+        // the customer with our tag is linked to another debtor, say by hand
+        $this->sql('UPDATE shopify_customer_links SET adresser_id = $1', [$other]);
+
+        $r = $this->steps(['enqueue', 'hml', $id], ['job', 'hml', $id]);
+        $this->assertSame('parked', $this->export($id)['state'], 'found by its tag, linked otherwise: parked');
+        $this->assertSame(0, self::creates($r));
+
+        $r = $this->steps(['enqueue', 'hml', $id], ['job', 'hml', $id]);
+
+        $this->assertSame('parked', $this->export($id)['state'], 'parked again, not created again');
+        $this->assertSame(0, self::creates($r));
+        $this->assertCount(1, $r['customers']['hml'], 'one customer carries the tag');
+    }
+
+    public function testAPhoneTakenThenAnEmailTakenLeavesNoPhoneInfoRow(): void
+    {
+        $id = $this->debtor('SD803U', ['email' => 'kapret@example.dk', 'mobile' => '+4533445566']);
+        $this->steps(['remote', 'hml', ['firstName' => 'Anden', 'phone' => '+4533445566']], ['enqueue', 'hml', $id]);
+
+        // the phone is refused; while the create without it is prepared, another customer takes the email
+        $r = $this->steps(['job_race', 'hml', $id, ['firstName' => 'Tredje', 'email' => 'kapret@example.dk']]);
+
+        $this->assertSame(['outcome' => 'done'], $r['results'][0]);
+        $this->assertSame('parked', $this->export($id)['state']);
+        $this->assertSame(3, self::creates($r), 'with the phone, the other customer, and without the phone');
+        $this->assertSame([['kind' => 'customer.export']], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL'), 'no customer went without its phone, so no info row stays');
     }
 
     public function testADebtorCorrectedWhileShopifyAnswersIsNotParkedOnTheOldEmail(): void
@@ -339,12 +422,14 @@ final class CustomersOutSyncTest extends TestCase
         $r = $this->steps(
             ['input', ['firmanavn' => 'Jensen', 'kontakt' => '', 'email' => '', 'tlf' => '0045 12 34 56 78', 'mobile' => '', 'land' => 'Danmark']],
             ['input', ['firmanavn' => 'A/S Firma', 'kontakt' => '  Mette  Hansen ', 'email' => ' m@example.dk ', 'tlf' => '', 'mobile' => '87654321', 'land' => 'Sverige']],
-            ['input', ['firmanavn' => 'Kunde', 'kontakt' => '', 'email' => '', 'tlf' => '87654321', 'mobile' => '+46 70 123 45 67', 'land' => '']]
+            ['input', ['firmanavn' => 'Kunde', 'kontakt' => '', 'email' => '', 'tlf' => '87654321', 'mobile' => '+46 70 123 45 67', 'land' => '']],
+            ['input', ['firmanavn' => 'Flere', 'kontakt' => '', 'email' => ' ; bogholderi@acme.dk;jens@acme.dk, ', 'tlf' => '', 'mobile' => '', 'land' => '']]
         );
 
         $this->assertSame(['firstName' => 'Jensen', 'phone' => '+4512345678', 'tags' => ['saldi-deb-test-1']], $r['results'][0]);
         $this->assertSame(['firstName' => 'Mette', 'lastName' => 'Hansen', 'email' => 'm@example.dk', 'tags' => ['saldi-deb-test-1']], $r['results'][1],
             'an 8-digit number outside Denmark is not guessed');
         $this->assertSame(['firstName' => 'Kunde', 'phone' => '+46701234567', 'tags' => ['saldi-deb-test-1']], $r['results'][2], 'mobile before tlf');
+        $this->assertSame(['firstName' => 'Flere', 'email' => 'bogholderi@acme.dk', 'tags' => ['saldi-deb-test-1']], $r['results'][3], 'the first of several emails');
     }
 }

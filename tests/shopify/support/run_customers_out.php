@@ -8,8 +8,11 @@
 // Steps: ["enqueue", shop_key, adresser_id], ["job", shop_key, adresser_id] (as the worker runs customer.export),
 //        ["job_lose", shop_key, adresser_id, n, search_failures] (the n-th customerCreate's answer is lost, then the customer search fails),
 //        ["job_edit", shop_key, adresser_id, sql] (the debtor is edited with sql, $1 = adresser_id, and queued again while Shopify answers the create),
+//        ["job_race", shop_key, adresser_id, input] (a customer with input is made in Shopify right after the first customerCreate is answered),
+//        ["job_lag", shop_key, adresser_id] (the customer search lags: it finds no customers),
 //        ["remote", shop_key, input] (a customer made in Shopify itself), ["fail", root_field, mode],
 //        ["echo", shop_key, adresser_id] (the CUSTOMERS_CREATE webhook of the debtor's customer, found by its link or else its tag, run through the inbound job),
+//        ["echo", shop_key, adresser_id, changes] (as above, but a CUSTOMERS_UPDATE with the changed REST fields merged into the body),
 //        ["input", debtor] (the customerCreate input of a debtor row).
 // Prints JSON: one result per step (or its exception), the operations sent and the shops' customers.
 //
@@ -116,6 +119,35 @@ try {
                     $job = ['id' => 0, 'type' => 'customer.export', 'shop_id' => $shopId($step[1]), 'payload' => ['adresser_id' => (int)$step[2]]];
                     $results[] = shopify_customer_export_job($job, microtime(true) + 50, fn(): bool => true, ['graphql' => $opts]);
                     break;
+                case 'job_race':
+                    // another customer appears in the shop between the first customerCreate and whatever follows it
+                    $domain($step[1]);
+                    $raced = false;
+                    $opts = $store->opts(['transport' => function (string $url, array $headers, string $body, float $connect, float $timeout) use ($store, $step, &$raced): array {
+                        $resp = $store->send($url, $headers, $body, $connect, $timeout);
+                        if (!$raced && str_contains($body, 'customerCreate(')) {
+                            $raced = true;
+                            $store->send($url, $headers, json_encode(['query' => SHOPIFY_CUSTOMER_EXPORT_CREATE, 'variables' => ['input' => $step[3]]], JSON_UNESCAPED_SLASHES), $connect, $timeout);
+                        }
+                        return $resp;
+                    }]);
+                    $job = ['id' => 0, 'type' => 'customer.export', 'shop_id' => $shopId($step[1]), 'payload' => ['adresser_id' => (int)$step[2]]];
+                    $results[] = shopify_customer_export_job($job, microtime(true) + 50, fn(): bool => true, ['graphql' => $opts]);
+                    break;
+                case 'job_lag':
+                    $domain($step[1]);
+                    $opts = $store->opts(['transport' => function (string $url, array $headers, string $body, float $connect, float $timeout) use ($store): array {
+                        $resp = $store->send($url, $headers, $body, $connect, $timeout);
+                        if (str_contains($body, 'customers(') && $resp['status'] === 200) {
+                            $data = json_decode($resp['body'], true);
+                            $data['data']['customers']['nodes'] = [];
+                            $resp['body'] = json_encode($data);
+                        }
+                        return $resp;
+                    }]);
+                    $job = ['id' => 0, 'type' => 'customer.export', 'shop_id' => $shopId($step[1]), 'payload' => ['adresser_id' => (int)$step[2]]];
+                    $results[] = shopify_customer_export_job($job, microtime(true) + 50, fn(): bool => true, ['graphql' => $opts]);
+                    break;
                 case 'remote':
                     $shop = shopify_shop($step[1]) + $store->shopRow($domain($step[1]));
                     $res = shopify_graphql($shop, 'customerCreate', SHOPIFY_CUSTOMER_EXPORT_CREATE, ['input' => $step[2]], $store->opts(['retry_mode' => 'reconcile',
@@ -133,11 +165,13 @@ try {
                     $c = shopify_graphql($shop, 'customer', 'query customer($id: ID!) { customer(id: $id) { ' . SHOPIFY_CUSTOMER_EXPORT_FIELDS . ' } }', ['id' => $gid], $store->opts())['data']['customer'];
                     $body = ['id' => (int)preg_replace('#\D#', '', $gid), 'admin_graphql_api_id' => $gid, 'first_name' => $c['firstName'], 'last_name' => $c['lastName'],
                         'email' => $c['defaultEmailAddress']['emailAddress'] ?? null, 'phone' => $c['defaultPhoneNumber']['phoneNumber'] ?? null, 'tags' => implode(', ', $c['tags']), 'updated_at' => $c['updatedAt'], 'addresses' => [], 'default_address' => null];
+                    $topic = isset($step[3]) ? 'CUSTOMERS_UPDATE' : 'CUSTOMERS_CREATE';
+                    $body = array_replace($body, $step[3] ?? []);
                     $eventId = 'ev-' . bin2hex(random_bytes(6));
-                    $row = shopify_db_rows("INSERT INTO shopify_events (shop_id, topic, event_id, payload_b64, state) VALUES ($1, 'CUSTOMERS_CREATE', $2, $3, 'queued') RETURNING id",
-                        [$shopId($step[1]), $eventId, base64_encode(json_encode($body))]);
+                    $row = shopify_db_rows("INSERT INTO shopify_events (shop_id, topic, event_id, payload_b64, state) VALUES ($1, $2, $3, $4, 'queued') RETURNING id",
+                        [$shopId($step[1]), $topic, $eventId, base64_encode(json_encode($body))]);
                     $results[] = shopify_customer_upsert_job(['id' => 0, 'type' => 'customer.upsert', 'shop_id' => $shopId($step[1]),
-                        'payload' => ['event_row_id' => (int)$row[0]['id'], 'topic' => 'CUSTOMERS_CREATE', 'event_id' => $eventId]], microtime(true) + 50, fn(): bool => true);
+                        'payload' => ['event_row_id' => (int)$row[0]['id'], 'topic' => $topic, 'event_id' => $eventId]], microtime(true) + 50, fn(): bool => true);
                     break;
                 case 'input':
                     $results[] = shopify_customer_export_input($step[1], 'saldi-deb-test-1');

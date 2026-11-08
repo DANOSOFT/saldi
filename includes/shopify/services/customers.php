@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/customers.php --- ver 5.1.0 --- 2026.11.01
+// --- includes/shopify/services/customers.php --- ver 5.1.0 --- 2026.11.08
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // and is never overwritten after that. An older or unchanged event changes nothing.
 //
 // 20261101 CL/SS SD-792: created (WP08-1).
+// 20261108 CL/SS SD-803: an update of an exported debtor's customer leaves its name and contact, unless the address has a company.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -138,7 +139,8 @@ function ensure_customer(int $shopId, array $customer): int {
 
 	$link = shopify_customer_link($shopId, $gid);
 	$older = $link !== null && $updatedAt !== null && $link['source_updated_at'] !== null && $updatedAt < $link['source_updated_at'];
-	$stored = $link === null ? array() : shopify_db_rows("SELECT kontakt FROM adresser WHERE id = $1 AND art = 'D'", array((int)$link['adresser_id']));
+	$stored = $link === null ? array() : shopify_db_rows("SELECT a.kontakt, EXISTS (SELECT 1 FROM shopify_customer_exports e WHERE e.shop_id = $2 AND e.adresser_id = a.id AND e.state = 'linked') AS exported
+		FROM adresser a WHERE a.id = $1 AND a.art = 'D'", array((int)$link['adresser_id'], $shopId));
 	if ($link !== null && $stored === array()) {
 		// the debtor was deleted in Saldi: the customer gets a new one, and the stored time never goes back
 		if ($older) {
@@ -154,11 +156,14 @@ function ensure_customer(int $shopId, array $customer): int {
 		if ($link['source_hash'] !== $hash) {
 			// an empty value leaves the stored one: a body without protected customer data has no name, email, phone or
 			// address. A contact is Saldi's once set: Shopify fills an empty one, and one that is now the name itself
-			// goes (a company that became a person).
+			// goes (a company that became a person). A debtor Saldi sent out (shopify_customer_exports) carries only
+			// its contact's name in Shopify (the export is linked), so without a company on the address that name is not the debtor's.
 			$write = array_filter($fields, fn(string $v): bool => $v !== '');
 			$contact = (string)$stored[0]['kontakt'];
 			unset($write['kontakt']);
-			if ($contact === '' && $fields['kontakt'] !== '') {
+			if ($stored[0]['exported'] === 't' && trim((string)(shopify_customer_address($customer)['company'] ?? '')) === '') {
+				unset($write['firmanavn']);
+			} elseif ($contact === '' && $fields['kontakt'] !== '') {
 				$write['kontakt'] = $fields['kontakt'];
 			} elseif (isset($write['firmanavn']) && $fields['kontakt'] === '' && $contact === $write['firmanavn']) {
 				$write['kontakt'] = '';

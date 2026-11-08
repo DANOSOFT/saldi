@@ -70,9 +70,11 @@ function shopify_customer_export_tag(int $adresserId): string {
 
 /**
  * Queues the debtor for a shop whose customers flow is on, unless it has a customer there already:
- * reserves the export (pending, with its tag) and queues job customer.export. A parked export is
- * tried again, so a debtor whose email was corrected goes with the next order. A linked export whose
- * link is gone reopens as create_started: its customer exists, so it is looked up before any create.
+ * reserves the export (pending, with its tag) and queues job customer.export. A parked or linked
+ * export reopens as create_started, so a debtor whose email was corrected goes with the next order,
+ * and one whose customer exists (a link that is gone, or a customer linked otherwise) is looked up
+ * before any create. A parked export's last create was refused, so its lookup does not wait for the
+ * search; a linked one keeps the time of its create and waits it out like any create.
  *
  * @return array{id: int, created: bool, state: string}|null the job; null when nothing is to be sent
  */
@@ -84,8 +86,9 @@ function shopify_customer_export_enqueue(int $shopId, int $adresserId, array $co
 	return shopify_db_transaction(function () use ($shop, $shopId, $adresserId, $correlation): array {
 		shopify_db_rows(
 			"INSERT INTO shopify_customer_exports (shop_id, adresser_id, state, correlation_tag) VALUES ($1, $2, 'pending', $3)
-			 ON CONFLICT (shop_id, adresser_id) DO UPDATE SET state = CASE shopify_customer_exports.state WHEN 'linked' THEN 'create_started' ELSE 'pending' END,
-				updated_at = now() WHERE shopify_customer_exports.state IN ('parked', 'linked')",
+			 ON CONFLICT (shop_id, adresser_id) DO UPDATE SET state = 'create_started', updated_at = now(),
+				attempt_at = CASE shopify_customer_exports.state WHEN 'parked' THEN NULL ELSE shopify_customer_exports.attempt_at END
+			 WHERE shopify_customer_exports.state IN ('parked', 'linked')",
 			array($shopId, $adresserId, shopify_customer_export_tag($adresserId))
 		);
 		// coalesced: a job already running may have read the export before it was reopened, so another one follows it
@@ -179,7 +182,7 @@ function shopify_customer_export(array $rt, int $shopId, int $adresserId): array
 		$message = in_array('email', $fields, true)
 			? "debtor $adresserId was not created in Shopify: its email " . ($input['email'] ?? '') . " belongs to another customer there or is refused ($why); correct the debtor's email, the next order sends it again"
 			: "debtor $adresserId was not created in Shopify: $why";
-		$parked = shopify_db_transaction(function () use ($shopId, $adresserId, $message, $tag, $sent): bool {
+		$parked = shopify_db_transaction(function () use ($shopId, $adresserId, $message, $tag, $sent, $input): bool {
 			shopify_db_rows('SELECT 1 FROM shopify_customer_exports WHERE shop_id = $1 AND adresser_id = $2 FOR UPDATE', array($shopId, $adresserId));
 			$now = shopify_db_rows("SELECT id, firmanavn, kontakt, email, tlf, mobile, land FROM adresser WHERE id = $1 AND art = 'D'", array($adresserId))[0] ?? null;
 			if ($now !== null && shopify_customer_export_input($now, $tag) !== $sent) {
@@ -189,6 +192,10 @@ function shopify_customer_export(array $rt, int $shopId, int $adresserId): array
 			}
 			shopify_db_rows("UPDATE shopify_customer_exports SET state = 'parked', updated_at = now() WHERE shop_id = $1 AND adresser_id = $2", array($shopId, $adresserId));
 			shopify_error_open($shopId, 'customer.export', "adresser:$adresserId", $message);
+			if (isset($sent['phone']) && !isset($input['phone'])) {
+				// no customer went without the phone after all
+				shopify_error_resolve_key($shopId, 'customer.phone', "adresser:$adresserId");
+			}
 			return true;
 		});
 		return $parked ? array('result' => 'parked', 'reason' => $why) : array('result' => 'wait', 'run_after' => 1);
@@ -296,7 +303,7 @@ function shopify_customer_export_adopt(int $shopId, int $adresserId, array $cust
 
 /**
  * The customerCreate input of a debtor: the contact person's name for a company, else the
- * debtor's name, split at its last space; the email; the phone in E.164; and the tag.
+ * debtor's name, split at its last space; the first of its emails; the phone in E.164; and the tag.
  *
  * @param array<string, string|null> $debtor firmanavn, kontakt, email, tlf, mobile, land
  */
@@ -306,7 +313,8 @@ function shopify_customer_export_input(array $debtor, string $tag): array {
 	$cut = strrpos($name, ' ');
 	$input = $cut === false ? array('firstName' => $name) : array('firstName' => substr($name, 0, $cut), 'lastName' => substr($name, $cut + 1));
 	$input = array_filter($input, fn(string $v): bool => $v !== '');
-	$email = $text($debtor['email'] ?? '');
+	// the field may hold several addresses (; or ,), as reminders and invoices split it: the first goes
+	$email = $text(array_values(array_filter(array_map('trim', preg_split('/[;,]/', (string)($debtor['email'] ?? '')))))[0] ?? '');
 	if ($email !== '') {
 		$input['email'] = $email;
 	}
