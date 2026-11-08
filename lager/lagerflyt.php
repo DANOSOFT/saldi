@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------ver 5.1.0-------2026-11-04------
+// ------------------lager/lagerflyt.php-----------ver 5.1.0-------2026-11-05------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,8 @@
 // 20261026 LOE MB-65: assign module 9, refuse a read-only stock move and disable the move form.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261104 CL/ASR A failed move between warehouses shows the error box (includes/errorReport.php) with a report to Saldi instead of the alert with the phone number.
+// 20261105 CL/LH Opening and posting a move no longer reads request keys the links and the form never send (input, variant_id, batch_kob_id, batch_kob_antal).
+//                $reg starts at 0 for a move of more than the stock too.
 /* 
 Ved flytning af varer fra et lager et andet nedskrives rest for disse i det nødvendige antal batch_kob linjer for 
 det lager der flyttes fra, 
@@ -58,31 +60,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $rettigheder !== '' && ($rettighede
 ($rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) ? $mb65_noedit = 'disabled' : $mb65_noedit = '';
 include("../includes/db_query.php");
 
-$input=if_isset($_GET['input']);
+$input = $_GET['input'] ?? '';
 if ($input) list($lager, $vare_id)=explode(":", $input);
 else {
-	$lager=if_isset($_GET['lager']);
-	$vare_id=if_isset($_GET['vare_id']);
-  $variant_id = if_isset($_POST['variant_id'],'0');
+	$lager = $_GET['lager'] ?? null;
+	$vare_id = $_GET['vare_id'] ?? null;
 }
+# the move form posts no variant, so the item is moved without one
+$variant_id = $_POST['variant_id'] ?? '0';
 if (!$variant_id) $variant_id = '0';
 
 if (isset($_POST['opdater']) && $_POST['antal']>=1) {
 	$opdater=$_POST['opdater'];
 	$vare_id=$_POST['vare_id'];
-  $lager=$_POST['lager'];
-  $antal=$_POST['antal'];
-  $max_antal=$_POST['max_antal'];
-  $batch_kob_id=$_POST['batch_kob_id'];
-  $batch_kob_antal=$_POST['batch_kob_antal'];
-  $nyt_lager=$_POST['nyt_lager'];
-  $variant_id = if_isset($_POST['variant_id'],'0');
+	$lager=$_POST['lager'];
+	$antal=$_POST['antal'];
+	$max_antal=$_POST['max_antal'];
+	$nyt_lager=$_POST['nyt_lager'];
+	# what the move leaves unbalanced; a move of more than the stock moves nothing and leaves it 0
+	$reg = 0;
 
 transaktion("begin");  		
 	if ($antal<=$max_antal && $antal>0 && $_POST['opdater']){
 		$x=0;
 		$sum=0;
-		$reg = 0;
 		$nyt_antal=$antal;
 		$dd=date("Y-m-d");
 		$qtxt="select * from batch_kob where vare_id = '$vare_id' and lager = '$lager' and rest > '0' order by id";
