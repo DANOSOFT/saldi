@@ -24,6 +24,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](doc/ai/feedback_pre_pr_test_report.md) |
 | Header-history continuations start a new sentence and align with the description after the date/tag | guardrails `file-history` | [convention_file_history](doc/ai/convention_file_history.md) |
 | Bump `ver` on the header line for a behaviour change, not for formatting | guardrails `file-version` | [convention_file_history](doc/ai/convention_file_history.md) |
+| An `include`/`require` a change writes is anchored on `__DIR__` (`__DIR__ . '/../includes/connect.php'`), not a bare relative path; moving or re-indenting a legacy one is not writing it | guardrails `include-paths` | [convention_include_paths](doc/ai/convention_include_paths.md) |
 | Cast or escape every outside value in SQL; HTML/JS output escaped (`jsString()`); `returside` through `nav_sanitize_returside()` | review, CodeRabbit | [convention_sql_escaping](doc/ai/convention_sql_escaping.md) |
 | SQL runs on Postgres, MySQL and MariaDB; `information_schema` queries filter on the tenant's schema | review, CodeRabbit | CI only runs Postgres |
 | A fix reaches every copy of the code it fixes (grid copies, the several save paths) | review | |
@@ -35,7 +36,7 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | Mail through the regnskab's SMTP settings (stamdata, `adresser` art 'S'): a server in `felt_1` gets the login in `felt_2`/`felt_3`, `felt_4`'s encryption and the stamdata e-mail as sender; empty `felt_1` or `localhost` is Saldi's own relay, anonymous and without `felt_4`. A sender a change adds or rewrites calls `stamdata_smtp()` instead of its own copy of that block | shared `stamdata_smtp()`; PHPUnit `stamdataSmtp`, `PasswordRecoveryMailTest` | `includes/stdFunc/stamdataSmtp.php` |
 | Ledger, posting and migration changes get Nicolai's review | review | |
 | CodeRabbit findings are answered before a human is asked to review | review | |
-| Braces on multi-line bodies; `__DIR__` includes; `@var` provenance blocks; controller/view split; PHPDoc shapes; keep `<?= 'text' ?>` tags | review | [doc/ai/MEMORY.md](doc/ai/MEMORY.md) |
+| Braces on multi-line bodies; `@var` provenance blocks; controller/view split; PHPDoc shapes; keep `<?= 'text' ?>` tags | review | [doc/ai/MEMORY.md](doc/ai/MEMORY.md) |
 
 ## When you are corrected
 

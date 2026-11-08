@@ -46,6 +46,8 @@ The commits each check was proven on are named at the top of its file in
 comments and formatting, while changes to string contents count as behavior. It
 requires PHP on `PATH`, as provided by the guardrails CI job. `file-history` also
 rejects history entries inserted after a leading PHPDoc instead of in the header.
+`include-paths` finds include and require statements with the same tokenizer, so
+one in a comment, a string or an inline `<script>` is not judged.
 
 Run the guardrail regression tests with `node --test tools/guardrails/tests/*.test.mjs`;
 the guardrails workflow runs the same tests before checking a pull request.
