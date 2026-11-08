@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/insertAccount.php --- patch 5.0.0 --- 2026-07-13 ---
+// --- kreditor/ordreIncludes/insertAccount.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230509 PHR php8
 // 20230718 LOE Minor modification
@@ -32,6 +32,8 @@
 // 20260713 MJ Fix structural bug: orphaned if(!$afd){ caused all main logic to be skipped when afd was set. Also restore afd lookup from ansatte.
 // 20260902 CL/LH  L4 finding master-data-supplier DEVY-1: selecting the supplier used to stamp today's date over an Ordredato the operator had already typed, and never stored Levdato. Keep the dates from the form (kreditor/ordre.php passes them along) and only fall back to today when nothing was entered.
 // 20260908 CDX/LH Preserve the caller transaction during creditor order creation (SST-765).
+// 20261105 CL/LH The new order's contact, delivery address and e-mail are set empty before the insert reads them (testlab DEVY-7).
+//                What is stored is unchanged, as the unset values were stored empty too.
 
 if (!function_exists('insertAccount')) {
 /**
@@ -67,6 +69,9 @@ function insertAccount($id, $konto_id, $manageTransaction = true) {
 	if (!$status)      $status      = 0;
 	if (!$sum)         $sum         = 0;
 	if (!$art)         $art         = 'KO';
+	// Not taken from the supplier: the order starts without contact, delivery address and e-mail.
+	$kontakt = $email = '';
+	$lev_navn = $lev_addr1 = $lev_addr2 = $lev_postnr = $lev_bynavn = $lev_kontakt = '';
 
 	// Resolve the ref (our-reference) to store: prefer the already-selected employee
 	// name ($ref from the POST form), then look it up from the employee table, then

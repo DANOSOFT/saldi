@@ -9,7 +9,8 @@ if (!isset($valg) || !$valg) {
     $valg = if_isset($_GET, 'ordrer','valg');
 }
 $sort = if_isset($_GET, NULL,'sort');
-$hreftext = if_isset($hreftext, NULL);
+// 20261105 CL/LH kreditor/ordreliste.php never sets $hreftext, so it is read with ?? instead of if_isset(), which warned (testlab DEVY-7).
+$hreftext = $hreftext ?? NULL;
 
 if (is_array($sort)) {
     $sort = implode(',', $sort);
