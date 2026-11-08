@@ -89,6 +89,9 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 // 20261105 CL/LH A form drawn in another regnskab (thisDb) ends the request after the message, instead of running the page on an emptied $_POST and $_GET.
 //                On diverse.php (Kontoindstillinger) that died in the settings permission gate and the page chrome.
 //                The posted thisDb in the message goes through jsString(), so a forged value cannot run script.
+// 20261105 CL/LH The old module gate checks the Kontoplan right (position 0) on the pages that declare system.kontoplan: kontoplan.php, kontokort.php and stdktoplan.php refuse a user without it.
+//                $modulnr 0 means no module check, so such a user opened the chart of accounts and its balances by URL.
+//                This includes a user without a rights string (NULL, '' or '0'), such as a Sager employee's login, which the gate skipped before.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -390,11 +393,17 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$bg = 'nix';
 		$css = NULL;
 	}
-	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
+	// $modulnr 0 means "no module check", so a page cannot name the Kontoplan right (position 0) with it. The chart-of-accounts
+	// pages (systemdata/kontoplan.php, kontokort.php, stdktoplan.php) declare that right's key instead, and are checked on position 0.
+	// Those pages are checked for a user without a rights string too (NULL, '' or '0'; a Sager employee's login has none), who holds
+	// no right. Other pages still skip the check for such a user, as before.
+	$kontoplanPage = !$modulnr && isset($permission_key) && $permission_key === 'system.kontoplan';
+	$legacyModulnr = ($modulnr) ? $modulnr : ($kontoplanPage ? 0 : NULL);
+	if (($rettigheder || $kontoplanPage) && $legacyModulnr !== NULL && (substr((string) $rettigheder, $legacyModulnr, 1) < '1')) { #20190529
 		// One refusal for both gates (20261103): the text 5548, HTTP 403, JSON to scripts and a way back to Oversigt; logged as before.
 		include_once($relativePath . "includes/std_func.php");
 		include_once(__DIR__ . "/permissions.php");
-		perm_refuse('modulnr ' . (int) $modulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
+		perm_refuse('modulnr ' . (int) $legacyModulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
 	}
 	// 20260916 Phase 3 gate (spec R4). Pages declare $permission_key ('any' = every logged-in
 	// user), optionally $permission_level = 'write' and $permission_post_read = true (POST is a
