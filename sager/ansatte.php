@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------ver 5.1.0 ------2026-11-03-------------
+// ------ SAGER/ANSATTE.php-------ver 5.1.0 ------2026-11-06-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@ $s_id=session_id();
 // 20260924 Sawaneh SST-757: New logins get regnskabsaar (session year, else newest open year), so POS/ordre/tilbud no longer fail on an empty fiscal year.
 //                  Login SQL values are now cast or escaped.
 // 20261103 CL/MMR SD-799 The search dropdown labels and the paging line of the employee list follow the user's language.
+// 20261106 CL/MMR SD-813 The page's lang attribute follows the user's language (da, en, no).
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -62,7 +63,7 @@ $s_id=session_id();
 	$vis=if_isset($_GET['vis']);
 	
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
-	<html lang=\"da\">
+	<html lang=\"" . ifset(array(1 => 'da', 2 => 'en', 3 => 'no'), (int)$sprog_id, 'da') . "\">
 	<head>
 		<meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\">
 		<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">
