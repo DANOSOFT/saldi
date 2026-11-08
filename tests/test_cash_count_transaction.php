@@ -4,6 +4,9 @@
 // ----------------------------------------------------------------------
 // 20260908 CDX/LH Exercise report account scope and concurrent sales on an isolated PostgreSQL schema.
 // 20261019 CL/LH MB-70: Ordinary invoices stay out of the count unless sets are enabled; no nameless payment bucket.
+// 20261105 CL/LH Stub get_settings_value(), which findBoxSale() calls for a foreign currency's till account (decision 22).
+//                Without it the EUR count died and 13 of the 14 checks never ran.
+//                A till account stored in settings for the till is checked to win over the box4 list.
 // Run with SALDI_CHAR_PGHOST / PGPORT / PGUSER / PGPASS / PGDATABASE (all prefixed SALDI_CHAR_).
 
 error_reporting(E_ALL);
@@ -41,6 +44,10 @@ function transaktion($sql) { pg_query($GLOBALS['connection'], $sql); }
 function findtekst($id, $language) { return (string)(explode('|', (string)$id, 2)[1] ?? ''); }
 /** @return void */
 function alert($message) { throw new RuntimeException($message); }
+/** @return mixed The value stored in $storedSettings for the group, name and till, else $default. */
+function get_settings_value($name, $group, $default, $user = null, $kasse = null) {
+	return $GLOBALS['storedSettings']["$group/$name/$kasse"] ?? $default;
+}
 /** @return void */
 function checkTransaction($condition, $message) {
 	if (!$condition) {
@@ -74,6 +81,7 @@ $baseCurrency = 'DKK';
 $regnaar = 9;
 $sprog_id = 1;
 $db = $schema;
+$storedSettings = array();
 try {
 	pg_query($connection, "CREATE SCHEMA $schema");
 	foreach (array($connection, $writer) as $conn) {
@@ -100,6 +108,11 @@ try {
 	checkTransaction($ids === array(1, 2), 'Select cash/card orders once; exclude bank-only, other registers/currencies and prior dates');
 	currentCashSale($foreignIds, 'EUR');
 	checkTransaction($foreignIds === array(5), 'Foreign currency selects its cash account without base-currency card accounts');
+	// Decision 22: the till account stored in settings VK/till_account_EUR for till 2 is read before the box4 list.
+	$storedSettings['VK/till_account_EUR/2'] = '5830';
+	currentCashSale($storedIds, 'EUR');
+	$storedSettings = array();
+	checkTransaction($storedIds === array(6), 'A till account stored in settings for the till wins over the box4 list');
 	transaktion('begin');
 	assignCashReport($ids, 5515);
 	assignCashReport(array(1), 5516);
