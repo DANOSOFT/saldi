@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowHooks.php --- ver 5.1.0 --- 2026.10.19 ---
+// ---- includes/settings/rowHooks.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261019 SS Review 2 (PR #803): settings_fy_columns() reads information_schema for this database/schema only.
 
 // 20261016 SS The discount transfer and the old-discount columns live in virtualStorage.php.
+// 20261105 CL/LH Testlab: a new fiscal year opens with the carry-forward (Overfør til, Resultat on its account) the year card's Gem writes, not each balance account's own saldo.
 include_once(__DIR__ . '/virtualStorage.php');
 
 // ---------------------------------------------------------------- fiscal years (grupper art RA)
@@ -233,9 +234,11 @@ function settings_fiscal_year_set_first(int $startMonth, int $startYear, int $en
 
 /**
  * Create a fiscal year (spec G1.2; shared with the onboarding guide). After the first year the start is fixed to the
- * month after the latest year, the year-dependent groups and the chart of accounts are copied from it, and balance
- * accounts open with last year's balance until the opening balance is reviewed. The first year also gets the voucher
- * defaults the old first-year page saved (RB).
+ * month after the latest year, the year-dependent groups and the chart of accounts are copied from it, and the opening
+ * balance is carried forward as Gem on the year card saves it (updateFollowingOpeningBalances(): each balance account
+ * onto its Overfør til, the result onto the result account's). When a balance has no account to land on, balance
+ * accounts open with last year's balance until the card is saved. The first year also gets the voucher defaults the
+ * old first-year page saved (RB).
  *
  * @return array{error: int|null, error_args: array<int, mixed>, kodenr: int, id: int}
  */
@@ -276,6 +279,13 @@ function settings_fiscal_year_create(int $startMonth, int $startYear, int $endMo
 		if (!settings_fy_count("select count(*) as n from kontoplan where regnskabsaar = $kodenr")) {
 			$cols = settings_fy_columns('kontoplan', array('id', 'regnskabsaar', 'primo', 'saldo'));
 			db_modify("insert into kontoplan (" . implode(', ', $cols) . ", regnskabsaar, primo) select " . implode(', ', $cols) . ", $kodenr, case when kontotype = 'S' then coalesce(saldo, 0) else 0 end from kontoplan where regnskabsaar = $prev order by kontonr", __FILE__ . " linje " . __LINE__);
+		}
+		// The new year is active at once, so it opens with the carry-forward the card's Gem and every later posting into
+		// the previous year write: without it Resultat is on no account and Y+1 opens out of balance by it. Like
+		// genberegn($prev) above, it needs the caller to have loaded genberegn() (settings_rows_create_submit() does).
+		if (function_exists('genberegn')) {
+			include_once(__DIR__ . '/../updateFollowingOpeningBalances.php');
+			updateFollowingOpeningBalances($prev);
 		}
 	} elseif (!settings_fy_count("select count(*) as n from grupper where art = 'RB'")) {
 		db_modify("insert into grupper (beskrivelse, kodenr, kode, art, box1, box2, box3, box4, box5) values ('Regnskabsbilag', '1', '1', 'RB', '1', '1', '', 'on', 'on')", __FILE__ . " linje " . __LINE__);
