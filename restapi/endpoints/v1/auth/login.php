@@ -1,4 +1,6 @@
 <?php
+// 20261105 CL/LH A user whose IP limit (brugere.ip_address) does not list the client's address is refused with 403, as the web login refuses it (user_ip_allowed()).
+//                Only the web login read the limit, so the REST API gave such a user a token from any address.
 /**
  * POST /auth/login.php
  * OAuth2/JWT Login endpoint
@@ -41,6 +43,7 @@ require_once __DIR__ . '/../../../core/logging.php';
 include_once __DIR__ . '/../../../../includes/db_query.php';
 include_once __DIR__ . '/../../../../includes/connect.php';
 include_once __DIR__ . '/../../../../includes/std_func.php';
+include_once __DIR__ . '/../../../../includes/stdFunc/userIpAllowed.php';
 
 class AuthLoginEndpoint extends BaseEndpoint
 {
@@ -157,6 +160,15 @@ class AuthLoginEndpoint extends BaseEndpoint
                 $this->sendResponse(false, null, 'Invalid username or password', 401);
                 return;
             }
+        }
+
+        // A user with an IP limit logs in only from an address it lists, as on the web login (index/login.php).
+        // Checked after the password, so the answer does not tell a caller without it that the user exists.
+        $clientIp = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+        if (!user_ip_allowed($user['ip_address'] ?? null, $clientIp)) {
+            write_log("Login failed: IP address $clientIp is not approved for user: $username in database: $tenant_db", $tenant_db, 'WARNING');
+            $this->sendResponse(false, null, 'Your IP address is not approved to log in.', 403);
+            return;
         }
         
         // If user is admin, they have access to all regnskaber

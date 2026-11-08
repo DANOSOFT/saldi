@@ -51,6 +51,7 @@
 //                 bootstrapTenant() no longer opens a stray master connection it never closed.
 // 20261105 CL/LH The seeded API user holds every module right (the rights string install.php gives the first administrator), not 'admin'.
 //                The REST API now checks the endpoint's module right, and 'admin' only opens positions 0-4 of the rights string.
+// 20261105 CL/LH Added setUserIpLimit() for the login and refresh IP-limit cases.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
@@ -334,6 +335,21 @@ final class RestApiEnv
             throw new RuntimeException("could not drop throwaway tenant $test: $error");
         }
         self::$ownedDb = null;
+    }
+
+    /** Set the seeded API user's IP limit (brugere.ip_address); '' removes it. */
+    public static function setUserIpLimit(string $ipAddresses): void
+    {
+        if (self::$ownedDb === null) {
+            throw new RuntimeException('no tenant bootstrapped in this process');
+        }
+        $tenant = self::connect(self::$ownedDb);
+        $updated = pg_query_params($tenant, 'UPDATE brugere SET ip_address = $1 WHERE brugernavn = $2', [$ipAddresses, self::user()]);
+        $error = $updated === false ? pg_last_error($tenant) : '';
+        pg_close($tenant);
+        if ($updated === false) {
+            throw new RuntimeException("could not set the IP limit: $error");
+        }
     }
 
     /**

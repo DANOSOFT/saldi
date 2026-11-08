@@ -74,6 +74,8 @@
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 // 20261105 CL/LH The version read at login goes to regnskab.version through tjek4opdat_skriv_version(), which writes only under the update lock.
 //                Written straight away, a version read before another login updated the regnskab took regnskab.version back, and the update ran again.
+// 20261105 CL/LH The IP limit is checked by user_ip_allowed() (includes/stdFunc/userIpAllowed.php), which the REST login and token refresh now share.
+//                Addresses may also be separated by spaces or semicolons, as Brugere og roller reads them, and a limit without any address limits nothing.
 
 if (isset($_GET['invite'])) {
 	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
@@ -100,6 +102,7 @@ include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 require_once(__DIR__ . '/../includes/locatorClient.php');
 require_once __DIR__ . '/../includes/sharedFile.php';
+require_once __DIR__ . '/../includes/stdFunc/userIpAllowed.php';
 
 #print "<!--";
 $timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
@@ -473,19 +476,15 @@ if (isset ($brug_timestamp)) {
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = isset($r['brugernavn']) ? $r['brugernavn'] : $brugernavn;
-	$accepted_ips = isset($r["ip_address"]) ? $r["ip_address"] : NULL;
 	$ip_address = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
-	if ($accepted_ips != null && $accepted_ips != '') {
-		$accepted_ips = explode(',', $accepted_ips);
-		if (!in_array($ip_address, $accepted_ips)) {
-			$fejltxt = "Din IP-adresse er ikke godkendt til at logge ind.";
-			login_audit('login.ip_blocked', (string) $brugernavn, isset($r['id']) ? (string) $r['id'] : '');
-			echo "<script type='text/javascript'>
-				alert(" . json_encode($fejltxt) . ");
-					window.location.href = 'index.php';
-				</script>";
-			exit;
-		}
+	if (!user_ip_allowed(isset($r['ip_address']) ? $r['ip_address'] : NULL, (string) $ip_address)) {
+		$fejltxt = "Din IP-adresse er ikke godkendt til at logge ind.";
+		login_audit('login.ip_blocked', (string) $brugernavn, isset($r['id']) ? (string) $r['id'] : '');
+		echo "<script type='text/javascript'>
+			alert(" . json_encode($fejltxt) . ");
+				window.location.href = 'index.php';
+			</script>";
+		exit;
 	}
 	$pw1  = md5($password);
 	$pw2  = saldikrypt(isset($r['id']) ? $r['id'] : null, $password);

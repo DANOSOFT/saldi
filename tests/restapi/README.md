@@ -13,7 +13,8 @@ docker-compose stack.
   secret, so it holds before and after the SD-587 deterministic-secret fix.
 - `AuthLoginEndpointTest` — `POST /auth/login.php`: success shape (tokens,
   tenant), wrong password/unknown user → 401, unknown account → 404,
-  **closed account → 403**, missing fields → 400.
+  **closed account → 403**, a user whose IP limit does not list the client's
+  address → 403 without a token, missing fields → 400.
 - `OrdersEndpointTest` — `debitor/orders/`: 401 without/with garbage token,
   authorized list, create → read-back (+ debtor auto-provisioned in the
   tenant db), 404 for unknown id; `debitor/invoices/` list shape.
@@ -21,8 +22,9 @@ docker-compose stack.
   must be refused and leave no `regnskab` row and no tenant database.
 - `AuthRefreshEndpointTest` — `POST /auth/refresh.php`: refresh token →
   working access token, access/garbage token → 401, missing field → 400,
-  GET → 405, closed account → 403, unknown account/user → 401, no account
-  claim → 400 unless the legacy `X-Tenant-ID` header supplies it.
+  GET → 405, closed account → 403, a user whose IP limit does not list the
+  client's address → 403, unknown account/user → 401, no account claim → 400
+  unless the legacy `X-Tenant-ID` header supplies it.
 - `BearerAuthEnforcementTest` — the shared `BaseEndpoint` gate: no header,
   Basic scheme, refresh-typed, foreign-secret and expired tokens → 401,
   unknown account claim → 400, `X-Tenant-ID` fallback, malformed JSON → 400.
@@ -166,3 +168,4 @@ production registry.
 <!-- 20261105 CL/LH AccountsEndpointTest: a PUT without vat keeps the account's VAT code. -->
 <!-- 20261105 CL/LH ReferenceDataEndpointsTest: vat-codes/ lists the current fiscal year's VAT codes. -->
 <!-- 20261105 CL/LH ModuleRightsTest (read-only writes under deny, order types per endpoint); the seeded API user holds every module right. Review: roles, SQL in body fields. -->
+<!-- 20261105 CL/LH AuthLoginEndpointTest, AuthRefreshEndpointTest: the user's IP limit. -->

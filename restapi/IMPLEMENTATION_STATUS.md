@@ -13,6 +13,10 @@ Audit updated 2026-07-15. The source code is authoritative where this file and
   deployment passed login, refresh, and authenticated account requests on
   2026-07-15. The ssl3 deployment still runs the older implementation and returned
   `401 User not found` during the audit.
+- ✅ Login and refresh refuse a user whose IP limit (`brugere.ip_address`, set
+  under Brugere og roller) does not list the client's address with 403, as the
+  web login refuses it. The limit is read by `user_ip_allowed()`
+  (`includes/stdFunc/userIpAllowed.php`), which the web login shares.
 - ❌ **Unsupported: `GET /user/tenants`. Do not use it.** It takes a user ID from
   an account database and incorrectly looks up the same numeric ID in the registry
   database. Those user-ID namespaces are unrelated. The endpoint is not included
