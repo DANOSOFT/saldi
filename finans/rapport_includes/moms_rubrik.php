@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_rubrik.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- finans/rapport_includes/moms_rubrik.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 //                 moms_rubrik() includes its files via __DIR__ (no behaviour change).
 // 20261103 LOE SST-936 Cast the department filter, and match nothing when it is not a whole number.
+// 20261105 CL/LH The CSV ends with the I alt row the screen shows.
 
 function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                      $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -314,6 +315,7 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     print "<td colspan='2' align='right'>I alt</td>";
     print "<td align='right'>" . dkdecimal($grand, 2) . "</td>";
     print "</tr>";
+    fwrite($csv, mb_convert_encoding("I alt;;\"" . dkdecimal($grand, 2) . "\"\n", 'ISO-8859-1', 'UTF-8'));
     print "</tbody></table></div>";
 
     print "<div style='padding:6px 12px 12px; font-size:0.85em; color:#888;'>";
