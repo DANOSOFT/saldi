@@ -34,6 +34,8 @@
 // 20261105 CL/LH CreateOrder gives opret_ordrelinje() the order's VAT rate (global $momssats), so the item line gets the item's rate (25%) instead of 0% and approving the booking invoices its order, which fakturer_ordre() refused while the lines had no VAT.
 //                When no fiscal year covers today, the script takes the newest one for every request, the highest number also where grupper.kodenr is text, so CreateOrder finds the item's rate there, opening the order in debitor/ordre.php no longer drops its VAT, and approving the booking posts its invoice there instead of stopping at an empty fiscal year.
 //                CreateOrder looks the item group and the VAT code up by a quoted number, which Postgres compares with a text kodenr too.
+// 20261105 CL/LH fakturer_ordre() casts the paid amount (felt_2) to a number, so a Kreditkort order whose felt_2 is '' is invoiced instead of stopping with a TypeError (float - ''), as api/rest_api.php did with HTTP 500.
+//                It casts the order id and escapes the stored tidspkt in its SQL.
 //
 
 
@@ -305,6 +307,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	global $webservice; #20260729 SZ was a local shadow, so db_modify() never saw webservice mode as active on write failure and exited hard instead of returning an error (SD-595)
 	$brugernavn = "Booking";
 	$webservice = 1;
+	$saldi_id = (int)$saldi_id; // the order id goes into every query below
 	
 	
 	$log=fopen("../temp/$db/rest_api.log","a");
@@ -360,7 +363,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	$svar=levering($saldi_id,'on',NULL,'on');
 	fwrite($log,__line__." Betalingsbet: $betalingsbet\n");
 	if ($betalingsbet!='Forud' && $betalingsbet!='Lb. Md' && $betalingsbet!='Netto') {
-		$betalingsdiff=abs($ordresum+$ordremoms-$betalingsum);
+		$betalingsdiff=abs($ordresum+$ordremoms-(float)$betalingsum); // felt_2 is text, '' on an order that has no payment
 		if ($pos_betaling && $betalingsdiff >= 0.01) {
 			fwrite($log,__line__." Ordresum : $ordresum\n");
 			fwrite($log,__line__." Ordremoms : $ordremoms\n");
@@ -379,7 +382,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 */		
 		$svar=bogfor($saldi_id,'on');
 		if ($tidspkt) {	
-			$qtxt="update ordrer set tidspkt='$tidspkt' where id='$saldi_id'";
+			$qtxt="update ordrer set tidspkt='" . db_escape_string((string)$tidspkt) . "' where id='$saldi_id'";
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 		}
