@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productcardIncludes/showLocations.php --- lap 4.1.0 --- 2026-09-23 ---
+// --- lager/productcardIncludes/showLocations.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20240605 PHR Replaced text 2046 (Følgevare) by 980 (Beholdning)
 // 20260810 LOE Removed right alignment from commission field
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
+// 20261105 CL/LH A warehouse with no lagerstatus row for the item shows an empty location instead of reading lok1 from a missing row (array offset on false).
 /**
  * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
  * @var array<int, string> $warehouseNames
@@ -59,7 +60,7 @@
 			$b_antal[$x]-=$r2['antal'];
 			$qtxt = "select lok1 from lagerstatus where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$lagerlok[$x]=$r2['lok1'];
+			$lagerlok[$x]=$r2['lok1'] ?? '';
 			$qtxt="select sum(beholdning) as beholdning from lagerstatus where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$lagerbeh[$x]=$r2['beholdning']*1;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productCardIncludes/showQtyDiscount.php --- lap 4.1.0 --- 2025-03-06 ---
+// --- lager/productCardIncludes/showQtyDiscount.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240211 PHR Remover decimal limit from $m_rabat_array and $m_antal_array
+// 20261105 CL/LH A whole-number discount or quantity has no decimals after explode('.'), so list() read a missing key 1; array_pad() gives it an empty one.
 print "<tr><td><b>".findtekst(2041,$sprog_id)."</b></td>";
 if ($special_price && $specialType=='percent') {
 	print "<tr><td>".findtekst(2043,$sprog_id)."</td></tr>";
@@ -40,23 +41,24 @@ if ($special_price && $specialType=='percent') {
 	for ($x=0;$x<count($m_antal_array);$x++) {
 		if ($m_antal_array[$x]) {
 			if ($incl_moms && $m_type!="percent") $m_rabat_array[$x]*=(100+$incl_moms)/100;
-			list($a,$b) = explode('.',$m_rabat_array[$x]*1);
+			list($a,$b) = array_pad(explode('.',$m_rabat_array[$x]*1),2,'');
 			$c = strlen ($b);
-			list($a,$b) = explode('.',$m_antal_array[$x]*1);
+			list($a,$b) = array_pad(explode('.',$m_antal_array[$x]*1),2,'');
 			$d = strlen ($b);
 			($rabatgruppe)? $inputtype="readonly=\"readonly\"":$inputtype="type=\"text\"";
 			if ($m_rabat_array[$x] > 0 || $m_antal_array[$x] > 0) {
-			print "<tr><td>".findtekst(2044,$sprog_id)."</td>";
-			print "<td><input $inputtype size=\"5\" style=\"text-align:right\" name=\"m_rabat_array[$x]\" value=".dkdecimal($m_rabat_array[$x],$c)."></td><td><input $inputtype size=\"5\" style=\"text-align:right\" name=\"m_antal_array[$x]\" value=\"".dkdecimal($m_antal_array[$x],$d)."\"></td></tr>";
-		}}
+				print "<tr><td>".findtekst(2044,$sprog_id)."</td>";
+				print "<td><input $inputtype size=\"5\" style=\"text-align:right\" name=\"m_rabat_array[$x]\" value=".dkdecimal($m_rabat_array[$x],$c)."></td><td><input $inputtype size=\"5\" style=\"text-align:right\" name=\"m_antal_array[$x]\" value=\"".dkdecimal($m_antal_array[$x],$d)."\"></td></tr>";
+			}
+		}
 	}
 #$x++;
 	if (!$rabatgruppe) {
-	if (!isset($m_rabat_array[$x])) $m_rabat_array[$x]='0';
-	if (!isset($m_antal_array[$x])) $m_antal_array[$x]='0';
-		list($a,$b) = explode('.',$m_rabat_array[$x]*1);
+		if (!isset($m_rabat_array[$x])) $m_rabat_array[$x]='0';
+		if (!isset($m_antal_array[$x])) $m_antal_array[$x]='0';
+		list($a,$b) = array_pad(explode('.',$m_rabat_array[$x]*1),2,'');
 		$c = strlen ($b);
-		list($a,$b) = explode('.',$m_antal_array[$x]*1);
+		list($a,$b) = array_pad(explode('.',$m_antal_array[$x]*1),2,'');
 		$d = strlen ($b);
 		print "<tr><td>".findtekst(2044,$sprog_id)."</td>";
 		print "<td><input class='inputbox' type='text' size='5' style='text-align:right' name='m_rabat_array[$x]'";
