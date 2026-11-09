@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,16 +100,30 @@
 // 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
 //                  13-digit string is treated as an EAN-13 candidate (is_numeric also
 //                  accepted decimals, signs and scientific notation).
+// 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
+//                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
+// 20261026 CL/SZ hent_shop_ordrer, sync_shop_price and sync_shop_vare call every slot (box4/box5/box6) that is open
+//                for intake or outbound in the shopify_legacy settings (SD-750); an empty box4 no longer
+//                disables box5/box6. With no settings row every slot is open, as before.
+// 20261101 CL/SS SD-792 The create_debtor PHPDoc names $headless and the exceptions of core edit 8.
+// 20261103 LOE SST-936 Include dimensionSqlFragment() for the three Finans reports.
+//              It now owns the department, employee and project filters those reports share.
+// 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
+// 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
+//                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
 include(__DIR__ . '/stdFunc/dkAmountValid.php');
+include(__DIR__ . '/stdFunc/dimensionSqlFragment.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/jsString.php');
+include(__DIR__ . '/stdFunc/datotidTilTekst.php');
+require_once(__DIR__ . '/shopify/coexistence.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -877,7 +891,11 @@ if (!function_exists('reducer')) {
 
 if (!function_exists('active_fiscal_years')) {
 	/**
-	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 not 'on'), newest first.
+	 * Open, non-deleted fiscal years (grupper art 'RA', box5 'on', box10 NULL or ''), newest first.
+	 *
+	 * box10 is the deleted marker: 'on' for years deleted before 2025-07-01 or auto-marked by
+	 * systemdata/regnskabsaar.php, a date('U') timestamp for years deleted by
+	 * systemdata/fiscalYearInc/deleteFiscalYear.php. Only an empty box10 is a live year, as in regnskabsaar.php.
 	 *
 	 * @return array<int, array{
 	 *   kodenr: string,       Fiscal year number as fetched (grupper.kodenr).
@@ -885,7 +903,7 @@ if (!function_exists('active_fiscal_years')) {
 	 * }>
 	 */
 	function active_fiscal_years() {
-		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 <> 'on') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
+		$qtxt = "SELECT kodenr, beskrivelse FROM grupper WHERE art = 'RA' AND (box10 IS NULL OR box10 = '') AND box5 = 'on' ORDER BY box2 DESC, box1 DESC";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		$years = array();
 		while ($r = db_fetch_array($q)) {
@@ -1120,8 +1138,24 @@ if (!function_exists('str2up')) {
 # Tekstvinduer i CSS i stedet for JavaScript Alert - 20141031 - 20141121 - 20141212
 # boksflytbar=span giver kun div, boksflytbar=td giver en tabel i en div boksflybar=0 giver ingen mulighed for at flytte. 
 if (!function_exists('tekstboks')) {
+	/**
+	 * Builds a message box in CSS (used instead of a JavaScript alert) with a close button.
+	 *
+	 * The close button and the corner tooltips are in the user's language ($sprog_id, set by includes/online.php).
+	 *
+	 * @param string $bokstekst     The message, as HTML. Printed as is.
+	 * @param string $bokstype      'fejl' (red), 'advarsel' (orange), 'info' (blue, hidden until shown) or 'popop' (green).
+	 * @param string $boksid        Id of the box element.
+	 * @param string $boksflytbar   'span' puts the corner links under the button, 'td' puts them in a table around
+	 *                              the text, anything else gives no corner links.
+	 * @param string $boksplacering Two letters: vertical m/t/b (middle/top/bottom), horizontal m/v/h (middle/left/right).
+	 * @return string The HTML of the box.
+	 */
 	function tekstboks($bokstekst, $bokstype = 'advarsel', $boksid = 'boks1', $boksflytbar = 'span', $boksplacering = 'mm')
 	{
+		global $sprog_id;
+		global $charset;
+
 		$boksindhold = "\n<!-- Tekstboks " . $boksid . " - start -->\n";
 
 		if ($boksflytbar === 'td') {
@@ -1155,23 +1189,30 @@ if (!function_exists('tekstboks')) {
 			$bokskant = '#00ff00'; # 20150313
 			$boksbaggrund = '#eeffff';
 		}
-		if (substr($boksplacering, 0, 1) == 'm')
+		if (substr($boksplacering, 0, 1) == 'm') {
 			$boksvertikal = '30%';
-		if (substr($boksplacering, 0, 1) == 't')
+		}
+		if (substr($boksplacering, 0, 1) == 't') {
 			$boksvertikal = '1%';
-		if (substr($boksplacering, 0, 1) == 'b')
+		}
+		if (substr($boksplacering, 0, 1) == 'b') {
 			$boksvertikal = '68%';
-		if (substr($boksplacering, 1, 1) == 'm')
+		}
+		if (substr($boksplacering, 1, 1) == 'm') {
 			$bokshorisontal = '30%';
-		if (substr($boksplacering, 1, 1) == 'v')
+		}
+		if (substr($boksplacering, 1, 1) == 'v') {
 			$bokshorisontal = '1%';
-		if (substr($boksplacering, 1, 1) == 'h')
+		}
+		if (substr($boksplacering, 1, 1) == 'h') {
 			$bokshorisontal = '68%';
+		}
 
 
 		$boksindhold .= "\n<div id='" . $boksid . "' style='position:fixed; margin:10px; z-index:100; border:solid 4px " . $bokskant . "; padding:1px; background:" . $boksbaggrund . ";";
-		if ($bokstype === 'info')
+		if ($bokstype === 'info') {
 			$boksindhold .= " display:none;";
+		}
 		$boksindhold .= " top:" . $boksvertikal . "; left:" . $bokshorisontal . "; width:320px;'>\n";
 		if ($boksflytbar === 'td') {
 			$boksindhold .= "<table><tr>\n";
@@ -1182,7 +1223,8 @@ if (!function_exists('tekstboks')) {
 		$boksindhold .= $bokstekst . "</p>\n";
 		$boksindhold .= "<p style='font-size: 12pt; text-align:center'>\n";
 		$boksindhold .= "<button type='button' style='width:100px; height:30px'";
-		$boksindhold .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'none';\">Luk</button>\n";
+		$boksindhold .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'none';\">";
+		$boksindhold .= htmlspecialchars(findtekst('2172|Luk', $sprog_id), ENT_QUOTES, $charset) . "</button>\n";
 		if ($boksflytbar === 'span') {
 			$boksindhold .= "<br />";
 			$boksindhold .= bokshjoerne($boksid, 'tv', 'span');
@@ -1223,6 +1265,7 @@ if (!function_exists('bokshjoerne')) {
 		 * This function creates a box with a clickable icon in one of the four corners (top-left, top-right, bottom-left, bottom-right).
 		 * When the user clicks the icon, the box moves to the corresponding corner. The function supports different HTML elements
 		 * (`td`, `span`, etc.) for displaying the box, and allows customization of the position for the box's corners and the icon.
+		 * The icon's tooltip names the corner in the user's language ($sprog_id, set by includes/online.php).
 		 *
 		 * @param string $boksid - The ID of the box element that will be moved to the specified corner when clicked.
 		 * @param string $hjoerne - The corner to which the box should move. Accepts values:
@@ -1238,33 +1281,36 @@ if (!function_exists('bokshjoerne')) {
 		 * 
 		 * @note The `onClick` event changes the position of the box with the specified ID to the selected corner when clicked.
 		 */
+		global $sprog_id;
+		global $charset;
 
-		if (!$visning)
+		if (!$visning) {
 			return "";
+		}
 
 		if ($hjoerne == 'tv') {
 			$vertikal_kant = $kant_oppe;
 			$horisontal_kant = $kant_venstre;
 			$tv_tegn = '&#9700;';
-			$popopbesked = 'Op til venstre';
+			$popopbesked = findtekst('8441|Op til venstre', $sprog_id);
 		} elseif ($hjoerne == 'th') {
 			$vertikal_kant = $kant_oppe;
 			$horisontal_kant = $kant_hoejre;
 			$tv_tegn = '&#9701;';
-			$popopbesked = 'Op til højre';
+			$popopbesked = findtekst('8442|Op til højre', $sprog_id);
 		} elseif ($hjoerne == 'bv') {
 			$vertikal_kant = $kant_nede;
 			$horisontal_kant = $kant_venstre;
 			$tv_tegn = '&#9699;';
-			$popopbesked = 'Ned til venstre';
+			$popopbesked = findtekst('8443|Ned til venstre', $sprog_id);
 		} elseif ($hjoerne == 'bh') {
 			$vertikal_kant = $kant_nede;
 			$horisontal_kant = $kant_hoejre;
 			$tv_tegn = '&#9698;';
-			$popopbesked = 'Ned til højre';
+			$popopbesked = findtekst('8444|Ned til højre', $sprog_id);
 		}
 
-		$bokshjoerne = "<" . $visning . " title='" . $popopbesked . "'";
+		$bokshjoerne = "<" . $visning . " title='" . htmlspecialchars($popopbesked, ENT_QUOTES, $charset) . "'";
 		$bokshjoerne .= " onClick=\"document.getElementById('" . $boksid . "').style.top = '" . $vertikal_kant . "';";
 		$bokshjoerne .= " document.getElementById('" . $boksid . "').style.left = '" . $horisontal_kant . "'; \">";
 		$bokshjoerne .= $tv_tegn . "</" . $visning . ">\n";
@@ -1360,14 +1406,19 @@ if (!function_exists('infoboks')) {
 		 * @param string $boksid - The unique ID for the information box, used to show/hide the box (default is an empty string).
 		 * 
 		 * @return string - The HTML markup for the clickable element with the information symbol and the tooltip functionality.
+		 *                  The symbol's tooltip is in the user's language ($sprog_id, set by includes/online.php).
 		 */
+		global $sprog_id;
+		global $charset;
 
 		$infoboks = "";
 		$infoboks .= tekstboks($infotekst, $infotype, $boksid);
-		if (!$visning)
+		if (!$visning) {
 			return "";
+		}
 
-		$infoboks .= "<" . $visning . " title='Hjælpetekst til siden'";
+		$hjaelpTitel = findtekst('8445|Hjælpetekst til siden', $sprog_id);
+		$infoboks .= "<" . $visning . " title='" . htmlspecialchars($hjaelpTitel, ENT_QUOTES, $charset) . "'";
 		$infoboks .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'block'; \">";
 		$infoboks .= $infosymbol . "</" . $visning . ">\n";
 		return $infoboks;
@@ -1891,8 +1942,9 @@ if (!function_exists('hent_shop_ordrer')) {
 	  global $db;
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	  $api_fil = isset($r['box4']) ? trim($r['box4']) : 0;
-	  if ($api_fil) {
+	  # Every slot open for intake (SD-750); an empty box4 no longer hides box5/box6.
+	  $endpoints = shopify_legacy_endpoints(array('db' => $db), 'intake');
+	  if ($endpoints) {
 		file_put_contents("../temp/$db/ny_shop.json", json_encode($r));
 		if (file_exists("../temp/$db/shoptidspkt.txt")) {
 		  $tidspkt = trim(file_get_contents("../temp/$db/shoptidspkt.txt"));
@@ -1901,28 +1953,13 @@ if (!function_exists('hent_shop_ordrer')) {
 		if ($tidspkt < date("U") - 300 || $shop_ordre_id) {
 		  file_put_contents("../temp/$db/shoptidspkt.txt", date("U"));
 		  #      $header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-		  $api_txt = "$api_fil?put_new_orders=1";
-		  if ($shop_ordre_id)
-			$api_txt .= "&ordre_id=$shop_ordre_id";
-		  if ($from_date)
-			$api_txt .= "&from_date=$from_date";
-		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-		  
-		  if($r["box5"]){
-			$api_txt = "$r[box5]?put_new_orders=1";
-		  if ($shop_ordre_id)
-			$api_txt .= "&ordre_id=$shop_ordre_id";
-		  if ($from_date)
-			$api_txt .= "&from_date=$from_date";
-		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-		  }
-		  if($r["box6"]){
-			$api_txt = "$r[box6]?put_new_orders=1";
-		  if ($shop_ordre_id)
-			$api_txt .= "&ordre_id=$shop_ordre_id";
-		  if ($from_date)
-			$api_txt .= "&from_date=$from_date";
-		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		  foreach ($endpoints as $api_fil) {
+			$api_txt = "$api_fil?put_new_orders=1";
+			if ($shop_ordre_id)
+			  $api_txt .= "&ordre_id=$shop_ordre_id";
+			if ($from_date)
+			  $api_txt .= "&from_date=$from_date";
+			exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
 		  }
 		}
 	  }
@@ -1952,16 +1989,12 @@ if(!function_exists("sync_shop_price")){
 	  $costPrice = 0;
 	  $shop_id = $rand = ''; # never assigned in this function, kept empty as in the original url
 	  $failed = 0;
-	  $api_fil =$api_fil2=$api_fil3= NULL;
 	  $log = fopen("../temp/$db/rest_api.log", "a");
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$api_fil = trim($r['box4']);
-		$api_fil2 = trim($r["box5"]);
-		$api_fil3 = trim($r["box6"]);
-	  }
-	  if (!$api_fil) {
+	  # Every slot open for outbound (SD-750); an empty box4 no longer hides box5/box6.
+	  $endpoints = shopify_legacy_endpoints(array('db' => $db), 'outbound');
+	  if (!$endpoints) {
 		fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 		fclose($log);
 		return ('no api');
@@ -1988,10 +2021,7 @@ if(!function_exists("sync_shop_price")){
 			'webFragt'     => $webFragt,
 			'barcode'      => $stregkode,
 		);
-		foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
-		  if (!$endpoint) {
-			continue;
-		  }
+		foreach ($endpoints as $endpoint) {
 		  $res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
 		  if (!$res['ok']) {
 			$failed++;
@@ -2009,17 +2039,13 @@ if (!function_exists('sync_shop_vare')) {
 		global $bruger_id,$db,$regnaar;
 		$costPrice = 0;
 		$failed = 0;
-		$api_fil =$api_fil2=$api_fil3= NULL;
 		$log = fopen("../temp/$db/rest_api.log", "a");
 		$qtxt = "select box4, box5, box6 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$api_fil = trim($r['box4']);
-			$api_fil2 = trim($r["box5"]);
-			$api_fil3 = trim($r["box6"]);
-		}
-		
-		if (!$api_fil) {
+		# Every slot open for outbound (SD-750); an empty box4 no longer hides box5/box6.
+		$endpoints = shopify_legacy_endpoints(array('db' => $db), 'outbound');
+
+		if (!$endpoints) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 			fclose($log);
 			return ('no api');
@@ -2065,7 +2091,7 @@ if (!function_exists('sync_shop_vare')) {
 				'stockno'      => $lager,
 				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
 			);
-			foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+			foreach ($endpoints as $endpoint) {
 				if (!$endpoint) {
 					continue;
 				}
@@ -2125,7 +2151,7 @@ if (!function_exists('sync_shop_vare')) {
 					'webFragt'     => $webFragt,
 					'barcode'      => $stregkode,
 				);
-				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+				foreach ($endpoints as $endpoint) {
 					if (!$endpoint) {
 						continue;
 					}
@@ -2148,8 +2174,8 @@ if (!function_exists('sync_shop_vare')) {
 					'costPrice' => $costPrice,
 					'rand'      => $rand,
 				);
-				# api_fil3 is left out here as in the original code, this call never went to endpoint 3
-				foreach (array($api_fil, $api_fil2) as $endpoint) {
+				# Slot 6 (box6) is left out here as in the original code, this call never went to it
+				foreach (array_diff_key($endpoints, array(6 => true)) as $endpoint) {
 					if (!$endpoint) {
 						continue;
 					}
@@ -2174,7 +2200,7 @@ if (!function_exists('sync_shop_vare')) {
 					'webFragt'     => $webFragt,
 					'barcode'      => $stregkode,
 				);
-				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+				foreach ($endpoints as $endpoint) {
 					if (!$endpoint) {
 						continue;
 					}
@@ -2230,7 +2256,7 @@ if (!function_exists('sync_shop_vare')) {
 							'sku'       => $productNo,
 							'skuAlias'  => $productNoAlias,
 						);
-						foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+						foreach ($endpoints as $endpoint) {
 							if (!$endpoint) {
 								continue;
 							}
@@ -2335,8 +2361,11 @@ if (!function_exists('create_debtor')) {
 	 * @param string $betalingsbet - The debtor's payment terms (e.g., "Net 30", "COD").
 	 * @param int $betalingsdage - The number of payment days allowed for the debtor.
 	 * @param string $kontakt - The name or contact information of the debtor's contact person.
+	 * @param bool $headless - No page around it (the Shopify worker): a failed insert throws instead of alert() and exit.
 	 * 
-	 * @return int|null - Returns the ID of the created debtor record if successful, or NULL if there was an error.
+	 * @return int|string - The ID of the created debtor record.
+	 * @throws DebtorNumberTakenException when the account number is in use (debitor/ordre.php shows its message)
+	 * @throws RuntimeException when the insert fails in headless or webservice mode
 	 */
 	include_once(__DIR__ . '/stdFunc/createDebitor.php');
 }

@@ -1,6 +1,7 @@
 <?php
 // 20260914 CDX/LH Exercise document corrections against PostgreSQL temporary tables.
 // Run with SALDI_TEST_PG_DSN (or libpq PG* environment variables plus SALDI_TEST_PG=1).
+// 20261027 CL/LH Account 0 is not set; a stored suggestion the journal can't use is left out on attach instead of 422.
 if (!getenv('SALDI_TEST_PG_DSN') && !getenv('SALDI_TEST_PG')) {
 	fwrite(STDOUT, "SKIP: configure a PostgreSQL test connection\n");
 	exit(0);
@@ -71,4 +72,9 @@ check(poolJournalSuggestedAccount('1000','kassekladde',2,10,'',9)==='', 'Existin
 check(poolJournalSuggestedAccount('1000','kassekladde',0,10,'2000',9)==='', 'Explicit journal account preserved');
 check(poolJournalSuggestedAccount('1000','ordre',1,10,'',9)==='', 'Other document sources unaffected');
 rejected(fn()=>poolJournalSuggestedAccount('1000','kassekladde',1,11,'',9), 422, 'Wrong journal target');
+foreach (['0','9999','3000','4000','5000','unknown'] as $account) {
+	check(poolJournalSuggestedAccount($account,'kassekladde',1,10,'',9)==='', "Unusable stored account $account is left out, not refused");
+}
+poolMetadataSave('invoice.pdf', ['account'=>'0'], true, poolMetadataVersion(metadataRow()), 9);
+check(metadataRow()['account']==='', 'Account 0 is saved as not set');
 printf("PASS: %d PostgreSQL metadata and account checks\n", $checks);

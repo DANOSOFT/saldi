@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-05--------------
+// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-26--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,11 +66,18 @@
 //                 forklaring i popup'en, restordrer vises også, Vis lagerstatus/Tilbage
 //                 som knapper. Row-title bevares når lagerstatus-tooltip ikke er sat på.
 //                 Rettet tekst-id 2403 -> 1425 for 'Alt leveret'.
+// 20260917 CL/LH Menu entry restores the last used tab instead of forcing Ordrer (Havemoebelland).
 // 20260918 CDX/PHR Read Udført af from performed_by while preserving saved grid layouts.
 // 20260924 LOE SD-657 The list's turnover, VAT and cost columns are not shown to users without the Indstillinger right.
 // 20260925 LOE SST-806 The date field accepts shorthand dates and intervals again (210926, 010926:300926).
 // 20261005 LOE SD-687 The order type filter repeated what the menu already sets; it is replaced by a department filter, and an empty result now says so (text 2730).
 // 20261005 LOE SD-687 Department names are escaped where the filter options are built.
+// 20261023 CL/MMR SST-874 "Ryd" now only empties the grid's search fields and filter selections.
+//                 It used to delete the user's whole datatables row, so added columns, own headers and rows per page were lost.
+// 20261023 CL/MMR SST-874 Moved the "Ryd" database work into clearOrderListSearch() per the controller/view convention.
+//                 The list name (valg) is escaped in its SQL (review by Codex).
+// 20261026 CL/SZ SD-750 Order intake asks every slot open for intake in the shopify_legacy settings (an empty box4
+//                no longer hides box5/box6); the SHOP import follows the intake switch of afd 4's slot.
 
 @session_start();
 $s_id = session_id();
@@ -104,6 +111,34 @@ $find = array(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 $padding2 = $padding = $padding1_5 = null; #20211018
 include("../includes/connect.php");
 include("../includes/std_func.php");
+
+/**
+ * "Ryd" in the order list: empties the user's saved search for the current list, nothing else.
+ *
+ * The grid row keeps column setup, own headers, widths, rowcount and sort (SST-874); only its search,
+ * filter selections and offset are reset, to the same empty values fetch_grid_setup() in
+ * includes/grid.php gives a new row. The legacy search (grupper OLV box9) and the selected debitor
+ * (settings debitorId) are cleared as before.
+ *
+ * @param string|null $datagrid_id Grid id from the form, e.g. 'ordrelst_faktura'; NULL skips the grid reset
+ * @param string      $valg        Current list (ordrer, faktura, ...)
+ * @param int         $bruger_id   Logged-in user
+ * @return void
+ */
+function clearOrderListSearch($datagrid_id, $valg, $bruger_id) {
+    $bruger_id = (int)$bruger_id;
+    if ($datagrid_id) {
+        $qtxt = "update datatables set search_setup = '[]', filter_setup = '{}', \"offset\" = 0 ";
+        $qtxt.= "where tabel_id = '" . db_escape_string($datagrid_id) . "' and user_id = '$bruger_id'";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    }
+
+    $qtxt = "update grupper set box9='' where art = 'OLV' and kode='" . db_escape_string($valg) . "' and kodenr = '$bruger_id'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+    $qtxt = "update settings set var_value = NULL where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 // Helper function: escapes HTML but preserves search term highlight spans
 function ordreliste_safe_output($value) {
@@ -339,10 +374,9 @@ if (!$returside && $konto_id && !$popup) {
 }
 
 // View selection - stored in database settings for persistence
-// Priority: 1) forced plain entry, 2) URL parameter, 3) Database setting, 4) Default
-if ($is_plain_entry) {
-    $valg = 'ordrer';
-} elseif (isset($_GET['valg']) && $_GET['valg']) {
+// Priority: 1) URL parameter, 2) Database setting (last used tab), 3) Default
+// 20260917 CL/LH A plain menu entry only clears the account context; it no longer forces the Ordrer tab.
+if (isset($_GET['valg']) && $_GET['valg']) {
     // User explicitly clicked a tab - use this value
     $valg = strtolower($_GET['valg']);
 } else {
@@ -469,20 +503,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $kontoid = NULL;
         $firma = NULL;
         $firmanavn_ant = NULL;
-        $datagrid_id = if_isset($_POST, NULL, 'datagrid_id');
-
-        if ($datagrid_id) {
-            // Clear datagrid filters
-            db_modify("delete from datatables where tabel_id = '$datagrid_id' and user_id = '$bruger_id'", __FILE__ . " linje " . __LINE__);
-        }
-
-        // Clear the stored search criteria in the database
-        $qtxt = "update grupper set box9='' where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'";
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-        // Also clear the settings for debitorId
-        $qtxt = "update settings set var_value = NULL where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        $datagrid_id = ifset($_POST, 'datagrid_id', NULL);
+        clearOrderListSearch($datagrid_id, $valg, $bruger_id);
 
         // Redirect to the same page with only the view type preserved
         print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?valg=$valg\">";
@@ -2011,10 +2033,12 @@ print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 
 // Shop order integration logic (ported from ordrelisteOld.php)
 $show_shop_link = false;
-if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
-    $api_fil=trim($r['box4']);
-    $api_fil2=trim($r['box5']);
-    $api_fil3=trim($r['box6']);
+# Every slot open for intake (SD-750); an empty box4 no longer hides box5/box6. $api_fil stays
+# box4: the SHOP import's wget --spider below uses it.
+$r = db_fetch_array(db_select("select box4 from grupper where art='API'", __FILE__ . " linje " . __LINE__));
+$api_fil = trim((string)($r['box4'] ?? ''));
+$shopEndpoints = shopify_legacy_endpoints(array('db' => $db), 'intake');
+if ($shopEndpoints) {
    $show_shop_link = true; 
     if (file_exists("../temp/$db/shoptidspkt.txt")) {
         $fp=fopen("../temp/$db/shoptidspkt.txt","r");
@@ -2028,22 +2052,8 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
         fwrite($fp,date("U"));
         fclose ($fp);
         $header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-        $api_txt="$api_fil?put_new_orders=1";
-//		$api_encode='utf-8';
-        if ($api_encode) $api_txt.="&encode=$api_encode";
-        if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
-        elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
-        exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-        if($api_fil2){
-            $api_txt="$r[box5]?put_new_orders=1";
-    //		$api_encode='utf-8';
-            if ($api_encode) $api_txt.="&encode=$api_encode";
-            if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
-            elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
-            exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-        }
-        if($api_fil3){
-            $api_txt="$r[box6]?put_new_orders=1";
+        foreach ($shopEndpoints as $shopEndpoint) {
+            $api_txt="$shopEndpoint?put_new_orders=1";
     //		$api_encode='utf-8';
             if ($api_encode) $api_txt.="&encode=$api_encode";
             if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
@@ -2780,7 +2790,9 @@ if ($genberegn == 1) {
 // Additional API integration
 $r = db_fetch_array(db_select("select box2 from grupper where art='DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__));
 
-if (isset($r['box2']) && $apifil = $r['box2']) { //checks if $r$r['box2'] exists before using it
+# The import lands in afd 4 (api/hent_ordrer.php), so it follows that slot's intake switch (SD-750).
+$shopImportOpen = shopify_legacy_enabled(array('db' => $db), shopify_legacy_slot_for_afd(4), 'intake');
+if ($shopImportOpen && isset($r['box2']) && $apifil = $r['box2']) { //checks if $r$r['box2'] exists before using it
     (strpos($r['box2'], 'opdat_status=1')) ? $opdat_status = 1 : $opdat_status = 0;
     (strpos($r['box2'], 'shop_fakt=1')) ? $shop_fakt = 1 : $shop_fakt = 0;
     (strpos($r['box2'], 'betaling=kort')) ? $kortbetaling = 1 : $kortbetaling = 0;

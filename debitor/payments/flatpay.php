@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- ver 5.0.0 --- 2026.10.06 ---
+// --- payments/flatpay.php --- ver 5.0.0 --- 2026.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2025 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
@@ -29,6 +29,16 @@
 // 20250531 PHR added $flatpayPrint
 // 20250912 PHR added print if canceled
 // 20261006 CL/LH SST-848: Write disableTerminalPrints as a JavaScript boolean; PHP false printed as an empty token and broke the whole payment script when flatpay_terminal_print was set.
+// 20261007 CL/SZ SST-843 The Flatpay ID (GUID) is no longer written into the page.
+//                All Flatpay calls go through flatpay_proxy.php, which adds the ID on the server and builds the request.
+//                flatpay_proxy.php also now builds disableTerminalPrints server-side as a real PHP
+//                bool before json_encode, which was SST-848's fix and still applies, just moved.
+
+/**
+ * Injected by ../../includes/online.php, included below:
+ * @var string $db
+ * @var string $regnaar
+ */
 
 @session_start();
 $s_id = session_id();
@@ -57,19 +67,12 @@ print "<button id='continue-success' class='btn' onClick='successed();'>Tilbage<
 print "</div>";
 print "<div id='bg'></div>";
 
-// Fetch GUID from settings
-$q = db_select("select var_value from settings where var_name = 'flatpay_auth'", __FILE__ . " linje " . __LINE__);
-$guid = db_fetch_array($q)[0];
+# Session-bound token that flatpay_proxy.php checks; the Flatpay ID and flatpay_terminal_print are read there
+if (!isset($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf_token_js = json_encode($_SESSION['csrf_token']);
 
 $q = db_select("select var_value from settings where var_name = 'flatpay_print'", __FILE__ . " linje " . __LINE__);
 $flatpayPrint = db_fetch_array($q)[0];
-
-$q = db_select("select var_value from settings where var_name = 'flatpay_terminal_print'", __FILE__ . " linje " . __LINE__);
-$terminal_print = db_fetch_array($q)[0];
-
-// Same rule as before: 0, NULL or a missing row means the terminal must not print.
-// The value is written into JavaScript, so it must be a literal true/false (PHP prints false as '').
-$disableTerminalPrints = ($terminal_print == 0) ? 'true' : 'false';
 
 // Fetch printserver
 $r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
@@ -112,17 +115,26 @@ print "
     });
   }
 
+  // flatpay_proxy.php adds the terminal, the Flatpay ID and the print setting on the server
   const transactionData = {
-    terminalId: '$terminal_id',
     transactionType: '$type',
     amount: '$amount',
-    guid: '$guid',
-    disableTerminalPrints: $disableTerminalPrints,
-    language: 'da_DK',
-    reference: '$ordre_id',
-    externalReference: '$ordre_id',
+    ordre_id: '$ordre_id',
     transactionReference: generateUUID()
   };
+
+  // Flatpay is called through flatpay_proxy.php, which adds the Flatpay ID on the server.
+  // It answers with Flatpay's own status and body, so the responses are read as before.
+  function flatpayApi(action, params) {
+    return fetch('flatpay_proxy.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': $csrf_token_js
+      },
+      body: JSON.stringify(Object.assign({ action: action, transactionReference: transactionData.transactionReference }, params))
+    });
+  }
 
   // Transaction state variables
   let cardScheme = 'unknown';
@@ -175,18 +187,7 @@ print "
   // Cancel transaction
   async function cancelTransaction() {
     try {
-      const cancelResponse = await fetch('https://socket-api.flatpay.dk/socket/transaction/cancel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + btoa('$guid')
-        },
-        body: JSON.stringify({
-          transactionReference: transactionData.transactionReference,
-          terminalId: transactionData.terminalId,
-          guid: transactionData.guid
-        })
-      });
+      const cancelResponse = await flatpayApi('cancel', {});
       
       const result = await cancelResponse.json();
       console.log('Transaction cancelled:', result);
@@ -201,14 +202,7 @@ print "
   async function startTransaction() {
     try {
       // Start transaction
-      const startResponse = await fetch('https://socket-api.flatpay.dk/socket/transaction/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + btoa('$guid')
-        },
-        body: JSON.stringify(transactionData)
-      });
+      const startResponse = await flatpayApi('start', transactionData);
       
       if (!startResponse.ok) {
         const errorText = await startResponse.text();
@@ -233,16 +227,7 @@ print "
       let completed = false;
       
       while (!completed && count > 0) {
-        const responseResponse = await fetch(
-          `https://socket-api.flatpay.dk/socket/transaction/response?transactionReference=\${transactionData.transactionReference}&guid=$guid&terminalId=$terminal_id`, 
-          {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Basic ' + btoa('$guid')
-            }
-          }
-        );
+        const responseResponse = await flatpayApi('response', {});
         
         if (!responseResponse.ok) {
           const errorText = await responseResponse.text();
@@ -286,18 +271,8 @@ print "
           completed = true;
           paused = true;
 
-          // tell the terminal to cancel the transaction
-          await fetch('https://socket-api.flatpay.dk/socket/transaction/cancel', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              transactionReference: transactionData.transactionReference,
-              terminalId: transactionData.terminalId,
-              guid: transactionData.guid
-            })
-          });
+          // No cancel is sent here: the old call went out without the Flatpay ID, Flatpay refused it (401),
+          // and sending it through flatpay_proxy.php would start a terminal cancel that has never been tested.
 
           // Save receipt data
           await fetch('save_receipt.php', {

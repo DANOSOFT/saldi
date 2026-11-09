@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- patch 5.0.0 --- 2026-07-10 ---
+// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,8 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261030 CL/MMR SST-917: Text boxes keep every space (white-space: pre), because the PDF engine prints them all.
+//                 The draft preview shows the payment term as the field holds it ("Netto"), not "Netto 8 dage".
+//                 The draft preview leaves out order-line columns at x 0, which the PDF engine never prints.
+// 20261103 CL/SZ SD-754 The order-line columns Lager and Lagernavn have a label and sample values.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -664,6 +668,8 @@ function fe_var_map() {
 			'rabat'      => array('Rabat', 'Discount'),
 			'linjesum'   => array('Linjesum', 'Line total'),
 			'lokation'   => array('Lokation', 'Location'),
+			'lager'      => array('Lager', 'Warehouse'),
+			'lagernavn'  => array('Lagernavn', 'Warehouse name'),
 		);
 	}
 	return $map;
@@ -1044,7 +1050,7 @@ if ($menu == 'T') {
     box-shadow:0 1px 3px rgba(0,0,0,.3); z-index:31; cursor:pointer;
   }
   .fe-el {
-    position:absolute; box-sizing:border-box; white-space:nowrap;
+    position:absolute; box-sizing:border-box; white-space:pre;   /* keep every space: the PDF prints them all */
     cursor:move; padding:0; line-height:1;
     border:1px solid transparent;
   }
@@ -1471,7 +1477,7 @@ if ($menu == 'T') {
     ordre_kontakt:(DK_UI?'Test Testesen':'Test Person'), ordre_cvrnr:'12345678', ordre_email:'test@example.com', ordre_tlf:'+45 00 00 00 00',
     ordre_ordrenr:'10042', ordre_ordredate:'14-07-2026', ordre_fakturanr:'2026-0042', ordre_fakturadate:'14-07-2026',
     ordre_kundenr:'1001', ordre_kundeordnr:'PO-0000', ordre_projekt:'P-0000', ordre_valuta:'DKK',
-    ordre_momssats:'25', ordre_betalingsbet:(DK_UI?'Netto 8 dage':'Net 8 days'), ordre_betalingsdage:'8',
+    ordre_momssats:'25', ordre_betalingsbet:(DK_UI?'Netto':'Net'), ordre_betalingsdage:'8',
     ordre_institution:'', ordre_ean:'5790000000000', ordre_hvem:(DK_UI?'Test Testesen':'Test Person'), ordre_notes:'',
     ordre_lev_navn:(DK_UI?'Testlager':'Test Warehouse'), ordre_lev_addr1:(DK_UI?'Testvej 5':'Test Street 5'), ordre_lev_addr2:'',
     ordre_lev_postnr:'1000', ordre_lev_bynavn:(DK_UI?'Testby':'Test City'), ordre_lev_kontakt:(DK_UI?'Test Testesen':'Test Person'),
@@ -1493,7 +1499,8 @@ if ($menu == 'T') {
     beskrivelse:[(DK_UI?'Testvare 1':'Test item 1'),(DK_UI?'Testvare 2':'Test item 2'),(DK_UI?'Testvare 3':'Test item 3')],
     antal:['2','1','4'], enhed:['stk','stk','stk'], pris:['1.250,00','3.400,00','450,00'],
     rabat:['0','10','0'], momssats:['25','25','25'], linjesum:['2.500,00','3.060,00','1.800,00'],
-    varemomssats:['25','25','25'], linjemoms:['625,00','765,00','450,00'], projekt:['P-07','P-07','P-07'], lokation:['A-1','A-2','B-1']
+    varemomssats:['25','25','25'], linjemoms:['625,00','765,00','450,00'], projekt:['P-07','P-07','P-07'], lokation:['A-1','A-2','B-1'],
+    lager:['1','2','1'], lagernavn:['Hovedlager','Butik','Hovedlager']
   };
   var GRID_MM = 5;
   var MARGIN_MM = 10;   // standard page margin (guides + snap)
@@ -1697,6 +1704,7 @@ if ($menu == 'T') {
     for (var ri = 0; ri < rows; ri++) {
       var ymm = g.ya - ri * g.spacing;
       table.cols.forEach(function(c){
+        if (!c.xa) return;   // like the print: skriv() skips a column at x 0
         var arr = COL_SAMPLE[c.type];
         var val = (arr && arr[ri] !== undefined) ? arr[ri] : '';
         if (val === '') return;

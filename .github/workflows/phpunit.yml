@@ -1,0 +1,51 @@
+# 20261022 CL/LH SD-763: PHPUnit CI for HML (shopify) and the existing suites
+name: PHPUnit
+
+on:
+  pull_request:
+    branches: [master, hml/shopify]
+  push:
+    branches: [hml/shopify]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phpunit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'  # production (ssl3) runs PHP 8.2
+          extensions: pgsql, mbstring, curl, zip
+          coverage: none
+          tools: none
+
+      - name: Cache vendor
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: vendor-php82-${{ hashFiles('composer.lock') }}
+
+      - name: Install dev dependencies
+        run: php tools/php/composer.phar install --no-interaction --no-progress
+
+      # No database and no credentials in CI: tests that need them skip themselves.
+      - name: shopify suite
+        run: php vendor/bin/phpunit --testsuite shopify --fail-on-empty-test-suite
+
+      - name: includes suite
+        run: php vendor/bin/phpunit --testsuite includes
+
+      - name: restapi suite
+        run: php vendor/bin/phpunit --testsuite restapi
+
+      - name: characterization suite (per file, against the known-failures list)
+        run: bash .github/ci/run-characterization.sh

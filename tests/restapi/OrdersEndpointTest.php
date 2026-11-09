@@ -30,7 +30,7 @@ final class OrdersEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenantOnce();
     }
 
     public static function tearDownAfterClass(): void

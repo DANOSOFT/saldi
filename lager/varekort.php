@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,6 +130,12 @@
 //                  had been commented out, so on an account with warehouses a location typed
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
+// 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
+// 20261026 CL/SZ SD-750 Saving syncs the shops when any slot is open for outbound in the shopify_legacy
+//                settings, not only when box4 is set.
+// 20261029 CL/SS SD-741 A saved item (also a confirmed rename) is queued for the Shopify catalogue after the commit.
+// 20261103 CL/SS SD-802 'Tillad oversalg' (varer.oversalg), shown and saved only where the Shopify schema added the column.
+// 20261105 CL/SS SD-809 A part added from Vareopslag queues the set for the Shopify catalogue, so a new set doesn't wait for its next save.
 //
 ob_start(); //Starts output buffering
 
@@ -215,6 +221,9 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='va
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
 }
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='oversalg'";
+$oversellColumn = (bool) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)); // added by the Shopify schema only
+$oversalg = '';
 ($rettigheder[9] == '2') ? $noEdit = "disabled=true" : $noEdit = NULL;
 
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -269,6 +278,19 @@ $funktion = if_isset($_GET, NULL, 'funktion');
 if (in_array($funktion, ['kontoopslag'], true)) {
     $funktion(if_isset($_GET, NULL, 'sort'), if_isset($_GET, NULL, 'fokus'), $id, if_isset($_GET, NULL, 'vis_kost'), '', if_isset($_GET, NULL, 'find'), 'varekort.php');
 }
+# MB-65 a read-only or rightless user may open the card, but nothing here may write. The handlers
+# below write from GET as well as POST, so the refusal has to come before them, not inside the POST path.
+$mb65_write = false;
+foreach (array('copy', 'saveItem', 'deleteItem', 'acceptStockChange', 'delete_category', 'delete_var_type', 'rename_category', 'ChangeDescription', 'supplierLookUp', 'submit') as $mb65_key) {
+    if (isset($_POST[$mb65_key]) || isset($_GET[$mb65_key])) $mb65_write = true;
+}
+if (isset($_GET['konto_id']) && (int)$_GET['konto_id']) $mb65_write = true;
+if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0 && (int)$id != (int)$_GET['vare_id']) $mb65_write = true;
+if ($mb65_write && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+    error_log('MB-65: item write refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+    print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
+    exit;
+}
 if ($konto_id = (int) if_isset($_GET, NULL, 'konto_id')) {
     db_modify("insert into vare_lev (lev_id, vare_id, posnr) values ('$konto_id', '$id', '1')", __FILE__ . " linje " . __LINE__);
 }
@@ -277,6 +299,8 @@ if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0) {
     if ($vare_id != $id) {
         db_modify("insert into styklister (vare_id, indgaar_i, antal) values ('$vare_id', '$id', '1')", __FILE__ . " linje " . __LINE__);
         db_modify("update varer set delvare =  'on' where id = '$vare_id'", __FILE__ . " linje " . __LINE__);
+        include_once(__DIR__ . '/../includes/shopify/services/catalogue.php');
+        shopify_catalogue_item_saved((int) $id);
     }
 }
 if ($delete_category = (int) if_isset($_GET, NULL, 'delete_category')) {
@@ -342,6 +366,15 @@ if (isset($_POST['copy']) && $_POST['copy'])
 if (isset($_POST['supplierLookUp']) && $_POST['supplierLookUp'])
     $submit = 'supplierLookUp';
 
+# MB-65 every path into this block writes, whatever button carried it, so the refusal sits here as
+# well as at the action names above: a new action cannot reach the save by not being named there.
+# It tests what the block tests, so a read-only user still sees the card on a plain GET.
+$mb65_save_request = $saveItem || (bool) trim((string) $submit);
+if ($mb65_save_request && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+    error_log('MB-65: item save refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+    print tekstboks('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');
+    exit;
+}
 if ($saveItem || $submit = trim($submit)) {
     $id = (int) if_isset($_POST, 0, 'id');
     $beskrivelse = if_isset($_POST, NULL,'beskrivelse');
@@ -391,6 +424,7 @@ if ($saveItem || $submit = trim($submit)) {
     $beholdning = if_isset($_POST, NULL, 'beholdning');
     $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $lukket = if_isset($_POST, NULL, 'lukket');
+    $oversalg = (if_isset($_POST, NULL, 'oversalg') == 'on') ? 'on' : '';
     $serienr = db_escape_string(trim(if_isset($_POST, '','serienr')));
     # Only trust the expiry fields when the section was actually rendered, so a hidden
     # section can never blank out an existing due date setup on save.
@@ -524,10 +558,9 @@ if ($saveItem || $submit = trim($submit)) {
         $stockItem = if_isset($r['box8'], 0);
         $batchItem = if_isset($r['box9'], 0);
     }
-    $qtxt = "select box4 from grupper where art='API'";
-    $api_fil = NULL;
-    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-        $api_fil = trim($r['box4']);
+    // Saving syncs the shops when any slot is open for outbound (SD-750); an empty box4 no longer
+    // hides box5/box6. Read before the transaction starts.
+    $api_fil = (bool) shopify_legacy_endpoints(array('db' => $db), 'outbound');
     transaktion('begin');
     $begin = 1;
     if ($ny_kategori && $ny_kategori != $tmp) {
@@ -1031,6 +1064,9 @@ if ($saveItem || $submit = trim($submit)) {
                 $qtxt .= "has_due_date=$has_due_date,";
                 $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
             }
+            if ($oversellColumn) {
+                $qtxt .= "oversalg='$oversalg',";
+            }
             $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";
 
@@ -1242,6 +1278,11 @@ $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forl
 
 if ($begin)
     transaktion('commit');
+if ($id && ($begin || ($_POST['ChangeDescription'] ?? '') === 'Ja')) {
+    // before the lookups and the rename dialog, which exit; the 30 s let the description written below land first
+    include_once(__DIR__ . '/../includes/shopify/services/catalogue.php');
+    shopify_catalogue_item_saved((int) $id, 30);
+}
 if ($submit == 'supplierLookUp')
     kontoopslag("navn", $fokus, $id);
 elseif (strstr($submit, "Vare")) {
@@ -1396,6 +1437,7 @@ if ($id > 0) {
     $has_due_date = ($row['has_due_date'] === 't' || $row['has_due_date'] === true || $row['has_due_date'] == 1) ? 'on' : '';
     $default_shelf_life_days = $row['default_shelf_life_days'];
     $lukket = $row['lukket'];
+    $oversalg = $oversellColumn ? $row['oversalg'] : '';
     $notes = $row['notes'];
     $notesInternal = $row['notesinternal'];
 
@@ -1872,8 +1914,11 @@ if (!$varenr) {
                 if ($x == 1 && !$lev_varenr[$x] && !$kostpris[$x]) {
                     $lev_varenr[$x] = $varenr;
                     $kostpris[$x] = $kostpris[0] * 1;
-                    $qtxt = "update vare_lev set lev_varenr='" . db_escape_string($lev_varenr[$x]) . "',kostpris='$kostpris[$x]' where id='$row[id]'";
-                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    # MB-65 the default is shown either way; only a user who may edit stores it
+                    if (!$noEdit) {
+                        $qtxt = "update vare_lev set lev_varenr='" . db_escape_string($lev_varenr[$x]) . "',kostpris='$kostpris[$x]' where id='$row[id]'";
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    }
                 }
             }
             $lev_ant = $x;
@@ -1953,8 +1998,13 @@ if (!$varenr) {
             $query2 = db_select("select * from varer where id = $row[indgaar_i]", __FILE__ . " linje " . __LINE__);
             $row2 = db_fetch_array($query2);
             if ($row2['id'] == $id) { #20131007
-                db_modify("delete from styklister where id='$row[id]'", __FILE__ . " linje " . __LINE__);
-                $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] fjernet fra stykliste";
+                # MB-65 the alert is shown either way; only a user who may edit removes the row
+                if (!$noEdit) {
+                    db_modify("delete from styklister where id='$row[id]'", __FILE__ . " linje " . __LINE__);
+                    $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] fjernet fra stykliste";
+                } else {
+                    $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] - kontakt en bruger med rettigheder";
+                }
                 print "<BODY onLoad=\"javascript:alert('$txt')\">";
             } else {
                 $x++;
@@ -2057,13 +2107,13 @@ print "value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"saveItem\" onclick=\"j
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
 if ($varenr && $samlevare == 'on') {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
-    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy' $noEdit></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
 } elseif ($varenr) {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
     $txt2049 = findtekst('2049|Leverandøropslag', $sprog_id); //Leverandøropslag
     $txt3056 = findtekst('3295|Lagerhistorik', $sprog_id);    //Lagerhistorik
-    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy' $noEdit></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;' $noEdit></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=button accesskey='o' value='$txt3056' name='stockHistory' onclick='javascript:docChange = false;location.href = \"productCardIncludes/stockLog.php?id=$id\"'></td>";
 }

@@ -8,6 +8,9 @@
 //
 // History:
 // 20261021 Sawaneh SD-733: created.
+// 20261027 Sawaneh SD-736: marker checks follow SHOPIFY_SCHEMA_VERSION (manifest v2); the primary-key repair
+//                 test uses shopify_lager, since shopify_stock_dirty is keyed on a serial id in v2.
+// 20261029 CL/SZ freshTenant() takes the Shopify schema off the clone, so a template at 5.1.0+ (CI's saldi_2) gives a first install.
 
 use PHPUnit\Framework\TestCase;
 
@@ -35,10 +38,45 @@ final class SchemaManifestTest extends TestCase
         }
     }
 
+    /**
+     * A clone of the template without the Shopify schema, as before the first install. A
+     * template at 5.1.0 or later already has it (the installer runs the manifest), so it is
+     * taken off the clone: the stock triggers, the manifest's tables and legacy columns, and
+     * the shopify settings with the marker.
+     */
     private function freshTenant(string $suffix): string
     {
         $db = ShopifyEnv::testDb($suffix);
         ShopifyEnv::cloneTenant($db);
+        $conn = ShopifyEnv::connect($db);
+        $sql = [];
+        foreach (array_keys(SHOPIFY_STOCK_TRIGGER_COLUMNS) as $table) {
+            $sql[] = "DROP TRIGGER IF EXISTS shopify_dirty_insdel ON $table";
+            $sql[] = "DROP TRIGGER IF EXISTS shopify_dirty_upd ON $table";
+        }
+        $sql[] = 'DROP FUNCTION IF EXISTS shopify_mark_stock_dirty()';
+        $sql[] = 'DROP INDEX IF EXISTS shopify_styklister_vare_idx';
+        foreach (array_keys(shopify_schema_catalog()) as $table) {
+            $sql[] = "DROP TABLE IF EXISTS $table CASCADE";
+        }
+        $legacy = [];
+        foreach (shopify_schema_legacy_columns() as $table => $columns) {
+            foreach (array_keys($columns) as $column) {
+                $sql[] = "ALTER TABLE $table DROP COLUMN IF EXISTS $column";
+                $legacy[] = "$table.$column";
+            }
+        }
+        $sql[] = "DELETE FROM settings WHERE var_grp = 'shopify' OR var_grp LIKE 'shopify:%'";
+        ShopifyEnv::rows($conn, 'BEGIN; ' . implode('; ', $sql) . '; COMMIT');
+        $left = ShopifyEnv::rows($conn, "SELECT relname AS name FROM pg_class WHERE relname LIKE 'shopify\\_%'"
+            . " UNION ALL SELECT tgname FROM pg_trigger WHERE tgname LIKE 'shopify\\_%'"
+            . " UNION ALL SELECT proname FROM pg_proc WHERE proname LIKE 'shopify\\_%'"
+            . " UNION ALL SELECT table_name || '.' || column_name FROM information_schema.columns WHERE table_schema = 'public'"
+            . " AND (table_name || '.' || column_name) = ANY ($1)"
+            . " UNION ALL SELECT var_grp || '.' || var_name FROM settings WHERE var_grp = 'shopify' OR var_grp LIKE 'shopify:%'",
+            ['{' . implode(',', $legacy) . '}']);
+        pg_close($conn);
+        $this->assertSame([], array_column($left, 'name'), 'the clone of the template still has Shopify schema');
         return $db;
     }
 
@@ -110,7 +148,7 @@ final class SchemaManifestTest extends TestCase
 
         $replay = ShopifyEnv::runSchema($db, 'ensure');
         $this->assertRunOk($replay, 'replay');
-        $this->assertSame(1, $replay['result']['version']);
+        $this->assertSame(SHOPIFY_SCHEMA_VERSION, $replay['result']['version']);
         $this->assertSame($before, ShopifyEnv::catalog($conn));
 
         ShopifyEnv::rows($conn, 'ALTER TABLE shopify_jobs DROP COLUMN lock_token');
@@ -123,7 +161,7 @@ final class SchemaManifestTest extends TestCase
 
         $this->assertRunOk(ShopifyEnv::runSchema($db, 'ensure'), 'repair');
         $this->assertSame($before, ShopifyEnv::catalog($conn));
-        $this->assertSame('1', ShopifyEnv::one($conn, "SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = 'schema_version'")['var_value']);
+        $this->assertSame((string)SHOPIFY_SCHEMA_VERSION, ShopifyEnv::one($conn, "SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = 'schema_version'")['var_value']);
         $this->assertSame('hml', ShopifyEnv::one($conn, 'SELECT shop_key FROM shopify_shops')['shop_key']);
         $this->assertSame('saelgbar', ShopifyEnv::one($conn, 'SELECT rolle FROM shopify_lager WHERE lager = 1')['rolle']);
         $this->assertSame('hml:1', ShopifyEnv::one($conn, 'SELECT dedupe_key FROM shopify_jobs')['dedupe_key']);
@@ -188,22 +226,22 @@ final class SchemaManifestTest extends TestCase
         $conn = ShopifyEnv::connect($db);
         $before = ShopifyEnv::catalog($conn);
 
-        ShopifyEnv::rows($conn, 'ALTER TABLE shopify_stock_dirty DROP CONSTRAINT shopify_stock_dirty_pkey');
+        ShopifyEnv::rows($conn, 'ALTER TABLE shopify_lager DROP CONSTRAINT shopify_lager_pkey');
         ShopifyEnv::rows($conn, 'ALTER TABLE shopify_location_map DROP CONSTRAINT shopify_location_map_pkey');
         ShopifyEnv::rows($conn, "DELETE FROM settings WHERE var_grp = 'shopify' AND var_name = 'schema_version'");
-        ShopifyEnv::rows($conn, 'INSERT INTO shopify_stock_dirty (vare_id) VALUES (7), (7)');
+        ShopifyEnv::rows($conn, 'INSERT INTO shopify_lager (lager) VALUES (7), (7)');
 
         $blocked = ShopifyEnv::runSchema($db, 'ensure:webservice');
         $this->assertFalse($blocked['result']['result'], 'a primary key over duplicate rows cannot be restored');
         $this->assertNull($this->markerVersion($conn));
 
-        ShopifyEnv::rows($conn, 'DELETE FROM shopify_stock_dirty');
+        ShopifyEnv::rows($conn, 'DELETE FROM shopify_lager');
         $this->assertRunOk(ShopifyEnv::runSchema($db, 'ensure:webservice'), 'repair');
-        $this->assertSame('1', $this->markerVersion($conn));
+        $this->assertSame((string)SHOPIFY_SCHEMA_VERSION, $this->markerVersion($conn));
         $this->assertSame($before, ShopifyEnv::catalog($conn));
 
-        ShopifyEnv::rows($conn, 'INSERT INTO shopify_stock_dirty (vare_id) VALUES (7)');
-        $this->assertFalse(@pg_query($conn, 'INSERT INTO shopify_stock_dirty (vare_id) VALUES (7)'), 'duplicate vare_id accepted');
+        ShopifyEnv::rows($conn, 'INSERT INTO shopify_lager (lager) VALUES (7)');
+        $this->assertFalse(@pg_query($conn, 'INSERT INTO shopify_lager (lager) VALUES (7)'), 'duplicate lager accepted');
         pg_close($conn);
     }
 
@@ -234,7 +272,7 @@ final class SchemaManifestTest extends TestCase
         $this->assertSame(ShopifyEnv::catalog($b), ShopifyEnv::catalog($a));
         $markers = ShopifyEnv::rows($a, "SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = 'schema_version'");
         $this->assertCount(1, $markers);
-        $this->assertSame('1', $markers[0]['var_value']);
+        $this->assertSame((string)SHOPIFY_SCHEMA_VERSION, $markers[0]['var_value']);
         pg_close($a);
         pg_close($b);
     }

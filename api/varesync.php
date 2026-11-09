@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- lap 4.1.0 --- 2024.03.18 ---
+// --- api/varesync.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2018.04.24 Omskrevet variant delen så det inditificeres på variant_id i stedet for på stregkode så det er muligt at ændre stregkode på shop.
@@ -34,10 +34,28 @@
 // 2024-03-18	PHR Speed optimation.
 // 2024-03-27 PHR Some improvemnets
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20261027 CL/SZ SD-778: fetches and writes nothing while box4 (legacy slot 4) is closed for intake.
+// 20261105 CL/SZ MB-119 $svSaldiId starts as an empty array, so 'Opdater fra shop' no longer dies in in_array() when shop_varer is empty.
+// 20261105 CL/SZ MB-121 $variantVareId starts as an empty array, so a shop with no variant rows no longer dies in in_array() at the end of the run.
+// 20261105 CL/SZ MB-125 The $sProduct... arrays start empty, so 'Hent nye varer' and 'Opdater fra shop' no longer die in in_array() when varer is empty.
+// 20261105 CL/SZ MB-133 Initialize $stockVariant and $vt_id so a new variant no longer hits a fatal count() on null when the file has no qty column or variant_typer is empty.
+// 20261105 CL/SZ MB-134 Product qty column is cast to float, so a qty file no longer dies on its header line under PHP 8.
+// 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
 
+require_once(__DIR__ . '/../includes/shopify/coexistence.php');
 
 function varesync($valg) {
 	global $brugernavn,$db;
+	// Legacy coexistence switch (SD-778): the products come from box4, legacy slot 4. Once that
+	// shop has moved to Shopify, Saldi owns the items, so nothing is fetched or written.
+	if (shopify_legacy_shared(array('db' => $db), 4) === false) {
+		echo "Webshoppen er ved at blive skiftet. Prøv igen om lidt.<br>";
+		return;
+	}
+	if (!shopify_legacy_enabled(array('db' => $db), 4, 'intake')) {
+		echo "Varer hentes ikke fra den gamle webshop: den er lukket, fordi butikken er flyttet til Shopify.<br>";
+		return;
+	}
 	# if ($db == 'pos_8') transaktion('begin');
 	$showtxt=NULL;
 	$newItemsId = $vare_id = $vnrtjek = array();
@@ -58,6 +76,7 @@ function varesync($valg) {
 #	if (file_exist("../temp/$db/productList.txt")) unlink("../temp/$db/productList.txt");
 	$plf = fopen("../temp/$db/productList.txt",'w');
 	$i = 0;
+	$sProductId = $sProductNo = $sProductPrice = $sProductCost = $sProductName = $sProductBarcode = array();
 	$qtxt="select * from varer order by id"; #20240327. File is read by client, and existing products is excluded from list
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
@@ -73,6 +92,7 @@ function varesync($valg) {
 	fclose($plf);
 
 	$i = 0;
+	$svSaldiId = array();
 	$qtxt="select * from shop_varer order by saldi_id";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
@@ -142,8 +162,7 @@ function varesync($valg) {
 		$shop_id[$y]=0;
 		if ($useQty) {
 			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y],$stock[$y])=explode(";",$linje[$y]);
-			$stock[$y]=trim($stock[$y],'"');
-			($stock[$y])?$stock[$y]*=1:$stock[$y]=0;
+			$stock[$y]=(float)trim($stock[$y],'"');
 		} elseif ($useCost) {
 			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$kostpris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y])=explode(";",$linje[$y]);
 			$variant_qty[$y]=0;
@@ -271,7 +290,7 @@ file_put_contents("../temp/$db/varesync.log","$qtxt\n",FILE_APPEND);
 							$qtxt.= "special_to_date='2099-12-31' where id = '$sProductId[$i]'";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
-						if (!in_array($sProductId[$i],$svSaldiId)) {
+						if ($shop_id[$y] && !in_array($sProductId[$i],$svSaldiId)) {
 							$qtxt = "insert into shop_varer (saldi_id,saldi_variant,shop_id,shop_variant) ";
 							$qtxt.= "values ('$sProductId[$i]','0','$shop_id[$y]','0')";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -283,7 +302,7 @@ file_put_contents("../temp/$db/varesync.log","$qtxt\n",FILE_APPEND);
 	}
 	############################# Varianter #########################
 	$shop_encode = NULL;
-	$mangler = $s_variant_id = $strktjek = $var_id = $var_type = $vt_var = array();
+	$mangler = $s_variant_id = $stockVariant = $strktjek = $var_id = $var_type = $vt_id = $vt_var = array();
 		$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='variant_varer' and column_name='variant_kostpris'";
 	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		db_modify("ALTER TABLE variant_varer add column	variant_kostpris numeric(15,3)",__FILE__ . " linje " . __LINE__);
@@ -402,6 +421,7 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 	if (!$shop_encode) $shop_encode = 'utf8';
 #if ($brugernavn=='phr') transaktion ('begin');
 	$m = 0;
+	$variantVareId = array();
 #	$mangler = $var_type = array();
 	for ($y=1;$y<count($linje);$y++) {
 		$saldi_var_id[$y] = 0;

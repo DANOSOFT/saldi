@@ -1,4 +1,4 @@
-// --- javascript/cvrapiopslag.js --- patch 5.0.0 --- 2026-07-06 ---
+// --- javascript/cvrapiopslag.js --- ver 5.1.0 --- 2026-11-05 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,7 +17,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2026 Danosoft.ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2015.01.23 Hente virksomhedsdata fra CVR med CVRapi - tak Niels Rune https://github.com/nielsrune
 // 20260706 MJ Add plain 8-digit trigger, confirmation overlay with type="button" to prevent accidental form submission
@@ -32,10 +32,33 @@
 // 20261006 CL/SZ SD-721 Messages for BLOCKED and BANNED: cvrapi.dk refuses the server's lookups (sager/cvrLookupProxy.php passes the code on).
 // 20261006 CL/SZ SD-721 INVALID_UA gets the same message; the kreditor and debitor cards now use the proxy too (cvrLookupClientConfig()).
 // 20261007 CL/SZ SD-721 The kreditor and debitor cards are back on the browser lookup (cvrapi.dk, as on live) until Datafordeleren is tested; only the pool dialog sets cvrLookupProxy.
+// 20261026 CL/MMR SST-893 The e-mail from the lookup now reaches the debitor card, whose primary e-mail field is kontakt_email_val[1] since the new e-mail system (there is no field named email there).
+//                 Fields cvrapi.dk sends as null (often e-mail and fax) are left out instead of being written as the text "null".
+// The debitor card's primary e-mail field is kontakt_email_val[1]; the kreditor card, stamkort and sager still use email.
+// The name is quoted in the selector because of the brackets.
+// 20261026 CL/MMR SST-894 A CVR-nr. wrapped in *, + or / (e.g. /20756438/, as the card's guide says) now starts the lookup too.
+//                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
+// 20261029 CL/MJ SST-892 applyFormFields() calls cvrEfterOpslag(data) when the page defines it; the debitor card uses it to switch a private card to Erhverv.
+// 20261030 CL/MMR SST-916 Ticking "Auto-lookup CVR nr." after the CVR-nr. was typed now looks the number up straight away.
+//                 Before, the box was only read on a keystroke or when the field was left, so ticking it afterwards did nothing.
+// 20261105 CL/MMR SD-807 The overwrite question and its two buttons come from cvrTekster (overskriv, behold, opdater), so a page can show them in the user's language.
+//                 cvrFejlTekst keeps the Danish texts as the fallback, and they are set with .text() instead of being built into the html.
+
+
+var cvrFeltAlias = { email: ['email', 'kontakt_email_val[1]'] };
+
+function cvrFeltNavn(name) {
+	var navne = cvrFeltAlias[name] || [name];
+	for (var i = 0; i < navne.length; i++) {
+		if ($("[name='" + navne[i] + "']").length) return navne[i];
+	}
+	return name;
+}
 
 function cvrField(name) {
-	var visible = $("[name=" + name + "]").not("[type=hidden]");
-	return visible.length ? visible.first() : $("[name=" + name + "]").first();
+	var alle    = $("[name='" + cvrFeltNavn(name) + "']");
+	var visible = alle.not("[type=hidden]");
+	return visible.length ? visible.first() : alle.first();
 }
 
 function cvrValue(name) {
@@ -66,12 +89,17 @@ function getExistingFormData() {
 	};
 }
 
+// cvrapi.dk sends a missing value as null; String(null) would put the text "null" in the field.
+function cvrHar(b, felt) {
+	return b.hasOwnProperty(felt) && b[felt] !== null && b[felt] !== undefined;
+}
+
 function normaliseApiData(b) {
 	var data = {};
-	if (b.hasOwnProperty("vat"))     data.cvrnr     = String(b.vat).trim();
-	if (b.hasOwnProperty("name"))    data.firmanavn  = String(b.name).trim();
-	if (b.hasOwnProperty("address")) {
-		if (b.hasOwnProperty("addressco") && b.addressco != null) {
+	if (cvrHar(b, "vat"))     data.cvrnr     = String(b.vat).trim();
+	if (cvrHar(b, "name"))    data.firmanavn = String(b.name).trim();
+	if (cvrHar(b, "address")) {
+		if (cvrHar(b, "addressco")) {
 			data.addr1 = "c/o " + b.addressco;
 			data.addr2 = b.address;
 		} else {
@@ -79,11 +107,11 @@ function normaliseApiData(b) {
 			data.addr2 = '';
 		}
 	}
-	if (b.hasOwnProperty("zipcode")) data.postnr    = String(b.zipcode).trim();
-	if (b.hasOwnProperty("city"))    data.bynavn    = String(b.city).trim();
-	if (b.hasOwnProperty("phone"))   data.tlf       = String(b.phone).trim();
-	if (b.hasOwnProperty("email"))   data.email     = String(b.email).trim();
-	if (b.hasOwnProperty("fax"))     data.fax       = String(b.fax).trim();
+	if (cvrHar(b, "zipcode")) data.postnr    = String(b.zipcode).trim();
+	if (cvrHar(b, "city"))    data.bynavn    = String(b.city).trim();
+	if (cvrHar(b, "phone"))   data.tlf       = String(b.phone).trim();
+	if (cvrHar(b, "email"))   data.email     = String(b.email).trim();
+	if (cvrHar(b, "fax"))     data.fax       = String(b.fax).trim();
 	return data;
 }
 
@@ -104,9 +132,11 @@ function detectConflicts(existing, incoming) {
 function applyFormFields(data) {
 	for (var key in data) {
 		if (!data.hasOwnProperty(key)) continue;
-		var el = $("[name=" + key + "]");
+		var el = $("[name='" + cvrFeltNavn(key) + "']");
 		if (el.length) el.val(data[key]);
 	}
+	// A page can react to the values it was given, e.g. the debitor card shows the company name.
+	if (typeof cvrEfterOpslag === 'function') cvrEfterOpslag(data);
 }
 
 function showConfirmOverlay(existingData, incomingData) {
@@ -116,12 +146,16 @@ function showConfirmOverlay(existingData, incomingData) {
 		'<div id="cvr-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;' +
 		'background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">' +
 		'<div style="background:#fff;padding:24px;border-radius:6px;max-width:420px;width:90%;box-shadow:0 4px 16px rgba(0,0,0,0.3);">' +
-		'<p style="margin:0 0 16px;font-size:15px;">CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?</p>' +
+		'<p id="cvr-overlay-tekst" style="margin:0 0 16px;font-size:15px;"></p>' +
 		'<div style="display:flex;gap:12px;justify-content:flex-end;">' +
-		'<button type="button" id="cvr-btn-no"  style="padding:8px 16px;">Nej, behold nuværende</button>' +
-		'<button type="button" id="cvr-btn-yes" style="padding:8px 16px;">Ja, opdater</button>' +
+		'<button type="button" id="cvr-btn-no"  style="padding:8px 16px;"></button>' +
+		'<button type="button" id="cvr-btn-yes" style="padding:8px 16px;"></button>' +
 		'</div></div></div>'
 	);
+	// The texts can come from the tekster table (cvrTekster), so they are set as text, never as html.
+	overlay.find('#cvr-overlay-tekst').text(cvrTekst('overskriv'));
+	overlay.find('#cvr-btn-no').text(cvrTekst('behold'));
+	overlay.find('#cvr-btn-yes').text(cvrTekst('opdater'));
 
 	$('body').append(overlay);
 
@@ -218,7 +252,10 @@ var cvrFejlTekst = {
 	INVALID_UA:     'cvrapi.dk afviser opslag fra serveren. Udfyld felterne manuelt.',
 	NOT_FOUND:      'CVR-nummeret blev ikke fundet.',
 	INVALID_VAT:    'CVR-nummeret er ikke gyldigt.',
-	soeger:         'Søger...'
+	soeger:         'Søger...',
+	overskriv:      'CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?',
+	behold:         'Nej, behold nuværende',
+	opdater:        'Ja, opdater'
 };
 function cvrTekst(noegle) {
 	if (typeof cvrTekster !== 'undefined' && cvrTekster && cvrTekster[noegle]) return cvrTekster[noegle];
@@ -243,7 +280,8 @@ function cvrFejl(felt, kode) {
 
 var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
 var plainCvr = /^\d{8}$/;
-var trailingSymbolCvr = /^(\d{8})[\*\/\+]$/;
+// 8 digits followed by *, + or /, optionally also preceded by one (the guide on the debitor card says /20756438/).
+var symbolCvr = /^[\*\/\+]?(\d{8})[\*\/\+]$/;
 
 // The lookup used to be sent on the keystroke itself, so typing on - a longer number, say -
 // fired off several calls. It now waits until typing has been still for a moment, and
@@ -278,13 +316,13 @@ function cvrAutoOpslag(felt, vaerdi) {
 function cvrKeyupOpslag(e){
 	var felt = $(e.target);
 	var vaerdi = (felt.val() || '').trim();
-	var trailingMatch = trailingSymbolCvr.exec(vaerdi);
+	var symbolMatch = symbolCvr.exec(vaerdi);
 
 	if (cvrTimer) { clearTimeout(cvrTimer); cvrTimer = null; }
 
-	if(trailingMatch){
-		felt.val(trailingMatch[1]);
-		cvrOpslag(felt, trailingMatch[1], 'vat');
+	if(symbolMatch){
+		felt.val(symbolMatch[1]);
+		cvrOpslag(felt, symbolMatch[1], 'vat');
 	} else if(cvrAutoOpslag(felt, vaerdi)){
 		cvrTimer = setTimeout(function(){ cvrOpslag(felt, vaerdi, 'vat'); }, cvrPause);
 	} else {
@@ -293,14 +331,38 @@ function cvrKeyupOpslag(e){
 	}
 }
 
+// A pasted number fires no keyup, so the symbols are handled here as well; otherwise they were saved in the field.
 function cvrBlurOpslag(e){
 	var felt = $(e.target);
 	var vaerdi = (felt.val() || '').trim();
-	if(cvrAutoOpslag(felt, vaerdi)) cvrOpslag(felt, vaerdi, 'vat');
+	var symbolMatch = symbolCvr.exec(vaerdi);
+	if (symbolMatch) {
+		felt.val(symbolMatch[1]);
+		cvrOpslag(felt, symbolMatch[1], 'vat');
+	} else if (cvrAutoOpslag(felt, vaerdi)) {
+		cvrOpslag(felt, vaerdi, 'vat');
+	}
 }
 
 cvrField('ny_kontonr').keyup(cvrKeyupOpslag).blur(cvrBlurOpslag);
 cvrField('cvrnr').keyup(cvrKeyupOpslag).blur(cvrBlurOpslag);
+
+// Ticking "Auto-lookup CVR nr." looks up a number that is already typed, as leaving the field would (SST-916).
+// The CVR field comes first; the customer no. only where 8 digits may be looked up there (cvrAutoFelter).
+// Unticking does nothing, and a number that was just looked up is not looked up again (cvrSidste).
+function cvrAutoMarkeret(){
+	if (!$(this).is(':checked')) return;
+	var navne = ['cvrnr', 'ny_kontonr'];
+	for (var i = 0; i < navne.length; i++) {
+		var felt = cvrField(navne[i]);
+		var vaerdi = (felt.val() || '').trim();
+		if (felt.length && cvrAutoOpslag(felt, vaerdi)) {
+			cvrOpslag(felt, vaerdi, 'vat');
+			return;
+		}
+	}
+}
+$(document).on('change', '[name=auto_lookup_cvr]', cvrAutoMarkeret);
 
 cvrField('tlf').keyup(function(e){
         var tlfnr = ($(e.target).val() || '').trim();

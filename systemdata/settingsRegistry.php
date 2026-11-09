@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-09-30 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-02 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,7 @@
 // 20260721 Sawaneh Added Opgaveliste/Brug jobkort (task list) search terms to div_valg entry
 // 20260930 CL/NTR Added HTML/CSS layout version search terms to div_valg entry.
 //                 Hid the admin_settings entry outside the master database ('masterDb' rule).
+// 20261102 CL/MJ SD-761: Shopify entry, shown only on a tenant with a Shopify shop ('shopify' rule).
 //
 // Hand-maintained index of Settings pages, used by settingsSearch.php.
 // Each entry:
@@ -36,9 +37,10 @@
 //                    has no Norwegian draft yet, settingsSearch.php falls back to labelEn rather than
 //                    silently showing Danish.
 //   requiresReseller  true => only shown when $revisorregnskab || $forhandlerregnskab is truthy
-//   visibilityRule    null | 'posModule' | 'docubizz' | 'masterDb' - re-checked live in settingsSearch.php
+//   visibilityRule    null | 'posModule' | 'docubizz' | 'masterDb' | 'shopify' - re-checked live in settingsSearch.php
 //                    ('masterDb' => only shown when $db == $sqdb, i.e. logged in to the master database,
-//                    for pages such as admin/admin_settings.php that log everyone else out)
+//                    for pages such as admin/admin_settings.php that log everyone else out;
+//                    'shopify' => only shown on a tenant with a Shopify shop, so the module stays dark)
 //   keywords         array of extra search terms describing what's actually configurable on that
 //                    page (field names, synonyms, abbreviations, DA/EN/NO) - matched when the query
 //                    doesn't hit the label itself, so e.g. searching "auditor" finds "Brugere"
@@ -141,6 +143,8 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('bank feed','bank transaction import','bank statement import','show bank status','show status kassekladde','default date range bank import','date method','last quarter','this quarter','bank connection status')),
 			array('key' => 'barcodescan',           'url' => 'barcodescan.php',                          'category' => 'pos', 'labelDa' => 'App Barcode', 'labelEn' => 'Barcode scanning app', 'labelNo' => 'App-strekkode',
 				'keywords' => array('qr code login','app login','mobile app authentication','one time access qr','saldi app login','scan to login')),
+			array('key' => 'shopify',               'url' => 'shopify/shops.php',                        'category' => 'integrations', 'labelDa' => 'Shopify', 'labelEn' => 'Shopify', 'labelNo' => 'Shopify', 'visibilityRule' => 'shopify',
+				'keywords' => array('shopify','webshop','web shop','nettbutikk','shop domain','access token','webhook secret','sellable warehouse','salgbart lager','udstillingslager','warehouse priority','lagerprioritet')),
 			array('key' => 'sprog',                 'url' => 'diverse.php?sektion=sprog',                'category' => 'company', 'textId' => 801,
 				'keywords' => array('language','languages','change language','select language','preferred language','edit translation texts','ui language','current language','sprogindstillinger','sprog','språk','språkinnstillinger')),
 			array('key' => 'div_io',                'url' => 'diverse.php?sektion=div_io',               'category' => 'data', 'textId' => 802,

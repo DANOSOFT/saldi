@@ -3,6 +3,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260908 CDX/LH Exercise report account scope and concurrent sales on an isolated PostgreSQL schema.
+// 20261019 CL/LH MB-70: Ordinary invoices stay out of the count unless sets are enabled; no nameless payment bucket.
 // Run with SALDI_CHAR_PGHOST / PGPORT / PGUSER / PGPASS / PGDATABASE (all prefixed SALDI_CHAR_).
 
 error_reporting(E_ALL);
@@ -37,7 +38,7 @@ function db_escape_string($value) { return pg_escape_string($GLOBALS['connection
 /** @return void */
 function transaktion($sql) { pg_query($GLOBALS['connection'], $sql); }
 /** @return string */
-function findtekst($id, $language) { return ''; }
+function findtekst($id, $language) { return (string)(explode('|', (string)$id, 2)[1] ?? ''); }
 /** @return void */
 function alert($message) { throw new RuntimeException($message); }
 /** @return void */
@@ -78,7 +79,7 @@ try {
 	foreach (array($connection, $writer) as $conn) {
 		pg_query($conn, "SET search_path TO $schema");
 	}
-	pg_query($connection, "CREATE TABLE grupper (art text, kodenr text, fiscal_year int, box1 text, box2 text, box4 text, box5 text, box6 text, box9 text)");
+	pg_query($connection, "CREATE TABLE grupper (art text, kodenr text, fiscal_year int, box1 text, box2 text, box4 text, box5 text, box6 text, box9 text, box12 text DEFAULT '')");
 	pg_query($connection, "INSERT INTO grupper VALUES
 		('RA', '9', 9, '01', '" . date('Y') . "', '', '', '', ''),
 		('POS', '1', 9, '', E'5800\\t5810', '1', 'Dankort', '5830', 'on'),
@@ -86,7 +87,7 @@ try {
 		('VK', '1', 9, 'EUR', '', E'5850\\t5860', '', '', '')");
 	pg_query($connection, "CREATE TABLE kontoplan (id int, regnskabsaar int, kontonr int, kontotype text, primo numeric)");
 	pg_query($connection, "INSERT INTO kontoplan VALUES (1,9,5830,'S',0)");
-	pg_query($connection, "CREATE TABLE ordrer (id int PRIMARY KEY, felt_5 text, status int, valuta text, report_number int DEFAULT 0)");
+	pg_query($connection, "CREATE TABLE ordrer (id int PRIMARY KEY, felt_5 text, status int, valuta text, report_number int DEFAULT 0, art text DEFAULT 'PO')");
 	pg_query($connection, "CREATE TABLE transaktioner (ordre_id int, transdate date, kontonr int, debet numeric, kredit numeric)");
 	pg_query($connection, "INSERT INTO ordrer (id,felt_5,status,valuta) VALUES (1,'2',4,'DKK'),(2,'2',4,'DKK'),(3,'2',4,'DKK'),(4,'1',4,'DKK'),(5,'2',4,'EUR'),(6,'2',4,'EUR'),(7,'2',4,'DKK')");
 	pg_query($connection, "INSERT INTO transaktioner VALUES
@@ -159,6 +160,19 @@ try {
 	checkTransaction($accepted && !in_array(13, $ids, true) && cashCountSignature(array('DKK' => $within)) === $signature,
 		'Deferred posting also retains the validated snapshot after a concurrent sale');
 	transaktion('rollback');
+	// MB-70: an ordinary invoice booked with a transaction on the register is not a register sale.
+	$posOnly = currentCashSale($posOnlyIds);
+	pg_query($connection, "INSERT INTO ordrer (id,felt_5,status,valuta,sum,art) VALUES (14,'2',4,'DKK',500,'DO')");
+	pg_query($connection, "INSERT INTO transaktioner (ordre_id,transdate,kontonr,debet,kredit,kasse_nr,logtime,beskrivelse) VALUES (14,CURRENT_DATE,1000,500,0,2,'13:00','Invoice')");
+	$withInvoice = currentCashSale($ids);
+	checkTransaction($ids === $posOnlyIds && $withInvoice === $posOnly,
+		'An ordinary invoice with a transaction on the register is left out of the count');
+	// With sets enabled debtor orders count, as posbogfor() posts them; a missing payment type gets a name.
+	pg_query($connection, "UPDATE grupper SET box12 = 'on' WHERE art = 'POS' AND kodenr = '2'");
+	$withSets = currentCashSale($ids);
+	$bucket = array_search('Ukendt betalingstype', explode(chr(9), $withSets[5]), true);
+	checkTransaction(in_array(14, $ids, true) && $bucket !== false && (float)explode(chr(9), $withSets[6])[$bucket] === 500.0,
+		'With sets enabled a debtor order without payment type is counted in a named bucket');
 } finally {
 	if (pg_transaction_status($connection) !== PGSQL_TRANSACTION_IDLE) {
 		pg_query($connection, 'ROLLBACK');

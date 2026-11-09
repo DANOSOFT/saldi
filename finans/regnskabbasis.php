@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/basiRegnskab.php --- patch 5.0.0 --- 2026-06-18 ---
+// --- finans/basiRegnskab.php --- ver 5.1.0 --- 2026-11-03 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,11 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260618 LOE Added sticky header for S-mode and added a scrollable table for the data table in S-mode co-authored by Aj
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 
 @session_start();
 $s_id = session_id();
@@ -299,7 +300,7 @@ $csvfile = "../temp/$db/regnskabbasis.csv";
 
 if ($kontoantal_check <= 0) {
     $standardKontoCheck = true;
-    $createCsvFile = "<a href='$csvfile'>csv</a>";
+    $createCsvFile = "<a href='$csvfile' download>csv</a>";
 }
 
 if ($rapportart == "regnskabbasis")

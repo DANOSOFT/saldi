@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,7 @@
 // 20260914 CDX/LH SST-789: Pass the ordered non-email print batch to PDF conversion.
 // 20260916 CDX/LH Initialize the page count on every appended print-batch document.
 // 20260917 CL/LH SST-784: Escape the page-break "formular variabler" text at the PostScript boundary too.
+// 20260917 CL/LH Delivery note always prints the delivery address; vis_lev_addr no longer gates formular 3 (Havemoebelland).
 // 20260925 CL/LH SST-823: Embed the EPS logo with the EPSF inclusion wrapper (own state, its showpage disabled) and end every PostScript
 //             page with exactly one showpage; a missing logo.eps lost pages 2..N (SD-490 root cause). HTML email pages merge in page order.
 // 20260929 CDX/PHR Honor form line widths, colors and typography in HTML/PDF output.
@@ -86,6 +87,21 @@
 //             konto_til was ignored. The revived query also treats a NULL lukket as open.
 // 20261008 CDX/PHR Isolate statement and reminder print directories without deleting other requests.
 // 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
+// 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
+//                holds the last printed order by then.
+// 20261029 CL/SZ SD-751 (core edit 6): formularprint() takes $headless, a work directory: the print is written there,
+//                nothing is mailed or deleted, no redirect is printed, the order's own language is used and
+//                the documents are returned.
+//                A page-break text with $ordre_creditedinvoice printed the credited invoice's number instead of exiting,
+//                and a credit note without a credited invoice prints it empty instead of failing on the query.
+// 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
+//                opening balance and running balance then cover those posts only. A NULL
+//                udlignet counts as open, as it does in the ledger.
+// 20261103 CL/SZ SD-754 Order-line fields lager and lagernavn: the lager a line is drawn from, as number and name.
+//                A Shopify web order (one with a web row in shopify_order_links) prints every row by its line id, so a line drawn from two lagre prints both.
+//                The lager name is the current year's LG row, as in kreditor/ordre.php.
+// 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
+//                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -295,14 +311,16 @@ if (!function_exists('skriv')) {
 							list($tabel, $variabel) = explode("_", $streng[$i], 2);
 							if ($tabel == "ordre") {
 								if ($variabel == 'creditedinvoice') {
-									$qtxt = "kred_ord_id from ordrer where id=$id";
-									exit;
+									$qtxt = "select k.fakturanr as creditedinvoice from ordrer o left join ordrer k on k.id = o.kred_ord_id where o.id=$id";
+								} else {
+									if ($variabel == "rykkerdate") {
+										$variabel = "fakturadate";
+									}
+									if ($variabel == "tlf") {
+										$variabel = "phone";
+									}
+									$qtxt = "select $variabel from ordrer where id=$id";
 								}
-								if ($variabel == "rykkerdate")
-									$variabel = "fakturadate";
-								if ($variabel == "tlf")
-									$variabel = "phone";
-								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
 								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
@@ -652,7 +670,7 @@ if (!function_exists('find_form_tekst')) {
 					list($tabel, $variabel) = explode("_", $streng[$x], 2);
 
 					if (($tabel == "ordre") && (($variabel == "lev_navn") || ($variabel == "lev_addr1") || ($variabel == "lev_addr2") || ($variabel == "lev_postnr") || ($variabel == "lev_bynavn") || ($variabel == "lev_kontakt")) && (($formular == 3) || get_settings_value("showBothAddrExtra", "ordre", "off") === "on")) {
-						$variabel = tjek_lev_addr($variabel, $id);
+						$variabel = tjek_lev_addr($variabel, $id, $formular);
 					}
 					if ($tabel == "afdeling" && $variabel == "note") {
 						$qtxt = "select afd from ordrer where id=$id";
@@ -664,11 +682,12 @@ if (!function_exists('find_form_tekst')) {
 					if ($tabel == "ordre") {
 						if (strtolower($variabel) == 'creditedinvoice') {
 							$qtxt = "select kred_ord_id from ordrer where id=$id";
+							$streng[$x] = ''; // no credited invoice: print nothing, not a query for a column that doesn't exist
 							if ($tmp = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0]) {
 								$qtxt = "select fakturanr from ordrer  where id = '$tmp'";
 								$streng[$x] = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
-								$q2 = $variabel = NULL;
 							}
+							$q2 = $variabel = NULL;
 						} elseif ($variabel == "rykkerdate")
 							$variabel = "fakturadate";
 						if ($variabel == "tlf")
@@ -811,7 +830,7 @@ if (!function_exists('find_form_tekst')) {
 								$streng[$x] = dkdecimal($r2[$variabel], 2);
 							} elseif ($variabel == "felt_3" || $variabel == "felt_4") {
 								$r3 = db_fetch_array(db_select("select felt_4 from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-								if ($r3['felt_4'] * 1 == 0) {
+								if ((float)$r3['felt_4'] == 0) { #20261103 CL/SZ SD-797 a felt_4 that is no number counts as 0; '* 1' threw a TypeError
 									$streng[$x] = '';
 								} elseif ($variabel == "felt_3")
 									$streng[$x] = $r2[$variabel];
@@ -964,16 +983,19 @@ if (!function_exists('find_forfaldsdato')) {
 }
 
 if (!function_exists('tjek_lev_addr')) {
-	function tjek_lev_addr($variabel, $id)
+	function tjek_lev_addr($variabel, $id, $formular = NULL)
 	{
 		print "<!--function tjek_lev_addr start-->";
 		if ($variabel == "lev_navn")
 			$tmp = "firmanavn";
 		else
 			$tmp = substr($variabel, 4);
-		// 20260709 Sawaneh SD-562: when "show both" is enabled, only print the delivery address
-		// on the delivery note if the order's Show-delivery-address flag (vis_lev_addr) is on.
-		$vis_lev_cond = (get_settings_value("showBothAddrExtra", "ordre", "off") === "on") ? " and vis_lev_addr='on'" : "";
+		// 20260917 CL/LH The delivery note (formular 3) always uses the delivery address when one is set.
+		// In "show both" mode the order's Show-delivery-address flag (vis_lev_addr) only gates the other forms.
+		$vis_lev_cond = "";
+		if ($formular != 3 && get_settings_value("showBothAddrExtra", "ordre", "off") === "on") {
+			$vis_lev_cond = " and vis_lev_addr='on'";
+		}
 		$query = db_select("select $tmp from ordrer where id=$id and lev_navn!='' and lev_addr1!='' and lev_postnr!='' and lev_bynavn!=''$vis_lev_cond", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			return $variabel;
@@ -1056,10 +1078,30 @@ if (!function_exists('modulus_10')) {
 }
 
 if (!function_exists('formularprint')) {
-	function formularprint($id, $formular, $lev_nr, $charset, $udskriv_alle_til, $background_file = null)
+	/**
+	 * Prints one or more order documents (offer, order confirmation, delivery note, invoice, credit note, ...).
+	 * In a browser request it writes temp/<db>/<bruger_id>/<name>.ps/.htm, mails the ones set to email, and
+	 * prints a redirect to includes/udskriv.php, which turns the rest into one PDF.
+	 *
+	 * @param int|string $id ordrer.id; -1 for the orders in $_GET['skriv']; non-numeric for a preview.
+	 * @param int|string $formular Document type (formularer.formular); 4 becomes 5 for a credit note.
+	 * @param int|null $lev_nr Delivery number of a delivery note.
+	 * @param string|null $charset Unused; the global $charset applies.
+	 * @param string|null $udskriv_alle_til Output for every document ('PDF', 'email', 'inkasso', ...); empty takes ordrer.udskriv_til.
+	 * @param string|null $background_file Unused (the letterhead is looked up per brand and department).
+	 * @param string|null $headless A work directory the caller created. The documents are written there as
+	 *   for a PDF print (.ps/.htm) in the order's own language (no form-editor language lock); nothing is
+	 *   mailed, the directory is not cleared, no redirect is printed and no print batch is left in the session.
+	 * @return string|array<int, array{name: string, background: string, pages: int}> 'OK' or an error text;
+	 *   with $headless, on success the documents written to it, in the shape renderPrintBatch() takes.
+	 */
+	function formularprint($id, $formular, $lev_nr, $charset, $udskriv_alle_til, $background_file = null, $headless = null)
 	{
 		print "<!--function formularprint start-->";
 
+		if ($headless) {
+			$udskriv_alle_til = 'PDF'; // never email, never 'ingen'
+		}
 		($udskriv_alle_til == 'inkasso') ? $inkasso = 'on' : $inkasso = NULL;
 
 		include("../includes/std_func.php");
@@ -1068,7 +1110,7 @@ if (!function_exists('formularprint')) {
 
 		global $bruger_id, $brugsamletpris;
 		global $charset;
-		global $db, $db_id, $dkdato;
+		global $db, $db_id, $db_type, $dkdato;
 		global $exec_path;
 		global $form_id, $formularsprog, $psfp;
 		global $htminitxt, $htmfp;
@@ -1106,6 +1148,7 @@ if (!function_exists('formularprint')) {
 		if ($vis_saet)
 			$brugsamletpris = 'on';
 
+		$bulkPrint = ($id == -1);
 		if ($id == -1) {	# Saa er der flere fakturaer
 			$ordre_antal = $_GET['ordre_antal'];
 			$ordreliste = $_GET['skriv'];
@@ -1178,10 +1221,13 @@ if (!function_exists('formularprint')) {
 		if (!file_exists("../temp/$db"))
 			mkdir("../temp/$db", 0775);
 
-		$mappe = "../temp/$db/" . abs($bruger_id);
-		if (!$inkasso)
+		$mappe = $headless ? $headless : "../temp/$db/" . abs($bruger_id);
+		if (!$inkasso && !$headless) {
 			system("rm -r $mappe");
-		mkdir("$mappe", 0775);
+		}
+		if (!$headless) {
+			mkdir("$mappe", 0775);
+		}
 		if ($ordre_antal > 1) {
 			$printfilnavn = 'udskrift';
 			if ($formular <= 1)
@@ -1205,7 +1251,9 @@ if (!function_exists('formularprint')) {
 		}
 		$printBatchName = $printfilnavn ?? 'udskrift';
 		$printBatchDocuments = array();
-		unset($_SESSION['printBatch']);
+		if (!$headless) {
+			unset($_SESSION['printBatch']);
+		}
 		for ($o = 0; $o < $ordre_antal; $o++) {
 			$printBatchIndex = null;
 			#		$psfp=$psfp1;
@@ -1334,8 +1382,9 @@ if (!function_exists('formularprint')) {
 				// Per-form print-language lock (set in the visual form editor):
 				// force the whole print into one language regardless of the
 				// customer's language. No lock file => behaviour unchanged.
+				// A headless print keeps the order's own language: it is the document's brand (SD-751).
 				$fe_lock = "../logolib/$db_id/fe_printlang_$formular.json";
-				if (@file_exists($fe_lock)) {
+				if (!$headless && @file_exists($fe_lock)) {
 					$fe_pl = @json_decode(@file_get_contents($fe_lock), true);
 					if (is_array($fe_pl) && !empty($fe_pl['sprog'])) {
 						// value is interpolated into SQL below; restrict to a safe
@@ -1637,6 +1686,9 @@ if (!function_exists('formularprint')) {
 			}
 
 			if (!$found || $var_antal == 0) {
+				if ($headless) {
+					return 'Background values not set for this form';
+				}
 				echo "<script>alert('Background values not set for this form');</script>";
 				echo "<button onclick='window.history.go(-3)'>Go Back</button>";
 				exit;
@@ -1776,6 +1828,7 @@ if (!function_exists('formularprint')) {
 				$tmp = 0;
 				$saetnr = 0;
 				$posnr = array();
+				$lager = $lagernavn = array();
 				if ($preview) {
 					for ($x = 1; $x <= 22; $x++) {
 						$posnr[$x] = $x;
@@ -1812,9 +1865,31 @@ if (!function_exists('formularprint')) {
 
 					// Track printed line keys to avoid duplicates, but allow discounts to be printed.
 					$printedLineKeys = array();
+					// 20261103 CL/SZ SD-754 A Shopify web order prints every row by its line id: a line drawn from
+					// two lagre is two rows with the same posnr and varenr. A web order is one the intake linked in
+					// shopify_order_links; its credit note through kred_ord_id. Only tenants with the Shopify module have the table.
+					$keepSplitRows = false;
+					if (strtolower((string)$db_type) != 'mysql' && strtolower((string)$db_type) != 'mysqli') {
+						$r2 = db_fetch_array(db_select("select case when to_regclass('shopify_order_links') is null then 0 else 1 end as has_links", __FILE__ . " linje " . __LINE__));
+						if ($r2 && $r2['has_links']) {
+							$qtxt = "select l.id from shopify_order_links l, ordrer o where o.id = " . (int)$ordre_id[$o] . " ";
+							$qtxt .= "and l.direction = 'web' and (l.ordre_id = o.id or l.ordre_id = o.kred_ord_id) limit 1";
+							$keepSplitRows = (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						}
+					}
+					// One name per lager: older tenants have an LG row per accounting year (SST-829).
+					$lagerNavne = array();
+					$qtxt = "select kodenr,beskrivelse from grupper where art='LG' ";
+					$qtxt .= "order by kodenr, case when fiscal_year = " . (int)$regnaar . " then 0 else 1 end, coalesce(fiscal_year,0) desc, id desc";
+					$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					while ($r2 = db_fetch_array($q2)) {
+						if (!isset($lagerNavne[(int)$r2['kodenr']])) {
+							$lagerNavne[(int)$r2['kodenr']] = trim((string)$r2['beskrivelse']);
+						}
+					}
 
 					while ($row = db_fetch_array($q)) {
-						$printedLineKey = trim($row['posnr']) . "\t" . trim($row['varenr']);
+						$printedLineKey = $keepSplitRows ? $row['id'] : trim($row['posnr']) . "\t" . trim($row['varenr']);
 
 						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!isset($printedLineKeys[$printedLineKey]) || $row['folgevare'])) {
 							$x++;
@@ -1843,7 +1918,7 @@ if (!function_exists('formularprint')) {
 
 							$linje_id[$x] = $row['id'];
 							$linjesum[$x] = 0;
-							$pris[$x] = $procent[$x] = $rabat[$x] = $saet[$x] = $samlevare[$x] = $lager[$x] = $varemomssats[$x] = NULL;
+							$pris[$x] = $procent[$x] = $rabat[$x] = $saet[$x] = $samlevare[$x] = $lager[$x] = $lagernavn[$x] = $varemomssats[$x] = NULL;
 							if ($varenr[$x]) {
 								$vare_id[$x] = $row['vare_id'];
 								$antal[$x] = (float) $row['antal'];
@@ -1857,6 +1932,7 @@ if (!function_exists('formularprint')) {
 								$lager[$x] = (int) $row['lager'];
 								if (!$lager[$x] && $afd_lager)
 									$lager[$x] = $afd_lager;
+								$lagernavn[$x] = $lagerNavne[(int)$lager[$x]] ?? '';
 								$varemomssats[$x] = (float) $row['momssats'];
 								if (!$momsfri[$x] && !$varemomssats[$x])
 									$varemomssats[$x] = $momssats;
@@ -2047,6 +2123,7 @@ if (!function_exists('formularprint')) {
 						$tidl_lev[$x] = $tidl_lev[$y];
 						$rest[$x] = $rest[$y];
 						$lokation[$x] = $lokation[$y];
+						$lager[$x] = $lagernavn[$x] = NULL;
 						$enhed[$x] = '';
 						$rabat[$x] = $rabat[$y];
 						($incl_moms && !$b2b) ? $tmp = $m_rabat[$y] + $m_rabat[$y] * $varemomssats[$y] / 100 : $tmp = $m_rabat[$y];
@@ -2170,6 +2247,8 @@ if (!function_exists('formularprint')) {
 								'projekt' => ifset($projekt ?? array(), $x, ''),
 								'antal' => ifset($dkantal ?? array(), $x, ''),
 								'trademark' => ifset($trademark ?? array(), $x, ''),
+								'lager' => ifset($lager ?? array(), $x, '') ?: '',
+								'lagernavn' => ifset($lagernavn ?? array(), $x, ''),
 								'lev_antal' => ifset($lev_antal ?? array(), $x, ''),
 								'tidl_lev' => ifset($tidl_lev ?? array(), $x, ''),
 								'lev_rest' => ifset($rest ?? array(), $x, ''),
@@ -2264,6 +2343,11 @@ if (!function_exists('formularprint')) {
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$dkantal[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__); #ellers kommer antal ikke med paa 1. linje paa side 2 . og 3
 								elseif ($variabel[$z] == "trademark")
 									$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$trademark[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+							elseif ($variabel[$z] == "lager") { # 20261103 CL/SZ SD-754 the lager the line is drawn from
+								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", ifset($lager ?? array(), $x, '') ?: '', "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+							} elseif ($variabel[$z] == "lagernavn") {
+								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", ifset($lagernavn ?? array(), $x, ''), "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+							}
 							elseif ($variabel[$z] == "lev_antal")
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$lev_antal[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
 							elseif ($variabel[$z] == "tidl_lev")
@@ -2349,6 +2433,9 @@ if (!function_exists('formularprint')) {
 				$printBatchDocuments[$printBatchIndex]['pages'] = max(1, (int)$side - 1);
 			}
 		}
+		if ($headless) {
+			return $printBatchDocuments;
+		}
 		// UDSKRIVNING
 		if ($mailantal > 0) {
 			$r = db_fetch_array(db_select("select box3 from grupper where art='PV' and kodenr='1'", __FILE__ . " linje " . __LINE__));
@@ -2408,7 +2495,7 @@ if (!function_exists('formularprint')) {
 			}
 			// 20260807 MJ urlencode returside saa search-parametre ikke laekaer som separate GET-parametre i udskriv.php
 			// 20260812 MJ Brug is_string-guard saa array-input ikke giver PHP-advarsel (null/array -> tom streng)
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art" . ($bulkPrint ? '&amp;bulk=1' : '') . "&amp;bgr=" . urlencode($background_pdf_path) . "&returside=" . urlencode(is_string($returside ?? null) ? $returside : '') . "\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
@@ -2904,6 +2991,12 @@ if (!function_exists('kontoprint')) {
 		global $s_id;
 		global $pdftk,$ps2pdf,$weasyprint;
 
+		$kilde = ifset($_GET, 'kilde', NULL);
+		if (!$kilde) {
+			$kilde = ifset($_POST, 'kilde', NULL);
+		}
+		$openPostOnly = ($kilde == 'openpost');
+
 		$dkkforfalden = $nomailantal = $mailantal = 0;
 		$mailsprog = 'Dansk';
 		($dato_fra) ? $dato_fra = usdate($dato_fra) : $dato_fra = "1970-01-01";
@@ -3053,7 +3146,11 @@ if (!function_exists('kontoprint')) {
 					}
 					if ($dato_fra > '1970-01-01') {
 						$saldo = 0;
-						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra' order by transdate";
+						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra'";
+						if ($openPostOnly) {
+							$qtxt .= " and (udlignet != '1' or udlignet is null)";
+						}
+						$qtxt .= " order by transdate";
 						$q1 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 						while ($r1 = db_fetch_array($q1)) {
 							if ($kontovaluta == $r1['valuta'])
@@ -3098,7 +3195,11 @@ if (!function_exists('kontoprint')) {
 						$dksaldo = "0,00";
 					}
 					$y = $y - 4;
-					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til' order by transdate,id";
+					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til'";
+					if ($openPostOnly) {
+						$qxt .= " and (udlignet != '1' or udlignet is null)";
+					}
+					$qxt .= " order by transdate,id";
 					$q1 = db_select("$qxt", __FILE__ . " linje " . __LINE__);
 					while ($r1 = db_fetch_array($q1)) {
 

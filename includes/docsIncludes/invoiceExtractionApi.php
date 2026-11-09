@@ -14,6 +14,8 @@
 // 20260922 CL/LAH UBL line names that are only punctuation (".") no longer end up in description.
 // 20260922 NTR - disallow http urls in invoiceExtractionApiResolveUrl() to avoid sending invoice data over unencrypted HTTP.
 //                This shouldn't be a problem, since we only have https calls and it's a setting that's not accessable to the user.
+// 20261003 CL/SZ SD-722 extractInvoiceData() keeps what the extraction itself returned in $GLOBALS['invoiceExtractionLastRaw']: the service's decoded answer, or for UBL XML array('source' => 'ubl', 'values' => ...).
+//                The pool stores it as the document's snapshot (poolCapture.php); the return value is unchanged.
 
 function invoiceExtractionApiResolveApiKey() {
 	if (!function_exists('db_select') || !function_exists('db_fetch_array')) {
@@ -245,8 +247,13 @@ function extractUblInvoiceData($filePath) {
  * }|null SALDI invoice fields on success, null on failure.
  */
 function extractInvoiceData($filePath, $invoiceId = null) {
+	$GLOBALS['invoiceExtractionLastRaw'] = null;
 	$fileExt = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-	if ($fileExt === 'xml') return extractUblInvoiceData($filePath);
+	if ($fileExt === 'xml') {
+		$ublResult = extractUblInvoiceData($filePath);
+		if ($ublResult !== null) $GLOBALS['invoiceExtractionLastRaw'] = array('source' => 'ubl', 'values' => $ublResult);
+		return $ublResult;
+	}
 
 	$dependencies = invoiceExtractionApiDependencies();
 	$keyResolver = isset($dependencies['key_resolver']) && is_callable($dependencies['key_resolver'])
@@ -343,6 +350,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		error_log("Invoice extraction API returned non-success status: " . $responseData['status']);
 		return null;
 	}
+	$GLOBALS['invoiceExtractionLastRaw'] = is_array($responseData) ? $responseData : null;
 
 	$amount = null;
 	$date = null;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/updateShopCostPrice --- lap 4.0.8 --- 2023-06-07 ---
+// --- api/updateShopCostPrice --- ver 5.0.0 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // --------------------------------------------------------------
 // 20260727 Sawaneh Sends the cost price with shopApiRequest() instead of a backgrounded
 //                 shell curl, so failures are logged and item data cannot reach the shell.
+// 20261027 CL/SZ SD-778: nothing is sent while slot 4 (box4) is closed for legacy outbound.
+// 20261028 CL/SZ SD-778: a cutover in progress returns 'legacy busy', not 'closed'.
 
 require_once(__DIR__ . '/../includes/stdFunc/shopApiRequest.php');
+require_once(__DIR__ . '/../includes/shopify/coexistence.php');
 
 if (!function_exists('updateShopCostPrice')) {
 function updateShopCostPrice($productId) {
@@ -40,6 +43,17 @@ function updateShopCostPrice($productId) {
 		fwrite($log,__file__." ".__line__." no api\n");
 		fclose($log);
 		return('no api');
+	}
+	// Box4 is legacy slot 4: once the shop has moved to Shopify, the old shop gets no cost price.
+	if (shopify_legacy_shared(array('db' => $db), 4) === false) {
+		fwrite($log,__file__." ".__line__." legacy slot 4 busy (cutover in progress)\n");
+		fclose($log);
+		return('legacy busy');
+	}
+	if (!shopify_legacy_enabled(array('db' => $db), 4, 'outbound')) {
+		fwrite($log,__file__." ".__line__." legacy outbound closed for slot 4\n");
+		fclose($log);
+		return('legacy outbound closed');
 	}
 	$qtxt = "select varenr,kostpris from varer where id = '$productId'";
 	fwrite($log,__file__." ".__line__." $qtxt\n");

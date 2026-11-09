@@ -1,0 +1,13 @@
+# One Shopify worker pass for tenant %i (WP02, SD-737). Started every minute by shopify-worker@%i.timer.
+# Install as /etc/systemd/system/shopify-worker@.service; PHP path, install path and user are
+# the open ssl3 facts in doc/shopify/drift-worker.md.
+[Unit]
+Description=Saldi Shopify worker pass for %i
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/saldi
+ExecStart=/usr/bin/php /var/www/html/saldi/tools/shopify_worker.php run --db=%i --max-seconds=50
+TimeoutStartSec=90

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------lager/minmaxstock.php------------patch 3.9.0-------2020.03.13----
+// -----------lager/minmaxstock.php------------ver 5.0.0-------2026.10.22----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260729 LOE Initiated some variables to array, and guarded against unset groups and items to avoid warnings and errors.
+// 20261022 CL/NTR "Luk" link: build the return query with http_build_query() and print the href quoted and HTML-escaped (XSS via vgrp & co.).
+//                 afd is cast to int and vgrp/vnr/vname escaped before they go into SQL; GET reads use ifset().
 
 @session_start();
 $s_id=session_id();
@@ -35,17 +38,34 @@ $vk_kost=NULL;
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
+include("../includes/std_func.php"); 
 
-$afd=if_isset($_GET['afd']);
-$vgrp=if_isset($_GET['vgrp']);
-$vnr=if_isset($_GET['vnr']);
-$vname=if_isset($_GET['vname']);
 
-if ($popup) $returside="../includes/luk.php";
-else $returside="rapport.php?varenr=$vnr&afd=$afd&varegruppe=$vrgp&varenavn=$vname";
+$vGr = array();
+$stk = array();
+$stock = array();
 
-$lokMinMax=if_isset($_POST['lokMinMax']);
+$afd = (int)ifset($_GET, 'afd', 0);
+$vgrp = ifset($_GET, 'vgrp');
+$vnr = ifset($_GET, 'vnr');
+$vname = ifset($_GET, 'vname');
+
+$itemId = array();
+$itemNo = array();
+$itemGrp = array();
+$itemMin = array();
+$itemMax = array();
+$itemDescription = array();
+
+if ($popup) {
+	$returside = "../includes/luk.php";
+} else {
+	$returside = "rapport.php?" . http_build_query([
+		'varenr' => (string)$vnr, 'afd' => (string)$afd, 'varegruppe' => (string)$vgrp, 'varenavn' => (string)$vname,
+	]);
+}
+
+$lokMinMax=if_isset($_POST,NULL,'lokMinMax');
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -60,7 +80,7 @@ if ($menu=='T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
 	print "<tr><td width=100%>";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-	print "<td width=\"10%\" $top_bund><a href=$returside accesskey=L>Luk</a></td>";
+	print "<td width=\"10%\" $top_bund><a href=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\" accesskey=L>Luk</a></td>";
 	print "<td width=\"80%\" $top_bund>Varerapport - forside</td>";
 	print "<td width=\"10%\" $top_bund><a href='../temp/$db/minmax$bruger_id.csv'>csv</a></td></tr>";
 	print "</tbody></table></td></tr>"; #B slut
@@ -68,7 +88,7 @@ if ($menu=='T') {
 }
 $x=0;
 $qtxt = "select kodenr,beskrivelse from grupper where art = 'VG' and box8 = 'on' ";
-if ($vgrp) $qtxt.= " and kodenr='$vgrp' ";
+if ($vgrp) $qtxt.= " and kodenr='" . db_escape_string($vgrp) . "' ";
 $qtxt.= "order by kodenr";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
@@ -89,12 +109,12 @@ while ($r = db_fetch_array($q)) {
 $x=0;
 $qtxt = "select id,varenr,beskrivelse,min_lager,max_lager,gruppe from varer where lukket != 'on' and min_lager > '0' ";
 if ($vnr && $vnr != '*') {
-	$vnr=str_replace('*','%',$vnr);
+	$vnr=db_escape_string(str_replace('*','%',$vnr));
 	$qtxt.= "and (varenr like '$vnr' or lower(varenr) like '". strtolower($vnr) ."' ";
 	$qtxt.= "or upper(varenr) like '". strtoupper($vnr) ."') ";
 }
 if ($vname && $vname != '*') {
-	$vname=str_replace('*','%',$vname);
+	$vname=db_escape_string(str_replace('*','%',$vname));
 	$qtxt.= "and (beskrivelse like '$vname' or lower(beskrivelse) like '". strtolower($vname) ."' ";
 	$qtxt.= "or upper(beskrivelse) like '". strtoupper($vname) ."') ";
 }
@@ -123,8 +143,6 @@ while ($r = db_fetch_array($q)) {
 		$variant_id[$x]=$r['variant_id'];
 		$stockNo[$x]=$r['lager'];
 		$stock[$x]=$r['beholdning'];
-#if ($stockItemId[$x]==809) echo __line__." 809 $stockNo[$x] -> $stock[$x]<br>";
-#if ($stockItemId[$x]==1746) echo __line__." 1746 $stockNo[$x] -> $stock[$x]<br>";
 		$x++;
 	}
 }
@@ -135,17 +153,20 @@ print "<tr bgcolor='$bgc'><td>Afd</td><td>Varenr</td><td>Beskrivelse</td><td wid
 print "<td width='80px' align='center'>Min</td><td width='80px' align='center'>Max</td>";
 print "<td width='80px' align='center'>Køb</td><tr>";
 fwrite($fp,"Afd;Varenr;Beskrivelse;Beholdning;Min;Max;".mb_convert_encoding('Køb', 'ISO-8859-1', 'UTF-8')."\n");
-
+if (empty($vGr) || empty($itemGrp)) {
+	print "<tr><td colspan='7' align='center'>".findtekst('1685|Item does not belong to any item group - check item and settings!',$sprog_id)."</td></tr>";
+} elseif (empty($stk)) {
+	print "<tr><td colspan='7' align='center'>No stock locations match the selected department!</td></tr>"; //to be translated by Sors at a later time.
+} elseif (empty($stock)) {
+	print "<tr><td colspan='7' align='center'>No stock data found for the selected filters!</td></tr>";
+}
 for ($a=0;$a<count($vGr);$a++) {
 	if (in_array($vGr[$a],$itemGrp)) {
+		$stocksum = 0; // initialize per group
 		for ($b=0;$b<count($itemId);$b++) {
-#			$stocksum=0;
 			for ($c=0;$c<count($stk);$c++) {
 				for ($d=0;$d<count($stock);$d++) {
-#if ($ItemId[$b]==809 && $stockNo[$d]=='3') echo __line__." 809 $stockNo[$d] -> $stock[$d]<br>";
-#if ($ItemId[$b]=1746 && $stockNo[$d]=='3') echo __line__." 1746 $stockNo[$d] -> $stock[$d] ($b)<br>";
 				if ($stk[$c]==$stockNo[$d] && $itemId[$b]==$stockItemId[$d]) $stocksum+=$stock[$d];
-#if ($ItemId[$b]=1746) echo "$itemId[$b]==$stockItemId[$d] && $stockNo[$d]==$stk[$c] && $itemMin[$b]>0 && $itemMax[$b]>0 && $itemGrp[$b]==$vGr[$a] && $itemMin[$b]+1<$stock[$d]<br>";
 					$min=$itemMin[$b];
 					if ($db=='bizsys_49') $min++;
 					if ($itemId[$b]==$stockItemId[$d] && $stockNo[$d]==$stk[$c] && $itemMin[$b]>0 && $itemMax[$b]>0 

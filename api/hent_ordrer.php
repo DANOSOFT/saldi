@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- api/hent_ordrer.php ---------- lap 3.7.0----2017.11.16-------
+// ------------- api/hent_ordrer.php ---------- ver 5.0.0----2026.10.26-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,10 +23,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2017 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260911 Sawaneh Blank the literal "dummyvalue" sent for empty address fields (JOB-115)
+// 20261026 CL/SZ SD-750 Orders are only fetched while afd 4's legacy slot is open for intake, or while they
+//                are in that slot's go-live drain manifest.
 
 @session_start();
 $s_id=session_id();
@@ -72,6 +74,29 @@ fwrite($fp,$prefix."->".$nye_ordrer."\n");
 $ordreliste=explode(',',$nye_ordrer);
 for ($x=0;$x<count($ordreliste);$x++) fwrite($fp,$prefix."/".$ordreliste[$x]."\n");
 fclose($fp);
+// Legacy intake switch (SD-750): this import lands in afd 4, so it follows that slot. While the
+// slot is closed only orders in the go-live drain manifest are fetched; a cutover in progress
+// means try again later. Admitted orders hold the slot's shared lock until the import ends.
+$legacySlot = shopify_legacy_slot_for_afd((int)$afd);
+$admitted = array();
+foreach ($ordreliste as $shopOrderId) {
+	$admission = shopify_legacy_admission(array('db' => $db), $legacySlot, (int)$afd, 'hent_ordrer', (string)$shopOrderId);
+	if ($admission['reason'] == 'busy') {
+		echo "Importfejl prøv igen senere<br>";
+		print "<body onload=\"javascript:window.close();\">";
+		exit;
+	}
+	if ($admission['admitted']) {
+		$admitted[] = $shopOrderId;
+	} else {
+		file_put_contents("../temp/$db/shop.log", "$prefix/$shopOrderId skipped: legacy intake closed for slot $legacySlot\n", FILE_APPEND);
+	}
+}
+$ordreliste = $admitted;
+if (!$ordreliste) {
+	print "<body onload=\"javascript:window.close();\">";
+	exit;
+}
 $lockfil="../api/$db.lock";
 $x=0;
 if (file_exists($lockfil)) {

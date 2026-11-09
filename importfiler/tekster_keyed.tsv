@@ -1,0 +1,62 @@
+common.accept	Acceptér	Accept	Godta
+formular.line.lager	Lager	Warehouse	Lager
+formular.line.lagernavn	Lagernavn	Warehouse name	Lagernavn
+shopify.admin.error.afd	Vælg en afdeling.	Choose a department.	Velg en avdeling.
+shopify.admin.error.afd_taken	En anden shop bruger allerede denne afdeling.	Another shop already uses this department.	En annen nettbutikk bruker allerede denne avdelingen.
+shopify.admin.error.domain	Domænet skal være en *.myshopify.com-adresse.	The domain must be a *.myshopify.com address.	Domenet må være en *.myshopify.com-adresse.
+shopify.admin.error.domain_taken	En anden shop har allerede dette domæne.	Another shop already has this domain.	En annen nettbutikk har allerede dette domenet.
+shopify.admin.error.freight	Varenummeret findes ikke.	The item number does not exist.	Varenummeret finnes ikke.
+shopify.admin.error.legacy_slot	Vælg 1., 2. eller 3. API-klient.	Choose the 1st, 2nd or 3rd API client.	Velg 1., 2. eller 3. API-klient.
+shopify.admin.error.legacy_slot_taken	En anden shop bruger allerede denne API-klient.	Another shop already uses this API client.	En annen nettbutikk bruker allerede denne API-klienten.
+shopify.admin.error.primary_taken	En anden shop er allerede primær.	Another shop is already primary.	En annen nettbutikk er allerede primær.
+shopify.admin.error.prioritet	Et salgbart lager skal have en prioritet på 1 eller mere.	A sellable warehouse needs a priority of 1 or more.	Et salgbart lager må ha en prioritet på 1 eller mer.
+shopify.admin.error.prioritet_taken	To salgbare lagre kan ikke have samme prioritet.	Two sellable warehouses cannot have the same priority.	To salgbare lagre kan ikke ha samme prioritet.
+shopify.admin.error.rolle	Vælg en rolle.	Choose a role.	Velg en rolle.
+shopify.admin.error.save	Ændringen kunne ikke gemmes. Prøv igen.	The change could not be saved. Try again.	Endringen kunne ikke lagres. Prøv igjen.
+shopify.admin.error.shop_key	Kortnavnet skal være 1-40 tegn: a-z, 0-9, _ eller -.	The short name must be 1-40 characters: a-z, 0-9, _ or -.	Kortnavnet må være 1-40 tegn: a-z, 0-9, _ eller -.
+shopify.admin.error.shop_key_taken	En anden shop har allerede dette kortnavn.	Another shop already has this short name.	En annen nettbutikk har allerede dette kortnavnet.
+shopify.admin.error.udstilling_af	Vælg det salgbare lager, udstillingen hører til.	Choose the sellable warehouse the display belongs to.	Velg det salgbare lageret utstillingen hører til.
+shopify.admin.flow.customers	Kunder	Customers	Kunder
+shopify.admin.flow.orders	Ordrer	Orders	Ordrer
+shopify.admin.flow.prices	Priser	Prices	Priser
+shopify.admin.flow.products	Varer	Products	Varer
+shopify.admin.flow.stock_capture	Opsaml lagerændringer	Collect stock changes	Samle lagerendringer
+shopify.admin.flow.stock_publish	Send lagertal	Send stock levels	Send lagertall
+shopify.admin.flow.store_orders	Butiksordrer	Store orders	Butikkordrer
+shopify.admin.lager.ingen	Ingen	None	Ingen
+shopify.admin.lager.navn	Lager	Warehouse	Lager
+shopify.admin.lager.nr	Nr.	No.	Nr.
+shopify.admin.lager.prioritet	Prioritet	Priority	Prioritet
+shopify.admin.lager.rolle	Rolle	Role	Rolle
+shopify.admin.lager.saelgbar	Salgbart	Sellable	Salgbart
+shopify.admin.lager.udstilling	Udstilling	Display	Utstilling
+shopify.admin.lager.udstilling_af	Hører til lager	Belongs to warehouse	Hører til lager
+shopify.admin.lagre.help	Har en webordre intet lager fra Shopify, trækkes den fra de salgbare lagre i prioriteret rækkefølge (1 først). Der sælges aldrig fra et udstillingslager.	When a web order has no warehouse from Shopify, it is taken from the sellable warehouses in order of priority (1 first). A display warehouse is never sold from.	Har en nettordre ikke noe lager fra Shopify, trekkes den fra de salgbare lagrene i prioritert rekkefølge (1 først). Det selges aldri fra et utstillingslager.
+shopify.admin.lagre.none	Der er ingen lagre. Opret dem under Indstillinger → Lager.	There are no warehouses. Create them under Settings → Inventory.	Det finnes ingen lagre. Opprett dem under Innstillinger → Lager.
+shopify.admin.lagre.title	Shopify-lagre	Shopify warehouses	Shopify-lagre
+shopify.admin.menu	Shopify	Shopify	Shopify
+shopify.admin.no_access	Du har ikke adgang til Shopify-opsætningen.	You do not have access to the Shopify setup.	Du har ikke tilgang til Shopify-oppsettet.
+shopify.admin.not_installed	Shopify-modulet er ikke installeret på dette regnskab.	The Shopify module is not installed on this account.	Shopify-modulen er ikke installert på dette regnskapet.
+shopify.admin.post_refused	Ændringen blev afvist: du har kun læseadgang, eller formularen er udløbet. Genindlæs siden.	The change was refused: you only have read access, or the form has expired. Reload the page.	Endringen ble avvist: du har bare lesetilgang, eller skjemaet er utløpt. Last inn siden på nytt.
+shopify.admin.save	Gem	Save	Lagre
+shopify.admin.saved	Gemt.	Saved.	Lagret.
+shopify.admin.secret.remove	Slet	Delete	Slett
+shopify.admin.secret.set	Gemt. Lad feltet stå tomt for at beholde værdien.	Saved. Leave the field empty to keep the value.	Lagret. La feltet stå tomt for å beholde verdien.
+shopify.admin.secret.unset	Ikke gemt	Not saved	Ikke lagret
+shopify.admin.shop.access_token	Adgangstoken (Admin API)	Access token (Admin API)	Tilgangstoken (Admin API)
+shopify.admin.shop.afd	Afdeling	Department	Avdeling
+shopify.admin.shop.create_danosoft	En ny shop oprettes af Danosoft.	A new shop is created by Danosoft.	En ny nettbutikk opprettes av Danosoft.
+shopify.admin.shop.domain	Domæne	Domain	Domene
+shopify.admin.shop.edit	Ret shop	Edit shop	Rediger nettbutikk
+shopify.admin.shop.flows	Synkronisering	Synchronisation	Synkronisering
+shopify.admin.shop.freight	Standard fragtvare (varenr.)	Default freight item (item no.)	Standard fraktvare (varenr.)
+shopify.admin.shop.key	Kortnavn	Short name	Kortnavn
+shopify.admin.shop.legacy_slot	Gammel API-klient	Legacy API client	Gammel API-klient
+shopify.admin.shop.navn	Navn	Name	Navn
+shopify.admin.shop.new	Ny shop	New shop	Ny nettbutikk
+shopify.admin.shop.primary	Primær	Primary	Primær
+shopify.admin.shop.web_kasse	Webkasse	Web register	Webkasse
+shopify.admin.shop.webhook_secret	Webhook-hemmelighed	Webhook secret	Webhook-hemmelighet
+shopify.admin.shops.title	Shopify-shops	Shopify shops	Shopify-nettbutikker
+shopify.admin.tab.lagre	Lagre	Warehouses	Lagre
+shopify.admin.tab.shops	Shops	Shops	Nettbutikker
