@@ -35,19 +35,14 @@
     /**
      * Counts one e-invoice for the account in the master database (regnskab.invoices).
      * SST-984: this used to be an HTTP call to debitor/increaseInvoiceNumber.php, which anyone could call.
-     * A failed update must not stop the webhook, because an incoming invoice is stored and mailed after the count.
-     * With $webservice set, db_modify() logs the error and reports it by mail, then returns instead of exiting.
+     * The webhook calls it in webservice mode, so a failed update is logged and reported by mail but does not stop the webhook.
      *
      * @param string $db The account database name the locator answered with.
      * @return void
      */
     function increaseEinvoiceCount($db) {
-        global $webservice;
         $qtxt = "UPDATE regnskab SET invoices = COALESCE(invoices, 0) + 1 WHERE db = '" . db_escape_string($db) . "'";
-        $previousWebservice = $webservice;
-        $webservice = true;
         db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
-        $webservice = $previousWebservice;
     }
 
     // Retrieving webhook data
@@ -125,7 +120,12 @@
             // decode base64
             $decoded = base64_decode($base64["base64EncodedMessage"]);
             file_put_contents("../temp/$db/msg-$timestamp.json", ["message" => $decoded]);
+            // SST-984: the incoming invoice is stored and mailed after the count, so a failed count must not stop the webhook.
+            // In webservice mode db_modify() logs the error and reports it by mail, then returns instead of exiting.
+            $previousWebservice = isset($webservice) ? $webservice : null;
+            $webservice = true;
             increaseEinvoiceCount($db);
+            $webservice = $previousWebservice;
         }
         file_put_contents("../temp/$db/res-$timestamp.json", $webhookData);
     }
