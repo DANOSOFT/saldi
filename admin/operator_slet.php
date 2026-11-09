@@ -5,7 +5,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------/admin/operator_slet.php-----patch 3.8.9------2026.10.29--------
+// -------------/admin/operator_slet.php-----ver 5.1.0------2026.11.09--------
 // 20261012 CL/ASR Operator copy of admin/slet_regnskab.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -24,12 +24,14 @@ ob_start(); # for the redirect after an action (vr_prg)
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2020.02.27 PHR Check if db exist before dropping 20200227
 // 20261010 CL/ASR Rendered in the admin-layer shell; deletion logic unchanged. Duplicate doctype removed; the
 //                  deleted-ledger message and list use the shared components.
 // 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
+// 20261109 CL/ASR The database dump and the tar archive must both exit with status 0 before DROP DATABASE runs (review #785).
+//                 The backup is written with 0007 added to the umask and new backup directories request 0770, so other local users cannot read it.
 
 @session_start();
 $s_id=session_id();
@@ -92,17 +94,22 @@ if (isset($_POST['regnskabsantal'])) {
 		$r = $vr_deletable((int)$pid[$x]);
 		if (!$r) { $vr_err[] = vr_t('Regnskab','Account').' '.(int)$pid[$x].' '.vr_t('kan ikke slettes (ikke lukket, suspenderet eller uden adgang)','cannot be deleted (not closed, suspended or no access)'); continue; }
 		$dbn = $r['db']; $mappe = '../nedlagte_regnskaber/'; $tmpmappe = $mappe.$dbn;
-		if (!file_exists($mappe)) mkdir($mappe, 0777);
-		if (!file_exists($tmpmappe)) mkdir($tmpmappe, 0777);
-		if (!file_exists($tmpmappe)) { $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet"; continue; }
+		# customer data: the directories, backup.info, the dump and the archive (also from exec, which inherits the mask) get no access for other local users, even inside an existing 0777 directory (doc/runtime-permissions.md); restored below before any database call
+		$vr_umask = umask(umask() | 0007);
+		if (!file_exists($mappe)) mkdir($mappe, 0770);
+		if (!file_exists($tmpmappe)) mkdir($tmpmappe, 0770);
+		if (!file_exists($tmpmappe)) { umask($vr_umask); $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet"; continue; }
 		$dump_filnavn = $tmpmappe."/".$dbn.".sql"; $dat_filnavn = $dbn."_".date("Ymd-Hi").".sdat";
 		if ($fp = fopen($tmpmappe."/backup.info", "w")) { fwrite($fp, date("YmdHis").chr(9).$dbn.chr(9).chr(9).$r['regnskab'].chr(9)."$db_encode".chr(9)."$db_type".chr(9)."$r[regnskab] slettet ".date("d-m-Y H:i")." af $brugernavn"); fclose($fp); }
-		if ($db_type == 'mysql' || $db_type == 'mysqli') system("mysqldump -h ".escapeshellarg($sqhost)." -u ".escapeshellarg($squser)." --password=".escapeshellarg($sqpass)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn));
-		else system("export PGPASSWORD=".escapeshellarg($sqpass)."\npg_dump -h ".escapeshellarg($sqhost)." -U ".escapeshellarg($squser)." -f ".escapeshellarg($dump_filnavn)." ".escapeshellarg($dbn));
-		$dumpOk = file_exists($dump_filnavn) && filesize($dump_filnavn) > 0;
-		if ($dumpOk) system("cd ".escapeshellarg($mappe)."\ntar -pzcf ".escapeshellarg($dat_filnavn)." ".escapeshellarg($dbn));
+		// 20261109 CL/ASR The exit codes count: a dump or tar that fails partway can still leave a non-empty file (review #785).
+		$vr_out = array(); $dumpRc = 1; $tarRc = 1;
+		if ($db_type == 'mysql' || $db_type == 'mysqli') exec("mysqldump -h ".escapeshellarg($sqhost)." -u ".escapeshellarg($squser)." --password=".escapeshellarg($sqpass)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn), $vr_out, $dumpRc);
+		else exec("PGPASSWORD=".escapeshellarg($sqpass)." pg_dump -h ".escapeshellarg($sqhost)." -U ".escapeshellarg($squser)." -f ".escapeshellarg($dump_filnavn)." ".escapeshellarg($dbn), $vr_out, $dumpRc);
+		$dumpOk = $dumpRc === 0 && file_exists($dump_filnavn) && filesize($dump_filnavn) > 0;
+		if ($dumpOk) exec("cd ".escapeshellarg($mappe)." && tar -pzcf ".escapeshellarg($dat_filnavn)." ".escapeshellarg($dbn), $vr_out, $tarRc);
 		system("rm -r ".escapeshellarg($tmpmappe));
-		if (!$dumpOk || !file_exists($mappe.$dat_filnavn) || !filesize($mappe.$dat_filnavn)) { $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet"; continue; }
+		umask($vr_umask);
+		if (!$dumpOk || $tarRc !== 0 || !file_exists($mappe.$dat_filnavn) || !filesize($mappe.$dat_filnavn)) { $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet"; continue; }
 		if ($k = db_fetch_array(db_select("select id from kundedata where regnskab_id='".(int)$r['id']."'", __FILE__ . " linje " . __LINE__))) db_modify("update kundedata set slettet='on' where id='$k[id]'", __FILE__ . " linje " . __LINE__);
 		else db_modify("update kundedata set slettet='on',regnskab_id='".(int)$r['id']."' where regnskab='".db_escape_string($r['regnskab'])."'", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from regnskab where id = '".(int)$r['id']."'", __FILE__ . " linje " . __LINE__);

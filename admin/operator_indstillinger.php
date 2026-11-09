@@ -5,7 +5,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/operator_indstillinger.php --- patch 5.0.0 --- 2026.10.29 ---
+// --------------- admin/operator_indstillinger.php --- ver 5.1.0 --- 2026.11.09 ---
 // 20261012 CL/ASR Operator copy of admin/admin_settings.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -23,7 +23,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190411 PHR Added alertText
@@ -36,6 +36,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 // 20260326 PHR Fixed error in weasyprint
 // 20261010 CL/ASR Rendered in the admin-layer shell; save logic unchanged. Missing programs are shown as a notice.
 // 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds. Fallback text of findtekst 534 matches tekster.csv.
+// 20261109 CL/ASR The user lookup and the dashboard news text are escaped, and empty program paths are looked up without printing them into the page (review #785).
 
 @session_start();
 $s_id=session_id();
@@ -119,7 +120,7 @@ if (isset($_POST['gem'])) {
 		$qtxt="insert into settings (var_name,var_value,var_description) values ";
 		$qtxt.="('alertText','".db_escape_string($alertText)."','".db_escape_string('Alert text if: unpredicted event')."')";
 	}
-	update_settings_value("nyhed", "dashboard", $newssnippet, "The news snippet showen to all admin accounts on this system");
+	update_settings_value("nyhed", "dashboard", db_escape_string((string)$newssnippet), "The news snippet showen to all admin accounts on this system"); # the helper does not escape
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	// 20261013 CL/ASR Values escaped and ids cast (review #785); the language is only changed when the form posts it
 	//                  (this form has no language field, so every save used to set the installation language to 0).
@@ -134,7 +135,7 @@ if (isset($_POST['gem'])) {
 }
 
 
-$q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
+$q = db_select("select * from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
 if ($brugerId=$r['id']) {
 	$rettigheder=$r['rettigheder'];
@@ -184,17 +185,18 @@ $td=" align=\"center\" height=\"35\"";
 $txt = findtekst('1926|ikke fundet!', $sprog_id); #20210917
 foreach (array($ps2pdf, $weasyprint, $pdftk, $ftp, $dbdump, $zip, $unzip, $tar) as $vr_p) if ($vr_p && !file_exists($vr_p)) $vr_missing[] = "$vr_p $txt";
 
-if (!$ps2pdf) $ps2pdf=system("which ps2pdf");
-if (!$weasyprint) $weasyprint=system("which weasyprint");
-if (!$pdftk) $pdftk=system("which pdftk");
-if (!$ftp) $ftp=system("which ncftp");
+$vr_which = fn($p) => trim((string)shell_exec("which ".escapeshellarg($p)." 2>/dev/null")); # returns the path only; system() also printed it above the page
+if (!$ps2pdf) $ps2pdf=$vr_which("ps2pdf");
+if (!$weasyprint) $weasyprint=$vr_which("weasyprint");
+if (!$pdftk) $pdftk=$vr_which("pdftk");
+if (!$ftp) $ftp=$vr_which("ncftp");
 if (!$dbdump) {
-	if ($db_type=='postgresql') $dbdump=system("which pg_dump");
-	else $dbdump=system("which mysqldump");
+	if ($db_type=='postgresql') $dbdump=$vr_which("pg_dump");
+	else $dbdump=$vr_which("mysqldump");
 }
-if (!$zip) $zip=system("which gzip");
-if (!$unzip) $unzip=system("which gunzip");
-if (!$tar) $tar=system("which tar");
+if (!$zip) $zip=$vr_which("gzip");
+if (!$unzip) $unzip=$vr_which("gunzip");
+if (!$tar) $tar=$vr_which("tar");
 if (!$alertText) $alertText=findtekst('534|Uforudset hændelse, kontakt Saldi-teamet på telefon 4690 2208', $sprog_id); #20210917
 $newssnippet = get_settings_value("nyhed", "dashboard", "");
 

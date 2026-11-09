@@ -2,10 +2,7 @@
 // --- admin/inc_forbrug.php --- ver 5.1.0 --- 2026.10.10 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR New. Area 2 "Forbrug og begrænsninger" on the customer card: live usage from the customer
-//                  database (ent_usage_collect), today's snapshot stored, limits shown as plan standard vs.
-//                  individual override vs. effective, utilisation bars, entries per month, modules in use vs.
-//                  plan, and limit adjustment (writes regnskab_overrides kind='limit', logged as entitlement.*).
+// 20261010 CL/ASR New. Area 2 "Forbrug og begrænsninger" on the customer card: live usage from the customer database (ent_usage_collect), today's snapshot stored, limits shown as plan standard vs. individual override vs. effective, utilisation bars, entries per month, modules in use vs. plan, and limit adjustment (writes regnskab_overrides kind='limit', logged as entitlement.*).
 
 if (!function_exists('ent_forbrug_actions')) {
 function ent_forbrug_actions($rid, &$notes) {

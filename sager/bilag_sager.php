@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php------------patch 3.2.5-----2011.12.28-----------
+// ----------sager/bilag_sager.php------------ver 5.1.0-----2026-11-04-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Tilføjet fase og kategori fra sagstyring
 // 20170303	Tilføjet tilknytning af bilag til kontrolskema i funktion ret_bilag. Søg #20170303
+// 20261103 CL/MMR SD-799 The task names of the forms ("Opgave N") follow the user's language.
+// 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 
 @session_start();
 $s_id = session_id();
@@ -29,6 +31,7 @@ $s_id = session_id();
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
 $sag_id   = if_isset($_GET['sag_id']);
 //$sag_id = if_isset($_POST['sag_id']);
@@ -470,7 +473,7 @@ function ret_bilag() {
 		while ($r = db_fetch_array($q)) {
 			$tjekskema_id[$x]=$r['tjekskemaid']*1;
 			$tjekskema_tjekliste_id[$x]=$r['tjekliste_id'];
-			$tjekskema_dato[$x]=date("d-m-Y",$r['datotid']);
+			$tjekskema_dato[$x]=datotidTilTekst($r['datotid'], 'd-m-Y');
 			$tjekskema_opg[$x]=htmlspecialchars($r['opg_navn']);
 			$tjekskema_hvem[$x]=htmlspecialchars($r['hvem']);
 			$bilag_tjekskema_id[$x]=$r['bilag_tjekskema_id'];
@@ -566,7 +569,7 @@ if ($tjekskema_id) { #20170303
 		
 		print "<tr>
 						<td><p>$tjekpunkt</p></td>
-						<td><p>$tjekskema_opg[$x]&nbsp;</p></td>
+						<td><p>".opgave_navn_txt($tjekskema_opg[$x])."&nbsp;</p></td>
 						<td><p>$tjekskema_dato[$x]</p></td>
 						<td><p>$tjekskema_hvem[$x]</p></td>
 						<td style=\"text-align: center;\"><input type=\"hidden\" name=\"skemavalg[$x]\" value=\"off\"><input type=\"checkbox\" name=\"skemavalg[$x]\" $skemacheked><input type=\"hidden\" name=\"tjekskema[$x]\" value=\"$tjekskema_id[$x]\"></td>

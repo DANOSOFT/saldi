@@ -1,8 +1,11 @@
-// tools/guardrails/checks/tekster.mjs - importfiler/tekster.csv stays loadable and its ids mean one thing.
+// tools/guardrails/checks/tekster.mjs - numeric and descriptive translation seed files stay loadable.
 //
 // The file is read as raw tab-separated text: `id<TAB>Dansk<TAB>English<TAB>Norsk`,
 // no quoting. findtekst() caches each row in the tenant's `tekster` table and
 // always prefers that cached row, so a row's text can never quietly change.
+// Descriptive keys use the same language columns in tekster_keyed.tsv, separate
+// from the integer-only tekster.csv file. egne_tekster_keyed.tsv uses the same
+// validation and overrides matching standard keys.
 //
 // Past mistakes this catches:
 //   - malformed rows: spaces instead of tabs (407c858c), extra tab columns
@@ -15,10 +18,15 @@
 //
 // History:
 // 20261027 CL/LH Created.
+// 20261029 CDX/NTR Validate standard/custom descriptive-key TSVs and keyed fallbacks.
+// 20261029 CDX/NTR Require new custom overrides to purge standard translations already cached by tenants.
+// 20261029 CDX/NTR Check keyed TSV ordering when either adjacent row was added.
 
 import { splitLines } from "../lib/changeset.mjs";
 
 const CSV = "importfiler/tekster.csv";
+const KEYED_TSV = "importfiler/tekster_keyed.tsv";
+const CUSTOM_KEYED_TSV = "importfiler/egne_tekster_keyed.tsv";
 const UPDATES = "includes/betweenUpdates.php";
 const ENTITIES = {
   aelig: "æ", oslash: "ø", aring: "å", AElig: "Æ", Oslash: "Ø", Aring: "Å", amp: "&", nbsp: " ", quot: '"',
@@ -26,7 +34,7 @@ const ENTITIES = {
   hellip: "…", ndash: "–", mdash: "—", euro: "€",
 };
 
-/** id -> {line, fields} for every row; duplicates are reported separately. */
+/** identifier -> {line, fields} for every row; duplicates are reported separately. */
 function rows(content) {
   const byId = new Map();
   const duplicates = [];
@@ -38,6 +46,17 @@ function rows(content) {
     else byId.set(fields[0], row);
   });
   return { byId, duplicates };
+}
+
+/** Keys passed to deleteStaleTekst() by added migration lines. */
+function purgedKeys(ctx) {
+  const file = ctx.files.find((f) => f.path === UPDATES);
+  const keys = new Set();
+  if (!file) return keys;
+  for (const text of file.added.values()) {
+    for (const match of text.matchAll(/deleteStaleTekst\(\s*(['"])([a-z0-9][a-z0-9_.-]{0,189})\1/g)) keys.add(match[2]);
+  }
+  return keys;
 }
 
 /** How a text reads to a user: entities decoded, tags and case and spacing ignored. */
@@ -118,10 +137,81 @@ function checkCsv(ctx, file, findings) {
   }
 }
 
+function checkKeyedTsv(ctx, file, path, findings) {
+  const head = rows(ctx.readHead(path) ?? "");
+  const base = rows(ctx.readBase(path) ?? "");
+  const purged = purgedKeys(ctx);
+
+  for (const dup of head.duplicates) {
+    findings.push({
+      path,
+      line: dup.line,
+      message: `key ${dup.fields[0]} is already used on line ${dup.first}; every descriptive key must be unique.`,
+    });
+  }
+
+  let previous = null;
+  for (const row of head.byId.values()) {
+    const key = row.fields[0];
+    if (previous !== null && key < previous.fields[0] && (file.added.has(previous.line) || file.added.has(row.line))) {
+      findings.push({ path, line: row.line, message: `key ${key} is out of order; keep descriptive keys sorted alphabetically.` });
+    }
+    previous = row;
+  }
+
+  for (const [line, text] of file.added) {
+    if (text === "") continue;
+    const fields = text.replace(/\r$/, "").split("\t");
+    const key = fields[0] ?? "";
+    const problems = [];
+    if (/^\d+$/.test(key)) problems.push(`the key "${key}" is numeric; numeric ids belong in ${CSV}`);
+    else if (!/^[a-z0-9][a-z0-9_.-]{0,189}$/.test(key)) problems.push(`the key "${key}" must be 1-190 lowercase letters, digits, dots, underscores or hyphens`);
+    if (fields.length !== 4) problems.push(`it has ${fields.length} tab-separated fields; it needs exactly 4: tekst_key, Dansk, English, Norsk`);
+    else if (fields.slice(1).some((field) => field.trim() === "")) problems.push("a language column is empty");
+    if (fields.some((field) => field !== field.trim())) problems.push("a field starts or ends with whitespace");
+    if (fields.some((field) => /""|^".*"$/.test(field))) problems.push("it uses TSV quoting; the file is raw tab-separated text, so the quotes show up on screen");
+    if (problems.length) findings.push({ path, line, message: `malformed row: ${problems.join("; ")}.` });
+  }
+
+  for (const [key, before] of base.byId) {
+    const after = head.byId.get(key);
+    if (!after || after.text === before.text) continue;
+    if (after.fields.map((field) => field.trim()).join("\t") === before.fields.map((field) => field.trim()).join("\t")) {
+      findings.push({ path, line: after.line, message: `key ${key} changed only in whitespace; put the row back as it was.` });
+    } else if (!purged.has(key)) {
+      findings.push({
+        path,
+        line: after.line,
+        message:
+          `key ${key}'s text changed, but tenants keep the old text: findtekst() prefers the row cached in their tekster table. ` +
+          `Add deleteStaleTekst('${key}', <old text or texts>) at the end of ${UPDATES}.`,
+      });
+    }
+  }
+
+  if (path === CUSTOM_KEYED_TSV) {
+    const standard = rows(ctx.readHead(KEYED_TSV) ?? "").byId;
+    for (const [key, custom] of head.byId) {
+      const standardRow = standard.get(key);
+      if (!standardRow || base.byId.has(key) || purged.has(key)) continue;
+      findings.push({
+        path,
+        line: custom.line,
+        message:
+          `key ${key} overrides ${KEYED_TSV}, but tenants may already have its standard translation cached. ` +
+          `Add deleteStaleTekst('${key}', <the old standard translations>) at the end of ${UPDATES}.`,
+      });
+    }
+  }
+}
+
 function checkFallbacks(ctx, findings) {
   const csv = rows(ctx.readHead(CSV) ?? "").byId;
+  const keyed = rows(ctx.readHead(KEYED_TSV) ?? "").byId;
+  const customKeyed = rows(ctx.readHead(CUSTOM_KEYED_TSV) ?? "").byId;
+  for (const [key, row] of customKeyed) keyed.set(key, row);
   for (const file of ctx.files) {
-    if (file.status === "D" || !file.path.endsWith(".php") || ctx.isVendored(file.path)) continue;
+    if (file.status === "D" || !file.path.endsWith(".php") || file.path.startsWith("tests/") || ctx.isVendored(file.path)) continue;
     for (const [line, text] of file.added) {
       for (const match of text.matchAll(/findtekst\(\s*(['"])(\d+)\|((?:\\.|(?!\1).)*)\1/g)) {
         const [, , id, fallback] = match;
@@ -141,17 +231,39 @@ function checkFallbacks(ctx, findings) {
             `Either the id is wrong (users see id ${id}'s text, not the fallback) or the fallback is out of date.`,
         });
       }
+      for (const match of text.matchAll(/findtekst\(\s*(['"])(?!\d+\|)([a-z0-9][a-z0-9_.-]{0,189})\|((?:\\.|(?!\1).)*)\1/g)) {
+        const [, , key, fallback] = match;
+        if (/[$}]/.test(fallback) || fallback.trim() === "") continue;
+        const row = keyed.get(key);
+        if (!row) {
+          findings.push({ path: file.path, line, message: `findtekst('${key}|...'): key ${key} is not in ${CUSTOM_KEYED_TSV} or ${KEYED_TSV}; add the row in the same change.` });
+          continue;
+        }
+        const wanted = normalise(fallback);
+        if (row.fields.slice(1).some((field) => normalise(field) === wanted)) continue;
+        findings.push({
+          path: file.path,
+          line,
+          message:
+            `findtekst('${key}|${fallback}') does not match the effective keyed TSV row for ${key} ("${row.fields[1] ?? ""}"). ` +
+            `Either the key is wrong or the fallback is out of date.`,
+        });
+      }
     }
   }
 }
 
 export default {
   id: "tekster",
-  summary: "tekster.csv rows are well-formed, ids unique, rewording purges stale rows, findtekst fallbacks match their id",
+  summary: "numeric and descriptive translation seeds are well-formed, unique, cache-safe, and match findtekst fallbacks",
   run(ctx) {
     const findings = [];
     const csvFile = ctx.files.find((file) => file.path === CSV && file.status !== "D");
+    const keyedFile = ctx.files.find((file) => file.path === KEYED_TSV && file.status !== "D");
+    const customKeyedFile = ctx.files.find((file) => file.path === CUSTOM_KEYED_TSV && file.status !== "D");
     if (csvFile) checkCsv(ctx, csvFile, findings);
+    if (keyedFile) checkKeyedTsv(ctx, keyedFile, KEYED_TSV, findings);
+    if (customKeyedFile) checkKeyedTsv(ctx, customKeyedFile, CUSTOM_KEYED_TSV, findings);
     checkFallbacks(ctx, findings);
     return findings;
   },

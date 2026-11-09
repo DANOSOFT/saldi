@@ -1,10 +1,13 @@
 <?php
-// --- admin/godkend.php --- ver 5.1.0 --- 2026.10.11 ---
+// --- admin/godkend.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261011 CL/ASR New. Customer approval of a purchase proposal via a one-time token (no login). Shows the proposal
-//                  and its price; "Godkend" applies it (plan change today or add-on) and marks it accepted; "Afvis"
-//                  rejects. Token = 48 hex chars from random_bytes. Expired or decided proposals show a notice only.
+// 20261011 CL/ASR New. Customer approval of a purchase proposal via a one-time token (no login).
+//                 Shows the proposal and its price; "Godkend" applies it (plan change today or add-on) and marks it accepted; "Afvis" rejects.
+//                 Token = 48 hex chars from random_bytes. Expired or decided proposals show a notice only.
+// 20261109 CL/ASR After a decision the page shows the proposal's stored status, so a second click that lost to the first shows the outcome instead of the form (review #785).
+//                 The page reads nothing until partner_layer_ready() says the operator panel's schema is in place, and never on a MySQL/MariaDB master (the panel is Postgres-only), so an old or guessed link shows "Linket er ugyldigt" there instead of a database error.
+//                 Marking an expired proposal only touches a proposal that is still open and that the database also sees as expired, then reloads it, so it cannot overwrite a decision made a moment before.
 include("../includes/connect.php");
 if (!function_exists('db_select')) include("../includes/db_query.php");
 include("../includes/std_func.php");
@@ -13,14 +16,16 @@ include("../includes/entitlements.php");
 include("vr_ui.php");
 include("inc_forslag.php");
 $brugernavn = 'kunde'; $sprog_id = 1;
-fs_tables_ensure(); ent_tables_ensure(); partner_tables_ensure();
 $t = preg_replace('/[^a-f0-9]/', '', (string)if_isset($_REQUEST, '', 't'));
-$p = strlen($t) == 48 ? db_fetch_array(db_select("select p.*, r.regnskab from partner_proposals p join regnskab r on r.id = p.regnskab_id where p.token = '$t'", __FILE__ . " linje " . __LINE__)) : null;
+$gk_on = strlen($t) == 48 && partner_layer_ready();
+if ($gk_on) { fs_tables_ensure(); ent_tables_ensure(); partner_tables_ensure(); }
+$gk_load = fn() => db_fetch_array(db_select("select p.*, r.regnskab from partner_proposals p join regnskab r on r.id = p.regnskab_id where p.token = '$t'", __FILE__ . " linje " . __LINE__));
+$p = $gk_on ? $gk_load() : null;
 $msg = '';
-if ($p && $p['status'] == 'open' && $p['expires_at'] < date('Y-m-d')) { db_modify("update partner_proposals set status = 'expired', decided_at = now() where id = '".(int)$p['id']."'", __FILE__ . " linje " . __LINE__); $p['status'] = 'expired'; }
+if ($p && $p['status'] == 'open' && $p['expires_at'] < date('Y-m-d')) { db_modify("update partner_proposals set status = 'expired', decided_at = now() where id = '".(int)$p['id']."' and status = 'open' and expires_at < current_date", __FILE__ . " linje " . __LINE__); $p = $gk_load(); } # only an open proposal the database also sees as expired; then show what is stored
 if ($p && $p['status'] == 'open' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['decision'])) {
-	$err = fs_decide((int)$p['id'], $_POST['decision'] == 'accept', 'kunde (link)');
-	if ($err) $msg = $err; else $p['status'] = $_POST['decision'] == 'accept' ? 'accepted' : 'rejected';
+	$msg = fs_decide((int)$p['id'], $_POST['decision'] == 'accept', 'kunde (link)');
+	$p = $gk_load(); # the stored outcome; $msg is shown only while the proposal is still open
 }
 print "<!DOCTYPE html><html lang=\"da\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex\"><title>Saldi – forslag</title><link rel=\"stylesheet\" href=\"../css/operator_panel.css?v=5.1.4\"><style>body{background:#eef3fb;margin:0;font:14px/1.5 Inter,\"Segoe UI\",system-ui,sans-serif;color:#0b1a3a}.gk{max-width:560px;margin:60px auto;padding:0 20px}.gk .vr-card{padding:26px 28px;--vr-user:#014294;--vr-user-text:#fff}.gk h1{font-size:22px;margin:0 0 6px}.gk p{color:#5b6b85;margin:0 0 14px}.gk .price{font-size:18px;font-weight:600;color:#0b1a3a;margin:14px 0}</style></head><body><div class=\"gk\"><div style=\"font-weight:700;font-size:20px;margin-bottom:16px\">Saldi</div><div class=\"vr-card\">";
 if (!$p) print "<h1>Linket er ugyldigt</h1><p>Forslaget findes ikke. Kontakt den, der sendte dig linket.</p>";

@@ -5,7 +5,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -- systemdata/operator_brugere.php ------------- lap 4.0.8 -- 2026-10-29 --
+// -- systemdata/operator_brugere.php ------------- ver 5.1.0 -- 2026-11-09 --
 // 20261012 CL/ASR Operator copy of admin/admin_brugere.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -23,7 +23,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ------------------------------------------------------------------------
 // 20210328 PHR Some cleanup.
 // 20210917 LOE translated some texts
@@ -31,6 +31,8 @@ ob_start(); # for the redirect after an action (vr_prg)
 // 20230323 PBLM Fixed some minor errors
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
 // 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
+// 20261102 CL/ASR "Ret" jumps to the edit form (#ret), like "Ny bruger" does (#ny) (review #785, SirRolin).
+// 20261109 CL/ASR The posted user id is cast and the login name escaped in every query, and missing GET/POST keys no longer warn (review #785).
 
 @session_start();
 $s_id=session_id();
@@ -49,8 +51,8 @@ include("vr_ui.php");
 vr_require_operator(); # Saldi staff only; everyone else keeps the existing pages
 partner_tables_ensure();
 $vr_alerts = array();
-$ret_id = if_isset($_GET['ret_id'], 0);
-$slet_id=if_isset($_GET['slet_id'], 0);
+$ret_id = ifset($_GET, 'ret_id', 0);
+$slet_id=ifset($_GET, 'slet_id', 0);
 
 // 20261012 CL/ASR Rights are checked before saving (a user without admin rights may only change their own password, not
 //                  rights or other users), changes are logged, and a successful save redirects with a note (vr_prg).
@@ -59,8 +61,8 @@ $vr_isAdm = $vr_meRow && explode(',', (string)$vr_meRow['rettigheder'])[0];
 if ($_POST && !$vr_isAdm && ((int)if_isset($_POST, 0, 'id') != (int)$vr_meRow['id'] || strstr((string)if_isset($_POST, '', 'submit'), 'Tilf'))) { $vr_alerts[] = vr_t('Du kan kun rette din egen bruger','You can only edit your own user'); $_POST = array(); }
 $vr_done = '';
 if ($_POST) {
-	$submit=$_POST['submit'];
-	$id=$_POST['id'];
+	$submit=(string)ifset($_POST, 'submit', '');
+	$id=(int)ifset($_POST, 'id', 0); # the new-user form posts no id
 	$tmp=$_POST['random'];
 	$ret_bruger=trim($_POST[$tmp]);
 	$kode=trim($_POST['kode']);
@@ -71,9 +73,9 @@ if ($_POST) {
 		$vr_alerts[] = $alerttext;
 		$ret_bruger=NULL;
 	}
-	$admin=$_POST['admin'];
-	$oprette=if_isset($_POST['oprette'], 0);
-	$slette=if_isset($_POST['slette'], 0);
+	$admin=ifset($_POST, 'admin', ''); # unticked boxes are not posted
+	$oprette=ifset($_POST, 'oprette', 0);
+	$slette=ifset($_POST, 'slette', 0);
 	$adgang_til=trim((string)$_POST['adgang_til']); # escaped in the queries
 
 	$rettigheder="$admin,$oprette,$slette,$adgang_til";
@@ -89,7 +91,7 @@ if ($_POST) {
 		$insetKode = $kode;
 		$kode=saldikrypt($id,$kode);
 	} elseif($kode)	{
-		$query = db_select("select * from brugere where id = '$id'",__FILE__ . " linje " . __LINE__);
+		$query = db_select("select * from brugere where id = '".(int)$id."'",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query))
 		$kode=trim($row['kode']);
 	}
@@ -105,7 +107,7 @@ if ($_POST) {
 			db_modify("insert into brugere (brugernavn,rettigheder) values ('".db_escape_string($ret_bruger)."','".db_escape_string($rettigheder)."')",__FILE__ . " linje " . __LINE__);
 			$r=db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($ret_bruger)."'",__FILE__ . " linje " . __LINE__));
 			$kode = saldikrypt($r['id'],$insetKode);
-			db_modify("update brugere set kode='$kode' where id=$r[id]",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set kode='".db_escape_string($kode)."' where id=".(int)$r['id'],__FILE__ . " linje " . __LINE__);
 			$vr_done = vr_t('Brugeren','User')." $ret_bruger ".vr_t('er oprettet','created'); partner_log('master_user.created', null, null, "$ret_bruger ($rettigheder)");
 		}
 	} elseif ((strstr($submit,'Opdat'))&&($ret_bruger)&&($ret_bruger!="-")&&!$vr_alerts) {
@@ -121,7 +123,7 @@ if ($_POST) {
 }
 
 $pu = array(); $q = db_select("select pu.bruger_id, p.name from partner_users pu join partners p on p.id = pu.partner_id", __FILE__ . " linje " . __LINE__); while ($pr = db_fetch_array($q)) $pu[(int)$pr['bruger_id']] = $pr['name'];
-$r = db_fetch_array(db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
+$r = db_fetch_array(db_select("select * from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
 $bruger_id=$r['id'];
 list($br_admin,$tmp)=explode(",",$r['rettigheder'],2);
 if (!$br_admin) { $ret_id=$bruger_id; $disabled="disabled"; } else $disabled="";
@@ -146,7 +148,7 @@ if ($br_admin) {
 	while ($row = db_fetch_array($query)) {
 		list($admin,$oprette,$slette,$adgang_til)=array_pad(explode(",",$row['rettigheder'],4), 4, '');
 		$ok = fn($v) => $v ? '<span class="vr-st"><span class="vr-dot vr-ok"></span></span>' : '<span class="vr-mut2">–</span>';
-		print "<tr".((int)$row['id'] == (int)$ret_id ? " style=\"background:var(--surface-2)\"" : "")."><td class=\"vr-nm\"><a href=\"operator_brugere.php?ret_id=".(int)$row['id']."\">".vr_h($row['brugernavn'])."</a></td><td class=\"vr-mut vr-num\">".($adgang_til === '*' ? vr_t('alle','all') : vr_h($adgang_til))."</td><td class=\"vr-mut\">".(isset($pu[(int)$row['id']]) ? vr_h($pu[(int)$row['id']]) : '<span class="vr-mut2">–</span>')."</td><td>".$ok($admin)."</td><td>".$ok($oprette)."</td><td>".$ok($slette)."</td><td class=\"vr-r\"><a class=\"vr-link\" href=\"operator_brugere.php?ret_id=".(int)$row['id']."\">".findtekst('1206|Ret', $sprog_id)."</a></td></tr>";
+		print "<tr".((int)$row['id'] == (int)$ret_id ? " style=\"background:var(--surface-2)\"" : "")."><td class=\"vr-nm\"><a href=\"operator_brugere.php?ret_id=".(int)$row['id']."#ret\">".vr_h($row['brugernavn'])."</a></td><td class=\"vr-mut vr-num\">".($adgang_til === '*' ? vr_t('alle','all') : vr_h($adgang_til))."</td><td class=\"vr-mut\">".(isset($pu[(int)$row['id']]) ? vr_h($pu[(int)$row['id']]) : '<span class="vr-mut2">–</span>')."</td><td>".$ok($admin)."</td><td>".$ok($oprette)."</td><td>".$ok($slette)."</td><td class=\"vr-r\"><a class=\"vr-link\" href=\"operator_brugere.php?ret_id=".(int)$row['id']."#ret\">".findtekst('1206|Ret', $sprog_id)."</a></td></tr>";
 	}
 	print "</tbody></table></div></section>";
 }

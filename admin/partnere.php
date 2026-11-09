@@ -2,7 +2,7 @@
 ob_start(); # for the redirect after an action (vr_prg)
 @session_start();
 $s_id=session_id();
-// --- admin/partnere.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- admin/partnere.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261020 CL/ASR Review #785: new ids from INSERT … RETURNING (max(id) could return another session's row); an
@@ -19,6 +19,7 @@ $s_id=session_id();
 //                  adgang_til lists, partner card with Oversigt / Kunder (or Selskaber) / Medarbejdere / Indstillinger / Log,
 //                  link and unlink ledgers, add and remove employees (master users). A partner owner sees their own
 //                  partner as "Mit firma" and may manage employees' customer scope.
+// 20261109 CL/ASR Moving an account is refused unless it exists, is actively linked to this partner and not already to the target, and closing a partner returns to the partner list on operator_panel.php with the note (review #785).
 
 $css="../css/standard.css";
 $title="Partnere";
@@ -49,7 +50,7 @@ $isOwner = $op || ($me['partner'] && $me['partner']['partner_role'] == 'owner');
 
 // ---------- actions ----------
 if (isset($_POST['vr_action'])) {
-	$act = $_POST['vr_action'];
+	$act = $_POST['vr_action']; $vr_back = null; # redirect target when the card itself is gone
 	if ($act == 'create' && $op) {
 		$name = trim(if_isset($_POST, '', 'name')); $kind = in_array(if_isset($_POST, 'bogholder', 'kind'), partner_kinds(), true) ? $_POST['kind'] : 'bogholder';
 		$cvr = trim(if_isset($_POST, '', 'cvr')); $home = (int) if_isset($_POST, 0, 'home_regnskab_id');
@@ -71,6 +72,8 @@ if (isset($_POST['vr_action'])) {
 			partner_log('partner.updated', null, $pid, trim($_POST['name']));
 			$notes[] = vr_t('Gemt','Saved');
 		} elseif ($act == 'close' && $op) {
+			$vr_pk = db_fetch_array(db_select("select kind from partners where id = '$pid'", __FILE__ . " linje " . __LINE__));
+			$vr_back = 'operator_panel.php?ltab='.($vr_pk && $vr_pk['kind'] == 'koncern' ? 'koncerner' : 'bogholdere'); # the card only shows active partners
 			db_modify("update partners set status = 'closed' where id = '$pid'", __FILE__ . " linje " . __LINE__);
 			db_modify("update regnskab_partners set until = now() where partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__);
 			partner_log('partner.closed', null, $pid, '');
@@ -89,7 +92,12 @@ if (isset($_POST['vr_action'])) {
 		} elseif ($act == 'move' && $op) {
 			$rid = (int)if_isset($_POST, 0, 'regnskab_id'); $to = (int)if_isset($_POST, 0, 'to_partner_id');
 			$access = in_array(if_isset($_POST, 'full', 'access'), array('full','readonly','owner'), true) ? $_POST['access'] : 'full';
-			$err = partner_move_ledger($rid, $pid, $to, $access, trim(if_isset($_POST, '', 'note'))); $notes[] = $err ? $err : vr_t('Regnskabet er flyttet. Historik, abonnement og log følger regnskabet.','Account moved. History, subscription and log stay with the account.');
+			// partner_move_ledger() ends the source link before it inserts the new one, so a move it cannot finish is refused here first
+			if (!db_fetch_array(db_select("select 1 from regnskab where id = '$rid'", __FILE__ . " linje " . __LINE__))) $err = vr_t('Regnskabet findes ikke','Account not found');
+			elseif (!db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__))) $err = vr_t('Regnskabet er ikke tilknyttet denne partner og kan ikke flyttes','The account is not linked to this partner and cannot be moved');
+			elseif ($to == $pid || db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and partner_id = '$to' and until is null", __FILE__ . " linje " . __LINE__))) $err = vr_t('Regnskabet er allerede tilknyttet den valgte partner','The account is already linked to the chosen partner');
+			else $err = partner_move_ledger($rid, $pid, $to, $access, trim(if_isset($_POST, '', 'note')));
+			$notes[] = $err ? $err : vr_t('Regnskabet er flyttet. Historik, abonnement og log følger regnskabet.','Account moved. History, subscription and log stay with the account.');
 		} elseif ($act == 'payer' && $op) {
 			bill_set_payer((int)if_isset($_POST, 0, 'regnskab_id'), (int)if_isset($_POST, 0, 'payer_regnskab_id')); $notes[] = vr_t('Betalingsansvarlig gemt','Payer saved');
 		} elseif ($act == 'billing' && $op) {
@@ -135,7 +143,7 @@ if (isset($_POST['vr_action'])) {
 	}
 }
 
-if (isset($_POST['vr_action'])) vr_prg($notes, $pid ? 'partnere.php?'.http_build_query(array('id' => $op ? $pid : null, 'tab' => $tab)) : null);
+if (isset($_POST['vr_action'])) vr_prg($notes, $vr_back ? $vr_back : ($pid ? 'partnere.php?'.http_build_query(array('id' => $op ? $pid : null, 'tab' => $tab)) : null));
 $regNames = array(); $q = db_select("select id, regnskab, db, lukket from regnskab where db != '$sqdb' order by regnskab", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $regNames[(int)$r['id']] = $r;
 
 // ================= LIST (operator) =================

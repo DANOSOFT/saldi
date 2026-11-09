@@ -4,12 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-12 ---
-// 20261012 CL/ASR Access check, same rule as the account list (see below).
-// 20261012 CL/ASR Accountant panel: users who belong to a bookkeeper/auditor/group are checked through the partner layer
-//                  (partner_can + the employee right "work"); a read-only link does not open the ledger (Saldi has no
-//                  read-only rights level, '2' passes the module check), it is shown in the panel only; ?goto=
-//                  opens the ledger at the journal or the document pool instead of the menu.
+// --- admin/aaben_regnskab.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +32,11 @@
 // 2025.05.14 LOE Added check for empty database and added error message if database is empty
 // 2025.05.14 LOE Added check for global_id in table regnskab and added error message if not exist as the former failed for mysql insert
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261012 CL/ASR Access check, same rule as the account list (see below).
+// 20261012 CL/ASR Accountant panel: users who belong to a bookkeeper/auditor/group are checked through the partner layer (partner_can + the employee right "work").
+//                 A read-only link does not open the ledger (Saldi has no read-only rights level, '2' passes the module check); it is shown in the panel only.
+//                 ?goto= opens the ledger at the journal or the document pool instead of the menu.
+// 20261109 CL/ASR The global_id column check looks only in the current schema (DATABASE() on MySQL/MariaDB, current_schema() on PostgreSQL) (review #785).
 @session_start();
 $s_id=session_id();
 
@@ -105,9 +105,9 @@ include("../includes/connect.php");
 
 // Checking if the column exists in the table
 if ($db_type == 'mysql' || $db_type == 'mysqli') {
-    $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='global_id'";
+    $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='global_id' AND table_schema = DATABASE()";
 } else {
-    $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='global_id' AND table_schema='public'";
+    $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='global_id' AND table_schema = current_schema()";
 }
 
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {

@@ -1,21 +1,15 @@
 <?php
-// --- includes/partnerScope.php --- ver 5.1.0 --- 2026.10.29 ---
+// --- includes/partnerScope.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice.
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR New. Partner layer (bogholder/revisor firms and koncern parents) over regnskaber, phase P1 of
-//                  Requirements_accountant_and_operator_panels_EN.md. Master-only. Creates its own tables on
-//                  first use and never alters existing tables: the link user -> partner lives in partner_users,
-//                  not as a column on brugere. Scope resolution replaces the adgang_til list in
-//                  brugere.rettigheder for users who belong to a partner; everyone else keeps the legacy rule.
-// 20261012 CL/ASR Accountant panel (admin/bogholder_*.php): the weaknesses noted in the hand-over are closed here –
-//                  an employee's customer scope is explicit (partner_users.scope all|selected, so an emptied list no
-//                  longer means "all"), employees can be deactivated (partner_users.active), rights per employee
-//                  (partner_users.rights: work,create,users,prices,subscription), a responsible employee and the payer
-//                  per customer link (regnskab_partners.responsible_bruger_id, payer customer|partner), and new ids come
-//                  from INSERT … RETURNING. Columns are added to the layer's own tables only (partner_cols_ensure).
-// 20261029 CL/ASR No tables are created here any more: they come from the update chain (operatorPanelSchema.php).
-//                  partner_layer_ready() lets pages treat everyone as a non-partner user until the tables exist.
+// 20261010 CL/ASR New. Partner layer (bogholder/revisor firms and koncern parents) over regnskaber, phase P1 of Requirements_accountant_and_operator_panels_EN.md.
+//                 Master-only. Creates its own tables on first use and never alters existing tables: the link user -> partner lives in partner_users, not as a column on brugere.
+//                 Scope resolution replaces the adgang_til list in brugere.rettigheder for users who belong to a partner; everyone else keeps the legacy rule.
+// 20261012 CL/ASR Accountant panel (admin/bogholder_*.php): the weaknesses noted in the hand-over are closed here – an employee's customer scope is explicit (partner_users.scope all|selected, so an emptied list no longer means "all"), employees can be deactivated (partner_users.active), rights per employee (partner_users.rights: work,create,users,prices,subscription), a responsible employee and the payer per customer link (regnskab_partners.responsible_bruger_id, payer customer|partner), and new ids come from INSERT … RETURNING.
+//                 Columns are added to the layer's own tables only (partner_cols_ensure).
+// 20261029 CL/ASR No tables are created here any more: they come from the update chain (operatorPanelSchema.php). partner_layer_ready() lets pages treat everyone as a non-partner user until the tables exist.
+// 20261109 CL/ASR partner_layer_ready() asks operator_panel_ready() (the schema flag, PostgreSQL only) instead of information_schema, so a MySQL/MariaDB master never reads the layer's tables (review #785).
 
 if (!function_exists('partner_tables_ensure')) {
 
@@ -75,10 +69,11 @@ function partner_move_ledger($rid, $from_pid, $to_pid, $access, $note) {
 // 20261029 CL/ASR True when the partner layer's tables exist in the master database. Between a deploy and the first login
 //                  to an account (which runs betweenUpdates.php) they may not yet; callers then treat everyone as a
 //                  non-partner user, so the existing pages keep working.
+// 20261109 CL/ASR The schema flag decides (operator_panel_ready()), and it is set only once every table and column is there.
+//                  On a MySQL/MariaDB master it is never set, and the panel stays off.
 function partner_layer_ready() {
-	static $ready = null;
-	if ($ready === null) $ready = (bool)db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'partner_users' AND column_name = 'rights'", __FILE__ . " linje " . __LINE__));
-	return $ready;
+	include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
+	return operator_panel_ready();
 }
 
 // The master user row of the current session.

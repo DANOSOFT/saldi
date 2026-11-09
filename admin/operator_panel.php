@@ -5,7 +5,7 @@ ob_start();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/operator_panel.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- admin/operator_panel.php --- ver 5.1.0 --- 2026-11-09 ---
 // 20261012 CL/ASR Operator copy of admin/admin_panel.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -15,7 +15,7 @@ ob_start();
 // which is published by The Free Software Foundation; either in version 2
 // of this license or later version of your choice.
 //
-// Copyright (c) 2026 Saldi.dk ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Admin Panel - Comprehensive admin page for managing customer accounts,
 // feature licenses, usage stats, and account settings.
@@ -35,6 +35,9 @@ ob_start();
 //                  update stays reachable under Indstillinger until the entitlement layer replaces it (E0).
 // 20261029 CL/ASR regnskab.lukkes_kommentar is added by the update chain, not at request time.
 //                  Trailing whitespace removed from the lines this panel adds.
+// 20261109 CL/ASR The Brugere tab's "Nulstil tabeller" and "Slet bruger" buttons pass only the user id; the name for the confirm text and the note is looked up in USERS, so a user name with an apostrophe can neither break the buttons nor run as script.
+//                 Missing GET/POST keys (regnskab_id, sort, dir, action, user_action) no longer raise undefined-key warnings.
+//                 The catalogue seed (ent_tables_ensure()) runs after the staff check, not before it.
 
 @session_start();
 $s_id = session_id();
@@ -59,7 +62,6 @@ include("inc_installationer.php");
 include("inc_special.php");
 include("inc_proeve.php");
 partner_tables_ensure();
-ent_tables_ensure();
 
 
 include("../includes/saldiBillingApi.php");
@@ -72,6 +74,7 @@ if ($db != $sqdb) {
 
 $vr_me = partner_current_user();
 vr_require_operator(); # Saldi staff only; everyone else keeps the existing pages
+ent_tables_ensure(); # catalogue rows on first use, after the staff check
 
 // Available features for license management
 $available_features = array(
@@ -85,7 +88,7 @@ $message_type = 'success';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = if_isset($_POST['action'], '');
+    $action = $_POST['action'] ?? '';
 
     // --- License bulk update ---
     if ($action === 'bulk_update') {
@@ -207,7 +210,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         exit;
     }
 
-    $user_action = if_isset($_GET['user_action'], 'list');
+    $user_action = $_GET['user_action'] ?? 'list';
 
     if ($user_action === 'list') {
         $users = [];
@@ -317,7 +320,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
 // ============================================================
 // VIEW
 // ============================================================
-$filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
+$filter_regnskab = (int)($_GET['regnskab_id'] ?? 0);
 // 20261012 CL/ASR self-hosted installation card
 $inst_id = (int)if_isset($_GET, 0, 'inst_id');
 if ($inst_id || (isset($_POST['inst_action']) && $_POST['inst_action'] == 'create')) {
@@ -466,15 +469,16 @@ const REGNSKAB_ID = $rid;
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 let USERS=[];
 function loadUsers(){const box=document.getElementById('usersBox');if(!box)return;fetch('operator_panel.php?ajax_users=1&regnskab_id='+REGNSKAB_ID+'&user_action=list').then(r=>r.json()).then(d=>{if(d.error){box.innerHTML='<div class="vr-empty"><b>'+esc(d.error)+'</b></div>';return;}USERS=d.users||[];renderUsers(USERS);var n=USERS.filter(u=>!u.revisor).length,c=document.getElementById('usersCnt');if(c)c.textContent=n+' aktive';var t=document.querySelector('.vr-tab[aria-selected="true"] .vr-cnt');if(t)t.textContent=n;}).catch(()=>{box.innerHTML='<div class="vr-empty"><b>Kunne ikke hente brugere</b></div>';});}
-function renderUsers(list){const box=document.getElementById('usersBox');if(!list.length){box.innerHTML='<div class="vr-empty"><b>Ingen brugere</b></div>';return;}let h='<table class="vr-t"><thead><tr><th>Brugernavn</th><th>E-mail</th><th>Telefon</th><th>2FA</th><th>IP</th><th></th></tr></thead><tbody>';list.forEach(u=>{h+='<tr id="ur'+u.id+'" onclick="toggleUser('+u.id+')" style="cursor:pointer"><td class="vr-nm"><a>'+esc(u.brugernavn)+'</a>'+(u.revisor?' <span class="vr-pill">revisor</span>':'')+'</td><td class="vr-mut">'+esc(u.email||'–')+'</td><td class="vr-mut">'+esc(u.tlf||'–')+'</td><td>'+(u.twofactor?'<span class="vr-st"><span class="vr-dot vr-ok"></span>Ja</span>':'<span class="vr-mut2">–</span>')+'</td><td class="vr-mut">'+esc(u.ip_address||'–')+'</td><td class="vr-r"><span class="vr-link">Ret</span></td></tr>';h+='<tr id="ue'+u.id+'" hidden><td colspan="6" style="background:var(--surface-2)"><div class="vr-inline" style="padding:6px 0 10px;gap:10px"><input class="vr-inp" type="password" id="pw'+u.id+'" placeholder="Ny adgangskode (tom = uændret)" style="width:220px"><input class="vr-inp" id="em'+u.id+'" value="'+esc(u.email||'')+'" placeholder="E-mail (2FA)" style="width:220px"><input class="vr-inp" id="tl'+u.id+'" value="'+esc(u.tlf||'')+'" placeholder="Telefon (2FA)" style="width:150px"><input class="vr-inp" id="ip'+u.id+'" value="'+esc(u.ip_address||'')+'" placeholder="Tilladte IP-adresser" style="width:200px"><label class="vr-chk" style="display:inline-flex;gap:6px;font-size:13px"><input type="checkbox" id="tf'+u.id+'" '+(u.twofactor?'checked':'')+'> 2FA</label><button type="button" class="vr-btn vr-primary" onclick="event.stopPropagation();saveUser('+u.id+')">Gem</button><button type="button" class="vr-btn vr-quiet" onclick="event.stopPropagation();clearDT('+u.id+',\\''+esc(u.brugernavn).replace(/'/g,"\\\\'")+'\\')">Nulstil tabeller</button><button type="button" class="vr-btn vr-danger" onclick="event.stopPropagation();delUser('+u.id+',\\''+esc(u.brugernavn).replace(/'/g,"\\\\'")+'\\')">Slet bruger</button></div></td></tr>';});box.innerHTML=h+'</tbody></table>';}
+function renderUsers(list){const box=document.getElementById('usersBox');if(!list.length){box.innerHTML='<div class="vr-empty"><b>Ingen brugere</b></div>';return;}let h='<table class="vr-t"><thead><tr><th>Brugernavn</th><th>E-mail</th><th>Telefon</th><th>2FA</th><th>IP</th><th></th></tr></thead><tbody>';list.forEach(u=>{h+='<tr id="ur'+u.id+'" onclick="toggleUser('+u.id+')" style="cursor:pointer"><td class="vr-nm"><a>'+esc(u.brugernavn)+'</a>'+(u.revisor?' <span class="vr-pill">revisor</span>':'')+'</td><td class="vr-mut">'+esc(u.email||'–')+'</td><td class="vr-mut">'+esc(u.tlf||'–')+'</td><td>'+(u.twofactor?'<span class="vr-st"><span class="vr-dot vr-ok"></span>Ja</span>':'<span class="vr-mut2">–</span>')+'</td><td class="vr-mut">'+esc(u.ip_address||'–')+'</td><td class="vr-r"><span class="vr-link">Ret</span></td></tr>';h+='<tr id="ue'+u.id+'" hidden><td colspan="6" style="background:var(--surface-2)"><div class="vr-inline" style="padding:6px 0 10px;gap:10px"><input class="vr-inp" type="password" id="pw'+u.id+'" placeholder="Ny adgangskode (tom = uændret)" style="width:220px"><input class="vr-inp" id="em'+u.id+'" value="'+esc(u.email||'')+'" placeholder="E-mail (2FA)" style="width:220px"><input class="vr-inp" id="tl'+u.id+'" value="'+esc(u.tlf||'')+'" placeholder="Telefon (2FA)" style="width:150px"><input class="vr-inp" id="ip'+u.id+'" value="'+esc(u.ip_address||'')+'" placeholder="Tilladte IP-adresser" style="width:200px"><label class="vr-chk" style="display:inline-flex;gap:6px;font-size:13px"><input type="checkbox" id="tf'+u.id+'" '+(u.twofactor?'checked':'')+'> 2FA</label><button type="button" class="vr-btn vr-primary" onclick="event.stopPropagation();saveUser('+u.id+')">Gem</button><button type="button" class="vr-btn vr-quiet" onclick="event.stopPropagation();clearDT('+u.id+')">Nulstil tabeller</button><button type="button" class="vr-btn vr-danger" onclick="event.stopPropagation();delUser('+u.id+')">Slet bruger</button></div></td></tr>';});box.innerHTML=h+'</tbody></table>';}
 function uFlash(m,bad){const f=document.getElementById('usersFlash');if(!f)return;f.innerHTML='<div class="vr-note '+(bad?'vr-note-warn':'vr-note-ok')+'" role="status"><div>'+esc(m)+'</div></div>';clearTimeout(window.uFlashT);window.uFlashT=setTimeout(()=>{f.innerHTML='';},6000);}
 function toggleUser(id){const e=document.getElementById('ue'+id);if(e)e.hidden=!e.hidden;}
 function filterUsers(q){q=(q||'').toLowerCase();renderUsers(USERS.filter(u=>((u.brugernavn||'')+' '+(u.email||'')).toLowerCase().includes(q)));}
 function post(action,body){return fetch('operator_panel.php?ajax_users=1&regnskab_id='+REGNSKAB_ID+'&user_action='+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());}
 function saveUser(id){post('update',{user_id:id,password:document.getElementById('pw'+id).value,email:document.getElementById('em'+id).value,tlf:document.getElementById('tl'+id).value,ip_address:document.getElementById('ip'+id).value,twofactor:document.getElementById('tf'+id).checked}).then(d=>{if(d.error)uFlash(d.error,1);else{uFlash('Ændringerne er gemt');loadUsers();}});}
 function createUser(){var b={brugernavn:document.getElementById('nuName').value.trim(),password:document.getElementById('nuPw').value,email:document.getElementById('nuMail').value.trim(),role:document.getElementById('nuRole').value};if(!b.brugernavn||b.password.length<6){uFlash('Brugernavn og adgangskode (min. 6 tegn) er påkrævet',1);return;}post('create',b).then(d=>{if(d.error)uFlash(d.error,1);else{['nuName','nuPw','nuMail'].forEach(i=>document.getElementById(i).value='');uFlash('Brugeren '+b.brugernavn+' er oprettet');loadUsers();}});}
-function delUser(id,n){if(!confirm('Slet brugeren '+n+'? Handlingen kan ikke fortrydes.'))return;post('delete',{user_id:id}).then(d=>{if(d.error)uFlash(d.error,1);else{uFlash('Brugeren '+n+' er slettet');loadUsers();}});}
-function clearDT(id,n){if(!confirm('Nulstil gemte tabelopsætninger for '+n+'?'))return;post('clear_datatables',{user_id:id}).then(d=>{if(d.error)uFlash(d.error,1);else uFlash('Tabelopsætninger for '+n+' er nulstillet');});}
+function uName(id){const u=USERS.find(x=>String(x.id)===String(id));return u?String(u.brugernavn||''):'';}
+function delUser(id){const n=uName(id);if(!confirm('Slet brugeren '+n+'? Handlingen kan ikke fortrydes.'))return;post('delete',{user_id:id}).then(d=>{if(d.error)uFlash(d.error,1);else{uFlash('Brugeren '+n+' er slettet');loadUsers();}});}
+function clearDT(id){const n=uName(id);if(!confirm('Nulstil gemte tabelopsætninger for '+n+'?'))return;post('clear_datatables',{user_id:id}).then(d=>{if(d.error)uFlash(d.error,1);else uFlash('Tabelopsætninger for '+n+' er nulstillet');});}
 function nf(v){return Number(v||0).toLocaleString('da-DK',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function openInvoice(id){const s=document.getElementById('invScrim'),d=document.getElementById('invDlg');if(!d)return;s.classList.add('vr-on');d.classList.add('vr-open');document.getElementById('invTitle').textContent='Henter…';document.getElementById('invMeta').textContent='';document.getElementById('invBody').innerHTML='';fetch('operator_panel.php?ajax_invoice_id='+id).then(r=>r.json()).then(x=>{if(x.error){document.getElementById('invTitle').textContent='Fejl';document.getElementById('invBody').textContent=x.error;return;}const inv=x.invoice;document.getElementById('invTitle').textContent=inv.companyName||'Faktura';let ds='-';if(inv.invoiceDate){const p=inv.invoiceDate.split('-');if(p.length===3)ds=p[2]+'-'+p[1]+'-'+p[0];}document.getElementById('invMeta').textContent='Faktura #'+(inv.invoiceNo||inv.orderNo||'-')+' · '+ds;let h='<table class="vr-t"><thead><tr><th>Varenr</th><th>Beskrivelse</th><th class="vr-r">Antal</th><th class="vr-r">Pris</th><th class="vr-r">I alt</th></tr></thead><tbody>';(inv.lines||[]).forEach(l=>{if(!l.description&&!l.sku)return;const q=(l.quantity!=null?l.quantity:'');h+='<tr><td class="vr-mut">'+esc(l.sku||'')+'</td><td>'+esc(l.description||'')+'</td><td class="vr-r">'+esc(q)+' '+esc(l.unit||'')+'</td><td class="vr-r">'+(l.price?nf(l.price):'')+'</td><td class="vr-r">'+((l.quantity&&l.price)?nf(l.quantity*l.price):'')+'</td></tr>';});const sum=parseFloat((inv.economic&&inv.economic.sum)||0),vat=parseFloat((inv.economic&&inv.economic.vat)||0);h+='</tbody></table><div class="vr-kv" style="margin-top:10px"><div><span>Subtotal ekskl. moms</span><b>'+nf(sum)+' DKK</b></div><div><span>Moms</span><b>'+nf(vat)+' DKK</b></div><div><span>I alt</span><b>'+nf(sum+vat)+' DKK</b></div></div>';document.getElementById('invBody').innerHTML=h;}).catch(()=>{document.getElementById('invTitle').textContent='Fejl';});}
 function closeInvoice(){document.getElementById('invScrim').classList.remove('vr-on');document.getElementById('invDlg').classList.remove('vr-open');}
@@ -493,8 +497,8 @@ if (isset($_POST['vr_recalc'])) { # 20261012 CL/ASR "Genberegn tal" (replaces vi
 	partner_log('ledger.snapshot', null, null, "manuel genberegning: $n regnskaber, $bad uden database");
 	$notes[] = vr_t('Tal genberegnet for','Figures recalculated for')." $n ".vr_t('regnskaber','accounts').($bad ? " · $bad ".vr_t('uden database','without database') : '');
 }
-$sort_col = if_isset($_GET['sort'], 'regnskab');
-$sort_dir = strtolower(if_isset($_GET['dir'], 'asc')) === 'desc' ? 'desc' : 'asc';
+$sort_col = $_GET['sort'] ?? 'regnskab';
+$sort_dir = strtolower((string)($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
 $allowed_sorts = array('id' => 'id', 'regnskab' => 'regnskab', 'db' => 'db', 'brugerantal' => "COALESCE(NULLIF(brugerantal::text,''),'0')::integer", 'posteringer' => "COALESCE(NULLIF(posteringer::text,''),'0')::integer", 'posteret' => "COALESCE(NULLIF(posteret::text,''),'0')::integer", 'sidst' => "COALESCE(NULLIF(sidst::text,''),'0')::integer", 'lukket' => 'lukket');
 $order_column = isset($allowed_sorts[$sort_col]) ? $allowed_sorts[$sort_col] : 'regnskab';
 if (!in_array($ltab, array('normale','bogholdere','koncerner','alle','nye','overskredet','egne'), true)) $ltab = 'normale';

@@ -47,6 +47,7 @@
 //                   missing write access stops the wizard with a message instead of an exception after the DB is created.
 // 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
 // 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
+// 20261023 CL/NTR Added tekst_key to tekster table, and added an index on (sprog_id, tekst_key) for faster lookups. This is needed for the new translation system to work properly.
 // 20261029 CL/ASR SD-731: a new install also creates the operator panel's master tables (operator_panel_schema()).
 // 20261029 CL/ASR A new install also creates the accountant panel's master tables (partner_panel_schema()).
 
@@ -309,7 +310,9 @@ if (isset($_POST['opret'])){
 	$qtxt.= "kodeord text, kontrol_id text, aktiv int, logtime text,slettet varchar(2),tlf text,affiliate text, ";
 	$qtxt.= "referer text, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst text, PRIMARY KEY (id))";
+	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst_key varchar(190), tekst text, PRIMARY KEY (id))";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$qtxt = "CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE revisor";
 	$qtxt.= "(id serial NOT NULL,regnskabsaar integer,bruger_id integer,brugernavn text,db_id integer,PRIMARY KEY (id))";

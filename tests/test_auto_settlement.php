@@ -1,5 +1,6 @@
 <?php
 // 20260908 CDX/LH Exercise account matching and journal assignment with isolated SQLite fixtures.
+// 20261028 CL/MMR SD-785 autoSettlementSearchWhere() with a type and no account number matches every open post of that type.
 // Run: php tests/test_auto_settlement.php (pdo_sqlite; no application bootstrap).
 // Optional isolated Postgres: SALDI_CHAR_DSN, SALDI_CHAR_PGUSER, SALDI_CHAR_PGPASS.
 // Fixtures use connection-local temporary tables only.
@@ -87,7 +88,8 @@ foreach ([['1009','K',[101,105]], ['1009','D',[102]], ['2000','K',[103]], ['404'
 }
 
 foreach ([['','',[101,102,103,105]], ['1009','K',[101,105]], ['1009','d',[102]],
-    ['1009','',[]], ['','D',[]], ['1009','F',[]], ['', 'F', []],
+    ['','D',[102]], ['','d',[102]], ['','K',[101,103,105]], [' ','K ',[101,103,105]],
+    ['1009','',[]], ['1009','F',[]], ['', 'F', []], ["", "D' OR 1=1 --", []],
     [[], '', []], ['', [], []], [null, '', []], ["1009' OR 1=1 --",'K',[]]] as [$number,$type,$expected]) {
     $db = fixture();
     $where = autoSettlementSearchWhere($number, $type);

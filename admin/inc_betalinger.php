@@ -2,22 +2,14 @@
 // --- admin/inc_betalinger.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card. Everything comes from the
-//                  existing systems: the billing ledger on ssl3 through the REST API (customer: contact, e-mail,
-//                  terms, Betalingsservice, Stripe status; invoices: date, terms, paid, sums) and the plan
-//                  interval from the entitlement layer. Status per invoice: Betalt / Afventer / Forfalden; "Fejlet"
-//                  when Stripe reports past_due or unpaid. The operator can store the billing customer number,
-//                  channel and payer in regnskab_billing (master) when the API cannot tell or the match by CVR
-//                  fails. Nothing here writes to the billing ledger.
-// 20261012 CL/ASR Aligned with the payment model decided 12/10-2026 ("Saldi invoices, Stripe collects", invoice-mail
-//                  spec D1/B1): the invoice is Saldi's own from the billing ledger, Stripe is a card on file that is
-//                  charged per invoice, and Betalt = the invoice's betalt flag (PBS import, card charge or manual) –
-//                  so the status here works unchanged. Channel 'stripe' = card on file; new channel 'stripe_sub' =
-//                  the old Stripe subscriptions (production customers until migration M1), which get no Saldi
-//                  invoices meanwhile and are shown as such instead of "no invoices". The billing customer number
-//                  (regnskab_billing.billing_kontonr) is the coupling the customer's own invoice overview (billing
-//                  overview spec F1) needs: it is stored automatically when the API lookup matches the ledger's CVR,
-//                  or with one click from the lookup result.
+// 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card.
+//                 Everything comes from the existing systems: the billing ledger on ssl3 through the REST API (customer: contact, e-mail, terms, Betalingsservice, Stripe status; invoices: date, terms, paid, sums) and the plan interval from the entitlement layer.
+//                 Status per invoice: Betalt / Afventer / Forfalden; "Fejlet" when Stripe reports past_due or unpaid.
+//                 The operator can store the billing customer number, channel and payer in regnskab_billing (master) when the API cannot tell or the match by CVR fails.
+//                 Nothing here writes to the billing ledger.
+// 20261012 CL/ASR Aligned with the payment model decided 12/10-2026 ("Saldi invoices, Stripe collects", invoice-mail spec D1/B1): the invoice is Saldi's own from the billing ledger, Stripe is a card on file that is charged per invoice, and Betalt = the invoice's betalt flag (PBS import, card charge or manual) – so the status here works unchanged.
+//                 Channel 'stripe' = card on file; new channel 'stripe_sub' = the old Stripe subscriptions (production customers until migration M1), which get no Saldi invoices meanwhile and are shown as such instead of "no invoices".
+//                 The billing customer number (regnskab_billing.billing_kontonr) is the coupling the customer's own invoice overview (billing overview spec F1) needs: it is stored automatically when the API lookup matches the ledger's CVR, or with one click from the lookup result.
 // 20261029 CL/ASR regnskab_billing and its columns are created by the update chain (operatorPanelSchema.php).
 
 if (!function_exists('bill_tables_ensure')) {

@@ -2,12 +2,8 @@
 // --- admin/usage_snapshot_job.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR New. Nightly usage snapshot (entitlements spec §7.3 step 1 / panels spec §5.5): for every open
-//                  ledger measure usage in the customer database, store usage_snapshots for today and refresh
-//                  regnskab.posteret/sidst so the lists are fresh without "Genberegn posteringer".
-//                  CLI only:  cd admin && php usage_snapshot_job.php [limit]
-//                  Cron (owner's decision 10/10-2026: 02:00 every night), as the web server user:
-//                    0 2 * * * cd /var/www/html/<map>/admin && /usr/bin/php usage_snapshot_job.php >> ../temp/usage_snapshot.log 2>&1
+// 20261010 CL/ASR New. Nightly usage snapshot (entitlements spec §7.3 step 1 / panels spec §5.5): for every open ledger measure usage in the customer database, store usage_snapshots for today and refresh regnskab.posteret/sidst so the lists are fresh without "Genberegn posteringer".
+//                 CLI only: cd admin && php usage_snapshot_job.php [limit] Cron (owner's decision 10/10-2026: 02:00 every night), as the web server user: 0 2 * * * cd /var/www/html/<map>/admin && /usr/bin/php usage_snapshot_job.php >> ../temp/usage_snapshot.log 2>&1
 // 20261029 CL/ASR Exits quietly until the update chain has created the panel's tables (operator_panel_schema flag).
 if (php_sapi_name() !== 'cli') { http_response_code(403); exit("cli only\n"); }
 chdir(__DIR__);

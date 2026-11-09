@@ -1,17 +1,15 @@
 <?php
-// --- includes/entitlements.php --- ver 5.1.0 --- 2026.10.29 ---
+// --- includes/entitlements.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in
-//                  Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the
-//                  operator's subscription card: prices on plans/addons (price_ore, billing_interval,
-//                  extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for
-//                  changes with a future effective date. Source is 'manual' until the plan is synced from the billing
-//                  ledger's recurring invoicing order (payment model B1, 12/10-2026: "Saldi invoices, Stripe collects" –
-//                  the recurring order is the truth for the plan; spec §6's per-installation Stripe webhook is dropped);
-//                  the resolver (§5.2) is the same either way. Every change is written to partner_log as
-//                  entitlement.* (the stage 2 audit_log mirrors it when it exists).
+// 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the operator's subscription card: prices on plans/addons (price_ore, billing_interval, extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for changes with a future effective date.
+//                 Source is 'manual' until the plan is synced from the billing ledger's recurring invoicing order (payment model B1, 12/10-2026: "Saldi invoices, Stripe collects" – the recurring order is the truth for the plan; spec §6's per-installation Stripe webhook is dropped); the resolver (§5.2) is the same either way.
+//                 Every change is written to partner_log as entitlement.* (the stage 2 audit_log mirrors it when it exists).
 // 20261029 CL/ASR ent_tables_ensure() no longer creates tables (update chain); it only seeds the catalogue.
+// 20261109 CL/ASR New ent_accept_addon() for accepted proposals: it adds one unit to a counted add-on the account already has (expiry kept) and leaves an on/off add-on as it is, where ent_set_addon() reset it to quantity 1 without expiry (review #785).
+//                 ent_tables_ensure() does nothing on a MySQL/MariaDB master, and the information_schema look-ups are limited to current_schema().
+//                 An accepted proposal for an on/off add-on the account has only for a limited time (e.g. a trial) removes the end date, so the bought add-on stays.
+//                 ent_tables_ensure() seeds the catalogue only when operator_panel_ready() says the schema run finished (flag at the current version).
 
 if (!function_exists('ent_tables_ensure')) {
 
@@ -78,8 +76,10 @@ function ent_addon_defs() { # addon_key => [name, feature_key, quantity_based, p
 
 function ent_tables_ensure() {
 	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
-	static $done = false; if ($done) return; $done = true;
-	if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = 'catalog_versions'", __FILE__ . " linje " . __LINE__))) ent_seed(); # catalogue rows on first use (data, not schema)
+	global $db_type; static $done = false; if ($done) return; $done = true;
+	if ($db_type == 'mysql' || $db_type == 'mysqli') return; # the panel is Postgres-only; on a MySQL/MariaDB master its tables are never created
+	include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
+	if (operator_panel_ready()) ent_seed(); # catalogue rows on first use (data, not schema), only after a finished schema run
 }
 function ent_seed() {
 	if (db_fetch_array(db_select("select 1 from catalog_versions", __FILE__ . " linje " . __LINE__))) return;
@@ -223,6 +223,22 @@ function ent_set_addon($rid, $addon_key, $qty, $expires) {
 	ent_log('entitlement.addon_set', $rid, $c['addons'][$addon_key]['name'].' × '.$qty.($ex != 'NULL' ? ' indtil '.$expires : ''));
 	return '';
 }
+function ent_addon_counted($a) { return in_array((string)($a['quantity_based'] ?? ''), array('t', 'true', '1'), true); } # pg returns booleans as 't'/'f', and 'f' is truthy in PHP
+// 20261109 CL/ASR An accepted proposal buys one more unit of a counted add-on (quantity + 1, expiry kept); an on/off add-on
+//                  the account already has stays as it is. Without an active row it is added as quantity 1 (review #785).
+function ent_accept_addon($rid, $addon_key) {
+	$c = ent_catalog(); if (!isset($c['addons'][$addon_key])) return 'Ukendt tillæg';
+	$rid = (int)$rid; $ak = db_escape_string($addon_key); $a = $c['addons'][$addon_key];
+	$cur = db_fetch_array(db_select("select quantity, expires_at from regnskab_addons where regnskab_id = '$rid' and addon_key = '$ak' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__));
+	if (!$cur) return ent_set_addon($rid, $addon_key, 1, ''); # none, or only an expired row: replaced by quantity 1
+	if (!ent_addon_counted($a)) { # on/off: already there; a time-limited one (e.g. a trial) is bought and loses its end date
+		if ($cur['expires_at']) { db_modify("update regnskab_addons set expires_at = NULL where regnskab_id = '$rid' and addon_key = '$ak'", __FILE__ . " linje " . __LINE__); ent_log('entitlement.addon_set', $rid, $a['name'].' uden slutdato'); }
+		return '';
+	}
+	db_modify("update regnskab_addons set quantity = quantity + 1 where regnskab_id = '$rid' and addon_key = '$ak'", __FILE__ . " linje " . __LINE__);
+	ent_log('entitlement.addon_set', $rid, $a['name'].' × '.((int)$cur['quantity'] + 1).($cur['expires_at'] ? ' indtil '.$cur['expires_at'] : ''));
+	return '';
+}
 function ent_remove_addon($rid, $addon_key) {
 	$c = ent_catalog(); db_modify("delete from regnskab_addons where regnskab_id = '".(int)$rid."' and addon_key = '".db_escape_string($addon_key)."'", __FILE__ . " linje " . __LINE__);
 	ent_log('entitlement.addon_removed', (int)$rid, isset($c['addons'][$addon_key]) ? $c['addons'][$addon_key]['name'] : $addon_key);
@@ -264,11 +280,11 @@ function ent_usage_collect($reg) {
 	if (!@db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) return $u;
 	$u['ok'] = true;
 	$one = function($q) { $r = @db_fetch_array(@db_select($q, __FILE__ . " linje " . __LINE__)); return $r ? $r : array(); };
-	$cols = function($t) { $c = array(); $q = db_select("select column_name from information_schema.columns where table_name = '$t'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $c[] = $r['column_name']; return $c; };
+	$cols = function($t) { $c = array(); $q = db_select("select column_name from information_schema.columns where table_schema = current_schema() and table_name = '$t'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $c[] = $r['column_name']; return $c; };
 	if (tbl_exists('brugere')) {
 		$bc = $cols('brugere'); $w = array(); if (in_array('revisor', $bc)) $w[] = "revisor is not true";
 		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_total'] = (int)($r['n'] ?? 0);
-		if (in_array('status', $bc)) { $st = $one("select data_type from information_schema.columns where table_name = 'brugere' and column_name = 'status'"); $w[] = (($st['data_type'] ?? '') == 'boolean') ? "(status is true or status is null)" : "(status is null or lower(status::text) in ('t','true','1','on',''))"; } # older ledgers store status as text
+		if (in_array('status', $bc)) { $st = $one("select data_type from information_schema.columns where table_schema = current_schema() and table_name = 'brugere' and column_name = 'status'"); $w[] = (($st['data_type'] ?? '') == 'boolean') ? "(status is true or status is null)" : "(status is null or lower(status::text) in ('t','true','1','on',''))"; } # older ledgers store status as text
 		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_active'] = (int)($r['n'] ?? 0);
 	}
 	if (tbl_exists('transaktioner')) {
