@@ -642,20 +642,8 @@ function bogfor_nu($id)
 	$k_kontrol = 0;
 	$logdate = date("Y-m-d");
 	$logtime = date("H:i");
-	/*	
-																																																		   $q = db_select("select box1, box2, box3, box4, box5 from grupper where art='RB'",__FILE__ . " linje " . __LINE__);
-																																																		   if ($r = db_fetch_array($q)) {
-																																																			   if (trim($r['box3'])=="on") $faktbill=1; 
-																																																			   else {$faktbill=0;}
-																																																			   if (trim($r['box4'])=="on") $modtbill=1; 
-																																																			   else $modtbill=0;
-																																																			   if (trim($r['box5'])=="on") {
-																																																				   $no_faktbill=1;
-																																																				   $faktbill=0;
-																																																			   }	 
-																																																			   else $no_faktbill=0;
-																																																		   }
-																																																	   */
+
+	
 	$x = 0;
 	$q = db_select("select * from ordrer where id='$id'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($q)) {
@@ -671,7 +659,7 @@ function bogfor_nu($id)
 		$valutakurs = $r['valutakurs'];
 		$valuta = $r['valuta'];
 		$projekt = (float) $r['projekt'];
-		$refnr;
+		
 		if ($r['moms']) {
 			$moms = $r['moms'];
 		} else {
