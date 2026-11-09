@@ -12,6 +12,7 @@
 // History:
 // 20261108 CL/SS SD-803: created.
 // 20261109 CL/SS SD-803 review: an email field with several addresses survives an update; the phone info goes with a later create that has the phone.
+// 20261109 CL/SS SD-814: an exported debtor's update without a company leaves its customer type and names.
 
 use PHPUnit\Framework\TestCase;
 
@@ -240,8 +241,8 @@ final class CustomersOutSyncTest extends TestCase
     public function testAnUpdateFromShopifyLeavesAnExportedDebtorsNameUnlessTheAddressHasACompany(): void
     {
         $company = $this->debtor('SD803Q', ['firmanavn' => 'SD803 Firma ApS', 'kontakt' => 'Hans Peter Jensen', 'tlf' => '12 34 56 78',
-            'email' => 'bogholderi@acme.dk;jens@acme.dk']);
-        $person = $this->debtor('SD803R', ['firmanavn' => 'Bo Hansen']);
+            'email' => 'bogholderi@acme.dk;jens@acme.dk', 'kontotype' => 'erhverv']);
+        $person = $this->debtor('SD803R', ['firmanavn' => 'Bo Hansen', 'kontotype' => 'privat', 'fornavn' => 'Bo', 'efternavn' => 'Hansen']);
         $this->steps(['enqueue', 'hml', $company], ['job', 'hml', $company], ['echo', 'hml', $company], ['enqueue', 'hml', $person], ['job', 'hml', $person], ['echo', 'hml', $person]);
 
         // the customers add a phone and correct the name in Shopify
@@ -252,7 +253,10 @@ final class CustomersOutSyncTest extends TestCase
         $this->assertSame(['SD803 Firma ApS', 'Hans Peter Jensen', '+4587654321', 'bogholderi@acme.dk;jens@acme.dk'],
             array_values($this->sql('SELECT firmanavn, kontakt, mobile, email FROM adresser WHERE id = $1', [$company])[0]),
             'the company keeps its name, contact and both email addresses (the customer has the first); the phone comes in');
-        $this->assertSame(['Bo Hansen', ''], array_values($this->sql('SELECT firmanavn, kontakt FROM adresser WHERE id = $1', [$person])[0]), 'the name is Saldi\'s, it was sent out from here');
+        $this->assertSame(['erhverv', null, null], array_values($this->sql('SELECT kontotype, fornavn, efternavn FROM adresser WHERE id = $1', [$company])[0]),
+            'SD-814: the company stays a business debtor and gets no person names, so its card keeps the company name when saved');
+        $this->assertSame(['Bo Hansen', '', 'privat', 'Bo', 'Hansen'], array_values($this->sql('SELECT firmanavn, kontakt, kontotype, fornavn, efternavn FROM adresser WHERE id = $1', [$person])[0]),
+            'the name is Saldi\'s, it was sent out from here, and so are the names the card joins');
 
         $r = $this->steps(['echo', 'hml', $company, ['updated_at' => '2030-01-02T10:00:00Z',
             'default_address' => ['company' => 'SD803 Nyt Firma A/S', 'address1' => 'Vejen 1', 'zip' => '8000', 'city' => 'Aarhus', 'country' => 'Danmark']]]);
