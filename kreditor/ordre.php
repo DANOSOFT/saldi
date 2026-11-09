@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -101,6 +101,9 @@
 // 20261105 CL/MMR SST-951 Saving the order header stores the chosen language (sprog) when that language has forms, and a restordre keeps the order's language.
 //                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
+// 20261109 CL/SZ MB-136 The contact lookup link URL-encodes the name, so choosing Bo O'Neill no longer saves Bo O.
+//                The kontakt value from the URL is escaped and the order id cast before update ordrer, so an apostrophe no longer crashes the page.
+//                ordreside() takes $charset as a global, so openOrderData.php can escape the contact field in the install's charset.
 
 @session_start();
 $s_id=session_id();
@@ -275,7 +278,7 @@ if (isset($_POST['create_creditor'])) {
 	exit;
 }
 if ( !empty($kontakt) && $id ) {
-	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
+	db_modify("update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id=" . (int) $id,__FILE__ . " linje " . __LINE__);
 }
 if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716 
 	transaktion("begin");
@@ -1289,7 +1292,7 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 function ordreside($id) {
 
 	global $art;
-	global $bogfor,$brugernavn;
+	global $bogfor,$brugernavn,$charset;
 	global $db,$fokus;
 	global $krediteret;
 	global $labelprint;
@@ -1535,7 +1538,7 @@ function ansatopslag($sort, $fokus, $id){
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";

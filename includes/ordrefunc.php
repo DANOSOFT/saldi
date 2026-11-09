@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -159,6 +159,9 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261109 CL/SZ MB-136 ansatopslag(): the contact link URL-encodes the name and escapes its text, so choosing Bo O'Neill no longer saves Bo O.
+//                Without a sort it sorts by 'navn' instead of the bare constant navn, which stopped the lookup with a fatal error on PHP 8.
+//                $charset is now a global there for the escaping.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -3868,6 +3871,7 @@ function ansatopslag($sort, $fokus, $id)
 {
 	global $bgcolor;
 	global $bgcolor5;
+	global $charset;
 
 	global $menu;
 
@@ -3901,7 +3905,7 @@ function ansatopslag($sort, $fokus, $id)
 
 	$sort = $_GET['sort'];
 	if (!$sort) {
-		$sort = navn;
+		$sort = 'navn';
 	}
 
 	if (!$id) {
@@ -3917,7 +3921,7 @@ function ansatopslag($sort, $fokus, $id)
 			$color = '#000000';
 		}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>$row[navn]</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>" . htmlspecialchars($row['navn'], ENT_QUOTES, $charset) . "</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";
