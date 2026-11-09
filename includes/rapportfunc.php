@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/rapportfunc.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -96,6 +96,7 @@
 //                 Rykker sections are closed tables with their rows in tbody, and the layout and footer are closed once at the end.
 //                 The rykker forms post the account filter, mode, paging, PBS and aging state, so an action re-renders the same view.
 // 20261015 CL/LH PR #697 review: PHPDoc blocks on openpost(), bogfor_rykker(), kontokort() and kontosaldo().
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
 //                collide with ids used by other open branches.
 // 20261027 CL/LH PR #450: openpost() escapes the rykker overview's firm-name search and the box7 view flags
@@ -641,20 +642,8 @@ function bogfor_nu($id)
 	$k_kontrol = 0;
 	$logdate = date("Y-m-d");
 	$logtime = date("H:i");
-	/*	
-																																																		   $q = db_select("select box1, box2, box3, box4, box5 from grupper where art='RB'",__FILE__ . " linje " . __LINE__);
-																																																		   if ($r = db_fetch_array($q)) {
-																																																			   if (trim($r['box3'])=="on") $faktbill=1; 
-																																																			   else {$faktbill=0;}
-																																																			   if (trim($r['box4'])=="on") $modtbill=1; 
-																																																			   else $modtbill=0;
-																																																			   if (trim($r['box5'])=="on") {
-																																																				   $no_faktbill=1;
-																																																				   $faktbill=0;
-																																																			   }	 
-																																																			   else $no_faktbill=0;
-																																																		   }
-																																																	   */
+
+	
 	$x = 0;
 	$q = db_select("select * from ordrer where id='$id'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($q)) {
@@ -669,8 +658,8 @@ function bogfor_nu($id)
 		$ordrenr = $r['ordrenr'];
 		$valutakurs = $r['valutakurs'];
 		$valuta = $r['valuta'];
-		$projekt = $r['projekt'] * 1;
-		$refnr;
+		$projekt = (float) $r['projekt'];
+		
 		if ($r['moms']) {
 			$moms = $r['moms'];
 		} else {
@@ -678,9 +667,10 @@ function bogfor_nu($id)
 		}
 		$sum = $r['sum'] + $moms;
 		$ordreantal = $x;
-		if ($r = db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'", __FILE__ . " linje " . __LINE__)))
+		if ($r = db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'", __FILE__ . " linje " . __LINE__))) {
 			$afd = $r['afd'];
-		$afd = $afd * 1; //sikkerhed for at 'afd' har en vaerdi 
+		}
+		$afd = (int) ($afd ?? 0);
 
 		$bilag = 0;
 		if (!$valutakurs && $valuta != 'DKK') { //20140628

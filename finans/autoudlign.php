@@ -54,6 +54,7 @@
 //                  value on this page - normalized and escaped them the same way.
 // 20261002 CL/NTR  Moved the page's local UTF-8 findtekst() wrapper to includes/stdFunc/findTxtUtf8.php
 //                  as findtekst_utf8() and use it for the $uiText array as well (keyed ids, one call).
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261028 CL/MMR SD-785 The Konto selector also offers "Alle debitorer" and "Alle kreditorer", which show only customers' or only suppliers' open posts.
 //                  The choice is carried to the next entry (kontotype in the URL), so it is made once per journal.
 // 20261029 CL/MMR SD-785 The two texts moved to 7650 and 7651, as 7636 is also used by another change.
@@ -687,6 +688,7 @@ print "<tr class='backBtn'><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
+$tekst = $tekst ?? null;
 print "<td width=5% style='$buttonStyle'>
 	<a href=\"javascript:confirmClose('" . htmlspecialchars($returside, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">

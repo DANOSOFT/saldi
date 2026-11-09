@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrder.php --- lap 5.0.0 --- 2026.04.01 ---
+// --- kreditor/orderIncludes/openOrder.php --- ver 5.1.0 --- 2026.10.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ------------------------------------------------
 //
 // 20230111 MSC - Implementing new design
@@ -29,6 +29,7 @@
 // 20260217 PHR Added 'kundeordrnr'
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
 // 20060401 PHR Minor correction so it finds correct stock when creating order
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 global $menu;
 
@@ -63,6 +64,7 @@ if (!$ref) {
 		}
 	}
 }
+$afd = $afd ?? null;
 if (($afd && $oldDep && $afd != $oldDep) || ($afd && !$lager)) {
 	$qtxt = "select box1 from grupper where art = 'AFD' and kodenr = $afd";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {

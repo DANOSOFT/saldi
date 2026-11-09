@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-06---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-09---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,7 @@
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
 // 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261102 CL/ASR $regnskab_pakke: the account's package from the self-service signup, used by finans/bogfor.php.
 // 20261105 CL/MMR SD-807 'Session expired' uses the language chosen on the login page (languageId cookie), as there is no online row, and 'Account closed' is translated.
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
@@ -261,7 +262,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$regnaar = (string) $fallbackYear;
 			$qtxt = "update online set regnskabsaar = '$fallbackYear' where session_id = '" . db_escape_string($s_id) . "'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
-			if (!$revisor) {
+			if (empty($revisor)) {
 				$qtxt = "update brugere set regnskabsaar = '$fallbackYear' where brugernavn = '$brugernavn' and regnskabsaar is null";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
@@ -274,7 +275,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$baseCurrency = $r['var_value'];
 		} else $baseCurrency = 'DKK';
 	} else $baseCurrency = 'DKK';
-	if (!$revisor) {
+	if (empty($revisor)) {
 		if ($lukket) {
 			// Some pages include online.php before std_func.php, so findtekst() may not be loaded yet.
 			include_once(__DIR__ . '/std_func.php');
@@ -287,10 +288,11 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/index.php\">";
 			exit;
 		}
+		$brugernavn = $brugernavn ?? null;
 		$r = db_fetch_array(db_select("select * from brugere where brugernavn= '$brugernavn'", __FILE__ . " linje " . __LINE__));
-		$bruger_id = $r['id'];
-		$rettigheder = trim(if_isset($r['rettigheder'], ''));
-		$ansat_id = $r['ansat_id'] * 1;
+		$bruger_id = $r['id'] ?? null;
+		$rettigheder = trim($r['rettigheder'] ?? '');
+		$ansat_id = (int) ($r['ansat_id'] ?? 0);
 		#		if ($r['language_id']) $languageID=$sprog_id=$r['language_id'];
 		if ($ansat_id) { #20120905 
 			$r = db_fetch_array(db_select("select * from ansatte where id = '$ansat_id'", __FILE__ . " linje " . __LINE__));

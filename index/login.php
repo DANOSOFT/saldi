@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- index/login.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,7 @@
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261029 CDX/NTR Share online log permissions with the web server.
 // 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
@@ -919,12 +920,12 @@ if(!isset($afbryd)){
 				$userMail = ifset($mailRow, 'email', '');
 			}
 			$result = loginLocatorRequest(array(
-				'action' => 'getDBlocation', 'globalId' => (int) if_isset($globalId, 0),
+				'action' => 'getDBlocation', 'globalId' => (int) ($globalId ?? 0),
 				'dbName' => $db, 'dbMail' => $mainMail, 'dbAlias' => $regnskab,
 				'dbLocation' => $dbLocation, 'userId' => (int) $userId,
-				'userName' => $brugernavn, 'userMail' => if_isset($userMail, '')
+				'userName' => $brugernavn, 'userMail' => $userMail ?? ''
 			));
-			$locatorId = loginLocatorGlobalId($result, $db, (int) if_isset($globalId, 0));
+			$locatorId = loginLocatorGlobalId($result, $db, (int) ($globalId ?? 0));
 			if ($locatorId && (empty($globalId) || (!$dbMail && $mainMail))) {
 				$globalId = $locatorId;
 				include(__DIR__ . '/../includes/connect.php');

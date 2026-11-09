@@ -100,6 +100,7 @@
 // 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
 //                  13-digit string is treated as an EAN-13 candidate (is_numeric also
 //                  accepted decimals, signs and scientific notation).
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
 //                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
 // 20261103 LOE SST-936 Include dimensionSqlFragment() for the three Finans reports.
@@ -161,7 +162,7 @@ if (!function_exists('dkdato')) {
 		 * @return string - The formatted date in DD-MM-YYYY format.
 		 */
 		if ($dato) {
-			list($year, $month, $day) = explode('-', $dato, 3);
+			list($year, $month, $day) = array_pad(explode('-', $dato, 3), 3, null);
 			$month = (int)$month;
 			$day = (int)$day;
 			if ($month < 10) {

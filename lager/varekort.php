@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -131,6 +131,9 @@
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
+// 20261019 CDX/LH MB-78: fix PHP warnings
+// 20261027 CL/LH MB-78: A missing cost price reaches usdecimal() as '', not null, which trim() rejects (CodeRabbit).
+// 20261109 CDX/NTR Pass quantity-discount inputs explicitly to renderQtyDiscounts() instead of sharing the page's variables through an include.
 //
 ob_start(); //Starts output buffering
 
@@ -509,14 +512,17 @@ if ($saveItem || $submit = trim($submit)) {
     $ny_kategori = trim($ny_kategori);
     $master = trim($master);
 
+    $kostpris[0] = $kostpris[0] ?? '';
     if ($commissionItem && $kostpris[0] == '0,00' && $salgspris > 0) {
         $qtxt = "select var_value from settings where var_name='defaultProvision' and var_grp='items'";
         if ($r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
             $kostpris[0] = 1 - $r['var_value'] / 100;
-        } else
+        } else {
             $kostpris[0] = 0;
-    } else
+        }
+    } else {
         $kostpris[0] = usdecimal($kostpris[0], 3);
+    }
 
     if ($commissionItem && $kostpris[0] > '0' && $salgspris == 0) {
         $qtxt = "select var_value from settings where var_grp = 'items' and var_name = 'commissionInclVat'";
@@ -544,8 +550,8 @@ if ($saveItem || $submit = trim($submit)) {
 
     $qtxt = "select * from grupper where art='VG' and kodenr = '$gruppe' and fiscal_year = '$regnaar'";
     if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-        $stockItem = if_isset($r['box8'], 0);
-        $batchItem = if_isset($r['box9'], 0);
+        $stockItem = $r['box8'] ?? 0;
+        $batchItem = $r['box9'] ?? 0;
     }
     $qtxt = "select box4 from grupper where art='API'";
     $api_fil = NULL;
@@ -910,7 +916,7 @@ if ($saveItem || $submit = trim($submit)) {
             }
             $query = db_select("select id from varer where lower(varenr) = '" . strtolower($varenr) . "' or  upper(varenr) = '" . strtoupper($varenr) . "'", __FILE__ . " linje " . __LINE__);
             $row = db_fetch_array($query);
-            if ($row['id']) {
+            if (!empty($row['id'])) {
                 print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$row[id]'>";
                 exit;
             } elseif ($varenr) {
@@ -1606,8 +1612,8 @@ if ($id > 0) {
     #   $kpris=dkdecimal($row['kostpris']);
     $q = db_select("select * from grupper where art='VG' and kodenr = '$gruppe' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__);
     $r = db_fetch_array($q);
-    $stockItem = if_isset($r['box8'], 0);
-    $batchItem = if_isset($r['box9'], 0);
+    $stockItem = $r['box8'] ?? 0;
+    $batchItem = $r['box9'] ?? 0;
 } else {
     $gruppe = 1;
     $leverandor = 0;
@@ -1835,7 +1841,16 @@ if (!$varenr) {
 
     print "<td id='pcSecQtyDiscounts' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # M-rabat tabel ->
     print "\n<!-- productCardIncludes/showQtyDiscounts.php begin -->\n";
-    include('productCardIncludes/showQtyDiscounts.php');
+    require_once __DIR__ . '/productCardIncludes/showQtyDiscounts.php';
+    renderQtyDiscounts(
+        discountAmounts: $m_rabat_array ?? array(),
+        quantities: $m_antal_array ?? array(),
+        discountType: (string) ($m_type ?? 'percent'),
+        vatPercent: (float) ($incl_moms ?? 0),
+        readOnly: !empty($rabatgruppe),
+        hasPercentageOffer: !empty($special_price) && ($specialType ?? '') == 'percent',
+        languageId: (int) $sprog_id
+    );
     print "\n<!-- productCardIncludes/showQtyDiscounts.php end -->\n";
     print "</tbody></table></td></tr>";# <- M-rabat tabel 
     print "<tr><td id='pcSecMisc' valign=\"top\" height=\"200px\"><table border=\"0\" width=\"100%\"><tbody>"; # Diverse tabel ->

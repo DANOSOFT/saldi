@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026-10-12 ---
+// --- finans/kladdeliste.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20150722 PHR Vis alle/egne gemmes nu som cookie. 
 // 20181220 MSC - Rettet ny kladde knap til Ny
@@ -45,6 +45,7 @@
 // 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
 // 20261012 CL/SZ SD-730 Deleting an empty journal also deletes the journal's own documents (journalDocumentsDelete()); if a
 //                 document's file can't be removed, the journal and that document's row stay (CodeRabbit).
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 @session_start();
 $s_id=session_id();
@@ -213,7 +214,7 @@ $backUrl = isset($_GET['returside'])
 include("../includes/connect.php");
 include("../includes/std_func.php");
 $query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
-$apiKey = db_fetch_array($query)["var_value"];
+$apiKey = db_fetch_array($query)['var_value'] ?? null;
 include("../includes/online.php");
 include("../includes/topline_settings.php"); 
 
@@ -519,9 +520,9 @@ $filters = array();
 
 if (isset($_GET['filter']) && in_array($_GET['filter'], ['alle','egne'], true)) {
     $saved_filter = $_GET['filter'];
-}elseif($vis && in_array($vis, ['alle','egne'], true)){
+} elseif (($vis ?? null) && in_array($vis, ['alle','egne'], true)) {
     $saved_filter = $vis;
-}else {
+} else {
     $saved_filter = 'egne';
 }
 

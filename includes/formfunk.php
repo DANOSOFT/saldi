@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -89,6 +89,7 @@
 // 20261020 CDX/PHR Include only existing letterheads in print batch manifests.
 // 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
 //                holds the last printed order by then.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
 //                opening balance and running balance then cover those posts only. A NULL
 //                udlignet counts as open, as it does in the ledger.
@@ -765,15 +766,17 @@ if (!function_exists('find_form_tekst')) {
 					} elseif ($tabel == "forfalden" || $tabel == "rykker") { # finder forfalden_sum på rykker - $tabel=="rykker" indsat 14.04.08
 						$qtxt = "select * from varer where id IN (select xb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog')";
 						$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						$gebyr = (float) $r2['salgspris'];
-						if ($deb_valutakurs != '100')
+						$gebyr = (float) ($r2['salgspris'] ?? 0);
+						if ($deb_valutakurs != '100') {
 							$gebyr *= 100 / $deb_valutakurs; #20140628
-							$r2 = db_fetch_array(db_select("select yb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__));
-						$rentevare = (int) $r2['yb'];
+						}
+						$r2 = db_fetch_array(db_select("select yb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__));
+						$rentevare = (int) ($r2['yb'] ?? 0);
 						$rente = 0; #20141211
 						$q2 = db_select("select * from ordrelinjer where ordre_id = '$id' and vare_id = '$rentevare'", __FILE__ . " linje " . __LINE__);
-						while ($r2 = db_fetch_array($q2))
+						while ($r2 = db_fetch_array($q2)) {
 							$rente += $r2['pris'];
+						}
 						$forfalden = 0;
 						$q2 = db_select("select * from ordrelinjer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__);
 						while ($r2 = db_fetch_array($q2)) {
@@ -2878,12 +2881,16 @@ if (!function_exists('rykkerprint')) {
 						system("$pdftk ../temp/$db/$pfliste[$x].pdf background ../logolib/$db_id/bg.pdf output $out");
 					} else $out = "../temp/$db/$pfliste[$x].pdf";
 					if (!$inkasso) {
-						unlink("$mappe/$pfliste[$x].pdf");
+						if (file_exists("$mappe/$pfliste[$x].pdf")) {
+							unlink("$mappe/$pfliste[$x].pdf");
+						}
 						system("mv $out $mappe/$pfliste[$x].pdf");
 					}
 				} else {
 					if (!$inkasso) {
-						unlink("$mappe/$pfliste[$x].pdf");
+						if (file_exists("$mappe/$pfliste[$x].pdf")) {
+							unlink("$mappe/$pfliste[$x].pdf");
+						}
 						system("mv ../temp/$db/$pfliste[$x].pdf $mappe/$pfliste[$x].pdf");
 					}
 				}

@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.10 --- 2025-11-13 ----
+// --- kreditor/ordreIncludes/openOrerLines.php --- ver 5.1.0 --- 2026-10-19 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20230111 MSC - Implementing new design
@@ -43,6 +43,7 @@
 // 20260917 SZ HTML-escape batch_batch_no before printing it into the value attribute
 //             (CodeRabbit, PR #608); guard against a missing grupper row for box9 lookups
 //             so a fiscal-year mismatch degrades to "not tracked" instead of a PHP warning.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 
@@ -279,7 +280,7 @@ for ($x=1; $x<=$linjeantal; $x++)  {
     $txt = "<input type=button value='Serienr.' name='vis_snr$x' onchange='javascript:docChange = true;'>";
     print "<td onClick='serienummer($linje_id[$x])'>$txt</td>";
   }
-  $box9[$x] = if_isset($box9[$x],NULL);
+  $box9[$x] = $box9[$x] ?? null;
   if ($antal[$x]<0 && $art!='KK' && $box9[$x]=='on') {
     $txt = "<span title= '".findtekst(1496, $sprog_id)."'><img alt='".findtekst(1515, $sprog_id)."' src=../ikoner/serienr.png>";
     print "<td align=center onClick='batch($linje_id[$x])'>$txt</td>";

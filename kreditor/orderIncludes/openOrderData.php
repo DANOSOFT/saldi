@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,7 @@
 //                 with has_due_date=TRUE but no current-year VG group row was still being
 //                 dropped by the join before the has_due_date check ran.
 // 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 8407) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261030 CL/MJ Text 7636 is now 8407: #921 also adds 7636, and findtekst() keeps the first text a tenant stores for an id.
 // 20261105 CL/MMR SST-951 The order's language (Baggrund, as on a sales order) can be chosen on a saved order when forms exist in more than one language.
 //                 A blank order has no field: the order gets its language from the supplier's group when it is created.
@@ -95,6 +96,8 @@ if (!$id) {
 	print "<tr><td colspan='4' width='100%'><hr width='90%'></td></tr>";
 	$id = 0;
 }
+$email = $email ?? null;
+$udskriv_til = $udskriv_til ?? null;
 #20221104 BEGIN
 print "<tr><td>".findtekst(402,$sprog_id)."</td>";
 print "<td><input class='inputbox' type='text' style='width:110px;' name='email' value='$email' onchange='javascript:docChange = true;'></td>";
@@ -187,12 +190,12 @@ if ($id) {
 	// 		print "<option value = '$attachName[$x]'>substr($attachName[$x],0,25)</option>";
 	// 	}	
 
-	if (is_array($attachId) && count($attachId) >= 1) {
-        print "<select name = 'showAttachment' id = 'showAttachment'>";
-        for ($x = 0; $x < count($attachId); $x++) {
-            $shortName = substr($attachName[$x], 0, 25);
-            print "<option value = '$attachName[$x]'>$shortName</option>";
-        }
+	if (is_array($attachId ?? null) && count($attachId) >= 1) {
+		print "<select name = 'showAttachment' id = 'showAttachment'>";
+		for ($x = 0; $x < count($attachId); $x++) {
+			$shortName = substr($attachName[$x], 0, 25);
+			print "<option value = '$attachName[$x]'>$shortName</option>";
+		}
 
 		print "</select><br>";
 		print "<script type='text/javascript'>
@@ -231,7 +234,7 @@ if (count($employees)) {
 print "</td>";
 
 //use the $firstEmployee to get the afd
-if(!$afd && $firstEmployee){
+if (empty($afd) && !empty($firstEmployee)) {
 	$query = db_select("SELECT afd FROM ansatte WHERE navn = '$firstEmployee'",__FILE__ . " linje " . __LINE__);
 	if($r = db_fetch_array($query)){
 		$afd = $r['afd'];
@@ -285,6 +288,7 @@ print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td colspan='2'><inpu
 print "<tr><td></td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr2 value='$lev_addr2' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst('549|Postnr, by', $sprog_id)."</td><td><input class='inputbox' type='text' size=4 name=lev_postnr value='$lev_postnr' onchange='javascript:docChange = true;'>&nbsp;<input class='inputbox' type='text' size=16 name=lev_bynavn value='$lev_bynavn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>Att.:</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_kontakt value='$lev_kontakt' onchange='javascript:docChange = true;'></td></tr>\n";
+$kundeordnr = $kundeordnr ?? null;
 print "<tr><td>".findtekst('2129|Rekv. nr.', $sprog_id).":</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='kundeordnr' value='$kundeordnr' onchange='javascript:docChange = true;'></td></tr>\n"; #20221104
 print "</td></tr></tbody></table></td>";
 print "</td></tr>";

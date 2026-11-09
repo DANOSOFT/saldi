@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------ systemdata/skriv_formtabel.inc.php --- patch 5.0.0 --- 2026-07-24 ---
+// ------ systemdata/skriv_formtabel.inc.php --- ver 5.1.0 --- 2026-10-19 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20181102 PHR Oprydning, udefinerede variabler.
@@ -35,6 +35,7 @@
 // 20260723 MJ  Varer/ydelser-dropdown (box5, b5='vg-type') paa VG-varegrupper til Momsrubrikker.
 // 20260723 MJ  Fjernet Rubrik-dropdown (box5) for SM/KM/YM/EM: kolonnen er fjernet fra Moms-siden.
 // 20260724 MJ  EU-zone dropdown (box10) paa KG-kreditorgrupper til Momsrubrikker Rubrik A.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 function skriv_formtabel($a,$x,$y,$art,$id,$k,$kodenr,$beskrivelse,$box1,$b1,$box2,$b2,$box3,$b3,$box4,$b4,$box5,$b5,$box6,$b6,$box7,$b7,$box8,$b8,$box9,$b9,$box10,$b10,$box11,$b11,$box12,$b12,$box13,$b13,$box14,$b14) {
 
@@ -119,7 +120,7 @@ if (!isset ($b)) $b = null;
 			print "<input type = \"hidden\" name=\"id[$i]\" value=\"$id[$i]\"><input type = \"hidden\" name=\"art[$i]\" value=\"$art[$i]\"><input type = \"hidden\" name=\"kode[$i]\" value=\"$k\">";
 			if (($box3!="-") &&($b3!="checkbox")){
 				($art[$i]=='DG' || $art[$i]=='KG')?$readonly='readonly="readonly"':$readonly=NULL;
-				print "<td title=\"".titletxt($art[$i],'box3')."\"><input class=\"inputbox\" $readonly type=\"text\" style=\"text-align:right\" size=\"$b3\" name=\"box3[$i]\" value=\"$box3[$i]\"></td>\n";
+				print "<td title=\"".titletxt($art[$i],'box3')."\"><input class=\"inputbox\" $readonly type=\"text\" style=\"text-align:right\" size=\"$b3\" name=\"box3[$i]\" value=\"" . ($box3[$i] ?? '') . "\"></td>\n";
 			} elseif($b3=="checkbox"){
 				if (strstr($box3[$i],'on')){print "<td><input class=\"inputbox\" type=\"checkbox\" name=\"box3[$i]\" checked></td>\n";}
 				else {print "<td><input class=\"inputbox\" type=\"checkbox\" name=\"box3[$i]\"></td>\n";}

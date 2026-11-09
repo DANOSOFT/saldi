@@ -55,10 +55,12 @@
 //                  (salgsstat and report submit) escape every value at the query instead.
 // 20261015 CL/LH PR #697 review: "Slet" deletes each reminder's lines and order inside one transaction,
 //                and autoudlign_liste() has a PHPDoc block.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261023 CL/LH PR #697: the new text ids moved from 5500-5559 to the free block 7600-7635, so they do not
 //                collide with ids used by other open branches.
 // 20261027 CL/LH PR #450: the salgsstat redirect URL-encodes the dato/konto values and escapes the
 //                URL for the attribute (a firm name with & or a quote broke the link).
+// 20261027 CL/LH MB-78: An unset konto_fra/konto_til reaches trim() as '', not null.
 // 20261030 CDX/NTR Merge the sales-statistics redirect with one URL prefix and one HTML escaping pass.
 // 20261030 CDX/NTR Normalize the historical author tag to uppercase for file-history validation.
 
@@ -147,6 +149,13 @@ $udlignListe = rapport_udlign_list(ifset($_GET, 'udlign', ''));
 /**
  * Stores report preferences without changing the raw values passed to the report view.
  *
+ * @param string $husk (box1)
+ * @param string $dato_fra (box2)
+ * @param string $dato_til (box3)
+ * @param string $konto_fra (box4)
+ * @param string $konto_til (box5)
+ * @param string $rapportart
+ * @param int $bruger_id
  * @return void
  */
 function rapport_save_filters($husk, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $bruger_id)
@@ -398,7 +407,7 @@ if (isset($_GET['ny_rykker'])) {
 	$konto_fra = $_GET['konto_fra'];
 	$konto_til = $_GET['konto_til'];
 	#	$regnaar=$_GET['regnaar'];
-	openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
+	openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart ?? null, 'D');
 	exit;
 } elseif (isset($_GET['rapportart']) && $_GET['rapportart'] != 'openpost') {
 	$dato_fra = if_isset($_GET['dato_fra']);
@@ -516,11 +525,11 @@ if (isset($_POST['submit']) || $rapportart) {
 	if (!isset($_POST['konto']) && !isset($_GET['konto_fra']) && isset($_GET['kontonr'])) {
 		list($konto_fra, $konto_til) = openpost_kontonr_range($_GET['kontonr']);
 	}
-	$konto_fra = trim(if_isset($konto_fra));
+	$konto_fra = trim($konto_fra ?? '');
 	#	}
 	#	if (isset($_POST['konto_til']) && strpos($_POST['konto_til'],":")) {
 	#		list ($konto_til, $firmanavn) = explode(":", $_POST['konto_til']);
-	$konto_til = trim(if_isset($konto_til));
+	$konto_til = trim($konto_til ?? '');
 	#	}
 	#	if (isset($_POST['regnaar']) && strpos($_POST['regnaar'],"-")) {
 	#		list ($regnaar, $firmanavn)= explode("-", $_POST['regnaar']);

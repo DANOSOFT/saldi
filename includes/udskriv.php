@@ -53,6 +53,7 @@
 // 20261023 CL/LH MB-58: Tilbage after printing from an order returns to that order again, not the order list.
 //                The route now follows where the print started (bulk/list/order) instead of the area file,
 //                which only records the list tab the last order was opened from.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
 //                 The print-batch error is escaped in the page charset.
 
@@ -299,7 +300,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			# $pdftk = trim(shell_exec("which pdftk") ?? '');
 			# error_log("DIAG: pdftk_bin=$pdftk");
 
-			if ($printBatch === null && $pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+			if ($printBatch === null && $pdftk && file_exists($bg_fil ?? '') && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
 				// Self-heal non-A4 letterheads. A background that isn't A4 makes pdftk
 				if (function_exists('shell_exec')) {
 					$pinf = @shell_exec("pdfinfo " . escapeshellarg($bg_fil) . " 2>/dev/null");

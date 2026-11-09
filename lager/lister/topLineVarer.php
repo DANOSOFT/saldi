@@ -1,7 +1,8 @@
 <?php
+// 20261019 CDX/LH MB-78: fix PHP warnings
 	include(get_relative()."/includes/oldDesign/header.php");
 	include(get_relative()."/includes/topline_settings.php");
-	$returside = nav_back_url(if_isset($returside, null));
+	$returside = nav_back_url($returside ?? null);
 
 	// 20260917 CL/LH Remember the goods tab the user last opened so Lager -> Varer reopens it (Havemoebelland).
 	// 20261023 CL/LH Styklister is remembered too.

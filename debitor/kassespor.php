@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-05-09 ---
+// --- debitor/kassespor.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20141119 PHR Tilføjet summer og bord
 // 20150305 PHR Tilføjet status.
@@ -55,6 +55,7 @@
 // 20260509 PHR '$svis_saet' was fetched from 'kodenr' 1. Changed to kodenr 2 and added fiscal_year
 // 20260709 SZ Added Grid Framework sticky header to Kassespor report
 // 20261006 CL/LH SST-835: Round net sales to 2 decimals before the BA division so a sub-øre remainder on an exchange order shows 0 % instead of 23 million %.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 ob_start();
 @session_start();
@@ -249,7 +250,7 @@ if ($newCashNo && $editCashNo) {
 	alert("Bon $bon rettet fra $betal_type til $ny_betal_type");
 
 	
-} elseif ($editCashNo) {
+} elseif (!empty($editCashNo)) {
 	print "<form name=ret_betaling action='kassespor.php?editCashNo='$editCashNo' method='post'>";
 	print "<table><tbody><br><br><br>";
 	print "<tr><td>Ret Kasse på bon: <b>$bon</b> fra <b>$currentCashNo</b> til:</td>"; 
@@ -558,7 +559,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		}
 	} else {
 		$r=db_fetch_array(db_select("select id from table_plan where name='$borde'",__FILE__ . " linje " . __LINE__));
-		$bordnr = $r["id"];
+		$bordnr = $r["id"] ?? null;
 	}
 
 	if (!isset ($id)) $id = NULL;
@@ -709,7 +710,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 								$txt="";
 							} else {
 								$r=db_fetch_array(db_select("select name from table_plan where id = $bord[$x]",__FILE__ . " linje " . __LINE__));
-								$txt = $r[0];
+								$txt = $r[0] ?? null;
 							}
 						}
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/formFuncIncludes/sendMail.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
 //                  (source=debitorOrdrer) før fallback til gammelt bilag-system
@@ -34,6 +34,7 @@
 //                  recipient escaped before output.
 // 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
 //                  and offers the ASCII suggestion via emailLookalike.php.
+// 20261019 CDX/LH MB-78: fix PHP warnings
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -113,14 +114,14 @@ print "<!--function send_mails start-->";
 	$lang_sender_email = NULL;
 	$qtxt = "select var_value from settings where var_name = 'sender_email' and var_grp = 'email_settings' and group_id = '$lang_id'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$lang_sender_email = $r['var_value'];
+	$lang_sender_email = $r['var_value'] ?? null;
 	error_log("DEBUG: Found lang_sender_email='$lang_sender_email' for lang_id='$lang_id'");
 	
 	# Load sender name for this language
 	$lang_sender_name = NULL;
 	$qtxt = "select var_value from settings where var_name = 'sender_name' and var_grp = 'email_settings' and group_id = '$lang_id'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$lang_sender_name = $r['var_value'];
+	$lang_sender_name = $r['var_value'] ?? null;
 	error_log("DEBUG: Found lang_sender_name='$lang_sender_name' for lang_id='$lang_id'");
 	if (strpos($mailtext,'$firmanavn')) {
 		$qtxt = "select firmanavn from ordrer where id = '$ordre_id'";
