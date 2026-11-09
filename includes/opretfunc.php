@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-10 ---
+// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
+// 20261109 CL/MMR SD-815 (draft) A new regnskab gets the table einvoice_sendlog (e-documents sent through Semantic), as includes/betweenUpdates.php creates it on existing accounts.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -636,6 +637,16 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses (account_id)", __FILE__ . " linje " . __LINE__);
+
+	// SD-815 (draft): one row per e-document sent through Semantic (includes/einvoice/semanticSendLog.php); the same
+	// structure as the einvoice_sendlog block in includes/betweenUpdates.php.
+	$qtxt = "CREATE TABLE einvoice_sendlog ($id_column, ordre_id INTEGER, art VARCHAR(2), fakturanr VARCHAR(20), provider VARCHAR(20), ";
+	$qtxt.= "network SMALLINT, sender_endpoint_id VARCHAR(64), semantic_doc_id VARCHAR(40), ubl_doc_id VARCHAR(64), status VARCHAR(30), ";
+	$qtxt.= "status_text TEXT, xml " . (($db_type == "mysql" || $db_type == "mysqli") ? "LONGTEXT" : "TEXT") . ", xml_sha256 CHAR(64), db_name VARCHAR(64), ";
+	$qtxt.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, created_by VARCHAR(80), PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX einvoice_sendlog_order_idx ON einvoice_sendlog (ordre_id, art)", __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX einvoice_sendlog_semantic_idx ON einvoice_sendlog (semantic_doc_id)", __FILE__ . " linje " . __LINE__);
 
 	if ($db_type=="mysql" || $db_type=="mysqli") {
 		db_modify("ALTER TABLE adresser ADD modtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", __FILE__ . " linje " . __LINE__);

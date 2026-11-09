@@ -1,0 +1,152 @@
+{
+	"documentType": "invoice",
+	"id": "1016",
+	"issueDate": "2026-11-09",
+	"dueDate": "2026-11-23",
+	"typeCode": "380",
+	"note": "Leveret efter aftale",
+	"currency": "DKK",
+	"taxCurrency": null,
+	"taxCurrencyTaxAmount": null,
+	"accountingCost": "4711-12",
+	"buyerReference": "PO-4711",
+	"orderReference": "PO-99",
+	"salesOrderId": "516",
+	"billingReferences": [],
+	"seller": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"identifiers": [
+			{
+				"scheme": "0184",
+				"id": "11111111"
+			}
+		],
+		"name": "Eksempel Butik",
+		"registrationName": "Eksempel Sælger ApS",
+		"legalId": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"vatId": "DK11111111",
+		"address": {
+			"street": "Eksempelvej 1",
+			"additionalStreet": null,
+			"city": "Eksempelby",
+			"postalCode": "1234",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": {
+			"name": "Bogholderiet",
+			"phone": "+45 11 11 11 11",
+			"email": "faktura@example.invalid"
+		}
+	},
+	"buyer": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "22222222"
+		},
+		"identifiers": [],
+		"name": "Eksempel Køber A/S",
+		"registrationName": "Eksempel Køber A/S",
+		"legalId": {
+			"scheme": "0184",
+			"id": "22222222"
+		},
+		"vatId": "DK22222222",
+		"address": {
+			"street": "Kundevej 2",
+			"additionalStreet": "Bygning B",
+			"city": "Kundeby",
+			"postalCode": "5678",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": {
+			"name": "Indkøb",
+			"phone": null,
+			"email": null
+		}
+	},
+	"delivery": {
+		"date": "2026-11-06",
+		"name": null,
+		"address": {
+			"street": "Lagervej 5",
+			"additionalStreet": null,
+			"city": "Kundeby",
+			"postalCode": "5678",
+			"countrySubentity": null,
+			"country": "DK"
+		}
+	},
+	"paymentMeans": [
+		{
+			"code": "31",
+			"paymentId": "1016",
+			"payeeAccount": {
+				"id": "DK5000400440116243",
+				"name": "Eksempel Sælger ApS",
+				"bic": "DABADKKK"
+			}
+		}
+	],
+	"paymentTerms": "Netto 14 dage",
+	"allowanceCharges": [],
+	"taxSubtotals": [
+		{
+			"taxableAmount": 300.0,
+			"taxAmount": 75.0,
+			"category": "S",
+			"percent": 25.0,
+			"exemptionReasonCode": null,
+			"exemptionReason": null
+		}
+	],
+	"taxTotal": 75.0,
+	"totals": {
+		"lineExtension": 300.0,
+		"taxExclusive": 300.0,
+		"taxInclusive": 375.0,
+		"allowanceTotal": null,
+		"chargeTotal": null,
+		"prepaid": null,
+		"roundingAmount": null,
+		"payable": 375.0
+	},
+	"lines": [
+		{
+			"id": "1",
+			"quantity": 2.0,
+			"unitCode": "H87",
+			"lineExtension": 300.0,
+			"note": "Leveret i to kolli",
+			"accountingCost": "4711-12",
+			"orderLineReference": "10",
+			"allowanceCharges": [],
+			"netPrice": 150.0,
+			"baseQuantity": null,
+			"grossPrice": null,
+			"priceDiscount": null,
+			"itemName": "Eksempelvare",
+			"itemDescription": "Eksempelvare i blå",
+			"sellersItemId": "VARE-1",
+			"standardItemId": null,
+			"vatCategory": "S",
+			"vatPercent": 25.0
+		}
+	],
+	"attachments": [
+		{
+			"id": "1016",
+			"description": "Faktura som PDF",
+			"mimeCode": "application/pdf",
+			"filename": "faktura-1016.pdf",
+			"base64": "JVBERi0xLjQKJSBzeW50aGV0aWMgdGVzdCBhdHRhY2htZW50Cg=="
+		}
+	]
+}

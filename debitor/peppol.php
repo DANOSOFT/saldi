@@ -4,6 +4,8 @@
 // 20260924 Sawaneh    JOB-141: debitor module rights are checked here (online.php) - only a login
 //                     was required before, and a send now also writes ordrer.digital_status.
 // 20261026 CL/MMR SD-774 sendInvoice() gets the page's encoding and language, which its missing-CVR page needs.
+// 20261109 CL/MMR SD-815 (draft) A regnskab whose setting provider/einvoice is 'semantic' sends invoices and credit notes through semanticPeppolPage() (Peppol BIS 3 XML built by Saldi, sent through Semantic) and gets a short status page.
+//                 Every other regnskab, and every other request, runs the EasyUBL code below unchanged.
 
 /**
  * Injected by ../includes/connect.php through api.php, included below:
@@ -11,12 +13,31 @@
  *
  * Injected by ../includes/online.php through api.php, included below:
  * @var int|string $sprog_id
+ * @var string $db
+ * @var string $brugernavn
+ *
+ * Set by api.php (session_id()), included below:
+ * @var string $s_id
  */
 
 ob_start();
 $modulnr = 5;
 include_once("api.php");
-$name = isset($_GET["name"]) ? basename((string) $_GET["name"]) : "";
+// SD-815: the per-regnskab switch. Without the setting (the default) nothing below changes.
+if (!function_exists('get_settings_value')) {
+	include_once(__DIR__ . '/../includes/std_func.php');
+}
+if (strtolower(trim((string)get_settings_value('provider', 'einvoice', 'easyubl'))) === 'semantic') {
+	include_once(__DIR__ . '/../includes/einvoice/semanticPeppolPage.php');
+	// Answers and exits when the request is a send, a confirmed resend or a send to show; otherwise returns.
+	semanticPeppolPage($_GET ?? array(), $_POST ?? array(), $_SERVER['REQUEST_METHOD'] ?? 'GET', array(
+		'db' => (string)($db ?? ''),
+		'sprog_id' => (int)($sprog_id ?? 1),
+		'user' => (string)($brugernavn ?? ''),
+		'sessionId' => (string)($s_id ?? ''),
+	));
+}
+$name =isset($_GET["name"]) ? basename((string) $_GET["name"]) : "";
 $type = isset($_GET["type"]) ? $_GET["type"] : "";
 
 if(isset($_GET["id"]) && isset($_GET["type"])){
