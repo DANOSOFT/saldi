@@ -166,6 +166,9 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261109 CL/SZ MB-136 ansatopslag(): the contact link URL-encodes the name and escapes its text, so choosing Bo O'Neill no longer saves Bo O.
+//                Without a sort it sorts by 'navn' instead of the bare constant navn, which stopped the lookup with a fatal error on PHP 8.
+//                $charset is now a global there for the escaping.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
@@ -3894,6 +3897,7 @@ function ansatopslag($sort, $fokus, $id)
 {
 	global $bgcolor;
 	global $bgcolor5;
+	global $charset;
 
 	global $menu;
 
@@ -3927,7 +3931,7 @@ function ansatopslag($sort, $fokus, $id)
 
 	$sort = $_GET['sort'];
 	if (!$sort) {
-		$sort = navn;
+		$sort = 'navn';
 	}
 
 	if (!$id) {
@@ -3943,7 +3947,7 @@ function ansatopslag($sort, $fokus, $id)
 			$color = '#000000';
 		}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>$row[navn]</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>" . htmlspecialchars($row['navn'], ENT_QUOTES, $charset) . "</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";
