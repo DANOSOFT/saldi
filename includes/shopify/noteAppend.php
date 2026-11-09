@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/noteAppend.php --- ver 5.0.0 --- 2026.10.22
+// --- includes/shopify/noteAppend.php --- ver 5.1.0 --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,8 +27,9 @@
 //
 // A note append is an uncertain mutation: orderUpdate replaces the whole note, so a blind
 // resend after a lost response would append the text twice. Every append therefore reads the
-// note first, skips when the op_key's marker is already there, and on an unclear outcome
-// reconciles by reading again instead of sending the mutation a second time.
+// note first and skips when the op_key's marker is already there. The mutation goes through
+// shopify_graphql() in reconcile mode: after an attempt that may have reached Shopify the note
+// is read again, and the marker decides whether it was applied or may be sent once more.
 //
 // Tags go through tagsAdd only, never orderUpdate.tags, so tags HML or DTAILS set on the
 // order survive. tagsAdd is additive, so re-running it would put back a tag HML removed -
@@ -36,8 +37,11 @@
 // not this file.
 //
 // 20261022 CL/MJ SD-759: created (WP10-1).
+// 20261109 CL/MJ SD-759: calls go through shopify_graphql() (WP03) with the shop's row, and a lost note update is reconciled by the client's read-first callback.
 
 require_once __DIR__ . '/schema.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/client.php';
 
 /** Marker prefix that makes a Saldi note append recognisable on a later read. */
 const SHOPIFY_NOTE_MARKER_PREFIX = 'saldi:';
@@ -56,37 +60,23 @@ const SHOPIFY_NOTE_UPDATE_MUTATION = 'mutation saldiOrderNoteAppend($input: Orde
 const SHOPIFY_TAGS_ADD_MUTATION = 'mutation saldiOrderTagsAdd($id: ID!, $tags: [String!]!) {'
 	. ' tagsAdd(id: $id, tags: $tags) { node { id } userErrors { field message } } }';
 
+/** A write-back call that could not be made or did not succeed; the job retries it. */
 class ShopifyWritebackError extends RuntimeException
 {
 }
 
 /**
- * The one call WP10 needs from the Shopify transport. S09b (WP02) owns the real client and
- * registers it with shopify_set_graphql_client() when it lands; until then only the test
- * doubles implement this.
+ * The shop row shopify_graphql() needs.
+ *
+ * @return array<string, string|null>
+ * @throws ShopifyWritebackError when the shop does not exist
  */
-interface ShopifyGraphqlClient {
-	/**
-	 * Runs one GraphQL document against $shopId's shop. Throws on a transport failure, which
-	 * the caller must read as "the mutation may or may not have been applied".
-	 *
-	 * @param array<string, mixed> $variables
-	 * @return array{data?: array<string, mixed>, errors?: array<int, mixed>}
-	 */
-	public function call(int $shopId, string $document, array $variables): array;
-}
-
-/** Registers the transport, or clears it with null. */
-function shopify_set_graphql_client(?ShopifyGraphqlClient $client): void {
-	$GLOBALS['shopify_graphql_client'] = $client;
-}
-
-function shopify_graphql_client(): ShopifyGraphqlClient {
-	$client = $GLOBALS['shopify_graphql_client'] ?? null;
-	if (!$client instanceof ShopifyGraphqlClient) {
-		throw new ShopifyWritebackError('no Shopify GraphQL client registered (shopify_set_graphql_client)');
+function shopify_writeback_shop(int $shopId): array {
+	$shop = shopify_db_rows('SELECT * FROM shopify_shops WHERE id = $1', array($shopId))[0] ?? null;
+	if ($shop === null) {
+		throw new ShopifyWritebackError("unknown Shopify shop: $shopId");
 	}
-	return $client;
+	return $shop;
 }
 
 /**
@@ -121,10 +111,8 @@ function shopify_note_compose(string $note, string $text, string $opKey, ?string
 /**
  * Appends $text to the Shopify order's note once, whatever happens to the response.
  *
- * Reads the note first and does nothing when $opKey's marker is already there. After an
- * unclear mutation outcome it reads once more: the marker tells whether the lost response
- * had been applied. The mutation is never sent twice.
- *
+ * @param array{deadline?: float, graphql?: array<string, mixed>} $rt the job's deadline; graphql
+ *   is merged into shopify_graphql()'s opts (the tests' transport)
  * @return array{
  *   status: string,  'appended', 'already_present', 'reconciled' or 'failed'.
  *   appended: bool,  True when this call, or its lost response, added the line.
@@ -133,41 +121,52 @@ function shopify_note_compose(string $note, string $text, string $opKey, ?string
  *   errors: array<int, string>,  Why it failed; empty otherwise.
  * }
  */
-function shopify_append_note(int $shopId, string $orderGid, string $opKey, string $text): array {
+function shopify_append_note(int $shopId, string $orderGid, string $opKey, string $text, array $rt = array()): array {
+	return shopify_note_append_to(shopify_writeback_shop($shopId), $orderGid, $opKey, $text, $rt);
+}
+
+/**
+ * shopify_append_note() for a shop row. Reads the note first and does nothing when $opKey's
+ * marker is already there. A mutation attempt that may have reached Shopify is followed by a
+ * read (the reconcile callback): the marker tells whether it was applied, and only a note
+ * without it is sent again.
+ *
+ * @param array<string, string|null> $shop
+ * @param array{deadline?: float, graphql?: array<string, mixed>} $rt
+ * @return array{status: string, appended: bool, note: string|null, marker: string, errors: array<int, string>}
+ */
+function shopify_note_append_to(array $shop, string $orderGid, string $opKey, string $text, array $rt = array()): array {
 	$gid = shopify_gid($orderGid, 'Order');
 	$marker = shopify_note_marker($opKey);
-	$client = shopify_graphql_client();
 
-	$note = shopify_note_read($client, $shopId, $gid);
-	if ($note === null) {
-		return shopify_note_result('failed', false, null, $marker, array("order $gid could not be read"));
+	$read = shopify_note_read($shop, $gid, $rt);
+	if ($read['note'] === null) {
+		return shopify_note_result('failed', false, null, $marker, $read['errors']);
 	}
-	if (strpos($note, $marker) !== false) {
-		return shopify_note_result('already_present', false, $note, $marker, array());
+	if (strpos($read['note'], $marker) !== false) {
+		return shopify_note_result('already_present', false, $read['note'], $marker, array());
 	}
 
-	$input = array('id' => $gid, 'note' => shopify_note_compose($note, $text, $opKey));
-	$errors = array();
-	try {
-		$response = $client->call($shopId, SHOPIFY_NOTE_UPDATE_MUTATION, array('input' => $input));
-		$errors = shopify_user_errors($response, 'orderUpdate');
-		$written = $response['data']['orderUpdate']['order']['note'] ?? null;
-		if (!$errors && is_string($written) && strpos($written, $marker) !== false) {
-			return shopify_note_result('appended', true, $written, $marker, array());
+	$reconcile = function () use ($shop, $gid, $marker, $rt): array {
+		$after = shopify_note_read($shop, $gid, $rt);
+		if ($after['note'] === null) {
+			return array('state' => 'unknown');
 		}
-		if (!$errors) {
-			$errors = array('orderUpdate returned no usable order note');
+		if (strpos($after['note'], $marker) === false) {
+			return array('state' => 'absent');
 		}
-	} catch (Throwable $e) {
-		$errors = array($e->getMessage());
+		$data = array('orderUpdate' => array('order' => array('id' => $gid, 'note' => $after['note']), 'userErrors' => array()));
+		return array('state' => 'applied', 'data' => $data);
+	};
+	$input = array('id' => $gid, 'note' => shopify_note_compose($read['note'], $text, $opKey));
+	$opts = shopify_writeback_opts($rt, array('retry_mode' => 'reconcile', 'reconcile' => $reconcile, 'correlation' => array('order_gid' => $gid)));
+	$res = shopify_graphql($shop, 'orderUpdate', SHOPIFY_NOTE_UPDATE_MUTATION, array('input' => $input), $opts);
+	$written = $res['data']['orderUpdate']['order']['note'] ?? null;
+	if ($res['ok'] && is_string($written) && strpos($written, $marker) !== false) {
+		return shopify_note_result($res['outcome'] === 'reconciled' ? 'reconciled' : 'appended', true, $written, $marker, array());
 	}
-
-	// Uncertain outcome. The note may already carry the line, so read instead of resending.
-	$after = shopify_note_read($client, $shopId, $gid);
-	if ($after !== null && strpos($after, $marker) !== false) {
-		return shopify_note_result('reconciled', true, $after, $marker, $errors);
-	}
-	return shopify_note_result('failed', false, $after, $marker, $errors);
+	$errors = shopify_graphql_messages($res) ?: array('orderUpdate returned no note carrying the marker (' . ($res['error'] ?? $res['outcome']) . ')');
+	return shopify_note_result('failed', false, is_string($written) ? $written : null, $marker, $errors);
 }
 
 /**
@@ -178,14 +177,50 @@ function shopify_append_note(int $shopId, string $orderGid, string $opKey, strin
  * must gate the retry on the stage checkpoint rather than on this function.
  *
  * @param array<int, string> $tags
+ * @param array{deadline?: float, graphql?: array<string, mixed>} $rt
  * @return array{
  *   status: string,  'added', 'noop' or 'failed'.
  *   tags: array<int, string>,  The tags actually sent.
  *   errors: array<int, string>,  Why it failed; empty otherwise.
  * }
  */
-function shopify_add_tags(int $shopId, string $orderGid, array $tags): array {
+function shopify_add_tags(int $shopId, string $orderGid, array $tags, array $rt = array()): array {
+	$clean = shopify_clean_tags($tags);
+	if (!$clean) {
+		return array('status' => 'noop', 'tags' => array(), 'errors' => array());
+	}
+	return shopify_tags_add_to(shopify_writeback_shop($shopId), $orderGid, $clean, $rt);
+}
+
+/**
+ * shopify_add_tags() for a shop row. tagsAdd is sent in idempotent mode: adding the same
+ * tags twice leaves the order as adding them once.
+ *
+ * @param array<string, string|null> $shop
+ * @param array<int, string> $tags
+ * @param array{deadline?: float, graphql?: array<string, mixed>} $rt
+ * @return array{status: string, tags: array<int, string>, errors: array<int, string>}
+ */
+function shopify_tags_add_to(array $shop, string $orderGid, array $tags, array $rt = array()): array {
 	$gid = shopify_gid($orderGid, 'Order');
+	$clean = shopify_clean_tags($tags);
+	if (!$clean) {
+		return array('status' => 'noop', 'tags' => array(), 'errors' => array());
+	}
+	$opts = shopify_writeback_opts($rt, array('retry_mode' => 'idempotent', 'correlation' => array('order_gid' => $gid)));
+	$res = shopify_graphql($shop, 'tagsAdd', SHOPIFY_TAGS_ADD_MUTATION, array('id' => $gid, 'tags' => $clean), $opts);
+	if ($res['ok'] && isset($res['data']['tagsAdd']['node']['id'])) {
+		return array('status' => 'added', 'tags' => $clean, 'errors' => array());
+	}
+	$errors = shopify_graphql_messages($res);
+	return array('status' => 'failed', 'tags' => $clean, 'errors' => $errors ?: array('tagsAdd returned no node (' . ($res['error'] ?? $res['outcome']) . ')'));
+}
+
+/**
+ * @param array<int, mixed> $tags
+ * @return array<int, string> trimmed, without blanks and duplicates, in the order given
+ */
+function shopify_clean_tags(array $tags): array {
 	$clean = array();
 	foreach ($tags as $tag) {
 		$tag = trim((string)$tag);
@@ -193,56 +228,49 @@ function shopify_add_tags(int $shopId, string $orderGid, array $tags): array {
 			$clean[] = $tag;
 		}
 	}
-	if (!$clean) {
-		return array('status' => 'noop', 'tags' => array(), 'errors' => array());
-	}
-	$errors = array();
-	try {
-		$variables = array('id' => $gid, 'tags' => $clean);
-		$response = shopify_graphql_client()->call($shopId, SHOPIFY_TAGS_ADD_MUTATION, $variables);
-		$errors = shopify_user_errors($response, 'tagsAdd');
-		if (!$errors && isset($response['data']['tagsAdd']['node']['id'])) {
-			return array('status' => 'added', 'tags' => $clean, 'errors' => array());
-		}
-		if (!$errors) {
-			$errors = array('tagsAdd returned no node');
-		}
-	} catch (Throwable $e) {
-		$errors = array($e->getMessage());
-	}
-	return array('status' => 'failed', 'tags' => $clean, 'errors' => $errors);
+	return $clean;
 }
 
 /**
- * The order's note as Shopify has it right now, '' when the order carries none, null when the
+ * The order's note as Shopify has it right now: '' when the order carries none, null when the
  * read itself did not succeed - which is a different answer, and not one to append to.
+ *
+ * @param array<string, string|null> $shop
+ * @param array{deadline?: float, graphql?: array<string, mixed>} $rt
+ * @return array{note: string|null, errors: array<int, string>}
  */
-function shopify_note_read(ShopifyGraphqlClient $client, int $shopId, string $orderGid): ?string {
-	try {
-		$response = $client->call($shopId, SHOPIFY_NOTE_READ_QUERY, array('id' => $orderGid));
-	} catch (Throwable $e) {
-		return null;
+function shopify_note_read(array $shop, string $orderGid, array $rt = array()): array {
+	$opts = shopify_writeback_opts($rt, array('correlation' => array('order_gid' => $orderGid)));
+	$res = shopify_graphql($shop, 'orderNoteRead', SHOPIFY_NOTE_READ_QUERY, array('id' => $orderGid), $opts);
+	if (!$res['ok'] || !isset($res['data']['order']['id'])) {
+		$errors = shopify_graphql_messages($res);
+		return array('note' => null, 'errors' => $errors ?: array("order $orderGid could not be read (" . ($res['error'] ?? 'not found') . ')'));
 	}
-	if (!empty($response['errors']) || !isset($response['data']['order']['id'])) {
-		return null;
-	}
-	return (string)($response['data']['order']['note'] ?? '');
+	return array('note' => (string)($res['data']['order']['note'] ?? ''), 'errors' => array());
 }
 
 /**
- * The userErrors of one mutation field, flattened to messages, with any top-level GraphQL
- * errors in front of them.
+ * The opts of one write-back call: the test's graphql seams, then the call's own, then the
+ * job's deadline.
  *
- * @param array{data?: array<string, mixed>, errors?: array<int, mixed>} $response
+ * @param array{deadline?: float, graphql?: array<string, mixed>} $rt
+ * @param array<string, mixed> $opts
+ * @return array<string, mixed>
+ */
+function shopify_writeback_opts(array $rt, array $opts): array {
+	return ($rt['graphql'] ?? array()) + $opts + array('deadline' => (float)($rt['deadline'] ?? microtime(true) + 50));
+}
+
+/**
+ * The top-level errors and every userError of a shopify_graphql() result, as messages.
+ *
+ * @param array<string, mixed> $res
  * @return array<int, string>
  */
-function shopify_user_errors(array $response, string $field): array {
+function shopify_graphql_messages(array $res): array {
 	$messages = array();
-	foreach (($response['errors'] ?? array()) as $error) {
-		$messages[] = is_array($error) ? (string)($error['message'] ?? 'GraphQL error') : (string)$error;
-	}
-	foreach (($response['data'][$field]['userErrors'] ?? array()) as $error) {
-		$messages[] = is_array($error) ? (string)($error['message'] ?? 'userError') : (string)$error;
+	foreach (array_merge($res['errors'] ?? array(), $res['user_errors'] ?? array()) as $error) {
+		$messages[] = is_array($error) ? (string)($error['message'] ?? 'error') : (string)$error;
 	}
 	return $messages;
 }

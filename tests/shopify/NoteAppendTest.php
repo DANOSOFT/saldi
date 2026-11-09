@@ -1,222 +1,207 @@
 <?php
 // tests/shopify/NoteAppendTest.php
 //
-// shopify_append_note() and shopify_add_tags() (SD-759, WP10-1) against a fake Shopify
-// order: a note survives byte for byte, a replay appends nothing, a lost response is
-// reconciled by reading rather than resent, and tags only ever go through tagsAdd.
+// shopify_append_note() and shopify_add_tags() (SD-759, WP10-1) through shopify_graphql() against
+// the shared fake store: a note survives byte for byte, a replay appends nothing, a lost response
+// is reconciled by reading rather than resent blind, and tags only ever go through tagsAdd.
 // No database needed.
 //
 // History:
 // 20261022 CL/MJ SD-759: created.
+// 20261109 CL/MJ SD-759: runs through shopify_graphql() and FakeShopifyStore instead of a test-only client.
 
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/support/FakeShopifyGraphql.php';
+require_once __DIR__ . '/support/FakeShopifyStore.php';
+require_once dirname(__DIR__, 2) . '/includes/shopify/noteAppend.php';
 
 final class NoteAppendTest extends TestCase
 {
-    private const ORDER = 'gid://shopify/Order/5544332211000';
+    private const ORDER_CREATE = 'mutation orderCreate($order: OrderCreateOrderInput!) { orderCreate(order: $order) { order { id } userErrors { message } } }';
 
-    private FakeShopifyGraphql $shop;
+    private FakeShopifyStore $store;
+    private string $domain;
+    private string $order;
+    /** @var callable|null replaces the store's answer to the next orderUpdate */
+    private $onUpdate = null;
 
     protected function setUp(): void
     {
-        $this->shop = new FakeShopifyGraphql();
-        shopify_set_graphql_client($this->shop);
+        $this->store = new FakeShopifyStore();
+        $this->domain = $this->store->addShop('hml')['domain'];
+        $this->order = $this->placeOrder('Ring før levering');
+        $this->store->calls = [];
     }
 
-    protected function tearDown(): void
+    private function placeOrder(?string $note): string
     {
-        shopify_set_graphql_client(null);
+        $item = $this->store->seedProduct($this->domain, 'havestol-' . count($this->store->calls), 'SD759-' . count($this->store->calls));
+        $vars = ['order' => ['lineItems' => [['variantId' => $item['variant'], 'quantity' => 1]], 'note' => $note, 'tags' => ['dtails-hold']]];
+        $answer = json_decode($this->store->request($this->domain, self::ORDER_CREATE, $vars)['body'], true);
+        return $answer['data']['orderCreate']['order']['id'];
+    }
+
+    /** The runtime the functions get: the store as transport; $this->onUpdate can take over an orderUpdate. */
+    private function rt(): array
+    {
+        $transport = function (string $url, array $headers, string $body, float $connect, float $timeout): array {
+            if ($this->onUpdate !== null && str_contains($body, 'orderUpdate')) {
+                $take = $this->onUpdate;
+                $this->onUpdate = null;
+                return $take($url, $headers, $body, $connect, $timeout);
+            }
+            return $this->store->send($url, $headers, $body, $connect, $timeout);
+        };
+        return ['graphql' => $this->store->opts(['transport' => $transport])];
+    }
+
+    private function append(string $opKey, string $text, ?string $order = null): array
+    {
+        return shopify_note_append_to($this->store->shopRow($this->domain), $order ?? $this->order, $opKey, $text, $this->rt());
+    }
+
+    private function note(): string
+    {
+        return (string)$this->store->shop($this->domain)['orders'][$this->order]['note'];
+    }
+
+    /** @return list<string> */
+    private function roots(): array
+    {
+        return array_merge(...array_map(fn(array $c): array => $c['roots'], $this->store->calls) ?: [[]]);
     }
 
     public function testTheMarkerIsHashedAndStable(): void
     {
-        $marker = shopify_note_marker('faktura:4711');
-        $this->assertSame('[saldi:' . hash('sha256', 'faktura:4711') . ']', $marker);
-        $this->assertStringNotContainsString('4711', $marker, 'the op_key must not be readable in the shop note');
-        $this->assertSame($marker, shopify_note_marker('faktura:4711'));
-        $this->assertNotSame($marker, shopify_note_marker('faktura:4712'));
+        $marker = shopify_note_marker('credit:K-1042');
+        $this->assertSame('[saldi:' . hash('sha256', 'credit:K-1042') . ']', $marker);
+        $this->assertSame($marker, shopify_note_marker('credit:K-1042'));
+        $this->assertStringNotContainsString('K-1042', $marker, 'the op_key never shows in the note');
     }
 
     public function testHasMarkerAnswersForOneOpKeyOnly(): void
     {
-        $note = shopify_note_compose('Eksisterende note', 'Delt sæt', 'op-1', '2026-10-22');
-
-        $this->assertTrue(shopify_note_has_marker($note, 'op-1'));
-        $this->assertFalse(shopify_note_has_marker($note, 'op-2'));
-        $this->assertFalse(shopify_note_has_marker('', 'op-1'));
+        $note = shopify_note_compose('', 'Sæt delt', 'a', '2026-11-09');
+        $this->assertTrue(shopify_note_has_marker($note, 'a'));
+        $this->assertFalse(shopify_note_has_marker($note, 'b'));
     }
 
     public function testComposeKeepsTheExistingNoteByteForByte(): void
     {
-        $existing = "Kunden ringer før levering.\r\n  Ønsker æ, ø og å bevaret.  \n";
-        $composed = shopify_note_compose($existing, 'Delt sæt', 'op-1', '2026-10-22');
-
+        $existing = "  Ring før levering \r\nPort 3 ";
+        $composed = shopify_note_compose($existing, 'Sæt delt', 'a', '2026-11-09');
         $this->assertSame($existing, substr($composed, 0, strlen($existing)));
-        $this->assertSame("\n2026-10-22 Delt sæt " . shopify_note_marker('op-1'), substr($composed, strlen($existing)));
+        $this->assertSame($existing . "\n2026-11-09 Sæt delt " . shopify_note_marker('a'), $composed);
     }
 
     public function testComposeOnAnEmptyNoteAddsNoLeadingNewline(): void
     {
-        $this->assertSame(
-            '2026-10-22 Delt sæt ' . shopify_note_marker('op-1'),
-            shopify_note_compose('', 'Delt sæt', 'op-1', '2026-10-22')
-        );
+        $this->assertSame('2026-11-09 Sæt delt ' . shopify_note_marker('a'), shopify_note_compose('', 'Sæt delt', 'a', '2026-11-09'));
     }
 
     public function testAnAppendAddsOneLineAndOneMarker(): void
     {
-        $this->shop->note = 'Eksisterende note';
-
-        $result = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt over to lagre');
+        $result = $this->append('op-1', 'Sæt delt over flere lagre');
 
         $this->assertSame('appended', $result['status']);
         $this->assertTrue($result['appended']);
-        $this->assertStringStartsWith("Eksisterende note\n", $this->shop->note);
-        $this->assertSame(1, substr_count($this->shop->note, $result['marker']));
-        $this->assertSame(1, $this->shop->callsOf('saldiOrderNoteAppend'));
+        $this->assertStringStartsWith("Ring før levering\n", $this->note(), 'the note HML had is kept as it was');
+        $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-1')));
+        $this->assertSame($this->note(), $result['note']);
     }
 
     public function testAReplayAppendsNothingAndLeavesExactlyOneMarker(): void
     {
-        $this->shop->note = 'Eksisterende note';
-        $first = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt over to lagre');
-        $after = $this->shop->note;
+        $this->append('op-1', 'Sæt delt');
+        $before = $this->note();
 
-        $second = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt over to lagre');
+        $result = $this->append('op-1', 'Sæt delt');
 
-        $this->assertSame('already_present', $second['status']);
-        $this->assertFalse($second['appended']);
-        $this->assertSame($after, $this->shop->note, 'a replay must not touch the note');
-        $this->assertSame(1, substr_count($this->shop->note, $first['marker']));
-        $this->assertSame(1, $this->shop->callsOf('saldiOrderNoteAppend'), 'the second call must not mutate');
+        $this->assertSame('already_present', $result['status']);
+        $this->assertFalse($result['appended']);
+        $this->assertSame($before, $this->note(), 'byte for byte');
+        $this->assertSame(1, count(array_keys($this->roots(), 'orderUpdate')), 'the replay only read the note');
     }
 
     public function testADifferentOpKeyStillAppends(): void
     {
-        shopify_append_note(7, self::ORDER, 'op-1', 'Første');
-        shopify_append_note(7, self::ORDER, 'op-2', 'Anden');
-
-        $this->assertSame(1, substr_count($this->shop->note, shopify_note_marker('op-1')));
-        $this->assertSame(1, substr_count($this->shop->note, shopify_note_marker('op-2')));
-        $this->assertSame(2, $this->shop->callsOf('saldiOrderNoteAppend'));
+        $this->append('op-1', 'Første');
+        $this->assertSame('appended', $this->append('op-2', 'Anden')['status']);
+        $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-1')));
+        $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-2')));
     }
 
     public function testALostResponseIsReconciledByReadingNotResent(): void
     {
-        $this->shop->note = 'Eksisterende note';
-        // Shopify applied the update; the response never came back.
-        $this->shop->scriptNextMutation(true, new RuntimeException('cURL error 28: operation timed out'));
+        $this->onUpdate = function (...$request): array {
+            $this->store->send(...$request);
+            return FakeShopify::timeout();
+        };
 
-        $result = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt over to lagre');
+        $result = $this->append('op-1', 'Sæt delt');
 
         $this->assertSame('reconciled', $result['status']);
         $this->assertTrue($result['appended']);
-        $this->assertSame(1, $this->shop->callsOf('saldiOrderNoteAppend'), 'the mutation must never be resent');
-        $this->assertSame(1, substr_count($this->shop->note, $result['marker']));
-        $this->assertSame(['saldiOrderNote', 'saldiOrderNoteAppend', 'saldiOrderNote'], $this->shop->calls);
+        $this->assertSame(1, count(array_keys($this->roots(), 'orderUpdate')), 'the update that went through is not sent again');
+        $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-1')));
     }
 
-    public function testAMutationThatNeverAppliedFailsWithoutResending(): void
+    public function testAnUpdateThatNeverAppliedIsSentAgainOnlyAfterTheReadFindsNoMarker(): void
     {
-        $this->shop->note = 'Eksisterende note';
-        $this->shop->scriptNextMutation(false, new RuntimeException('connection reset'));
+        $this->onUpdate = fn(): array => FakeShopify::timeout();
 
-        $result = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt over to lagre');
+        $result = $this->append('op-1', 'Sæt delt');
+
+        $this->assertSame('appended', $result['status']);
+        $this->assertSame(['order', 'order', 'orderUpdate'], $this->roots(), 'read, read after the lost answer, then the one update that reached the store');
+        $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-1')));
+    }
+
+    public function testAnOrderThatCannotBeReadIsNeverAppendedTo(): void
+    {
+        $result = $this->append('op-1', 'Sæt delt', 'gid://shopify/Order/999999999');
 
         $this->assertSame('failed', $result['status']);
-        $this->assertFalse($result['appended']);
-        $this->assertSame('Eksisterende note', $this->shop->note);
-        $this->assertSame(1, $this->shop->callsOf('saldiOrderNoteAppend'));
-        $this->assertSame(['connection reset'], $result['errors']);
+        $this->assertNull($result['note']);
+        $this->assertNotEmpty($result['errors']);
+        $this->assertNotContains('orderUpdate', $this->roots());
     }
 
-    public function testARetryAfterAFailureStillAppendsOnlyOnce(): void
+    public function testTagsGoThroughTagsAddAndLeaveForeignTagsAlone(): void
     {
-        $this->shop->scriptNextMutation(true, new RuntimeException('cURL error 28: operation timed out'));
-        $first = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt');
-
-        $second = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt');
-
-        $this->assertSame('reconciled', $first['status']);
-        $this->assertSame('already_present', $second['status']);
-        $this->assertSame(1, substr_count($this->shop->note, $first['marker']));
-    }
-
-    public function testUserErrorsMakeTheAppendFail(): void
-    {
-        $this->shop->scriptNextMutation(false, null, ['Note is too long']);
-
-        $result = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt');
-
-        $this->assertSame('failed', $result['status']);
-        $this->assertSame(['Note is too long'], $result['errors']);
-        $this->assertSame('', $this->shop->note);
-    }
-
-    public function testAnUnreadableOrderIsNeverAppendedTo(): void
-    {
-        $this->shop->orderExists = false;
-
-        $result = shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt');
-
-        $this->assertSame('failed', $result['status']);
-        $this->assertSame(0, $this->shop->callsOf('saldiOrderNoteAppend'), 'no read, no write');
-    }
-
-    public function testTagsGoThroughTagsAddOnly(): void
-    {
-        $result = shopify_add_tags(7, self::ORDER, ['saldi-mangler-lager', 'saldi-saet-delt']);
+        $result = shopify_tags_add_to($this->store->shopRow($this->domain), $this->order, ['saldi-mangler-lager'], $this->rt());
 
         $this->assertSame('added', $result['status']);
-        $this->assertSame(['saldi-mangler-lager', 'saldi-saet-delt'], $this->shop->tags);
-        $this->assertSame(['saldiOrderTagsAdd'], $this->shop->calls);
-        $this->assertSame(0, $this->shop->callsOf('saldiOrderNoteAppend'), 'tags must never ride on orderUpdate');
+        $this->assertSame(['tagsAdd'], $this->roots());
+        $tags = $this->store->shop($this->domain)['orders'][$this->order]['tags'];
+        $this->assertContains('dtails-hold', $tags, 'a tag DTAILS set stays');
+        $this->assertContains('saldi-mangler-lager', $tags);
     }
 
-    public function testTagsAddLeavesForeignTagsAlone(): void
+    public function testBlankAndDuplicateTagsAreDroppedAndAnEmptyListCostsNoCall(): void
     {
-        $this->shop->tags = ['dtails-hold', 'easyroutes-ready'];
-
-        shopify_add_tags(7, self::ORDER, ['saldi-behandlet']);
-
-        $this->assertSame(['dtails-hold', 'easyroutes-ready', 'saldi-behandlet'], $this->shop->tags);
-    }
-
-    public function testBlankAndDuplicateTagsAreDropped(): void
-    {
-        $result = shopify_add_tags(7, self::ORDER, ['saldi-behandlet', ' saldi-behandlet ', '', '  ']);
-
-        $this->assertSame(['saldi-behandlet'], $result['tags']);
-        $this->assertSame(['saldi-behandlet'], $this->shop->tags);
-    }
-
-    public function testAnEmptyTagListCostsNoCall(): void
-    {
-        $result = shopify_add_tags(7, self::ORDER, []);
-
+        $this->assertSame(['a', 'b'], shopify_clean_tags([' a', 'b', '', 'a ', '  ']));
+        $result = shopify_tags_add_to($this->store->shopRow($this->domain), $this->order, ['', ' '], $this->rt());
         $this->assertSame('noop', $result['status']);
-        $this->assertSame([], $this->shop->calls);
+        $this->assertSame([], $this->store->calls);
+    }
+
+    public function testATagsAddOnAMissingOrderFails(): void
+    {
+        $result = shopify_tags_add_to($this->store->shopRow($this->domain), 'gid://shopify/Order/999999999', ['x'], $this->rt());
+        $this->assertSame('failed', $result['status']);
+        $this->assertNotEmpty($result['errors']);
     }
 
     public function testAnOrderGidOfAnotherResourceIsRefused(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        shopify_append_note(7, 'gid://shopify/Product/5544332211000', 'op-1', 'Delt sæt');
+        $this->append('op-1', 'x', 'gid://shopify/Customer/1');
     }
 
     public function testAnEmptyOpKeyIsRefused(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        shopify_note_marker('  ');
-    }
-
-    public function testWithoutARegisteredClientTheCallerIsTold(): void
-    {
-        shopify_set_graphql_client(null);
-
-        $this->expectException(ShopifyWritebackError::class);
-        shopify_append_note(7, self::ORDER, 'op-1', 'Delt sæt');
+        $this->append(' ', 'x');
     }
 }

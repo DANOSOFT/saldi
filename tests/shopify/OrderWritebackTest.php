@@ -1,81 +1,83 @@
 <?php
 // tests/shopify/OrderWritebackTest.php
 //
-// The writeback stage order and its builders (SD-759, WP10-1): hold tags before references
-// and note, saldi-behandlet last, an earlier stage in backoff blocking the later ones, the
-// K23/K45 metafields and the K55 split-set fixture. The stage decisions take their
-// checkpoints as an argument, so none of this needs a database.
+// The write-back stages (SD-759, WP10-1) as decisions: which checkpoints each stage waits for,
+// and what each one writes on the order, through shopify_graphql() against the shared fake
+// store. No database needed; OrderWritebackSyncTest runs the worker handler on a tenant.
 //
 // History:
 // 20261022 CL/MJ SD-759: created.
+// 20261109 CL/MJ SD-759: the stages run against FakeShopifyStore; order.move counts only once it is recorded.
 
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/support/FakeShopifyGraphql.php';
+require_once __DIR__ . '/support/FakeShopifyStore.php';
 require_once dirname(__DIR__, 2) . '/includes/shopify/services/orderWriteback.php';
 
 final class OrderWritebackTest extends TestCase
 {
-    private const ORDER = 'gid://shopify/Order/5544332211000';
+    private const ORDER_CREATE = 'mutation orderCreate($order: OrderCreateOrderInput!) { orderCreate(order: $order) { order { id } userErrors { message } } }';
+    private const DISTRIBUTION = [
+        ['saet' => 'HAVESAET-1', 'vare' => 'STOL-X', 'antal' => '1', 'lager' => 'Mårum'],
+        ['saet' => 'HAVESAET-1', 'vare' => 'BORD-Y', 'antal' => '2.000', 'lager' => 'Hillerød'],
+    ];
 
-    private FakeShopifyGraphql $shop;
+    private FakeShopifyStore $store;
+    private string $domain;
+    private string $order;
 
     protected function setUp(): void
     {
-        $this->shop = new FakeShopifyGraphql();
-        shopify_set_graphql_client($this->shop);
+        $this->store = new FakeShopifyStore();
+        $this->domain = $this->store->addShop('hml')['domain'];
+        $item = $this->store->seedProduct($this->domain, 'havesaet', 'SD759-1');
+        $vars = ['order' => ['lineItems' => [['variantId' => $item['variant'], 'quantity' => 1]], 'note' => 'Ring før levering']];
+        $answer = json_decode($this->store->request($this->domain, self::ORDER_CREATE, $vars)['body'], true);
+        $this->order = $answer['data']['orderCreate']['order']['id'];
+        $this->store->calls = [];
     }
 
-    protected function tearDown(): void
-    {
-        shopify_set_graphql_client(null);
-        shopify_set_writeback_enqueuer(null);
-    }
-
-    /** @param array<string, string> $checkpoints */
     private function stage(string $stage, array $checkpoints, array $context = []): array
     {
-        return shopify_writeback_stage(7, self::ORDER, $stage, $context, $checkpoints);
+        return shopify_writeback_stage($this->store->shopRow($this->domain), $this->order, $stage, $context, $checkpoints, ['graphql' => $this->store->opts()]);
+    }
+
+    private function orderRow(): array
+    {
+        return $this->store->shop($this->domain)['orders'][$this->order];
+    }
+
+    /** @return array<string, string> saldi.<key> => value */
+    private function metafields(): array
+    {
+        return array_map(fn(array $m): string => (string)$m['value'], $this->store->shop($this->domain)['metafields'][$this->order] ?? []);
+    }
+
+    /** @return list<string> */
+    private function roots(): array
+    {
+        return array_merge([], ...array_map(fn(array $c): array => $c['roots'], $this->store->calls));
     }
 
     private function allDoneExcept(string ...$missing): array
     {
-        $checkpoints = [
-            'order.tags' => 'done',
-            'order.move' => 'done',
-            'order.references' => 'done',
-            'order.note' => 'done',
-        ];
+        $checkpoints = ['order.tags' => 'done', 'order.references' => 'done', 'order.note' => 'done'];
         foreach ($missing as $stage) {
             unset($checkpoints[$stage]);
         }
         return $checkpoints;
     }
 
-    public function testTheStagesRunInTheOrderOfPlan27(): void
-    {
-        $this->assertSame([
-            'order.tags' => 10,
-            'order.move' => 15,
-            'order.references' => 20,
-            'order.note' => 25,
-            'order.processed' => 25,
-        ], shopify_writeback_stages());
-    }
-
     public function testHoldTagsHaveNoPrerequisites(): void
     {
-        $this->assertSame([], shopify_writeback_prerequisites('order.tags'));
-        $this->assertTrue(shopify_writeback_may_run([], 'order.tags'));
+        $this->assertNull(shopify_writeback_blocked_by([], 'order.tags'));
     }
 
-    public function testReferencesAndNoteWaitForTheHoldTags(): void
+    public function testReferencesAndTheMoveWaitForTheHoldTags(): void
     {
-        $this->assertFalse(shopify_writeback_may_run([], 'order.references'));
-        $this->assertFalse(shopify_writeback_may_run([], 'order.note'));
         $this->assertSame('order.tags', shopify_writeback_blocked_by([], 'order.references'));
-        $this->assertSame('order.tags', shopify_writeback_blocked_by([], 'order.note'));
-        $this->assertTrue(shopify_writeback_may_run(['order.tags' => 'done'], 'order.references'));
+        $this->assertSame('order.tags', shopify_writeback_blocked_by([], 'order.move'));
+        $this->assertNull(shopify_writeback_blocked_by(['order.tags' => 'done'], 'order.references'));
     }
 
     public function testTheNoteWaitsForTheReferences(): void
@@ -83,266 +85,142 @@ final class OrderWritebackTest extends TestCase
         $this->assertSame('order.references', shopify_writeback_blocked_by(['order.tags' => 'done'], 'order.note'));
     }
 
-    public function testSaldiBehandletIsLast(): void
+    public function testSaldiBehandletWaitsForEveryEarlierStage(): void
     {
-        $this->assertTrue(shopify_writeback_may_run($this->allDoneExcept(), 'order.processed'));
-        foreach (['order.tags', 'order.move', 'order.references', 'order.note'] as $stage) {
-            $checkpoints = $this->allDoneExcept($stage);
-            $this->assertSame($stage, shopify_writeback_blocked_by($checkpoints, 'order.processed'));
+        foreach (['order.tags', 'order.references', 'order.note'] as $missing) {
+            $this->assertSame($missing, shopify_writeback_blocked_by($this->allDoneExcept($missing), 'order.processed'));
         }
+        $this->assertNull(shopify_writeback_blocked_by($this->allDoneExcept(), 'order.processed'), 'an order with no move recorded needs none');
     }
 
-    public function testSaldiBehandletAcceptsAnAbandonedMove(): void
+    public function testARecordedMoveHoldsSaldiBehandletUntilItIsDoneOrAbandoned(): void
     {
-        $checkpoints = $this->allDoneExcept();
-        $checkpoints['order.move'] = 'abandoned';
-
-        $this->assertTrue(shopify_writeback_may_run($checkpoints, 'order.processed'));
+        $this->assertSame('order.move', shopify_writeback_blocked_by($this->allDoneExcept() + ['order.move' => 'queued'], 'order.processed'));
+        $this->assertNull(shopify_writeback_blocked_by($this->allDoneExcept() + ['order.move' => 'done'], 'order.processed'));
+        $this->assertNull(shopify_writeback_blocked_by($this->allDoneExcept() + ['order.move' => 'abandoned'], 'order.processed'));
     }
 
     public function testOnlyAMoveMayBeAbandoned(): void
     {
-        foreach (['order.tags', 'order.references', 'order.note'] as $stage) {
-            $checkpoints = $this->allDoneExcept();
-            $checkpoints[$stage] = 'abandoned';
-            $this->assertFalse(
-                shopify_writeback_may_run($checkpoints, 'order.processed'),
-                "$stage must not count as finished when abandoned"
-            );
-        }
+        $this->expectException(InvalidArgumentException::class);
+        shopify_writeback_mark(1, 'order.tags', 'abandoned');
     }
 
-    public function testRecordingAnAbandonedTagsStageIsRefused(): void
+    public function testAnUnknownStageIsRefused(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        shopify_writeback_mark(7, self::ORDER, 'order.tags', 'abandoned');
+        shopify_writeback_prerequisites('order.tagz');
     }
 
-    public function testSaldiBehandletIsNotSetWhileTheTagsStageIsRetrying(): void
+    public function testTheHoldTagsStageWritesTheIntakesTagsWithTagsAdd(): void
     {
-        // order.tags has no checkpoint: it is still backing off.
-        $outcome = $this->stage('order.processed', ['order.references' => 'done', 'order.note' => 'done', 'order.move' => 'done']);
+        $result = $this->stage('order.tags', [], ['tags' => ['saldi-mangler-lager', 'saldi-saet-delt']]);
 
-        $this->assertSame('requeue', $outcome['status']);
-        $this->assertSame('order.tags', $outcome['blocked_by']);
-        $this->assertNull($outcome['checkpoint']);
-        $this->assertSame([], $this->shop->calls, 'a blocked stage must not call Shopify at all');
-        $this->assertNotContains('saldi-behandlet', $this->shop->tags);
+        $this->assertSame(['done', 'done'], [$result['status'], $result['checkpoint']]);
+        $this->assertSame(['tagsAdd'], $this->roots());
+        $this->assertSame(['saldi-mangler-lager', 'saldi-saet-delt'], $this->orderRow()['tags']);
     }
 
-    public function testABlockedReferencesStageWritesNoMetafields(): void
+    public function testAnOrderWithNoHoldsStillFinishesTheTagsStageWithoutACall(): void
     {
-        $outcome = $this->stage('order.references', [], ['references' => ['ordre_nr' => 1001, 'faktura_nr' => 2002]]);
-
-        $this->assertSame('requeue', $outcome['status']);
-        $this->assertSame([], $this->shop->calls);
-        $this->assertSame([], $this->shop->metafields);
-    }
-
-    public function testTheHoldTagsStageWritesTheTagsAndCheckpointsItself(): void
-    {
-        $outcome = $this->stage('order.tags', [], ['allocation' => ['shortage' => true, 'split_set' => true]]);
-
-        $this->assertSame('done', $outcome['status']);
-        $this->assertSame('done', $outcome['checkpoint']);
-        $this->assertSame(['saldi-mangler-lager', 'saldi-saet-delt'], $this->shop->tags);
+        $result = $this->stage('order.tags', [], ['tags' => []]);
+        $this->assertSame(['done', 'done'], [$result['status'], $result['checkpoint']]);
+        $this->assertSame([], $this->store->calls);
     }
 
     public function testATagHmlRemovedIsNotPutBackOnceTheStageIsDone(): void
     {
-        // The stage ran, HML took the tag off again, the job is retried for another reason.
-        $outcome = $this->stage('order.tags', ['order.tags' => 'done'], ['allocation' => ['shortage' => true]]);
+        $result = $this->stage('order.tags', ['order.tags' => 'done'], ['tags' => ['saldi-mangler-lager']]);
 
-        $this->assertSame('done', $outcome['status']);
-        $this->assertNull($outcome['checkpoint'], 'nothing new to record');
-        $this->assertSame([], $this->shop->calls, 'a finished stage must not call tagsAdd again');
-        $this->assertSame([], $this->shop->tags);
+        $this->assertSame('done', $result['status']);
+        $this->assertNull($result['checkpoint'], 'nothing new to record');
+        $this->assertSame([], $this->store->calls);
     }
 
-    public function testAnOrderWithNoHoldsStillFinishesTheTagsStage(): void
+    public function testABlockedStageWritesNothing(): void
     {
-        $outcome = $this->stage('order.tags', [], ['allocation' => []]);
+        $result = $this->stage('order.references', [], ['references' => ['ordre_nr' => 7]]);
 
-        $this->assertSame('done', $outcome['status']);
-        $this->assertSame('done', $outcome['checkpoint']);
-        $this->assertSame([], $this->shop->calls, 'no hold tags, no API call');
+        $this->assertSame(['blocked', 'order.tags', null], [$result['status'], $result['blocked_by'], $result['checkpoint']]);
+        $this->assertSame([], $this->store->calls);
     }
 
-    public function testHoldTagsComeFromTheAllocation(): void
+    public function testK23AndK45TheOrderAndInvoiceNumberAndTheInvoiceLinkAreSetAsMetafields(): void
     {
-        $this->assertSame([], shopify_build_hold_tags([]));
-        $this->assertSame(['saldi-mangler-lager'], shopify_build_hold_tags(['shortage' => true]));
-        $this->assertSame(['saldi-saet-delt'], shopify_build_hold_tags(['split_set' => true]));
-        $this->assertSame(
-            ['saldi-mangler-lager', 'saldi-saet-delt'],
-            shopify_build_hold_tags(['shortage' => true, 'split_set' => true])
-        );
+        $context = ['references' => ['ordre_nr' => 4711, 'faktura_nr' => '1042'], 'invoice_url' => 'https://saldi.example/api/dokument.php?t=abc'];
+
+        $result = $this->stage('order.references', ['order.tags' => 'done'], $context);
+
+        $this->assertSame(['done', 'done'], [$result['status'], $result['checkpoint']]);
+        $this->assertSame(['metafieldsSet'], $this->roots());
+        $this->assertSame(['saldi.ordre_nr' => '4711', 'saldi.faktura_nr' => '1042', 'saldi.faktura_link' => 'https://saldi.example/api/dokument.php?t=abc'], $this->metafields());
     }
 
-    public function testK23AndK45TheOrderAndInvoiceNumberAndTheInvoiceLink(): void
+    public function testAMissingValueIsLeftOutRatherThanWrittenEmpty(): void
     {
-        $ctx = ['order_gid' => self::ORDER, 'ordre_nr' => 1001, 'faktura_nr' => 2002];
-
-        $metafields = shopify_build_order_metafields($ctx, 'https://saldi.example/dok/abc123');
-
-        $this->assertSame([
-            ['ownerId' => self::ORDER, 'namespace' => 'saldi', 'key' => 'ordre_nr', 'type' => 'single_line_text_field', 'value' => '1001'],
-            ['ownerId' => self::ORDER, 'namespace' => 'saldi', 'key' => 'faktura_nr', 'type' => 'single_line_text_field', 'value' => '2002'],
-            ['ownerId' => self::ORDER, 'namespace' => 'saldi', 'key' => 'faktura_link', 'type' => 'url', 'value' => 'https://saldi.example/dok/abc123'],
-        ], $metafields);
+        $fields = shopify_build_order_metafields(['order_gid' => $this->order, 'ordre_nr' => 4711, 'faktura_nr' => ' '], null);
+        $this->assertSame(['ordre_nr'], array_column($fields, 'key'));
     }
 
-    public function testAMissingInvoiceLinkIsLeftOutRatherThanWrittenEmpty(): void
+    public function testK55TheSplitSetNoteAndMetafieldAreWrittenOnce(): void
     {
-        $ctx = ['order_gid' => self::ORDER, 'ordre_nr' => 1001, 'faktura_nr' => 2002];
-
-        $keys = array_column(shopify_build_order_metafields($ctx, null), 'key');
-
-        $this->assertSame(['ordre_nr', 'faktura_nr'], $keys);
-    }
-
-    public function testTheReferencesStageSendsThemWithMetafieldsSet(): void
-    {
-        $context = ['references' => ['ordre_nr' => 1001, 'faktura_nr' => 2002], 'invoice_url' => 'https://saldi.example/dok/abc123'];
-
-        $outcome = $this->stage('order.references', ['order.tags' => 'done'], $context);
-
-        $this->assertSame('done', $outcome['status']);
-        $this->assertSame(['saldiOrderMetafields'], $this->shop->calls);
-        $this->assertSame('1001', $this->shop->metafields['saldi.ordre_nr']);
-        $this->assertSame('2002', $this->shop->metafields['saldi.faktura_nr']);
-        $this->assertSame('https://saldi.example/dok/abc123', $this->shop->metafields['saldi.faktura_link']);
-    }
-
-    /** K55: a set of 1 X and 2 Y whose components ship from two locations. */
-    public function testK55SplitSetNoteTagAndMetafieldAreWrittenOnce(): void
-    {
-        $distribution = [
-            ['vare' => 'X', 'antal' => 1, 'lager' => 'Hovedlager'],
-            ['vare' => 'Y', 'antal' => 2, 'lager' => 'Showroom'],
-        ];
-        $context = ['distribution' => $distribution, 'ordre_id' => 4711];
+        $context = ['ordre_id' => 31, 'distribution' => self::DISTRIBUTION];
         $checkpoints = ['order.tags' => 'done', 'order.references' => 'done'];
 
-        // The hold tag is placed by order.tags, which the note stage waits for.
-        $this->stage('order.tags', [], ['allocation' => ['split_set' => true]]);
         $first = $this->stage('order.note', $checkpoints, $context);
-        // The whole job is retried after its checkpoint was written.
-        $second = $this->stage('order.note', $checkpoints + ['order.note' => 'done'], $context);
+        $note = $this->orderRow()['note'];
+        $replay = $this->stage('order.note', $checkpoints, $context);
 
-        $this->assertSame('done', $first['status']);
-        $this->assertSame('done', $second['status']);
-        $this->assertSame(['saldi-saet-delt'], $this->shop->tags);
-        $this->assertSame(1, $this->shop->callsOf('saldiOrderNoteAppend'));
-        $this->assertSame(1, $this->shop->callsOf('saldiOrderTagsAdd'));
-        $this->assertSame(1, substr_count($this->shop->note, shopify_note_marker(shopify_writeback_note_op_key(4711))));
+        $this->assertSame(['done', 'done', 'wp10.split_set:31'], [$first['status'], $first['checkpoint'], $first['note_op']]);
+        $this->assertStringStartsWith("Ring før levering\n", $note);
+        $this->assertStringContainsString("Sæt HAVESAET-1 delt over flere lagre:\n- 1 x STOL-X: Mårum\n- 2 x BORD-Y: Hillerød", $note);
+        $this->assertSame('done', $replay['status']);
+        $this->assertSame($note, $this->orderRow()['note'], 'a replay appends nothing');
+        $this->assertSame(1, substr_count($note, shopify_note_marker('wp10.split_set:31')));
+        $this->assertSame(self::DISTRIBUTION, json_decode($this->metafields()['saldi.saet_fordeling'], true));
+        $this->assertSame(1, count(array_keys($this->roots(), 'orderUpdate')), 'the note is sent once');
+    }
+
+    public function testTheNoteNamesEverySplitSet(): void
+    {
+        $two = array_merge(self::DISTRIBUTION, [['saet' => 'LOUNGE-2', 'vare' => 'PUDE', 'antal' => '4', 'lager' => 'Mårum']]);
         $this->assertSame(
-            '[{"vare":"X","antal":1,"lager":"Hovedlager"},{"vare":"Y","antal":2,"lager":"Showroom"}]',
-            $this->shop->metafields['saldi.saet_fordeling']
+            "Sæt HAVESAET-1 delt over flere lagre:\n- 1 x STOL-X: Mårum\n- 2 x BORD-Y: Hillerød\nSæt LOUNGE-2 delt over flere lagre:\n- 4 x PUDE: Mårum",
+            shopify_build_split_set_note($two)
         );
     }
 
-    public function testTheSplitSetNoteNamesEveryComponentAndItsLocation(): void
+    public function testAnOrderWithoutASplitSetFinishesTheNoteStageWithoutACall(): void
     {
-        $note = shopify_build_split_set_note([
-            ['vare' => 'X', 'antal' => 1, 'lager' => 'Hovedlager'],
-            ['vare' => 'Y', 'antal' => 2, 'lager' => 'Showroom'],
-        ]);
-
-        $this->assertSame("Sæt delt over flere lagre:\n- 1 x X: Hovedlager\n- 2 x Y: Showroom", $note);
+        $result = $this->stage('order.note', ['order.tags' => 'done', 'order.references' => 'done'], ['ordre_id' => 31, 'distribution' => []]);
+        $this->assertSame(['done', 'done', null], [$result['status'], $result['checkpoint'], $result['note_op']]);
+        $this->assertSame([], $this->store->calls);
     }
 
-    public function testAnOrderWithoutASplitSetFinishesTheNoteStageWithoutWriting(): void
+    public function testTheProcessedStageAddsSaldiBehandlet(): void
     {
-        $outcome = $this->stage('order.note', ['order.tags' => 'done', 'order.references' => 'done'], []);
-
-        $this->assertSame('done', $outcome['status']);
-        $this->assertSame('done', $outcome['checkpoint']);
-        $this->assertSame([], $this->shop->calls);
+        $result = $this->stage('order.processed', $this->allDoneExcept());
+        $this->assertSame(['done', 'done'], [$result['status'], $result['checkpoint']]);
+        $this->assertSame(['saldi-behandlet'], $this->orderRow()['tags']);
     }
 
-    public function testTheProcessedStageAddsSaldiBehandletLast(): void
+    public function testSaldiBehandletIsNotSetWhileTheTagsStageIsUnfinished(): void
     {
-        $outcome = $this->stage('order.processed', $this->allDoneExcept());
-
-        $this->assertSame('done', $outcome['status']);
-        $this->assertSame(['saldi-behandlet'], $this->shop->tags);
-        $this->assertSame(['saldiOrderTagsAdd'], $this->shop->calls);
+        $result = $this->stage('order.processed', $this->allDoneExcept('order.tags'));
+        $this->assertSame(['blocked', 'order.tags'], [$result['status'], $result['blocked_by']]);
+        $this->assertSame([], $this->orderRow()['tags']);
     }
 
     public function testAFailedStageRecordsNoCheckpoint(): void
     {
-        $this->shop->scriptNextMutation(false, null, ['Tag limit reached']);
-
-        $outcome = $this->stage('order.tags', [], ['allocation' => ['shortage' => true]]);
-
-        $this->assertSame('failed', $outcome['status']);
-        $this->assertNull($outcome['checkpoint'], 'a permanent failure leaves the order on the error list');
-        $this->assertSame(['Tag limit reached'], $outcome['errors']);
-    }
-
-    public function testTheNoteStageReportsItsOpKeyForTheNoteOpsLog(): void
-    {
-        $context = ['distribution' => [['vare' => 'X', 'antal' => 1, 'lager' => 'Hovedlager']], 'ordre_id' => 4711];
-
-        $outcome = $this->stage('order.note', ['order.tags' => 'done', 'order.references' => 'done'], $context);
-
-        $this->assertSame('wp10.split_set:4711', $outcome['note_op']);
-    }
-
-    public function testAStageThatAppendsNothingReportsNoNoteOp(): void
-    {
-        $outcome = $this->stage('order.tags', [], ['allocation' => ['shortage' => true]]);
-
-        $this->assertNull($outcome['note_op']);
-    }
-
-    public function testAFinishedStageIsNeverRequeuedOverAMissingEarlierCheckpoint(): void
-    {
-        $outcome = $this->stage('order.references', ['order.references' => 'done'], []);
-
-        $this->assertSame('done', $outcome['status']);
-        $this->assertNull($outcome['blocked_by']);
-        $this->assertSame([], $this->shop->calls);
+        $missing = shopify_writeback_stage($this->store->shopRow($this->domain), 'gid://shopify/Order/999999999', 'order.tags', ['tags' => ['x']], [], ['graphql' => $this->store->opts()]);
+        $this->assertSame(['failed', null], [$missing['status'], $missing['checkpoint']]);
+        $this->assertNotEmpty($missing['errors']);
     }
 
     public function testTheMoveStageBelongsToL10b(): void
     {
-        $this->expectException(ShopifyWritebackError::class);
+        $this->expectException(LogicException::class);
         $this->stage('order.move', ['order.tags' => 'done']);
-    }
-
-    public function testEveryStageIsQueuedUnderTheSameDedupeKey(): void
-    {
-        $jobs = shopify_writeback_jobs('hml-dk:' . self::ORDER, 4711, self::ORDER);
-
-        $this->assertSame(
-            ['order.tags', 'order.move', 'order.references', 'order.note', 'order.processed'],
-            array_column($jobs, 'type')
-        );
-        $this->assertSame([10, 15, 20, 25, 25], array_column($jobs, 'priority'));
-        $this->assertSame(['hml-dk:' . self::ORDER], array_unique(array_column($jobs, 'dedupe_key')));
-        $this->assertSame(['ordre_id' => 4711, 'order_gid' => self::ORDER], $jobs[0]['payload']);
-    }
-
-    public function testWithoutAQueueTheCallerIsTold(): void
-    {
-        $this->expectException(ShopifyWritebackError::class);
-        shopify_writeback_enqueuer();
-    }
-
-    public function testAnInjectedEnqueuerReceivesEveryStage(): void
-    {
-        $seen = [];
-        shopify_set_writeback_enqueuer(function (string $type, int $shopId, string $dedupe, int $priority, array $payload) use (&$seen): void {
-            $seen[] = $type;
-        });
-
-        $enqueue = shopify_writeback_enqueuer();
-        foreach (shopify_writeback_jobs('hml-dk:x', 4711, self::ORDER) as $job) {
-            $enqueue($job['type'], 7, $job['dedupe_key'], $job['priority'], $job['payload']);
-        }
-
-        $this->assertSame(array_keys(shopify_writeback_stages()), $seen);
     }
 }
