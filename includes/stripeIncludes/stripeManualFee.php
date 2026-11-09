@@ -9,6 +9,8 @@
 //                 first invoice date that counts. Only in the Stripe ledger with invoice payments and enrolment on,
 //                 so the customer can always avoid the fee by turning on automatic payment.
 // 20261026 CL/NTR Multi-ledger: applies in every ledger with Stripe, invoice payments and enrolment on (not in a copy).
+// 20261109 CL/ASR The fee-line insertion is the shared stripe_bogfor_add_fee_line(), also used for the reminder fee of link reminders (stripeReminder.php); the order check is stripe_manual_fee_order_chargeable().
+//                 Same behaviour.
 
 require_once __DIR__ . '/stripeSettings.php';
 
@@ -100,6 +102,22 @@ function stripe_manual_fee_pending($kontoId, $excludeOrderId, $from) {
 }
 
 /**
+ * Whether a fee line may be added to an order about to be posted. bogfor() posts a DO with negative lines and no
+ * item line with a positive quantity as a credit note (dan_kn); never add a fee to that, nor to an order with a
+ * zero or negative total. Also used for the reminder fee (stripeReminder.php).
+ *
+ * @param int $orderId ordrer.id of the order.
+ * @return bool
+ */
+function stripe_manual_fee_order_chargeable($orderId) {
+	$lines = db_fetch_array(db_select("select coalesce(sum(antal * pris * (100 - coalesce(rabat, 0)) / 100), 0) as net,
+		coalesce(sum(case when antal < 0 then 1 else 0 end), 0) as negative,
+		coalesce(sum(case when vare_id > 0 and antal > 0 then 1 else 0 end), 0) as items
+		from ordrelinjer where ordre_id = " . (int)$orderId . " and antal <> 0", __FILE__ . " linje " . __LINE__));
+	return $lines && (float)$lines['net'] > 0 && !((int)$lines['negative'] > 0 && (int)$lines['items'] === 0);
+}
+
+/**
  * Decide the fee for an invoice about to be posted, without changing anything.
  *
  * @return array{charge: array<int, array>, waive: array<int, array>, exempt: array<int, array>, vare: array|null}
@@ -110,13 +128,7 @@ function stripe_manual_fee_decide($orderId) {
 	if (!$cfg) return $none;
 	$o = db_fetch_array(db_select("select id, art, konto_id, udskriv_til, pbs from ordrer where id = " . (int)$orderId, __FILE__ . " linje " . __LINE__));
 	if (!$o || $o['art'] !== 'DO' || (int)$o['konto_id'] <= 0) return $none;
-	// bogfor() posts a DO with negative lines and no item line with a positive quantity as a credit note (dan_kn);
-	// never add a fee to that, nor to an order with a zero or negative total.
-	$lines = db_fetch_array(db_select("select coalesce(sum(antal * pris * (100 - coalesce(rabat, 0)) / 100), 0) as net,
-		coalesce(sum(case when antal < 0 then 1 else 0 end), 0) as negative,
-		coalesce(sum(case when vare_id > 0 and antal > 0 then 1 else 0 end), 0) as items
-		from ordrelinjer where ordre_id = " . (int)$orderId . " and antal <> 0", __FILE__ . " linje " . __LINE__));
-	if (!$lines || (float)$lines['net'] <= 0 || ((int)$lines['negative'] > 0 && (int)$lines['items'] === 0)) return $none;
+	if (!stripe_manual_fee_order_chargeable($orderId)) return $none;
 	$pending = stripe_manual_fee_pending((int)$o['konto_id'], (int)$o['id'], $cfg['from']);
 	$decision = array('charge' => array(), 'waive' => array(), 'exempt' => $pending['exempt'], 'vare' => $cfg['vare']);
 	if ($pending['manual']) {
@@ -156,24 +168,48 @@ function stripe_manual_fee_bogfor($id, $art, $momssats, $webservice = false, $ge
 	if (!$decision['charge'] && !$decision['waive'] && !$decision['exempt']) return '';
 	if ($decision['charge']) {
 		$vare = $decision['vare'];
-		$count = count($decision['charge']);
-		$r = db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = " . (int)$id, __FILE__ . " linje " . __LINE__));
-		$posnr = (int)$r['posnr'] + 1;
-		$text = db_escape_string(stripe_manual_fee_line_text($vare, $decision['charge']));
-		$res = opret_ordrelinje($id, $vare['id'], $vare['varenr'], $count, $text, (float)$vare['salgspris'], 0, 100, $art, '', $posnr, '', '', 'on', 'percent', '', '', '', '', '', __LINE__);
-		if (!is_numeric($res)) return 'Gebyr for manuel betaling: ' . $res;
-		$line = db_fetch_array(db_select("select id from ordrelinjer where ordre_id = " . (int)$id . " and vare_id = " . (int)$vare['id'] . " and posnr = $posnr order by id desc", __FILE__ . " linje " . __LINE__));
-		if (!$line) return 'Gebyr for manuel betaling: linjen blev ikke oprettet';
-		db_modify("update ordrelinjer set rabat = 0, m_rabat = 0, leveres = '$count' where id = " . (int)$line['id'], __FILE__ . " linje " . __LINE__);
-		$delivered = levering($id, '', $genfakt, $webservice);
-		if ($delivered !== 'OK') return 'Gebyr for manuel betaling: ' . $delivered;
-		$line = db_fetch_array(db_select("select antal, pris, momsfri, momssats from ordrelinjer where id = " . (int)$line['id'], __FILE__ . " linje " . __LINE__));
-		$net = round((float)$line['antal'] * (float)$line['pris'], 2);
-		$rate = (float)$line['momssats'] > 0 ? (float)$line['momssats'] : (float)$momssats;
-		$vat = trim((string)$line['momsfri']) === 'on' ? 0 : round($net * $rate / 100, 2);
-		db_modify("update ordrer set sum = sum + $net, moms = moms + $vat where id = " . (int)$id, __FILE__ . " linje " . __LINE__);
+		$error = stripe_bogfor_add_fee_line($id, $vare, count($decision['charge']), (float)$vare['salgspris'],
+			stripe_manual_fee_line_text($vare, $decision['charge']), '', $art, $momssats, $webservice, $genfakt);
+		if ($error !== '') return 'Gebyr for manuel betaling: ' . $error;
 	}
 	stripe_manual_fee_record($id, $decision);
+	return '';
+}
+
+/**
+ * Add one fee line to an order that bogfor() is posting, before its lines are posted: the item, a quantity and a
+ * unit price, no customer discount, kdo = 'on' (genfakt's recurring copy leaves it out, so a fee is never
+ * repeated), delivered with the posting context, and the order totals raised by the stored line. Used for the fee
+ * for manual payment and for the reminder fee/interest of link reminders.
+ *
+ * @param int $id ordrer.id of the order being posted.
+ * @param array{id: int|string, varenr: string} $vare The fee item (its item group gives the revenue account).
+ * @param int|float $antal Quantity.
+ * @param float $pris Unit price in kroner.
+ * @param string $text Line text (unescaped).
+ * @param string $momsfri 'on' = no VAT on the line; '' = the item group decides.
+ * @param string $art Order type (DO).
+ * @param float|string $momssats The order's VAT rate, used when the line has none of its own.
+ * @param bool $webservice Posting context, passed to levering().
+ * @param bool $genfakt Posting context, passed to levering().
+ * @return string '' on success, otherwise the error (the caller adds which fee it was).
+ */
+function stripe_bogfor_add_fee_line($id, $vare, $antal, $pris, $text, $momsfri, $art, $momssats, $webservice = false, $genfakt = false) {
+	$count = (float)$antal;
+	$r = db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = " . (int)$id, __FILE__ . " linje " . __LINE__));
+	$posnr = (int)$r['posnr'] + 1;
+	$res = opret_ordrelinje($id, $vare['id'], $vare['varenr'], $count, db_escape_string($text), (float)$pris, 0, 100, $art, $momsfri, $posnr, '', '', 'on', 'percent', '', '', '', '', '', __LINE__);
+	if (!is_numeric($res)) return (string)$res;
+	$line = db_fetch_array(db_select("select id from ordrelinjer where ordre_id = " . (int)$id . " and vare_id = " . (int)$vare['id'] . " and posnr = $posnr order by id desc", __FILE__ . " linje " . __LINE__));
+	if (!$line) return 'linjen blev ikke oprettet';
+	db_modify("update ordrelinjer set rabat = 0, m_rabat = 0, leveres = '$count' where id = " . (int)$line['id'], __FILE__ . " linje " . __LINE__);
+	$delivered = levering($id, '', $genfakt, $webservice);
+	if ($delivered !== 'OK') return (string)$delivered;
+	$line = db_fetch_array(db_select("select antal, pris, momsfri, momssats from ordrelinjer where id = " . (int)$line['id'], __FILE__ . " linje " . __LINE__));
+	$net = round((float)$line['antal'] * (float)$line['pris'], 2);
+	$rate = (float)$line['momssats'] > 0 ? (float)$line['momssats'] : (float)$momssats;
+	$vat = trim((string)$line['momsfri']) === 'on' ? 0 : round($net * $rate / 100, 2);
+	db_modify("update ordrer set sum = sum + $net, moms = moms + $vat where id = " . (int)$id, __FILE__ . " linje " . __LINE__);
 	return '';
 }
 

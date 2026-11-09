@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- patch 5.0.0 --- 2026-05-13 ---
+// --- includes/rapportfunc.php --- ver 5.0.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20121106 Kontrol for aktivt regnskabsaar v. bogføring af rykker.Søg 20121106  
@@ -92,6 +92,9 @@
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh The report heads (open post, front page, kontokort, kontosaldo) on the new page head (page_bar); the print legs untouched.
 // 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261109 CL/ASR Link reminders: the reminder overview marks them ("Linkrykker · gebyr på næste faktura" / "... som åben post" / "... frafaldet") and first closes booked link reminders whose invoices are all paid (stripe_reminder_close_paid()).
+//                 bogfor_rykker() posts nothing for a link reminder whose fee goes on the next invoice; it only sets status 4.
+//                 bogfor_nu() writes projekt '' on the fee open item (NULL never matched a payment in finans/bogfor.php).
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -262,6 +265,12 @@ a:link{text-decoration:none;}</style>\n";
 
 	//-------------------------------------- Rykkeroversigt ----------------------------------------------
 	if (usdate($dato_til) >= date("Y-m-d")) {
+		// 20261109 CL/ASR booked link reminders whose invoices are all paid are closed first, like "Afslut"
+		$stripeReminderLib = __DIR__ . '/stripeIncludes/stripeReminder.php';
+		if ($kontoart == 'D' && is_file($stripeReminderLib)) {
+			include_once($stripeReminderLib);
+			stripe_reminder_close_paid();
+		}
 		if (is_numeric($konto_fra) && is_numeric($konto_til)) {
 			$qtxt = "select * from ordrer where " . nr_cast('kontonr') . ">='$konto_fra' and " . nr_cast('kontonr') . "<='$konto_til' and art LIKE 'R%' order by " . nr_cast('kontonr') . "";
 		} elseif ($konto_fra && $konto_fra != '*') {
@@ -356,7 +365,10 @@ a:link{text-decoration:none;}</style>\n";
 						elseif ($linjebg != $bgcolor5) $linjebg = $bgcolor5;
 						print "<tr style=\"background-color:$linjebg ; color: $color;\">";
 						print "<td><span title='Klik for detaljer' og for at sende rykker pr mail><a href=\"rykker.php?rykker_id=$r1[id]\">$r1[ordrenr]</a></td>";
-						print "<td>$r1[firmanavn]</td><td colspan=2 align=left>$r1[ordredate]</td><td align=left>$rykkernr</td>";
+						// 20261109 CL/ASR link reminder marker
+						$reminderMarker = function_exists('stripe_reminder_marker') ? stripe_reminder_marker((int)$r1['id']) : '';
+						if ($reminderMarker !== '') $reminderMarker = " <small>" . htmlspecialchars($reminderMarker, ENT_QUOTES, 'UTF-8') . "</small>";
+						print "<td>$r1[firmanavn]</td><td colspan=2 align=left>$r1[ordredate]</td><td align=left>$rykkernr$reminderMarker</td>";
 						if ($udlignet || $delsum >= $sum[$x]) {
 							$color = "#00aa00";
 							$title = "Alle poster på rykkeren er betalt";
@@ -423,6 +435,15 @@ function bogfor_rykker($id)
 	global $konto_fra;
 	global $konto_til;
 
+	// 20261109 CL/ASR a link reminder whose fee and interest go on the customer's next invoice posts nothing here:
+	// no open item, no transactions. It only moves to "Bogførte rykkere" (status 4), so it can be escalated.
+	if (is_file(__DIR__ . '/stripeIncludes/stripeReminder.php')) {
+		include_once(__DIR__ . '/stripeIncludes/stripeReminder.php');
+		if (stripe_reminder_carried((int)$id)) {
+			db_modify("update ordrer set status = 4 where id = " . (int)$id, __FILE__ . " linje " . __LINE__);
+			return;
+		}
+	}
 
 	// Bemaerk at der ikke traekkes moms ved bogfoering af rykkergebyr - heller ikke selvom gebyret tilhorer en momsbelagt varegruppe.
 	// 20121106 ->
@@ -556,9 +577,10 @@ function bogfor_nu($id)
 		}
 		if ($sum) {
 			$qtxt = "insert into openpost ";
-			$qtxt .= " (konto_id, konto_nr, faktnr, refnr, amount, beskrivelse, udlignet, transdate, kladde_id,valuta,valutakurs)";
+			$qtxt .= " (konto_id, konto_nr, faktnr, refnr, amount, beskrivelse, udlignet, transdate, kladde_id,valuta,valutakurs,projekt)";
 			$qtxt .= " values "; #20210422 - Addad afrund in next line
-			$qtxt .= "('$konto_id', '$kontonr', '$fakturanr', '$id','" . afrund($sum, 2) . "', '$beskrivelse', '0', '$transdate', '0','DKK','100')";
+			// 20261109 CL/ASR projekt '' (not NULL) so a payment of the fee settles it in finans/bogfor.php openpost()
+			$qtxt .= "('$konto_id', '$kontonr', '$fakturanr', '$id','" . afrund($sum, 2) . "', '$beskrivelse', '0', '$transdate', '0','DKK','100','')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'", __FILE__ . " linje " . __LINE__));

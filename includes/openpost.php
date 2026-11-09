@@ -1,5 +1,5 @@
 <?php
-// --------includes/openpost.php ----- lap 3.0.6 ---- 2010.09.26 ---------------------------
+// --------includes/openpost.php ----- ver 5.0.0 ---- 2026.11.09 ---------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,7 +14,7 @@
 // En dansk oversaetelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2026 Danosoft.ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260706 MJ Optimized open items report to fetch relevant open posts in one query and preload order/reminder data.
 // 20260706 MJ Deferred reminder lists so open items page load can finish when the open items table is shown.
@@ -22,6 +22,10 @@
 // 20260706 MJ Load reminder sections without reloading the open items report.
 // 20260706 MJ Paginated open item account rendering to avoid loading every account row at once.
 // 20260723 sawaneh Fixed $rbox8->$box8 in bogfor_rykker so a stock-tracked item used as a fee is blocked; removed dead commented-out code.
+// 20261109 CL/ASR bogfor_rykker() posts nothing for a link reminder whose fee goes on the next invoice (stripeReminder.php); it only sets status 4, as in includes/rapportfunc.php.
+//                 bogfor_nu() writes projekt '' on the fee open item (NULL never matched a payment in finans/bogfor.php).
+//                 bogfor_nu() no longer ends a query with ';', which injecttjek() took for SQL injection, so "Ryk alle" could not post a reminder.
+//                 bogfor_rykker() selects pris and bogfor_nu() initialises $afd (PHP warnings).
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -751,13 +755,22 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
  function bogfor_rykker($id) {
 // Bemaerk at der ikke traekkes moms ved bogfoering af rykkergebyr - heller ikke selvom gebyret tilhorer en momsbelagt varegruppe.
 	global $fakturadate; 
+	// 20261109 CL/ASR a link reminder whose fee and interest go on the customer's next invoice posts nothing here:
+	// no open item, no transactions. It only moves to "Bogførte rykkere" (status 4), so it can be escalated.
+	if (is_file(__DIR__ . '/stripeIncludes/stripeReminder.php')) {
+		include_once(__DIR__ . '/stripeIncludes/stripeReminder.php');
+		if (stripe_reminder_carried((int)$id)) {
+			db_modify("update ordrer set status = 4 where id = " . (int)$id, __FILE__ . " linje " . __LINE__);
+			return;
+		}
+	}
 	$fejl=0;
 	$sum=0;
 	$q = db_select("select antal, pris, rabat from ordrelinjer where ordre_id = '$id' and vare_id > '0'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) $sum=$sum+($r['antal']*$r['pris'])-($r['antal']*$r['pris']/100*$r['rabat']);
 	if ($sum) db_modify("update ordrer set sum=$sum where id = '$id'",__FILE__ . " linje " . __LINE__);
 	$x=0;
-	$q = db_select("select id, vare_id from ordrelinjer where ordre_id = '$id' and vare_id > '0'",__FILE__ . " linje " . __LINE__);
+	$q = db_select("select id, vare_id, pris from ordrelinjer where ordre_id = '$id' and vare_id > '0'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$ordre_linje_id[$x]=$r['id'];
@@ -826,6 +839,7 @@ function bogfor_nu($id)
 		else {$moms=round($r['sum']*$r['momssats']/100,2);}
 		$sum=$r['sum']+$moms;
 		$ordreantal=$x;
+		$afd = 0;
 		if ($r= db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'",__FILE__ . " linje " . __LINE__))) $afd=$r['afd'];
 		$afd=$afd*1; #sikkerhed for at 'afd' har en vaerdi 
 		 
@@ -839,7 +853,8 @@ function bogfor_nu($id)
 		$beskrivelse="Gebyr mm. fra tidligere rykker";	
 		if ($valutakurs) $sum=$sum*$valutakurs/100; # Omregning til DKR.
 
-		if ($sum) db_modify("insert into openpost (konto_id, konto_nr, faktnr, refnr, amount, beskrivelse, udlignet, transdate, kladde_id) values ('$konto_id', '$kontonr', '$fakturanr', '$id','$sum', '$beskrivelse', '0', '$transdate', '0')",__FILE__ . " linje " . __LINE__);
+		# 20261109 CL/ASR projekt '' (not NULL) so a payment of the fee settles it in finans/bogfor.php openpost()
+		if ($sum) db_modify("insert into openpost (konto_id, konto_nr, faktnr, refnr, amount, beskrivelse, udlignet, transdate, kladde_id, projekt) values ('$konto_id', '$kontonr', '$fakturanr', '$id','$sum', '$beskrivelse', '0', '$transdate', '0', '')",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'",__FILE__ . " linje " . __LINE__));
 		$r = db_fetch_array(db_select("select box2 from grupper where art = 'DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 		$kontonr=$r['box2']; # Kontonr ændres fra at være leverandørkontonr til finanskontonr
@@ -850,7 +865,8 @@ function bogfor_nu($id)
 		if ($sum)	db_modify("insert into transaktioner (bilag, transdate, beskrivelse, kontonr, faktura, debet, kredit, kladde_id, afd, logdate, logtime, projekt, ordre_id) values ('$bilag', '$transdate', '$beskrivelse', '$kontonr', '$fakturanr', '$debet', '$kredit', '0', $afd, '$logdate', '$logtime', '$projekt', '$id')",__FILE__ . " linje " . __LINE__);
 		$y=0;
 		$bogf_konto = array();
-		$q = db_select("select * from ordrelinjer where ordre_id=$id;",__FILE__ . " linje " . __LINE__);
+		# 20261109 CL/ASR no trailing ';' - injecttjek() took it for SQL injection and aborted the posting
+		$q = db_select("select * from ordrelinjer where ordre_id=" . (int)$id, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['bogf_konto'], $bogf_konto)) {
 			$y++;

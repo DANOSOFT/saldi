@@ -1,7 +1,12 @@
 <?php
 // 20261025 CL/ASR Fee for manual payment: which paid invoices give a fee on the next invoice, once, and when it is waived.
+// 20261109 CL/ASR The fee line is added by stripe_bogfor_add_fee_line(), shared with the link reminder fee: same line as before.
+
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/reminderFixtures.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php';
 
 final class StripeManualFeeTest extends StripeDatabaseTestCase
@@ -157,5 +162,47 @@ final class StripeManualFeeTest extends StripeDatabaseTestCase
         $this->assertStringContainsString("set rabat = 0, m_rabat = 0, leveres = '\$count'", $fee);
         $this->assertStringContainsString('levering($id, \'\', $genfakt, $webservice)', $fee);
         $this->assertStringContainsString("(kdo!='on' or kdo is NULL)", file_get_contents(__DIR__ . '/../../debitor/genfakturer.php'));
+    }
+
+    public function testManualAndReminderFeesShareOneFeeLineHelper(): void
+    {
+        $fee = file_get_contents(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
+        $this->assertNotFalse(strpos($fee, 'function stripe_bogfor_add_fee_line('));
+        $start = strpos($fee, 'function stripe_manual_fee_bogfor(');
+        $manual = substr($fee, $start, strpos($fee, "\n}\n", $start) - $start);
+        $this->assertStringContainsString('stripe_bogfor_add_fee_line(', $manual);
+        $this->assertStringNotContainsString('opret_ordrelinje(', $manual, 'fee lines are inserted in one place');
+        $this->assertStringContainsString('stripe_bogfor_add_fee_line(', file_get_contents(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php'));
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testPostingAddsTheSameFeeLineThroughTheSharedHelper(): void
+    {
+        StripeReminderFixtures::orderFunctionDoubles();
+        $debtor = StripeFixtures::debtor();
+        $bank = $this->invoice($debtor, [], true);
+        $once = $this->invoice($debtor);
+        $this->stripePayment($once, 'page', false);
+        $next = StripeFixtures::order($debtor, ['levdate' => StripeFixtures::TODAY]);
+        $this->assertSame('', stripe_manual_fee_bogfor($next, 'DO', 25, false, false));
+        $lines = pg_fetch_all(StripeTestEnvironment::query('SELECT * FROM ordrelinjer WHERE ordre_id = $1 AND vare_id = $2', [$next, $this->feeProduct])) ?: [];
+        $this->assertCount(1, $lines);
+        $line = $lines[0];
+        $this->assertSame('Gebyr for manuel betaling (fakturaer ' . (90000000 + $bank) . ', ' . (90000000 + $once) . ')', $line['beskrivelse']);
+        $this->assertEqualsWithDelta(2.0, (float)$line['antal'], 0.0001, 'one fee per manually paid invoice');
+        $this->assertEqualsWithDelta(129.0, (float)$line['pris'], 0.0001);
+        $this->assertSame('', trim((string)$line['momsfri']), "the fee item's group decides the VAT");
+        $this->assertSame('on', trim((string)$line['kdo']));
+        $this->assertEqualsWithDelta(0.0, (float)$line['rabat'], 0.0001);
+        $order = StripeFixtures::row('ordrer', $next);
+        $this->assertEqualsWithDelta(272.0 + 258.0, (float)$order['sum'], 0.001);
+        $this->assertEqualsWithDelta(68.0 + 64.5, (float)$order['moms'], 0.001);
+        foreach ([$bank, $once] as $paid) {
+            $this->assertSame('charged', pg_fetch_result(StripeTestEnvironment::query('SELECT status FROM stripe_manual_fees WHERE ordre_id = $1', [$paid]), 0, 0));
+        }
+        $later = StripeFixtures::order($debtor, ['levdate' => StripeFixtures::TODAY]);
+        $this->assertSame('', stripe_manual_fee_bogfor($later, 'DO', 25, false, false));
+        $this->assertFalse(pg_fetch_assoc(StripeTestEnvironment::query('SELECT id FROM ordrelinjer WHERE ordre_id = $1 AND vare_id = $2', [$later, $this->feeProduct])));
     }
 }

@@ -1,6 +1,7 @@
 <?php
 // 20261022 CDX/LH Durable collection requests and recoverable charge/authentication/delivery work.
 // 20261025 CL/ASR stripe_manual_fees (fee for manual payment, stripeManualFee.php).
+// 20261109 CL/ASR stripe_reminders (link reminders, stripeReminder.php).
 
 /** @return void Provision the S3 schema on the current tenant, also called by betweenUpdates. */
 function stripe_charge_schema_ensure() {
@@ -22,6 +23,9 @@ function stripe_charge_schema_ensure() {
 	stripe_payment_modify("CREATE TABLE IF NOT EXISTS stripe_manual_fees (
 		ordre_id integer PRIMARY KEY, fee_ordre_id integer NOT NULL, status varchar(10) NOT NULL,
 		created_at timestamp DEFAULT CURRENT_TIMESTAMP)");
+	// 20261109 CL/ASR link reminders: one row per reminder order (draft | sent | charged | waived)
+	require_once __DIR__ . '/stripeReminder.php';
+	stripe_payment_modify(stripe_reminder_table_ddl());
 	foreach (array('action_required_at' => 'timestamp', 'action_mail_sent_at' => 'timestamp',
 		'failure_handled_at' => 'timestamp', 'attempt_date' => 'date') as $column => $type) {
 		$exists = db_fetch_array(stripe_payment_select("select column_name from information_schema.columns

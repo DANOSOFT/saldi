@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------------debitor/rykkerprint-----lap 3.7.4---2019.10.16-------
+// ----------------debitor/rykkerprint-----ver 5.0.0---2026.11.09-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2019 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20120815 søg 20120815 V. Logoplacering blev ikke fundet v. opslag. 
@@ -32,6 +32,8 @@
 // 20170206	Søger efter teksten inkasso i felt 5 og sender mail til inkassofirma hvis den findes
 // 20170324 PHR Tilføjet id i kald til udskriv.php
 // 20190116 PHR kke nædret noget, blot en datoopdatering da der ligger forskellige versioner fra 2017 på ssl.   
+// 20261109 CL/ASR Bulk "Udskriv" (rapport.php) passes only rykker_id: one account entry per reminder, so every ticked reminder is printed or sent (A8).
+//                 Reminder ids are cast to integers.
 
 @session_start();
 $s_id=session_id();
@@ -42,8 +44,13 @@ $maaned_fra=isset($_GET['maaned_fra'])? $_GET['maaned_fra']:Null;
 $maaned_til=isset($_GET['maaned_til'])? $_GET['maaned_til']:Null;
 $regnaar=isset($_GET['regnaar'])? $_GET['regnaar']:Null;
 $rykkernr=isset($_GET['rykkernr'])? $_GET['rykkernr']:Null;
-$rykker_id=explode(";", $_GET['rykker_id']);
-$konto_id = explode(";", $kontoliste);
+$rykker_id = array_map('intval', explode(";", (string)($_GET['rykker_id'] ?? '')));
+// 20261109 CL/ASR A8: without kontoliste, one (empty) account entry per reminder; rykkerprint() loops over this array.
+if ($kontoliste) {
+	$konto_id = explode(";", $kontoliste);
+} else {
+	$konto_id = array_fill(0, count($rykker_id), '');
+}
 
 
 include("../includes/connect.php");

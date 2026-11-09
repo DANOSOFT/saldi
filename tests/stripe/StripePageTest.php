@@ -3,9 +3,11 @@
 // 20261022 CDX/LH Render actual paid/credited presentation locals and assert the unavailable Saldi menu hint is absent.
 // 20261022 CDX/LH Assert whole-row consent appears between the amount box and Payment Element in every consent panel.
 // 20261025 CL/ASR Recurring invoices without automatic payment: consent text above Stripe and two pay buttons; fee note.
+// 20261109 CL/ASR Link reminders: the overdue lead before and after a reminder, where the carried reminder fee goes, the saved card on an overdue Link invoice, and a declined attempt canceled at Stripe shown as failed (B8).
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php';
+require_once __DIR__ . '/reminderFixtures.php';
 
 final class StripePageTest extends StripeDatabaseTestCase
 {
@@ -207,5 +209,86 @@ final class StripePageTest extends StripeDatabaseTestCase
             $this->assertStringNotContainsString('Indstillinger', $panel);
             $this->assertFalse($rendered['config']['saveDefault']);
         }
+    }
+
+    public function testReminderLeadAndFeeNoteOnTheOverduePage(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        StripeTestEnvironment::query("DELETE FROM formularer WHERE beskrivelse = 'GEBYR'");
+        $id = StripeFixtures::invoice();
+        $inv = stripe_invoice_load($id);
+        $this->assertSame('overdue', $inv['state']);
+        $this->assertNull($inv['reminder']);
+        $this->assertStringContainsString('<p class="lead">Fakturaen forfaldt den 16.01.2026. Betal nu for at undgå en rykker.</p>', $this->render($inv)['panel']);
+
+        // With a reminder fee set up the customer is told that the reminder costs a fee.
+        StripeReminderFixtures::forms();
+        $this->assertStringContainsString('<p class="lead">Fakturaen forfaldt den 16.01.2026. Betal nu, så undgår du en rykker med gebyr.</p>',
+            $this->render(stripe_invoice_load($id))['panel']);
+
+        // After a link reminder: when it was sent, and that the fee goes on the next invoice unless automatic payment is turned on.
+        $rykker = StripeReminderFixtures::reminder((int)StripeFixtures::row('ordrer', $id)['konto_id'], [$id], ['status' => 4]);
+        StripeReminderFixtures::linkRow($rykker, ['mailed_at' => '2026-01-20 15:30:00']);
+        $inv = stripe_invoice_load($id);
+        $this->assertSame($rykker, (int)$inv['reminder']['rykker_id']);
+        $panel = $this->render($inv)['panel'];
+        $this->assertStringContainsString('<p class="lead">Vi sendte dig en rykker den 20.01.2026. Betal fakturaen nu, så undgår du flere rykkere.</p>', $panel);
+        $this->assertStringContainsString('Slår du automatisk betaling til, frafalder rykkergebyret på 100,00 kr. Ellers kommer det på din næste faktura.', $panel);
+        $this->assertStringNotContainsString('undgå en rykker', $panel);
+        $this->assertGreaterThan(strpos($panel, 'id="pay"'), strpos($panel, 'frafalder rykkergebyret'), 'under the pay buttons');
+
+        StripeTestEnvironment::setting('stripe', 'reminder_fee_waive', 'off');
+        $panel = $this->render(stripe_invoice_load($id))['panel'];
+        $this->assertStringContainsString('Rykkergebyret på 100,00 kr. kommer på din næste faktura.', $panel);
+        $this->assertStringNotContainsString('frafalder rykkergebyret', $panel);
+
+        // A fee posted as an open item (classic fee mode) is not mentioned.
+        StripeTestEnvironment::query("UPDATE stripe_reminders SET fee_mode = 'classic' WHERE rykker_id = $1", [$rykker]);
+        $panel = $this->render(stripe_invoice_load($id))['panel'];
+        $this->assertStringContainsString('Vi sendte dig en rykker den 20.01.2026.', $panel);
+        $this->assertStringNotContainsString('Rykkergebyret på', $panel);
+        $this->assertStringNotContainsString('frafalder rykkergebyret', $panel);
+    }
+
+    public function testReminderOverdueLinkInvoiceOfAnEnrolledCustomerIsPaidWithTheSavedCard(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2026-01-01']);
+        $inv = stripe_invoice_load(StripeFixtures::invoice($debtor, ['udskriv_til' => 'Link']));
+        $this->assertSame('overdue', $inv['state']);
+        $this->assertTrue(stripe_invoice_pay_now_allowed($inv));
+        $panel = $this->render($inv)['panel'];
+        $this->assertStringContainsString('<button class="btn primary" id="paynow" type="button">Betal 340,00 kr. med dit gemte kort</button>', $panel);
+        $this->assertStringNotContainsString('id="payment-element"', $panel);
+        $this->assertStringNotContainsString('id="pay"', $panel);
+
+        // Without a saved card the overdue invoice keeps the card form.
+        $panel = $this->render(stripe_invoice_load(StripeFixtures::invoice(null, ['udskriv_til' => 'Link'])))['panel'];
+        $this->assertStringContainsString('id="payment-element"', $panel);
+        $this->assertStringNotContainsString('id="paynow"', $panel);
+    }
+
+    public function testReminderLatestDeclinedAttemptCanceledAtStripeShowsTheFailedView(): void
+    {
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2026-01-01']);
+        $id = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe']);
+        $this->assertSame('enrolled', stripe_invoice_load($id)['state']);
+        $declined = StripeFixtures::insert('stripe_payments', ['ordre_id' => $id, 'payment_intent_id' => 'pi_b8_declined', 'amount_ore' => 34000,
+            'status' => 'canceled', 'source' => 'auto', 'last_error' => 'card_declined', 'pm_brand' => 'visa', 'pm_last4' => '0002',
+            'attempt_date' => StripeFixtures::DUE_DATE]);
+        $inv = stripe_invoice_load($id);
+        $this->assertSame('failed', $inv['state']);
+        $this->assertSame($declined, (int)$inv['failed']['id']);
+        $panel = $this->render($inv)['panel'];
+        $this->assertStringContainsString('Brug dette kort fremover', $panel);
+        $this->assertStringContainsString('id="payment-element"', $panel);
+        $this->assertStringNotContainsString('Trækkes den', $panel);
+
+        // A later attempt (here a technical error) is the latest word: the decline no longer shows.
+        StripeFixtures::insert('stripe_payments', ['ordre_id' => $id, 'payment_intent_id' => 'pi_b8_technical', 'amount_ore' => 34000,
+            'status' => 'canceled', 'source' => 'auto', 'last_error' => 'technical_error']);
+        $inv = stripe_invoice_load($id);
+        $this->assertNull($inv['failed']);
+        $this->assertSame('enrolled', $inv['state']);
     }
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura.php --- 2026.10.25
+// --- api/stripe/faktura.php --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,9 @@
 //                 With the fee for manual payment on, the page says the fee goes on the next invoice.
 // 20261025 CL/ASR Saldi logo in the top bar for Saldi's own invoices.
 // 20261025 CL/ASR Contact e-mail/phone from the Stripe settings (no phone unless set).
+// 20261109 CL/ASR Link reminders: after a reminder the overdue/failed lead says when it was sent, and a note under the pay buttons says where the fee goes.
+//                 Before a reminder the overdue lead mentions the fee when a reminder fee is set up.
+//                 An enrolled customer on an overdue Link invoice pays with the saved card in one click (#paynow), bank as alternative.
 
 include(__DIR__ . '/faktura_common.php');
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
@@ -109,13 +112,22 @@ $payButtons = $twoMode
 	? '<button class="btn primary" id="pay" type="submit" disabled aria-describedby="consent-text">' . $h(stripe_txt('pay_auto_btn', array('amount' => $totalKr))) . '</button>'
 		. '<button class="btn once" id="pay-once" type="submit" disabled>' . $h(stripe_txt('pay_once_btn')) . '</button>' . $feeNote
 	: '<button class="btn primary" id="pay" type="submit" disabled>' . $h(stripe_txt('pay_btn', array('amount' => $totalKr))) . '</button>' . $feeNote;
+// 20261109 CL/ASR where the carried reminder fee goes (stripe_invoice_reminder_note), under the pay buttons
+$reminderText = in_array($state, array('overdue', 'failed'), true) ? stripe_invoice_reminder_note($inv) : '';
+$reminderNote = $reminderText !== '' ? '<p class="fee">' . $h($reminderText) . '</p>' : '';
 
 switch ($state) {
 	case 'open': case 'overdue':
-		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt($state === 'overdue' ? 'h_overdue' : 'h_open')) . '</h2><p class="lead">' . $h($state === 'overdue' ? stripe_txt('lead_overdue', array('date' => $dueFmt)) : stripe_txt('lead_open')) . '</p>';
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt($state === 'overdue' ? 'h_overdue' : 'h_open')) . '</h2><p class="lead">' . $h($state === 'overdue' ? stripe_invoice_overdue_lead($inv) : stripe_txt('lead_open')) . '</p>';
 		if ($state === 'overdue') $panel .= fak_status('bad', 'clock', stripe_txt('overdue_pill', array('date' => $dueFmt)), stripe_txt('amount_lbl') . ' ' . $totalKr);
 		else $panel .= $amountBox;
-		$panel .= '<form id="pay-form">' . ($twoMode ? $autoInfo : '') . $elementBlock . $payButtons . '</form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		if ($state === 'overdue' && stripe_invoice_pay_now_allowed($inv)) {
+			// Enrolled customer on an overdue Link invoice: the saved card (pay_now), with the bank transfer as the alternative.
+			$panel .= '<button class="btn primary" id="paynow" type="button">' . $h(stripe_txt('pay_saved_btn', array('amount' => $totalKr))) . '</button><div id="pay-error" class="perr" role="alert"></div>'
+				. $reminderNote . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		} else {
+			$panel .= '<form id="pay-form">' . ($twoMode ? $autoInfo : '') . $elementBlock . $payButtons . $reminderNote . '</form>' . $trust . ($hasBank ? '<div style="margin-top:18px">' . $bankBox . '</div>' : '') . $foot;
+		}
 		break;
 	case 'open_recurring':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_recurring')) . '</h2><p class="lead">' . $h(stripe_txt('lead_recurring', array('brand' => $brand))) . '</p>' . $amountBox;
@@ -124,13 +136,15 @@ switch ($state) {
 	case 'failed':
 		$fp = $inv['failed']; $card = stripe_card_label($fp['pm_brand'], $fp['pm_last4']);
 		$savedCardFailed = in_array($fp['source'], array('auto', 'backup', 'manual'), true);
-		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_failed')) . '</h2><p class="lead">' . $h(stripe_txt($savedCardFailed ? 'lead_failed' : 'lead_failed_page')) . '</p>';
+		$failedLead = stripe_invoice_reminded_lead($inv);   // 20261109 CL/ASR after a reminder: when it was sent
+		if ($failedLead === '') $failedLead = stripe_txt($savedCardFailed ? 'lead_failed' : 'lead_failed_page');
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_failed')) . '</h2><p class="lead">' . $h($failedLead) . '</p>';
 		// Never show Stripe's raw code to the customer; stripe_decline_text() maps it to a Danish sentence.
 		$panel .= fak_status('bad', 'x', stripe_txt('failed_box', array('card' => $card, 'date' => stripe_fmt_date(stripe_attempt_date($fp)))), stripe_decline_text($fp['last_error']));
 		$panel .= $amountBox . '<form id="pay-form">';
 		if (stripe_feature_on('enrolment') && $inv['enrolled']) $panel .= '<div class="check" role="checkbox" aria-checked="true" tabindex="0" id="chk" aria-labelledby="consent-title" aria-describedby="consent-text"><div class="box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div><b id="consent-title">' . $h(stripe_txt('chk_replace_title')) . '</b><span id="consent-text">' . $h(stripe_txt('chk_replace_sub', array('card' => $card))) . '</span></div></div>';
 		elseif ($twoMode) $panel .= $autoInfo;
-		$panel .= $elementBlock . $payButtons . '</form>' . $trust . $foot;
+		$panel .= $elementBlock . $payButtons . $reminderNote . '</form>' . $trust . $foot;
 		break;
 	case 'enrolled':
 		$card = stripe_card_label('', '');

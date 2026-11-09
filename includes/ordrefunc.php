@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-10-25 ---
+//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -154,6 +154,7 @@
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
 // 20261016 Sawaneh Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
 // 20261025 CL/ASR bogfor(): fee for manual payment of earlier invoices on DO orders (stripeManualFee.php; Stripe ledger only).
+// 20261109 CL/ASR bogfor(): the reminder fee and interest of sent, booked link reminders go on the customer's next DO order as VAT-free lines, or are waived (stripe_reminder_fee_bogfor() in stripeReminder.php), in the same transaction.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
@@ -1430,6 +1431,13 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 	if ($art == 'DO') {
 		include_once(__DIR__ . '/stripeIncludes/stripeManualFee.php');
 		$feeError = stripe_manual_fee_bogfor($id, $art, $momssats, $webservice, $genfakt);
+		if ($feeError !== '') {
+			if (!$callerOwnsTransaction) transaktion('rollback');
+			return $feeError;
+		}
+		// 20261109 CL/ASR reminder fee and interest of the customer's link reminders (see stripeReminder.php)
+		include_once(__DIR__ . '/stripeIncludes/stripeReminder.php');
+		$feeError = stripe_reminder_fee_bogfor($id, $art, $momssats, $webservice, $genfakt);
 		if ($feeError !== '') {
 			if (!$callerOwnsTransaction) transaktion('rollback');
 			return $feeError;
