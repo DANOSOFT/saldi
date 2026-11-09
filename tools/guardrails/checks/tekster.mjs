@@ -25,6 +25,7 @@
 // 20261029 CDX/NTR Require new custom overrides to purge standard translations already cached by tenants.
 // 20261029 CDX/NTR Check keyed TSV ordering when either adjacent row was added.
 // 20261103 CL/LH Keys only: refuse a new numeric id in tekster.csv.
+// 20261109 CL/LH The rewording and keyed-TSV messages point at descriptive keys or deleteStaleTekst(), not at new ids.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -147,8 +148,8 @@ function checkCsv(ctx, file, findings) {
         line: after.line,
         message:
           `id ${id}'s text changed, but tenants keep the old text: findtekst() prefers the row cached in their tekster table. ` +
-          `Either give the new text a new id, or add deleteStaleTekst(${id}, '<old text>') at the end of ${UPDATES} ` +
-          `(includes/opdat_func/deleteStaleTekst.php).`,
+          `Either put the row back and give the new text a descriptive key in ${KEYED_TSV} (${CSV} takes no new ids), ` +
+          `or add deleteStaleTekst(${id}, '<old text>') at the end of ${UPDATES} (includes/opdat_func/deleteStaleTekst.php).`,
       });
     }
   }
@@ -181,7 +182,7 @@ function checkKeyedTsv(ctx, file, path, findings) {
     const fields = text.replace(/\r$/, "").split("\t");
     const key = fields[0] ?? "";
     const problems = [];
-    if (/^\d+$/.test(key)) problems.push(`the key "${key}" is numeric; numeric ids belong in ${CSV}`);
+    if (/^\d+$/.test(key)) problems.push(`the key "${key}" is numeric; use a descriptive key such as area.what (${CSV} takes no new ids)`);
     else if (!/^[a-z0-9][a-z0-9_.-]{0,189}$/.test(key)) problems.push(`the key "${key}" must be 1-190 lowercase letters, digits, dots, underscores or hyphens`);
     if (fields.length !== 4) problems.push(`it has ${fields.length} tab-separated fields; it needs exactly 4: tekst_key, Dansk, English, Norsk`);
     else if (fields.slice(1).some((field) => field.trim() === "")) problems.push("a language column is empty");
@@ -201,7 +202,7 @@ function checkKeyedTsv(ctx, file, path, findings) {
         line: after.line,
         message:
           `key ${key}'s text changed, but tenants keep the old text: findtekst() prefers the row cached in their tekster table. ` +
-          `Add deleteStaleTekst('${key}', <old text or texts>) at the end of ${UPDATES}.`,
+          `Either give the new text a new descriptive key, or add deleteStaleTekst('${key}', <old text or texts>) at the end of ${UPDATES}.`,
       });
     }
   }
