@@ -10,6 +10,7 @@
     $apiKey = $res["var_value"];
 
     include("../includes/online.php");
+    include_once(__DIR__ . "/../includes/stdFunc/easyUblWebhookKey.php");
 
 // Setting up the user as a company at easyUBL
     function createCompany($apiKey){
@@ -23,7 +24,7 @@
         $domain = "https://".$_SERVER['SERVER_NAME'];
         $path = trim($_SERVER['REQUEST_URI'], '/');
         $firstFolder = explode('/', $path)[0];
-        $webhookUrl = "$domain/$firstFolder/debitor/easyUBL.php";
+        $webhookUrl = easyubl_webhook_url($domain, $firstFolder);
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
@@ -110,7 +111,7 @@
             $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response];
             
             // Save error response in temp folder
-            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", easyubl_webhook_redact(json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE)));
             
             return ['success' => false, 'message' => 'Error updating company: ' . $errorMessage];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
@@ -118,7 +119,7 @@
         }
         
         // Save successful response in temp folder for debugging
-        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", json_encode($response, JSON_UNESCAPED_UNICODE));
+        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", easyubl_webhook_redact(json_encode($response, JSON_UNESCAPED_UNICODE)));
         
         return ['success' => true, 'companyId' => $companyId, 'response' => $response];
     }
