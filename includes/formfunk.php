@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- includes/formfunk.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -95,8 +95,10 @@
 // 20261103 CL/ASR The form editor's print-language lock is read from the settings table through fe_printlang_get() in includes/formEditorState.php instead of a JSON file under logolib.
 // 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
 //                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
+// 20261109 CL/SZ SST-926 formularprint() counts the mails send_mails() actually sent in $mailSentCount.
 // 20261112 CL/MMR SST-1015 Removed the PBS debug logging that wrote the order's e-mail to temp/<db>/pbs_email_debug.log.
 //
+
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
@@ -1089,7 +1091,7 @@ if (!function_exists('formularprint')) {
 		global $ialt;
 		#	global $id;
 		global $lev_nr, $linjeafstand, $logo, $logoart;
-		global $mailantal, $mappe, $moms, $momsgrundlag, $momssats;
+		global $mailantal, $mailSentCount, $mappe, $moms, $momsgrundlag, $momssats;
 		global $nextside;
 		global $pdftk, $ps2pdf, $printerid, $printfilnavn;
 		global $ref, $hvem, $regnaar, $returside;
@@ -1098,7 +1100,7 @@ if (!function_exists('formularprint')) {
 		global $vis_saet, $weasyprint;
 		global $y, $ya, $locat;
 		$bgr = $psfp1 = $htmfp1 = $kommentarprint = $rvnr = $skjul_nul_lin = NULL;
-		$folgeseddel = $mailantal = $nomailantal = 0;
+		$folgeseddel = $mailantal = $nomailantal = $mailSentCount = 0;
 		$side_x = 210;
 		$side_y = 297;
 
@@ -2383,6 +2385,11 @@ if (!function_exists('formularprint')) {
 					exit;
 				}
 				$svar = send_mails("$ordre_id[$o]", "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], "$mail_subj", "$mail_text", "$mail_bilag", $x);
+				// send_mails() returns "Mail sent to ..." only when the mail went out; a rejected address,
+				// a missing sender or the 30-second repeat guard return without sending.
+				if (is_string($svar) && strpos($svar, 'Mail sent to') === 0) {
+					$mailSentCount++;
+				}
 			}
 		} elseif ($nomailantal > 0) {
 			print "<big><b>Vent - Udskrift genereres</b></big><br>";
