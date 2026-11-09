@@ -331,7 +331,11 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		// (popup=1 on the URL), not when the user merely prefers popups — the preference
 		// made the nav stack permanently empty for those users, and genuine popups
 		// opened by others polluted the opener's stack.
-		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup']));
+		# SST-967 the same goes for a page the user may not see: the rights gate further down refuses it, so
+		# recording it here would leave the refused address on the stack and a later back link would return
+		# to it. The condition is the gate's own, kept in step with it by EmptyRightsGateTest.
+		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup'])
+			|| (($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1')));
 		if ($db_ver > '3.7.4') {
 			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -383,7 +387,9 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		# The box is a floating overlay that hides itself when it is closed, and a refused page is only
 		# the box, so the link keeps something on the page and leads back to the menu shell.
 		print "<div style=\"position:fixed; top:10px; left:10px; z-index:101; font:14px Arial,Helvetica,sans-serif;\">";
-		print "<a href=\"" . get_relative() . "index/main.php\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
+		# target=_top: the shell loads pages inside an iframe, and navigating that frame to the menu would
+		# put a second menu inside the first one. In a tab of its own the target makes no difference.
+		print "<a href=\"" . get_relative() . "index/main.php\" target=\"_top\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
 			. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
 		exit;
 	}

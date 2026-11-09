@@ -93,6 +93,30 @@ final class EmptyRightsGateTest extends TestCase
         // The box hides itself when it is closed, and a refused page is only the box.
         self::assertStringContainsString('index/main.php', $body, 'the refusal offers a way back to the menu shell');
         self::assertStringContainsString('z-index:101', $body, 'and that link sits above the box');
+        // The shell frames the page, so the link has to leave the frame instead of loading a menu inside it.
+        self::assertStringContainsString('target=\\"_top\\"', $body, 'the way back leaves the shell iframe');
+    }
+
+    /**
+     * A refused page must not enter the navigation stack.
+     *
+     * online.php records the request in the nav stack before the rights gate runs, so without this the
+     * refused address stays on the stack and a back link on a later page returns to it.
+     *
+     * @return void
+     */
+    public function testARefusedPageIsNotRecordedInTheNavStack(): void
+    {
+        $code = self::onlineSource();
+        $start = strpos($code, 'nav_push(null,');
+        self::assertNotFalse($start, 'the page is still pushed onto the nav stack');
+        $call = substr($code, (int)$start, 400);
+
+        self::assertStringContainsString(
+            "substr((string)\$rettigheder, (int)\$modulnr, 1) < '1'",
+            $call,
+            'the push treats a page without the right as a popup, which is not recorded'
+        );
     }
 
     /**
