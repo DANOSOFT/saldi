@@ -6,3 +6,20 @@ commission.settle.orders_deferred	%s ordrer med kommission er ikke afregnet, for
 common.accept	Acceptér	Accept	Godta
 debtor.card.changed_by_another_user	Kunden er ændret af en anden bruger, efter du åbnede kortet. Dine ændringer er ikke gemt. Kortet viser nu de gemte oplysninger, så indtast dine ændringer igen.	This customer was changed by another user after you opened the card. Your changes were not saved. The card now shows the saved data, so enter your changes again.	Kunden er endret av en annen bruker etter at du åpnet kortet. Endringene dine er ikke lagret. Kortet viser nå de lagrede opplysningene, så skriv inn endringene dine på nytt.
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+reinvoice.receipt.back	Tilbage til fakturalisten	Back to the invoice list	Tilbake til fakturalisten
+reinvoice.receipt.blocked	Fakturaerne er bogført, men IKKE sendt: browseren blokerede pop-up-vinduet. Klik på knappen herunder for at sende dem.	The invoices are posted but NOT sent: the browser blocked the pop-up window. Click the button below to send them.	Fakturaene er bokført, men IKKE sendt: nettleseren blokkerte popup-vinduet. Klikk på knappen nedenfor for å sende dem.
+reinvoice.receipt.closed	Pop-up-vinduet blev lukket, før afsendelsen var bekræftet. Kontrollér i fakturalisten, hvilke fakturaer der er sendt.	The pop-up window was closed before sending was confirmed. Check in the invoice list which invoices were sent.	Popup-vinduet ble lukket før sendingen var bekreftet. Kontroller i fakturalisten hvilke fakturaer som er sendt.
+reinvoice.receipt.done	Afsendelsen er færdig.	Sending is finished.	Sendingen er ferdig.
+reinvoice.receipt.failed	Afsendelsen stoppede med en fejl, se pop-up-vinduet. Fakturaerne herover er bogført, men de ikke sendte skal sendes igen.	Sending stopped with an error, see the pop-up window. The invoices above are posted, but the ones not sent must be sent again.	Sendingen stoppet med en feil, se popup-vinduet. Fakturaene over er bokført, men de som ikke er sendt må sendes på nytt.
+reinvoice.receipt.mails_sent	Sendt pr. e-mail	Sent by email	Sendt per e-post
+reinvoice.receipt.not_sent	Ikke sendt eller udskrevet	Not sent or printed	Ikke sendt eller skrevet ut
+reinvoice.receipt.not_sent_help	Send eller udskriv dem fra fakturalisten.	Send or print them from the invoice list.	Send eller skriv dem ut fra fakturalisten.
+reinvoice.receipt.pbs	Overført til PBS	Transferred to PBS	Overført til PBS
+reinvoice.receipt.posted	Bogførte fakturaer	Posted invoices	Bokførte fakturaer
+reinvoice.receipt.printed	Vist som PDF til udskrift	Shown as PDF for printing	Vist som PDF for utskrift
+reinvoice.receipt.running	Fakturaerne sendes i pop-up-vinduet. Luk det ikke, før det er færdigt.	The invoices are being sent in the pop-up window. Do not close it before it is finished.	Fakturaene sendes i popup-vinduet. Ikke lukk det før det er ferdig.
+reinvoice.receipt.send_button	Send og udskriv fakturaerne	Send and print the invoices	Send og skriv ut fakturaene
+reinvoice.receipt.skipped	Ikke genfaktureret, fordi fakturadatoen ligger uden for regnskabsåret:	Not re-invoiced because the invoice date is outside the fiscal year:	Ikke refakturert fordi fakturadatoen ligger utenfor regnskapsåret:
+reinvoice.receipt.skipped_help	Ret Genfakt.-datoen eller opret regnskabsåret, og genfakturér dem igen.	Correct the next invoice date or create the fiscal year, then re-invoice them again.	Rett neste fakturadato eller opprett regnskapsåret, og refakturer dem igjen.
+reinvoice.receipt.stopped	Genfaktureringen stoppede, før alle fakturaer var bogført:	Re-invoicing stopped before all invoices were posted:	Refaktureringen stoppet før alle fakturaer var bokført:
+reinvoice.receipt.title	Genfakturering udført	Re-invoicing completed	Refakturering utført

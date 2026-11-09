@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/genfakturer.php-----lap 3.8.9-----2025-08-15------
+// ---------debitor/genfakturer.php-----ver 5.1.0-----2026-11-09------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Erstattet addslashes med db_escape_string
 // 2014.03.17 Tilføjet procent til "insert into ordrelinjer... 
@@ -35,6 +35,8 @@
 // 2020.02.03 PHR - Critical '$vatAccount' was insertet instead of vat_account. 
 // 2020.02.20 PHR - $cvrnr set to '' if not valid; 
 // 20250815 PHR	Fiscal_year;
+// 20261109 CL/SZ SST-926: a completed re-invoice skips invoices dated outside the fiscal year, as ordinary invoicing does.
+//                The page now shows a receipt with the posted, sent and unsent counts, and says so when the pop-up is blocked.
 
 @session_start();
 $s_id=session_id();
@@ -102,6 +104,7 @@ if ($_POST) {
 	} else $regnaar=1;
 
 	$afbryd=findtekst(81,$sprog_id);
+	$genfaktRun=false;
 
 	if ($afbryd==if_isset($_POST['Afbryd'])) {
  		print "<BODY onLoad=\"javascript:alert('Genfakturering afbrudt')\">";
@@ -114,14 +117,35 @@ if ($_POST) {
 		$opdat_pris=if_isset($_POST['opdat_pris']);
 		$opdat_text=if_isset($_POST['opdat_text']);
 		$slet_gfdato=if_isset($_POST['slet_gfdato']);
+		$genfaktRun=true;
 
 		$box1="$org_nr,$komplet,$fakt_dato,$opdat_pris,$slet_gfdato,$opdat_text";
 		if ($gf_id)  db_modify("update grupper set box1='$box1' where id='$gf_id'",__FILE__ . " linje " . __LINE__);
 		else db_modify("insert into grupper (beskrivelse,art,kodenr,box1) values ('Genfakturering','GF','$bruger_id','$box1')",__FILE__ . " linje " . __LINE__);
 
 		$udskriv_antal=0;
+		$udskriv='';
 		$ny_liste='';
+		$posted=array();
+		$pbs_antal=0;
+		$skipped=array();
+		$stopText='';
+		$fiscalSpan=genfaktFiscalYearSpan($regnaar);
 		for ($q=0; $q<$ordre_antal; $q++) {
+			// bogfor() is called in webservice mode below, which skips its "invoice date outside fiscal year" check,
+			// so a completed re-invoice checks the date here, before anything is copied or posted.
+			if ($komplet) {
+				$old=db_fetch_array(db_select("select fakturanr,firmanavn,nextfakt from ordrer where id='".(int)$ordre_id[$q]."'",__FILE__ . " linje " . __LINE__));
+				$newDate=genfaktInvoiceDate($old ? $old['nextfakt'] : '',$fakt_dato);
+				if (!$old || !genfaktDateInFiscalYear($newDate,$fiscalSpan)) {
+					$skipped[]=array(
+						'fakturanr'=>$old ? $old['fakturanr'] : '',
+						'firmanavn'=>$old ? $old['firmanavn'] : '',
+						'date'=>$newDate,
+					);
+					continue;
+				}
+			}
 			list($id,$pbs)=explode(",",genfakt($ordre_id[$q],$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$regnaar));
 
 			if ($komplet) {
@@ -129,17 +153,20 @@ if ($_POST) {
 				$svar=bogfor($id,'on','on');
 				if ($svar != 'OK') {
 					if (strpos($svar,'invoicedate prior to')) $tekst="Genfaktureringsdato før fakturadato";
-					else $tekst="Der er konstateret en ubalance i posteringssummen,\\nkontakt venligst Danosoft på tlf. +45 46902208";
-					print "<BODY onLoad=\"javascript:alert('$tekst')\">\n";
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
-					exit;
+					else $tekst="Der er konstateret en ubalance i posteringssummen, kontakt venligst Danosoft på tlf. +45 46902208";
+					// The invoices posted before this one still have to be sent, so the run stops and shows the receipt.
+					$stopText=$tekst." (".html_entity_decode((string)$svar,ENT_QUOTES,'UTF-8').")";
+					break;
 				}
+				$r=db_fetch_array(db_select("select fakturanr from ordrer where id='".(int)$id."'",__FILE__ . " linje " . __LINE__));
+				$posted[]=$r ? $r['fakturanr'] : '';
 			} else {
 				if ($ny_liste) $ny_liste.=",$id";
 				else $ny_liste="$id";
 			}
 			if ($komplet && $pbs) {
 				pbsfakt($id);
+				$pbs_antal++;
 			} else {
 				if ($udskriv_antal) $udskriv.=",$id";
 				else $udskriv ="$id";
@@ -147,8 +174,9 @@ if ($_POST) {
 			}
 		} 	
 	}
-	if ($udskriv && $komplet) print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=-1&ordre_antal=$udskriv_antal&skriv=$udskriv&formular=4' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";
-	else {
+	if ($genfaktRun && $komplet) {
+		genfaktReceipt($posted,$pbs_antal,$udskriv_antal,$udskriv,$skipped,$stopText);
+	} else {
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=ret_genfakt.php?ordreliste=$ny_liste\">";	
 	}
 	
@@ -204,9 +232,7 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 		if ($r['nextfakt']) $tmp=$r['nextfakt'];
 		else $tmp=date("Y-m-d");			
 		$nextfakt=find_nextfakt($r['fakturadate'],$tmp);
-		if ($fakt_dato) $fakturadate=$r['nextfakt'];
-		else $fakturadate=date("Y-m-d");
-		if (!$fakturadate) $fakturadate=date("Y-m-d");
+		$fakturadate=genfaktInvoiceDate($r['nextfakt'],$fakt_dato);
 		if ($org_nr) $ordrenr=$r['ordrenr'];
 		else {
 			$r2=db_fetch_array(db_select("select MAX(ordrenr) as ordrenr from ordrer where art='DO' or art='DK'",__FILE__ . " linje " . __LINE__));
@@ -312,5 +338,180 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 	$tmp=$ny_id.",".$pbs;
 	return($tmp);
 }	
+
+/**
+ * The invoice date a re-invoice gets: the old invoice's next-invoice date when
+ * "use the next-invoice date" is chosen and set, otherwise today.
+ *
+ * @param string|null $nextfakt     The old invoice's ordrer.nextfakt (Y-m-d).
+ * @param mixed       $useNextfakt  The fakt_dato choice from the form.
+ * @return string Y-m-d
+ */
+function genfaktInvoiceDate($nextfakt,$useNextfakt) {
+	if ($useNextfakt && $nextfakt) return $nextfakt;
+	return date("Y-m-d");
+}
+
+/**
+ * The first and last month of fiscal year $regnaar as YYYYMM, built the way bogfor() builds them.
+ *
+ * @param int $regnaar
+ * @return array{start: string, end: string}|null Null when the fiscal year does not exist.
+ */
+function genfaktFiscalYearSpan($regnaar) {
+	$qtxt="select box1,box2,box3,box4 from grupper where art='RA' and kodenr='".(int)$regnaar."'";
+	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	if (!$r) return null;
+	return array(
+		'start'=>trim($r['box2']).sprintf('%02d',(int)$r['box1']),
+		'end'=>trim($r['box4']).sprintf('%02d',(int)$r['box3']),
+	);
+}
+
+/**
+ * Whether an invoice date falls inside the fiscal year span, the check bogfor()
+ * makes as "Fakturadato udenfor regnskabsår" outside webservice mode.
+ *
+ * @param string $date Y-m-d
+ * @param array{start: string, end: string}|null $span From genfaktFiscalYearSpan().
+ * @return bool
+ */
+function genfaktDateInFiscalYear($date,$span) {
+	if (!$span) return false;
+	$ym=substr($date,0,4).substr($date,5,2);
+	return $ym>=$span['start'] && $ym<=$span['end'];
+}
+
+/**
+ * Prints the receipt of a completed re-invoicing in the same window and opens the
+ * sending/printing pop-up. A blocked pop-up is reported with a button that opens it,
+ * and the pop-up reports back how many invoices it e-mailed.
+ *
+ * @param array<int, string> $posted  Invoice numbers posted in this run.
+ * @param int    $pbsCount     Invoices handed to PBS.
+ * @param int    $printCount   Invoices to send or print in the pop-up.
+ * @param string $printList    Comma-separated order ids for formularprint.php.
+ * @param array<int, array{fakturanr: string, firmanavn: string, date: string}> $skipped
+ *               Invoices not re-invoiced because the date is outside the fiscal year.
+ * @param string $stopText     Why the run stopped early, or ''.
+ * @return void
+ */
+function genfaktReceipt($posted,$pbsCount,$printCount,$printList,$skipped,$stopText) {
+	global $charset,$sprog_id;
+
+	$h=function($text) use ($charset) {
+		return htmlspecialchars((string)$text,ENT_QUOTES,$charset ? $charset : 'UTF-8');
+	};
+	$numbers=array_values(array_filter($posted,'is_numeric'));
+	$range='';
+	if (count($numbers)) {
+		$range=(min($numbers)==max($numbers)) ? ' ('.min($numbers).')' : ' ('.min($numbers).'-'.max($numbers).')';
+	}
+
+	print "<div id='genfaktReceipt' style='margin:20px;max-width:700px;font-size:14px'>\n";
+	print "<h2>".$h(findtekst('reinvoice.receipt.title|Genfakturering udført',$sprog_id))."</h2>\n";
+	if ($stopText) {
+		print "<p style='color:#b00000;font-weight:bold'>".$h(findtekst('reinvoice.receipt.stopped|Genfaktureringen stoppede, før alle fakturaer var bogført:',$sprog_id))." ".$h($stopText)."</p>\n";
+	}
+	print "<table border='0' cellpadding='4'><tbody>\n";
+	print "<tr><td>".$h(findtekst('reinvoice.receipt.posted|Bogførte fakturaer',$sprog_id))."</td><td align='right'><b>".count($posted)."</b>".$h($range)."</td></tr>\n";
+	if ($pbsCount) {
+		print "<tr><td>".$h(findtekst('reinvoice.receipt.pbs|Overført til PBS',$sprog_id))."</td><td align='right'><b>$pbsCount</b></td></tr>\n";
+	}
+	if ($printCount) {
+		print "<tr><td>".$h(findtekst('reinvoice.receipt.mails_sent|Sendt pr. e-mail',$sprog_id))."</td><td align='right'><b id='genfaktMails'>-</b></td></tr>\n";
+		print "<tr><td>".$h(findtekst('reinvoice.receipt.printed|Vist som PDF til udskrift',$sprog_id))."</td><td align='right'><b id='genfaktPrints'>-</b></td></tr>\n";
+		print "<tr><td>".$h(findtekst('reinvoice.receipt.not_sent|Ikke sendt eller udskrevet',$sprog_id))."</td><td align='right'><b id='genfaktNotSent'>$printCount</b></td></tr>\n";
+	}
+	print "</tbody></table>\n";
+
+	if ($printCount) {
+		$url="formularprint.php?id=-1&ordre_antal=$printCount&skriv=$printList&formular=4&kvittering=genfakt";
+		print "<p id='genfaktStatus' style='font-weight:bold'></p>\n";
+		print "<p id='genfaktNotSentHelp' style='display:none'>".$h(findtekst('reinvoice.receipt.not_sent_help|Send eller udskriv dem fra fakturalisten.',$sprog_id))."</p>\n";
+		print "<p><input type='button' id='genfaktSend' style='display:none' value='".$h(findtekst('reinvoice.receipt.send_button|Send og udskriv fakturaerne',$sprog_id))."'></p>\n";
+		print "<span id='genfaktTexts' style='display:none'";
+		print " data-url='".$h($url)."' data-total='$printCount'";
+		print " data-running='".$h(findtekst('reinvoice.receipt.running|Fakturaerne sendes i pop-up-vinduet. Luk det ikke, før det er færdigt.',$sprog_id))."'";
+		print " data-blocked='".$h(findtekst('reinvoice.receipt.blocked|Fakturaerne er bogført, men IKKE sendt: browseren blokerede pop-up-vinduet. Klik på knappen herunder for at sende dem.',$sprog_id))."'";
+		print " data-closed='".$h(findtekst('reinvoice.receipt.closed|Pop-up-vinduet blev lukket, før afsendelsen var bekræftet. Kontrollér i fakturalisten, hvilke fakturaer der er sendt.',$sprog_id))."'";
+		print " data-done='".$h(findtekst('reinvoice.receipt.done|Afsendelsen er færdig.',$sprog_id))."'";
+		print " data-failed='".$h(findtekst('reinvoice.receipt.failed|Afsendelsen stoppede med en fejl, se pop-up-vinduet. Fakturaerne herover er bogført, men de ikke sendte skal sendes igen.',$sprog_id))."'";
+		print "></span>\n";
+	}
+
+	if (count($skipped)) {
+		print "<p style='color:#b00000;font-weight:bold'>".$h(findtekst('reinvoice.receipt.skipped|Ikke genfaktureret, fordi fakturadatoen ligger uden for regnskabsåret:',$sprog_id))."</p>\n";
+		print "<table border='0' cellpadding='4'><tbody>\n";
+		foreach ($skipped as $s) {
+			print "<tr><td>".$h($s['fakturanr'])."</td><td>".$h($s['firmanavn'])."</td><td>".$h(dkdato($s['date']))."</td></tr>\n";
+		}
+		print "</tbody></table>\n";
+		print "<p>".$h(findtekst('reinvoice.receipt.skipped_help|Ret Genfakt.-datoen eller opret regnskabsåret, og genfakturér dem igen.',$sprog_id))."</p>\n";
+	}
+	print "<p><a href='ordreliste.php'>".$h(findtekst('reinvoice.receipt.back|Tilbage til fakturalisten',$sprog_id))."</a></p>\n";
+	print "</div>\n";
+
+	if ($printCount) {
+?>
+<script type="text/javascript">
+(function () {
+	var texts = document.getElementById('genfaktTexts');
+	var statusLine = document.getElementById('genfaktStatus');
+	var sendButton = document.getElementById('genfaktSend');
+	var total = parseInt(texts.getAttribute('data-total'), 10);
+	var popup = null;
+	var confirmed = false;
+
+	function showStatus(key, color) {
+		statusLine.textContent = texts.getAttribute('data-' + key);
+		statusLine.style.color = color;
+	}
+
+	window.addEventListener('message', function (event) {
+		if (event.origin !== window.location.origin || !event.data || event.data.type !== 'saldi-genfakt-print') {
+			return;
+		}
+		confirmed = true;
+		var mails = parseInt(event.data.mails, 10) || 0;
+		var prints = parseInt(event.data.prints, 10) || 0;
+		var notSent = Math.max(0, total - mails - prints);
+		document.getElementById('genfaktMails').textContent = mails;
+		document.getElementById('genfaktPrints').textContent = prints;
+		document.getElementById('genfaktNotSent').textContent = notSent;
+		document.getElementById('genfaktNotSentHelp').style.display = notSent ? '' : 'none';
+		if (event.data.complete === false) {
+			showStatus('failed', '#b00000');
+		} else {
+			showStatus('done', notSent ? '#b00000' : '#006000');
+		}
+	});
+
+	function openPopup() {
+		popup = window.open(texts.getAttribute('data-url'), '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,location=1');
+		if (!popup) {
+			showStatus('blocked', '#b00000');
+			sendButton.style.display = '';
+			return;
+		}
+		sendButton.style.display = 'none';
+		showStatus('running', '');
+		var watch = setInterval(function () {
+			if (confirmed) {
+				clearInterval(watch);
+			} else if (popup.closed) {
+				clearInterval(watch);
+				showStatus('closed', '#b00000');
+			}
+		}, 1000);
+	}
+
+	sendButton.onclick = openPopup;
+	openPopup();
+})();
+</script>
+<?php
+	}
+}
 ########################################################################################
 ?>
