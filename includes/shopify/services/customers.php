@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/customers.php --- ver 5.1.0 --- 2026.11.01
+// --- includes/shopify/services/customers.php --- ver 5.1.0 --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // and is never overwritten after that. An older or unchanged event changes nothing.
 //
 // 20261101 CL/SS SD-792: created (WP08-1).
+// 20261109 CL/SS SD-814: a debtor from Shopify gets a customer type: privat with first and last name, or erhverv with a company.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -45,7 +46,7 @@ const SHOPIFY_CUSTOMER_TOPICS = array('CUSTOMERS_CREATE', 'CUSTOMERS_UPDATE');
 
 /** Widths of the adresser columns on a fresh install (includes/opretfunc.php). */
 const SHOPIFY_CUSTOMER_WIDTHS = array('firmanavn' => 90, 'kontakt' => 60, 'addr1' => 60, 'addr2' => 60, 'postnr' => 10,
-	'bynavn' => 60, 'land' => 60, 'mobile' => 15);
+	'bynavn' => 60, 'land' => 60, 'mobile' => 15, 'fornavn' => 60, 'efternavn' => 60);
 
 /** adresser.email on a fresh install. A longer email is not stored (a cut one is another address) and is listed. */
 const SHOPIFY_CUSTOMER_EMAIL_WIDTH = 60;
@@ -54,23 +55,33 @@ const SHOPIFY_CUSTOMER_EMAIL_WIDTH = 60;
  * The debtor fields of a Shopify customer (webhook body, REST shape): a company is the name with
  * the person as contact, else the person's name ('' when it has neither, see ensure_customer()).
  * Names and addresses are cut to the column widths.
+ * A person is a private debtor (kontotype privat) with first and last name, which the debtor card
+ * joins into the name when it saves; a company on the address makes a business debtor (erhverv).
+ * kontotype is '' when the customer has neither a name nor a company.
  *
  * @param array<string, mixed> $customer
- * @return array<string, string> firmanavn, kontakt, addr1, addr2, postnr, bynavn, land, email, mobile
+ * @return array<string, string> firmanavn, kontakt, kontotype, fornavn, efternavn, addr1, addr2, postnr, bynavn, land, email, mobile
  */
 function shopify_customer_fields(array $customer): array {
 	$address = shopify_customer_address($customer);
 	$text = fn($v): string => trim(is_scalar($v) ? (string)$v : '');
-	$person = $text($text($customer['first_name'] ?? '') . ' ' . $text($customer['last_name'] ?? ''));
-	if ($person === '') {
-		$person = $text($address['name'] ?? '');
+	$first = $text($customer['first_name'] ?? '');
+	$last = $text($customer['last_name'] ?? '');
+	if ($first === '' && $last === '' && preg_match('/^(.*\S)\s+(\S+)$/u', $text($address['name'] ?? ''), $m)) {
+		list($first, $last) = array($text($m[1]), $m[2]);
+	} elseif ($first === '' && $last === '') {
+		$first = $text($address['name'] ?? '');
 	}
+	$person = $text("$first $last");
 	$company = $text($address['company'] ?? '');
 	$email = $text($customer['email'] ?? '');
 	$mobile = shopify_customer_phone($text($customer['phone'] ?? ''));
 	$fields = array(
 		'firmanavn' => $company !== '' ? $company : $person,
 		'kontakt' => $company !== '' ? $person : '',
+		'kontotype' => $company !== '' ? 'erhverv' : ($person !== '' ? 'privat' : ''),
+		'fornavn' => $company === '' ? $first : '',
+		'efternavn' => $company === '' ? $last : '',
 		'addr1' => $text($address['address1'] ?? ''),
 		'addr2' => $text($address['address2'] ?? ''),
 		'postnr' => $text($address['zip'] ?? ''),
@@ -81,6 +92,12 @@ function shopify_customer_fields(array $customer): array {
 	);
 	foreach (SHOPIFY_CUSTOMER_WIDTHS as $column => $width) {
 		$fields[$column] = mb_substr($fields[$column], 0, $width);
+	}
+	if ($fields['kontotype'] === 'privat') {
+		// the name is what the card joins from the cut names, and the joined name fits the name column
+		$fields['fornavn'] = rtrim($fields['fornavn']);
+		$fields['efternavn'] = rtrim(mb_substr($fields['efternavn'], 0, SHOPIFY_CUSTOMER_WIDTHS['firmanavn'] - mb_strlen($fields['fornavn']) - 1));
+		$fields['firmanavn'] = trim($fields['fornavn'] . ' ' . $fields['efternavn']);
 	}
 	return $fields;
 }
@@ -156,6 +173,11 @@ function ensure_customer(int $shopId, array $customer): int {
 			// address. A contact is Saldi's once set: Shopify fills an empty one, and one that is now the name itself
 			// goes (a company that became a person).
 			$write = array_filter($fields, fn(string $v): bool => $v !== '');
+			if (($write['kontotype'] ?? '') === 'privat') {
+				// the card joins them into the name: a last name that is gone in Shopify goes here too
+				$write['fornavn'] = $fields['fornavn'];
+				$write['efternavn'] = $fields['efternavn'];
+			}
 			$contact = (string)$stored[0]['kontakt'];
 			unset($write['kontakt']);
 			if ($contact === '' && $fields['kontakt'] !== '') {
