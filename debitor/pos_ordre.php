@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.0.0 --- 2026.10.02 ---
+// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -124,6 +124,7 @@
 //                The stream fallback without cURL now gives the read only the time left after opening.
 // 20261023 CL/LH MB-95: "på beløb" set item: opret_saet() was called with 6 of its 7 arguments (ArgumentCountError on PHP 8),
 //                the lager landing in $incl_moms. Pass usdecimal($pris_ny, 2), 'on', $lager_ny like the other POS opret_saet() call.
+// 20261109 CL/SS SST-919: kasseoptalling: default commission from-date is the day of the register's last settled sale.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -3354,12 +3355,18 @@ function kasseoptalling( // Called from cashBalance.php
 		$acceptPrint = acceptPrint();
 
 		if ($useCommission && (($customerCommissionAccountNew && $commissionAccountNew) || ($customerCommissionAccountUsed && $commissionAccountUsed))) {
-			$commissionFromDate = $commissionToDate = NULL;
+			$commissionFromDate = $commissionToDate = $lastSettle = NULL;
 			$qtxt = "select var_value as settletime from settings where var_name = 'commissionFromDate' and var_grp = 'items'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$lastSettle = dkdato($r['settletime']);
-			else
+			} else {
 				$commissionFromDate = NULL;
+			}
+			$qtxt = "select max(fakturadate) as settled from ordrer where settletime > '0' and felt_5 = '" . (int)$kasse . "'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($r && $r['settled'] && (!$lastSettle || $r['settled'] > usdate($lastSettle))) {
+				$lastSettle = dkdato($r['settled']);
+			}
 			$title = findtekst(1854, $sprog_id);
 			if ($lastSettle)
 				$title .= "\n" . findtekst(1856, $sprog_id) . ": " . $lastSettle . "";
