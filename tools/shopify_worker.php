@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.06
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.08
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,6 +52,7 @@
 // 20261104 CL/SZ SD-756: the stock producer drains shopify_stock_dirty after the events; the stock.push handler.
 // 20261105 CL/SZ SD-757: the stock.display, stock.reconcile and stock.baseline handlers; commands baseline, reconcile and remap.
 // 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
+// 20261108 CL/SS SD-803: the customer.export handler (a Saldi debtor becomes a Shopify customer).
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -82,6 +83,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/events.php';
 	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
 	require_once __DIR__ . '/../includes/shopify/services/customers.php';
+	require_once __DIR__ . '/../includes/shopify/services/customersOut.php';
 	require_once __DIR__ . '/../includes/shopify/services/prices.php';
 	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
@@ -108,6 +110,8 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'catalogue.seed', 'shopify_catalogue_seed_job');
 	// SD-792: a Shopify customer becomes, or updates, its debtor.
 	shopify_worker_register($registry, 'customer.upsert', 'shopify_customer_upsert_job');
+	// SD-803: a Saldi debtor becomes a customer in the shop (store orders carry it).
+	shopify_worker_register($registry, 'customer.export', 'shopify_customer_export_job');
 	// SD-802: the quarter-hour price window of each shop with prices_enabled.
 	shopify_worker_register($registry, 'price.window', 'shopify_prices_window_job');
 	// SD-801: fulfillments, order status, cancellations and refunds projected onto the order's link.
