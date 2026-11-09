@@ -18,6 +18,7 @@
 // 20261109 CL/LH The description job runs the base revision's policy, or the head's while the base has no door map.
 // 20261109 CL/LH Exceptions bound to their reviewer, a commit and the rows they name; removed lines read in the base
 //                file; the hunk's eof mark where the head file is not known.
+// 20261109 CL/LH Paths git quotes in a diff header are read exactly; a header that cannot be read reads the file whole.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -26,7 +27,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import prBody, { lineOwners, readHistory } from "../checks/pr-body.mjs";
-import { markerLinesOf } from "../lib/changeset.mjs";
+import { UNREADABLE, filesOfDiff, headerPath, markerLinesOf } from "../lib/changeset.mjs";
+import { stationReport } from "../lib/station.mjs";
 import { REVIEWERS } from "../lib/doors.mjs";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -681,4 +683,91 @@ test("bootstrap: while the base revision has no door map, the description job ru
   } finally {
     repo.done();
   }
+});
+
+/** The paths the cross-check's findings name ("path: [pr-body] the PR says ..."), a quoted one read back. */
+const claimedPaths = (stdout) =>
+  stdout
+    .split("\n")
+    .filter((line) => line.includes(": [pr-body] the PR says"))
+    .map((line) => line.slice(0, line.indexOf(": [pr-body]")))
+    .map((path) => (path.startsWith('"') ? JSON.parse(path) : path))
+    .sort();
+
+test("a file whose name git quotes in a diff header (a quote, a backslash, a tab) or that holds letters beyond ASCII is routed and cross-checked under its real path, and a one-way marker in it is found, committed and in the working tree", () => {
+  const marked = ['finans/a"b.js', "finans/a\\b.js", "finans/a\tb.js", "finans/æøå.js"];
+  const byPath = 'debitor/payments/x"y.js';
+  const base = Object.fromEntries([...marked, byPath].map((path) => [path, "run();\n"]));
+  const head = { ...Object.fromEntries(marked.map((path) => [path, `run();\n${DROP};\n`])), [byPath]: "run(1);\n" };
+  const all = [...marked, byPath].sort();
+  for (const committed of [true, false]) {
+    const repo = commits(base, ...(committed ? [head] : []));
+    try {
+      if (!committed) for (const [path, content] of Object.entries(head)) writeFileSync(join(repo.dir, path), content);
+      const range = committed ? ["--base", repo.shas[0], "--head", repo.shas[1]] : ["--base", repo.shas[0]];
+      const where = committed ? "committed" : "working tree";
+      const station = repo.run(["--station", "--json", ...range]);
+      assert.equal(station.status, 0, station.stdout);
+      const report = JSON.parse(station.stdout);
+      assert.deepEqual(report.changedPaths, all, where);
+      assert.deepEqual(report.markersHit.map((hit) => `${hit.path}:${hit.row}`).sort(), marked.map((path) => `${path}:destructive`).sort(), where);
+      assert.deepEqual(report.doorRows.find((match) => match.row === "payments")?.hits.map((hit) => hit.path), [byPath], where);
+      const pr = repo.run(["--pr-body", "-", ...range], dangerBody("two-way"));
+      assert.equal(pr.status, 1, where);
+      assert.deepEqual(claimedPaths(pr.stdout), all, where);
+      assert.doesNotMatch(pr.stdout, /could not be read/, `${where}: every header was read`);
+      assert.ok(!pr.stdout.split("\n").some((line) => line.startsWith("finans/a") && line.includes("\t")), `${where}: a tab in a name is printed quoted`);
+    } finally {
+      repo.done();
+    }
+  }
+});
+
+test("a diff header that cannot be read fails closed: no record under a wrong or empty path; the file git lists is read whole under its real path, so a marker anywhere in it is found by the cross-check and by --station", () => {
+  // headerPath reads git's C-style quoting exactly, and gives null for anything else.
+  assert.equal(headerPath('diff --git "a/finans/a\\"b.js" "b/finans/a\\"b.js"'), 'finans/a"b.js');
+  assert.equal(headerPath('diff --git "a/finans/a\\\\b.js" "b/finans/a\\\\b.js"'), "finans/a\\b.js");
+  assert.equal(headerPath('diff --git "a/finans/a\\tb.js" "b/finans/a\\tb.js"'), "finans/a\tb.js");
+  assert.equal(headerPath('diff --git "a/finans/\\303\\246\\303\\270\\303\\245.js" "b/finans/\\303\\246\\303\\270\\303\\245.js"'), "finans/æøå.js");
+  assert.equal(headerPath("diff --git a/finans/æøå.js b/finans/æøå.js"), "finans/æøå.js");
+  assert.equal(headerPath("diff --git a/a b/c b/a b/c"), "a b/c");
+  for (const raw of [
+    'diff --git "a/finans/x.js b/finans/x.js',
+    'diff --git "a/finans/x\\q.js" "b/finans/x\\q.js"',
+    'diff --git "a/finans/x.js" "b/finans/y.js"',
+    "diff --git a/finans/x.js b/finans/y.js",
+    "diff --git finans/x.js finans/x.js",
+    "diff --git a/ b/",
+  ]) {
+    assert.equal(headerPath(raw), null, raw);
+  }
+  const text = [
+    'diff --git "a/finans/x.js b/finans/x.js',
+    "new file mode 100644",
+    "--- /dev/null",
+    '+++ "b/finans/x.js',
+    "@@ -0,0 +1 @@",
+    "+run();",
+    "diff --git a/finans/y.js b/finans/y.js",
+    "new file mode 100644",
+    "--- /dev/null",
+    "+++ b/finans/y.js",
+    "@@ -0,0 +1 @@",
+    "+run();",
+    "",
+  ].join("\n");
+  const heads = { "finans/x.js": `run();\n${DROP};\n`, "finans/y.js": "run();\n" };
+  const read = { head: (path) => heads[path] ?? null, base: () => null };
+  const files = filesOfDiff(text, ["finans/x.js", "finans/y.js"], read);
+  assert.deepEqual([...files.keys()], ["finans/x.js", "finans/y.js"], "only the paths git lists");
+  const x = files.get("finans/x.js");
+  assert.equal(x.unreadable, UNREADABLE);
+  assert.deepEqual([...x.added], [[1, "run();"], [2, `${DROP};`]], "every line of it as changed");
+  assert.equal(files.get("finans/y.js").unreadable, undefined);
+  const findings = prBody.run(dangerBody("two-way"), { files: [...files.values()], isVendored: () => false, today: "2026-11-06", readHead: read.head, readBase: read.base });
+  assert.deepEqual(findings.map((finding) => finding.path), ["finans/x.js"]);
+  assert.match(findings[0].message, /destructive by the marker "DROP DATABASE"/);
+  const lines = new Map([...files].map(([path, file]) => [path, markerLinesOf(file, read.head(path))]));
+  const report = stationReport({ input: { mode: "diff" }, paths: [...files.keys()], lines });
+  assert.deepEqual(report.markersHit.map((hit) => `${hit.path}:${hit.line}:${hit.row}`), ["finans/x.js:2:destructive"]);
 });

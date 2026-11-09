@@ -17,6 +17,8 @@
 // 20261107 CL/LH addedWithContext() marks its last entry cut where the file goes on below it.
 // 20261109 CL/LH Removed lines keep their base line numbers; markerLinesOf() and removedLinesOf() keep a hunk's eof
 //                mark where the file's text is not known; changedSince() compares a file with a commit's.
+// 20261109 CL/LH A diff header's path is read exactly (git's C-style quoting undone), and the changed paths come from
+//                git's NUL-separated list: a file whose header cannot be read counts every line as changed.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
@@ -47,12 +49,72 @@ export function revExists(rev) {
   }
 }
 
+/** The byte each of git's C-style escapes stands for (quote_c_style). */
+const C_ESCAPES = { a: 7, b: 8, t: 9, n: 10, v: 11, f: 12, r: 13, '"': 34, "\\": 92 };
+
+/**
+ * The path git quoted C-style ("a/x\"y", "a/x\tb", "a/\303\246"), starting at the quote at `text[i]`: [path, the
+ * index after its closing quote], or null where the quoting is malformed. Escapes give bytes, read as UTF-8.
+ */
+function unquoteC(text, i) {
+  if (text[i] !== '"') return null;
+  const bytes = [];
+  for (let j = i + 1; j < text.length; ) {
+    const c = text[j];
+    if (c === '"') return [Buffer.from(bytes).toString("utf8"), j + 1];
+    if (c !== "\\") {
+      const point = String.fromCodePoint(text.codePointAt(j));
+      bytes.push(...Buffer.from(point, "utf8"));
+      j += point.length;
+      continue;
+    }
+    const next = text[j + 1];
+    if (next in C_ESCAPES) {
+      bytes.push(C_ESCAPES[next]);
+      j += 2;
+    } else if (/^[0-3][0-7]{2}$/.test(text.slice(j + 1, j + 4))) {
+      bytes.push(parseInt(text.slice(j + 1, j + 4), 8));
+      j += 4;
+    } else {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * The path a "diff --git a/P b/P" header names, read exactly: both halves are the same path because renames are off,
+ * and git quotes one C-style where it holds a quote, a backslash or a control character (or, with core.quotePath on, a
+ * byte above ASCII). Null where the header cannot be read so: the caller never guesses a path.
+ */
+export function headerPath(raw) {
+  if (!raw.startsWith("diff --git ")) return null;
+  const rest = raw.slice("diff --git ".length);
+  let a;
+  let b;
+  if (rest.startsWith('"')) {
+    const first = unquoteC(rest, 0);
+    if (!first || rest[first[1]] !== " ") return null;
+    const second = unquoteC(rest, first[1] + 1);
+    if (!second || second[1] !== rest.length) return null;
+    [a, b] = [first[0], second[0]];
+  } else {
+    // "a/P b/P", P unquoted in both halves: the space between them is the middle character.
+    const half = (rest.length - 1) / 2;
+    if (!Number.isInteger(half) || rest[half] !== " ") return null;
+    [a, b] = [rest.slice(0, half), rest.slice(half + 1)];
+  }
+  if (!a.startsWith("a/") || !b.startsWith("b/") || a.length < 3 || a.slice(2) !== b.slice(2)) return null;
+  return a.slice(2);
+}
+
 /**
  * Parse `git diff -U0` output into one record per file.
  *
  * An added line that git ends with "\ No newline at end of file" is the file's last and no LF follows it: its hunk's
  * entry says so (eof), since a CR at its end is then a bare CR, no CR LF's. A removed line is numbered as the base
- * version numbers it (removedLines, removed), and marked eof the same way.
+ * version numbers it (removedLines, removed), and marked eof the same way. A file is keyed by the path its header
+ * names, read exactly (headerPath); a header that cannot be read gives no record (filesOfDiff then reads the file whole).
  *
  * @returns {Map<string, {path: string, status: "A"|"M"|"D", oldMode: string|null, newMode: string|null,
  *   binary: boolean, hunks: {removed: string[], removedLines: {line: number, text: string, eof?: true}[],
@@ -75,11 +137,10 @@ export function parseDiff(text) {
       continue;
     }
     if (raw.startsWith("diff --git ")) {
-      // "diff --git a/P b/P": both halves are the same path because renames are off.
-      const both = raw.slice("diff --git a/".length);
-      const path = both.slice(0, (both.length - " b/".length) / 2);
+      const path = headerPath(raw);
       file = { path, status: "M", oldMode: null, newMode: null, binary: false, hunks: [], added: new Map(), removed: new Map() };
-      files.set(path, file);
+      // A header that cannot be read keys nothing: its lines go to a record no one reads.
+      if (path !== null) files.set(path, file);
       hunk = null;
       continue;
     }
@@ -116,6 +177,54 @@ export function parseDiff(text) {
   return files;
 }
 
+/** A file's text as git's diff numbers its lines ({line, text}, a CR LF's CR kept), the last one marked eof where no LF follows it. */
+function entriesOf(text) {
+  if (text === null || text.includes("\0")) return [];
+  const lines = text.split(LINE_END);
+  if (lines[lines.length - 1] === "") lines.pop();
+  const entries = lines.map((line, index) => ({ line: index + 1, text: line }));
+  if (entries.length && !text.endsWith(LINE_END)) entries[entries.length - 1].eof = true;
+  return entries;
+}
+
+/** Why a file of filesOfDiff is read whole. */
+export const UNREADABLE = "git's diff header for it could not be read, so every line of it counts as changed";
+
+/**
+ * The change's files: `names`, the paths git lists for the change (NUL-separated, exact), each with its record from
+ * the diff `text` (parseDiff), in git's order. A name the diff gives no record for (its header could not be read) is
+ * read whole: every line of it as the change leaves it is added, and every line it had is removed, so a marker anywhere
+ * in it counts (fail closed); its record says so (unreadable). A record under a path git does not list is dropped.
+ *
+ * @param {{head: (path: string) => string|null, base: (path: string) => string|null}} read  the file as the change
+ *   leaves it, and as it was
+ */
+export function filesOfDiff(text, names, read) {
+  const parsed = parseDiff(text);
+  const files = new Map();
+  for (const name of names) {
+    if (parsed.has(name)) {
+      files.set(name, parsed.get(name));
+      continue;
+    }
+    const [headText, baseText] = [read.head(name), read.base(name)];
+    const added = entriesOf(headText);
+    const removed = entriesOf(baseText);
+    files.set(name, {
+      path: name,
+      status: baseText === null ? "A" : headText === null ? "D" : "M",
+      oldMode: null,
+      newMode: null,
+      binary: [headText, baseText].some((content) => content?.includes("\0")),
+      hunks: [{ removed: removed.map((entry) => entry.text), removedLines: removed, added }],
+      added: new Map(added.map((entry) => [entry.line, entry.text])),
+      removed: new Map(removed.map((entry) => [entry.line, entry.text])),
+      unreadable: UNREADABLE,
+    });
+  }
+  return files;
+}
+
 /**
  * Build the change set the checks run against.
  *
@@ -126,7 +235,29 @@ export function buildChangeset({ base, head }) {
   const headRev = head ?? "HEAD";
   const mergeBase = git(["merge-base", base, headRev]).trim();
   const range = head ? [mergeBase, head] : [mergeBase];
-  const files = parseDiff(git(["diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", ...range]));
+  const show = (rev, path) => {
+    try {
+      return git(["show", `${rev}:${path}`]);
+    } catch {
+      return null;
+    }
+  };
+  const headCache = new Map();
+  const baseCache = new Map();
+  const readHead = (path) => {
+    if (!headCache.has(path)) {
+      headCache.set(path, head ? show(head, path) : existsSync(path) ? readFileSync(path, "utf8") : null);
+    }
+    return headCache.get(path);
+  };
+  const readBase = (path) => {
+    if (!baseCache.has(path)) baseCache.set(path, show(mergeBase, path));
+    return baseCache.get(path);
+  };
+  // The paths from git's NUL-separated list, exactly; the prefixes fixed, whatever diff.noprefix or diff.mnemonicPrefix say.
+  const diff = git(["diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", ...range]);
+  const names = git(["diff", "--name-only", "-z", "--no-renames", ...range]).split("\0").filter(Boolean);
+  const files = filesOfDiff(diff, names, { head: readHead, base: readBase });
 
   if (!head) {
     const untracked = git(["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean);
@@ -148,22 +279,6 @@ export function buildChangeset({ base, head }) {
   const own = git(["rev-list", "--first-parent", "--reverse", `${mergeBase}..${headRev}`]).split(LINE_END).filter(Boolean);
   const forkPoint = own.length ? git(["rev-parse", `${own[0]}^`]).trim() : mergeBase;
   const forkCache = new Map();
-
-  const headCache = new Map();
-  const baseCache = new Map();
-  const show = (rev, path) => {
-    try {
-      return git(["show", `${rev}:${path}`]);
-    } catch {
-      return null;
-    }
-  };
-  const readHead = (path) => {
-    if (!headCache.has(path)) {
-      headCache.set(path, head ? show(head, path) : existsSync(path) ? readFileSync(path, "utf8") : null);
-    }
-    return headCache.get(path);
-  };
 
   return {
     base,
@@ -203,14 +318,12 @@ export function buildChangeset({ base, head }) {
       return then !== (existsSync(path) ? git(["hash-object", "--", path]).trim() : null);
     },
     /** The file as it was before the change, or null when the change adds it. */
-    readBase(path) {
-      if (!baseCache.has(path)) baseCache.set(path, show(mergeBase, path));
-      return baseCache.get(path);
-    },
+    readBase,
     /** Line numbers (in the head version) that did not exist where the branch started. */
     addedSinceFork(path) {
       if (!forkCache.has(path)) {
-        const diff = parseDiff(git(["diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", forkPoint, ...(head ? [head] : []), "--", path]));
+        const args = ["diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", forkPoint, ...(head ? [head] : [])];
+        const diff = parseDiff(git([...args, "--", `:(literal)${path}`]));
         const file = diff.get(path);
         forkCache.set(path, file ? new Set(file.added.keys()) : new Set());
       }

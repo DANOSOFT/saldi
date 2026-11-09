@@ -54,6 +54,8 @@
 // 20261109 CL/LH The checks judge the working directory's repository: CI runs the base revision's copy against the PR.
 // 20261109 CL/LH A door exception counts only while its file is as it was at the commit it names.
 // 20261109 CL/LH A flag followed by another flag has no value; --flag=value. --station refuses a change it cannot build.
+// 20261109 CL/LH A file whose diff header git could not be read for is read whole, and check.mjs says so; a path with a
+//                quote, a backslash or a control character is printed quoted.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { buildChangeset, git, revExists, splitLines } from "./lib/changeset.mjs";
@@ -66,6 +68,17 @@ import { findException } from "./lib/exceptions.mjs";
 async function phpNote() {
   const failure = (await import("./lib/doors.mjs")).phpFailure();
   return failure ? `PHP's tokenizer could not read the PHP files (${failure}), so every line that names a password in a PHP file counts.` : null;
+}
+
+/** The files of the change read whole because git's diff header for them could not be read (changeset filesOfDiff), as a line, or null. */
+function unreadableNote(changeset) {
+  const paths = changeset.files.filter((file) => file.unreadable).map((file) => shownPath(file.path));
+  return paths.length ? `${paths.join(", ")}: ${changeset.files.find((file) => file.unreadable).unreadable}.` : null;
+}
+
+/** A path as printed: quoted (JSON) where it holds a quote, a backslash or a control character, so no name forges a line. */
+function shownPath(path) {
+  return /["\\\x00-\x1f\x7f\u0085\u2028\u2029]/.test(path) ? JSON.stringify(path) : path;
 }
 
 /** Every file in checks/ is a check: adding one is adding a file. */
@@ -136,13 +149,19 @@ function parseArgs(argv) {
 function report(findings) {
   const annotate = process.env.GITHUB_ACTIONS === "true";
   for (const finding of findings) {
-    const where = finding.line ? `${finding.path}:${finding.line}` : finding.path;
-    console.log(`${where}: [${finding.check}] ${finding.message}`);
+    const path = shownPath(finding.path);
+    const where = finding.line ? `${path}:${finding.line}` : path;
+    // A message is one line: a path a message quotes cannot start another (a "::" workflow command) in the log.
+    // Built before the template, as below.
+    const said = finding.message.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+    console.log(`${where}: [${finding.check}] ${said}`);
     if (annotate) {
       const message = `[${finding.check}] ${finding.message}`.replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
+      // A workflow command's property escapes %, CR, LF, ":" and ",".
+      const file = finding.path.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A").replace(/:/g, "%3A").replace(/,/g, "%2C");
       // Built before the template, so no template in this file holds another in an interpolation (doors.mjs plain subset).
       const line = finding.line ? `,line=${finding.line}` : "";
-      console.log(`::error file=${finding.path}${line}::${message}`);
+      console.log(`::error file=${file}${line}::${message}`);
     }
   }
 }
@@ -220,8 +239,9 @@ async function station(args) {
   doors.prefetchPhp([...lines].filter(([path]) => !changeset.isVendored(path)));
   const input = { mode: "diff", base: args.base, baseSha, head: args.head ?? null, headSha };
   print(routing.stationReport({ input, paths: changeset.files.map((file) => file.path), lines, isVendored: changeset.isVendored }));
-  const note = await phpNote();
-  if (note) (args.json ? process.stderr : process.stdout).write(`${note}\n`);
+  for (const note of [await phpNote(), unreadableNote(changeset)]) {
+    if (note) (args.json ? process.stderr : process.stdout).write(`${note}\n`);
+  }
 }
 
 async function main() {
@@ -283,8 +303,9 @@ async function main() {
     }
     if (skipped) console.log(`door cross-check skipped: ${skipped}`);
     const findings = prBody.run(body, ctx).map((finding) => ({ check: prBody.id, path: ".github/pull_request_template.md", ...finding }));
-    const note = skipped || args.textOnly ? null : await phpNote();
-    if (note) console.log(`door cross-check: ${note}`);
+    for (const note of skipped || args.textOnly ? [] : [await phpNote(), unreadableNote(ctx)]) {
+      if (note) console.log(`door cross-check: ${note}`);
+    }
     // In CI a skipped cross-check is a broken job, not a pass: the job must give it the change.
     if (skipped && process.env.GITHUB_ACTIONS === "true") {
       findings.push({
@@ -323,7 +344,7 @@ async function main() {
 
   const range = `${changeset.mergeBase.slice(0, 8)}..${args.head ?? "working tree"}`;
   report(findings);
-  for (const entry of allowed) console.log(`${entry.path}:${entry.line}: [${entry.check}] allowed by exception: ${entry.reason}`);
+  for (const entry of allowed) console.log(`${shownPath(entry.path)}:${entry.line}: [${entry.check}] allowed by exception: ${entry.reason}`);
   console.log(
     findings.length
       ? `\n${findings.length} problem(s) in ${range} (${changeset.files.length} changed files). Exceptions: tools/guardrails/lib/exceptions.mjs`

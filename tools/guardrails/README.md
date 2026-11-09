@@ -87,6 +87,13 @@ the declaration or the statement it opens (`lib/changeset.mjs`
 hit is the changed line's. An entry marked `cut`, or a gap in the line numbers,
 is not the end of the file: a value still open there counts.
 
+The changed paths are git's own, read exactly: the list comes NUL-separated
+(`git diff --name-only -z`), and a diff header git quotes (a name with a quote,
+a backslash, a tab or another control character) is unquoted the way git quoted
+it (`lib/changeset.mjs` `headerPath`). A file whose header cannot be read is
+never routed under a guessed path: it is read whole under the path git lists,
+every line as changed, so a marker anywhere in it counts, and the output says so.
+
 ## The door in the PR description
 
 `--pr-body` also reads the `## Merge Danger` section: `Door:` is `one-way` or
