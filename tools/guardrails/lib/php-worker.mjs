@@ -4,16 +4,19 @@
 // worker owns the one PHP process (php-syntax.mjs phpCommand(), from PATH or Docker), writes each
 // request to it as one line and hands the answer back through the request's port, then wakes the
 // waiting thread (Atomics.notify on the request's flag). Requests are answered in order. Once PHP
-// has exited or failed, every later request gets the reason.
+// has exited or failed, every later request gets the reason. The process id goes into the shared
+// slot lib/php.mjs gave (workerData.pid), so lib/php.mjs can stop PHP while it waits.
 //
 // History:
 // 20261106 CL/LH Created.
+// 20261109 CL/LH The PHP process id is shared with lib/php.mjs.
 
 import { spawn } from "node:child_process";
 import { parentPort, workerData } from "node:worker_threads";
 
 const [command, ...args] = workerData.command;
 const child = spawn(command, [...args, ...workerData.args], { stdio: ["pipe", "pipe", "pipe"] });
+if (workerData.pid && child.pid) Atomics.store(workerData.pid, 0, child.pid);
 const pending = [];
 let chunks = [];
 let stderr = "";

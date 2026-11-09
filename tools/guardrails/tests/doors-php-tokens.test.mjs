@@ -7,13 +7,16 @@
 // (scriptLines). Where PHP's tokenizer cannot run, every line that names a password in a PHP file counts, no PHP comment
 // is established, and check.mjs says why. A binary interpolated string (b"..." or B"...", one token b" that '"' closes)
 // is read as the string it is (doors.mjs phpStringCloser), so it routes as the same file with a plain "..." string.
+// Only PHP 8.2 tokenizes: a PHP of another version on PATH, without Docker, is no tokenizer. A tokenizer that gives no
+// answer in time is stopped, the PHP process and, through Docker, its container by name.
 //
 // History:
 // 20261106 CL/LH Created.
+// 20261109 CL/LH PHP 8.2 only; a timed-out tokenizer's process and container are stopped.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
@@ -24,6 +27,7 @@ import { addedWithContext } from "../lib/changeset.mjs";
 import { phpFailure, prefetchPhp, usePhpTokenizer } from "../lib/doors.mjs";
 
 const CHECK = fileURLToPath(new URL("../check.mjs", import.meta.url));
+const PHP_MODULE = new URL("../lib/php.mjs", import.meta.url).href;
 // Built at run time, so this file holds no literal for the marker to find.
 const NAME = ["pass", "word"].join("");
 const B = "`";
@@ -368,5 +372,126 @@ test("controls: the same files with a getter that names no password are no hit w
       assert.deepEqual(routed(BINARY_PATH, asNew(text)), { hits: [], humanOnly: false }, `${q}, ${form}, whole`);
       assert.deepEqual(routed(BINARY_PATH, onlyLine(text, line)), { hits: [], humanOnly: false }, `${q}, ${form}, line ${line} alone`);
     }
+  }
+});
+
+/**
+ * A stand-in for `name` in `bin`: a Node script that answers php-syntax's version probe with `version` (php) or that
+ * Docker runs (docker), and otherwise writes what it was asked to `<bin>/<name>.<verb>.json` and never answers.
+ */
+function standIn(bin, name, version) {
+  const script = `#!${process.execPath}
+const { writeFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+const log = (verb, extra) => writeFileSync(${JSON.stringify(bin)} + "/${name}." + verb + ".json", JSON.stringify({ args, pid: process.pid, ...extra }));
+if (${JSON.stringify(name)} === "php" && args.length === 2 && args[0] === "-r") {
+  process.stdout.write(${JSON.stringify(version)});
+  process.exit(0);
+}
+if (${JSON.stringify(name)} === "docker" && args[0] === "version") {
+  process.stdout.write("27.0.0");
+  process.exit(0);
+}
+if (${JSON.stringify(name)} === "docker" && args[0] === "rm") {
+  log("rm");
+  process.exit(0);
+}
+log(args[0] === "run" ? "run" : "used", args[0] === "run" ? { name: args[args.indexOf("--name") + 1] } : {});
+setInterval(() => {}, 1000);
+`;
+  writeFileSync(join(bin, name), script);
+  chmodSync(join(bin, name), 0o755);
+}
+
+/**
+ * lib/php.mjs's tokenize() in a Node process whose PATH is `bin` only, the timeouts shortened to `ms`: its error, or
+ * "ok". The script is a file beside `bin` (a worker inherits `node -e`'s options, and cannot start under them).
+ */
+function tokenizeOn(bin, ms) {
+  const file = join(dirname(bin), "tokenize.mjs");
+  writeFileSync(
+    file,
+    `const php = await import(${JSON.stringify(PHP_MODULE)});
+php.TIMEOUTS.first = ${ms};
+php.TIMEOUTS.later = ${ms};
+try {
+  php.tokenize(["<?php echo 1;"]);
+  console.log("ok");
+} catch (error) {
+  console.log(error.message);
+}
+`,
+  );
+  return spawnSync(process.execPath, [file], { encoding: "utf8", env: { ...process.env, PATH: bin }, timeout: 60000 }).stdout.trim();
+}
+
+/** A scratch directory with an empty bin/ for stand-ins: [dir, bin]. */
+function standInDir(prefix) {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  mkdirSync(join(dir, "bin"));
+  return [dir, join(dir, "bin")];
+}
+
+/** Whether process `pid` is gone, within a few seconds (a killed child is reaped once its parent exits). */
+function gone(pid) {
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (const until = Date.now() + 5000; Date.now() < until; Atomics.wait(pause, 0, 0, 100)) {
+    try {
+      process.kill(pid, 0);
+    } catch (error) {
+      if (error.code === "ESRCH") return true;
+    }
+  }
+  return false;
+}
+
+/** Stop whatever a stand-in in `bin` left running. */
+function stopStandIns(bin) {
+  for (const record of ["php.used.json", "docker.run.json"]) {
+    if (!existsSync(join(bin, record))) continue;
+    try {
+      process.kill(JSON.parse(readFileSync(join(bin, record), "utf8")).pid, "SIGKILL");
+    } catch {
+      // Gone already.
+    }
+  }
+}
+
+test("door tokenization takes PHP 8.2 only: a PHP of another version on PATH, without Docker, is no tokenizer, so the markers fail closed and it is never handed a text", () => {
+  const [dir, bin] = standInDir("guardrails-php74-");
+  try {
+    standIn(bin, "php", "7.4");
+    const answer = tokenizeOn(bin, 3000);
+    assert.match(answer, /^PHP 7\.4 on PATH is not 8\.2, and Docker is not available for php:8\.2-cli$/);
+    assert.equal(existsSync(join(bin, "php.used.json")), false, "the PHP 7.4 on PATH tokenized nothing");
+  } finally {
+    stopStandIns(bin);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a tokenizer that gives no answer in time is stopped: the PHP 8.2 process on PATH, and, through Docker, the container by the name it was started with", () => {
+  const [localDir, local] = standInDir("guardrails-php-hang-");
+  const [dockerDir, docker] = standInDir("guardrails-docker-hang-");
+  try {
+    standIn(local, "php", "8.2");
+    assert.equal(tokenizeOn(local, 1500), "PHP gave no answer within 1.5 s");
+    const php = JSON.parse(readFileSync(join(local, "php.used.json"), "utf8"));
+    assert.deepEqual(php.args.slice(0, 4), ["-d", "memory_limit=-1", "-d", "short_open_tag=0"]);
+    assert.ok(gone(php.pid), "the PHP process is stopped");
+
+    standIn(docker, "php", "7.4");
+    standIn(docker, "docker");
+    assert.equal(tokenizeOn(docker, 1500), "PHP gave no answer within 1.5 s");
+    const run = JSON.parse(readFileSync(join(docker, "docker.run.json"), "utf8"));
+    assert.match(run.name, /^guardrails-php-\d+-[0-9a-f]{8}$/);
+    assert.ok(existsSync(join(docker, "docker.rm.json")), "the container is removed");
+    assert.deepEqual(JSON.parse(readFileSync(join(docker, "docker.rm.json"), "utf8")).args, ["rm", "--force", run.name]);
+    assert.ok(gone(run.pid), "the docker client is stopped");
+  } finally {
+    stopStandIns(local);
+    stopStandIns(docker);
+    rmSync(localDir, { recursive: true, force: true });
+    rmSync(dockerDir, { recursive: true, force: true });
   }
 });

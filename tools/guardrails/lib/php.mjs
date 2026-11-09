@@ -14,9 +14,18 @@
 // short_open_tag is off, as php.ini-production and php.ini-development set it, on every machine:
 // a "<?" that opens no "<?php" or "<?=" is inline HTML.
 //
+// Only PHP 8.2 tokenizes: an older PHP reads "#[" (an attribute) as a comment. A PHP on PATH that
+// is not 8.2, without Docker, is no tokenizer (phpCommand exact), and the program itself stops on
+// any other version (a GUARDRAILS_PHP_IMAGE of another PHP), so doors.mjs fails closed. Once the
+// tokenizer fails (no answer in time, an exit, an answer that does not fit), the process it
+// started is stopped: its container by name where Docker runs it, and the process itself.
+//
 // History:
 // 20261106 CL/LH Created.
+// 20261109 CL/LH PHP 8.2 only; a failed or timed-out tokenizer's process and container are stopped.
 
+import { spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { MessageChannel, Worker, receiveMessageOnPort } from "node:worker_threads";
 import { phpCommand } from "../checks/php-syntax.mjs";
 import { usePhpTokenizer } from "./doors.mjs";
@@ -26,7 +35,11 @@ import { usePhpTokenizer } from "./doors.mjs";
  * output (per text, its tokens as a flat list of PHP's token name, or the character a one-character token is, and
  * the token's length in bytes).
  */
-const PROGRAM = String.raw`while (($line = fgets(STDIN)) !== false) {
+const PROGRAM = String.raw`if (PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION !== '8.2') {
+  fwrite(STDERR, 'PHP ' . PHP_VERSION . " is not 8.2\n");
+  exit(3);
+}
+while (($line = fgets(STDIN)) !== false) {
   $answer = [];
   foreach (json_decode($line, true) as $text) {
     $tokens = [];
@@ -45,23 +58,47 @@ const PROGRAM = String.raw`while (($line = fgets(STDIN)) !== false) {
   fflush(STDOUT);
 }`;
 
-/** How long the first answer may take (Docker may have to fetch php:8.2-cli), and every later one. */
-const FIRST_MS = 180_000;
-const LATER_MS = 60_000;
+/** How long the first answer may take (Docker may have to fetch php:8.2-cli), and every later one, in ms; tests shorten them. */
+export const TIMEOUTS = { first: 180_000, later: 60_000 };
 
 let worker = null;
 let answered = false;
 let failure = null;
+/** The PHP this module started: the Docker container's name or null, and the process id the worker writes. */
+let owned = null;
 
 function start() {
-  const command = phpCommand();
+  const name = `guardrails-php-${process.pid}-${randomBytes(4).toString("hex")}`;
+  const command = phpCommand(undefined, { exact: true, name });
+  owned = { container: command[0] === "docker" ? name : null, pid: new Int32Array(new SharedArrayBuffer(4)) };
   worker = new Worker(new URL("./php-worker.mjs", import.meta.url), {
-    workerData: { command, args: ["-d", "memory_limit=-1", "-d", "short_open_tag=0", "-r", PROGRAM] },
+    workerData: { command, args: ["-d", "memory_limit=-1", "-d", "short_open_tag=0", "-r", PROGRAM], pid: owned.pid },
   });
   worker.unref();
   worker.on("error", (error) => {
     failure ??= `the PHP worker failed (${error.message})`;
+    stop();
   });
+}
+
+/**
+ * Stop the PHP this module started, from this thread, which a pending answer may keep busy: the container by name
+ * (docker rm --force; killing the docker client alone leaves it running), then the process, then the worker.
+ */
+function stop() {
+  if (!owned) return;
+  const { container, pid } = owned;
+  owned = null;
+  if (container) spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 30_000 });
+  const id = Atomics.load(pid, 0);
+  if (id > 0) {
+    try {
+      process.kill(id, "SIGKILL");
+    } catch {
+      // Already gone.
+    }
+  }
+  worker?.terminate();
 }
 
 /** The UTF-16 length of each token whose UTF-8 lengths `bytes` gives, over `text`; null where they do not cover it exactly. */
@@ -97,10 +134,11 @@ export function tokenize(texts) {
     const { port1, port2 } = new MessageChannel();
     const line = JSON.stringify(texts.map((text) => Buffer.from(text, "utf8").toString("base64")));
     worker.postMessage({ flag, port: port2, line }, [port2]);
-    const waited = Atomics.wait(flag, 0, 0, answered ? LATER_MS : FIRST_MS);
+    const limit = answered ? TIMEOUTS.later : TIMEOUTS.first;
+    const waited = Atomics.wait(flag, 0, 0, limit);
     const message = receiveMessageOnPort(port1)?.message;
     port1.close();
-    if (waited === "timed-out" || !message) throw new Error(`PHP gave no answer within ${(answered ? LATER_MS : FIRST_MS) / 1000} s`);
+    if (waited === "timed-out" || !message) throw new Error(`PHP gave no answer within ${limit / 1000} s`);
     if (message.error) throw new Error(message.error);
     const answer = JSON.parse(message.response);
     if (!Array.isArray(answer) || answer.length !== texts.length) throw new Error("PHP's answer does not hold one token list per text");
@@ -117,6 +155,8 @@ export function tokenize(texts) {
     });
   } catch (error) {
     failure = error.message.split("\n")[0];
+    // No later request is sent: what still runs (a PHP busy past the timeout) is stopped.
+    stop();
     throw new Error(failure);
   }
 }
