@@ -15,6 +15,8 @@
 // 20261104 CL/LH addedWithContext() and markerLines() hand the door markers the unchanged lines around each added run.
 // 20261106 CL/LH Lines are split where doors.mjs defines a line terminator; a bare CR stays in the line's text.
 // 20261107 CL/LH addedWithContext() marks its last entry cut where the file goes on below it.
+// 20261109 CL/LH Removed lines keep their base line numbers; markerLinesOf() and removedLinesOf() keep a hunk's eof
+//                mark where the file's text is not known; changedSince() compares a file with a commit's.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
@@ -49,18 +51,20 @@ export function revExists(rev) {
  * Parse `git diff -U0` output into one record per file.
  *
  * An added line that git ends with "\ No newline at end of file" is the file's last and no LF follows it: its hunk's
- * entry says so (eof), since a CR at its end is then a bare CR, no CR LF's.
+ * entry says so (eof), since a CR at its end is then a bare CR, no CR LF's. A removed line is numbered as the base
+ * version numbers it (removedLines, removed), and marked eof the same way.
  *
  * @returns {Map<string, {path: string, status: "A"|"M"|"D", oldMode: string|null, newMode: string|null,
- *   binary: boolean, hunks: {removed: string[], added: {line: number, text: string, eof?: true}[]}[],
- *   added: Map<number, string>}>}
+ *   binary: boolean, hunks: {removed: string[], removedLines: {line: number, text: string, eof?: true}[],
+ *   added: {line: number, text: string, eof?: true}[]}[], added: Map<number, string>, removed: Map<number, string>}>}
  */
 export function parseDiff(text) {
   const files = new Map();
   let file = null;
   let hunk = null;
   let nextLine = 0;
-  // The added entry git's previous line printed, which a "\ No newline at end of file" after it marks, or null.
+  let oldLine = 0;
+  // The entry git's previous line printed, which a "\ No newline at end of file" after it marks, or null.
   let previous = null;
   // Git's output, a line per LINE_END; an added line's text keeps the CR of its CR LF, as the file holds it.
   for (const raw of text.split(LINE_END)) {
@@ -74,7 +78,7 @@ export function parseDiff(text) {
       // "diff --git a/P b/P": both halves are the same path because renames are off.
       const both = raw.slice("diff --git a/".length);
       const path = both.slice(0, (both.length - " b/".length) / 2);
-      file = { path, status: "M", oldMode: null, newMode: null, binary: false, hunks: [], added: new Map() };
+      file = { path, status: "M", oldMode: null, newMode: null, binary: false, hunks: [], added: new Map(), removed: new Map() };
       files.set(path, file);
       hunk = null;
       continue;
@@ -87,11 +91,12 @@ export function parseDiff(text) {
       else if (raw.startsWith("new mode ")) file.newMode = raw.slice(9);
       else if (raw.startsWith("Binary files ")) file.binary = true;
     }
-    const header = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw);
+    const header = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw);
     if (header) {
-      hunk = { removed: [], added: [] };
+      hunk = { removed: [], removedLines: [], added: [] };
       file.hunks.push(hunk);
-      nextLine = Number(header[1]);
+      oldLine = Number(header[1]);
+      nextLine = Number(header[2]);
       continue;
     }
     if (!hunk) continue;
@@ -101,7 +106,11 @@ export function parseDiff(text) {
       file.added.set(entry.line, entry.text);
       previous = entry;
     } else if (raw.startsWith("-")) {
-      hunk.removed.push(raw.slice(1));
+      const entry = { line: oldLine++, text: raw.slice(1) };
+      hunk.removed.push(entry.text);
+      hunk.removedLines.push(entry);
+      file.removed.set(entry.line, entry.text);
+      previous = entry;
     }
   }
   return files;
@@ -129,7 +138,7 @@ export function buildChangeset({ base, head }) {
       if (lines.length && lines[lines.length - 1] === "") lines.pop();
       lines.forEach((text, index) => added.set(index + 1, text));
       const entries = [...added].map(([line, text]) => ({ line, text }));
-      files.set(path, { path, status: "A", oldMode: null, newMode: null, binary, hunks: [{ removed: [], added: entries }], added });
+      files.set(path, { path, status: "A", oldMode: null, newMode: null, binary, hunks: [{ removed: [], removedLines: [], added: entries }], added, removed: new Map() });
     }
   }
 
@@ -159,6 +168,8 @@ export function buildChangeset({ base, head }) {
   return {
     base,
     head: head ?? null,
+    /** The commit --head names, or null for the working tree. */
+    headSha: head ? git(["rev-parse", `${head}^{commit}`]).trim() : null,
     mergeBase,
     files: [...files.values()],
     isVendored: (path) => VENDORED.test(path),
@@ -166,13 +177,30 @@ export function buildChangeset({ base, head }) {
     readHead,
     /**
      * The file's added lines as markerHits reads them: each run between the unchanged lines above and below it
-     * (addedWithContext), so a marker that reads a statement over lines sees where an added line goes on
+     * (markerLinesOf), so a marker that reads a statement over lines sees where an added line goes on
      * with an unchanged one, and where an unchanged one goes on with what an added line opens. A path the change
      * does not touch has none.
      */
     markerLines(path) {
-      const file = files.get(path);
-      return file?.added.size ? addedWithContext(file.added, readHead(path)) : [];
+      return markerLinesOf(files.get(path), readHead(path));
+    },
+    /**
+     * Whether the file as the change leaves it differs from the file at commit `rev` (as `git diff rev head -- path`
+     * shows a content change; a file absent from both is the same), or null when `rev` names no commit here.
+     */
+    changedSince(rev, path) {
+      if (typeof rev !== "string" || !/^[0-9a-f]{7,40}$/.test(rev) || !revExists(rev)) return null;
+      const blob = (spec) => {
+        try {
+          return git(["rev-parse", "--verify", "--quiet", spec]).trim();
+        } catch {
+          return null;
+        }
+      };
+      const then = blob(`${rev}:${path}`);
+      if (head) return then !== blob(`${head}:${path}`);
+      // The working tree: the blob git would store for the file, through the repository's filters.
+      return then !== (existsSync(path) ? git(["hash-object", "--", path]).trim() : null);
     },
     /** The file as it was before the change, or null when the change adds it. */
     readBase(path) {
@@ -199,6 +227,32 @@ export function buildChangeset({ base, head }) {
   };
 }
 
+/** The line of `entries` a "\ No newline at end of file" marks (no LF follows it), or 0. */
+const eofLine = (entries) => entries.find((entry) => entry.eof)?.line ?? 0;
+
+/**
+ * A diff file record's added lines as markerHits reads them (addedWithContext over `headText`, the file as the change
+ * leaves it, or null where it is not known; then the hunks' eof mark says which line no LF follows).
+ */
+export function markerLinesOf(file, headText) {
+  if (!file?.added.size) return [];
+  return addedWithContext(file.added, headText, Infinity, Infinity, eofLine(file.hunks.flatMap((hunk) => hunk.added)));
+}
+
+/**
+ * A diff file record's removed lines as markerHits reads them: each run between the unchanged lines of the base
+ * version around it (addedWithContext over `baseText`, or null where it is not known), numbered as the base numbers
+ * them, so a removed line is read in the file it was removed from. A record without base line numbers (a caller's
+ * own) gives each removed line alone, unnumbered, which no lexer establishes as a comment.
+ */
+export function removedLinesOf(file, baseText) {
+  if (!file) return [];
+  if (file.removed?.size) {
+    return addedWithContext(file.removed, baseText, Infinity, Infinity, eofLine(file.hunks.flatMap((hunk) => hunk.removedLines ?? [])));
+  }
+  return file.hunks.flatMap((hunk) => (hunk.removedLines?.length ? [] : hunk.removed.map((text) => ({ line: null, text }))));
+}
+
 /**
  * A file's added lines as markerHits reads them ({line, text}, in line order), each run of them after up to
  * `before` unchanged lines of the head version above it ({line, text, context: true}), by default all of them
@@ -216,21 +270,24 @@ export function buildChangeset({ base, head }) {
  * starts above the first one it was handed (doors.mjs startsAbove). The last entry is marked cut where the file goes on
  * below it (fewer than all the lines below handed, `after`, or the file unknown: headText null), and a reader reads a
  * value still open there, or at a gap in the line numbers, as one that goes on unseen (doors.mjs cutAt); elsewhere it
- * reads the end of the lines it was handed as the end of what it reads, as it reads a file's end.
+ * reads the end of the lines it was handed as the end of what it reads, as it reads a file's end. Where the file is not
+ * known (headText null), the line no LF follows is the one the diff's hunks marked (`eofLine`): it keeps a bare CR at
+ * its end, and the file ends there, so it is not cut.
  *
  * @param {Map<number, string>} added  the file's added lines (changeset file.added)
  * @param {string|null} headText  the file as the change leaves it (changeset readHead)
  * @param {number} [before]  how many unchanged lines above each run, at most
  * @param {number} [after]  how many unchanged lines below each run, at most
+ * @param {number} [eofLine]  where headText is null: the line the diff marked "\ No newline at end of file", or 0
  */
-export function addedWithContext(added, headText, before = Infinity, after = Infinity) {
+export function addedWithContext(added, headText, before = Infinity, after = Infinity, eofLine = 0) {
   const head = splitLines(headText);
   // The file's lines as git numbers them: an LF at the end of the text ends its last line and starts none.
   const count = headText !== null && headText.endsWith(LINE_END) ? head.length - 1 : head.length;
-  // The line no LF follows: the file's last, where it ends without one, or 0.
-  const eof = headText !== null && !headText.endsWith(LINE_END) ? head.length : 0;
+  // The line no LF follows: the file's last, where it ends without one, or 0; the diff's mark where the file is not known.
+  const eof = headText === null ? eofLine : !headText.endsWith(LINE_END) ? head.length : 0;
   // That line as the file holds it: a CR at its end is a bare CR, which fileLines would read as a CR LF's.
-  const raw = eof ? headText.slice(headText.lastIndexOf(LINE_END) + 1) : "";
+  const raw = eof && headText !== null ? headText.slice(headText.lastIndexOf(LINE_END) + 1) : "";
   const unchanged = (n) => (n === eof && raw.endsWith("\r") ? { line: n, text: raw, context: true, eof: true } : { line: n, text: head[n - 1], context: true });
   const out = [];
   let last = 0;
@@ -251,7 +308,7 @@ export function addedWithContext(added, headText, before = Infinity, after = Inf
   });
   // The file goes on below the last line handed: what an added line opens may go on there, unseen.
   const end = out[out.length - 1];
-  if (end && (headText === null || end.line < count)) out[out.length - 1] = { ...end, cut: true };
+  if (end && (headText === null ? end.line !== eof : end.line < count)) out[out.length - 1] = { ...end, cut: true };
   return out;
 }
 

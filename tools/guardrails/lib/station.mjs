@@ -22,6 +22,7 @@
 // 20261106 CL/LH A comment line is passed over only where the file's lexer establishes all of it as comment.
 //                PHP files are read by PHP's own tokens.
 // 20261107 CL/LH markerHits may be handed the unchanged lines below a run, and an entry marked cut.
+// 20261109 CL/LH oneWayRowsOf() reads removed lines too.
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -140,13 +141,14 @@ export function markerHits(path, lines, isVendored = () => false) {
 }
 
 /**
- * The one-way rows that make `path` one-way: by path, else by a marker on `lines`.
+ * The one-way rows that make `path` one-way: by path, else by a marker on `lines` (the added lines in the head version)
+ * or on `removed` (the removed lines in the base version, each read in the file it was removed from).
  * Used by the pr-body door cross-check.
  *
  * @returns {{row: object, pattern: string|null, marker: string|null}[]}
  */
-export function oneWayRowsOf(path, lines, isVendored) {
-  const markers = markerHits(path, lines, isVendored);
+export function oneWayRowsOf(path, lines, isVendored, removed = []) {
+  const markers = [...markerHits(path, lines, isVendored), ...markerHits(path, removed, isVendored)];
   const result = [];
   for (const row of doors.ONE_WAY_ROWS) {
     const pattern = rowPattern(row, path);

@@ -12,19 +12,23 @@
 // lib/doors.mjs: one finding per file that a one-way row claims by path, or by a
 // marker on an added or removed line that is not a comment. Care rows never
 // fail, and a one-way door passes whatever the change touches: the map is a
-// floor, and the author may know something it does not. Blast Radius and Undo
-// are not checked yet.
+// floor, and the author may know something it does not. A removed line is read
+// in the base version of its file, as an added line is in the head version.
+// Blast Radius and Undo are not checked yet.
 //
 // The door is the value alone, or the value and an explanation after a space or
 // one of ( : ; , . ("two-way (layout only)"); "one-wayish" or both values is no door.
 //
 // A finding that is wrong is let through by a visible line in the Merge Danger
-// section whose reason names the file or the row:
-//   guardrails-allow pr-body until 2026-12-31 by NTR: debitor/betalinger.php removes a broken menu option
+// section that names the commit the reviewer approved and, in its reason, the
+// file (all of its rows) or a row (that row only):
+//   guardrails-allow pr-body until 2026-12-31 by NTR at 1a2b3c4d5e6f: debitor/betalinger.php removes a broken menu option
 // A body edit dismisses no approval, so the text alone proves nothing: the line
 // counts only when the description's edit history (--pr-edits, read by CI) shows
-// that a reviewer in REVIEWERS (lib/doors.mjs) added it, signed with their own
-// initials, on a PR they did not author. Without the history no exception counts.
+// that a reviewer in REVIEWERS (lib/doors.mjs) put it into the Merge Danger
+// section, signed with their own initials, on a PR they did not author, and only
+// while the file is as it was at that commit (git diff <sha> <head> -- <file>
+// shows no change). Without the history no exception counts.
 //
 // Proven on: #884 (cce4a13a, posting in finans/bogfor.php, reverted by #931) and
 // #768 (16c53aea, four payments files), each with "Door: two-way"; #884's own
@@ -35,8 +39,10 @@
 // 20261103 CL/LH The Merge Danger section's Door and After merge fields; a two-way door is held against lib/doors.mjs.
 // 20261103 CL/LH A door exception counts only when a reviewer's edit added it; the door value must be exact.
 // 20261106 CL/LH The cross-check reads each file's lines as --station does, PHP files by PHP's own tokens.
+// 20261109 CL/LH An exception is bound to the commit it was approved at and counts for the rows it names; its owner is
+//                who put it into the active Merge Danger section. Removed lines are read in the base file.
 
-import { addedWithContext } from "../lib/changeset.mjs";
+import { markerLinesOf, removedLinesOf } from "../lib/changeset.mjs";
 import { REVIEWERS, prefetchPhp } from "../lib/doors.mjs";
 import { parseException } from "../lib/exceptions.mjs";
 import "../lib/php.mjs";
@@ -48,6 +54,13 @@ const DOORS = ["one-way", "two-way"];
 /** A door value: the value alone, or followed by a space or ( : ; , . and an explanation. */
 const DOOR_VALUE = /^(one-way|two-way)(?=$|[\s(:;,.])/i;
 const MAP = "tools/guardrails/lib/doors.mjs";
+const FORMAT = "guardrails-allow pr-body until YYYY-MM-DD by <INITIALS> at <sha>: <file or row> <why>";
+
+/** The sections the checks read: all but CodeRabbit's. */
+const ownSections = (body) => sections(body).filter((section) => !/coderabbit/i.test(section.title));
+
+/** The active Merge Danger section: the first of the own sections, comments taken out, or undefined. */
+const dangerOf = (body) => ownSections(body).find((section) => /merge danger/i.test(section.title));
 
 function sections(body) {
   const result = [];
@@ -155,15 +168,19 @@ function linesOf(text) {
   return new Set(text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
 }
 
+/** The lines of a description's active Merge Danger section, trimmed: where an exception line counts. */
+const dangerLines = (body) => linesOf(dangerOf(body)?.text ?? "");
+
 /**
- * Who added each line of the description, line by line through the history: the editor of the
- * revision where the line last appeared, or null when the history cannot tell (a hidden revision,
- * or more edits than were read). A description never edited is all its author's.
+ * Who put each line into the description's active Merge Danger section, revision by revision through the history: the
+ * editor of the revision where the line last entered the section (a line moved into it from elsewhere in the
+ * description is the mover's), or null when the history cannot tell (a hidden revision, or more edits than were read).
+ * A description never edited is all its author's.
  *
  * @returns {Map<string, string|null>}  trimmed line -> GitHub login
  */
 export function lineOwners(history, body) {
-  if (!history.revisions.length) return new Map([...linesOf(body)].map((line) => [line, history.complete ? history.author : null]));
+  if (!history.revisions.length) return new Map([...dangerLines(body)].map((line) => [line, history.complete ? history.author : null]));
   let previous = history.complete ? new Set() : null;
   let owners = new Map();
   for (const revision of history.revisions) {
@@ -172,14 +189,14 @@ export function lineOwners(history, body) {
       owners = new Map();
       continue;
     }
-    const lines = linesOf(revision.body);
+    const lines = dangerLines(revision.body);
     owners = new Map([...lines].map((line) => [line, previous === null ? null : previous.has(line) ? (owners.get(line) ?? null) : revision.editor]));
     previous = lines;
   }
   return owners;
 }
 
-/** Why an exception line does not count, or null when a reviewer added it. */
+/** Why an exception line does not count, or null when a reviewer put it into the Merge Danger section. */
 function unapproved(exception, line, ctx) {
   const reviewers = REVIEWERS.map((reviewer) => `${reviewer.name} (${reviewer.initials})`).join(" or ");
   if (!ctx.history) return "who added it cannot be checked without the description's edit history (CI passes --pr-edits)";
@@ -193,6 +210,27 @@ function unapproved(exception, line, ctx) {
   return null;
 }
 
+/**
+ * Why an exception no longer covers `path`, or null while the file is as it was at the commit the exception names
+ * (git diff <sha> <head> -- <path> shows no change): a change after the approval needs a new one.
+ */
+function outdated(exception, path, ctx) {
+  const renew = "the reviewer approves the change again with a line at the PR's current head";
+  if (!exception.at) return `it names no commit; ${renew} ("by <INITIALS> at <sha>:")`;
+  const changed = ctx.changedSince ? ctx.changedSince(exception.at, path) : null;
+  if (changed === null) return `the commit ${exception.at} it names cannot be read in this change's history; ${renew}`;
+  if (changed) return `${path} changed after ${exception.at}, the commit it was approved at; ${renew}`;
+  return null;
+}
+
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Whether an exception's reason names `name`, a file's path or a row's id, whole: not the end or the start of a longer
+ * path or word (bogfor.php in finans/bogfor.php, payments in debitor/payments/).
+ */
+const names = (reason, name) => new RegExp(`(?<![\\w./-])${escapeRegExp(name)}(?![\\w/-]|\\.\\w)`).test(reason);
+
 /** A two-way door against the change: one finding per file a one-way row claims. */
 function crossCheck(danger, ctx) {
   const findings = [];
@@ -202,44 +240,44 @@ function crossCheck(danger, ctx) {
     if (!exception || exception.kind === "other") continue;
     if (exception.kind === "allowed") exceptions.push({ ...exception, problem: unapproved(exception, line, ctx) });
     else if (exception.kind === "expired") findings.push({ message: `the Merge Danger exception for pr-body expired on ${exception.until}.` });
-    else findings.push({ message: 'a Merge Danger exception line is malformed; write "guardrails-allow pr-body until YYYY-MM-DD by <INITIALS>: <file or row> <why>".' });
+    else findings.push({ message: `a Merge Danger exception line is malformed; write "${FORMAT}".` });
   }
-  // Each file's lines as --station reads them (markerLines: every unchanged line above and below each run of added
-  // ones, and a last line's eof mark), or so from the file as the change leaves it (readHead, addedWithContext), else
-  // its added lines with the eof mark its hunks' entries keep, the last one marked cut unless it is the file's last
-  // (the lines below it are not known: doors.mjs cutAt), and then its removed lines.
-  const added = (file) => {
-    if (ctx.readHead && file.added.size) return addedWithContext(file.added, ctx.readHead(file.path));
-    const eof = new Set(file.hunks.flatMap((hunk) => hunk.added.filter((entry) => entry.eof).map((entry) => entry.line)));
-    const lines = [...file.added].sort((a, b) => a[0] - b[0]).map(([line, text]) => (eof.has(line) ? { line, text, eof: true } : { line, text }));
-    const end = lines[lines.length - 1];
-    if (end && !end.eof) lines[lines.length - 1] = { ...end, cut: true };
-    return lines;
-  };
+  // Each file's lines as --station reads them (markerLinesOf: every unchanged line above and below each run of added
+  // ones, and a last line's eof mark, from the file as the change leaves it, or from the diff's hunks where it is not
+  // known), and its removed lines the same way in the file as it was (removedLinesOf).
   const entries = new Map(
     ctx.files.map((file) => [
       file.path,
-      [...(ctx.markerLines ? ctx.markerLines(file.path) : added(file)), ...file.hunks.flatMap((hunk) => hunk.removed.map((text) => ({ line: null, text })))],
+      { added: markerLinesOf(file, ctx.readHead?.(file.path) ?? null), removed: removedLinesOf(file, ctx.readBase?.(file.path) ?? null) },
     ]),
   );
-  prefetchPhp([...entries].filter(([path]) => !ctx.isVendored?.(path)));
+  prefetchPhp([...entries].filter(([path]) => !ctx.isVendored?.(path)).flatMap(([path, lines]) => [[path, lines.added], [path, lines.removed]]));
+  const head = ctx.headSha ? ctx.headSha.slice(0, 12) : "<sha>";
   for (const file of ctx.files) {
-    const lines = entries.get(file.path);
-    const rows = oneWayRowsOf(file.path, lines, ctx.isVendored).filter((match) => match.row.crossCheck !== false);
+    const { added, removed } = entries.get(file.path);
+    const rows = oneWayRowsOf(file.path, added, ctx.isVendored, removed).filter((match) => match.row.crossCheck !== false);
     if (!rows.length) continue;
-    const names = (reason) => reason.includes(file.path) || rows.some((match) => new RegExp(`\\b${match.row.id}\\b`).test(reason));
-    const naming = exceptions.filter((exception) => names(exception.reason));
-    if (naming.some((exception) => exception.problem === null)) continue;
-    const why = rows
+    // An exception that names the file lets all of its rows through; one that names a row lets that row through.
+    const naming = exceptions
+      .filter((exception) => names(exception.reason, file.path) || rows.some((match) => names(exception.reason, match.row.id)))
+      .map((exception) => ({ ...exception, problem: exception.problem ?? outdated(exception, file.path, ctx) }));
+    const approved = naming.filter((exception) => exception.problem === null);
+    if (approved.some((exception) => names(exception.reason, file.path))) continue;
+    const left = rows.filter((match) => !approved.some((exception) => names(exception.reason, match.row.id)));
+    if (!left.length) continue;
+    const why = left
       .map(({ row, pattern, marker }) => `${row.id} ${pattern ? "by its path " + pattern : 'by the marker "' + marker + '"'} (${row.why})`)
       .join("; ");
-    const refused = naming.length ? ` The exception line naming it does not count: ${naming[0].problem}.` : "";
+    const refusedLine = naming.find(
+      (exception) => exception.problem !== null && (names(exception.reason, file.path) || left.some((match) => names(exception.reason, match.row.id))),
+    );
+    const refused = refusedLine ? ` The exception line naming it does not count: ${refusedLine.problem}.` : "";
     findings.push({
       path: file.path,
       message:
         `the PR says "Door: two-way", but the door map makes this file one-way: ${why}. Say "Door: one-way" and how to undo, ` +
         `or, if this change cannot leave anything behind, ask your reviewer to add ` +
-        `"guardrails-allow pr-body until YYYY-MM-DD by <INITIALS>: ${file.path} <why>" to the Merge Danger section. Map: ${MAP}.${refused}`,
+        `"guardrails-allow pr-body until YYYY-MM-DD by <INITIALS> at ${head}: ${file.path} <why>" to the Merge Danger section. Map: ${MAP}.${refused}`,
     });
   }
   return findings;
@@ -250,13 +288,13 @@ export default {
   summary: "the PR description is filled in: what changed, how it was verified, and a door that matches the change",
   /**
    * @param {string} body  the PR description
-   * @param {{today?: string, files?: object[], isVendored?: Function, edits?: object}} [ctx]  the change, when check.mjs
-   *   has a base; edits: the description's edit history as CI reads it (readHistory), or {error}
+   * @param {{today?: string, files?: object[], isVendored?: Function, readHead?: Function, readBase?: Function,
+   *   changedSince?: Function, headSha?: string|null, edits?: object}} [ctx]  the change (lib/changeset.mjs), when
+   *   check.mjs has a base; edits: the description's edit history as CI reads it (readHistory), or {error}
    */
   run(body, ctx = {}) {
     const findings = [];
-    const all = sections(body ?? "");
-    const own = all.filter((section) => !/coderabbit/i.test(section.title));
+    const own = ownSections(body ?? "");
     const what = own.find((section) => /what|summary|why|change|description|baggrund|ændring/i.test(section.title));
     const verified = own.find((section) => /verif|test|how i|afprøv|tjek/i.test(section.title));
     if (!what || content(what.text).length < 20) {
@@ -269,7 +307,7 @@ export default {
           "and the tests you ran. Fixtures alone are not enough for a change users see.",
       });
     }
-    const danger = own.find((section) => /merge danger/i.test(section.title));
+    const danger = dangerOf(body ?? "");
     if (!danger) {
       findings.push({
         message:

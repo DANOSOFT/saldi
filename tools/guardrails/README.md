@@ -88,10 +88,11 @@ is not the end of the file: a value still open there counts.
 `two-way` (alone, or followed by a space and why), and `After merge:` is `none`
 or each step and who takes it. When the base exists, a `two-way` door is held
 against the change, and each file a one-way row claims (by path, or by a marker
-on a changed line that is not a comment) is a finding. Care rows never fail,
-and `one-way` always passes. CI's description job checks out the PR's history
-and passes its base and head; a sync PR passes `--text-only`, and in CI a
-cross-check that cannot run is itself a finding. Judge a past PR the same way:
+on a changed line that is not a comment; a removed line is read in the file it
+was removed from) is a finding. Care rows never fail, and `one-way` always
+passes. CI's description job checks out the PR's history and passes its base
+and head; a sync PR passes `--text-only`, and in CI a cross-check that cannot
+run is itself a finding. Judge a past PR the same way:
 
 ```bash
 gh pr view 884 --json body -q .body | node tools/guardrails/check.mjs --pr-body - --base cce4a13a^ --head cce4a13a
@@ -105,20 +106,34 @@ one it lives in. Until the base has a door map (`lib/doors.mjs`), the PR's own
 checker runs, and the job log says so.
 
 A wrong finding is let through by the reviewer with a visible line in the
-Merge Danger section whose reason names the file or the row:
+Merge Danger section that names the commit they approved (the PR's head when
+they looked) and, in its reason, the file or the row:
 
 ```text
-guardrails-allow pr-body until 2026-12-31 by NTR: debitor/betalinger.php removes a broken menu option
+guardrails-allow pr-body until 2026-12-31 by NTR at 1a2b3c4d5e6f: debitor/betalinger.php removes a broken menu option
 ```
+
+A line that names the file lets all of that file's rows through; one that names
+a row (`payments`, `posting`, ...) lets only that row through, so a file that
+another row also claims still fails on that row. A name counts whole:
+`bogfor.php` does not name `finans/bogfor.php`, and `debitor/payments/` does not
+name the `payments` row.
 
 A body edit dismisses no approval, so the line alone proves nothing. It counts
 only when the description's edit history shows that a reviewer in `REVIEWERS`
-(`lib/doors.mjs`) added it, signed with their own initials, on a PR they did not
-author. CI saves the history with `gh api graphql` (the query is in
-`.github/workflows/guardrails.yml`) and passes it as `--pr-edits`; without it,
-or when the history cannot tell who added the line, the exception does not
-count and the finding says why. If the author edits the line afterwards, it is
-theirs again.
+(`lib/doors.mjs`) put it into the active Merge Danger section (a reviewer's line
+elsewhere that the author moves there is the author's), signed with their own
+initials, on a PR they did not author. CI saves the history with `gh api
+graphql` (the query is in `.github/workflows/guardrails.yml`) and passes it as
+`--pr-edits`; without it, or when the history cannot tell who added the line,
+the exception does not count and the finding says why. If the author edits the
+line afterwards, it is theirs again.
+
+The line also counts only while the file is as it was at the commit it names
+(`git diff <sha> <head> -- <file>` shows no change). A later push that changes
+the file brings the finding back, and the message asks for a new line at the
+PR's current head. A line without `at <sha>`, or with a commit this checkout's
+history does not hold (after a force-push), does not count.
 
 ## When a finding is wrong
 
@@ -178,7 +193,7 @@ useful blank lines between sections of code.
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](../../doc/ai/feedback_pre_pr_test_report.md) |
 | The PR description has a `## Merge Danger` section with `Door:` (exactly `one-way` or `two-way`, then optionally a space and why) and `After merge:` (`none`, or each step and who takes it) | guardrails `pr-body` | [lib/doors.mjs](lib/doors.mjs) |
 | A `Door: two-way` PR touches no one-way path or marker of the door map; care rows never fail, and CI judges the door against the PR's base and head with the base revision's checker and map | guardrails `pr-body` | [lib/doors.mjs](lib/doors.mjs) |
-| A wrong door finding is let through only by a `guardrails-allow pr-body` line in Merge Danger that the description's edit history shows a reviewer added, signed with their own initials, on a PR they did not author | guardrails `pr-body` (CI reads the edit history) | [The door in the PR description](#the-door-in-the-pr-description) |
+| A wrong door finding is let through only by a `guardrails-allow pr-body until YYYY-MM-DD by <INITIALS> at <sha>: <file or row> <why>` line that the description's edit history shows a reviewer put into Merge Danger, signed with their own initials, on a PR they did not author; it covers the rows it names, while the file is unchanged since `<sha>` | guardrails `pr-body` (CI reads the edit history) | [The door in the PR description](#the-door-in-the-pr-description) |
 | The door map names each change's station, human at the pass, taster tier and minimum proof, by the first path rule that matches | `check.mjs --station` (prints, never fails) | [The door map and `--station`](#the-door-map-and---station) |
 | A door-map marker reads quotes the way the file's language does and runs in linear time on a long line | guardrails tests (`tools/guardrails/tests/station.test.mjs` and `doors-*.test.mjs`, in CI) | [lib/doors.mjs](lib/doors.mjs) |
 | Header-history continuations start a new sentence and align with the description after the date/tag | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |

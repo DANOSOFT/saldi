@@ -6,15 +6,18 @@
 // history shows a reviewer added it. The description job of guardrails.yml is run as CI runs it. The door cross-check
 // reads a change's lines as `check.mjs --station` does (each file's markerLines: the unchanged lines above each run,
 // and the eof mark of a last line no LF follows), so a bare CR at a file's end and a comment line below unchanged code
-// read the same both ways.
+// read the same both ways; a removed line is read in the base version of its file.
 //
 // The description job runs the base revision's checker, door map and reviewers against the PR's head, so a PR that
 // loosens them is judged by the rules it goes into; before the base has a door map, the head's checker runs and the
-// log says so.
+// log says so. An exception counts only when a reviewer put it into the active Merge Danger section, for the rows it
+// names, and while the file is as it was at the commit it names.
 //
 // History:
 // 20261103 CL/LH Created.
 // 20261109 CL/LH The description job runs the base revision's policy, or the head's while the base has no door map.
+// 20261109 CL/LH Exceptions bound to their reviewer, a commit and the rows they name; removed lines read in the base
+//                file; the hunk's eof mark where the head file is not known.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -23,6 +26,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import prBody, { lineOwners, readHistory } from "../checks/pr-body.mjs";
+import { markerLinesOf } from "../lib/changeset.mjs";
 import { REVIEWERS } from "../lib/doors.mjs";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -71,10 +75,13 @@ function judge(sha, text, { edits } = {}) {
   }
 }
 
-/** The pr-body check on one synthetic file, for rules that need no real commit. */
-function judgeFile(text, path, added, { edits } = {}) {
+/**
+ * The pr-body check on one synthetic file, for rules that need no real commit. `changedSince` answers whether the file
+ * changed after the commit an exception names (lib/changeset.mjs): by default it did not.
+ */
+function judgeFile(text, path, added, { edits, changedSince = () => false } = {}) {
   const file = { path, status: "M", added: new Map(added.map((line, i) => [i + 1, line])), hunks: [{ removed: [], added: [] }] };
-  return prBody.run(text, { files: [file], isVendored: () => false, today: "2026-11-03", edits });
+  return prBody.run(text, { files: [file], isVendored: () => false, today: "2026-11-03", edits, changedSince });
 }
 
 test("#884 cce4a13a, its own description: no Merge Danger section fails", () => {
@@ -122,7 +129,8 @@ test("a one-way door passes whatever the change touches: #886 bad3e197", () => {
   assert.equal(judge("bad3e197", body({ door: "one-way" })).status, 0);
 });
 
-const allowLine = (reason, { until = "2026-12-31", by = NICOLAI.initials } = {}) => `guardrails-allow pr-body until ${until} by ${by}: ${reason}`;
+/** An exception line; `at` is the commit it was approved at (#980's own, for the tests on 527579cc). */
+const allowLine = (reason, { until = "2026-12-31", by = NICOLAI.initials, at = "527579cc" } = {}) => `guardrails-allow pr-body until ${until} by ${by} at ${at}: ${reason}`;
 /** A description opened by its author, then edited by `editor` to add `line`. */
 const added = (line, editor = NICOLAI.login, options = {}) => ({ text: body({ extra: line }), edits: history([[AUTHOR, body()], [editor, body({ extra: line })]], options) });
 
@@ -184,7 +192,8 @@ test("who added an exception line is read from the edit history, line by line", 
 });
 
 test("readHistory and lineOwners follow GitHub's order: newest edit first, the oldest node the opened text", () => {
-  const edits = history([[AUTHOR, "a\nb"], [NICOLAI.login, "a\nb\r\nc"], [AUTHOR, "  a\nc  \nd"]]);
+  const danger = (text) => `## Merge Danger\n${text}`;
+  const edits = history([[AUTHOR, danger("a\nb")], [NICOLAI.login, danger("a\nb\r\nc")], [AUTHOR, danger("  a\nc  \nd")]]);
   const read = readHistory(edits);
   assert.deepEqual(read.revisions.map((revision) => revision.editor), [AUTHOR, NICOLAI.login, AUTHOR]);
   assert.equal(read.complete, true);
@@ -470,6 +479,43 @@ test("the cross-check without markerLines (a caller's own change): each added li
   assert.deepEqual(prBody.run(dangerBody("two-way"), { files: [file({ line: 1, text: line })], isVendored: () => false, today: "2026-11-06" }), []);
 });
 
+test("an exception counts only for the reviewer who put it into the active Merge Danger section: a reviewer's line elsewhere in the description that the author moves into the section is the author's", () => {
+  const line = allowLine("debitor/betalinger.php removes a broken menu option");
+  const inDanger = body({ extra: line });
+  const refused = (edits) => {
+    const findings = judgeFile(inDanger, "debitor/betalinger.php", ["x"], { edits });
+    assert.equal(findings.length, 1);
+    return findings[0].message.split("does not count: ")[1];
+  };
+  // The reviewer wrote the line as an example under another heading; the author moved it, unchanged, into Merge Danger.
+  const example = `${body()}\n## Notes\n${line}\n`;
+  assert.match(refused(history([[AUTHOR, body()], [NICOLAI.login, example], [AUTHOR, inDanger]])), new RegExp(`^${AUTHOR} added it`));
+  // The reviewer left it in an HTML comment in the section; the author took the comment marks away.
+  const commented = body({ extra: `<!-- ${line} -->` });
+  assert.match(refused(history([[AUTHOR, body()], [NICOLAI.login, commented], [AUTHOR, inDanger]])), new RegExp(`^${AUTHOR} added it`));
+  // Control: the reviewer put it there, and the author's later edits elsewhere leave it the reviewer's.
+  const later = `${inDanger}\n## Notes\nRe-ran the suite.\n`;
+  assert.deepEqual(judgeFile(later, "debitor/betalinger.php", ["x"], { edits: history([[AUTHOR, body()], [NICOLAI.login, inDanger], [AUTHOR, later]]) }), []);
+});
+
+test("an exception that names a row lets only that row through: a file that is posting by its path and destructive by a marker keeps its destructive finding; one that names the file lets both through; a name inside a longer path names nothing", () => {
+  const code = ['db_modify("truncate ordrer");'];
+  const judged = (reason, path = "finans/bogfor.php") => {
+    const line = allowLine(reason);
+    return judgeFile(body({ extra: line }), path, code, { edits: history([[AUTHOR, body()], [NICOLAI.login, body({ extra: line })]]) });
+  };
+  assert.equal(judged("posting: the totals are not touched").length, 1);
+  const [onlyPosting] = judged("posting: the totals are not touched");
+  assert.equal(onlyPosting.path, "finans/bogfor.php");
+  assert.match(onlyPosting.message, /destructive by the marker "TRUNCATE"/);
+  assert.doesNotMatch(onlyPosting.message, /posting by its path/);
+  assert.deepEqual(judged("finans/bogfor.php only renames a variable"), []);
+  assert.deepEqual(judged("posting and destructive: a dry run only"), []);
+  // bogfor.php alone is not finans/bogfor.php, and debitor/payments/ is a path, not the payments row.
+  assert.match(judged("bogfor.php only renames a variable")[0]?.message ?? "", /posting by its path finans\/bogfor\.php \(.*\); destructive by the marker/);
+  assert.equal(judged("debitor/payments/vibrant.php is unrelated", "debitor/betalinger.php").length, 1);
+});
+
 /** A scratch repository: each step ({path: content}) committed in turn; its shas, git, and run(args, input, edits) for check.mjs there. */
 function commits(...steps) {
   const dir = mkdtempSync(join(tmpdir(), "guardrails-pr-body-commits-"));
@@ -492,6 +538,67 @@ function commits(...steps) {
   };
   return { dir, shas, git, run, done: () => rmSync(dir, { recursive: true, force: true }) };
 }
+
+test("an exception is bound to the commit it was approved at: a later change to the file brings the finding back until the reviewer approves the new head; a file unchanged since keeps it; a line without a commit, or with one the history does not hold, does not count", () => {
+  const repo = commits(
+    { "debitor/betalinger.php": "<?php\n$menu = ['card', 'broken'];\n", "debitor/betalingsliste.php": "<?php\n$rows = [];\n" },
+    { "debitor/betalinger.php": "<?php\n$menu = ['card'];\n", "debitor/betalingsliste.php": "<?php\n$rows = array();\n" },
+    { "debitor/betalinger.php": "<?php\n$menu = ['card'];\nsendPaymentFile($menu);\n" },
+  );
+  const [base, reviewed, later] = repo.shas;
+  try {
+    const judged = (head, at) => {
+      const lines = [allowLine("debitor/betalinger.php removes a broken menu option", { at }), allowLine("debitor/betalingsliste.php only renames a variable", { at })].join("\n");
+      const text = body({ extra: lines });
+      return repo.run(["--pr-body", "-", "--base", base, "--head", head], text, history([[AUTHOR, body()], [NICOLAI.login, text]]));
+    };
+    assert.equal(judged(reviewed, reviewed).status, 0, "approved at the head it judges");
+    assert.equal(judged(reviewed, reviewed.slice(0, 12)).status, 0, "a short sha");
+    const stale = judged(later, reviewed);
+    assert.equal(stale.status, 1);
+    assert.deepEqual(stale.files, ["debitor/betalinger.php"], "betalingsliste.php is as it was at the approved commit");
+    assert.match(stale.stdout, new RegExp(`does not count: debitor/betalinger\\.php changed after ${reviewed}, the commit it was approved at; the reviewer approves the change again`));
+    assert.match(stale.stdout, new RegExp(`by <INITIALS> at ${later.slice(0, 12)}: debitor/betalinger\\.php <why>`), "the finding names the head to approve");
+    assert.equal(judged(later, later).status, 0, "renewed at the new head");
+    const missing = judged(later, "0000000");
+    assert.deepEqual(missing.files, ["debitor/betalinger.php", "debitor/betalingsliste.php"]);
+    assert.match(missing.stdout, /the commit 0000000 it names cannot be read in this change's history/);
+    const bare = body({ extra: `guardrails-allow pr-body until 2026-12-31 by ${NICOLAI.initials}: debitor/betalinger.php removes a broken menu option` });
+    const unbound = repo.run(["--pr-body", "-", "--base", base, "--head", reviewed], bare, history([[AUTHOR, body()], [NICOLAI.login, bare]]));
+    assert.deepEqual(unbound.files, ["debitor/betalinger.php", "debitor/betalingsliste.php"]);
+    assert.match(unbound.stdout, /does not count: it names no commit; the reviewer approves the change again/);
+  } finally {
+    repo.done();
+  }
+});
+
+test("where the file as the change leaves it cannot be read, a last line's eof mark comes from the diff's hunk (markerLinesOf, which --station's markerLines uses too): a bare CR keeps its comment's DROP DATABASE", () => {
+  const line = `// ${DROP}\r`;
+  const file = (entry) => ({ path: "finans/report.js", status: "A", added: new Map([[1, line]]), hunks: [{ removed: [], added: [entry] }] });
+  assert.deepEqual(markerLinesOf(file({ line: 1, text: line, eof: true }), null), [{ line: 1, text: line, eof: true }]);
+  const run = (entry) => prBody.run(dangerBody("two-way"), { files: [file(entry)], isVendored: () => false, today: "2026-11-06", readHead: () => null });
+  const findings = run({ line: 1, text: line, eof: true });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].message, /destructive by the marker "DROP DATABASE"/);
+  // Without the mark the CR is a CR LF's, and the line is an established comment.
+  assert.deepEqual(run({ line: 1, text: line }), []);
+});
+
+test("a removed line is read in the base version of its file: a commented-out DROP DATABASE taken out claims no file; the same statement taken out as code claims it", () => {
+  for (const [path, base, head] of [
+    ["finans/report.js", `run();\n// ${DROP}\n`, "run();\n"],
+    ["finans/report.php", `<?php\n$x = 1;\n// ${DROP}\n`, "<?php\n$x = 1;\n"],
+    ["finans/report.js", `// ${DROP}\nrun();\n`, "run();\n"],
+  ]) {
+    assert.deepEqual(bothWays([[path, base, head]], { commit: true }), { station: [], claimed: [], status: 0 }, `${path}: ${JSON.stringify(base)}`);
+  }
+  for (const [path, base, head] of [
+    ["finans/report.js", `run();\n${DROP};\n`, "run();\n"],
+    ["finans/report.php", `<?php\n$x = 1;\n${DROP};\n`, "<?php\n$x = 1;\n"],
+  ]) {
+    assert.deepEqual(bothWays([[path, base, head]], { commit: true }), { station: [], claimed: [path], status: 1 }, `${path}: ${JSON.stringify(base)}`);
+  }
+});
 
 /**
  * A scratch repository for the description job: `base` and `head` ({path: content}, head over base) committed in

@@ -26,7 +26,8 @@
 // the paths the change touches; without a base, or with --text-only, only the
 // text is judged. --pr-edits names the description's edit history as CI reads it
 // from GitHub (guardrails.yml); a door exception counts only when that history
-// shows a reviewer added it, so without it no exception counts.
+// shows a reviewer put it into the Merge Danger section, so without it no
+// exception counts, and only while the file is as it was at the commit it names.
 //
 // --station routes the change by the door map (lib/doors.mjs, lib/station.mjs)
 // and never fails: exit 0 with the report, 2 when it cannot route. A PHP file is
@@ -45,6 +46,7 @@
 // 20261106 CL/LH --station and the door cross-check read PHP files with PHP's own tokenizer, one request per change.
 // 20261107 CL/LH --station hands the markers the unchanged lines around each added run (changeset markerLines).
 // 20261109 CL/LH The checks judge the working directory's repository: CI runs the base revision's copy against the PR.
+// 20261109 CL/LH A door exception counts only while its file is as it was at the commit it names.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { buildChangeset, git, revExists, splitLines } from "./lib/changeset.mjs";
