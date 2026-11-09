@@ -19,6 +19,10 @@ New history entries are appended at the **bottom** of the existing history block
 - `<Tag>` is `<AIHelper>/<Initials>` (e.g. `CL/PHR`, `CDX/PHR`) when an AI helper assisted with the change.
 - Fixed AI helper vocabulary: `CL` = Claude, `CDX` = Codex. Do not invent other abbreviations without updating this file.
 
+**Date order:** Keep history entries in ascending `YYYYMMDD` order, oldest first; entries on the same day retain their relative order. During a merge or restoration, insert each entry at its date's position rather than appending an older entry below newer dates. Move each entry together with its continuation lines, preserving their wording.
+
+**Future direction (2026-11-04):** Management has discussed relying on Git history instead of these manual blocks. That has not replaced the current convention: keep the blocks while the repository and guardrails require them.
+
 Continuation lines start with `//` followed by spaces padding out to the column where the description text starts on the first line, so wrapped text visually aligns. Do not wrap based on line length — a continuation line is only used to start a new sentence (i.e. break after sentence-ending punctuation `.`, `!`, `?`), not because a line runs long:
 
 ```
