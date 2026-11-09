@@ -70,10 +70,11 @@ async function phpNote() {
   return failure ? `PHP's tokenizer could not read the PHP files (${failure}), so every line that names a password in a PHP file counts.` : null;
 }
 
-/** The files of the change read whole because git's diff header for them could not be read (changeset filesOfDiff), as a line, or null. */
+/** The files of the change read whole (changeset filesOfDiff: a header that could not be read, or no line shown for a change), as a line, or null. */
 function unreadableNote(changeset) {
-  const paths = changeset.files.filter((file) => file.unreadable).map((file) => shownPath(file.path));
-  return paths.length ? `${paths.join(", ")}: ${changeset.files.find((file) => file.unreadable).unreadable}.` : null;
+  const why = new Map();
+  for (const file of changeset.files.filter((entry) => entry.unreadable)) why.set(file.unreadable, [...(why.get(file.unreadable) ?? []), shownPath(file.path)]);
+  return why.size ? [...why].map(([reason, paths]) => paths.join(", ") + ": " + reason + ".").join(" ") : null;
 }
 
 /** A path as printed: quoted (JSON) where it holds a quote, a backslash or a control character, so no name forges a line. */

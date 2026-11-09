@@ -9,6 +9,13 @@
 // working tree, including staged, unstaged and untracked files, so the same
 // command works before a commit, on a branch and in CI.
 //
+// The change controls .gitattributes, which decides what git calls binary
+// (`binary`, `-diff`) and which text conversion a diff shows (`diff=<driver>`).
+// So every diff here runs with --text --no-textconv --no-ext-diff, and a file
+// is binary only where a changed line holds a NUL byte, git's own test without
+// attributes. A file whose content changed but whose diff still shows no line
+// is read whole (filesOfDiff).
+//
 // History:
 // 20261027 CL/LH Created.
 // 20261104 CL/LH VENDORED lists the minified jQuery copies, so no door marker reads them.
@@ -19,6 +26,8 @@
 //                mark where the file's text is not known; changedSince() compares a file with a commit's.
 // 20261109 CL/LH A diff header's path is read exactly (git's C-style quoting undone), and the changed paths come from
 //                git's NUL-separated list: a file whose header cannot be read counts every line as changed.
+// 20261109 CL/LH Diffs and file reads ignore the change's own .gitattributes (--text, --no-textconv); a file whose
+//                content changed but whose diff shows no line counts every line as changed.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
@@ -30,6 +39,9 @@ import { LINE_END, fileLines, lineText } from "./doors.mjs";
  * plugins (jquery.ansatte.js, jquery.sager.js, ...) are not.
  */
 export const VENDORED = /^(vendor|includes\/vendor|node_modules|tiny_mce)\/|^(javascript|sager\/js)\/jquery[^/]*\.min\.js$/;
+
+/** How every diff here runs: every line, as text whatever .gitattributes says, no text conversion or external diff, fixed prefixes. */
+const DIFF_OPTIONS = ["-U0", "--no-renames", "--no-color", "--text", "--no-textconv", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"];
 
 export function git(args, options = {}) {
   return execFileSync("git", ["-c", "core.quotePath=false", ...args], {
@@ -173,13 +185,15 @@ export function parseDiff(text) {
       file.removed.set(entry.line, entry.text);
       previous = entry;
     }
+    // Under --text git prints a binary file's bytes: a changed line that holds a NUL marks it binary, as git would.
+    if ((raw.startsWith("+") || raw.startsWith("-")) && raw.includes("\0")) file.binary = true;
   }
   return files;
 }
 
 /** A file's text as git's diff numbers its lines ({line, text}, a CR LF's CR kept), the last one marked eof where no LF follows it. */
 function entriesOf(text) {
-  if (text === null || text.includes("\0")) return [];
+  if (text === null || text === "") return [];
   const lines = text.split(LINE_END);
   if (lines[lines.length - 1] === "") lines.pop();
   const entries = lines.map((line, index) => ({ line: index + 1, text: line }));
@@ -187,14 +201,17 @@ function entriesOf(text) {
   return entries;
 }
 
-/** Why a file of filesOfDiff is read whole. */
+/** Why a file of filesOfDiff is read whole: its diff header could not be read, or its diff shows no line though it changed. */
 export const UNREADABLE = "git's diff header for it could not be read, so every line of it counts as changed";
+export const NO_LINES = "git's diff shows no line of it though its content changed, so every line of it counts as changed";
 
 /**
  * The change's files: `names`, the paths git lists for the change (NUL-separated, exact), each with its record from
- * the diff `text` (parseDiff), in git's order. A name the diff gives no record for (its header could not be read) is
- * read whole: every line of it as the change leaves it is added, and every line it had is removed, so a marker anywhere
- * in it counts (fail closed); its record says so (unreadable). A record under a path git does not list is dropped.
+ * the diff `text` (parseDiff), in git's order. A name the diff gives no record for (its header could not be read), or
+ * whose record shows no changed line though its content changed (a diff that .gitattributes or a driver turned into
+ * "Binary files differ", or into nothing), is read whole: every line of it as the change leaves it is added, and every
+ * line it had is removed, so a marker anywhere in it counts (fail closed); its record says why (unreadable). A record
+ * under a path git does not list is dropped.
  *
  * @param {{head: (path: string) => string|null, base: (path: string) => string|null}} read  the file as the change
  *   leaves it, and as it was
@@ -203,11 +220,17 @@ export function filesOfDiff(text, names, read) {
   const parsed = parseDiff(text);
   const files = new Map();
   for (const name of names) {
-    if (parsed.has(name)) {
-      files.set(name, parsed.get(name));
+    const record = parsed.get(name);
+    if (record && (record.added.size || record.removed.size)) {
+      files.set(name, record);
       continue;
     }
     const [headText, baseText] = [read.head(name), read.base(name)];
+    // A record with no line is right where the content did not change (a mode change) or is empty on both sides.
+    if (record && (headText === baseText || !(headText || baseText))) {
+      files.set(name, record);
+      continue;
+    }
     const added = entriesOf(headText);
     const removed = entriesOf(baseText);
     files.set(name, {
@@ -219,7 +242,7 @@ export function filesOfDiff(text, names, read) {
       hunks: [{ removed: removed.map((entry) => entry.text), removedLines: removed, added }],
       added: new Map(added.map((entry) => [entry.line, entry.text])),
       removed: new Map(removed.map((entry) => [entry.line, entry.text])),
-      unreadable: UNREADABLE,
+      unreadable: record ? NO_LINES : UNREADABLE,
     });
   }
   return files;
@@ -237,7 +260,7 @@ export function buildChangeset({ base, head }) {
   const range = head ? [mergeBase, head] : [mergeBase];
   const show = (rev, path) => {
     try {
-      return git(["show", `${rev}:${path}`]);
+      return git(["show", "--no-textconv", `${rev}:${path}`]);
     } catch {
       return null;
     }
@@ -255,7 +278,8 @@ export function buildChangeset({ base, head }) {
     return baseCache.get(path);
   };
   // The paths from git's NUL-separated list, exactly; the prefixes fixed, whatever diff.noprefix or diff.mnemonicPrefix say.
-  const diff = git(["diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", ...range]);
+  // The change's own .gitattributes decide neither what is text nor what a diff shows: --text, --no-textconv, --no-ext-diff.
+  const diff = git(["diff", ...DIFF_OPTIONS, ...range]);
   const names = git(["diff", "--name-only", "-z", "--no-renames", ...range]).split("\0").filter(Boolean);
   const files = filesOfDiff(diff, names, { head: readHead, base: readBase });
 
@@ -265,7 +289,8 @@ export function buildChangeset({ base, head }) {
       const content = readFileSync(path, "utf8");
       const binary = content.includes("\0");
       const added = new Map();
-      const lines = binary ? [] : content.split(LINE_END);
+      // A NUL byte marks it binary for the style checks; the door markers still read every line of it.
+      const lines = content.split(LINE_END);
       if (lines.length && lines[lines.length - 1] === "") lines.pop();
       lines.forEach((text, index) => added.set(index + 1, text));
       const entries = [...added].map(([line, text]) => ({ line, text }));
@@ -322,7 +347,7 @@ export function buildChangeset({ base, head }) {
     /** Line numbers (in the head version) that did not exist where the branch started. */
     addedSinceFork(path) {
       if (!forkCache.has(path)) {
-        const args = ["diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", forkPoint, ...(head ? [head] : [])];
+        const args = ["diff", ...DIFF_OPTIONS, forkPoint, ...(head ? [head] : [])];
         const diff = parseDiff(git([...args, "--", `:(literal)${path}`]));
         const file = diff.get(path);
         forkCache.set(path, file ? new Set(file.added.keys()) : new Set());

@@ -19,6 +19,7 @@
 // 20261109 CL/LH Exceptions bound to their reviewer, a commit and the rows they name; removed lines read in the base
 //                file; the hunk's eof mark where the head file is not known.
 // 20261109 CL/LH Paths git quotes in a diff header are read exactly; a header that cannot be read reads the file whole.
+// 20261109 CL/LH A change's .gitattributes (binary, -diff, a text conversion driver) hides none of its lines.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -27,7 +28,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import prBody, { lineOwners, readHistory } from "../checks/pr-body.mjs";
-import { UNREADABLE, filesOfDiff, headerPath, markerLinesOf } from "../lib/changeset.mjs";
+import { NO_LINES, UNREADABLE, filesOfDiff, headerPath, markerLinesOf } from "../lib/changeset.mjs";
 import { stationReport } from "../lib/station.mjs";
 import { REVIEWERS } from "../lib/doors.mjs";
 
@@ -770,4 +771,65 @@ test("a diff header that cannot be read fails closed: no record under a wrong or
   const lines = new Map([...files].map(([path, file]) => [path, markerLinesOf(file, read.head(path))]));
   const report = stationReport({ input: { mode: "diff" }, paths: [...files.keys()], lines });
   assert.deepEqual(report.markersHit.map((hit) => `${hit.path}:${hit.line}:${hit.row}`), ["finans/x.js:2:destructive"]);
+});
+
+test("a change's own .gitattributes hides none of its lines: with its .php and .js files marked binary, -diff, or given a text conversion driver (one a developer's git config defines), --station and the cross-check still find a payments write and DROP DATABASE in them", () => {
+  const php = "finans/report.php";
+  const js = "finans/report.js";
+  const base = { [php]: "<?php\n$x = 1;\n", [js]: "run();\n" };
+  const changed = { [php]: `<?php\n$x = 1;\n$sql = "insert into pos_betalinger (id) values (1)";\n`, [js]: `run();\n${DROP};\n` };
+  // A driver that converts every text to nothing, so a diff through it shows no line.
+  const driver = { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "diff.hidden.textconv", GIT_CONFIG_VALUE_0: "true" };
+  const cases = [
+    ["*.php binary\n*.js binary\n", {}],
+    ["*.php -diff\n*.js -diff\n", {}],
+    ["*.php diff=hidden\n*.js diff=hidden\n", driver],
+  ];
+  for (const [attributes, config] of cases) {
+    const repo = commits(base, { ".gitattributes": attributes, ...changed });
+    const run = (args, input) =>
+      spawnSync(process.execPath, [CHECK, ...args], { cwd: repo.dir, input, encoding: "utf8", timeout: 600000, env: { ...process.env, GUARDRAILS_TODAY: "2026-11-06", GITHUB_ACTIONS: "", ...config } });
+    try {
+      const range = ["--base", repo.shas[0], "--head", repo.shas[1]];
+      const station = run(["--station", "--json", ...range]);
+      assert.equal(station.status, 0, station.stderr);
+      const report = JSON.parse(station.stdout);
+      assert.deepEqual(report.markersHit.map((hit) => `${hit.path}:${hit.line}:${hit.row}`).sort(), [`${js}:2:destructive`, `${php}:3:payments`], attributes);
+      const pr = run(["--pr-body", "-", ...range], dangerBody("two-way"));
+      assert.equal(pr.status, 1, attributes);
+      assert.deepEqual(claimedPaths(pr.stdout), [js, php], attributes);
+      // Read from the diff itself (--text, --no-textconv), not only through the fallback that reads a file whole.
+      assert.doesNotMatch(`${pr.stdout}${station.stderr}`, /shows no line of it/, attributes);
+    } finally {
+      repo.done();
+    }
+  }
+});
+
+test("a file whose diff shows no line though its content changed is read whole (fail closed); a mode change and an empty new file keep their records", () => {
+  const text = [
+    "diff --git a/finans/x.js b/finans/x.js",
+    "index 1111111..2222222 100644",
+    "Binary files a/finans/x.js and b/finans/x.js differ",
+    "diff --git a/run.sh b/run.sh",
+    "old mode 100644",
+    "new mode 100755",
+    "diff --git a/empty.txt b/empty.txt",
+    "new file mode 100644",
+    "index 0000000..e69de29",
+    "",
+  ].join("\n");
+  const heads = { "finans/x.js": `run();\n${DROP};\n`, "run.sh": "echo\n", "empty.txt": "" };
+  const bases = { "finans/x.js": "run();\n", "run.sh": "echo\n" };
+  const read = { head: (path) => heads[path] ?? null, base: (path) => bases[path] ?? null };
+  const files = filesOfDiff(text, ["empty.txt", "finans/x.js", "run.sh"], read);
+  const x = files.get("finans/x.js");
+  assert.equal(x.unreadable, NO_LINES);
+  assert.deepEqual([...x.added], [[1, "run();"], [2, `${DROP};`]]);
+  assert.deepEqual([...x.removed], [[1, "run();"]]);
+  assert.deepEqual([files.get("run.sh").unreadable, files.get("run.sh").oldMode, files.get("run.sh").newMode], [undefined, "100644", "100755"]);
+  assert.deepEqual([files.get("empty.txt").unreadable, files.get("empty.txt").status], [undefined, "A"]);
+  const findings = prBody.run(dangerBody("two-way"), { files: [...files.values()], isVendored: () => false, today: "2026-11-06", readHead: read.head, readBase: read.base });
+  assert.deepEqual(findings.map((finding) => finding.path), ["finans/x.js"]);
+  assert.match(findings[0].message, /destructive by the marker "DROP DATABASE"/);
 });

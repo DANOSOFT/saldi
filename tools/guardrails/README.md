@@ -117,6 +117,27 @@ the rules it goes into. `check.mjs` judges the repository it runs in, not the
 one it lives in. Until the base has a door map (`lib/doors.mjs`), the PR's own
 checker runs, and the job log says so.
 
+What that defends against, and what it does not: the base revision's checker
+keeps a PR from loosening the door map, the checker or the reviewer list it is
+judged by. It does not keep a PR from editing the workflow itself. GitHub runs
+a `pull_request` workflow as the PR's head has it, so a PR can change
+`.github/workflows/guardrails.yml` to skip the job or to run its own checker,
+and the PR that introduces the door check is judged by its own checker (the
+bootstrap above). That is why a change under `.github/` or `tools/guardrails/`
+is a gate path: `--station` sends it to Gartneren (or adds Gartneren's proof
+where a one-way or care row owns the change), with Nicolai, the gate's
+reviewer, at the pass, and that person reads every workflow file the PR
+changes. A required workflow that the base branch owns
+(a repository ruleset), which a PR cannot edit, is a possible follow-up, with
+risks of its own: it reads untrusted PR content, so its permissions and
+secrets need care, and a mistake in it blocks every PR.
+
+The changed lines are read whatever the change's own `.gitattributes` say:
+every diff runs with `--text --no-textconv --no-ext-diff`, so marking a file
+`binary`, `-diff` or giving it a text conversion driver hides none of its
+lines, and a file whose content changed but whose diff still shows no line is
+read whole, every line as changed.
+
 A wrong finding is let through by the reviewer with a visible line in the
 Merge Danger section that names the commit they approved (the PR's head when
 they looked) and, in its reason, the file or the row:

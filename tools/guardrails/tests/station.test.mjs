@@ -14,6 +14,7 @@
 // 20261107 CL/LH Unchanged lines below a run are read too; a value open where the lines stop counts.
 // 20261109 CL/LH A flag followed by another flag has no value; unrelated histories are a refusal; a tierless plate
 //                takes its station's tier.
+// 20261109 CL/LH A change to the guardrails workflow or the door map goes to Gartneren, where Nicolai is at the pass.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -3869,6 +3870,18 @@ test("routing example 3, a kassekladde file plus guardrails (#912 at triage): ru
   assert.deepEqual(report.gatePaths, ["AGENTS.md", "tools/guardrails/checks/tekster.mjs"]);
   assert.equal(report.input.mode, "paths");
   assert.deepEqual(report.markersHit, []);
+});
+
+test("a change to the guardrails workflow or to the door map goes to Gartneren with a person at the pass: a pull_request workflow runs as the PR edits it, so a person reads it", () => {
+  for (const changed of [[".github/workflows/guardrails.yml"], ["tools/guardrails/lib/doors.mjs"], [".github/workflows/guardrails.yml", "tools/guardrails/lib/doors.mjs"]]) {
+    const report = paths(...changed);
+    assert.deepEqual([report.rule, report.station], [3, "gartneren"], changed.join(" "));
+    assert.deepEqual(report.gatePaths, changed, changed.join(" "));
+    assert.deepEqual(report.humanAtPass, { lead: "Nicolai", second: "Saul", label: "forslag" }, changed.join(" "));
+    assert.equal(report.humanOnly, false, "a person reads it at the pass; an agent may still cook it");
+    assert.deepEqual(sources(report), ["gartneren"], changed.join(" "));
+  }
+  assert.deepEqual(paths(".github/workflows/guardrails.yml").careRows.map((match) => match.row), ["ci"]);
 });
 
 test("#980 527579cc: the payment list is party 1b, and a one-way match still exits 0", () => {
