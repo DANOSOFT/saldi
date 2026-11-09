@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/partnerPanelSchema.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/opdat_func/partnerPanelSchema.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,10 +27,30 @@
 //                 Builds on the operator panel's tables (operatorPanelSchema.php runs first in betweenUpdates.php).
 //                 Called from includes/betweenUpdates.php and index/install.php; runs once per master (settings flag), all statements on the master connection ($global = true).
 //                 An advisory lock lets one login apply it at a time, and the flag is only set once every table and column is there.
+// 20261109 CL/ASR PostgreSQL only (review #960): on a MySQL/MariaDB master partner_panel_schema() returns before any SQL, like the operator panel's step.
+//                 partner_panel_ready() is the check the accountant panel's entry points use: the operator panel is ready and this schema flag is at the current version.
+//                 The information_schema lookups are limited to current_schema().
 
+include_once(__DIR__ . '/operatorPanelSchema.php'); # operator_panel_supported(), operator_panel_ready()
 if (!function_exists('partner_panel_schema')) {
 	define('PARTNER_PANEL_SCHEMA', '1');
 	define('PARTNER_PANEL_SCHEMA_LOCK', 731002); # pg advisory lock key
+
+	/**
+	 * True when the accountant panel can be used: the operator panel is ready (PostgreSQL master, its tables created) and
+	 * the accountant panel's flag is at the current schema version. The bogholder_*.php pages, index/admin_menu.php,
+	 * admin/vis_regnskaber.php and admin/aaben_regnskab.php check it; while it is false partner users keep the classic pages.
+	 *
+	 * @return bool
+	 */
+	function partner_panel_ready() {
+		static $ready = false; # only a yes is kept: the schema step may set the flag later in the same request
+		if (!$ready && operator_panel_ready()) {
+			$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'partner_panel_schema'", __FILE__ . " linje " . __LINE__, true));
+			$ready = ($flag && $flag['var_value'] >= PARTNER_PANEL_SCHEMA);
+		}
+		return $ready;
+	}
 
 	/**
 	 * Create the accountant panel's tables in the master database. Idempotent.
@@ -38,6 +58,7 @@ if (!function_exists('partner_panel_schema')) {
 	 * @return bool true when the schema was applied in this call, false when it was already current
 	 */
 	function partner_panel_schema() {
+		if (!operator_panel_supported()) return false; # PostgreSQL only (review #960): no lock, no DDL and no flag on MySQL/MariaDB
 		$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'partner_panel_schema'", __FILE__ . " linje " . __LINE__, true));
 		if ($flag && $flag['var_value'] >= PARTNER_PANEL_SCHEMA) return false;
 		// the operator panel's tables come first (partners is altered below); with a concurrent login only one applies it
@@ -60,7 +81,7 @@ if (!function_exists('partner_panel_schema')) {
 		"CREATE TABLE IF NOT EXISTS partner_pricing_tiers (id SERIAL PRIMARY KEY, min_count int NOT NULL, max_count int, discount_pct numeric(5,2) NOT NULL DEFAULT 0, note text)",
 		);
 		foreach ($tables as $qtxt) db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
-		if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'partners' AND column_name = 'contact_name'", __FILE__ . " linje " . __LINE__, true)))
+		if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'partners' AND column_name = 'contact_name'", __FILE__ . " linje " . __LINE__, true)))
 			db_modify("ALTER TABLE partners ADD COLUMN contact_name varchar(120), ADD COLUMN contact_email varchar(120), ADD COLUMN contact_phone varchar(40), ADD COLUMN address varchar(120), ADD COLUMN zip varchar(10), ADD COLUMN city varchar(60), ADD COLUMN billing_email varchar(120), ADD COLUMN billing_ref varchar(60)", __FILE__ . " linje " . __LINE__, true);
 		// provisional volume tiers for the bookkeeper scheme (data, only into an empty table)
 		if (!db_fetch_array(db_select("SELECT 1 FROM partner_pricing_tiers LIMIT 1", __FILE__ . " linje " . __LINE__, true)))
@@ -68,9 +89,9 @@ if (!function_exists('partner_panel_schema')) {
 		// db_modify() only logs a failed statement here (includes/opdat), so the flag waits until everything is there
 		$missing = 0;
 		foreach ($tables as $qtxt) {
-			if (preg_match('/^CREATE TABLE IF NOT EXISTS (\w+)/', $qtxt, $m) && !db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = '$m[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
+			if (preg_match('/^CREATE TABLE IF NOT EXISTS (\w+)/', $qtxt, $m) && !db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = '$m[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
 		}
-		if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = 'partners' AND column_name = 'contact_name'", __FILE__ . " linje " . __LINE__, true))) $missing++;
+		if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'partners' AND column_name = 'contact_name'", __FILE__ . " linje " . __LINE__, true))) $missing++;
 		if ($missing) {
 			db_select("SELECT pg_advisory_unlock(".PARTNER_PANEL_SCHEMA_LOCK.")", __FILE__ . " linje " . __LINE__, true);
 			return false;

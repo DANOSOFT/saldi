@@ -1,10 +1,13 @@
 <?php
-// --- admin/bogholder_ui.php --- ver 5.1.0 --- 2026.10.12 ---
+// --- admin/bogholder_ui.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New.
 //                 Shell for the accountant panel (bogholderpanelet): the access guard (users who belong to a bookkeeper, auditor or group; operators and legacy users are sent to their own pages), the panel's own menu through vr_ui.php's menu hook, the page opener (adds css/bogholder_panel.css to the shared admin-layer shell) and small renderers used on several pages.
 //                 The operator panel is not touched.
+// 20261109 CL/ASR The guard asks partner_panel_ready() (PostgreSQL master, both panels' tables created) after it has sent non-partner users to their own pages (review #960).
+//                 Staff go to the operator panel only when it is ready, otherwise to the classic menu.
+//                 While the panel is being prepared, a partner user gets a link to the classic account list, which then shows instead of redirecting back here.
 
 if (!function_exists('bp_require_partner')) {
 
@@ -34,14 +37,14 @@ function bp_menu() {
 // Guard: partner users only. Returns the current user; never returns for anyone else.
 function bp_require_partner() {
 	bp_tables_ensure();
-	if (!bp_ready()) { # 20261029 CL/ASR the update chain creates the panel's tables at the next login to any account after a deploy
-		while (ob_get_level()) ob_end_clean();
-		print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">".bp_t('Panelet er ved at blive klar','The panel is being prepared')."</h1><p>".bp_t('Saldi er lige blevet opdateret. Prøv igen om et øjeblik.','Saldi has just been updated. Please try again in a moment.')."</p><p><a href=\"../index/logud.php\">".bp_t('Log ud','Log out')."</a></p></body></html>"; exit;
-	}
-	$u = partner_current_user();
+	$ready = bp_ready(); $u = partner_current_user(); # 20261109 CL/ASR partner_panel_ready(): never on a MySQL/MariaDB master, where nobody is a partner user either (review #960)
 	if (!$u['partner']) {
 		while (ob_get_level()) ob_end_clean();
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=".($u['is_operator'] ? '../admin/operator_overblik.php' : '../index/admin_menu.php?klassisk=1')."\">"; exit;
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=".($u['is_operator'] && operator_panel_ready() ? '../admin/operator_overblik.php' : '../index/admin_menu.php?klassisk=1')."\">"; exit;
+	}
+	if (!$ready) { # 20261029 CL/ASR the update chain creates the panel's tables at the next login to any account after a deploy
+		while (ob_get_level()) ob_end_clean();
+		print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">".bp_t('Panelet er ved at blive klar','The panel is being prepared')."</h1><p>".bp_t('Saldi er lige blevet opdateret. Prøv igen om et øjeblik. Imens kan du bruge den klassiske regnskabsliste.','Saldi has just been updated. Please try again in a moment. Meanwhile you can use the classic account list.')."</p><p><a href=\"../admin/vis_regnskaber.php\">".bp_t('Klassisk regnskabsliste','Classic account list')."</a> · <a href=\"../index/logud.php\">".bp_t('Log ud','Log out')."</a></p></body></html>"; exit;
 	}
 	bp_shell_globals();
 	if (!$u['partner']['active']) {

@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// --- admin/bogholder_vejledning.php --- ver 5.1.0 --- 2026.10.13 ---
+// --- admin/bogholder_vejledning.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261013 CL/ASR New.
@@ -9,6 +9,10 @@ $s_id=session_id();
 //                 One section per area of the panel with steps, a link straight to the place, and a note when the user lacks the right.
 //                 Short questions and answers at the end.
 //                 The texts are kept in one array so they can later feed tooltips or an assistant.
+// 20261109 CL/ASR Group mode: linking an existing company says that the group becomes its owner and puts it on the parent's invoice when no one else owns it, as the addendum of 29/10 decides, instead of saying payment does not change (review #960).
+//                 The section on the customer's features names the right Change subscriptions, which switching a feature now needs.
+//                 The section on the customer's users says that inviting, creating, replacing and reopening users also need the right Work in accounts.
+//                 The group's link section says that another firm that pays for the company keeps paying.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";
@@ -49,7 +53,7 @@ $G = array(
 			bp_t('Vælg en ansvarlig medarbejder, og klik Opret kunderegnskab. Du lander på det nye regnskabs kort.','Choose a responsible employee and click Create customer account. You land on the new account\'s card.')),
 		array(bp_t('Opret kunderegnskab','Create customer account'), 'bogholder_opret.php'), 'create'),
 	array('tilknyt', bp_t(ucfirst($cw),ucfirst($cw)), bp_t('Tilknyt et eksisterende regnskab','Link an existing account'),
-		($grp ? bp_t('Har selskabet allerede Saldi, beder koncernen om at tilknytte det. Selskabet godkender med ét klik, og derefter ejer koncernen regnskabet i Saldi. Betalingen ændres ikke, før koncernen vælger det.','If the company already has Saldi, the group asks to link it. The company approves with one click, after which the group owns the account in Saldi. Payment does not change until the group chooses so.') : bp_t('Har kunden allerede Saldi, beder I om adgang. Kunden godkender med ét klik, og intet andet ændres: ikke pakke, ikke betaler, ikke andre bogholderes adgang.','If the customer already has Saldi, you ask for access. The customer approves with one click, and nothing else changes: not the plan, not the payer, not other bookkeepers\' access.')),
+		($grp ? bp_t('Har selskabet allerede Saldi, beder koncernen om at tilknytte det. Selskabet godkender med ét klik. Har regnskabet ingen anden ejer i Saldi, ejer koncernen det derefter, og det kommer på hovedselskabets samlede faktura fra næste periode, medmindre et andet firma betaler for det. Saldi får besked og flytter faktureringen. Andre bogholderes adgang ændres ikke.','If the company already has Saldi, the group asks to link it. The company approves with one click. If no one else owns the account in Saldi, the group owns it from then on, and it goes on the parent\'s combined invoice from next period, unless another firm pays for it. Saldi is told and moves the invoicing. Other bookkeepers\' access does not change.') : bp_t('Har kunden allerede Saldi, beder I om adgang. Kunden godkender med ét klik, og intet andet ændres: ikke pakke, ikke betaler, ikke andre bogholderes adgang.','If the customer already has Saldi, you ask for access. The customer approves with one click, and nothing else changes: not the plan, not the payer, not other bookkeepers\' access.')),
 		array(bp_t('Vælg Opret og tilknyt › Tilknyt eksisterende.','Choose Create and link › Link existing.'),
 			bp_t('Søg på regnskabsnummer, det præcise regnskabsnavn eller CVR. Regnskabsnummeret står i kundens Saldi under Indstillinger.','Search by account number, the exact account name or CVR. The account number is in the customer\'s Saldi under Settings.'),
 			bp_t('Skriv evt. en besked, og send anmodningen. Den går til regnskabets e-mail, eller til Saldi, hvis regnskabet ingen e-mail har.','Add a message if you like and send the request. It goes to the account\'s e-mail, or to Saldi if the account has none.'),
@@ -60,13 +64,14 @@ $G = array(
 		array(bp_t('Invitér en bruger pr. e-mail. Kunden vælger selv brugernavn og adgangskode.','Invite a user by e-mail. The customer chooses username and password.'),
 			bp_t('Eller opret brugeren med det samme, hvis I selv giver kunden login.','Or create the user at once if you hand the login to the customer yourselves.'),
 			bp_t('Luk en bruger, der ikke længere skal have adgang. Brugeren bevares og kan genåbnes.','Lock a user who should no longer have access. The user is kept and can be reopened.'),
-			bp_t('Skal en anden overtage pladsen, så brug Udskift. Den nye bruger overtager den eksisterende plads, så grænsen ikke overskrides.','If someone else takes over, use Replace. The new user takes the existing seat, so the limit is not exceeded.')),
+			bp_t('Skal en anden overtage pladsen, så brug Udskift. Den nye bruger overtager den eksisterende plads, så grænsen ikke overskrides.','If someone else takes over, use Replace. The new user takes the existing seat, so the limit is not exceeded.'),
+			bp_t('Brugerne får alle rettigheder i regnskabet, så at invitere, oprette, udskifte og genåbne kræver også rettigheden Arbejde i regnskaber. At lukke en bruger kræver kun Administrere brugere.','Users get all rights in the account, so inviting, creating, replacing and reopening also require the right Work in accounts. Locking a user only requires Manage users.')), # 20261109 CL/ASR (review #960)
 		array(bp_t('Vælg en '.$cw1,'Pick a '.$cw1), 'bogholder_panel.php'), 'users'),
 	array('funktioner', bp_t('Regnskabskortet','The account card'), bp_t('Funktioner i kundens pakke','Features in the customer\'s plan'),
 		bp_t('Fanen Funktioner viser, hvad kundens pakke indeholder. I kan gøre menuen enklere for kunden ved at slå inkluderede funktioner fra.','The Features tab shows what the customer\'s plan includes. You can simplify the menu for the customer by switching included features off.'),
 		array(bp_t('Brug kontakten ud for en inkluderet funktion for at slå den fra eller til igen.','Use the switch next to an included feature to turn it off or on again.'),
 			bp_t('Funktioner uden for pakken viser, hvilken pakke der kræves. Klik Foreslå opgradering for at sende et forslag til kunden.','Features outside the plan show which plan they need. Click Propose upgrade to send a proposal to the customer.')),
-		array(bp_t('Vælg en '.$cw1,'Pick a '.$cw1), 'bogholder_panel.php'), null),
+		array(bp_t('Vælg en '.$cw1,'Pick a '.$cw1), 'bogholder_panel.php'), 'subscription'), # 20261109 CL/ASR the switch needs the right Change subscriptions (bp_can('features'))
 	array('opgrader', bp_t('Regnskabskortet','The account card'), ($grp ? bp_t('Pakke og pakkeskift','Plan and plan changes') : bp_t('Abonnement og opgradering','Subscription and upgrade')),
 		($grp ? bp_t('Fanen Abonnement viser pakke, betaler og planlagte ændringer. Koncernen skifter selv pakke på sine selskaber.','The Subscription tab shows plan, payer and scheduled changes. The group changes its companies\' plans itself.') : bp_t('Fanen Abonnement viser pakke, betaler, prøveperiode, betalingsstart og planlagte ændringer. Herfra foreslår I en større pakke.','The Subscription tab shows plan, payer, trial, billing start and scheduled changes. From here you propose a larger plan.')),
 		array(($grp ? bp_t('Vælg den nye pakke og datoen. En dato i fremtiden planlægger skiftet.','Choose the new plan and the date. A future date schedules the change.') : bp_t('Vælg den nye pakke, og skriv en kort begrundelse til kunden.','Choose the new plan and write a short reason for the customer.')),

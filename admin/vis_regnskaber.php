@@ -36,6 +36,7 @@ $s_id=session_id();
 //                  sorting by it was a fatal error. It now comes from license_features (feature_key
 //                  'booking', see license_manager.php) via a left join, and the sort/sort2 params are
 //                  whitelisted before they reach ORDER BY.
+// 20261109 CL/ASR Partner users are sent to the accountant panel only when it is ready (partner_panel_ready(): PostgreSQL master, both panels' tables created); otherwise they keep this page (review #960).
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -45,7 +46,8 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 // 20261012 CL/ASR Users who belong to a bookkeeper, auditor or group (partner_users) have their own customer list in the accountant panel; everyone else keeps this page unchanged.
 include("../includes/partnerScope.php"); partner_tables_ensure();
-if (partner_current_user()['partner']) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/bogholder_panel.php\">"; exit; }
+include_once(__DIR__ . "/../includes/opdat_func/partnerPanelSchema.php"); # partner_panel_ready() (20261109 CL/ASR)
+if (partner_current_user()['partner'] && partner_panel_ready()) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/bogholder_panel.php\">"; exit; }
 include("../includes/topline_settings.php");
 
 $saldiregnskab = NULL;

@@ -37,6 +37,7 @@
 //                 A read-only link does not open the ledger (Saldi has no read-only rights level, '2' passes the module check); it is shown in the panel only.
 //                 ?goto= opens the ledger at the journal or the document pool instead of the menu.
 // 20261109 CL/ASR The global_id column check looks only in the current schema (DATABASE() on MySQL/MariaDB, current_schema() on PostgreSQL) (review #785).
+//                 Partner users are checked through the partner layer only when the accountant panel is ready (partner_panel_ready()); until then, and on MySQL/MariaDB, they keep the account list's own rule, as vis_regnskaber.php then shows them that list (review #960).
 @session_start();
 $s_id=session_id();
 
@@ -64,7 +65,8 @@ $tmp_db_id=if_isset($_GET,NULL,'db_id');
 $r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'", __FILE__ . " linje " . __LINE__));
 list($admin, , , $tmp) = array_pad(explode(",", (string)($r ? $r['rettigheder'] : ''), 4), 4, '');
 include("../includes/partnerScope.php"); partner_tables_ensure(); $vr_pu = partner_current_user(); $vr_readonly = false;
-if ($vr_pu['partner']) { $vr_ok = partner_can($tmp_db_id, 'open') && partner_user_can('work'); if ($vr_ok) { $vr_lk = partner_link($tmp_db_id); $vr_readonly = ($vr_lk && $vr_lk['access'] == 'readonly'); if ($vr_readonly) $vr_ok = false; } }
+include_once(__DIR__ . "/../includes/opdat_func/partnerPanelSchema.php"); # partner_panel_ready() (20261109 CL/ASR)
+if ($vr_pu['partner'] && partner_panel_ready()) { $vr_ok = partner_can($tmp_db_id, 'open') && partner_user_can('work'); if ($vr_ok) { $vr_lk = partner_link($tmp_db_id); $vr_readonly = ($vr_lk && $vr_lk['access'] == 'readonly'); if ($vr_readonly) $vr_ok = false; } }
 else $vr_ok = ($admin || in_array($tmp_db_id, explode(",", $tmp)));
 if (!$vr_ok) {
 	print "<center><br><br>".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."<br><br>";
