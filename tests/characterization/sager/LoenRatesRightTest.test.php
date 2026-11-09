@@ -112,6 +112,9 @@ final class LoenRatesRightTest extends TestCase
         self::assertLessThan($include, strpos($loen, $guardLine), 'the right is checked before the include');
 
         self::assertStringContainsString('exit;', $body, 'and the refusal ends the request before the form is drawn');
+        // The box hides itself when it is closed, and the refusal page is only the box: without a
+        // link the window goes blank, which is what the developer hit while testing.
+        self::assertStringContainsString('href=\"loen.php\"', $body, 'the refusal offers a way back to the payroll list');
         self::assertStringContainsString('error_log(', $body, 'the attempt is logged');
         self::assertStringContainsString(
             "findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', \$sprog_id)",

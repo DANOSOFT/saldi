@@ -197,6 +197,11 @@ if (!in_array($funktion, $loen_funktioner, true)) {
 if ($funktion == 'satser' && !substr((string)$sag_rettigheder, 6, 1)) {
 	error_log('SST-969: rates page refused for user ' . $brugernavn . ' (sag right 6 is not set)');
 	print tekstboks(findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id));
+	# The box is a floating overlay that hides itself when it is closed, and this page is only the
+	# box, so closing it left a blank window. The link keeps something on the page behind it.
+	print "<div style=\"position:fixed; top:62%; left:50%; transform:translateX(-50%); text-align:center; font:14px Arial,Helvetica,sans-serif;\">";
+	print "<a href=\"loen.php\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
+		. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
 	exit;
 }
 $sort = if_isset($_GET['sort']);
