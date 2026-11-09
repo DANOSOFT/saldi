@@ -11,6 +11,7 @@
 //
 // History:
 // 20261108 CL/SS SD-803: created.
+// 20261109 CL/SS SD-803 review: an email field with several addresses survives an update; the phone info goes with a later create that has the phone.
 
 use PHPUnit\Framework\TestCase;
 
@@ -238,7 +239,8 @@ final class CustomersOutSyncTest extends TestCase
 
     public function testAnUpdateFromShopifyLeavesAnExportedDebtorsNameUnlessTheAddressHasACompany(): void
     {
-        $company = $this->debtor('SD803Q', ['firmanavn' => 'SD803 Firma ApS', 'kontakt' => 'Hans Peter Jensen', 'tlf' => '12 34 56 78']);
+        $company = $this->debtor('SD803Q', ['firmanavn' => 'SD803 Firma ApS', 'kontakt' => 'Hans Peter Jensen', 'tlf' => '12 34 56 78',
+            'email' => 'bogholderi@acme.dk;jens@acme.dk']);
         $person = $this->debtor('SD803R', ['firmanavn' => 'Bo Hansen']);
         $this->steps(['enqueue', 'hml', $company], ['job', 'hml', $company], ['echo', 'hml', $company], ['enqueue', 'hml', $person], ['job', 'hml', $person], ['echo', 'hml', $person]);
 
@@ -247,8 +249,9 @@ final class CustomersOutSyncTest extends TestCase
             ['echo', 'hml', $person, ['first_name' => 'Bo', 'last_name' => 'Hansen-Larsen', 'updated_at' => '2030-01-01T10:00:00Z']]);
 
         $this->assertSame(['outcome' => 'done'], $r['results'][0]);
-        $this->assertSame(['SD803 Firma ApS', 'Hans Peter Jensen', '+4587654321'], array_values($this->sql('SELECT firmanavn, kontakt, mobile FROM adresser WHERE id = $1', [$company])[0]),
-            'the company keeps its name and contact; the phone comes in');
+        $this->assertSame(['SD803 Firma ApS', 'Hans Peter Jensen', '+4587654321', 'bogholderi@acme.dk;jens@acme.dk'],
+            array_values($this->sql('SELECT firmanavn, kontakt, mobile, email FROM adresser WHERE id = $1', [$company])[0]),
+            'the company keeps its name, contact and both email addresses (the customer has the first); the phone comes in');
         $this->assertSame(['Bo Hansen', ''], array_values($this->sql('SELECT firmanavn, kontakt FROM adresser WHERE id = $1', [$person])[0]), 'the name is Saldi\'s, it was sent out from here');
 
         $r = $this->steps(['echo', 'hml', $company, ['updated_at' => '2030-01-02T10:00:00Z',
@@ -256,6 +259,9 @@ final class CustomersOutSyncTest extends TestCase
         $this->assertSame(['outcome' => 'done'], $r['results'][0]);
         $this->assertSame(['SD803 Nyt Firma A/S', 'Hans Peter Jensen', 'Vejen 1'], array_values($this->sql('SELECT firmanavn, kontakt, addr1 FROM adresser WHERE id = $1', [$company])[0]),
             'a company on the address is the customer\'s own name, as for any customer');
+
+        $this->steps(['echo', 'hml', $company, ['email' => 'ny@acme.dk', 'updated_at' => '2030-01-03T10:00:00Z']]);
+        $this->assertSame('ny@acme.dk', $this->sql('SELECT email FROM adresser WHERE id = $1', [$company])[0]['email'], 'an email really changed in Shopify comes in');
     }
 
     public function testAnExportThatNeverLinkedLeavesTheInboundNameUpdate(): void
@@ -390,6 +396,48 @@ final class CustomersOutSyncTest extends TestCase
         $this->assertSame(1, self::creates($r), 'after the settle time it is sent again');
         $this->assertCount(1, $r['customers']['hml']);
         $this->assertSame('linked', $this->export($id)['state']);
+    }
+
+    public function testThePhoneInfoGoesWhenALaterCreateCarriesThePhone(): void
+    {
+        $id = $this->debtor('SD803W', ['mobile' => '+4544556677']);
+        $this->steps(['remote', 'hml', ['firstName' => 'Anden', 'phone' => '+4544556677']], ['enqueue', 'hml', $id]);
+
+        // the phone is refused, and the retry without it is refused before it reaches Shopify
+        $r = $this->steps(['job_refuse', 'hml', $id, 2]);
+        $this->assertSame('ShopifyCustomerExportError', $r['results'][0]['exception']);
+        $this->assertSame([['kind' => 'customer.phone']], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL'));
+
+        // the other customer gives up the phone in Shopify; the next run creates the debtor with it
+        $state = json_decode((string)file_get_contents($this->state), true);
+        foreach ($state['shops'] as &$shop) {
+            foreach ($shop['customers'] as &$c) {
+                $c['phone'] = $c['phone'] === '+4544556677' ? null : $c['phone'];
+            }
+        }
+        unset($shop, $c);
+        file_put_contents($this->state, json_encode($state));
+        $r = $this->steps(['job', 'hml', $id]);
+
+        $this->assertSame('linked', $this->export($id)['state']);
+        $this->assertSame('+4544556677', $r['customers']['hml'][1]['phone']);
+        $this->assertSame([], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL'), 'it went with its phone after all: the info row goes');
+    }
+
+    public function testThePhoneInfoGoesWhenTheWebhookLinksACreateWithThePhoneFirst(): void
+    {
+        $id = $this->debtor('SD803X', ['email' => '', 'mobile' => '+4544556688']);
+        $this->steps(['remote', 'hml', ['firstName' => 'Anden', 'phone' => '+4544556688']], ['enqueue', 'hml', $id], ['job_refuse', 'hml', $id, 2]);
+        $this->sql("UPDATE adresser SET mobile = '+4544556699' WHERE id = $1", [$id]);
+        $this->steps(['enqueue', 'hml', $id]);
+        // the corrected create reached Shopify and its answer was lost; its webhook links the debtor before the job runs again
+        $this->sql("UPDATE shopify_customer_exports SET state = 'create_started', attempt_at = now()");
+
+        $r = $this->steps(['remote', 'hml', ['firstName' => 'SD803', 'phone' => '+4544556699', 'tags' => [$this->tag($id)]]], ['echo', 'hml', $id], ['job', 'hml', $id]);
+
+        $this->assertSame(['outcome' => 'done'], $r['results'][2]);
+        $this->assertSame('linked', $this->export($id)['state'], 'the webhook linked it first');
+        $this->assertSame([], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL'), 'its customer has the phone: the info row goes');
     }
 
     public function testACreateThatFailedBeforeShopifyGoesBackToPendingAndTheJobFails(): void

@@ -10,6 +10,7 @@
 //        ["job_edit", shop_key, adresser_id, sql] (the debtor is edited with sql, $1 = adresser_id, and queued again while Shopify answers the create),
 //        ["job_race", shop_key, adresser_id, input] (a customer with input is made in Shopify right after the first customerCreate is answered),
 //        ["job_lag", shop_key, adresser_id] (the customer search lags: it finds no customers),
+//        ["job_refuse", shop_key, adresser_id, n] (the n-th customerCreate is refused with a 401 before it reaches the store),
 //        ["remote", shop_key, input] (a customer made in Shopify itself), ["fail", root_field, mode],
 //        ["echo", shop_key, adresser_id] (the CUSTOMERS_CREATE webhook of the debtor's customer, found by its link or else its tag, run through the inbound job),
 //        ["echo", shop_key, adresser_id, changes] (as above, but a CUSTOMERS_UPDATE with the changed REST fields merged into the body),
@@ -18,6 +19,7 @@
 //
 // History:
 // 20261108 CL/SS SD-803: created.
+// 20261109 CL/SS SD-803 review: step job_refuse.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_customers_out.php <test_db> <state file> '<steps json>'\n");
@@ -144,6 +146,18 @@ try {
                             $resp['body'] = json_encode($data);
                         }
                         return $resp;
+                    }]);
+                    $job = ['id' => 0, 'type' => 'customer.export', 'shop_id' => $shopId($step[1]), 'payload' => ['adresser_id' => (int)$step[2]]];
+                    $results[] = shopify_customer_export_job($job, microtime(true) + 50, fn(): bool => true, ['graphql' => $opts]);
+                    break;
+                case 'job_refuse':
+                    $domain($step[1]);
+                    $creates = 0;
+                    $opts = $store->opts(['transport' => function (string $url, array $headers, string $body, float $connect, float $timeout) use ($store, $step, &$creates): array {
+                        if (str_contains($body, 'customerCreate(') && ++$creates === (int)$step[3]) {
+                            return FakeShopify::json(['errors' => '[API] Invalid API key or access token'], 401);
+                        }
+                        return $store->send($url, $headers, $body, $connect, $timeout);
                     }]);
                     $job = ['id' => 0, 'type' => 'customer.export', 'shop_id' => $shopId($step[1]), 'payload' => ['adresser_id' => (int)$step[2]]];
                     $results[] = shopify_customer_export_job($job, microtime(true) + 50, fn(): bool => true, ['graphql' => $opts]);

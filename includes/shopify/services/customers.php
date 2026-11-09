@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/customers.php --- ver 5.1.0 --- 2026.11.08
+// --- includes/shopify/services/customers.php --- ver 5.1.0 --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,8 @@
 //
 // 20261101 CL/SS SD-792: created (WP08-1).
 // 20261108 CL/SS SD-803: an update of an exported debtor's customer leaves its name and contact, unless the address has a company.
+// 20261109 CL/SS SD-803 review: and leaves an email field with several addresses when the customer has the first of them.
+//                Adopting an export whose customer has a phone resolves the export's phone info row.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -92,6 +94,11 @@ function shopify_customer_address(array $customer): array {
 	return is_array($address) ? $address : array();
 }
 
+/** The addresses of a debtor's email field, which may hold several separated by ; or , (as reminders and invoices split it). */
+function shopify_customer_emails(string $field): array {
+	return array_values(array_filter(array_map('trim', preg_split('/[;,]/', $field)), fn(string $e): bool => $e !== ''));
+}
+
 /** An E.164 phone ('+4512345678') as stored in mobile (15 wide: a 15-digit number loses its +); '' when not E.164. */
 function shopify_customer_phone(string $phone): string {
 	$phone = preg_replace('/[\s().-]/', '', $phone);
@@ -139,7 +146,7 @@ function ensure_customer(int $shopId, array $customer): int {
 
 	$link = shopify_customer_link($shopId, $gid);
 	$older = $link !== null && $updatedAt !== null && $link['source_updated_at'] !== null && $updatedAt < $link['source_updated_at'];
-	$stored = $link === null ? array() : shopify_db_rows("SELECT a.kontakt, EXISTS (SELECT 1 FROM shopify_customer_exports e WHERE e.shop_id = $2 AND e.adresser_id = a.id AND e.state = 'linked') AS exported
+	$stored = $link === null ? array() : shopify_db_rows("SELECT a.kontakt, a.email, EXISTS (SELECT 1 FROM shopify_customer_exports e WHERE e.shop_id = $2 AND e.adresser_id = a.id AND e.state = 'linked') AS exported
 		FROM adresser a WHERE a.id = $1 AND a.art = 'D'", array((int)$link['adresser_id'], $shopId));
 	if ($link !== null && $stored === array()) {
 		// the debtor was deleted in Saldi: the customer gets a new one, and the stored time never goes back
@@ -161,7 +168,13 @@ function ensure_customer(int $shopId, array $customer): int {
 			$write = array_filter($fields, fn(string $v): bool => $v !== '');
 			$contact = (string)$stored[0]['kontakt'];
 			unset($write['kontakt']);
-			if ($stored[0]['exported'] === 't' && trim((string)(shopify_customer_address($customer)['company'] ?? '')) === '') {
+			$exported = $stored[0]['exported'] === 't';
+			$emails = shopify_customer_emails((string)$stored[0]['email']);
+			if ($exported && isset($write['email']) && count($emails) > 1 && strcasecmp($emails[0], $write['email']) === 0) {
+				// the export sent the first of the debtor's addresses; the others stay
+				unset($write['email']);
+			}
+			if ($exported && trim((string)(shopify_customer_address($customer)['company'] ?? '')) === '') {
 				unset($write['firmanavn']);
 			} elseif ($contact === '' && $fields['kontakt'] !== '') {
 				$write['kontakt'] = $fields['kontakt'];
@@ -217,7 +230,8 @@ function shopify_customer_write(int $shopId, string $gid, int $id, array $fields
 /**
  * The Saldi debtor of an open outbound create (pending or create_started) whose correlation tag
  * the customer carries, that still exists and that no other customer of the shop is linked to;
- * the export becomes linked. Null when there is none.
+ * the export becomes linked, and a customer with a phone resolves the export's phone info row.
+ * Null when there is none.
  */
 function shopify_customer_adopt_export(int $shopId, array $customer): ?int {
 	$tags = array_filter(array_map('trim', explode(',', is_string($customer['tags'] ?? null) ? $customer['tags'] : implode(',', (array)($customer['tags'] ?? array())))));
@@ -239,6 +253,10 @@ function shopify_customer_adopt_export(int $shopId, array $customer): ?int {
 		return null;
 	}
 	shopify_db_rows("UPDATE shopify_customer_exports SET state = 'linked', updated_at = now() WHERE shop_id = $1 AND adresser_id = $2", array($shopId, (int)$rows[0]['adresser_id']));
+	if (trim(is_scalar($customer['phone'] ?? null) ? (string)$customer['phone'] : '') !== '') {
+		// as the export's own link does: a customer with a phone did not go without it
+		shopify_error_resolve_key($shopId, 'customer.phone', 'adresser:' . (int)$rows[0]['adresser_id']);
+	}
 	return (int)$rows[0]['adresser_id'];
 }
 

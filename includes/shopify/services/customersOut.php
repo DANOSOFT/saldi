@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/customersOut.php --- ver 5.1.0 --- 2026.11.08
+// --- includes/shopify/services/customersOut.php --- ver 5.1.0 --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261108 CL/SS SD-803 review: an inbound link resolves the export's error; the phone's info row is written before the create without it.
 //                A linked export whose link is gone is looked up before any create. A queue while the job runs queues another behind it.
 //                A debtor corrected while Shopify answers is not parked on the refusal of its old values.
+// 20261109 CL/SS SD-803 review: linking a customer that has a phone resolves the phone's info row.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../client.php';
@@ -297,6 +298,10 @@ function shopify_customer_export_adopt(int $shopId, int $adresserId, array $cust
 		}
 		shopify_db_rows("UPDATE shopify_customer_exports SET state = 'linked', updated_at = now() WHERE shop_id = $1 AND adresser_id = $2", array($shopId, $adresserId));
 		shopify_error_resolve_key($shopId, 'customer.export', "adresser:$adresserId");
+		if ((string)($customer['defaultPhoneNumber']['phoneNumber'] ?? '') !== '') {
+			// a customer with a phone did not go without it
+			shopify_error_resolve_key($shopId, 'customer.phone', "adresser:$adresserId");
+		}
 		return array('result' => 'linked', 'customer_gid' => $gid);
 	});
 }
@@ -314,7 +319,7 @@ function shopify_customer_export_input(array $debtor, string $tag): array {
 	$input = $cut === false ? array('firstName' => $name) : array('firstName' => substr($name, 0, $cut), 'lastName' => substr($name, $cut + 1));
 	$input = array_filter($input, fn(string $v): bool => $v !== '');
 	// the field may hold several addresses (; or ,), as reminders and invoices split it: the first goes
-	$email = $text(array_values(array_filter(array_map('trim', preg_split('/[;,]/', (string)($debtor['email'] ?? '')))))[0] ?? '');
+	$email = $text(shopify_customer_emails((string)($debtor['email'] ?? ''))[0] ?? '');
 	if ($email !== '') {
 		$input['email'] = $email;
 	}
