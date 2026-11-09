@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- sager/loen.php --- ver 5.1.0 --- 2026-11-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -116,6 +116,8 @@
 // 20261103 CL/MMR SD-799 The texts of the former employee warning are passed to jquery.loen.js in the user's language.
 // 20261103 CL/MMR SD-799 The date picker, the piecework list toggle, the list paging line and the date clear button follow the user's language.
 // 20261105 CL/MMR SST-943 The print icon is not shown on a wage slip whose save was stopped for a missing date.
+// 20261106 LOE SST-969 Only the page functions this file defines can be called.
+//              The rates page asks for the approver right the menu already asks for.
 
 @session_start();
 $s_id = session_id();
@@ -183,6 +185,20 @@ if ($overtid == NULL) {
 $funktion = if_isset($_GET['funktion']);
 if (!$funktion)
 	$funktion = "loenliste";
+# SST-969 the page calls the function the request names ($funktion(), further down). Without a list, any
+# function in the process could be called: ?funktion=phpinfo printed the whole PHP configuration, and
+# neither case asked for a right. Only the four page functions this file has are allowed.
+$loen_funktioner = array('loenliste', 'ret_loen', 'loenafregning', 'satser');
+if (!in_array($funktion, $loen_funktioner, true)) {
+	$funktion = 'loenliste';
+}
+# SST-969 the rates page saves for every user who reaches it. The menu offers "Ret Satser" only with the
+# approver right (sager/leftmenu.php), so the page asks for the same right and logs the attempt.
+if ($funktion == 'satser' && !substr((string)$sag_rettigheder, 6, 1)) {
+	error_log('SST-969: rates page refused for user ' . $brugernavn . ' (sag right 6 is not set)');
+	print tekstboks(findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id));
+	exit;
+}
 $sort = if_isset($_GET['sort']);
 $nysort = if_isset($_GET['nysort']);
 $vis = if_isset($_GET['vis']);
