@@ -65,10 +65,12 @@
 // 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
 // 20261109 CL/SZ db_escape_string(): convert non-UTF-8 input to UTF-8 only when $db_encode is UTF8.
 //                On a LATIN9 connection this stored Søren as SÃžren (MB-135).
-//                On a LATIN9 connection, valid UTF-8 input (e.g. REST/JSON callers) now becomes ISO-8859-15.
+//                On a LATIN9 connection, valid UTF-8 input (e.g. REST/JSON callers) now becomes Windows-1252.
+//                That is what the browser posts there, since pages say ISO-8859-1 and browsers read it as Windows-1252.
 // 20261109 CL/SZ db_connect(): MySQL has no 'latin9' charset, so a LATIN9 install could not connect (MB-135).
 //                Use 'latin1' like db_create() does, and 'utf8mb4' for UTF8 instead of the 3-byte 'utf8'.
 //                db_create() sets character_set_client to 'utf8mb4' too, so it no longer undoes that.
+//                db_create() creates a UTF8 database with CHARACTER SET utf8mb4, so its columns can hold emoji.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -583,8 +585,8 @@ if (!function_exists('db_escape_string')) {
 			if (!mb_check_encoding($qtext, 'UTF-8')) {
 				$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
 			}
-		} elseif (is_string($qtext) && preg_match('/[\x80-\xFF]/', $qtext) && mb_check_encoding($qtext, 'UTF-8')) { #20261109 LATIN9 connection: UTF-8 input becomes ISO-8859-15 (MB-135)
-			$qtext = mb_convert_encoding($qtext, 'ISO-8859-15', 'UTF-8');
+		} elseif (is_string($qtext) && preg_match('/[\x80-\xFF]/', $qtext) && mb_check_encoding($qtext, 'UTF-8')) { #20261109 LATIN9 connection: UTF-8 input becomes Windows-1252, like the browser posts (MB-135)
+			$qtext = mb_convert_encoding($qtext, 'Windows-1252', 'UTF-8');
 		}
 		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
 		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
@@ -674,7 +676,8 @@ if (!function_exists('db_create')) {
 	function db_create($db) {
 		global $connection,$db_encode,$db_type,$sqhost,$squser,$sqpass;
 		if ($db_type=="mysql" or $db_type=="mysqli") { #RG_mysqli
-			db_modify("CREATE DATABASE $db",__FILE__ . " linje " . __LINE__);
+			if ($db_encode=="UTF8") db_modify("CREATE DATABASE $db CHARACTER SET utf8mb4",__FILE__ . " linje " . __LINE__); #20261109 not the server default (MB-135)
+			else db_modify("CREATE DATABASE $db",__FILE__ . " linje " . __LINE__);
 			if ($db_type=="mysql") mysql_select_db($db);
 			else mysqli_select_db($connection,$db);
 			if ($db_encode=="UTF8") db_modify("SET character_set_client = 'utf8mb4'",__FILE__ . " linje " . __LINE__); #20261109 match db_connect() (MB-135)
