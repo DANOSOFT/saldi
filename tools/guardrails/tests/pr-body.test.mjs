@@ -8,12 +8,17 @@
 // and the eof mark of a last line no LF follows), so a bare CR at a file's end and a comment line below unchanged code
 // read the same both ways.
 //
+// The description job runs the base revision's checker, door map and reviewers against the PR's head, so a PR that
+// loosens them is judged by the rules it goes into; before the base has a door map, the head's checker runs and the
+// log says so.
+//
 // History:
 // 20261103 CL/LH Created.
+// 20261109 CL/LH The description job runs the base revision's policy, or the head's while the base has no door map.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -263,25 +268,31 @@ function descriptionJob() {
     const indent = Math.min(...block.filter((line) => line.trim()).map((line) => line.search(/\S/)));
     scripts.push(block.map((line) => line.slice(indent)).join("\n"));
   }
-  return { text: job.join("\n"), check: scripts.find((script) => script.includes("check.mjs --pr-body")) };
+  return { text: job.join("\n"), check: scripts.find((script) => script.includes("--pr-body")) };
 }
 
-/** The --pr-body step of the description job, run with bash as the runner runs it, on a real commit. */
-function runDescriptionStep(sha, text, { headRef = "lh/fix/example", edits } = {}) {
+/**
+ * The --pr-body step of the description job, run with bash as the runner runs it, on a real commit: by default this
+ * repository's `sha` against its parent; `cwd` and `base` for a scratch repository's.
+ */
+function runDescriptionStep(sha, text, { headRef = "lh/fix/example", edits, cwd = ROOT, base = `${sha}^` } = {}) {
   const runnerTemp = mkdtempSync(join(tmpdir(), "guardrails-runner-"));
   try {
     if (edits !== undefined) writeFileSync(join(runnerTemp, "pr-edits.json"), JSON.stringify(edits));
     const env = { PATH: process.env.PATH, HOME: process.env.HOME, GITHUB_ACTIONS: "true", GUARDRAILS_TODAY: "2026-11-03", RUNNER_TEMP: runnerTemp };
-    Object.assign(env, { PR_BODY: text, HEAD_REF: headRef, BASE_SHA: `${sha}^`, HEAD_SHA: sha });
-    const result = spawnSync("bash", ["-e", "-c", descriptionJob().check], { cwd: ROOT, encoding: "utf8", env });
+    Object.assign(env, { PR_BODY: text, HEAD_REF: headRef, BASE_SHA: base, HEAD_SHA: sha });
+    const result = spawnSync("bash", ["-e", "-c", descriptionJob().check], { cwd, encoding: "utf8", env, timeout: 600000 });
     return { status: result.status, stdout: result.stdout, files: files(result.stdout) };
   } finally {
     rmSync(runnerTemp, { recursive: true, force: true });
   }
 }
 
-test("the description job checks out the PR's history and passes its base, head and edit history", () => {
+test("the description job checks out the PR's history and passes its base, head and edit history; no checkout keeps credentials", () => {
   const { text, check } = descriptionJob();
+  const workflow = readFileSync(join(ROOT, ".github/workflows/guardrails.yml"), "utf8");
+  const checkouts = workflow.match(/uses: actions\/checkout@/g).length;
+  assert.equal(workflow.match(/^ +persist-credentials: false$/gm)?.length, checkouts, "every checkout sets persist-credentials: false");
   assert.match(text, /fetch-depth: 0/);
   assert.match(text, /ref: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
   assert.match(text, /pull-requests: read/);
@@ -457,4 +468,110 @@ test("the cross-check without markerLines (a caller's own change): each added li
   assert.match(findings[0].message, /destructive by the marker "DROP DATABASE"/);
   // Without the mark the CR is a CR LF's, and the line is an established comment.
   assert.deepEqual(prBody.run(dangerBody("two-way"), { files: [file({ line: 1, text: line })], isVendored: () => false, today: "2026-11-06" }), []);
+});
+
+/** A scratch repository: each step ({path: content}) committed in turn; its shas, git, and run(args, input, edits) for check.mjs there. */
+function commits(...steps) {
+  const dir = mkdtempSync(join(tmpdir(), "guardrails-pr-body-commits-"));
+  const git = (...args) => spawnSync("git", ["-c", "user.name=guardrails-test", "-c", "user.email=guardrails-test@example.invalid", "-c", "commit.gpgsign=false", ...args], { cwd: dir, encoding: "utf8" });
+  assert.equal(git("init", "-q").status, 0);
+  const shas = steps.map((files, n) => {
+    for (const [path, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      writeFileSync(join(dir, path), content);
+    }
+    assert.equal(git("add", "-A").status, 0);
+    assert.equal(git("commit", "-q", "--allow-empty", "--no-verify", "-m", `step ${n}`).status, 0);
+    return git("rev-parse", "HEAD").stdout.trim();
+  });
+  const run = (args, input, edits) => {
+    if (edits) writeFileSync(join(dir, ".git", "pr-edits.json"), JSON.stringify(edits));
+    const extra = edits ? ["--pr-edits", join(dir, ".git", "pr-edits.json")] : [];
+    const result = spawnSync(process.execPath, [CHECK, ...args, ...extra], { cwd: dir, input, encoding: "utf8", timeout: 600000, env: { ...process.env, GUARDRAILS_TODAY: "2026-11-06", GITHUB_ACTIONS: "" } });
+    return { status: result.status, stdout: result.stdout, files: files(result.stdout) };
+  };
+  return { dir, shas, git, run, done: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+/**
+ * A scratch repository for the description job: `base` and `head` ({path: content}, head over base) committed in
+ * turn, with this working tree's tools/guardrails (its tests left out) where `guardrails` names a commit, edited there
+ * by `edit` ({path: (text) => text}). The head is checked out, as CI checks it out.
+ */
+function policyRepo({ base, head, guardrails, edit = {} }) {
+  const repo = commits();
+  const dir = repo.dir;
+  const copy = () =>
+    cpSync(join(ROOT, "tools/guardrails"), join(dir, "tools/guardrails"), { recursive: true, filter: (source) => !source.startsWith(join(ROOT, "tools/guardrails/tests")) });
+  const step = (files, withGuardrails, edits) => {
+    if (withGuardrails) copy();
+    for (const [path, change] of Object.entries(edits)) {
+      const before = readFileSync(join(dir, path), "utf8");
+      const after = change(before);
+      assert.notEqual(after, before, `${path} is edited`);
+      writeFileSync(join(dir, path), after);
+    }
+    for (const [path, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      writeFileSync(join(dir, path), content);
+    }
+    assert.equal(repo.git("add", "-A").status, 0);
+    assert.equal(repo.git("commit", "-q", "--allow-empty", "--no-verify", "-m", "step").status, 0);
+    return repo.git("rev-parse", "HEAD").stdout.trim();
+  };
+  const baseSha = step(base, guardrails.includes("base"), {});
+  const headSha = step(head, guardrails.includes("head") && !guardrails.includes("base"), edit);
+  return { dir, base: baseSha, head: headSha, done: repo.done };
+}
+
+test("the description job judges a PR by the base revision's checker, door map and reviewers, not by the PR's own: a PR that takes its file out of the door map, or turns the check off, is held to the base's", () => {
+  const loosened = {
+    "the door map": { "tools/guardrails/lib/doors.mjs": (text) => text.replace('      "{debitor,kreditor}/{betalinger,betalingsliste}.php",\n', "") },
+    "the checker": { "tools/guardrails/checks/pr-body.mjs": () => 'export default { id: "pr-body", summary: "nothing", run: () => [] };\n' },
+  };
+  for (const [what, edit] of Object.entries(loosened)) {
+    const repo = policyRepo({
+      base: { "debitor/betalinger.php": "<?php\n$menu = ['card', 'broken'];\n" },
+      head: { "debitor/betalinger.php": "<?php\n$menu = ['card'];\n" },
+      guardrails: ["base"],
+      edit,
+    });
+    try {
+      // The head's own rules let the change through.
+      const own = spawnSync(process.execPath, [join(repo.dir, "tools/guardrails/check.mjs"), "--pr-body", "-", "--base", repo.base, "--head", repo.head], {
+        cwd: repo.dir,
+        input: body(),
+        encoding: "utf8",
+        timeout: 600000,
+        env: { ...process.env, GITHUB_ACTIONS: "" },
+      });
+      assert.equal(own.status, 0, `${what}: ${own.stdout}`);
+      const ci = runDescriptionStep(repo.head, body(), { cwd: repo.dir, base: repo.base });
+      assert.match(ci.stdout, new RegExp(`^door policy: tools/guardrails of the base revision ${repo.base} judges this description$`, "m"), what);
+      assert.equal(ci.status, 1, `${what}: ${ci.stdout}`);
+      assert.deepEqual(ci.files, ["debitor/betalinger.php"], what);
+    } finally {
+      repo.done();
+    }
+  }
+});
+
+test("bootstrap: while the base revision has no door map, the description job runs the head's checker and says so in the log", () => {
+  const repo = policyRepo({
+    base: { "debitor/betalinger.php": "<?php\n$menu = ['card', 'broken'];\n" },
+    head: { "debitor/betalinger.php": "<?php\n$menu = ['card'];\n" },
+    guardrails: ["head"],
+  });
+  try {
+    const ci = runDescriptionStep(repo.head, body(), { cwd: repo.dir, base: repo.base });
+    assert.match(
+      ci.stdout,
+      new RegExp(`^door policy: bootstrap, the base revision ${repo.base} has no door map \\(tools/guardrails/lib/doors\\.mjs\\), so the PR head's tools/guardrails judges this description$`, "m"),
+    );
+    assert.equal(ci.status, 1, ci.stdout);
+    assert.deepEqual(ci.files, ["debitor/betalinger.php"]);
+    assert.equal(runDescriptionStep(repo.head, body({ door: "one-way" }), { cwd: repo.dir, base: repo.base }).status, 0);
+  } finally {
+    repo.done();
+  }
 });

@@ -17,6 +17,10 @@
 // Exit code 1 when any check finds something. An exception for a single line is
 // described in lib/exceptions.mjs.
 //
+// The checks judge the git repository of the working directory, not the one this
+// file lives in: CI runs the base revision's copy of tools/guardrails against the
+// PR's checkout, so a PR is not judged by its own rules (guardrails.yml).
+//
 // --pr-body judges the description. When the base exists it also builds the
 // change (--base, --head as above), so the description's door is held against
 // the paths the change touches; without a base, or with --text-only, only the
@@ -40,6 +44,7 @@
 // 20261103 CL/LH --paths matches canonical repository paths; --pr-edits and --text-only for the description job.
 // 20261106 CL/LH --station and the door cross-check read PHP files with PHP's own tokenizer, one request per change.
 // 20261107 CL/LH --station hands the markers the unchanged lines around each added run (changeset markerLines).
+// 20261109 CL/LH The checks judge the working directory's repository: CI runs the base revision's copy against the PR.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { buildChangeset, git, revExists, splitLines } from "./lib/changeset.mjs";

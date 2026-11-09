@@ -97,6 +97,13 @@ cross-check that cannot run is itself a finding. Judge a past PR the same way:
 gh pr view 884 --json body -q .body | node tools/guardrails/check.mjs --pr-body - --base cce4a13a^ --head cce4a13a
 ```
 
+CI judges the description with the base revision's `tools/guardrails` (the
+checker, the door map and `REVIEWERS`), unpacked from the base commit and run
+against the PR's checkout, so a PR that loosens the map or the check is held to
+the rules it goes into. `check.mjs` judges the repository it runs in, not the
+one it lives in. Until the base has a door map (`lib/doors.mjs`), the PR's own
+checker runs, and the job log says so.
+
 A wrong finding is let through by the reviewer with a visible line in the
 Merge Danger section whose reason names the file or the row:
 
@@ -170,7 +177,7 @@ useful blank lines between sections of code.
 | Keep simple function calls on one line; when a call needs wrapping, put every argument on its own line | review | |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](../../doc/ai/feedback_pre_pr_test_report.md) |
 | The PR description has a `## Merge Danger` section with `Door:` (exactly `one-way` or `two-way`, then optionally a space and why) and `After merge:` (`none`, or each step and who takes it) | guardrails `pr-body` | [lib/doors.mjs](lib/doors.mjs) |
-| A `Door: two-way` PR touches no one-way path or marker of the door map; care rows never fail, and CI judges the door against the PR's base and head | guardrails `pr-body` | [lib/doors.mjs](lib/doors.mjs) |
+| A `Door: two-way` PR touches no one-way path or marker of the door map; care rows never fail, and CI judges the door against the PR's base and head with the base revision's checker and map | guardrails `pr-body` | [lib/doors.mjs](lib/doors.mjs) |
 | A wrong door finding is let through only by a `guardrails-allow pr-body` line in Merge Danger that the description's edit history shows a reviewer added, signed with their own initials, on a PR they did not author | guardrails `pr-body` (CI reads the edit history) | [The door in the PR description](#the-door-in-the-pr-description) |
 | The door map names each change's station, human at the pass, taster tier and minimum proof, by the first path rule that matches | `check.mjs --station` (prints, never fails) | [The door map and `--station`](#the-door-map-and---station) |
 | A door-map marker reads quotes the way the file's language does and runs in linear time on a long line | guardrails tests (`tools/guardrails/tests/station.test.mjs` and `doors-*.test.mjs`, in CI) | [lib/doors.mjs](lib/doors.mjs) |

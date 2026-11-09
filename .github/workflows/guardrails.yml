@@ -11,6 +11,7 @@
 # 20261028 CL/LH Sync PRs (sync/* branches) run only the checks a merge can break.
 # 20261103 CL/LH The description job judges the door against the change and reads the description's edit history.
 # 20261107 CL/LH The description job sets up PHP 8.2 too: the door cross-check reads PHP files with PHP's own tokenizer.
+# 20261109 CL/LH The description job judges with the base revision's checker, door map and reviewers; no checkout keeps credentials.
 
 name: Guardrails
 
@@ -42,6 +43,7 @@ jobs:
           # the author sees, and the order checks judge where the author put
           # things, not where a merge with newer master landed them.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -92,9 +94,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           # The whole history at the PR's head, so a "Door: two-way" is held
-          # against the files the change touches.
+          # against the files the change touches, and the base revision's
+          # checker can be read from it.
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -129,9 +133,28 @@ jobs:
       - name: Says what changed, how it was verified, and its door
         # A sync PR carries code its own PRs were judged on, so only its text
         # is judged, as in the change job.
+        #
+        # A PR is never judged by its own rules: the checker, the door map and
+        # the reviewer list (tools/guardrails) come from the base revision, are
+        # unpacked into $RUNNER_TEMP and judge this checkout, the PR's head
+        # (check.mjs judges the repository it runs in, not the one it lives in).
+        # Bootstrap: a base without the door map (tools/guardrails/lib/doors.mjs)
+        # has no checker that reads a door, so the head's checker runs, and the
+        # log says so.
         run: |
           if [[ "$HEAD_REF" == sync/* ]]; then change=(--text-only); else change=(--base "$BASE_SHA" --head "$HEAD_SHA"); fi
-          printf '%s' "$PR_BODY" | node tools/guardrails/check.mjs --pr-body - --pr-edits "$RUNNER_TEMP/pr-edits.json" "${change[@]}"
+          if git cat-file -e "$BASE_SHA:tools/guardrails/lib/doors.mjs" 2>/dev/null; then
+            policy="$RUNNER_TEMP/guardrails-policy"
+            mkdir -p "$policy"
+            git archive --format=tar "$BASE_SHA" tools/guardrails > "$policy.tar"
+            tar -xf "$policy.tar" -C "$policy"
+            checker="$policy/tools/guardrails/check.mjs"
+            echo "door policy: tools/guardrails of the base revision $BASE_SHA judges this description"
+          else
+            checker=tools/guardrails/check.mjs
+            echo "door policy: bootstrap, the base revision $BASE_SHA has no door map (tools/guardrails/lib/doors.mjs), so the PR head's tools/guardrails judges this description"
+          fi
+          printf '%s' "$PR_BODY" | node "$checker" --pr-body - --pr-edits "$RUNNER_TEMP/pr-edits.json" "${change[@]}"
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
           HEAD_REF: ${{ github.head_ref }}
