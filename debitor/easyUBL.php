@@ -1,9 +1,13 @@
 <?php
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261109 CL/MMR SST-983 Values from the webhook body are escaped or URL-encoded, and only an account on this installation is used.
+//                 Nothing runs for a company the locator does not know, and an order is only updated when the webhook names its invoice number.
+//                 The saved webhook files get a .ht_ name, which the web server does not hand out.
 
     // This file is used to receive webhooks from EasyUBL
 
-    include("../includes/connect.php");
+    include(__DIR__ . "/../includes/connect.php");
+    include_once(__DIR__ . "/../includes/std_func.php");
     // Mail function
     function sendSimpleMail($to, $subject, $message, $from = null) {
         // Set default sender if not provided
@@ -34,7 +38,8 @@
     /* echo $randomString; */
     // save webhook data on server
     $timestamp = date("Y-m-d-H-i-s");
-    file_put_contents("../temp/webhook-$timestamp.json", $webhookData);
+    // SST-983: temp/ is under the web root, so the saved files are named .ht_*, which the web server refuses to hand out
+    file_put_contents("../temp/.ht_webhook-$timestamp.json", $webhookData);
     // get timestamp
     $timestamp = date("Y-m-d-H-i-s");
     if($webhookData == ""){
@@ -50,17 +55,27 @@
     $serverName = "$domain/$firstFolder";
 
     // get db name
-    $companyId = json_decode($webhookData, true);
-    $companyId = $companyId['companyId'];
+    // SST-983: companyId comes from the request body, so it must be a plain value, and it is URL-encoded for the locator
+    $companyId = is_scalar(ifset($base64, 'companyId')) ? trim((string)ifset($base64, 'companyId')) : '';
+    if ($companyId === '') {
+        exit;
+    }
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "https://ssl3.saldi.dk/locator/locator.php?action=getDBNameByCompanyId&companyId=$companyId");
+    curl_setopt($ch, CURLOPT_URL, "https://ssl3.saldi.dk/locator/locator.php?action=getDBNameByCompanyId&companyId=" . urlencode($companyId));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $output = curl_exec($ch);
     $jsonOutPut = $output;
     curl_close($ch);
     $output = json_decode($output, true);
-    if($output["msg"] == "OK"){
-        $db = $output["db_name"];
+    if(ifset($output, 'msg') == "OK"){
+        // SST-983: only an account database that exists on this installation is used, never the master database.
+        // The name is checked before it becomes $db, as db_select() also uses $db for a folder under temp/.
+        $dbName = is_scalar(ifset($output, 'db_name')) ? trim((string)$output['db_name']) : '';
+        $qtxt = "SELECT id FROM regnskab WHERE db = '" . db_escape_string($dbName) . "'";
+        if ($dbName === '' || $dbName === $sqdb || !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            exit;
+        }
+        $db = $dbName;
         $dbLocation = $output["db_location"];
         $connection=db_connect($sqhost,$squser,$sqpass,$db);
         $query = db_select("SELECT email FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
@@ -69,7 +84,7 @@
         if(!file_exists("../temp/$db")){
             mkdir("../temp/$db");
         }
-        file_put_contents("../temp/$db/db-$timestamp.json", $jsonOutPut);
+        file_put_contents("../temp/$db/.ht_db-$timestamp.json", $jsonOutPut);
         
         // send notification to user
         $decoded = base64_decode($base64["base64EncodedMessage"]);
@@ -101,23 +116,28 @@
             5135 => "Error",
         );
         
-        if (array_key_exists((int)$base64["documentStatusCode"], $incStatus)) {
-            $statusName = $incStatus[(int)$base64["documentStatusCode"]];
-            db_modify("UPDATE ordrer SET digital_status = '$statusName' WHERE fakturanr = '$base64[externalIdentifier]'", __FILE__ . " linje " . __LINE__);
+        // SST-983: externalIdentifier comes from the request body, so it is escaped, and without one no order is touched
+        $externalIdentifier = is_scalar(ifset($base64, 'externalIdentifier')) ? trim((string)ifset($base64, 'externalIdentifier')) : '';
+        if ($externalIdentifier !== '' && array_key_exists((int)ifset($base64, 'documentStatusCode', 0), $incStatus)) {
+            $statusName = $incStatus[(int)ifset($base64, 'documentStatusCode', 0)];
+            db_modify("UPDATE ordrer SET digital_status = '$statusName' WHERE fakturanr = '" . db_escape_string($externalIdentifier) . "'", __FILE__ . " linje " . __LINE__);
         }
 
         if($base64["documentStatusCode"] == 5110 || $base64["documentStatusCode"] == 5210){
             // decode base64
             $decoded = base64_decode($base64["base64EncodedMessage"]);
-            file_put_contents("../temp/$db/msg-$timestamp.json", ["message" => $decoded]);
+            file_put_contents("../temp/$db/.ht_msg-$timestamp.json", ["message" => $decoded]);
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, "$serverName/debitor/increaseInvoiceNumber.php?db=$db");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             $res = curl_exec($ch);
             curl_close($ch);
-            file_put_contents("../temp/$db/increase-$timestamp.json", $res);
+            file_put_contents("../temp/$db/.ht_increase-$timestamp.json", $res);
         }
-        file_put_contents("../temp/$db/res-$timestamp.json", $webhookData);
+        file_put_contents("../temp/$db/.ht_res-$timestamp.json", $webhookData);
+    } else {
+        // SST-983: a company the locator does not know has no account here, so the invoice part below must not run
+        exit;
     }
 
     if($base64 == "" || $base64['documentXmlBase64Content'] == ""){
@@ -173,9 +193,9 @@
                 }
             }
         }
-        file_put_contents("../temp/$db/storage-$timestamp.json", $res);
+        file_put_contents("../temp/$db/.ht_storage-$timestamp.json", $res);
     }else{
         // not sure what to do here yet (other responses) 
-        file_put_contents("../temp/$db/other-$timestamp.json", $webhookData);
+        file_put_contents("../temp/$db/.ht_other-$timestamp.json", $webhookData);
     }
 ?>
