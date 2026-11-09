@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-06---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-09---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,7 @@
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
+// 20261109 LOE SST-967 An empty rights string no longer counts as access, and the refusal keeps a way back.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -371,10 +372,19 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$bg = 'nix';
 		$css = NULL;
 	}
-	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
+	# SST-967 the first term used to be ($rettigheder), so a user whose rights string was empty skipped the
+	# gate entirely and could open every page that sets $modulnr by typing its address. An empty string is
+	# no rights: substr('', $modulnr, 1) is '' and compares as lower than '1'. Pages with $modulnr unset or
+	# 0 are outside the gate, exactly as before.
+	if (($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1')) { #20190529
 		include(__DIR__ . '/std_func.php');
 		$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
 		print tekstboks($txt);
+		# The box is a floating overlay that hides itself when it is closed, and a refused page is only
+		# the box, so the link keeps something on the page and leads back to the menu shell.
+		print "<div style=\"position:fixed; top:10px; left:10px; z-index:101; font:14px Arial,Helvetica,sans-serif;\">";
+		print "<a href=\"" . get_relative() . "index/main.php\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
+			. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
 		exit;
 	}
 }
