@@ -166,6 +166,9 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261109 CL/SZ MB-137 opret_ordre() and opret_ordre_kopi() escape the sag's contact, delivery address, case number and the account manager's name.
+//                A name with an apostrophe no longer stops the order with "Uforudset hændelse" or the SQL injection alert.
+//                Kopiér tilbud stores the sag's contact and delivery address as text, not as HTML entities.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
@@ -5175,13 +5178,13 @@ function opret_ordre($sag_id, $konto_id)
 	if ($kontoansvarlig) {
 		$query = db_select("select navn from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
-		$ref = $row['navn'];
+		$ref = db_escape_string($row['navn'] ?? '');
 	} else {
 		$row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
 		if ($row['ansat_id']) {
 			$row = db_fetch_array(db_select("select navn from ansatte where id = $row[ansat_id]", __FILE__ . " linje " . __LINE__));
 			if ($row['navn']) {
-				$ref = $row['navn'];
+				$ref = db_escape_string($row['navn'] ?? '');
 			}
 		}
 	}
@@ -5219,7 +5222,7 @@ function opret_ordre($sag_id, $konto_id)
 	}
 	// Her hentes oplysninger fra sager
 	$r = db_fetch_array(db_select("select * from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
-	$sagsnr = $r['sagsnr'];
+	$sagsnr = db_escape_string($r['sagsnr'] ?? '');
 	$konto_id = $r['konto_id'];
 	//$firmanavn=htmlspecialchars($r['firmanavn']);
 	//$addr1=htmlspecialchars($r['addr1']);
@@ -5228,16 +5231,16 @@ function opret_ordre($sag_id, $konto_id)
 	//$bynavn=htmlspecialchars($r['bynavn']);
 	//$beskrivelse=htmlspecialchars($r['beskrivelse']);
 	//$omfang=htmlspecialchars($r['omfang']);
-	$udf_firmanavn = $r['udf_firmanavn']; // htmlspecialchars
-	$udf_addr1 = $r['udf_addr1']; // htmlspecialchars
-	$udf_addr2 = $r['udf_addr2']; // htmlspecialchars
-	$udf_postnr = $r['udf_postnr'];
-	$udf_bynavn = $r['udf_bynavn']; // htmlspecialchars
-	$kundeordnr = $r['kunde_ref_nr']; #20170223
+	$udf_firmanavn = db_escape_string($r['udf_firmanavn'] ?? '');
+	$udf_addr1 = db_escape_string($r['udf_addr1'] ?? '');
+	$udf_addr2 = db_escape_string($r['udf_addr2'] ?? '');
+	$udf_postnr = db_escape_string($r['udf_postnr'] ?? '');
+	$udf_bynavn = db_escape_string($r['udf_bynavn'] ?? '');
+	$kundeordnr = db_escape_string($r['kunde_ref_nr'] ?? ''); #20170223
 	if ($sag_id) {
-		$kontakt = $r['kontakt']; // htmlspecialchars # 20140821-1
+		$kontakt = db_escape_string($r['kontakt'] ?? ''); # 20140821-1
 		$r = db_fetch_array(db_select("select * from ansatte where navn='$kontakt' and konto_id='$konto_id'", __FILE__ . " linje " . __LINE__));
-		$kontakt_tlf = $r['mobil']; #20160127
+		$kontakt_tlf = db_escape_string($r['mobil'] ?? ''); #20160127
 	}
 	//$ref=htmlspecialchars($r['ref']);
 	//$oprettet_af=htmlspecialchars($r['oprettet_af']);
@@ -5368,13 +5371,13 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	if ($kontoansvarlig) {
 		$query = db_select("select navn from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
-		$ref = $row['navn'];
+		$ref = db_escape_string($row['navn'] ?? '');
 	} else {
 		$row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
 		if ($row['ansat_id']) {
 			$row = db_fetch_array(db_select("select navn from ansatte where id = $row[ansat_id]", __FILE__ . " linje " . __LINE__));
 			if ($row['navn']) {
-				$ref = $row['navn'];
+				$ref = db_escape_string($row['navn'] ?? '');
 			}
 		}
 	}
@@ -5412,7 +5415,7 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	}
 	// Her hentes oplysninger fra sager
 	$r = db_fetch_array(db_select("select * from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
-	$sagsnr = $r['sagsnr'];
+	$sagsnr = db_escape_string($r['sagsnr'] ?? '');
 	//$konto_id=$r['konto_id'];
 	//$firmanavn=htmlspecialchars($r['firmanavn']);
 	//$addr1=htmlspecialchars($r['addr1']);
@@ -5421,19 +5424,19 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	//$bynavn=htmlspecialchars($r['bynavn']);
 	//$beskrivelse=htmlspecialchars($r['beskrivelse']);
 	//$omfang=htmlspecialchars($r['omfang']);
-	$udf_firmanavn = htmlspecialchars($r['udf_firmanavn']);
-	$udf_addr1 = htmlspecialchars($r['udf_addr1']);
-	$udf_addr2 = htmlspecialchars($r['udf_addr2']);
-	$udf_postnr = $r['udf_postnr'];
-	$udf_bynavn = htmlspecialchars($r['udf_bynavn']);
-	$sag_kontakt = htmlspecialchars($r['kontakt']);
+	$udf_firmanavn = db_escape_string($r['udf_firmanavn'] ?? '');
+	$udf_addr1 = db_escape_string($r['udf_addr1'] ?? '');
+	$udf_addr2 = db_escape_string($r['udf_addr2'] ?? '');
+	$udf_postnr = db_escape_string($r['udf_postnr'] ?? '');
+	$udf_bynavn = db_escape_string($r['udf_bynavn'] ?? '');
+	$sag_kontakt = db_escape_string($r['kontakt'] ?? '');
 	if ($sag_kontakt) { #20160201
 		$kontakt = $sag_kontakt;
 		$r = db_fetch_array(db_select("select * from ansatte where navn='$kontakt' and konto_id='$konto_id'", __FILE__ . " linje " . __LINE__));
-		$kontakt_tlf = $r['mobil'];
+		$kontakt_tlf = db_escape_string($r['mobil'] ?? '');
 	} elseif ($kontakt && !$sag_kontakt) {
 		$r = db_fetch_array(db_select("select * from ansatte where navn='$kontakt' and konto_id='$konto_id'", __FILE__ . " linje " . __LINE__));
-		$kontakt_tlf = $r['mobil'];
+		$kontakt_tlf = db_escape_string($r['mobil'] ?? '');
 	}
 	//$ref=htmlspecialchars($r['ref']);
 	//$oprettet_af=htmlspecialchars($r['oprettet_af']);
