@@ -3,11 +3,14 @@
 // 20261109 CL/MMR SST-983 Values from the webhook body are escaped or URL-encoded, and only an account on this installation is used.
 //                 Nothing runs for a company the locator does not know, and an order is only updated when the webhook names its invoice number.
 //                 The saved webhook files get a .ht_ name, which the web server does not hand out.
+// 20261109 CL/SZ SST-987 A call must carry the account's webhook key (?key=), which is now part of the webhook URL registered at EasyUBL.
+//                Without it the call is logged, and refused with 403 once webhookKeyRequired is set for the account.
 
     // This file is used to receive webhooks from EasyUBL
 
     include(__DIR__ . "/../includes/connect.php");
     include_once(__DIR__ . "/../includes/std_func.php");
+    include_once(__DIR__ . "/../includes/stdFunc/easyUblWebhookKey.php");
     // Mail function
     function sendSimpleMail($to, $subject, $message, $from = null) {
         // Set default sender if not provided
@@ -79,6 +82,16 @@
         $db = $dbName;
         $dbLocation = $output["db_location"];
         $connection=db_connect($sqhost,$squser,$sqpass,$db);
+        // SST-987: the webhook URL registered at EasyUBL carries the account's key, so a call without it does not come from EasyUBL.
+        // Until webhookKeyRequired is set, such a call is only logged, so no incoming invoice is lost while accounts are registered again.
+        $keyCheck = easyubl_webhook_key_check(ifset($_GET, 'key'));
+        if (!$keyCheck['valid']) {
+            error_log("SST-987 easyUBL.php: call for $db without a valid webhook key (" . $keyCheck['reason'] . "), " . ($keyCheck['required'] ? "refused" : "let through"));
+            if ($keyCheck['required']) {
+                http_response_code(403);
+                exit;
+            }
+        }
         $query = db_select("SELECT email FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $r = db_fetch_array($query);
         $email = $r["email"];
