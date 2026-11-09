@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). The checks behind debitor/semanticWebhook.php without a server or database: the URL token, Semantic's signature and the payload.
 //                 Also how Semantic's statuses become the words on the order.
+// 20261109 CL/MMR SD-815 Review fixes: an error after Sent keeps Sent and stores the text; a notification's own status is never applied.
 
 declare(strict_types=1);
 
@@ -257,7 +258,7 @@ final class semanticWebhook extends TestCase
             'backwards' => array('Sent', 'Pending', false),
             'out of order validating' => array('PendingValid', 'PendingValidating', false),
             'error while on its way' => array('Sending', 'Error', true),
-            'error after sent' => array('Sent', 'Error', true),
+            'error after sent' => array('Sent', 'Error', false),
             'error after received' => array('Received', 'Error', false),
             'retry after error' => array('Error', 'Pending', true),
             'unknown outcome resolved' => array('Unknown', 'Pending', true),
@@ -302,5 +303,51 @@ final class semanticWebhook extends TestCase
         $this->assertSame('Sent', $back['status']);
 
         $this->assertSame('unknown_status', semantic_status_plan($row, 'nonsense', null)['reason']);
+    }
+
+    public function testErrorAfterSentKeepsSentAndStoresTheText(): void
+    {
+        // 'Error' would let the next send go without asking, while the receiver may have the invoice (Q7)
+        $row = array('id' => 9, 'ordre_id' => 5, 'art' => 'DO', 'status' => 'Sent', 'status_text' => '');
+        foreach (array('5101', '5135') as $code) {
+            $plan = semantic_status_plan($row, $code, 'Delivery failed');
+            $this->assertSame('text_only', $plan['reason'], $code);
+            $this->assertSame('Sent', $plan['status']);
+            $this->assertSame(array('status_text' => 'Error: Delivery failed'), $plan['fields']);
+            $this->assertNull($plan['digitalStatus'], 'the order keeps Sent');
+        }
+        $again = semantic_status_plan(array('status_text' => 'Error: Delivery failed') + $row, '5135', 'Delivery failed');
+        $this->assertFalse($again['apply']);
+        $this->assertSame('Error', semantic_status_plan(array('status' => 'Sending') + $row, '5135', null)['status'], 'before Sent an error still counts');
+        $this->assertFalse(semantic_status_plan(array('status' => 'Approved') + $row, '5135', 'x')['apply'], 'a final answer is not touched');
+    }
+
+    public function testRefreshAppliesOnlySemanticsOwnStatus(): void
+    {
+        $answers = array();
+        $calls = 0;
+        $transport = function (string $method, string $url, array $headers, ?string $body) use (&$answers, &$calls): array {
+            $calls++;
+            return array_shift($answers) ?? array('status' => 503, 'body' => '', 'error' => null);
+        };
+        $uuid = static function (): string {
+            return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex(random_bytes(16)), 4));
+        };
+        $client = new \SemanticClient('https://semantic.example.invalid', $uuid(), $uuid(), $transport);
+        // id 0: semantic_status_apply() plans but writes nothing, so no database is needed
+        $row = array('id' => 0, 'ordre_id' => 0, 'art' => 'DO', 'status' => 'Pending', 'status_text' => '', 'semantic_doc_id' => '77', 'ubl_doc_id' => 'u');
+
+        // The status call fails: the notification's 5135 (anyone holding the URL can send one) is not applied
+        $answers = array(array('status' => 503, 'body' => '', 'error' => null));
+        $result = semantic_status_refresh($client, $row, 5135, 'forged');
+        $this->assertFalse($result['ok']);
+        $this->assertFalse($result['changed']);
+        $this->assertSame('Pending', $result['status']);
+
+        // Semantic says Sent: that is applied, and the notification's text for another status is not
+        $answers = array(array('status' => 200, 'body' => '5140', 'error' => null));
+        $result = semantic_status_refresh($client, $row, 5135, 'forged');
+        $this->assertTrue($result['ok']);
+        $this->assertSame('Sent', $result['status']);
     }
 }

@@ -24,12 +24,13 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Writes the document model as a Peppol BIS Billing 3.0 Invoice or CreditNote (UBL 2.1 XML).
 //                 The writer is pure: no database and no globals, so it is tested against golden files that pass the Peppol validator.
+// 20261109 CL/MMR SD-815 Unit prices are written with up to 8 decimals, so a returned item's net price can keep PEPPOL-EN16931-R120.
 
 /*
  * The model is documented at peppol_model_example() in includes/einvoice/peppolModel.php.
  * The writer only maps it to XML: it does not compute totals, VAT or identifiers. Elements are written in UBL 2.1 schema
  * order, an optional value that is null or '' leaves its element out (PEPPOL-EN16931-R008), amounts get 2 decimals
- * and prices 2 to 4. An optional key that is missing counts as null.
+ * and prices 2 to 8. An optional key that is missing counts as null.
  */
 
 if (!defined('PEPPOL_BIS_NS_CAC')) {
@@ -414,7 +415,9 @@ if (!function_exists('peppol_bis_amount')) {
 
 if (!function_exists('peppol_bis_price')) {
 	/**
-	 * Appends a unit price element (2 to 4 decimals) with currencyID; a null or '' price appends nothing.
+	 * Appends a unit price element (2 to 8 decimals) with currencyID; a null or '' price appends nothing.
+	 * Saldi's prices have 3 decimals; the builder gives a returned item's net price more when PEPPOL-EN16931-R120 needs them
+	 * (EN 16931 sets no decimal limit for BT-146/BT-147/BT-148).
 	 *
 	 * @param DOMElement|null       $parent        The parent element.
 	 * @param string                $qualifiedName e.g. 'cbc:PriceAmount'.
@@ -424,7 +427,7 @@ if (!function_exists('peppol_bis_price')) {
 	 */
 	function peppol_bis_price(?DOMElement $parent, string $qualifiedName, $price, string $currency): ?DOMElement {
 		if ($price === null || $price === '') return null;
-		return peppol_bis_add($parent, $qualifiedName, peppol_bis_decimal($price, 2, 4), array('currencyID' => $currency));
+		return peppol_bis_add($parent, $qualifiedName, peppol_bis_decimal($price, 2, 8), array('currencyID' => $currency));
 	}
 }
 

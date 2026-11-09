@@ -295,3 +295,47 @@ With Docker Compose these are passed through from `.env` (see
 call `includes/saldi_assist_token.php?embed_session=<32 hex chars>` in the
 same browser session; it must answer `{"token": "v1.<kid>...."}`. Anonymous
 calls answer `{"error": "no_session"}` with HTTP 401.
+
+---
+
+## E-invoice through Semantic (SD-815, draft)
+
+A regnskab whose setting `provider` (var_grp `einvoice`) is `semantic` builds
+its Peppol BIS 3.0 XML itself and sends it through Semantic's API
+(`includes/einvoice/`). Every other regnskab keeps EasyUBL. The connection is
+set per server, in the web server environment, never in a PHP file under the
+web root, a database or git:
+
+```
+# Required: the Semantic tenant this server sends for (all three, or none)
+SALDI_SEMANTIC_BASE_URL=https://<semantic api host>
+SALDI_SEMANTIC_TENANT_ID=<tenant uuid>
+SALDI_SEMANTIC_API_KEY=<api key>
+# Required for the first send of a regnskab (onboarding) and for the status webhook:
+SALDI_SEMANTIC_WEBHOOK_SECRET=<32+ random characters, our own; signs the webhook URL>
+SALDI_SEMANTIC_WEBHOOK_BASE_URL=https://<server>/<installation>
+# Optional, once Semantic signs its webhook calls (two values, comma separated, during a rotation):
+SALDI_SEMANTIC_SIGNING_SECRETS=<signing secret>
+```
+
+Instead of the environment, the same values can be PHP variables in the
+key file one level above the installation (`../../.ht_keys.txt` seen from a
+page): `$semanticBaseUrl`, `$semanticTenantId`, `$semanticApiKey`,
+`$semanticWebhookSecret`, `$semanticWebhookBaseUrl` and
+`$semanticSigningSecrets` (a string or an array). The three connection values
+are read from one source only, never mixed.
+
+- A webhook secret shorter than 32 characters counts as missing.
+- The webhook base URL must be https; the webhook is
+  `<base URL>/debitor/semanticWebhook.php?db=<database>&t=<token>`. The token
+  is an HMAC of the database name with the webhook secret, so changing the
+  secret changes every registered webhook URL: the companies at Semantic must
+  then get the new URL. Keep query strings of that URL out of shared logs.
+- A test or development server must point at Semantic's dev tenant, never at
+  production, so a restored customer backup can never act as the customer.
+- Statuses that the webhook missed are fetched with
+  `php tools/semanticStatusPoll.php --all` (for example from cron every 15
+  minutes).
+
+With Docker Compose these are passed through from `.env` (see
+`docker-compose.yml` and `.env.example`).

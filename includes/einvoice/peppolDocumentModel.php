@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Builds the Peppol document model of includes/einvoice/peppolModel.php from the rows of peppol_invoice_rows().
 //                 The builder is pure: no database and no globals, so every accounting rule here is covered by tests with synthetic rows.
+// 20261109 CL/MMR SD-815 Review fixes: a seller without a sales VAT rate is sent as not VAT registered (category O), and a foreign customer's number without prefix belongs to the address country.
+//                 A 0184 endpoint typed with "DK" keeps it, a returned item's net price gets the decimals R120 needs, the rounding limits follow the number of lines, and "paid at posting" comes from the open item.
 
 /*
  * What this file decides, in the order peppol_document_model() runs it (each point needs Morten's or an accountant's approval):
@@ -45,16 +47,18 @@
  *     alone does not mean exempt: export orders carry it on every line (in real data: freight and goods to Norway).
  *     Greenland and the Faroe Islands are outside the EU (G) even though their address is sent as DK (option
  *     greenlandFaroeAsDk, as SST-870 does today). The customer's country is ordrer.land, then the card's land, then the
- *     CVR prefix, then DK.
- *  5. Totals: lines rounded to 2 decimals, VAT per category rounded like afrund(). When the booked ordrer.moms differs by less
- *     than 1.00 the largest S category takes the difference (BR-S-09/BR-CO-17 allow +-1); any difference to the booked
- *     ordrer.sum + ordrer.moms of at most maxRounding goes in PayableRoundingAmount, so PayableAmount is the booked receivable.
- *     A larger difference, or a VAT difference no S category can take, leaves reconciliation.ok false, and peppol_precheck()
- *     then stops the send. The 0.01-0.03 differences seen in real data come from momsupdat() rounding each line to 3
- *     decimals and taking the VAT of that sum, where the e-invoice must round each line to 2 decimals (BR-DEC-23).
- *  6. An invoice or credit note that bogfor_nu() settles at once (betalingsbet Kontant or Kreditkort with the account set
- *     under DIV 3, so no open item is made) is sent as prepaid: PrepaidAmount is the total and PayableAmount 0 (option
- *     paidAsPrepaid). With the account empty the open item stays, and so does the payable amount.
+ *     CVR prefix, then DK. A seller without any sales VAT rate above 0 (grupper SM, the advice for a customer who is not
+ *     VAT registered) sends every line as O and no VAT numbers at all (BR-O-02; option sellerVatRegistered).
+ *  5. Totals: lines rounded to 2 decimals, VAT per category rounded like afrund(). The booked ordrer.moms and ordrer.sum may
+ *     differ from that by what line rounding explains: 0.01 + 0.005 per invoice line (at most maxRounding, and below 1.00
+ *     for VAT). Within that limit the largest S category takes the VAT difference and PayableRoundingAmount the rest, so
+ *     PayableAmount is the booked receivable. A larger difference, or a VAT difference no S category can take, leaves
+ *     reconciliation.ok false, and peppol_precheck() then stops the send. The 0.01-0.05 differences seen in real data come
+ *     from momsupdat() rounding each line to 3 decimals and taking the VAT of that sum, where the e-invoice must round each
+ *     line to 2 decimals (BR-DEC-23).
+ *  6. An invoice or credit note that bogfor_nu() settled at posting (betalingsbet Kontant or Kreditkort posted straight to
+ *     the account under DIV 3, so it has no open item) is sent as prepaid: PrepaidAmount is the total and PayableAmount 0
+ *     (option paidAsPrepaid). Whether there is an open item is read from openpost (rows openItem), not from today's DIV 3.
  *  7. Payment, one means only (UBL-SR-44/47 forbid offering FIK and a bank account side by side): Danish customer: FIK 93
  *     (kortart 71, the PDF's payment id) when Stamdata has an FI creditor number, else 42 (reg.nr. + account), else 31 with
  *     the IBAN. Foreign customer or currency: 58 with the IBAN when there is one (SST-873), else 42. A credit note has none.
@@ -77,20 +81,22 @@ if (!function_exists('peppol_model_default_options')) {
 	 * @return array{
 	 *   documentType: string|null,       'invoice' or 'creditnote'; null takes it from ordrer.art (DK/KK give a credit note).
 	 *   sellerEndpoint: array{scheme: string, id: string}|null,  The endpoint Semantic registered for the sender; null derives 0184 + CVR.
-	 *   sellerVatRegistered: bool,       False sends every line as category O and leaves all VAT numbers out (BR-O-02).
+	 *   sellerVatRegistered: bool|null,  False sends every line as category O and leaves all VAT numbers out (BR-O-02). Null takes
+	 *                                    settings.vatRegistered from the rows (peppol_invoice_rows()), and true when that is absent.
 	 *   greenlandFaroeAsDk: bool,        Send a Greenland/Faroe address as DK (EasyUBL behaviour, SST-870).
 	 *   commentLines: string,            'note' puts the text of quantity-0 lines in the previous line's note, 'drop' leaves it out.
 	 *   fik: bool,                       Ask for FIK (code 93, kortart 71) instead of a bank transfer when Stamdata has an FI creditor number.
 	 *   taxCurrency: bool,               State the VAT total in the base currency when the document currency differs.
 	 *   paidAsPrepaid: bool,             Send an invoice or credit note settled at posting (Kontant/Kreditkort) with PayableAmount 0.
-	 *   maxRounding: float,              The largest difference to the booked total that PayableRoundingAmount may absorb.
+	 *   maxRounding: float,              The most a difference to the booked totals may be and still count as rounding; the limit
+	 *                                    itself is 0.01 + 0.005 per invoice line (peppol_model_rounding_limit()).
 	 * }
 	 */
 	function peppol_model_default_options() {
 		return array(
 			'documentType' => null,
 			'sellerEndpoint' => null,
-			'sellerVatRegistered' => true,
+			'sellerVatRegistered' => null,
 			'greenlandFaroeAsDk' => true,
 			'commentLines' => 'note',
 			'fik' => true,
@@ -305,6 +311,96 @@ if (!function_exists('peppol_model_se_orgnr_valid')) {
 	}
 }
 
+if (!function_exists('peppol_model_be_enterprise_valid')) {
+	/**
+	 * Whether a value is a Belgian enterprise number: 10 digits, the last two 97 minus the first eight modulo 97
+	 * (u:mod97-0208 in PEPPOL-EN16931-UBL.sch, PEPPOL-COMMON-R043 for scheme 0208).
+	 *
+	 * @param string|null $number The value.
+	 * @return bool
+	 */
+	function peppol_model_be_enterprise_valid($number) {
+		$number = (string)$number;
+		if (!preg_match('/^[0-9]{10}$/', $number)) {
+			return false;
+		}
+		return (97 - ((int)substr($number, 0, 8) % 97)) === (int)substr($number, 8, 2);
+	}
+}
+
+if (!function_exists('peppol_model_abn_valid')) {
+	/**
+	 * Whether a value is an Australian Business Number: 11 digits, weighted sum (first digit minus 1) modulo 89 is 0
+	 * (u:abn in PEPPOL-EN16931-UBL.sch, PEPPOL-COMMON-R050 for scheme 0151).
+	 *
+	 * @param string|null $number The value.
+	 * @return bool
+	 */
+	function peppol_model_abn_valid($number) {
+		$number = (string)$number;
+		if (!preg_match('/^[0-9]{11}$/', $number)) {
+			return false;
+		}
+		$weights = array(10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19);
+		$sum = ((int)$number[0] - 1) * $weights[0];
+		for ($i = 1; $i < 11; $i++) {
+			$sum += (int)$number[$i] * $weights[$i];
+		}
+		return ($sum % 89) === 0;
+	}
+}
+
+if (!function_exists('peppol_model_identifier_valid')) {
+	/**
+	 * Whether an identifier has the format the Peppol rules require for its scheme. Only the schemes with a fatal format
+	 * rule in PEPPOL-EN16931-UBL.sch are checked (PEPPOL-COMMON-R040 to R043, R049, R050, R052, R053); any other scheme
+	 * counts as valid here.
+	 *
+	 * @param string      $scheme The EAS / ICD code, e.g. '0088'.
+	 * @param string|null $id     The identifier as it is written to the XML.
+	 * @return bool
+	 */
+	function peppol_model_identifier_valid($scheme, $id) {
+		$id = (string)$id;
+		switch ((string)$scheme) {
+			case '0088':
+				return peppol_model_gln_valid($id);
+			case '0184':
+				return (bool)preg_match('/^(DK)?[0-9]{8}$/', $id);
+			case '0192':
+				return peppol_model_no_orgnr_valid($id);
+			case '0007':
+				return peppol_model_se_orgnr_valid($id);
+			case '0096':
+				return (bool)preg_match('/^[0-9]{10}$/', $id);
+			case '0198':
+				return (bool)preg_match('/^DK[0-9]{8}$/', $id);
+			case '0208':
+				return peppol_model_be_enterprise_valid($id);
+			case '0151':
+				return peppol_model_abn_valid($id);
+		}
+		return true;
+	}
+}
+
+if (!function_exists('peppol_model_rounding_limit')) {
+	/**
+	 * The largest difference between the e-invoice's totals and the booked ordrer.sum/ordrer.moms that line rounding can
+	 * explain: momsupdat() sums the lines at 3 decimals and bogfor_nu() rounds the VAT per line, where the e-invoice
+	 * rounds every line to 2 decimals, so each line can move the total by half an øre. 0.01 + 0.005 per invoice line,
+	 * at most $cap.
+	 *
+	 * @param int        $lineCount Invoice lines in the document.
+	 * @param int|float  $cap       The option maxRounding.
+	 * @return float
+	 */
+	function peppol_model_rounding_limit($lineCount, $cap = 1.00) {
+		$limit = round(0.01 + 0.005 * max(1, (int)$lineCount), 3);
+		return min($limit, (float)$cap);
+	}
+}
+
 if (!function_exists('peppol_model_cvr_parts')) {
 	/**
 	 * Reads a CVR field (order, card or Stamdata) as a country and a number.
@@ -348,7 +444,9 @@ if (!function_exists('peppol_model_endpoint_from_ean')) {
 	 * A plain number is a GLN (0088). "scheme:value" keeps a numeric scheme, except the three codes BIS 3.0.22 dropped
 	 * (9908 -> 0192, 0037 -> 0216, 9958 -> 0204); 0088 is the GLN (SST-905). A name such as "GLN:", "DK:CVR:" or
 	 * "SE:ORGNR:" is mapped; an unknown name with a 13-digit value is read as a GLN. The value is cleaned for the scheme:
-	 * 0184 without "DK", 0192 without "NO"/"MVA", 0007 as the 10-digit organisation number.
+	 * 0184 as the 8 digits, or as "DK" + 8 digits when the field states it so (PEPPOL-COMMON-R042 allows both, and a
+	 * receiver can be registered under either; the field is the user's only way to choose), 0192 without "NO"/"MVA",
+	 * 0007 as the 10-digit organisation number.
 	 * An unknown numeric scheme is kept as typed; peppol_precheck() reports it (EasyUBL silently sent it as DK:CVR).
 	 *
 	 * @param string|null $ean The EAN field (the order's, or the card's when the order has none).
@@ -381,7 +479,8 @@ if (!function_exists('peppol_model_endpoint_from_ean')) {
 			return null;
 		}
 		$clean = strtoupper(preg_replace('/[^0-9A-Za-z]/', '', $value));
-		if ($scheme === '0184' || $scheme === '0088' || $scheme === '0096' || $scheme === '0192') {
+		$typedWithDk = ($scheme === '0184' && preg_match('/^DK[0-9]{8}$/', $clean));
+		if (!$typedWithDk && ($scheme === '0184' || $scheme === '0088' || $scheme === '0096' || $scheme === '0192')) {
 			$digits = preg_replace('/[^0-9]/', '', $clean);
 			$clean = ($digits !== '') ? $digits : $clean;
 		} elseif ($scheme === '0198') {
@@ -839,7 +938,9 @@ if (!function_exists('peppol_model_line_amounts')) {
 	 * afrund((pris - rabat) * antal, 2) for rabatart 'amount', then procent applied and rounded again), negated on a
 	 * credit note. The difference to quantity x price is one line allowance (a charge when a negative discount raises it)
 	 * with reason code 95 for a discount. When quantity x price is negative (a returned item on an invoice) the discount
-	 * goes in the price instead (gross price, price discount, net price), so no allowance is negative.
+	 * goes in the price instead (gross price, price discount, net price), so no allowance is negative. That net price gets 4
+	 * decimals, or up to 8 when a large quantity needs them to keep quantity x price within 0.005 of the line amount
+	 * (PEPPOL-EN16931-R120; BT-146 has no decimal limit).
 	 *
 	 * @param array<string, mixed> $line     An ordrelinjer row.
 	 * @param bool                 $isCredit True for a credit note.
@@ -907,11 +1008,19 @@ if (!function_exists('peppol_model_line_amounts')) {
 
 		if ($gross < 0) {
 			// A negative line (a returned item on an invoice): the discount reduces the unit price instead.
-			$net = peppol_model_round(abs($amount / $quantity), 4);
+			$exact = abs($amount / $quantity);
+			for ($decimals = 4; $decimals <= 8; $decimals++) {
+				$net = peppol_model_round($exact, $decimals);
+				if (abs($amount - $quantity * $net) <= 0.005) {
+					break;
+				}
+			}
+			$decimals = min($decimals, 8);
 			$result['netPrice'] = $net;
 			if ($net < $price) {
+				// PEPPOL-EN16931-R046: net = gross - discount, exact at these decimals
 				$result['grossPrice'] = $price;
-				$result['priceDiscount'] = round($price - $net, 4);
+				$result['priceDiscount'] = round($price - $net, $decimals);
 			}
 			$result['slack'] = abs($amount - $quantity * $net);
 			return $result;
@@ -947,7 +1056,8 @@ if (!function_exists('peppol_document_model')) {
 	 * 'reconciliation' (the computed totals against the booked ordrer.sum/moms; peppol_precheck() stops the send when ok is false).
 	 *
 	 * @param array $rows From peppol_invoice_rows(): order, lines, seller, customer, debtorGroup, itemGroups, creditedInvoice,
-	 *                    settings, fikLayout. Missing parts count as empty.
+	 *                    settings (with the optional vatRegistered), fikLayout, and the optional openItem. Missing parts count
+	 *                    as empty.
 	 * @param array $opts See peppol_model_default_options().
 	 * @return array The model, plus 'issues' => list<string> and 'reconciliation' => array{
 	 *   bookedNet: float,       ordrer.sum, sign turned for a credit note.
@@ -956,7 +1066,9 @@ if (!function_exists('peppol_document_model')) {
 	 *   computedVat: float,     VAT of the categories before any adjustment.
 	 *   vatAdjustment: float,   Added to the largest S category so the VAT total is the booked one.
 	 *   roundingAmount: float,  Put in PayableRoundingAmount.
-	 *   ok: bool,               False when a difference was too large to absorb.
+	 *   ok: bool,               False when a difference was larger than line rounding explains (peppol_model_rounding_limit()).
+	 *   maxLineSlack: float,    The largest |line amount - (quantity x net price - allowances + charges)|; above 0.02 a line
+	 *                           breaks PEPPOL-EN16931-R120, and peppol_precheck() stops the send.
 	 * }
 	 * @throws InvalidArgumentException When $rows has no order.
 	 */
@@ -984,7 +1096,15 @@ if (!function_exists('peppol_document_model')) {
 			$issues[] = "documentType $documentType does not match ordrer.art $art";
 		}
 		$isCredit = ($documentType === 'creditnote');
-		$vatRegistered = (bool)$opts['sellerVatRegistered'];
+		if ($opts['sellerVatRegistered'] === null) {
+			// peppol_invoice_rows(): false when no sales VAT rate (grupper SM) is above 0
+			$vatRegistered = !(isset($settings['vatRegistered']) && $settings['vatRegistered'] === false);
+		} else {
+			$vatRegistered = (bool)$opts['sellerVatRegistered'];
+		}
+		if (!$vatRegistered) {
+			$issues[] = 'seller has no sales VAT rate above 0: sent as not VAT registered (category O, no VAT numbers)';
+		}
 
 		// Currency
 		$baseCurrency = strtoupper(trim((string)($settings['baseCurrency'] ?? '')));
@@ -1059,10 +1179,14 @@ if (!function_exists('peppol_document_model')) {
 		}
 		$gfAsDk = (bool)$opts['greenlandFaroeAsDk'];
 		$sentCountry = ($gfAsDk && ($buyerCountry === 'GL' || $buyerCountry === 'FO')) ? 'DK' : $buyerCountry;
-		// A number without prefix is Danish when it has 8 digits (sendInvoice()), else it belongs to the address country
-		$digitsOnly = preg_replace('/[^0-9]/', '', $cvrHint['raw']);
-		$defaultCvrCountry = (!$cvrHint['prefixed'] && $cvrHint['raw'] !== '' && strlen($digitsOnly) !== 8 && $buyerCountry !== 'GL' && $buyerCountry !== 'FO') ? $buyerCountry : 'DK';
+		// A number without prefix belongs to the address country; it is a Danish CVR for a Danish, Greenland or Faroe address.
+		// sendInvoice() read every such number with 8 digits as a CVR, which sent a Finnish, Luxembourg, Slovenian, Hungarian
+		// or Maltese number to 0184, the CVR endpoint of an unrelated Danish company. "DK" in front still makes it Danish.
+		$defaultCvrCountry = ($buyerCountry === 'GL' || $buyerCountry === 'FO') ? 'DK' : $buyerCountry;
 		$buyerCvr = peppol_model_cvr_parts($cvr, $defaultCvrCountry);
+		if ($cvrHint['raw'] !== '' && !$cvrHint['prefixed'] && $buyerCvr['country'] !== 'DK') {
+			$issues[] = "CVR field without country prefix read as a number from $buyerCountry (the address country)";
+		}
 
 		$buyerEndpoint = null;
 		if ($ean !== '') {
@@ -1290,7 +1414,8 @@ if (!function_exists('peppol_document_model')) {
 		$bookedNet = peppol_model_round($sign * (float)($order['sum'] ?? 0), 2);
 		$bookedVat = peppol_model_round($sign * (float)($order['moms'] ?? 0), 2);
 		$reconciliation = array('bookedNet' => $bookedNet, 'bookedVat' => $bookedVat, 'computedNet' => $lineTotal, 'computedVat' => $vatTotal,
-			'vatAdjustment' => 0.0, 'roundingAmount' => 0.0, 'ok' => true);
+			'vatAdjustment' => 0.0, 'roundingAmount' => 0.0, 'ok' => true, 'maxLineSlack' => round($maxSlack, 6));
+		$roundingLimit = peppol_model_rounding_limit(count($lines), (float)$opts['maxRounding']);
 		$vatDiff = peppol_model_round($bookedVat - $vatTotal, 2);
 		if ($vatDiff != 0) {
 			$largest = null;
@@ -1299,7 +1424,8 @@ if (!function_exists('peppol_document_model')) {
 					$largest = $key;
 				}
 			}
-			if ($largest !== null && abs($vatDiff) < 1) {
+			// BR-S-09/BR-CO-17 allow up to 1.00, but only line rounding is absorbed
+			if ($largest !== null && abs($vatDiff) <= min($roundingLimit, 0.99)) {
 				$groups[$largest]['taxAmount'] = peppol_model_round($groups[$largest]['taxAmount'] + $vatDiff, 2);
 				$reconciliation['vatAdjustment'] = $vatDiff;
 				$vatTotal = peppol_model_round($vatTotal + $vatDiff, 2);
@@ -1313,7 +1439,7 @@ if (!function_exists('peppol_document_model')) {
 		$taxInclusive = peppol_model_round($lineTotal + $vatTotal, 2);
 		$rounding = peppol_model_round($bookedNet + $bookedVat - $taxInclusive, 2);
 		if ($rounding != 0) {
-			if (abs($rounding) <= (float)$opts['maxRounding']) {
+			if (abs($rounding) <= $roundingLimit) {
 				$reconciliation['roundingAmount'] = $rounding;
 				$issues[] = 'PayableRoundingAmount ' . number_format($rounding, 2, '.', '') . ' makes the payable amount the booked ordrer.sum + ordrer.moms';
 			} else {
@@ -1323,10 +1449,16 @@ if (!function_exists('peppol_document_model')) {
 			}
 		}
 
-		// Settled at posting (bogfor_nu(): Kontant/Kreditkort with an account under DIV 3)
+		// Settled at posting: bogfor_nu() posted Kontant/Kreditkort straight to the account under DIV 3 and made no open item.
+		// The open item decides (rows openItem), as DIV 3 may have changed since; without it, today's DIV 3 is read.
 		$terms = strtolower(trim((string)($order['betalingsbet'] ?? '')));
-		$paid = $opts['paidAsPrepaid'] && (($terms === 'kontant' && trim((string)($settings['cashAccount'] ?? '')) !== '')
-			|| ($terms === 'kreditkort' && trim((string)($settings['cardAccount'] ?? '')) !== ''));
+		if (isset($rows['openItem']) && is_bool($rows['openItem'])) {
+			$settled = ($terms === 'kontant' || $terms === 'kreditkort') && !$rows['openItem'];
+		} else {
+			$settled = ($terms === 'kontant' && trim((string)($settings['cashAccount'] ?? '')) !== '')
+				|| ($terms === 'kreditkort' && trim((string)($settings['cardAccount'] ?? '')) !== '');
+		}
+		$paid = $opts['paidAsPrepaid'] && $settled;
 		$payableBeforePrepaid = peppol_model_round($taxInclusive + $rounding, 2);
 		$prepaid = $paid ? $payableBeforePrepaid : null;
 		$payable = $paid ? 0.0 : $payableBeforePrepaid;

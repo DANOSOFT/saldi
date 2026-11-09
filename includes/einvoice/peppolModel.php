@@ -25,6 +25,7 @@
 // 20261109 CL/MMR SD-815 Created (draft). The document model shared by the Peppol BIS 3.0 builder and writer.
 //                 Saldi builds the e-invoice XML itself and sends it through Semantic's API instead of sending JSON to EasyUBL.
 // 20261109 CL/MMR SD-815 Documented the builder's optional keys issues and reconciliation, reg.nr. in payeeAccount.bic for code 42, and dueDate on a credit note.
+// 20261109 CL/MMR SD-815 Unit prices may carry up to 8 decimals; reconciliation has the optional maxLineSlack.
 
 /*
  * SD-815 draft: how the pieces fit together.
@@ -40,8 +41,8 @@
  *   semantic_send_document($orderId, $type) includes/einvoice/semanticSend.php          send log, duplicate guard, SemanticClient, ordrer.digital_status
  *
  * The model is a plain array so the writer can be tested without a database and the builder without XML.
- * Amounts are PHP floats already rounded to 2 decimals, except unit prices (netPrice, grossPrice), which may carry
- * up to 4 decimals. Dates are 'YYYY-MM-DD'. Text is UTF-8 (the builder converts from the database encoding).
+ * Amounts are PHP floats already rounded to 2 decimals, except unit prices (netPrice, grossPrice, priceDiscount), which
+ * may carry up to 8 decimals (more than 4 only for a returned item's net price that needs them for PEPPOL-EN16931-R120). Dates are 'YYYY-MM-DD'. Text is UTF-8 (the builder converts from the database encoding).
  * A null or '' optional value means "leave the element out": Peppol rejects empty elements (PEPPOL-EN16931-R008).
  */
 
@@ -158,9 +159,10 @@ if (!function_exists('peppol_model_example')) {
 	 *     base64: string,                   BT-125, the file content base64-encoded.
 	 *   }>,
 	 *   issues?: list<string>,              Optional, set by peppol_document_model() only: English notes for developers; the writer ignores it.
-	 *   reconciliation?: array{bookedNet: float, bookedVat: float, computedNet: float, computedVat: float, vatAdjustment: float, roundingAmount: float, ok: bool},
+	 *   reconciliation?: array{bookedNet: float, bookedVat: float, computedNet: float, computedVat: float, vatAdjustment: float, roundingAmount: float, ok: bool, maxLineSlack?: float},
 	 *                                       Optional, set by peppol_document_model() only: the totals against the booked ordrer.sum/moms;
-	 *                                       peppol_precheck() stops the send when ok is false, the writer ignores it.
+	 *                                       peppol_precheck() stops the send when ok is false or the optional maxLineSlack (the largest
+	 *                                       line amount difference to quantity x net price) is above 0.02; the writer ignores it.
 	 * }
 	 */
 	function peppol_model_example($documentType = 'invoice') {

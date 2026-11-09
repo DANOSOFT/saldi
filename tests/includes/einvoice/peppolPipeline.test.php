@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Builder to writer: synthetic order rows through peppol_document_model(), peppol_precheck() and peppol_bis_xml().
 //                 With PEPPOL_BIS_VALIDATOR set, every produced XML also goes through the Peppol validator.
+// 20261109 CL/MMR SD-815 Review fixes: scenarios for a seller without a sales VAT rate (from the rows), a Finnish number without prefix, a large return with a discount, cash without an open item and a 0184 endpoint with DK.
 
 declare(strict_types=1);
 
@@ -178,6 +179,26 @@ final class peppolPipeline extends TestCase
 
         $cases['seller not VAT registered (O)'] = array(self::rows(array('momssats' => '0', 'moms' => '0'), array(array('momssats' => '0'))),
             array('sellerVatRegistered' => false));
+
+        // What semantic_send_document() does: no options, the VAT registration comes from peppol_invoice_rows()
+        $rows = self::rows(array('momssats' => '0', 'moms' => '0'), array(array('momssats' => '0')));
+        $rows['settings']['vatRegistered'] = false;
+        $cases['seller without a sales VAT rate, read from the rows (O)'] = array($rows, array());
+
+        $rows = self::rows(array('land' => 'Finland', 'cvrnr' => '00000001', 'momssats' => '0', 'moms' => '0'), array(array('momsfri' => 'on', 'momssats' => '0')));
+        $rows['debtorGroup']['box10'] = 'B2B-EU';
+        $cases['Finnish company, 8-digit number without prefix (0216, K)'] = array($rows, array());
+
+        $cases['returned item, large quantity, 7 % discount (R120)'] = array(self::rows(array('sum' => '5318.72', 'moms' => '1329.68'), array(
+            array('antal' => '1000', 'pris' => '12.345'),
+            array('posnr' => '2', 'antal' => '-612', 'pris' => '12.345', 'rabat' => '7'),
+        )), array());
+
+        $rows = self::rows(array('betalingsbet' => 'Kontant', 'betalingsdage' => '0'));
+        $rows['openItem'] = false;
+        $cases['cash without an open item at posting: prepaid, payable 0'] = array($rows, array());
+
+        $cases['CVR endpoint typed with DK in the EAN field'] = array(self::rows(array('ean' => '0184:DK22222222')), array());
 
         $rows = self::rows(array('lev_navn' => 'Lageret', 'lev_addr1' => 'Lagervej 9', 'lev_postnr' => '7000', 'lev_bynavn' => 'Lagerby', 'notes' => 'Bemærkning til ordren'));
         $rows['settings']['sendOrderNote'] = 'on';

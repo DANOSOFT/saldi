@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Status of documents sent through Semantic: the status words Saldi shows and semantic_status_apply() for the send log and ordrer.digital_status.
 //                 Also the pull fallback semantic_status_poll() and the pure checks behind debitor/semanticWebhook.php (URL token, payload, signature).
+// 20261109 CL/MMR SD-815 Review fixes: an error after 'Sent' only stores its text, so the duplicate guard still asks before a resend.
+//                 A notification's own status is never applied: when Semantic's status call fails the row waits for the poll.
 
 include_once(__DIR__ . '/semanticClient.php');
 include_once(__DIR__ . '/semanticSendLog.php');
@@ -138,7 +140,9 @@ if (!function_exists('semantic_status_transition')) {
 	/**
 	 * Whether a send-log row in status $current should move to $next. Notifications can arrive twice or out of order,
 	 * so a status never moves back: Sent does not become Pending again. The receiver's answers (Confirmed, Rejected,
-	 * Approved) are final, and an error no longer counts once the receiver has the document.
+	 * Approved) are final, and an error no longer replaces the status once the document was sent: the row keeps 'Sent'
+	 * (semantic_status_plan() stores the error text), because 'Error' lets the next send go without asking
+	 * (einvoice_sendlog_failed_statuses()) and the receiver may have the invoice.
 	 * SD-815 OPEN: (Q7) which statuses are final, and can an error follow 'Sent'?
 	 *
 	 * @param string $current The row's status ('' for none).
@@ -155,8 +159,8 @@ if (!function_exists('semantic_status_transition')) {
 		$nextRank = semantic_status_rank($next);
 		$final = in_array($current, array('Confirmed', 'Rejected', 'Approved'), true);
 		if ($nextRank === null) {
-			// An error word or an unnamed number.
-			return !$final && ($currentRank === null || $currentRank < 7);
+			// An error word or an unnamed number: only before the document was sent (rank 6)
+			return !$final && ($currentRank === null || $currentRank < 6);
 		}
 		if ($currentRank === null || in_array($current, array('NoStatus', 'Submitting', 'Unknown'), true)) {
 			return true;
@@ -203,6 +207,14 @@ if (!function_exists('semantic_status_plan')) {
 			$plan['apply'] = true;
 			$plan['fields']['status_text'] = $text;
 			$plan['reason'] = 'text_only';
+		} elseif (semantic_status_rank($word) === null && (int)semantic_status_rank($current) >= 6 && !in_array($current, array('Confirmed', 'Rejected', 'Approved'), true)) {
+			// An error after Sent: the status stays, the error is kept as text for support (Q7)
+			$errorText = $word . (($text !== '') ? ': ' . $text : '');
+			if ($errorText !== trim((string)($logRow['status_text'] ?? ''))) {
+				$plan['apply'] = true;
+				$plan['fields']['status_text'] = $errorText;
+				$plan['reason'] = 'text_only';
+			}
 		} elseif ($word !== $current) {
 			$plan['reason'] = 'refused_backwards';
 		}
@@ -244,9 +256,10 @@ if (!function_exists('semantic_status_apply')) {
 
 if (!function_exists('semantic_status_refresh')) {
 	/**
-	 * Ask Semantic for one row's status and apply it. Semantic's answer wins; the hint (from a webhook payload) is
-	 * used only when the status call fails. For an error, the document's errorText is fetched, and the UBL document id
-	 * is stored the first time it is seen.
+	 * Ask Semantic for one row's status and apply it. Only Semantic's answer is applied: the notification that triggered the
+	 * call is authenticated by a static URL token only, so its own status is a hint. When the status call fails, the row is
+	 * left alone and semantic_status_poll() tries again. The hint's text is used only when the hint's code is the status
+	 * Semantic gave. For an error, the document's errorText is fetched, and the UBL document id is stored the first time it is seen.
 	 *
 	 * @param SemanticClient $client
 	 * @param array<string, mixed> $row      From einvoice_sendlog_*(), with semantic_doc_id.
@@ -260,15 +273,13 @@ if (!function_exists('semantic_status_refresh')) {
 		$code = null;
 		if ($result['ok'] && (is_int($result['data']) || (is_string($result['data']) && preg_match('/^[0-9]{1,6}$/', $result['data'])))) {
 			$code = (int)$result['data'];
-		} elseif ($hintCode !== null) {
-			$code = (int)$hintCode;
 		}
 		if ($code === null) {
 			$message = $result['ok'] ? 'Semantic sendte en ukendt status' : $result['message'];
 			return array('ok' => false, 'changed' => false, 'status' => (string)($row['status'] ?? ''), 'message' => $message);
 		}
 		$word = (string)semantic_status_word((string)$code);
-		$text = $hintText;
+		$text = ($hintCode !== null && (int)$hintCode === $code) ? $hintText : null;
 		$needDocument = (trim((string)($row['ubl_doc_id'] ?? '')) === '')
 			|| in_array($word, array('Error', 'Rejected'), true) || strncmp($word, 'Status', 6) === 0;
 		if ($needDocument) {

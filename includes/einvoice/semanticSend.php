@@ -26,6 +26,7 @@
 //                 The guards (switch, copy of a regnskab, duplicate send) are pure functions here, so they are tested without a database.
 //                 A per-document database lock (semantic_send_lock()) keeps two windows from sending the same document at the same time.
 // 20261109 CL/MMR SD-815 The seller endpoint in the XML must be the one the onboarding registers (0184 + Stamdata CVR, or the Stamdata GLN), else the send stops.
+// 20261109 CL/MMR SD-815 Review fixes: the seller endpoint is checked against Stamdata before the onboarding calls Semantic, and afterwards against the CVR/GLN the regnskab was registered with.
 
 include_once(__DIR__ . '/semanticClient.php');
 include_once(__DIR__ . '/semanticSendLog.php');
@@ -320,7 +321,8 @@ if (!function_exists('semantic_seller_endpoint_mismatch')) {
 	 * Whether the seller endpoint the builder put in the document is one semantic_ensure_sender() registers for this
 	 * regnskab: 0184 + the 8-digit CVR of Stamdata, or 0088 + the Stamdata GLN. Both come from semantic_own_company(), so
 	 * an XML that names another seller endpoint (a foreign country in Stamdata, a CVR the onboarding reads differently)
-	 * is stopped instead of being sent under an address the regnskab is not registered with.
+	 * is stopped before the onboarding registers anything. semantic_seller_registration_mismatch() then compares it with
+	 * what was registered.
 	 *
 	 * @param array{scheme?: string, id?: string}|null $endpoint The model's seller endpoint.
 	 * @param array{cvr?: string, gln?: string}|null    $own      semantic_own_company(); null when Stamdata is missing.
@@ -331,10 +333,60 @@ if (!function_exists('semantic_seller_endpoint_mismatch')) {
 		$id = trim((string)($endpoint['id'] ?? ''));
 		$cvr = (string)($own['cvr'] ?? '');
 		$gln = (string)($own['gln'] ?? '');
-		if (($scheme === '0184' && preg_match('/^[0-9]{8}$/', $cvr) && $id === $cvr) || ($scheme === '0088' && $gln !== '' && $id === $gln)) {
+		if (semantic_seller_endpoint_matches($scheme, $id, $cvr, $gln)) {
 			return '';
 		}
 		return 'E-fakturaens afsender (' . $scheme . ':' . $id . ') er ikke det CVR-nummer fra Stamdata, som regnskabet er oprettet med til e-faktura. Ret CVR-nummer og land under Indstillinger > Stamdata, eller kontakt saldi.dk support.';
+	}
+}
+
+if (!function_exists('semantic_seller_endpoint_matches')) {
+	/**
+	 * Whether a seller endpoint is 0184 + an 8-digit CVR or 0088 + a GLN.
+	 *
+	 * @param string $scheme The endpoint's scheme.
+	 * @param string $id     The endpoint's id.
+	 * @param string $cvr    The CVR it must equal.
+	 * @param string $gln    The GLN it may equal instead ('' for none).
+	 * @return bool
+	 */
+	function semantic_seller_endpoint_matches($scheme, $id, $cvr, $gln) {
+		$id = (string)$id;
+		return ($scheme === '0184' && preg_match('/^[0-9]{8}$/', (string)$cvr) && $id === (string)$cvr)
+			|| ($scheme === '0088' && (string)$gln !== '' && $id === (string)$gln);
+	}
+}
+
+if (!function_exists('semantic_seller_registration_mismatch')) {
+	/**
+	 * Whether the seller endpoint in the document is the CVR (or GLN) the regnskab's endpoints were registered with at
+	 * Semantic (settings semantic/endpointIdentifier, semantic_ensure_sender()). After a change of the CVR in Stamdata the
+	 * builder writes the new CVR while senderEndpointId is still the old registration, so the document is stopped.
+	 * A registration from before the identifiers were stored ('' in $sender) is compared with Stamdata instead.
+	 *
+	 * @param array{scheme?: string, id?: string}|null $endpoint The model's seller endpoint.
+	 * @param array{registeredCvr?: string, registeredGln?: string, endpointIdGln?: string|null} $sender semantic_ensure_sender().
+	 * @param array{cvr?: string, gln?: string}|null    $own      semantic_own_company().
+	 * @return string '' when it matches, else the Danish message for the user.
+	 */
+	function semantic_seller_registration_mismatch($endpoint, array $sender, $own) {
+		$scheme = trim((string)($endpoint['scheme'] ?? ''));
+		$id = trim((string)($endpoint['id'] ?? ''));
+		$cvr = trim((string)($sender['registeredCvr'] ?? ''));
+		if ($cvr === '') {
+			$cvr = (string)($own['cvr'] ?? '');
+		}
+		$gln = '';
+		if (!empty($sender['endpointIdGln'])) {
+			$gln = trim((string)($sender['registeredGln'] ?? ''));
+			if ($gln === '') {
+				$gln = (string)($own['gln'] ?? '');
+			}
+		}
+		if (semantic_seller_endpoint_matches($scheme, $id, $cvr, $gln)) {
+			return '';
+		}
+		return 'E-fakturaens afsender (' . $scheme . ':' . $id . ') er ikke det CVR-nummer, regnskabet er registreret med til e-faktura (' . $cvr . '). Er CVR-nummeret i Stamdata ændret, skal registreringen flyttes af saldi.dk support, før der kan sendes.';
 	}
 }
 
@@ -472,8 +524,9 @@ if (!function_exists('semantic_send_document_locked')) {
 	 *
 	 * Steps: the order (art, invoiced, invoice number); the copy guard (semantic_copy_guard());
 	 * the duplicate guard (semantic_duplicate_guard()); the builder (peppol_invoice_rows(), peppol_document_model(),
-	 * peppol_precheck(), peppol_bis_xml()); the sender at Semantic (semantic_ensure_sender()) and the document's seller
-	 * endpoint against it (semantic_seller_endpoint_mismatch()); an optional local
+	 * peppol_precheck(), peppol_bis_xml()); the document's seller endpoint against Stamdata (semantic_seller_endpoint_mismatch());
+	 * the sender at Semantic (semantic_ensure_sender()) and the seller endpoint against the registration
+	 * (semantic_seller_registration_mismatch()); an optional local
 	 * validator; the network (semantic_choose_network()); a send-log row with the XML and its SHA-256 (Saldi's own archive);
 	 * ValidatePeppolDocument; CreateOutgoingDocument; the send log and ordrer.digital_status.
 	 * Nothing is printed and nothing exits: the caller shows the result.
@@ -551,6 +604,14 @@ if (!function_exists('semantic_send_document_locked')) {
 			return semantic_send_result(false, 'precheck', implode("\n", $messages));
 		}
 
+		// The seller endpoint against Stamdata before anything is registered: a document that can never be sent must not
+		// make the onboarding create a company or endpoints at Semantic
+		$own = semantic_own_company();
+		$senderMismatch = semantic_seller_endpoint_mismatch($model['seller']['endpoint'] ?? null, $own);
+		if ($senderMismatch !== '') {
+			return semantic_send_result(false, 'onboarding', $senderMismatch);
+		}
+
 		$client = (isset($context['client']) && $context['client'] instanceof SemanticClient) ? $context['client'] : semantic_client();
 		if (!$client instanceof SemanticClient) {
 			return semantic_send_result(false, 'config', 'E-faktura via Semantic er ikke sat op på denne server. Kontakt saldi.dk support.');
@@ -560,7 +621,8 @@ if (!function_exists('semantic_send_document_locked')) {
 			return semantic_send_result(false, 'onboarding', $sender['message']);
 		}
 		$warning = ($sender['message'] !== '') ? "\n" . $sender['message'] : '';
-		$senderMismatch = semantic_seller_endpoint_mismatch($model['seller']['endpoint'] ?? null, semantic_own_company());
+		// ... and against what the regnskab was registered with (Stamdata may have changed since)
+		$senderMismatch = semantic_seller_registration_mismatch($model['seller']['endpoint'] ?? null, $sender, $own);
 		if ($senderMismatch !== '') {
 			return semantic_send_result(false, 'onboarding', $senderMismatch);
 		}

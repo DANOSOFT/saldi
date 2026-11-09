@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Reads an invoiced order and everything peppol_document_model() needs, as plain UTF-8 arrays.
 //                 Only reads: no row is written, so it is safe on a copy of a customer's database.
+// 20261109 CL/MMR SD-815 Also reads whether the seller has a sales VAT rate above 0 (settings vatRegistered) and whether the posting made an open item (openItem).
 
 include_once(__DIR__ . '/../var2str.php');
 
@@ -146,6 +147,37 @@ if (!function_exists('peppol_rows_setting')) {
 	}
 }
 
+if (!function_exists('peppol_rows_vat_registered')) {
+	/**
+	 * Whether the seller is VAT registered, read from its sales VAT groups (grupper art='SM', box2 = the rate): a seller
+	 * that is not VAT registered is set up with 0 % on every Salgsmoms row, so it is registered when one rate is above 0.
+	 * The rows of the invoice's fiscal year count; without any for that year, all rows count. No SM row at all counts as
+	 * registered (the default the builder had).
+	 *
+	 * @param list<array{fiscal_year?: int|string|null, box2?: string|null}> $groups     The SM rows.
+	 * @param int|null                                                        $fiscalYear grupper.kodenr of the RA row covering the invoice date.
+	 * @return bool
+	 */
+	function peppol_rows_vat_registered(array $groups, $fiscalYear) {
+		$ofYear = array();
+		foreach ($groups as $group) {
+			if ($fiscalYear !== null && (int)($group['fiscal_year'] ?? 0) === (int)$fiscalYear) {
+				$ofYear[] = $group;
+			}
+		}
+		$counted = $ofYear ? $ofYear : $groups;
+		if (!$counted) {
+			return true;
+		}
+		foreach ($counted as $group) {
+			if ((float)str_replace(',', '.', trim((string)($group['box2'] ?? ''))) > 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 if (!function_exists('peppol_invoice_rows')) {
 	/**
 	 * Reads everything the Peppol document model needs for one order, without any interpretation; peppol_document_model()
@@ -164,7 +196,10 @@ if (!function_exists('peppol_invoice_rows')) {
 	 *   debtorGroup: array<string, string|null>|null,  grupper art='DG' of the card's group (box1 VAT group, box9 reverse charge, box10 EU zone).
 	 *   itemGroups: array<int, array{group: int, type: string, reverseCharge: string, vatExempt: string}>,  Per vare_id: varer.gruppe and its grupper art='VG' box5/box6/box7.
 	 *   creditedInvoice: array{id: int, fakturanr: string|null, fakturadate: string|null, art: string|null}|null,  The order ordrer.kred_ord_id points at.
-	 *   settings: array{baseCurrency: string, baseCountry: string, sendOrderNote: string, cashAccount: string, cardAccount: string},
+	 *   settings: array{baseCurrency: string, baseCountry: string, sendOrderNote: string, cashAccount: string, cardAccount: string, vatRegistered: bool},
+	 *                                                  vatRegistered: peppol_rows_vat_registered() for the invoice's fiscal year.
+	 *   openItem: bool|null,                           Whether bogfor_nu() made an open item for the invoice (openpost with
+	 *                                                  refnr = ordrer.id and faktnr = fakturanr); null without a customer account.
 	 *   fikLayout: array{accountLength: int, invoiceLength: int},  betalingsid layout of the invoice form, as modulus_10() reads it.
 	 *   encoding: string,                              $db_encode the strings were converted from.
 	 * }
@@ -181,7 +216,8 @@ if (!function_exists('peppol_invoice_rows')) {
 			'debtorGroup' => null,
 			'itemGroups' => array(),
 			'creditedInvoice' => null,
-			'settings' => array('baseCurrency' => 'DKK', 'baseCountry' => '', 'sendOrderNote' => 'off', 'cashAccount' => '', 'cardAccount' => ''),
+			'settings' => array('baseCurrency' => 'DKK', 'baseCountry' => '', 'sendOrderNote' => 'off', 'cashAccount' => '', 'cardAccount' => '', 'vatRegistered' => true),
+			'openItem' => null,
 			'fikLayout' => array('accountLength' => 0, 'invoiceLength' => 14),
 			'encoding' => (string)($db_encode ?? 'UTF8'),
 		);
@@ -256,6 +292,22 @@ if (!function_exists('peppol_invoice_rows')) {
 			$rows['settings']['cashAccount'] = trim((string)$r['box7']);
 			$rows['settings']['cardAccount'] = trim((string)$r['box10']);
 		}
+		// Whether the posting left an open item: today's DIV 3 may differ from what bogfor_nu() saw at posting
+		$fakturanr = trim((string)($order['fakturanr'] ?? ''));
+		if ($kontoId > 0 && $fakturanr !== '') {
+			$qtxt = "SELECT id FROM openpost WHERE refnr = $orderId AND faktnr = '" . db_escape_string($fakturanr) . "'";
+			// The order's account first (openpost is indexed on konto_id); then any account, as an open item keeps the
+			// account it was posted to when the order's account is changed later
+			$rows['openItem'] = (bool)db_fetch_array(db_select("$qtxt AND konto_id = $kontoId", __FILE__ . " linje " . __LINE__))
+				|| (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		}
+		// A seller that is not VAT registered has no sales VAT rate above 0 (category O, no VAT numbers)
+		$smGroups = array();
+		$q = db_select("SELECT fiscal_year, box2 FROM grupper WHERE art = 'SM'", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$smGroups[] = array('fiscal_year' => $r['fiscal_year'], 'box2' => $r['box2']);
+		}
+		$rows['settings']['vatRegistered'] = peppol_rows_vat_registered($smGroups, $fiscalYear);
 
 		if (trim((string)($rows['seller']['bank_fi'] ?? '')) !== '') {
 			// modulus_10() in includes/formfunk.php: the invoice form's language, xa/ya or betalingsid(account,invoice)

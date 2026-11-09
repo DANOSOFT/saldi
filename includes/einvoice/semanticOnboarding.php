@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Lazy sender onboarding at Semantic on the first digital send (semantic_ensure_sender()) and the regnskab's Semantic ids in settings var_grp 'semantic'.
 //                 The copy guard: the ids are stored with the database name, and a database with another name (a restored backup) never sends as the customer.
+// 20261109 CL/MMR SD-815 A failed company lookup stops the onboarding instead of creating a second company, the proposed company id is reused, and the CVR/GLN the endpoints were made for is stored.
 
 include_once(__DIR__ . '/semanticClient.php');
 include_once(__DIR__ . '/semanticStatus.php');
@@ -35,6 +36,8 @@ include_once(__DIR__ . '/../stdFunc/einvoiceCvr.php');
  *   companyIdCandidate  the id we proposed in POST /api/Company, kept until the company is confirmed
  *   endpointId          the 0184 (CVR) endpoint id (uuid), used as senderEndpointId
  *   endpointIdGln       the 0088 (GLN) endpoint id, when Stamdata has an EAN
+ *   endpointIdentifier  the CVR (8 digits) the 0184 endpoint was made for, so a later change in Stamdata is noticed
+ *   endpointIdentifierGln the GLN the 0088 endpoint was made for
  *   defaultEndpointSet  '1' when the CVR endpoint is the company's default
  *   peppolRegistered    '1' when registerInPeppol succeeded
  *   dbName              the database these ids were made in (copy guard)
@@ -46,7 +49,8 @@ if (!function_exists('semantic_settings_names')) {
 	 * @return list<string>
 	 */
 	function semantic_settings_names() {
-		return array('companyId', 'companyIdCandidate', 'endpointId', 'endpointIdGln', 'defaultEndpointSet', 'peppolRegistered', 'dbName');
+		return array('companyId', 'companyIdCandidate', 'endpointId', 'endpointIdGln', 'endpointIdentifier', 'endpointIdentifierGln', 'defaultEndpointSet',
+			'peppolRegistered', 'dbName');
 	}
 }
 
@@ -54,7 +58,7 @@ if (!function_exists('semantic_settings_read')) {
 	/**
 	 * The regnskab's Semantic settings (var_grp 'semantic'); a missing one is ''.
 	 *
-	 * @return array{companyId: string, companyIdCandidate: string, endpointId: string, endpointIdGln: string, defaultEndpointSet: string, peppolRegistered: string, dbName: string}
+	 * @return array{companyId: string, companyIdCandidate: string, endpointId: string, endpointIdGln: string, endpointIdentifier: string, endpointIdentifierGln: string, defaultEndpointSet: string, peppolRegistered: string, dbName: string}
 	 */
 	function semantic_settings_read() {
 		$settings = array_fill_keys(semantic_settings_names(), '');
@@ -284,12 +288,17 @@ if (!function_exists('semantic_find_company_id')) {
 	 * @param SemanticClient $client
 	 * @param string         $candidate The uuid we proposed ('' to skip).
 	 * @param string         $cvr       8 digits.
-	 * @return array{companyId: string|null, ambiguous: bool, message: string}
+	 * @return array{companyId: string|null, ambiguous: bool, message: string} message is set when a lookup failed, so
+	 *   "not found" is not known (semantic_company_lookup_action()).
 	 */
 	function semantic_find_company_id(SemanticClient $client, $candidate, $cvr) {
 		if (SemanticClient::isUuid($candidate)) {
 			$found = $client->getCompanies(array('companyId' => $candidate));
-			if ($found['ok'] && is_array($found['data'])) {
+			if (!$found['ok']) {
+				// Unknown whether the proposed company exists: the caller must not create another one
+				return array('companyId' => null, 'ambiguous' => false, 'message' => $found['message']);
+			}
+			if (is_array($found['data'])) {
 				foreach ($found['data'] as $company) {
 					if (is_array($company) && strcasecmp((string)($company['companyId'] ?? ''), $candidate) === 0) {
 						return array('companyId' => strtolower($candidate), 'ambiguous' => false, 'message' => '');
@@ -312,6 +321,31 @@ if (!function_exists('semantic_find_company_id')) {
 			return array('companyId' => (string)key($ids), 'ambiguous' => false, 'message' => '');
 		}
 		return array('companyId' => null, 'ambiguous' => count($ids) > 1, 'message' => '');
+	}
+}
+
+if (!function_exists('semantic_company_lookup_action')) {
+	/**
+	 * What the onboarding does after semantic_find_company_id(): only a lookup that worked and found nothing allows a new
+	 * POST /api/Company, so a lost answer or a Semantic outage never leaves two companies for one CVR.
+	 *
+	 * @param array{companyId: string|null, ambiguous: bool, message: string} $found        semantic_find_company_id().
+	 * @param bool                                                             $hasCandidate An earlier run proposed a company id.
+	 * @return string 'use' (the company found is ours), 'create', 'retry' (a lookup failed) or 'refuse' (the CVR is taken,
+	 *                or several companies have it).
+	 */
+	function semantic_company_lookup_action(array $found, $hasCandidate) {
+		if (trim((string)($found['message'] ?? '')) !== '') {
+			return 'retry';
+		}
+		if (!empty($found['ambiguous'])) {
+			return 'refuse';
+		}
+		if (($found['companyId'] ?? null) !== null && (string)$found['companyId'] !== '') {
+			// After our own proposal it is the company we created; without one, the CVR was registered by someone else
+			return $hasCandidate ? 'use' : 'refuse';
+		}
+		return 'create';
 	}
 }
 
@@ -381,12 +415,15 @@ if (!function_exists('semantic_ensure_sender')) {
 	 *   companyId: string|null,
 	 *   endpointId: string|null,        The CVR endpoint (senderEndpointId).
 	 *   endpointIdGln: string|null,
+	 *   registeredCvr: string,          The CVR the CVR endpoint was made for ('' when not stored: registered before 20261109).
+	 *   registeredGln: string,          The GLN the GLN endpoint was made for ('' when none or not stored).
 	 * }
 	 */
 	function semantic_ensure_sender($client = null, array $context = array()) {
 		$db = (string)($context['db'] ?? ($GLOBALS['db'] ?? ''));
 		$settings = semantic_settings_read();
-		$out = array('ok' => false, 'status' => 'failed', 'message' => '', 'companyId' => null, 'endpointId' => null, 'endpointIdGln' => null);
+		$out = array('ok' => false, 'status' => 'failed', 'message' => '', 'companyId' => null, 'endpointId' => null, 'endpointIdGln' => null,
+			'registeredCvr' => '', 'registeredGln' => '');
 		$easyUblCompanyId = (string)get_settings_value('companyID', 'easyUBL', '');
 		$decision = semantic_onboarding_decision($settings, $easyUblCompanyId, $db);
 		if ($decision['action'] === 'refuse') {
@@ -396,7 +433,8 @@ if (!function_exists('semantic_ensure_sender')) {
 		}
 		if ($decision['action'] === 'ready') {
 			return array('ok' => true, 'status' => 'ready', 'message' => '', 'companyId' => $settings['companyId'],
-				'endpointId' => $settings['endpointId'], 'endpointIdGln' => ($settings['endpointIdGln'] !== '') ? $settings['endpointIdGln'] : null);
+				'endpointId' => $settings['endpointId'], 'endpointIdGln' => ($settings['endpointIdGln'] !== '') ? $settings['endpointIdGln'] : null,
+				'registeredCvr' => $settings['endpointIdentifier'], 'registeredGln' => $settings['endpointIdentifierGln']);
 		}
 		$client = $client ?? semantic_client();
 		if (!$client instanceof SemanticClient) {
@@ -422,17 +460,23 @@ if (!function_exists('semantic_ensure_sender')) {
 			$settings['dbName'] = $db;
 		}
 		$companyId = $settings['companyId'];
-		if ($companyId === '' && $settings['companyIdCandidate'] !== '') {
-			// An earlier run proposed an id; the call may have succeeded before the answer was lost.
+		$hasCandidate = ($settings['companyIdCandidate'] !== '');
+		if ($companyId === '') {
+			// With a candidate, an earlier run proposed that id, and the call may have succeeded before the answer was lost.
 			$found = semantic_find_company_id($client, $settings['companyIdCandidate'], $own['cvr']);
-			$companyId = (string)$found['companyId'];
-		} elseif ($companyId === '') {
-			$found = semantic_find_company_id($client, '', $own['cvr']);
-			if ($found['companyId'] !== null || $found['ambiguous']) {
+			$action = semantic_company_lookup_action($found, $hasCandidate);
+			if ($action === 'retry') {
+				$out['message'] = 'Semantic kunne ikke svare på, om virksomheden allerede er oprettet til e-faktura. Prøv igen senere.' . "\n" . $found['message'];
+				return $out;
+			}
+			if ($action === 'refuse') {
 				// SD-815 OPEN: two regnskaber with one CVR (one CVR routes to one company and one webhook).
 				$out['status'] = 'refused';
 				$out['message'] = 'CVR-nummeret er allerede oprettet til e-faktura, måske fra et andet regnskab. Kontakt saldi.dk support.';
 				return $out;
+			}
+			if ($action === 'use') {
+				$companyId = (string)$found['companyId'];
 			}
 		}
 		if ($companyId === '') {
@@ -444,8 +488,11 @@ if (!function_exists('semantic_ensure_sender')) {
 				$out['message'] = 'Webhook til e-faktura er ikke sat op på denne server. Kontakt saldi.dk support.';
 				return $out;
 			}
-			$candidate = semantic_uuid4();
-			semantic_settings_write('companyIdCandidate', $candidate);
+			// The lookups proved the proposed company absent: propose the same id again, so a lost answer can still be found
+			$candidate = $hasCandidate ? $settings['companyIdCandidate'] : semantic_uuid4();
+			if (!$hasCandidate) {
+				semantic_settings_write('companyIdCandidate', $candidate);
+			}
 			$created = $client->createCompany(semantic_company_payload($own, $candidate, semantic_webhook_url($base, $db, $secret)));
 			if (!$created['ok']) {
 				$out['message'] = 'Virksomheden kunne ikke oprettes til e-faktura hos Semantic: ' . $created['message'];
@@ -475,9 +522,12 @@ if (!function_exists('semantic_ensure_sender')) {
 				return $out;
 			}
 			semantic_settings_write('endpointId', $endpoint['endpointId']);
+			semantic_settings_write('endpointIdentifier', $own['cvr']);
 			$settings['endpointId'] = $endpoint['endpointId'];
+			$settings['endpointIdentifier'] = $own['cvr'];
 		}
 		$out['endpointId'] = $settings['endpointId'];
+		$out['registeredCvr'] = $settings['endpointIdentifier'];
 
 		// 3. The GLN endpoint (0088) when Stamdata has an EAN. Not needed to send, so a failure does not stop the send.
 		$warnings = array();
@@ -485,12 +535,15 @@ if (!function_exists('semantic_ensure_sender')) {
 			$gln = semantic_ensure_endpoint($client, $companyId, '0088', $own['gln']);
 			if ($gln['ok']) {
 				semantic_settings_write('endpointIdGln', $gln['endpointId']);
+				semantic_settings_write('endpointIdentifierGln', $own['gln']);
 				$settings['endpointIdGln'] = $gln['endpointId'];
+				$settings['endpointIdentifierGln'] = $own['gln'];
 			} else {
 				$warnings[] = $gln['message'];
 			}
 		}
 		$out['endpointIdGln'] = ($settings['endpointIdGln'] !== '') ? $settings['endpointIdGln'] : null;
+		$out['registeredGln'] = $settings['endpointIdentifierGln'];
 
 		// 4. The CVR endpoint as the company's default billing endpoint.
 		if ($settings['defaultEndpointSet'] !== '1') {

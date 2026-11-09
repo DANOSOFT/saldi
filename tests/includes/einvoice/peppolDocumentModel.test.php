@@ -23,6 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Tests for peppol_document_model() with synthetic order rows: VAT categories, discounts, totals against the booking, identifiers, payment.
+// 20261109 CL/MMR SD-815 Review fixes: seller without VAT registration from the rows, foreign numbers without prefix, 0184 with "DK", R120 on large returns, rounding limits, open item, identifier formats.
 
 declare(strict_types=1);
 
@@ -386,8 +387,12 @@ final class peppolDocumentModel extends TestCase
         self::assertSame(array('scheme' => '0088', 'id' => $gln), peppol_model_endpoint_from_ean($gln));
         self::assertSame(array('scheme' => '0088', 'id' => $gln), peppol_model_endpoint_from_ean('0088:' . $gln));
         self::assertSame(array('scheme' => '0088', 'id' => $gln), peppol_model_endpoint_from_ean('GLN:' . $gln));
-        self::assertSame(array('scheme' => '0184', 'id' => '22222222'), peppol_model_endpoint_from_ean('0184:DK22222222'));
+        // a CVR endpoint keeps "DK" when the field states it (PEPPOL-COMMON-R042 allows both forms)
+        self::assertSame(array('scheme' => '0184', 'id' => 'DK22222222'), peppol_model_endpoint_from_ean('0184:DK22222222'));
+        self::assertSame(array('scheme' => '0184', 'id' => 'DK22222222'), peppol_model_endpoint_from_ean('0184:dk 2222 2222'));
+        self::assertSame(array('scheme' => '0184', 'id' => 'DK22222222'), peppol_model_endpoint_from_ean('DK:CVR:DK22222222'));
         self::assertSame(array('scheme' => '0184', 'id' => '22222222'), peppol_model_endpoint_from_ean('DK:CVR:22222222'));
+        self::assertSame(array('scheme' => '0184', 'id' => '22222222'), peppol_model_endpoint_from_ean('0184:22-22-22-22'));
         // codes Peppol BIS 3.0.22 no longer accepts are mapped to their successors
         self::assertSame(array('scheme' => '0192', 'id' => '000000001'), peppol_model_endpoint_from_ean('9908:NO000000001MVA'));
         self::assertSame(array('scheme' => '0216', 'id' => '003700000000'), peppol_model_endpoint_from_ean('0037:003700000000'));
@@ -793,5 +798,146 @@ final class peppolDocumentModel extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
         peppol_document_model(array('order' => null));
+    }
+
+    public function testSellerWithoutSalesVatRateFromTheRowsSendsCategoryO(): void
+    {
+        // peppol_invoice_rows() sets settings.vatRegistered false when no Salgsmoms rate is above 0
+        $rows = self::rows(array('momssats' => '0', 'moms' => '0'), array(array('momssats' => '0')));
+        $rows['settings']['vatRegistered'] = false;
+        $model = peppol_document_model($rows);
+        self::assertSame('O', $model['lines'][0]['vatCategory']);
+        self::assertSame('O', $model['taxSubtotals'][0]['category']);
+        self::assertNull($model['seller']['vatId'], 'BR-O-02: no seller VAT number');
+        self::assertNull($model['buyer']['vatId'], 'BR-O-02: no buyer VAT number');
+        self::assertSame(array('scheme' => '0184', 'id' => '11111111'), $model['seller']['legalId'], 'DK-R-002: the CVR stays as legal id');
+        self::assertTrue($model['reconciliation']['ok']);
+
+        // The explicit option wins over the rows, and rows without the key keep the registered default
+        self::assertSame('E', peppol_document_model($rows, array('sellerVatRegistered' => true))['lines'][0]['vatCategory']);
+        unset($rows['settings']['vatRegistered']);
+        self::assertSame('DK11111111', peppol_document_model($rows)['seller']['vatId']);
+    }
+
+    public function testVatRegistrationIsReadFromTheSalesVatRates(): void
+    {
+        $groups = array(
+            array('fiscal_year' => '1', 'box2' => '25'),
+            array('fiscal_year' => '2', 'box2' => '0.00'),
+            array('fiscal_year' => '2', 'box2' => '0,00'),
+        );
+        self::assertTrue(peppol_rows_vat_registered($groups, 1));
+        self::assertFalse(peppol_rows_vat_registered($groups, 2), 'every rate of the fiscal year is 0');
+        self::assertTrue(peppol_rows_vat_registered($groups, 3), 'no rows for the year: all rows count');
+        self::assertTrue(peppol_rows_vat_registered($groups, null));
+        self::assertFalse(peppol_rows_vat_registered(array(array('fiscal_year' => '1', 'box2' => '')), 1));
+        self::assertTrue(peppol_rows_vat_registered(array(), 1), 'no Salgsmoms rows: the registered default');
+        self::assertTrue(peppol_rows_vat_registered(array(array('fiscal_year' => '4', 'box2' => '12,5')), 4));
+    }
+
+    public function testForeignNumberWithoutPrefixBelongsToTheAddressCountry(): void
+    {
+        // An 8-digit number without prefix and a Finnish address is a Finnish business id, not a Danish CVR
+        $rows = self::rows(array('land' => 'Finland', 'cvrnr' => '00000001', 'momssats' => '0', 'moms' => '0'), array(array('momssats' => '0')));
+        $rows['customer']['cvrnr'] = '00000001';
+        $rows['debtorGroup']['box10'] = 'B2B-EU';
+        $model = peppol_document_model($rows);
+        self::assertSame(array('scheme' => '0216', 'id' => '003700000001'), $model['buyer']['endpoint']);
+        self::assertSame('FI00000001', $model['buyer']['vatId']);
+        self::assertNull($model['buyer']['legalId']);
+        self::assertSame('K', $model['lines'][0]['vatCategory']);
+
+        // "DK" in front still makes it a Danish CVR
+        $rows['order']['cvrnr'] = 'DK22222222';
+        $model = peppol_document_model($rows);
+        self::assertSame(array('scheme' => '0184', 'id' => '22222222'), $model['buyer']['endpoint']);
+        self::assertSame('DK22222222', $model['buyer']['vatId']);
+
+        // A Greenland or Faroe address keeps reading it as a CVR (sendInvoice())
+        $rows = self::rows(array('land' => 'Grønland', 'cvrnr' => '22222222', 'momssats' => '0', 'moms' => '0'), array(array('momssats' => '0')));
+        self::assertSame(array('scheme' => '0184', 'id' => '22222222'), peppol_document_model($rows)['buyer']['endpoint']);
+    }
+
+    public function testReturnedItemWithALargeQuantityKeepsR120(): void
+    {
+        // -612 x 12.345 less 7 %: at 4 decimals the net price 11.4808 gives 7026.25, 0.03 off (PEPPOL-EN16931-R120)
+        $lines = array(array('antal' => '-612', 'pris' => '12.345', 'rabat' => '7'));
+        $model = peppol_document_model(self::rows(array('sum' => '-7026.28', 'moms' => '-1756.57'), $lines));
+        $line = $model['lines'][0];
+        self::assertSame(-7026.28, $line['lineExtension']);
+        self::assertSame(11.48085, $line['netPrice']);
+        self::assertSame(12.345, $line['grossPrice']);
+        self::assertSame(0.86415, $line['priceDiscount']);
+        self::assertSame(0.0, round($line['grossPrice'] - $line['priceDiscount'] - $line['netPrice'], 8), 'PEPPOL-EN16931-R046');
+        self::assertLessThanOrEqual(0.005, abs($line['lineExtension'] - $line['quantity'] * $line['netPrice']));
+        self::assertLessThanOrEqual(0.005, $model['reconciliation']['maxLineSlack']);
+        self::assertTrue($model['reconciliation']['ok']);
+
+        // A small quantity keeps 4 decimals
+        $small = peppol_model_line_amounts(array('antal' => '-7', 'pris' => '12.345', 'rabat' => '7'), false);
+        self::assertSame(-80.37, $small['lineExtension']);
+        self::assertSame(11.4814, $small['netPrice']);
+    }
+
+    public function testRoundingLimitFollowsTheNumberOfLines(): void
+    {
+        self::assertSame(0.015, peppol_model_rounding_limit(1));
+        self::assertSame(0.015, peppol_model_rounding_limit(0));
+        self::assertSame(0.51, peppol_model_rounding_limit(100));
+        self::assertSame(1.0, peppol_model_rounding_limit(500));
+        self::assertSame(0.2, peppol_model_rounding_limit(500, 0.2));
+
+        // One line explains at most 0.015: a booked VAT 0.02 off is not rounding
+        $model = peppol_document_model(self::rows(array('sum' => '300', 'moms' => '75.02')));
+        self::assertFalse($model['reconciliation']['ok']);
+        self::assertSame(0.0, $model['reconciliation']['vatAdjustment']);
+        $model = peppol_document_model(self::rows(array('sum' => '300', 'moms' => '75.01')));
+        self::assertTrue($model['reconciliation']['ok']);
+        self::assertSame(0.01, $model['reconciliation']['vatAdjustment']);
+        // ... and a net difference of 0.80 is no rounding at all (the old limit was 1.00)
+        $model = peppol_document_model(self::rows(array('sum' => '300.80', 'moms' => '75')));
+        self::assertFalse($model['reconciliation']['ok']);
+        self::assertNull($model['totals']['roundingAmount']);
+    }
+
+    public function testSettledAtPostingFollowsTheOpenItemNotTodaysSettings(): void
+    {
+        $rows = self::rows(array('betalingsbet' => 'Kontant', 'betalingsdage' => '0'));
+        // Posted straight to the cash account (no open item), although DIV 3 has no account today
+        $rows['openItem'] = false;
+        $model = peppol_document_model($rows);
+        self::assertSame(375.0, $model['totals']['prepaid']);
+        self::assertSame(0.0, $model['totals']['payable']);
+        self::assertSame('Betalt kontant', $model['paymentTerms']);
+
+        // An open item was made, although DIV 3 has an account today: the customer still owes it
+        $rows['openItem'] = true;
+        $rows['settings']['cashAccount'] = '5800';
+        $model = peppol_document_model($rows);
+        self::assertNull($model['totals']['prepaid']);
+        self::assertSame(375.0, $model['totals']['payable']);
+
+        // Netto terms are never settled at posting
+        $rows = self::rows();
+        $rows['openItem'] = false;
+        self::assertSame(375.0, peppol_document_model($rows)['totals']['payable']);
+    }
+
+    public function testIdentifierFormatsOfTheFatalPeppolRules(): void
+    {
+        self::assertTrue(peppol_model_identifier_valid('0184', '22222222'));
+        self::assertTrue(peppol_model_identifier_valid('0184', 'DK22222222'));
+        self::assertFalse(peppol_model_identifier_valid('0184', '2222222'));
+        self::assertTrue(peppol_model_identifier_valid('0096', '0000000001'));
+        self::assertFalse(peppol_model_identifier_valid('0096', '000000001'), 'PEPPOL-COMMON-R052: a P-number has 10 digits');
+        self::assertTrue(peppol_model_identifier_valid('0198', 'DK00000001'));
+        self::assertFalse(peppol_model_identifier_valid('0198', 'DK0000001'), 'PEPPOL-COMMON-R053');
+        self::assertTrue(peppol_model_identifier_valid('0208', '0000000196'));
+        self::assertFalse(peppol_model_identifier_valid('0208', '0000000195'), 'PEPPOL-COMMON-R043: mod 97');
+        self::assertTrue(peppol_model_identifier_valid('0151', '10000000032'));
+        self::assertFalse(peppol_model_identifier_valid('0151', '10000000031'), 'PEPPOL-COMMON-R050: mod 89');
+        self::assertTrue(peppol_model_identifier_valid('0088', self::gln('000000001234')));
+        self::assertFalse(peppol_model_identifier_valid('0007', '0000000001'));
+        self::assertTrue(peppol_model_identifier_valid('9930', 'anything'), 'no fatal format rule for the scheme');
     }
 }

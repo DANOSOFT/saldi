@@ -25,6 +25,7 @@
 // 20261109 CL/MMR SD-815 Created (draft). The decisions of semantic_send_document() as pure functions: the duplicate guard, the copy guard, onboarding, the order check and the network.
 //                 Also the send log's SQL and XML archive, the send lock and the peppol.php page functions, without a database or the network.
 // 20261109 CL/MMR SD-815 Test that the seller endpoint in the XML must be the one the onboarding registers.
+// 20261109 CL/MMR SD-815 Review fixes: the seller endpoint against the stored registration, the company lookup decision, and no resend without asking after an error that followed Sent.
 
 declare(strict_types=1);
 
@@ -412,5 +413,52 @@ final class semanticSend extends TestCase
         $this->assertNotSame('', semantic_seller_endpoint_mismatch(array('scheme' => '0184', 'id' => 'DK11111111'), array('cvr' => 'DK11111111', 'gln' => '')), 'onboarding registers 8 digits only');
         $this->assertNotSame('', semantic_seller_endpoint_mismatch(array('scheme' => '0184', 'id' => '11111111'), null), 'no Stamdata');
         $this->assertNotSame('', semantic_seller_endpoint_mismatch(null, $own), 'no endpoint');
+    }
+
+    public function testSellerEndpointMustBeTheCvrTheRegistrationWasMadeFor(): void
+    {
+        // Registered with CVR 11111111; Stamdata now says 33333333, so the builder writes 0184:33333333
+        $sender = array('registeredCvr' => '11111111', 'registeredGln' => '', 'endpointIdGln' => null);
+        $own = array('cvr' => '33333333', 'gln' => '');
+        $endpoint = array('scheme' => '0184', 'id' => '33333333');
+        $this->assertSame('', semantic_seller_endpoint_mismatch($endpoint, $own), 'Stamdata alone does not see the change');
+        $this->assertStringContainsString('(11111111)', semantic_seller_registration_mismatch($endpoint, $sender, $own));
+        $this->assertSame('', semantic_seller_registration_mismatch(array('scheme' => '0184', 'id' => '11111111'), $sender, $own));
+
+        // A registration from before the identifier was stored falls back to Stamdata
+        $this->assertSame('', semantic_seller_registration_mismatch($endpoint, array('registeredCvr' => ''), $own));
+
+        // A GLN endpoint counts only when the regnskab has one registered
+        $gln = array('scheme' => '0088', 'id' => '0000000000017');
+        $this->assertNotSame('', semantic_seller_registration_mismatch($gln, $sender, array('cvr' => '11111111', 'gln' => '0000000000017')));
+        $withGln = array('registeredCvr' => '11111111', 'registeredGln' => '0000000000017', 'endpointIdGln' => 'c0ffee00-0000-4000-8000-000000000003');
+        $this->assertSame('', semantic_seller_registration_mismatch($gln, $withGln, array('cvr' => '11111111', 'gln' => '')));
+    }
+
+    public function testCompanyIsCreatedOnlyWhenTheLookupsWorkedAndFoundNothing(): void
+    {
+        $failed = array('companyId' => null, 'ambiguous' => false, 'message' => 'Semantic svarede ikke (HTTP 503)');
+        $nothing = array('companyId' => null, 'ambiguous' => false, 'message' => '');
+        $found = array('companyId' => 'c0ffee00-0000-4000-8000-000000000001', 'ambiguous' => false, 'message' => '');
+        $several = array('companyId' => null, 'ambiguous' => true, 'message' => '');
+        // A lost createCompany answer plus a failed lookup must not post a second company
+        $this->assertSame('retry', semantic_company_lookup_action($failed, true));
+        $this->assertSame('retry', semantic_company_lookup_action($failed, false));
+        $this->assertSame('create', semantic_company_lookup_action($nothing, true));
+        $this->assertSame('create', semantic_company_lookup_action($nothing, false));
+        $this->assertSame('use', semantic_company_lookup_action($found, true));
+        $this->assertSame('refuse', semantic_company_lookup_action($found, false), 'the CVR is registered by someone else');
+        $this->assertSame('refuse', semantic_company_lookup_action($several, true));
+        $this->assertSame('refuse', semantic_company_lookup_action($several, false));
+    }
+
+    public function testAnErrorAfterSentStillAsksBeforeAResend(): void
+    {
+        $row = array('id' => 4, 'ordre_id' => 5, 'art' => 'DO', 'status' => 'Sent', 'status_text' => '', 'created' => '2026-11-09 10:15:00');
+        $plan = semantic_status_plan($row, '5135', 'Delivery failed');
+        $row = array_merge($row, $plan['fields'], array('status' => $plan['status']));
+        $guard = semantic_duplicate_guard($row, 'Sent', false);
+        $this->assertFalse($guard['allowed']);
+        $this->assertSame('duplicate', $guard['reason']);
     }
 }

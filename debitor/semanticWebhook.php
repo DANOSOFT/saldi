@@ -26,6 +26,7 @@
 //                 The tenant database comes from the URL's db parameter, authenticated with an HMAC token (semantic_webhook_url()); Semantic's own signature is checked once its scheme is known.
 //                 The notification is matched to the send log by Semantic's document id, never by invoice number; the status is then read from Semantic's API and applied.
 //                 A copy of a regnskab (semantic_copy_guard()) ignores every notification.
+// 20261109 CL/MMR SD-815 The notification's own status is never applied: without an answer from Semantic's status call the row waits for the poll.
 
 /**
  * Injected by ../includes/connect.php, included below:
@@ -140,11 +141,10 @@ if ($payload['documentNumber'] !== null && $logRow['fakturanr'] !== '' && $paylo
 
 semanticWebhookRespond(200, array('status' => 'accepted'), true);
 
-// The answer is sent; read the status from Semantic's API (the payload's own status only when that fails).
+// The answer is sent; read the status from Semantic's API. The payload's own status is only a hint: the URL token is the
+// notification's only credential, so a failed status call leaves the row for semantic_status_poll().
 $client = semantic_client(null, array('connectTimeout' => 5, 'timeout' => 15));
 if ($client instanceof SemanticClient) {
 	semantic_status_refresh($client, $logRow, $payload['statusCode'], $payload['text']);
-} elseif ($payload['statusCode'] !== null) {
-	semantic_status_apply($logRow, (string)$payload['statusCode'], $payload['text']);
 }
 exit;

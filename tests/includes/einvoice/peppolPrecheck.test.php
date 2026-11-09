@@ -23,6 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Tests for peppol_precheck(): the Danish messages about data the user must fix before an e-invoice is sent.
+// 20261109 CL/MMR SD-815 Review fixes: endpoint formats 0096/0198/0208/0151, the seller's own country's VAT number on an EU sale, and the R120 line slack.
 
 declare(strict_types=1);
 
@@ -138,16 +139,78 @@ final class peppolPrecheck extends TestCase
         self::assertSame(array('Kundens CVR-nummer 1234567 er ikke et gyldigt dansk CVR-nummer med 8 cifre.'), peppol_precheck($model));
 
         $model['buyer']['endpoint'] = array('scheme' => '0192', 'id' => '12345678');
-        self::assertSame(array('Kundens organisationsnummer 12345678 er ikke gyldigt (forkert antal cifre eller kontrolciffer).'), peppol_precheck($model));
+        self::assertSame(array('Kundens organisationsnummer 12345678 er ikke gyldigt (forkert antal cifre eller kontrolciffer). Er det et dansk CVR-nummer, så skriv DK foran det i CVR-feltet.'), peppol_precheck($model));
 
         // PEPPOL-COMMON-R041/R049: the check digit too
         $model['buyer']['endpoint'] = array('scheme' => '0192', 'id' => '000000001');
-        self::assertSame(array('Kundens organisationsnummer 000000001 er ikke gyldigt (forkert antal cifre eller kontrolciffer).'), peppol_precheck($model));
+        self::assertSame(array('Kundens organisationsnummer 000000001 er ikke gyldigt (forkert antal cifre eller kontrolciffer). Er det et dansk CVR-nummer, så skriv DK foran det i CVR-feltet.'), peppol_precheck($model));
         $model['buyer']['endpoint'] = array('scheme' => '0007', 'id' => '0000000001');
         self::assertCount(1, peppol_precheck($model));
 
         $model['buyer']['endpoint'] = array('scheme' => '0007', 'id' => '0000000018');
         self::assertSame(array(), peppol_precheck($model));
+    }
+
+    public function testEveryEndpointSchemeWithAFatalFormatRule(): void
+    {
+        $model = self::model();
+        // PEPPOL-COMMON-R052: a P-number has 10 digits
+        $model['buyer']['endpoint'] = array('scheme' => '0096', 'id' => '000000001');
+        self::assertSame(array('P-nummeret 000000001 i EAN-feltet er ikke gyldigt. Et P-nummer har 10 cifre.'), peppol_precheck($model));
+        $model['buyer']['endpoint'] = array('scheme' => '0096', 'id' => '0000000001');
+        self::assertSame(array(), peppol_precheck($model));
+
+        // PEPPOL-COMMON-R053: an SE number is DK + 8 digits
+        $model['buyer']['endpoint'] = array('scheme' => '0198', 'id' => 'DK0000001');
+        self::assertSame(array('SE-nummeret DK0000001 i EAN-feltet er ikke gyldigt. Et SE-nummer har 8 cifre.'), peppol_precheck($model));
+        $model['buyer']['endpoint'] = array('scheme' => '0198', 'id' => 'DK00000001');
+        self::assertSame(array(), peppol_precheck($model));
+
+        // PEPPOL-COMMON-R043 (0208, mod 97) and R050 (0151, mod 89)
+        $model['buyer']['endpoint'] = array('scheme' => '0208', 'id' => '0000000195');
+        self::assertSame(array('Kundens elektroniske adresse 0208:0000000195 har ikke det format, Peppol kræver for skemaet 0208 (forkert antal cifre eller kontrolciffer). Ret EAN-feltet på ordren eller debitorkortet.'), peppol_precheck($model));
+        $model['buyer']['endpoint'] = array('scheme' => '0208', 'id' => '0000000196');
+        self::assertSame(array(), peppol_precheck($model));
+        $model['buyer']['endpoint'] = array('scheme' => '0151', 'id' => '10000000031');
+        self::assertCount(1, peppol_precheck($model));
+        $model['buyer']['endpoint'] = array('scheme' => '0151', 'id' => '10000000032');
+        self::assertSame(array(), peppol_precheck($model));
+
+        // A CVR endpoint typed with DK is valid (PEPPOL-COMMON-R042)
+        $model['buyer']['endpoint'] = array('scheme' => '0184', 'id' => 'DK22222222');
+        self::assertSame(array(), peppol_precheck($model));
+    }
+
+    public function testEuSaleWithoutVatNeedsTheBuyersOwnVatNumber(): void
+    {
+        $model = self::model();
+        $model['lines'][0]['vatCategory'] = 'K';
+        $model['buyer']['address']['country'] = 'SE';
+        $model['buyer']['vatId'] = 'DK22222222';
+        self::assertSame(array('Kundens momsnummer DK22222222 er fra samme land som firmaet, men fakturaen er uden moms som salg til et andet EU-land. Skriv kundens eget momsnummer med landekode i CVR-feltet (fx SE556677889901), eller kontrollér kundens land og debitorgruppe.'), peppol_precheck($model));
+
+        $model['buyer']['vatId'] = 'SE000000001801';
+        self::assertSame(array(), peppol_precheck($model));
+
+        // Reverse charge for a service abroad needs the foreign number too; domestic reverse charge carries a Danish one
+        $model['lines'][0]['vatCategory'] = 'AE';
+        $model['buyer']['vatId'] = 'DK22222222';
+        self::assertCount(1, peppol_precheck($model));
+        $model['buyer']['address']['country'] = 'DK';
+        self::assertSame(array(), peppol_precheck($model));
+    }
+
+    public function testLineThatBreaksR120StopsTheSend(): void
+    {
+        $model = self::model();
+        $model['reconciliation'] = array('bookedNet' => 300.0, 'bookedVat' => 75.0, 'computedNet' => 300.0, 'computedVat' => 75.0,
+            'vatAdjustment' => 0.0, 'roundingAmount' => 0.0, 'ok' => true, 'maxLineSlack' => 0.03);
+        self::assertSame(array('En linje på fakturaen kan ikke angives præcist nok som antal gange pris i e-fakturaen (afvigelse over 0,02). Fakturaen er ikke sendt. Kontakt saldi.dk support.'), peppol_precheck($model));
+
+        $model['reconciliation']['maxLineSlack'] = 0.02;
+        self::assertSame(array(), peppol_precheck($model));
+        unset($model['reconciliation']['maxLineSlack']);
+        self::assertSame(array(), peppol_precheck($model), 'a model without the key keeps the old behaviour');
     }
 
     public function testDanishGlnReceiverNeedsCvr(): void

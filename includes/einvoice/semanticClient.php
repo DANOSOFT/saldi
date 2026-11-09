@@ -24,15 +24,18 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). SemanticClient talks to Semantic's REST API ("Semantic API 3.0.3", the Integrator definition) for sending e-documents.
 //                 semantic_credentials() and the other semantic_*() config readers take the server's Semantic settings from the environment or the gitignored key file, never from a database.
+// 20261109 CL/MMR SD-815 The configuration comment says which values are required (the webhook base URL is, for the onboarding); INSTALLATION.md documents them.
 
 /*
- * Configuration (per server, never in a database and never in git):
+ * Configuration (per server, never in a database and never in git; INSTALLATION.md, "E-invoice through Semantic"):
  *
  *   Environment variables, read first:
- *     SALDI_SEMANTIC_BASE_URL, SALDI_SEMANTIC_TENANT_ID, SALDI_SEMANTIC_API_KEY   (all three, or none)
- *     SALDI_SEMANTIC_WEBHOOK_SECRET        our own HMAC secret for the webhook URL token, at least 32 characters
+ *     SALDI_SEMANTIC_BASE_URL, SALDI_SEMANTIC_TENANT_ID, SALDI_SEMANTIC_API_KEY   (required; all three, or none)
+ *     SALDI_SEMANTIC_WEBHOOK_SECRET        our own HMAC secret for the webhook URL token, at least 32 characters (required
+ *                                          for the onboarding and the webhook)
+ *     SALDI_SEMANTIC_WEBHOOK_BASE_URL      e.g. https://<server>/<installation>, https only (required for the onboarding:
+ *                                          semantic_ensure_sender() refuses without it; it is never taken from the request)
  *     SALDI_SEMANTIC_SIGNING_SECRETS       Semantic's webhook signing secret(s), comma separated (optional)
- *     SALDI_SEMANTIC_WEBHOOK_BASE_URL      e.g. https://<server>/<installation> (optional; else taken from the request)
  *
  *   Otherwise the key file one level above the installation (the same .ht_keys.txt that
  *   includes/opdat_5.0.php reads as ../../.ht_keys.txt), with the PHP variables
