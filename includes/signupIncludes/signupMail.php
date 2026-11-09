@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/signupIncludes/signupMail.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- includes/signupIncludes/signupMail.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,8 +33,13 @@
 // mail to the local sendmail. Without PHPMailer a multipart message is built by hand for mail().
 // No mail ever contains a password; the activation link is the only secret.
 //
+// After an activation an internal mail ("Ny kunde i Saldi: <firma> (<pakke>)") goes to the notify_email
+// setting, with Reply-To set to the customer.
+//
 // 20261014 CL/PS Created.
 // 20261102 CL/ASR The 'mail' limit is claimed by the callers before sending instead of recorded after it.
+// 20261109 CL/PS Internal new-customer mail to notify_email after an activation (signup_notify_message(), signup_send_notify_mail()).
+//                signup_send_mail() takes a Reply-To and Bcc for a single mail.
 
 if (!function_exists('signup_mail_vars')) {
 	/**
@@ -274,10 +279,20 @@ if (!function_exists('signup_send_mail')) {
 	 * @param string $subject
 	 * @param string $html
 	 * @param string $text
+	 * @param array  $options array{reply_to?: string, reply_to_name?: string, bcc?: string} replace the transport's
+	 *                        Reply-To (only with a valid address) and Bcc for this mail
 	 * @return bool
 	 */
-	function signup_send_mail($to, $toName, $subject, $html, $text) {
+	function signup_send_mail($to, $toName, $subject, $html, $text, array $options = array()) {
 		$t = signup_mail_transport();
+		$replyName = $t['from_name'];
+		if (isset($options['reply_to']) && signup_valid_email((string)$options['reply_to'])) {
+			$t['reply_to'] = (string)$options['reply_to']; // valid, so no line breaks for the hand-built headers below
+			$replyName = (string)ifset($options, 'reply_to_name', '');
+		}
+		if (isset($options['bcc'])) {
+			$t['bcc'] = (string)$options['bcc'];
+		}
 		if (signup_phpmailer_available()) {
 			try {
 				$mail = new PHPMailer\PHPMailer\PHPMailer(true);
@@ -300,7 +315,7 @@ if (!function_exists('signup_send_mail')) {
 				}
 				$mail->setFrom($t['from'], $t['from_name']);
 				if ($t['reply_to'] !== '') {
-					$mail->addReplyTo($t['reply_to'], $t['from_name']);
+					$mail->addReplyTo($t['reply_to'], $replyName);
 				}
 				$mail->addAddress($to, $toName);
 				if ($t['bcc'] !== '') {
@@ -355,5 +370,119 @@ if (!function_exists('signup_send_activation_mail')) {
 			signup_mark_mailed($row['id']); // the 'mail' limit is claimed by the caller before sending (opret.php, nytlink.php)
 		}
 		return $ok;
+	}
+}
+
+if (!function_exists('signup_notify_message')) {
+	/**
+	 * The internal mail about a new customer, sent after an activation (signup_send_notify_mail()): who signed up,
+	 * the package and the account, when the trial ends and when the account closes. Every value is escaped in the
+	 * HTML part and kept on one line in the subject and the text part.
+	 *
+	 * @param array  $row     signup_pending row (firmanavn, cvrnr, navn, email, tlf, pakke, source)
+	 * @param array  $account signup_activate()'s result (regnskab, regnskab_id, trial_end, lukkes, activated)
+	 * @param string $baseUrl the installation (base_url setting)
+	 * @return array{
+	 *   subject: string,
+	 *   text: string,
+	 *   html: string,
+	 *   reply_to: string,       the customer's address, '' when it is not a valid one.
+	 *   reply_to_name: string,  the customer's name.
+	 * }
+	 */
+	function signup_notify_message(array $row, array $account, $baseUrl) {
+		$h = 'signup_h';
+		$line = function ($value) {
+			return trim(preg_replace('/[\x00-\x1F\x7F\s]+/u', ' ', (string)$value));
+		};
+		$pakker = signup_packages();
+		$pakke = $line(ifset($row, 'pakke', ''));
+		$pakkeNavn = isset($pakker[$pakke]) ? $pakker[$pakke]['name'] : $pakke;
+		$firma = $line(ifset($row, 'firmanavn', ''));
+		$regnskab = $line(ifset($account, 'regnskab', ''));
+		$email = $line(ifset($row, 'email', ''));
+		$replyTo = signup_valid_email($email) ? $email : '';
+		$activated = (string)ifset($account, 'activated', '');
+		$created = signup_danish_date($activated);
+		if ($created !== '' && preg_match('/^\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/', $activated, $m)) {
+			$created .= ' kl. ' . $m[1] . '.' . $m[2];
+		}
+		$lukkes = signup_danish_date(ifset($account, 'lukkes', ''));
+		$regnskabId = (int)ifset($account, 'regnskab_id', 0);
+		$fields = array(
+			'Firma' => $firma,
+			'CVR-nummer' => $line(ifset($row, 'cvrnr', '')),
+			'Kontaktperson' => $line(ifset($row, 'navn', '')),
+			'E-mail' => $email,
+			'Telefon' => $line(ifset($row, 'tlf', '')),
+			'Pakke' => $pakkeNavn,
+			'Regnskab' => $regnskab . ($regnskabId > 0 ? ' (id ' . $regnskabId . ')' : ''),
+			'Oprettet' => $created,
+			'Prøveperiode til' => signup_danish_date(ifset($account, 'trial_end', '')),
+			'Lukkes' => $lukkes,
+			'Kilde' => $line(ifset($row, 'source', '')),
+			'Installation' => $line($baseUrl),
+		);
+		$subject = 'Ny kunde i Saldi: ' . ($firma !== '' ? $firma : $regnskab) . ' (' . $pakkeNavn . ')';
+		$intro = 'En ny kunde har oprettet et Saldi-regnskab.';
+		$outro = trim(($lukkes !== '' ? 'Regnskabet lukker af sig selv den ' . $lukkes . ', medmindre datoen flyttes eller ryddes i admin-panelet. ' : '')
+			. ($replyTo !== '' ? 'Svar på denne mail for at skrive til kunden.' : ''));
+
+		$text = $intro . "\n\n";
+		$rows = '';
+		foreach ($fields as $label => $value) {
+			$text .= $label . ':' . str_repeat(' ', max(1, 18 - mb_strlen($label))) . ($value !== '' ? $value : '–') . "\n";
+			$cell = ($value !== '') ? $h($value) : '–';
+			if ($label === 'E-mail' && $replyTo !== '') {
+				$cell = '<a href="mailto:' . $h($replyTo) . '" style="color:#143A70;">' . $h($value) . '</a>';
+			}
+			$rows .= '<tr><td style="padding:3px 16px 3px 0;color:#55616F;white-space:nowrap;vertical-align:top;">' . $h($label) . '</td>'
+				. '<td style="padding:3px 0;color:#121017;">' . $cell . '</td></tr>';
+		}
+		$text .= ($outro !== '' ? "\n" . $outro . "\n" : '');
+		$html = '<!doctype html><html lang="da"><head><meta charset="utf-8"><title>' . $h($subject) . '</title></head>'
+			. '<body style="margin:0;padding:24px;background:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#121017;">'
+			. '<p style="margin:0 0 16px;font-size:15px;">' . $h($intro) . '</p>'
+			. '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="font-size:14px;line-height:1.5;">' . $rows . '</table>'
+			. ($outro !== '' ? '<p style="margin:16px 0 0;color:#55616F;">' . $h($outro) . '</p>' : '')
+			. '</body></html>';
+		return array('subject' => $subject, 'text' => $text, 'html' => $html, 'reply_to' => $replyTo, 'reply_to_name' => $line(ifset($row, 'navn', '')));
+	}
+}
+
+if (!function_exists('signup_send_notify_mail')) {
+	/**
+	 * Sends the internal new-customer mail (signup_notify_message()) to the notify_email setting: one address or
+	 * several separated by commas, default info@saldi.dk, 'off' for none (an empty value means the default, as for
+	 * every signup setting). No Bcc. Best effort: a failure is logged with the 'signup:' prefix and is never shown
+	 * to the customer; aktiver.php runs it after the page has been sent (signup_after_response()).
+	 *
+	 * @param array $row    signup_pending row
+	 * @param array $result signup_activate()'s result for the new account
+	 * @return bool true when the transport accepted the mail for every recipient
+	 */
+	function signup_send_notify_mail(array $row, array $result) {
+		$setting = trim(signup_setting('notify_email', 'info@saldi.dk'));
+		if (strtolower($setting) === 'off') {
+			return false;
+		}
+		$m = signup_notify_message($row, $result, signup_base_url());
+		$options = array('reply_to' => $m['reply_to'], 'reply_to_name' => $m['reply_to_name'], 'bcc' => '');
+		$sent = 0;
+		$failed = 0;
+		foreach (array_filter(array_map('trim', explode(',', $setting))) as $to) {
+			if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+				signup_log('notify_email holds a value that is not an e-mail address; skipped');
+				$failed++;
+			} elseif (signup_send_mail($to, '', $m['subject'], $m['html'], $m['text'], $options)) {
+				$sent++;
+			} else {
+				$failed++;
+			}
+		}
+		if ($failed > 0 || $sent === 0) {
+			signup_log('new-customer mail for regnskab ' . (int)ifset($result, 'regnskab_id', 0) . " not sent to $failed of " . ($sent + $failed) . ' recipients');
+		}
+		return $sent > 0 && $failed === 0;
 	}
 }

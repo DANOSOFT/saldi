@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/aktiver.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- signup/aktiver.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,8 @@
 //
 // States: Aktivér (confirm the account name, choose a password), Ret navn, Navn optaget,
 // Link udløbet (send a new link), Allerede aktiveret (go to login), Aktiveret (the account was
-// created; the customer is logged in through index/login.php).
+// created; the customer is logged in through index/login.php), Kan ikke oprettes (the mailbox
+// already has an account, or its trial closed less than cooldown_months ago; doc/signup.md).
 //
 // On POST the name is normalised and checked for uniqueness, the password is checked (length,
 // not the customer's own details, not a known leaked password), and signup_activate() creates the
@@ -38,6 +39,8 @@
 // 20261102 CL/ASR Trims the password like index/login.php.
 //                 Activation attempts are claimed (recorded, then counted), and max_activations_per_day caps new accounts for the server (counted in signup_activate()).
 //                 A signup whose account build failed three times shows a "call us" page.
+// 20261109 CL/PS A signup whose mailbox already has an account, or had a trial that closed less than cooldown_months ago, gets a page that says so instead of the form.
+//                After an activation the internal new-customer mail goes to notify_email once the page has been sent.
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -88,6 +91,14 @@ if ($row['state'] !== 'valid') {
 		. '<p class="lead">' . signup_h($why) . ' Vi kan sende et nyt link til <strong>' . signup_h(signup_mask_email($row['email'])) . '</strong>, så I kan aktivere regnskabet.</p>'
 		. '<form method="post" action="nytlink.php"><input type="hidden" name="t" value="' . signup_h($token) . '"><button type="submit" class="btn">Send et nyt link</button></form>'
 		. '<p class="fine">Har I allerede aktiveret regnskabet? <a class="link" href="' . signup_h($urls['login']) . '">Log ind</a></p>', '', 410);
+}
+
+// One e-mail, one account (doc/signup.md): a mailbox that already has an account (e.g. a second signup for another
+// package), or whose trial closed less than cooldown_months ago, gets the reason instead of the form. The signup itself
+// stays pending until rydop.php removes it. signup_activate() asks again under its lock.
+$mailbox = signup_mailbox_rule($row['email']);
+if ($mailbox['decision'] !== 'allowed') {
+	signup_mailbox_refused_page($mailbox, $urls);
 }
 
 // ---- state 'valid': show the form, or activate -------------------------------------------------
@@ -143,7 +154,16 @@ if ($method === 'POST') {
 		$result = signup_activate($row, $name, $password);
 		if ($result['ok']) {
 			signup_create_billing_order($row, $result['regnskab'], $result['trial_end']);
+			// "Ny kunde i Saldi" to notify_email, after the page below has gone out: a slow or failing mail must not
+			// hold up or break the customer's login.
+			signup_after_response(function () use ($row, $result) {
+				signup_send_notify_mail($row, $result);
+			});
 			signup_activated_page($row, $result, $password, $urls);
+		}
+		if ($result['error'] === 'mailbox') {
+			// another signup of the same mailbox became an account first (signup_activate() checks under its lock)
+			signup_mailbox_refused_page($result['mailbox'], $urls);
 		}
 		if ($result['error'] === 'taken') {
 			$view['nameStatus'] = 'taken';
@@ -315,9 +335,7 @@ JS;
  */
 function signup_activated_page(array $row, array $result, $password, array $urls) {
 	$h = 'signup_h';
-	$end = strtotime($result['trial_end']);
-	$months = array(1 => 'januar', 'februar', 'marts', 'april', 'maj', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'december');
-	$endTxt = (int)date('j', $end) . '. ' . $months[(int)date('n', $end)] . ' ' . date('Y', $end);
+	$endTxt = signup_danish_date($result['trial_end']);
 	$login = signup_base_url() . '/index/login.php';
 	$content = signup_icon('ok') . '<h1>Regnskabet er klar</h1>'
 		. '<p class="lead">Velkommen til Saldi. Jeres prøveperiode løber til <strong>' . $h($endTxt) . '</strong>.</p>'
@@ -332,4 +350,20 @@ function signup_activated_page(array $row, array $result, $password, array $urls
 		. '<p class="fine">Sker der ikke noget? <a class="link" href="' . $h($urls['login'] . (strpos($urls['login'], '?') === false ? '?' : '&') . 'regnskab=' . rawurlencode($result['regnskab'])) . '">Gå til login</a></p>';
 	$script = "setTimeout(function () { document.getElementById('login').submit(); }, 1200);";
 	signup_page('Regnskabet er klar', $content, $script);
+}
+
+/**
+ * "Regnskabet kan ikke oprettes": the mailbox already has an account (a login button), or its trial closed less
+ * than cooldown_months ago (the day it may try again). Ends the request.
+ *
+ * @param array $mailbox from signup_mailbox_rule() / signup_mailbox_decision()
+ * @param array $urls    from signup_urls()
+ * @return void
+ */
+function signup_mailbox_refused_page(array $mailbox, array $urls) {
+	$h = 'signup_h';
+	$message = signup_mailbox_message($mailbox, signup_setting('support_phone', '46 90 22 08'));
+	$login = ($mailbox['decision'] === 'already_has_account') ? '<a class="btn" href="' . $h($urls['login']) . '">Gå til login</a>' : '';
+	$content = signup_icon('warn') . '<h1>Regnskabet kan ikke oprettes</h1>' . '<p class="lead">' . $h($message) . '</p>' . $login . signup_help_line();
+	signup_page('Regnskabet kan ikke oprettes', $content, '', 409);
 }
