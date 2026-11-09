@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.1.0 -- 2026.10.30 ---
+// --- systemdata/sys_div_func.php --- ver 5.1.0 -- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -900,15 +900,15 @@ function div_valg() {
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	($r ? $r['var_value'] : null) ? $mySale = "checked='checked'" : $mySale = NULL;
+	$mySale = !empty($r['var_value']) ? "checked='checked'" : null;
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySaleLabel'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	($r ? $r['var_value'] : null) ? $mySaleLabel = "checked='checked'" : $mySaleLabel = NULL;
+	$mySaleLabel = !empty($r['var_value']) ? "checked='checked'" : null;
 
 	$qtxt = "select var_value from settings where var_grp='creditor' and var_name='paperflow'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	($r ? $r['var_value'] : null) ? $paperflow = "checked='checked'" : $paperflow = NULL;
+	$paperflow = !empty($r['var_value']) ? "checked='checked'" : null;
 	if ($paperflow) {
 		$qtxt            = "select var_value from settings where var_grp='creditor' and var_name='paperflowId'";
 		$r               = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -1500,13 +1500,13 @@ function removeDfmPickup(idx) {
 	print "</td></tr>\n";
 
 	$q             = db_select("select var_value from settings where var_name = 'client_id' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$client_id     = (db_fetch_array($q)[0] ?? null);
+	$client_id     = db_fetch_array($q)[0] ?? null;
 	$q             = db_select("select var_value from settings where var_name = 'client_secret' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$client_secret = (db_fetch_array($q)[0] ?? null);
+	$client_secret = db_fetch_array($q)[0] ?? null;
 	$q             = db_select("select var_value from settings where var_name = 'subscriptionKey' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$subscription  = (db_fetch_array($q)[0] ?? null);
+	$subscription  = db_fetch_array($q)[0] ?? null;
 	$q             = db_select("select var_value from settings where var_name = 'MSN' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$MSN           = (db_fetch_array($q)[0] ?? null);
+	$MSN           = db_fetch_array($q)[0] ?? null;
 
 	print "<tr>\n<td title='MobilePay'>Mobilepay Client ID</td>\n";
 	print "<td title='MobilePay'>\n";

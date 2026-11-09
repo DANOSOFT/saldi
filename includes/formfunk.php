@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -766,15 +766,17 @@ if (!function_exists('find_form_tekst')) {
 					} elseif ($tabel == "forfalden" || $tabel == "rykker") { # finder forfalden_sum på rykker - $tabel=="rykker" indsat 14.04.08
 						$qtxt = "select * from varer where id IN (select xb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog')";
 						$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						$gebyr = (float) ($r2 ? $r2['salgspris'] : null);
-						if ($deb_valutakurs != '100')
+						$gebyr = (float) ($r2['salgspris'] ?? 0);
+						if ($deb_valutakurs != '100') {
 							$gebyr *= 100 / $deb_valutakurs; #20140628
-							$r2 = db_fetch_array(db_select("select yb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__));
-						$rentevare = (int) ($r2 ? $r2['yb'] : null);
+						}
+						$r2 = db_fetch_array(db_select("select yb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__));
+						$rentevare = (int) ($r2['yb'] ?? 0);
 						$rente = 0; #20141211
 						$q2 = db_select("select * from ordrelinjer where ordre_id = '$id' and vare_id = '$rentevare'", __FILE__ . " linje " . __LINE__);
-						while ($r2 = db_fetch_array($q2))
+						while ($r2 = db_fetch_array($q2)) {
 							$rente += $r2['pris'];
+						}
 						$forfalden = 0;
 						$q2 = db_select("select * from ordrelinjer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__);
 						while ($r2 = db_fetch_array($q2)) {

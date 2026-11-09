@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -924,11 +924,11 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					if (($status<2)||(($antal[$x]>0)&&($status==2)&&($antal[$x]>=$tidl_lev[$x]))||(($antal[$x]<0)&&($status==2)&&($antal[$x]<=$tidl_lev[$x]))) {
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if (!($tidl_lev[$x] ?? null)) $tidl_lev[$x]=0;
-						if ($omvbet[$x] ?? null) $omvbet[$x]='on';
+						$omvbet[$x] = !empty($omvbet[$x]) ? 'on' : '';
 						if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
 						$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
-						$qtxt.= "omvbet='" . ($omvbet[$x] ?? null) . "',lager='$lager'";
+						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'";
 						// Only touch batch_due_date/batch_batch_no when this line actually submitted
 						// that input - openOrderLines.php doesn't render them for a line whose
 						// tracking flag is off, and an unconditional SET was wiping stored batch
@@ -1061,7 +1061,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							$qtxt.= "(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,pris,";
 							$qtxt.= "rabat,serienr,lev_varenr,momsfri,variant_id,samlevare,omvbet,momssats,lager) values ";
 							$qtxt.= "('$id','$posnr_ny[0]','$varenr[0]','$vare_id[0]','$beskrivelse[0]','$enhed[0]','$antal[0]',";
-							$qtxt.= "'$pris[0]','$rabat[0]','$serienr[0]','$lev_varenr[0]','$momsfri[0]','" . ($variant_id[0] ?? null) . "',";
+							$qtxt.= "'$pris[0]','$rabat[0]','$serienr[0]','$lev_varenr[0]','$momsfri[0]','" . db_escape_string($variant_id[0] ?? '') . "',";
 							$qtxt.= "'$samlevare[0]','$omvbet[0]',$varemomssats[0],'$lager')";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
@@ -1280,7 +1280,6 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 	}
 	if ($popup) print "<meta http-equiv=\"refresh\" content=\"3600;URL=../includes/luk.php\">";
 	else print "<meta http-equiv=\"refresh\" content=\"3600;URL=ordreliste.php\">";
-	echo "<script>console.log('bogfor: " . ($bogfor ?? null) . "');</script>";
 	
 	ordreside($id);
 

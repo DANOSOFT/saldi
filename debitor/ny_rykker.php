@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ny_rykker.php --- ver 5.1.0 --- 2025.07.31 ---
+// --- debitor/ny_rykker.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20121105 Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
 // 20140628 Valuta og valutakurs indsættes nu ved oprettelse af ny rykker. Søg 20140628 
@@ -81,7 +81,7 @@ $ffdage3=(int)$r['box7'];
 $rykkerfrist1=dunning_cutoff_date($ffdage1);
 
 $r = db_fetch_array(db_select("select id from formularer where beskrivelse LIKE '%inkassotekst'",__FILE__ . " linje " . __LINE__));
-if ($r && $r['id']) {
+if (!empty($r['id'])) {
 	$inkassotekst='';
 }
 
@@ -160,8 +160,8 @@ if ($konto_id[0]=="alle") {
 }
 for ($i=0; $i<=$konto_antal; $i++) {
 	$forfalden=0;
-	if (($konto_id[$i] ?? null)||($rykker_id[$i] ?? null)) {
-		if (!($rykker_id[$i] ?? null)) {
+	if (!empty($konto_id[$i]) || !empty($rykker_id[$i])) {
+		if (empty($rykker_id[$i])) {
 			$sum=0;
 			$r_ordrenr=0;
 			

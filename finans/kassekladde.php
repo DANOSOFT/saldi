@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1551,7 +1551,7 @@ if ($_POST) {
 			$bilag[$x] = '-';
 		}
 		# SST-934 a 0 typed in Bilag is no voucher here either: lines under 0 have never been held to one date
-		if (!$forskellige_datoer && $bilag[$x] && $bilag[$x] != '-' && (int)$bilag[$x] !== 0 && $bilag[$x] == ($bilag[$x - 1] ?? null) && $dato[$x] != $dato[$x - 1] && $bilagssum[$x - 1] ?? false) {
+		if (!$forskellige_datoer && $bilag[$x] && $bilag[$x] != '-' && (int)$bilag[$x] !== 0 && $bilag[$x] == ($bilag[$x - 1] ?? null) && $dato[$x] != $dato[$x - 1] && ($bilagssum[$x - 1] ?? false)) {
 			$alert3 = findtekst('1581|Forskellige datoer i bilag', $sprog_id); //Forskellige datoer i bilag
 			print "<BODY onLoad=\"javascript:alert('$alert3 $bilag[$x]')\">";
 		}
@@ -1653,8 +1653,8 @@ if ($_POST) {
 			$debet[$x] = db_escape_string(if_isset($debet[$x], ''));
 			$k_type[$x] = db_escape_string(if_isset($k_type[$x], ''));
 			$kredit[$x] = db_escape_string(if_isset($kredit[$x], ''));
-			$debetvat[$x] = db_escape_string(($debetvat[$x] ?? ''));
-			$kreditvat[$x] = db_escape_string(($kreditvat[$x] ?? ''));
+			$debetvat[$x] = db_escape_string($debetvat[$x] ?? '');
+			$kreditvat[$x] = db_escape_string($kreditvat[$x] ?? '');
 			$faktura[$x] = db_escape_string(if_isset($faktura[$x], ''));
 			$belob[$x] = db_escape_string(if_isset($belob[$x], ''));
 			$momsfri[$x] = db_escape_string(if_isset($momsfri[$x], ''));

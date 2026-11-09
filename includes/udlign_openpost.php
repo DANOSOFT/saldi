@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// ----------includes/udlign_openpost.php-------ver 5.1.0 ----2026-10-27---
+// ----------includes/udlign_openpost.php-------ver 5.1.0 ----2026-11-09---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -197,7 +197,7 @@ $art=substr($r['art'],0,1)."G";
 $r2 = db_fetch_array(db_select("select box3 from grupper where art='$art' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__)); # Finder valuta for konto.
 $basisvaluta=trim($r2['box3']);
 $r2=db_fetch_array(db_select("select box2 from grupper where art ='VK' and box1='$basisvaluta'",__FILE__ . " linje " . __LINE__)); # Finder valutakurs for konto.
-$basiskurs=str_replace(",",".",$r2 ? $r2['box2'] : ''); #Valutaen kan være i dansk talformat (BUG).
+$basiskurs=str_replace(",",".",$r2['box2'] ?? ''); #Valutaen kan være i dansk talformat (BUG).
 #	cho "$valuta[0] basisvaluta $basisvaluta basiskurs $basiskurs<br>";
 if ($basisvaluta=='DKK') $basiskurs=100; 
 if ($basisvaluta != $valuta[0]) {
@@ -508,9 +508,9 @@ if ($diff!=0) {
 		}
 	}
 }
-if (!($diffDate ?? null)) $diffDate=$udligndate;
+if (empty($diffDate)) $diffDate=$udligndate;
 $diffdato=dkdato($diffDate);
-$diffbilag=($diffbilag ?? null)*1;
+$diffbilag = (int) ($diffbilag ?? 0);
 print "<tr><td colspan=6><hr></td></tr>";
 if (abs($dkkdiff)<$maxdiff || abs($diff)<0.009) {
 	print "<tr><td colspan=\"1\"><input class=\"inputbox\" style=\"width:90px;\" type=\"text\" name=\"diffdato\" value=\"$diffdato\"</td>";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/rapportfunc.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -670,7 +670,7 @@ function bogfor_nu($id)
 		$ordrenr = $r['ordrenr'];
 		$valutakurs = $r['valutakurs'];
 		$valuta = $r['valuta'];
-		$projekt = $r['projekt'] * 1;
+		$projekt = (float) $r['projekt'];
 		$refnr;
 		if ($r['moms']) {
 			$moms = $r['moms'];
@@ -679,9 +679,10 @@ function bogfor_nu($id)
 		}
 		$sum = $r['sum'] + $moms;
 		$ordreantal = $x;
-		if ($r = db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'", __FILE__ . " linje " . __LINE__)))
+		if ($r = db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'", __FILE__ . " linje " . __LINE__))) {
 			$afd = $r['afd'];
-		$afd = ($afd ?? null) * 1; //sikkerhed for at 'afd' har en vaerdi
+		}
+		$afd = (int) ($afd ?? 0);
 
 		$bilag = 0;
 		if (!$valutakurs && $valuta != 'DKK') { //20140628

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-06---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-09---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -262,7 +262,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$regnaar = (string) $fallbackYear;
 			$qtxt = "update online set regnskabsaar = '$fallbackYear' where session_id = '" . db_escape_string($s_id) . "'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
-			if (!($revisor ?? null)) {
+			if (empty($revisor)) {
 				$qtxt = "update brugere set regnskabsaar = '$fallbackYear' where brugernavn = '$brugernavn' and regnskabsaar is null";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
@@ -275,7 +275,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$baseCurrency = $r['var_value'];
 		} else $baseCurrency = 'DKK';
 	} else $baseCurrency = 'DKK';
-	if (!($revisor ?? null)) {
+	if (empty($revisor)) {
 		if ($lukket) {
 			// Some pages include online.php before std_func.php, so findtekst() may not be loaded yet.
 			include_once(__DIR__ . '/std_func.php');
@@ -290,9 +290,9 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		}
 		$brugernavn = $brugernavn ?? null;
 		$r = db_fetch_array(db_select("select * from brugere where brugernavn= '$brugernavn'", __FILE__ . " linje " . __LINE__));
-		$bruger_id = $r ? $r['id'] : null;
+		$bruger_id = $r['id'] ?? null;
 		$rettigheder = trim($r['rettigheder'] ?? '');
-		$ansat_id = ($r ? $r['ansat_id'] : null) * 1;
+		$ansat_id = (int) ($r['ansat_id'] ?? 0);
 		#		if ($r['language_id']) $languageID=$sprog_id=$r['language_id'];
 		if ($ansat_id) { #20120905 
 			$r = db_fetch_array(db_select("select * from ansatte where id = '$ansat_id'", __FILE__ . " linje " . __LINE__));

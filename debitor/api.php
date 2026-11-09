@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- debitor/api.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -93,7 +93,7 @@
     // Getting the api key and tenant id from the database
     $query = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
-    $apiKey = $res ? $res['var_value'] : null;
+    $apiKey = $res['var_value'] ?? null;
     //echo $apiKey . "<br>";
 
     include("../includes/online.php");

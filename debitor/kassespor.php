@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- ver 5.1.0 --- 2026-10-19 ---
+// --- debitor/kassespor.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -250,7 +250,7 @@ if ($newCashNo && $editCashNo) {
 	alert("Bon $bon rettet fra $betal_type til $ny_betal_type");
 
 	
-} elseif ($editCashNo ?? null) {
+} elseif (!empty($editCashNo)) {
 	print "<form name=ret_betaling action='kassespor.php?editCashNo='$editCashNo' method='post'>";
 	print "<table><tbody><br><br><br>";
 	print "<tr><td>Ret Kasse på bon: <b>$bon</b> fra <b>$currentCashNo</b> til:</td>"; 
@@ -559,7 +559,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		}
 	} else {
 		$r=db_fetch_array(db_select("select id from table_plan where name='$borde'",__FILE__ . " linje " . __LINE__));
-		$bordnr = $r ? $r["id"] : null;
+		$bordnr = $r["id"] ?? null;
 	}
 
 	if (!isset ($id)) $id = NULL;
@@ -710,7 +710,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 								$txt="";
 							} else {
 								$r=db_fetch_array(db_select("select name from table_plan where id = $bord[$x]",__FILE__ . " linje " . __LINE__));
-								$txt = $r ? $r[0] : null;
+								$txt = $r[0] ?? null;
 							}
 						}
 

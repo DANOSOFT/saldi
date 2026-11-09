@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.0 --- 2026.10.19---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.0 --- 2026.11.09---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -201,7 +201,7 @@ print "\n<!-- Function afslut (start)-->\n";
 					}
 				}
 			}
-			if ($amount ?? null) {
+			if (!empty($amount)) {
 				if (substr($amount,0,1)=="/" && $betaling) {
 					delbetal($id,$amount);
 				}
@@ -234,7 +234,7 @@ print "\n<!-- Function afslut (start)-->\n";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$pos_bet_id=$r['pos_bet_id'];
 				// MobilePay
-				if (($payment ?? null) == "mobilepay") {
+				if (($payment ?? '') == 'mobilepay') {
 					$tmp="payments/mobilepay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
 					setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";

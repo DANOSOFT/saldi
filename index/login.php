@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- index/login.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -923,7 +923,7 @@ if(!isset($afbryd)){
 				'action' => 'getDBlocation', 'globalId' => (int) ($globalId ?? 0),
 				'dbName' => $db, 'dbMail' => $mainMail, 'dbAlias' => $regnskab,
 				'dbLocation' => $dbLocation, 'userId' => (int) $userId,
-				'userName' => $brugernavn, 'userMail' => if_isset($userMail, '')
+				'userName' => $brugernavn, 'userMail' => $userMail ?? ''
 			));
 			$locatorId = loginLocatorGlobalId($result, $db, (int) ($globalId ?? 0));
 			if ($locatorId && (empty($globalId) || (!$dbMail && $mainMail))) {

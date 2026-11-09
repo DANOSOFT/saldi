@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- ver 5.1.0 - 2026-10-19 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- ver 5.1.0 - 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -289,8 +289,8 @@ function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_
 	$curr = $baseCurrency;
 
 	for ($x=0;$x<count($kontkonto);$x++) {
-		$kortsum[$x]    = (float)if_isset($kortsum[$x],0);
-		$ny_kortsum[$x] = (float)($ny_kortsum[$x] ?? 0);
+		$kortsum[$x]    = (float) ($kortsum[$x] ?? 0);
+		$ny_kortsum[$x] = (float) ($ny_kortsum[$x] ?? 0);
 		if ($change_cardvalue) {
 			print "<tr><td colspan='2'><b>$kortnavn[$x]</b>(".dkdecimal($kortsum[$x],2).")</td><td align='right'>";
 			print "<input type='text' style=\"width:100;text-align:right;font-size:$ifs;\" ";

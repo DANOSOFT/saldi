@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productcardIncludes/showLocations.php --- ver 5.1.0 --- 2026-10-19 ---
+// --- lager/productcardIncludes/showLocations.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,10 +60,10 @@
 			$b_antal[$x]-=$r2['antal'];
 			$qtxt = "select lok1 from lagerstatus where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$lagerlok[$x]=$r2 ? $r2['lok1'] : null;
+			$lagerlok[$x]=$r2['lok1'] ?? null;
 			$qtxt="select sum(beholdning) as beholdning from lagerstatus where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$lagerbeh[$x]=$r2['beholdning']*1;
+			$lagerbeh[$x] = (float) ($r2['beholdning'] ?? 0);
 			$lagersum+=$b_antal[$x];
 			if ($lagerbeh[$x]!=$b_antal[$x] && !count($vare_varianter) && !count($variantVarerId))  {
 				$l=0;

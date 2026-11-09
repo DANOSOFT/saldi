@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- ver 5.1.0 --- 2026-10-19 ---
+// --- finans/kladdeliste.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -520,9 +520,9 @@ $filters = array();
 
 if (isset($_GET['filter']) && in_array($_GET['filter'], ['alle','egne'], true)) {
     $saved_filter = $_GET['filter'];
-}elseif(($vis ?? null) && in_array($vis, ['alle','egne'], true)){
+} elseif (($vis ?? null) && in_array($vis, ['alle','egne'], true)) {
     $saved_filter = $vis;
-}else {
+} else {
     $saved_filter = 'egne';
 }
 

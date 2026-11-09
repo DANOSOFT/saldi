@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.10.19 ---
+// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -2645,30 +2645,30 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 
 	$qtxt = "select id,var_value from settings where var_name = 'commissionAccountUsed' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$commissionAccountUsed = $r ? $r['var_value'] : null;
+	$commissionAccountUsed = $r['var_value'] ?? null;
 	$qtxt = "select id,var_value from settings where var_name = 'commissionAccountNew' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$commissionAccountNew = $r ? $r['var_value'] : null;
+	$commissionAccountNew = $r['var_value'] ?? null;
 
 	$qtxt = "select id,var_value from settings where var_name = 'customerCommissionAccountNew' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$customerCommissionAccountNewId = $r ? $r['id'] : null;
-	$customerCommissionAccountNew = $r ? $r['var_value'] : null;
+	$customerCommissionAccountNewId = $r['id'] ?? null;
+	$customerCommissionAccountNew = $r['var_value'] ?? null;
 
 	$qtxt = "select id,var_value from settings where var_name = 'customerCommissionAccountUsed' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$customerCommissionAccountUsedId = $r ? $r['id'] : null;
-	$customerCommissionAccountUsed = $r ? $r['var_value'] : null;
+	$customerCommissionAccountUsedId = $r['id'] ?? null;
+	$customerCommissionAccountUsed = $r['var_value'] ?? null;
 
 	$qtxt = "select id,var_value from settings where var_name = 'ownCommissionAccountNew' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$ownCommissionAccountNewId = $r ? $r['id'] : null;
-	$ownCommissionAccountNew = $r ? $r['var_value'] : null;
+	$ownCommissionAccountNewId = $r['id'] ?? null;
+	$ownCommissionAccountNew = $r['var_value'] ?? null;
 
 	$qtxt = "select id,var_value from settings where var_name = 'ownCommissionAccountUsed' and var_grp = 'items'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$ownCommissionAccountUsedId = $r ? $r['id'] : null;
-	$ownCommissionAccountUsed = $r ? $r['var_value'] : null;
+	$ownCommissionAccountUsedId = $r['id'] ?? null;
+	$ownCommissionAccountUsed = $r['var_value'] ?? null;
 
 	$r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
 	$ansat_id = (int) $r['ansat_id'];
@@ -3285,7 +3285,7 @@ function kasseoptalling( // Called from cashBalance.php
 	$forventet = $byttepenge + $tilgang + $kortdiff;
 	(isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'])) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
 	specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet); #, $fiveRappen, $tenRappen, $twentyRappen
-	if ($valuta[0] ?? null) {
+	if (!empty($valuta[0])) {
 		for ($x = 0; $x < count($valuta); $x++) {
 			print "<tr><td align=\"right\">$valuta[$x]</td><td></td><td align=\"right\">";
 			print "<input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"optval[$x]\" value=\"" . dkdecimal($optval[$x], 2) . "\"></td></tr>\n";

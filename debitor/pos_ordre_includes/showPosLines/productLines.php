@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/showPosLines/productLines.php -- ver 5.1.0 --- 2026.10.19 ---
+// --- debitor/pos_ordre_includes/showPosLines/productLines.php -- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,7 +61,7 @@
 	$dx=0;
 	if (isset($_GET['vare_id']) && $_GET['vare_id']) {
 		$itemIdNew=$_GET['vare_id'];	
-	} elseif ($varenr_ny ?? null) {
+	} elseif (!empty($varenr_ny)) {
 		$qtxt = "select id from varer where varenr = '". db_escape_string($varenr_ny) ."'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$itemIdNew=$r['id'];
@@ -90,7 +90,7 @@
 		$s++;
 	}
 	if (!isset($color)) $color = 0;
-	for ($x=1;$x<=($varelinjer ?? null);$x++) {
+	for ($x = 1; $x <= ($varelinjer ?? 0); $x++) {
 		if ($vare_id[$x]) {
 			$qtxt="select gruppe,beholdning,min_lager from varer where id = $vare_id[$x]";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

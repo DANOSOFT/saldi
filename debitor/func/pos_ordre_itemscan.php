@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- debitor/func/pos_ordre_itemscan.php ---- ver 5.1.0 -- 2026.10.19 --
+// -------- debitor/func/pos_ordre_itemscan.php ---- ver 5.1.0 -- 2026.11.09 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -397,7 +397,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 		print "<tr><td><b>$kontonr</b></td><td colspan=\"2\">\n";
 		if ($status<3) print findtekst('2129|Rekv. nr.', $sprog_id).": <input type=\"text\" size=\"15\" name=\"kundeordnr\" value=\"$kundeordnr\">\n";
 		elseif ($kundeordnr) print findtekst('2129|Rekv. nr.', $sprog_id).": $kundeordnr</td>\n";
-		($bordnavn ?? null)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';
+		$tmp = !empty($bordnavn) ? " ".findtekst('932|Bord', $sprog_id).": $bordnavn |" : '';
 		if ($status>=3) print "</td><td colspan=\"2\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref | $tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td>\n";
 		print "</tr>\n<tr><td colspan=\"2\"><b>$firmanavn</b></td>\n";
 		if ($status>=3) print "<td colspan=\"4\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato, $tidspkt</td></tr>\n";
@@ -406,7 +406,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			if ($betalingsbet=='Kontant') print "<tr><td colspan=\"2\"><b>".findtekst('1866|Ingen kredit', $sprog_id)."</b></td>\n";
 		}
 	} elseif ($status>=3) {
-		($bordnavn ?? null)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';
+		$tmp = !empty($bordnavn) ? " ".findtekst('932|Bord', $sprog_id).": $bordnavn |" : '';
 		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref |$tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td></tr>\n";
 		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato, $tidspkt</td></tr>\n";
 	}

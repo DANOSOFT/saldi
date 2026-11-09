@@ -21,6 +21,9 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | A new test lives where CI runs it: a `phpunit.xml` suite or `e2e/` | guardrails `test-discovery` | [tests/README.md](tests/README.md) |
 | An edited PHP file gets a history line below the older ones; the header date and copyright move along | guardrails `file-history` | [convention_file_history](doc/ai/convention_file_history.md) |
 | No line-ending-only edits, no new trailing whitespace, no file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](doc/ai/feedback_whitespace_and_indentation.md) |
+| Indent changed PHP statements inside their block, align closing braces, and close each multiline block on its own line | guardrails `php-style` | |
+| Use explicit `(int)` or `(float)` casts for numeric conversion instead of multiplying by `1` | guardrails `php-style` | |
+| Quantity-discount rendering takes explicit parameters, produces output only when called, and leaves caller variables unchanged | PHPUnit `QtyDiscountDecimalsTest` | |
 | Keep simple function calls on one line; when a call needs wrapping, put every argument on its own line | review | |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](doc/ai/feedback_pre_pr_test_report.md) |
 | Header-history continuations start a new sentence and align with the description after the date/tag | guardrails `file-history` | [convention_file_history](doc/ai/convention_file_history.md) |

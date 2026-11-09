@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productCardIncludes/showQtyDiscount.php --- ver 5.1.0 --- 2026-10-27 ---
+// --- lager/productCardIncludes/showQtyDiscounts.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,12 +25,38 @@
 // 20240211 PHR Remover decimal limit from $m_rabat_array and $m_antal_array
 // 20261019 CDX/LH MB-78: fix PHP warnings
 // 20261027 CL/LH MB-78: Pad a missing decimal part with '' so strlen() gets a string, not null (CodeRabbit).
-print "<tr><td><b>".findtekst(2041,$sprog_id)."</b></td>";
-if ($special_price && $specialType=='percent') {
-	print "<tr><td>".findtekst(2043,$sprog_id)."</td></tr>";
-} else {
+// 20261109 CDX/NTR Render quantity discounts with explicit parameters and local calculations without changing caller values.
+require_once __DIR__ . '/../../includes/std_func.php';
+
+/**
+ * Render the item card's quantity discounts without changing the supplied values.
+ *
+ * @param list<int|float|string> $discountAmounts Discount amounts or percentages before display VAT.
+ * @param list<int|float|string> $quantities Quantity thresholds in the same order as the discounts.
+ * @param string $discountType 'amount' or 'percent'.
+ * @param float $vatPercent VAT percentage to add when displaying amount discounts.
+ * @param bool $readOnly Whether the discount group supplies the values.
+ * @param bool $hasPercentageOffer Whether a percentage offer replaces quantity discounts.
+ * @param int $languageId Language used for the field labels.
+ * @return void
+ */
+function renderQtyDiscounts(
+	array $discountAmounts,
+	array $quantities,
+	string $discountType,
+	float $vatPercent,
+	bool $readOnly,
+	bool $hasPercentageOffer,
+	int $languageId
+): void {
+	print "<tr><td><b>".findtekst(2041, $languageId)."</b></td>";
+	if ($hasPercentageOffer) {
+		print "<tr><td>".findtekst(2043, $languageId)."</td></tr>";
+		return;
+	}
+
 	print "<td align=\"right\"><SELECT class=\"inputbox\" NAME=m_type style=\"width: 4em\">";
-	if ($m_type == 'amount') {
+	if ($discountType == 'amount') {
 		print "<option value=\"amount\">kr</option>";
 		print "<option value=\"percent\">%</option>";
 	} else {
@@ -38,33 +64,33 @@ if ($special_price && $specialType=='percent') {
 		print "<option value=\"amount\">kr</option>";
 	}
 	print "</SELECT> pr</td>";
-	print "<td> ".findtekst(2042,$sprog_id)."</td></tr>";
-	for ($x=0;$x<count($m_antal_array);$x++) {
-		if ($m_antal_array[$x]) {
-			if ($incl_moms && $m_type!="percent") $m_rabat_array[$x]*=(100+$incl_moms)/100;
-			list($a,$b) = array_pad(explode('.',$m_rabat_array[$x]*1), 2, '');
-			$c = strlen ($b);
-			list($a,$b) = array_pad(explode('.',$m_antal_array[$x]*1), 2, '');
-			$d = strlen ($b);
-			($rabatgruppe)? $inputtype="readonly=\"readonly\"":$inputtype="type=\"text\"";
-			if ($m_rabat_array[$x] > 0 || $m_antal_array[$x] > 0) {
-			print "<tr><td>".findtekst(2044,$sprog_id)."</td>";
-			print "<td><input $inputtype size=\"5\" style=\"text-align:right\" name=\"m_rabat_array[$x]\" value=".dkdecimal($m_rabat_array[$x],$c)."></td><td><input $inputtype size=\"5\" style=\"text-align:right\" name=\"m_antal_array[$x]\" value=\"".dkdecimal($m_antal_array[$x],$d)."\"></td></tr>";
-		}}
+	print "<td> ".findtekst(2042, $languageId)."</td></tr>";
+	for ($index = 0; $index < count($quantities); $index++) {
+		$quantity = $quantities[$index];
+		if (!$quantity) {
+			continue;
+		}
+		$discountAmount = $discountAmounts[$index] ?? 0;
+		if ($vatPercent && $discountType != 'percent') {
+			$discountAmount = (float) $discountAmount * (100 + $vatPercent) / 100;
+		}
+		$discountDecimals = strlen(explode('.', (string) (float) $discountAmount)[1] ?? '');
+		$quantityDecimals = strlen(explode('.', (string) (float) $quantity)[1] ?? '');
+		$inputType = $readOnly ? 'readonly="readonly"' : 'type="text"';
+		if ($discountAmount > 0 || $quantity > 0) {
+			print "<tr><td>".findtekst(2044, $languageId)."</td>";
+			print "<td><input $inputType size=\"5\" style=\"text-align:right\" name=\"m_rabat_array[$index]\" value=".dkdecimal($discountAmount, $discountDecimals)."></td><td><input $inputType size=\"5\" style=\"text-align:right\" name=\"m_antal_array[$index]\" value=\"".dkdecimal($quantity, $quantityDecimals)."\"></td></tr>";
+		}
 	}
-#$x++;
-	if (!$rabatgruppe) {
-	if (!isset($m_rabat_array[$x])) $m_rabat_array[$x]='0';
-	if (!isset($m_antal_array[$x])) $m_antal_array[$x]='0';
-		list($a,$b) = array_pad(explode('.',$m_rabat_array[$x]*1), 2, '');
-		$c = strlen ($b);
-		list($a,$b) = array_pad(explode('.',$m_antal_array[$x]*1), 2, '');
-		$d = strlen ($b);
-		print "<tr><td>".findtekst(2044,$sprog_id)."</td>";
-		print "<td><input class='inputbox' type='text' size='5' style='text-align:right' name='m_rabat_array[$x]'";
-		print "value='".dkdecimal($m_rabat_array[$x],$c)."'></td>";
-		print "<td><input class='inputbox' type='text' size='5' style=text-align:right name='m_antal_array[$x]'";
-		print "value='".dkdecimal($m_antal_array[$x],$d)."'></td></tr>";
+	if (!$readOnly) {
+		$discountAmount = $discountAmounts[$index] ?? '0';
+		$quantity = $quantities[$index] ?? '0';
+		$discountDecimals = strlen(explode('.', (string) (float) $discountAmount)[1] ?? '');
+		$quantityDecimals = strlen(explode('.', (string) (float) $quantity)[1] ?? '');
+		print "<tr><td>".findtekst(2044, $languageId)."</td>";
+		print "<td><input class='inputbox' type='text' size='5' style='text-align:right' name='m_rabat_array[$index]'";
+		print "value='".dkdecimal($discountAmount, $discountDecimals)."'></td>";
+		print "<td><input class='inputbox' type='text' size='5' style=text-align:right name='m_antal_array[$index]'";
+		print "value='".dkdecimal($quantity, $quantityDecimals)."'></td></tr>";
 	}
 }
-?>

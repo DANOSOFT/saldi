@@ -6,7 +6,7 @@ $s_id=session_id();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/bogfor.php --- ver 5.1.0 --- 2026-03-22 ---
+// --- kreditor/bogfor.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@ $s_id=session_id();
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -------------------------------------------------------------------------
 //
 // 2013.11.08 Fejl v. fifo og varetilgang på varekøb.Søg #20131108
@@ -96,7 +96,7 @@ $valuta=$row['valuta'];
 $projekt[0]=$row['projekt'];
 $cvrnr=$row['cvrnr'];
 $r_bc = db_fetch_array(db_select("select var_value from settings where var_name='baseCountry' limit 1",__FILE__ . " linje " . __LINE__));
-$baseCountry = ($r_bc ? $r_bc['var_value'] : null) ?: 'dk';
+$baseCountry = ($r_bc['var_value'] ?? null) ?: 'dk';
 if ($valuta && $valuta!='DKK') {
 	if ($r= db_fetch_array(db_select("select valuta.kurs as kurs, grupper.box3 as difkto from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=".nr_cast("grupper.kodenr",__FILE__ . " linje " . __LINE__)." and valuta.valdate <= '$levdate' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
 		$valutakurs=$r['kurs']*1;

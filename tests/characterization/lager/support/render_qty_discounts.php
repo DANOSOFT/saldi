@@ -1,9 +1,10 @@
 <?php
 // 20261027 CL/LH MB-78: Child-process runner for QtyDiscountDecimalsTest.
-//                Renders lager/productCardIncludes/showQtyDiscounts.php with the globals varekort.php sets and prints {"html": ..., "errors": [...]} as JSON, every PHP notice included.
+//                Calls renderQtyDiscounts() with explicit inputs and reports its HTML, input isolation and PHP notices as JSON.
+// 20261109 CDX/NTR Call the renderer twice with explicit inputs and report loading output, input mutations and PHP notices.
 
 /**
- * Input (JSON on stdin): the globals showQtyDiscounts.php reads -
+ * Input (JSON on stdin): the item-card values to pass to renderQtyDiscounts() -
  * m_antal_array, m_rabat_array, m_type, incl_moms, rabatgruppe, special_price, specialType.
  */
 $input = json_decode((string) stream_get_contents(STDIN), true);
@@ -17,9 +18,6 @@ function findtekst($textId, $languageID) {
 	return "tekst-$textId";
 }
 
-$repoRoot = dirname(__DIR__, 4);
-require_once $repoRoot . '/includes/std_func.php';
-
 $errors = array();
 error_reporting(E_ALL);
 set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline) use (&$errors): bool {
@@ -27,18 +25,32 @@ set_error_handler(function (int $errno, string $errstr, string $errfile, int $er
 	return true;
 });
 
-$sprog_id      = 1;
-$m_antal_array = $input['m_antal_array'];
-$m_rabat_array = $input['m_rabat_array'];
-$m_type        = $input['m_type'];
-$incl_moms     = $input['incl_moms'];
-$rabatgruppe   = $input['rabatgruppe'];
-$special_price = $input['special_price'];
-$specialType   = $input['specialType'];
-
 ob_start();
-include $repoRoot . '/lager/productCardIncludes/showQtyDiscounts.php';
-$html = ob_get_clean();
+require_once __DIR__ . '/../../../../lager/productCardIncludes/showQtyDiscounts.php';
+$includeOutput = ob_get_clean();
+
+$render = static function () use (&$input): string {
+	ob_start();
+	renderQtyDiscounts(
+		discountAmounts: $input['m_rabat_array'],
+		quantities: $input['m_antal_array'],
+		discountType: $input['m_type'],
+		vatPercent: (float) $input['incl_moms'],
+		readOnly: (bool) $input['rabatgruppe'],
+		hasPercentageOffer: (bool) $input['special_price'] && $input['specialType'] == 'percent',
+		languageId: 1
+	);
+	return ob_get_clean();
+};
+$before = $input;
+$html = $render();
+$repeatHtml = $render();
 
 restore_error_handler();
-print json_encode(array('html' => $html, 'errors' => $errors));
+print json_encode(array(
+	'html' => $html,
+	'errors' => $errors,
+	'includeOutput' => $includeOutput,
+	'inputsUnchanged' => $input === $before,
+	'repeatHtml' => $repeatHtml,
+));

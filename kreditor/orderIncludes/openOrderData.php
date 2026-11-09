@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -191,11 +191,11 @@ if ($id) {
 	// 	}	
 
 	if (is_array($attachId ?? null) && count($attachId) >= 1) {
-        print "<select name = 'showAttachment' id = 'showAttachment'>";
-        for ($x = 0; $x < count($attachId); $x++) {
-            $shortName = substr($attachName[$x], 0, 25);
-            print "<option value = '$attachName[$x]'>$shortName</option>";
-        }
+		print "<select name = 'showAttachment' id = 'showAttachment'>";
+		for ($x = 0; $x < count($attachId); $x++) {
+			$shortName = substr($attachName[$x], 0, 25);
+			print "<option value = '$attachName[$x]'>$shortName</option>";
+		}
 
 		print "</select><br>";
 		print "<script type='text/javascript'>
@@ -234,7 +234,7 @@ if (count($employees)) {
 print "</td>";
 
 //use the $firstEmployee to get the afd
-if (!($afd ?? null) && ($firstEmployee ?? null)) {
+if (empty($afd) && !empty($firstEmployee)) {
 	$query = db_select("SELECT afd FROM ansatte WHERE navn = '$firstEmployee'",__FILE__ . " linje " . __LINE__);
 	if($r = db_fetch_array($query)){
 		$afd = $r['afd'];
