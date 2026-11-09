@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productCardIncludes/showQtyDiscount.php --- lap 4.1.0 --- 2025-03-06 ---
+// --- lager/productCardIncludes/showQtyDiscount.php --- ver 5.1.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240211 PHR Remover decimal limit from $m_rabat_array and $m_antal_array
 // 20261019 CDX/LH MB-78: fix PHP warnings

@@ -6,7 +6,7 @@ $s_id=session_id();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/bogfor.php --- lap 5.0.0 --- 2026-03-22 ---
+// --- kreditor/bogfor.php --- ver 5.1.0 --- 2026-03-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

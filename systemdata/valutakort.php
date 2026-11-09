@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/valutakort.php-----patch 4.1.1 ----2025-05-07--
+// -------------systemdata/valutakort.php-----ver 5.1.0 ----2026-10-19--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20130513 - Opdateret liste over valutakoder
 // 20150313 CA  Topmenudesign tilføjet                             søg 20150313

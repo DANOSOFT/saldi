@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- debitor/func/pos_ordre_itemscan.php ---- lap 5.1.0 -- 2026.09.17 --
+// -------- debitor/func/pos_ordre_itemscan.php ---- ver 5.1.0 -- 2026.10.19 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

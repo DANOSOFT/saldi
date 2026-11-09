@@ -1,7 +1,6 @@
 <?php
-// 20261027 CL/LH MB-78: Child-process runner for QtyDiscountDecimalsTest. Renders
-//                  lager/productCardIncludes/showQtyDiscounts.php with the globals varekort.php
-//                  sets and prints {"html": ..., "errors": [...]} as JSON, every PHP notice included.
+// 20261027 CL/LH MB-78: Child-process runner for QtyDiscountDecimalsTest.
+//                Renders lager/productCardIncludes/showQtyDiscounts.php with the globals varekort.php sets and prints {"html": ..., "errors": [...]} as JSON, every PHP notice included.
 
 /**
  * Input (JSON on stdin): the globals showQtyDiscounts.php reads -

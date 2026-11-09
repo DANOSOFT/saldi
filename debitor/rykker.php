@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------debitor/rykker.php---------lap 4.0.7-------2023-02-28--------
+// -----------debitor/rykker.php---------ver 5.1.0-------2026-10-19--------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20140628 - Diverse rettelser da rykkergebyr altid vistes i DKK Søg 20140628
 // 20140707 - Opdatering virkede kun når der blev ændret valuta 20140707

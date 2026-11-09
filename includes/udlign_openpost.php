@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-09-25---
+// ----------includes/udlign_openpost.php-------ver 5.1.0 ----2026-10-27---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

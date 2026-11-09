@@ -1,7 +1,6 @@
 <?php
-// 20261027 CL/LH MB-78: The quantity-discount rows on the item card render whole numbers without a
-//                  PHP notice. array_pad(..., null) left the missing decimal part null and strlen()
-//                  logged "Passing null to parameter #1" on PHP 8.1+ (CodeRabbit on PR #838).
+// 20261027 CL/LH MB-78: The quantity-discount rows on the item card render whole numbers without a PHP notice.
+//                array_pad(..., null) left the missing decimal part null and strlen() logged "Passing null to parameter #1" on PHP 8.1+ (CodeRabbit on PR #838).
 
 declare(strict_types=1);
 
