@@ -41,6 +41,7 @@
 //                 A signup whose account build failed three times shows a "call us" page.
 // 20261109 CL/PS A signup whose mailbox already has an account, or had a trial that closed less than cooldown_months ago, gets a page that says so instead of the form.
 //                After an activation the internal new-customer mail goes to notify_email once the page has been sent.
+//                Review: an expired or replaced link of such a mailbox shows the reason too, not "Send et nyt link".
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -82,6 +83,15 @@ if ($row['state'] === 'activating') {
 		. '<a class="btn" href="aktiver.php?t=' . signup_h(rawurlencode($token)) . '">Opdatér</a>' . signup_help_line());
 }
 
+// One e-mail, one account (doc/signup.md): a mailbox that already has an account (e.g. a second signup for another
+// package), or whose trial closed less than cooldown_months ago, gets the reason instead of the form, and an expired or
+// replaced link gets it instead of "Send et nyt link" (nytlink.php would not send one either). The signup itself stays
+// pending until rydop.php removes it. signup_activate() asks again under its lock.
+$mailbox = signup_mailbox_rule($row['email']);
+if ($mailbox['decision'] !== 'allowed') {
+	signup_mailbox_refused_page($mailbox, $urls);
+}
+
 if ($row['state'] !== 'valid') {
 	// expired, or replaced by a newer link
 	$days = max(1, (int)signup_setting('token_days', '7'));
@@ -91,14 +101,6 @@ if ($row['state'] !== 'valid') {
 		. '<p class="lead">' . signup_h($why) . ' Vi kan sende et nyt link til <strong>' . signup_h(signup_mask_email($row['email'])) . '</strong>, så I kan aktivere regnskabet.</p>'
 		. '<form method="post" action="nytlink.php"><input type="hidden" name="t" value="' . signup_h($token) . '"><button type="submit" class="btn">Send et nyt link</button></form>'
 		. '<p class="fine">Har I allerede aktiveret regnskabet? <a class="link" href="' . signup_h($urls['login']) . '">Log ind</a></p>', '', 410);
-}
-
-// One e-mail, one account (doc/signup.md): a mailbox that already has an account (e.g. a second signup for another
-// package), or whose trial closed less than cooldown_months ago, gets the reason instead of the form. The signup itself
-// stays pending until rydop.php removes it. signup_activate() asks again under its lock.
-$mailbox = signup_mailbox_rule($row['email']);
-if ($mailbox['decision'] !== 'allowed') {
-	signup_mailbox_refused_page($mailbox, $urls);
 }
 
 // ---- state 'valid': show the form, or activate -------------------------------------------------

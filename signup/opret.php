@@ -37,9 +37,10 @@
 // validation is server side; the CVR number is looked up here, never trusted from the client.
 // One e-mail, one account (doc/signup.md): a mailbox that already has a signup account, or whose trial
 // closed less than cooldown_months ago, is refused with a message that says so. That reveals whether an
-// address has an account; it is only answered after this client address's signup limit (5 an hour) is
-// claimed, so it cannot be used to test many addresses. Otherwise the page does not reveal whether an
-// address is known. The address itself is shown in full: the customer just typed it (masking is for
+// address has (had) an account. It is only answered after both signup limits are claimed: 5 an hour per
+// client address (per /64 for IPv6) and max_signups_per_hour for the whole server, shared with real signups.
+// So testing addresses from many client addresses is slowed down, not prevented. Otherwise the page does not
+// reveal whether an address is known. The address itself is shown in full: the customer just typed it (masking is for
 // pages reached through a link, see nytlink.php).
 //
 // 20261014 CL/PS Created.
@@ -49,7 +50,7 @@
 //                 A c/o address from the CVR register is kept as on a letter: addr1 "c/o <name>", the street in addr2 (as on the kreditor card).
 //                 The per-mailbox mail cap is claimed before the mail is sent.
 // 20261109 CL/PS Refuses (422, errors.email) a mailbox that already has a signup account, or whose trial closed less than cooldown_months ago.
-//                Asked after the per-address limit is claimed and before the server ceiling, which a refused signup does not use.
+//                Asked after both signup limits are claimed, so a refused answer also counts against max_signups_per_hour.
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -114,14 +115,14 @@ if ($errors) {
 // Limits are claimed (recorded, then counted), so parallel requests cannot all slip past them: 5 per hour from
 // one address, and a ceiling for the whole server (max_signups_per_hour) that protects the mail reputation. Only
 // submissions that passed validation count, so a customer's typos do not lock them (or everybody) out.
-$tooMany = 'Der er oprettet for mange regnskaber den seneste time. Prøv igen senere, eller ring til os.';
-if (!signup_claim_event('opret', 5, 3600)) {
-	signup_too_many($tooMany, $json);
+if (!signup_claim_event('opret', 5, 3600) || !signup_claim_event('opret_alle', (int)signup_setting('max_signups_per_hour', '60'), 3600, null, true)) {
+	signup_too_many('Der er oprettet for mange regnskaber den seneste time. Prøv igen senere, eller ring til os.', $json);
 }
 
-// One e-mail, one account across the packages, and a waiting period after a trial (doc/signup.md). Asked after the
-// per-address limit, since the answer tells whether the address has an account; a refused signup sends no mail, so it
-// does not count against the server ceiling below. aktiver.php asks again before an account is created.
+// One e-mail, one account across the packages, and a waiting period after a trial (doc/signup.md). Asked after both
+// limits are claimed, since the answer tells whether the address has an account: a refused answer counts against the
+// server ceiling too, so the whole server gives at most max_signups_per_hour of them an hour. aktiver.php asks again
+// before an account is created.
 $mailbox = signup_mailbox_rule($d['email']);
 if ($mailbox['decision'] !== 'allowed') {
 	signup_log('signup refused: ' . signup_mailbox_log_text($mailbox));
@@ -130,10 +131,6 @@ if ($mailbox['decision'] !== 'allowed') {
 		signup_json(array('ok' => false, 'errors' => $errors), 422);
 	}
 	signup_fallback_form($in, $errors);
-}
-
-if (!signup_claim_event('opret_alle', (int)signup_setting('max_signups_per_hour', '60'), 3600, null, true)) {
-	signup_too_many($tooMany, $json);
 }
 
 // Many mails to one mailbox within a day: answer as if sent, but send nothing (no enumeration). Claimed

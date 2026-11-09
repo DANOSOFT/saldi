@@ -40,6 +40,7 @@
 // 20261102 CL/ASR The 'mail' limit is claimed by the callers before sending instead of recorded after it.
 // 20261109 CL/PS Internal new-customer mail to notify_email after an activation (signup_notify_message(), signup_send_notify_mail()).
 //                signup_send_mail() takes a Reply-To and Bcc for a single mail.
+//                Review: the recipients come from signup_notify_recipients(); the mailto: link encodes the customer's local part.
 
 if (!function_exists('signup_mail_vars')) {
 	/**
@@ -434,7 +435,10 @@ if (!function_exists('signup_notify_message')) {
 			$text .= $label . ':' . str_repeat(' ', max(1, 18 - mb_strlen($label))) . ($value !== '' ? $value : '–') . "\n";
 			$cell = ($value !== '') ? $h($value) : '–';
 			if ($label === 'E-mail' && $replyTo !== '') {
-				$cell = '<a href="mailto:' . $h($replyTo) . '" style="color:#143A70;">' . $h($value) . '</a>';
+				// the local part URL-encoded: a valid address may hold '?' or '=', which a mailto: link would read as fields
+				$at = strrpos($replyTo, '@');
+				$href = 'mailto:' . rawurlencode(substr($replyTo, 0, $at)) . '@' . substr($replyTo, $at + 1);
+				$cell = '<a href="' . $h($href) . '" style="color:#143A70;">' . $h($value) . '</a>';
 			}
 			$rows .= '<tr><td style="padding:3px 16px 3px 0;color:#55616F;white-space:nowrap;vertical-align:top;">' . $h($label) . '</td>'
 				. '<td style="padding:3px 0;color:#121017;">' . $cell . '</td></tr>';
@@ -450,6 +454,39 @@ if (!function_exists('signup_notify_message')) {
 	}
 }
 
+if (!function_exists('signup_notify_recipients')) {
+	/**
+	 * Who gets the new-customer mail, from the notify_email setting: one address or several separated by commas
+	 * ('' means the default, as for every signup setting), 'off' for none.
+	 *
+	 * @param string $setting the notify_email setting's value
+	 * @return array{to: string[], invalid: int} invalid: entries that are not an e-mail address (skipped)
+	 */
+	function signup_notify_recipients($setting) {
+		$setting = trim((string)$setting);
+		if ($setting === '') {
+			$setting = 'info@saldi.dk';
+		}
+		$to = array();
+		$invalid = 0;
+		if (strtolower($setting) === 'off') {
+			return array('to' => $to, 'invalid' => $invalid);
+		}
+		foreach (explode(',', $setting) as $address) {
+			$address = trim($address);
+			if ($address === '') {
+				continue;
+			}
+			if (filter_var($address, FILTER_VALIDATE_EMAIL)) {
+				$to[] = $address;
+			} else {
+				$invalid++;
+			}
+		}
+		return array('to' => $to, 'invalid' => $invalid);
+	}
+}
+
 if (!function_exists('signup_send_notify_mail')) {
 	/**
 	 * Sends the internal new-customer mail (signup_notify_message()) to the notify_email setting: one address or
@@ -462,19 +499,20 @@ if (!function_exists('signup_send_notify_mail')) {
 	 * @return bool true when the transport accepted the mail for every recipient
 	 */
 	function signup_send_notify_mail(array $row, array $result) {
-		$setting = trim(signup_setting('notify_email', 'info@saldi.dk'));
-		if (strtolower($setting) === 'off') {
+		$setting = signup_setting('notify_email', 'info@saldi.dk');
+		if (strtolower(trim($setting)) === 'off') {
 			return false;
 		}
+		$recipients = signup_notify_recipients($setting);
 		$m = signup_notify_message($row, $result, signup_base_url());
 		$options = array('reply_to' => $m['reply_to'], 'reply_to_name' => $m['reply_to_name'], 'bcc' => '');
 		$sent = 0;
-		$failed = 0;
-		foreach (array_filter(array_map('trim', explode(',', $setting))) as $to) {
-			if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
-				signup_log('notify_email holds a value that is not an e-mail address; skipped');
-				$failed++;
-			} elseif (signup_send_mail($to, '', $m['subject'], $m['html'], $m['text'], $options)) {
+		$failed = $recipients['invalid'];
+		if ($failed > 0) {
+			signup_log('notify_email holds ' . $failed . ' value(s) that are not an e-mail address; skipped');
+		}
+		foreach ($recipients['to'] as $to) {
+			if (signup_send_mail($to, '', $m['subject'], $m['html'], $m['text'], $options)) {
 				$sent++;
 			} else {
 				$failed++;

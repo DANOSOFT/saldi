@@ -28,6 +28,7 @@ if (!function_exists('ifset')) {
 final class signupMailboxRules extends TestCase
 {
     private const TODAY = '2026-11-09';
+    private const NOW = '2026-11-09 10:00:00';
 
     /**
      * A signup_mailbox_history() row: an activated signup with its account, open and in its trial.
@@ -47,9 +48,9 @@ final class signupMailboxRules extends TestCase
      * @param array<int, array<string, mixed>> $history
      * @return array{decision: string, date: string, regnskab_id: int, signup_id: int}
      */
-    private static function decide(array $history, string $today = self::TODAY, int $cooldownMonths = 3): array
+    private static function decide(array $history, string $today = self::TODAY, int $cooldownMonths = 3, string $now = self::NOW): array
     {
-        return signup_mailbox_decision($history, $today, 30, 14, $cooldownMonths);
+        return signup_mailbox_decision($history, $today, 30, 14, $cooldownMonths, $now);
     }
 
     /**
@@ -109,7 +110,7 @@ final class signupMailboxRules extends TestCase
             'a subscription: sales cleared the closing date' => [['lukkes' => null]],
             'never closes (2099-12-31)' => [['lukkes' => '2099-12-31']],
             "lukket '0' is not closed (index/login.php reads it as false)" => [['lukket' => '0']],
-            'being created right now' => [['status' => 'activating', 'r_id' => null, 'lukket' => null, 'lukkes' => null, 'sidst' => null, 'trial_end' => null]],
+            'being created right now' => [['status' => 'activating', 'activated' => '2026-11-09 09:58:00', 'r_id' => null, 'lukket' => null, 'lukkes' => null, 'sidst' => null, 'trial_end' => null]],
         ];
     }
 
@@ -147,6 +148,46 @@ final class signupMailboxRules extends TestCase
         $closed = self::account(['lukket' => 'on', 'lukkes' => '2026-11-30']);
         self::assertSame(['cooldown', '2027-02-28'], array_values(array_slice(self::decide([$closed], '2027-02-27'), 0, 2)));
         self::assertSame('allowed', self::decide([$closed], '2027-02-28')['decision']);
+    }
+
+    public function testABuildThatDiedIsNoAccount(): void
+    {
+        // status 'activating' with no end: the build died (fatal error, time limit, restart) and nothing set it back
+        $building = self::account(['status' => 'activating', 'r_id' => null, 'lukket' => null, 'lukkes' => null, 'sidst' => null, 'trial_end' => null]);
+        $recent = array_replace($building, ['activated' => '2026-11-09 09:31:00']);
+        self::assertSame('already_has_account', self::decide([$recent])['decision'], 'within 30 minutes it may still be running');
+        $stale = array_replace($building, ['activated' => '2026-11-09 09:29:00']);
+        self::assertSame('allowed', self::decide([$stale])['decision'], 'after 30 minutes it is no account and no closed trial');
+        self::assertSame('allowed', self::decide([array_replace($building, ['activated' => '2026-11-02 14:00:00'])])['decision']);
+        // the regnskab row it may have left still counts, as a regnskab row with a package
+        $leftover = ['r_id' => 77, 'email' => 'mette@nordlys.dk', 'lukket' => '', 'lukkes' => '2026-12-16', 'sidst' => null, 'trial_end' => '2026-12-02'];
+        self::assertSame('already_has_account', self::decide([$stale, $leftover])['decision']);
+    }
+
+    public function testDeletedByTheCustomerCountsFromTheDayInTheLoginText(): void
+    {
+        // systemdata/diverse.php: lukket='on', logintekst='slettet af <user> den Ymd H.i', lukkes still the trial's date
+        $deleted = self::account(['lukket' => 'on', 'lukkes' => '2026-12-15', 'sidst' => (string)mktime(9, 0, 0, 11, 3, 2026),
+            'logintekst' => 'slettet af mette@nordlys.dk den 20261103 10.15']);
+        self::assertSame(['decision' => 'cooldown', 'date' => '2027-02-03', 'regnskab_id' => 42, 'signup_id' => 7], self::decide([$deleted]));
+        self::assertSame('allowed', self::decide([$deleted], '2027-02-03')['decision']);
+        // a closing date that came first wins
+        $late = array_replace($deleted, ['lukkes' => '2026-11-01', 'sidst' => (string)mktime(9, 0, 0, 10, 30, 2026)]);
+        self::assertSame('2027-02-01', self::decide([$late])['date']);
+    }
+
+    public function testAnOldDeletionTextIsIgnoredOnceTheAccountWasUsedAgain(): void
+    {
+        // reopened by staff after the deletion and logged in to on 5 November; closed again later: lukkes decides
+        $reopened = self::account(['lukket' => 'on', 'lukkes' => '2026-11-08', 'sidst' => (string)mktime(9, 0, 0, 11, 5, 2026),
+            'logintekst' => 'slettet af mette@nordlys.dk den 20261103 10.15']);
+        self::assertSame('2027-02-08', self::decide([$reopened])['date']);
+        // the text without lukket is not a deletion
+        $open = array_replace($reopened, ['lukket' => '', 'lukkes' => '2026-12-15']);
+        self::assertSame('already_has_account', self::decide([$open])['decision']);
+        // other login texts are not dates
+        $text = self::account(['lukket' => 'on', 'lukkes' => '2026-12-15', 'logintekst' => 'Ring til os på 46 90 22 08']);
+        self::assertSame('2027-03-15', self::decide([$text])['date']);
     }
 
     public function testClosedEarlyByStaffCountsFromThePlannedClosingDate(): void
@@ -191,6 +232,50 @@ final class signupMailboxRules extends TestCase
     public function testNoWaitWhenCooldownMonthsIsZero(): void
     {
         self::assertSame('allowed', self::decide([self::account(['lukket' => 'on', 'lukkes' => '2026-11-08'])], self::TODAY, 0)['decision']);
+        // also when the account was closed before its planned closing date
+        self::assertSame('allowed', self::decide([self::account(['lukket' => 'on', 'lukkes' => '2026-12-15'])], self::TODAY, 0)['decision']);
+        // an open account still refuses
+        self::assertSame('already_has_account', self::decide([self::account()], self::TODAY, 0)['decision']);
+    }
+
+    private static function quote(string $v): string
+    {
+        return "'" . str_replace("'", "''", $v) . "'";
+    }
+
+    public function testTheQueryFindsEverySpellingOfAMailbox(): void
+    {
+        $quote = self::quote(...);
+        self::assertSame(
+            "lower(sp.email) LIKE '%@nordlys.dk' AND substr(lower(sp.email), 1, 5) = 'mette'",
+            signup_email_sql_match('sp.email', 'Mette+Business@Nordlys.dk', $quote)
+        );
+        // Gmail: both domains, dots in the name ignored
+        $gmail = "(lower(email) LIKE '%@gmail.com' OR lower(email) LIKE '%@googlemail.com') AND substr(replace(lower(email), '.', ''), 1, 4) = 'john'";
+        self::assertSame($gmail, signup_email_sql_match('email', 'j.ohn@gmail.com', $quote));
+        self::assertSame($gmail, signup_email_sql_match('email', 'John+x@GoogleMail.com', $quote));
+        // a quote in the name is quoted; a domain the rules do not allow falls back to an exact match
+        self::assertSame("lower(email) LIKE '%@firma.dk' AND substr(lower(email), 1, 5) = 'o''nei'", signup_email_sql_match('email', "o'nei@firma.dk", $quote));
+        self::assertSame("lower(email) = 'a@b''c.dk'", signup_email_sql_match('email', "a@b'c.dk", $quote));
+        self::assertSame("lower(email) = 'nonsense'", signup_email_sql_match('email', 'nonsense', $quote));
+    }
+
+    public function testOnlyRowsOfTheSameMailboxCount(): void
+    {
+        // the query is a superset ('johnny@' starts with 'john'); signup_email_key() decides
+        $signups = [
+            ['signup_id' => 1, 'status' => 'activated', 'email' => 'J.ohn+fin@gmail.com', 'r_id' => 10],
+            ['signup_id' => 2, 'status' => 'activated', 'email' => 'johnny@gmail.com', 'r_id' => 11],
+            ['signup_id' => 3, 'status' => 'activating', 'email' => 'john@googlemail.com', 'r_id' => null],
+        ];
+        $accounts = [
+            ['r_id' => 10, 'email' => 'john@gmail.com'], // the account of signup 1: counted once
+            ['r_id' => 12, 'email' => 'jo.hn@gmail.com'], // its signup row is gone
+            ['r_id' => 13, 'email' => 'johnny@gmail.com'],
+        ];
+        $rows = signup_mailbox_history_rows('john@gmail.com', $signups, $accounts);
+        self::assertSame([1, 3], array_values(array_filter(array_map(fn ($r) => $r['signup_id'] ?? 0, $rows))));
+        self::assertSame([10, 0, 12], array_map(fn ($r) => (int)($r['r_id'] ?? 0), $rows));
     }
 
     public function testTheCustomerIsToldWhyInDanishWithTheSupportPhoneSetting(): void
@@ -290,6 +375,24 @@ final class signupMailboxRules extends TestCase
         self::assertSame('', $m['reply_to']);
         self::assertStringNotContainsString('mailto:', $m['html']);
         self::assertStringNotContainsString('Svar på denne mail', $m['text']);
+    }
+
+    public function testMailtoLinkCannotAddRecipients(): void
+    {
+        // signup_valid_email() accepts '?' and '=' in the name; unencoded, a mail client would read "cc=" as a field
+        [$row, $account] = self::newCustomer();
+        $row['email'] = 'kontor?cc=bogholderi@firma.dk';
+        $m = signup_notify_message($row, $account, 'https://ssl3.saldi.dk/finans');
+        self::assertStringContainsString('href="mailto:kontor%3Fcc%3Dbogholderi@firma.dk"', $m['html']);
+        self::assertStringNotContainsString('mailto:kontor?', $m['html']);
+    }
+
+    public function testNotifyRecipientsFromTheSetting(): void
+    {
+        self::assertSame(['to' => ['info@saldi.dk'], 'invalid' => 0], signup_notify_recipients(''), 'empty means the default');
+        self::assertSame(['to' => [], 'invalid' => 0], signup_notify_recipients(' OFF '));
+        self::assertSame(['to' => ['a@saldi.dk', 'b@danosoft.dk'], 'invalid' => 0], signup_notify_recipients(' a@saldi.dk, b@danosoft.dk ,'));
+        self::assertSame(['to' => ['a@saldi.dk'], 'invalid' => 1], signup_notify_recipients('a@saldi.dk, not an address'));
     }
 
     public function testNotifyMailIsOffWhenTheSettingSaysSo(): void
