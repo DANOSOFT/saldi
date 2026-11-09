@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
-// 20261106 LOE SST-969 Pins the rights check on the payroll rates page.
+// 20261109 LOE SST-969 Pins the rights check on the payroll rates page.
 //
 //                  sager/loen.php calls the function the request names ($funktion()), and its rates page
 //                  saved for whoever reached it. The pages are session-gated and cannot be included from a
@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 //                  for, and a save in the include that asks for the same right.
 //
 // History:
-// 20261106 LOE SST-969 created.
+// 20261109 LOE SST-969 created.
 
 final class LoenRatesRightTest extends TestCase
 {

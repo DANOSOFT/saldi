@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- ver 5.1.0 --- 2026-11-06 ---
+// --- sager/loen.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -116,7 +116,7 @@
 // 20261103 CL/MMR SD-799 The texts of the former employee warning are passed to jquery.loen.js in the user's language.
 // 20261103 CL/MMR SD-799 The date picker, the piecework list toggle, the list paging line and the date clear button follow the user's language.
 // 20261105 CL/MMR SST-943 The print icon is not shown on a wage slip whose save was stopped for a missing date.
-// 20261106 LOE SST-969 Only the page functions this file defines can be called.
+// 20261109 LOE SST-969 Only the page functions this file defines can be called.
 //              The rates page asks for the approver right the menu already asks for.
 
 @session_start();
