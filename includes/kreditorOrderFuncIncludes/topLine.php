@@ -5,7 +5,10 @@
 ###############
 $konto_id = if_isset($_GET, NULL,'konto_id');
 $returside = nav_back_url(if_isset($_GET, NULL,'returside'));
-$valg = if_isset($_GET, 'ordrer','valg');
+// 20260917 CL/LH Keep the tab already resolved by ordreliste.php (last used tab); only fall back to the URL.
+if (!isset($valg) || !$valg) {
+    $valg = if_isset($_GET, 'ordrer','valg');
+}
 $sort = if_isset($_GET, NULL,'sort');
 $hreftext = $hreftext ?? null;
 

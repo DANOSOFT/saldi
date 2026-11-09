@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---patch 4.1.0 ----2026-09-25--------------
+// --- lager/varer.php ---ver 5.1.0 ----2026-11-05--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,7 @@
 //             query above it (status < 3) so drafts are included the same way.
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
+// 20260917 CL/LH Lager -> Varer reopens the goods tab the user last worked in (Havemoebelland).
 // 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
 //                  even when it already carried a wildcard, so "123*" and "*123" both searched
 //                  "contains" and never narrowed the list the price-tag print is built from.
@@ -86,6 +87,8 @@
 //             token to the fingerprint, switched to remembering a bounded set of recent submissions
 //             instead of just the last one, and genbestil() now reports success so only a fully
 //             successful submission is remembered.
+// 20261023 CL/LH MB-60: Lager -> Varer also reopens the Styklister tab.
+// 20261105 CL/MMR SST-951 A purchase proposal order (genbestil) takes the language (Sprog) of the supplier's creditor group.
 
 @session_start();
 $s_id=session_id();
@@ -134,7 +137,17 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 
 // Navigate to new lagersystem
 if ($menu == "S") {
-	header('Location: lister/vareliste.php');
+	// 20260917 CL/LH Reopen the goods tab the user last worked in; tabs the user may not see fall back to the item list.
+	$goodsTab = (int)$bruger_id > 0 ? get_settings_value('vareliste_valg', 'lager', 'vareliste', (int)$bruger_id) : 'vareliste';
+	$goodsTabPages = array(
+		'vareliste'    => 'vareliste.php',
+		'ordrestatus'  => substr($rettigheder, 5, 1) ? 'ordrestatus.php' : 'vareliste.php',
+		'indkob'       => substr($rettigheder, 7, 1) ? rawurlencode('indkøb') . '.php' : 'vareliste.php',
+		'serialnumber' => 'serialnumber.php',
+		'styklister'   => 'styklister.php',
+	);
+	$goodsTabPage = isset($goodsTabPages[$goodsTab]) ? $goodsTabPages[$goodsTab] : 'vareliste.php';
+	header('Location: lister/' . $goodsTabPage);
 	exit;
 }
 	
@@ -1126,11 +1139,14 @@ function genbestil($vare_id, $antal) {
 			else $ordrenr=1;
 			$qtxt="select * from adresser where id = $lev_id";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$kgSprog = '';
 			if ($r['gruppe']) {
-				$qtxt = "select box1 from grupper ";
+				$qtxt = "select box1, box4 from grupper ";
 				$qtxt.= "where kode = 'K' and art = 'KG' and kodenr = '$r[gruppe]' and fiscal_year = '$regnaar'";
 				$r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$kode=substr($r1['box1'],0,1); $kodenr=substr($r1['box1'],1);
+				// SST-951: the order prints with the forms of the supplier group's language
+				$kgSprog = trim((string)ifset($r1, 'box4', ''));
 			}	else {
 				$qtxt="select varenr from varer where id = '$vare_id'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -1140,12 +1156,12 @@ function genbestil($vare_id, $antal) {
 			$r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$momssats=$r1['box2']*1;
 			$qtxt="insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,"; #218180822
-			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref)";
+			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, sprog)";
 			$qtxt.=" values ";
 			$qtxt.="('$ordrenr','$r[id]','$r[kontonr]','".db_escape_string($r['firmanavn'])."','".db_escape_string($r['addr1'])."',";
 			$qtxt.= "'".db_escape_string($r['addr2'])."','".db_escape_string($r['postnr'])."','".db_escape_string($r['bynavn'])."',";
 			$qtxt.= "'".db_escape_string($r['land]'])."','$r[betalingsdage]','$r[betalingsbet]','$r[cvrnr]','".db_escape_string($r['notes'])."',";
-			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."')";
+			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."','".db_escape_string($kgSprog ? $kgSprog : 'Dansk')."')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="select id from ordrer where ordrenr='$ordrenr' and art = 'KO'";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

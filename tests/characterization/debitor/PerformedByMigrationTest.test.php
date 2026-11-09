@@ -142,7 +142,7 @@ final class PerformedByMigrationTest extends TestCase
     private function migrate(string $db_type): void
     {
         // Exercise only this migration, without running unrelated pending updates.
-        $source = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
+        $source = file_get_contents(__DIR__ . '/../../../includes/opdat_5.0.php');
         $start = strpos($source, '$performedByMysql =');
         $end = strpos($source, '// Bilagsmatch scoring engine:', $start);
         self::assertNotFalse($start);

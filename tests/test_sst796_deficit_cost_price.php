@@ -15,6 +15,10 @@
  * purchase price, (c) no batch and no purchase line must give varer.kostpris.
  *
  * Run: php tests/test_sst796_deficit_cost_price.php
+ *
+ * SD-786: the message is off by default; these cases run with the setting ticked
+ * ($GLOBALS['sst796_setting']), so the message paths stay covered. The SD-786 rules themselves are
+ * in tests/characterization/includes/CostEstimateNoticeTest.test.php.
  */
 
 error_reporting(E_ALL);
@@ -23,6 +27,21 @@ ini_set('display_errors', 'stderr');
 $GLOBALS['sst796_rows'] = [];      // rows the double returns for the purchase-line query
 $GLOBALS['sst796_queries'] = [];
 $GLOBALS['sst796_varekostpris'] = '88100.930'; // Den-Tec's three-year-old varekort figure
+$GLOBALS['sst796_ordre_art'] = 'DO';      // ordrer.art of the order the priced line belongs to (SST-907)
+$GLOBALS['sst796_setting'] = 'on';        // showCostEstimateNotice (SD-786); off by default in Saldi
+$GLOBALS['db_encode'] = 'UTF8';
+
+/** settings double: only showCostEstimateNotice is read here. */
+function get_settings_value($var_name, $var_grp, $default)
+{
+    return $var_name === 'showCostEstimateNotice' && $var_grp === 'ordre' ? $GLOBALS['sst796_setting'] : $default;
+}
+
+/** std_func.php's afrund(), which dkdecimal() calls. */
+function afrund($number, $decimals)
+{
+    return round((float)$number, (int)$decimals);
+}
 
 /** findtekst() is not under test here; return the fallback text carried by the id. */
 function findtekst($key, $sprog_id)
@@ -35,7 +54,10 @@ function db_select($query, $source)
 {
     $GLOBALS['sst796_queries'][] = $query;
     if (stripos($query, 'from varer') !== false) {
-        return (object)['rows' => [['kostpris' => $GLOBALS['sst796_varekostpris']]]];
+        return (object)['rows' => [['varenr' => '5314349', 'kostpris' => $GLOBALS['sst796_varekostpris']]]];
+    }
+    if (stripos($query, 'join ordrer o on o.id = ol.ordre_id') !== false) {
+        return (object)['rows' => [['art' => $GLOBALS['sst796_ordre_art']]]];
     }
     return (object)['rows' => $GLOBALS['sst796_rows']];
 }
@@ -46,7 +68,16 @@ function db_fetch_array($result)
     return array_shift($result->rows) ?? false;
 }
 
+require_once __DIR__ . '/../includes/stdFunc/dkDecimal.php';
+require_once __DIR__ . '/../includes/stdFunc/jsString.php';
 require_once __DIR__ . '/../includes/stdFunc/findOpenPurchaseCost.php';
+
+/** The message lines a printed notice carries, decoded from its jsString() literals. */
+function noticeLines(string $printed): array
+{
+    preg_match_all('/"(?:[^"\\\\]|\\\\.)*"/', $printed, $m);
+    return array_map(static fn($lit) => json_decode($lit), $m[0]);
+}
 
 $failures = 0;
 
@@ -227,6 +258,39 @@ check('a webservice delivery still gets the right price', 138750.0, $ws);
 check('a webservice delivery prints nothing', '', $wsPrinted);
 check('a webservice delivery is still logged', true, strpos($wsLog, 'source open purchase line') !== false);
 
+// SST-907: a POS sale must not print the alert either. It was printed in the same page that then
+// redirects to the printserver, so the customer's receipt only printed after someone clicked OK -
+// on every sale off negative stock. Price and log line stay as they are. Like the webservice case
+// this runs while the warn-once flag is unset, so it also proves a POS sale does not spend it.
+$GLOBALS['sst796_rows'] = [];
+$GLOBALS['sst796_ordre_art'] = 'PO';
+$GLOBALS['sst796_queries'] = [];
+$fp = fopen('php://memory', 'w+');
+ob_start();
+$pos = deficit_cost_price(1096, 49345, 0, $fp, 2, 'salg fra negativ lagerbeholdning');
+$posPrinted = ob_get_clean();
+rewind($fp);
+$posLog = stream_get_contents($fp);
+fclose($fp);
+check('a POS sale still gets the varekort cost price', 88100.93, $pos);
+check('a POS sale prints no alert', '', $posPrinted);
+check('a POS sale is still logged', true, strpos($posLog, 'linje_id 49345, source varer.kostpris') !== false);
+$artQuery = '';
+foreach ($GLOBALS['sst796_queries'] as $q) {
+    if (stripos($q, 'join ordrer o on o.id = ol.ordre_id') !== false) $artQuery = $q;
+}
+check('the POS check looks up the line by its int-cast id', true, strpos($artQuery, "where ol.id = '49345'") !== false);
+$GLOBALS['sst796_queries'] = [];
+ob_start();
+deficit_cost_price("49345' or '1'='1", "49345' or '1'='1", 0, NULL, 2, 'salg fra negativ lagerbeholdning');
+ob_end_clean();
+$injected = false;
+foreach ($GLOBALS['sst796_queries'] as $q) {
+    if (strpos($q, "or '1'='1") !== false) $injected = true;
+}
+check('the line id is int-cast before it reaches SQL', false, $injected);
+$GLOBALS['sst796_ordre_art'] = 'DO';
+
 // The sale branch, Den-Tec's shape: the open purchase line must beat the stale varekort figure.
 // Reaching here with the flag unspent also proves the webservice call above did not consume it.
 $GLOBALS['sst796_rows'] = [poLine()];
@@ -235,7 +299,7 @@ check('sale branch prices from the open purchase line', 138750.0, $salg['pris'])
 check('sale branch does not use the stale varekort figure', false, abs($salg['pris'] - 88100.93) < 0.0005);
 check('sale branch logs the purchase line as the source', true, strpos($salg['log'], 'source open purchase line 27083 on order 355') !== false);
 check('sale branch logs its own context label', true, strpos($salg['log'], '(salg fra negativ lagerbeholdning)') !== false);
-check('sale branch warns the user', true, strpos($salg['printed'], 'indkøbsordre') !== false);
+check('sale branch warns the user', true, (bool)preg_grep('/5314349: 138\.750,00 fra åben indkøbsordre 355/u', noticeLines($salg['printed'])));
 
 // The negative/kreditnota branch, same item and same open line, must reach the same price. This is
 // the gap ZaynSaul found: before this change it returned 88.100,93 for the item above.
@@ -246,8 +310,8 @@ check('both branches agree on the same item', true, abs($salg['pris'] - $kredit[
 check('kreditnota branch logs its own context label', true, strpos($kredit['log'], '(negativt salg/kreditnota)') !== false);
 check('kreditnota branch logs the line it priced', true, strpos($kredit['log'], 'linje_id 44002') !== false);
 
-// Warned once per delivery, not once per line: the first call warned, later ones must stay silent.
-check('the warning is not repeated for later lines', '', $kredit['printed']);
+// SD-786: the negative-sale/credit-note branch shows no message at all.
+check('the kreditnota branch shows no message', '', $kredit['printed']);
 
 // No open purchase line: varer.kostpris is still the last resort, for both branches.
 $GLOBALS['sst796_rows'] = [];
@@ -264,9 +328,9 @@ check('a NULL log handle is tolerated', 138750.0, $noLog);
 
 $guard = file_get_contents(__DIR__ . '/../includes/stdFunc/findOpenPurchaseCost.php');
 check(
-    'the warn-once flag is guarded by the webservice flag, not set before it',
+    'the webservice flag is tested before anything else decides on the message',
     true,
-    (bool)preg_match('/if\s*\(\s*!\$webservice\s*&&\s*!\$advaret\s*\)/', $guard)
+    (bool)preg_match('/function deficit_cost_notice_relevant\([^)]*\)\s*\{\s*if\s*\(\$webservice\s*\|\|/', $guard)
 );
 
 // ---------------------------------------------------------------------------------------------

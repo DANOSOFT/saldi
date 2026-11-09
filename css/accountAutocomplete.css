@@ -272,3 +272,60 @@
     background: #1e5a96;
     color: #ffffff;
 }
+
+/* 20261023 CL/LH Invoice pick (Fakturanr. -> Åbne Poster): a field whose own value differs from the invoice,
+   and the notice above the line ("Udfyldt fra faktura ... · Fortryd", "Afviger fra fakturaen ... · Brug fakturaens værdier") */
+input.autofill-conflict {
+    outline: 2px solid #e0a800;
+    outline-offset: -2px;
+    background-color: #fff8e6 !important;
+}
+
+.autofill-notice {
+    position: absolute;
+    pointer-events: auto;
+    /* Under an open lookup panel (z-index 99999 in the same container) */
+    z-index: 1;
+    max-width: 560px;
+    padding: 5px 28px 5px 10px;
+    border: 1px solid #c9d9ee;
+    border-radius: 4px;
+    background: #eef4fb;
+    color: #15324f;
+    font-size: 12px;
+    line-height: 1.5;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.autofill-notice--conflict {
+    border-color: #f0d48a;
+    background: #fff8e6;
+}
+
+.autofill-notice-conflict {
+    color: #5c4300;
+}
+
+.autofill-notice-action {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #15488f;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.autofill-notice-close {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    padding: 0 3px;
+    border: 0;
+    background: none;
+    color: #555555;
+    font-size: 12px;
+    line-height: 1.4;
+    cursor: pointer;
+}

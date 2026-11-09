@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------lap 5.0.1------2026.09.07---
+// ------includes/genberegn.php-------lap 5.0.1------2026.10.19---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -31,6 +31,7 @@
 // 20190321 PHR Added function equalizeMatchingRecords.
 // 20260210 PHR PHP8
 // 20260907 CDX/PHR Allow recalculation within the caller's tenant transaction and scope primo resets to one year.
+// 20261019 CL/LH MB-72: equalizeMatchingRecords() sets udlign_date to the later of the two transaction dates.
 
 @session_start();
 $s_id=session_id();
@@ -143,13 +144,15 @@ function equalizeMatchingRecords () {
 	for ($x=0;$x<count($konto_id);$x++) {
 		$faktnr[$x]=array();
 		$y=0;
-		$qtxt="select id,faktnr,amount from openpost where konto_id='$konto_id[$x]' and udlignet='0' and amount>'0' order by transdate";
+		$qtxt="select id,faktnr,amount,transdate from openpost where konto_id='$konto_id[$x]' and udlignet='0' and amount>'0' order by transdate";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			if (!in_array($r['faktnr'],$faktnr[$x]))
-			$openId[$x][$y]=$r['id'];
+			if (!in_array($r['faktnr'],$faktnr[$x])) {
+				$openId[$x][$y]=$r['id'];
+			}
 			$faktnr[$x][$y]=$r['faktnr'];
 			$amount[$x][$y]=$r['amount'];
+			$transdate[$x][$y]=$r['transdate'];
 			$y++;
 		}
 	}
@@ -159,13 +162,17 @@ function equalizeMatchingRecords () {
 	for ($x=0;$x<count($konto_id);$x++) {
 		for ($y=0;$y<count($faktnr[$x]);$y++) {
 			$negAmount=$amount[$x][$y]*-1;
-			$qtxt = "select id from openpost where konto_id='$konto_id[$x]' and udlignet='0' and faktnr='".db_escape_string($faktnr[$x][$y])."'";
+			$qtxt = "select id,transdate from openpost where konto_id='$konto_id[$x]' and udlignet='0' and faktnr='".db_escape_string($faktnr[$x][$y])."'";
 			$qtxt.= "and  amount= '$negAmount' order by transdate limit 1";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($r = db_fetch_array($q)) {
 				$udlignId++;
 				if ($openId[$x][$y]) {
-					$qtxt="update openpost set udlignet='1',udlign_id='$udlignId' where id = '$r[id]' or id = '" .$openId[$x][$y] ."'";
+					// The settlement date is the later of the two transaction dates.
+					$udlignDate = max((string)$transdate[$x][$y], (string)$r['transdate']);
+					$qtxt="update openpost set udlignet='1',udlign_id='$udlignId'";
+					if ($udlignDate) $qtxt.= ",udlign_date='" . db_escape_string($udlignDate) . "'";
+					$qtxt.= " where id = '$r[id]' or id = '" .$openId[$x][$y] ."'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}

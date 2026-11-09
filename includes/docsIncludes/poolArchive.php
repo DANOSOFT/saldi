@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolArchive.php --- ver 5.0.0 --- 2026-10-04 ---
+// --- includes/docsIncludes/poolArchive.php --- ver 5.0.0 --- 2026-10-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,8 @@
 // 20261004 CL/SZ SD-717 audit_log_write() takes strings (SD-724, the roles branch's signature): detaljer goes in as audit_log_details_json().
 // 20261006 CL/SZ SD-717 (CodeRabbit) poolArchiveSet() writes the archive change and its audit entry in one transaction; a failed write rolls both back.
 // 20261006 CL/SZ SD-717 (CodeRabbit) The row is read with FOR UPDATE inside that transaction, so a concurrent archive of the same document can't write a second audit entry.
+// 20261027 CL/SZ SD-727 The purge locks the row (FOR UPDATE) while it checks the document is still archived and deletes it, so a "Gendan" at the same moment either waits and finds it gone, or wins and the purge skips it.
+//                The row, its audit entry and the file go together: a failed write or a file that can't be deleted rolls the row back.
 
 require_once __DIR__ . '/../auditLog.php';
 
@@ -259,27 +261,45 @@ if (!function_exists('poolArchivePurge')) {
 		foreach ($rows as $row) {
 			$filename = (string)$row['filename'];
 			$id = (int)$row['id'];
-			// Still archived and due: "Gendan" in the meantime keeps the document
-			$still = db_fetch_array(db_select("SELECT id FROM pool_files WHERE id = $id AND " . poolArchiveDueSql(), __FILE__ . " linje " . __LINE__));
+			transaktion('begin');
+			// Still archived and due, with the row locked until the end: a "Gendan" at the same moment (poolArchiveSet() and
+			// poolArchiveRestoreOnArrival() both update this row) either waits and then finds the row gone, or got there first
+			// and the document is kept. Locked by filename, as poolArchiveSet() locks it, so MySQL takes the locks in the same
+			// order and the two can't deadlock
+			$still = db_fetch_array(db_select("SELECT id FROM pool_files WHERE filename = '" . db_escape_string($filename) . "' AND " . poolArchiveDueSql() . " FOR UPDATE", __FILE__ . " linje " . __LINE__));
+			if ($still && (int)$still['id'] !== $id) {
+				$still = false;
+			}
 			if (!$still) {
+				transaktion('rollback');
 				continue;
-			}
-			// A name from the database is never a path
-			$path = ($filename !== '' && basename($filename) === $filename) ? "$puljePath/$filename" : '';
-			if ($path !== '' && file_exists($path) && !@unlink($path)) {
-				$failed[] = $filename;
-				poolArchiveLogLine("Archive purge: could not delete $filename (archived {$row['archived']}); the row is kept and the deletion is tried again on the next sync");
-				continue;
-			}
-			$preview = "$tempDir/xml_preview_" . md5($filename) . ".html";
-			if (is_file($preview)) {
-				@unlink($preview);
 			}
 			db_modify("DELETE FROM pool_files WHERE id = $id", __FILE__ . " linje " . __LINE__);
 			$now = db_fetch_array(db_select("SELECT CURRENT_TIMESTAMP AS now", __FILE__ . " linje " . __LINE__));
 			$deleted = $now ? substr((string)$now['now'], 0, 19) : date('Y-m-d H:i:s');
 			$entry = poolArchivePurgeEntry($row, $deleted);
 			audit_log_write($entry['handling'], $entry['objekt_type'], $entry['objekt_id'], audit_log_details_json($entry['detaljer']), 'cron');
+			if (!empty($GLOBALS['db_modify_fejl'])) {
+				transaktion('rollback');
+				$failed[] = $filename;
+				poolArchiveLogLine("Archive purge: could not delete the row or write the audit entry for $filename (archived {$row['archived']}); nothing was deleted, and it is tried again on the next sync");
+				continue;
+			}
+			// The file goes last, while the row is still locked: one that can't be deleted rolls the row back, so the folder
+			// sync doesn't bring the document back as a new, unarchived one
+			// A name from the database is never a path
+			$path = ($filename !== '' && basename($filename) === $filename) ? "$puljePath/$filename" : '';
+			if ($path !== '' && file_exists($path) && !@unlink($path)) {
+				transaktion('rollback');
+				$failed[] = $filename;
+				poolArchiveLogLine("Archive purge: could not delete $filename (archived {$row['archived']}); the row is kept and the deletion is tried again on the next sync");
+				continue;
+			}
+			transaktion('commit');
+			$preview = "$tempDir/xml_preview_" . md5($filename) . ".html";
+			if (is_file($preview)) {
+				@unlink($preview);
+			}
 			poolArchiveLogLine("Archive purge: deleted $filename (pool_files id $id, archived {$row['archived']}, deleted $deleted, after " . poolArchiveRetentionMonths() . " months in the archive)");
 			$purged[] = $filename;
 		}

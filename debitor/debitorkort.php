@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-10-07 ---
+// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -117,6 +117,21 @@
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
 //                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
+// 20261023 CL/MMR SD-774 A business card for a Danish customer with an EAN number shows a warning at the top when the CVR number is missing, as the receiver then rejects e-invoices to the customer.
+//                 It shows the same kind of warning when the stored CVR number is not valid.
+//                 The warning is decided on the saved values by debitorkortEinvoiceCvrBanner() in debitorkortIncludes/einvoiceCvrBanner.php and never blocks or changes the save.
+// 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
+//                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
+//                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
+// 20261029 CL/MJ SST-892 A new card drawn as private (most debitors are private) lost the company name from a CVR lookup: it went into a hidden field and Gem rebuilt it from the empty first and last name.
+//                The company name is now a hidden row; choosing Erhverv shows it, a successful lookup chooses Erhverv, Gem keeps it, and the name check follows the chosen type.
+// 20261030 CL/MJ SST-892 Only a new card switches to Erhverv by itself after a lookup; on a saved card with contacts Gem refuses a type change and the edits were lost.
+//                On such a card the Kundetype select now refuses the change when it is made, with Gem's message, before anything is typed.
+// 20261104 CL/MJ SST-892 The tutorial's company-name step is only added on an Erhverv card, as the field is hidden on a private one.
+//                A saved card without a type is not locked (Gem allows any type there), and a refused change puts back the drawn type.
+//                A refused change no longer marks the card as edited, so Tilbage doesn't ask to discard changes nobody made.
+// 20261101 CL/SZ MB-129 A contact name with an apostrophe no longer breaks the card: the name is escaped in the three adresser.kontakt updates.
+//                The hidden kontakt, delivery and felt fields are double-quoted, so saving no longer cuts a stored value off at the apostrophe.
 @session_start();
 $s_id = session_id();
 
@@ -135,6 +150,7 @@ include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
+include_once(__DIR__ . '/debitorkortIncludes/einvoiceCvrBanner.php');
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
@@ -155,6 +171,9 @@ db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 #if (isset($_SESSION['debitorId'])) $_SESSION['debitorId'] = NULL;
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
+print "<script src=\"../javascript/Sortable.min.js\"></script>\n";
+print "<script src=\"../javascript/kontaktSortable.js\" defer></script>\n";
+print "<style>.kontakt-drag-handle{cursor:move;user-select:none;padding:0 4px 0 0;color:#15488f;} #kontaktpersoner .sortable-ghost{opacity:.5;}</style>\n";
 $_private = if_isset($_GET, NULL, 'privat');
 $_business = if_isset($_GET, NULL, 'erhverv');
 
@@ -220,7 +239,7 @@ if ($id) {
 
 	$row = db_fetch_array($query);
 	if ($row && isset($row['navn']) && $row['navn']) {
-		$navnA = $row['navn'];
+		$navnA = db_escape_string($row['navn']);
 
 		// Update adresser where id = konto_id and set kontakt
 		db_modify("UPDATE adresser SET kontakt = '$navnA' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -329,7 +348,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$rename_status = if_isset($_POST['rename_status']);
 
 		if ($gl_kontotype == 'privat') {
-			$firmanavn = trim($fornavn . " " . $efternavn);
+			// 20261029 CL/MJ SST-892 A private card switched to Erhverv (by hand or by a CVR lookup) keeps the
+			// company name that is now shown; the names only make up the name while the card stays private.
+			if ($kontotype == 'privat') $firmanavn = trim($fornavn . " " . $efternavn);
 			$lev_firmanavn = trim($lev_fornavn . " " . $lev_efternavn);
 		}
 		#		if (!$pbs) $pbs_nr=NULL;
@@ -991,7 +1012,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 									", __FILE__ . " linje " . __LINE__);
 
 						$row = db_fetch_array($query);
-						$navnA = $row['navn'];
+						$navnA = db_escape_string($row['navn'] ?? '');
 						if (!$navnA) $navnA = NULL;
 						//update adresser where id = id and set kontakt to kontakt
 						db_modify("update adresser set kontakt = '$navnA' where id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -1071,7 +1092,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						$navnT = $r_navn['navn'];
 
 						error_log("Position 1 detected for id $emp_id; updating kontakt to '$navnT'");
-						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
+						db_modify("UPDATE adresser SET kontakt = '" . db_escape_string($navnT) . "' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
 					}
 
 					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
@@ -1103,6 +1124,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 	}
 }
 
+$einvoiceCvrBanner = ''; # SD-774, set from the saved card below
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
@@ -1137,6 +1159,8 @@ if ($id > 0) {
 	$betalingsbet = trim($r['betalingsbet']);
 	$cvrnr = trim($r['cvrnr']);
 	$ean = trim($r['ean']);
+	// SD-774: decided on the saved values. The country goes in as stored, as $land above is HTML-escaped.
+	$einvoiceCvrBanner = debitorkortEinvoiceCvrBanner($kontotype, $ean, $cvrnr, (string)ifset($r, 'land', ''), $sprog_id, ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1');
 	$institution = htmlentities(trim($r['institution']), ENT_COMPAT, $charset);
 	$notes = htmlentities(trim($r['notes']), ENT_COMPAT, $charset);
 	$gruppe = trim($r['gruppe']);
@@ -1429,9 +1453,9 @@ if ($menu != 'T') {
 $js_alert_name = findtekst('346|Navn skal angives', $sprog_id);
 print "<script type=\"text/javascript\">
 function validateDebitorkort(form) {
-	var kontotype = form.gl_kontotype ? form.gl_kontotype.value : (form.kontotype ? form.kontotype.value : '');
+	var kontotype = form.kontotype ? form.kontotype.value : (form.gl_kontotype ? form.gl_kontotype.value : '');
 	var name = '';
-	if (kontotype == 'privat') {
+	if (kontotype == 'privat' && form.fornavn) {
 		var fn = form.fornavn ? form.fornavn.value.trim() : '';
 		var en = form.efternavn ? form.efternavn.value.trim() : '';
 		name = (fn + ' ' + en).trim();
@@ -1452,28 +1476,28 @@ function validateDebitorkort(form) {
 }
 </script>\n";
 
-print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
+print "<form name=debitorkort id='debitorkortForm' action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
 if ($vis_addr == "on") {
-	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
-	print "<input type=hidden name=\"felt_2\" value='$felt_2'>\n";
-	print "<input type=hidden name=\"felt_3\" value='$felt_3'>\n";
-	print "<input type=hidden name=\"felt_4\" value='$felt_4'>\n";
-	print "<input type=hidden name=\"felt_5\" value='$felt_5'>\n";
+	print "<input type=hidden name=\"felt_1\" value=\"$felt_1\">\n";
+	print "<input type=hidden name=\"felt_2\" value=\"$felt_2\">\n";
+	print "<input type=hidden name=\"felt_3\" value=\"$felt_3\">\n";
+	print "<input type=hidden name=\"felt_4\" value=\"$felt_4\">\n";
+	print "<input type=hidden name=\"felt_5\" value=\"$felt_5\">\n";
 } else {
-	print "<input type=hidden name=\"lev_firmanavn\" value='$lev_firmanavn'>\n";
-	print "<input type=hidden name=\"lev_fornavn\" value='$lev_fornavn'>\n";
-	print "<input type=hidden name=\"lev_efternavn\" value='$lev_efternavn'>\n";
-	print "<input type=hidden name=\"lev_addr1\" value='$lev_addr1'>\n";
-	print "<input type=hidden name=\"lev_addr2\" value='$lev_addr2'>\n";
-	print "<input type=hidden name=\"lev_postnr\" value='$lev_postnr'>\n";
-	print "<input type=hidden name=\"lev_bynavn\" value='$lev_bynavn'>\n";
-	print "<input type=hidden name=\"lev_land\" value='$lev_land'>\n";
-	print "<input type=hidden name=\"lev_tlf\" value='$lev_tlf'>\n";
-	print "<input type=hidden name=\"lev_email\" value='$lev_email'>\n";
-	print "<input type=hidden name=\"lev_kontakt\" value='$lev_kontakt'>\n";
+	print "<input type=hidden name=\"lev_firmanavn\" value=\"$lev_firmanavn\">\n";
+	print "<input type=hidden name=\"lev_fornavn\" value=\"$lev_fornavn\">\n";
+	print "<input type=hidden name=\"lev_efternavn\" value=\"$lev_efternavn\">\n";
+	print "<input type=hidden name=\"lev_addr1\" value=\"$lev_addr1\">\n";
+	print "<input type=hidden name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+	print "<input type=hidden name=\"lev_postnr\" value=\"" . htmlentities((string)$lev_postnr, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+	print "<input type=hidden name=\"lev_land\" value=\"$lev_land\">\n";
+	print "<input type=hidden name=\"lev_tlf\" value=\"" . htmlentities((string)$lev_tlf, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_email\" value=\"" . htmlentities((string)$lev_email, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
 }
 
 if (!isset($kontakt)) $kontakt = NULL;
@@ -1484,7 +1508,7 @@ print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
 print "<input type=hidden name=returside value=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\">\n";
 print "<input type=hidden name=fokus value='$fokus'>\n";
-print "<input type=hidden name=kontakt value='$kontakt'>\n";
+print "<input type=hidden name=kontakt value=\"$kontakt\">\n";
 print "<input type=hidden name=pbs_date value='$pbs_date'>\n";
 # print "<input type=hidden name=pbs_nr value='$pbs_nr'>\n";
 # print "<input type=hidden name=gl_pbs_nr value='$pbs_nr'>\n";
@@ -1492,7 +1516,9 @@ print "<input type=hidden name=pbs_date value='$pbs_date'>\n";
 
 $bg = $bgcolor5;
 print "<input type=hidden name=gl_kontotype value='$kontotype'>\n";
-print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true;\">\n";
+// SD-774: e-invoice CVR warning above the card fields, spanning its three columns.
+if ($einvoiceCvrBanner !== '') print "<tr><td colspan=3>$einvoiceCvrBanner</td></tr>\n";
+print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:if (debitorkortVisKontotype(this.value)) docChange = true;\">\n";
 if ($kontotype == 'privat') {
 
 	print "<option value=privat>" . findtekst('353|Privat', $sprog_id) . "<!--tekst 353--></option>\n";
@@ -1530,11 +1556,13 @@ if (!isset($stripe_fravalg)) $stripe_fravalg = NULL;
 if (!isset($notes)) $notes = NULL;
 
 if ($kontotype == 'privat') {
-	print "<input type=\"hidden\" name=\"firmanavn\" value=\"$firmanavn\">\n";
+	// 20261029 CL/MJ SST-892 The company name is a row of its own, hidden while the card is private, so choosing
+	// Erhverv or a CVR lookup can show it (debitorkortVisKontotype()) instead of filling a hidden field.
+	print "<tr id='debitorkort_firmanavn' style='display:none;'><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=fornavn value=\"$fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg id='debitorkort_fornavn'><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=fornavn value=\"$fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=efternavn value=\"$efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg id='debitorkort_efternavn'><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=efternavn value=\"$efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 } else {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
@@ -2506,19 +2534,27 @@ if ($kontotype == 'erhverv') {
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 
+		// Own tbody so javascript/kontaktSortable.js can drag the rows; the hidden ans_id/kontakt
+		// inputs sit inside the row so they travel with it. The card's <form> is closed by the HTML
+		// parser long before this table (it has no DOM children), so the rows are only form-associated
+		// through the parser; a moved row loses that, hence the explicit form='debitorkortForm'.
+		$dragTitle = htmlentities(findtekst('5455|Træk for at ændre rækkefølgen. Husk at gemme kortet bagefter', $sprog_id), ENT_COMPAT, $charset);
+		print "<tbody id='kontaktpersoner'>\n";
 		while ($r) {
 			$x++;
 			($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 			print "<tr bgcolor=$bg>\n";
-			print "<td width=10><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\"></td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
-			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td></td><td></td></tr>\n";
-			print "<input class='inpPasswordutbox' type=hidden name=ans_id[$x] value=$r[id]>\n";
+			print "<td width=10 nowrap><span class='kontakt-drag-handle' title=\"$dragTitle\">&#x2630;</span><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\" form='debitorkortForm'>";
+			print "<input type=hidden name=ans_id[$x] value=$r[id] form='debitorkortForm'>";
 			if ($x == 1) {
-				print "<input class='inputbox' type=hidden name=kontakt value='$r[navn]'>";
+				print "<input type=hidden name=kontakt value=\"" . htmlentities($r['navn'], ENT_QUOTES, $charset) . "\" form='debitorkortForm'>";
 			}
+			print "</td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td><td></td></tr>\n";
 			//fetch next
 			$r = db_fetch_array($q);
 		}
+		print "</tbody>\n";
 		print "<tr><td colspan='2' width='20%'><br></td></tr>\n";
 	}
 }
@@ -2680,6 +2716,44 @@ function split_navn($firmanavn)
 	return ($fornavn . "," . $efternavn);
 }
 
+// 20261029 CL/MJ SST-892 Choosing Erhverv on a card drawn as private shows the company name instead of the first and
+// last name. A CVR lookup that finds a company name on such a card makes that choice for the user (cvrEfterOpslag(),
+// called by cvrapiopslag.js), so the name is visible and saved.
+// 20261030 CL/MJ SST-892 Only a new card switches by itself: a saved card with contacts can't change type (Gem
+// refuses it and reloads), so a lookup there would throw away the user's edits.
+// 20261030 CL/MJ SST-892 On such a card the type select refuses the change at once, with Gem's own message, and
+// goes back, so nothing is typed into the company name that the refused save would throw away.
+// 20261104 CL/MJ SST-892 It returns false for a refused change, and the select only marks the card as edited on true.
+$debitorkortTypeLaast = ($id && isset($an_id) && $kontotype) ? 'true' : 'false';
+print "<script type=\"text/javascript\">
+var debitorkortTypeLaast = $debitorkortTypeLaast;
+function debitorkortVisKontotype(kontotype) {
+	var form = document.forms['debitorkort'];
+	if (debitorkortTypeLaast && form && form.gl_kontotype && kontotype != form.gl_kontotype.value) {
+		alert('Please delete all contacts to proceed');
+		form.kontotype.selectedIndex = 0;
+		return false;
+	}
+	var firma = document.getElementById('debitorkort_firmanavn');
+	if (!firma) return true;
+	var erhverv = (kontotype == 'erhverv');
+	firma.style.display = erhverv ? '' : 'none';
+	document.getElementById('debitorkort_fornavn').style.display = erhverv ? 'none' : '';
+	document.getElementById('debitorkort_efternavn').style.display = erhverv ? 'none' : '';
+	return true;
+}
+</script>\n";
+if (!$id) {
+	print "<script type=\"text/javascript\">
+function cvrEfterOpslag(data) {
+	var type = document.forms['debitorkort'] ? document.forms['debitorkort'].kontotype : null;
+	if (!type || type.value != 'privat' || !data.firmanavn) return;
+	type.value = 'erhverv';
+	docChange = true;
+	debitorkortVisKontotype('erhverv');
+}
+</script>\n";
+}
 if (!$id || substr($cvrnr,0,1)  == '*') {
 	$cvrnr = trim($cvrnr,"*");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
@@ -3004,10 +3078,13 @@ $steps[] = array(
 	"selector" => 'input[type="text"][name="fornavn"], input[type="text"][name="efternavn"]',
 	"content" => findtekst('2629|Angiv kundens navn', $sprog_id) . "."
 );
-$steps[] = array(
-	"selector" => 'input[type="text"][name="firmanavn"]',
-	"content" => findtekst('2630|Angiv kundens firmanavn', $sprog_id) . "."
-);
+// 20261104 CL/MJ SST-892 The company name is a hidden row on a private card, so the step would point at nothing.
+if ($kontotype != 'privat') {
+	$steps[] = array(
+		"selector" => 'input[type="text"][name="firmanavn"]',
+		"content" => findtekst('2630|Angiv kundens firmanavn', $sprog_id) . "."
+	);
+}
 $steps[] = array(
 	"selector" => 'input[type="text"][name="email"], input[type="checkbox"][name="mailfakt"]',
 	"content" => findtekst('2631|Kundens e-mail indtastes her. Hvis du vil have, at systemet som standard sender e-mails, når du fakturerer en ordre, kan du sætte hak i \'Brug mail\'', $sprog_id) . "."

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- patch 5.0.0 --- 2026-09-24 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,7 +42,12 @@
 // 20260924 CL/SZ Left-join grupper instead of inner-joining it (CodeRabbit, PR #608): an item
 //                 with has_due_date=TRUE but no current-year VG group row was still being
 //                 dropped by the join before the has_due_date check ran.
+// 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 8407) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
 // 20261019 CDX/LH MB-78: fix PHP warnings
+// 20261030 CL/MJ Text 7636 is now 8407: #921 also adds 7636, and findtekst() keeps the first text a tenant stores for an id.
+// 20261105 CL/MMR SST-951 The order's language (Baggrund, as on a sales order) can be chosen on a saved order when forms exist in more than one language.
+//                 A blank order has no field: the order gets its language from the supplier's group when it is created.
+//                 The mail subject and text placeholders follow the order's language instead of always Dansk.
 
 /*
 $attachId    = null;
@@ -101,6 +106,22 @@ print "<option value='PDF' ".((!$email || $udskriv_til=="PDF")?"selected='select
 print "<option value='email' ".(($email && $udskriv_til=="email")?"selected='selected'":"")." title=\"".findtekst(1450, $sprog_id)."\">".findtekst(652, $sprog_id)."</option>\n";
 print "</SELECT></td></tr>\n";
 #20221104 END
+// SST-951: the language of the order's documents, like the Baggrund select on a sales order (debitor/ordre.php).
+// Only on a saved order: on a blank one the posted default would overwrite the language insertAccount() takes from the supplier's group.
+if ($id && db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
+	$orderSprog = empty($formularsprog) ? 'Dansk' : $formularsprog;
+	print "<tr><td></td><td></td>";
+	print "<td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\">" . findtekst('571|Baggrund', $sprog_id) . "</td>";
+	print "<td><select class='inputbox' style='width:130px' name='sprog' onchange='javascript:docChange = true;'>\n";
+	$sprogQ = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
+	while ($sprogRow = db_fetch_array($sprogQ)) {
+		$sprogValue    = htmlspecialchars($sprogRow['sprog'], ENT_QUOTES);
+		$sprogLabel    = ($sprogRow['sprog'] === 'Dansk') ? (($sprog_id == 1) ? 'Standard' : 'Default') : $sprogValue;
+		$sprogSelected = (strtolower($sprogRow['sprog']) === strtolower($orderSprog)) ? " selected='selected'" : '';
+		print "<option value='$sprogValue'$sprogSelected>$sprogLabel</option>\n";
+	}
+	print "</select></td></tr>\n";
+}
 
 print "<tr><td>CVR-nr.</td>";
 print "<td><input class='inputbox' type='text' style='width:110px;' name=cvrnr value='$cvrnr' onchange='javascript:docChange = true;'></td>";
@@ -109,7 +130,7 @@ print "<td>".findtekst(770,$sprog_id)."</td><td><input class='inputbox' type='te
 print "onchange='javascript:docChange = true;'>%</td></tr>\n";
 print "<tr><td>".findtekst(881,$sprog_id)."</td><td><input class='inputbox' type='text' style='text-align:right;width:110px;' name='ordredato' value='$ordredato' ";
 print "onchange='javascript:docChange = true;'></td>";
-print "<td>".findtekst(886,$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
+print "<td>".findtekst('8407|Forventet lev. dato',$sprog_id)."</td><td><input class='inputbox' type='text' type='text' style='text-align:right;width:110px;' name='levdato' value='$levdato' ";
 print "onchange='javascript:docChange = true;'></td></tr>\n";
 $list=array();
 $beskriv=array();
@@ -276,7 +297,7 @@ print "</td></tr>";
 
 #20230105 BEGIN
 if ($udskriv_til=='email') {
-	if (!isset($formularsprog)) $formularsprog='Dansk';
+	if (empty($formularsprog)) $formularsprog = 'Dansk';
 
 	if ($status<=1) $form_nr=12;
 	if ($status==2) $form_nr=13;

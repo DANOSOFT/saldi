@@ -15,3 +15,5 @@ Two separate rules that can look contradictory but aren't:
 **Why:** Developers here often introduce accidental trailing-whitespace noise and inconsistent indentation (including comments left at the outer indent level instead of the nested level they belong to). Fixing indentation while already in a block cleans it up incrementally without a dedicated reformatting pass; but touching whitespace on code outside the current change adds noise unrelated to the actual edit and makes diffs harder to review.
 
 **How to apply:** When editing any line inside a function or block, it's in scope to also correct that whole function/block's indentation and comment placement. Do not extend the fix beyond the enclosing function/block — leave other functions/blocks in the same file untouched unless they're independently part of the change. Never let edits add/remove trailing whitespace on lines outside the scope of the current change.
+
+**Enforced by:** `tools/guardrails` check `whitespace` (line-ending-only edits, new trailing whitespace, file mode changes). Re-indenting the enclosing block stays a review call.

@@ -36,6 +36,8 @@
 // 20260605 Sawaneh Make the whole order line clickable (and right-clickable for "open in new tab/window"), not just the order number.
 // 20260908 SZ SST-755: replaced the blanket per-user lock sweep with an age-based one that
 //                  isn't scoped to the current user (see comment at its call site).
+// 20260917 CL/LH Remember the last used tab per user and reopen it on menu entry (Havemoebelland).
+// 20260924 CL/LH MB-60: Only store the last used tab for a real user id (review, PR #638).
 
 
 ob_start();
@@ -53,7 +55,7 @@ include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
 include (get_relative()."includes/kreditorOrderFuncIncludes/creditor_orderlist_grid.php");
-$valg = if_isset($_GET, 'ordrer','valg');
+$valg = if_isset($_GET, NULL, 'valg');
 
 // Fetch ALL columns from the ordrer table (same as debitor/ordreliste.php)
 $all_db_columns = array();
@@ -115,6 +117,16 @@ foreach ($_GET as $category => $data) {
 // Fallback to original valg if extraction failed
 if (!in_array($valg, ['forslag', 'ordrer', 'faktura'])) {
     $valg = $original_valg;
+}
+// 20260917 CL/LH No tab in the URL (menu entry): reopen the tab this user last worked in.
+if (!in_array($valg, ['forslag', 'ordrer', 'faktura'])) {
+    $valg = get_settings_value('ordreliste_valg', 'kreditor', 'ordrer', (int)$bruger_id);
+}
+if (!in_array($valg, ['forslag', 'ordrer', 'faktura'])) {
+    $valg = 'ordrer';
+}
+if ((int)$bruger_id > 0) {
+    update_settings_value('ordreliste_valg', 'kreditor', $valg, 'Last used tab in the supplier order list', (int)$bruger_id);
 }
 
 ###############

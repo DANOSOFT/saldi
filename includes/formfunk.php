@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -90,6 +90,11 @@
 // 20261023 CL/LH MB-58: Tell udskriv.php when the print was a bulk print (id=-1), because $id
 //                holds the last printed order by then.
 // 20261019 CDX/LH MB-78: fix PHP warnings
+// 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
+//                opening balance and running balance then cover those posts only. A NULL
+//                udlignet counts as open, as it does in the ledger.
+// 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
+//                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -815,7 +820,7 @@ if (!function_exists('find_form_tekst')) {
 								$streng[$x] = dkdecimal($r2[$variabel], 2);
 							} elseif ($variabel == "felt_3" || $variabel == "felt_4") {
 								$r3 = db_fetch_array(db_select("select felt_4 from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
-								if ($r3['felt_4'] * 1 == 0) {
+								if ((float)$r3['felt_4'] == 0) { #20261103 CL/SZ SD-797 a felt_4 that is no number counts as 0; '* 1' threw a TypeError
 									$streng[$x] = '';
 								} elseif ($variabel == "felt_3")
 									$streng[$x] = $r2[$variabel];
@@ -2916,6 +2921,12 @@ if (!function_exists('kontoprint')) {
 		global $s_id;
 		global $pdftk,$ps2pdf,$weasyprint;
 
+		$kilde = ifset($_GET, 'kilde', NULL);
+		if (!$kilde) {
+			$kilde = ifset($_POST, 'kilde', NULL);
+		}
+		$openPostOnly = ($kilde == 'openpost');
+
 		$dkkforfalden = $nomailantal = $mailantal = 0;
 		$mailsprog = 'Dansk';
 		($dato_fra) ? $dato_fra = usdate($dato_fra) : $dato_fra = "1970-01-01";
@@ -3065,7 +3076,11 @@ if (!function_exists('kontoprint')) {
 					}
 					if ($dato_fra > '1970-01-01') {
 						$saldo = 0;
-						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra' order by transdate";
+						$qtxt = "select transdate,amount,valuta,valutakurs from openpost where konto_id='$konto_id[$i]' and transdate < '$dato_fra'";
+						if ($openPostOnly) {
+							$qtxt .= " and (udlignet != '1' or udlignet is null)";
+						}
+						$qtxt .= " order by transdate";
 						$q1 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 						while ($r1 = db_fetch_array($q1)) {
 							if ($kontovaluta == $r1['valuta'])
@@ -3110,7 +3125,11 @@ if (!function_exists('kontoprint')) {
 						$dksaldo = "0,00";
 					}
 					$y = $y - 4;
-					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til' order by transdate,id";
+					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til'";
+					if ($openPostOnly) {
+						$qxt .= " and (udlignet != '1' or udlignet is null)";
+					}
+					$qxt .= " order by transdate,id";
 					$q1 = db_select("$qxt", __FILE__ . " linje " . __LINE__);
 					while ($r1 = db_fetch_array($q1)) {
 
