@@ -37,6 +37,8 @@
 // 20250815 PHR	Fiscal_year;
 // 20261109 CL/SZ SST-926: a completed re-invoice skips invoices dated outside the fiscal year, as ordinary invoicing does.
 //                The page now shows a receipt with the posted, sent and unsent counts, and says so when the pop-up is blocked.
+// 20261109 CL/SZ SST-926 review: invoices with «Udskriv til» = Ingen stay out of the pop-up, and PBS counts only real handoffs.
+//                The checked date is the one posted, a reload no longer re-runs the batch, and only the run's own pop-up can report.
 
 @session_start();
 $s_id=session_id();
@@ -128,6 +130,8 @@ if ($_POST) {
 		$ny_liste='';
 		$posted=array();
 		$pbs_antal=0;
+		$pbs_fejl=0;
+		$ingen_antal=0;
 		$skipped=array();
 		$stopText='';
 		$fiscalSpan=genfaktFiscalYearSpan($regnaar);
@@ -146,7 +150,7 @@ if ($_POST) {
 					continue;
 				}
 			}
-			list($id,$pbs)=explode(",",genfakt($ordre_id[$q],$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$regnaar));
+			list($id,$pbs)=explode(",",genfakt($ordre_id[$q],$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$regnaar,$komplet ? $newDate : null));
 
 			if ($komplet) {
 				levering($id,'on','on');
@@ -158,15 +162,21 @@ if ($_POST) {
 					$stopText=$tekst." (".html_entity_decode((string)$svar,ENT_QUOTES,'UTF-8').")";
 					break;
 				}
-				$r=db_fetch_array(db_select("select fakturanr from ordrer where id='".(int)$id."'",__FILE__ . " linje " . __LINE__));
+				$r=db_fetch_array(db_select("select fakturanr,udskriv_til from ordrer where id='".(int)$id."'",__FILE__ . " linje " . __LINE__));
 				$posted[]=$r ? $r['fakturanr'] : '';
 			} else {
 				if ($ny_liste) $ny_liste.=",$id";
 				else $ny_liste="$id";
 			}
 			if ($komplet && $pbs) {
-				pbsfakt($id);
-				$pbs_antal++;
+				if (pbsfakt($id)) {
+					$pbs_antal++;
+				} else {
+					$pbs_fejl++;
+				}
+			} elseif ($komplet && $r && $r['udskriv_til']=='ingen') {
+				// formularprint() stops a whole batch at an invoice with «Udskriv til» = Ingen, so these stay out of the pop-up.
+				$ingen_antal++;
 			} else {
 				if ($udskriv_antal) $udskriv.=",$id";
 				else $udskriv ="$id";
@@ -175,7 +185,7 @@ if ($_POST) {
 		} 	
 	}
 	if ($genfaktRun && $komplet) {
-		genfaktReceipt($posted,$pbs_antal,$udskriv_antal,$udskriv,$skipped,$stopText);
+		genfaktReceipt($posted,$pbs_antal,$pbs_fejl,$ingen_antal,$udskriv_antal,$udskriv,$skipped,$stopText);
 	} else {
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=ret_genfakt.php?ordreliste=$ny_liste\">";	
 	}
@@ -195,7 +205,7 @@ if ($_POST) {
 	print "</form>";
 }
 	
-function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$regnaar) {
+function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$regnaar,$checkedDate=null) {
 	
 	transaktion('begin');
 	if ($r=db_fetch_array(db_select("select * from ordrer where id = $id",__FILE__ . " linje " . __LINE__))){
@@ -232,7 +242,8 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 		if ($r['nextfakt']) $tmp=$r['nextfakt'];
 		else $tmp=date("Y-m-d");			
 		$nextfakt=find_nextfakt($r['fakturadate'],$tmp);
-		$fakturadate=genfaktInvoiceDate($r['nextfakt'],$fakt_dato);
+		// A completed run passes the date it checked against the fiscal year, so a run past midnight keeps it.
+		$fakturadate=$checkedDate ? $checkedDate : genfaktInvoiceDate($r['nextfakt'],$fakt_dato);
 		if ($org_nr) $ordrenr=$r['ordrenr'];
 		else {
 			$r2=db_fetch_array(db_select("select MAX(ordrenr) as ordrenr from ordrer where art='DO' or art='DK'",__FILE__ . " linje " . __LINE__));
@@ -388,7 +399,9 @@ function genfaktDateInFiscalYear($date,$span) {
  * and the pop-up reports back how many invoices it e-mailed.
  *
  * @param array<int, string> $posted  Invoice numbers posted in this run.
- * @param int    $pbsCount     Invoices handed to PBS.
+ * @param int    $pbsCount     Invoices added to a PBS delivery.
+ * @param int    $pbsFailed    PBS invoices pbsfakt() could not add.
+ * @param int    $noneCount    Invoices with «Udskriv til» = Ingen, which are not sent.
  * @param int    $printCount   Invoices to send or print in the pop-up.
  * @param string $printList    Comma-separated order ids for formularprint.php.
  * @param array<int, array{fakturanr: string, firmanavn: string, date: string}> $skipped
@@ -396,7 +409,7 @@ function genfaktDateInFiscalYear($date,$span) {
  * @param string $stopText     Why the run stopped early, or ''.
  * @return void
  */
-function genfaktReceipt($posted,$pbsCount,$printCount,$printList,$skipped,$stopText) {
+function genfaktReceipt($posted,$pbsCount,$pbsFailed,$noneCount,$printCount,$printList,$skipped,$stopText) {
 	global $charset,$sprog_id;
 
 	$h=function($text) use ($charset) {
@@ -417,6 +430,12 @@ function genfaktReceipt($posted,$pbsCount,$printCount,$printList,$skipped,$stopT
 	print "<tr><td>".$h(findtekst('reinvoice.receipt.posted|Bogførte fakturaer',$sprog_id))."</td><td align='right'><b>".count($posted)."</b>".$h($range)."</td></tr>\n";
 	if ($pbsCount) {
 		print "<tr><td>".$h(findtekst('reinvoice.receipt.pbs|Overført til PBS',$sprog_id))."</td><td align='right'><b>$pbsCount</b></td></tr>\n";
+	}
+	if ($pbsFailed) {
+		print "<tr><td style='color:#b00000'>".$h(findtekst('reinvoice.receipt.pbs_failed|Ikke overført til PBS, se beskeden øverst',$sprog_id))."</td><td align='right'><b>$pbsFailed</b></td></tr>\n";
+	}
+	if ($noneCount) {
+		print "<tr><td>".$h(findtekst('reinvoice.receipt.none|Udskriv til = Ingen, sendes ikke',$sprog_id))."</td><td align='right'><b>$noneCount</b></td></tr>\n";
 	}
 	if ($printCount) {
 		print "<tr><td>".$h(findtekst('reinvoice.receipt.mails_sent|Sendt pr. e-mail',$sprog_id))."</td><td align='right'><b id='genfaktMails'>-</b></td></tr>\n";
@@ -451,6 +470,8 @@ function genfaktReceipt($posted,$pbsCount,$printCount,$printList,$skipped,$stopT
 	}
 	print "<p><a href='ordreliste.php'>".$h(findtekst('reinvoice.receipt.back|Tilbage til fakturalisten',$sprog_id))."</a></p>\n";
 	print "</div>\n";
+	// Turn the POST into a plain history entry, so reloading the receipt shows the form again instead of re-running the batch.
+	print "<script type='text/javascript'>if (window.history.replaceState) { window.history.replaceState(null, '', window.location.href); }</script>\n";
 
 	if ($printCount) {
 ?>
@@ -469,7 +490,7 @@ function genfaktReceipt($posted,$pbsCount,$printCount,$printList,$skipped,$stopT
 	}
 
 	window.addEventListener('message', function (event) {
-		if (event.origin !== window.location.origin || !event.data || event.data.type !== 'saldi-genfakt-print') {
+		if (event.origin !== window.location.origin || event.source !== popup || !event.data || event.data.type !== 'saldi-genfakt-print') {
 			return;
 		}
 		confirmed = true;

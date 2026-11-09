@@ -12,9 +12,11 @@ reinvoice.receipt.closed	Pop-up-vinduet blev lukket, før afsendelsen var bekræ
 reinvoice.receipt.done	Afsendelsen er færdig.	Sending is finished.	Sendingen er ferdig.
 reinvoice.receipt.failed	Afsendelsen stoppede med en fejl, se pop-up-vinduet. Fakturaerne herover er bogført, men de ikke sendte skal sendes igen.	Sending stopped with an error, see the pop-up window. The invoices above are posted, but the ones not sent must be sent again.	Sendingen stoppet med en feil, se popup-vinduet. Fakturaene over er bokført, men de som ikke er sendt må sendes på nytt.
 reinvoice.receipt.mails_sent	Sendt pr. e-mail	Sent by email	Sendt per e-post
+reinvoice.receipt.none	Udskriv til = Ingen, sendes ikke	Print to = None, not sent	Skriv ut til = Ingen, sendes ikke
 reinvoice.receipt.not_sent	Ikke sendt eller udskrevet	Not sent or printed	Ikke sendt eller skrevet ut
 reinvoice.receipt.not_sent_help	Send eller udskriv dem fra fakturalisten.	Send or print them from the invoice list.	Send eller skriv dem ut fra fakturalisten.
 reinvoice.receipt.pbs	Overført til PBS	Transferred to PBS	Overført til PBS
+reinvoice.receipt.pbs_failed	Ikke overført til PBS, se beskeden øverst	Not transferred to PBS, see the message at the top	Ikke overført til PBS, se meldingen øverst
 reinvoice.receipt.posted	Bogførte fakturaer	Posted invoices	Bokførte fakturaer
 reinvoice.receipt.printed	Vist som PDF til udskrift	Shown as PDF for printing	Vist som PDF for utskrift
 reinvoice.receipt.running	Fakturaerne sendes i pop-up-vinduet. Luk det ikke, før det er færdigt.	The invoices are being sent in the pop-up window. Do not close it before it is finished.	Fakturaene sendes i popup-vinduet. Ikke lukk det før det er ferdig.

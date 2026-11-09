@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/pbsfunc.php --- patch 5.0.0 --- 2026-09-08 ---
+// --- includes/pbsfunc.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260908 CL/Sawaneh SST-763: Single home for pbsfakt() (was duplicated in debitor/pbsfakt.php
@@ -29,6 +29,7 @@
 //                     explicit resend (pbs_gensend) and a lock so concurrent requests can only
 //                     create one open batch / one attempt per batch.
 // 20260910 CL/NTR SST-763: tekst ids 5170-5190 moved to 3385-3404; 5180 replaced by existing 828 (Fakturanr.).
+// 20261109 CL/SZ SST-926: pbsfakt() returns whether the invoice was added, so re-invoicing counts only real handoffs.
 
 /**
  * Lock name qualified by tenant database: MySQL named locks are server-wide, so tenants
@@ -275,22 +276,25 @@ if (!function_exists('pbs_gensend')) {
  * Nets - those go through pbs_gensend() from debitor/pbs_gensend.php.
  *
  * @param int $id ordrer.id
+ * @return bool True when the invoice was added to a PBS delivery.
  */
 if (!function_exists('pbsfakt')) {
 	function pbsfakt($id) {
 		global $sprog_id;
 		$id = intval($id);
 		if ($id <= 0) {
-			return;
+			return false;
 		}
 		if (!pbs_laas()) {
 			print findtekst('3401|Kunne ikke låse PBS-leverancen - prøv igen', $sprog_id) . "<br>";
-			return;
+			return false;
 		}
+		$added = false;
 		$s = pbs_ordre_status($id);
 		if ($s['ordre'] && ($s['status'] == 'ikke_sendt' || $s['status'] == 'afvist')) {
 			$liste_id = pbs_tilfoej($id, $s['sidste'] ? $s['sidste']['id'] : 0);
 			if ($liste_id) {
+				$added = true;
 				print findtekst('828|Fakturanr.', $sprog_id) . " " . $s['ordre']['fakturanr'] . " ";
 				print findtekst('3386|er tilføjet PBS-leverance', $sprog_id) . " $liste_id<br>";
 			} else {
@@ -300,5 +304,6 @@ if (!function_exists('pbsfakt')) {
 			print $s['forklaring'] . "<br>";
 		}
 		pbs_frigiv();
+		return $added;
 	}
 }
