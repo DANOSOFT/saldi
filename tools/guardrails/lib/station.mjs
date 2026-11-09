@@ -11,7 +11,8 @@
 // Restrictions come from everything matched, not only the owner: every row's
 // proof joins the plate, the strictest tier wins, `deploy` or `secrets` make the
 // order human-only, and of the approvers the matches name, the first in
-// APPROVERS leads at the pass.
+// APPROVERS leads at the pass. A plate that no match gives a tier (a care row
+// whose tier is null, alone) takes its station's own tier.
 //
 // The door questions (does it change the books, what is sent, an unlisted
 // write?) are not path matches: the author and the reviewer answer them.
@@ -23,6 +24,7 @@
 //                PHP files are read by PHP's own tokens.
 // 20261107 CL/LH markerHits may be handed the unchanged lines below a run, and an entry marked cut.
 // 20261109 CL/LH oneWayRowsOf() reads removed lines too.
+// 20261109 CL/LH A plate no match gives a tier takes its station's.
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -219,6 +221,10 @@ export function validateDoorMap() {
   for (const party of doors.PARTY_ORDER) {
     if (!doors.STATIONS.envejsdorene.parties[party]?.proof) problems.push(`party ${party} has no proof`);
   }
+  // Envejsdørene's tier is always its rows'; any other station's is the tier of a plate no match gives one.
+  for (const [id, station] of Object.entries(doors.STATIONS)) {
+    if (id !== "envejsdorene" && !validTier(station.tier)) problems.push(`station ${id} has no valid tier`);
+  }
   if (!doors.HUMAN_ONLY_ROWS.every((id) => ids.has(id))) problems.push("HUMAN_ONLY_ROWS names an unknown row");
   for (const name of doors.APPROVERS) {
     const reviewer = doors.REVIEWERS.find((entry) => entry.name === name);
@@ -320,6 +326,8 @@ export function stationReport({ input, paths, lines = new Map(), isVendored = ()
     const light = changedPaths.every((path) => firstMatch(owner.light.paths, path) || lightRows.includes(path));
     tiers.push(light ? owner.light.tier : owner.tier);
   }
+  // No match gave a tier (a care row whose tier is null, alone): the station's own (validateDoorMap requires one).
+  if (!tiers.length) tiers.push(owner.tier);
   const tasterTier = mergeTiers(tiers);
 
   // The minimum proof, each source once: rows, parties, Fællesgryden, Gartneren, texts, the owner.

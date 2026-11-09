@@ -47,7 +47,12 @@ Each proof names the end-to-end run it asks for (`e2e`, strictest first: `pr`,
 `pr-or-flow`, `flow`, `where-available`, `none`; the row fields in
 `lib/doors.mjs` say what each means).
 `--json` prints one `saldi.station.v1` object and nothing else, exit 0, or a
-`{"schema", "error"}` object and exit 2 when it cannot route. `--paths` reads
+`{"schema", "error"}` object and exit 2 when it cannot route (a bad argument, an
+unknown ref, a map that does not load, or no change between `--base` and
+`--head`, as for two unrelated histories). A flag followed by another flag has
+no value (`--base --json` is a bad argument); give a value that starts with
+`--` as `--base=--value`. A plate that no match gives a tier (a care row whose
+tier is null, alone) takes its station's own tier. `--paths` reads
 candidate paths, one per line, instead of a diff, so markers do not count.
 Each is matched as the repository path it names (`./finans/bogfor.php` is
 `finans/bogfor.php`); a path that leaves the repository is refused.

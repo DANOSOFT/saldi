@@ -17,6 +17,10 @@
 // Exit code 1 when any check finds something. An exception for a single line is
 // described in lib/exceptions.mjs.
 //
+// A flag's value is the next argument, or follows "=" in the same one; a next
+// argument that starts with "--" is another flag, so the value is missing (exit
+// 2). Give a value that starts with "--" as --flag=--value.
+//
 // The checks judge the git repository of the working directory, not the one this
 // file lives in: CI runs the base revision's copy of tools/guardrails against the
 // PR's checkout, so a PR is not judged by its own rules (guardrails.yml).
@@ -30,7 +34,9 @@
 // exception counts, and only while the file is as it was at the commit it names.
 //
 // --station routes the change by the door map (lib/doors.mjs, lib/station.mjs)
-// and never fails: exit 0 with the report, 2 when it cannot route. A PHP file is
+// and never fails: exit 0 with the report, 2 when it cannot route (a bad
+// argument, an unknown ref, a map that does not load, or no change between
+// --base and --head, as for unrelated histories). A PHP file is
 // read by PHP's own tokens (lib/php.mjs: PHP 8.2 from PATH or Docker, as
 // php-syntax runs it); where PHP cannot run, every line that names a password in
 // a PHP file counts, and check.mjs says why (on stderr with --json). --json prints
@@ -47,6 +53,7 @@
 // 20261107 CL/LH --station hands the markers the unchanged lines around each added run (changeset markerLines).
 // 20261109 CL/LH The checks judge the working directory's repository: CI runs the base revision's copy against the PR.
 // 20261109 CL/LH A door exception counts only while its file is as it was at the commit it names.
+// 20261109 CL/LH A flag followed by another flag has no value; --flag=value. --station refuses a change it cannot build.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { buildChangeset, git, revExists, splitLines } from "./lib/changeset.mjs";
@@ -87,9 +94,20 @@ function parseArgs(argv) {
     paths: null,
   };
   for (let i = 0; i < argv.length; i++) {
-    const flag = argv[i];
+    // "--flag=value" gives the value in the same argument, the one way to give a value that starts with "--".
+    const equals = argv[i].startsWith("--") ? argv[i].indexOf("=") : -1;
+    const flag = equals > 0 ? argv[i].slice(0, equals) : argv[i];
+    let inline = equals > 0 ? argv[i].slice(equals + 1) : undefined;
     const value = () => {
-      if (i + 1 >= argv.length) throw new UsageError(`${flag} needs a value; see the top of tools/guardrails/check.mjs`);
+      if (inline !== undefined) {
+        const given = inline;
+        inline = undefined;
+        return given;
+      }
+      // A next argument that is itself an option is no value: the value is missing.
+      if (i + 1 >= argv.length || argv[i + 1].startsWith("--")) {
+        throw new UsageError(`${flag} needs a value (write ${flag}=<value> for one that starts with "--"); see the top of tools/guardrails/check.mjs`);
+      }
       return argv[++i];
     };
     switch (flag) {
@@ -106,6 +124,7 @@ function parseArgs(argv) {
       default:
         throw new UsageError(`unknown argument ${flag}; see the top of tools/guardrails/check.mjs`);
     }
+    if (inline !== undefined) throw new UsageError(`${flag} takes no value; see the top of tools/guardrails/check.mjs`);
   }
   if (!args.station && (args.json || args.paths !== null)) throw new UsageError("--json and --paths go with --station");
   if (args.station && (args.only || args.prBody !== null || args.list)) throw new UsageError("--station takes only --base, --head, --paths and --json");
@@ -126,6 +145,14 @@ function report(findings) {
       console.log(`::error file=${finding.path}${line}::${message}`);
     }
   }
+}
+
+/** Why buildChangeset failed, in one line: git's own message, or that the two have no common history. */
+function changeFailure(error) {
+  const said = String(error.stderr ?? "").trim().split("\n")[0];
+  if (said) return said;
+  if (/\bmerge-base\b/.test(error.message)) return "they have no common history (git merge-base found none)";
+  return error.message.split("\n")[0];
 }
 
 /** --station could not route: one saldi.station.v1 error (with --json) and exit 2. */
@@ -181,7 +208,13 @@ async function station(args) {
     if (args.head === "" || args.head.length > 200 || !revExists(args.head)) return fail("unknown-ref", `unknown --head ${args.head}`);
     headSha = git(["rev-parse", `${args.head}^{commit}`]).trim();
   }
-  const changeset = buildChangeset({ base: args.base, head: args.head });
+  let changeset;
+  try {
+    changeset = buildChangeset({ base: args.base, head: args.head });
+  } catch (error) {
+    // Unrelated histories (no merge base), or git failing to diff: there is no change to route.
+    return fail("no-change", `no change between ${args.base} and ${args.head ?? "the working tree"}: ${changeFailure(error)}`);
+  }
   const lines = new Map(changeset.files.map((file) => [file.path, changeset.markerLines(file.path)]));
   // One request to PHP for every PHP file of the change.
   doors.prefetchPhp([...lines].filter(([path]) => !changeset.isVendored(path)));
@@ -198,7 +231,9 @@ async function main() {
     args = parseArgs(argv);
   } catch (error) {
     if (!(error instanceof UsageError)) throw error;
-    if (argv.includes("--station")) return stationFailed(argv.includes("--json"), "bad-argument", error.message);
+    // A refusal of --station is its own error object; --json=... asks for JSON too, though it is refused.
+    const given = (flag) => argv.some((arg) => arg === flag || arg.startsWith(`${flag}=`));
+    if (given("--station")) return stationFailed(given("--json"), "bad-argument", error.message);
     console.error(error.message);
     process.exit(2);
   }
@@ -243,7 +278,7 @@ async function main() {
       try {
         ctx = { ...buildChangeset({ base: args.base, head: args.head }), ...ctx };
       } catch (error) {
-        skipped = `no change between ${args.base} and ${args.head ?? "the working tree"} (${error.message.split("\n")[0]})`;
+        skipped = `no change between ${args.base} and ${args.head ?? "the working tree"} (${changeFailure(error)})`;
       }
     }
     if (skipped) console.log(`door cross-check skipped: ${skipped}`);

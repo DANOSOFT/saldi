@@ -12,6 +12,8 @@
 // 20261104 CL/LH Password values read by a tokenizer per language, over the change's lines.
 // 20261106 CL/LH PHP files read by PHP's own tokens; lines outside the plain subset count.
 // 20261107 CL/LH Unchanged lines below a run are read too; a value open where the lines stop counts.
+// 20261109 CL/LH A flag followed by another flag has no value; unrelated histories are a refusal; a tierless plate
+//                takes its station's tier.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -23,9 +25,9 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 // PHP files are read by PHP's own tokens (lib/php.mjs gives doors.mjs its tokenizer).
 import "../lib/php.mjs";
-import { canonicalPath, expand, firstMatch, markerHits, rowPattern, stationReport, validateDoorMap } from "../lib/station.mjs";
+import { canonicalPath, expand, firstMatch, formatStation, markerHits, rowPattern, stationReport, validateDoorMap } from "../lib/station.mjs";
 import { VENDORED, addedWithContext } from "../lib/changeset.mjs";
-import { CARE_ROWS, ONE_WAY_ROWS, TIERS } from "../lib/doors.mjs";
+import { CARE_ROWS, ONE_WAY_ROWS, STATIONS, TIERS } from "../lib/doors.mjs";
 import { linear } from "./linear-time.mjs";
 
 /**
@@ -4035,6 +4037,89 @@ test("refusals are one saldi.station.v1 error and exit 2", () => {
   const outside = spawnSync(process.execPath, [CHECK, "--station", "--json"], { cwd: tmpdir(), encoding: "utf8" });
   assert.equal(outside.status, 2);
   assert.equal(JSON.parse(outside.stdout).error.code, "not-a-git-repo");
+});
+
+test("a flag followed by another flag has no value: --station --base --json is a bad-argument error object, exit 2, and --flag=value still gives a value that starts with --", () => {
+  const run = (args, input) => spawnSync(process.execPath, [CHECK, ...args], { cwd: ROOT, input, encoding: "utf8" });
+  const refused = (args, code, message) => {
+    const result = run(args);
+    assert.equal(result.status, 2, args.join(" "));
+    const report = JSON.parse(result.stdout);
+    assert.deepEqual(Object.keys(report), ["schema", "error"], args.join(" "));
+    assert.equal(report.error.code, code, args.join(" "));
+    assert.match(report.error.message, message, args.join(" "));
+  };
+  refused(["--station", "--base", "--json"], "bad-argument", /^--base needs a value \(write --base=<value> for one that starts with "--"\)/);
+  refused(["--station", "--json", "--head", "--base", "HEAD"], "bad-argument", /^--head needs a value/);
+  refused(["--station", "--json", "--paths", "--base=HEAD"], "bad-argument", /^--paths needs a value/);
+  refused(["--station", "--json=yes"], "bad-argument", /^--json takes no value/);
+  // A value that starts with "--", given after "=", is the value: here a ref that does not exist.
+  refused(["--station", "--json", "--base=--weird"], "unknown-ref", /^unknown --base --weird$/);
+  const equals = run(["--station", "--json", "--base=HEAD", "--paths=-"], "finans/bogfor.php\n");
+  assert.equal(equals.status, 0, equals.stdout);
+  assert.deepEqual(JSON.parse(equals.stdout).doorRows.map((match) => match.row), ["posting"]);
+  // Outside --station the same rule, as a message and exit 2.
+  const prBody = run(["--pr-body", "--base", "HEAD"]);
+  assert.equal(prBody.status, 2);
+  assert.match(prBody.stderr, /^--pr-body needs a value/);
+});
+
+test("--station on two unrelated histories is one saldi.station.v1 error and exit 2, not a stack trace", () => {
+  const dir = mkdtempSync(join(tmpdir(), "guardrails-unrelated-"));
+  const git = (...args) => spawnSync("git", ["-c", "user.name=guardrails-test", "-c", "user.email=guardrails-test@example.invalid", "-c", "commit.gpgsign=false", ...args], { cwd: dir, encoding: "utf8" });
+  try {
+    assert.equal(git("init", "-q").status, 0);
+    writeFileSync(join(dir, "a.txt"), "a\n");
+    assert.equal(git("add", "-A").status, 0);
+    assert.equal(git("commit", "-q", "--no-verify", "-m", "a").status, 0);
+    const a = git("rev-parse", "HEAD").stdout.trim();
+    assert.equal(git("checkout", "-q", "--orphan", "other").status, 0);
+    assert.equal(git("rm", "-q", "-rf", ".").status, 0);
+    writeFileSync(join(dir, "b.txt"), "b\n");
+    assert.equal(git("add", "-A").status, 0);
+    assert.equal(git("commit", "-q", "--no-verify", "-m", "b").status, 0);
+    const b = git("rev-parse", "HEAD").stdout.trim();
+    for (const range of [["--base", a, "--head", b], ["--base", a]]) {
+      const result = spawnSync(process.execPath, [CHECK, "--station", "--json", ...range], { cwd: dir, encoding: "utf8" });
+      assert.equal(result.status, 2, range.join(" "));
+      assert.equal(result.stderr, "", "no stack trace");
+      const report = JSON.parse(result.stdout);
+      assert.deepEqual(Object.keys(report), ["schema", "error"]);
+      assert.equal(report.schema, "saldi.station.v1");
+      assert.equal(report.error.code, "no-change");
+      assert.match(report.error.message, new RegExp(`^no change between ${a} and ${range.length > 2 ? b : "the working tree"}: they have no common history`));
+    }
+    const text = spawnSync(process.execPath, [CHECK, "--station", "--base", a, "--head", b], { cwd: dir, encoding: "utf8" });
+    assert.equal(text.status, 2);
+    assert.match(text.stderr, /^check\.mjs --station: no change between .* they have no common history .*\n$/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a plate that no match gives a tier takes its station's own: a Fællesgryden care row whose tier is null, alone, routes with Fællesgryden's tier; a station without a valid tier is refused when the map is loaded", () => {
+  const vat = row("vat-saft");
+  const tier = vat.tier;
+  vat.tier = null;
+  try {
+    assert.deepEqual(validateDoorMap(), [], "a care row may add no tier");
+    const report = stationReport({ input: { mode: "paths", base: "HEAD", baseSha: "0".repeat(40) }, paths: ["finans/saftExport.php"] });
+    assert.deepEqual([report.rule, report.station, report.careRows.map((match) => match.row)], [2, "faellesgryden", ["vat-saft"]]);
+    assert.deepEqual(report.tasterTier, TIERS.care);
+    assert.deepEqual(Object.keys(report.tasterTier), ["level", "effort", "longContext", "securityPass", "recheck"]);
+    assert.doesNotMatch(formatStation(report), /undefined/);
+  } finally {
+    vat.tier = tier;
+  }
+  const station = STATIONS.faellesgryden;
+  const own = station.tier;
+  station.tier = null;
+  try {
+    assert.deepEqual(validateDoorMap(), ["station faellesgryden has no valid tier"]);
+  } finally {
+    station.tier = own;
+  }
+  assert.deepEqual(validateDoorMap(), []);
 });
 
 test("without --json a developer gets the same answer as text", () => {
