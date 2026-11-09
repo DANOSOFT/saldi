@@ -16,6 +16,8 @@
 // 20261104 CL/SS SD-801 review 3: a cancellation before the import resolves the waiting rows; a refund with the flow off is listed.
 // 20261104 CL/SS SD-801 review 4: an older status leaves a newer listed one listed; a legacy order's refund still asks for the credit note.
 // 20261104 CL/SS SD-801 review 5: a listed event whose write fails stays listed.
+// 20261104 CL/SS SD-744: the EasyRoutes delivery date follows the newest ORDERS_UPDATED; the order screen's panel shows the order's Shopify side.
+// 20261105 CL/SS SD-744 review: a tie keeps the date, also from a status stored before the date was read; a cancelled shipment is not shown as sent; statuses in the user's language.
 
 use PHPUnit\Framework\TestCase;
 
@@ -231,7 +233,7 @@ final class StatusInSyncTest extends TestCase
         }
         $this->assertSame($forward, $state(), 'K41: each event on its own pass, in reverse order');
         $this->assertSame('00370730253779425598', $forward[0][0]['tracking_number'], 'the newest fulfillment wins over the older one inside ORDERS_FULFILLED');
-        $this->assertEquals(['financial_status' => 'paid', 'fulfillment_status' => 'fulfilled', 'updated_at' => '2026-11-02 13:05:12'], json_decode($forward[1][0]['status'], true));
+        $this->assertEquals(['easyroutes_levdato' => null, 'financial_status' => 'paid', 'fulfillment_status' => 'fulfilled', 'updated_at' => '2026-11-02 13:05:12'], json_decode($forward[1][0]['status'], true));
 
         $written = [$this->fulfillments(true), $this->sql('SELECT flags, updated_at FROM shopify_order_links')];
         $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
@@ -653,6 +655,169 @@ final class StatusInSyncTest extends TestCase
         $this->assertSame([], $this->fulfillments());
     }
 
+    private static function dated(string $date, string $updatedAt = '2026-11-02T14:05:12+01:00'): array
+    {
+        return self::body('orders_updated.json', ['updated_at' => $updatedAt, 'note_attributes' => [['name' => 'Gavebesked', 'value' => 'Tillykke'], ['name' => 'leveringsdato', 'value' => $date]]]);
+    }
+
+    private function easyroutes(): ?string
+    {
+        return $this->sql('SELECT easyroutes_levdato FROM shopify_order_links')[0]['easyroutes_levdato'] ?? null;
+    }
+
+    public function testTheEasyRoutesDateFollowsTheNewestOrderUpdate(): void
+    {
+        $this->importOrder();
+        $this->deliver('ORDERS_UPDATED', self::dated('2026-11-06'));
+        $this->pass();
+        $this->assertSame('2026-11-06', $this->easyroutes(), 'its note attribute, the name in any case');
+        $written = $this->sql('SELECT flags, easyroutes_levdato, updated_at FROM shopify_order_links');
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
+        $this->pass();
+        $this->assertSame($written, $this->sql('SELECT flags, easyroutes_levdato, updated_at FROM shopify_order_links'), 'a replay writes nothing');
+
+        $this->deliver('ORDERS_UPDATED', self::dated('2026-11-01', '2026-11-02T10:00:00+01:00'));
+        $this->pass();
+        $this->assertSame('2026-11-06', $this->easyroutes(), 'an older update does not overwrite it (K41)');
+        $this->deliver('ORDERS_UPDATED', self::dated('2026-11-09', '2026-11-03T08:00:00+01:00'));
+        $this->pass();
+        $this->assertSame('2026-11-09', $this->easyroutes(), 'a newer one moves it');
+        $this->deliver('ORDERS_UPDATED', self::dated('9. november', '2026-11-03T09:00:00+01:00'));
+        $this->pass();
+        $this->assertNull($this->easyroutes(), 'not a date: none');
+        $this->deliver('ORDERS_UPDATED', self::dated('2026-11-10garbage', '2026-11-03T09:10:00+01:00'));
+        $this->pass();
+        $this->assertNull($this->easyroutes(), 'the whole value must be the date');
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['updated_at' => '2026-11-03T10:00:00+01:00', 'note_attributes' => []]));
+        $this->deliver('ORDERS_UPDATED', self::dated('2026-11-12', '2026-11-03T09:30:00+01:00'));
+        $this->pass();
+        $this->assertNull($this->easyroutes(), 'the newest body no longer carries it, whichever came last');
+    }
+
+    public function testTwoUpdatesOfTheSameTimeWithOtherDatesEndTheSameInEitherOrder(): void
+    {
+        $end = [];
+        foreach ([['2026-11-06', '2026-11-09'], ['2026-11-09', '2026-11-06']] as $pair) {
+            $this->reset();
+            $this->importOrder();
+            foreach ($pair as $date) {
+                $this->deliver('ORDERS_UPDATED', self::dated($date));
+                $this->pass();
+            }
+            $end[] = $this->easyroutes();
+            // the first body replayed after the second must not take it back
+            $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL WHERE id = (SELECT min(id) FROM shopify_events)");
+            $this->pass();
+            $this->assertSame(end($end), $this->easyroutes(), 'a replay of the other body changes nothing');
+        }
+        $this->assertSame($end[0], $end[1], 'K41: a tie on updated_at is broken over the date as well, whichever came first');
+    }
+
+    public function testAStatusStoredBeforeTheDateWasReadDoesNotDropANewerListedOne(): void
+    {
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'refunded']), 49);
+        $this->pass();
+        $this->importOrder();
+        // projected before this change: no date in the status
+        $this->sql("UPDATE shopify_order_links SET flags = flags || jsonb_build_object('status', jsonb_build_object('financial_status', 'paid', 'fulfillment_status', 'fulfilled', 'updated_at', '2026-11-02 13:05:12'))");
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'authorized']));
+        $this->pass();
+
+        $this->assertSame('paid', json_decode($this->sql("SELECT flags->'status' AS s FROM shopify_order_links")[0]['s'], true)['financial_status'], 'the stored status still wins its tie');
+        $this->assertSame(['order.status:' . self::ORDER_GID], array_column($this->errors(), 'ref'), 'the listed refunded, which would win it too, stays listed');
+    }
+
+    public function testOnATieTheUpdateWithTheEasyRoutesDateWins(): void
+    {
+        $end = [];
+        foreach ([[true, false], [false, true]] as $pair) {
+            $this->reset();
+            $this->importOrder();
+            foreach ($pair as $withDate) {
+                $this->deliver('ORDERS_UPDATED', $withDate ? self::dated('2026-11-06') : self::body('orders_updated.json'));
+                $this->pass();
+            }
+            $end[] = $this->easyroutes();
+        }
+        $this->assertSame(['2026-11-06', '2026-11-06'], $end, 'an update in the same second as EasyRoutes\' write does not clear the date, whichever came first');
+    }
+
+    public function testFromAStatusStoredBeforeTheDateWasReadUpdatesOfTheSameTimeEndTheSameInEitherOrder(): void
+    {
+        $end = [];
+        foreach ([['authorized', 'refunded'], ['refunded', 'authorized']] as $order) {
+            $this->reset();
+            $this->importOrder();
+            $this->sql("UPDATE shopify_order_links SET flags = flags || jsonb_build_object('status', jsonb_build_object('financial_status', 'paid', 'fulfillment_status', 'fulfilled', 'updated_at', '2026-11-02 13:05:12'))");
+            $ids = [];
+            foreach ($order as $financial) {
+                // authorized carries the date, refunded does not
+                $body = $financial === 'authorized' ? self::dated('2026-11-06') : self::body('orders_updated.json');
+                $ids[$financial] = $this->deliver('ORDERS_UPDATED', array_replace($body, ['financial_status' => $financial]));
+                $this->pass();
+            }
+            $stored = $this->sql('SELECT flags, easyroutes_levdato FROM shopify_order_links')[0];
+            $end[] = $stored;
+            $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL WHERE id = $1", [$ids[$order[0]]]);
+            $this->pass();
+            $this->assertSame($stored, $this->sql('SELECT flags, easyroutes_levdato FROM shopify_order_links')[0], 'a replay of the first one changes nothing');
+        }
+        $this->assertSame($end[0], $end[1], 'K41 across the change of shape: the same status and date whichever came first');
+        $this->assertSame('2026-11-06', $end[0]['easyroutes_levdato'], 'the dated one wins its tie');
+    }
+
+    public function testAnEasyRoutesDateBeforeItsOrderWaitsAndAStatusStoredBeforeTheDateWasReadGetsItOnReplay(): void
+    {
+        $this->deliver('ORDERS_UPDATED', self::dated('2026-11-06'));
+        $this->assertSame(1, $this->pass()['yielded'], 'deferred, not failed (K41)');
+        $this->importOrder();
+        $this->sql("UPDATE shopify_jobs SET next_run_at = now() WHERE state = 'queued'");
+        $this->pass();
+        $this->assertSame('2026-11-06', $this->easyroutes());
+
+        // a status projected before this change: the same body, without the date in it or in the column
+        $this->sql("UPDATE shopify_order_links SET easyroutes_levdato = NULL, flags = jsonb_set(flags, '{status}', (flags->'status') - 'easyroutes_levdato')");
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
+        $this->pass();
+        $this->assertSame('2026-11-06', $this->easyroutes(), 'the replay of the stored status sets its date');
+    }
+
+    public function testTheOrderScreenPanelShowsTheShopifySideOfTheOrderOnly(): void
+    {
+        $ordreId = $this->importOrder();
+        $shipped = self::body('fulfillments_create.json', ['id' => 5374851200009, 'admin_graphql_api_id' => 'gid://shopify/Fulfillment/5374851200009',
+            'tracking_number' => "<b>X1</b>", 'tracking_url' => 'https://track.example/?id=<1>&a=b']);
+        $this->deliver('FULFILLMENTS_CREATE', $shipped);
+        $this->deliver('FULFILLMENTS_UPDATE', self::body('fulfillments_update.json', ['tracking_url' => 'javascript:alert(1)', 'status' => 'cancelled']));
+        $this->deliver('ORDERS_UPDATED', self::dated('2026-11-06'));
+        $this->deliver('REFUNDS_CREATE', self::body('refunds_create.json'));
+        $this->pass();
+        $other = (int)$this->sql("INSERT INTO ordrer (ordrenr, art, status, firmanavn) VALUES (80102, 'DO', 1, 'Ikke Shopify') RETURNING id")[0]['id'];
+        [$panel, $none] = $this->steps(['panel', $ordreId], ['panel', $other]);
+
+        $this->assertSame('', $none, 'an order without a Shopify link shows nothing new');
+        foreach (['Shopify-ordre</b></td><td>#1042 (hml)', 'Betaling</b></td><td>Betalt', 'Levering</b></td><td>Afsendt', 'Leveringsdato (EasyRoutes)</b></td><td>06-11-2026',
+            'Afsendt</b></td><td>02-11-2026', 'Refunderet</b></td><td>', '1.249,00 DKK'] as $needle) {
+            $this->assertStringContainsString($needle, $panel);
+        }
+        $this->assertSame(1, substr_count($panel, 'Afsendt</b>'), 'only the successful shipment shows as sent');
+        $this->assertStringContainsString('Forsendelse</b></td><td>Annulleret (02-11-2026, sporing PostNord 00370730253779425598)', $panel, 'the cancelled one with its own status');
+        $this->assertStringContainsString("<a href='https://track.example/?id=&lt;1&gt;&amp;a=b' target='_blank' rel='noopener noreferrer'>PostNord &lt;b&gt;X1&lt;/b&gt;</a>", $panel, 'escaped, and linked');
+        $this->assertStringNotContainsString('javascript:', $panel, 'only an http(s) tracking URL is a link');
+        $this->assertStringNotContainsString('<b>X1</b>', $panel);
+        $this->assertStringNotContainsString('Annulleret i Shopify', $panel, 'the order itself is not cancelled yet');
+
+        $this->sql("UPDATE shopify_order_links SET cancelled_at = '2026-11-03 08:30:00'");
+        $this->assertStringContainsString('Annulleret i Shopify</b></td><td>03-11-2026', $this->steps(['panel', $ordreId])[0]);
+        $version = $this->sql("SELECT var_value FROM settings WHERE var_grp = 'shopify' AND var_name = 'schema_version'")[0]['var_value'];
+        $this->sql("UPDATE settings SET var_value = '0' WHERE var_grp = 'shopify' AND var_name = 'schema_version'");
+        try {
+            $this->assertSame('', $this->steps(['panel', $ordreId])[0], 'a tenant without the Shopify schema shows nothing');
+        } finally {
+            $this->sql("UPDATE settings SET var_value = $1 WHERE var_grp = 'shopify' AND var_name = 'schema_version'", [$version]);
+        }
+    }
+
     public function testTheReadModelsReturnWhatWasProjected(): void
     {
         $ordreId = $this->importOrder();
@@ -669,7 +834,7 @@ final class StatusInSyncTest extends TestCase
         [$model, $none, $debtor] = $this->steps(['read_model', $ordreId], ['read_model', $ordreId + 1000000], ['debtor_model', $adresser]);
         $this->sql("DELETE FROM adresser WHERE id = $1", [$adresser]);
 
-        $this->assertSame(['hml', self::ORDER_GID, '#1042', 'web', 'invoiced', null], [$model['shop_key'], $model['order_gid'], $model['order_name'], $model['direction'], $model['state'], $model['cancelled_at']]);
+        $this->assertSame(['hml', self::ORDER_GID, '#1042', 'web', 'invoiced', null, null], [$model['shop_key'], $model['order_gid'], $model['order_name'], $model['direction'], $model['state'], $model['cancelled_at'], $model['easyroutes_levdato']]);
         $this->assertSame(['paid', 'fulfilled'], [$model['status']['financial_status'], $model['status']['fulfillment_status']]);
         $this->assertArrayNotHasKey('flags', $model, 'only the status namespace, not the intake or writeback internals');
         $this->assertSame([['gid://shopify/Fulfillment/5374851219514', 'PostNord', '00370730253779425598', 'in_transit'], ['gid://shopify/Fulfillment/5374851200001', 'GLS', 'GLS1', null]],
