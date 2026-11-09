@@ -42,22 +42,28 @@
  *     (box7). Otherwise, with a rate of 0, the debitor group's EU zone (grupper DG box10) and then the customer's country
  *     decide: own country E, a customer whose order carries VAT (ordrer.momssats > 0, so B2C) E, EU K (goods) or AE
  *     (services, varegruppe box5 'ydelser'), outside the EU G. ordrelinjer.momsfri
- *     alone does not mean exempt: export orders carry it on every line (MEDSHOP: freight and goods to Norway).
+ *     alone does not mean exempt: export orders carry it on every line (in real data: freight and goods to Norway).
  *     Greenland and the Faroe Islands are outside the EU (G) even though their address is sent as DK (option
  *     greenlandFaroeAsDk, as SST-870 does today). The customer's country is ordrer.land, then the card's land, then the
  *     CVR prefix, then DK.
  *  5. Totals: lines rounded to 2 decimals, VAT per category rounded like afrund(). When the booked ordrer.moms differs by less
  *     than 1.00 the largest S category takes the difference (BR-S-09/BR-CO-17 allow +-1); any difference to the booked
  *     ordrer.sum + ordrer.moms of at most maxRounding goes in PayableRoundingAmount, so PayableAmount is the booked receivable.
- *     A larger difference leaves reconciliation.ok false, and peppol_precheck() then stops the send.
- *  6. An invoice that bogfor_nu() settles at once (betalingsbet Kontant or Kreditkort with the account set under DIV 3) is
- *     sent as prepaid: PrepaidAmount is the total and PayableAmount 0 (option paidAsPrepaid).
- *  7. Payment: Danish customer: FIK 93 when Stamdata has an FI creditor number, then 42 (reg.nr. + account). Foreign customer
- *     or currency: 58 with the IBAN when there is one (SST-873), else 42. A credit note has no payment means.
+ *     A larger difference, or a VAT difference no S category can take, leaves reconciliation.ok false, and peppol_precheck()
+ *     then stops the send. The 0.01-0.03 differences seen in real data come from momsupdat() rounding each line to 3
+ *     decimals and taking the VAT of that sum, where the e-invoice must round each line to 2 decimals (BR-DEC-23).
+ *  6. An invoice or credit note that bogfor_nu() settles at once (betalingsbet Kontant or Kreditkort with the account set
+ *     under DIV 3, so no open item is made) is sent as prepaid: PrepaidAmount is the total and PayableAmount 0 (option
+ *     paidAsPrepaid). With the account empty the open item stays, and so does the payable amount.
+ *  7. Payment, one means only (UBL-SR-44/47 forbid offering FIK and a bank account side by side): Danish customer: FIK 93
+ *     (kortart 71, the PDF's payment id) when Stamdata has an FI creditor number, else 42 (reg.nr. + account), else 31 with
+ *     the IBAN. Foreign customer or currency: 58 with the IBAN when there is one (SST-873), else 42. A credit note has none.
  *  8. References: BT-10 is kundeordnr. Without it, OrderReference is 'NA' with our order number as SalesOrderID, which meets
  *     PEPPOL-EN16931-R003 without inventing a buyer reference. AccountingCost is left out (EasyUBL got "0").
  *  9. Foreign currency: the document currency is ordrer.valuta (empty: baseCurrency); the VAT total is also stated in the base
  *     currency at ordrer.valutakurs (TaxCurrencyCode, VAT directive art. 230; option taxCurrency).
+ * 10. Delivery: levdate and the delivery address when it is complete, else the customer's address (sendInvoice()). An
+ *     intra-community supply (K) without levdate gets the invoice date as delivery date (BR-IC-11).
  */
 
 include_once(__DIR__ . '/../stdFunc/countryCode.php');
@@ -74,9 +80,9 @@ if (!function_exists('peppol_model_default_options')) {
 	 *   sellerVatRegistered: bool,       False sends every line as category O and leaves all VAT numbers out (BR-O-02).
 	 *   greenlandFaroeAsDk: bool,        Send a Greenland/Faroe address as DK (EasyUBL behaviour, SST-870).
 	 *   commentLines: string,            'note' puts the text of quantity-0 lines in the previous line's note, 'drop' leaves it out.
-	 *   fik: bool,                       Offer FIK (code 93, kortart 71) when Stamdata has an FI creditor number.
+	 *   fik: bool,                       Ask for FIK (code 93, kortart 71) instead of a bank transfer when Stamdata has an FI creditor number.
 	 *   taxCurrency: bool,               State the VAT total in the base currency when the document currency differs.
-	 *   paidAsPrepaid: bool,             Send an invoice settled at posting (Kontant/Kreditkort) with PayableAmount 0.
+	 *   paidAsPrepaid: bool,             Send an invoice or credit note settled at posting (Kontant/Kreditkort) with PayableAmount 0.
 	 *   maxRounding: float,              The largest difference to the booked total that PayableRoundingAmount may absorb.
 	 * }
 	 */
@@ -251,6 +257,54 @@ if (!function_exists('peppol_model_gln_valid')) {
 	}
 }
 
+if (!function_exists('peppol_model_no_orgnr_valid')) {
+	/**
+	 * Whether a value is a Norwegian organisation number: 9 digits, modulus 11 with weights 3,2,7,6,5,4,3,2 (u:mod11 in
+	 * PEPPOL-EN16931-UBL.sch, PEPPOL-COMMON-R041 for scheme 0192).
+	 *
+	 * @param string|null $number The value.
+	 * @return bool
+	 */
+	function peppol_model_no_orgnr_valid($number) {
+		$number = (string)$number;
+		if (!preg_match('/^[0-9]{9}$/', $number) || (int)$number === 0) {
+			return false;
+		}
+		$weights = array(3, 2, 7, 6, 5, 4, 3, 2);
+		$sum = 0;
+		for ($i = 0; $i < 8; $i++) {
+			$sum += (int)$number[$i] * $weights[$i];
+		}
+		return ((11 - ($sum % 11)) % 11) === (int)$number[8];
+	}
+}
+
+if (!function_exists('peppol_model_se_orgnr_valid')) {
+	/**
+	 * Whether a value is a Swedish organisation number: 10 digits, the last a Luhn check digit over the first 9
+	 * (u:checkSEOrgnr in PEPPOL-EN16931-UBL.sch, PEPPOL-COMMON-R049 for scheme 0007).
+	 *
+	 * @param string|null $number The value.
+	 * @return bool
+	 */
+	function peppol_model_se_orgnr_valid($number) {
+		$number = (string)$number;
+		if (!preg_match('/^[0-9]{10}$/', $number)) {
+			return false;
+		}
+		$sum = 0;
+		for ($i = 0; $i < 9; $i++) {
+			$digit = (int)$number[$i];
+			if ($i % 2 === 0) {
+				$digit *= 2;
+				$digit = intdiv($digit, 10) + ($digit % 10);
+			}
+			$sum += $digit;
+		}
+		return ((10 - ($sum % 10)) % 10) === (int)$number[9];
+	}
+}
+
 if (!function_exists('peppol_model_cvr_parts')) {
 	/**
 	 * Reads a CVR field (order, card or Stamdata) as a country and a number.
@@ -390,8 +444,9 @@ if (!function_exists('peppol_model_legal_id')) {
 	 * The legal registration identifier (BT-30/BT-47) from a CVR read by peppol_model_cvr_parts().
 	 *
 	 * Only numbers whose format the scheme's rule accepts: an 8-digit Danish CVR under 0184 (DK-R-014/DK-R-017,
-	 * PEPPOL-COMMON-R042), a 10-digit Swedish (0007) or 9-digit Norwegian (0192) organisation number. Anything else gives
-	 * null, because a wrong CompanyID is fatal while a missing one is not (except DK-R-002 for the seller).
+	 * PEPPOL-COMMON-R042), a 10-digit Swedish (0007, R049) or 9-digit Norwegian (0192, R041) organisation number with a
+	 * valid check digit. Anything else gives null, because a wrong CompanyID is fatal while a missing one is not (except
+	 * DK-R-002 for the seller).
 	 *
 	 * @param array{country: string, number: string, raw: string, prefixed: bool} $cvrParts From peppol_model_cvr_parts().
 	 * @return array{scheme: string, id: string}|null
@@ -406,9 +461,9 @@ if (!function_exists('peppol_model_legal_id')) {
 			if (strlen($digits) === 12 && substr($digits, -2) === '01') {
 				$digits = substr($digits, 0, 10);
 			}
-			return (strlen($digits) === 10) ? array('scheme' => '0007', 'id' => $digits) : null;
+			return peppol_model_se_orgnr_valid($digits) ? array('scheme' => '0007', 'id' => $digits) : null;
 		}
-		if ($country === 'NO' && strlen($digits) === 9) {
+		if ($country === 'NO' && peppol_model_no_orgnr_valid($digits)) {
 			return array('scheme' => '0192', 'id' => $digits);
 		}
 		return null;
@@ -905,7 +960,7 @@ if (!function_exists('peppol_document_model')) {
 	 * }
 	 * @throws InvalidArgumentException When $rows has no order.
 	 */
-	function peppol_document_model(array $rows, array $opts = array()) {
+	function peppol_document_model(array $rows, array $opts = array()): array {
 		$order = $rows['order'] ?? null;
 		if (!is_array($order) || !$order) {
 			throw new InvalidArgumentException('peppol_document_model(): the rows have no order.');
@@ -994,8 +1049,9 @@ if (!function_exists('peppol_document_model')) {
 		// SST-870: the order's country field decides, the CVR prefix is the fallback, DK the last resort;
 		// the card's country comes before the CVR prefix when the order has none
 		$land = trim((string)($order['land'] ?? ''));
-		if ($land === '') {
-			$land = trim((string)($customer['land'] ?? ''));
+		if ($land === '' && trim((string)($customer['land'] ?? '')) !== '') {
+			$land = trim((string)$customer['land']);
+			$issues[] = 'the order has no country: the debitor card\'s country is used';
 		}
 		$buyerCountry = countryCodeIso2($land, $cvrHint['country']);
 		if ($buyerCountry === '') {
@@ -1074,8 +1130,6 @@ if (!function_exists('peppol_document_model')) {
 			$deliveryAddress = $buyerParty['address'];
 		}
 		$deliveryDate = peppol_model_date($order['levdate'] ?? null);
-		$delivery = ($deliveryDate === null && $deliveryAddress === null) ? null
-			: array('date' => $deliveryDate, 'name' => $deliveryName, 'address' => $deliveryAddress);
 
 		// Lines
 		$orderRate = (float)($order['momssats'] ?? 0);
@@ -1146,7 +1200,7 @@ if (!function_exists('peppol_document_model')) {
 				$vatRegistered,
 				$orderRate > 0
 			);
-			if ($vat['category'] === 'E' && $currency !== $baseCurrency && !$exempt) {
+			if ($vat['category'] === 'E' && $currency !== $baseCurrency && !$exempt && $amounts['lineExtension'] != 0) {
 				$issues[] = "line posnr $posnr: no VAT for a customer in $buyerCountry in $currency; check the customer's country";
 			}
 			if ($amounts['slack'] > $maxSlack) {
@@ -1204,6 +1258,16 @@ if (!function_exists('peppol_document_model')) {
 			$groups[$key]['taxableAmount'] += $line['lineExtension'];
 		}
 		$lines = array_values($lines);
+
+		// Delivery. An intra-community supply (K) needs a delivery date (BR-IC-11): without levdate the invoice date is used
+		$issueDate = (string)peppol_model_date($order['fakturadate'] ?? null);
+		if ($deliveryDate === null && in_array('K', array_column($groups, 'category'), true) && $issueDate !== '') {
+			$deliveryDate = $issueDate;
+			$issues[] = 'no levdate: the invoice date is sent as the delivery date (BR-IC-11)';
+		}
+		$delivery = ($deliveryDate === null && $deliveryAddress === null) ? null
+			: array('date' => $deliveryDate, 'name' => $deliveryName, 'address' => $deliveryAddress);
+
 		uasort($groups, function ($a, $b) {
 			if ($a['category'] !== $b['category']) {
 				return ($a['category'] === 'S') ? -1 : (($b['category'] === 'S') ? 1 : strcmp($a['category'], $b['category']));
@@ -1241,6 +1305,8 @@ if (!function_exists('peppol_document_model')) {
 				$vatTotal = peppol_model_round($vatTotal + $vatDiff, 2);
 				$issues[] = 'VAT ' . number_format($vatDiff, 2, '.', '') . ' added to the ' . number_format((float)$groups[$largest]['percent'], 2, '.', '') . ' % category to match the booked ordrer.moms';
 			} else {
+				// The document would state other VAT than the books: stop rather than send it
+				$reconciliation['ok'] = false;
 				$issues[] = 'VAT differs from the booked ordrer.moms by ' . number_format($vatDiff, 2, '.', '') . ' and was not adjusted';
 			}
 		}
@@ -1279,11 +1345,11 @@ if (!function_exists('peppol_document_model')) {
 			$fi = preg_replace('/[^0-9]/', '', (string)($seller['bank_fi'] ?? ''));
 			// SST-873: foreign when the customer is abroad or the currency is not the base currency
 			$foreign = ($sentCountry !== $sellerCountry) || ($currency !== $baseCurrency);
+			// One payment means only: UBL-SR-47 allows several PaymentMeans with the same code only, UBL-SR-44 one PaymentID
 			if (!$foreign && $opts['fik'] && strlen($fi) === 8 && $invoiceNumber !== '') {
 				$fikId = peppol_model_fik_payment_id($order['kontonr'] ?? '', $invoiceNumber, $fikLayout['accountLength'] ?? 0, $fikLayout['invoiceLength'] ?? 14);
 				$paymentMeans[] = array('code' => '93', 'paymentId' => '71#' . $fikId, 'payeeAccount' => array('id' => $fi, 'name' => null, 'bic' => null));
-			}
-			if ($foreign && $iban !== '') {
+			} elseif ($foreign && $iban !== '') {
 				$paymentMeans[] = array('code' => '58', 'paymentId' => ($invoiceNumber === '') ? null : $invoiceNumber,
 					'payeeAccount' => array('id' => $iban, 'name' => null, 'bic' => ($bic === '') ? null : $bic));
 			} elseif ($regNo !== '' && $account !== '') {
@@ -1338,7 +1404,7 @@ if (!function_exists('peppol_document_model')) {
 		return array(
 			'documentType' => $documentType,
 			'id' => $invoiceNumber,
-			'issueDate' => (string)peppol_model_date($order['fakturadate'] ?? null),
+			'issueDate' => $issueDate,
 			'dueDate' => $dueDate,
 			'typeCode' => $isCredit ? '381' : '380',
 			'note' => $note,

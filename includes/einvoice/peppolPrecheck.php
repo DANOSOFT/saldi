@@ -55,7 +55,7 @@ if (!function_exists('peppol_precheck')) {
 	 * @param int|string $sprog_id The user's language, for the coming findtekst() keys.
 	 * @return list<string> One message per problem.
 	 */
-	function peppol_precheck(array $model, $sprog_id = 1) {
+	function peppol_precheck(array $model, $sprog_id = 1): array {
 		$messages = array();
 		$seller = is_array($model['seller'] ?? null) ? $model['seller'] : array();
 		$buyer = is_array($model['buyer'] ?? null) ? $model['buyer'] : array();
@@ -73,7 +73,8 @@ if (!function_exists('peppol_precheck')) {
 		if (trim((string)($seller['registrationName'] ?? '')) === '') {
 			$messages[] = 'Firmanavnet mangler under Indstillinger > Stamdata.';
 		}
-		if (($seller['legalId'] ?? null) === null || trim((string)($seller['endpoint']['id'] ?? '')) === '') {
+		// DK-R-002/DK-R-014: a Danish seller must state its CVR; any seller needs an electronic address
+		if (($sellerCountry === 'DK' && ($seller['legalId'] ?? null) === null) || trim((string)($seller['endpoint']['id'] ?? '')) === '') {
 			$messages[] = 'Firmaets CVR-nummer mangler eller har ikke 8 cifre. Ret det under Indstillinger > Stamdata.';
 		}
 		$sellerAddress = $seller['address'] ?? array();
@@ -95,8 +96,9 @@ if (!function_exists('peppol_precheck')) {
 			$messages[] = "EAN-nummeret $endpointId er ikke gyldigt. Et EAN-nummer har 13 cifre, og det sidste er et kontrolciffer.";
 		} elseif ($scheme === '0184' && !preg_match('/^(DK)?[0-9]{8}$/', $endpointId)) {
 			$messages[] = "Kundens CVR-nummer $endpointId er ikke et gyldigt dansk CVR-nummer med 8 cifre.";
-		} elseif (($scheme === '0192' && !preg_match('/^[0-9]{9}$/', $endpointId)) || ($scheme === '0007' && !preg_match('/^[0-9]{10}$/', $endpointId))) {
-			$messages[] = "Kundens organisationsnummer $endpointId har ikke det rigtige antal cifre.";
+		} elseif (($scheme === '0192' && !peppol_model_no_orgnr_valid($endpointId)) || ($scheme === '0007' && !peppol_model_se_orgnr_valid($endpointId))) {
+			// PEPPOL-COMMON-R041/R049: digit count and check digit
+			$messages[] = "Kundens organisationsnummer $endpointId er ikke gyldigt (forkert antal cifre eller kontrolciffer).";
 		}
 		// SD-774 (DK-R-017 / E-APS24003): a Danish customer reached on an EAN must have a CVR on the invoice
 		if ($scheme === '0088' && $buyerCountry === 'DK' && ($buyer['legalId'] ?? null) === null) {
@@ -108,13 +110,14 @@ if (!function_exists('peppol_precheck')) {
 			$missing[] = 'vej';
 		}
 		if (($buyerAddress['postalCode'] ?? null) === null) {
-			$missing[] = 'postnr.';
+			$missing[] = 'postnummer';
 		}
 		if (($buyerAddress['city'] ?? null) === null) {
 			$missing[] = 'by';
 		}
 		if ($missing) {
-			$messages[] = 'Kundens adresse mangler ' . implode(', ', $missing) . '. Udfyld den på ordren eller debitorkortet.';
+			$last = array_pop($missing);
+			$messages[] = 'Kundens adresse mangler ' . ($missing ? implode(', ', $missing) . ' og ' : '') . $last . '. Udfyld den på ordren eller debitorkortet.';
 		}
 
 		// Lines and VAT
@@ -146,7 +149,7 @@ if (!function_exists('peppol_precheck')) {
 		$reconciliation = $model['reconciliation'] ?? null;
 		if (is_array($reconciliation) && empty($reconciliation['ok'])) {
 			$difference = (float)$reconciliation['bookedNet'] + (float)$reconciliation['bookedVat'] - (float)$reconciliation['computedNet'] - (float)$reconciliation['computedVat'];
-			$messages[] = 'Fakturaens linjer giver ikke det bogførte beløb (forskel ' . peppol_precheck_amount($difference) . '). Fakturaen er ikke sendt. Kontakt Saldi.';
+			$messages[] = 'Fakturaens linjer giver ikke det bogførte beløb (forskel ' . peppol_precheck_amount($difference) . '). Fakturaen er ikke sendt. Kontakt saldi.dk support.';
 		}
 
 		return array_values(array_unique($messages));

@@ -1,4 +1,28 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- tests/includes/einvoice/peppolDocumentModel.test.php --- ver 5.1.0 --- 2026-11-09 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261109 CL/MMR SD-815 Created (draft). Tests for peppol_document_model() with synthetic order rows: VAT categories, discounts, totals against the booking, identifiers, payment.
 
 declare(strict_types=1);
 
@@ -247,7 +271,7 @@ final class peppolDocumentModel extends TestCase
     public function testEuCompanyGetsIntraCommunitySupplyAndReverseChargeForServices(): void
     {
         // As in real data: 0 % on the order and momsfri on every line, though the item groups are not momsfri
-        $rows = self::rows(array('land' => 'Sverige', 'cvrnr' => 'SE000000000101', 'valuta' => 'DKK', 'momssats' => '0', 'sum' => '400', 'moms' => '0'), array(
+        $rows = self::rows(array('land' => 'Sverige', 'cvrnr' => 'SE000000001801', 'valuta' => 'DKK', 'momssats' => '0', 'sum' => '400', 'moms' => '0'), array(
             array('momsfri' => 'on', 'momssats' => '0'),
             array('posnr' => '2', 'varenr' => 'SERVICE', 'vare_id' => '30', 'beskrivelse' => 'Kalibrering', 'antal' => '1', 'pris' => '100', 'momsfri' => 'on', 'momssats' => '0', 'enhed' => 'timer'),
         ));
@@ -256,14 +280,27 @@ final class peppolDocumentModel extends TestCase
         self::assertSame('K', $model['lines'][0]['vatCategory']);
         self::assertSame('AE', $model['lines'][1]['vatCategory']);
         self::assertSame('HUR', $model['lines'][1]['unitCode']);
-        self::assertSame(array('scheme' => '0007', 'id' => '0000000001'), $model['buyer']['endpoint']);
-        self::assertSame(array('scheme' => '0007', 'id' => '0000000001'), $model['buyer']['legalId']);
-        self::assertSame('SE000000000101', $model['buyer']['vatId']);
+        self::assertSame(array('scheme' => '0007', 'id' => '0000000018'), $model['buyer']['endpoint']);
+        self::assertSame(array('scheme' => '0007', 'id' => '0000000018'), $model['buyer']['legalId']);
+        self::assertSame('SE000000001801', $model['buyer']['vatId']);
         self::assertSame('SE', $model['buyer']['address']['country']);
         self::assertSame('SE', $model['delivery']['address']['country']);
         self::assertSame(array('AE', 'K'), array_column($model['taxSubtotals'], 'category'));
         self::assertSame('VATEX-EU-IC', $model['taxSubtotals'][1]['exemptionReasonCode']);
         self::assertSame(400.0, $model['totals']['payable']);
+    }
+
+    public function testIntraCommunitySupplyWithoutLevdateIsDeliveredOnTheInvoiceDate(): void
+    {
+        $rows = self::rows(array('land' => 'Sverige', 'cvrnr' => 'SE000000001801', 'momssats' => '0', 'moms' => '0', 'levdate' => null),
+            array(array('momsfri' => 'on', 'momssats' => '0')));
+        $model = peppol_document_model($rows);
+        self::assertSame('K', $model['lines'][0]['vatCategory']);
+        self::assertSame('2026-11-09', $model['delivery']['date']);
+        self::assertContains('no levdate: the invoice date is sent as the delivery date (BR-IC-11)', $model['issues']);
+
+        // Other categories leave a missing delivery date out
+        self::assertNull(peppol_document_model(self::rows(array('levdate' => '')))['delivery']['date']);
     }
 
     public function testEuZoneOfTheDebtorGroupDecidesBeforeTheCountry(): void
@@ -288,14 +325,15 @@ final class peppolDocumentModel extends TestCase
 
     public function testExportOutsideTheEuIsG(): void
     {
-        $rows = self::rows(array('land' => 'Norge', 'cvrnr' => 'NO000000001MVA', 'valuta' => 'NOK', 'valutakurs' => '64.000', 'momssats' => '0', 'moms' => '0'),
+        $rows = self::rows(array('land' => 'Norge', 'cvrnr' => 'NO000000019MVA', 'valuta' => 'NOK', 'valutakurs' => '64.000', 'momssats' => '0', 'moms' => '0'),
             array(array('momsfri' => 'on', 'momssats' => '0')));
         $model = peppol_document_model($rows);
 
         self::assertSame('G', $model['lines'][0]['vatCategory']);
         self::assertSame('VATEX-EU-G', $model['taxSubtotals'][0]['exemptionReasonCode']);
-        self::assertSame(array('scheme' => '0192', 'id' => '000000001'), $model['buyer']['endpoint']);
-        self::assertSame('NO000000001MVA', $model['buyer']['vatId']);
+        self::assertSame(array('scheme' => '0192', 'id' => '000000019'), $model['buyer']['endpoint']);
+        self::assertSame(array('scheme' => '0192', 'id' => '000000019'), $model['buyer']['legalId']);
+        self::assertSame('NO000000019MVA', $model['buyer']['vatId']);
         self::assertSame('NOK', $model['currency']);
         self::assertSame('DKK', $model['taxCurrency']);
         self::assertSame(0.0, $model['taxCurrencyTaxAmount']);
@@ -368,6 +406,18 @@ final class peppolDocumentModel extends TestCase
         self::assertSame(array('scheme' => '9933', 'id' => 'EL000000001'), peppol_model_endpoint_from_cvr(peppol_model_cvr_parts('EL000000001')));
         self::assertSame('EL000000001', peppol_model_vat_id(peppol_model_cvr_parts('EL000000001')));
         self::assertNull(peppol_model_endpoint_from_cvr(peppol_model_cvr_parts('N/A')));
+    }
+
+    public function testForeignLegalIdNeedsAValidCheckDigit(): void
+    {
+        // PEPPOL-COMMON-R041/R049 are fatal on CompanyID too, and a missing legal id is not: leave a wrong one out
+        self::assertSame(array('scheme' => '0007', 'id' => '0000000018'), peppol_model_legal_id(peppol_model_cvr_parts('SE000000001801')));
+        self::assertNull(peppol_model_legal_id(peppol_model_cvr_parts('SE000000000101')));
+        self::assertSame(array('scheme' => '0192', 'id' => '000000019'), peppol_model_legal_id(peppol_model_cvr_parts('NO000000019MVA')));
+        self::assertNull(peppol_model_legal_id(peppol_model_cvr_parts('NO000000001MVA')));
+        self::assertTrue(peppol_model_no_orgnr_valid('000000019'));
+        self::assertFalse(peppol_model_no_orgnr_valid('000000000'));
+        self::assertFalse(peppol_model_se_orgnr_valid('00000000018'));
     }
 
     public function testForeignCurrencyStatesTheVatInDkk(): void
@@ -520,6 +570,16 @@ final class peppolDocumentModel extends TestCase
         self::assertSame(310.0, $model['reconciliation']['bookedNet']);
     }
 
+    public function testBookedVatTheLinesDoNotCarryIsNotHidden(): void
+    {
+        // An old order with rate 0 on the order but VAT in ordrer.moms: the lines give no S category to put it in
+        $model = peppol_document_model(self::rows(array('momssats' => '0', 'moms' => '0.50'), array(array('momssats' => '25'))));
+        self::assertSame('E', $model['lines'][0]['vatCategory']);
+        self::assertFalse($model['reconciliation']['ok']);
+        self::assertSame(0.0, $model['taxTotal']);
+        self::assertContains('VAT differs from the booked ordrer.moms by 0.50 and was not adjusted', $model['issues']);
+    }
+
     public function testDueDateMatchesForfaldsdag(): void
     {
         $terms = array(array('Netto', 0), array('Netto', 8), array('Netto', 14), array('Netto', 30), array('Netto', 35),
@@ -562,7 +622,9 @@ final class peppolDocumentModel extends TestCase
         self::assertSame('93', $model['paymentMeans'][0]['code']);
         self::assertSame('71#' . peppol_model_fik_payment_id('1077', '1001', 0, 14), $model['paymentMeans'][0]['paymentId']);
         self::assertSame(array('id' => '12345678', 'name' => null, 'bic' => null), $model['paymentMeans'][0]['payeeAccount']);
-        self::assertSame('42', $model['paymentMeans'][1]['code']);
+        // One payment means only (UBL-SR-44/47); without FIK the bank account is used
+        self::assertCount(1, $model['paymentMeans']);
+        self::assertSame('42', peppol_document_model($rows, array('fik' => false))['paymentMeans'][0]['code']);
     }
 
     public function testInvoiceSettledAtPostingIsPrepaid(): void
@@ -663,6 +725,68 @@ final class peppolDocumentModel extends TestCase
         $model = peppol_document_model(self::rows(array('firmanavn' => "Testkunde\x01 ApS"), array(array('beskrivelse' => "Vare\x0B med\x1F tegn"))));
         self::assertSame('Testkunde ApS', $model['buyer']['registrationName']);
         self::assertSame('Vare med tegn', $model['lines'][0]['itemName']);
+    }
+
+    public function testOrderWithoutCountryTakesTheCardsCountry(): void
+    {
+        // SST-870 order: the order's country, then (SD-815) the card's, then the CVR prefix, then DK
+        $rows = self::rows(array('land' => '', 'cvrnr' => '', 'valuta' => 'SEK', 'valutakurs' => '65.000'));
+        $rows['customer']['cvrnr'] = '';
+        $rows['customer']['land'] = 'Sverige';
+        $rows['order']['ean'] = self::gln('000000001234');
+        $model = peppol_document_model($rows);
+        self::assertSame('SE', $model['buyer']['address']['country']);
+        self::assertContains('the order has no country: the debitor card\'s country is used', $model['issues']);
+
+        $rows['customer']['land'] = '';
+        self::assertSame('DK', peppol_document_model($rows)['buyer']['address']['country']);
+        $rows['order']['cvrnr'] = 'SE000000001801';
+        self::assertSame('SE', peppol_document_model($rows)['buyer']['address']['country']);
+    }
+
+    public function testZeroPricedExemptLineGivesNoCountryWarning(): void
+    {
+        // A private Swedish customer in SEK with a free freight line flagged momsfri: E for 0.00, nothing to check
+        $rows = self::rows(array('land' => 'Sverige', 'cvrnr' => '', 'valuta' => 'SEK', 'valutakurs' => '65.000'), array(
+            array(),
+            array('posnr' => '2', 'varenr' => 'FRAGT', 'vare_id' => '10', 'beskrivelse' => 'Fragt', 'antal' => '1', 'pris' => '0', 'momsfri' => 'on'),
+        ));
+        $model = peppol_document_model($rows);
+        self::assertSame('E', $model['lines'][1]['vatCategory']);
+        self::assertSame(0.0, $model['lines'][1]['lineExtension']);
+        self::assertSame(array(), preg_grep('/no VAT for a customer/', $model['issues']));
+
+        $rows['lines'][1]['pris'] = '50';
+        $rows['order']['sum'] = '350';
+        self::assertNotSame(array(), preg_grep('/no VAT for a customer/', peppol_document_model($rows)['issues']));
+    }
+
+    public function testSetComponentsCarryTheAmountsAndTheHeadLineIsKept(): void
+    {
+        // A sæt: the components carry the set discount, the head line (samlevare 'on', saet) is priced 0 with the set
+        // price in lev_varenr. momsupdat() books the components; the head line stays as a line of 0.00.
+        $lines = array(
+            array('posnr' => '1', 'varenr' => 'DEL-1', 'antal' => '1', 'pris' => '100', 'rabat' => '10', 'saet' => '1'),
+            array('posnr' => '1', 'id' => '2', 'varenr' => 'DEL-2', 'antal' => '1', 'pris' => '200', 'rabat' => '10', 'saet' => '1'),
+            array('posnr' => '2', 'id' => '3', 'varenr' => 'SAET', 'beskrivelse' => 'Sæt', 'antal' => '1', 'pris' => '0', 'rabat' => '10',
+                'samlevare' => 'on', 'saet' => '1', 'lev_varenr' => '270|10'),
+        );
+        $model = peppol_document_model(self::rows(array('sum' => '270', 'moms' => '67.5'), $lines));
+        self::assertSame(array(90.0, 180.0, 0.0), array_column($model['lines'], 'lineExtension'));
+        self::assertSame(337.5, $model['totals']['payable']);
+        self::assertTrue($model['reconciliation']['ok']);
+        self::assertSame(0.0, $model['reconciliation']['vatAdjustment']);
+    }
+
+    public function testCreditNoteSettledAtPostingIsPrepaidToo(): void
+    {
+        $rows = self::rows(array('art' => 'DK', 'betalingsbet' => 'Kontant', 'betalingsdage' => '0', 'sum' => '-300', 'moms' => '-75'),
+            array(array('antal' => '-2')));
+        $rows['settings']['cashAccount'] = '1000';
+        $model = peppol_document_model($rows);
+        self::assertSame(375.0, $model['totals']['prepaid']);
+        self::assertSame(0.0, $model['totals']['payable']);
+        self::assertNull($model['paymentTerms']);
     }
 
     public function testRowsWithoutOrderAreRejected(): void

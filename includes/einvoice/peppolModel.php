@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). The document model shared by the Peppol BIS 3.0 builder and writer.
 //                 Saldi builds the e-invoice XML itself and sends it through Semantic's API instead of sending JSON to EasyUBL.
+// 20261109 CL/MMR SD-815 Documented the builder's optional keys issues and reconciliation, reg.nr. in payeeAccount.bic for code 42, and dueDate on a credit note.
 
 /*
  * SD-815 draft: how the pieces fit together.
@@ -53,7 +54,8 @@ if (!function_exists('peppol_model_example')) {
 	 *   documentType: string,               'invoice' | 'creditnote'.
 	 *   id: string,                         BT-1 invoice/credit note number (ordrer.fakturanr).
 	 *   issueDate: string,                  BT-2.
-	 *   dueDate: string|null,               BT-9; invoice only (a CreditNote has no cbc:DueDate in BIS 3).
+	 *   dueDate: string|null,               BT-9; invoice only (a CreditNote has no cbc:DueDate in BIS 3). The builder leaves it null on a credit
+	 *                                       note; a date given there anyway goes to the first PaymentMeans as cbc:PaymentDueDate.
 	 *   typeCode: string,                   BT-3: '380' invoice, '381' credit note.
 	 *   note: string|null,                  BT-22.
 	 *   currency: string,                   BT-5 ISO 4217.
@@ -95,7 +97,8 @@ if (!function_exists('peppol_model_example')) {
 	 *   paymentMeans: list<array{
 	 *     code: string,                     BT-81 UNCL 4461; DK suppliers: 1, 10, 31, 42, 48, 49, 50, 58, 59, 93, 97 (DK-R-005).
 	 *     paymentId: string|null,           BT-83; for code 93 (FIK) the '71'/'73'/'75' card type plus payment id, see the builder.
-	 *     payeeAccount: array{id: string, name: string|null, bic: string|null}|null,  BT-84/85/86.
+	 *     payeeAccount: array{id: string, name: string|null, bic: string|null}|null,  BT-84/85/86. 'bic' is written to
+	 *                                       FinancialInstitutionBranch/ID: the BIC for 31/58, the Danish reg.nr. for 42 (DK-R-006).
 	 *   }>,
 	 *   paymentTerms: string|null,          BT-20.
 	 *   allowanceCharges: list<array{
@@ -154,6 +157,10 @@ if (!function_exists('peppol_model_example')) {
 	 *     filename: string,
 	 *     base64: string,                   BT-125, the file content base64-encoded.
 	 *   }>,
+	 *   issues?: list<string>,              Optional, set by peppol_document_model() only: English notes for developers; the writer ignores it.
+	 *   reconciliation?: array{bookedNet: float, bookedVat: float, computedNet: float, computedVat: float, vatAdjustment: float, roundingAmount: float, ok: bool},
+	 *                                       Optional, set by peppol_document_model() only: the totals against the booked ordrer.sum/moms;
+	 *                                       peppol_precheck() stops the send when ok is false, the writer ignores it.
 	 * }
 	 */
 	function peppol_model_example($documentType = 'invoice') {

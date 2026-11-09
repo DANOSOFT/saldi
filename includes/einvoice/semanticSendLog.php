@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). The send log over the tenant table einvoice_sendlog: one row per e-document sent through Semantic.
 //                 It keeps the XML that was sent (Saldi's own archive, bogføringsloven 5 years) and the Semantic document id the webhook and the poll match on.
+//                 Texts are written so PostgreSQL's ' like ' to ' ilike ' rewrite in db_modify() cannot change them.
 
 /*
  * Table einvoice_sendlog (created by includes/betweenUpdates.php, and by includes/opretfunc.php for a new regnskab):
@@ -133,7 +134,8 @@ if (!function_exists('einvoice_sendlog_unpack_xml')) {
 		$stored = (string)$stored;
 		if (strncmp($stored, 'gz:', 3) === 0 && function_exists('gzdecode')) {
 			$gz = base64_decode(substr($stored, 3), true);
-			$xml = ($gz !== false) ? @gzdecode($gz) : false;
+			// Only data with the gzip magic bytes reaches gzdecode(); a damaged archive row still shows its warning.
+			$xml = ($gz !== false && strncmp($gz, "\x1f\x8b", 2) === 0) ? gzdecode($gz) : false;
 			return ($xml === false) ? null : $xml;
 		}
 		if (strncmp($stored, 'b64:', 4) === 0) {
@@ -148,12 +150,17 @@ if (!function_exists('einvoice_sendlog_sql_value')) {
 	/**
 	 * One value as SQL: ints cast, strings cut to the column size and escaped, null as NULL.
 	 *
+	 * On PostgreSQL db_modify() and db_select() turn every ' like ' in the statement into ' ilike ', also inside a
+	 * string, so an error text such as "looks like" would be stored changed. There the literal is split at ' like '
+	 * and joined again with ||, which the replacement does not see.
+	 *
 	 * @param mixed                          $value
 	 * @param array{type: string, max: int}  $column From einvoice_sendlog_columns().
 	 * @param callable(string): string        $escape db_escape_string() or a test double.
+	 * @param string|null                    $dbType $db_type; anything but mysql/mysqli counts as PostgreSQL.
 	 * @return string
 	 */
-	function einvoice_sendlog_sql_value($value, array $column, callable $escape) {
+	function einvoice_sendlog_sql_value($value, array $column, callable $escape, $dbType = null) {
 		if ($value === null) {
 			return 'NULL';
 		}
@@ -171,7 +178,11 @@ if (!function_exists('einvoice_sendlog_sql_value')) {
 				$value = substr($value, 0, $column['max']);
 			}
 		}
-		return "'" . call_user_func($escape, $value) . "'";
+		$literal = "'" . call_user_func($escape, $value) . "'";
+		if (!einvoice_sendlog_is_mysql($dbType) && strpos($literal, ' like ') !== false) {
+			$literal = '(' . str_replace(' like ', " ' || 'like ", $literal) . ')';
+		}
+		return $literal;
 	}
 }
 
@@ -181,16 +192,17 @@ if (!function_exists('einvoice_sendlog_insert_sql')) {
 	 *
 	 * @param array<string, mixed>     $row
 	 * @param callable(string): string $escape
+	 * @param string|null              $dbType $db_type, see einvoice_sendlog_sql_value().
 	 * @return string
 	 */
-	function einvoice_sendlog_insert_sql(array $row, callable $escape) {
+	function einvoice_sendlog_insert_sql(array $row, callable $escape, $dbType = null) {
 		$columns = einvoice_sendlog_columns();
 		$names = array();
 		$values = array();
 		foreach ($columns as $name => $column) {
 			if (array_key_exists($name, $row)) {
 				$names[] = $name;
-				$values[] = einvoice_sendlog_sql_value($row[$name], $column, $escape);
+				$values[] = einvoice_sendlog_sql_value($row[$name], $column, $escape, $dbType);
 			}
 		}
 		$names[] = 'created';
@@ -208,14 +220,15 @@ if (!function_exists('einvoice_sendlog_update_sql')) {
 	 * @param int                      $id
 	 * @param array<string, mixed>     $fields
 	 * @param callable(string): string $escape
+	 * @param string|null              $dbType $db_type, see einvoice_sendlog_sql_value().
 	 * @return string
 	 */
-	function einvoice_sendlog_update_sql($id, array $fields, callable $escape) {
+	function einvoice_sendlog_update_sql($id, array $fields, callable $escape, $dbType = null) {
 		$columns = einvoice_sendlog_columns();
 		$sets = array();
 		foreach ($fields as $name => $value) {
 			if (isset($columns[$name])) {
-				$sets[] = $name . ' = ' . einvoice_sendlog_sql_value($value, $columns[$name], $escape);
+				$sets[] = $name . ' = ' . einvoice_sendlog_sql_value($value, $columns[$name], $escape, $dbType);
 			}
 		}
 		if (!$sets || (int)$id <= 0) {
@@ -274,7 +287,7 @@ if (!function_exists('einvoice_sendlog_insert')) {
 	 */
 	function einvoice_sendlog_insert(array $row) {
 		global $db_type;
-		db_modify(einvoice_sendlog_insert_sql($row, 'db_escape_string'), __FILE__ . " linje " . __LINE__);
+		db_modify(einvoice_sendlog_insert_sql($row, 'db_escape_string', $db_type), __FILE__ . " linje " . __LINE__);
 		// The id of the insert just made, read from this connection (like kk_last_insert_id() in finans/kassekladde.php).
 		if (einvoice_sendlog_is_mysql($db_type)) {
 			return (int)mysqli_insert_id(db_query_connection(false));
@@ -293,7 +306,8 @@ if (!function_exists('einvoice_sendlog_update')) {
 	 * @return void
 	 */
 	function einvoice_sendlog_update($id, array $fields) {
-		$qtxt = einvoice_sendlog_update_sql((int)$id, $fields, 'db_escape_string');
+		global $db_type;
+		$qtxt = einvoice_sendlog_update_sql((int)$id, $fields, 'db_escape_string', $db_type);
 		if ($qtxt !== '') {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}

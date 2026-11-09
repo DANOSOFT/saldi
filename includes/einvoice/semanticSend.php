@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). semantic_send_document() sends an invoice or credit note as Peppol BIS 3 XML built by Saldi through Semantic, behind the per-regnskab switch settings provider/einvoice = 'semantic'.
 //                 The guards (switch, copy of a regnskab, duplicate send) are pure functions here, so they are tested without a database.
+//                 A per-document database lock (semantic_send_lock()) keeps two windows from sending the same document at the same time.
+// 20261109 CL/MMR SD-815 The seller endpoint in the XML must be the one the onboarding registers (0184 + Stamdata CVR, or the Stamdata GLN), else the send stops.
 
 include_once(__DIR__ . '/semanticClient.php');
 include_once(__DIR__ . '/semanticSendLog.php');
@@ -313,6 +315,29 @@ if (!function_exists('semantic_require_builder')) {
 	}
 }
 
+if (!function_exists('semantic_seller_endpoint_mismatch')) {
+	/**
+	 * Whether the seller endpoint the builder put in the document is one semantic_ensure_sender() registers for this
+	 * regnskab: 0184 + the 8-digit CVR of Stamdata, or 0088 + the Stamdata GLN. Both come from semantic_own_company(), so
+	 * an XML that names another seller endpoint (a foreign country in Stamdata, a CVR the onboarding reads differently)
+	 * is stopped instead of being sent under an address the regnskab is not registered with.
+	 *
+	 * @param array{scheme?: string, id?: string}|null $endpoint The model's seller endpoint.
+	 * @param array{cvr?: string, gln?: string}|null    $own      semantic_own_company(); null when Stamdata is missing.
+	 * @return string '' when it matches, else the Danish message for the user.
+	 */
+	function semantic_seller_endpoint_mismatch($endpoint, $own) {
+		$scheme = trim((string)($endpoint['scheme'] ?? ''));
+		$id = trim((string)($endpoint['id'] ?? ''));
+		$cvr = (string)($own['cvr'] ?? '');
+		$gln = (string)($own['gln'] ?? '');
+		if (($scheme === '0184' && preg_match('/^[0-9]{8}$/', $cvr) && $id === $cvr) || ($scheme === '0088' && $gln !== '' && $id === $gln)) {
+			return '';
+		}
+		return 'E-fakturaens afsender (' . $scheme . ':' . $id . ') er ikke det CVR-nummer fra Stamdata, som regnskabet er oprettet med til e-faktura. Ret CVR-nummer og land under Indstillinger > Stamdata, eller kontakt saldi.dk support.';
+	}
+}
+
 if (!function_exists('semantic_send_result')) {
 	/**
 	 * @param bool     $ok
@@ -341,13 +366,114 @@ if (!function_exists('semantic_set_digital_status')) {
 	}
 }
 
+if (!function_exists('semantic_send_lock_sql')) {
+	/**
+	 * The SQL that takes, without waiting, or releases the lock for sending one document. PostgreSQL advisory locks
+	 * belong to one database; MySQL's GET_LOCK names are server-wide, so the database is part of the name, as in
+	 * finans/kassekladde_includes/journalSaveLock.php (and the name stays under MySQL's 64 characters).
+	 *
+	 * @param string|null $dbType  $db_type from includes/connect.php.
+	 * @param int         $orderId ordrer.id
+	 * @param string      $art     'DO' or 'DK'.
+	 * @param bool        $release True for the release statement.
+	 * @return string One column, locked: true/1 when the lock was taken (or released).
+	 */
+	function semantic_send_lock_sql($dbType, $orderId, $art, $release = false) {
+		$orderId = (int)$orderId;
+		$art = ($art === 'DK') ? 'DK' : 'DO';
+		if (einvoice_sendlog_is_mysql($dbType)) {
+			$name = "CONCAT('saldi:einv:', MD5(DATABASE()), ':$art:$orderId')";
+			return $release ? "SELECT RELEASE_LOCK($name) AS locked" : "SELECT GET_LOCK($name, 0) AS locked";
+		}
+		$key = "hashtext('einvoice_send_$art'), $orderId";
+		return $release ? "SELECT pg_advisory_unlock($key) AS locked" : "SELECT pg_try_advisory_lock($key) AS locked";
+	}
+}
+
+if (!function_exists('semantic_send_lock_taken')) {
+	/**
+	 * Whether the lock query's answer means the lock is ours: 't' (PostgreSQL), 1 (MySQL) or true.
+	 *
+	 * @param mixed $value The locked column.
+	 * @return bool
+	 */
+	function semantic_send_lock_taken($value) {
+		return $value === true || $value === 't' || $value === 1 || $value === '1';
+	}
+}
+
+if (!function_exists('semantic_send_lock')) {
+	/**
+	 * Take the send lock for one document without waiting. It is held until semantic_send_unlock() or the end of the
+	 * database session, so a second click or a second window cannot send the same document while the first send runs.
+	 *
+	 * @param int    $orderId
+	 * @param string $art
+	 * @return bool False when another request holds it.
+	 */
+	function semantic_send_lock($orderId, $art) {
+		global $db_type;
+		$query = db_select(semantic_send_lock_sql($db_type, $orderId, $art), __FILE__ . " linje " . __LINE__);
+		$r = $query ? db_fetch_array($query) : null;
+		return is_array($r) && semantic_send_lock_taken($r['locked'] ?? null);
+	}
+}
+
+if (!function_exists('semantic_send_unlock')) {
+	/**
+	 * Release the lock taken by semantic_send_lock().
+	 *
+	 * @param int    $orderId
+	 * @param string $art
+	 * @return void
+	 */
+	function semantic_send_unlock($orderId, $art) {
+		global $db_type;
+		db_select(semantic_send_lock_sql($db_type, $orderId, $art, true), __FILE__ . " linje " . __LINE__);
+	}
+}
+
 if (!function_exists('semantic_send_document')) {
 	/**
-	 * Send an invoice or credit note through Semantic.
+	 * Send an invoice or credit note through Semantic: the per-regnskab switch, then the per-document send lock
+	 * (semantic_send_lock()), then semantic_send_document_locked(), which does the work.
 	 *
-	 * Steps: the per-regnskab switch; the order (art, invoiced, invoice number); the copy guard (semantic_copy_guard());
+	 * @param int    $orderId ordrer.id
+	 * @param string $type    'invoice' or 'creditnote'.
+	 * @param array<string, mixed> $context See semantic_send_document_locked().
+	 * @return array{ok: bool, status: string, message: string, sendLogId: int|null}
+	 *   status: 'pending' (sent), 'disabled', 'busy' (another send of the document is running), 'config', 'order', 'copy',
+	 *   'duplicate', 'builder', 'precheck', 'onboarding', 'local_validation', 'network', 'validation', 'auth', 'failed'
+	 *   or 'unknown' (sent, but no usable answer).
+	 */
+	function semantic_send_document(int $orderId, string $type, array $context = array()) {
+		if (!semantic_provider_enabled()) {
+			return semantic_send_result(false, 'disabled', 'Regnskabet er ikke sat op til at sende e-faktura via Semantic.');
+		}
+		$art = semantic_document_art($type);
+		if ($art === null || $orderId <= 0) {
+			return semantic_send_document_locked($orderId, $type, $context);
+		}
+		if (!semantic_send_lock($orderId, $art)) {
+			return semantic_send_result(false, 'busy', 'Dokumentet er ved at blive sendt fra et andet vindue. Vent et øjeblik, og se status på ordren.');
+		}
+		try {
+			return semantic_send_document_locked($orderId, $type, $context);
+		} finally {
+			semantic_send_unlock($orderId, $art);
+		}
+	}
+}
+
+if (!function_exists('semantic_send_document_locked')) {
+	/**
+	 * The send itself; semantic_send_document() calls it with the send lock held (without one only for an invalid order id
+	 * or document type, which this function then refuses).
+	 *
+	 * Steps: the order (art, invoiced, invoice number); the copy guard (semantic_copy_guard());
 	 * the duplicate guard (semantic_duplicate_guard()); the builder (peppol_invoice_rows(), peppol_document_model(),
-	 * peppol_precheck(), peppol_bis_xml()); the sender at Semantic (semantic_ensure_sender()); an optional local
+	 * peppol_precheck(), peppol_bis_xml()); the sender at Semantic (semantic_ensure_sender()) and the document's seller
+	 * endpoint against it (semantic_seller_endpoint_mismatch()); an optional local
 	 * validator; the network (semantic_choose_network()); a send-log row with the XML and its SHA-256 (Saldi's own archive);
 	 * ValidatePeppolDocument; CreateOutgoingDocument; the send log and ordrer.digital_status.
 	 * Nothing is printed and nothing exits: the caller shows the result.
@@ -369,11 +495,9 @@ if (!function_exists('semantic_send_document')) {
 	 *   skipRemoteValidation?: bool, Do not call ValidatePeppolDocument.
 	 *   webhookBaseUrl?: string,     For onboarding, when the server has no SALDI_SEMANTIC_WEBHOOK_BASE_URL.
 	 * } $context
-	 * @return array{ok: bool, status: string, message: string, sendLogId: int|null}
-	 *   status: 'pending' (sent), 'disabled', 'config', 'order', 'copy', 'duplicate', 'builder', 'precheck', 'onboarding',
-	 *   'local_validation', 'network', 'validation', 'auth', 'failed' or 'unknown' (sent, but no usable answer).
+	 * @return array{ok: bool, status: string, message: string, sendLogId: int|null} See semantic_send_document().
 	 */
-	function semantic_send_document($orderId, $type, array $context = array()) {
+	function semantic_send_document_locked($orderId, $type, array $context = array()) {
 		$orderId = (int)$orderId;
 		$type = (string)$type;
 		$db = (string)($context['db'] ?? ($GLOBALS['db'] ?? ''));
@@ -381,9 +505,6 @@ if (!function_exists('semantic_send_document')) {
 		$user = (string)($context['user'] ?? ($GLOBALS['brugernavn'] ?? ''));
 		$resend = !empty($context['resend']);
 
-		if (!semantic_provider_enabled()) {
-			return semantic_send_result(false, 'disabled', 'Regnskabet er ikke sat op til at sende e-faktura via Semantic.');
-		}
 		$art = semantic_document_art($type);
 		$order = null;
 		if ($art !== null && $orderId > 0) {
@@ -439,6 +560,10 @@ if (!function_exists('semantic_send_document')) {
 			return semantic_send_result(false, 'onboarding', $sender['message']);
 		}
 		$warning = ($sender['message'] !== '') ? "\n" . $sender['message'] : '';
+		$senderMismatch = semantic_seller_endpoint_mismatch($model['seller']['endpoint'] ?? null, semantic_own_company());
+		if ($senderMismatch !== '') {
+			return semantic_send_result(false, 'onboarding', $senderMismatch);
+		}
 
 		try {
 			$xml = peppol_bis_xml($model);

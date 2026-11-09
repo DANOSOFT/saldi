@@ -22,8 +22,8 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261109 CL/MMR SD-815 Created (draft). Lazy sender onboarding at Semantic on the first digital send (semantic_ensure_sender()), the regnskab's Semantic ids in settings var_grp 'semantic',
-//                 and the copy guard: the ids are stored with the database name, and a database with another name (a restored backup) never sends as the customer.
+// 20261109 CL/MMR SD-815 Created (draft). Lazy sender onboarding at Semantic on the first digital send (semantic_ensure_sender()) and the regnskab's Semantic ids in settings var_grp 'semantic'.
+//                 The copy guard: the ids are stored with the database name, and a database with another name (a restored backup) never sends as the customer.
 
 include_once(__DIR__ . '/semanticClient.php');
 include_once(__DIR__ . '/semanticStatus.php');

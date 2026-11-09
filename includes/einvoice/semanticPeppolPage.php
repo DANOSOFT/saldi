@@ -23,6 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). The Semantic branch of debitor/peppol.php: request handling (send, confirmed resend, show a send) and a small Danish status page.
+//                 An order confirmation (type=order) is refused here instead of falling through to EasyUBL.
 //                 TODO SD-815: the Danish texts here are plain strings; they need findtekst() keys before the draft is released.
 
 include_once(__DIR__ . '/semanticSend.php');
@@ -35,7 +36,8 @@ if (!function_exists('semanticPeppolRequest')) {
 	 * @param array<string, mixed> $get
 	 * @param array<string, mixed> $post
 	 * @param string               $method
-	 * @return array{action: string, orderId: int, type: string, logId: int, token: string}|null action 'send', 'resend' or 'show'.
+	 * @return array{action: string, orderId: int, type: string, logId: int, token: string}|null action 'send', 'resend', 'show'
+	 *   or 'unsupported' (an order confirmation, which must not fall through to EasyUBL's sendOrder() in a Semantic regnskab).
 	 */
 	function semanticPeppolRequest(array $get, array $post, $method) {
 		$types = array('invoice', 'creditnote');
@@ -55,6 +57,9 @@ if (!function_exists('semanticPeppolRequest')) {
 		$type = (string)($get['type'] ?? '');
 		if (isset($get['id']) && in_array($type, $types, true)) {
 			return array('action' => 'send', 'orderId' => (int)$get['id'], 'type' => $type, 'logId' => 0, 'token' => '');
+		}
+		if (isset($get['id']) && $type === 'order') {
+			return array('action' => 'unsupported', 'orderId' => (int)$get['id'], 'type' => $type, 'logId' => 0, 'token' => '');
 		}
 		return null;
 	}
@@ -92,6 +97,11 @@ if (!function_exists('semanticPeppolHandle')) {
 	 */
 	function semanticPeppolHandle(array $request, array $env) {
 		$view = array('title' => '', 'ok' => false, 'lines' => array(), 'resend' => null);
+		if ($request['action'] === 'unsupported') {
+			$view['title'] = 'Dokumentet er ikke sendt';
+			$view['lines'][] = 'Ordrebekræftelser kan endnu ikke sendes digitalt via Semantic. Fakturaer og kreditnotaer kan.';
+			return array('redirect' => null, 'view' => $view);
+		}
 		if ($request['action'] === 'show') {
 			$log = einvoice_sendlog_get($request['logId']);
 			if ($log === null) {
@@ -143,6 +153,8 @@ if (!function_exists('semanticPeppolHandle')) {
 			);
 		} elseif ($result['status'] === 'unknown') {
 			$view['title'] = 'Afsendelsen gav intet svar';
+		} elseif ($result['status'] === 'busy') {
+			$view['title'] = 'Afsendelsen er i gang';
 		} else {
 			$view['title'] = 'Dokumentet er ikke sendt';
 		}

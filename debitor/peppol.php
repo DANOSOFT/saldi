@@ -37,7 +37,7 @@ if (strtolower(trim((string)get_settings_value('provider', 'einvoice', 'easyubl'
 		'sessionId' => (string)($s_id ?? ''),
 	));
 }
-$name =isset($_GET["name"]) ? basename((string) $_GET["name"]) : "";
+$name = isset($_GET["name"]) ? basename((string) $_GET["name"]) : "";
 $type = isset($_GET["type"]) ? $_GET["type"] : "";
 
 if(isset($_GET["id"]) && isset($_GET["type"])){

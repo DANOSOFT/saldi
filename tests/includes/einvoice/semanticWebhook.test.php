@@ -22,8 +22,8 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261109 CL/MMR SD-815 Created (draft). The checks behind debitor/semanticWebhook.php without a server or database: the URL token, Semantic's signature, the payload,
-//                 and how Semantic's statuses become the words on the order.
+// 20261109 CL/MMR SD-815 Created (draft). The checks behind debitor/semanticWebhook.php without a server or database: the URL token, Semantic's signature and the payload.
+//                 Also how Semantic's statuses become the words on the order.
 
 declare(strict_types=1);
 

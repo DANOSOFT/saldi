@@ -22,8 +22,8 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261109 CL/MMR SD-815 Created (draft). Status of documents sent through Semantic: the status words Saldi shows, semantic_status_apply() for the send log and ordrer.digital_status,
-//                 the pull fallback semantic_status_poll(), and the pure checks behind debitor/semanticWebhook.php (URL token, payload, signature).
+// 20261109 CL/MMR SD-815 Created (draft). Status of documents sent through Semantic: the status words Saldi shows and semantic_status_apply() for the send log and ordrer.digital_status.
+//                 Also the pull fallback semantic_status_poll() and the pure checks behind debitor/semanticWebhook.php (URL token, payload, signature).
 
 include_once(__DIR__ . '/semanticClient.php');
 include_once(__DIR__ . '/semanticSendLog.php');

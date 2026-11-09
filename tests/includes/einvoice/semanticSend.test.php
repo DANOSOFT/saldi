@@ -22,8 +22,9 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261109 CL/MMR SD-815 Created (draft). The decisions of semantic_send_document() as pure functions: the duplicate guard, the copy guard, onboarding, the order check and the network,
-//                 plus the send log's SQL and XML archive, without a database or the network.
+// 20261109 CL/MMR SD-815 Created (draft). The decisions of semantic_send_document() as pure functions: the duplicate guard, the copy guard, onboarding, the order check and the network.
+//                 Also the send log's SQL and XML archive, the send lock and the peppol.php page functions, without a database or the network.
+// 20261109 CL/MMR SD-815 Test that the seller endpoint in the XML must be the one the onboarding registers.
 
 declare(strict_types=1);
 
@@ -33,6 +34,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../../includes/einvoice/semanticSend.php';
+require_once __DIR__ . '/../../../includes/einvoice/semanticPeppolPage.php';
 
 final class semanticSend extends TestCase
 {
@@ -301,7 +303,79 @@ final class semanticSend extends TestCase
         $this->assertSame($xml, einvoice_sendlog_unpack_xml('b64:' . base64_encode($xml)));
         $this->assertNull(einvoice_sendlog_unpack_xml('<Invoice/>'));
         $this->assertNull(einvoice_sendlog_unpack_xml('gz:!!!'));
+        $this->assertNull(einvoice_sendlog_unpack_xml('gz:' . base64_encode('not gzip')), 'no gzip header: nothing to unpack');
         $this->assertSame(64, strlen(hash('sha256', $xml)));
+    }
+
+    public function testSendLogTextSurvivesTheLikeRewrite(): void
+    {
+        $escape = static function (string $value): string {
+            return str_replace("'", "''", $value);
+        };
+        $row = array('status' => 'Error', 'status_text' => "Looks like a schema error; it's like that");
+        $pg = einvoice_sendlog_insert_sql($row, $escape, 'pgsql');
+        // db_modify() and db_select() do exactly this to every PostgreSQL statement.
+        $this->assertSame($pg, str_replace(' like ', ' ilike ', $pg), 'nothing left for the rewrite to change');
+        $this->assertStringContainsString("('Looks ' || 'like a schema error; it''s ' || 'like that')", $pg);
+        $this->assertSame("UPDATE einvoice_sendlog SET status_text = ('a ' || 'like b'), updated = CURRENT_TIMESTAMP WHERE id = 3",
+            einvoice_sendlog_update_sql(3, array('status_text' => 'a like b'), $escape));
+        $this->assertStringContainsString("'Looks like a schema error; it''s like that'", einvoice_sendlog_insert_sql($row, $escape, 'mysqli'), 'MySQL has no rewrite');
+        $this->assertStringContainsString("'Unlike before'", einvoice_sendlog_insert_sql(array('status_text' => 'Unlike before'), $escape, 'pgsql'));
+    }
+
+    public function testPageReadsTheRequestOnce(): void
+    {
+        $this->assertSame(array('action' => 'send', 'orderId' => 12, 'type' => 'invoice', 'logId' => 0, 'token' => ''),
+            semanticPeppolRequest(array('id' => '12', 'type' => 'invoice'), array(), 'GET'));
+        $this->assertSame('creditnote', semanticPeppolRequest(array('id' => '7', 'type' => 'creditnote'), array(), 'GET')['type']);
+        $this->assertSame(0, semanticPeppolRequest(array('id' => "x' OR 1=1", 'type' => 'invoice'), array(), 'GET')['orderId']);
+        $this->assertSame('unsupported', semanticPeppolRequest(array('id' => '12', 'type' => 'order'), array(), 'GET')['action'],
+            'an order confirmation never falls through to EasyUBL in a Semantic regnskab');
+        $this->assertNull(semanticPeppolRequest(array('name' => 'x.json', 'type' => 'faktura'), array(), 'GET'), 'the existing viewer keeps running');
+        $this->assertNull(semanticPeppolRequest(array('id' => '12', 'type' => 'unknown'), array(), 'GET'));
+        $post = array('semanticResend' => '1', 'id' => '12', 'type' => 'invoice', 'logId' => '5', 'token' => str_repeat('a', 64));
+        $this->assertSame(array('action' => 'resend', 'orderId' => 12, 'type' => 'invoice', 'logId' => 5, 'token' => str_repeat('a', 64)),
+            semanticPeppolRequest(array(), $post, 'POST'));
+        $this->assertNull(semanticPeppolRequest(array(), $post, 'GET'), 'a resend is a POST only');
+        $this->assertSame('', semanticPeppolRequest(array(), array('token' => array('x')) + $post, 'POST')['token']);
+        $this->assertSame(array('action' => 'show', 'orderId' => 0, 'type' => '', 'logId' => 9, 'token' => ''),
+            semanticPeppolRequest(array('semanticLog' => '9'), array(), 'GET'));
+        $unsupported = semanticPeppolHandle(semanticPeppolRequest(array('id' => '12', 'type' => 'order'), array(), 'GET'),
+            array('db' => 'x', 'sprog_id' => 1, 'user' => 'u', 'sessionId' => 's'));
+        $this->assertNull($unsupported['redirect']);
+        $this->assertFalse($unsupported['view']['ok']);
+    }
+
+    public function testStatusPageEscapesEverything(): void
+    {
+        ob_start();
+        semanticPeppolRender(array('title' => '<b>x</b>', 'ok' => false, 'lines' => array("a'b<script>"),
+            'resend' => array('orderId' => 1, 'type' => 'invoice"', 'logId' => 2, 'token' => str_repeat('a', 64), 'db' => 'd"b')));
+        $html = (string)ob_get_clean();
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringNotContainsString('<b>x', $html);
+        $this->assertStringContainsString('&lt;b&gt;x&lt;/b&gt;', $html);
+        $this->assertStringContainsString('a&#039;b&lt;script&gt;', $html);
+        $this->assertStringContainsString("name='thisDb' value='d&quot;b'", $html, 'online.php checks thisDb against the session');
+        $this->assertSame('Afvist af modtageren', semanticPeppolStatusLabel('Rejected'));
+        $this->assertSame('Status 5213', semanticPeppolStatusLabel('Status5213'));
+    }
+
+    public function testSendLockIsPerDocumentAndNeverWaits(): void
+    {
+        $this->assertSame("SELECT pg_try_advisory_lock(hashtext('einvoice_send_DO'), 42) AS locked", semantic_send_lock_sql('pgsql', 42, 'DO'));
+        $this->assertSame("SELECT pg_advisory_unlock(hashtext('einvoice_send_DK'), 42) AS locked", semantic_send_lock_sql('pgsql', 42, 'DK', true));
+        $this->assertSame("SELECT GET_LOCK(CONCAT('saldi:einv:', MD5(DATABASE()), ':DK:42'), 0) AS locked", semantic_send_lock_sql('mysqli', 42, 'DK'));
+        $this->assertSame("SELECT RELEASE_LOCK(CONCAT('saldi:einv:', MD5(DATABASE()), ':DO:42')) AS locked", semantic_send_lock_sql('mysql', 42, 'DO', true));
+        $this->assertSame("SELECT pg_try_advisory_lock(hashtext('einvoice_send_DO'), 7) AS locked", semantic_send_lock_sql('pgsql', '7 OR 1=1', "DO'"), 'id cast, art whitelisted');
+        // MySQL refuses lock names over 64 characters: prefix + md5 + art + the largest ordrer.id.
+        $this->assertLessThanOrEqual(64, strlen('saldi:einv:' . md5('x') . ':DK:' . '2147483647'));
+        $this->assertTrue(semantic_send_lock_taken('t'));
+        $this->assertTrue(semantic_send_lock_taken('1'));
+        $this->assertTrue(semantic_send_lock_taken(1));
+        $this->assertFalse(semantic_send_lock_taken('f'));
+        $this->assertFalse(semantic_send_lock_taken('0'));
+        $this->assertFalse(semantic_send_lock_taken(null), 'GET_LOCK answers NULL on an error');
     }
 
     public function testFailedStatusesAreNotOpenAndViceVersa(): void
@@ -325,5 +399,18 @@ final class semanticSend extends TestCase
         $this->assertNull(semantic_id_from_response('00000000-0000-0000-0000-000000000000', 'companyId'));
         $this->assertNull(semantic_id_from_response(null, 'companyId'));
         $this->assertTrue(\SemanticClient::isUuid(semantic_uuid4()));
+    }
+
+    public function testSellerEndpointMustBeTheRegisteredOne(): void
+    {
+        $own = array('cvr' => '11111111', 'gln' => '0000000000017');
+        $this->assertSame('', semantic_seller_endpoint_mismatch(array('scheme' => '0184', 'id' => '11111111'), $own));
+        $this->assertSame('', semantic_seller_endpoint_mismatch(array('scheme' => '0088', 'id' => '0000000000017'), $own));
+        $this->assertStringContainsString('0184:22222222', semantic_seller_endpoint_mismatch(array('scheme' => '0184', 'id' => '22222222'), $own));
+        $this->assertNotSame('', semantic_seller_endpoint_mismatch(array('scheme' => '0192', 'id' => '11111111'), $own), 'a foreign seller scheme');
+        $this->assertNotSame('', semantic_seller_endpoint_mismatch(array('scheme' => '0088', 'id' => ''), array('cvr' => '11111111', 'gln' => '')), 'no GLN in Stamdata');
+        $this->assertNotSame('', semantic_seller_endpoint_mismatch(array('scheme' => '0184', 'id' => 'DK11111111'), array('cvr' => 'DK11111111', 'gln' => '')), 'onboarding registers 8 digits only');
+        $this->assertNotSame('', semantic_seller_endpoint_mismatch(array('scheme' => '0184', 'id' => '11111111'), null), 'no Stamdata');
+        $this->assertNotSame('', semantic_seller_endpoint_mismatch(null, $own), 'no endpoint');
     }
 }

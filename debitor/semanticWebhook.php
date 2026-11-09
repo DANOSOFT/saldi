@@ -25,6 +25,7 @@
 // 20261109 CL/MMR SD-815 Created (draft). Webhook for Semantic's notifications about documents Saldi sent (no login session).
 //                 The tenant database comes from the URL's db parameter, authenticated with an HMAC token (semantic_webhook_url()); Semantic's own signature is checked once its scheme is known.
 //                 The notification is matched to the send log by Semantic's document id, never by invoice number; the status is then read from Semantic's API and applied.
+//                 A copy of a regnskab (semantic_copy_guard()) ignores every notification.
 
 /**
  * Injected by ../includes/connect.php, included below:
@@ -112,6 +113,13 @@ $qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = 'ei
 $qtxt .= einvoice_sendlog_is_mysql($db_type) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
 $table = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if (!$table) {
+	semanticWebhookRespond(200, array('status' => 'ignored'));
+}
+// A copy of a regnskab (its Semantic ids were stored under another database name) never acts on the customer's documents.
+include_once(__DIR__ . '/../includes/einvoice/semanticOnboarding.php');
+$copyGuard = semantic_copy_guard(semantic_settings_read(), $webhookDb);
+if (!$copyGuard['allowed']) {
+	error_log('semanticWebhook: ' . $copyGuard['reason'] . " in $webhookDb");
 	semanticWebhookRespond(200, array('status' => 'ignored'));
 }
 if ($payload['kind'] === 'incoming') {
