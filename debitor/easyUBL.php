@@ -70,7 +70,8 @@
     if(ifset($output, 'msg') == "OK"){
         // SST-983: only an account database that exists on this installation is used, never the master database.
         // The name is checked before it becomes $db, as db_select() also uses $db for a folder under temp/.
-        $dbName = is_scalar(ifset($output, 'db_name')) ? trim((string)$output['db_name']) : '';
+        $dbName = ifset($output, 'db_name');
+        $dbName = is_scalar($dbName) ? trim((string)$dbName) : '';
         $qtxt = "SELECT id FROM regnskab WHERE db = '" . db_escape_string($dbName) . "'";
         if ($dbName === '' || $dbName === $sqdb || !db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
             exit;
