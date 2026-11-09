@@ -31,6 +31,12 @@ final class CashCountCommissionSettlementTest extends TestCase
         'A period between journal settlements is not blocked and settles only its own sale',
         'After the journal period it settles, without a payment list',
         'A missing customer account stops the whole settlement before any posting',
+        "A customer group without this year's collective account stops the settlement before any posting",
+        'An order with commission lines for an unconfigured account pair is left out, not half settled',
+        'With both account pairs the mixed order settles both lines',
+        "The default from-date is the register's last settled sale, or the configured date when later",
+        'Orders settled by another cash count after they were read are not settled again',
+        'The journal settlement leaves out sales already settled at the cash count',
     ];
 
     /** @var array{exit:int, stdout:string, stderr:string}|null */

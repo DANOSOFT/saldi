@@ -20,7 +20,14 @@ $connection = pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
 $schema = 'commission_test_' . bin2hex(random_bytes(6));
 
 /** @return PgSql\Result */
-function db_select($sql, $location) { return pg_query($GLOBALS['connection'], $sql); }
+function db_select($sql, $location) {
+	if (!empty($GLOBALS['beforeLock']) && stripos($sql, 'for update') !== false) {
+		$hook = $GLOBALS['beforeLock'];
+		$GLOBALS['beforeLock'] = null;
+		$hook();
+	}
+	return pg_query($GLOBALS['connection'], $sql);
+}
 /** @return array|false */
 function db_fetch_array($query) { return pg_fetch_assoc($query); }
 /** @return PgSql\Result */
@@ -32,6 +39,10 @@ function findtekst($id, $language) { return (string)(explode('|', (string)$id, 2
 /** @return void */
 function alert($message) { $GLOBALS['alerts'][] = $message; }
 require_once(__DIR__ . '/../../../includes/std_func.php');
+require_once(__DIR__ . '/../../../debitor/pos_ordre_includes/settleCommission/commissionDefaultFromDate.php');
+$source = file_get_contents(__DIR__ . '/../../../finans/loppeafregning.php');
+$start = strpos($source, 'function loppeafregningSalesQuery(');
+eval(substr($source, $start, strpos($source, "\n}\n", $start) + 3 - $start));
 
 /** @return void */
 function check($condition, $message) {
@@ -50,7 +61,7 @@ function value($sql) {
  * Runs the include in a function scope, as posbogfor() does.
  * @return void
  */
-function settle($from, $to, $settleCommission, $createPayList) {
+function settle($from, $to, $settleCommission, $createPayList, $pairs = array('kn', 'kb')) {
 	$_POST = array('commissionFromDate' => $from, 'commissionToDate' => $to);
 	$kasse = 1;
 	$reportNumber = 77;
@@ -64,7 +75,17 @@ function settle($from, $to, $settleCommission, $createPayList) {
 	$commissionAccountUsed = '1120';
 	$customerCommissionAccountNew = '65020';
 	$customerCommissionAccountUsed = '65030';
+	if (!in_array('kn', $pairs, true)) {
+		$commissionAccountNew = $customerCommissionAccountNew = '';
+	}
+	if (!in_array('kb', $pairs, true)) {
+		$commissionAccountUsed = $customerCommissionAccountUsed = '';
+	}
 	include(__DIR__ . '/../../../debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php');
+}
+/** @return string */
+function sideEffects() {
+	return value("SELECT (SELECT count(*) FROM transaktioner) || '/' || (SELECT count(*) FROM openpost) || '/' || (SELECT count(*) FROM betalinger) || '/' || (SELECT count(*) FROM betalingsliste)");
 }
 /** @return string */
 function balance() { return value('SELECT coalesce(sum(coalesce(debet,0)) - sum(coalesce(kredit,0)),0)::numeric(15,2) FROM transaktioner'); }
@@ -75,7 +96,8 @@ try {
 	pg_query($connection, "CREATE SCHEMA $schema");
 	pg_query($connection, "SET search_path TO $schema");
 	pg_query($connection, "CREATE TABLE ordrer (id int PRIMARY KEY, art text, status int, felt_5 text, fakturadate date, settletime numeric(15,0) DEFAULT 0)");
-	pg_query($connection, "CREATE TABLE ordrelinjer (id serial, ordre_id int, vare_id int, varenr text, antal numeric, pris numeric, kostpris numeric, rabat numeric DEFAULT 0, momssats numeric DEFAULT 25)");
+	pg_query($connection, "CREATE TABLE ordrelinjer (id serial, ordre_id int, vare_id int, varenr text, antal numeric, pris numeric, kostpris numeric, rabat numeric DEFAULT 0, momssats numeric DEFAULT 25, momsfri text DEFAULT '')");
+	pg_query($connection, "CREATE TABLE batch_salg (id serial, linje_id int, vare_id int, pris numeric, antal numeric, fakturadate date)");
 	pg_query($connection, "CREATE TABLE varer (id int, varenr text, provision numeric, gruppe int)");
 	pg_query($connection, "CREATE TABLE pos_betalinger (ordre_id int, betalingstype text)");
 	pg_query($connection, "CREATE TABLE adresser (id int, kontonr text, art text, gruppe int, firmanavn text, bank_reg text, bank_konto text, land text, ean text)");
@@ -160,10 +182,53 @@ try {
 	pg_query($connection, "INSERT INTO ordrer VALUES (8,'PO',3,'1','2026-11-08',0)");
 	pg_query($connection, "INSERT INTO pos_betalinger VALUES (8,'Kontant')");
 	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (8,1,'kb1001001',1,30,15),(8,4,'kb1009999',1,30,15)");
-	$before = value('SELECT count(*) FROM transaktioner');
+	$before = sideEffects();
 	settle('06-11-2026', '09-11-2026', 'on', 'on');
-	check(count($alerts) === 1 && strpos($alerts[0], 'kb1009999') !== false && value('SELECT count(*) FROM transaktioner') === $before
+	check(count($alerts) === 1 && strpos($alerts[0], 'kb1009999') !== false && sideEffects() === $before
 		&& value('SELECT settletime FROM ordrer WHERE id = 8') === '0', 'A missing customer account stops the whole settlement before any posting');
+
+	$alerts = array();
+	pg_query($connection, "INSERT INTO adresser VALUES (13,'1003','D',2,'Cai','5555','66','Denmark','')");
+	pg_query($connection, "INSERT INTO grupper (art,kodenr,fiscal_year,box2) VALUES ('DG','2',8,'5700')");
+	pg_query($connection, "INSERT INTO varer VALUES (5,'kb1001003',50,1)");
+	pg_query($connection, "INSERT INTO ordrer VALUES (10,'PO',3,'1','2026-11-20',0)");
+	pg_query($connection, "INSERT INTO pos_betalinger VALUES (10,'Kontant')");
+	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (10,5,'kb1001003',1,30,15)");
+	$before = sideEffects();
+	settle('20-11-2026', '21-11-2026', 'on', 'on');
+	check(count($alerts) === 1 && strpos($alerts[0], '1003') !== false && sideEffects() === $before
+		&& value('SELECT settletime FROM ordrer WHERE id = 10') === '0', "A customer group without this year's collective account stops the settlement before any posting");
+
+	$alerts = array();
+	pg_query($connection, "INSERT INTO ordrer VALUES (11,'PO',3,'1','2026-11-22',0)");
+	pg_query($connection, "INSERT INTO pos_betalinger VALUES (11,'Kontant')");
+	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (11,3,'kn1001001',1,10,5),(11,1,'kb1001001',1,14,7)");
+	$before = sideEffects();
+	settle('22-11-2026', '22-11-2026', 'on', '', array('kb'));
+	check(!$alerts && sideEffects() === $before && value('SELECT settletime FROM ordrer WHERE id = 11') === '0',
+		'An order with commission lines for an unconfigured account pair is left out, not half settled');
+	settle('22-11-2026', '22-11-2026', 'on', '');
+	check(!$alerts && balance() === '0.00' && value("SELECT amount FROM openpost WHERE konto_nr = '1001' AND kladde_id = 0 ORDER BY id DESC LIMIT 1") == -12
+		&& value('SELECT settletime FROM ordrer WHERE id = 11') !== '0', 'With both account pairs the mixed order settles both lines');
+
+	check(commissionDefaultFromDate(1, '2021-01-01') === '2026-11-22' && commissionDefaultFromDate(1, '2026-12-01') === '2026-12-01'
+		&& commissionDefaultFromDate(2, '2021-01-01') === '2021-01-01' && commissionDefaultFromDate(2, '') === '',
+		"The default from-date is the register's last settled sale, or the configured date when later");
+
+	pg_query($connection, "INSERT INTO ordrer VALUES (12,'PO',3,'1','2026-11-23',0)");
+	pg_query($connection, "INSERT INTO pos_betalinger VALUES (12,'Kontant')");
+	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (12,2,'kb1001002',1,18,9)");
+	// Another cash count settles order 12 after this one read it, before this one locks it.
+	$beforeLock = function() { pg_query($GLOBALS['connection'], 'UPDATE ordrer SET settletime = 1 WHERE id = 12'); };
+	$before = sideEffects();
+	settle('23-11-2026', '23-11-2026', 'on', 'on');
+	check(count($alerts) === 1 && strpos($alerts[0], 'anden kasseoptælling') !== false && sideEffects() === $before,
+		'Orders settled by another cash count after they were read are not settled again');
+
+	pg_query($connection, "INSERT INTO batch_salg (linje_id,vare_id,pris,antal,fakturadate) SELECT id, vare_id, pris, antal, '2026-10-01' FROM ordrelinjer WHERE ordre_id IN (1,4)");
+	$journal = pg_fetch_all(pg_query($connection, loppeafregningSalesQuery('kb', '', '2026-10-01', '2026-10-31'))) ?: array();
+	check(count($journal) === 1 && $journal[0]['varenr'] === 'kb1001001' && $journal[0]['kostpris'] == 60,
+		'The journal settlement leaves out sales already settled at the cash count');
 } finally {
 	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
 	pg_close($connection);

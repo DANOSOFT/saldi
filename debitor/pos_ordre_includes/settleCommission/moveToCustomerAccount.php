@@ -27,6 +27,9 @@
 // 20261109 CL/SS SST-919: Credit each customer (open post + collective account) against the commission account.
 //                Settle only orders that are not settled yet, and create the payment list before its payments.
 //                Refuse a period that is already settled in the journal.
+// 20261109 CL/SS SST-919 review: Lock and recheck the orders before posting, so two cash counts can't settle the same sales.
+//                Refuse a customer whose debtor group has no collective account.
+//                Leave an order out while one of its commission lines has no configured account pair.
 
 /**
  * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
@@ -80,6 +83,13 @@ if ($commissionAccountUsed && $customerCommissionAccountUsed) {
 	$debitAccount['kb'] = $customerCommissionAccountUsed;
 }
 
+$otherCommission = '';
+foreach (array_diff(array('kn', 'kb'), array_keys($debitAccount)) as $prefix) {
+	$otherCommission.= "and not exists (select 1 from ordrelinjer other, varer otherItem where other.ordre_id = ordrer.id ";
+	$otherCommission.= "and otherItem.id = other.vare_id and otherItem.varenr like '$prefix%' and otherItem.provision > '0' ";
+	$otherCommission.= "and other.varenr like '$prefix%' and other.pris != '0' and other.kostpris > '0') ";
+}
+
 $customerShare = $customerItemNo = $accountTotal = $settledOrders = array();
 foreach ($debitAccount as $prefix => $account) {
 	$qtxt = "select ordrelinjer.id as line_id, ordrelinjer.ordre_id, ordrelinjer.antal, ordrelinjer.kostpris, varer.varenr ";
@@ -87,7 +97,7 @@ foreach ($debitAccount as $prefix => $account) {
 	$qtxt.= "and (ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.status >= '3' and ordrer.felt_5 = '$kasse' ";
 	$qtxt.= "and ordrer.fakturadate >= '$commissionFromDate' and ordrer.fakturadate <= '$commissionToDate' ";
 	$qtxt.= "and (ordrer.settletime = '0' or ordrer.settletime is null) ";
-	$qtxt.= "and exists (select 1 from pos_betalinger where pos_betalinger.ordre_id = ordrer.id) ";
+	$qtxt.= "and exists (select 1 from pos_betalinger where pos_betalinger.ordre_id = ordrer.id) $otherCommission";
 	$qtxt.= "and ordrelinjer.varenr like '$prefix%' and varer.varenr like '$prefix%' and varer.provision > '0' ";
 	$qtxt.= "and ordrelinjer.pris != '0' and ordrelinjer.kostpris > '0' order by varer.varenr, ordrelinjer.id";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -98,6 +108,20 @@ foreach ($debitAccount as $prefix => $account) {
 		$customerItemNo[$custNo] = $customerItemNo[$custNo] ?? $r['varenr'];
 		$accountTotal[$account] = ($accountTotal[$account] ?? 0) + $cost;
 		$settledOrders[(int)$r['ordre_id']] = (int)$r['ordre_id'];
+	}
+}
+
+if ($settledOrders) {
+	$qtxt = "select id from ordrer where id in (" . implode(',', $settledOrders) . ") ";
+	$qtxt.= "and (settletime = '0' or settletime is null) for update";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$lockedOrders = 0;
+	while (db_fetch_array($q)) {
+		$lockedOrders++;
+	}
+	if ($lockedOrders != count($settledOrders)) {
+		alert(findtekst('7713|Kommissionen er lige blevet afregnet af en anden kasseoptælling. Kommissionen er ikke afregnet igen.', $sprog_id));
+		return;
 	}
 }
 
@@ -119,11 +143,16 @@ foreach ($customerShare as $custNo => $amount) {
 	$qtxt = "select box2 from grupper where art = 'DG' and kodenr = '" . db_escape_string($r['gruppe']) . "' ";
 	$qtxt.= "and fiscal_year = '$regnaar'";
 	$g = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if (!$g || !(int)$g['box2']) {
+		$txt = findtekst('7712|Debitorgruppe %s for konto %s mangler en samlekonto. Kommissionen er ikke afregnet.', $sprog_id);
+		alert(sprintf($txt, $r['gruppe'], $custNo));
+		return;
+	}
 	$customers[] = array(
 		'id'      => (int)$r['id'],
 		'no'      => $custNo,
 		'amount'  => $amount,
-		'account' => (int)($g['box2'] ?? 0),
+		'account' => (int)$g['box2'],
 		'name'    => $r['firmanavn'],
 		'bank'    => $r['bank_reg'] . str_pad($r['bank_konto'], 10, '0', STR_PAD_LEFT),
 	);

@@ -124,7 +124,7 @@
 //                The stream fallback without cURL now gives the read only the time left after opening.
 // 20261023 CL/LH MB-95: "på beløb" set item: opret_saet() was called with 6 of its 7 arguments (ArgumentCountError on PHP 8),
 //                the lager landing in $incl_moms. Pass usdecimal($pris_ny, 2), 'on', $lager_ny like the other POS opret_saet() call.
-// 20261109 CL/SS SST-919: kasseoptalling: default commission from-date is the day of the register's last settled sale.
+// 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -3357,15 +3357,11 @@ function kasseoptalling( // Called from cashBalance.php
 		if ($useCommission && (($customerCommissionAccountNew && $commissionAccountNew) || ($customerCommissionAccountUsed && $commissionAccountUsed))) {
 			$commissionFromDate = $commissionToDate = $lastSettle = NULL;
 			$qtxt = "select var_value as settletime from settings where var_name = 'commissionFromDate' and var_grp = 'items'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$lastSettle = dkdato($r['settletime']);
-			} else {
-				$commissionFromDate = NULL;
-			}
-			$qtxt = "select max(fakturadate) as settled from ordrer where settletime > '0' and felt_5 = '" . (int)$kasse . "'";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r && $r['settled'] && (!$lastSettle || $r['settled'] > usdate($lastSettle))) {
-				$lastSettle = dkdato($r['settled']);
+			include_once(__DIR__ . '/pos_ordre_includes/settleCommission/commissionDefaultFromDate.php');
+			$defaultFromDate = commissionDefaultFromDate($kasse, $r ? $r['settletime'] : '');
+			if ($defaultFromDate) {
+				$lastSettle = dkdato($defaultFromDate);
 			}
 			$title = findtekst(1854, $sprog_id);
 			if ($lastSettle)
