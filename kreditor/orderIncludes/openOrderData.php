@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,7 @@
 // 20261105 CL/MMR SST-951 The order's language (Baggrund, as on a sales order) can be chosen on a saved order when forms exist in more than one language.
 //                 A blank order has no field: the order gets its language from the supplier's group when it is created.
 //                 The mail subject and text placeholders follow the order's language instead of always Dansk.
+// 20261109 CL/SZ MB-136 The Att. (kontakt) field escapes its value, so a name like Bo O'Neill shows in full and is not saved back as Bo O.
 
 /*
 $attachId    = null;
@@ -86,7 +87,7 @@ print "<input class='inputbox' type='text' style='width:200px' name=bynavn onfoc
 print "<tr><td>".findtekst(364,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='land' ";
 print "value='$land' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>Att.:</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='kontakt' ";
-print "onfocus='document.forms[0].fokus.value=this.name;' value='$kontakt' onchange='javascript:docChange = true;'></td></tr>\n";
+print "onfocus='document.forms[0].fokus.value=this.name;' value='" . htmlspecialchars($kontakt, ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
 print "</tbody></table></td>";
 print "<td><table cellpadding='0' cellspacing='0' border='0'>";
 if (!$id) {
