@@ -2,6 +2,7 @@
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 // 20261109 CL/MMR SST-984 The e-invoice counter is updated here instead of by an HTTP call to debitor/increaseInvoiceNumber.php, which is removed.
 //                 That file needed no login and put ?db= unescaped into SQL against the master database.
+//                 A failed counter update is logged and reported by mail but does not stop the webhook, so an incoming invoice is still stored and mailed.
 
     // This file is used to receive webhooks from EasyUBL
 
@@ -34,13 +35,19 @@
     /**
      * Counts one e-invoice for the account in the master database (regnskab.invoices).
      * SST-984: this used to be an HTTP call to debitor/increaseInvoiceNumber.php, which anyone could call.
+     * A failed update must not stop the webhook, because an incoming invoice is stored and mailed after the count.
+     * With $webservice set, db_modify() logs the error and reports it by mail, then returns instead of exiting.
      *
      * @param string $db The account database name the locator answered with.
      * @return void
      */
     function increaseEinvoiceCount($db) {
+        global $webservice;
         $qtxt = "UPDATE regnskab SET invoices = COALESCE(invoices, 0) + 1 WHERE db = '" . db_escape_string($db) . "'";
+        $previousWebservice = $webservice;
+        $webservice = true;
         db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+        $webservice = $previousWebservice;
     }
 
     // Retrieving webhook data
