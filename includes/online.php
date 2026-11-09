@@ -1,5 +1,4 @@
 <?php
-include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -85,6 +84,9 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 // 20261104 CL/ASR A fatal PHP error (E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR) on an HTML page with a session shows the error box of includes/errorReport.php, so the user can send a report.
 //                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
 //                 A page load also shows the box of an earlier page that moved on before it could be seen (a meta refresh right after a failed query).
+// 20261109 NTR - Moved the cookie include below the comment header.
+
+include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -385,7 +387,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	}
 	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
 		// One refusal for both gates (20261103): the text 5548, HTTP 403, JSON to scripts and a way back to Oversigt; logged as before.
-		include_once($relativePath . "includes/std_func.php");
+		include_once(__DIR__ . "/std_func.php");
 		include_once(__DIR__ . "/permissions.php");
 		perm_refuse('modulnr ' . (int) $modulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
 	}
@@ -396,7 +398,6 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	// The helpers (perm_require_post_csrf, audit_log) are available on every page; the gate itself runs as before.
 	include_once(__DIR__ . "/permissions.php");
 	if (!$webservice && !$nextver) {
-		include_once(__DIR__ . "/permissions.php");
 		perm_enforce_request(
 			isset($permission_key) ? (string) $permission_key : null,
 			isset($permission_level) ? (string) $permission_level : 'read',

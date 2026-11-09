@@ -29,6 +29,7 @@
 
 @session_start();
 $s_id=session_id();
+$permission_key = 'any';
 
 print "<html>";
 print "<head><title>Hent ocs_ordrer</title><meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8;\">";
@@ -38,7 +39,6 @@ print "</head><body>";
 print "<center>";
 
 include("../includes/connect.php");
-$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
