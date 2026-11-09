@@ -28,7 +28,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import prBody, { lineOwners, readHistory } from "../checks/pr-body.mjs";
-import { NO_LINES, UNREADABLE, filesOfDiff, headerPath, markerLinesOf } from "../lib/changeset.mjs";
+import { NO_LINES, UNREADABLE, filesOfDiff, headerPath, markerLinesOf, parseDiff } from "../lib/changeset.mjs";
 import { stationReport } from "../lib/station.mjs";
 import { REVIEWERS } from "../lib/doors.mjs";
 
@@ -832,4 +832,43 @@ test("a file whose diff shows no line though its content changed is read whole (
   const findings = prBody.run(dangerBody("two-way"), { files: [...files.values()], isVendored: () => false, today: "2026-11-06", readHead: read.head, readBase: read.base });
   assert.deepEqual(findings.map((finding) => finding.path), ["finans/x.js"]);
   assert.match(findings[0].message, /destructive by the marker "DROP DATABASE"/);
+});
+
+test("context lines that a git setting adds despite -U0 still move both line counts", () => {
+  const patch = [
+    "diff --git a/finans/x.js b/finans/x.js",
+    "--- a/finans/x.js",
+    "+++ b/finans/x.js",
+    "@@ -2,5 +2,5 @@",
+    "-old two",
+    "+new two",
+    " three",
+    " four",
+    "-old five",
+    "+new five",
+    " six",
+    "",
+  ].join("\n");
+  const file = parseDiff(patch).get("finans/x.js");
+  assert.deepEqual([...file.added.entries()], [[2, "new two"], [5, "new five"]]);
+  assert.deepEqual([...file.removed.entries()], [[2, "old two"], [5, "old five"]]);
+});
+
+test("diff.interHunkContext and GIT_DIFF_OPTS cannot shift where a marker is found", () => {
+  const base = ["a();", "b();", "c();", "d();", "e();", "f();", ""].join("\n");
+  const head = ["a();", "B();", "c();", "d();", "e();", DROP, ""].join("\n");
+  const repo = scratch([["finans/x.js", base, head]], { commit: true });
+  const saved = process.env.GIT_DIFF_OPTS;
+  try {
+    assert.equal(spawnSync("git", ["config", "diff.interHunkContext", "20"], { cwd: repo.dir }).status, 0);
+    process.env.GIT_DIFF_OPTS = "--unified=5";
+    const station = repo.run(["--station", "--json", "--base", repo.base, "--head", repo.head]);
+    assert.equal(station.status, 0, station.stderr);
+    const hits = JSON.parse(station.stdout).markersHit.map((hit) => `${hit.path}:${hit.line}:${hit.row}`);
+    assert.deepEqual(hits, ["finans/x.js:6:destructive"]);
+  } finally {
+    if (saved === undefined) delete process.env.GIT_DIFF_OPTS;
+    else process.env.GIT_DIFF_OPTS = saved;
+    repo.done();
+  }
 });

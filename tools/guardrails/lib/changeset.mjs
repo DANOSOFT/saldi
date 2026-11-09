@@ -28,6 +28,8 @@
 //                git's NUL-separated list: a file whose header cannot be read counts every line as changed.
 // 20261109 CL/LH Diffs and file reads ignore the change's own .gitattributes (--text, --no-textconv); a file whose
 //                content changed but whose diff shows no line counts every line as changed.
+// 20261109 CL/LH Context lines that git adds despite -U0 (diff.interHunkContext, GIT_DIFF_OPTS) move both line
+//                counts; diffs run with --inter-hunk-context=0 and without GIT_DIFF_OPTS or GIT_EXTERNAL_DIFF.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
@@ -41,14 +43,19 @@ import { LINE_END, fileLines, lineText } from "./doors.mjs";
 export const VENDORED = /^(vendor|includes\/vendor|node_modules|tiny_mce)\/|^(javascript|sager\/js)\/jquery[^/]*\.min\.js$/;
 
 /** How every diff here runs: every line, as text whatever .gitattributes says, no text conversion or external diff, fixed prefixes. */
-const DIFF_OPTIONS = ["-U0", "--no-renames", "--no-color", "--text", "--no-textconv", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"];
+const DIFF_OPTIONS = ["-U0", "--inter-hunk-context=0", "--no-renames", "--no-color", "--text", "--no-textconv", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"];
+
+/** Environment variables that change what git diff prints, whatever its options say. */
+const DIFF_ENV = ["GIT_DIFF_OPTS", "GIT_EXTERNAL_DIFF"];
 
 export function git(args, options = {}) {
+  const env = Object.fromEntries(Object.entries(options.env ?? process.env).filter(([name]) => !DIFF_ENV.includes(name)));
   return execFileSync("git", ["-c", "core.quotePath=false", ...args], {
     encoding: "utf8",
     maxBuffer: 1 << 30,
     stdio: ["ignore", "pipe", "pipe"],
     ...options,
+    env,
   });
 }
 
@@ -184,6 +191,10 @@ export function parseDiff(text) {
       hunk.removedLines.push(entry);
       file.removed.set(entry.line, entry.text);
       previous = entry;
+    } else if (raw.startsWith(" ")) {
+      // Context a git setting adds despite -U0 is no change, but it is a line on both sides.
+      oldLine++;
+      nextLine++;
     }
     // Under --text git prints a binary file's bytes: a changed line that holds a NUL marks it binary, as git would.
     if ((raw.startsWith("+") || raw.startsWith("-")) && raw.includes("\0")) file.binary = true;

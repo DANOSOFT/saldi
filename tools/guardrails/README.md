@@ -120,8 +120,9 @@ checker runs, and the job log says so.
 What that defends against, and what it does not: the base revision's checker
 keeps a PR from loosening the door map, the checker or the reviewer list it is
 judged by. It does not keep a PR from editing the workflow itself. GitHub runs
-a `pull_request` workflow as the PR's head has it, so a PR can change
-`.github/workflows/guardrails.yml` to skip the job or to run its own checker,
+a `pull_request` workflow from the PR's merge ref, with the PR's own workflow
+edits, so a PR can change `.github/workflows/guardrails.yml` to skip the job
+or to run its own checker,
 and the PR that introduces the door check is judged by its own checker (the
 bootstrap above). That is why a change under `.github/` or `tools/guardrails/`
 is a gate path: `--station` sends it to Gartneren (or adds Gartneren's proof
