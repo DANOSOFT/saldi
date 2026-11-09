@@ -2,17 +2,10 @@
 // --- admin/bogholder_godkend.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. The accountant panel's one-time links (no login), like godkend.php for proposals:
-//                  - an invited employee creates their login in the administration layer (partner_invites, employee);
-//                  - an invited customer user creates their login in the customer account (partner_invites,
-//                    customer_user; reuses the placeholder/replaced user's row when one is given);
-//                  - the customer (or Saldi, when the account has no e-mail) approves or rejects a bookkeeper's
-//                    access request (partner_access_requests);
-//                  - the customer accepts or rejects taking over payment (partner_requests, payer_to_customer).
-//                  Token = 48 hex chars from random_bytes; expired or decided items show a notice only.
-// 20261029 CL/ASR Review fixes: an invitation is claimed before anything is created (one acceptance only), a customer
-//                  invitation needs the firm's current full access and a free user seat, "selected customers" with none
-//                  selected stays none, only the replaced user is signed out, login names the login page keeps as typed.
+// 20261012 CL/ASR New.
+//                 The accountant panel's one-time links (no login), like godkend.php for proposals: - an invited employee creates their login in the administration layer (partner_invites, employee); - an invited customer user creates their login in the customer account (partner_invites, customer_user; reuses the placeholder/replaced user's row when one is given); - the customer (or Saldi, when the account has no e-mail) approves or rejects a bookkeeper's access request (partner_access_requests); - the customer accepts or rejects taking over payment (partner_requests, payer_to_customer).
+//                 Token = 48 hex chars from random_bytes; expired or decided items show a notice only.
+// 20261029 CL/ASR Review fixes: an invitation is claimed before anything is created (one acceptance only), a customer invitation needs the firm's current full access and a free user seat, "selected customers" with none selected stays none, only the replaced user is signed out, login names the login page keeps as typed.
 include("../includes/connect.php");
 if (!function_exists('db_select')) include("../includes/db_query.php");
 include("../includes/std_func.php");

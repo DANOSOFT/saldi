@@ -5,19 +5,12 @@ $s_id=session_id();
 // --- admin/bogholder_opret.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. "Opret og tilknyt" in the accountant panel (bogholderpanelet), for employees with the right
-//                  "Oprette kunder" in a firm Saldi allows to create accounts (partners.can_create):
-//                  - Opret kunderegnskab: a new account in the customer's name with company details, the payment
-//                    model (the firm pays Finans in the bookkeeper scheme, or the customer pays a chosen plan with a
-//                    30-day trial), the customer's first user (create now, invite by e-mail, or later) and the
-//                    responsible employee. The account is created by create_regnskab() from includes/opretfunc.php.
-//                  - Tilknyt eksisterende regnskab: look up by number, name or known CVR and send an access request
-//                    that the customer approves by e-mail (or Saldi, when the account has no e-mail). Nothing about
-//                    the customer's plan, payer or other bookkeepers changes.
-// 20261029 CL/ASR Group mode: a new company is owned by the group (access 'owner'), gets any plan without a trial and is
-//                  invoiced via the parent by default or pays itself; linking an existing company makes the group its owner.
-// 20261029 CL/ASR Review fixes: the chosen payer is written in both models, the creator and the responsible employee get
-//                  access when they only see selected customers, the password is hashed as typed, login names are checked.
+// 20261012 CL/ASR New.
+//                 "Opret og tilknyt" in the accountant panel (bogholderpanelet), for employees with the right "Oprette kunder" in a firm Saldi allows to create accounts (partners.can_create): - Opret kunderegnskab: a new account in the customer's name with company details, the payment model (the firm pays Finans in the bookkeeper scheme, or the customer pays a chosen plan with a 30-day trial), the customer's first user (create now, invite by e-mail, or later) and the responsible employee.
+//                 The account is created by create_regnskab() from includes/opretfunc.php. - Tilknyt eksisterende regnskab: look up by number, name or known CVR and send an access request that the customer approves by e-mail (or Saldi, when the account has no e-mail).
+//                 Nothing about the customer's plan, payer or other bookkeepers changes.
+// 20261029 CL/ASR Group mode: a new company is owned by the group (access 'owner'), gets any plan without a trial and is invoiced via the parent by default or pays itself; linking an existing company makes the group its owner.
+// 20261029 CL/ASR Review fixes: the chosen payer is written in both models, the creator and the responsible employee get access when they only see selected customers, the password is hashed as typed, login names are checked.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";

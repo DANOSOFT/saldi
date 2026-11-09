@@ -5,18 +5,12 @@ $s_id=session_id();
 // --- admin/bogholder_firma.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. "Mit firma" in the accountant panel (bogholderpanelet): the firm's own details (contact,
-//                  invoicing), employees (invite by e-mail or create directly, role, rights, customer scope,
-//                  deactivate, remove), invitations and access requests (status, resend, revoke), prices (the
-//                  bookkeeper scheme: accounts in the scheme, total and average, provisional volume tiers and a
-//                  calculator that changes nothing), the firm's own Saldi invoices (billing ledger API, read-only)
-//                  and the firm-wide log. Replaces the "Mit firma" view that lived in partnere.php before the
-//                  operator panel was split out. Owners manage; employees see what their rights allow.
-// 20261029 CL/ASR Group mode: Priser shows the group's monthly price (companies invoiced via the parent + one ERP user per
-//                  employee) instead of the bookkeeper scheme's volume tiers.
-// 20261029 CL/ASR Review fixes: CVR is no longer edited by the firm and the firm's invoices are looked up by Saldi's
-//                  billing customer number or CVR only (not the name); an invitation for selected customers keeps an empty
-//                  selection.
+// 20261012 CL/ASR New.
+//                 "Mit firma" in the accountant panel (bogholderpanelet): the firm's own details (contact, invoicing), employees (invite by e-mail or create directly, role, rights, customer scope, deactivate, remove), invitations and access requests (status, resend, revoke), prices (the bookkeeper scheme: accounts in the scheme, total and average, provisional volume tiers and a calculator that changes nothing), the firm's own Saldi invoices (billing ledger API, read-only) and the firm-wide log.
+//                 Replaces the "Mit firma" view that lived in partnere.php before the operator panel was split out.
+//                 Owners manage; employees see what their rights allow.
+// 20261029 CL/ASR Group mode: Priser shows the group's monthly price (companies invoiced via the parent + one ERP user per employee) instead of the bookkeeper scheme's volume tiers.
+// 20261029 CL/ASR Review fixes: CVR is no longer edited by the firm and the firm's invoices are looked up by Saldi's billing customer number or CVR only (not the name); an invitation for selected customers keeps an empty selection.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";

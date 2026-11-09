@@ -2,10 +2,9 @@
 // --- admin/bogholder_ui.php --- ver 5.1.0 --- 2026.10.12 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. Shell for the accountant panel (bogholderpanelet): the access guard (users who belong to a
-//                  bookkeeper, auditor or group; operators and legacy users are sent to their own pages), the panel's
-//                  own menu through vr_ui.php's menu hook, the page opener (adds css/bogholder_panel.css to the shared
-//                  admin-layer shell) and small renderers used on several pages. The operator panel is not touched.
+// 20261012 CL/ASR New.
+//                 Shell for the accountant panel (bogholderpanelet): the access guard (users who belong to a bookkeeper, auditor or group; operators and legacy users are sent to their own pages), the panel's own menu through vr_ui.php's menu hook, the page opener (adds css/bogholder_panel.css to the shared admin-layer shell) and small renderers used on several pages.
+//                 The operator panel is not touched.
 
 if (!function_exists('bp_require_partner')) {
 

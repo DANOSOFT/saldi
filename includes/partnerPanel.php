@@ -3,20 +3,12 @@
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice.
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. Library for the accountant panel (bogholderpanelet, admin/bogholder_*.php), built on
-//                  includes/partnerScope.php. Own tables only, created on first use: invitations (employees and
-//                  customer users), access requests to existing ledgers, requests to Saldi (payer change, cancellation,
-//                  archiving), favourites, recently opened, a work cache per customer (open journals, documents in the
-//                  pool, company details from the customer database, refreshed every 10 minutes) and provisional
-//                  volume pricing for the bookkeeper scheme. Nothing here changes the operator panel or the customer
-//                  pages; the operator's includes (entitlements, proposals, trials) are read through their own functions.
-// 20261029 CL/ASR Group mode (partners.kind = 'koncern', addendum 29/10): the group owns its companies (access 'owner'),
-//                  companies are invoiced via the parent by default and may pay themselves, the group changes plans
-//                  directly without a proposal, and each group employee counts as one ERP user across all companies.
-// 20261029 CL/ASR Review fixes: group and scheme prices count the whole firm, invitations and their list follow the
-//                  employee's customer scope, expired invitations can be resent, no rights stays no rights, user seats
-//                  are checked on creation, the payer is always mirrored to billing, an accepted upgrade moves payment
-//                  once, a group taking in a company pays for it, sessions are ended only for the person concerned.
+// 20261012 CL/ASR New.
+//                 Library for the accountant panel (bogholderpanelet, admin/bogholder_*.php), built on includes/partnerScope.php.
+//                 Own tables only, created on first use: invitations (employees and customer users), access requests to existing ledgers, requests to Saldi (payer change, cancellation, archiving), favourites, recently opened, a work cache per customer (open journals, documents in the pool, company details from the customer database, refreshed every 10 minutes) and provisional volume pricing for the bookkeeper scheme.
+//                 Nothing here changes the operator panel or the customer pages; the operator's includes (entitlements, proposals, trials) are read through their own functions.
+// 20261029 CL/ASR Group mode (partners.kind = 'koncern', addendum 29/10): the group owns its companies (access 'owner'), companies are invoiced via the parent by default and may pay themselves, the group changes plans directly without a proposal, and each group employee counts as one ERP user across all companies.
+// 20261029 CL/ASR Review fixes: group and scheme prices count the whole firm, invitations and their list follow the employee's customer scope, expired invitations can be resent, no rights stays no rights, user seats are checked on creation, the payer is always mirrored to billing, an accepted upgrade moves payment once, a group taking in a company pays for it, sessions are ended only for the person concerned.
 // 20261029 CL/ASR Group mode (koncern); the tables are created by the update chain (includes/opdat_func/partnerPanelSchema.php).
 
 if (!function_exists('bp_tables_ensure')) {

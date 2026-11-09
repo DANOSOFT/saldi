@@ -5,20 +5,12 @@ $s_id=session_id();
 // --- admin/bogholder_panel.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. Customers in the accountant panel (bogholderpanelet): the customer list (search on name, CVR
-//                  and number; filters on responsible employee, plan, payer, status and attention; favourites) and
-//                  the customer card (?regnskab_id=) with tabs Oversigt (company details, key figures, access),
-//                  Brugere (the customer's users, invite/create/lock, the firm's employees apart), Funktioner
-//                  (included features on/off within the plan, locked ones propose an upgrade), Abonnement (plan,
-//                  payer, trial, cancellation, scheduled changes, propose upgrade with the consequences shown),
-//                  Handlinger (end the firm's access, change payer, cancel, archive – each with its consequences)
-//                  and Log. ?open=<id>[&goto=kassekladde|pulje] records the ledger as recently opened and enters it.
-//                  Builds on the operator panel's includes (entitlements, proposals, billing payer) without changing them.
-// 20261029 CL/ASR Group mode: the group changes a company's plan directly, chooses whether it is invoiced via the parent or
-//                  pays itself, and detaches a company instead of ending a bookkeeper's access.
-// 20261029 CL/ASR Review fixes: a read-only link opens nothing and changes nothing in the customer (Saldi has no read-only
-//                  rights level), each action names its right, a proposal goes to the account's own e-mail, ending access
-//                  revokes open customer invitations and signs the firm out of the account, no user name in inline script.
+// 20261012 CL/ASR New.
+//                 Customers in the accountant panel (bogholderpanelet): the customer list (search on name, CVR and number; filters on responsible employee, plan, payer, status and attention; favourites) and the customer card (?regnskab_id=) with tabs Oversigt (company details, key figures, access), Brugere (the customer's users, invite/create/lock, the firm's employees apart), Funktioner (included features on/off within the plan, locked ones propose an upgrade), Abonnement (plan, payer, trial, cancellation, scheduled changes, propose upgrade with the consequences shown), Handlinger (end the firm's access, change payer, cancel, archive – each with its consequences) and Log.
+//                 ?open=<id>[&goto=kassekladde|pulje] records the ledger as recently opened and enters it.
+//                 Builds on the operator panel's includes (entitlements, proposals, billing payer) without changing them.
+// 20261029 CL/ASR Group mode: the group changes a company's plan directly, chooses whether it is invoiced via the parent or pays itself, and detaches a company instead of ending a bookkeeper's access.
+// 20261029 CL/ASR Review fixes: a read-only link opens nothing and changes nothing in the customer (Saldi has no read-only rights level), each action names its right, a proposal goes to the account's own e-mail, ending access revokes open customer invitations and signs the firm out of the account, no user name in inline script.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";

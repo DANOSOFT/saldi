@@ -5,13 +5,10 @@ $s_id=session_id();
 // --- admin/bogholder_overblik.php --- ver 5.1.0 --- 2026.10.12 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261012 CL/ASR New. Landing page of the accountant panel (bogholderpanelet): which customers need attention and
-//                  the quickest way on. Counts (active, in trial, needing a decision), customers with work waiting
-//                  (open journals, documents in the pool – read from the customer databases through the work cache),
-//                  pending actions (invitations, access requests, trials ending, upgrades awaiting the customer,
-//                  requests to Saldi), recently opened and favourites, shortcuts by right, and a small price
-//                  overview for employees who may see prices. Scoped to the employee's customers; the owner can
-//                  narrow to one responsible employee.
+// 20261012 CL/ASR New.
+//                 Landing page of the accountant panel (bogholderpanelet): which customers need attention and the quickest way on.
+//                 Counts (active, in trial, needing a decision), customers with work waiting (open journals, documents in the pool – read from the customer databases through the work cache), pending actions (invitations, access requests, trials ending, upgrades awaiting the customer, requests to Saldi), recently opened and favourites, shortcuts by right, and a small price overview for employees who may see prices.
+//                 Scoped to the employee's customers; the owner can narrow to one responsible employee.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";

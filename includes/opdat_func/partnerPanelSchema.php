@@ -22,13 +22,11 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261029 CL/ASR New. The master-database tables of the accountant panel (admin/bogholder_*.php): invitations, access
-//                  requests, requests to Saldi, favourites, recently opened, the work cache per customer and the
-//                  provisional volume tiers, plus the firm's contact and invoicing columns on partners. Builds on the
-//                  operator panel's tables (operatorPanelSchema.php runs first in betweenUpdates.php). Called from
-//                  includes/betweenUpdates.php and index/install.php; runs once per master (settings flag), all
-//                  statements on the master connection ($global = true). An advisory lock lets one login apply it at
-//                  a time, and the flag is only set once every table and column is there.
+// 20261029 CL/ASR New.
+//                 The master-database tables of the accountant panel (admin/bogholder_*.php): invitations, access requests, requests to Saldi, favourites, recently opened, the work cache per customer and the provisional volume tiers, plus the firm's contact and invoicing columns on partners.
+//                 Builds on the operator panel's tables (operatorPanelSchema.php runs first in betweenUpdates.php).
+//                 Called from includes/betweenUpdates.php and index/install.php; runs once per master (settings flag), all statements on the master connection ($global = true).
+//                 An advisory lock lets one login apply it at a time, and the flag is only set once every table and column is there.
 
 if (!function_exists('partner_panel_schema')) {
 	define('PARTNER_PANEL_SCHEMA', '1');

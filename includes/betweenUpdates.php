@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.02
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -241,7 +241,7 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
 }
 
 
-// 20261029 CL/ASR Accountant panel (admin/bogholder_*.php): its tables live in the master database next to the operator
+// 20261029 CL/ASR Accountant panel (admin/bogholder_*.php): its tables live in the master database next to the operator.
 // panel's (above, which must run first). partner_panel_schema() uses the master connection and runs once per master.
 if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
 	include_once(__DIR__ . '/opdat_func/partnerPanelSchema.php');

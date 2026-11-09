@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- ver 5.0.0 --- 2026.09.28 ---
+// --- admin/vis_regnskaber.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,8 +43,7 @@ $title="vis regnskaber";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-// 20261012 CL/ASR Users who belong to a bookkeeper, auditor or group (partner_users) have their own customer list in the
-//                  accountant panel; everyone else keeps this page unchanged.
+// 20261012 CL/ASR Users who belong to a bookkeeper, auditor or group (partner_users) have their own customer list in the accountant panel; everyone else keeps this page unchanged.
 include("../includes/partnerScope.php"); partner_tables_ensure();
 if (partner_current_user()['partner']) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/bogholder_panel.php\">"; exit; }
 include("../includes/topline_settings.php");

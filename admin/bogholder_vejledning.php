@@ -4,10 +4,11 @@ $s_id=session_id();
 // --- admin/bogholder_vejledning.php --- ver 5.1.0 --- 2026.10.13 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261013 CL/ASR New. The accountant panel's own guide, opened from "Vejledning" in the sidebar (replaces the link to
-//                  Saldi's general getting-started page for partner users). One section per area of the panel with steps,
-//                  a link straight to the place, and a note when the user lacks the right. Short questions and answers at
-//                  the end. The texts are kept in one array so they can later feed tooltips or an assistant.
+// 20261013 CL/ASR New.
+//                 The accountant panel's own guide, opened from "Vejledning" in the sidebar (replaces the link to Saldi's general getting-started page for partner users).
+//                 One section per area of the panel with steps, a link straight to the place, and a note when the user lacks the right.
+//                 Short questions and answers at the end.
+//                 The texts are kept in one array so they can later feed tooltips or an assistant.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";
