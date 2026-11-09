@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------lap 5.0.0 ------2026-09-24-------------
+// ------ SAGER/ANSATTE.php-------ver 5.1.0 ------2026-11-06-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,8 @@ $s_id=session_id();
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) when creating or renaming a login, matching login.php
 // 20260924 Sawaneh SST-757: New logins get regnskabsaar (session year, else newest open year), so POS/ordre/tilbud no longer fail on an empty fiscal year.
 //                  Login SQL values are now cast or escaped.
+// 20261103 CL/MMR SD-799 The search dropdown labels and the paging line of the employee list follow the user's language.
+// 20261106 CL/MMR SD-813 The page's lang attribute follows the user's language (da, en, no).
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -50,6 +52,7 @@ $s_id=session_id();
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
 	if(isset($_GET['id'])) $id = $_GET['id'];
 	if(isset($_POST['id'])) $id = $_POST['id'];
@@ -60,7 +63,7 @@ $s_id=session_id();
 	$vis=if_isset($_GET['vis']);
 	
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
-	<html lang=\"da\">
+	<html lang=\"" . ifset(array(1 => 'da', 2 => 'en', 3 => 'no'), (int)$sprog_id, 'da') . "\">
 	<head>
 		<meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\">
 		<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">
@@ -129,7 +132,8 @@ $s_id=session_id();
 			print "</div><!-- end of maincontent -->
 			</div><!-- end of wrapper -->  
 		<!-- <div id=\"footer\"><p>Pluder | Pluder</p></div> -->
-		<script type=\"text/javascript\" src=\"../javascript/jquery.ansatte.js\"></script>
+		".sager_js_sagertekst()."
+		<script type=\"text/javascript\" src=\"../javascript/jquery.ansatte.js?v=20261103\"></script>
 	</body>
 	</html>";
 

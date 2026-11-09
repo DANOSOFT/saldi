@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- ver 5.0.0 --- 2026-10-07 ---  
+// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,23 @@
 // 20260126 PHR *1 replaced by (float) in $medarb_loen
 // 20260319 LOE Added $t_sum_total  
 // 20261007 LOE SD-728 'Til fordeling' shows the payslip total, so the 'Andet' lines are not counted twice.
+// 20261103 CL/MMR SD-799 The created/transferred/approved/rejected "by" labels use the author text, so English shows "by".
+// 20261104 CL/MMR SST-943 Gem and Overfør no longer save a slip, or its piecework lines, without a date.
+//                 The slip is shown as stored with the typed values put back and the messages "Dato ikke udfyldt" and "Obs - Du har ikke gemt.".
+// 20261104 CL/MMR SST-943 A stopped save also skips the writes made while the slip is drawn (sum, duplicate lines, master_id); vis_liste() gets it as a parameter.
+//                 The list type selector keeps the type the piecework lines are drawn for.
+// 20261105 CL/MMR SST-943 A stopped save also says that amounts and totals are not updated until the slip is saved with a date.
+// 20261105 CL/MMR SST-943 A date that does not exist or is not a date (31-02-2026, 32-13-2026, abc) is refused like a missing date (Morten).
+// 20261105 CL/MMR SST-943 Only the documented date forms are accepted, so extra digits (0311202699) are refused instead of cut off.
+// 20261105 CL/MMR SST-943 A four-digit year is read as written: a year before 1000 (05-11-0026) is refused, only two digits are a short year (CodeRabbit).
+// 20261106 CL/MMR SST-961 Overfør of an akkordafregning no longer takes Dyrtid slips without a date along.
+//                 A Dyrtid slip without a date on its list is named in red with a link, and it cannot be transferred until the slip has a date.
+//                 When the transfer is refused, the slip keeps the transfer state stored in the database and is saved like a Gem (Codex).
+//                 A Dyrtid slip without a date that is already linked to the slip is not stamped either (CodeRabbit).
+//                 The date rule has one owner, akkDyrtidMedDatoSql(), used by the transfer and by the list of slips without a date.
+//                 Overfør locks the listed Dyrtid slips before the date check, and a slip transferred after its form was opened is not saved over (Codex).
+//                 The transfer locks the case, then the akkordafregning, then its Dyrtid slips, in the same order as Afvis and Godkend.
+//                 Two transfers on one case wait for each other instead of deadlocking.
 
 function ret_loen() {
 	global $brugernavn;
@@ -55,6 +72,7 @@ function ret_loen() {
 	$t50pct=$t100pct=$timeArt=$timer=$timersum=NULL;
 
 	$id = $loen_nr = $opg_id = $sag_id = $telt_antal = 0;
+	$dyrtidUdenDato = array(); # 20261106 SST-961
 
 	$a_pct = $fratraek = $hourTypes = array();
 
@@ -63,8 +81,11 @@ function ret_loen() {
 		exit;
 	}
 	$id=if_isset($_GET['id']);
+	$gem=NULL;
+	$datoMangler = loenDatoMangler($_POST); # 20261104 SST-943
+	if ($datoMangler) $id = (int)ifset($_POST, 'id', 0);
 	transaktion('begin');
-	if ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis'])) {
+	if (!$datoMangler && ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis']))) {
 		# 20160830 ->
 		$afs  = if_isset($_POST['afs']);
 		$gemt = if_isset($_POST['gemt']);
@@ -304,6 +325,20 @@ function ret_loen() {
 			$sag_id  = 0;
 			$sag_ref = NULL;
 		}
+		if ($afslut && $loen_art=='akk_afr' && $sag_id) { # 20261106 SST-961
+			// Lock the case, this slip and the Dyrtid slips on its list until commit, so nobody can change a date between this check and the transfer.
+			akkDyrtidLaas($id, $sag_id, $opg_id);
+		}
+		if ($afslut && $loen_art=='akk_afr' && $sag_id && akkDyrtidUdenDato($id, $sag_id, $opg_id)) { # 20261106 SST-961
+			// A Dyrtid slip without a date is on the list: the slip is saved as with Gem and not transferred.
+			// Its transfer state comes from the database, not from the form (an open slip stays open).
+			$afslut = NULL;
+			$afs    = NULL;
+			$gemt   = 1; // this pass counts as the first Gem pass, so one more follows as for a Gem
+			$stored = db_fetch_array(db_select("select afsluttet,afsluttet_af from loen where id='" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
+			$afsluttet    = db_escape_string($stored ? (string)$stored['afsluttet'] : '');
+			$afsluttet_af = db_escape_string($stored ? (string)$stored['afsluttet_af'] : '');
+		}
 		if (!$oprettet) $oprettet=date('U');
 		#		$loendate=usdate($loendato);
 
@@ -359,12 +394,18 @@ function ret_loen() {
 		if ($id) {
 			if ($loen_art=='aconto' || $loen_art=='regulering') $sum=usdecimal($dksum);
 			if ($loen_art != 'akk_afr') $datoer = ''; # 20240409
-			$qtxt      = "select afvist, afvist_af from loen where id='$id'";
+			$qtxt      = "select afvist, afvist_af, afsluttet, afsluttet_af from loen where id='" . (int)$id . "' for update"; # 20261106 SST-961 locked until commit
 			$r         = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$afvist    = $r['afvist'];
 			$afvist_af = $r['afvist_af'];
 			if ($afvist && $afvist_af) {
 				alert("".findtekst('3037|Denne seddel er afvist af', $sprog_id)." $afvist_af");
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
+				exit;
+			}
+			// 20261106 SST-961: the slip was transferred after this form was opened (e.g. with its akkordafregning); the old form is not saved over it.
+			if (trim((string)$r['afsluttet']) && !trim((string)ifset($_POST, 'afsluttet', ''))) {
+				print "<script type='text/javascript'>alert(" . jsString(array(findtekst('8490|Denne seddel er overført af', $sprog_id) . ' ' . $r['afsluttet_af'])) . ");</script>";
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
 				exit;
 			}
@@ -382,7 +423,8 @@ function ret_loen() {
 				}
 			}
 			if ($afslut && $loen_art=='akk_afr') {
-				$qtxt="update loen set afsluttet='$afsluttet',afsluttet_af='$afsluttet_af',master_id='$id' where master_id='$id' or (sag_id='$sag_id' and art='akktimer' and afsluttet='' and id != '$id')";
+				$qtxt="update loen set afsluttet='$afsluttet',afsluttet_af='$afsluttet_af',master_id='$id' where (master_id='$id' or (sag_id='$sag_id' and art='akktimer' and afsluttet='' and id != '$id')) "; # 20261106 SST-961
+				$qtxt.= "and (coalesce(art,'') != 'akktimer' or " . akkDyrtidMedDatoSql() . ")"; // Dyrtid slips without a date are never stamped
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				for ($i=0;$i<count($ansat_id);$i++) {
 #cho __line__." $i $loen_date[$i] ".$loen_date[$i-1]." select * from loen where loendate='".usdate($loen_date[$i])."' and art = 'akktimer' and sag_id='$sag_id' and opg_id='$opg_id' and (master_id is NULL or master_id='0')<br>";
@@ -684,6 +726,7 @@ function ret_loen() {
 			}
 		}
 	}
+	if ($datoMangler) $listevalg = (int)ifset($_POST, 'listevalg', 0); # 20261104 SST-943 the list type that was on the screen
 	$qtxt = "select var_value from settings where var_name = 'hideSalary'";
 	if ($p=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))	$hideSalary = $p['var_value'];
 	else $hideSalary = NULL;
@@ -696,7 +739,7 @@ function ret_loen() {
 #cho "Bundet på seddel nr $master_nr<br>";
 			}	else {
 #cho "update loen set master_id='0',godkendt='' where id='$id'<br>";
-				db_modify("update loen set master_id='0' where id='$id'",__FILE__ . " linje " . __LINE__); #20161012 Fjernet godkendt='' da udbetalte sedler bliver afregnet igen.
+				if (!$datoMangler) db_modify("update loen set master_id='0' where id='$id'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped #20161012 Fjernet godkendt='' da udbetalte sedler bliver afregnet igen.
 				$master_id = NULL;
 				$master_nr = NULL;
 #				$godkendt=NULL; #20161012
@@ -772,6 +815,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 			}
 			#			$tmp=
 		}
+		$dyrtidUdenDato = akkDyrtidUdenDato($id, $sag_id, $opg_id); # 20261106 SST-961
 		if ($ansatte) {
 			$akkord_nr      = explode(chr(9),$akk_nr); #20131003
 			$ansat_id       = explode(chr(9),$ansatte);
@@ -846,7 +890,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 				$aa_sum+=($r['ned_160']*$r['pris_ned']*1.6);
 				$aa_sum+=($r['ned_30m']*$r['pris_ned']*0.1);
 				$x++;
-			} else db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__);
+			} elseif (!$datoMangler) db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped
 
 #cho "$r[vare_id] || $r[tekst] $r[op] $r[ned]<br>";
 #cho "$r[op]*$r[pris_op] | $r[ned]*$r[pris_ned] |".$r['op']*$r['pris_op']."|".$r['ned']*$r['pris_ned']."| aa_sum $aa_sum<br>";
@@ -916,10 +960,11 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 
 	$antal_cat=$y;
 	$datotext_error = $datotext_errortxt = NULL;
-	if($loendate=='1970-01-01') {
-		$loendate = '';
+	if ($loendate=='1970-01-01' || $datoMangler) { # 20261104 SST-943 also when Gem/Overfør was stopped for a missing date
+		if ($loendate=='1970-01-01') $loendate = '';
 		$loendato = '';
 		$datotext_errortxt = "<span style=\"color: red;\">".findtekst('3019|Dato ikke udfyldt', $sprog_id)."</span>";
+		if ($datoMangler) $datotext_errortxt .= " <span style=\"color: red;\"><b>".findtekst('5280|Obs - Du har ikke gemt.', $sprog_id)."</b> ".findtekst('8420|Beløb og summer er ikke opdateret, før sedlen er gemt med dato.', $sprog_id)."</span>";
 		$datotext_error    = "style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else {
 /*
@@ -989,6 +1034,11 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 	} else {
 		$loentext_errortxt = NULL;
 		$loentext_error    = NULL;
+	}
+
+	if ($datoMangler) { # 20261104 SST-943 the fields show what was typed, so the messages about the stored slip are left out
+		$sagsnr_errortxt = $sagsnr_error = $opgnr_errortxt = $opgnr_error = $loentext_errortxt = $loentext_error = NULL;
+		$feriefratil_errortxt = $feriefra_error = $ferietil_error = NULL;
 	}
 
 #######################################
@@ -1167,24 +1217,24 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						print "<table border=\"0\" cellspacing=\"0\" width=\"780\" style=\"font-size: 12px\">
 						<tr>
 							<td><b>".findtekst('65|Oprettet', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $oprettet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $oprettet)."</td>
-							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $oprettet_af</td>
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $oprettet_af</td>
 							<td><b>".findtekst('1134|Løbenr.', $sprog_id).":&nbsp;</b>$loen_nr</td>
 							<td><b>".findtekst('494|Status', $sprog_id).":&nbsp;</b>$status</td>
 
 						</tr>";
 					if ($afsluttet) {
 						print "<tr><td><b>".findtekst('2790|Overført', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $afsluttet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afsluttet)."</td>
-							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
 					}
 					if ($godkendt && !$afvist) { #20170524 Tilføjet '&& !$afvist'
 						print "<tr><td><b>".findtekst('2937|Godkendt', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $godkendt)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $godkendt)."</td>
-							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $godkendt_af</td>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $godkendt_af</td>";
  							if ($master_nr) print "<td><b>".findtekst('3034|Afr. på', $sprog_id)."&nbsp;: </b>$master_nr</td>"; #20151215
 							print "</tr>";
 					}
 					if ($afvist) {
 						print "<tr><td><b>".findtekst('3011|Afvist', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $afvist)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afvist)."</td>
-							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
+							<td><b>".lcfirst(findtekst('8417|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
 					}
 					print "</table>";
 				}
@@ -1480,7 +1530,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					//print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">";
 				}
 				#cho "update loen set sum='$sum' where id='$id'<br>";
-				if (!$afsluttet || $afslut) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604
+				if ((!$afsluttet || $afslut) && !$datoMangler) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604 # 20261104 SST-943 not when the save was stopped
 
 #				print "<tbody class=\"akkordTableBody\">
 #					<tr>
@@ -1530,7 +1580,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 
 				print "<tbody>";
 				include('loenIncludes/visListe.php');
-				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal);
+				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler); # 20261104 SST-943
 				print "<tr>
 					<td colspan=\"13\" class=\"tableSagerBorder\"><b>".findtekst('3006|Lønlinjer ialt', $sprog_id).":</b></td>
 					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
@@ -1609,6 +1659,9 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						<hr>";
 					print "<div class=\"contentA\">";
 						if (!$afsluttet) { # 20140627
+							if ($dyrtidUdenDato) { # 20261106 SST-961
+								print akkDyrtidUdenDatoTekst($dyrtidUdenDato, $sprog_id);
+							}
 							print "<input name=\"gem\" type=\"submit\" class=\"button gray medium\" value=\"".findtekst('3|Gem', $sprog_id)."\" >";
 							if (!$sum && !$a_sum && $id) {
 								print "<input name=\"slet\" type=\"submit\" class=\"button gray medium textSpaceLarge\"
@@ -1617,7 +1670,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 							print "<input name=\"luk\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('2172|Luk', $sprog_id)."\">";
 							//if ((($loen_art && $loen_art!='akktimer') || $opg_id) && $sum) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('1228|Overfør', $sprog_id)."\" onclick=\"return confirm('".findtekst('3012|Bekræft overførsel', $sprog_id)."')\">";
 							if (($loen_art=='akktimer' || $loen_art=='akk_afr' || $loen_art=='akkord')
-							&& $sum && $loendato && $loen_tekst && ($opg_nr || ($sag_id && !$opgave_id)) && (!empty($medarb_nr[0]))) {
+							&& $sum && $loendato && $loen_tekst && ($opg_nr || ($sag_id && !$opgave_id)) && (!empty($medarb_nr[0])) && !$dyrtidUdenDato) {
 								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"".findtekst('1228|Overfør', $sprog_id)."\" onclick=\"return confirm('".findtekst('3012|Bekræft overførsel', $sprog_id)."')\">";
 							}
 							if (($loen_art=='timer' || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='kontor')
@@ -1635,7 +1688,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\"
 								value=\"".findtekst('1228|Overfør', $sprog_id)."\" onclick=\"return confirm('".findtekst('3012|Bekræft overførsel', $sprog_id)."')\">";
 							}
-							if ($afs) { #20160830
+							if ($afs && !$dyrtidUdenDato) { #20160830 + 20261106 SST-961
 								print "<input type=\"hidden\" name=\"fejltxt\" value=\"$fejltxt\">\n";
 								print "<input type=\"hidden\" name=\"listevalg_ny\" value=\"$listevalg_ny\">\n";
 								print "<input type=\"hidden\" name=\"afs\" value=\"$afs\">\n";
@@ -1659,11 +1712,219 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						}
 						print "</div></div>
 					</form>";
+				if ($datoMangler && !$readonly) loenGenindsaet($_POST); # 20261104 SST-943
 				if ($afvis && !$afvist_pga) {
 					$txt = findtekst('3018|Skriv årsag til afvisning og klik afvis igen', $sprog_id)."!";
 					print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				}
 	print "</div><!-- end of printableArea -->";
 } # endfunc ret_loen
+
+/**
+ * Tells whether a Gem or Overfør post of the wage slip form lacks its date (SST-943).
+ * An empty field, "0", a date that reads as 01-01-1970 (what a slip without a date is stored with), and a date that
+ * does not exist or is not a date (loenDatoUgyldig()) count as missing.
+ * Afvis, Godkend, Slet and Luk are not checked: they do not save typed values, and the approver cannot type a date.
+ *
+ * @param array<string, mixed> $post The posted form fields ($_POST).
+ * @return bool True when Gem/Overfør must not save the slip.
+ */
+function loenDatoMangler($post) {
+	if (empty($post['gem']) && empty($post['afslut'])) return false;
+	$dato = trim((string)ifset($post, 'loendato', ''));
+	return (!$dato || loenDatoUgyldig($dato));
+}
+
+/**
+ * Tells whether a typed wage slip date does not exist or is not a date (SST-943, Morten 2026-11-05).
+ * usdate() never refuses: 31-02-2026 becomes 28-02-2026 and 32-13-2026 or "abc" become today. This reads the
+ * typed text the same way usdate() does (dd-mm-yyyy with - . / or space, dd-mm, ddmm, ddmmyy, ddmmyyyy, or just the
+ * day) and checks that usdate() keeps that day, month and year. The short forms (15, 0311, 03-11-26) still work.
+ * A date that reads as 01-01-1970 (how a slip without a date is stored) also counts as invalid.
+ * A four-digit year is read as written, so a year before 1000 (05-11-0026, 05110026) is refused; only a two-digit
+ * year is a short year (26 = 2026), as usdate() reads it (CodeRabbit on PR #1025).
+ *
+ * @param string $dato The typed date (already trimmed, not empty).
+ * @return bool True when the date must be refused like a missing date.
+ */
+function loenDatoUgyldig($dato) {
+	// Only the forms usdate() is meant for: day, ddmm, ddmmyy, ddmmyyyy, or d[-m[-yy|yyyy]] with - . / or space
+	if (!preg_match('/^([0-9]{1,2}|[0-9]{4}|[0-9]{6}|[0-9]{8}|[0-9]{1,2}[-.\/ ][0-9]{1,2}([-.\/ ]([0-9]{2}|[0-9]{4}))?)$/', $dato)) return true;
+	$tekst = preg_replace('/[.\/ ]/', '-', $dato);
+	$aar = NULL;
+	$aarTekst = '';
+	$maaned = NULL;
+	if (strpos($tekst, '-') !== false) {
+		$dele = explode('-', $tekst);
+		$dag = (int)$dele[0];
+		if (isset($dele[1]) && $dele[1] !== '') $maaned = (int)$dele[1];
+		if (isset($dele[2]) && $dele[2] !== '') $aarTekst = $dele[2];
+	} elseif (strlen($tekst) <= 2) {
+		$dag = (int)$tekst;
+		$maaned = (int)date('m');
+	} else {
+		$dag = (int)substr($tekst, 0, 2);
+		$maaned = (int)substr($tekst, 2, 2);
+		if (strlen($tekst) > 4) $aarTekst = substr($tekst, 4, strlen($tekst) > 6 ? 4 : 2);
+	}
+	if ($aarTekst !== '') {
+		// a four-digit year is the year as written: 0026 is not 2026, and no wage slip is dated before 1000
+		if (strlen($aarTekst) == 4 && (int)$aarTekst < 1000) return true;
+		$aar = (int)$aarTekst;
+		// only a two-digit year is a short year, read the way usdate() reads it
+		if (strlen($aarTekst) == 2) $aar += ($aar < 80) ? 2000 : 1900;
+	}
+	$gemt = usdate($dato);
+	if ($gemt == '1970-01-01') return true;
+	list($gAar, $gMaaned, $gDag) = array_map('intval', explode('-', $gemt));
+	if ($dag < 1 || $gDag != $dag) return true;
+	if ($maaned !== NULL && $gMaaned != $maaned) return true;
+	if ($aar !== NULL && $gAar != $aar) return true;
+	return false;
+}
+
+/**
+ * Puts the values of a Gem/Overfør that was stopped for a missing date back into the wage slip form (SST-943).
+ * Nothing was saved, so the form is drawn from the stored slip with the same fields in the same places as the
+ * posted form. The browser then sets every posted field back to its posted value, also as the field's default,
+ * so printing and the next save use what was typed. Read-only fields keep their drawn value. The date stays empty,
+ * and the list type selector keeps the type the piecework lines are drawn for (a type change is not applied).
+ *
+ * @param array<string, string|array<int|string, string>> $post The posted form fields ($_POST).
+ * @return void Prints a <script> element after the form.
+ */
+function loenGenindsaet($post) {
+	$felter = array();
+	foreach ($post as $navn => $vaerdi) {
+		if (is_array($vaerdi)) {
+			foreach ($vaerdi as $nr => $v) {
+				if (!is_array($v)) $felter[$navn.'['.$nr.']'] = (string)$v;
+			}
+		} else {
+			$felter[$navn] = (string)$vaerdi;
+		}
+	}
+	unset($felter['loendato']);
+	unset($felter['listevalg_ny']); # the list type stays the one the piecework lines are drawn for
+	$json = json_encode($felter, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
+	if ($json === false) return;
+	print "<script type=\"text/javascript\">
+	(function (v) {
+		var f = document.forms['loen'];
+		if (!f) return;
+		for (var i = 0; i < f.elements.length; i++) {
+			var e = f.elements[i], t = (e.type || '').toLowerCase(), har = v.hasOwnProperty(e.name);
+			if (!e.name || e.disabled || e.readOnly || t == 'submit' || t == 'button') continue;
+			if (t == 'checkbox') {
+				e.checked = e.defaultChecked = har;
+			} else if (!har) {
+				continue;
+			} else if (t == 'radio') {
+				e.checked = e.defaultChecked = (e.value == v[e.name]);
+			} else if (e.tagName == 'SELECT') {
+				for (var o = 0; o < e.options.length; o++) {
+					e.options[o].defaultSelected = (e.options[o].value == v[e.name]);
+					if (e.options[o].defaultSelected) e.selectedIndex = o;
+				}
+			} else {
+				e.value = e.defaultValue = v[e.name];
+			}
+		}
+	})($json);
+	</script>\n";
+}
+
+/**
+ * The one SQL rule for "this Dyrtid slip has a date" (SST-961). A missing date is stored as 01-01-1970, so a
+ * date up to 01-01-1970 (also a typo year such as 0201) or NULL counts as no date. Overfør of an akkordafregning
+ * only stamps Dyrtid slips that meet it, and akkDyrtidUdenDato() lists the ones that do not, so both use this rule.
+ *
+ * @return string SQL condition on loen.loendate, true only for a real date.
+ */
+function akkDyrtidMedDatoSql() {
+	return "coalesce(loendate > '1970-01-01', false)";
+}
+
+/**
+ * The SQL condition for the Dyrtid slips on an akkordafregning's list (same case and task, art 'akktimer', not
+ * the slip itself, linked to this slip or to none), as the list in ret_loen() draws them. Rejected slips are
+ * left out by the callers, as in the list. Used by akkDyrtidUdenDato() and akkDyrtidLaas().
+ *
+ * @param int $id     The akkordafregning (loen.id).
+ * @param int $sag_id The case (sager.id).
+ * @param int $opg_id The task (opgaver.id); 0 = no task.
+ * @return string SQL condition on loen, values cast to int.
+ */
+function akkDyrtidListeSql($id, $sag_id, $opg_id) {
+	$id     = (int)$id;
+	$sag_id = (int)$sag_id;
+	$opg_id = (int)$opg_id;
+	return "sag_id='$sag_id' and opg_id='$opg_id' and art='akktimer' and id != '$id' and (master_id='$id' or master_id='0' or master_id is NULL)";
+}
+
+/**
+ * Locks the Dyrtid slips on an akkordafregning's list (with or without a date) until the transaction of
+ * ret_loen() ends. Overfør calls it before it checks their dates, so another user cannot change a date between
+ * the check and the transfer; a save of such a slip waits until the transfer is committed.
+ * Lock order: the case, then the akkordafregning, then the slips in id order. Afvis and Godkend also lock the
+ * akkordafregning before its slips, and the case lock makes two transfers on one case wait for each other, because
+ * the transfer UPDATE also takes dated open Dyrtid slips on the case's other tasks. So no two of these paths can
+ * wait for each other in a circle (deadlock).
+ *
+ * @param int $id     The akkordafregning (loen.id).
+ * @param int $sag_id The case (sager.id).
+ * @param int $opg_id The task (opgaver.id); 0 = no task.
+ * @return void
+ */
+function akkDyrtidLaas($id, $sag_id, $opg_id) {
+	db_select("select id from sager where id='" . (int)$sag_id . "' for update", __FILE__ . " linje " . __LINE__);
+	db_select("select id from loen where id='" . (int)$id . "' for update", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select id from loen where " . akkDyrtidListeSql($id, $sag_id, $opg_id) . " order by id for update", __FILE__ . " linje " . __LINE__);
+	while (db_fetch_array($q)) {
+		// the rows are only locked
+	}
+}
+
+/**
+ * The Dyrtid slips without a date on an akkordafregning's list: the same rows as the list in ret_loen()
+ * (same case and task, art 'akktimer', not the slip itself, not linked to another slip, not rejected).
+ * A missing date is stored as 01-01-1970; a year up to 1970 is treated the same way. Such a slip is
+ * counted in the akkordafregning, but payroll never pays its Dyrtid part, so Overfør waits until it has
+ * a date.
+ *
+ * @param int $id     The akkordafregning (loen.id); 0 for a slip that is not saved yet.
+ * @param int $sag_id The case (sager.id).
+ * @param int $opg_id The task (opgaver.id); 0 = no task.
+ * @return array<int, array{id: int, nummer: string}> One entry per slip, ordered by number.
+ */
+function akkDyrtidUdenDato($id, $sag_id, $opg_id) {
+	$slips = array();
+	$qtxt = "select id,nummer,afvist from loen where " . akkDyrtidListeSql($id, $sag_id, $opg_id) . " and not " . akkDyrtidMedDatoSql() . " order by nummer";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (!trim((string)$r['afvist'])) {
+			$slips[] = array('id' => (int)$r['id'], 'nummer' => $r['nummer']);
+		}
+	}
+	return $slips;
+}
+
+/**
+ * The red note on an akkordafregning that lists Dyrtid slips without a date, with a link to each slip.
+ *
+ * @param array<int, array{id: int, nummer: string}> $slips From akkDyrtidUdenDato().
+ * @param int $sprog_id The user's language.
+ * @return string HTML paragraph.
+ */
+function akkDyrtidUdenDatoTekst($slips, $sprog_id) {
+	$links = array();
+	foreach ($slips as $slip) {
+		$links[] = "<a href=\"loen.php?id=" . (int)$slip['id'] . "&amp;funktion=ret_loen\">" . htmlspecialchars((string)$slip['nummer']) . "</a>";
+	}
+	$tekst = "<p style=\"color: red;\"><b>" . findtekst('8461|Dyrtidssedler uden dato', $sprog_id) . ":</b> ";
+	$tekst.= lcfirst(findtekst('2248|Nr.', $sprog_id)) . " " . implode(', ', $links) . ". ";
+	$tekst.= findtekst('8462|Akkordafregningen kan ikke overføres, før sedlerne har en dato. En overført seddel skal først afvises af en godkender.', $sprog_id) . "</p>\n";
+	return $tekst;
+}
 
 ?>

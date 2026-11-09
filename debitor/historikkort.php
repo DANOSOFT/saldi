@@ -1,5 +1,5 @@
 <?php
-// --- debitor/historikkort.php --- patch 4.1.1 --- 2025-11-21 ---
+// --- debitor/historikkort.php --- ver 5.1.0 --- 2026-11-01 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20190213 MSC - Rettet isset fejl og db fejl + rettet topmenu design til
 // 20190215 MSC - Rettet topmenu design
@@ -26,6 +26,7 @@
 // 20250808 PHR - Added $id to returside 
 // 20251121 LOE - Modified icons to SVG format and buttons to fit the new design
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
+// 20261101 CL/SZ MB-129 Saving a note no longer fails when a contact has an apostrophe in the name: the posted names are escaped before the lookup.
 
 @session_start();
 $s_id = session_id();
@@ -158,8 +159,8 @@ function sanitizeFormInputs($post) {
         'id' => $post['id'],
         'egen_id' => $post['egen_id'],
         'historik_id' => $post['historik_id'] ?? null,
-        'ansat' => $post['ansat'],
-        'kontakt' => $post['kontakt'],
+        'ansat' => db_escape_string($post['ansat'] ?? ''),
+        'kontakt' => db_escape_string($post['kontakt'] ?? ''),
         'kontaktet' => !empty($post['kontaktet']) 
             ? usdate($post['kontaktet']) 
             : date("Y-m-d"),

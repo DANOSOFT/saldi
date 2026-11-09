@@ -1,10 +1,12 @@
 <?php
-// --- debitor/generalLedger.php --- patch 5.0.0 --- 2026-10-15 ---
+// --- debitor/generalLedger.php --- patch 5.1.0 --- 2026-11-03 ---
 // 20260908 CDX/LH Restored the reconciled credit entry link for undoing reconciliation.
 // 20261015 CL/LH PR #697 review: escape konto_fra in the account lookup; it comes straight from the request.
 // 20261015 CL/LH PR #697 review: returside from GET is kept only as a relative Saldi .php page, so the Luk link
 //                cannot become a javascript: or off-site URL; anything else falls back to the default.
 //                PHPDoc block on renderDebitorGeneralLedgerGrid().
+// 20261103 LOE SST-908 The Åbne poster filter runs the balance over the open posts only, and the
+//                print and email requests carry the view that is selected.
 
 function debitorGeneralLedgerEscape($value)
 {
@@ -293,7 +295,7 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 		print "<div class=\"headerbtnRght headLink\">";
 		print "<a href='javascript:void(0);' onclick=\"showLangModalKontoprint()\" title='" . debitorGeneralLedgerEscape($printLabel) . "'><i class='fa fa-print fa-lg'></i> " . debitorGeneralLedgerEscape($printLabel) . "</a>";
 		print "&nbsp;&nbsp;";
-		print "<a href='javascript:void(0);' onclick=\"window.open('" . debitorGeneralLedgerEscape($emailUrl) . "','kontomail','" . debitorGeneralLedgerEscape($jsvars) . "')\" title='Email'><i class='fa fa-envelope fa-lg'></i> " . findtekst('52|E-mail', $sprog_id) . "</a>";
+		print "<a href='javascript:void(0);' onclick=\"debitorOpenKontomail('" . debitorGeneralLedgerEscape($emailUrl) . "')\" title='Email'><i class='fa fa-envelope fa-lg'></i> " . findtekst('52|E-mail', $sprog_id) . "</a>";
 		print "</div>";
 		print "</div>";
 		print "<div class='content-noside debitor-ledger-page-shell'>";
@@ -306,11 +308,17 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 
 	$openingBalance = 0;
 	$openingBalanceDkk = 0;
+	$openingOpenBalance = 0;
+	$openingOpenBalanceDkk = 0;
 	$periodEntries = array();
 	foreach ($entries as $entry) {
 		if ($fromdate && $entry['transdate'] < $fromdate) {
 			$openingBalance += $entry['amount'];
 			$openingBalanceDkk += $entry['dkkamount'];
+			if ($entry['udlignet'] != '1') {
+				$openingOpenBalance += $entry['amount'];
+				$openingOpenBalanceDkk += $entry['dkkamount'];
+			}
 		} else {
 			$periodEntries[] = $entry;
 		}
@@ -318,6 +326,11 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 
 	$kontosum = $openingBalance;
 	$dkksum = $openingBalanceDkk;
+	// The "Åbne poster" filter hides the settled rows in the browser, so the column needs a
+	// second running sum that only counts the rows the filter keeps; otherwise every visible
+	// balance still carries the hidden posts (SST-908).
+	$openKontosum = $openingOpenBalance;
+	$openDkksum = $openingOpenBalanceDkk;
 	$visiblerows = 0;
 	$primoText = '';
 	if ($valuta != 'DKK') {
@@ -365,7 +378,13 @@ print "</div>";
 	print "</div>";
 	print "<div class='debitor-ledger-opening-line'>";
 	print "<div class='debitor-ledger-opening-label'>" . debitorGeneralLedgerEscape($primoLabel . $primoText) . "</div>";
-	print "<div class='debitor-ledger-opening-amount' title='DKK " . debitorGeneralLedgerEscape(dkdecimal($openingBalanceDkk, 2)) . "'>" . debitorGeneralLedgerEscape(dkdecimal($openingBalance, 2)) . "</div>";
+	print "<div class='debitor-ledger-opening-amount'"
+		. " title='DKK " . debitorGeneralLedgerEscape(dkdecimal($openingBalanceDkk, 2)) . "'"
+		. " data-saldo-all='" . debitorGeneralLedgerEscape(dkdecimal($openingBalance, 2)) . "'"
+		. " data-saldo-open='" . debitorGeneralLedgerEscape(dkdecimal($openingOpenBalance, 2)) . "'"
+		. " data-title-all='DKK " . debitorGeneralLedgerEscape(dkdecimal($openingBalanceDkk, 2)) . "'"
+		. " data-title-open='DKK " . debitorGeneralLedgerEscape(dkdecimal($openingOpenBalanceDkk, 2)) . "'"
+		. ">" . debitorGeneralLedgerEscape(dkdecimal($openingBalance, 2)) . "</div>";
 	print "</div>";
 	print "</div>";
 
@@ -453,6 +472,11 @@ print "</div>";
 		$kontosum += afrund($entry['amount'], 2);
 		$dkksum += $entry['dkkamount'];
 		$dkksum = afrund($dkksum, 2);
+		if ($entry['udlignet'] != '1') {
+			$openKontosum += afrund($entry['amount'], 2);
+			$openDkksum += $entry['dkkamount'];
+			$openDkksum = afrund($openDkksum, 2);
+		}
 		$balanceDisplay = dkdecimal($kontosum, 2);
 		$balanceTitle = '';
 		$diff = 0;
@@ -488,7 +512,13 @@ print "</div>";
 			$balanceDisplay = debitorGeneralLedgerEscape($balanceDisplay);
 		}
 
-		print "<tr class='$rowClass'>";
+		$openBalanceDisplay = debitorGeneralLedgerEscape(dkdecimal($openKontosum, 2));
+		$openBalanceTitle = '';
+		if ($valuta != 'DKK') {
+			$openBalanceTitle = "DKK: " . dkdecimal($openDkksum, 2);
+		}
+
+		print "<tr class='$rowClass' data-post-open='" . ($entry['udlignet'] != '1' ? '1' : '0') . "'>";
 		print "<td>" . debitorGeneralLedgerEscape(dkdato($entry['transdate'])) . "</td>";
 		print "<td>$refCell</td>";
 		print "<td>" . debitorGeneralLedgerEscape($entry['faktnr']) . "</td>";
@@ -499,7 +529,12 @@ print "</div>";
 		print "<td>$ffdag</td>";
 		print "<td class='text-right'>$debitCell</td>";
 		print "<td class='text-right'>$creditCell</td>";
-		print "<td class='text-right' title='" . debitorGeneralLedgerEscape($balanceTitle) . "'>$balanceDisplay</td>";
+		print "<td class='text-right' title='" . debitorGeneralLedgerEscape($balanceTitle) . "'"
+			. " data-title-all='" . debitorGeneralLedgerEscape($balanceTitle) . "'"
+			. " data-title-open='" . debitorGeneralLedgerEscape($openBalanceTitle) . "'>"
+			. "<span class='debitor-saldo-all'>$balanceDisplay</span>"
+			. "<span class='debitor-saldo-open' style='display:none'>$openBalanceDisplay</span>"
+			. "</td>";
 		print "</tr>";
 	}
 
@@ -512,7 +547,10 @@ print "</div>";
 	print "</tbody></table></div>";
 	print "<div class='debitor-ledger-footer-bar'>";
 	print "<div class='debitor-ledger-footer-label'>Balance (DKK)</div>";
-	print "<div class='debitor-ledger-footer-amount'>" . debitorGeneralLedgerEscape(dkdecimal($dkksum, 2)) . "</div>";
+	print "<div class='debitor-ledger-footer-amount'"
+		. " data-saldo-all='" . debitorGeneralLedgerEscape(dkdecimal($dkksum, 2)) . "'"
+		. " data-saldo-open='" . debitorGeneralLedgerEscape(dkdecimal($openDkksum, 2)) . "'"
+		. ">" . debitorGeneralLedgerEscape(dkdecimal($dkksum, 2)) . "</div>";
 	print "</div>";
 	print "</div>";
 
@@ -537,11 +575,18 @@ function showLangModalKontoprint() {
 function closeLangModalKontoprint() {
   document.getElementById("langModalKontoprint").style.display = "none";
 }
+function debitorKildeParam() {
+  var sel = document.getElementById("debitorPostFilter");
+  return (sel && sel.value === "open") ? "&kilde=openpost" : "";
+}
 function proceedKontoprint() {
   var lang = document.getElementById("langSelectKontoprint").value;
-  var url = "kontoprint.php?dato_fra=' . $dato_fra . '&dato_til=' . $dato_til . '&konto_fra=' . $konto_fra . '&konto_til=' . $konto_til . '&kontoart=D&lang=" + lang;
+  var url = "kontoprint.php?dato_fra=' . $dato_fra . '&dato_til=' . $dato_til . '&konto_fra=' . $konto_fra . '&konto_til=' . $konto_til . '&kontoart=D" + debitorKildeParam() + "&lang=" + lang;
   window.open(url, "kontoprint", "left=0,top=0,width=1000,height=700,scrollbars=yes,resizable=yes,menubar=no,location=no");
   closeLangModalKontoprint();
+}
+function debitorOpenKontomail(url) {
+  window.open(url + debitorKildeParam(), "kontomail", "' . debitorGeneralLedgerEscape($jsvars) . '");
 }
 	(function() {
 	  function updateLedgerStickyOffset() {
@@ -558,23 +603,38 @@ function proceedKontoprint() {
 })();
 
 function debitorFilterPosts(val) {
-    var rows = document.querySelectorAll(".debitor-ledger-table tbody tr:not(.debitor-ledger-empty-row)");
+    var isOpen = val === "open";
+    var rows = document.querySelectorAll(".debitor-ledger-table tbody tr[data-post-open]");
     var emptyRow = document.querySelector(".debitor-ledger-empty-row");
     var visible = 0;
     rows.forEach(function(row) {
-        if (val === "open") {
-            var hasOpenLink = row.querySelector(".debitor-ledger-open-link");
-            if (hasOpenLink) {
-                row.style.display = "";
-                visible++;
-            } else {
-                row.style.display = "none";
-            }
-        } else {
-            row.style.display = "";
+        var show = !isOpen || row.getAttribute("data-post-open") === "1";
+        row.style.display = show ? "" : "none";
+        if (show) {
             visible++;
         }
+        var allCell = row.querySelector(".debitor-saldo-all");
+        var openCell = row.querySelector(".debitor-saldo-open");
+        if (allCell) {
+            allCell.style.display = isOpen ? "none" : "";
+        }
+        if (openCell) {
+            openCell.style.display = isOpen ? "" : "none";
+            var saldoCell = openCell.parentNode;
+            if (saldoCell) {
+                saldoCell.title = isOpen ? saldoCell.getAttribute("data-title-open") : saldoCell.getAttribute("data-title-all");
+            }
+        }
     });
+    var opening = document.querySelector(".debitor-ledger-opening-amount");
+    if (opening) {
+        opening.textContent = isOpen ? opening.getAttribute("data-saldo-open") : opening.getAttribute("data-saldo-all");
+        opening.title = isOpen ? opening.getAttribute("data-title-open") : opening.getAttribute("data-title-all");
+    }
+    var footer = document.querySelector(".debitor-ledger-footer-amount");
+    if (footer) {
+        footer.textContent = isOpen ? footer.getAttribute("data-saldo-open") : footer.getAttribute("data-saldo-all");
+    }
     if (emptyRow) {
         emptyRow.style.display = visible === 0 ? "" : "none";
     }

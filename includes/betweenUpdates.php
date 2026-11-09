@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.28
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.02
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,14 @@
 // ----------------------------------------------------------------------
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
 // 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
+// 20261028 CDX/NTR Apply the tekst_key schema migration to both tenant and master databases.
+// 20261019 CL/LH MB-73: default 0 for ordrelinjer.leveret.
+//                One-time backfill of NULL leveret on sales, credit note and POS lines from their batch_salg delivery records.
+// 20261027 CL/LH MB-73 (review): the leveret backfill runs in id windows under a try-lock with a time budget per
+//                login (includes/opdat_func/backfillOrderLineDelivered.php) instead of one UPDATE at the first login.
+//                The SET DEFAULT check also matches MariaDB, which reports a missing default as the text 'NULL'.
+// 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
+//                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -69,6 +77,156 @@ if (!$udlignDateBackfilled) {
 		VALUES ('openpost_udlign_date_backfilled', 'system', 'yes', 'One-time backfill of openpost.udlign_date for settled groups that had none')",
 		__FILE__ . " linje " . __LINE__
 	);
+}
+
+// 20261022 CL/NTR tekster gets a descriptive string key (tekst_key) alongside the legacy numeric
+// tekst_id, so findtekst() can be called with keys like 'common.accept'. Nullable, added as a
+// separate column rather than retyping tekst_id. See doc/ai/convention_findtekst_keys.md.
+$tekstKeyMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$tekstKeyTargets = [false];
+if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb']) {
+	// db_select()/db_modify() route global=true to the shared master database.
+	$tekstKeyTargets[] = true;
+}
+foreach ($tekstKeyTargets as $tekstKeyGlobal) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster' AND column_name='tekst_key'";
+	$qtxt .= $tekstKeyMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $tekstKeyGlobal))) {
+		if ($tekstKeyMysql) {
+			// MySQL has no ADD COLUMN IF NOT EXISTS. Serialize this migration per database.
+			$tekstKeyLock = "CONCAT('saldi:tekst_key:', MD5(DATABASE()))";
+			$lockResult = db_fetch_array(db_select("SELECT GET_LOCK($tekstKeyLock, 30) AS acquired", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal));
+			if ((int) ($lockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the tekst_key migration lock.');
+			}
+			try {
+				// Another login may have added the column while this connection waited.
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $tekstKeyGlobal))) {
+					db_modify("ALTER TABLE tekster ADD COLUMN tekst_key VARCHAR(190)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($tekstKeyLock)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+			}
+		} else {
+			db_modify("ALTER TABLE tekster ADD COLUMN IF NOT EXISTS tekst_key VARCHAR(190)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+		}
+	}
+
+	// Composite index for findtekst() key lookups (WHERE tekst_key = ... AND sprog_id = ...).
+	if ($tekstKeyMysql) {
+		$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_name='tekster' AND index_name='idx_tekster_sprog_key' AND table_schema = DATABASE()";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $tekstKeyGlobal))) {
+			$tekstKeyIdxLock = "CONCAT('saldi:tekst_key_idx:', MD5(DATABASE()))";
+			$idxLockResult = db_fetch_array(db_select("SELECT GET_LOCK($tekstKeyIdxLock, 30) AS acquired", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal));
+			if ((int) ($idxLockResult['acquired'] ?? 0) !== 1) {
+				throw new RuntimeException('Could not acquire the tekst_key index migration lock.');
+			}
+			try {
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $tekstKeyGlobal))) {
+					db_modify("CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+				}
+			} finally {
+				db_select("SELECT RELEASE_LOCK($tekstKeyIdxLock)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+			}
+		}
+	} else {
+		db_modify("CREATE INDEX IF NOT EXISTS idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)", __FILE__ . " linje " . __LINE__, $tekstKeyGlobal);
+	}
+}
+
+// 20261019 CL/LH MB-73: ordrelinjer.leveret had no default and opret_ordrelinje() never set it, so
+// linjeopdat()'s leveret+n stayed NULL. debitor/ordre.php re-syncs leveret from the delivery records
+// whenever the order is shown (the sum of batch_salg.antal for the line, order and item), but fast
+// invoicing never shows it, so invoiced and credited lines kept leveret NULL.
+// The default is set only while it is still missing, checked in the current tenant's database/schema
+// like the column checks now in includes/opdat_5.0.php. SET DEFAULT is a catalog change only; existing
+// rows are not rewritten.
+$leveretMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+// 20261027 CL/LH MB-73 (review): MariaDB reports a missing default as the text 'NULL', not as NULL.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'ordrelinjer' AND column_name = 'leveret'";
+$qtxt .= " AND (column_default IS NULL OR column_default = 'NULL')";
+$qtxt .= $leveretMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE ordrelinjer ALTER COLUMN leveret SET DEFAULT 0", __FILE__ . " linje " . __LINE__);
+}
+// One-time backfill, flagged in settings like the pool_files backfills in opdat_5.0.php: leveret becomes the same
+// batch_salg sum ordre.php shows, for sales, credit note and POS lines that have delivery records. Lines
+// without any (not delivered, text lines) are left as they are, as ordre.php leaves them. Purchase lines are
+// excluded: their receipts are in batch_kob and kreditor/ordre.php keeps their leveret.
+// 20261027 CL/LH MB-73 (review): as one UPDATE this took 4.5 minutes at the first login on a large POS tenant.
+// backfillOrderLineDelivered() runs it in windows of ordrelinjer ids under a try-lock and stops after about a
+// second; later logins carry on from the stored window, and a login that finds the lock taken skips it.
+require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
+backfillOrderLineDelivered($db_type);
+
+// 20261102 CL/ASR Self-service signup (signup/*.php, doc/signup.md, written by PS): its tables in the master
+// database and the trial columns on regnskab. Master only (global=true); runs from any tenant's login, so the
+// tables exist before the website's form is pointed at signup/. Serialized with an advisory lock (two logins at
+// the same moment would otherwise both try the CREATE), and once done a master settings flag
+// (var_grp 'system', var_name 'signup_schema') makes it a single query per login. The flag means this block never
+// runs again: a later change to the signup tables needs a block (and flag) of its own.
+if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb']) {
+	$signupFlag = "SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'signup_schema'";
+	if (!db_fetch_array(db_select($signupFlag, __FILE__ . " linje " . __LINE__, true))) {
+		$signupMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+		$signupLock = $signupMysql ? "GET_LOCK('saldi:signup_schema', 30)" : "pg_advisory_lock(hashtext('saldi:signup_schema'))";
+		$signupUnlock = $signupMysql ? "RELEASE_LOCK('saldi:signup_schema')" : "pg_advisory_unlock(hashtext('saldi:signup_schema'))";
+		$signupLocked = db_fetch_array(db_select("SELECT $signupLock AS acquired", __FILE__ . " linje " . __LINE__, true));
+		// MySQL returns 0 when the lock was not granted in time; the next login tries again.
+		if (!$signupMysql || (int) ($signupLocked['acquired'] ?? 0) === 1) {
+			try {
+				// Another login may have finished it while this one waited for the lock.
+				if (!db_fetch_array(db_select($signupFlag, __FILE__ . " linje " . __LINE__, true))) {
+					$signupSchema = $signupMysql ? "table_schema = DATABASE()" : "table_schema = current_schema()";
+					$signupId = $signupMysql ? 'id INT AUTO_INCREMENT NOT NULL' : 'id SERIAL NOT NULL';
+					$signupNow = $signupMysql ? 'CURRENT_TIMESTAMP' : 'now()';
+					$signupHasTable = function ($table) use ($signupSchema) {
+						$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = '$table' AND $signupSchema";
+						return (bool) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
+					};
+					$signupHasColumn = function ($table, $column) use ($signupSchema) {
+						$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = '$table' AND column_name = '$column' AND $signupSchema";
+						return (bool) db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
+					};
+					if (!$signupHasTable('signup_pending')) {
+						$qtxt = "CREATE TABLE signup_pending ($signupId, created TIMESTAMP NOT NULL DEFAULT $signupNow, status VARCHAR(20) NOT NULL DEFAULT 'pending', ";
+						$qtxt.= "pakke VARCHAR(20) NOT NULL, source VARCHAR(40), navn VARCHAR(80) NOT NULL, email VARCHAR(120) NOT NULL, tlf VARCHAR(40), ";
+						$qtxt.= "cvrnr VARCHAR(20), firmanavn VARCHAR(90) NOT NULL, addr1 VARCHAR(60), addr2 VARCHAR(60), postnr VARCHAR(10), bynavn VARCHAR(60), ";
+						$qtxt.= "regnskab VARCHAR(60) NOT NULL, token_hash VARCHAR(64), token_expires TIMESTAMP NULL, old_token_hash VARCHAR(64), resend_hash VARCHAR(64), ";
+						$qtxt.= "mails_sent INTEGER NOT NULL DEFAULT 0, last_mail TIMESTAMP NULL, ip VARCHAR(45), activated TIMESTAMP NULL, regnskab_id INTEGER, fejl TEXT, ";
+						$qtxt.= "navn_fra_cvr SMALLINT, PRIMARY KEY (id))";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+						db_modify("CREATE INDEX signup_pending_token_hash_idx ON signup_pending (token_hash)", __FILE__ . " linje " . __LINE__, true);
+						db_modify("CREATE INDEX signup_pending_email_idx ON signup_pending (email)", __FILE__ . " linje " . __LINE__, true);
+					} elseif (!$signupHasColumn('signup_pending', 'navn_fra_cvr')) {
+						// 1 = the proposed account name came from the CVR register, 0 = typed (tables from before 20261021)
+						db_modify("ALTER TABLE signup_pending ADD COLUMN navn_fra_cvr SMALLINT", __FILE__ . " linje " . __LINE__, true);
+					}
+					if (!$signupHasTable('signup_events')) {
+						$qtxt = "CREATE TABLE signup_events ($signupId, ts TIMESTAMP NOT NULL DEFAULT $signupNow, kind VARCHAR(20) NOT NULL, ";
+						$qtxt.= "ip VARCHAR(45), email VARCHAR(120), PRIMARY KEY (id))";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+						db_modify("CREATE INDEX signup_events_ts_idx ON signup_events (ts)", __FILE__ . " linje " . __LINE__, true);
+					}
+					if (!$signupHasTable('signup_cvr_cache')) {
+						$qtxt = "CREATE TABLE signup_cvr_cache (q VARCHAR(120) NOT NULL, result TEXT, fetched TIMESTAMP NOT NULL DEFAULT $signupNow, PRIMARY KEY (q))";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+					}
+					// lukkes_kommentar: admin/admin_panel.php also adds it when first opened; the signup writes why the account closes.
+					foreach (['trial_start' => 'DATE', 'trial_end' => 'DATE', 'pakke' => 'VARCHAR(20)', 'lukkes_kommentar' => 'TEXT'] as $signupColumn => $signupType) {
+						if (!$signupHasColumn('regnskab', $signupColumn)) {
+							db_modify("ALTER TABLE regnskab ADD COLUMN $signupColumn $signupType", __FILE__ . " linje " . __LINE__, true);
+						}
+					}
+					$qtxt = "INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('signup_schema', 'system', '1', ";
+					$qtxt.= "'Self-service signup tables created (includes/betweenUpdates.php, 20261102)')";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+				}
+			} finally {
+				db_select("SELECT $signupUnlock", __FILE__ . " linje " . __LINE__, true);
+			}
+		}
+	}
 }
 
 ?>
