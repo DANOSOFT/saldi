@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.0 ----2026-11-03--------------
+// --- includes/db_query.php ---ver 5.1.0 ----2026-11-09--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,12 @@
 // 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
 // 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
 // 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
+// 20261109 CL/SZ db_escape_string(): convert non-UTF-8 input to UTF-8 only when $db_encode is UTF8.
+//                On a LATIN9 connection this stored Søren as SÃžren (MB-135).
+//                On a LATIN9 connection, valid UTF-8 input (e.g. REST/JSON callers) now becomes ISO-8859-15.
+// 20261109 CL/SZ db_connect(): MySQL has no 'latin9' charset, so a LATIN9 install could not connect (MB-135).
+//                Use 'latin1' like db_create() does, and 'utf8mb4' for UTF8 instead of the 3-byte 'utf8'.
+//                db_create() sets character_set_client to 'utf8mb4' too, so it no longer undoes that.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -158,11 +164,11 @@ if (!function_exists('db_connect')) {
 				$errTxt = "<h1>Fejl: PHP-funktionen <b>mysqli_connect()</b> kunne ikke findes eller forbindelsen fejlede</h1>" .
 						"<p>Er både MySQLi og php-mysqli installeret?</p>";
 			} else {
-				// Set character encoding to UTF-8 or latin9 based on $db_encode
+				// Set character encoding to utf8mb4 or latin1 (MySQL has no latin9) based on $db_encode
 				if ($db_encode == 'UTF8') {
-					mysqli_query($connection, "SET NAMES 'utf8'");
+					mysqli_query($connection, "SET NAMES 'utf8mb4'"); #20261109 'utf8' is the 3-byte utf8mb3 (MB-135)
 				} else {
-					mysqli_query($connection, "SET NAMES 'latin9'");
+					mysqli_query($connection, "SET NAMES 'latin1'"); #20261109 MySQL has no latin9; latin1 matches db_create() (MB-135)
 				}
 			}
 		} else {
@@ -571,9 +577,14 @@ if (!function_exists('db_escape_string')) {
 	function db_escape_string($qtext) {
 		global $db_type;
 		global $connection; #20190704
+		global $db_encode;
 		$qtext = str_replace("\0", "", $qtext);
-		if (!mb_check_encoding($qtext, 'UTF-8')) {
-			$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
+		if ($db_encode == 'UTF8') {
+			if (!mb_check_encoding($qtext, 'UTF-8')) {
+				$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
+			}
+		} elseif (is_string($qtext) && preg_match('/[\x80-\xFF]/', $qtext) && mb_check_encoding($qtext, 'UTF-8')) { #20261109 LATIN9 connection: UTF-8 input becomes ISO-8859-15 (MB-135)
+			$qtext = mb_convert_encoding($qtext, 'ISO-8859-15', 'UTF-8');
 		}
 		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
 		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
@@ -666,7 +677,7 @@ if (!function_exists('db_create')) {
 			db_modify("CREATE DATABASE $db",__FILE__ . " linje " . __LINE__);
 			if ($db_type=="mysql") mysql_select_db($db);
 			else mysqli_select_db($connection,$db);
-			if ($db_encode=="UTF8") db_modify("SET character_set_client = 'UTF8'",__FILE__ . " linje " . __LINE__);
+			if ($db_encode=="UTF8") db_modify("SET character_set_client = 'utf8mb4'",__FILE__ . " linje " . __LINE__); #20261109 match db_connect() (MB-135)
 			else db_modify("SET character_set_client = 'LATIN1'",__FILE__ . " linje " . __LINE__);
 		} else {
 			if ($db_encode=="UTF8") db_modify("CREATE DATABASE $db encoding = 'UTF8' template template0",__FILE__ . " linje " . __LINE__);
