@@ -30,6 +30,7 @@
 // 20261109 CL/SS SST-919 review: Lock and recheck the orders before posting, so two cash counts can't settle the same sales.
 //                Refuse a customer whose debtor group has no collective account.
 //                Leave an order out while one of its commission lines has no configured account pair.
+//                Warn how many orders were left out for a missing account pair.
 
 /**
  * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
@@ -83,21 +84,37 @@ if ($commissionAccountUsed && $customerCommissionAccountUsed) {
 	$debitAccount['kb'] = $customerCommissionAccountUsed;
 }
 
+$orderScope = "(ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.status >= '3' and ordrer.felt_5 = '$kasse' ";
+$orderScope.= "and ordrer.fakturadate >= '$commissionFromDate' and ordrer.fakturadate <= '$commissionToDate' ";
+$orderScope.= "and (ordrer.settletime = '0' or ordrer.settletime is null) ";
+$orderScope.= "and exists (select 1 from pos_betalinger where pos_betalinger.ordre_id = ordrer.id) ";
+
+$commissionLine = array();
+foreach (array('kn', 'kb') as $prefix) {
+	$commissionLine[$prefix] = "select 1 from ordrelinjer other, varer otherItem where other.ordre_id = ordrer.id ";
+	$commissionLine[$prefix].= "and otherItem.id = other.vare_id and otherItem.varenr like '$prefix%' and otherItem.provision > '0' ";
+	$commissionLine[$prefix].= "and other.varenr like '$prefix%' and other.pris != '0' and other.kostpris > '0'";
+}
+
 $otherCommission = '';
-foreach (array_diff(array('kn', 'kb'), array_keys($debitAccount)) as $prefix) {
-	$otherCommission.= "and not exists (select 1 from ordrelinjer other, varer otherItem where other.ordre_id = ordrer.id ";
-	$otherCommission.= "and otherItem.id = other.vare_id and otherItem.varenr like '$prefix%' and otherItem.provision > '0' ";
-	$otherCommission.= "and other.varenr like '$prefix%' and other.pris != '0' and other.kostpris > '0') ";
+$deferredOrders = array();
+foreach (array_diff(array('kn', 'kb'), array_keys($debitAccount)) as $missing) {
+	$otherCommission.= "and not exists ($commissionLine[$missing]) ";
+	foreach (array_keys($debitAccount) as $prefix) {
+		$qtxt = "select count(*) as orders from ordrer where $orderScope";
+		$qtxt.= "and exists ($commissionLine[$prefix]) and exists ($commissionLine[$missing])";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($r && (int)$r['orders']) {
+			$deferredOrders[$missing] = (int)$r['orders'];
+		}
+	}
 }
 
 $customerShare = $customerItemNo = $accountTotal = $settledOrders = array();
 foreach ($debitAccount as $prefix => $account) {
 	$qtxt = "select ordrelinjer.id as line_id, ordrelinjer.ordre_id, ordrelinjer.antal, ordrelinjer.kostpris, varer.varenr ";
 	$qtxt.= "from ordrelinjer, ordrer, varer where ordrelinjer.ordre_id = ordrer.id and varer.id = ordrelinjer.vare_id ";
-	$qtxt.= "and (ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.status >= '3' and ordrer.felt_5 = '$kasse' ";
-	$qtxt.= "and ordrer.fakturadate >= '$commissionFromDate' and ordrer.fakturadate <= '$commissionToDate' ";
-	$qtxt.= "and (ordrer.settletime = '0' or ordrer.settletime is null) ";
-	$qtxt.= "and exists (select 1 from pos_betalinger where pos_betalinger.ordre_id = ordrer.id) $otherCommission";
+	$qtxt.= "and $orderScope$otherCommission";
 	$qtxt.= "and ordrelinjer.varenr like '$prefix%' and varer.varenr like '$prefix%' and varer.provision > '0' ";
 	$qtxt.= "and ordrelinjer.pris != '0' and ordrelinjer.kostpris > '0' order by varer.varenr, ordrelinjer.id";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -224,5 +241,9 @@ foreach ($accountTotal as $account => $commissionSum) {
 if ($settledOrders) {
 	$qtxt = "update ordrer set settletime = '$settletime' where id in (" . implode(',', $settledOrders) . ")";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+foreach ($deferredOrders as $missing => $orders) {
+	$txt = findtekst('7714|%s ordrer med kommission er ikke afregnet, fordi de også har kommissionsvarer, der begynder med %s, uden opsatte kommissionskonti. Opsæt kontiene og afregn igen.', $sprog_id);
+	alert(sprintf($txt, $orders, $missing));
 }
 ?> 

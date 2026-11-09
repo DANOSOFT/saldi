@@ -205,8 +205,10 @@ try {
 	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (11,3,'kn1001001',1,10,5),(11,1,'kb1001001',1,14,7)");
 	$before = sideEffects();
 	settle('22-11-2026', '22-11-2026', 'on', '', array('kb'));
-	check(!$alerts && sideEffects() === $before && value('SELECT settletime FROM ordrer WHERE id = 11') === '0',
-		'An order with commission lines for an unconfigured account pair is left out, not half settled');
+	check(count($alerts) === 1 && strpos($alerts[0], '1 ordrer') === 0 && strpos($alerts[0], 'med kn,') !== false
+		&& sideEffects() === $before && value('SELECT settletime FROM ordrer WHERE id = 11') === '0',
+		'An order with commission lines for an unconfigured account pair is left out with a message, not half settled');
+	$alerts = array();
 	settle('22-11-2026', '22-11-2026', 'on', '');
 	check(!$alerts && balance() === '0.00' && value("SELECT amount FROM openpost WHERE konto_nr = '1001' AND kladde_id = 0 ORDER BY id DESC LIMIT 1") == -12
 		&& value('SELECT settletime FROM ordrer WHERE id = 11') !== '0', 'With both account pairs the mixed order settles both lines');
