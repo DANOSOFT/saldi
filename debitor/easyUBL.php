@@ -1,9 +1,11 @@
 <?php
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261109 CL/MMR SST-984 The e-invoice counter is updated here instead of by an HTTP call to debitor/increaseInvoiceNumber.php, which is removed.
+//                 That file needed no login and put ?db= unescaped into SQL against the master database.
 
     // This file is used to receive webhooks from EasyUBL
 
-    include("../includes/connect.php");
+    include(__DIR__ . "/../includes/connect.php");
     // Mail function
     function sendSimpleMail($to, $subject, $message, $from = null) {
         // Set default sender if not provided
@@ -29,6 +31,18 @@
         return mail($to, $subject, $message, $headerString);
     }
 
+    /**
+     * Counts one e-invoice for the account in the master database (regnskab.invoices).
+     * SST-984: this used to be an HTTP call to debitor/increaseInvoiceNumber.php, which anyone could call.
+     *
+     * @param string $db The account database name the locator answered with.
+     * @return void
+     */
+    function increaseEinvoiceCount($db) {
+        $qtxt = "UPDATE regnskab SET invoices = COALESCE(invoices, 0) + 1 WHERE db = '" . db_escape_string($db) . "'";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+    }
+
     // Retrieving webhook data
     $webhookData = file_get_contents('php://input');
     /* echo $randomString; */
@@ -42,12 +56,6 @@
     }
     // get base64 encoded msg
     $base64 = json_decode($webhookData, true);
-
-    // get server name based on domain
-    $domain = "https://".$_SERVER['SERVER_NAME'];
-    $path = trim($_SERVER['REQUEST_URI'], '/');
-    $firstFolder = explode('/', $path)[0];
-    $serverName = "$domain/$firstFolder";
 
     // get db name
     $companyId = json_decode($webhookData, true);
@@ -110,12 +118,7 @@
             // decode base64
             $decoded = base64_decode($base64["base64EncodedMessage"]);
             file_put_contents("../temp/$db/msg-$timestamp.json", ["message" => $decoded]);
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, "$serverName/debitor/increaseInvoiceNumber.php?db=$db");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            $res = curl_exec($ch);
-            curl_close($ch);
-            file_put_contents("../temp/$db/increase-$timestamp.json", $res);
+            increaseEinvoiceCount($db);
         }
         file_put_contents("../temp/$db/res-$timestamp.json", $webhookData);
     }
