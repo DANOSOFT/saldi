@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- ver 5.0.0 --- 2026.10.23 ---
+// --- admin/vis_regnskaber.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,23 +36,17 @@ $s_id=session_id();
 //                  sorting by it was a fatal error. It now comes from license_features (feature_key
 //                  'booking', see license_manager.php) via a left join, and the sort/sort2 params are
 //                  whitelisted before they reach ORDER BY.
-// 20261020 CL/ASR Review fixes: LATIN9-safe JSON for the page script, the hidden save bar is inert, the table scrolls
-//                  sideways on narrow windows, saving keeps sort and Vis lukkede, sort links and Vis lukkede ask before
-//                  dropping unsaved changes, tall dialogs scroll.
-// 20261029 CL/ASR "Sidst aktiv" rounds the day count (DST), the recalculation dialog says it covers every account in the
-//                  list (search does not narrow it), the save bar wraps on phone widths, recalculation reconnects to
-//                  master after creating a missing database, unsaved edits are guarded on every way off the page, and
-//                  a late master warning response for an earlier click is ignored.
-// 20261023 CL/ASR Ret/Lås, Vis lukkede and Genberegn keep the sort direction the page was opened with (they carried the
-//                  toggled value and flipped the order when sorted on one column); rows lose the pointer cursor in edit mode.
-// 20261008 CL/ASR New page layout aligned with the settings/front-page redesign (one card, search,
-//                  status as dot + text, edit mode with save bar, dialogs instead of confirm()).
-//                  Same features and same GET/POST parameters as before: sort/sort2/desc, showClosed,
-//                  rediger, beregn, submit. The dead $menu=='S' branch and the hard-coded blue
-//                  topline are gone; buttons use the user's buttonColor. Output is now escaped.
-//                  Recalculation no longer echoes its SQL; it reports a summary instead. Edit mode, saving and
-//                  recalculation are admin-only (users with adgang_til get the read-only list).
-//                  New texts go through vr_t() (da/en) instead of findtekst('plain text'), which is uncached.
+// 20261008 CL/ASR New page layout aligned with the settings/front-page redesign (one card, search, status as dot + text, edit mode with save bar, dialogs instead of confirm()).
+//                 Same features and same GET/POST parameters as before: sort/sort2/desc, showClosed, rediger, beregn, submit.
+//                 The dead $menu=='S' branch and the hard-coded blue topline are gone; buttons use the user's buttonColor.
+//                 Output is now escaped.
+//                 Recalculation no longer echoes its SQL; it reports a summary instead.
+//                 Edit mode, saving and recalculation are admin-only (users with adgang_til get the read-only list).
+//                 New texts go through vr_t() (da/en) instead of findtekst('plain text'), which is uncached.
+// 20261020 CL/ASR Review fixes: LATIN9-safe JSON for the page script, the hidden save bar is inert, the table scrolls sideways on narrow windows, saving keeps sort and Vis lukkede, sort links and Vis lukkede ask before dropping unsaved changes, tall dialogs scroll.
+// 20261023 CL/ASR Ret/Lås, Vis lukkede and Genberegn keep the sort direction the page was opened with (they carried the toggled value and flipped the order when sorted on one column); rows lose the pointer cursor in edit mode.
+// 20261029 CL/ASR "Sidst aktiv" rounds the day count (DST), the recalculation dialog says it covers every account in the list (search does not narrow it), the save bar wraps on phone widths, recalculation reconnects to master after creating a missing database, unsaved edits are guarded on every way off the page, and a late master warning response for an earlier click is ignored.
+// 20261109 CL/ASR History lines put in date order, one sentence per continuation line; no code change.
 
 $css="../css/standard.css";
 $title="vis regnskaber";
