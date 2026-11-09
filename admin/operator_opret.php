@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/operator_opret.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- admin/operator_opret.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 //                 The original page is unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // 20261029 CL/ASR The account is now created by create_regnskab() from includes/opretfunc.php instead of a copy of opret(), so the page keeps only the form, the account type, plan/trial and partner choices.
 //                 Company details posted with fra_formular are passed on, as admin/opret.php does, and the administrator's password is hashed as typed (an apostrophe was hashed escaped and the login failed).
+// 20261109 CL/ASR A requested panel login with a password under 6 characters is refused before the account is created, and an error from partner_create_for_ledger() is shown as a warning on the new account's card (review #785).
 
 @session_start();
 $s_id=session_id();
@@ -132,6 +133,10 @@ if ($_POST){
 		print "<BODY onLoad=\"javascript:alert('".findtekst('2684|Alle felter SKAL udfyldes', $sprog_id)."')\">";
 		forside($regnskab,$brugernavn);
 		exit();
+	} elseif ($vr_type != 'normal' && isset($_POST['partner_login']) && strlen(trim($_POST['passwd'])) < 6) { # partner_create_for_ledger() skips a shorter password without a word
+		print "<BODY onLoad=\"javascript:alert('".vr_t('Adgangskoden skal være mindst 6 tegn, når der oprettes login til panelet.','The password must be at least 6 characters when a panel login is created.')."')\">";
+		forside($regnskab,$brugernavn);
+		exit();
 	} else {
 		// 20261029 CL/ASR The account is created by create_regnskab() in includes/opretfunc.php, shared with admin/opret.php
 		//                  and the sign-up API (it rolls back on failure and leaves the connection on the master database).
@@ -150,13 +155,16 @@ if ($_POST){
 		if (in_array($vr_trial, array('professionel','business'), true)) ent_start_trial($db_id, $vr_trial, 30);
 		elseif ($vr_trial === 'finans') ent_write_plan($db_id, 'finans', date('Y-m-d'), 'manual');
 		tr_register($db_id);
+		$vr_perr = '';
 		if ($vr_type != 'normal') { $vr_partner = 0; list($vr_pid, $vr_perr) = partner_create_for_ledger($db_id, $vr_type, trim((string)$_POST['regnskab']), trim((string)if_isset($_POST, '', 'cvr')), isset($_POST['can_create']), isset($_POST['partner_login']) ? array(trim($_POST['brugernavn']), trim($_POST['passwd'])) : null); }
 		if ($vr_partner && ($vr_pp = db_fetch_array(db_select("select * from partners where id = '$vr_partner' and status = 'active'", __FILE__ . " linje " . __LINE__)))) {
 			db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note) values ('$db_id', '$vr_partner', '".($vr_pp['kind'] == 'koncern' ? 'owner' : 'full')."', '".(int)partner_current_user()['id']."', 'oprettet med regnskabet')", __FILE__ . " linje " . __LINE__);
 			partner_log('partner.link_added', $db_id, $vr_partner, $vr_pp['name'].' (ved oprettelse)');
 		}
-		// the operator lands on the new account's card with a note
-		$vr_url = 'operator_panel.php?'.http_build_query(array('regnskab_id' => $db_id, 'msg' => array(vr_t('Regnskabet','Account').' '.$res['regnskab'].' '.vr_t('er oprettet og aktiveret','was created and activated'))));
+		// the operator lands on the new account's card with a note (in amber when the panel login was not created)
+		$vr_msgs = array(vr_t('Regnskabet','Account').' '.$res['regnskab'].' '.vr_t('er oprettet og aktiveret','was created and activated'));
+		if ($vr_perr) $vr_msgs[] = vr_t('Login til panelet er ikke oprettet','Panel login not created').': '.$vr_perr;
+		$vr_url = 'operator_panel.php?'.http_build_query(array('regnskab_id' => $db_id, 'msg' => $vr_msgs) + ($vr_perr ? array('mk' => 'warn') : array()));
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=".vr_h($vr_url)."\">";
 		exit();
 	}

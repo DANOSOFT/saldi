@@ -1,11 +1,12 @@
 <?php
-// --- includes/saldiBillingApi.php --- ver 5.1.0 --- 2026.10.29 ---
+// --- includes/saldiBillingApi.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR Moved unchanged from admin/admin_panel.php so the nightly job and the operator overview can use the same REST client against the billing ledger on ssl3 (settings var_grp='internal_api').
 // 20261012 CL/ASR The billing ledger's URL comes from settings too (var_name 'saldi_api_base', same group) with the old constant as default, so nothing hardcodes the billing ledger (owner's decision 12/10-2026); the customer-side invoice overview (billing overview spec) reuses this client and these settings.
 //                 TLS certificates are now verified (verification was off; the billing ledger has a valid certificate).
 // 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
+// 20261109 CL/ASR A master without billing credentials no longer warns (a missing settings row was read as an array), and no login is attempted without a user and password (review #785).
 if (!defined('SALDI_API_BASE')) {
 // ---- REST API Configuration for the billing ledger (default ssl3.saldi.dk) ----
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_base' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
@@ -13,11 +14,11 @@ $saldi_api_base = ($query && trim((string)$query['var_value']) !== '') ? rtrim(t
 // 20261013 CL/ASR Credentials are only sent over HTTPS to a saldi.dk host; anything else falls back to the default (review #785).
 if (!preg_match('#^https://([a-z0-9-]+\.)*saldi\.dk(:\d+)?/#i', $saldi_api_base.'/')) $saldi_api_base = 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1';
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_user' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
-$saldi_api_user = $query['var_value'];
+$saldi_api_user = $query ? (string)$query['var_value'] : ''; # no row on a master without billing credentials
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_pass' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
-$saldi_api_pass = $query['var_value'];
+$saldi_api_pass = $query ? (string)$query['var_value'] : '';
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_account' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
-$saldi_api_account = $query['var_value'];
+$saldi_api_account = $query ? (string)$query['var_value'] : '';
 define('SALDI_API_BASE', $saldi_api_base);
 define('SALDI_API_USER', $saldi_api_user);
 define('SALDI_API_PASS', $saldi_api_pass);
@@ -80,6 +81,7 @@ function get_saldi_api_token() {
     // Check for cached token
     $cached = saldi_api_token_cache_read();
     if ($cached !== null) return $cached;
+    if (SALDI_API_USER === '' || SALDI_API_PASS === '') return null; # no credentials configured: callers show "could not log in"
 
     $url = SALDI_API_BASE . '/auth/login.php';
     $postData = json_encode([
@@ -107,7 +109,7 @@ function get_saldi_api_token() {
     if (!$response || $httpCode !== 200) return null;
 
     $data = json_decode($response, true);
-    if (!$data || !$data['success'] || !isset($data['data']['access_token'])) return null;
+    if (!$data || empty($data['success']) || !isset($data['data']['access_token'])) return null;
 
     $token = $data['data']['access_token'];
 
@@ -142,9 +144,9 @@ function fetch_saldi_api($endpoint, $token, $params = []) {
     if ($httpCode !== 200 || !$response) return null;
 
     $data = json_decode($response, true);
-    if (!$data || !$data['success']) return null;
+    if (!$data || empty($data['success'])) return null;
 
-    return $data['data'];
+    return $data['data'] ?? null;
 }
 
 /**

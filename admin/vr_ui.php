@@ -1,9 +1,12 @@
 <?php
-// --- admin/vr_ui.php --- ver 5.1.0 --- 2026.10.29 ---
+// --- admin/vr_ui.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Shared view helpers for the admin-layer pages that use the new page layout (vis_regnskaber.php, regnskab.php, partnere.php): escaping that follows the database charset, number/date formatting, da/en texts without the uncached findtekst('plain text') path, and the page frame (head/tabs/foot).
 // 20261029 CL/ASR vr_require_operator() shows a short notice until the update chain has created the panel's tables.
+// 20261109 CL/ASR The CSRF exemption, the redirect after a POST and the active menu item use the script that actually runs (vr_self(): SCRIPT_FILENAME in admin/), not PHP_SELF, which also carries PATH_INFO.
+//                 A request with PATH_INFO (operator_brugere.php/godkend.php) is answered with 404, so a tokenless cross-site POST can no longer pass as godkend.php.
+//                 vr_require_operator() asks operator_panel_ready() (flag at the current version) and says so plainly on a MySQL/MariaDB master, where the panel never opens.
 
 if (!function_exists('vr_h')) {
 function vr_cs() { global $db_encode; return ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1'; }
@@ -39,9 +42,11 @@ function vr_require_operator() {
 	partner_tables_ensure();
 	if (partner_current_user()['is_operator']) {
 		// 20261029 CL/ASR The panel's tables come from the update chain; until the first login to an account after a deploy they may be missing.
-		if (!db_fetch_array(db_select("SELECT 1 FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__))) {
+		include_once(__DIR__ . '/../includes/opdat_func/operatorPanelSchema.php');
+		if (!operator_panel_ready()) {
 			while (ob_get_level()) ob_end_clean();
-			print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">".vr_t('Panelet er ved at blive klar','The panel is being prepared')."</h1><p>".vr_t('Panelets tabeller oprettes ved næste login i et regnskab efter opdateringen. Log ind i et vilkårligt regnskab, og prøv igen.','The panel\'s tables are created at the next login to any account after the update. Log in to any account and try again.')."</p><p><a href=\"../index/admin_menu.php?klassisk=1\">".vr_t('Til den klassiske menu','To the classic menu')."</a></p></body></html>"; exit;
+			$vr_np = operator_panel_supported() ? array(vr_t('Panelet er ved at blive klar','The panel is being prepared'), vr_t('Panelets tabeller oprettes ved næste login i et regnskab efter opdateringen. Log ind i et vilkårligt regnskab, og prøv igen.','The panel\'s tables are created at the next login to any account after the update. Log in to any account and try again.')) : array(vr_t('Panelet findes ikke på denne installation','The panel is not available on this installation'), vr_t('Operatørpanelet kræver en PostgreSQL-masterdatabase. Brug den klassiske menu.','The operator panel needs a PostgreSQL master database. Use the classic menu.'));
+			print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">".$vr_np[0]."</h1><p>".$vr_np[1]."</p><p><a href=\"../index/admin_menu.php?klassisk=1\">".vr_t('Til den klassiske menu','To the classic menu')."</a></p></body></html>"; exit;
 		}
 		return;
 	}
@@ -77,7 +82,7 @@ function vr_open($crumbs, $h1, $lead, $actions = '', $pill = '') {
 	global $buttonColor, $buttonTxtColor, $sprog_id, $version, $brugernavn;
 	if (!isset($version)) { $version = ''; if (file_exists("../includes/version.php")) include("../includes/version.php"); }
 	$u = partner_current_user();
-	$self = basename($_SERVER['PHP_SELF']);
+	$self = vr_self();
 	print "<link rel=\"stylesheet\" href=\"../css/operator_panel.css?v=5.2.1\">\n";
 	if (!vr_csrf_exempt()) print vr_csrf_js();
 	if (isset($_GET['msg'])) print "<script>try{var vrU=new URL(location.href);[...vrU.searchParams.keys()].filter(function(k){return k.indexOf('msg')===0||k==='mk'}).forEach(function(k){vrU.searchParams.delete(k)});history.replaceState(null,'',vrU.pathname+vrU.search+vrU.hash);}catch(e){}</script>"; # a reload does not show the note again
@@ -115,7 +120,7 @@ function vr_tabs($tabs, $active) { # $tabs = [key => [label, href, count|null]]
 //                  notes in msg[]. The page is then always drawn from fresh data, and a reload does not repeat the action.
 function vr_prg($notes, $url = null, $kind = 'ok') {
 	if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') return;
-	if ($url === null) { $q = $_GET; unset($q['msg']); $url = basename($_SERVER['PHP_SELF']).($q ? '?'.http_build_query($q) : ''); }
+	if ($url === null) { $q = $_GET; unset($q['msg']); $url = vr_self().($q ? '?'.http_build_query($q) : ''); }
 	$m = array(); foreach ((array)$notes as $n) { $n = trim((string)$n); if ($n !== '') $m[] = mb_substr($n, 0, 500, vr_cs()); }
 	if ($kind == 'ok' && preg_match('/mangler|påkrævet|ikke gennemført|findes ikke|kan ikke|allerede|fejl|ugyldig|ukendt|missing|required|not found|cannot|already|invalid|unknown/iu', implode(' ', $m))) $kind = 'warn'; # errors in amber, not green
 	if ($m) $url .= (strpos($url, '?') === false ? '?' : '&').http_build_query(array('msg' => array_slice($m, 0, 12)) + ($kind == 'warn' ? array('mk' => 'warn') : array()));
@@ -168,8 +173,17 @@ function vr_csrf_token() {
 	if (empty($_SESSION['vr_csrf'])) $_SESSION['vr_csrf'] = (php_sapi_name() == 'cli' && getenv('VR_CSRF_TOKEN')) ? getenv('VR_CSRF_TOKEN') : bin2hex(random_bytes(32));
 	return (string)$_SESSION['vr_csrf'];
 }
+// 20261109 CL/ASR The page name comes from the script that runs. PHP_SELF also carries PATH_INFO, so
+//                  basename($_SERVER['PHP_SELF']) said godkend.php for operator_brugere.php/godkend.php. On the web it is
+//                  SCRIPT_FILENAME, resolved and only when it lies in this admin/ folder; in CLI (cron, the test
+//                  harness) there is no request and PHP_SELF is what the caller set.
+function vr_self() {
+	if (php_sapi_name() == 'cli') return basename((string)($_SERVER['PHP_SELF'] ?? ''));
+	$f = (string)($_SERVER['SCRIPT_FILENAME'] ?? ''); $f = $f !== '' ? realpath($f) : false;
+	return ($f !== false && dirname($f) === __DIR__) ? basename($f) : '';
+}
 function vr_csrf_exempt() {
-	$self = basename($_SERVER['PHP_SELF'] ?? '');
+	$self = vr_self();
 	if ($self == 'godkend.php' || $self == 'usage_snapshot_job.php') return true;
 	if (php_sapi_name() == 'cli' && !getenv('VR_CSRF_TOKEN')) return true; # cron/CLI scripts
 	return false;
@@ -181,6 +195,14 @@ function vr_csrf_filter($html) {
 }
 function vr_csrf_js() { # fetch() sends the token on every non-GET request
 	return "<script>(function(){var t=".json_encode(vr_csrf_token()).",f=window.fetch;if(!f||f.vrCsrf)return;window.fetch=function(u,o){o=o||{};if(String(o.method||'GET').toUpperCase()!=='GET'){o.headers=new Headers(o.headers||{});o.headers.set('X-VR-CSRF',t);}return f.call(this,u,o);};window.fetch.vrCsrf=1;})();</script>";
+}
+// 20261109 CL/ASR No page in the admin layer takes extra path after its name (x.php/y.php): such a URL is refused
+//                  before anything runs, so PHP_SELF and relative links on these pages always mean the page itself.
+if (php_sapi_name() != 'cli' && (string)($_SERVER['PATH_INFO'] ?? '') !== '') {
+	while (ob_get_level()) ob_end_clean();
+	http_response_code(404);
+	print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">Siden findes ikke</h1></body></html>";
+	exit;
 }
 if (!vr_csrf_exempt()) {
 	if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {

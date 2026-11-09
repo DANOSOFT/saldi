@@ -5,7 +5,7 @@ ob_start();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-11-02 ---
+// --- admin/admin_panel.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,6 +19,8 @@ ob_start();
 // feature licenses, usage stats, and account settings.
 //
 // 20261102 CL/ASR Reopening an account whose closing date (lukkes) has passed also clears that date, so the auto-close does not close it again at once.
+// 20261109 CL/ASR Staff go to the operator panel only when it is ready (operator_panel_ready(): PostgreSQL master, panel tables created); otherwise they keep this page (review #785).
+//                 The lukkes_kommentar column check looks in the current schema (DATABASE() on MySQL/MariaDB), so there it no longer adds the column again and fails on every load after the first.
 
 @session_start();
 $s_id = session_id();
@@ -35,11 +37,12 @@ include("../includes/std_func.php");
 //                  page unchanged. Ajax calls are left alone.
 if ($db == $sqdb && $_SERVER['REQUEST_METHOD'] == 'GET' && !isset($_GET['klassisk']) && !preg_grep('/^ajax/', array_keys($_GET))) {
 	$_op = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'", __FILE__ . " linje " . __LINE__));
-	if ($_op && explode(',', (string)$_op['rettigheder'])[0] == 'on') { print "<meta http-equiv=\"refresh\" content=\"0;URL=operator_panel.php".(isset($_GET['regnskab_id']) ? '?regnskab_id='.(int)$_GET['regnskab_id'] : '')."\">\n"; exit; }
+	include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php"); # operator_panel_ready(): PostgreSQL only, after the schema step (20261109 CL/ASR)
+	if ($_op && explode(',', (string)$_op['rettigheder'])[0] == 'on' && operator_panel_ready()) { print "<meta http-equiv=\"refresh\" content=\"0;URL=operator_panel.php".(isset($_GET['regnskab_id']) ? '?regnskab_id='.(int)$_GET['regnskab_id'] : '')."\">\n"; exit; }
 }
 
 // ---- Ensure lukkes_kommentar column exists on regnskab ----
-$_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema='public'", __FILE__ . " linje " . __LINE__));
+$_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema=".(($db_type == 'mysql' || $db_type == 'mysqli') ? "DATABASE()" : "current_schema()"), __FILE__ . " linje " . __LINE__));
 if (!$_col_check) {
     db_modify("ALTER TABLE regnskab ADD COLUMN lukkes_kommentar text", __FILE__ . " linje " . __LINE__);
 }

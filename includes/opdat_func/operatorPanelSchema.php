@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/operatorPanelSchema.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/opdat_func/operatorPanelSchema.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,10 +27,51 @@
 //                 It runs once per master: a settings flag records the schema version, so later logins only read that flag.
 //                 All statements use the master connection (db_modify/db_select with $global = true), so it works from an account login and from install.php.
 //                 An advisory lock lets one login apply it at a time, and the flag is only set once every table and column is there.
+// 20261109 CL/ASR PostgreSQL only (review #785): on a MySQL/MariaDB master operator_panel_schema() returns at once, with no alert, no mail and no flag.
+//                 operator_panel_ready() is the one check the panel's entry points use: a PostgreSQL master with the schema flag at the current version.
+//                 partner_users.scope comes in with default 'selected', is set to 'all' for employees without a selection, and only then defaults to 'all', so a run that stops halfway never widens anyone's access.
+//                 The information_schema lookups are limited to current_schema().
 
 if (!function_exists('operator_panel_schema')) {
 	define('OPERATOR_PANEL_SCHEMA', '1');
 	define('OPERATOR_PANEL_SCHEMA_LOCK', 731001); # pg advisory lock key (SD-731)
+
+	/**
+	 * The operator panel is PostgreSQL-only. On a MySQL/MariaDB master ($db_type mysql or mysqli) its tables are never
+	 * created and the panel stays off, so staff and partner users keep the classic pages.
+	 *
+	 * @return bool true on a PostgreSQL master
+	 */
+	function operator_panel_supported() {
+		global $db_type;
+		return !in_array(strtolower((string)$db_type), array('mysql', 'mysqli'), true);
+	}
+
+	/**
+	 * True when the panel can be used: a PostgreSQL master whose panel tables are complete (the settings flag is at the
+	 * current schema version). index/admin_menu.php, admin/admin_panel.php, index/logud.php and partner_layer_ready()
+	 * (includes/partnerScope.php) check it; while it is false they keep to the classic pages and read none of the panel's tables.
+	 *
+	 * @return bool
+	 */
+	function operator_panel_ready() {
+		static $ready = false; # only a yes is kept: the schema step may set the flag later in the same request
+		if (!$ready && operator_panel_supported()) {
+			$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__, true));
+			$ready = ($flag && $flag['var_value'] >= OPERATOR_PANEL_SCHEMA);
+		}
+		return $ready;
+	}
+
+	/**
+	 * partner_users.scope still waits for its backfill: the column is there, but its default is not 'all' yet.
+	 *
+	 * @return bool
+	 */
+	function operator_panel_scope_pending() {
+		$r = db_fetch_array(db_select("SELECT column_default FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'partner_users' AND column_name = 'scope'", __FILE__ . " linje " . __LINE__, true));
+		return $r && strpos((string)$r['column_default'], "'all'") !== 0;
+	}
 
 	/**
 	 * Create or complete the operator panel's tables in the master database. Idempotent.
@@ -38,6 +79,7 @@ if (!function_exists('operator_panel_schema')) {
 	 * @return bool true when the schema was applied in this call, false when it was already current
 	 */
 	function operator_panel_schema() {
+		if (!operator_panel_supported()) return false; # PostgreSQL only (review #785): no lock, no DDL and no flag on MySQL/MariaDB
 		$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__, true));
 		if ($flag && $flag['var_value'] >= OPERATOR_PANEL_SCHEMA) return false;
 		// Two logins at the same moment: only one applies the schema, the other carries on and the next login sees the flag.
@@ -75,9 +117,9 @@ if (!function_exists('operator_panel_schema')) {
 		"CREATE INDEX IF NOT EXISTS customizations_regnskab ON customizations (regnskab_id)",
 		);
 		foreach ($tables as $qtxt) db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
-		// columns added after the first release of a table: [table, column that marks the step, statement, optional data step]
+		// columns added after the first release of a table: [table, column that marks the step, statement]
 		$columns = array(
-		array('partner_users', 'rights', "ALTER TABLE partner_users ADD COLUMN rights text, ADD COLUMN scope varchar(10) NOT NULL DEFAULT 'all', ADD COLUMN active boolean NOT NULL DEFAULT true, ADD COLUMN name varchar(120), ADD COLUMN last_seen timestamp", "UPDATE partner_users SET scope = 'selected' WHERE bruger_id IN (SELECT bruger_id FROM partner_user_access)"), # existing selections stay selections
+		array('partner_users', 'rights', "ALTER TABLE partner_users ADD COLUMN rights text, ADD COLUMN scope varchar(10) NOT NULL DEFAULT 'selected', ADD COLUMN active boolean NOT NULL DEFAULT true, ADD COLUMN name varchar(120), ADD COLUMN last_seen timestamp"), # scope: see the backfill below
 		array('regnskab_partners', 'responsible_bruger_id', "ALTER TABLE regnskab_partners ADD COLUMN responsible_bruger_id int, ADD COLUMN payer varchar(10) NOT NULL DEFAULT 'customer'"),
 		array('partners', 'billing_mode', "ALTER TABLE partners ADD COLUMN billing_mode varchar(12) NOT NULL DEFAULT 'individual', ADD COLUMN billing_regnskab_id int"),
 		array('regnskab_billing', 'pay_status', "ALTER TABLE regnskab_billing ADD COLUMN pay_status varchar(12), ADD COLUMN outstanding_ore bigint, ADD COLUMN overdue_n int, ADD COLUMN oldest_due date, ADD COLUMN last_invoice date, ADD COLUMN checked_at timestamp"),
@@ -85,20 +127,28 @@ if (!function_exists('operator_panel_schema')) {
 		array('regnskab', 'lukkes_kommentar', "ALTER TABLE regnskab ADD COLUMN lukkes_kommentar text"),
 		);
 		foreach ($columns as $c) {
-			$has = db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = '$c[0]' AND column_name = '$c[1]'", __FILE__ . " linje " . __LINE__, true));
+			$has = db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = '$c[0]' AND column_name = '$c[1]'", __FILE__ . " linje " . __LINE__, true));
 			if ($has) continue;
 			db_modify($c[2], __FILE__ . " linje " . __LINE__, true);
-			if (!empty($c[3])) db_modify($c[3], __FILE__ . " linje " . __LINE__, true);
+		}
+		// partner_users.scope (review #785): employees without a selection in partner_user_access keep seeing all of their
+		// partner's customers ('all'), those with one keep it ('selected'). The column comes in as 'selected', so a run that
+		// stops before this step limits access instead of widening it. The default turns 'all' only when no employee without
+		// a selection is left on 'selected'; that default marks the step as done, so the next login finishes a step cut short.
+		if (operator_panel_scope_pending()) {
+			db_modify("UPDATE partner_users pu SET scope = 'all' WHERE pu.scope <> 'all' AND NOT EXISTS (SELECT 1 FROM partner_user_access pua WHERE pua.bruger_id = pu.bruger_id)", __FILE__ . " linje " . __LINE__, true);
+			if (!db_fetch_array(db_select("SELECT 1 FROM partner_users pu WHERE pu.scope <> 'all' AND NOT EXISTS (SELECT 1 FROM partner_user_access pua WHERE pua.bruger_id = pu.bruger_id) LIMIT 1", __FILE__ . " linje " . __LINE__, true))) db_modify("ALTER TABLE partner_users ALTER COLUMN scope SET DEFAULT 'all'", __FILE__ . " linje " . __LINE__, true);
 		}
 		// db_modify() only logs and mails a failed statement here (includes/opdat), so check the result before the flag
 		// is set; with something missing the flag stays unset and the next login tries again.
 		$missing = 0;
 		foreach ($tables as $qtxt) {
-			if (preg_match('/^CREATE TABLE IF NOT EXISTS (\w+)/', $qtxt, $m) && !db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = '$m[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
+			if (preg_match('/^CREATE TABLE IF NOT EXISTS (\w+)/', $qtxt, $m) && !db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = '$m[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
 		}
 		foreach ($columns as $c) {
-			if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = '$c[0]' AND column_name = '$c[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
+			if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = '$c[0]' AND column_name = '$c[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
 		}
+		if (operator_panel_scope_pending()) $missing++;
 		if ($missing) {
 			db_select("SELECT pg_advisory_unlock(".OPERATOR_PANEL_SCHEMA_LOCK.")", __FILE__ . " linje " . __LINE__, true);
 			return false;

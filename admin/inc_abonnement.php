@@ -1,20 +1,15 @@
 <?php
-// --- admin/inc_abonnement.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- admin/inc_abonnement.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. The subscription tab (area 1 "Pakker og abonnementer") as two functions shared by the operator's customer card (operator_panel.php) and, for now, regnskab.php.
 //                 Uses includes/entitlements.php. ent_tab_actions() handles the POSTs (ent_action=...), ent_tab_render() prints the tab.
+// 20261109 CL/ASR The downgrade guard counts users and items with ent_usage_collect(), the same rules as the Forbrug tab (inactive users and closed items are not counted), so deactivating users clears the conflict (review #785).
+//                 The add-on list shows "× n" only for counted add-ons (ent_addon_counted()), because PHP reads PostgreSQL's 'f' as true.
 
 if (!function_exists('ent_tab_actions')) {
-function ent_live_usage_quick($reg) { # users/items/postings from the customer db for the downgrade guard
-	global $sqhost, $squser, $sqpass; $u = array();
-	if (!$reg['db'] || !db_exists($reg['db'])) return $u;
-	if (!@db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) return $u;
-	if (tbl_exists('brugere')) { $cols = array(); $q = db_select("select column_name from information_schema.columns where table_name = 'brugere'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $cols[] = $r['column_name']; $r = db_fetch_array(db_select("select count(*) as n from brugere".(in_array('revisor', $cols) ? " where revisor is not true" : ""), __FILE__ . " linje " . __LINE__)); $u['users_active'] = (int)$r['n']; }
-	if (tbl_exists('transaktioner')) { $r = db_fetch_array(db_select("select count(id) as n from transaktioner where logdate >= '".date('Y-m-d', strtotime('-1 year'))."'", __FILE__ . " linje " . __LINE__)); $u['postings_12m'] = (int)$r['n']; }
-	if (tbl_exists('varer')) { $r = db_fetch_array(db_select("select count(id) as n from varer", __FILE__ . " linje " . __LINE__)); $u['items'] = (int)$r['n']; }
-	include("../includes/connect.php");
-	return $u;
+function ent_live_usage_quick($reg) { # users/items/postings from the customer db for the downgrade guard; ent_usage_collect() reconnects to the master itself
+	$u = ent_usage_collect($reg); return $u['ok'] ? $u : array();
 }
 function ent_tab_actions($rid, $reg, &$notes) {
 	if (!isset($_POST['ent_action'])) return;
@@ -106,7 +101,7 @@ function ent_tab_render($rid, $ent, $cat) {
 	}
 	// ---- add-ons and individual terms
 	print "<div class=\"vr-grid2\" style=\"margin-top:22px\">\n<section class=\"vr-sect\"><h2>".vr_t('Tillæg','Add-ons')." <small>".count($ent['addons'])."</small></h2><div class=\"vr-card\">";
-	foreach ($ent['addons'] as $ak => $ar) { $ad = isset($cat['addons'][$ak]) ? $cat['addons'][$ak] : null; print "<div class=\"vr-frow\"><div><b>".vr_h($ad ? $ad['name'] : $ak).($ad && $ad['quantity_based'] ? " × ".(int)$ar['quantity'] : "")."</b><small>".($ad && $ad['price_ore'] !== null ? ent_kr((int)$ad['price_ore'] * max(1,(int)$ar['quantity'])).'/md. · ' : '').vr_h($ar['source']).($ar['expires_at'] ? ' · '.vr_t('udløber','expires').' '.vr_h($ar['expires_at']) : '')."</small></div><span></span>".($ar['source'] != 'override' ? "<form method=\"post\"><input type=\"hidden\" name=\"ent_action\" value=\"remove_addon\"><input type=\"hidden\" name=\"addon_key\" value=\"".vr_h($ak)."\"><button class=\"vr-link\" type=\"submit\" onclick=\"return confirm('".vr_t('Fjern tillægget?','Remove the add-on?')."')\">".vr_t('Fjern','Remove')."</button></form>" : "<span></span>")."</div>"; }
+	foreach ($ent['addons'] as $ak => $ar) { $ad = isset($cat['addons'][$ak]) ? $cat['addons'][$ak] : null; print "<div class=\"vr-frow\"><div><b>".vr_h($ad ? $ad['name'] : $ak).($ad && ent_addon_counted($ad) ? " × ".(int)$ar['quantity'] : "")."</b><small>".($ad && $ad['price_ore'] !== null ? ent_kr((int)$ad['price_ore'] * max(1,(int)$ar['quantity'])).'/md. · ' : '').vr_h($ar['source']).($ar['expires_at'] ? ' · '.vr_t('udløber','expires').' '.vr_h($ar['expires_at']) : '')."</small></div><span></span>".($ar['source'] != 'override' ? "<form method=\"post\"><input type=\"hidden\" name=\"ent_action\" value=\"remove_addon\"><input type=\"hidden\" name=\"addon_key\" value=\"".vr_h($ak)."\"><button class=\"vr-link\" type=\"submit\" onclick=\"return confirm('".vr_t('Fjern tillægget?','Remove the add-on?')."')\">".vr_t('Fjern','Remove')."</button></form>" : "<span></span>")."</div>"; }
 	if (!$ent['addons']) print "<div class=\"vr-empty\" style=\"padding:24px\"><b>".vr_t('Ingen tillæg','No add-ons')."</b><span>".($P ? vr_t('Tilføj fx booking, kasse eller webshop nedenfor.','Add e.g. booking, POS or webshop below.') : vr_t('Vælg en pakke først – hvilke tillæg der kan købes, afhænger af pakken.','Choose a plan first – available add-ons depend on it.'))."</span></div>";
 	if ($P) { print "<div class=\"vr-foot\" style=\"display:block\"><form method=\"post\" class=\"vr-form\" style=\"padding:0;max-width:none\"><input type=\"hidden\" name=\"ent_action\" value=\"set_addon\"><label>".vr_t('Tillæg','Add-on')."<select name=\"addon_key\" class=\"vr-sel\">"; foreach ($cat['addons'] as $ak => $ad) { $avail = in_array($P['plan_key'], explode(',', $ad['available_on'])); print "<option value=\"$ak\"".($avail ? "" : " disabled").">".vr_h($ad['name']).($ad['price_ore'] !== null ? ' · '.ent_kr((int)$ad['price_ore']).'/md.' : '').($avail ? '' : ' · '.vr_t('ikke på denne pakke','not on this plan'))."</option>"; } print "</select></label><div class=\"vr-fgrid\"><label>".vr_t('Antal','Quantity')."<input class=\"vr-inp\" type=\"number\" name=\"quantity\" value=\"1\" min=\"1\"></label><label>".vr_t('Udløber (valgfrit)','Expires (optional)')."<input class=\"vr-inp\" type=\"date\" name=\"expires_at\"></label></div><div><button type=\"submit\" class=\"vr-btn\">+ ".vr_t('Tilføj tillæg','Add add-on')."</button></div></form></div>"; }
 	print "</div></section>\n";

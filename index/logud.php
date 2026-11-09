@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// -----------index/logud.php------ ver 5.1.0 --- 2026-10-25 -------------
+// -----------index/logud.php------ ver 5.1.0 --- 2026-11-09 -------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +18,7 @@ $s_id=session_id();
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20131010 Tilføjet sletning af lås fra kladdeliste.
 // 20150114 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
@@ -27,6 +27,7 @@ $s_id=session_id();
 // 20260904 Sawaneh WP-1.7: delete the session's nav-stack file on logout (before
 //                  session_destroy, while session_id() is still valid) and sweep
 //                  stale nav files from sessions that never logged out.
+// 20261109 CL/ASR Staff leaving an account return to the operator panel only when it is ready (operator_panel_ready(): PostgreSQL master, panel tables created); otherwise to the account list (review #785).
 
 $title="logud";
 $css = "";
@@ -43,8 +44,10 @@ if (isset($r['revisor'])) {
 	if ($db && $db!=$sqdb) {
 		db_modify("update online set db='$sqdb' where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 		// 20261025 CL/ASR Saldi staff (admin flag 'on') return to the operator panel; everyone else to the account list as before.
+		// 20261109 CL/ASR Only when the panel is ready (not on a MySQL/MariaDB master, not before the schema step has run).
 		$vr_r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
-		$vr_back = ($vr_r && explode(',', (string)$vr_r['rettigheder'])[0] == 'on' && file_exists('../admin/operator_panel.php')) ? '../admin/operator_panel.php' : '../admin/vis_regnskaber.php';
+		include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php");
+		$vr_back = ($vr_r && explode(',', (string)$vr_r['rettigheder'])[0] == 'on' && file_exists('../admin/operator_panel.php') && operator_panel_ready()) ? '../admin/operator_panel.php' : '../admin/vis_regnskaber.php';
 		print "<meta http-equiv=\"refresh\" content=\"0;URL='$vr_back'\">";
 		exit;
 	}	

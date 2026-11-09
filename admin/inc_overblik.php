@@ -1,10 +1,12 @@
 <?php
-// --- admin/inc_overblik.php --- ver 5.1.0 --- 2026.10.10 ---
+// --- admin/inc_overblik.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 5: a small commercial overview on the operator's Overblik page.
 //                 Four figures from data the panel already has: active ledgers by plan (regnskab + regnskab_entitlements), MRR from the catalogue prices (plan + add-ons, yearly/12; "ERP by agreement" counts 0 and is listed), customers with overdue payments (cached summary in regnskab_billing, filled when the Betalinger tab is viewed and by the nightly job), and ledgers at >= 80 % of a limit (latest usage_snapshots vs. effective limits).
 //                 Not an analytics platform.
+// 20261109 CL/ASR "Near limits" no longer resolves every ledger: ledgers with an active plan or limit override, or a plan change that has fallen due, still go through ent_resolve() (which also applies the due change), the rest read their plan's limits from the catalogue (review #785).
+//                 Add-ons and feature/add-on overrides do not change the user, entry or item limits, so the figures are the same as before.
 
 if (!function_exists('ov_render')) {
 function ov_data() {
@@ -33,13 +35,18 @@ function ov_data() {
 	while ($r = db_fetch_array($q)) { $d['checked']++; if (in_array($r['pay_status'], array('overdue','failed'))) { $d['overdue'][] = $r; $d['overdue_sum_ore'] += (int)$r['outstanding_ore']; } }
 	$q = db_select("select distinct on (regnskab_id) * from usage_snapshots order by regnskab_id, taken_at desc", __FILE__ . " linje " . __LINE__);
 	$snaps = array(); while ($r = db_fetch_array($q)) { $snaps[(int)$r['regnskab_id']] = $r; if (!$d['snap_date'] || $r['taken_at'] > $d['snap_date']) $d['snap_date'] = $r['taken_at']; }
+	$full = array(); $q = db_select("select regnskab_id from regnskab_overrides where kind in ('plan','limit') and (expires_at is null or expires_at >= current_date) union select regnskab_id from regnskab_plan_changes where applied_at is null and cancelled_at is null and effective_from <= current_date", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) $full[(int)$r['regnskab_id']] = true; # only these can differ from the plan's own limits (same rules as ent_resolve)
+	$int = fn($v) => $v === null ? null : (int)$v;
 	foreach ($snaps as $id => $sn) {
 		if (!isset($ledgers[$id]) || $ledgers[$id]['lukket'] == 'on' || !$ledgers[$id]['plan_key']) continue;
-		$e = ent_resolve($id); if (!$e['plan']) continue;
+		if (isset($full[$id])) { $e = ent_resolve($id); if (!$e['plan']) continue; $plan = $e['plan']; $lims = $e['limits']; }
+		elseif (isset($cat['plans'][$ledgers[$id]['plan_key']])) { $plan = $cat['plans'][$ledgers[$id]['plan_key']]; $lims = array('max_users' => $int($plan['max_users']), 'included_postings' => $int($plan['included_postings']), 'max_items' => $int($plan['max_items'])); }
+		else continue;
 		foreach (array('max_users' => array($sn['users_active'], vr_t('brugere','users')), 'included_postings' => array($sn['postings_12m'], vr_t('posteringer','entries')), 'max_items' => array($sn['items'], vr_t('varer','items'))) as $k => $pair) {
-			$lim = isset($e['limits'][$k]) ? $e['limits'][$k] : null; if ($lim === null || $lim <= 0 || $pair[0] === null) continue;
+			$lim = isset($lims[$k]) ? $lims[$k] : null; if ($lim === null || $lim <= 0 || $pair[0] === null) continue;
 			$pct = (int)round($pair[0] / $lim * 100);
-			if ($pct >= 80) $d['near'][] = array('id' => $id, 'name' => $ledgers[$id]['regnskab'], 'plan' => $e['plan']['name'], 'what' => $pair[1], 'used' => (int)$pair[0], 'limit' => (int)$lim, 'pct' => $pct);
+			if ($pct >= 80) $d['near'][] = array('id' => $id, 'name' => $ledgers[$id]['regnskab'], 'plan' => $plan['name'], 'what' => $pair[1], 'used' => (int)$pair[0], 'limit' => (int)$lim, 'pct' => $pct);
 		}
 	}
 	usort($d['near'], fn($a, $b) => $b['pct'] <=> $a['pct']);
