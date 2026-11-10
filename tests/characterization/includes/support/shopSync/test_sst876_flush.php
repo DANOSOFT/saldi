@@ -11,6 +11,7 @@
 // 20261027 CDX/MJ SST-876 Model the cached API configuration check in the flush fixture.
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 // 20261110 CL/SZ Sync of master into hml/shopify: shopSyncApiConfigured() reads box4, box5 and box6 (SD-750), so the stub answers that query.
+// 20261110 CL/SZ SD-817 shopSyncApiConfigured() also reads the shopify_legacy outbound settings: none are set, so the slot is open.
 
 $GLOBALS['calls']   = array();   // every (vare_id, variant_id, lager, mode) the layer sent
 $GLOBALS['answers'] = array();   // vare_id => answer sync_shop_vare() should give
@@ -48,6 +49,9 @@ function shopSyncDrainQueueNested()
 function db_select($sql, $location = '') {
 	if (strpos($sql, "select box4, box5, box6 from grupper where art='API'") !== false) {
 		return array('box4' => 'http://shop.test/adapter');
+	}
+	if (strpos($sql, "from settings where var_grp = 'shopify_legacy:") !== false) {
+		return false;   // no shopify_legacy settings: every flow is open
 	}
 	if (strpos($sql, 'select indgaar_i from styklister') !== false) {
 		return false;
