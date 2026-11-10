@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -164,6 +164,7 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261110 CL/MJ SST-959 opret_ordrelinje(): a variant added without a price gets its own sales price, when it has one above 0, instead of the item's.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -4085,7 +4086,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$x++;
 	}
 
-	$qtxt = "SELECT id, vare_id, variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
+	$qtxt = "SELECT id, vare_id, variant_type, variant_salgspris FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
 	if (strlen($varenr) == 12 && is_numeric($varenr)) {
 		$qtxt .= " or variant_stregkode='0$varenr'";
 	}
@@ -4094,6 +4095,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$vare_id = $r['vare_id'];
 		$variant_id = $r['id'];
 		$variant_type = $r['variant_type'];
+		$variantPrice = (float) $r['variant_salgspris'];
 		$variant_type_array = explode(chr(9), $variant_type);
 		$variant_descriptions = array();
 
@@ -4117,6 +4119,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 	} else {
 		$variant_id = 0;
 		$variant_type = $variantText = NULL;
+		$variantPrice = 0.0;
 	}
 
 	$qtxt = NULL;
@@ -4156,6 +4159,11 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$enhed = db_escape_string($r['enhed']);
 		$folgevare = (int) $r['folgevare'];
 		$productPrice = $r['salgspris'];
+		// SST-959 A variant's own price, as the quick search shows it, takes the item's place. 0 is no price:
+		// the webshop sync creates variants with variant_salgspris 0 when the shop sends none.
+		if ($variant_id && $variantPrice > 0) {
+			$productPrice = $variantPrice;
+		}
 		$productCost = $r['kostpris'];
 		$campaignCost = $r['campaign_cost'];
 		$rabatgruppe = $r['rabatgruppe'];
