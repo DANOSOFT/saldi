@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- debitor/api.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -83,6 +83,8 @@
 //                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
 //                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
 // 20261104 CL/MMR SST-746 Review (PR #998): the SST-746 history line no longer names a customer's item number.
+// 20261110 CL/MJ SST-865 getInvoicesOrder() sends the invoice when EasyUBL refuses the company update, instead of stopping with die().
+//                updateCompany() saves EasyUBL's answer to temp/<db>/Update-company-error-*.json when it answers hasEndpointPeppol false.
 
     @session_start();
     $s_id=session_id();
@@ -244,6 +246,9 @@
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
+            // The update registers the company as a recipient; EasyUBL refuses that when the CVR is a
+            // Peppol endpoint elsewhere. Keep its answer, as the other error branches do.
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode(['response' => $response, 'status code' => $httpCode], JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             return ['success' => false,
                 'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
                 'easyUBL_message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT),
@@ -350,12 +355,12 @@
             $query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
             if(db_num_rows($query) > 0){
                 $update_return_object = updateCompany();
+                // Sending an invoice does not need the sender registered as a recipient, so a refused
+                // update does not stop it: the answer is in temp/<db>/, and updatedCompany stays unset,
+                // so the update is tried again on the next send.
                 if($update_return_object['success']) {
-                    $companyID = $update_return_object['companyId'];
-                } else {
-                    die($update_return_object['message']);
+                    $query = db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('updatedCompany', 'easyUBL', 'true')", __FILE__ . " linje " . __LINE__);
                 }
-                $query = db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('updatedCompany', 'easyUBL', 'true')", __FILE__ . " linje " . __LINE__);
             }
         }
         $companyID = getCompanyID();
