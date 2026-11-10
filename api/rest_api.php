@@ -101,6 +101,7 @@
 //                 A vare_id that is not an id (an item number) again reaches the varenr fallback, only without the shop_varer query (review on PR #919).
 // 20261110 CL/MMR SST-989 insert_shop_order() refuses a DO when the shop order id is already on any order, and a DK when it is already on a DK or on a DO with a negative sum (shop_order_taken()).
 //                 The check was per art only, so a shop credit note sent once as DK and once as DO (an old integration script) was created and invoiced twice.
+//                 Also corrected the indentation of the new-debtor block in insert_shop_order() (no behaviour change).
 
 
 // ----------------------------------------------------------------------
@@ -329,7 +330,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	// Convert to integers
 	fwrite($log,__line__." Shop Ordre id: $shopOrderId\n");
 	$shopOrderId = (int)$shopOrderId;
-    $shop_addr_id = (int)$shop_addr_id;
+	$shop_addr_id = (int)$shop_addr_id;
 	fwrite($log,__line__." Shop Ordre id: $shopOrderId\n");
 
 	if (!$shopOrderId || !is_integer($shopOrderId)) {
@@ -418,55 +419,55 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 		} elseif (!$saldi_addr_id) { #if ($shop_addr_id) {
-				$qtxt="select id from adresser where art = 'D' and kontonr='".db_escape_string((string)$num_tlf)."'";
+			$qtxt="select id from adresser where art = 'D' and kontonr='".db_escape_string((string)$num_tlf)."'";
+			fwrite($log,__line__." $qtxt\n");
+			if ($tlf && !$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				if (!$kontonr) $kontonr=$num_tlf;
+				fwrite($log,__line__." kontonr $kontonr\n");
+			} elseif (!$kontonr) { 
+				$x=0;
+				$ktonr=array();
+				$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
 				fwrite($log,__line__." $qtxt\n");
-				if ($tlf && !$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					if (!$kontonr) $kontonr=$num_tlf;
-					fwrite($log,__line__." kontonr $kontonr\n");
-				} elseif (!$kontonr) { 
-					$x=0;
-					$ktonr=array();
-					$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
-					fwrite($log,__line__." $qtxt\n");
-					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-					while($r=db_fetch_array($q)) {
-						$ktonr[$x]=$r['kontonr'];
-#						fwrite($log,__line__." kontonr $kontonr\n");
-						$x++;
-					}
-					$kontonr=1000;
-					while(in_array($kontonr,$ktonr)) $kontonr++;
+				$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+				while($r=db_fetch_array($q)) {
+					$ktonr[$x]=$r['kontonr'];
+					#fwrite($log,__line__." kontonr $kontonr\n");
+					$x++;
 				}
-				fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
-				if (!$gruppe) {
-					$qtxt = "select kodenr from grupper where art='DG' order by fiscal_year desc, kodenr limit 1";
-					if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $gruppe=(int)$r['kodenr'];
-					fwrite($log,__line__." No gruppe sent, new debtor gets gruppe $gruppe\n");
-				}
-				$qtxt = "insert into adresser";
-				$qtxt.= "(kontonr,firmanavn,addr1,addr2,";
-				$qtxt.= "postnr,bynavn,land,cvrnr,ean,email,tlf,";
-				$qtxt.= "gruppe,art,betalingsbet,betalingsdage,kontakt,";
-				$qtxt.= "lev_firmanavn,lev_addr1,lev_addr2,";
-				$qtxt.= "lev_postnr,lev_bynavn,lev_land,";
-				$qtxt.= "lev_kontakt,lev_tlf,lev_email,lukket)";
-				$qtxt.= " values ";
-				$qtxt.="('".db_escape_string((string)$kontonr)."','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
-				$qtxt.="'".db_escape_string($postnr)."','".db_escape_string($bynavn)."','".db_escape_string($land)."',";
-				$qtxt.="'".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
-				$qtxt.="'".db_escape_string((string)$gruppe)."','D','".db_escape_string((string)$betalingsbet)."','".db_escape_string((string)$betalingsdage)."','".db_escape_string($kontakt)."',";
-				$qtxt.="'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
-				$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
-				$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
-				fwrite($log,__line__." $qtxt\n");
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$r=db_fetch_array(db_select("select id from adresser where kontonr='".db_escape_string((string)$kontonr)."' and art = 'D'",__FILE__ . " linje " . __LINE__));
-				$saldi_addr_id=$r['id'];
-			} 
-			if ($shop_addr_id) {
-				fwrite($log,__line__." insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')\n");
-				db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('".db_escape_string((string)$saldi_addr_id)."','".db_escape_string((string)$shop_addr_id)."','".db_escape_string((string)$afd)."')",__FILE__ . " linje " . __LINE__);
+				$kontonr=1000;
+				while(in_array($kontonr,$ktonr)) $kontonr++;
 			}
+			fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
+			if (!$gruppe) {
+				$qtxt = "select kodenr from grupper where art='DG' order by fiscal_year desc, kodenr limit 1";
+				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $gruppe=(int)$r['kodenr'];
+				fwrite($log,__line__." No gruppe sent, new debtor gets gruppe $gruppe\n");
+			}
+			$qtxt = "insert into adresser";
+			$qtxt.= "(kontonr,firmanavn,addr1,addr2,";
+			$qtxt.= "postnr,bynavn,land,cvrnr,ean,email,tlf,";
+			$qtxt.= "gruppe,art,betalingsbet,betalingsdage,kontakt,";
+			$qtxt.= "lev_firmanavn,lev_addr1,lev_addr2,";
+			$qtxt.= "lev_postnr,lev_bynavn,lev_land,";
+			$qtxt.= "lev_kontakt,lev_tlf,lev_email,lukket)";
+			$qtxt.= " values ";
+			$qtxt.="('".db_escape_string((string)$kontonr)."','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
+			$qtxt.="'".db_escape_string($postnr)."','".db_escape_string($bynavn)."','".db_escape_string($land)."',";
+			$qtxt.="'".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
+			$qtxt.="'".db_escape_string((string)$gruppe)."','D','".db_escape_string((string)$betalingsbet)."','".db_escape_string((string)$betalingsdage)."','".db_escape_string($kontakt)."',";
+			$qtxt.="'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
+			$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
+			$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
+			fwrite($log,__line__." $qtxt\n");
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$r=db_fetch_array(db_select("select id from adresser where kontonr='".db_escape_string((string)$kontonr)."' and art = 'D'",__FILE__ . " linje " . __LINE__));
+			$saldi_addr_id=$r['id'];
+		}
+		if ($shop_addr_id) {
+			fwrite($log,__line__." insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')\n");
+			db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('".db_escape_string((string)$saldi_addr_id)."','".db_escape_string((string)$shop_addr_id)."','".db_escape_string((string)$afd)."')",__FILE__ . " linje " . __LINE__);
+		}
 	} else {
 		fwrite($log,__line__." select kontonr from adresser where id = '$saldi_addr_id'\n");
 		$r=db_fetch_array(db_select("select kontonr from adresser where id = '".db_escape_string((string)$saldi_addr_id)."'",__FILE__ . " linje " . __LINE__));
