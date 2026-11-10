@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -223,6 +223,8 @@
 //                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
 // 20261029 CL/LH "Opdatér alle" scans only the documents not read yet (poolListData() unscanned=1), not the whole pool again.
 // 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
+// 20261110 CL/SZ SST-949 A row or card edit refused by the save shows the server's reason (<pool-save-problem>) instead of only "Status: 422".
+//                A refused account says which account (pool.account_not_usable); an unchanged stored one no longer refuses the save (poolMetadataSave()).
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1046,10 +1048,17 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		} catch (RuntimeException | InvalidArgumentException $error) {
 			$status = $error->getCode() === 409 ? 409 : 422;
 			http_response_code($status);
-			$message = $status === 409
-				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
-				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
-			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+			if ($status === 409) {
+				$message = findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
+			} elseif ($error->getMessage() === 'Invalid account') {
+				$account = is_scalar($input['account'] ?? null) ? trim((string)$input['account']) : '';
+				$message = trim(findtekst('592|Konto', $sprog_id)) . " $account "
+					. findtekst('pool.account_not_usable|kan ikke bruges i årets kontoplan. Ingen ændringer er gemt.', $sprog_id);
+			} else {
+				$message = findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+			}
+			// documents.php has printed its page head by now, so the editor finds the message by this mark
+			print '<pool-save-problem>' . json_encode($message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE) . '</pool-save-problem>';
 		}
 		return;
 	}
@@ -4078,7 +4087,7 @@ print <<<JS
 				// Refresh the file list
 				fetchFiles();
 			} else {
-				alert('{$txt71}');
+				return response.text().then(text => alert(poolAccountProblemText(text, 'pool-save-problem') || '{$txt71}'));
 			}
 		})
 		.catch(error => {
@@ -4424,11 +4433,14 @@ print <<<JS
 		});
 	};
 	
-	// The message insertDoc.php marks when it refuses an account (<pool-account-problem>"…"</pool-account-problem>), or ''
-	function poolAccountProblemText(text) {
-		const match = /<pool-account-problem>([\s\S]*?)<\/pool-account-problem>/.exec(text || '');
-		if (!match) return '';
-		try { return JSON.parse(match[1]); } catch (e) { return ''; }
+	// The message insertDoc.php marks when it refuses an account (<pool-account-problem>"…"</pool-account-problem>), or ''.
+	// The row and card editors' save marks its message with <pool-save-problem> instead.
+	function poolAccountProblemText(text, mark = 'pool-account-problem') {
+		text = text || '';
+		const start = text.indexOf('<' + mark + '>');
+		const end = start < 0 ? -1 : text.indexOf('</' + mark + '>', start);
+		if (end < 0) return '';
+		try { return JSON.parse(text.slice(start + mark.length + 2, end)); } catch (e) { return ''; }
 	}
 
 	// Save checkbox state to sessionStorage
@@ -5112,7 +5124,7 @@ window.saveRowData = function(input) {
 			// Try to get error message from response
 			response.text().then(text => {
 				console.error('Save failed. Response:', response.status, text);
-				alert(response.status === 409 ? '{$poolStaleText}' : '{$txt31} (Status: ' + response.status + '). {$txt32}.');
+				alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text, 'pool-save-problem') || '{$txt31} (Status: ' + response.status + '). {$txt32}.'));
 			}).catch(() => {
 				alert('{$txt71}');
 			});
