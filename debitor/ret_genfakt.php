@@ -42,6 +42,9 @@
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261110 CL/SZ SST-927 An empty Genfakt. field no longer saves today's date; it keeps the stored date, and '-' clears it as on the order card.
+//                The message now names every order whose Genfakt. is not after the invoice date, and those fields are marked in red.
+//                The alert text is JSON-encoded, so a name with an apostrophe or a multi-line message no longer breaks it.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -129,6 +132,7 @@ print "</tbody></table name=\"tabel_1.1\"></td></tr>\n"; # <- tabel 1.1
 
 $ordreliste=array();
 $fejltekst=NULL;
+$ugyldigGenfakt=array();
 if ($_GET['ordreliste']) {
 	$ordreliste=explode(",",$_GET['ordreliste']);
 	$ordreantal=sizeof($ordreliste);
@@ -222,23 +226,41 @@ if ($_GET['ordreliste']) {
 			}
 			if (!$betalingsbet[$x]) $betalingsbet[$x]='Netto';
 			if (!$betalingsdage[$x]) $betalingsdage[$x]='0'; #20170530
+			$ordreId=(int)$ordreliste[$x];
+			$ordreNavn=$firmanavn[$x];
 			$firmanavn[$x]=db_escape_string($firmanavn[$x]);
 			$email[$x]=db_escape_string($email[$x]);
 			$fakturadate=usdate($fakturadato[$x]);
-			$nextfakt=usdate($genfakt[$x]);
+			$genfaktFelt=trim($genfakt[$x]);
+			if ($genfaktFelt == '-') {
+				$nextfakt=NULL;
+				$nextfaktSql="nextfakt=NULL,";
+			} elseif ($genfaktFelt) {
+				$nextfakt=usdate($genfaktFelt);
+				$nextfaktSql="nextfakt='$nextfakt',";
+			} else {
+				$r=db_fetch_array(db_select("select nextfakt from ordrer where id = '$ordreId'",__FILE__ . " linje " . __LINE__));
+				$nextfakt=$r ? $r['nextfakt'] : NULL;
+				$nextfaktSql='';
+			}
 			($udskriv_til[$x]=='email')?$mail_fakt[$x]='on':$mail_fakt[$x]='';
 			($udskriv_til[$x]=='PBS_BS' || $udskriv_til[$x]=='PBS_FI')?$pbs[$x]='on':$pbs[$x]='';
 			if ($udskriv_til[$x]=='oioubl') {
 				if($art=="DO") $oioubl='faktura';
 				else $oioubl='kreditnota';
 			} else $oioubl=NULL;
-			$qtxt = "update ordrer set firmanavn='$firmanavn[$x]',fakturadate='$fakturadate',nextfakt='$nextfakt',";
+			$qtxt = "update ordrer set firmanavn='$firmanavn[$x]',fakturadate='$fakturadate',$nextfaktSql";
 			$qtxt.= "email='$email[$x]',udskriv_til='$udskriv_til[$x]',mail_fakt='$mail_fakt[$x]',projekt='$projekt[$x]',";
 			$qtxt.= "betalingsbet='$betalingsbet[$x]',betalingsdage='$betalingsdage[$x]',procenttillag='$procenttillag[$x]'";
 			$qtxt.= "where id='$ordreliste[$x]'";
 #if ($x < 3) echo __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($nextfakt<=$fakturadate) $fejltekst="Genfaktureringsdato skal v&aelig;re efter fakturadato ($firmanavn[$x])";
+			if ($nextfakt && $nextfakt<=$fakturadate) {
+				$r=db_fetch_array(db_select("select ordrenr from ordrer where id = '$ordreId'",__FILE__ . " linje " . __LINE__));
+				$ugyldigGenfakt[$ordreId]=trim(($r ? $r['ordrenr'] : '')." $ordreNavn");
+				$fejltekst=findtekst('debtor.recurring.next_invoice_not_after_invoice_date|Genfaktureringsdato skal være efter fakturadato. Ret Genfakt. på de markerede ordrer:',$sprog_id);
+				$fejltekst.="\n".implode("\n",$ugyldigGenfakt);
+			}
 			if (!$fejltekst && strstr($udskriv_til[$x],'PBS')) {
 				$betalingsdate=forfaldsdag($fakturadate, $betalingsbet[$x], $betalingsdage[$x]);
 				list($b_y,$b_m,$b_d)=explode("-",$betalingsdate);
@@ -255,7 +277,11 @@ if ($_GET['ordreliste']) {
 			}
 		}
 	}
-	if ($fejltekst) print "<BODY onLoad=\"javascript:alert('$fejltekst')\">\n";
+	if ($fejltekst) {
+		$alertTekst=html_entity_decode($fejltekst,ENT_QUOTES,$charset);
+		if ($charset != 'UTF-8') $alertTekst=mb_convert_encoding($alertTekst,'UTF-8',$charset);
+		print "<BODY onLoad=\"javascript:alert(".htmlspecialchars(json_encode($alertTekst),ENT_QUOTES).")\">\n";
+	}
 	for ($x=1 ; $x<=$linjeantal ; $x++) {
 		if ($posnr[$x]=='-') {
 			if ($linje_id[$x]) db_modify("delete from ordrelinjer where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
@@ -505,7 +531,9 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	$spantekst="Du kan rette alle med samme genfaktureringsdato ved at sætte en * til sidst<br>";
 #	$spantekst.="F.eks. ".date("dmy")."	*";
 	print "<td><span onmouseover=\"return overlib('$spantekst', WIDTH=800);\" onmouseout=\"return nd();\">";
-	print "<input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:center;width:90px\" name=\"genfakt_$x\" value=\"$genfakt[$x]\">";
+	$genfaktStil="text-align:center;width:90px";
+	if (isset($ugyldigGenfakt[$id[$x]])) $genfaktStil.=";border:2px solid #FF0000";
+	print "<input class=\"inputbox\" $onfocus type=\"text\" style=\"$genfaktStil\" name=\"genfakt_$x\" value=\"$genfakt[$x]\">";
 	print "</span></td>";
 	$spantekst="Du kan rette alle med samme betalingsbetingelser ved at sætte en * efter dage<br>";
 	$spantekst.="f.eks.: ";
