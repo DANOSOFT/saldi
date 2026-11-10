@@ -23,6 +23,7 @@ final class CashCountCommissionSettlementTest extends TestCase
         'One open post per customer with its share (Anna -100 over both prefixes, Bo -50)',
         'The existing empty list is left alone',
         'The new list holds one payment per customer for the amount just settled',
+        'The paid open posts are linked to their payments, so «Fra liste» skips them, and have an empty faktnr',
         'Only the settled orders on this register with a POS payment are stamped',
         'A second run settles nothing again',
         'Dan betalingsliste alone also settles, balanced, with only the new sale',
@@ -30,6 +31,7 @@ final class CashCountCommissionSettlementTest extends TestCase
         'A journal settlement with a negative net commission also blocks its period',
         'A period between journal settlements is not blocked and settles only its own sale',
         'After the journal period it settles, without a payment list',
+        'Open posts settled without a payment list are still offered by «Fra liste»',
         'A missing customer account stops the whole settlement before any posting',
         "A customer group without this year's collective account stops the settlement before any posting",
         'An order with commission lines for an unconfigured account pair is left out with a message, not half settled',
@@ -37,6 +39,7 @@ final class CashCountCommissionSettlementTest extends TestCase
         "The default from-date is the register's last settled sale, or the configured date when later",
         'Orders settled by another cash count after they were read are not settled again',
         'The journal settlement leaves out only the lines settled at the cash count',
+        "A journal post whose period isn't a date doesn't block the settlement",
     ];
 
     /** @var array{exit:int, stdout:string, stderr:string}|null */

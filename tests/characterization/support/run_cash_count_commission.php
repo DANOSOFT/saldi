@@ -63,8 +63,9 @@ function value($sql) {
  */
 function settle($from, $to, $settleCommission, $createPayList, $pairs = array('kn', 'kb')) {
 	$_POST = array('commissionFromDate' => $from, 'commissionToDate' => $to);
+	static $report = 76;
 	$kasse = 1;
-	$reportNumber = 77;
+	$reportNumber = ++$report;
 	$regnaar = 9;
 	$dd = '2026-11-09';
 	$logtime = '12:00:00';
@@ -86,6 +87,15 @@ function settle($from, $to, $settleCommission, $createPayList, $pairs = array('k
 /** @return string */
 function sideEffects() {
 	return value("SELECT (SELECT count(*) FROM transaktioner) || '/' || (SELECT count(*) FROM openpost) || '/' || (SELECT count(*) FROM betalinger) || '/' || (SELECT count(*) FROM betalingsliste)");
+}
+/**
+ * Open posts «Fra liste» (debitor/betalinger.php) offers: open, negative, «Afr:», not from the journal,
+ * and no payment with ordre_id = the post's refnr.
+ * @return string
+ */
+function offeredByFraListe() {
+	return value("SELECT count(*) FROM openpost WHERE udlignet != 1 AND amount < 0 AND beskrivelse LIKE 'Afr:%' AND coalesce(kladde_id, 0) = 0
+		AND refnr NOT IN (SELECT ordre_id FROM betalinger WHERE ordre_id <> 0)");
 }
 /** @return string */
 function balance() { return value('SELECT coalesce(sum(coalesce(debet,0)) - sum(coalesce(kredit,0)),0)::numeric(15,2) FROM transaktioner'); }
@@ -141,6 +151,8 @@ try {
 		&& value('SELECT count(*) FROM betalinger WHERE liste_id = 1') === '0', 'The existing empty list is left alone');
 	check(value('SELECT count(*) FROM betalinger WHERE liste_id = 2') === '2' && value("SELECT belob FROM betalinger WHERE egen_ref LIKE 'Afr: 1001 %'") === '100,00',
 		'The new list holds one payment per customer for the amount just settled');
+	check(offeredByFraListe() === '0' && value("SELECT count(*) FROM openpost WHERE faktnr <> ''") === '0',
+		'The paid open posts are linked to their payments, so «Fra liste» skips them, and have an empty faktnr');
 	check(value('SELECT string_agg(id::text, \',\' ORDER BY id) FROM ordrer WHERE settletime > 0 AND settletime <> 1700000000') === '1,2',
 		'Only the settled orders on this register with a POS payment are stamped');
 
@@ -177,6 +189,7 @@ try {
 	settle('06-11-2026', '09-11-2026', 'on', '');
 	check(balance() === '0.00' && value("SELECT amount FROM openpost WHERE konto_nr = '1001' AND kladde_id = 0 ORDER BY id DESC LIMIT 1") == -15
 		&& value('SELECT count(*) FROM betalingsliste') === '3', 'After the journal period it settles, without a payment list');
+	check(offeredByFraListe() === '2', 'Open posts settled without a payment list are still offered by «Fra liste»');
 
 	$alerts = array();
 	pg_query($connection, "INSERT INTO ordrer VALUES (8,'PO',3,'1','2026-11-08',0)");
@@ -236,6 +249,15 @@ try {
 		&& $journal[1]['varenr'] === 'kb1001002' && $journal[1]['pris'] == 40 && $journal[1]['kostpris'] == 0
 		&& $journal[2]['varenr'] === 'kb1001004' && $journal[2]['kostpris'] == 15,
 		'The journal settlement leaves out only the lines settled at the cash count');
+
+	// A hand-made journal post whose period isn't a date.
+	$alerts = array();
+	pg_query($connection, "INSERT INTO openpost (konto_id,konto_nr,amount,beskrivelse,transdate,kladde_id) VALUES (11,'1001',-10,'Afr: 1001 uge 40 - 41','2026-11-08',9)");
+	pg_query($connection, "INSERT INTO ordrer VALUES (13,'PO',3,'1','" . date('Y-m-d') . "',0)");
+	pg_query($connection, "INSERT INTO pos_betalinger VALUES (13,'Kontant')");
+	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (13,1,'kb1001001',1,10,5)");
+	settle(date('d-m-Y'), date('d-m-Y'), 'on', '');
+	check(!$alerts && value('SELECT settletime FROM ordrer WHERE id = 13') !== '0', "A journal post whose period isn't a date doesn't block the settlement");
 } finally {
 	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
 	pg_close($connection);

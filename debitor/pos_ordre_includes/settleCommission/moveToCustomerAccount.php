@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -- debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php --- ver 5.1.0 -- 2026-11-09 --
+// -- debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php --- ver 5.1.0 -- 2026-11-10 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,9 @@
 //                Refuse a customer whose debtor group has no collective account.
 //                Leave an order out while one of its commission lines has no configured account pair.
 //                Warn how many orders were left out for a missing account pair.
+// 20261110 CL/SS SST-919 review: Link each payment to its open post (ordre_id = refnr), so «Fra liste» doesn't pay it again.
+//                Write the open post with an empty faktnr, as the journal does, so the booked payment settles it.
+//                Skip journal posts whose period isn't a date, and use descriptive text keys.
 
 /**
  * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
@@ -64,6 +67,10 @@ while ($r = db_fetch_array($q)) {
 	if (!preg_match('/^Afr: \S+ (.+?) - (.+?)(?: \(.*\))?\s*$/', $r['beskrivelse'], $period)) {
 		continue;
 	}
+	$datePattern = '/^(\d{1,2}[-.\/]\d{1,2}([-.\/]\d{2,4})?|\d{4}|\d{6}|\d{8})$/';
+	if (!preg_match($datePattern, trim($period[1])) || !preg_match($datePattern, trim($period[2]))) {
+		continue;
+	}
 	$journalFrom = usdate($period[1]);
 	$journalTo = usdate($period[2]);
 	if ($journalFrom <= $commissionToDate && $journalTo >= $commissionFromDate && $journalTo > $journalSettledTo) {
@@ -71,7 +78,7 @@ while ($r = db_fetch_array($q)) {
 	}
 }
 if ($journalSettledTo) {
-	$txt = findtekst('7710|Kommission er afregnet i kassekladden til og med %s. Vælg en fra-dato efter denne dato. Kommissionen er ikke afregnet.', $sprog_id);
+	$txt = findtekst('commission.settle.journal_overlap|Kommission er afregnet i kassekladden til og med %s. Vælg en fra-dato efter denne dato. Kommissionen er ikke afregnet.', $sprog_id);
 	alert(sprintf($txt, dkdato($journalSettledTo)));
 	return;
 }
@@ -137,7 +144,7 @@ if ($settledOrders) {
 		$lockedOrders++;
 	}
 	if ($lockedOrders != count($settledOrders)) {
-		alert(findtekst('7713|Kommissionen er lige blevet afregnet af en anden kasseoptælling. Kommissionen er ikke afregnet igen.', $sprog_id));
+		alert(findtekst('commission.settle.already_settled|Kommissionen er lige blevet afregnet af en anden kasseoptælling. Kommissionen er ikke afregnet igen.', $sprog_id));
 		return;
 	}
 }
@@ -153,7 +160,7 @@ foreach ($customerShare as $custNo => $amount) {
 	$qtxt.= "where kontonr = '" . db_escape_string($custNo) . "' and art = 'D'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$r || !$r['id']) {
-		$txt = findtekst('7711|Konto mangler for varenummer %s. Kommissionen er ikke afregnet.', $sprog_id);
+		$txt = findtekst('commission.settle.customer_missing|Konto mangler for varenummer %s. Kommissionen er ikke afregnet.', $sprog_id);
 		alert(sprintf($txt, $customerItemNo[$custNo]));
 		return;
 	}
@@ -161,7 +168,7 @@ foreach ($customerShare as $custNo => $amount) {
 	$qtxt.= "and fiscal_year = '$regnaar'";
 	$g = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$g || !(int)$g['box2']) {
-		$txt = findtekst('7712|Debitorgruppe %s for konto %s mangler en samlekonto. Kommissionen er ikke afregnet.', $sprog_id);
+		$txt = findtekst('commission.settle.group_account_missing|Debitorgruppe %s for konto %s mangler en samlekonto. Kommissionen er ikke afregnet.', $sprog_id);
 		alert(sprintf($txt, $r['gruppe'], $custNo));
 		return;
 	}
@@ -200,7 +207,7 @@ foreach ($customers as $customer) {
 	$commission = $customer['amount'];
 	$qtxt = "insert into openpost ";
 	$qtxt.= "(konto_id,konto_nr,faktnr,amount,beskrivelse,udlignet,transdate,uxtid,kladde_id,refnr,valuta,valutakurs,projekt)";
-	$qtxt.= " values ('$customer[id]','$custNo','0','" . ($commission * -1) . "','Afr: $custNo $periodText','0','$dd','" . date('U') . "',";
+	$qtxt.= " values ('$customer[id]','$custNo','','" . ($commission * -1) . "','Afr: $custNo $periodText','0','$dd','" . date('U') . "',";
 	$qtxt.= "'0','$reportNumber','DKK','100','')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$debet = $kredit = 0;
@@ -218,7 +225,7 @@ foreach ($customers as $customer) {
 		$qtxt.= "values ";
 		$qtxt.= "('ERH356','" . db_escape_string($myBank) . "','" . db_escape_string($myRef) . "','" . db_escape_string($customer['bank']) . "',";
 		$qtxt.= "'" . db_escape_string($customer['name']) . "','" . db_escape_string($myName) . "','" . dkdecimal($commission) . "','$payDay',";
-		$qtxt.= "'$myCurrency', '0', '0','$payListId')";
+		$qtxt.= "'$myCurrency', '0', '" . (int)$reportNumber . "','$payListId')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }
@@ -243,7 +250,7 @@ if ($settledOrders) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 foreach ($deferredOrders as $missing => $orders) {
-	$txt = findtekst('7714|%s ordrer med kommission er ikke afregnet, fordi de også har kommissionsvarer, der begynder med %s, uden opsatte kommissionskonti. Opsæt kontiene og afregn igen.', $sprog_id);
+	$txt = findtekst('commission.settle.orders_deferred|%s ordrer med kommission er ikke afregnet, fordi de også har kommissionsvarer, der begynder med %s, uden opsatte kommissionskonti. Opsæt kontiene og afregn igen.', $sprog_id);
 	alert(sprintf($txt, $orders, $missing));
 }
 ?> 
