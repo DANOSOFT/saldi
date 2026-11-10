@@ -5411,6 +5411,8 @@
 8458	CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?	The VAT lookup will overwrite existing fields. Do you want to update them?	Oppslaget vil overskrive eksisterende felt. Vil du oppdatere dem?
 8459	Nej, behold nuværende	No, keep current	Nei, behold nåværende
 8460	Ja, opdater	Yes, update	Ja, oppdater
+8461	Dyrtidssedler uden dato	Premium time slips without a date	Dyrtidssedler uten dato
+8462	Akkordafregningen kan ikke overføres, før sedlerne har en dato. En overført seddel skal først afvises af en godkender.	The piecework settlement cannot be transferred until the slips have a date. A transferred slip must first be rejected by an approver.	Akkordoppgjøret kan ikke overføres før sedlene har en dato. En overført seddel må først avvises av en godkjenner.
 8463	Du har skiftet regnskab fra %s til %s, handling afbrudt	You switched account from %s to %s, the action was cancelled	Du har byttet regnskap fra %s til %s, handlingen ble avbrutt
 8464	Du har logget ud - vinduet lukkes	You have logged out - the window will close	Du har logget ut - vinduet lukkes
 8465	Du har ikke nogen rettigheder her - din aktivitet er blevet logget	You do not have access here - your activity has been logged	Du har ingen rettigheter her - aktiviteten din er logget
@@ -5438,3 +5440,4 @@
 8487	kr.	DKK	kr.
 8488	Vil du slette denne vare og lægge den tilbage på lager?	Do you want to delete this item and return it to stock?	Vil du slette denne varen og legge den tilbake på lager?
 8489	%s er tilknyttet: %s.	%s is linked to: %s.	%s er knyttet til: %s.
+8490	Denne seddel er overført af	This slip has been transferred by	Denne seddelen er overført av
