@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/dashboard.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,6 +61,7 @@
 //                 Texts 7700-7701.
 // 20261103 CL/ASR QA: the months to date are counted over the fiscal year's own months (dashData.php), not always 12.
 // 20261103 CL/ASR QA round 2: the VAT figure needs Finansrapport, each POS shortcut needs the right for its page, and a role without any block (Indkøb) gets a short note with links to its modules instead of an empty page.
+// 20261105 CL/LH The month and week charts take their figures-to-date cut-offs from dash_data(), which places today in the fiscal year shown, instead of the server's date.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -513,21 +514,14 @@ $unpaidJs = null;
 if ($unpaid !== null && $unpaid['count']) {
 	$unpaidJs = array('groups' => $unpaid['groups'], 'total' => $unpaid['total'], 'count' => $unpaid['count']);
 }
-// Fiscal months begun by today: later months have no figure yet (no bar, "–" in the tooltip and the table, as the prototype).
-$monthsToDate = 0;
-for ($i = 0; $i < count($data['month']['labels']); $i++) {
-	if (date('Y-m-01', mktime(0, 0, 0, (int) substr($regnstart, 5, 2) + $i, 1, (int) substr($regnstart, 0, 4))) <= date('Y-m-d')) {
-		$monthsToDate++;
-	}
-}
 $locales = array(1 => 'da-DK', 2 => 'en-GB', 3 => 'nb-NO');
 $js = array(
 	'csrf' => $_SESSION['csrf_token'],
 	'locale' => isset($locales[(int) $sprog_id]) ? $locales[(int) $sprog_id] : 'da-DK',
 	'widgets' => $widgets, 'hidden' => $hide_dash, 'blocks' => $blockList, 'order' => $blockOrder, 'defaultOrder' => $blockDefaults,
 	'defaultOff' => array_keys(array_filter($widgetDefaults, function ($v) { return $v === 'off'; })),
-	'month' => !$blockAccess['revgraph'] ? null : array('labels' => array_map($u8, $data['month']['labels']), 'now' => $data['month']['now'], 'last' => $data['month']['last'], 'nowLabel' => $u8($data['month']['nowLabel']), 'lastLabel' => $u8($data['month']['lastLabel']), 'toDate' => $monthsToDate),
-	'weeks' => $blockAccess['revweek'] ? $data['weeks'] + array('dayToDate' => (int) date('N')) : null, 'days' => array_map($u8, $data['days']), 'heat' => $blockAccess['customergraph'] ? $data['heat'] : null, 'heatDefault' => '30',
+	'month' => !$blockAccess['revgraph'] ? null : array('labels' => array_map($u8, $data['month']['labels']), 'now' => $data['month']['now'], 'last' => $data['month']['last'], 'nowLabel' => $u8($data['month']['nowLabel']), 'lastLabel' => $u8($data['month']['lastLabel']), 'toDate' => $data['month']['toDate']),
+	'weeks' => $blockAccess['revweek'] ? $data['weeks'] : null, 'days' => array_map($u8, $data['days']), 'heat' => $blockAccess['customergraph'] ? $data['heat'] : null, 'heatDefault' => '30',
 	'unpaid' => $unpaidJs,
 	'accounts' => array('kontomin' => $kontomin, 'kontomaks' => $kontomaks, 'canEdit' => $canEditAccounts, 'guide' => 'https://site.saldi.dk/saldi-manualer/omsaetningstal'),
 	'txt' => array(

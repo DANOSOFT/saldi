@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/dashData.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/dashboardIncludes/dashData.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,9 @@
 // 20261101 CL/ASR No active-user count and no suggestion list any more (both cards left the dashboard).
 // 20261101 CL/ASR Every item group is returned as well ('all'), so the page can show them all when its row has room.
 // 20261103 CL/ASR QA: the fiscal-year figure ends at the selected year's last day (an earlier year no longer counts later postings), the month chart runs over the year's own months (6 or 18 too, not always 12), and item groups with a negative revenue (credit notes) stay in the total and the list.
+// 20261105 CL/LH Week, month, year to date and the VAT period run to today placed in the fiscal year shown (dash_fiscal_today()), as the old widgets did, not to the server's date.
+//                An earlier year in the top bar showed 0 kr for this week and month and compared its whole year with the whole year before.
+//                The month and week charts' figures-to-date cut-offs (toDate, dayToDate) are set here from the same day.
 
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
@@ -82,6 +85,31 @@ function dash_add(string $date, string $mod): string
 }
 
 /**
+ * Today placed in a fiscal year, as the old widgets (revenue_week.php, revenue_month.php, revenue_year.php) placed it:
+ * today itself when the year holds it, else today's day and month in the year of its start, or the year after when that
+ * date falls before the start (29 February becomes the 28th). A short year that ends before that date gives its last day.
+ *
+ * @param string $today   'Y-m-d'
+ * @param string $fyStart the fiscal year's first day, 'Y-m-d'
+ * @param string $fyEnd   the fiscal year's last day, 'Y-m-d'
+ * @return string 'Y-m-d', between $fyStart and $fyEnd
+ */
+function dash_fiscal_today(string $today, string $fyStart, string $fyEnd): string
+{
+	if ($today >= $fyStart && $today <= $fyEnd) {
+		return $today;
+	}
+	$m = (int) substr($today, 5, 2);
+	$d = (int) substr($today, 8, 2);
+	$y = (int) substr($fyStart, 0, 4);
+	$t = sprintf('%04d-%02d-%02d', $y, $m, min($d, (int) date('t', mktime(0, 0, 0, $m, 1, $y))));
+	if ($t < $fyStart) {
+		$t = sprintf('%04d-%02d-%02d', $y + 1, $m, min($d, (int) date('t', mktime(0, 0, 0, $m, 1, $y + 1))));
+	}
+	return min($t, $fyEnd);
+}
+
+/**
  * The Danish VAT deadline of a period that ends on $end: monthly on the 25th of the next month, quarterly on the first
  * day of the third month after, half-yearly 1 September / 1 March.
  */
@@ -128,13 +156,14 @@ function dash_kpi(float $now, float $last, array $spark): array
 /**
  * Everything the page and its script need.
  *
- * @param array<string, mixed> $c regnstart, regnslut, regnaar, kontomin, kontomaks, sprog_id, bruger_id, vat (vat_registration())
+ * @param array<string, mixed> $c regnstart, regnslut, regnaar, kontomin, kontomaks, sprog_id, bruger_id, vat (vat_registration()),
+ *                                 today ('Y-m-d', the server's date when not given)
  * @return array<string, mixed>
  */
 function dash_data(array $c): array
 {
 	global $regnaar;
-	$today = date('Y-m-d');
+	$today = date('Y-m-d', isset($c['today']) ? strtotime((string) $c['today']) : time());
 	$min = (int) $c['kontomin'];
 	$max = (int) $c['kontomaks'];
 	$names = dash_names((int) $c['sprog_id']);
@@ -142,12 +171,17 @@ function dash_data(array $c): array
 	$fyEnd = (string) $c['regnslut'];
 	$lastFyStart = dash_add($fyStart, '-1 year');
 	$lastFyEnd = dash_add($fyEnd, '-1 year');
-	$queryFrom = min($lastFyStart, dash_add($today, '-1 year -9 weeks'));
-	$daily = dash_daily($queryFrom, $today, $min, $max);
+	// Week, month, year to date and the VAT period run to today placed in the fiscal year shown, so an earlier or later
+	// year chosen in the top bar shows its own figures. The charts have figures up to $dataTo: today, or that day in a
+	// later year; an earlier year keeps its whole months and weeks.
+	$t = dash_fiscal_today($today, $fyStart, $fyEnd);
+	$dataTo = max($today, $t);
+	$queryFrom = min($lastFyStart, dash_add($t, '-1 year -9 weeks'));
+	$daily = dash_daily($queryFrom, $dataTo, $min, $max);
 
 	// Week: this ISO week to date against the same ISO week last year, trend = the last 8 weeks.
-	$isoYear = (int) date('o');
-	$isoWeek = (int) date('W');
+	$isoYear = (int) date('o', strtotime($t));
+	$isoWeek = (int) date('W', strtotime($t));
 	$monday = dash_week_monday($isoYear, $isoWeek);
 	$sunday = dash_add($monday, '+6 days');
 	$lyMonday = dash_week_monday($isoYear - 1, $isoWeek);
@@ -160,18 +194,18 @@ function dash_data(array $c): array
 	}
 
 	// Month: the 1st to today against the same days last year, trend = the last 8 months.
-	$monthFrom = date('Y-m-01');
-	$monthNow = dash_range($daily, $monthFrom, $today);
-	$monthLast = dash_range($daily, dash_add($monthFrom, '-1 year'), dash_add($today, '-1 year'));
+	$monthFrom = substr($t, 0, 8) . '01';
+	$monthNow = dash_range($daily, $monthFrom, $t);
+	$monthLast = dash_range($daily, dash_add($monthFrom, '-1 year'), dash_add($t, '-1 year'));
 	$monthSpark = array();
 	for ($i = 7; $i >= 0; $i--) {
 		$f = date('Y-m-01', strtotime("-$i months", strtotime($monthFrom)));
 		$monthSpark[] = dash_range($daily, $f, date('Y-m-t', strtotime($f)));
 	}
 
-	// Fiscal year to date against last fiscal year to the same date; trend = the fiscal months to date. A year that has
-	// ended (an earlier year chosen in the top bar) counts to its last day only.
-	$yearTo = min($fyEnd, $today);
+	// Fiscal year to date against last fiscal year to the same date; trend = the fiscal months to date. An earlier year
+	// chosen in the top bar counts to today's date in that year, against the same date in the year before it.
+	$yearTo = $t;
 	$yearNow = dash_range($daily, $fyStart, $yearTo);
 	$yearLast = dash_range($daily, $lastFyStart, dash_add($yearTo, '-1 year'));
 	$labels = array();
@@ -181,8 +215,13 @@ function dash_data(array $c): array
 	$startYear = (int) substr($fyStart, 0, 4);
 	// The year's own number of months (a first or changed fiscal year can be 6 or 18 months).
 	$fyMonths = max(1, min(24, ((int) substr($fyEnd, 0, 4) - $startYear) * 12 + (int) substr($fyEnd, 5, 2) - $startMonth + 1));
+	// Fiscal months begun by $dataTo: later months have no figure yet (no bar, "–" in the tooltip and the table).
+	$monthsToDate = 0;
 	for ($i = 0; $i < $fyMonths; $i++) {
 		$f = date('Y-m-01', mktime(0, 0, 0, $startMonth + $i, 1, $startYear));
+		if ($f <= $dataTo) {
+			$monthsToDate++;
+		}
 		$labels[] = $names['months'][(int) substr($f, 5, 2) - 1];
 		$mNow[] = dash_range($daily, $f, date('Y-m-t', strtotime($f)));
 		$lf = dash_add($f, '-1 year');
@@ -217,6 +256,8 @@ function dash_data(array $c): array
 		}
 		$weeks[] = array('no' => $wn, 'year' => $wy, 'lastYear' => $wy - 1, 'now' => $now, 'last' => $last);
 	}
+	// Days of the first week begun by $dataTo: all seven in an earlier year, in today's week up to today's weekday.
+	$daysToDate = $dataTo > $sunday ? 7 : (int) date('N', strtotime($dataTo));
 
 	// VAT: the current period to date on the VAT report's account range (grupper MR), as the old widget counted it.
 	$vat = null;
@@ -224,9 +265,9 @@ function dash_data(array $c): array
 		$mr = db_fetch_array(db_select("select box1, box2 from grupper where art = 'MR' and fiscal_year = " . (int) $regnaar, __FILE__ . " linje " . __LINE__));
 		$vmin = $mr ? (int) $mr['box1'] : $min;
 		$vmax = $mr ? (int) $mr['box2'] : $max;
-		list($pFrom, $pTo) = vat_period_range((string) $c['vat']['period'], $today);
-		$vNow = dash_sum($pFrom, $today, $vmin, $vmax);
-		$vLast = dash_sum(dash_add($pFrom, '-1 year'), dash_add($today, '-1 year'), $vmin, $vmax);
+		list($pFrom, $pTo) = vat_period_range((string) $c['vat']['period'], $t);
+		$vNow = dash_sum($pFrom, $t, $vmin, $vmax);
+		$vLast = dash_sum(dash_add($pFrom, '-1 year'), dash_add($t, '-1 year'), $vmin, $vmax);
 		// No VAT trend: prototype D shows no sparklines, and each point cost a sum over transaktioner.
 		$vat = dash_kpi($vNow, $vLast, array()) + array('from' => $pFrom, 'to' => $pTo, 'deadline' => dash_vat_deadline((string) $c['vat']['period'], $pTo));
 	}
@@ -319,8 +360,8 @@ function dash_data(array $c): array
 		'revmonth' => dash_kpi($monthNow, $monthLast, $monthSpark),
 		'revyear' => dash_kpi($yearNow, $yearLast, $yearSpark),
 		'vatcount' => $vat,
-		'month' => array('labels' => $labels, 'now' => $mNow, 'last' => $mLast, 'nowLabel' => $fyLabel((int) $regnaar), 'lastLabel' => $fyLabel((int) $regnaar - 1)),
-		'weeks' => array('list' => $weeks),
+		'month' => array('labels' => $labels, 'now' => $mNow, 'last' => $mLast, 'nowLabel' => $fyLabel((int) $regnaar), 'lastLabel' => $fyLabel((int) $regnaar - 1), 'toDate' => $monthsToDate),
+		'weeks' => array('list' => $weeks, 'dayToDate' => $daysToDate),
 		'days' => $names['days'],
 		'heat' => $heat,
 		'donut' => $donut,
