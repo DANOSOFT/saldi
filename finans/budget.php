@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------finans/budget.php ----------- ver 5.1.0 --- 2026.10.30 ---
+// -------------finans/budget.php ----------- ver 5.1.0 --- 2026.11.05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,8 +42,17 @@
 //                  Read posted IDs safely and initialize the ID grid independently of duplicate cleanup, including when filling from last year's figures.
 // 20261030 CDX/NTR Reject saves with missing budget dimensions before any includes or database writes.
 // 20261030 CDX/NTR Keep the default Save button rendered off-screen for old Internet Explorer.
+// 20261105 CL/LH Gem posts the grid (kontonr, amount and id of every cell) as one field, budget_grid, through a script below the form.
+//                Every account posted 25 fields, so a chart of more than about 40 open accounts passed PHP's max_input_vars (1000).
+//                PHP then dropped the rest of the post with the Gem at its end, and the page came back unsaved without a word.
+//                A grid post that lost its Gem that way is refused like an incomplete save, and the insert escapes the account number.
 
-if (!isset($_POST['udfyld']) && isset($_POST['gem']) && !isset($_POST['kontoantal'], $_POST['maanedantal'])) {
+// The script below the form sends the grid as one JSON field; without the script it comes as the form's own fields.
+$budgetGrid=isset($_POST['budget_grid']) ? json_decode((string) $_POST['budget_grid'], true) : $_POST;
+// A save needs both counts and a grid that can be read. A post of the grid with neither Gem nor Udfyld was cut short by
+// PHP's max_input_vars before the Gem at the end of the form: it is refused too, instead of drawing the page as if saved.
+$budgetFormPost=isset($_POST['gem']) || isset($_POST['kontonr']) || isset($_POST['budget_grid']);
+if (!isset($_POST['udfyld']) && $budgetFormPost && (!isset($_POST['gem'], $_POST['kontoantal'], $_POST['maanedantal']) || !is_array($budgetGrid))) {
 	http_response_code(400);
 	exit('Budget submission is incomplete. Reload the page and try again.');
 }
@@ -69,12 +78,12 @@ include_once '../includes/oldDesign/header.php';
 if (!isset($_POST['udfyld']) && isset($_POST['gem'])) {
 	$kontoantal=$_POST['kontoantal'];
 	$maanedantal=$_POST['maanedantal'];
-	$kontonr=$_POST['kontonr'];
-	$amount=$_POST['amount'];
+	$kontonr=if_array($budgetGrid, 'kontonr');
+	$amount=if_array($budgetGrid, 'amount');
 	for ($x=1;$x<=$kontoantal;$x++) {
 		for ($z=1;$z<=$maanedantal;$z++) {
 			if (!isset($amount[$x][$z])) $amount[$x][$z]=0;
-			$b_id=(int) ifset($_POST, ['id',$x,$z], 0);
+			$b_id=(int) ifset($budgetGrid, ['id',$x,$z], 0);
 			if ($z==1 && substr($amount[$x][$z],-1)=='*') {
 				$setall[$x]=str_replace('*','',$amount[$x][$z]);
 			} elseif($z==1) $setall[$x]=NULL;
@@ -85,7 +94,8 @@ if (!isset($_POST['udfyld']) && isset($_POST['gem'])) {
 			if ($b_id) {
 				db_modify("update budget set amount='$tal' where id='$b_id'",__FILE__ . " linje " . __LINE__);
 			} elseif ($tal) {
-				db_modify("insert into budget(regnaar,kontonr,md,amount) values ($regnaar,'$kontonr[$x]','$z','$tal')",__FILE__ . " linje " . __LINE__);
+				$qtxt="insert into budget(regnaar,kontonr,md,amount) values ($regnaar,'".db_escape_string($kontonr[$x])."','$z','$tal')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
 	}
@@ -449,6 +459,31 @@ print "</tfoot>";
 
 print "</table>";
 print "</form>\n";
+// The grid goes as one field, so the post stays a handful of fields however many accounts the chart has (see the save above).
+print <<<'JS'
+<script>
+(function () {
+	var form = document.forms.budget;
+	if (!form || !window.JSON) { return; }
+	form.addEventListener('formdata', function (e) {
+		var grid = {kontonr: {}, amount: {}, id: {}}, names = [];
+		e.formData.forEach(function (value, name) {
+			var m = /^(kontonr|amount|id)\[(\d+)\](?:\[(\d+)\])?$/.exec(name);
+			if (!m) { return; }
+			names.push(name);
+			if (m[3] === undefined) {
+				grid[m[1]][m[2]] = value;
+			} else {
+				grid[m[1]][m[2]] = grid[m[1]][m[2]] || {};
+				grid[m[1]][m[2]][m[3]] = value;
+			}
+		});
+		names.forEach(function (name) { e.formData.delete(name); });
+		e.formData.append('budget_grid', JSON.stringify(grid));
+	});
+})();
+</script>
+JS;
 print "</div>";
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';
