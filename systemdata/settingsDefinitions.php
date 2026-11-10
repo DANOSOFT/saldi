@@ -76,6 +76,8 @@
 //                Opening the page no longer shows "1 ugemt ændring" and asks before you leave, Gem no longer writes '0' into box1, and a department 0 stays selectable and kept.
 // 20261105 CL/LH Lagerstyring & kostpris has master's "Udfyld batchoplysninger for varer, der allerede er på lager" link again (items.stock.batch_fill, to lager/batch_udfyld.php) while batch/expiry handling is on, with the number of batches that lack details.
 //                It shows for whoever may change batches there (lager.varer write; disabled for readers) and is left out for everyone else.
+// 20261105 CL/LH Kreditorgrupper has master's Sprog column again (KG box4, the form language of the group's suppliers, help 2461), as Debitorgrupper has it.
+//                A new group, the Danish standard set and a copy from an earlier year store it again (it was left NULL); Baggrunde counts a group's suppliers by it.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -425,6 +427,7 @@ if (!function_exists('getSettingsSections')) {
 							'box1' => array('label' => 1011, 'type' => 'select', 'options_from' => 'vat_codes_purchase', 'options_literal' => true, 'help' => 2459),
 							'box2' => array('label' => 2448, 'type' => 'account', 'required' => true, 'help' => 2460, 'locked_if_used' => 6887),
 							'box3' => array('label' => 776, 'type' => 'select', 'options_from' => 'currencies', 'options_literal' => true, 'empty_value' => 'DKK'),
+							'box4' => array('label' => 801, 'type' => 'select', 'options_from' => 'form_language_names', 'options_literal' => true, 'help' => 2461),
 							'box5' => array('label' => 1013, 'type' => 'account', 'help' => 2550),
 							'box6' => array('label' => 2463, 'type' => 'select', 'options_from' => 'vat_codes_sales', 'options_literal' => true, 'help' => 2462),
 							'box9' => array('label' => 2457, 'type' => 'bool', 'help' => 2465, 'requires' => array('box6', 6500)),
