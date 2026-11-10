@@ -16,11 +16,17 @@
 //       4 = session id (must match the seeded online row)
 //
 // Prints one JSON line on stdout:
-//   status - the HTTP status the page set (200 when it set none)
-//   html   - what the page printed
+//   status   - the HTTP status the page set (200 when it set none)
+//   html     - what the page printed
+//   warnings - every PHP warning, notice and deprecation the request raised,
+//              as "path:line: message" (path from the repository root).
+//              @-suppressed calls (the page's @session_start()) are left out,
+//              as PHP leaves them out of the log. With SALDI_CHAR_DEBUG set
+//              they go to stderr as well.
 //
 // History:
 // 20261105 CL/LH Created for KontoplanRightTest.
+// 20261105 CL/LH Reports the request's warnings, for KontokortRefusedSaveTest.
 
 if ($argc < 5) {
     fwrite(STDERR, "usage: php run_chart_of_accounts_page.php <kontoplan.php|kontokort.php> <query string> <body or \"\"> <session_id>\n");
@@ -36,8 +42,15 @@ if (!in_array($chartestPage, ['kontoplan.php', 'kontokort.php'], true)) {
 }
 
 error_reporting(E_ALL);
-set_error_handler(static function (): bool {
-    return true; // keep the legacy includes' warnings off stdout
+$chartestRoot = dirname(__DIR__, 3) . '/';
+$chartestWarnings = [];
+set_error_handler(static function (int $errno, string $errstr, string $errfile, int $errline) use (&$chartestWarnings, $chartestRoot): bool {
+    // @-suppressed calls arrive with error_reporting() masked.
+    if (error_reporting() & $errno) {
+        $file = str_starts_with($errfile, $chartestRoot) ? substr($errfile, strlen($chartestRoot)) : $errfile;
+        $chartestWarnings[] = "$file:$errline: $errstr";
+    }
+    return true; // reported in the JSON line, not in the page's HTML
 });
 
 $_SERVER['REQUEST_METHOD'] = $chartestBody === '' ? 'GET' : 'POST';
@@ -63,16 +76,16 @@ chdir(dirname(__DIR__, 3) . '/systemdata'); // the pages use ../includes/... rel
 
 ob_start();
 $chartestLevel = ob_get_level();
-$chartestReport = static function () use ($chartestLevel): void {
+$chartestReport = static function () use ($chartestLevel, &$chartestWarnings): void {
     // The page's own buffer is still open when it simply ends; closing it runs its output handler.
     while (ob_get_level() > $chartestLevel) {
         ob_end_flush();
     }
     $html = (string) ob_get_clean();
     if (getenv('SALDI_CHAR_DEBUG')) {
-        fwrite(STDERR, $html . "\n");
+        fwrite(STDERR, $html . "\n" . implode("\n", $chartestWarnings) . "\n");
     }
-    fwrite(STDOUT, "\n" . json_encode(['status' => http_response_code() ?: 200, 'html' => $html], JSON_INVALID_UTF8_SUBSTITUTE) . "\n");
+    fwrite(STDOUT, "\n" . json_encode(['status' => http_response_code() ?: 200, 'html' => $html, 'warnings' => $chartestWarnings], JSON_INVALID_UTF8_SUBSTITUTE) . "\n");
 };
 // Registered from a shutdown function, so it runs after the ones the page registers (includes/errorReport.php).
 register_shutdown_function(static function () use ($chartestReport): void {

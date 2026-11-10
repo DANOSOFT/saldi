@@ -43,6 +43,7 @@
 //                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
 // 20261105 CL/LH A refused save (number below 1 or already taken) of a Drift or Status account draws the form again instead of a count() TypeError: Map til's standard accounts are read whenever the form shows Map til, not only for a saved account.
 //                The empty last line of importfiler/kontoplan.txt no longer warns Undefined array key.
+// 20261105 CL/LH The form a refused save draws again no longer warns Undefined variable $valutakurs, $slet, $previousPage and $nextPage: they start at 0 before the account load, so it shows no balance, no Slet and no arrows, as before.
 
 @session_start();
 $s_id = session_id();
@@ -285,6 +286,9 @@ if (isset($_POST['slet'])) {
 		exit;
 	}
 }
+// Only the account load below sets these, and a refused save (number below 1 or taken) draws the form without it:
+// an account that is not saved has no neighbours, no Slet and no balance (a rate of 0 leaves the Saldo row empty).
+$previousPage = $nextPage = $slet = $valutakurs = 0;
 if ($id > 0) {
 	$q = db_select("select * from kontoplan where id = '$id'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($q)) {

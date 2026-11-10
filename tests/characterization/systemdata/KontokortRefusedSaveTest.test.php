@@ -12,14 +12,23 @@
 // and a refused save draws the form with id 0. A Status account and a number
 // below 1 took the same path.
 //
-// Pins: a refused save of a Drift or a Status account shows the alert, the
-// whole form and Map til with the standard accounts of that type; a saved
-// Drift account's card still lists them.
+// Once the form was drawn again it warned Undefined variable $valutakurs at
+// the Saldo row and $slet at the Slet button (testlab round 2,
+// chart-vat-group-setup), and in the Finans > Kontoplan layout $previousPage
+// and $nextPage at the arrows: the account load (id > 0) is the only place
+// that sets them.
+//
+// Pins: a refused save of a Drift or a Status account, opened from Finans >
+// Kontoplan or from Indstillinger, shows the alert, the whole form and Map til
+// with the standard accounts of that type, reads no undefined variable and
+// offers no Slet; a saved Drift account's card still lists the standard
+// accounts and offers Slet.
 //
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20261105 CL/LH Created.
+// 20261105 CL/LH A refused save reads no undefined variable and offers no Slet, in both layouts.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -69,34 +78,52 @@ final class KontokortRefusedSaveTest extends CharacterizationTestCase
         return $this->runChildJson('run_chart_of_accounts_page.php', ['kontokort.php', $query, $body, CharacterizationEnv::SESSION_ID]);
     }
 
-    /** Gem on the new-account card (no id), as the form posts it: the Kontotype dropdown sends the type's letter. */
-    private function save(string $kontonr, string $kontotype): array
+    /**
+     * Gem on the new-account card (no id), as the form posts it: the Kontotype dropdown sends the type's letter, and a
+     * card opened from Indstillinger carries the settings marker.
+     */
+    private function save(string $kontonr, string $kontotype, bool $fromSettings): array
     {
-        return $this->page('', http_build_query([
+        $form = [
             'id' => '', 'valuta' => '', 'saldo' => '', 'kontonr' => $kontonr, 'map_to' => '0',
             'beskrivelse' => Fixtures::TAG . ' kontokort new', 'kontotype' => $kontotype, 'moms' => '', 'genvej' => '',
             'gem' => 'Gem',
-        ]));
+        ];
+        if ($fromSettings) {
+            $form['settings'] = '1';
+        }
+        return $this->page('', http_build_query($form));
     }
 
-    /** @return array<string, array{string, string, string}> */
+    /** @return list<string> the page's own "Undefined variable" warnings */
+    private static function undefinedVariables(array $out): array
+    {
+        return array_values(array_filter(
+            $out['warnings'],
+            static fn(string $w): bool => str_starts_with($w, 'systemdata/kontokort.php:') && str_contains($w, 'Undefined variable')
+        ));
+    }
+
+    /** @return array<string, array{string, string, string, bool}> */
     public static function refusedSaves(): array
     {
-        return [
-            'a Drift account with a number that is taken' => ['taken', 'D', self::STD_DRIFT],
-            'a Status account with a number that is taken' => ['taken', 'S', self::STD_STATUS],
-            'a Drift account with number 0' => ['0', 'D', self::STD_DRIFT],
-        ];
+        $cases = [];
+        foreach (['Finans > Kontoplan' => false, 'Indstillinger' => true] as $where => $fromSettings) {
+            $cases["a Drift account with a number that is taken, from $where"] = ['taken', 'D', self::STD_DRIFT, $fromSettings];
+            $cases["a Status account with a number that is taken, from $where"] = ['taken', 'S', self::STD_STATUS, $fromSettings];
+            $cases["a Drift account with number 0, from $where"] = ['0', 'D', self::STD_DRIFT, $fromSettings];
+        }
+        return $cases;
     }
 
     #[DataProvider('refusedSaves')]
-    public function test_a_refused_save_draws_the_form_with_the_standard_accounts(string $kontonr, string $kontotype, string $standard): void
+    public function test_a_refused_save_draws_the_form_with_the_standard_accounts(string $kontonr, string $kontotype, string $standard, bool $fromSettings): void
     {
         if ($kontonr === 'taken') {
             [, $kontonr] = $this->account();
         }
 
-        $out = $this->save($kontonr, $kontotype);
+        $out = $this->save($kontonr, $kontotype, $fromSettings);
 
         $this->assertSame(200, $out['status']);
         $this->assertStringContainsString(
@@ -108,6 +135,8 @@ final class KontokortRefusedSaveTest extends CharacterizationTestCase
         $this->assertStringContainsString($standard, $out['html'], 'with the standard accounts of that type');
         $this->assertStringContainsString('name=beskrivelse value="' . Fixtures::TAG . ' kontokort new"', $out['html'], 'the form keeps what was typed');
         $this->assertStringContainsString('name="gem"', $out['html'], 'and is drawn to the Gem button');
+        $this->assertSame([], self::undefinedVariables($out), 'the form reads no variable that only a saved account sets');
+        $this->assertStringNotContainsString('name="slet"', $out['html'], 'an account that was not saved offers no Slet');
         $this->assertSame(
             0,
             (int)self::one("SELECT count(*) AS n FROM kontoplan WHERE beskrivelse = $1", [Fixtures::TAG . ' kontokort new'])['n'],
@@ -125,5 +154,6 @@ final class KontokortRefusedSaveTest extends CharacterizationTestCase
         $this->assertStringContainsString(Fixtures::TAG . ' kontokort refused', $out['html']);
         $this->assertStringContainsString(self::STD_DRIFT, $out['html']);
         $this->assertStringNotContainsString(self::STD_STATUS, $out['html'], 'a Drift account is offered Drift accounts only');
+        $this->assertStringContainsString('name="slet"', $out['html'], 'an account without postings still offers Slet');
     }
 }
