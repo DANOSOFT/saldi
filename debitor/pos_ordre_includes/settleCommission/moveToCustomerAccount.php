@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -- debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php --- patch 4.0.9 -- 2023-11-20 --
+// -- debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php --- ver 5.1.0 -- 2026-11-05 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,33 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210410 PHR Addad CreatePayList
 // 20231120	PHR Added checkLineId to avoid same line counnted more than once.
+// 20261105 CL/LH Afregn kommission posts each seller's share on the samlekonto of the seller's debtor group in the year posted and gives the seller an Afr open post.
+//                These sat behind $moveToCustomerAccount, which nothing set, so only the debits to the customer commission accounts were posted.
+//                A share is posted also when the item group's shares cancel out, and the payment list is made whenever the group adds a payment to it.
+//                The whole settlement is worked out before anything is written, so a seller without an account or samlekonto stops it with no payment, posting or open post written.
+//                A seller's payment carries the id of the seller's Afr open post in openpost_id, so Fra liste on the payment list does not pay that open post again; ordre_id stays 0.
 
+/**
+ * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
+ * which includes this file:
+ * @var int    $kasse
+ * @var int    $reportNumber
+ * @var string $regnaar
+ * @var string $dd
+ * @var string $logtime
+ * @var int    $ansat_id
+ * @var int    $afd
+ * @var string $brugernavn
+ * @var string $createPayList
+ * @var string $commissionAccountNew
+ * @var string $commissionAccountUsed
+ * @var string $customerCommissionAccountNew
+ * @var string $customerCommissionAccountUsed
+ */
 $coAc=$itNo=array();
 /*
 $qtxt = "select var_value from settings where var_name = 'commissionFromDate'";
@@ -86,9 +108,11 @@ if ($commissionAccountNew && $customerCommissionAccountNew) {
 	$itNo[0]    = 'kb%';
 }
 
+// The settlement is worked out first and written below, once every seller has an account.
+$settleGroups = array();
 for ($co=0;$co<count($coAc);$co++) { 
 	$c=0;
-	$cGroup=$itemId=$cItemId=array();
+	$cGroup=$itemId=$cItemId=$cItemNo=array();
 
 	$qtxt = "select moms from kontoplan where kontonr = '$coAc[$co]' and regnskabsaar <= '$regnaar' ";
 	$qtxt.= "order by regnskabsaar desc limit 1";
@@ -113,6 +137,7 @@ for ($co=0;$co<count($coAc);$co++) {
 	$qtxt.= "and ordrelinjer.ordre_id = ordrer.id and pos_betalinger.ordre_id = ordrer.id and ordrer.felt_5 = '$kasse' ";
 	$qtxt.= "order by ordrelinjer.vare_id";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$v=0;
 	while ($r=db_fetch_array($q)) {
 		$itemId[$v]=$r['vare_id'];
 		$v++;
@@ -135,6 +160,7 @@ for ($co=0;$co<count($coAc);$co++) {
 	$i = $oid = 0;
 	for ($c = 0 ; $c < count($cGroup) ; $c++) {
 		$commissionSum=0;
+		$sellerShares = array();
 		for ($v=0;$v<count($cItemId[$c]);$v++) {
 			$commission = 0;
 			$qtxt = "select ordrer.id as orderid,ordrelinjer.pris,ordrelinjer.antal,ordrelinjer.rabat,ordrelinjer.kostpris,";
@@ -164,83 +190,109 @@ for ($co=0;$co<count($coAc);$co++) {
 			$commissionSum += $commission;
 			if ($commission) {
 				$custNo=substr($cItemNo[$c][$v],5);	
-				$qtxt = "select id,gruppe from adresser where kontonr='$custNo' and art = 'D'"; 
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				if (!$custId=$r['id']) {
+				$qtxt = "select id,gruppe,firmanavn,bank_reg,bank_konto from adresser where kontonr='" . db_escape_string($custNo) . "' and art = 'D'";
+				$seller=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				$custId = $seller ? (int) $seller['id'] : 0;
+				$custAccount = 0;
+				if ($custId) {
+					$qtxt = "select box2 from grupper where art = 'DG' and kodenr = '" . (int) $seller['gruppe'] . "' and fiscal_year = '" . (int) $regnaar . "'";
+					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					$custAccount = $r ? (int) $r['box2'] : 0;
+				}
+				if (!$custId || !$custAccount) {
 					$alerttxt="Konto mangler for varenummer ". $cItemNo[$c][$v] ."!"; 
 					alert($alerttxt);
 					return "$alerttxt"; 
 				}
-				$qtxt = "select box2 from grupper where art = 'DG' and kodenr = '$r[gruppe]'";
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$custAccount = $r['box2'];
-				$custAmount  = $commission * -1;
-				if ($moveToCustomerAccount) {
-#					$qtxt = "select id from openpost where konto_id = '$custId' and konto_nr = '$custNo' and faktnr = '0' ";
-#					$qtxt = "and amount = '$custAmount' and beskrivelse = 'Afr: $custNo $moveToCustomerDate - $dd'";
-#					if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					$qtxt = "insert into openpost "; 
-					$qtxt.= "(konto_id,konto_nr,faktnr,amount,beskrivelse,udlignet,transdate,uxtid,kladde_id,refnr,valuta,valutakurs,projekt)";
-					$qtxt.= " values ('$custId','$custNo','0','$custAmount','Afr: $custNo $moveToCustomerDate - $dd','0','$dd','". date ('U'). "',";
-					$qtxt.= "'0','$reportNumber','DKK','100','')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					$debet=$kredit=0;
-					($commission > 0)?$kredit=$commission:$debet=abs($commission);
-					$qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
-					$qtxt.="projekt,ansat,ordre_id,kasse_nr,report_number,moms)";
-					$qtxt.=" values ";
-					$qtxt.="('0','$dd','Kommisionsafregning konto $custNo','$custAccount','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
-					$qtxt.="'','$ansat_id','0','0','$reportNumber','0')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-#				}
-				}
-				if ($payListId > 0 && $commission > 0) {
-					$qtxt = "select firmanavn,bank_reg,bank_konto from adresser where kontonr='$custNo' and art = 'D'"; 
-					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-					$custName = $r['firmanavn'];
-					$custReg = $r['bank_reg'];
-					$custBank = $r['bank_konto'];
-					while (strlen($custBank)<10) $custBank='0'.$custBank; # kontonumre skal vaere paa 10 cifre
-					$custBank = $custReg.$custBank;
-					$myRef="Afr: $custNo $refFromDate - $refToDate";
+				// Written below, with the other shares, once every seller in the settlement has an account.
+				$sellerShares[] = array(
+					'custId' => $custId, 'custNo' => $custNo, 'custAccount' => $custAccount, 'commission' => $commission,
+					'name' => (string) $seller['firmanavn'], 'bankReg' => (string) $seller['bank_reg'], 'bankAccount' => (string) $seller['bank_konto'],
+				);
+			}
+		}
+		$settleGroups[] = array(
+			'customerCommissionAccount' => $cusCoAc[$co], 'commissionSum' => $commissionSum,
+			'sellerShares' => $sellerShares, 'orderIds' => $orderId,
+		);
+	}
+}
 
-					$qtxt = "insert into betalinger";
-					$qtxt.= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,liste_id) ";
-					$qtxt.= "values ";
-					$qtxt.= "('ERH356','$myBank','".db_escape_string($myRef)."','".db_escape_string($custBank)."',";
-					$qtxt.= "'".db_escape_string($custName)."','".db_escape_string($myName)."','". dkdecimal($commission) ."','$payDay',"; 
-					$qtxt.="'$myCurrency', '0', '0','$payListId')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-			}
-		}
-		if ($payListId > 0 && $commissionSum > 0) {
-			$listDate = date("Y-m-d");
-			$timeStamp = microtime();
-			$listNote = "Afregning $refFromDate - $refToDate";
-			$qtxt = "select id from betalingsliste where id = $payListId";
-			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$qtxt = "update betalingsliste set listedate = '$listDate', tidspkt = '$timeStamp', listenote = '$listNote', ";
-				$qtxt.= "hvem = '$brugernavn' where id='$payListId'";
-			} else {
-				$qtxt = "insert into betalingsliste(listedate, listenote, oprettet_af, hvem, tidspkt, bogfort) values ";
-				$qtxt.= "('$listDate', '$listNote', '$brugernavn', '$brugernavn', '$timeStamp', '-')";
-			}
+// Every seller has an account; nothing was written before here.
+foreach ($settleGroups as $settleGroup) {
+	// Each seller's share on the samlekonto of the seller's debtor group, and an Afr open post the seller is paid against.
+	// A share is posted also when the group's shares cancel out (one seller's sale and another seller's return), as the
+	// shares then balance each other.
+	$payments = 0;
+	foreach ($settleGroup['sellerShares'] as $share) {
+		$sellerNo = db_escape_string($share['custNo']);
+		$sellerAmount = $share['commission'] * -1;
+		$afrText = db_escape_string("Afr: " . $share['custNo'] . " " . dkdato($commissionFromDate) . " - " . dkdato($commissionToDate));
+		$qtxt = "insert into openpost ";
+		$qtxt.= "(konto_id,konto_nr,faktnr,amount,beskrivelse,udlignet,transdate,uxtid,kladde_id,refnr,valuta,valutakurs,projekt)";
+		$qtxt.= " values ('" . $share['custId'] . "','$sellerNo','0','$sellerAmount','$afrText','0','$dd','". date ('U'). "',";
+		$qtxt.= "'0','$reportNumber','DKK','100','')";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		// The open post just written: this report's open posts are written only here, in the cash count's transaction.
+		$qtxt = "select max(id) as id from openpost where konto_id = '" . $share['custId'] . "' and refnr = '" . (int) $reportNumber . "'";
+		$openpost = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$debet=$kredit=0;
+		($share['commission'] > 0)?$kredit=$share['commission']:$debet=abs($share['commission']);
+		$qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+		$qtxt.="projekt,ansat,ordre_id,kasse_nr,report_number,moms)";
+		$qtxt.=" values ";
+		$qtxt.="('0','$dd','Kommisionsafregning konto $sellerNo','" . $share['custAccount'] . "','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
+		$qtxt.="'','$ansat_id','0','0','$reportNumber','0')";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		if ($payListId > 0 && $share['commission'] > 0) {
+			$custBank = $share['bankAccount'];
+			while (strlen($custBank)<10) $custBank='0'.$custBank; # kontonumre skal vaere paa 10 cifre
+			$custBank = $share['bankReg'].$custBank;
+			$myRef = "Afr: " . $share['custNo'] . " $refFromDate - $refToDate";
+
+			// openpost_id is the open post this payment pays, as debitor/betalinger.php's "Fra liste" writes it: that is how
+			// Fra liste knows this seller's open post is already on a list. ordre_id is an order (the list's link and the XML
+			// export read it so), and the report number is every seller's refnr.
+			$qtxt = "insert into betalinger";
+			$qtxt.= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,openpost_id,liste_id) ";
+			$qtxt.= "values ";
+			$qtxt.= "('ERH356','".db_escape_string($myBank)."','".db_escape_string($myRef)."','".db_escape_string($custBank)."',";
+			$qtxt.= "'".db_escape_string($share['name'])."','".db_escape_string($myName)."','". dkdecimal($share['commission']) ."','$payDay',";
+			$qtxt.="'$myCurrency', '0', '0', '" . (int) $openpost['id'] . "','$payListId')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$payments++;
 		}
-		if ($commissionSum) {
-			$debet=$kredit=0;
-			($commissionSum > 0)?$debet=$commissionSum:$kredit=abs($commissionSum);
-			$qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
-			$qtxt.="projekt,ansat,ordre_id,kasse_nr,report_number,moms)";
-			$qtxt.=" values ";
-			$qtxt.="('0','$dd','Kommisionsafregning','$cusCoAc[$co]','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
-			$qtxt.="'','$ansat_id','0','0','$reportNumber','0')";
+	}
+	// The list the payments are on, also when the group's shares add up to nothing.
+	if ($payments) {
+		$listDate = date("Y-m-d");
+		$timeStamp = microtime();
+		$listNote = "Afregning $refFromDate - $refToDate";
+		$qtxt = "select id from betalingsliste where id = $payListId";
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$qtxt = "update betalingsliste set listedate = '$listDate', tidspkt = '$timeStamp', listenote = '$listNote', ";
+			$qtxt.= "hvem = '" . db_escape_string($brugernavn) . "' where id='$payListId'";
+		} else {
+			$qtxt = "insert into betalingsliste(listedate, listenote, oprettet_af, hvem, tidspkt, bogfort) values ";
+			$qtxt.= "('$listDate', '$listNote', '" . db_escape_string($brugernavn) . "', '" . db_escape_string($brugernavn) . "', '$timeStamp', '-')";
+		}
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	}
+	$commissionSum = $settleGroup['commissionSum'];
+	if ($commissionSum) {
+		$debet=$kredit=0;
+		($commissionSum > 0)?$debet=$commissionSum:$kredit=abs($commissionSum);
+		$qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+		$qtxt.="projekt,ansat,ordre_id,kasse_nr,report_number,moms)";
+		$qtxt.=" values ";
+		$qtxt.="('0','$dd','Kommisionsafregning','" . $settleGroup['customerCommissionAccount'] . "','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
+		$qtxt.="'','$ansat_id','0','0','$reportNumber','0')";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	}
+	if ($settleGroup['sellerShares']) {
+		foreach ($settleGroup['orderIds'] as $settledOrderId) {
+			$qtxt = "update ordrer set settletime = '$settletime' where id = " . (int) $settledOrderId;
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			for ($oid=0;$oid<count($orderId);$oid++) {
-				$qtxt = "update ordrer set settletime = '$settletime' where id = $orderId[$oid]";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			}
 		}
 	}
 }

@@ -47,6 +47,7 @@
 //                 box4 is left as it is, and a till that already has a row for the currency keeps it.
 // 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so MB-73 and the signup block stay at the end.
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
+// 20261105 CL/LH betalinger gets openpost_id (includes/opdat_func/paymentOpenpostColumn.php), the open post a payment on a payment list pays, so Fra liste and Afregn kommission no longer link an Afr open post to its payment through the report number in ordre_id.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -617,5 +618,10 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb
 		}
 	}
 }
+
+// 20261105 CL/LH betalinger.openpost_id: the open post a payment on a payment list pays. Afregn kommission and Fra liste
+// linked a seller's Afr open post to its payment through the report number in ordre_id, which every seller of the report shares.
+require_once __DIR__ . '/opdat_func/paymentOpenpostColumn.php';
+addPaymentOpenpostColumn($db_type);
 
 ?>

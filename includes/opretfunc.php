@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.0.0 --- 2026-10-28 ---
+// --- includes/opretfunc.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 //                lookup precedence and '*' check, and skip that grant on the sign-up API.
 // 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
+// 20261105 CL/LH betalinger gets openpost_id, the open post a payment pays, as includes/betweenUpdates.php adds it on existing accounts.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -393,7 +394,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify("CREATE TABLE historik ($id_column,konto_id int,kontakt_id int,ansat_id int,notat text,notedate date,kontaktet date,kontaktes date,dokument text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE valuta ($id_column,gruppe integer,valdate date,kurs $decimal_type(15,3),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE betalingsliste ($id_column,listedate date,udskriftsdate date,listenote text,bogfort varchar(2),oprettet_af text,bogfort_af text,hvem text,tidspkt text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE betalinger ($id_column,bet_type text,fra_kto text,egen_ref text,til_kto text,modt_navn text,belob text,betalingsdato text,valuta text,kort_ref text,kvittering text,ordre_id integer,bilag_id integer,liste_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE betalinger ($id_column,bet_type text,fra_kto text,egen_ref text,til_kto text,modt_navn text,belob text,betalingsdato text,valuta text,kort_ref text,kvittering text,ordre_id integer,bilag_id integer,liste_id integer,openpost_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tidsreg ($id_column,person integer,ordre integer,pnummer integer,operation integer,materiale integer,tykkelse $decimal_type(15,3),laengde $decimal_type(15,3),bredde $decimal_type(15,3),antal_plader $decimal_type(15,3), gaa_hjem integer,tid integer,forbrugt_tid integer,opsummeret_tid integer,beregnet integer,pause integer,antal $decimal_type(15,3), faerdig integer,circ_time integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tabeller ($id_column,person integer,ordre integer,pnummer integer,	operation integer,materiale integer,tykkelse $decimal_type(15,3),laengde $decimal_type(15,3),bredde $decimal_type(15,3),antal_plader $decimal_type(15,3), gaa_hjem integer,tid integer,forbrugt_tid integer,opsummeret_tid integer,beregnet integer,pause integer,antal $decimal_type(15,3), faerdig integer,circ_time integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tekster ($id_column,sprog_id integer,tekst_id integer,tekst text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/betalinger.php --- ver 5.1.0 --- 2026.10.30 ---
+// --- debitor/betalinger.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,8 @@
 // 20231213 MSC - Implementing new design
 // 20261030 CL/MMR SST-920: Removed the «Udlign konti» format from the bank format list.
 //                 It called udlignKonti(), which does not exist, so «Udskriv og luk» ended on a blank page after the list was already locked as sent.
+// 20261105 CL/LH Fra liste knows an Afr open post without a kassekladde is on a list by the open post's id in the payment's openpost_id, and writes it there with ordre_id 0.
+//                It matched the open post's refnr against ordre_id: Afregn kommission gives every seller of a report that refnr, so one seller's payment kept the others off the list, and the list and its XML export read the report number as an order.
 
 $dan_liste = $gem = $listenote = $slet_ugyldige = $udskriv = NULL;
 
@@ -235,7 +237,7 @@ if (strtolower($myCtry) == 'norway') $myCtry = 'NO';
 ($myCtry == 'NO') ? $currency = 'NOK' : $currency = 'DKK';
 if ($find) {
 	$bilag_id_list = array();
-	$ordre_id_list = array();
+	$openpost_id_list = array();
 	$x = 0;
 	$y = 0;
 
@@ -282,15 +284,15 @@ if ($find) {
 			}
 		}
 	} elseif ($find) {
-		$q = db_select("select ordre_id, bilag_id from betalinger", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select bilag_id, openpost_id from betalinger", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($r['bilag_id']) {
 				$x++;
 				$bilag_id_list[$x] = $r['bilag_id'] * 1;
 			}
-			if ($r['ordre_id']) {
+			if ($r['openpost_id']) {
 				$y++;
-				$ordre_id_list[$y] = $r['ordre_id'] * 1;
+				$openpost_id_list[$y] = $r['openpost_id'] * 1;
 			}
 		}
 		$qtxt = "select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,";
@@ -302,7 +304,7 @@ if ($find) {
 		$qtxt.= " and openpost.konto_id = adresser.id and adresser.art = 'D'";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$ordre_id = 0;
+			$openpost_id = 0;
 			$medtag = 1;
 			$egen_ref = $r['egen_ref'];
 			if (substr($egen_ref, 0, 9) == 'Afregning' && $r['kontonr'] && $r['kladde_id']) {
@@ -311,10 +313,11 @@ if ($find) {
 			}
 			$kladde_id = $r['kladde_id'] * 1;
 			$bilag_id = $r['bilag_id'] * 1;
-			$refnr = $r['refnr'] * 1;
+			// An open post without a kassekladde (Afregn kommission's) is on a list when a payment carries its id. Its refnr is the
+			// cash count's report number, which every seller of the report shares and which is not an order.
 			if ($kladde_id && in_array($bilag_id, $bilag_id_list)) $medtag = 0;
-			if (!$kladde_id && in_array($refnr, $ordre_id_list)) $medtag = 0;
-			elseif (!$kladde_id) $ordre_id = $refnr;
+			if (!$kladde_id && in_array($r['id'] * 1, $openpost_id_list)) $medtag = 0;
+			elseif (!$kladde_id) $openpost_id = $r['id'] * 1;
 			if ($medtag) {
 				$tmp = $r['modt_konto'];
 				if ($tmp) {
@@ -360,10 +363,10 @@ if ($find) {
 				/* $paymentDays = get_settings_value("paymentDays", "payment_list", 0);
 				$defaultPayDate = date('dmY', strtotime("+$paymentDays days")); */
 				$qtxt = "insert into betalinger";
-				$qtxt.= "(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) ";
+				$qtxt.= "(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, openpost_id, liste_id) ";
 				$qtxt.= "values ";
 				$qtxt.= "('$erh','$myBank','$egen_ref','$modt_konto','" . db_escape_string($r['modt_navn']) . "','$kort_ref','$belob','$forfaldsdag',";
-				$qtxt.= "'$valuta', '$bilag_id', '$ordre_id','$liste_id')";
+				$qtxt.= "'$valuta', '$bilag_id', '0', '$openpost_id','$liste_id')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 		}
