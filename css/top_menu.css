@@ -4,6 +4,8 @@
     Author     : per kringelbach & Malene Stahl Corneliussen
     Description:
         Purpose of the stylesheet follows.
+
+    20261027 LOE MB-62 a disabled button is dimmed, so a read-only user can see it.
 */
   
 /* Insert font family Montserrat */
@@ -720,6 +722,13 @@ noindex:-o-prefocus, .selectinputSmall {/* opera hack */
 .button:active {
     position: relative;
     top: 1px; 
+}
+
+/* MB-62 a disabled button must look disabled: for a read-only user this is the only signal */
+.button[disabled],
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .medium {
