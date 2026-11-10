@@ -28,7 +28,7 @@
 // 20251119 PHR Changed transdate ($dd) to date of settlement
 // 20260714 CX/PHR Skip items whose account part (from character six) is not numeric
 // 20261109 CL/SS SST-919: Leave out sales already settled at the cash count (ordrer.settletime > 0); query in loppeafregningSalesQuery().
-// 20261110 CL/SS SST-919 review: Leave out only the lines the cash count settles, so a zero-cost line on a settled order stays here.
+// 20261110 CL/SS SST-919 review: Leave out only the lines the cash count settles, so a zero-cost line or a line with a NULL value on a settled order stays here.
 
 @session_start();
 $s_id=session_id();
@@ -45,7 +45,7 @@ include("../includes/forfaldsdag.php");
 /**
  * Commission sales to settle in the journal.
  * Lines the cash count has settled are left out: commission lines with a price and a cost
- * on orders with ordrer.settletime > 0. Other lines on those orders stay.
+ * on orders with ordrer.settletime > 0. Other lines on those orders stay, also when a value is NULL.
  *
  * @param string $vareprefix Item number prefix (kb, kn, ...).
  * @param string $varegruppe Item group, or '' for all.
@@ -62,8 +62,8 @@ function loppeafregningSalesQuery($vareprefix, $varegruppe, $fromDate, $toDate) 
 		$qtxt.= "and varer.gruppe = '" . db_escape_string($varegruppe) . "' ";
 	}
 	$qtxt.= "and ordrer.id = ordrelinjer.ordre_id and (ordrer.settletime = '0' or ordrer.settletime is null ";
-	$qtxt.= "or not (varer.provision > '0' and ordrelinjer.pris != '0' and ordrelinjer.kostpris > '0' ";
-	$qtxt.= "and (ordrelinjer.varenr like 'kn%' or ordrelinjer.varenr like 'kb%'))) ";
+	$qtxt.= "or not coalesce(varer.provision > '0' and ordrelinjer.pris != '0' and ordrelinjer.kostpris > '0' ";
+	$qtxt.= "and (ordrelinjer.varenr like 'kn%' or ordrelinjer.varenr like 'kb%'), false)) ";
 	$qtxt.= "and batch_salg.vare_id = varer.id and batch_salg.fakturadate >= '" . db_escape_string($fromDate) . "' ";
 	$qtxt.= "and batch_salg.fakturadate <= '" . db_escape_string($toDate) . "' order by varer.gruppe, varer.varenr, batch_salg.id";
 	return $qtxt;
