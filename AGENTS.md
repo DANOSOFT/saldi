@@ -31,6 +31,8 @@ Before you push, run `node tools/guardrails/check.mjs`. CI runs the same command
 | Shared-runtime diagnostics go to the server log without invoking request error handlers; a fallback write must not abort journal deletion | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | A symlinked migration root must target private application storage; refuse world-writable or sticky targets before changing their ownership or permissions | PHPUnit `SharedFileTest` | [runtime permissions](doc/runtime-permissions.md) |
 | Budget saves require both posted counts (`kontoantal`, `maanedantal`) before any includes or database writes | PHPUnit `BudgetSubmissionTest` | |
+| Gantt drag and resize saves share one callback, send `0` for absent identifiers, and report rejected saves before reloading saved dates | Playwright `gantt-plan-save.spec.mjs` | |
+| Gantt intervals are stored as ISO dates with end on or after start; combined case/task saves commit together | PHPUnit `GanttPlanSaveTest` | |
 | Ledger, posting and migration changes get Nicolai's review | review | |
 | CodeRabbit findings are answered before a human is asked to review | review | |
 | Braces on multi-line bodies; `__DIR__` includes; `@var` provenance blocks; controller/view split; PHPDoc shapes; keep `<?= 'text' ?>` tags | review | [doc/ai/MEMORY.md](doc/ai/MEMORY.md) |

@@ -1,14 +1,15 @@
 <?php
 // 20261106 CDX/NTR Centralize authorization and input validation for all Gantt date save paths.
+// 20261110 CDX/NTR Normalize and order planning dates and roll back combined saves on failure.
 
 /**
  * Save Gantt dates only for users with the Sager/Planlægning permission.
- * The legacy montage endpoint stores the submitted date format and uses op to select its columns.
+ * The legacy montage endpoint also accepts ISO input and uses op to select its columns.
  *
  * @param array<string, mixed> $post Submitted Gantt fields.
  * @param string|null $sagRettigheder Rights loaded by online.php for the logged-in user's employee group.
  * @param bool $separateMontageDates Whether to update montage/demontage instead of case/task dates.
- * @return int HTTP status: 200 on success, 403 without permission, 400 for invalid input.
+ * @return int HTTP status: 200 on success, 403 without permission, 400 for invalid input, 500 on write failure.
  */
 function saveGanttPlanDates(array $post, ?string $sagRettigheder, bool $separateMontageDates = false): int
 {
@@ -29,7 +30,7 @@ function saveGanttPlanDates(array $post, ?string $sagRettigheder, bool $separate
 
     $planfra = ganttPlanDate($post['planfra'] ?? null, $separateMontageDates);
     $plantil = ganttPlanDate($post['plantil'] ?? null, $separateMontageDates);
-    if ($planfra === null || $plantil === null) {
+    if ($planfra === null || $plantil === null || $plantil < $planfra) {
         return 400;
     }
 
@@ -37,19 +38,45 @@ function saveGanttPlanDates(array $post, ?string $sagRettigheder, bool $separate
     $opgId = intval($opgId);
     $planfra = db_escape_string($planfra);
     $plantil = db_escape_string($plantil);
+    $queries = [];
     if ($separateMontageDates) {
         if ($op === '1') {
-            db_modify("update sager set planfraop='$planfra', plantilop='$plantil' where id = '$id'", __FILE__ . ' linje ' . __LINE__);
+            $queries[] = "update sager set planfraop='$planfra', plantilop='$plantil' where id = '$id'";
         } else {
-            db_modify("update sager set planfraned='$planfra', plantilned='$plantil' where id = '$id'", __FILE__ . ' linje ' . __LINE__);
+            $queries[] = "update sager set planfraned='$planfra', plantilned='$plantil' where id = '$id'";
         }
     } else {
         if ($id > 0) {
-            db_modify("update sager set planfraop='$planfra', plantilop='$plantil' where id = '$id'", __FILE__ . ' linje ' . __LINE__);
+            $queries[] = "update sager set planfraop='$planfra', plantilop='$plantil' where id = '$id'";
         }
         if ($opgId > 0) {
-            db_modify("update opgaver set opg_planfra='$planfra', opg_plantil='$plantil' where id = '$opgId'", __FILE__ . ' linje ' . __LINE__);
+            $queries[] = "update opgaver set opg_planfra='$planfra', opg_plantil='$plantil' where id = '$opgId'";
         }
+    }
+
+    $combined = count($queries) > 1;
+    if ($combined) {
+        transaktion('begin');
+    }
+    try {
+        foreach ($queries as $query) {
+            $result = db_modify($query, __FILE__ . ' linje ' . __LINE__);
+            if (substr($result, 0, 2) !== "0\t") {
+                if ($combined) {
+                    transaktion('rollback');
+                }
+                return 500;
+            }
+        }
+        if ($combined) {
+            transaktion('commit');
+        }
+    } catch (Throwable $error) {
+        if ($combined) {
+            transaktion('rollback');
+        }
+        error_log('Gantt date save failed: ' . $error->getMessage());
+        return 500;
     }
 
     return 200;
@@ -59,17 +86,17 @@ function saveGanttPlanDates(array $post, ?string $sagRettigheder, bool $separate
  * Validate the Gantt client's dd-MM-yyyy dates without usdate() repairing malformed input.
  *
  * @param mixed $value Submitted date.
- * @param bool $keepInputFormat Preserve legacy montage dates, including ISO dates.
- * @return string|null Validated date (ISO for case/task saves), or null for invalid input.
+ * @param bool $allowIsoInput Also accept legacy montage input in ISO format.
+ * @return string|null Validated ISO date, or null for invalid input.
  */
-function ganttPlanDate($value, bool $keepInputFormat): ?string
+function ganttPlanDate($value, bool $allowIsoInput): ?string
 {
     if (!is_string($value)) {
         return null;
     }
     if (preg_match('/^([0-9]{2})-([0-9]{2})-([0-9]{4})$/D', $value, $parts)) {
         [, $day, $month, $year] = $parts;
-    } elseif ($keepInputFormat && preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $value, $parts)) {
+    } elseif ($allowIsoInput && preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $value, $parts)) {
         [, $year, $month, $day] = $parts;
     } else {
         return null;
@@ -78,5 +105,5 @@ function ganttPlanDate($value, bool $keepInputFormat): ?string
         return null;
     }
 
-    return $keepInputFormat ? $value : "$year-$month-$day";
+    return "$year-$month-$day";
 }
