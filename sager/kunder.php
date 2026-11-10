@@ -34,6 +34,7 @@
 // 20261103 CL/MMR SD-799 The project status, the "by" label, the search suggestion labels, the list counter and the refused CVR lookup message follow the user's language.
 //                 The contact's Delete button has its own name, so it also deletes when its label is not the Danish "Slet".
 // 20261105 CL/LH Slet kunde keeps a customer that open posts or orders point at and says why, instead of deleting it and leaving them without an owner (account_has_entries()).
+// 20261105 CL/LH The customer card's form carries the version of the row its fields are drawn from, so debitor/debkort_save.php refuses a Gem drawn before a colleague saved the card (account_card_begin_save()).
 
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id = session_id();
@@ -59,6 +60,7 @@
 	include("../includes/std_func.php");
 	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 	include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
+	include_once(__DIR__ . '/../includes/stdFunc/accountCardVersion.php');
 
 	if (isset($_GET['sag_id']))      $sagid = (int)$_GET['sag_id'];
 	elseif (isset($_POST['sag_id'])) $sagid = (int)$_POST['sag_id'];
@@ -324,6 +326,7 @@ function ret_kunde($id) {
 	if (isset($_POST['gem_rettelse']) && $_POST['gem_rettelse']) include "../debitor/debkort_save.php";
 	print "<form name=\"ret_kunde\" action=\"kunder.php?funktion=ret_kunde&amp;sag_id=$sagid\" method=\"post\">\n";
 	include "../debitor/debkort_load_stillads.php";
+	print account_card_version_field($accountCard); # the row debkort_load_stillads.php drew the fields from
 	#print "		<table border=\"0\"><tbody><tr><td><table><tbody>";
 	include "debkort_1_stillads.php";
 	#print "		</tbody></table></td><td><table><tbody>";

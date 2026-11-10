@@ -23,8 +23,12 @@
 
 // 2014.05.05 indsat  >>|| $_POST['firmanavn']<< da man ikke kunne oprette nye kunder. (PHR - Danosoft) Søg20140505
 // 20261105 CL/LH Slet keeps a customer that open posts or orders point at and says why, instead of leaving them without an owner (account_has_entries()).
+// 20261105 CL/LH Gem on a card drawn before the card was last saved writes nothing and says so (account_card_begin_save()), as on debitor/debitorkort.php.
+//                It wrote every field back from the old form over a colleague's save.
+//                The save compares the form's version and writes in one transaction that locks the account first; a Gem without a version is refused.
 
 include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
+include_once(__DIR__ . '/../includes/stdFunc/accountCardVersion.php');
 
 if ($delete_category=if_isset($_GET['delete_category'])) {
 	$r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
@@ -44,7 +48,12 @@ $rename_category=if_isset($_GET['rename_category']);
 if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 	$submit=db_escape_string(trim($_POST['submit']));
  	$id=(int)$_POST['id'];	# Kommer fra formularen og bruges direkte i SQL nedenfor
- 	if ($submit!="Slet") {
+	if ($submit!="Slet" && !account_card_begin_save($id, $_POST)) {
+		# Drawn before the card was last saved, or posted without the version: this Gem would put that save's fields
+		# back. Nothing is written, and sager/kunder.php draws the card as it is saved. A save that may write holds the
+		# account's lock from here to account_card_end_save().
+		print account_card_stale_alert();
+	} elseif ($submit!="Slet") {
 		$notes=$_POST['notes'];
 		$firmanavn=db_escape_string(trim($_POST['firmanavn']));
 		$addr1=db_escape_string(trim($_POST['addr1']));
@@ -149,7 +158,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 
 		if (substr($ny_kontonr,0,1)=="=") {
 			$ny_kontonr=str_replace("=","",$ny_kontonr);
-
+			account_card_end_save(false);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=kontofusion.php?returside=$returside&ordre_id=$ordre_id&id=$id&fokus=$fokus&kontonr=$ny_kontonr\">\n";
 			exit;
 		}
@@ -383,6 +392,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 					print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
 				}
  	 	 	}
+			account_card_end_save();
 #			if (!$pbs) {
 # 	 	 	 	if ($r=db_fetch_array(db_select("select id from pbs_kunder where konto_id = '$id'",__FILE__ . " linje " . __LINE__))) {
 #					

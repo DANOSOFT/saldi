@@ -1,9 +1,15 @@
 <?php
+// debitor/debkort_load_stillads.php
+//
+// History:
+// 20261105 CL/LH Keeps the adresser row the card is drawn from in $accountCard, so sager/kunder.php draws the form's version from the values its fields show (account_card_version_field()).
 $slet=NULL;
+$accountCard=array();
 
 if ($id > 0){
 	$q = db_select("select * from adresser where id = '$id'",__FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
+	$accountCard = $r ?: array();
 	$kontonr=trim($r['kontonr']);
 	$kontotype=trim($r['kontotype']);
 	$firmanavn=htmlentities(trim($r['firmanavn']),ENT_COMPAT,$charset);
@@ -110,6 +116,10 @@ if ($kontotype=="privat") {
 		list($fornavn,$efternavn)=explode(",",split_navn($firmanavn));
 		list($lev_fornavn,$lev_efternavn)=explode(",",split_navn($lev_firmanavn));
 		db_modify("update adresser set fornavn='$fornavn',efternavn='$efternavn' where id = '$id'",__FILE__ . " linje " . __LINE__);
+		if ($accountCard) {
+			$accountCard['fornavn']=$fornavn;
+			$accountCard['efternavn']=$efternavn;
+		}
 	}
 } 
 

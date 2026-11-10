@@ -128,6 +128,10 @@
 // 20261031 CL/ASR The debtor-group dropdown leaves out inactive groups only when grupper.inaktiv exists, as includes/orderFuncIncludes/accountLookup.php does.
 //                 The card still opens on a database the settings migration has not reached yet.
 // 20261105 CL/LH A posted Slet keeps a customer that open posts or orders point at and says why (account_has_entries()); hiding the button alone did not stop the delete.
+// 20261105 CL/LH Gem on a card drawn before the card was last saved (by a colleague, or in another window) writes nothing, says so and opens the card as it is saved (account_card_begin_save()).
+//                It wrote every field back from the old form, so a colleague's saved Bemærkning was blanked without a word (testlab concurrent-editing DEVY-2).
+//                The form carries the version of the rows its fields are drawn from, and the save compares it and writes in one transaction that locks the account first.
+//                The version is at the top of the form, so a post that PHP cuts at max_input_vars (a card with hundreds of contact persons) still has it; a Gem without one is refused.
 @session_start();
 $s_id = session_id();
 
@@ -148,6 +152,7 @@ include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
 include_once(__DIR__ . '/debitorkortIncludes/einvoiceCvrBanner.php');
 include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
+include_once(__DIR__ . '/../includes/stdFunc/accountCardVersion.php');
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
@@ -257,6 +262,13 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 	$id     = $_POST['id'];
 	if (isset($_POST['anonymize']) && $id) {
 		include('anonymize.php');
+	} elseif ($submit != $DelEt && !account_card_begin_save($id, $_POST, true)) {
+		// Drawn before the card was last saved, or posted without the version: this Gem would put that save's fields
+		// back to the values drawn here. Nothing is written; the card opens again as it is saved. A save that may write
+		// holds the account's lock from here to account_card_end_save().
+		$staleCard = 'debitorkort.php?id=' . (int)$id . '&returside=' . urlencode(nav_sanitize_returside($_POST['returside'] ?? null));
+		print account_card_stale_alert($staleCard);
+		exit;
 	} elseif ($submit != $DelEt) {
 		$notes = $_POST['notes'];
 		$firmanavn = db_escape_string(trim($_POST['firmanavn']));
@@ -355,6 +367,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 
 		if (substr($ny_kontonr, 0, 1) == "=") {
 			$ny_kontonr = str_replace("=", "", $ny_kontonr);
+			account_card_end_save(false);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=kontofusion.php?returside=$returside&ordre_id=$ordre_id&id=$id&fokus=$fokus&kontonr=$ny_kontonr\">\n";
 			exit;
 		}
@@ -819,7 +832,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				//             a failed write, so without a transaction those earlier statements were
 				//             already committed; with one, the server discards them when the
 				//             connection closes.
-				transaktion('begin');
+				//             The transaction is now the one account_card_begin_save() opened for the
+				//             whole card, so the account stays locked until the card is written.
 				$da_json  = isset($_POST['delivery_addresses_json']) ? $_POST['delivery_addresses_json'] : '[]';
 				$da_rows  = json_decode($da_json, true);
 				if (!is_array($da_rows)) $da_rows = []; 
@@ -962,14 +976,6 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						WHERE id = '$id'
 					", __FILE__ . " linje " . __LINE__);
 				}
-				// $db_modify_fejl is only set on the webservice path, where db_modify() returns
-				// instead of exiting; checking it keeps that path from committing a half-written
-				// save. Everywhere else a failed write has already exited above.
-				if (!empty($db_modify_fejl)) {
-					transaktion('rollback');
-				} else {
-					transaktion('commit');
-				}
 				// ---- END Save delivery_addresses ----
 
 				//####
@@ -1057,6 +1063,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					$alerttekst = implode("\\n", $errors);
 					$alerttekst_js = addslashes($alerttekst); // escape for JS string
 
+					account_card_end_save(); // the card's fields are saved, only Pos. was refused
 					$redirect_url = "debitorkort.php?id=$customer_id&returside=" . urlencode($returside);
 					print <<<HTML
 						<script>
@@ -1094,6 +1101,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 				}
 
+				account_card_end_save();
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$customer_id&returside=" . urlencode($returside) . "\">\n";
 				exit;
 
@@ -1101,6 +1109,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				###########################
 
 			} else {
+				account_card_end_save(false);
 				$alerttekst = "Please delete all contacts to proceed";
 				print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--....-->\n";
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$customer_id&returside=" . urlencode($returside) . "\">\n";
@@ -1123,9 +1132,13 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 }
 
 $einvoiceCvrBanner = ''; # SD-774, set from the saved card below
+// The rows the card's fields are drawn from, for the version the form carries (account_card_version_field()).
+$accountCard = array();
+$accountCardContacts = array('kontakt_emails' => array(), 'delivery_addresses' => array());
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
+	$accountCard = $r ?: array();
 	$kontonr = trim($r['kontonr']);
 	$kontotype = trim($r['kontotype']);
 	$firmanavn = htmlentities(trim($r['firmanavn']), ENT_COMPAT, $charset);
@@ -1192,6 +1205,7 @@ if ($id > 0) {
 	$kontakt_email_count = 0;
 	$q_emails = db_select("SELECT * FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id", __FILE__ . " linje " . __LINE__);
 	while ($r_email = db_fetch_array($q_emails)) {
+		$accountCardContacts['kontakt_emails'][] = $r_email;
 		$kontakt_email_count++;
 		$kontakt_email_ids[$kontakt_email_count] = $r_email['id'];
 		$kontakt_email_vals[$kontakt_email_count] = htmlentities(trim($r_email['email']), ENT_COMPAT, $charset);
@@ -1207,6 +1221,7 @@ if ($id > 0) {
 			__FILE__ . " linje " . __LINE__
 		);
 		while ($r_da = db_fetch_array($q_da)) {
+			$accountCardContacts['delivery_addresses'][] = $r_da;
 			$delivery_addresses[] = [
 				'id'           => (int)$r_da['id'],
 				'is_primary' => ($r_da['is_primary'] === 't' || $r_da['is_primary'] === 'TRUE' || $r_da['is_primary'] === true),
@@ -1336,7 +1351,34 @@ if ($kontotype == "privat") {
 		list($fornavn, $efternavn) = explode(",", split_navn($firmanavn));
 		list($lev_fornavn, $lev_efternavn) = explode(",", split_navn($lev_firmanavn));
 		db_modify("update adresser set fornavn='" . db_escape_string($fornavn) . "',efternavn='" . db_escape_string($efternavn) . "' where id = '$id'", __FILE__ . " linje " . __LINE__); #20140507
+		if ($accountCard) {
+			$accountCard['fornavn'] = $fornavn;
+			$accountCard['efternavn'] = $efternavn;
+		}
 	}
+}
+// The Kundetype this visit writes: erhverv for a card without one, or the one debitor/ansatte.php's link asks for
+// (privat=, erhverv=), where a card with contact persons stays erhverv. It is written here, before the form, so the
+// version at the top of the form (account_card_version_field()) has it. The card is still drawn with the type it
+// was opened with, and the page opens again with the new one (the refresh before the contact persons).
+$z2 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+$y2 = db_fetch_array($z2);
+if (false !== $y2) {
+	$an_id = $y2['id'];
+}
+$newKontotype = NULL;
+if ((!$kontotype && !$_private && !isset($an_id))) { //insert erhverv as default if not set in adresser table
+	$newKontotype = 'erhverv';
+} elseif (($kontotype && $_private) && !isset($an_id)) {
+	$newKontotype = 'privat';
+} elseif (($kontotype && $_business) && !isset($an_id)) {
+	$newKontotype = 'erhverv';
+} elseif (($kontotype && $_private) && isset($an_id)) {
+	$newKontotype = 'erhverv';
+}
+if ($newKontotype) {
+	db_modify("UPDATE adresser SET kontotype = '$newKontotype' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
+	if ($accountCard) $accountCard['kontotype'] = $newKontotype;
 }
 ######################## OUTPUT ######################
 
@@ -1502,6 +1544,10 @@ if (!isset($kontakt)) $kontakt = NULL;
 if (!isset($pbs_date)) $pbs_date = NULL;
 
 print "<input type=hidden name=id value='$id'>\n";
+// The version of the rows the fields below are drawn from, with the page's own writes to the card (names, Kundetype).
+// Up here, before the statuses, categories and contact persons the form repeats per row: PHP keeps only the first
+// max_input_vars (1000) fields of a post, and a card with many contact persons still sends its version.
+print account_card_version_field($accountCard, $accountCardContacts);
 print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
 print "<input type=hidden name=returside value=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\">\n";
@@ -2486,35 +2532,8 @@ print "<tr><td colspan=6></td></tr>\n";
 #$_business == 'erhverv'
 #$_private=='privat'
 
-##############
-
-$z2 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-$y2 = db_fetch_array($z2);
-if(false !== $y2){
-	$an_id = $y2['id'];
-}
-
-###########
-
-
-if ((!$kontotype && !$_private && !isset($an_id))) { //insert erhverv as default if not set in adresser table
-
-	db_modify("UPDATE adresser SET kontotype = 'erhverv' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
-	$kontotype = 'erhverv';
-	print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>";
-} elseif (($kontotype && $_private) && !isset($an_id)) {
-
-	db_modify("UPDATE adresser SET kontotype = 'privat' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
-	$kontotype = 'privat';
-	print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>";
-} elseif (($kontotype && $_business) && !isset($an_id)) {
-
-	db_modify("UPDATE adresser SET kontotype = 'erhverv' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
-	$kontotype = 'erhverv';
-	print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>";
-} elseif (($kontotype && $_private) && isset($an_id)) {
-	db_modify("UPDATE adresser SET kontotype = 'erhverv' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
-	$kontotype = 'erhverv';
+if ($newKontotype) { // written before the form; the page opens again with it
+	$kontotype = $newKontotype;
 	print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>";
 }
 
