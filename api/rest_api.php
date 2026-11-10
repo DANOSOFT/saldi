@@ -89,6 +89,7 @@
 //                debtor gets the first DG group), and keeps the shop's momssats if no group is
 //                found, instead of an SQL error on kodenr = '' and momssats 0 (MB-116)
 // 20261027 CL/SZ insert_shop_order: initialise $ktonr so a tenant with no debtors gets account 1000 instead of a PHP 8 TypeError (MB-115).
+// 20261027 CDX/MJ SST-876 Drain webshop retry updates only after the outer invoice transaction commits.
 // 20261027 CL/MMR SST-904 insert_shop_orderline() decodes the shop's values with shop_input_text() (SST-884) before they are escaped, instead of decoding the finished SQL with chk4utf8().
 //                 A comment line or an item number with an apostrophe (O&#039;Brien) broke the SQL: the comment was lost silently and the shop got «Uforudset hændelse».
 //                 Every shop identifier it puts into SQL is escaped (item number, barcode), the integer ids are cast (order, item, variant, shop_varer.shop_id/shop_variant), and ordrefunc.php is included via __DIR__.
@@ -96,6 +97,7 @@
 //                 chk4utf8() took valid UTF-8 without a Danish letter for Latin-1, so "Pris 5 €" was stored garbled (CodeRabbit on PR #919).
 // 20261028 CL/MMR SST-905 shop_order_cvr_ean_from_card() treats a CVR or EAN of only non-breaking spaces (&nbsp; from the shop) as blank, so the customer card's value is used.
 //                 trim() keeps U+00A0, so such an order kept a blank-looking CVR and its e-invoice went out without one.
+// 20261029 CDX/MJ SST-876 Preserve both API histories while integrating current master.
 // 20261030 CL/MMR SST-904 insert_shop_orderline() takes an order id of digits only, so 22.9, 2e1 or -5 no longer reach another order through the cast.
 //                 It writes no shop_varer mapping for a variant that is not an id, as (int)'777abc' would claim variant 777.
 //                 A vare_id that is not an id (an item number) again reaches the varenr fallback, only without the shop_varer query (review on PR #919).
@@ -947,6 +949,9 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		return($svar);
 	}
 	transaktion ('commit');
+	if (!$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; Postgres rolls it back on commit but $svar was reported OK, so surface the failure instead of a phantom success id (SD-595)
 		fclose($log);
 		return "Database write failed while posting order $saldi_id";

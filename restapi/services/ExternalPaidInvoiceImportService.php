@@ -1,5 +1,6 @@
 <?php
 // 20260716 CL/LH Added atomic, idempotent Stripe paid-invoice import service.
+// 20261027 CDX/MJ SST-876 Drain webshop retry updates after the caller-owned import transaction commits.
 
 require_once __DIR__ . '/../core/ApiException.php';
 
@@ -60,6 +61,9 @@ class ExternalPaidInvoiceImportService
 
             transaktion('commit');
             $transactionOpen = false;
+            if (function_exists('shopSyncDrainQueue')) {
+                shopSyncDrainQueue();
+            }
 
             return $result;
         } catch (ApiException $exception) {
