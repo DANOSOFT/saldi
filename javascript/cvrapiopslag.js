@@ -1,4 +1,4 @@
-// --- javascript/cvrapiopslag.js --- ver 5.1.0 --- 2026-10-30 ---
+// --- javascript/cvrapiopslag.js --- ver 5.1.0 --- 2026-11-05 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -40,11 +40,21 @@
 //                 The symbols are also stripped when the field is left, so a pasted number is looked up and not saved with them.
 // 20261030 CL/MMR SST-916 Ticking "Auto-lookup CVR nr." after the CVR-nr. was typed now looks the number up straight away.
 //                 Before, the box was only read on a keystroke or when the field was left, so ticking it afterwards did nothing.
+// 20261105 CL/LH A page whose fields have other names names them in cvrFeltNavne (Indstillinger » Stamdata, systemdata/settingsSection.php: f[company.data.cvr] ...).
+//                What the lookup writes there is announced with an input event, so that page's save bar counts it as typed.
 
 
 var cvrFeltAlias = { email: ['email', 'kontakt_email_val[1]'] };
 
+// A page whose fields are not named as adresser's columns sets cvrFeltNavne before it loads this script, keyed by the
+// names used here: { cvrnr: 'f[company.data.cvr]', firmanavn: ... } on Indstillinger » Stamdata (systemdata/settingsSection.php).
+function cvrSideNavne() {
+	return (typeof cvrFeltNavne !== 'undefined' && cvrFeltNavne) ? cvrFeltNavne : null;
+}
+
 function cvrFeltNavn(name) {
+	var side = cvrSideNavne();
+	if (side && side[name]) return side[name];
 	var navne = cvrFeltAlias[name] || [name];
 	for (var i = 0; i < navne.length; i++) {
 		if ($("[name='" + navne[i] + "']").length) return navne[i];
@@ -56,6 +66,15 @@ function cvrField(name) {
 	var alle    = $("[name='" + cvrFeltNavn(name) + "']");
 	var visible = alle.not("[type=hidden]");
 	return visible.length ? visible.first() : alle.first();
+}
+
+// Writes a value as the lookup's. A page that names its fields (cvrFeltNavne) counts its unsaved changes from input
+// events (the settings save bar), which a script's write does not fire, so it gets one as if the value had been typed.
+function cvrSkriv(el, vaerdi) {
+	el.val(vaerdi);
+	if (cvrSideNavne()) {
+		el.each(function () { this.dispatchEvent(new Event('input', { bubbles: true })); });
+	}
 }
 
 function cvrValue(name) {
@@ -130,7 +149,7 @@ function applyFormFields(data) {
 	for (var key in data) {
 		if (!data.hasOwnProperty(key)) continue;
 		var el = $("[name='" + cvrFeltNavn(key) + "']");
-		if (el.length) el.val(data[key]);
+		if (el.length) cvrSkriv(el, data[key]);
 	}
 }
 
@@ -309,7 +328,7 @@ function cvrKeyupOpslag(e){
 	if (cvrTimer) { clearTimeout(cvrTimer); cvrTimer = null; }
 
 	if(symbolMatch){
-		felt.val(symbolMatch[1]);
+		cvrSkriv(felt, symbolMatch[1]);
 		cvrOpslag(felt, symbolMatch[1], 'vat');
 	} else if(cvrAutoOpslag(felt, vaerdi)){
 		cvrTimer = setTimeout(function(){ cvrOpslag(felt, vaerdi, 'vat'); }, cvrPause);
@@ -325,7 +344,7 @@ function cvrBlurOpslag(e){
 	var vaerdi = (felt.val() || '').trim();
 	var symbolMatch = symbolCvr.exec(vaerdi);
 	if (symbolMatch) {
-		felt.val(symbolMatch[1]);
+		cvrSkriv(felt, symbolMatch[1]);
 		cvrOpslag(felt, symbolMatch[1], 'vat');
 	} else if (cvrAutoOpslag(felt, vaerdi)) {
 		cvrOpslag(felt, vaerdi, 'vat');

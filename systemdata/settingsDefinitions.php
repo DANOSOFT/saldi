@@ -79,6 +79,7 @@
 // 20261105 CL/LH Kreditorgrupper has master's Sprog column again (KG box4, the form language of the group's suppliers, help 2461), as Debitorgrupper has it.
 //                A new group, the Danish standard set and a copy from an earlier year store it again (it was left NULL); Baggrunde counts a group's suppliers by it.
 // 20261105 CL/LH Stamdata's By and the employee card's By name their Postnr. field ('fill_from_zip'), so a save fills an empty By from the code again (st_fill_city_from_zip()), as stamkort.php and ansatte_save.php did.
+// 20261105 CL/LH Stamdata has stamkort.php's CVR lookup again: the section names the fields javascript/cvrapiopslag.js fills ('cvr_lookup'), and CVR-nr. and Telefon carry its hints (2488, 2489).
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -155,6 +156,9 @@ if (!function_exists('getSettingsSections')) {
 			'company.data' => array(
 				'group' => 'company', 'section' => 'data', 'number' => 'G1.1', 'label' => 779, 'icon' => 'bx-buildings',
 				'subsections' => array('company' => 6520, 'contact' => 6522, 'bank' => 6521, 'gdpr' => 6523),
+				// The CVR lookup (javascript/cvrapiopslag.js) fills these fields under its own names, adresser's columns, as on stamkort.php.
+				'cvr_lookup' => array('cvrnr' => 'company.data.cvr', 'firmanavn' => 'company.data.name', 'addr1' => 'company.data.address1',
+					'addr2' => 'company.data.address2', 'postnr' => 'company.data.zip', 'bynavn' => 'company.data.city', 'tlf' => 'company.data.phone'),
 				'legacy' => array(array(779)), 'old' => array('stamkort' => array(779)),
 				'context' => array('debitor/ordre.php'),
 				'keywords' => array('stamdata', 'firmanavn', 'company name', 'adresse', 'cvr', 'bank', 'iban', 'swift', 'betalingsservice', 'bs', 'fi', 'gdpr', 'databehandleraftale', 'landekonfiguration'),
@@ -1181,10 +1185,10 @@ if (!function_exists('getSettingsSections')) {
 			'company.data.address2' => array('sub' => 'company', 'type' => 'text', 'label' => 649, 'storage' => array('adresser', 'addr2'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.zip' => array('sub' => 'company', 'type' => 'text', 'label' => 36, 'storage' => array('adresser', 'postnr'), 'maxlength' => 10, 'legacy' => array(779)),
 			'company.data.city' => array('sub' => 'company', 'type' => 'text', 'label' => 46, 'storage' => array('adresser', 'bynavn'), 'maxlength' => 60, 'fill_from_zip' => 'company.data.zip', 'legacy' => array(779)),
-			'company.data.cvr' => array('sub' => 'company', 'type' => 'text', 'label' => 376, 'storage' => array('adresser', 'cvrnr'), 'maxlength' => 15, 'legacy' => array(779)),
+			'company.data.cvr' => array('sub' => 'company', 'type' => 'text', 'label' => 376, 'help' => 2488, 'storage' => array('adresser', 'cvrnr'), 'maxlength' => 15, 'legacy' => array(779)),
 			'company.data.country' => array('sub' => 'company', 'type' => 'select', 'label' => 6513, 'help' => 6514, 'default' => 'Denmark', 'empty_is_default' => true, 'permission' => 'settings.company.danger',
 				'options' => array('Denmark' => 'Danmark', 'Norway' => 'Norge', 'Switzerland' => 'Schweiz'), 'options_literal' => true, 'storage' => array('adresser', 'land'), 'legacy' => array(779)),
-			'company.data.phone' => array('sub' => 'contact', 'type' => 'text', 'label' => 37, 'storage' => array('adresser', 'tlf'), 'maxlength' => 60, 'legacy' => array(779)),
+			'company.data.phone' => array('sub' => 'contact', 'type' => 'text', 'label' => 37, 'help' => 2489, 'storage' => array('adresser', 'tlf'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.mobile' => array('sub' => 'contact', 'type' => 'text', 'label' => 378, 'storage' => array('adresser', 'mobile'), 'maxlength' => 15, 'legacy' => array(779)),
 			'company.data.email' => array('sub' => 'contact', 'type' => 'email', 'label' => 52, 'storage' => array('adresser', 'email'), 'maxlength' => 60, 'on_save' => 'company_email', 'legacy' => array(779)),
 			'company.data.copy_to_ref' => array('sub' => 'contact', 'type' => 'bool', 'label' => 6512, 'help' => 1880, 'default' => false, 'storage' => array('adresser', 'mailfakt', 'onEmpty'), 'legacy' => array(779)),

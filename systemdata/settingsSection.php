@@ -64,6 +64,7 @@
 //                The refusal shows online.php's message instead of the settings hub.
 // 20261105 CL/LH online.php now ends a refused request itself, so the page's own check for it after the include is gone.
 // 20261105 CL/LH A save fills an empty By from Postnr. again (st_fill_city_from_zip()), as stamkort.php and ansatte_save.php did: Stamdata and the employee card stored the code without its town.
+// 20261105 CL/LH A section with 'cvr_lookup' (Stamdata) loads javascript/cvrapiopslag.js with its field names (cvrFeltNavne), so a CVR-nr. typed between *, + or / fills the company again, as on stamkort.php.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -822,6 +823,17 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
 <script src="../javascript/settingsSection.js?v=9"></script>
+	<?php if (!empty($section['cvr_lookup']) && $canWrite) {
+		// Stamdata: a CVR-nr. (or phone number) typed between *, + or / fills the company from cvrapi.dk, as on stamkort.php.
+		// The lookup knows the fields by adresser's column names; cvrFeltNavne gives it their names in this form.
+		$cvrNames = array();
+		foreach ($section['cvr_lookup'] as $cvrName => $cvrKey) {
+			$cvrNames[$cvrName] = 'f[' . $cvrKey . ']';
+		}
+		?>
+<script>var cvrFeltNavne = <?= json_encode($cvrNames, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+<script src="../javascript/cvrapiopslag.js?v=20261105"></script>
+	<?php } ?>
 	<?php
 }
 
