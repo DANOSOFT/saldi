@@ -41,6 +41,8 @@
 //                 indexing the integer $lastYear.
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
 //                 regnskab() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
+//              The department-name lookup is cast as well.
 
 function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";
@@ -60,29 +62,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	#if ($rapportart=='lastYear')$show0=1;
 	$dim = '';
 	if (($afd || $afd == '0' || $ansat_fra || $projekt_fra) && $rapportart != 'budget') { #20190923
-		if ($afd || $afd == '0') {
-			$dim = "and afd = '$afd' ";
-		}
-		if ($ansat_fra && $ansat_til) {
-			$tmp = str_replace(",", " or ansat=", $ansatte_id);
-			$dim = $dim . " and (ansat=$tmp) ";
-		} elseif ($ansat_fra) {
-			$dim = $dim . "and ansat = '$ansat_fra' ";
-		}
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til) {
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		} elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_') {
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				}
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 
 
@@ -117,7 +99,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		$firmanavn = $r['firmanavn'];
 	}
 	$vatNo     = $r['cvrnr'];
-	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='$afd'";
+	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='" . (int)$afd . "'";
 	if (($afd || $afd == '0') && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
 		$afd_navn = $r['beskrivelse'];
 	}
@@ -126,8 +108,13 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 
 	$maaned_fra = trim($maaned_fra);
 	$maaned_til = trim($maaned_til);
-	$konto_fra = trim($konto_fra);
-	$konto_til = trim($konto_til);
+	// A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+	$konto_fra = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+	$konto_til = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
+	// An empty bound is the whole range; a bound that is not a whole number matches nothing.
+	$konto_fraSql = ($konto_fra === '') ? 0 : (preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX);
+	$konto_tilSql = ($konto_til === '') ? PHP_INT_MAX : (preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0);
 
 	$mf = $maaned_fra;
 	$mt = $maaned_til;
@@ -669,7 +656,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 
 	for ($x = 1; $x <= $kontoantal; $x++) {
-		if ($kontonr[$x] >= $konto_fra && $kontonr[$x] <= $konto_til && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $vis_kto[$x] || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220 // 20260907 - NTR - Added $vis_kto[$x] to show accounts with postings but that's balanced out.
+		if ($kontonr[$x] >= $konto_fraSql && $kontonr[$x] <= $konto_tilSql && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $vis_kto[$x] || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220 // 20260907 - NTR - Added $vis_kto[$x] to show accounts with postings but that's balanced out.
 			if ($kontotype[$x] == 'H') {
 				$linjebg = $bgcolor;
 				print "<tr><td><br></td></tr>";

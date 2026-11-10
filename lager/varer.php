@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- lager/varer.php --- ver 5.1.0 --- 2026-11-05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -90,6 +90,7 @@
 // 20261023 CL/LH MB-60: Lager -> Varer also reopens the Styklister tab.
 // 20261030 LOE MB-62 A read-only user is not offered the list's Ny controls.
 //              The two list views and the popup view all print Ny only for a user who may create an item.
+// 20261105 CL/MMR SST-951 A purchase proposal order (genbestil) takes the language (Sprog) of the supplier's creditor group.
 
 @session_start();
 $s_id=session_id();
@@ -1148,11 +1149,14 @@ function genbestil($vare_id, $antal) {
 			else $ordrenr=1;
 			$qtxt="select * from adresser where id = $lev_id";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$kgSprog = '';
 			if ($r['gruppe']) {
-				$qtxt = "select box1 from grupper ";
+				$qtxt = "select box1, box4 from grupper ";
 				$qtxt.= "where kode = 'K' and art = 'KG' and kodenr = '$r[gruppe]' and fiscal_year = '$regnaar'";
 				$r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$kode=substr($r1['box1'],0,1); $kodenr=substr($r1['box1'],1);
+				// SST-951: the order prints with the forms of the supplier group's language
+				$kgSprog = trim((string)ifset($r1, 'box4', ''));
 			}	else {
 				$qtxt="select varenr from varer where id = '$vare_id'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -1162,12 +1166,12 @@ function genbestil($vare_id, $antal) {
 			$r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$momssats=$r1['box2']*1;
 			$qtxt="insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,"; #218180822
-			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref)";
+			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, sprog)";
 			$qtxt.=" values ";
 			$qtxt.="('$ordrenr','$r[id]','$r[kontonr]','".db_escape_string($r['firmanavn'])."','".db_escape_string($r['addr1'])."',";
 			$qtxt.= "'".db_escape_string($r['addr2'])."','".db_escape_string($r['postnr'])."','".db_escape_string($r['bynavn'])."',";
 			$qtxt.= "'".db_escape_string($r['land]'])."','$r[betalingsdage]','$r[betalingsbet]','$r[cvrnr]','".db_escape_string($r['notes'])."',";
-			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."')";
+			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."','".db_escape_string($kgSprog ? $kgSprog : 'Dansk')."')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="select id from ordrer where ordrenr='$ordrenr' and art = 'KO'";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
