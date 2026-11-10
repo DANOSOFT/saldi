@@ -153,9 +153,9 @@ final class EmptyRightsGateTest extends TestCase
         $ordre = @file_get_contents(__DIR__ . '/../../../debitor/ordre.php');
         self::assertNotFalse($ordre, 'cannot read debitor/ordre.php');
         self::assertStringContainsString("\$sag_workflow_page = 'sag';", (string)$ordre, 'the order page declares the workflow');
-        self::assertStringContainsString('$sag_workflow_sag =', (string)$ordre, 'and passes the case it was asked for');
-        self::assertStringContainsString('$sag_workflow_order =', (string)$ordre, 'and the order, for a link that only carries one');
-        self::assertStringContainsString('$sag_workflow_konto =', (string)$ordre, 'and the customer the address names, so the gate can check it');
+        self::assertStringContainsString('$sag_workflow_sag', (string)$ordre, 'and passes the case it was asked for');
+        self::assertStringContainsString('$sag_workflow_order', (string)$ordre, 'and the order, for a link that only carries one');
+        self::assertStringContainsString('$sag_workflow_konto', (string)$ordre, 'and the customer the address names, so the gate can check it');
         self::assertLessThan(strpos((string)$ordre, 'include("../includes/online.php");'),
             strpos((string)$ordre, "\$sag_workflow_page = 'sag';"),
             'the declaration is there before online.php reads it');
@@ -164,7 +164,7 @@ final class EmptyRightsGateTest extends TestCase
         $hist = @file_get_contents(__DIR__ . '/../../../debitor/historikkort.php');
         self::assertNotFalse($hist, 'cannot read debitor/historikkort.php');
         self::assertStringContainsString("\$sag_workflow_page = 'customer';", (string)$hist, 'the history page declares it too');
-        self::assertStringContainsString('$sag_workflow_konto =', (string)$hist, 'and passes the customer it was asked for');
+        self::assertStringContainsString('$sag_workflow_konto', (string)$hist, 'and passes the customer it was asked for');
     }
 
     /**

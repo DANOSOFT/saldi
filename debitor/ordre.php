@@ -217,9 +217,9 @@ $modulnr = 5;
 # that and hands online.php the ids to check - the case must exist, and the customer of the order is taken
 # from the case, never from the address. Without a case the module gate applies, as it always did.
 $sag_workflow_page = 'sag';
-$sag_workflow_sag = (int) (isset($_GET['sag_id']) ? $_GET['sag_id'] : (isset($_POST['sag_id']) ? $_POST['sag_id'] : 0));
-$sag_workflow_order = (int) (isset($_GET['id']) ? $_GET['id'] : (isset($_POST['id']) ? $_POST['id'] : 0));
-$sag_workflow_konto = (int) (isset($_GET['konto_id']) ? $_GET['konto_id'] : (isset($_POST['konto_id']) ? $_POST['konto_id'] : 0));
+$sag_workflow_sag   = (int) ifset($_GET, 'sag_id', ifset($_POST, 'sag_id', 0));
+$sag_workflow_order = (int) ifset($_GET, 'id', ifset($_POST, 'id', 0));
+$sag_workflow_konto = (int) ifset($_GET, 'konto_id', ifset($_POST, 'konto_id', 0));
 
 $css = "../css/standard.css";
 #$css="../css/ordre.css";

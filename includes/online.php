@@ -350,10 +350,10 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		# Both need the craft right the Sager pages ask for, so this cannot open anything else.
 		$sag_workflow_allowed = false;
 		if (!empty($sag_workflow_page) && substr((string)$sag_rettigheder, 2, 1)) {
-			$wf_konto = (int) if_isset($sag_workflow_konto, 0);
+			$wf_konto = (int) ($sag_workflow_konto ?? 0);
 			if ($sag_workflow_page === 'sag') {
-				$wf_sag = (int) if_isset($sag_workflow_sag, 0);
-				$wf_order = (int) if_isset($sag_workflow_order, 0);
+				$wf_sag = (int) ($sag_workflow_sag ?? 0);
+				$wf_order = (int) ($sag_workflow_order ?? 0);
 				if (!$wf_sag && $wf_order) {
 					$wf_row = db_fetch_array(db_select("select sag_id from ordrer where id = '$wf_order'", __FILE__ . " linje " . __LINE__));
 					$wf_sag = $wf_row ? (int) $wf_row['sag_id'] : 0;

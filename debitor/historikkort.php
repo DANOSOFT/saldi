@@ -57,7 +57,7 @@ include("../includes/connect.php");
 # craft right ($sag_rettigheder[2]) for a customer the company has a case for. It only declares that and
 # hands online.php the id to check; any other customer keeps the module gate.
 $sag_workflow_page = 'customer';
-$sag_workflow_konto = (int) (isset($_GET['konto_id']) ? $_GET['konto_id'] : (isset($_GET['id']) ? $_GET['id'] : 0));
+$sag_workflow_konto = (int) ifset($_GET, 'konto_id', ifset($_GET, 'id', 0));
 
 include("../includes/online.php");
 include("../includes/std_func.php");
