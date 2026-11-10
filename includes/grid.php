@@ -37,6 +37,9 @@ Regards:) 20260220 LOE
 //                 wildcard character no longer matches (almost) every row.
 // 20261006 CL/NTR Made the grid action-menu and its Redigér submenu triggers native type="button" buttons that
 //                 open on focus as well as hover.
+// 20261110 CL/MMR SST-990 grid_html() decodes HTML entities before escaping, so a legacy tekster row
+//                 such as "Bem&aelig;rkning" shows as "Bemærkning" instead of the code; a stored header
+//                 is matched against the code's texts in decoded form.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -679,7 +682,22 @@ function grid_known_header_texts($column) {
  * @return string Safe for HTML text and for a single- or double-quoted attribute.
  */
 function grid_html($value) {
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars(grid_plain_text($value), ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * SST-990: decodes the HTML entities in a column header or description to plain text.
+ *
+ * Older regnskaber still hold texts such as "Bem&aelig;rkning" in the tekster table, and findtekst()
+ * returns them as stored. grid_html() escapes every header, so without this step the entity itself is
+ * shown. Decoding first is safe because grid_html() escapes the result again: "&lt;script&gt;" ends
+ * up as escaped text, never as a tag.
+ *
+ * @param mixed $value A header or description, possibly holding HTML entities.
+ * @return string The same text with the entities decoded.
+ */
+function grid_plain_text($value) {
+    return html_entity_decode((string) $value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
 /**
@@ -851,8 +869,11 @@ function merge_column_setup(array $setup, array $codeColumns, $honourRemovedColu
         $customHeaderName = isset($saved['customHeaderName']) ? $saved['customHeaderName'] : '';
         // Kept unless the code provably produces it: dropping a value the code cannot
         // produce would destroy a rename saved before customHeaderName existed.
+        // SST-990: compared in decoded form, so a legacy "Bem&aelig;rkning" still counts as the
+        // code's "Bemærkning" once the tekster row is corrected.
         if ($customHeaderName === '' && isset($saved['headerName']) && $saved['headerName'] !== ''
-                && !in_array($saved['headerName'], grid_known_header_texts($column), true)) {
+                && !in_array(grid_plain_text($saved['headerName']),
+                    array_map('grid_plain_text', grid_known_header_texts($column)), true)) {
             $customHeaderName = $saved['headerName'];
         }
         $column['customHeaderName']  = $customHeaderName;

@@ -4,6 +4,7 @@
 //                filter selections keyed independently of their labels, and column
 //                headers/description following the code (translations included).
 // 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
+// 20261110 CL/MMR SST-990 a legacy entity header ("Bem&aelig;rkning") is the code's own text, not a rename.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -147,6 +148,23 @@ final class GridSetupTranslationTest extends TestCase
      * the deliberate trade-off: an older code text kept by mistake is visible and
      * clearable in the editor, a discarded rename is gone for good.
      */
+    /**
+     * SST-990: a setup saved while the tekster row held "Bem&aelig;rkning" must still count as the
+     * code's text once that row reads "Bemærkning", and the other way round.
+     */
+    public function testALegacyEntityHeaderIsTheCodeTextNotARename(): void
+    {
+        $saved = array(array('field' => 'kladdenote', 'headerName' => 'Bem&aelig;rkning'));
+
+        $merged = merge_column_setup($saved, array($this->codeColumn('kladdenote', 'Bemærkning')));
+        self::assertSame('Bemærkning', $merged[0]['headerName']);
+        self::assertSame('', $merged[0]['customHeaderName']);
+
+        $saved = array(array('field' => 'kladdenote', 'headerName' => 'Bemærkning'));
+        $merged = merge_column_setup($saved, array($this->codeColumn('kladdenote', 'Bem&aelig;rkning')));
+        self::assertSame('', $merged[0]['customHeaderName']);
+    }
+
     public function testALegacyRenameOnAColumnWithoutDeclaredCodeTextsIsKept(): void
     {
         $code = array($this->codeColumn('varenr', 'Vare Nr.'));

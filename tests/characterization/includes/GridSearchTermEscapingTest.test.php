@@ -9,6 +9,8 @@ use PHPUnit\Framework\TestCase;
 //                  attributes. The search term is the worst of them: it arrives as
 //                  $_GET['search'][$id][field] AND is persisted to datatables.search_setup, so an
 //                  unescaped value is both reflected and stored.
+// 20261110 CL/MMR SST-990 grid_plain_text() lifted too; legacy entity headers show their letters and
+//                  entity-encoded payloads stay neutralised.
 //
 //                  render_table_headers() is extracted from the source rather than reached by
 //                  including grid.php, which would run the whole grid at include time.
@@ -22,7 +24,7 @@ final class GridSearchTermEscapingTest extends TestCase
      */
     private static function defineHelpers(string $src): void
     {
-        foreach (['grid_html', 'grid_align'] as $name) {
+        foreach (['grid_plain_text', 'grid_html', 'grid_align'] as $name) {
             if (function_exists($name)) {
                 continue;
             }
@@ -211,6 +213,11 @@ final class GridSearchTermEscapingTest extends TestCase
             'img onerror'    => ['<img src=x onerror=alert(1)>', '<img '],
             'attribute break'=> ["' onmouseover='alert(1)", "' onmouseover='"],
             'svg onload'     => ['<svg onload=alert(1)>', '<svg '],
+            // SST-990: grid_html() decodes entities before escaping, so an encoded tag must still
+            // come out as text and never as markup.
+            'encoded script' => ['&lt;script&gt;alert(1)&lt;/script&gt;', '<script>'],
+            'encoded img'    => ['&lt;img src=x onerror=alert(1)&gt;', '<img '],
+            'encoded quote'  => ['&#039; onmouseover=&#039;alert(1)', "' onmouseover='"],
         ];
     }
 
@@ -265,6 +272,20 @@ final class GridSearchTermEscapingTest extends TestCase
 
         self::assertStringContainsString('Udført af', $html);
         self::assertStringContainsString('Sælgerens initialer', $html);
+    }
+
+    /**
+     * SST-990: older regnskaber keep texts like "Bem&aelig;rkning" in the tekster table. The header
+     * must show the letters, not the entity escaped into "&amp;aelig;".
+     */
+    public function testLegacyEntityHeaderShowsTheLetters(): void
+    {
+        $html = $this->headerHtml('', ['headerName' => 'Bem&aelig;rkning', 'description' => 'Bogf&oslash;rt &amp; l&aring;st']);
+
+        self::assertStringContainsString('Bemærkning', $html);
+        self::assertStringContainsString('Bogført &amp; låst', $html);
+        self::assertStringNotContainsString('&amp;aelig;', $html);
+        self::assertStringNotContainsString('&amp;oslash;', $html);
     }
 
     /**
