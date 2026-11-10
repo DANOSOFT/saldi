@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-07 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -182,6 +182,7 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
+// 20261110 LOE SST-967 An offer for a case opens on the craft right, with the customer taken from the case.
 
 @session_start();
 $s_id = session_id();
@@ -210,6 +211,15 @@ $sletslut = $sletstart = 0;
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
+
+# SST-967 an offer or an order for a case is sag work, not the ledger, so this page may run on the craft
+# right ($sag_rettigheder[2], the one the Sager pages ask for) instead of the Ordre right. It only declares
+# that and hands online.php the ids to check - the case must exist, and the customer of the order is taken
+# from the case, never from the address. Without a case the module gate applies, as it always did.
+$sag_workflow_page = 'sag';
+$sag_workflow_sag = (int) (isset($_GET['sag_id']) ? $_GET['sag_id'] : (isset($_POST['sag_id']) ? $_POST['sag_id'] : 0));
+$sag_workflow_order = (int) (isset($_GET['id']) ? $_GET['id'] : (isset($_POST['id']) ? $_POST['id'] : 0));
+$sag_workflow_konto = (int) (isset($_GET['konto_id']) ? $_GET['konto_id'] : (isset($_POST['konto_id']) ? $_POST['konto_id'] : 0));
 
 $css = "../css/standard.css";
 #$css="../css/ordre.css";

@@ -1,5 +1,5 @@
 <?php
-// --- debitor/historikkort.php --- ver 5.1.0 --- 2026-11-01 ---
+// --- debitor/historikkort.php --- ver 5.1.0 --- 2026-11-10 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20251121 LOE - Modified icons to SVG format and buttons to fit the new design
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20261101 CL/SZ MB-129 Saving a note no longer fails when a contact has an apostrophe in the name: the posted names are escaped before the lookup.
+// 20261110 LOE SST-967 The history opens on the craft right for a customer the company has a case for.
 
 @session_start();
 $s_id = session_id();
@@ -51,6 +52,13 @@ $title = "Historik";
 $css = "../css/standard.css";
 
 include("../includes/connect.php");
+
+# SST-967 a case's attachment folder links here to the customer's history, so this page may run on the
+# craft right ($sag_rettigheder[2]) for a customer the company has a case for. It only declares that and
+# hands online.php the id to check; any other customer keeps the module gate.
+$sag_workflow_page = 'customer';
+$sag_workflow_konto = (int) (isset($_GET['konto_id']) ? $_GET['konto_id'] : (isset($_GET['id']) ? $_GET['id'] : 0));
+
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
