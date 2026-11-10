@@ -227,10 +227,13 @@ try {
 	check(count($alerts) === 1 && strpos($alerts[0], 'anden kasseoptælling') !== false && sideEffects() === $before,
 		'Orders settled by another cash count after they were read are not settled again');
 
+	// A zero-cost commission line on order 1, which the cash count settled without it.
+	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (1,2,'kb1001002',1,40,0)");
 	pg_query($connection, "INSERT INTO batch_salg (linje_id,vare_id,pris,antal,fakturadate) SELECT id, vare_id, pris, antal, '2026-10-01' FROM ordrelinjer WHERE ordre_id IN (1,4)");
 	$journal = pg_fetch_all(pg_query($connection, loppeafregningSalesQuery('kb', '', '2026-10-01', '2026-10-31'))) ?: array();
-	check(count($journal) === 1 && $journal[0]['varenr'] === 'kb1001001' && $journal[0]['kostpris'] == 60,
-		'The journal settlement leaves out sales already settled at the cash count');
+	check(count($journal) === 2 && $journal[0]['varenr'] === 'kb1001001' && $journal[0]['kostpris'] == 60
+		&& $journal[1]['varenr'] === 'kb1001002' && $journal[1]['pris'] == 40 && $journal[1]['kostpris'] == 0,
+		'The journal settlement leaves out only the lines settled at the cash count');
 } finally {
 	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
 	pg_close($connection);

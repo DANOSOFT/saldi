@@ -36,12 +36,15 @@ final class CashCountCommissionSettlementTest extends TestCase
         'With both account pairs the mixed order settles both lines',
         "The default from-date is the register's last settled sale, or the configured date when later",
         'Orders settled by another cash count after they were read are not settled again',
-        'The journal settlement leaves out sales already settled at the cash count',
+        'The journal settlement leaves out only the lines settled at the cash count',
     ];
 
     /** @var array{exit:int, stdout:string, stderr:string}|null */
     private static ?array $run = null;
 
+    /**
+     * Runs the child runner once for the class, with the database connection passed through the environment.
+     */
     public static function setUpBeforeClass(): void
     {
         $reason = CharacterizationEnv::unavailableReason();
@@ -64,6 +67,9 @@ final class CashCountCommissionSettlementTest extends TestCase
         }
     }
 
+    /**
+     * The runner exits 0 and reports no failed check.
+     */
     public function testTheRunnerFinishesWithoutFailures(): void
     {
         $run = self::$run;
@@ -72,6 +78,9 @@ final class CashCountCommissionSettlementTest extends TestCase
         self::assertSame(0, $run['exit'], $run['stdout'] . $run['stderr']);
     }
 
+    /**
+     * Every expected check is reported as passed, and no other check.
+     */
     public function testEveryCheckPassed(): void
     {
         $stdout = (string)(self::$run['stdout'] ?? '');
