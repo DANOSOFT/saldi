@@ -20,11 +20,17 @@ use PHPUnit\Framework\TestCase;
  * months. For the year holding today nothing changes: the figures stop at today, and so do the charts. A later year runs
  * to today placed in it. dash_fiscal_today() places a day in a July-June year, a short year and on 29 February.
  *
+ * Fra kontonr. and Til kontonr. are part of the revenue range (dashboard-figures DEVY-4 and DEVY-6). dash_daily(), behind
+ * every revenue figure, counted only the accounts between them (kontonr > min and < max), so the month chart lost account
+ * 0's postings in the default range 0-2000 (94,60 kr in January 2024 and 51,20 kr in February), and Til kontonr. 1100
+ * emptied every revenue figure of a book whose sales are on 1100. The old month and day charts counted both ends.
+ *
  * dash_data() runs whole on an in-memory sqlite database shaped like the tables it reads, with the real
  * vat_period_range() from includes/std_func.php.
  *
  * History:
  * 20261105 CL/LH Created.
+ * 20261105 CL/LH The Fra and Til accounts are in the range.
  */
 #[RunTestsInSeparateProcesses]
 final class DashboardFiscalYearDatesTest extends TestCase
@@ -46,7 +52,10 @@ final class DashboardFiscalYearDatesTest extends TestCase
         ['2026-11-03', 999.00],    // ISO week 45 of 2026, the server's week in the lab
     ];
 
-    private static function boot(): void
+    /**
+     * @param list<array{string, int, float}> $extra more credit postings: date, account, amount
+     */
+    private static function boot(array $extra): void
     {
         $db = new PDO('sqlite::memory:');
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -58,9 +67,12 @@ final class DashboardFiscalYearDatesTest extends TestCase
         $db->exec("CREATE TABLE varer (id INTEGER PRIMARY KEY, varenr TEXT, gruppe TEXT)");
         $db->exec("INSERT INTO grupper (art, kodenr, fiscal_year, beskrivelse, box1, box2) VALUES ('RA', '3', '0', '2024', '1', '2024'),
             ('RA', '4', '0', '2025', '1', '2025'), ('MR', '1', '3', 'Moms', '1000', '2000'), ('MR', '1', '4', 'Moms', '1000', '2000')");
-        $insert = $db->prepare("INSERT INTO transaktioner (transdate, kontonr, debet, kredit) VALUES (?, 1100, 0, ?)");
+        $insert = $db->prepare("INSERT INTO transaktioner (transdate, kontonr, debet, kredit) VALUES (?, ?, 0, ?)");
         foreach (self::POSTINGS as [$date, $amount]) {
-            $insert->execute([$date, $amount]);
+            $insert->execute([$date, 1100, $amount]);
+        }
+        foreach ($extra as [$date, $account, $amount]) {
+            $insert->execute([$date, $account, $amount]);
         }
         $GLOBALS['dashDb'] = $db;
         $GLOBALS['regnaar'] = 4;
@@ -77,15 +89,16 @@ final class DashboardFiscalYearDatesTest extends TestCase
     /**
      * dash_data() for fiscal year 2025 (kodenr 4) on $today, as index/dashboard.php calls it.
      *
+     * @param list<array{string, int, float}> $extra more credit postings: date, account, amount
      * @return array<string, mixed>
      */
-    private static function dashboard(string $today): array
+    private static function dashboard(string $today, int $min = 0, int $max = 2000, array $extra = []): array
     {
         if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
             self::markTestSkipped('pdo_sqlite is required for the isolated dashboard database.');
         }
-        self::boot();
-        return dash_data(['regnstart' => '2025-01-01', 'regnslut' => '2025-12-31', 'regnaar' => 4, 'kontomin' => 0, 'kontomaks' => 2000,
+        self::boot($extra);
+        return dash_data(['regnstart' => '2025-01-01', 'regnslut' => '2025-12-31', 'regnaar' => 4, 'kontomin' => $min, 'kontomaks' => $max,
             'sprog_id' => 1, 'bruger_id' => 1, 'vat' => ['registered' => true, 'period' => 'quarter'], 'today' => $today]);
     }
 
@@ -149,6 +162,45 @@ final class DashboardFiscalYearDatesTest extends TestCase
         $this->assertSame(11, $d['month']['toDate'], 'January to November');
         $this->assertEqualsWithDelta(7226.40, $d['month']['now'][10], 0.001, 'November to the 8th: nothing after it counts yet');
         $this->assertEqualsWithDelta(0.0, $d['month']['now'][11], 0.001);
+    }
+
+    /**
+     * @return array<string, array{int, int}> Fra kontonr., Til kontonr.
+     */
+    public static function accountRanges(): array
+    {
+        return [
+            'the default range 0-2000 (the lab\'s)' => [0, 2000],
+            'Til kontonr. is the sales account (the lab\'s 0-1100)' => [0, 1100],
+            'Fra kontonr. is the sales account' => [1100, 2000],
+            'one account' => [1100, 1100],
+        ];
+    }
+
+    #[DataProvider('accountRanges')]
+    public function testTheFromAndToAccountsAreInTheRange(int $min, int $max): void
+    {
+        $d = self::dashboard('2025-11-08', $min, $max, [
+            ['2024-01-15', $min, 94.60],       // the lab's account-0 postings in January and February 2024
+            ['2024-02-12', $min, 51.20],
+            ['2025-02-12', $max, 80.00],
+            ['2025-11-05', $max, 25.00],       // Wednesday of ISO week 45 of 2025
+            ['2024-01-16', $min - 1, 3000.00], // outside the range
+            ['2025-02-13', $max + 1, 4000.00],
+            ['2025-11-06', $min - 1, 7000.00],
+            ['2025-11-07', $max + 1, 9000.00],
+        ]);
+
+        $this->assertEqualsWithDelta([94.60, 51.20, 20000.00], array_slice($d['month']['last'], 0, 3), 0.001, 'the month chart\'s 2024 has the postings on the Fra kontonr.');
+        $this->assertEqualsWithDelta([0.0, 40080.00], array_slice($d['month']['now'], 0, 2), 0.001, 'February 2025 has the posting on the Til kontonr.');
+        $this->assertEqualsWithDelta(7251.40, $d['month']['now'][10], 0.001, 'November 2025 to the 8th');
+        $this->assertEqualsWithDelta([1143.20, 348.80, 25.00, 0, 0, 0, 0], $d['weeks']['list'][0]['now'], 0.001, 'the day chart');
+        $this->assertEqualsWithDelta(1517.00, $d['weekkpi']['value'], 0.001);
+        $this->assertEqualsWithDelta(500.00, $d['weekkpi']['last'], 0.001);
+        $this->assertEqualsWithDelta(7251.40, $d['revmonth']['value'], 0.001);
+        $this->assertEqualsWithDelta(1500.00, $d['revmonth']['last'], 0.001);
+        $this->assertEqualsWithDelta(47331.40, $d['revyear']['value'], 0.001, '2025 to 8 November');
+        $this->assertEqualsWithDelta(21645.80, $d['revyear']['last'], 0.001, '2024 to 8 November');
     }
 
     /**

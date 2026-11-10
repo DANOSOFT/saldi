@@ -31,16 +31,18 @@
 // 20261105 CL/LH Week, month, year to date and the VAT period run to today placed in the fiscal year shown (dash_fiscal_today()), as the old widgets did, not to the server's date.
 //                An earlier year in the top bar showed 0 kr for this week and month and compared its whole year with the whole year before.
 //                The month and week charts' figures-to-date cut-offs (toDate, dayToDate) are set here from the same day.
+// 20261105 CL/LH The revenue figures count the Fra and Til accounts themselves (kontonr >= kontomin and <= kontomaks), as the old month and day charts and the VAT figure did.
+//                The month chart left out account 0's postings in the range 0-2000, and Til kontonr. 1100 left account 1100 out of every revenue figure.
 
 /**
- * Revenue per day (date => amount) between two dates on the revenue accounts.
+ * Revenue per day (date => amount) between two dates on the revenue accounts $min to $max, both included.
  *
  * @return array<string, float>
  */
 function dash_daily(string $from, string $to, int $min, int $max): array
 {
 	$out = array();
-	$q = db_select("select transdate, sum(coalesce(kredit, 0) - coalesce(debet, 0)) as s from transaktioner where transdate >= '" . db_escape_string($from) . "' and transdate <= '" . db_escape_string($to) . "' and kontonr > $min and kontonr < $max group by transdate", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select transdate, sum(coalesce(kredit, 0) - coalesce(debet, 0)) as s from transaktioner where transdate >= '" . db_escape_string($from) . "' and transdate <= '" . db_escape_string($to) . "' and kontonr >= $min and kontonr <= $max group by transdate", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$out[substr((string) $r['transdate'], 0, 10)] = (float) $r['s'];
 	}
