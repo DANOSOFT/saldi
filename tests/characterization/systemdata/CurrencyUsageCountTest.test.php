@@ -16,9 +16,11 @@ use PHPUnit\Framework\TestCase;
  * about 15 s to open in the lab; on test_12, whose USD has 261 rates, picking USD adds 261 more.
  *
  * Pins: the counts and texts are those of one count per row (postings and journal lines by the currency's number,
- * orders and open items by its code; a rate counts the currency's postings on or after its date, no other currency's),
- * and loading the tables reads each of the four tables once for all rows; a second load (the save loads the rows
- * again) reads them again and sees what changed. The database still judges each row's condition: here the valuta
+ * orders and open items by its code; a rate counts the postings in the currency and those on the currency's accounts
+ * on or after its date, its revaluation's valuta -1 included, and no other currency's or account's; the accounts are
+ * the currency's in every fiscal year, whichever year is open), and loading the tables reads each of the four tables
+ * once for all rows; a second load (the save loads the rows again) reads them again and sees what changed. The
+ * database still judges each row's condition: here the valuta
  * columns of transaktioner, ordrer and openpost ignore case and spaces, as utf8mb4_general_ci on MySQL and MariaDB
  * ignores case and trailing spaces, so a GBP whose only references are an order in 'gbp', an open item in 'GBP ' and
  * a posting in '4 ' is in use (an exact match in PHP found none, and the currency could be deleted or recoded).
@@ -27,6 +29,7 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261105 CL/LH Created.
+ * 20261105 CL/LH A rate also counts the postings on the currency's accounts of every fiscal year, a revaluation's valuta -1 included.
  */
 #[RunTestsInSeparateProcesses]
 final class CurrencyUsageCountTest extends TestCase
@@ -75,6 +78,7 @@ final class CurrencyUsageCountTest extends TestCase
         ');
         require_once dirname(__DIR__, 3) . '/includes/settings/components.php';
         require_once dirname(__DIR__, 3) . '/includes/settings/rows.php';
+        $GLOBALS['regnaar'] = 1;
 
         // The columns the counts read, typed as includes/opretfunc.php creates them. TEMP tables and a TEMP collation
         // only, and no DROP: pg_temp comes first in the search path. The collation ignores case and spaces, as
@@ -189,6 +193,39 @@ final class CurrencyUsageCountTest extends TestCase
         self::assertSame(['transaktioner' => 1, 'kassekladde' => 0, 'ordrer' => 0, 'openpost' => 0], self::reads());
 
         self::assertSame(['2026-01-01' => ['count' => 1, 'text' => '1 #6423']], self::usageByCode(self::table('rates', 2)));
+        self::reads();
+
+        // A revaluation of EUR on 2026-07-01, booked as settings_currency_book() does: valuta -1 on EUR's account 5800
+        // and on the difference account 2050, which is not in EUR. The rates stand behind the posting on 5800 (Slet
+        // left it behind, testlab round 2), not behind the one on 2050 or a base-currency posting on 1000.
+        self::exec("INSERT INTO transaktioner VALUES (12, 5800, '2026-07-01', '-1'), (13, 2050, '2026-07-01', '-1'), (14, 1000, '2026-08-01', '0')");
+        self::assertSame([
+            '' => ['count' => 0, 'text' => ''],
+            '2026-07-01' => ['count' => 1, 'text' => '1 #6423'],
+            '2026-06-01' => ['count' => 3, 'text' => '3 #6423'],
+            '2026-03-01' => ['count' => 4, 'text' => '4 #6423'],
+            '2026-01-01' => ['count' => 5, 'text' => '5 #6423'],
+        ], self::usageByCode(self::table('rates', 1)));
+        self::assertSame(['transaktioner' => 1, 'kassekladde' => 0, 'ordrer' => 0, 'openpost' => 0], self::reads());
+        self::assertSame(['2026-01-01' => ['count' => 1, 'text' => '1 #6423']], self::usageByCode(self::table('rates', 2)));
+
+        // A revaluation booked in fiscal year 2 on 5850, an account EUR has in that year only, stands behind the rates
+        // whichever year is open, and so does the one on 5800, which EUR has in year 1 only. With the other year open,
+        // the count found none of it, and Slet deleted the rate (testlab round 2, review).
+        self::exec("INSERT INTO kontoplan VALUES (6, 5850, 1, 2), (7, 2050, 0, 2)");
+        self::exec("INSERT INTO transaktioner VALUES (15, 5850, '2026-07-15', '-1'), (16, 2050, '2026-07-15', '-1')");
+        foreach ([1, 2] as $year) {
+            $GLOBALS['regnaar'] = $year;
+            self::reads();
+            self::assertSame([
+                '' => ['count' => 0, 'text' => ''],
+                '2026-07-01' => ['count' => 2, 'text' => '2 #6423'],
+                '2026-06-01' => ['count' => 4, 'text' => '4 #6423'],
+                '2026-03-01' => ['count' => 5, 'text' => '5 #6423'],
+                '2026-01-01' => ['count' => 6, 'text' => '6 #6423'],
+            ], self::usageByCode(self::table('rates', 1)), "year $year open");
+            self::assertSame(['transaktioner' => 1, 'kassekladde' => 0, 'ordrer' => 0, 'openpost' => 0], self::reads(), "year $year open");
+        }
     }
 
     public function test_a_currency_with_more_rates_than_postgres_takes_columns_is_counted_in_a_few_reads(): void

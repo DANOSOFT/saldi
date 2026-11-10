@@ -29,6 +29,8 @@
 
 // 20261016 SS The discount transfer and the old-discount columns live in virtualStorage.php.
 // 20261105 CL/LH Testlab: a new fiscal year opens with the carry-forward (Overfør til, Resultat on its account) the year card's Gem writes, not each balance account's own saldo.
+// 20261105 CL/LH A rate change is checked against settings_currency_rate_postings() (rows.php), the postings a rate's delete is now refused for too.
+//                Those are on the currency's accounts of every fiscal year, not only of the open one.
 include_once(__DIR__ . '/virtualStorage.php');
 
 // ---------------------------------------------------------------- fiscal years (grupper art RA)
@@ -580,7 +582,6 @@ function settings_rows_forbidden(string $rule, string $raw): bool
  */
 function settings_rows_row_check(string $hook, array $t, array $clean, ?array $current): array
 {
-	global $regnaar;
 	if ($hook !== 'currency_rate') {
 		return array();
 	}
@@ -589,9 +590,9 @@ function settings_rows_row_check(string $hook, array $t, array $clean, ?array $c
 		return array('kurs' => 6604);
 	}
 	$date = db_escape_string((string) $clean['valdate']);
-	// No rate change dated before bookings in the currency or on its accounts (old valutakort.php).
-	if (settings_fy_count("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$gruppe' and transdate >= '$date'")
-		|| settings_fy_count("select count(*) as n from transaktioner where transdate >= '$date' and " . db_cast('kontonr', 'text') . " in (select " . db_cast('kontonr', 'text') . " from kontoplan where valuta = $gruppe and regnskabsaar = " . (int) $regnaar . ")")) {
+	// No rate change dated before bookings in the currency or on its accounts (old valutakort.php); a delete is refused
+	// for the same postings (the rate's usage, rows.php).
+	if (settings_fy_count("select count(*) as n from transaktioner where transdate >= '$date' and " . settings_currency_rate_postings($gruppe))) {
 		return array('valdate' => 6595);
 	}
 	$effect = settings_currency_step_effect($t, $current === null ? array('insert', '', $clean) : array('update', '', $current, $clean));

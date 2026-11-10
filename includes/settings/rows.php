@@ -33,6 +33,9 @@
 // 20261105 CL/LH Valuta counts a currency's postings, journal lines, orders and open items, and a rate's postings, for all rows of the table in one read per table (settings_rows_count_each()).
 //                The count per row read transaktioner (no index on valuta) once for every currency and every rate, so the section took about 15 s to open on a book with 1M postings.
 //                The database still judges each row's own condition, so a code compares as before (case and trailing spaces on MySQL and MariaDB).
+// 20261105 CL/LH A rate's usage also counts the postings on the currency's accounts, as its edit check does (settings_currency_rate_postings()), so Slet refuses a rate whose revaluation is posted.
+//                A revaluation is booked on those accounts with valuta -1, so the count by valuta found nothing, and the delete left the postings and the accounts' valutakurs behind.
+//                The accounts are the currency's in every fiscal year, so the refusal does not depend on the year the user has open.
 
 /**
  * The tables of a rows section with their defaults filled in.
@@ -207,6 +210,21 @@ function settings_rows_count_each(string $from, array $conds, string $weight = '
 }
 
 /**
+ * The postings a rate of currency $gruppe stands behind, as a condition on transaktioner: those in the currency, and
+ * those in any currency on an account that is in the currency in a fiscal year. A rate's revaluation is booked on the
+ * currency's accounts with valuta -1 (settings_currency_book()), so only the accounts show it. The accounts are those
+ * of every fiscal year, not of the year the user has open: a posting does not say which year's chart it was booked
+ * on, and a revaluation is dated on its rate, which may lie outside that year. A revaluation booked in one year then
+ * still stands behind its rate when another year is open. A rate dated on or before one of these postings can be
+ * neither changed (settings_rows_row_check()) nor deleted (its usage), as on the old valutakort.php.
+ */
+function settings_currency_rate_postings(int $gruppe): string
+{
+	return "(" . db_cast('valuta', 'text') . " = '$gruppe' or " . db_cast('kontonr', 'text') . " in (select " . db_cast('kontonr', 'text')
+		. " from kontoplan where valuta = $gruppe))";
+}
+
+/**
  * Where a row is referenced, as a count and a short text ("14 ordrer · 3 ansatte"), for the delete dialog (spec §8.2).
  *
  * @param array<int, array<string, mixed>> $rows    the rows loaded with $row (settings_rows_load()), or none
@@ -332,10 +350,11 @@ function settings_rows_usage(array $t, array $row, array $rows = array(), array 
 				$add("select count(*) as n from valuta where gruppe = $k", 6602);
 				break;
 			case 'currency_rate':
-				// The postings in the currency on or after the rate's date, for all the currency's rates at once. The
-				// postings are counted per date first, so each rate's date is compared once per date, not per posting.
+				// The postings the rate stands behind (settings_currency_rate_postings()) on or after its date, for all
+				// the currency's rates at once. The postings are counted per date first, so each rate's date is compared
+				// once per date, not per posting.
 				$g = isset($row['raw']['gruppe']) ? (int) $row['raw']['gruppe'] : 0;
-				$addEach("(select transdate, count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$g' group by transdate) d",
+				$addEach("(select transdate, count(*) as n from transaktioner where " . settings_currency_rate_postings($g) . " group by transdate) d",
 					fn (string $escaped) => "transdate >= '$escaped'", 6423, 'n');
 				break;
 			case 'discount_debtor_group':

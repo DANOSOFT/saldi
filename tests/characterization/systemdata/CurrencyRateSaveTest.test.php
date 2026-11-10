@@ -29,6 +29,12 @@ use PHPUnit\Framework\TestCase;
  * - The rows are those of the currency in the address (cur), so a rate id of another currency, or one posted without
  *   a currency, is not written, and a posting save next to it books for this currency only.
  * - A rate that is written gets its audit row in the change history; a save that writes nothing audits nothing.
+ * - Slet (settings_rows_delete()) refuses a rate that a posting stands behind, as a change of it is refused: a rate
+ *   whose adjustment is posted and the rate it adjusted from stay, and so do the postings and the account's rate. The
+ *   adjustment is on the currency's account with valuta -1, so a count of the postings in the currency found none and
+ *   the rate was deleted (testlab round 2, currency-rates-revaluation DEVY-2). The account is the currency's in any
+ *   fiscal year, so an adjustment posted on an account of another year than the open one keeps its rate too. A rate
+ *   nothing is posted behind is deleted.
  * The queries run on a real Postgres against TEMP tables shaped like includes/opretfunc.php and
  * includes/betweenUpdates.php create them, and saldi_schema_filter() scopes the save's information_schema lookups to
  * the session's temp schema, so nothing in the database behind SALDI_CHAR_DSN is read or changed, also when it is a
@@ -37,6 +43,7 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261105 CL/LH Created from the 9 cases of tests/integration/currencyRateSave.php.
+ * 20261105 CL/LH Slet of a rate whose adjustment is posted is refused, whichever fiscal year is open; a rate with nothing posted behind it is deleted.
  */
 #[RunTestsInSeparateProcesses]
 final class CurrencyRateSaveTest extends TestCase
@@ -385,5 +392,87 @@ final class CurrencyRateSaveTest extends TestCase
             'recalculated' => [1],
         ], self::posted());
         self::assertSame([self::RATE_CREATED], self::audited());
+    }
+
+    /**
+     * The id of a currency's rate of a date.
+     */
+    private static function rateId(int $currency, string $date): int
+    {
+        return (int) self::rows("SELECT id FROM valuta WHERE gruppe = $currency AND valdate = '$date'")[0]['id'];
+    }
+
+    public function test_slet_refuses_a_rate_whose_adjustment_is_posted_and_the_postings_stay(): void
+    {
+        self::boot();
+        self::save(2, ['n1' => ['valdate' => '14-09-2026', 'kurs' => '750,00']], '1');
+        $posted = self::posted();
+        $GLOBALS['__crs_transactions'] = [];
+
+        // The adjustment is on 68103, USD's account, with valuta -1. The new rate and the rate it adjusted from both
+        // stand behind it.
+        $rates = self::tables(2)['rates'];
+        foreach (['2026-09-14', '2026-01-01'] as $date) {
+            self::assertSame(['err', "$date kan ikke slettes – Bruges af 1 posteringer."], settings_rows_delete('finance.currencies', 'rates', $rates, self::rateId(2, $date), null));
+        }
+        // A rate dated before the adjustment is refused for the same posting.
+        self::assertSame(['rates/n1/valdate' => 6595], self::save(2, ['n1' => ['valdate' => '01-09-2026', 'kurs' => '760,00']], '1')['errors']);
+
+        self::assertSame(['2026-09-14 750.000', '2026-01-01 700.000'], self::rates(2));
+        self::assertSame($posted, self::posted(), 'the adjustment, the open-item adjustment and 68103 at 750 stay');
+        self::assertSame([], $GLOBALS['__crs_transactions']);
+        self::assertSame([self::RATE_CREATED], self::audited());
+    }
+
+    public function test_slet_refuses_a_rate_whose_adjustment_is_posted_in_another_fiscal_year_than_the_open_one(): void
+    {
+        self::boot();
+        // Fiscal year 2 brings 58106, a EUR account year 1 does not have. Bogfør og gem of EUR's 07-07-2027 rate with
+        // year 2 open posts the adjustment on it, with valuta -1.
+        self::exec("INSERT INTO kontoplan (kontonr, beskrivelse, kontotype, saldo, regnskabsaar, valuta) VALUES
+            (8040, 'Kursdifferencer', 'D', 0, 2, 0), (58106, 'Bank EUR', 'S', 7450, 2, 1)");
+        $GLOBALS['regnaar'] = 2;
+        $rate = ['n1' => ['valdate' => '07-07-2027', 'kurs' => '747,13']];
+        self::assertSame(['errors' => [], 'confirm' => ['Konto 58106: 21,30 kr. (modkonto 8040)'], 'written' => true], self::save(1, $rate, '1'));
+        $posted = self::posted();
+        self::assertSame([
+            'postings' => ['68103 2025-12-15 D0.00 K1400.00 2', '8040 2027-07-07 D0.00 K21.30 -1', '58106 2027-07-07 D21.30 K0.00 -1'],
+            'openpost' => 1,
+            'account_rates' => ['58106 747.1300'],
+            'recalculated' => [2],
+        ], $posted);
+        $GLOBALS['__crs_transactions'] = [];
+
+        // With year 1 open (the review's case: the count looked at year 1's EUR accounts only, found none of the
+        // adjustment, and Slet deleted the rate) and with year 2 open, both rates stand behind the adjustment, and a
+        // rate dated before it is refused for the same posting.
+        foreach ([1, 2] as $year) {
+            $GLOBALS['regnaar'] = $year;
+            $rates = self::tables(1)['rates'];
+            foreach (['2027-07-07', '2026-01-01'] as $date) {
+                self::assertSame(['err', "$date kan ikke slettes – Bruges af 1 posteringer."], settings_rows_delete('finance.currencies', 'rates', $rates, self::rateId(1, $date), null), "year $year open");
+            }
+            self::assertSame(['rates/n1/valdate' => 6595], self::save(1, ['n1' => ['valdate' => '01-07-2027', 'kurs' => '760,00']], '1')['errors'], "year $year open");
+        }
+
+        self::assertSame(['2027-07-07 747.130', '2026-01-01 745.000'], self::rates(1));
+        self::assertSame($posted, self::posted(), 'the adjustment and 58106 at 747,13 stay');
+        self::assertSame([], $GLOBALS['__crs_transactions']);
+        self::assertSame(['setting.row_created rates indstilling finance.currencies.rates#2027-07-07 ui'], self::audited());
+    }
+
+    public function test_slet_deletes_a_rate_with_nothing_posted_behind_it(): void
+    {
+        self::boot();
+        self::save(2, ['n1' => ['valdate' => '14-09-2026', 'kurs' => '750,00']], 'skip');
+        $GLOBALS['__crs_transactions'] = [];
+
+        self::assertSame(['ok', 'Slettet: 2026-09-14'], settings_rows_delete('finance.currencies', 'rates', self::tables(2)['rates'], self::rateId(2, '2026-09-14'), null));
+
+        self::assertSame(['2026-01-01 700.000'], self::rates(2));
+        self::assertSame('700,00', self::rows("SELECT box2 FROM grupper WHERE art = 'VK' AND kodenr = 2")[0]['box2'], 'the currency row shows its newest rate again');
+        self::assertSame(self::nothingPosted(), self::posted());
+        self::assertSame(['begin', 'commit'], $GLOBALS['__crs_transactions']);
+        self::assertSame([self::RATE_CREATED, 'setting.row_deleted rates indstilling finance.currencies.rates#2026-09-14 ui'], self::audited());
     }
 }
