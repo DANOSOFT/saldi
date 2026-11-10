@@ -67,19 +67,11 @@ if (isset($_COOKIE['mylabel'])) {
 	}
 }
 # SST-967 the Mit Salg label page makes its own session row with rettigheder = '0' (mysale/mylabel.php and
-# mysale/mysale.php) and prints through this page. Such a row is refused by every module page under the new
-# gate - '0' is not a right - so this page lifts its own module number for exactly that session and no other:
-# the placeholder rights, an account that is not the internal booking user, and a session inside a tenant.
-if ($modulnr) {
-	$sst967_session = db_fetch_array(db_select("select rettigheder, brugernavn, db from online where session_id = '" . db_escape_string($s_id) . "'", __FILE__ . " linje " . __LINE__));
-	if ($sst967_session
-			&& (string)$sst967_session['rettigheder'] === '0'
-			&& $sst967_session['brugernavn'] !== 'booking'
-			&& $sst967_session['db'] !== '' && $sst967_session['db'] !== $sqdb) {
-		$modulnr = 0;
-	}
-	unset($sst967_session);
-}
+# mysale/mysale.php) and prints through this page. Such a row is refused by every module page under the gate,
+# so this page declares itself and includes/online.php decides: it lifts the gate for a session inside a
+# tenant whose placeholder rights are '0', whose account is not the internal booking user, and whose account
+# has no brugere row - which is what makes it a shop account rather than a user.
+$mysale_label_page = true;
 
 include("../includes/online.php");
 include("../includes/std_func.php");

@@ -73,6 +73,8 @@
 //                 Their blocks include std_func.php through __DIR__.
 // 20261109 LOE SST-967 An empty rights string no longer counts as access, and the refusal keeps a way back.
 // 20261110 LOE SST-967 The Mit Salg session keeps working, and a sag workflow page runs on the craft right.
+// 20261110 LOE SST-967 The gate runs before the user settings, and an order decides its own case.
+//              The label page's Mit Salg proof is that the account has no brugere row.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -136,6 +138,9 @@ if (!isset($webservice)) $webservice = NULL;
 $ip = $_SERVER['REMOTE_ADDR'];
 $ip              = substr($ip, 0, 10);
 $sag_rettigheder = NULL;
+# SST-967 the rights the session row itself carries, before the brugere lookup below replaces
+# $rettigheder. A Mit Salg session has no brugere row, so this is where its placeholder '0' survives.
+$online_rights = NULL;
 $unixtime        = date("U");
 
 $qtxt = "select * from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -146,6 +151,7 @@ if ($r = db_fetch_array($q)) {
 	$regnaar = trim(if_isset($r['regnskabsaar'], ''));
 	$brugernavn = db_escape_string($r['brugernavn']);
 	$rettigheder = $r['rettigheder'];
+	$online_rights = $r['rettigheder'];
 	$superUserPermission = $rettigheder;
 	$revisor = $r['revisor'];
 	$logtime = $r['logtime'];
@@ -310,6 +316,90 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$bruger_id = -1;
 	if (!$sprog_id)
 		$sprog_id = 1;
+
+	# SST-967 the module gate. It is computed here, before the user-settings block below, because a session
+	# with no brugere row leaves $bruger_id empty and would otherwise skip the gate altogether - the Mit Salg
+	# sessions are exactly that shape, and one of them could open any module page, including the stock-move
+	# page. Three terms decide it:
+	# - an empty rights string is NO rights. It used to switch the whole condition off, because the first
+	#   term asked whether the string was truthy, and a user whose string is empty could open every page that
+	#   sets $modulnr by typing its address;
+	# - a page that belongs to the sag workflow runs on the craft right instead, once it has proven its
+	#   request. The page declares $sag_workflow_page, and the proof runs here because this is the first
+	#   point where the tenant database is open:
+	#     'sag'      - an offer or an order for a case: the case must exist, an order decides its own case,
+	#                  and the customer comes from the case, never from the request;
+	#     'customer' - a customer's history, reached from a case: the customer must have a case;
+	# - lager/labelprint.php is the one module page a Mit Salg session needs. It declares $mysale_label_page,
+	#   and the proof is that the account has no brugere row - which is what makes it a shop account rather
+	#   than a user - on a session inside a tenant, with the placeholder rights, and not the booking account.
+	$sag_workflow_allowed = false;
+	if (!empty($sag_workflow_page) && substr((string)$sag_rettigheder, 2, 1)) {
+		$wf_konto = (int) ($sag_workflow_konto ?? 0);
+		if ($sag_workflow_page === 'sag') {
+			$wf_sag = (int) ($sag_workflow_sag ?? 0);
+			$wf_order = (int) ($sag_workflow_order ?? 0);
+			if ($wf_order) {
+				$wf_row = db_fetch_array(db_select("select sag_id from ordrer where id = '$wf_order'", __FILE__ . " linje " . __LINE__));
+				$wf_order_sag = $wf_row ? (int) $wf_row['sag_id'] : 0;
+				$wf_sag = (!$wf_order_sag || ($wf_sag && $wf_sag !== $wf_order_sag)) ? 0 : $wf_order_sag;
+			}
+			if ($wf_sag) {
+				$wf_row = db_fetch_array(db_select("select konto_id from sager where id = '$wf_sag'", __FILE__ . " linje " . __LINE__));
+				$wf_customer = $wf_row ? (int) $wf_row['konto_id'] : 0;
+				if ($wf_customer && (!$wf_konto || $wf_konto === $wf_customer)) {
+					$sag_workflow_allowed = true;
+					# The order belongs to the case's customer, whatever the address tried to pass in. This is
+					# pinned only when the exception is what admits the page, so a user with the module right
+					# keeps the page's own behaviour. The POST matters as much as the GET - debitor/ordre.php
+					# saves with $_POST['konto_id'] - or a craft user could book the order on another customer
+					# while the case in the URL keeps the page open.
+					if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+						$_GET['konto_id'] = $wf_customer;
+						$_POST['konto_id'] = $wf_customer;
+					}
+				}
+			}
+		} elseif ($sag_workflow_page === 'customer' && $wf_konto) {
+			$wf_row = db_fetch_array(db_select("select id from sager where konto_id = '$wf_konto' limit 1", __FILE__ . " linje " . __LINE__));
+			$sag_workflow_allowed = (bool) $wf_row;
+			if ($sag_workflow_allowed) {
+				# A note saved from the history page belongs to the customer the page was opened for.
+				$_POST['konto_id'] = $wf_konto;
+			}
+		}
+		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer);
+	}
+	unset($wf_konto);
+	$mysale_label_ok = false;
+	if (!empty($mysale_label_page) && (string)$online_rights === '0' && $brugernavn !== 'booking'
+			&& isset($db) && $db !== '' && $db !== $sqdb) {
+		$mysale_row = db_fetch_array(db_select("select id from brugere where brugernavn = '$brugernavn' limit 1", __FILE__ . " linje " . __LINE__));
+		$mysale_label_ok = !$mysale_row;
+		unset($mysale_row);
+	}
+	$no_module_right = ($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
+	if ($no_module_right && !$sag_workflow_allowed && !$mysale_label_ok) { #20190529
+		include(__DIR__ . '/std_func.php');
+		$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
+		print tekstboks($txt);
+		# The box is a floating overlay that hides itself when it is closed, and a refused page is only the
+		# box, so the link keeps something on the page and leads back to a page this user may use. It follows
+		# the landing rule index/login.php already applies, because the shell alone is a dead end for a user
+		# who only has craft rights: its menu carries no Sager entries and every module entry leads back here.
+		$refusal_target = 'index/main.php';
+		if (substr((string)$sag_rettigheder, 2, 1)) {
+			$refusal_target = 'sager/sager.php';
+		} elseif (substr((string)$sag_rettigheder, 0, 1)) {
+			$refusal_target = 'sager/loen.php';
+		}
+		print "<div style=\"position:fixed; top:10px; left:10px; z-index:101; font:14px Arial,Helvetica,sans-serif;\">";
+		# target=_top: the shell loads pages inside an iframe, and navigating that frame to the menu would
+		# put a second menu inside the first one. In a tab of its own the target makes no difference.
+		print "<a href=\"" . get_relative() . $refusal_target . "\" target=\"_top\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
+			. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+		exit;
+	}
 	if (!strpos($css, 'mysale') && $bruger_id) {
 		$jsvars = "statusbar=0,menubar=0,titlebar=0,toolbar=0,scrollbars=1,resizable=1,dependent=1";
 		$qtxt = "select box1,box2,box3,box4,box5 from grupper where art = 'USET' and kodenr = '$bruger_id'";
@@ -332,65 +422,9 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		// (popup=1 on the URL), not when the user merely prefers popups — the preference
 		// made the nav stack permanently empty for those users, and genuine popups
 		// opened by others polluted the opener's stack.
-		# SST-967 the module gate, computed once here so the navigation stack and the refusal below cannot
-		# drift apart (EmptyRightsGateTest pins this line and the gate together):
-		# - an empty rights string is NO rights. It used to switch the whole condition off, because the first
-		#   term asked whether the string was truthy, and a user whose string is empty could then open every
-		#   page that sets $modulnr by typing its address;
-		# The Mit Salg sessions carry '0' and have no brugere row, so they are refused here like any other
-		# session without a right. lager/labelprint.php is the one page they need, and it opens itself for
-		# them instead of asking for an exception in this condition;
-		# - a page that belongs to the sag workflow runs on the craft right instead of the module right. The
-		#   page declares itself with $sag_workflow_page and proves its request with $sag_workflow_valid
-		#   before including this file, so the craft right alone cannot open anything else.
-		# The page declares what it wants checked, and the check runs here because this is the first point
-		# where the tenant database is open:
-		#   'sag'      - an offer or an order for a case: the case must exist, and the customer comes from it;
-		#   'customer' - a customer's history, reached from a case: the customer must have a case.
-		# Both need the craft right the Sager pages ask for, so this cannot open anything else.
-		$sag_workflow_allowed = false;
-		if (!empty($sag_workflow_page) && substr((string)$sag_rettigheder, 2, 1)) {
-			$wf_konto = (int) ($sag_workflow_konto ?? 0);
-			if ($sag_workflow_page === 'sag') {
-				$wf_sag = (int) ($sag_workflow_sag ?? 0);
-				$wf_order = (int) ($sag_workflow_order ?? 0);
-				if (!$wf_sag && $wf_order) {
-					$wf_row = db_fetch_array(db_select("select sag_id from ordrer where id = '$wf_order'", __FILE__ . " linje " . __LINE__));
-					$wf_sag = $wf_row ? (int) $wf_row['sag_id'] : 0;
-				}
-				if ($wf_sag) {
-					$wf_row = db_fetch_array(db_select("select konto_id from sager where id = '$wf_sag'", __FILE__ . " linje " . __LINE__));
-					$wf_customer = $wf_row ? (int) $wf_row['konto_id'] : 0;
-					if ($wf_customer && (!$wf_konto || $wf_konto === $wf_customer)) {
-						$sag_workflow_allowed = true;
-						# The order belongs to the case's customer, whatever the address tried to pass in. This
-						# is pinned only when the exception is what admits the page: a user who holds the
-						# module right keeps the page's own behaviour, so nothing changes for the finance lane.
-						# The POST matters as much as the GET - debitor/ordre.php saves with $_POST['konto_id']
-						# (line 1126) - or a craft user could book the order on another customer while the case
-						# in the URL keeps the page open.
-						if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
-							$_GET['konto_id'] = $wf_customer;
-							$_POST['konto_id'] = $wf_customer;
-						}
-					}
-				}
-			} elseif ($sag_workflow_page === 'customer' && $wf_konto) {
-				$wf_row = db_fetch_array(db_select("select id from sager where konto_id = '$wf_konto' limit 1", __FILE__ . " linje " . __LINE__));
-				$sag_workflow_allowed = (bool) $wf_row;
-				if ($sag_workflow_allowed) {
-					# A note saved from the history page belongs to the customer the page was opened for.
-					$_POST['konto_id'] = $wf_konto;
-				}
-			}
-			unset($wf_row, $wf_sag, $wf_order, $wf_customer);
-		}
-		unset($wf_konto);
-		$no_module_right = ($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
-		# A page the user may not see does not enter the navigation stack either, or a later back link would
-		# return to it.
-		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup'])
-			|| ($no_module_right && !$sag_workflow_allowed));
+		# SST-967 a page this user may not see never reaches this point: the gate above has already
+		# refused it, so the stack only has to skip this request when it is a popup window.
+		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup']));
 		if ($db_ver > '3.7.4') {
 			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -430,31 +464,6 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$header = 'nix';
 		$bg = 'nix';
 		$css = NULL;
-	}
-	# SST-967 both terms are computed above, next to the navigation stack decision: $no_module_right is the
-	# gate itself, $sag_workflow_allowed the sag-workflow exception. Pages with $modulnr unset or 0 are
-	# outside the gate, exactly as before.
-	if ($no_module_right && !$sag_workflow_allowed) { #20190529
-		include(__DIR__ . '/std_func.php');
-		$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
-		print tekstboks($txt);
-		# The box is a floating overlay that hides itself when it is closed, and a refused page is only
-		# the box, so the link keeps something on the page and leads back to a page this user may use.
-		# It follows the landing rule index/login.php already applies, because the shell alone is a dead
-		# end for a user who only has craft rights: its menu carries no Sager entries and every module
-		# entry leads back here.
-		$refusal_target = 'index/main.php';
-		if (substr((string)$sag_rettigheder, 2, 1)) {
-			$refusal_target = 'sager/sager.php';
-		} elseif (substr((string)$sag_rettigheder, 0, 1)) {
-			$refusal_target = 'sager/loen.php';
-		}
-		print "<div style=\"position:fixed; top:10px; left:10px; z-index:101; font:14px Arial,Helvetica,sans-serif;\">";
-		# target=_top: the shell loads pages inside an iframe, and navigating that frame to the menu would
-		# put a second menu inside the first one. In a tab of its own the target makes no difference.
-		print "<a href=\"" . get_relative() . $refusal_target . "\" target=\"_top\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
-			. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
-		exit;
 	}
 }
 

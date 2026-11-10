@@ -138,6 +138,16 @@ final class EmptyRightsGateTest extends TestCase
             'and the customer comes from the case, not from the request');
         self::assertStringContainsString('select sag_id from ordrer where id =', $block,
             'a link to an order is traced back to its case');
+        // The order decides the case: a request that names a different case must not borrow it.
+        self::assertStringContainsString('$wf_order_sag = $wf_row ? (int) $wf_row[\'sag_id\'] : 0;', $block,
+            'the order\'s own case is read');
+        self::assertStringContainsString(
+            '$wf_sag = (!$wf_order_sag || ($wf_sag && $wf_sag !== $wf_order_sag)) ? 0 : $wf_order_sag;',
+            $block,
+            'and a case that disagrees, or an order with no case, drops the exception'
+        );
+        self::assertStringContainsString('unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer);', $block,
+            'the temporary is cleaned up with the others');
         // debitor/ordre.php saves with $_POST['konto_id'], so the GET alone is not enough.
         self::assertStringContainsString("\$_POST['konto_id'] = \$wf_customer;", $block,
             'the save path is pinned to the case customer too');
@@ -146,8 +156,8 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString("substr((string)\$sag_rettigheder, 2, 1)", $block,
             'the right it uses is the one the Sager pages ask for');
 
-        self::assertStringContainsString('if ($no_module_right && !$sag_workflow_allowed)',
-            $code, 'the refusal asks for both: no module right and no valid workflow request');
+        self::assertStringContainsString('if ($no_module_right && !$sag_workflow_allowed && !$mysale_label_ok)',
+            $code, 'the refusal asks for all three: no module right, no workflow request, no Mit Salg proof');
 
         // The order page: the case must exist and the customer comes from it, not from the request.
         $ordre = @file_get_contents(__DIR__ . '/../../../debitor/ordre.php');
@@ -177,24 +187,28 @@ final class EmptyRightsGateTest extends TestCase
      */
     public function testTheLabelPageOpensForTheMitSalgSessionOnly(): void
     {
+        // The page only declares itself; the gate holds the proof, because it has the tenant connection.
         $label = @file_get_contents(__DIR__ . '/../../../lager/labelprint.php');
         self::assertNotFalse($label, 'cannot read lager/labelprint.php');
+        self::assertStringContainsString('$mysale_label_page = true;', (string)$label, 'the label page declares itself');
+        self::assertLessThan(
+            strpos((string)$label, 'include("../includes/online.php");'),
+            strpos((string)$label, '$mysale_label_page = true;'),
+            'and does so before including online.php'
+        );
 
-        // after the cookie block that creates the row, before online.php reads $modulnr
-        $declare = strpos((string)$label, "\$sst967_session = db_fetch_array(db_select(");
-        $include = strpos((string)$label, 'include("../includes/online.php");');
-        self::assertNotFalse($declare, 'the page reads its own session row');
-        self::assertNotFalse($include, 'and still includes online.php');
-        self::assertLessThan($include, $declare, 'the check runs before online.php reads the module number');
-
-        $cond = substr((string)$label, (int)$declare, 500);
-        self::assertStringContainsString("(string)\$sst967_session['rettigheder'] === '0'", $cond,
-            'it matches the placeholder rights the Mit Salg pages write');
-        self::assertStringContainsString("\$sst967_session['brugernavn'] !== 'booking'", $cond,
-            'but not the internal booking user');
-        self::assertStringContainsString("\$sst967_session['db'] !== \$sqdb", $cond,
-            'and only inside a tenant, never in the master database');
-        self::assertStringContainsString('$modulnr = 0;', $cond, 'then it lifts its own module number');
+        $code = self::onlineSource();
+        $start = strpos($code, '$mysale_label_ok = false;');
+        self::assertNotFalse($start, 'the gate proves the Mit Salg session');
+        $cond = substr($code, (int)$start, 600);
+        self::assertStringContainsString('$mysale_label_page', $cond, 'only for a page that asked for it');
+        self::assertStringContainsString("(string)\$online_rights === '0'", $cond, 'with the placeholder rights');
+        self::assertStringContainsString("\$brugernavn !== 'booking'", $cond, 'not the internal booking account');
+        self::assertStringContainsString('select id from brugere where brugernavn =', $cond,
+            'and only for an account with no brugere row, which is what a shop account is');
+        self::assertStringContainsString('$mysale_label_ok = !$mysale_row;', $cond, 'the proof is the missing row');
+        self::assertStringContainsString('if ($no_module_right && !$sag_workflow_allowed && !$mysale_label_ok)',
+            $code, 'and the refusal honours it');
     }
 
     /**
@@ -205,18 +219,16 @@ final class EmptyRightsGateTest extends TestCase
      *
      * @return void
      */
-    public function testARefusedPageIsNotRecordedInTheNavStack(): void
+    public function testARefusedPageNeverReachesTheNavStack(): void
     {
+        // The gate sits above the user-settings block now, so a refused page exits before nav_push() runs.
         $code = self::onlineSource();
-        $start = strpos($code, 'nav_push(null,');
-        self::assertNotFalse($start, 'the page is still pushed onto the nav stack');
-        $call = substr($code, (int)$start, 300);
-
-        self::assertStringContainsString(
-            '$no_module_right && !$sag_workflow_allowed',
-            $call,
-            'the push skips a page the gate is about to refuse'
-        );
+        $refusal = strpos($code, 'if ($no_module_right && !$sag_workflow_allowed && !$mysale_label_ok)');
+        $push = strpos($code, 'nav_push(null,');
+        self::assertNotFalse($refusal, 'the refusal is there');
+        self::assertNotFalse($push, 'the page is still pushed onto the nav stack');
+        self::assertLessThan($push, $refusal, 'the refusal runs before the push, so a refused page is never recorded');
+        self::assertStringContainsString('exit;', substr($code, (int)$refusal, 2000), 'and it ends the request');
     }
 
     /**

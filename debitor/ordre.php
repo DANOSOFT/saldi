@@ -212,18 +212,19 @@ require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
 
+$css = "../css/standard.css";
+#$css="../css/ordre.css";
+include("../includes/std_func.php");
+
 # SST-967 an offer or an order for a case is sag work, not the ledger, so this page may run on the craft
 # right ($sag_rettigheder[2], the one the Sager pages ask for) instead of the Ordre right. It only declares
-# that and hands online.php the ids to check - the case must exist, and the customer of the order is taken
-# from the case, never from the address. Without a case the module gate applies, as it always did.
+# that and hands online.php the ids to check - the case must exist, an order decides its own case, and the
+# customer of the order is taken from the case, never from the address. Without a case the module gate
+# applies, as it always did. (After std_func.php, because the lookups use ifset().)
 $sag_workflow_page = 'sag';
 $sag_workflow_sag   = (int) ifset($_GET, 'sag_id', ifset($_POST, 'sag_id', 0));
 $sag_workflow_order = (int) ifset($_GET, 'id', ifset($_POST, 'id', 0));
 $sag_workflow_konto = (int) ifset($_GET, 'konto_id', ifset($_POST, 'konto_id', 0));
-
-$css = "../css/standard.css";
-#$css="../css/ordre.css";
-include("../includes/std_func.php");
 
 
 include("../includes/connect.php");

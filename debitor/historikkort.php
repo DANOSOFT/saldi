@@ -55,9 +55,10 @@ include("../includes/connect.php");
 
 # SST-967 a case's attachment folder links here to the customer's history, so this page may run on the
 # craft right ($sag_rettigheder[2]) for a customer the company has a case for. It only declares that and
-# hands online.php the id to check; any other customer keeps the module gate.
+# hands online.php the id to check; any other customer keeps the module gate. std_func.php is included
+# after online.php on this page, so the reads use ?? rather than ifset().
 $sag_workflow_page = 'customer';
-$sag_workflow_konto = (int) ifset($_GET, 'konto_id', ifset($_GET, 'id', 0));
+$sag_workflow_konto = (int) ($_GET['konto_id'] ?? ($_GET['id'] ?? 0));
 
 include("../includes/online.php");
 include("../includes/std_func.php");
