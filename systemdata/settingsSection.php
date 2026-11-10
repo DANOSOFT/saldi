@@ -63,6 +63,7 @@
 // 20261105 CL/LH Every posted form carries thisDb again, as Stamdata did in stamkort.php, so a form drawn before the session moved to another regnskab is refused by online.php and saves nothing there.
 //                The refusal shows online.php's message instead of the settings hub.
 // 20261105 CL/LH online.php now ends a refused request itself, so the page's own check for it after the include is gone.
+// 20261105 CL/LH A save fills an empty By from Postnr. again (st_fill_city_from_zip()), as stamkort.php and ansatte_save.php did: Stamdata and the employee card stored the code without its town.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -444,6 +445,8 @@ function settings_section_save(string $sectionId, array $defs, array $post, bool
 			$originals[$key] = $value;
 		}
 	}
+	// By left empty next to a Postnr. is filled in before the comparison below, so it is saved even when it was empty already.
+	$posted = st_fill_city_from_zip($defs, $posted);
 
 	// Only fields that were rendered, may be changed and are visible take part (P6, R17).
 	$errors = array();

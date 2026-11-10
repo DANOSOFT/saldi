@@ -49,6 +49,7 @@
 // 20261105 CL/LH st_options(): the department list's blank choice is the field's 'options_none' (default '0', a till's and an employee's "no department").
 //                A warehouse's Afd. passes '' (grupper LG box1), so a blank Afd. matches an option and a department 0 stays a choice of its own.
 // 20261105 CL/LH st_render_field(): a field with an 'impact' shows it under its text, as an action does, counted only while the field is visible (the batch details link on Lagerstyring & kostpris).
+// 20261105 CL/LH st_fill_city_from_zip(): a city field ('fill_from_zip') posted empty next to a postal code gets the code's town (bynavn()), as Stamdata and the employee card did on save.
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -407,6 +408,32 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 		}
 	}
 	return array('raw' => $raw, 'error' => $error);
+}
+
+/**
+ * A city field left empty next to a postal code gets the code's town from importfiler/postnr.csv (bynavn()), as the old
+ * Stamdata (stamkort.php) and employee card (ansatte_save.php) did on save. The city field names its postal code field
+ * in 'fill_from_zip'; a field expanded per employee uses the code field of the same employee. Both fields must be in the
+ * post, so a Gendan of the city alone restores what was stored.
+ *
+ * @param array<string, array<string, mixed>> $defs
+ * @param array<string, string>               $posted the posted fields by key
+ * @return array<string, string> $posted, with the towns filled in
+ */
+function st_fill_city_from_zip(array $defs, array $posted): array
+{
+	foreach ($defs as $key => $def) {
+		if (empty($def['fill_from_zip']) || !isset($posted[$key]) || trim($posted[$key]) !== '') {
+			continue;
+		}
+		$zipKey = (string) $def['fill_from_zip'] . (isset($def['per_key']) ? substr((string) $key, strlen((string) $def['per_key'])) : '');
+		$zip = isset($posted[$zipKey]) ? trim($posted[$zipKey]) : '';
+		$city = $zip !== '' ? (string) bynavn($zip) : '';
+		if ($city !== '') {
+			$posted[$key] = $city;
+		}
+	}
+	return $posted;
 }
 
 /**

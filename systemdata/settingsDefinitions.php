@@ -78,6 +78,7 @@
 //                It shows for whoever may change batches there (lager.varer write; disabled for readers) and is left out for everyone else.
 // 20261105 CL/LH Kreditorgrupper has master's Sprog column again (KG box4, the form language of the group's suppliers, help 2461), as Debitorgrupper has it.
 //                A new group, the Danish standard set and a copy from an earlier year store it again (it was left NULL); Baggrunde counts a group's suppliers by it.
+// 20261105 CL/LH Stamdata's By and the employee card's By name their Postnr. field ('fill_from_zip'), so a save fills an empty By from the code again (st_fill_city_from_zip()), as stamkort.php and ansatte_save.php did.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -1136,7 +1137,7 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('dbrow', 'ansatte', 'addr2', 'raw', 'where' => $empWhere)),
 			'organisation.employees.postnr' => array('sub' => 'employees', 'type' => 'text', 'label' => 650, 'per' => 'employee', 'group_label' => array(6608, ''),
 				'storage' => array('dbrow', 'ansatte', 'postnr', 'raw', 'where' => $empWhere)),
-			'organisation.employees.bynavn' => array('sub' => 'employees', 'type' => 'text', 'label' => 651, 'per' => 'employee', 'group_label' => array(6608, ''),
+			'organisation.employees.bynavn' => array('sub' => 'employees', 'type' => 'text', 'label' => 651, 'per' => 'employee', 'group_label' => array(6608, ''), 'fill_from_zip' => 'organisation.employees.postnr',
 				'storage' => array('dbrow', 'ansatte', 'bynavn', 'raw', 'where' => $empWhere)),
 			'organisation.employees.email' => array('sub' => 'employees', 'type' => 'email', 'label' => 652, 'per' => 'employee', 'group_label' => array(6522, ''),
 				'storage' => array('dbrow', 'ansatte', 'email', 'raw', 'where' => $empWhere)),
@@ -1179,7 +1180,7 @@ if (!function_exists('getSettingsSections')) {
 			'company.data.address1' => array('sub' => 'company', 'type' => 'text', 'label' => 648, 'storage' => array('adresser', 'addr1'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.address2' => array('sub' => 'company', 'type' => 'text', 'label' => 649, 'storage' => array('adresser', 'addr2'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.zip' => array('sub' => 'company', 'type' => 'text', 'label' => 36, 'storage' => array('adresser', 'postnr'), 'maxlength' => 10, 'legacy' => array(779)),
-			'company.data.city' => array('sub' => 'company', 'type' => 'text', 'label' => 46, 'storage' => array('adresser', 'bynavn'), 'maxlength' => 60, 'legacy' => array(779)),
+			'company.data.city' => array('sub' => 'company', 'type' => 'text', 'label' => 46, 'storage' => array('adresser', 'bynavn'), 'maxlength' => 60, 'fill_from_zip' => 'company.data.zip', 'legacy' => array(779)),
 			'company.data.cvr' => array('sub' => 'company', 'type' => 'text', 'label' => 376, 'storage' => array('adresser', 'cvrnr'), 'maxlength' => 15, 'legacy' => array(779)),
 			'company.data.country' => array('sub' => 'company', 'type' => 'select', 'label' => 6513, 'help' => 6514, 'default' => 'Denmark', 'empty_is_default' => true, 'permission' => 'settings.company.danger',
 				'options' => array('Denmark' => 'Danmark', 'Norway' => 'Norge', 'Switzerland' => 'Schweiz'), 'options_literal' => true, 'storage' => array('adresser', 'land'), 'legacy' => array(779)),
