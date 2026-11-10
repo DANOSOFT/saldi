@@ -6,7 +6,7 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 	global $sprog_id; #20210720
 	global $menu;
 
-	include_once("../includes/stdFunc/fiscalYear.php");
+	include_once(__DIR__ . '/../../includes/stdFunc/fiscalYear.php');
 	list ($regnstart,$regnslut) = explode(":",fiscalYear($regnaar));
 
 	$title ='Kopiér til ny';
@@ -86,8 +86,8 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 		global $menu;
 
 		if ($menu=='T') {
-			include_once '../includes/top_header.php';
-			include_once '../includes/top_menu.php';
+			include_once __DIR__ . '/../../includes/top_header.php';
+			include_once __DIR__ . '/../../includes/top_menu.php';
 			print "<div id='header'>";
 			print "<div class='headerbtnLft headLink'>&nbsp;&nbsp;&nbsp;</div>";
 			print "<div class='headerTxt'>Kopier til ny</div>";
@@ -114,9 +114,9 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 		print "</tbody></table>";
 
 		if ($menu=='T') {
-			include_once '../includes/topmenu/footer.php';
+			include_once __DIR__ . '/../../includes/topmenu/footer.php';
 		} else {
-			include_once '../includes/oldDesign/footer.php';
+			include_once __DIR__ . '/../../includes/oldDesign/footer.php';
 		}
 
 		exit;
