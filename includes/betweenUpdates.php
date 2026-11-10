@@ -36,6 +36,7 @@
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 // 20261104 CL/MMR SST-841 CodeRabbit (PR #969): the rentalperiod table and column lookups only look at the active schema (current_schema() / DATABASE()).
 // 20261110 CL/MMR SST-841 CodeRabbit (PR #969): PostgreSQL adds the rentalperiod columns with IF NOT EXISTS, so two first logins at once cannot fail.
+//                 MySQL adds them under a per-database GET_LOCK and reads the columns again while holding it.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -165,23 +166,46 @@ backfillOrderLineDelivered($db_type);
 // a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
 // the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
 // Both lookups are limited to the active schema, as a rentalperiod table in another schema must not decide it.
-// PostgreSQL adds them with IF NOT EXISTS: two first logins at the same moment can both find them missing.
+// Two first logins at the same moment can both find them missing: PostgreSQL adds them with IF NOT EXISTS, MySQL
+// (no IF NOT EXISTS) takes a per-database lock and reads the columns again while holding it. A MySQL login that does
+// not get the lock in time leaves the columns to the next login.
 if (isset($db) && is_string($db) && $db !== '') {
-	$rentalSchema = in_array($db_type, ['mysql', 'mysqli'], true) ? "table_schema = DATABASE()" : "table_schema = current_schema()";
+	$rentalMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+	$rentalSchema = $rentalMysql ? "table_schema = DATABASE()" : "table_schema = current_schema()";
 	$rentalTable = db_fetch_array(db_select(
 		"SELECT table_name FROM information_schema.tables WHERE $rentalSchema AND table_name = 'rentalperiod'",
 		__FILE__ . " linje " . __LINE__
 	));
 	if ($rentalTable) {
+		$rentalWanted = array('payment_id' => 'varchar(100)', 'payment_url' => 'varchar(500)');
+		$rentalColumnsQuery = "SELECT column_name FROM information_schema.columns WHERE $rentalSchema AND table_name = 'rentalperiod'";
 		$rentalColumns = array();
-		$q = db_select("SELECT column_name FROM information_schema.columns WHERE $rentalSchema AND table_name = 'rentalperiod'", __FILE__ . " linje " . __LINE__);
+		$q = db_select($rentalColumnsQuery, __FILE__ . " linje " . __LINE__);
 		while ($q && $r = db_fetch_array($q)) {
 			$rentalColumns[] = $r['column_name'];
 		}
-		foreach (array('payment_id' => 'varchar(100)', 'payment_url' => 'varchar(500)') as $column => $type) {
-			if (!in_array($column, $rentalColumns, true)) {
-				$ifNotExists = in_array($db_type, ['mysql', 'mysqli'], true) ? '' : 'IF NOT EXISTS ';
-				db_modify("ALTER TABLE rentalperiod ADD COLUMN $ifNotExists$column $type", __FILE__ . " linje " . __LINE__);
+		$rentalMissing = array_diff(array_keys($rentalWanted), $rentalColumns);
+		if ($rentalMissing && !$rentalMysql) {
+			foreach ($rentalMissing as $column) {
+				db_modify("ALTER TABLE rentalperiod ADD COLUMN IF NOT EXISTS $column $rentalWanted[$column]", __FILE__ . " linje " . __LINE__);
+			}
+		} elseif ($rentalMissing) {
+			$rentalLock = "CONCAT('saldi:rental_payment:', MD5(DATABASE()))";
+			$rentalLocked = db_fetch_array(db_select("SELECT GET_LOCK($rentalLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int)($rentalLocked['acquired'] ?? 0) === 1) {
+				try {
+					// Another login may have added them while this one waited for the lock.
+					$rentalColumns = array();
+					$q = db_select($rentalColumnsQuery, __FILE__ . " linje " . __LINE__);
+					while ($q && $r = db_fetch_array($q)) {
+						$rentalColumns[] = $r['column_name'];
+					}
+					foreach (array_diff(array_keys($rentalWanted), $rentalColumns) as $column) {
+						db_modify("ALTER TABLE rentalperiod ADD COLUMN $column $rentalWanted[$column]", __FILE__ . " linje " . __LINE__);
+					}
+				} finally {
+					db_select("SELECT RELEASE_LOCK($rentalLock)", __FILE__ . " linje " . __LINE__);
+				}
 			}
 		}
 	}
