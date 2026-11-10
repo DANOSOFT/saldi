@@ -75,7 +75,7 @@ docker compose exec -T -e SALDI_CHAR_PGPASS="<POSTGRES_PASSWORD from docker-comp
   -w /var/www/html/saldi web php vendor/bin/phpunit --testsuite restapi
 ```
 
-`SALDI_CHAR_PGPASS` is required (no default); without it every suite here is skipped.
+`SALDI_CHAR_PGPASS` is required (no default); without it every suite that needs the database is skipped (the JWT unit tests still run).
 
 Against a plain local Apache + Postgres install instead of docker, point the env at it (credentials come from your gitignored `includes/connect.php`; never put them in a tracked file):
 
