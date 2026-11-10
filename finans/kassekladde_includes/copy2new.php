@@ -34,7 +34,10 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 			$qtxt.=" values ";
 			$qtxt.="('$ny_kladde_id', '$kladdenote', '$kladdedate', '-', '$brugernavn')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$query = db_select("select * from kassekladde where kladde_id=$kladde_id order by bilag",__FILE__ . " linje " . __LINE__);
+			// SST-988: the copy keeps each line's position (the user's own line order). The lines are still read by
+			// bilag first, because the new voucher numbers are handed out in that order; pos and id only make the
+			// order inside one voucher fixed.
+			$query = db_select("select * from kassekladde where kladde_id=$kladde_id order by bilag, pos, id",__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
 				$beskrivelse=db_escape_string($row['beskrivelse']);
 				$faktura=db_escape_string($row['faktura']);
@@ -60,14 +63,15 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 				$ansat=$row['ansat']*1;
 				$projekt=$row['projekt'];
 				$valuta=$row['valuta']*1;
+				$pos=(int)$row['pos'];
 
 				if ($ny_dato && $ny_dato!="=") $date=usdate($ny_dato);
 				else $date=$row['transdate'];
 				$qtxt="insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, ";
-				$qtxt.="momsfri, afd, ansat, projekt, valuta, kladde_id)";
+				$qtxt.="momsfri, afd, ansat, projekt, valuta, kladde_id, pos)";
 				$qtxt.=" values ";
 				$qtxt.="('$bilag','$date','$beskrivelse','$d_type','$debet','$k_type','$kredit',";
-				$qtxt.="'$faktura','$row[amount]','$row[momsfri]','$afd','$ansat','$projekt','$valuta','$ny_kladde_id')";
+				$qtxt.="'$faktura','$row[amount]','$row[momsfri]','$afd','$ansat','$projekt','$valuta','$ny_kladde_id','$pos')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 			transaktion('commit');
