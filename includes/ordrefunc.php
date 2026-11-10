@@ -161,6 +161,9 @@
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261110 CL/MJ SST-960 A delivery or return of an item with batch control is counted once in lagerstatus, by linjeopdat().
 //                lagerstatus() and its calls in batch_salg_lev() and krediter() are removed.
+// 20261110 CL/MJ SST-924 krediter(): a return on an item with batch control goes back on a batch of the same item.
+//                A return typed by hand takes the batch the item was last sold from to the customer, else the item's newest batch, else a new one.
+//                "Opret som indkøb" in the batch window gives a new batch.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -925,55 +928,77 @@ function batch_salg_lev($id, $levdate, $fakturadate, $beholdning, $vare_id, $ant
 	}
 } # endfunc batch_salg_lev
 ###############################################################
+/**
+ * Puts a return on an item with batch control back on a batch of the same item (SST-924). linjeopdat()
+ * has already counted the return in varer.beholdning and lagerstatus; this records it in the batches.
+ *
+ * kred_linje_id on the return line says where it goes: a sale line (Kreditér, or the sale picked in
+ * debitor/batch.php) gives the batch that line sold from, -1 ("Opret som indkøb" in the batch window)
+ * a new batch, and 0 (a line typed by hand) the batch the item was last sold from to the customer,
+ * else the item's newest batch in the warehouse, else a new batch.
+ *
+ * @param int|string $antal The returned quantity, positive.
+ * @return void
+ */
 function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id, $serienr, $kred_linje_id, $lager, $variant_id)
 {
-
 	global $sn_id;
 	global $lev_nr;
 	global $fp;
+	global $sprog_id;
 
-	$rest = $antal;
-	$sn_start = 0;
-	$kobsbelob = 0;
-	$a = 0;
-	$res_sum = 0;
-	$batch_kob_id = array();
+	$id = (int)$id;
+	$vare_id = (int)$vare_id;
+	$linje_id = (int)$linje_id;
+	$variant_id = (int)$variant_id;
+	$lager = (int)$lager;
+	$antal = (float)$antal;
 
 	$row = db_fetch_array(db_select("select posnr, kred_linje_id from ordrelinjer where id='$linje_id'", __FILE__ . " linje " . __LINE__));
-	$kred_linje_id = $row['kred_linje_id'];
+	$kred_linje_id = (int)$row['kred_linje_id'];
 	$posnr = $row['posnr'];
 
-	$x = 0;
-	$qtxt = "select * from batch_salg where linje_id=$kred_linje_id order by id desc";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$x++;
-		$batch_kob_id[$x] = $r['batch_kob_id'];
-		$batch_kob_antal[$x] = $r['antal'];
-		if ($batch_kob_antal[$x] > $antal)
-			$batch_kob_antal[$x] = $antal;
-		if (!$batch_kob_id[$x]) {
-			?>
-			<script language="Javascript">
-										<!--
-										alert ("Der er observeret en uoverensstemmelse mellem mellem oprindelig ordre og denne (pos nr: <?php echo $posnr ?>) \nRapporter venligst til udviklingsteamet.mail: fejl @saldi.dk")
-				//-->
-			</script>
-			<?php
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-			exit;
+	$batch_kob_id = 0;
+	if ($kred_linje_id > 0) {
+		$qtxt = "select batch_kob_id from batch_salg where linje_id = '$kred_linje_id' and vare_id = '$vare_id' order by id desc";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			if (!$r['batch_kob_id']) {
+				?>
+				<script language="Javascript">
+											<!--
+											alert ("Der er observeret en uoverensstemmelse mellem mellem oprindelig ordre og denne (pos nr: <?php echo $posnr ?>) \nRapporter venligst til udviklingsteamet.mail: fejl @saldi.dk")
+					//-->
+				</script>
+				<?php
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+				exit;
+			}
+			if (!$batch_kob_id) {
+				$batch_kob_id = (int)$r['batch_kob_id'];
+			}
 		}
 	}
-	if (count($batch_kob_id)) {
-		db_modify("update batch_kob set rest = rest+$antal where id ='$batch_kob_id[1]'", __FILE__ . " linje " . __LINE__);
+	if (!$batch_kob_id && $kred_linje_id != -1) {
+		$batch_kob_id = krediter_batch($id, $vare_id, $variant_id, $lager);
+	}
+	if ($batch_kob_id) {
+		db_modify("update batch_kob set rest = rest+$antal where id = '$batch_kob_id'", __FILE__ . " linje " . __LINE__);
+	} else {
+		// A batch of its own, as SST-910 gives a return without batch control: antal 0, because the
+		// negative batch_salg row below already counts the return in sum(batch_kob.antal) - sum(batch_salg.antal).
+		include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
+		$kostpris = (float)deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'negativt salg/kreditnota');
+		$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, kobsdate, fakturadate, antal, rest, pris, lager, variant_id)";
+		$qtxt .= " values ('$vare_id', '0', '0', '$levdate', '$levdate', '0', '$antal', '$kostpris', '$lager', '$variant_id')";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$r = db_fetch_array(db_select("select max(id) as id from batch_kob where vare_id = '$vare_id' and linje_id = '0'", __FILE__ . " linje " . __LINE__));
+		$batch_kob_id = (int)$r['id'];
 	}
 	$tmp = $antal * -1;
-	db_modify("insert into batch_salg(vare_id, linje_id, salgsdate, ordre_id, antal,variant_id) values ($vare_id, $linje_id, '$levdate', $id, $tmp,'$variant_id')", __FILE__ . " linje " . __LINE__);
-	#	db_modify("insert into batch_kob(vare_id, linje_id, kobsdate, ordre_id, antal, rest) values ($vare_id, $linje_id, '$levdate', $id, $antal, $antal)",__FILE__ . " linje " . __LINE__);
-	#	$r=db_fetch_array(db_select("select max(id) as id from batch_kob where linje_id=$linje_id",__FILE__ . " linje " . __LINE__));
-	#	$q = db_select("select id from batch_kob where linje_id=$kred_linje_id",__FILE__ . " linje " . __LINE__);
-	#	$batch_kob_id=$r['id'];
-	// 20261110 CL/MJ SST-960 linjeopdat() has already put the return back on lagerstatus.
+	$qtxt = "insert into batch_salg(batch_kob_id, vare_id, linje_id, salgsdate, ordre_id, antal, pris, lev_nr, lager, variant_id)";
+	$qtxt .= " values ('$batch_kob_id', '$vare_id', '$linje_id', '$levdate', '$id', '$tmp', '" . (float)$pris . "', '" . db_escape_string((string)$lev_nr) . "', '$lager', '$variant_id')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($serienr || $serienr == '0') {
 		$q = db_select("select * from serienr where salgslinje_id=-$kred_linje_id", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
@@ -983,6 +1008,33 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 	}
 	#xit;
 } # endfunc krediter
+
+/**
+ * The batch a return typed by hand goes back on (SST-924): the batch the item was last sold from to the
+ * order's customer, else the item's newest batch, both in the return's warehouse. 0 when there is none.
+ */
+function krediter_batch($ordre_id, $vare_id, $variant_id, $lager)
+{
+	$ordre_id = (int)$ordre_id;
+	$vare_id = (int)$vare_id;
+	$variant_id = (int)$variant_id;
+	$lager = (int)$lager;
+	// A batch without a warehouse belongs to the main one, as lager/modtagelse.php counts it.
+	$inLager = $lager <= 1 ? "coalesce(bk.lager, 0) <= 1" : "bk.lager = '$lager'";
+	$same = "bk.vare_id = '$vare_id' and coalesce(bk.variant_id, 0) = '$variant_id' and $inLager";
+
+	$qtxt = "select bs.batch_kob_id from batch_salg bs, batch_kob bk, ordrer o, ordrer retur";
+	$qtxt .= " where retur.id = '$ordre_id' and retur.konto_id > 0 and o.konto_id = retur.konto_id and bs.ordre_id = o.id";
+	$qtxt .= " and bs.vare_id = '$vare_id' and bs.antal > 0 and bk.id = bs.batch_kob_id and $same order by bs.id desc limit 1";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		return (int)$r['batch_kob_id'];
+	}
+	$qtxt = "select bk.id from batch_kob bk where $same order by bk.id desc limit 1";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		return (int)$r['id'];
+	}
+	return 0;
+}
 
 ###############################################################
 function krediter_pos($id)

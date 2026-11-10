@@ -9,6 +9,7 @@
 //
 // History:
 // 20261110 CL/MJ SST-960 Created.
+// 20261110 CL/MJ SST-924 Returns typed by hand and "Opret som indkøb" go back on a batch of the same item.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -64,6 +65,12 @@ final class BatchControlStockTest extends CharacterizationTestCase
         return ['sale' => $sale, 'batch' => self::rows('SELECT id, rest FROM batch_kob WHERE vare_id = $1 ORDER BY id', [$item['id']])[0]];
     }
 
+    /** @return list<array<string,string>> */
+    private static function batches(array $item): array
+    {
+        return self::rows('SELECT id, antal, rest, lager FROM batch_kob WHERE vare_id = $1 ORDER BY id', [$item['id']]);
+    }
+
     private static function rest(int $batchId): float
     {
         return (float)self::one('SELECT rest FROM batch_kob WHERE id = $1', [$batchId])['rest'];
@@ -80,6 +87,14 @@ final class BatchControlStockTest extends CharacterizationTestCase
         $this->assertEqualsWithDelta($expected, $rest, 0.001, 'the sum of the batches\' rest');
     }
 
+    private function manualReturn(array $debtor, array $item, float $qty): array
+    {
+        $return = self::$fx->order($debtor, [['item' => $item, 'antal' => -$qty]]);
+        self::rows('UPDATE ordrelinjer SET kred_linje_id = 0 WHERE ordre_id = $1', [$return['id']]); # as debitor/ordre.php saves a typed line
+        $this->deliver($return['id'], -$qty);
+        return $return;
+    }
+
     public function test_a_sale_is_counted_once_in_lagerstatus(): void
     {
         $item = $this->batchItem();
@@ -87,6 +102,96 @@ final class BatchControlStockTest extends CharacterizationTestCase
         $this->boughtAndSold($item, self::$fx->debtor(), 4);
 
         $this->assertStockAgrees($item, 6.0);
+    }
+
+    public function test_a_manual_return_goes_back_on_the_batch_the_item_was_sold_from(): void
+    {
+        $debtor = self::$fx->debtor();
+        $item = $this->batchItem();
+        ['batch' => $batch] = $this->boughtAndSold($item, $debtor, 4);
+        $other = $this->batchItem();
+        ['batch' => $otherBatch] = $this->boughtAndSold($other, self::$fx->debtor(), 3);
+
+        $return = $this->manualReturn($debtor, $item, 2);
+
+        $this->assertEqualsWithDelta(8.0, self::rest((int)$batch['id']), 0.001, 'six left plus the two returned');
+        $this->assertEqualsWithDelta(7.0, self::rest((int)$otherBatch['id']), 0.001, 'another item\'s batch is not touched');
+        $row = self::one('SELECT batch_kob_id, antal FROM batch_salg WHERE linje_id = $1', [self::lineId($return['id'])]);
+        $this->assertSame((int)$batch['id'], (int)$row['batch_kob_id'], 'the return row names the batch');
+        $this->assertEqualsWithDelta(-2.0, (float)$row['antal'], 0.001);
+        $this->assertStockAgrees($item, 8.0);
+    }
+
+    /** What MEDSHOP hit: a delivery row elsewhere with linje_id 0 and no batch stopped the delivery. */
+    public function test_a_manual_return_is_delivered_when_rows_without_a_line_or_batch_exist(): void
+    {
+        $debtor = self::$fx->debtor();
+        $item = $this->batchItem();
+        ['batch' => $batch] = $this->boughtAndSold($item, $debtor, 4);
+        $stray = self::$fx->item();
+        self::rows("INSERT INTO batch_salg (batch_kob_id, vare_id, linje_id, salgsdate, ordre_id, antal) VALUES (0, $1, 0, now(), 0, 1)", [$stray['id']]);
+
+        $return = $this->manualReturn($debtor, $item, 2);
+
+        $this->assertNotNull(self::one('SELECT id FROM batch_salg WHERE linje_id = $1', [self::lineId($return['id'])]), 'the return is delivered');
+        $this->assertEqualsWithDelta(8.0, self::rest((int)$batch['id']), 0.001);
+        $this->assertStockAgrees($item, 8.0);
+    }
+
+    public function test_a_manual_return_of_an_item_never_sold_to_the_customer_uses_the_items_latest_batch(): void
+    {
+        $item = $this->batchItem();
+        ['batch' => $batch] = $this->boughtAndSold($item, self::$fx->debtor(), 4);
+
+        $this->manualReturn(self::$fx->debtor(), $item, 2);
+
+        $this->assertEqualsWithDelta(8.0, self::rest((int)$batch['id']), 0.001);
+        $this->assertCount(1, self::batches($item), 'no new batch');
+        $this->assertStockAgrees($item, 8.0);
+    }
+
+    /** A batch saved without a warehouse (older data, stock regulation) counts as the main warehouse's. */
+    public function test_a_manual_return_finds_a_batch_saved_without_a_warehouse(): void
+    {
+        $debtor = self::$fx->debtor();
+        $item = $this->batchItem();
+        ['batch' => $batch] = $this->boughtAndSold($item, $debtor, 4);
+        self::rows('UPDATE batch_kob SET lager = NULL WHERE id = $1', [$batch['id']]);
+
+        $this->manualReturn($debtor, $item, 2);
+
+        $this->assertEqualsWithDelta(8.0, self::rest((int)$batch['id']), 0.001);
+        $this->assertCount(1, self::batches($item), 'no new batch');
+    }
+
+    public function test_a_manual_return_of_an_item_without_batches_gets_a_new_batch(): void
+    {
+        $item = $this->batchItem();
+
+        $return = $this->manualReturn(self::$fx->debtor(), $item, 2);
+
+        $batches = self::batches($item);
+        $this->assertCount(1, $batches, 'a batch for the returned units');
+        $this->assertEqualsWithDelta(2.0, (float)$batches[0]['rest'], 0.001);
+        $row = self::one('SELECT batch_kob_id FROM batch_salg WHERE linje_id = $1', [self::lineId($return['id'])]);
+        $this->assertSame((int)$batches[0]['id'], (int)$row['batch_kob_id']);
+        $this->assertStockAgrees($item, 2.0);
+    }
+
+    /** "Opret som indkøb" in the batch window (kred_linje_id -1): the return becomes a batch of its own. */
+    public function test_a_return_booked_as_a_purchase_in_the_batch_window_gets_a_new_batch(): void
+    {
+        $debtor = self::$fx->debtor();
+        $item = $this->batchItem();
+        ['batch' => $batch] = $this->boughtAndSold($item, $debtor, 4);
+        $return = self::$fx->order($debtor, [['item' => $item, 'antal' => -2]]);
+        self::rows('UPDATE ordrelinjer SET kred_linje_id = -1 WHERE ordre_id = $1', [$return['id']]);
+
+        $this->deliver($return['id'], -2);
+
+        $this->assertEqualsWithDelta(6.0, self::rest((int)$batch['id']), 0.001, 'the sold batch is left alone');
+        $this->assertCount(2, self::batches($item));
+        $this->assertStockAgrees($item, 8.0);
     }
 
     /** A credit note against the sale line (Kreditér, or the sale chosen in the batch window). */
