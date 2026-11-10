@@ -80,20 +80,10 @@ final class EmptyRightsGateTest extends TestCase
             'it asks for the character at the page module position, which is empty for an empty string'
         );
         self::assertStringContainsString('($modulnr)', $line, 'and keeps the module test, so a page without one is untouched');
-        // '0' is what the Mit Salg sessions write; it is falsy, so it used to skip the gate, and
-        // lager/labelprint.php must keep working for those sessions.
-        // The Mit Salg sessions write '0' in the session row and have no brugere row, so the value the gate
-        // asks about is the one the session carried, not the one the brugere lookup leaves behind.
-        self::assertStringContainsString(
-            "(string)\$online_rettigheder !== '0'",
-            $line,
-            'the Mit Salg placeholder session keeps working, as it did before'
-        );
-        self::assertStringContainsString(
-            "\$online_rettigheder = \$r['rettigheder'];",
-            self::onlineSource(),
-            'the session rights are kept before the brugere lookup replaces them'
-        );
+        // '0' is what the Mit Salg session rows carry. The gate must NOT special-case it: a session row
+        // with '0' would then reach every module page, which is a shop account reading the ledger. The one
+        // page those sessions need opens itself instead (lager/labelprint.php, pinned below).
+        self::assertStringNotContainsString("!== '0'", $line, 'the gate has no Mit Salg exception of its own');
     }
 
     /**
@@ -175,6 +165,36 @@ final class EmptyRightsGateTest extends TestCase
         self::assertNotFalse($hist, 'cannot read debitor/historikkort.php');
         self::assertStringContainsString("\$sag_workflow_page = 'customer';", (string)$hist, 'the history page declares it too');
         self::assertStringContainsString('$sag_workflow_konto =', (string)$hist, 'and passes the customer it was asked for');
+    }
+
+    /**
+     * The Mit Salg label page opens itself, and only for that session.
+     *
+     * mysale/mylabel.php and mysale/mysale.php create their session row with rettigheder = '0', and a shop
+     * account must not reach the ledger, so the exception belongs here rather than in the gate.
+     *
+     * @return void
+     */
+    public function testTheLabelPageOpensForTheMitSalgSessionOnly(): void
+    {
+        $label = @file_get_contents(__DIR__ . '/../../../lager/labelprint.php');
+        self::assertNotFalse($label, 'cannot read lager/labelprint.php');
+
+        // after the cookie block that creates the row, before online.php reads $modulnr
+        $declare = strpos((string)$label, "\$sst967_session = db_fetch_array(db_select(");
+        $include = strpos((string)$label, 'include("../includes/online.php");');
+        self::assertNotFalse($declare, 'the page reads its own session row');
+        self::assertNotFalse($include, 'and still includes online.php');
+        self::assertLessThan($include, $declare, 'the check runs before online.php reads the module number');
+
+        $cond = substr((string)$label, (int)$declare, 500);
+        self::assertStringContainsString("(string)\$sst967_session['rettigheder'] === '0'", $cond,
+            'it matches the placeholder rights the Mit Salg pages write');
+        self::assertStringContainsString("\$sst967_session['brugernavn'] !== 'booking'", $cond,
+            'but not the internal booking user');
+        self::assertStringContainsString("\$sst967_session['db'] !== \$sqdb", $cond,
+            'and only inside a tenant, never in the master database');
+        self::assertStringContainsString('$modulnr = 0;', $cond, 'then it lifts its own module number');
     }
 
     /**

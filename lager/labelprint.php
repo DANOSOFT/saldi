@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/labelprint.php----------------lap 3.9.9---2021-02-04 ---
+// ----------/lager/labelprint.php----------------ver 5.1.0---2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2021 saldi.dk aps
+// Copyright (c) 2016-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 
 // 2014.06.17 Tilføjet pris pr. enhed på etiketter, hvis de er der. PHR - Danosoft. 20140617
@@ -39,6 +39,7 @@
 //                 'minpris', so a layout using only $minbeskrivelse also counts as mit salg.
 // 20260914 CL/NTR Added single=1: asks newlabel.php for one label cell instead of the template's
 //                 rows x cols grid. Carried through the layout chooser and Brother qty forms.
+// 20261110 LOE SST-967 The Mit Salg session this page prints for keeps its own module gate lifted.
 
 @session_start();
 $s_id=session_id();
@@ -65,6 +66,21 @@ if (isset($_COOKIE['mylabel'])) {
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 }
+# SST-967 the Mit Salg label page makes its own session row with rettigheder = '0' (mysale/mylabel.php and
+# mysale/mysale.php) and prints through this page. Such a row is refused by every module page under the new
+# gate - '0' is not a right - so this page lifts its own module number for exactly that session and no other:
+# the placeholder rights, an account that is not the internal booking user, and a session inside a tenant.
+if ($modulnr) {
+	$sst967_session = db_fetch_array(db_select("select rettigheder, brugernavn, db from online where session_id = '" . db_escape_string($s_id) . "'", __FILE__ . " linje " . __LINE__));
+	if ($sst967_session
+			&& (string)$sst967_session['rettigheder'] === '0'
+			&& $sst967_session['brugernavn'] !== 'booking'
+			&& $sst967_session['db'] !== '' && $sst967_session['db'] !== $sqdb) {
+		$modulnr = 0;
+	}
+	unset($sst967_session);
+}
+
 include("../includes/online.php");
 include("../includes/std_func.php");
 

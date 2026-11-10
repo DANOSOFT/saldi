@@ -136,10 +136,6 @@ if (!isset($webservice)) $webservice = NULL;
 $ip = $_SERVER['REMOTE_ADDR'];
 $ip              = substr($ip, 0, 10);
 $sag_rettigheder = NULL;
-# SST-967 the rights the session row carries, kept before the brugere lookup below replaces
-# $rettigheder. The Mit Salg sessions write '0' there and have no brugere row at all, so this is the
-# only place their value survives.
-$online_rettigheder = NULL;
 $unixtime        = date("U");
 
 $qtxt = "select * from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -150,7 +146,6 @@ if ($r = db_fetch_array($q)) {
 	$regnaar = trim(if_isset($r['regnskabsaar'], ''));
 	$brugernavn = db_escape_string($r['brugernavn']);
 	$rettigheder = $r['rettigheder'];
-	$online_rettigheder = $r['rettigheder'];
 	$superUserPermission = $rettigheder;
 	$revisor = $r['revisor'];
 	$logtime = $r['logtime'];
@@ -342,9 +337,9 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		# - an empty rights string is NO rights. It used to switch the whole condition off, because the first
 		#   term asked whether the string was truthy, and a user whose string is empty could then open every
 		#   page that sets $modulnr by typing its address;
-		# - the string '0' is the placeholder the Mit Salg sessions write (mysale/mylabel.php and friends).
-		#   It stays skipped exactly as before, because those sessions print labels through
-		#   lager/labelprint.php, which sets $modulnr = 9;
+		# The Mit Salg sessions carry '0' and have no brugere row, so they are refused here like any other
+		# session without a right. lager/labelprint.php is the one page they need, and it opens itself for
+		# them instead of asking for an exception in this condition;
 		# - a page that belongs to the sag workflow runs on the craft right instead of the module right. The
 		#   page declares itself with $sag_workflow_page and proves its request with $sag_workflow_valid
 		#   before including this file, so the craft right alone cannot open anything else.
@@ -391,8 +386,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			unset($wf_row, $wf_sag, $wf_order, $wf_customer);
 		}
 		unset($wf_konto);
-		$no_module_right = ($modulnr) && ((string)$online_rettigheder !== '0')
-			&& (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
+		$no_module_right = ($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
 		# A page the user may not see does not enter the navigation stack either, or a later back link would
 		# return to it.
 		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup'])
