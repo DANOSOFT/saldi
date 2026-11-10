@@ -14,6 +14,8 @@ require_once __DIR__ . '/../../support/LegacyShopStub.php';
 //                functions run unchanged against scripted query answers (run_legacy_shop_sync.php)
 //                and a local stand-in shop (LegacyShopStub). Data is synthetic.
 // 20261026 CL/SZ SD-750 An empty box4 no longer disables box5/box6: every slot with an endpoint is called.
+// 20261110 CL/SZ Sync of master into hml/shopify: SST-876 casts the fiscal year, sends a variant's totalStock and sends each call to every slot at once.
+//                The expectations follow that.
 
 final class LegacyShopSyncCharacterizationTest extends TestCase
 {
@@ -209,7 +211,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 
 		$this->assertSame('no stock', $out['return']);
 		$this->assertSame([], self::$shop->requests());
-		$this->assertContains("select box8 from grupper where kodenr='3' and art = 'VG' AND fiscal_year = 1", $out['sql']);
+		$this->assertContains("select box8 from grupper where kodenr='3' and art = 'VG' AND fiscal_year = '1'", $out['sql']);
 	}
 
 	public function testVariantSyncSendsOnlyTheVariantStockToEverySlot(): void
@@ -219,6 +221,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 			["/delvare,gruppe from varer where id='7'/", [['delvare' => '', 'gruppe' => '3']]],
 			["/art = 'VG'/", [['box8' => 'on']]],
 			["/shop_variant from shop_varer where saldi_variant='11'/", [['shop_variant' => 'SV11']]],
+			["/sum\\(beholdning\\) as total_stock from lagerstatus where variant_id='11'/", [['total_stock' => '9']]],
 			["/beholdning from lagerstatus where variant_id='11'/", [['beholdning' => '4']]],
 			["/kostpris from varer where id='7'/", [['kostpris' => '10']]],
 		];
@@ -229,7 +232,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 		$sent = self::$shop->requests();
 		$this->assertSame(['/a/', '/b/', '/c/'], $this->paths($sent));
 		foreach ($sent as $request) {
-			$this->assertSame(['update_stock' => 'SV11', 'stock' => '4', 'stockno' => '2', 'stockvalue' => ''], $request['query']);
+			$this->assertSame(['update_stock' => 'SV11', 'stock' => '4', 'totalStock' => '9', 'stockno' => '2', 'stockvalue' => ''], $request['query']);
 		}
 	}
 
@@ -239,6 +242,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 			$this->api(true, true, true),
 			["/delvare,gruppe from varer where id='7'/", [['delvare' => '', 'gruppe' => '3']]],
 			["/art = 'VG'/", [['box8' => 'on']]],
+			["/sum\\(beholdning\\) as total_stock from lagerstatus where variant_id='11'/", [['total_stock' => '9']]],
 			["/beholdning from lagerstatus where variant_id='11'/", [['beholdning' => '4']]],
 			["/variant_stregkode from variant_varer where id='11'/", [['variant_stregkode' => 'EAN5701234']]],
 		];
@@ -248,7 +252,7 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 		$sent = self::$shop->requests();
 		$this->assertSame(['/a/', '/b/', '/c/'], $this->paths($sent));
 		foreach ($sent as $request) {
-			$this->assertSame(['update_stock' => '5701234', 'stock' => '4', 'stockno' => '2', 'stockvalue' => ''], $request['query']);
+			$this->assertSame(['update_stock' => '5701234', 'stock' => '4', 'totalStock' => '9', 'stockno' => '2', 'stockvalue' => ''], $request['query']);
 		}
 	}
 
@@ -266,10 +270,11 @@ final class LegacyShopSyncCharacterizationTest extends TestCase
 
 		$this->assertSame('OK', $out['return']);
 		$parts = array_slice(self::$shop->requests(), 8);
-		$this->assertSame(['/a/', '/a/', '/b/', '/b/', '/c/', '/c/'], $this->paths($parts));
+		// Each send goes to every slot at once (SST-876): the set's stock to a, b and c, then its cost.
+		$this->assertSame(['/a/', '/b/', '/c/', '/a/', '/b/', '/c/'], $this->paths($parts));
 		foreach ($parts as $i => $request) {
 			$this->assertSame('Mozilla/5.0 Gecko/20100101 Firefox/23.0', $request['ua']);
-			$this->assertSame($i % 2 === 0
+			$this->assertSame($i < 3
 				? ['update_stock' => '509', 'stock' => '100000', 'totalStock' => '100000', 'stockno' => '1', 'costPrice' => '30',
 					'itemNo' => 'SET9', 'itemNoAlias' => 'S9', 'sku' => 'SET9', 'skuAlias' => 'S9']
 				: ['costPrice' => '30', 'sku' => 'SET9', 'skuAlias' => 'S9'], $request['query'], 'a set without parts of its own counts as 100000 available');

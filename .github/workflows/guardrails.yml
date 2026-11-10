@@ -1,5 +1,5 @@
 # Mechanical review. Each check is a mistake reviewers kept correcting by hand;
-# the rules and what enforces each one are listed in AGENTS.md.
+# the rules and what enforces each one are listed in tools/guardrails/README.md.
 #
 # The same command runs locally before a push:
 #   node tools/guardrails/check.mjs
