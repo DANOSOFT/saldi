@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------ver 5.1.0 ------2026-11-06-------------
+// ------ SAGER/ANSATTE.php-------ver 5.1.0 ------2026-11-10-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@ $s_id=session_id();
 //                  Login SQL values are now cast or escaped.
 // 20261103 CL/MMR SD-799 The search dropdown labels and the paging line of the employee list follow the user's language.
 // 20261106 CL/MMR SD-813 The page's lang attribute follows the user's language (da, en, no).
+// 20261110 CDX/NTR Use CSS wrapping for information card labels instead of JavaScript hyphenation.
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -73,7 +74,6 @@ $s_id=session_id();
 		<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/form.css\">
 		<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/pajinate.css\">
 		<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/hyphenator.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.pajinate.js\"></script>
 		
