@@ -50,6 +50,8 @@
 //                A warehouse's Afd. passes '' (grupper LG box1), so a blank Afd. matches an option and a department 0 stays a choice of its own.
 // 20261105 CL/LH st_render_field(): a field with an 'impact' shows it under its text, as an action does, counted only while the field is visible (the batch details link on Lagerstyring & kostpris).
 // 20261105 CL/LH st_fill_city_from_zip(): a city field ('fill_from_zip') posted empty next to a postal code gets the code's town (bynavn()), as Stamdata and the employee card did on save.
+// 20261105 CL/LH st_decimal_number(): a 'decimal' field takes a Danish amount with thousands separators (32.456,78, 1.234.567) as usdecimal() did on the old pages.
+//                The employee card refused Løn 32.456,78 and saved nothing.
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -251,6 +253,26 @@ function st_current_form_value(array $def): string
 }
 
 /**
+ * A typed decimal number with a dot as its decimal separator, or null when it is not a number.
+ *
+ * One '.' or ',' is the decimal separator (2.5 and 2,5 are both 2.5), so 1.234 stays 1.234. Dots that cannot be a
+ * decimal separator are a Danish amount's thousands separators and are dropped, as usdecimal() drops them on the old
+ * pages: dots before a decimal comma (32.456,78 is 32456.78) or more than one dot (1.234.567 is 1234567). Each group
+ * after a dot has three digits, so a mistyped 32.45,78 is still refused.
+ */
+function st_decimal_number(string $value): ?string
+{
+	$value = trim($value);
+	if (preg_match('/^-?[0-9]+([.,][0-9]+)?$/', $value)) {
+		return str_replace(',', '.', $value);
+	}
+	if (preg_match('/^-?[0-9]{1,3}(\.[0-9]{3})+(,[0-9]+)?$/', $value)) {
+		return str_replace(array('.', ','), array('', '.'), $value);
+	}
+	return null;
+}
+
+/**
  * The stored string for a posted value, or an error text id when the value is not valid.
  *
  * @param array<string, string> $posted every posted field of the form, for 'requires' rules
@@ -281,14 +303,18 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 			}
 			break;
 		case 'decimal':
-			if ($value !== '' && !preg_match('/^-?[0-9]+([.,][0-9]+)?$/', $value)) {
-				$error = 5732;
+			$number = st_decimal_number($value);
+			if ($number === null) {
+				// An empty field stays empty.
+				if ($value !== '') {
+					$error = 5732;
+				}
 			} elseif (!empty($def['decimal_comma'])) {
 				// Read back through usdecimal() by its reader, so it keeps the Danish comma.
-				$raw = str_replace('.', ',', $value);
+				$raw = str_replace('.', ',', $number);
 			} else {
 				// Stored with a dot, as the old pages did through usdecimal().
-				$raw = str_replace(',', '.', $value);
+				$raw = $number;
 			}
 			break;
 		case 'date':
