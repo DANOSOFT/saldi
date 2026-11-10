@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-06 ---
+// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,11 @@
 //                 Overfør locks the listed Dyrtid slips before the date check, and a slip transferred after its form was opened is not saved over (Codex).
 //                 The transfer locks the case, then the akkordafregning, then its Dyrtid slips, in the same order as Afvis and Godkend.
 //                 Two transfers on one case wait for each other instead of deadlocking.
+// 20261110 CDX/NTR SST-980 Validate request IDs and enforce stored ownership, approval rights and state before all wage-slip writes.
+//                  Bind piecework changes to their slip and keep unauthorized or finalized rendering read-only.
+//                  Normalize other save inputs and use ifset() for submitted fields.
+
+require_once(__DIR__ . '/loenAccess.php');
 
 function ret_loen() {
 	global $brugernavn;
@@ -76,19 +81,62 @@ function ret_loen() {
 
 	$a_pct = $fratraek = $hourTypes = array();
 
-	if ($luk=if_isset($_POST['luk'])) {
+	if ($luk=ifset($_POST, 'luk')) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
 		exit;
 	}
-	$id=if_isset($_GET['id']);
-	$gem=NULL;
+	try {
+		$request = loenRequest($_GET, $_POST);
+	} catch (InvalidArgumentException $error) {
+		http_response_code(400);
+		print htmlspecialchars(findtekst('salary.invalid_request|Ugyldig lønseddel eller handling', $sprog_id), ENT_QUOTES, 'UTF-8');
+		return;
+	}
+	$id = $request['id'];
+	$approver = (bool)substr((string)$sag_rettigheder, 6, 1);
+	$gem = NULL;
 	$datoMangler = loenDatoMangler($_POST); # 20261104 SST-943
-	if ($datoMangler) $id = (int)ifset($_POST, 'id', 0);
 	transaktion('begin');
-	if (!$datoMangler && ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis']))) {
+	$storedSlip = loenLockSlip($id, $request['action'] === 'view' ? 0 : (int)($_POST['sag_nr'] ?? 0));
+	$owner = $storedSlip && db_escape_string((string)$storedSlip['oprettet_af']) === $brugernavn;
+	$allowed = $id
+		? ($storedSlip && ($request['action'] === 'view' || loenMayChange($storedSlip, $owner, $approver, $request['action'])))
+		: in_array($request['action'], array('view', 'gem', 'afslut'), true);
+	if (!$allowed) {
+		transaktion('rollback');
+		http_response_code(403);
+		print htmlspecialchars(findtekst('salary.access_denied|Du må ikke ændre denne lønseddel', $sprog_id), ENT_QUOTES, 'UTF-8');
+		return;
+	}
+	// Ownership and lifecycle fields belong to the stored slip, even when the form submits hidden copies.
+	foreach (array('oprettet', 'oprettet_af', 'afsluttet', 'afsluttet_af', 'godkendt', 'godkendt_af', 'afvist', 'afvist_af') as $field) {
+		$_POST[$field] = $storedSlip ? (string)($storedSlip[$field] ?? '') : '';
+	}
+	if ($storedSlip && in_array($request['action'], array('afvis', 'godkend'), true)) {
+		// A reviewer acts on the stored slip and its actual related slips, not a forged case/task or content.
+		$_POST['sag_id'] = (int)$storedSlip['sag_id'];
+		$_POST['opg_id'] = (int)$storedSlip['opg_id'];
+	}
+
+	if ($request['action'] === 'afvis') {
+		$afvis = true;
+		$afvist_pga = $_POST['afvist_pga'] ?? '';
+		if (!is_string($afvist_pga)) {
+			transaktion('rollback');
+			http_response_code(400);
+			return;
+		}
+		if (trim($afvist_pga) !== '') {
+			loenRejectSlip($storedSlip, $afvist_pga, $brugernavn);
+			transaktion('commit');
+			print '<meta http-equiv="refresh" content="0;URL=loen.php?funktion=loenliste">';
+			return;
+		}
+	}
+	if (!$datoMangler && ($gem=ifset($_POST, 'gem')|| $afslut=ifset($_POST, 'afslut'))) {
 		# 20160830 ->
-		$afs  = if_isset($_POST['afs']);
-		$gemt = if_isset($_POST['gemt']);
+		$afs  = ifset($_POST, 'afs');
+		$gemt = ifset($_POST, 'gemt');
 #cho "Gemt $gemt";
 		if ($afslut)
 		{
@@ -102,91 +150,90 @@ function ret_loen() {
 		elseif ($gem) $gemt++;
 
 		# <- 20160830
-		$id             = if_isset($_POST['id'],0);
-		$listevalg      = (int)if_isset($_POST['listevalg'],0);
-		$listevalg_ny   = if_isset($_POST['listevalg_ny'],0);
-		$op             = if_isset($_POST['op']);
-		$ned            = if_isset($_POST['ned']);
-		$op_25          = if_isset($_POST['op_25']);
-		$ned_25         = if_isset($_POST['ned_25']);
-		$op_30          = if_isset($_POST['op_30']);
-		$ned_30         = if_isset($_POST['ned_30']);
-		$op_40          = if_isset($_POST['op_40']);
-		$ned_40         = if_isset($_POST['ned_40']);
-		$op_60          = if_isset($_POST['op_60']);
-		$ned_60         = if_isset($_POST['ned_60']);
-		$op_70          = if_isset($_POST['op_70']);
-		$ned_70         = if_isset($_POST['ned_70']);
-		$op_100         = if_isset($_POST['op_100']);
-		$ned_100        = if_isset($_POST['ned_100']);
-		$op_160         = if_isset($_POST['op_160']);
-		$ned_160        = if_isset($_POST['ned_160']);
-		$op_30m         = if_isset($_POST['op_30m']);
-		$ned_30m        = if_isset($_POST['ned_30m']);
-		$pris_op        = if_isset($_POST['pris_op'],array());
-		$pris_ned       = if_isset($_POST['pris_ned'],array());
-		$vare_id        = if_isset($_POST['vare_id'],array());
-		$vare_nr        = if_isset($_POST['varenr'],array()); // indsat 20142803
-		$vare_tekst     = if_isset($_POST['vare_tekst']);
-		$tr_id          = if_isset($_POST['tr_id']);
-		$tr_antal       = if_isset($_POST['tr_antal']);
-		$tr_pris        = if_isset($_POST['tr_pris']);
-		$telt_id        = if_isset($_POST['telt_id']);
-		$telt_antal     = if_isset($_POST['telt_antal']);
-		$telt_pris      = if_isset($_POST['telt_pris'],0);
-		$enhed_id       = if_isset($_POST['enhed_id']);
-		$loen_nr        = if_isset($_POST['loen_nr']);
-		$loen_art       = if_isset($_POST['loen_art']);
-		$loen_tekst     = db_escape_string(if_isset($_POST['loen_tekst']));
-		$loen_ansatte   = if_isset($_POST['ansatte']);
-		$loen_date      = if_isset($_POST['loen_date']);
-		$loen_fordeling = if_isset($_POST['loen_fordeling'],array());
-		$loen_timer     = if_isset($_POST['loen_timer'],array());
-		$loen_50pct     = if_isset($_POST['loen_50pct'],array());
-		$loen_100pct    = if_isset($_POST['loen_100pct'],array());
-		$loen_loen      = if_isset($_POST['loen_loen'],array());
-		$skur1          = if_isset($_POST['skur1'],array());
-		$skur2          = if_isset($_POST['skur2'],array());
-		$skur_sats1     = if_isset($_POST['skur_sats1'],0);
-		$skur_sats2     = if_isset($_POST['skur_sats2'],0);
-		$loen_km        = if_isset($_POST['loen_km'],array());
-		$km_sats        = if_isset($_POST['km_sats']);
-		$km_fra         = if_isset($_POST['km_fra']);
-		$loen_mentor    = if_isset($_POST['loen_mentor'],array());
-		$mentorRate     = if_isset($_POST['mentorRate'],0);
-		$hvem           = db_escape_string(if_isset($_POST['hvem']));
-		$sag_nr         =(int)if_isset($_POST['sag_nr']);
-		$sag_id         =(int)if_isset($_POST['sag_id']);
-		$sag_ref        = if_isset($_POST['sag_ref']);
-		$opg_nr         = if_isset($_POST['opg_nr'],0);
-		$gl_opg_id      = if_isset($_POST['gl_opg_id'],0);
-		$opg_id         = if_isset($_POST['opg_id'],0);
-		$loendato       = if_isset($_POST['loendato']);
+		$listevalg      = (int)ifset($_POST, 'listevalg', 0);
+		$listevalg_ny   = ifset($_POST, 'listevalg_ny', 0);
+		$op             = ifset($_POST, 'op');
+		$ned            = ifset($_POST, 'ned');
+		$op_25          = ifset($_POST, 'op_25');
+		$ned_25         = ifset($_POST, 'ned_25');
+		$op_30          = ifset($_POST, 'op_30');
+		$ned_30         = ifset($_POST, 'ned_30');
+		$op_40          = ifset($_POST, 'op_40');
+		$ned_40         = ifset($_POST, 'ned_40');
+		$op_60          = ifset($_POST, 'op_60');
+		$ned_60         = ifset($_POST, 'ned_60');
+		$op_70          = ifset($_POST, 'op_70');
+		$ned_70         = ifset($_POST, 'ned_70');
+		$op_100         = ifset($_POST, 'op_100');
+		$ned_100        = ifset($_POST, 'ned_100');
+		$op_160         = ifset($_POST, 'op_160');
+		$ned_160        = ifset($_POST, 'ned_160');
+		$op_30m         = ifset($_POST, 'op_30m');
+		$ned_30m        = ifset($_POST, 'ned_30m');
+		$pris_op        = ifset($_POST, 'pris_op', array());
+		$pris_ned       = ifset($_POST, 'pris_ned', array());
+		$vare_id        = ifset($_POST, 'vare_id', array());
+		$vare_nr        = ifset($_POST, 'varenr', array()); // indsat 20142803
+		$vare_tekst     = ifset($_POST, 'vare_tekst');
+		$tr_id          = ifset($_POST, 'tr_id');
+		$tr_antal       = ifset($_POST, 'tr_antal');
+		$tr_pris        = (float)str_replace(',', '.', (string)ifset($_POST, 'tr_pris', 0));
+		$telt_id        = ifset($_POST, 'telt_id');
+		$telt_antal     = ifset($_POST, 'telt_antal');
+		$telt_pris      = (float)str_replace(',', '.', (string)ifset($_POST, 'telt_pris', 0));
+		$enhed_id       = ifset($_POST, 'enhed_id');
+		$loen_nr        = ifset($_POST, 'loen_nr');
+		$loen_art       = db_escape_string((string)ifset($_POST, 'loen_art', ''));
+		$loen_tekst     = db_escape_string(ifset($_POST, 'loen_tekst'));
+		$loen_ansatte   = ifset($_POST, 'ansatte');
+		$loen_date      = ifset($_POST, 'loen_date');
+		$loen_fordeling = ifset($_POST, 'loen_fordeling', array());
+		$loen_timer     = ifset($_POST, 'loen_timer', array());
+		$loen_50pct     = ifset($_POST, 'loen_50pct', array());
+		$loen_100pct    = ifset($_POST, 'loen_100pct', array());
+		$loen_loen      = ifset($_POST, 'loen_loen', array());
+		$skur1          = ifset($_POST, 'skur1', array());
+		$skur2          = ifset($_POST, 'skur2', array());
+		$skur_sats1     = (float)str_replace(',', '.', (string)ifset($_POST, 'skur_sats1', 0));
+		$skur_sats2     = (float)str_replace(',', '.', (string)ifset($_POST, 'skur_sats2', 0));
+		$loen_km        = ifset($_POST, 'loen_km', array());
+		$km_sats        = (float)str_replace(',', '.', (string)ifset($_POST, 'km_sats', 0));
+		$km_fra         = (float)str_replace(',', '.', (string)ifset($_POST, 'km_fra', 0));
+		$loen_mentor    = ifset($_POST, 'loen_mentor', array());
+		$mentorRate     = (float)str_replace(',', '.', (string)ifset($_POST, 'mentorRate', 0));
+		$hvem           = db_escape_string(ifset($_POST, 'hvem'));
+		$sag_nr         =(int)ifset($_POST, 'sag_nr');
+		$sag_id         =(int)ifset($_POST, 'sag_id');
+		$sag_ref        = db_escape_string((string)ifset($_POST, 'sag_ref', ''));
+		$opg_nr         = ifset($_POST, 'opg_nr', 0);
+		$gl_opg_id      = ifset($_POST, 'gl_opg_id', 0);
+		$opg_id         = ifset($_POST, 'opg_id', 0);
+		$loendato       = ifset($_POST, 'loendato');
 		$loendate       = usdate($loendato);
-		$oprettet       = if_isset($_POST['oprettet']);
-		$oprettet_af    = if_isset($_POST['oprettet_af']);
-		$afsluttet      = if_isset($_POST['afsluttet']);
-		$godkendt       = if_isset($_POST['godkendt']);
-		$godkendt_af    = if_isset($_POST['godkendt_af']);
-		$afvist         = if_isset($_POST['afvist']);
-		$afvist_af      = if_isset($_POST['afvist_af']);
-		$afvist_pga     = if_isset($_POST['afvist_pga']);
-#		$tilbagefoer    = if_isset($_POST['tilbagefoer']);
-		$loen_id        = if_isset($_POST['loen_id']);
-		$ansat_id       = if_isset($_POST['ansat_id']);
-		$medarb_nr      = if_isset($_POST['medarb_nr']);
-		$medarb_navn    = if_isset($_POST['medarb_navn']);
-		$sum            = if_isset($_POST['sum'],0);
-#		$hiddenSum      = if_isset($_POST['hiddenSum'],0);
-		$dksum          = if_isset($_POST['dksum']);
-		$a_id           = if_isset($_POST['a_id']);
-		$a_stk          = if_isset($_POST['a_stk'],array());
-		$a_txt          = if_isset($_POST['a_txt']);
-		$a_pris         = if_isset($_POST['a_pris']);
-		$a_pct          = if_isset($_POST['a_pct'],array());
-		$feriefra       = if_isset($_POST['feriefra']); // indsat 20140627
-		$ferietil       = if_isset($_POST['ferietil']); // indsat 20140627
-		$hourType       = if_isset($_POST['hourType']);
+		$oprettet       = ifset($_POST, 'oprettet');
+		$oprettet_af    = db_escape_string((string)ifset($_POST, 'oprettet_af', ''));
+		$afsluttet      = ifset($_POST, 'afsluttet');
+		$godkendt       = ifset($_POST, 'godkendt');
+		$godkendt_af    = db_escape_string((string)ifset($_POST, 'godkendt_af', ''));
+		$afvist         = ifset($_POST, 'afvist');
+		$afvist_af      = db_escape_string((string)ifset($_POST, 'afvist_af', ''));
+		$afvist_pga     = db_escape_string((string)ifset($_POST, 'afvist_pga', ''));
+#		$tilbagefoer    = ifset($_POST, 'tilbagefoer');
+		$loen_id        = ifset($_POST, 'loen_id');
+		$ansat_id       = ifset($_POST, 'ansat_id');
+		$medarb_nr      = ifset($_POST, 'medarb_nr');
+		$medarb_navn    = ifset($_POST, 'medarb_navn');
+		$sum            = (float)str_replace(',', '.', (string)ifset($_POST, 'sum', 0));
+#		$hiddenSum      = ifset($_POST, 'hiddenSum', 0);
+		$dksum          = ifset($_POST, 'dksum');
+		$a_id           = ifset($_POST, 'a_id');
+		$a_stk          = ifset($_POST, 'a_stk', array());
+		$a_txt          = ifset($_POST, 'a_txt');
+		$a_pris         = ifset($_POST, 'a_pris');
+		$a_pct          = ifset($_POST, 'a_pct', array());
+		$feriefra       = db_escape_string((string)ifset($_POST, 'feriefra', '')); // indsat 20140627
+		$ferietil       = db_escape_string((string)ifset($_POST, 'ferietil', '')); // indsat 20140627
+		$hourType       = ifset($_POST, 'hourType');
 		if ($opg_id && !$opg_nr) {
 			$r=db_fetch_array(db_select("select nr from opgaver where id = '$opg_id'",__FILE__ . " linje " . __LINE__));
 			$opg_nr=(int)$r['nr'];
@@ -253,7 +300,8 @@ function ret_loen() {
 			$loen_km[$x]        = usdecimal(if_isset($loen_km[$x],0));
 			$loen_mentor[$x]    = usdecimal(if_isset($loen_mentor[$x],0));
 			$loen_date[$x]      = if_isset($loen_date[$x],date('d-m-Y'));
-			$loen_fordeling[$x] = if_isset($loen_fordeling[$x],0);
+			$loen_fordeling[$x] = (float)ifset($loen_fordeling, $x, 0);
+			$loen_loen[$x] = (float)str_replace(',', '.', (string)ifset($loen_loen, $x, 0));
 			if ($loen_fordeling[$x]) $loen_fordeling[$x] = (float)$loen_fordeling[$x];
 			if ($loen_date[$x]) $loen_datoer[$x]   = usdate($loen_date[$x]);
 			if ($loen_timer[$x]) $loen_timer[$x]   = str_replace(",",".",$loen_timer[$x]);
@@ -288,7 +336,7 @@ function ret_loen() {
 						$mentor   .= chr(9).$loen_mentor[$x];
 						$korsel   .= chr(9).$loen_km[$x];
 						$datoer   .= chr(9).$loen_datoer[$x];
-						$timeArt  .= chr(9).if_isset($hourType[$x],0);
+						$timeArt  .= chr(9).(int)ifset($hourType, $x, 0);
 					} else {
 						$ansatte   = $ansat_id[$x];
 						$loen      = $loen_loen[$x];
@@ -301,7 +349,7 @@ function ret_loen() {
 						$mentor    = $loen_mentor[$x];
 						$korsel    = $loen_km[$x];
 						$datoer    = $loen_datoer[$x];
-						$timeArt   = if_isset($hourType[$x],0);
+						$timeArt   = (int)ifset($hourType, $x, 0);
 					}
 				}
 			}
@@ -320,7 +368,7 @@ function ret_loen() {
 		$qtxt = "select id,ref from SAGER where sagsnr='$sag_nr'";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$sag_id  = $r['id'];
-			$sag_ref = $r['ref'];
+			$sag_ref = db_escape_string((string)$r['ref']);
 		}	else {
 			$sag_id  = 0;
 			$sag_ref = NULL;
@@ -394,21 +442,8 @@ function ret_loen() {
 		if ($id) {
 			if ($loen_art=='aconto' || $loen_art=='regulering') $sum=usdecimal($dksum);
 			if ($loen_art != 'akk_afr') $datoer = ''; # 20240409
-			$qtxt      = "select afvist, afvist_af, afsluttet, afsluttet_af from loen where id='" . (int)$id . "' for update"; # 20261106 SST-961 locked until commit
-			$r         = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$afvist    = $r['afvist'];
-			$afvist_af = $r['afvist_af'];
-			if ($afvist && $afvist_af) {
-				alert("".findtekst('3037|Denne seddel er afvist af', $sprog_id)." $afvist_af");
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
-				exit;
-			}
-			// 20261106 SST-961: the slip was transferred after this form was opened (e.g. with its akkordafregning); the old form is not saved over it.
-			if (trim((string)$r['afsluttet']) && !trim((string)ifset($_POST, 'afsluttet', ''))) {
-				print "<script type='text/javascript'>alert(" . jsString(array(findtekst('8490|Denne seddel er overført af', $sprog_id) . ' ' . $r['afsluttet_af'])) . ");</script>";
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
-				exit;
-			}
+			$afvist = $storedSlip['afvist'];
+			$afvist_af = db_escape_string((string)$storedSlip['afvist_af']);
 			if (!$afvis) {
 				$qtxt = "update loen set art='$loen_art',kategori='$listevalg',nummer='$loen_nr',sag_id='$sag_id',opg_id='$opg_id',";
 				$qtxt.= "sag_nr='$sag_nr',opg_nr='$opg_nr',oprettet='$oprettet',afsluttet='$afsluttet',afsluttet_af='$afsluttet_af',";
@@ -424,7 +459,7 @@ function ret_loen() {
 			}
 			if ($afslut && $loen_art=='akk_afr') {
 				$qtxt="update loen set afsluttet='$afsluttet',afsluttet_af='$afsluttet_af',master_id='$id' where (master_id='$id' or (sag_id='$sag_id' and art='akktimer' and afsluttet='' and id != '$id')) "; # 20261106 SST-961
-				$qtxt.= "and (coalesce(art,'') != 'akktimer' or " . akkDyrtidMedDatoSql() . ")"; // Dyrtid slips without a date are never stamped
+				$qtxt.= "and coalesce(afregnet,'')='' and coalesce(godkendt,'')='' and coalesce(afvist,'')='' and (coalesce(art,'') != 'akktimer' or " . akkDyrtidMedDatoSql() . ")"; // Dyrtid slips without a date are never stamped
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				for ($i=0;$i<count($ansat_id);$i++) {
 #cho __line__." $i $loen_date[$i] ".$loen_date[$i-1]." select * from loen where loendate='".usdate($loen_date[$i])."' and art = 'akktimer' and sag_id='$sag_id' and opg_id='$opg_id' and (master_id is NULL or master_id='0')<br>";
@@ -439,7 +474,7 @@ function ret_loen() {
 							}
 #cho __line__." $match<br>";
 							if ($match) {
-								$qtxt="update loen set master_id='$id' where id='$r[id]'";
+								$qtxt="update loen set master_id='$id' where id='$r[id]' and coalesce(afregnet,'')='' and coalesce(godkendt,'')='' and coalesce(afvist,'')=''";
 #cho __line__." $qtxt<br>"	;
 								db_modify("$qtxt",__FILE__ . " linje " . __LINE__);
 							}
@@ -447,38 +482,18 @@ function ret_loen() {
 					}
 				}
 #xit;
-				transaktion("commit");
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
-			} elseif ($afvis && $afvist_pga) {
-				$afvist_af  = $brugernavn;
-				$afvist     = date('U');
-				$afvist_pga = db_escape_string($afvist_pga);
-#				db_modify("update loen set afsluttet='',afsluttet_af='' where master_id='$id'",__FILE__ . " linje " . __LINE__);
-				$qtxt = "update loen set sum='$sum',afvist='$afvist',afvist_af='$afvist_af',";
-				$qtxt.= "afvist_pga='$afvist_pga',godkendt='' where id='$id'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$afvis_id = $id;
-				$id       = 0;
-			#				exit;
 			}
 		}
 		if (!$id) {
-			if (!$afvist) {
-#cho __line__." $timer<br>";
-				$oprettet_af = $brugernavn;
-				$oprettet    = date('U');
-				$r = db_fetch_array(db_select("select max(nummer) as nummer from loen",__FILE__ . " linje " . __LINE__));
-				$loen_nr     = $r['nummer']+1;
-			} else { #20131004-2
-				$qtxt = "select skur from loen where id='$afvis_id'";
-				$r    = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$skur = $r['skur'];
-			} // Har indsat 'afvist_pga' i insert, så man kan se årsagen til afvisningen på den nye seddel #20161031
+			$oprettet_af = $brugernavn;
+			$oprettet = date('U');
+			$r = db_fetch_array(db_select("select max(nummer) as nummer from loen",__FILE__ . " linje " . __LINE__));
+			$loen_nr = (int)$r['nummer'] + 1;
 			$qtxt = "insert into loen (art,kategori,nummer,hvem,sag_nr,sag_id,oprettet,afsluttet,godkendt,afregnet,oprettet_af,ansatte,datoer,fordeling,loen,timer,t50pct,t100pct,mentor,skur,sum,loendate,tekst,korsel,opg_id,opg_nr,sag_ref,afvist,afvist_af,afvist_pga,feriefra,ferietil) values ('$loen_art','$listevalg','$loen_nr','','$sag_nr','$sag_id','$oprettet','','','','$oprettet_af','$ansatte','$datoer','$fordeling','$loen','$timer','$t50pct','$t100pct','$mentor','$skur','$sum','$loendate','$loen_tekst','$korsel','$opg_id','$opg_nr','$sag_ref','','','$afvist_pga','$feriefra','$ferietil')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$r  = db_fetch_array(db_select("select max(id) as id from loen where nummer='$loen_nr'",__FILE__ . " linje " . __LINE__));
 			$id = $r['id'];
-			if ($afvis && $afvist_pga) db_modify("update loen set afsluttet='',afsluttet_af='',master_id='0' where master_id='$afvis_id'",__FILE__ . " linje " . __LINE__); #20130531
 		}
 #cho "loen_art $loen_art<br>";
 		if (($loen_art=='akk_afr' || $loen_art=='akkord')) {
@@ -486,8 +501,8 @@ function ret_loen() {
 			$tr_antal   = (float)str_replace(",",".",$tr_antal);
 			$telt_antal = (float)str_replace(",",".",$telt_antal);
 		if ($tr_id) {
-#cho "update loen_enheder set op='$tr_antal',pris_op='$tr_pris' where id='$tr_id'<br>";
-				$qtxt = "update loen_enheder set op='$tr_antal',pris_op='$tr_pris' where id='$tr_id'";
+#cho "update loen_enheder set op='$tr_antal',pris_op='$tr_pris' where id='$tr_id' and loen_id='$id'<br>";
+				$qtxt = "update loen_enheder set op='$tr_antal',pris_op='$tr_pris' where id='$tr_id' and loen_id='$id'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			} elseif ($tr_antal) {
 				$tmp=$listevalg."|Transport";
@@ -500,7 +515,7 @@ function ret_loen() {
 		}
 		if ($listevalg=='7' || ($db != 'stillads_5' && $listevalg=='11') || ($db == 'stillads_5' && $listevalg=='13')) {
 				if ($telt_id && $telt_antal) {
-					$qtxt = "update loen_enheder set op='$telt_antal',pris_op='$telt_pris' where id='$telt_id'";
+					$qtxt = "update loen_enheder set op='$telt_antal',pris_op='$telt_pris' where id='$telt_id' and loen_id='$id'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif ($telt_antal && $telt_pris) { #20150602
 					$tmp=$listevalg."|Telt";
@@ -535,6 +550,8 @@ function ret_loen() {
 #cho "$enhed_id[$x] Op $op[$x] Ned $ned[$x]<br>";
 
 #				$op[$x]*=1;$ned[$x]*=1;$op_25[$x]*=1;$ned_25[$x]*=1;$op_40[$x]*=1;$ned_40[$x]*=1;$op_60[$x]*=1;$ned_60[$x]*=1;$op_30m[$x]*=1;$ned_30m[$x]*=1;$pris_op[$x]*=1;$pris_ned[$x]*=1;
+				$vare_tekst[$x] = db_escape_string((string)ifset($vare_tekst, $x, ''));
+				$vare_nr[$x] = db_escape_string((string)ifset($vare_nr, $x, ''));
 				$pris_op[$x]  = afrund($pris_op[$x],2);
 				$pris_ned[$x] = afrund($pris_ned[$x],2);
 				$linjesum[$x] = $op[$x]      * $pris_op[$x];
@@ -556,15 +573,15 @@ function ret_loen() {
 				$akksum+=$linjesum[$x];
 				if (isset($enhed_id[$x]) && $enhed_id[$x] && !$afvist) {
 					if ($op[$x]||$ned[$x]) {
-#cho "update loen_enheder set op='$op[$x]',ned='$ned[$x]',op_25='$op_25[$x]',ned_25='$ned_25[$x]',op_40='$op_40[$x]',ned_40='$ned_40[$x]',op_60='$op_60[$x]',ned_60='$ned_60[$x]',op_30m='$op_30m[$x]',ned_30m='$ned_30m[$x]',pris_op='$pris_op[$x]',pris_ned='$pris_ned[$x]',tekst='$vare_tekst[$x]',procent='0' where id='$enhed_id[$x]'";
+#cho "update loen_enheder set op='$op[$x]',ned='$ned[$x]',op_25='$op_25[$x]',ned_25='$ned_25[$x]',op_40='$op_40[$x]',ned_40='$ned_40[$x]',op_60='$op_60[$x]',ned_60='$ned_60[$x]',op_30m='$op_30m[$x]',ned_30m='$ned_30m[$x]',pris_op='$pris_op[$x]',pris_ned='$pris_ned[$x]',tekst='$vare_tekst[$x]',procent='0' where id='$enhed_id[$x]' and loen_id='$id'";
 						$qtxt = "update loen_enheder set ";
 						$qtxt.= "op='$op[$x]',ned='$ned[$x]',op_25='$op_25[$x]',ned_25='$ned_25[$x]',";
 						$qtxt.= "op_30='$op_30[$x]',ned_30='$ned_30[$x]',op_40='$op_40[$x]',ned_40='$ned_40[$x]',";
 						$qtxt.= "op_60='$op_60[$x]',ned_60='$ned_60[$x]',op_70='$op_70[$x]',ned_70='$ned_70[$x]',";
 						$qtxt.= "op_100='$op_100[$x]',ned_100='$ned_100[$x]',op_160='$op_160[$x]',ned_160='$ned_160[$x]',";
 						$qtxt.= "op_30m='$op_30m[$x]',ned_30m='$ned_30m[$x]',pris_op='$pris_op[$x]',";
-						$qtxt.= "pris_ned='$pris_ned[$x]',tekst='$vare_tekst[$x]',procent='0' where id='$enhed_id[$x]'";
-					}	else $qtxt = "delete from loen_enheder where id='$enhed_id[$x]'";
+						$qtxt.= "pris_ned='$pris_ned[$x]',tekst='$vare_tekst[$x]',procent='0' where id='$enhed_id[$x]' and loen_id='$id'";
+					}	else $qtxt = "delete from loen_enheder where id='$enhed_id[$x]' and loen_id='$id'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif (($op[$x] || $ned[$x]) && (!$afvist || $afvist_pga)) {
 #cho "C insert into loen_enheder (loen_id,vare_id,op,ned,pris_op,pris_ned,tekst,procent) values ('$id','$vare_id[$x]','$op[$x]','$ned[$x]','$pris_op[$x]','$pris_ned[$x]','$vare_tekst[$x]','0')<br>";
@@ -580,26 +597,7 @@ function ret_loen() {
 					}
 				}
 			}
-				if ($afvist && $afvis_id && $id) {
-#cho "select * from loen_enheder where loen_id='$afvis_id' and vare_id < '0'<br>";
-					$qtxt = "select * from loen_enheder where loen_id='$afvis_id' and vare_id < '0'";
-					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-					while($r=db_fetch_array($q)){
-						$qtxt = "insert into loen_enheder ";
-						$qtxt.= "(loen_id,vare_id,op,ned,op_25,ned_25,op_30,ned_30,op_40,ned_40,op_60,ned_60,op_70,ned_70,";
-						$qtxt.= "op_100,ned_100,op_160,ned_160,op_30m,ned_30m,pris_op,pris_ned,tekst,procent,varenr) values ";
-						$qtxt.= "('$id','$r[vare_id]','". (float)$r['op'] ."','". (float)$r['ned'] ."',";
-						$qtxt.= "'". (float)$r['op_25'] ."','". (float)$r['ned_25'] ."','". (float)$r['op_30'] ."',";
-						$qtxt.= "'". (float)$r['ned_30'] ."','". (float)$r['op_40'] ."','". (float)$r['ned_40'] ."',";
-						$qtxt.= "'". (float)$r['op_60'] ."','". (float)$r['ned_60'] ."','". (float)$r['op_70'] ."',";
-						$qtxt.= "'". (float)$r['ned_70'] ."','". (float)$r['op_100'] ."','". (float)$r['ned_100'] ."',";
-						$qtxt.= "'". (float)$r['op_160'] ."','". (float)$r['ned_160'] ."','". (float)$r['op_30m'] ."',";
-						$qtxt.= "'". (float)$r['ned_30m'] ."','". (float)$r['pris_op'] ."','". (float)$r['pris_ned'] ."',";
-						$qtxt.= "'$r[tekst]','$r[procent]','$r[varenr]')";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					}
-				}
-			#			db_modify("update loen set sum='$akksum' where id='$id'",__FILE__ . " linje " . __LINE__);
+
 			for ($x=0;$x<count($a_stk);$x++) {
 				$a_stk[$x]  = usdecimal($a_stk[$x])*1;
 				$a_pris[$x] = usdecimal($a_pris[$x])*1;
@@ -610,11 +608,11 @@ function ret_loen() {
 				if (isset($a_id[$x]) && $a_id[$x] && !$afvist) {
 #cho "Stk: $a_stk[$x] ID: $a_id[$x]<br>";
 					if ($a_stk[$x]) {
-					#cho "update loen_enheder set op='$a_stk[$x]',ned='0',pris_op='$a_pris[$x]',pris_ned='0',tekst='$a_txt[$x]',procent='$a_pct[$x]' where id='$a_id[$x]'<br>";
-						db_modify("update loen_enheder set op='$a_stk[$x]',ned='0',pris_op='$a_pris[$x]',pris_ned='0',tekst='$a_txt[$x]',procent='$a_pct[$x]' where id='$a_id[$x]'",__FILE__ . " linje " . __LINE__);
+					#cho "update loen_enheder set op='$a_stk[$x]',ned='0',pris_op='$a_pris[$x]',pris_ned='0',tekst='$a_txt[$x]',procent='$a_pct[$x]' where id='$a_id[$x]' and loen_id='$id'<br>";
+						db_modify("update loen_enheder set op='$a_stk[$x]',ned='0',pris_op='$a_pris[$x]',pris_ned='0',tekst='$a_txt[$x]',procent='$a_pct[$x]' where id='$a_id[$x]' and loen_id='$id'",__FILE__ . " linje " . __LINE__);
 					} else {
-#cho "delete from loen_enheder where id='$a_id[$x]'<br>";
-						db_modify("delete from loen_enheder where id='$a_id[$x]'",__FILE__ . " linje " . __LINE__);
+#cho "delete from loen_enheder where id='$a_id[$x]' and loen_id='$id'<br>";
+						db_modify("delete from loen_enheder where id='$a_id[$x]' and loen_id='$id'",__FILE__ . " linje " . __LINE__);
 					}
 				} elseif ($a_stk[$x]) {
 #cho "E insert into loen_enheder (loen_id,vare_id,op,ned,pris_op,pris_ned,tekst,procent) values ('$id','0','$a_stk[$x]','0','$a_pris[$x]','0','$a_txt[$x]','$a_pct[$x]')<br>";
@@ -622,39 +620,41 @@ function ret_loen() {
 				}
 			}
 		} # endif ($loen_art=='akk_afr')
-		if ($afvis && $afvist_pga)	{ #20130905-2
-			transaktion('commit');
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
-			exit;
-		}
-	} elseif ($godkend=if_isset($_POST['godkend'])) {
-		$id     = if_isset($_POST['id']);
-		$sag_id = if_isset($_POST['sag_id'],0);
-		$opg_id = if_isset($_POST['opg_id'],0);
+
+	} elseif ($godkend=ifset($_POST, 'godkend')) {
+		$sag_id = ifset($_POST, 'sag_id', 0);
+		$opg_id = ifset($_POST, 'opg_id', 0);
 #cho "$sag_id ".$_POST['sag_id'],"<br>";
 		$godkendt    = date("U");
 		$godkendt_af = $brugernavn;
 		if ($id) {
 			db_modify("update loen set godkendt='$godkendt',godkendt_af='$godkendt_af' where id='$id'",__FILE__ . " linje " . __LINE__);
 			$qtxt ="update loen set godkendt='$godkendt',godkendt_af='$godkendt_af' ";
-			$qtxt.="where master_id='$id' and sag_id='$sag_id' and opg_id ='$opg_id' and afvist=''";# 20170524 Tilføjet  "and  afvist=''"
+			$qtxt.="where master_id='$id' and sag_id='$sag_id' and opg_id ='$opg_id' and afvist='' and coalesce(afregnet,'')='' and coalesce(afsluttet,'')!=''";# 20170524 Tilføjet  "and  afvist=''"
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			db_modify("update loen set master_id='0' where master_id='$id' and (sag_id!='$sag_id' or opg_id !='$opg_id')",__FILE__ . " linje " . __LINE__);
+			db_modify("update loen set master_id='0' where master_id='$id' and coalesce(afregnet,'')='' and (sag_id!='$sag_id' or opg_id !='$opg_id')",__FILE__ . " linje " . __LINE__);
 			transaktion('commit');
 			print "<BODY onLoad=\"javascript:alert('".findtekst('3016|Sedlen er godkendt', $sprog_id)."!')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
+			return;
 		}
-	} elseif ($slet=if_isset($_POST['slet'])) {
-		if ($id=if_isset($_POST['id'])) {
+	} elseif ($slet=ifset($_POST, 'slet')) {
+		if ($id) {
 			db_modify("delete from loen where id='$id'",__FILE__ . " linje " . __LINE__);
 			db_modify("delete from loen_enheder where loen_id='$id'",__FILE__ . " linje " . __LINE__);
 		}
 		transaktion('commit');
 		print "<BODY onLoad=\"javascript:alert('".findtekst('3017|Sedlen er slettet', $sprog_id)."!')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
+		return;
 	}
 #xit;
 	transaktion('commit');
+	transaktion('begin');
+	$renderSlip = loenLockSlip((int)$id);
+	$renderOwner = $renderSlip && db_escape_string((string)$renderSlip['oprettet_af']) === $brugernavn;
+	$canEditSlip = loenMayChange($renderSlip, $renderOwner, $approver, 'gem');
+	$allowRenderWrites = !$datoMangler && $canEditSlip;
 	$id       = (int)$id;
 	$ansat_id = array();
 	$loen_km  = array();
@@ -670,6 +670,7 @@ function ret_loen() {
 		$afsluttet    = $r['afsluttet'];
 		$godkendt     = $r['godkendt'];
 		$afvist       = $r['afvist'];
+		$afregnet     = $r['afregnet'];
 		$oprettet_af  = $r['oprettet_af'];
 		$afsluttet_af = $r['afsluttet_af'];
 		$godkendt_af  = $r['godkendt_af'];
@@ -739,7 +740,7 @@ function ret_loen() {
 #cho "Bundet på seddel nr $master_nr<br>";
 			}	else {
 #cho "update loen set master_id='0',godkendt='' where id='$id'<br>";
-				if (!$datoMangler) db_modify("update loen set master_id='0' where id='$id'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped #20161012 Fjernet godkendt='' da udbetalte sedler bliver afregnet igen.
+				if ($allowRenderWrites) db_modify("update loen set master_id='0' where id='$id'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped #20161012 Fjernet godkendt='' da udbetalte sedler bliver afregnet igen.
 				$master_id = NULL;
 				$master_nr = NULL;
 #				$godkendt=NULL; #20161012
@@ -890,7 +891,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 				$aa_sum+=($r['ned_160']*$r['pris_ned']*1.6);
 				$aa_sum+=($r['ned_30m']*$r['pris_ned']*0.1);
 				$x++;
-			} elseif (!$datoMangler) db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped
+			} elseif ($allowRenderWrites) db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped
 
 #cho "$r[vare_id] || $r[tekst] $r[op] $r[ned]<br>";
 #cho "$r[op]*$r[pris_op] | $r[ned]*$r[pris_ned] |".$r['op']*$r['pris_op']."|".$r['ned']*$r['pris_ned']."| aa_sum $aa_sum<br>";
@@ -932,7 +933,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 #cho "$medarb_trainee[$x] t $traineemdr $traineepct<br>";
 		}
 	}
-	($afsluttet || $godkendt)?$readonly="readonly=\"readonly\"":$readonly=NULL;
+	($afsluttet || $godkendt || ($id && !$canEditSlip))?$readonly="readonly=\"readonly\"":$readonly=NULL;
 	($afsluttet)?$status=findtekst('3026|Afventer godk.', $sprog_id):$status=findtekst('3027|Under indtast.', $sprog_id);
 	if($godkendt)$status=findtekst('2937|Godkendt', $sprog_id);
 	if($afvist)$status=findtekst('3011|Afvist', $sprog_id);
@@ -1530,7 +1531,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					//print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">";
 				}
 				#cho "update loen set sum='$sum' where id='$id'<br>";
-				if ((!$afsluttet || $afslut) && !$datoMangler) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604 # 20261104 SST-943 not when the save was stopped
+				if ($allowRenderWrites) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604 # 20261104 SST-943 not when the save was stopped
 
 #				print "<tbody class=\"akkordTableBody\">
 #					<tr>
@@ -1579,8 +1580,8 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					</thead>";
 
 				print "<tbody>";
-				include('loenIncludes/visListe.php');
-				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler); # 20261104 SST-943
+				include_once(__DIR__ . '/visListe.php');
+				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler,!$allowRenderWrites); # SST-943 / SST-980
 				print "<tr>
 					<td colspan=\"13\" class=\"tableSagerBorder\"><b>".findtekst('3006|Lønlinjer ialt', $sprog_id).":</b></td>
 					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
@@ -1658,7 +1659,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					print "<div class=\"content printDisplayNone\">
 						<hr>";
 					print "<div class=\"contentA\">";
-						if (!$afsluttet) { # 20140627
+						if (!$afsluttet && (!$id || $canEditSlip)) { # 20140627 / SST-980
 							if ($dyrtidUdenDato) { # 20261106 SST-961
 								print akkDyrtidUdenDatoTekst($dyrtidUdenDato, $sprog_id);
 							}
@@ -1718,6 +1719,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				}
 	print "</div><!-- end of printableArea -->";
+	transaktion('commit');
 } # endfunc ret_loen
 
 /**
