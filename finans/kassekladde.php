@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -223,6 +223,7 @@
 //                 The messages show a typed 0 as 0, and kontroller()'s includes use __DIR__.
 //                 The lookup return's $_GET reads use ifset(), and kontroller()'s line-check branch has braces on every multi-line body.
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
+// 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -3189,6 +3190,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				document.querySelectorAll('.kk-col-'+col).forEach(function(el){el.style.display=show?'table-cell':'none';});
 			}
 		}
+		/**
+		 * Post hidden columns/panels, enabled opt-ins, disabled opt-outs and nondefault shortcuts.
+		 * The server stores these tokens in the user's KASKL box3; an unchecked
+		 * automatic contra-account option contributes modk_off. Request failures are ignored.
+		 * @returns {void} Starts a keepalive request without returning its promise.
+		 */
 		function kkSaveCols(){
 			var hidden=[];
 			document.querySelectorAll('.kk-col-toggle').forEach(function(cb){if(!cb.checked) hidden.push(cb.getAttribute('data-col'));});

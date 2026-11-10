@@ -1,8 +1,10 @@
 <?php
+// 20261110 CDX/NTR Reject scientific, decimal and signed account notation before history queries.
 
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 require_once __DIR__ . '/../../includes/docsIncludes/poolCapture.php';
 require_once __DIR__ . '/../../finans/kassekladde_includes/contraSuggestion.php';
@@ -22,6 +24,28 @@ if (!function_exists('findtekst')) {
  */
 final class poolCapture extends TestCase
 {
+    public static function invalidHistoryAccountNumbers(): array
+    {
+        return [
+            'scientific notation' => ['1e10'],
+            'uppercase exponent' => ['3E3'],
+            'decimal fraction' => ['3000.5'],
+            'decimal whole number' => ['3000.0'],
+            'negative number' => ['-3000'],
+            'explicit positive sign' => ['+3000'],
+            'surrounding whitespace' => [' 3000 '],
+            'empty string' => [''],
+            'letters' => ['abc'],
+        ];
+    }
+
+    #[DataProvider('invalidHistoryAccountNumbers')]
+    public function testInvalidAccountNotationReturnsNoHistory(string $account): void
+    {
+        self::assertSame(['heading' => '', 'rows' => []], sidste_5_forslag($account, 'K', 'D', 90, 'UTF-8', 1));
+        self::assertSame([], sidste_5_bogfoerte_kreditor($account, 'D'));
+    }
+
     private function serviceAnswer(): array
     {
         return [

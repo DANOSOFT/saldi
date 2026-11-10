@@ -46,6 +46,7 @@
 // 20261103 CL/LH SD-796 An invoice pick in another currency than the line (a SEK invoice on a DKK bank line) writes the
 //                  invoice's Beløb and Valuta again, without "Brug fakturaens værdier"; "Fortryd" puts the line's own back.
 //                  In the line's currency a filled Beløb is still kept and offered. An empty Valuta counts as window.saldiBaseCurrency.
+// 20261110 CDX/NTR Document VAT lookup inputs, resolved values and stale-request handling.
 (function () {
     'use strict'; 
 
@@ -495,6 +496,18 @@
         vatField.value = normalizedValue;
     }
 
+    /**
+     * Set a journal side's VAT code explicitly or look up its finance account's default.
+     *
+     * Empty/customer/supplier accounts clear VAT and invalidate pending requests.
+     * Each lookup has its own key, including repeat lookups of the same account;
+     * only the current request may write or clear the field when it settles.
+     *
+     * @param {string|number} rowNum Journal row suffix used in field names.
+     * @param {'debet'|'kredit'} side Side whose account and VAT fields are read.
+     * @param {{vatCode?: string}} [options] An own vatCode property bypasses the lookup and invalidates pending requests.
+     * @returns {Promise<string>} Explicit/looked-up code, or empty on missing fields, invalid account or failure; a stale lookup still resolves its code without writing it.
+     */
     function updateVatFieldForRow(rowNum, side, options) {
         const accountPrefix = side === 'debet' ? 'debe' : 'kred';
         const typePrefix = side === 'debet' ? 'd_ty' : 'k_ty';
