@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 //                dispatch on include), so the functions are lifted out by token and evaluated in a
 //                namespace whose db_* stubs record the SQL; the INSERT is then read back the way
 //                PostgreSQL reads quoted literals.
+// 20261110 CL/MMR SST-989 Also lifts shop_order_taken(), which insert_shop_order() now calls for its duplicate check.
 final class ShopOrderHtmlEntityTest extends TestCase
 {
 	private const NS = 'ShopOrderHtmlEntityFixture';
@@ -25,7 +26,7 @@ final class ShopOrderHtmlEntityTest extends TestCase
 		if (function_exists(self::NS . '\insert_shop_order')) {
 			return;
 		}
-		$wanted = array('chk4utf8', 'shop_input_text', 'shop_order_cvr_ean_from_card', 'insert_shop_order');
+		$wanted = array('chk4utf8', 'shop_input_text', 'shop_order_cvr_ean_from_card', 'shop_order_taken', 'insert_shop_order');
 		$code = self::topLevelFunctions(__DIR__ . '/../../../api/rest_api.php', $wanted);
 		eval('namespace ' . self::NS . ';' . self::STUBS . $code);
 	}

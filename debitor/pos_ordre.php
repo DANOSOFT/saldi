@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -126,6 +126,7 @@
 //                the lager landing in $incl_moms. Pass usdecimal($pris_ny, 2), 'on', $lager_ny like the other POS opret_saet() call.
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -3357,12 +3358,14 @@ function kasseoptalling( // Called from cashBalance.php
 		$acceptPrint = acceptPrint();
 
 		if ($useCommission && (($customerCommissionAccountNew && $commissionAccountNew) || ($customerCommissionAccountUsed && $commissionAccountUsed))) {
-			$commissionFromDate = $commissionToDate = NULL;
+			$commissionFromDate = $commissionToDate = $lastSettle = NULL;
 			$qtxt = "select var_value as settletime from settings where var_name = 'commissionFromDate' and var_grp = 'items'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-				$lastSettle = dkdato($r['settletime']);
-			else
-				$commissionFromDate = NULL;
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			include_once(__DIR__ . '/pos_ordre_includes/settleCommission/commissionDefaultFromDate.php');
+			$defaultFromDate = commissionDefaultFromDate($kasse, $r ? $r['settletime'] : '');
+			if ($defaultFromDate) {
+				$lastSettle = dkdato($defaultFromDate);
+			}
 			$title = findtekst(1854, $sprog_id);
 			if ($lastSettle)
 				$title .= "\n" . findtekst(1856, $sprog_id) . ": " . $lastSettle . "";
