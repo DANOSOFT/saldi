@@ -1,6 +1,7 @@
 <?php
 // 20261105 CL/LH loadFromId() casts the id to int and escapes the order type; "0 OR art='KO'" in ?id= read a purchase order through debitor/orders/.
 //                save() casts the numbers and escapes the text; status "0', '987654', '100', 'KO', ..." made debitor/orders/ store a purchase order.
+// 20261105 CL/LH loadFromId() reads the cost price from ordrer.kostpris; it read a column that does not exist, so economic.costPrice was always 0.
 
 class OrderModel
 {
@@ -91,7 +92,7 @@ class OrderModel
             $this->notes = $r['notes'];
             $this->betalt = $r['betalt'];
             $this->sum = (float)$r['sum'];
-            $this->kostpris = (float)$r['costkostprisPrice'];
+            $this->kostpris = (float)$r['kostpris'];
             $this->moms = (float)$r['moms'];
             $this->valuta = $r['valuta'];
             $this->betalingsbet = $r['betalingsbet'];

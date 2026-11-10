@@ -44,7 +44,9 @@ docker-compose stack.
   keeps the VAT code and one with `vat` stores it, 404, DELETE → 405.
 - `OrderLinesEndpointTest` — `debitor/orderlines/`: parameter validation,
   free-text line on a fresh order → list/read-back with position numbers,
-  posted order refuses lines, PUT/DELETE → 405.
+  a product line stores the order's sum, VAT and cost price, which GET
+  `debitor/orders/?id` and SQL read back, posted order refuses lines,
+  PUT/DELETE → 405.
 - `ReferenceDataEndpointsTest` — `currencies/`, `vat/`, `vat-codes/`,
   `accountingYear/`, `debitor/groups/`, `products/groups/`,
   `dashboard/stats.php`: all require a token, answer with the JSON envelope

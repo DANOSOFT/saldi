@@ -3,8 +3,14 @@
 //                debitor/orderlines/ added lines to a purchase order for a user without the Kreditorordre right.
 //                DECIMAL_FIELDS and INTEGER_FIELDS name the body's numbers for the endpoints' check, and the line's SQL casts the numbers and escapes the text.
 //                A quote in positionNumber or vatFree added a second row to the INSERT, a line on any order.
+// 20261105 CL/LH createOrderLine() stores the order's totals from its lines as the order's own screen does (OrderTotalsService::store()).
+//                The header stayed at 0, so GET orders/, SQL and the Tilbud list showed 0 until someone opened the order.
+//                The line and the totals are written under a lock on the order, so two lines added at once are both counted.
+// 20261110 CL/LH The fiscal year for the line's VAT and the totals is api_current_fiscal_year(), the year the rest of the API works in.
+//                The service's own lookup found no year when none covers today, so a POS følgevare was counted without its VAT.
 
 require_once __DIR__ . '/../models/orderlines/OrderLineModel.php';
+require_once __DIR__ . '/OrderTotalsService.php';
 
 class OrderLineService 
 {
@@ -21,7 +27,8 @@ class OrderLineService
     public function __construct() 
     {
         global $momssats;
-        $this->regnaar = $this->getCurrentFiscalYear();
+        // The year covering today, else the newest open one (core/auth.php, which BaseEndpoint loads)
+        $this->regnaar = (int) api_current_fiscal_year();
         $this->momssats = $momssats ?: 25.0;
     }
 
@@ -173,8 +180,15 @@ class OrderLineService
                 'params' => $params
             ];
 
+            // The lock holds a second line for this order until this line and the totals that count it are committed
+            transaktion('begin');
+            db_select("SELECT id FROM ordrer WHERE id = $orderId FOR UPDATE", __FILE__ . " linje " . __LINE__);
             $result = $this->insertNewOrderLine($lineData);
-            
+            if ($result['success']) {
+                OrderTotalsService::store($orderId, $this->regnaar);
+            }
+            transaktion($result['success'] ? 'commit' : 'rollback');
+
             if ($result['success']) {
                 return [
                     'success' => true,
@@ -192,37 +206,6 @@ class OrderLineService
                 'status_code' => 500
             ];
         }
-    }
-
-    private function getCurrentFiscalYear()
-    {
-        $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
-        
-        // Add error checking here
-        if (!$query) {
-            error_log("Failed to get fiscal year data");
-            return date('Y'); // Return current year as fallback
-        }
-        
-        $currentYear = date('Y');
-        $currentMonth = date('m');
-        $regnaar = null;
-        
-        while($row = db_fetch_array($query)){
-            $box1 = $row['box1']; // Starting month
-            $box2 = $row['box2']; // Starting year
-            $box3 = $row['box3']; // Ending month
-            $box4 = $row['box4']; // Ending year
-            $kodenr = $row['kodenr'];
-
-            if (($currentYear > $box2 || ($currentYear == $box2 && $currentMonth >= $box1)) &&
-                ($currentYear < $box4 || ($currentYear == $box4 && $currentMonth <= $box3))) {
-                $regnaar = $kodenr;
-                break;
-            }
-        }
-        
-        return $regnaar;
     }
 
     private function setDefaults(&$params) 

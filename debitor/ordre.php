@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -174,6 +174,8 @@
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
 // 20261004 SS Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
 // 20261103 CL/ASR QA round 2: GET links that create an order (konto_id or funktion opret_ordre without an id) or move an order to another customer (konto_id with fokus) need write.
+// 20261105 CL/LH ordreside() keeps the order's VAT rate in the global $momssats, which ordrelinjer() compares each line's rate with.
+//                Only a save set that global, so opening an order without saving counted every line as mixed VAT and stored the lines' VAT (5 x 125,01: 156,27) instead of the VAT of the net that Gem and the invoice give (156,26).
 
 @session_start();
 $s_id = session_id();
@@ -3412,6 +3414,7 @@ function ordreside($id, $regnskab)
 	global $hurtigfakt;
 	global $incl_moms;
 	global $lagerantal, $lagernavn, $lagernr, $localPrint;
+	global $momssats; // the order's VAT rate, which ordrelinjer() compares each line's rate with
 	global $oio, $oioubl, $omkunde, $ordresum;
 	global $popup, $isPopupRequest, $procentfakt, $procenttillag, $procentvare;
 	global $regnaar, $returside, $rvid, $rvnr;
@@ -6313,8 +6316,7 @@ function ordreside($id, $regnskab)
 			print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">\n";
 
 			// SST-902: from the unrounded net and rounded to øre, like momsupdat() in includes/ordrefunc.php does when the order is invoiced.
-			// This line runs after a save (the global $momssats that ordrelinjer() compares with is only set by the POST handling);
-			// with the rounded $sum, 2 x 139,648 showed and stored moms 69,825 (69,83 / 349,13) while the invoice is 69,82 / 349,12.
+			// With the rounded $sum, 2 x 139,648 showed and stored moms 69,825 (69,83 / 349,13) while the invoice is 69,82 / 349,12.
 			if (!$blandet_moms && !$incl_moms) $moms = afrund($sumBeforeRounding * $momssats / 100, 2); #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 			$moms = afrund($moms * 1, 3);
 
