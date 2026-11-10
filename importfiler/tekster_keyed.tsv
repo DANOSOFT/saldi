@@ -1,1 +1,3 @@
 common.accept	Acceptér	Accept	Godta
+salary.access_denied	Du må ikke ændre denne lønseddel	You may not change this wage slip	Du kan ikke endre denne lønnsslippen
+salary.invalid_request	Ugyldig lønseddel eller handling	Invalid wage slip or action	Ugyldig lønnsslipp eller handling

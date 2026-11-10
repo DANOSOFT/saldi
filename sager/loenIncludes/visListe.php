@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/visListe.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- sager/loenIncludes/visListe.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,11 +29,12 @@
 // 20260319 LOE Added $categorySum to calculate sum per category for use in ret_loen.php
 // 20261104 CL/MMR SST-943 The empty transport line is not deleted while a save that was stopped for a missing date is shown (new parameter $datoMangler, default false).
 // 20261105 CL/MMR SST-943 The item category clean-up (update varer) is also skipped while a stopped save is shown.
+// 20261110 CDX/NTR SST-980 Keep piecework rendering read-only when the wage-slip action is unauthorized or finalized.
 
 /**
  * Prints the piecework (akkord) lines of a wage slip for the chosen list type and works out their total.
  * While drawing it also keeps the data tidy: item categories in varer are updated, and an empty
- * transport line is deleted from loen_enheder (neither when $datoMangler is set).
+ * transport line is deleted from loen_enheder only when the caller explicitly allows writes.
  *
  * @param int|string  $id          The wage slip (loen.id).
  * @param int|string  $listevalg   The piecework list type the lines are drawn for.
@@ -44,9 +45,10 @@
  *                                 from the stored tent line when the slip has one.
  * @param bool        $datoMangler True when Gem/Overfør was stopped for a missing date (SST-943): the slip is only
  *                                 shown again, so nothing is written to loen_enheder or varer. Default false.
+ * @param bool $readOnly True unless the caller has locked and authorized the slip for writes (SST-980).
  * @return float The total of the piecework lines (incl. transport and tent surcharge).
  */
-function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler = false) {
+function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler = false,$readOnly = true) {
 
 	global $brugernavn,$bgcolor,$db,$sprog_id;
 	$categorySum = array(); 
@@ -180,7 +182,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler 
 				}
 				if ($kategori[$x]) {
 					$qtxt="update varer set kategori='$kategori[$x]' where id='$r[id]'";
-					if (!$datoMangler) db_modify($qtxt,__FILE__ . " linje " . __LINE__); # 20261105 SST-943 not when the save was stopped
+					if (!$datoMangler && !$readOnly) db_modify($qtxt,__FILE__ . " linje " . __LINE__); # 20261105 SST-943 not when the save was stopped
  				}
 			} else $kategori[$x]=$r['kategori'];
 			$vare_id[$x]=$r['id'];
@@ -453,7 +455,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal,$datoMangler 
 		</tr>";
 	} elseif (!$tr_sum) { // 20230915
 		$qtxt = "delete from loen_enheder where loen_id = '$id' and vare_id = '-1' and tekst = '$listevalg|Transport'";
-		if (!$datoMangler) db_modify($qtxt,__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped
+		if (!$datoMangler && !$readOnly) db_modify($qtxt,__FILE__ . " linje " . __LINE__); # 20261104 SST-943 not when the save was stopped
 	}
 
 	if ($listevalg=='7' && !$telt_tillaeg) {
