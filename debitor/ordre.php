@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -172,9 +172,16 @@
 //                read the offset before the call, so it warned when there was no konto_id or no adresser row.
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
+// 20261104 CL/MMR SST-918 The product note (note_on_orderline) is looked up by the matched item's id, so a variant picked in the quick search or typed as its barcode gets its parent's note (CodeRabbit on PR #979).
 // 20261105 CL/MMR SD-807 The order page shows Digitalt, the payment terms (Forud, Efterkrav, Netto, Lb. md., Konto), Nt/Bt and DB/DG (also in the line tooltips) in the user's language.
 //                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
 //                 Labels are escaped in the page charset, so a stored value with æøå keeps its option value on a non-UTF8 database.
+// 20261106 CL/MMR SD-813 The delete-line question, the delivery tooltips, the Copy tooltip and the cost price tooltip follow the user's language.
+//                 The delete tooltip of a fully delivered line is translated too; the tooltips are escaped (CodeRabbit).
+//                 A translation with a format sprintf() cannot use falls back to the Danish text (orderTekstFormat()), so it cannot stop the page.
+//                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
+// 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
+//                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
 
 @session_start();
 $s_id = session_id();
@@ -2392,11 +2399,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 							$_noteColExists = !empty($_chk);
 						}
 						if ($_noteColExists) {
-							$noteQtxt = "SELECT notes, note_on_orderline FROM varer
-										WHERE varenr = '" . db_escape_string($varenr[0]) . "'
-										OR varenr_alias = '" . db_escape_string($varenr[0]) . "'
-										OR stregkode = '" . db_escape_string($varenr[0]) . "'
-										LIMIT 1";
+							// by the matched item's id: a variant barcode in $varenr[0] is not in varer, its parent is
+							$noteQtxt = "SELECT notes, note_on_orderline FROM varer WHERE id = '" . (int)$exact_match_check['id'] . "' LIMIT 1";
 							if ($noteVare = db_fetch_array(db_select($noteQtxt, __FILE__ . " linje " . __LINE__))) {
 								$noteEnabled = (
 									$noteVare['note_on_orderline'] === 't' ||
@@ -4537,7 +4541,7 @@ function ordreside($id, $regnskab)
 			else print "value=\"$beskrivelse[$x]\"'>";
 
 			print "<td title='$title'>" . str_replace("\n", "<br>", $beskrivelse[$x]) . "&nbsp;</td>\n";
-			print "<input type='hidden' name='pris$x' value='" . dkdecimal($pris[$x], 3) . "'><td align='right' title='Kostpris $dk_kostpris[$x]'>$dkpris<br></td>\n";
+			print "<input type='hidden' name='pris$x' value='" . dkdecimal($pris[$x], 3) . "'><td align='right' title='" . htmlspecialchars(findtekst('950|Kostpris', $sprog_id), ENT_QUOTES, $charset) . " $dk_kostpris[$x]'>$dkpris<br></td>\n";
 			#			print "<input type='hidden' name='pris$x' value='$dkpris'><td align='right'>$dkpris<br></td>\n";
 			print "<input type='hidden' name='raba$x' value='" . dkdecimal($rabat[$x], 5) . "'><td align='right'>$dkrabat<br></td>\n";
 			print "<input type='hidden' name='proc$x' value='$dkprocent'>";
@@ -4669,7 +4673,7 @@ function ordreside($id, $regnskab)
 			print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" ";
 			// print "value=\"".findtekst('1100||Kopier', $sprog_id)."\" name=\"b_submit\" ";
 			print "value=\"" . findtekst('1100||Kopier', $sprog_id) . "\" name=\"copy\" ";
-			print "title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog) . "\"></td>\n";
+			print "title=\"" . htmlspecialchars(findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id), ENT_QUOTES, $charset) . "\"></td>\n";
 		}
 		if ($mail_fakt) $tmp = "value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"" . findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id) . "\"";
 		else if ($udskriv_til == "Digitalt") $tmp = "value=\"Send\" title=\"" . findtekst('2539|Send faktura digitalt', $sprog_id) . "\"";
@@ -6808,6 +6812,65 @@ function formatOrderUnitPrice($price)
 }
 
 /**
+ * Fills values into a text that may only use the placeholders %s (the next value), %1$s to %99$s (that value)
+ * and %% (a percent sign), the forms the order page's translated texts need. Any other % sequence (a width,
+ * padding, another conversion, a % at the end) makes the text unusable, so a translation can never build a huge
+ * string or stop the page. One pass over the text; sprintf() is not used.
+ *
+ * @param string $tekst    The text with placeholders.
+ * @param array  $vaerdier The values, in order.
+ * @return string|null The filled-in text, or null when the text uses another format or a value that is not there.
+ */
+function orderTekstUdfyld($tekst, array $vaerdier)
+{
+	$ud     = '';
+	$fra    = 0;
+	$naeste = 0;
+	while (($pct = strpos($tekst, '%', $fra)) !== false) {
+		$ud   .= substr($tekst, $fra, $pct - $fra);
+		$efter = substr($tekst, $pct + 1, 4);
+		if ($efter !== '' && $efter[0] === '%') {
+			$ud .= '%';
+			$fra = $pct + 2;
+		} elseif ($efter !== '' && $efter[0] === 's') {
+			if (!array_key_exists($naeste, $vaerdier)) return null;
+			$ud .= (string)$vaerdier[$naeste++];
+			$fra = $pct + 2;
+		} elseif (preg_match('/^([1-9][0-9]?)\$s/', $efter, $m)) {
+			$nr = (int)$m[1] - 1;
+			if (!array_key_exists($nr, $vaerdier)) return null;
+			$ud .= (string)$vaerdier[$nr];
+			$fra = $pct + 1 + strlen($m[0]);
+		} else {
+			return null;
+		}
+	}
+	return $ud . substr($tekst, $fra);
+}
+
+/**
+ * Puts values into a translated text. The translation may use %s, %1$s and %% (orderTekstUdfyld()); a custom
+ * translation with any other format (a width, padding, another conversion, too few values) falls back to the
+ * built-in Danish text, so a translation can never stop the order page.
+ *
+ * @param string $tekst     The translated text from findtekst().
+ * @param string $standard  The built-in Danish text with the same placeholders (UTF-8, converted to the page charset here).
+ * @param mixed  ...$vaerdier The values to put in.
+ * @return string The formatted text (not escaped).
+ */
+function orderTekstFormat($tekst, $standard, ...$vaerdier)
+{
+	$udfyldt = orderTekstUdfyld((string)$tekst, $vaerdier);
+	if ($udfyldt !== null) return $udfyldt;
+	global $db_encode;
+	// findtekst() returns ISO-8859-1 on a non-UTF8 database, so the Danish fallback must be converted the same way.
+	if ($db_encode != "UTF8") {
+		$standard = mb_convert_encoding($standard, 'ISO-8859-1', 'UTF-8');
+	}
+	return (string)orderTekstUdfyld($standard, $vaerdier);
+}
+
+/**
  * The label of a stored payment term (ordrer.betalingsbet) in the user's language.
  * The stored value stays the Danish key; the texts are the ones the debitor card and the POS payment select (Konto) use.
  * A value without a text of its own is shown as stored.
@@ -7224,18 +7287,18 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			$beholdning = dkdecimal($beholdning, 2);
 			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -1);
 			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -2);
-			if (!$lagervare) $beholdning = "ikke lagerført";
+			if (!$lagervare) $beholdning = findtekst('8480|ikke lagerført', $sprog_id);
 			$levdiff = afrund(abs($antal) - abs($tidl_lev), 2) != 0; #NTR - 20260518
 			if ($samlevare && $saet) {
 
 				$tmp = NULL;
 			} else {
 				if (abs($antal) != abs($tidl_lev)) {
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Mangler fortsat at " . $lever_modtag . "e resten.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+					print "<td title=\"" . htmlspecialchars(findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8482|Mangler fortsat at modtage resten.', $sprog_id) : findtekst('8481|Mangler fortsat at levere resten.', $sprog_id)), ENT_QUOTES, $charset) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				} else {
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+					print "<td title=\"" . htmlspecialchars(findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. " . ($art == 'DK' ? findtekst('8484|Intet modtaget endnu.', $sprog_id) : findtekst('8483|Intet leveret endnu.', $sprog_id)), ENT_QUOTES, $charset) . "\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
-				print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+				print "<td title=\"" . htmlspecialchars($art == 'DK' ? orderTekstFormat(findtekst('8486|Tidligere modtaget %s på denne ordre.', $sprog_id), 'Tidligere modtaget %s på denne ordre.', $dk_tidl_lev) : orderTekstFormat(findtekst('8485|Tidligere leveret %s på denne ordre.', $sprog_id), 'Tidligere leveret %s på denne ordre.', $dk_tidl_lev), ENT_QUOTES, $charset) . "\">($dk_tidl_lev)</td>\n";
 				// 20261008 MJ SST-833 This opens batch(), not serienummer(), so it no longer uses the
 				// serial-number icon and alt text. MEDSHOP read the serial icon on an item with no
 				// serial number as the feature misbehaving. 1496 is the text already on its title.
@@ -7262,14 +7325,14 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		$delBtn = "<svg xmlns='http://www.w3.org/2000/svg ' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#d0021b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg> ";
 		if (abs($antal) == abs($tidl_lev)) {
 			# Fully delivered
-			$txt2130 = "Do you want to delete this item and return it to stock?";
+			$txt2130 = findtekst('8488|Vil du slette denne vare og lægge den tilbage på lager?', $sprog_id);
 		} else {
 			# Not fully delivered
 			$txt2130 = findtekst('2130|Slet ordrelinje', $sprog_id);
 		}
-		print "<td valign = 'top' align='right' title='$txt2130'>";
+		print "<td valign = 'top' align='right' title='" . htmlspecialchars($txt2130, ENT_QUOTES, $charset) . "'>";
 		print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
-		print "onclick=\"if (confirm('Slet linje $x?')) { document.getElementsByName('posn$x')[1].value='-'; ";
+		print "onclick=\"if (confirm(" . htmlspecialchars(jsString(array(orderTekstFormat(findtekst('8479|Slet linje %s?', $sprog_id), 'Slet linje %s?', $x))), ENT_QUOTES, $charset) . ")) { document.getElementsByName('posn$x')[1].value='-'; ";
 		print "var __swF=document.getElementsByName('ordre')[0]; if(__swF){__swF.dataset.swSkipPreflight='1';} ";
 		print "document.getElementsByName('ordre')[0].submit.click(); }\">$delBtn</button></td>\n";
 	} else print "<td></td>";
