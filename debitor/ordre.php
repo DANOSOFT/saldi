@@ -182,7 +182,7 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
-// 20261110 LOE SST-967 An offer for a case opens on the craft right, with the customer taken from the case.
+// 20261110 LOE SST-967 An offer for a case opens on the craft right, with the customer taken from the case. The order is taken from id or ordre_id, on the GET or on the POST.
 
 @session_start();
 $s_id = session_id();
@@ -223,12 +223,69 @@ include("../includes/std_func.php");
 # applies, as it always did. (After std_func.php, because the lookups use ifset().)
 $sag_workflow_page = 'sag';
 $sag_workflow_sag   = (int) ifset($_GET, 'sag_id', ifset($_POST, 'sag_id', 0));
-$sag_workflow_order = (int) ifset($_GET, 'id', ifset($_POST, 'id', 0));
 $sag_workflow_konto = (int) ifset($_GET, 'konto_id', ifset($_POST, 'konto_id', 0));
+# The order can arrive as id or as ordre_id, on the GET or on a POST. An empty id= must not hide an ordre_id,
+# so this takes the first one that is actually a number rather than falling through ifset().
+$sag_workflow_order = 0;
+foreach (array(array($_GET, 'id'), array($_POST, 'id'), array($_GET, 'ordre_id'), array($_POST, 'ordre_id')) as $sst967_selector) {
+	if (!$sag_workflow_order && is_numeric($sst967_selector[0][$sst967_selector[1]] ?? '')) {
+		$sag_workflow_order = (int) $sst967_selector[0][$sst967_selector[1]];
+	}
+}
+unset($sst967_selector);
 
 
 include("../includes/connect.php");
 include("../includes/online.php");
+
+# SST-967 the gate admitted this page through a case ($sag_workflow_case_id), so every order this page loads
+# or saves must be an order of that case. The order id can arrive as id, ordre_id, kundeordnr, one of the
+# tekst lookups or on the POST, and the page reassigns $id more than once, so this is checked wherever the id
+# is taken from the request and again immediately before each write that uses it. For every other request -
+# a user holding the Ordre right, or a page admitted some other way - the case is 0 and nothing is refused.
+$sag_workflow_case_id = isset($sag_workflow_case_id) ? (int)$sag_workflow_case_id : 0;
+# The id of an order this page has just created; it belongs to the case by construction and is never refused.
+$sst967_created_order = 0;
+
+/**
+ * Tells whether an order may be loaded or saved on this request.
+ *
+ * Every other request - a user holding the Ordre right, or a page admitted some other way - has
+ * $sag_workflow_case_id = 0 and is allowed, so nothing outside the case exception changes.
+ *
+ * @param mixed $order_id The order id the page is about to use.
+ *
+ * @return bool True when there is no case exception in play, when the page created the order itself, or when
+ *              the order belongs to the case that admitted the page.
+ */
+function sag_workflow_order_ok($order_id) {
+	global $sag_workflow_case_id, $sst967_created_order;
+	if (!$sag_workflow_case_id || !$order_id) {
+		return true;
+	}
+	if ((int)$sst967_created_order && (int)$sst967_created_order === (int)$order_id) {
+		return true;
+	}
+	$r = db_fetch_array(db_select("select sag_id from ordrer where id = '" . (int)$order_id . "'", __FILE__ . " linje " . __LINE__));
+
+	return ($r && (int)$r['sag_id'] === (int)$sag_workflow_case_id);
+}
+
+/**
+ * Refuses the request with the gate's own message and a way back to the case list.
+ *
+ * @return void
+ */
+function sag_workflow_refuse() {
+	global $sprog_id;
+	$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
+	print tekstboks($txt);
+	print "<div style=\"position:fixed; top:10px; left:10px; z-index:101; font:14px Arial,Helvetica,sans-serif;\">";
+	print "<a href=\"" . get_relative() . "sager/sager.php\" target=\"_top\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
+		. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+	exit;
+}
+
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
@@ -483,9 +540,11 @@ if (empty($sag_id)) { #20210715
 }
 if ((!$id) && $funktion == 'opret_ordre') {
 	$id = opret_ordre($sag_id, $konto_id);
+	$sst967_created_order = (int) $id;
 }
 if ((!$id) && $funktion == 'opret_ordre_kopi') { #20140730
 	$id = opret_ordre_kopi($sag_id, $konto_id);
+	$sst967_created_order = (int) $id;
 }
 
 if ($id && isset($_POST['tilfoj']) && $ekstratekst = (if_isset($_POST['ekstratekst']))) { #20150412
@@ -585,6 +644,11 @@ if ($id) {
 	} else {
 		$incl_moms = $vatPrivateCustomers; # Use private customer VAT setting for private customers
 	}
+}
+# SST-967 every request-derived $id has been resolved by now (id, ordre_id, kundeordnr, the tekst
+# lookups, POST), and the next statements write to that order, so this is where it has to be checked.
+if ($id && !sag_workflow_order_ok($id)) {
+	sag_workflow_refuse();
 }
 if (isset($_GET['vis_lev_addr']) && $id) {
 	if ($_GET['vis_lev_addr']) $qtxt = "update ordrer set vis_lev_addr='on' where id='$id'";
@@ -843,6 +907,9 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 	}
 
 	if ($id) {
+		if ($id && !sag_workflow_order_ok($id)) {
+			sag_workflow_refuse();
+		}
 		$r = db_fetch_array(db_select("select konto_id from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
 		if ($konto_id && $r['konto_id'] != $konto_id) {
 			$qtxt = "update ordrer set konto_id='$konto_id',kontonr='$kontonr',kundeordnr='$kundeordnr',";
@@ -916,6 +983,9 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	if ($row = db_fetch_array($query)) {
 		if (!$row['firmanavn']) { # <- 2009.05.13 Eller overskrives v. kontaktopslag.
 			if (!$restordre) $restordre = 0; # 20201215
+			if ($id && !sag_workflow_order_ok($id)) {
+				sag_workflow_refuse();
+			}
 			$qtxt = "update ordrer set kontonr='$kontonr',kundeordnr='$kundeordnr',firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',";
 			$qtxt .= "postnr='$postnr',bynavn='$bynavn',land='$land',lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',";
 			$qtxt .= "lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt',lev_land='$lev_land',lev_email='$lev_email',vis_lev_addr='$vis_lev_addr',";

@@ -73,7 +73,7 @@
 //                 Their blocks include std_func.php through __DIR__.
 // 20261109 LOE SST-967 An empty rights string no longer counts as access, and the refusal keeps a way back.
 // 20261110 LOE SST-967 The Mit Salg session keeps working, and a sag workflow page runs on the craft right.
-// 20261110 LOE SST-967 The gate runs before the user settings, and an order decides its own case.
+// 20261110 LOE SST-967 The gate runs before the user settings, and an order decides its own case. A request that names another case's order, as ordre_id or as kundeordnr, drops the exception.
 //              The label page's Mit Salg proof is that the account has no brugere row.
 
 #include("../includes/connect.php"); #20211001
@@ -333,12 +333,32 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	# - lager/labelprint.php is the one module page a Mit Salg session needs. It declares $mysale_label_page,
 	#   and the proof is that the account has no brugere row - which is what makes it a shop account rather
 	#   than a user - on a session inside a tenant, with the placeholder rights, and not the booking account.
+	# SST-967 the case that admitted this page, for the page to check the orders it loads or saves. It stays
+	# 0 for every other page and every other user, which is what keeps the finance lane untouched.
+	$sag_workflow_case_id = 0;
 	$sag_workflow_allowed = false;
 	if (!empty($sag_workflow_page) && substr((string)$sag_rettigheder, 2, 1)) {
 		$wf_konto = (int) ($sag_workflow_konto ?? 0);
 		if ($sag_workflow_page === 'sag') {
 			$wf_sag = (int) ($sag_workflow_sag ?? 0);
 			$wf_order = (int) ($sag_workflow_order ?? 0);
+			# Every other order selector the page reads has to name an order of the same case. The order page
+			# reassigns its id from ordre_id and from kundeordnr as well as from id, and it writes to that id,
+			# so a selector naming another case's order would be a way past the case that admitted the page.
+			# kundeordnr is not an id, so the order it selects is looked up here.
+			$wf_selectors = array();
+			if (!empty($_GET['ordre_id']) && is_numeric($_GET['ordre_id'])) {
+				$wf_selectors[(int) $_GET['ordre_id']] = true;
+			}
+			if (!empty($_POST['ordre_id']) && is_numeric($_POST['ordre_id'])) {
+				$wf_selectors[(int) $_POST['ordre_id']] = true;
+			}
+			if (!empty($_GET['kundeordnr'])) {
+				$wf_row = db_fetch_array(db_select("select max(id) as id from ordrer where kundeordnr = '" . db_escape_string($_GET['kundeordnr']) . "'", __FILE__ . " linje " . __LINE__));
+				if ($wf_row && $wf_row['id']) {
+					$wf_selectors[(int) $wf_row['id']] = true;
+				}
+			}
 			if ($wf_order) {
 				$wf_row = db_fetch_array(db_select("select sag_id from ordrer where id = '$wf_order'", __FILE__ . " linje " . __LINE__));
 				$wf_order_sag = $wf_row ? (int) $wf_row['sag_id'] : 0;
@@ -347,15 +367,31 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			if ($wf_sag) {
 				$wf_row = db_fetch_array(db_select("select konto_id from sager where id = '$wf_sag'", __FILE__ . " linje " . __LINE__));
 				$wf_customer = $wf_row ? (int) $wf_row['konto_id'] : 0;
+				foreach (array_keys($wf_selectors) as $wf_selector) {
+					if ($wf_selector === $wf_order) {
+						continue;
+					}
+					$wf_row = db_fetch_array(db_select("select sag_id from ordrer where id = '$wf_selector'", __FILE__ . " linje " . __LINE__));
+					if (!$wf_row || (int) $wf_row['sag_id'] !== $wf_sag) {
+						$wf_customer = 0;
+						break;
+					}
+				}
 				if ($wf_customer && (!$wf_konto || $wf_konto === $wf_customer)) {
 					$sag_workflow_allowed = true;
+					$sag_workflow_case_id = $wf_sag;
 					# The order belongs to the case's customer, whatever the address tried to pass in. This is
 					# pinned only when the exception is what admits the page, so a user with the module right
 					# keeps the page's own behaviour. The POST matters as much as the GET - debitor/ordre.php
 					# saves with $_POST['konto_id'] - or a craft user could book the order on another customer
 					# while the case in the URL keeps the page open.
+					# Pin the customer only while the page is about to CREATE an order: once an order id is in the
+					# request the order already owns its customer, and setting $_GET['konto_id'] would make
+					# debitor/ordre.php take its "skift kontonr" branch and rewrite that order's customer.
 					if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
-						$_GET['konto_id'] = $wf_customer;
+						if (!$wf_order) {
+							$_GET['konto_id'] = $wf_customer;
+						}
 						$_POST['konto_id'] = $wf_customer;
 					}
 				}
@@ -368,7 +404,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				$_POST['konto_id'] = $wf_konto;
 			}
 		}
-		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer);
+		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_selector);
 	}
 	unset($wf_konto);
 	$mysale_label_ok = false;

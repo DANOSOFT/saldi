@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 // History:
 // 20261109 LOE SST-967 created.
 // 20261110 LOE SST-967 The gate is one computation, the Mit Salg session and the sag workflow are pinned.
+// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case.
 
 final class EmptyRightsGateTest extends TestCase
 {
@@ -129,7 +130,7 @@ final class EmptyRightsGateTest extends TestCase
         $code = self::onlineSource();
         $start = strpos($code, '$sag_workflow_allowed = ');
         self::assertNotFalse($start, 'the exception is computed next to the gate');
-        $block = substr($code, (int)$start, 2400);
+        $block = substr($code, (int)$start, 4200);
 
         self::assertStringContainsString('$sag_workflow_page', $block, 'the page declares that it belongs to the workflow');
         // The check runs in the gate, because that is where the tenant database is open.
@@ -146,11 +147,32 @@ final class EmptyRightsGateTest extends TestCase
             $block,
             'and a case that disagrees, or an order with no case, drops the exception'
         );
-        self::assertStringContainsString('unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer);', $block,
-            'the temporary is cleaned up with the others');
+        self::assertStringContainsString('unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_selector);', $block,
+            'the temporaries are cleaned up with the others');
+        // The page reassigns its id from ordre_id and from kundeordnr as well as from id, and it writes to
+        // that id, so every selector in the request has to name an order of the same case.
+        self::assertStringContainsString("\$_GET['ordre_id']", $block, 'an ordre_id in the address is resolved too');
+        self::assertStringContainsString("\$_POST['ordre_id']", $block, 'and one in the POST');
+        self::assertStringContainsString('select max(id) as id from ordrer where kundeordnr =', $block,
+            'kundeordnr is not an id, so the order it selects is looked up');
+        self::assertStringContainsString('foreach (array_keys($wf_selectors) as $wf_selector) {', $block,
+            'and each of them is checked against the admitted case');
+        self::assertStringContainsString("if (!\$wf_row || (int) \$wf_row['sag_id'] !== \$wf_sag) {", $block,
+            'an order of another case drops the exception');
         // debitor/ordre.php saves with $_POST['konto_id'], so the GET alone is not enough.
         self::assertStringContainsString("\$_POST['konto_id'] = \$wf_customer;", $block,
             'the save path is pinned to the case customer too');
+        // The GET pin is only for a NEW order: with an order id in the request the order owns its customer,
+        // and pinning the GET value makes the page take its "skift kontonr" branch and rewrite that order.
+        self::assertStringContainsString('if (!$wf_order) {', $block, 'the GET pin is limited to a new order');
+        self::assertLessThan(
+            (int)strpos($block, "\$_POST['konto_id'] = \$wf_customer;"),
+            (int)strpos($block, 'if (!$wf_order) {'),
+            'and the POST pin stays outside that condition'
+        );
+        // The page needs to know which case admitted it, or it cannot check the orders it loads.
+        self::assertStringContainsString('$sag_workflow_case_id = $wf_sag;', $block,
+            'the admitted case is exported for the page');
         self::assertStringContainsString('select id from sager where konto_id =', $block,
             'a customer history needs a case for that customer');
         self::assertStringContainsString("substr((string)\$sag_rettigheder, 2, 1)", $block,
@@ -209,6 +231,54 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString('$mysale_label_ok = !$mysale_row;', $cond, 'the proof is the missing row');
         self::assertStringContainsString('if ($no_module_right && !$sag_workflow_allowed && !$mysale_label_ok)',
             $code, 'and the refusal honours it');
+    }
+
+    /**
+     * The order page checks every order it loads or saves against the admitted case.
+     *
+     * The order id can arrive as id, ordre_id, kundeordnr, one of the tekst lookups or on the POST, and the
+     * page reassigns it more than once, so the check runs before the first write that uses it and again
+     * immediately before the two big writes.
+     *
+     * @return void
+     */
+    public function testTheOrderPageKeepsEveryOrderInsideItsCase(): void
+    {
+        $ordre = (string)@file_get_contents(__DIR__ . '/../../../debitor/ordre.php');
+        self::assertNotFalse($ordre, 'cannot read debitor/ordre.php');
+
+        self::assertStringContainsString('function sag_workflow_order_ok($order_id)', $ordre, 'there is one check');
+        self::assertStringContainsString("select sag_id from ordrer where id = '", $ordre, 'it reads the order\'s case');
+        self::assertStringContainsString('function sag_workflow_refuse()', $ordre, 'and one refusal');
+        // A page-created order belongs to the case by construction and is never refused.
+        self::assertStringContainsString('$sst967_created_order = (int) $id;', $ordre, 'the created order is remembered');
+        self::assertStringContainsString('(int)$sst967_created_order === (int)$order_id', $ordre,
+            'and is always allowed');
+
+        self::assertSame(3, substr_count($ordre, 'if ($id && !sag_workflow_order_ok($id)) {'),
+            'the check runs at three points: before the first write, before the customer rewrite and before the save');
+
+        // The page takes its order id from id or ordre_id, on the GET or on the POST, and an empty id= must not
+        // hide an ordre_id, so the declaration reads the first one that is a number.
+        self::assertStringContainsString("array(\$_GET, 'id'), array(\$_POST, 'id'), array(\$_GET, 'ordre_id'), array(\$_POST, 'ordre_id')",
+            $ordre, 'every selector the page reads is handed to the gate');
+        self::assertStringContainsString("is_numeric(\$sst967_selector[0][\$sst967_selector[1]] ?? '')", $ordre,
+            'and an empty value cannot hide the next selector');
+
+        $firstWrite = strpos($ordre, 'if (isset($_GET[\'vis_lev_addr\']) && $id) {');
+        $guard = strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {');
+        self::assertNotFalse($firstWrite, 'the first order write is still there');
+        self::assertLessThan($firstWrite, $guard, 'the check runs before the first write that uses the id');
+
+        $pinWrite = strpos($ordre, 'update ordrer set konto_id=\'$konto_id\',kontonr=\'$kontonr\'');
+        self::assertNotFalse($pinWrite, 'the customer rewrite is still there');
+        self::assertLessThan($pinWrite, strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {', (int)$firstWrite),
+            'the check runs again before the customer rewrite');
+
+        $saveWrite = strpos($ordre, 'update ordrer set kontonr=\'$kontonr\',kundeordnr=\'$kundeordnr\',firmanavn=\'$firmanavn\'');
+        self::assertNotFalse($saveWrite, 'the save write is still there');
+        $lastGuard = strrpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {');
+        self::assertLessThan($saveWrite, $lastGuard, 'and once more before the save write');
     }
 
     /**
