@@ -8,11 +8,12 @@
 // saldi_apitest - so dropping/recreating the period-lock schema here can
 // never race or interfere with any other suite's use of a shared tenant.
 //
-// Skips cleanly when the stack is not reachable, so `composer test` stays
-// green on a bare checkout.
+// Skips cleanly when SALDI_CHAR_PGPASS is not set or the stack is not
+// reachable, so `composer test` stays green on a bare checkout.
 //
 // History:
 // 20260815 CL/SZ SD-646: created.
+// 20261110 CL/MMR SST-891: no literal password fallback; skip when SALDI_CHAR_PGPASS is not set.
 
 final class MomsPeriodeLukEnv
 {
@@ -30,7 +31,7 @@ final class MomsPeriodeLukEnv
 
     public static function pgPass(): string
     {
-        return getenv('SALDI_CHAR_PGPASS') ?: 'password';
+        return getenv('SALDI_CHAR_PGPASS') ?: '';
     }
 
     public static function masterDb(): string
@@ -53,6 +54,9 @@ final class MomsPeriodeLukEnv
     {
         if (!extension_loaded('pgsql')) {
             return 'pgsql extension not loaded (run inside the docker web container)';
+        }
+        if (self::pgPass() === '') {
+            return 'SALDI_CHAR_PGPASS is required for database characterization tests';
         }
         $conn = @pg_connect(self::connString(self::masterDb()), PGSQL_CONNECT_FORCE_NEW);
         if ($conn === false) {
