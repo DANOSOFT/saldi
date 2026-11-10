@@ -74,6 +74,8 @@
 // 20261109 LOE SST-967 An empty rights string no longer counts as access, and the refusal keeps a way back.
 // 20261110 LOE SST-967 The Mit Salg session keeps working, and a sag workflow page runs on the craft right.
 // 20261110 LOE SST-967 The gate runs before the user settings, and an order decides its own case. A request that names another case's order, as ordre_id or as kundeordnr, drops the exception.
+// 20261110 LOE SST-967 The history save and delete paths are pinned to the customer the request proved.
+// 20261110 LOE SST-967 Every order the request names must be of the case, whichever selector carries it.
 //              The label page's Mit Salg proof is that the account has no brugere row.
 
 #include("../includes/connect.php"); #20211001
@@ -342,17 +344,16 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		if ($sag_workflow_page === 'sag') {
 			$wf_sag = (int) ($sag_workflow_sag ?? 0);
 			$wf_order = (int) ($sag_workflow_order ?? 0);
-			# Every other order selector the page reads has to name an order of the same case. The order page
-			# reassigns its id from ordre_id and from kundeordnr as well as from id, and it writes to that id,
-			# so a selector naming another case's order would be a way past the case that admitted the page.
-			# kundeordnr is not an id, so the order it selects is looked up here.
 			$wf_selectors = array();
-			if (!empty($_GET['ordre_id']) && is_numeric($_GET['ordre_id'])) {
-				$wf_selectors[(int) $_GET['ordre_id']] = true;
+			# Every order the request names has to be of that case, not only the one that decided it: the page
+			# takes its id from id or ordre_id, on the GET and on the POST, and any of them can reach a write -
+			# a valid id= on the address with a different id on the POST body was a way past the case.
+			foreach (array(array($_GET, 'id'), array($_POST, 'id'), array($_GET, 'ordre_id'), array($_POST, 'ordre_id')) as $wf_source) {
+				if (isset($wf_source[0][$wf_source[1]]) && is_numeric($wf_source[0][$wf_source[1]]) && (int) $wf_source[0][$wf_source[1]] > 0) {
+					$wf_selectors[(int) $wf_source[0][$wf_source[1]]] = true;
+				}
 			}
-			if (!empty($_POST['ordre_id']) && is_numeric($_POST['ordre_id'])) {
-				$wf_selectors[(int) $_POST['ordre_id']] = true;
-			}
+			# kundeordnr is not an id, so the order it selects is looked up here.
 			if (!empty($_GET['kundeordnr'])) {
 				$wf_row = db_fetch_array(db_select("select max(id) as id from ordrer where kundeordnr = '" . db_escape_string($_GET['kundeordnr']) . "'", __FILE__ . " linje " . __LINE__));
 				if ($wf_row && $wf_row['id']) {
@@ -399,12 +400,23 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		} elseif ($sag_workflow_page === 'customer' && $wf_konto) {
 			$wf_row = db_fetch_array(db_select("select id from sager where konto_id = '$wf_konto' limit 1", __FILE__ . " linje " . __LINE__));
 			$sag_workflow_allowed = (bool) $wf_row;
-			if ($sag_workflow_allowed) {
-				# A note saved from the history page belongs to the customer the page was opened for.
-				$_POST['konto_id'] = $wf_konto;
+			# The pinning and the row check belong to the exception: a user who holds the module right keeps the
+			# page's own behaviour, as on the order page.
+			if ($sag_workflow_allowed && substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+				# The save path files the note and the contact dates on the customer in $_POST['id'] - not only
+				# on $_POST['konto_id'] - and the delete path names the history row by its id, so both have to
+				# be the customer this request proved, or the page could write on another customer's history.
+				if (!empty($_GET['historik_id']) && is_numeric($_GET['historik_id'])) {
+					$wf_row = db_fetch_array(db_select("select id from historik where id = '" . (int) $_GET['historik_id'] . "' and konto_id = '$wf_konto' limit 1", __FILE__ . " linje " . __LINE__));
+					$sag_workflow_allowed = (bool) $wf_row;
+				}
+				if ($sag_workflow_allowed) {
+					$_POST['konto_id'] = $wf_konto;
+					$_POST['id'] = $wf_konto;
+				}
 			}
 		}
-		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_selector);
+		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_source, $wf_selector);
 	}
 	unset($wf_konto);
 	$mysale_label_ok = false;

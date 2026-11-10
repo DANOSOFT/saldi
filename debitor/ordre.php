@@ -183,6 +183,7 @@
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
 // 20261110 LOE SST-967 An offer for a case opens on the craft right, with the customer taken from the case. The order is taken from id or ordre_id, on the GET or on the POST.
+// 20261110 LOE SST-967 The delivery-address and mail handlers refuse an order outside the case.
 
 @session_start();
 $s_id = session_id();
@@ -293,6 +294,12 @@ include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
 	$clear_id = (int)$_POST['id'];
+	# SST-967 the id in the body is checked on its own: this handler writes before the page reaches its own check.
+	if (!sag_workflow_order_ok($clear_id)) {
+		header('Content-Type: application/json');
+		echo json_encode(array('ok' => 0));
+		exit;
+	}
 	if ($_POST['clear_delivery'] == '1' || $_POST['clear_delivery'] === 1) {
 		db_modify("UPDATE ordrer SET lev_navn='', lev_addr1='', lev_addr2='', lev_postnr='', lev_bynavn='', lev_land='', lev_kontakt='', lev_email='' WHERE id='" . db_escape_string($clear_id) . "'", __FILE__ . " linje " . __LINE__);
 		$_SESSION['no_delivery_order_' . $clear_id] = true;
@@ -1058,6 +1065,9 @@ $orderLineReplayKey = orderLineReplayKey($_POST, (string)$db, (string)$brugernav
 $orderLineSaved = false;
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
+	if ($id && !sag_workflow_order_ok($id)) {
+		sag_workflow_refuse();
+	}
 	$sum = if_isset($_POST, NULL, 'sum');
 
 	$phone = trim($_POST['phone']);
@@ -1140,6 +1150,9 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 }
 if (isset($_POST['opdat_mailtext'])) {
 	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
+	if ($id && !sag_workflow_order_ok($id)) {
+		sag_workflow_refuse();
+	}
 	$mail_subj = db_escape_string(if_isset($_POST['mail_subj']));
 	$mail_text = db_escape_string(str_replace("\n", "<br>", if_isset($_POST['mail_text'])));
 	db_modify("update ordrer set mail_subj='$mail_subj',mail_text='$mail_text' where id='$id'", __FILE__ . " linje " . __LINE__);

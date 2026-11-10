@@ -28,6 +28,7 @@
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20261101 CL/SZ MB-129 Saving a note no longer fails when a contact has an apostrophe in the name: the posted names are escaped before the lookup.
 // 20261110 LOE SST-967 The history opens on the craft right for a customer the company has a case for.
+// 20261110 LOE SST-967 The history page reads every id it takes from the request as a number.
 
 @session_start();
 $s_id = session_id();
@@ -105,9 +106,11 @@ if (!isset($vis_bilag)) $vis_bilag = NULL;
 
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
+# SST-967 every id this page takes from the request is read as a number: the gate proved an integer customer,
+# so the page has to use the same integer - the history queries compare konto_id with it directly.
 $id = (int)$_GET['id'];
-if ($_GET['konto_id']) $id = $_GET['konto_id'];
-if (isset($_GET['historik_id'])) $historik_id = $_GET['historik_id'];
+if (!empty($_GET['konto_id'])) $id = (int)$_GET['konto_id'];
+if (isset($_GET['historik_id'])) $historik_id = (int)$_GET['historik_id'];
 $handling = $_GET['handling'];
 
 if ($handling == 'slet') {
@@ -165,9 +168,9 @@ function processContactForm($post) {
 
 function sanitizeFormInputs($post) {
     return [
-        'id' => $post['id'],
-        'egen_id' => $post['egen_id'],
-        'historik_id' => $post['historik_id'] ?? null,
+        'id' => (int)($post['id'] ?? 0),
+        'egen_id' => (int)($post['egen_id'] ?? 0),
+        'historik_id' => (int)($post['historik_id'] ?? 0),
         'ansat' => db_escape_string($post['ansat'] ?? ''),
         'kontakt' => db_escape_string($post['kontakt'] ?? ''),
         'kontaktet' => !empty($post['kontaktet']) 
@@ -242,6 +245,7 @@ function processHistorikRecord($inputs, $employeeIds) {
 function updateOprettet($id, $oprettet) {
 	if (isset($oprettet)) {
       if (!$oprettet) $oprettet = date('Y-m-d');
+      $oprettet = db_escape_string($oprettet);
       db_modify("UPDATE adresser
             SET oprettet = '{$oprettet}' 
             WHERE id = {$id}", 

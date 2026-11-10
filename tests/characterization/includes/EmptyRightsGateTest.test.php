@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 // History:
 // 20261109 LOE SST-967 created.
 // 20261110 LOE SST-967 The gate is one computation, the Mit Salg session and the sag workflow are pinned.
-// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case.
+// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case. The history page reads its ids as numbers, and the gate pins its save and delete to the proved customer. A valid id= no longer lets another id= through on the POST.
 
 final class EmptyRightsGateTest extends TestCase
 {
@@ -130,7 +130,7 @@ final class EmptyRightsGateTest extends TestCase
         $code = self::onlineSource();
         $start = strpos($code, '$sag_workflow_allowed = ');
         self::assertNotFalse($start, 'the exception is computed next to the gate');
-        $block = substr($code, (int)$start, 4200);
+        $block = substr($code, (int)$start, 6000);
 
         self::assertStringContainsString('$sag_workflow_page', $block, 'the page declares that it belongs to the workflow');
         // The check runs in the gate, because that is where the tenant database is open.
@@ -147,12 +147,19 @@ final class EmptyRightsGateTest extends TestCase
             $block,
             'and a case that disagrees, or an order with no case, drops the exception'
         );
-        self::assertStringContainsString('unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_selector);', $block,
+        self::assertStringContainsString('unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_source, $wf_selector);', $block,
             'the temporaries are cleaned up with the others');
+        // Every order the request names is checked, not only the one that decided the case: the page takes its
+        // id from id or ordre_id on the GET or on the POST, and a valid id= with another id= in the body was a
+        // way to reach the case's page and write on an order outside it.
+        self::assertStringContainsString("foreach (array(array(\$_GET, 'id'), array(\$_POST, 'id'), array(\$_GET, 'ordre_id'), array(\$_POST, 'ordre_id')) as \$wf_source)", $block,
+            'every order selector in the request is collected');
+        self::assertStringContainsString('$wf_selectors[(int) $wf_source[0][$wf_source[1]]] = true;', $block,
+            'and each one that is a number is checked');
         // The page reassigns its id from ordre_id and from kundeordnr as well as from id, and it writes to
         // that id, so every selector in the request has to name an order of the same case.
-        self::assertStringContainsString("\$_GET['ordre_id']", $block, 'an ordre_id in the address is resolved too');
-        self::assertStringContainsString("\$_POST['ordre_id']", $block, 'and one in the POST');
+        self::assertStringContainsString("array(\$_GET, 'ordre_id')", $block, 'an ordre_id in the address is resolved too');
+        self::assertStringContainsString("array(\$_POST, 'ordre_id')", $block, 'and one in the POST');
         self::assertStringContainsString('select max(id) as id from ordrer where kundeordnr =', $block,
             'kundeordnr is not an id, so the order it selects is looked up');
         self::assertStringContainsString('foreach (array_keys($wf_selectors) as $wf_selector) {', $block,
@@ -175,6 +182,12 @@ final class EmptyRightsGateTest extends TestCase
             'the admitted case is exported for the page');
         self::assertStringContainsString('select id from sager where konto_id =', $block,
             'a customer history needs a case for that customer');
+        // The history page saves on $_POST['id'] and deletes a history row by its id, so both are pinned to
+        // the customer the request proved, and only when the craft right is what admits the page.
+        self::assertStringContainsString("\$_POST['id'] = \$wf_konto;", $block,
+            'the customer the save path files on is pinned too');
+        self::assertStringContainsString('select id from historik where id =', $block,
+            'and a history row named by the request must belong to that customer');
         self::assertStringContainsString("substr((string)\$sag_rettigheder, 2, 1)", $block,
             'the right it uses is the one the Sager pages ask for');
 
@@ -197,6 +210,13 @@ final class EmptyRightsGateTest extends TestCase
         self::assertNotFalse($hist, 'cannot read debitor/historikkort.php');
         self::assertStringContainsString("\$sag_workflow_page = 'customer';", (string)$hist, 'the history page declares it too');
         self::assertStringContainsString('$sag_workflow_konto', (string)$hist, 'and passes the customer it was asked for');
+        // The history queries compare konto_id with the id directly, so the page reads it as a number.
+        self::assertStringContainsString("\$id = (int)\$_GET['konto_id'];",
+            (string)$hist, 'the customer id the page uses is a number');
+        self::assertStringContainsString("'id' => (int)(\$post['id'] ?? 0)", (string)$hist,
+            'and so is the one the save path reads');
+        self::assertStringContainsString("'historik_id' => (int)(\$post['historik_id'] ?? 0)", (string)$hist,
+            'and the history row it updates');
     }
 
     /**
@@ -255,8 +275,8 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString('(int)$sst967_created_order === (int)$order_id', $ordre,
             'and is always allowed');
 
-        self::assertSame(3, substr_count($ordre, 'if ($id && !sag_workflow_order_ok($id)) {'),
-            'the check runs at three points: before the first write, before the customer rewrite and before the save');
+        self::assertSame(5, substr_count($ordre, 'if ($id && !sag_workflow_order_ok($id)) {'),
+            'the check also runs in the two handlers that write from the POST id alone');
 
         // The page takes its order id from id or ordre_id, on the GET or on the POST, and an empty id= must not
         // hide an ordre_id, so the declaration reads the first one that is a number.
@@ -275,10 +295,19 @@ final class EmptyRightsGateTest extends TestCase
         self::assertLessThan($pinWrite, strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {', (int)$firstWrite),
             'the check runs again before the customer rewrite');
 
+        // The delivery-address endpoint writes from the POST id before the page reaches any check of its own.
+        self::assertStringContainsString('if (!sag_workflow_order_ok($clear_id)) {', $ordre,
+            'the delivery-address endpoint checks the id in the body on its own');
+        self::assertLessThan(
+            strpos($ordre, "UPDATE ordrer SET lev_navn=''"),
+            strpos($ordre, 'if (!sag_workflow_order_ok($clear_id)) {'),
+            'and does so before it clears that address'
+        );
+
         $saveWrite = strpos($ordre, 'update ordrer set kontonr=\'$kontonr\',kundeordnr=\'$kundeordnr\',firmanavn=\'$firmanavn\'');
         self::assertNotFalse($saveWrite, 'the save write is still there');
-        $lastGuard = strrpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {');
-        self::assertLessThan($saveWrite, $lastGuard, 'and once more before the save write');
+        $guardBeforeSave = strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {', (int)$pinWrite);
+        self::assertLessThan($saveWrite, $guardBeforeSave, 'and once more before the save write');
     }
 
     /**
