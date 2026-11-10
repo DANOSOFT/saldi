@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/vibrantPayment.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- includes/vibrantPayment.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,7 @@
 // 20261104 CL/MMR SST-841 CodeRabbit (PR #969): a failed advisory lock query is a failed invoice attempt, so two approvals never invoice unlocked.
 //                 Deleting a rejected booking and its order is one transaction; a failed order delete rolls the booking back and answers pending.
 //                 Both statements run through booking_query_quiet(), which logs a failure instead of printing db_select()'s alert into the JSON answer.
+// 20261110 CL/MMR SST-841 CodeRabbit (PR #969): rental_payment_ready() only counts the columns of rentalperiod in the active schema (current_schema()).
 //
 
 if (!function_exists('booking_query_quiet')) {
@@ -59,16 +60,18 @@ function booking_query_quiet($qtxt) {
 
 if (!function_exists('rental_payment_ready')) {
 /**
- * Whether rentalperiod already has payment_id and payment_url. Read only: the columns are added by
+ * Whether rentalperiod in the active schema already has payment_id and payment_url. Read only: the columns are added by
  * includes/betweenUpdates.php at login and by includes/opretfunc.php for new accounts, never at request time.
  *
  * @param string $db  The account database, already validated by public_tenant_db().
  * @return bool  true when both columns exist.
  */
 function rental_payment_ready($db) {
-	$name = db_escape_string($db);
-	// DISTINCT: a second schema with its own rentalperiod must not make the count 4 (review on PR #969)
-	$qtxt = "SELECT count(DISTINCT column_name) AS n FROM information_schema.columns WHERE (table_schema = '$name' OR table_catalog = '$name')";
+	global $db_type;
+	// Only the active schema: a rentalperiod table in another schema must not answer for this one (CodeRabbit on PR #969).
+	// On MySQL the schema is the account database itself.
+	$schema = in_array($db_type, ['mysql', 'mysqli'], true) ? "'" . db_escape_string($db) . "'" : "current_schema()";
+	$qtxt = "SELECT count(DISTINCT column_name) AS n FROM information_schema.columns WHERE table_schema = $schema";
 	$qtxt.= " AND table_name = 'rentalperiod' AND column_name IN ('payment_id', 'payment_url')";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	return $r && (int)$r['n'] === 2;

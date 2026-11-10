@@ -61,7 +61,7 @@ final class updateBookingPayment extends TestCase
         ini_set('error_log', sys_get_temp_dir() . '/updateBookingPayment-' . getmypid() . '.log');
     }
 
-    /** @return array{0: callable, 1: array<int, int>} an invoice callback that records the order ids it got */
+    /** @return array{0: callable, 1: ArrayObject<int, int>} an invoice callback that records the order ids it got */
     private static function invoice(bool $ok = true): array
     {
         $calls = new ArrayObject();

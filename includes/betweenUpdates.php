@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/betweenUpdates.php --- ver 5.1.0 --- 2026.11.10
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 // 20261104 CL/MMR SST-841 CodeRabbit (PR #969): the rentalperiod table and column lookups only look at the active schema (current_schema() / DATABASE()).
+// 20261110 CL/MMR SST-841 CodeRabbit (PR #969): PostgreSQL adds the rentalperiod columns with IF NOT EXISTS, so two first logins at once cannot fail.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -164,6 +165,7 @@ backfillOrderLineDelivered($db_type);
 // a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
 // the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
 // Both lookups are limited to the active schema, as a rentalperiod table in another schema must not decide it.
+// PostgreSQL adds them with IF NOT EXISTS: two first logins at the same moment can both find them missing.
 if (isset($db) && is_string($db) && $db !== '') {
 	$rentalSchema = in_array($db_type, ['mysql', 'mysqli'], true) ? "table_schema = DATABASE()" : "table_schema = current_schema()";
 	$rentalTable = db_fetch_array(db_select(
@@ -178,7 +180,8 @@ if (isset($db) && is_string($db) && $db !== '') {
 		}
 		foreach (array('payment_id' => 'varchar(100)', 'payment_url' => 'varchar(500)') as $column => $type) {
 			if (!in_array($column, $rentalColumns, true)) {
-				db_modify("ALTER TABLE rentalperiod ADD COLUMN $column $type", __FILE__ . " linje " . __LINE__);
+				$ifNotExists = in_array($db_type, ['mysql', 'mysqli'], true) ? '' : 'IF NOT EXISTS ';
+				db_modify("ALTER TABLE rentalperiod ADD COLUMN $ifNotExists$column $type", __FILE__ . " linje " . __LINE__);
 			}
 		}
 	}

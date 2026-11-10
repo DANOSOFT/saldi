@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261104 CL/MMR Created (SST-841, Codex round 11 on PR #969).
+ * 20261110 CL/MMR rental_payment_ready() looks at the active schema only (CodeRabbit on PR #969).
  */
 #[RunTestsInSeparateProcesses]
 final class bookingPaymentDbErrors extends TestCase
@@ -93,6 +94,24 @@ final class bookingPaymentDbErrors extends TestCase
         return static function (int $orderId) {
             throw new LogicException("order $orderId must not be invoiced");
         };
+    }
+
+    public function testPaymentColumnsInAnotherSchemaDoNotCountForTheActiveOne(): void
+    {
+        $main = $GLOBALS['connection'];
+        $other = $this->schema . '_other';
+        pg_query($main, "CREATE SCHEMA $other");
+        try {
+            pg_query($main, "CREATE TABLE $other.rentalperiod (id serial PRIMARY KEY, payment_id varchar(100), payment_url varchar(500))");
+            pg_query($main, "ALTER TABLE rentalperiod DROP COLUMN payment_id, DROP COLUMN payment_url");
+            $this->assertFalse(rental_payment_ready($GLOBALS['db']), 'the other schema must not answer for the active one');
+            pg_query($main, "ALTER TABLE rentalperiod ADD COLUMN payment_id varchar(100)");
+            $this->assertFalse(rental_payment_ready($GLOBALS['db']), 'one of two columns is not ready');
+            pg_query($main, "ALTER TABLE rentalperiod ADD COLUMN payment_url varchar(500)");
+            $this->assertTrue(rental_payment_ready($GLOBALS['db']));
+        } finally {
+            pg_query($main, "DROP SCHEMA IF EXISTS $other CASCADE");
+        }
     }
 
     public function testAFailedOrderDeleteAnswersPendingWithoutOutputAndKeepsBothRows(): void
