@@ -71,8 +71,11 @@ pass `SALDI_TEST_PASSWORD_RESTAPI=...` on the same run.
 
 ```bash
 docker compose up -d          # installed stack with a tenant (see tests/characterization/README.md)
-docker compose exec -T -w /var/www/html/saldi web php vendor/bin/phpunit --testsuite restapi
+docker compose exec -T -e SALDI_CHAR_PGPASS="<POSTGRES_PASSWORD from docker-compose.yml>" \
+  -w /var/www/html/saldi web php vendor/bin/phpunit --testsuite restapi
 ```
+
+`SALDI_CHAR_PGPASS` is required (no default); without it every suite here is skipped.
 
 Against a plain local Apache + Postgres install instead of docker, point the env at it (credentials come from your gitignored `includes/connect.php`; never put them in a tracked file):
 
@@ -120,3 +123,4 @@ production registry.
 <!-- 20260904 CL/NTR Added the refresh/bearer/customers/products/accounts/orderlines/reference-data suites, the non-docker run recipe, the per-process random password from tests/TestCredentials.php, and the per-class tenant teardown. -->
 <!-- 20260928 CL/NTR Tenant db and account names carry a per-process suffix; teardown removes only the db and regnskab ids that bootstrap recorded. -->
 <!-- 20261008 CL/LH Products paging/field-name/filtered-paging, product-group list and warehouse list cases. -->
+<!-- 20261110 CL/MMR SST-891: SALDI_CHAR_PGPASS is required (no literal default in RestApiEnv); the docker run command passes it. -->

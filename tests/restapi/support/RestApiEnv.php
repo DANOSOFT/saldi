@@ -23,8 +23,9 @@
 // around for inspecting a failure (the next class in the same process still
 // replaces it, so the last class's tenant is the one that survives).
 //
-// Skips cleanly when the stack is not reachable (no pgsql/curl extension or
-// no postgres/web host), so `composer test` stays green on a bare checkout.
+// Skips cleanly when SALDI_CHAR_PGPASS is not set or the stack is not reachable
+// (no pgsql/curl extension or no postgres/web host), so `composer test` stays
+// green on a bare checkout.
 //
 // History:
 // 20260723 CL/LH SD-602: created.
@@ -49,6 +50,7 @@
 // 20261022 CL/NTR Removed the bootstrapTenantOnce()/$bootstrapped pair the master merge duplicated (fatal on load);
 //                 bootstrapTenantOnce() now keys on $ownedDb, so a class teardown makes the next class re-provision.
 //                 bootstrapTenant() no longer opens a stray master connection it never closed.
+// 20261110 CL/MMR SST-891: no literal password fallback; skip when SALDI_CHAR_PGPASS is not set.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
 
@@ -123,7 +125,7 @@ final class RestApiEnv
 
     public static function pgPass(): string
     {
-        return getenv('SALDI_CHAR_PGPASS') ?: 'password';
+        return getenv('SALDI_CHAR_PGPASS') ?: '';
     }
 
     public static function masterDb(): string
@@ -153,6 +155,9 @@ final class RestApiEnv
             if (!extension_loaded($ext)) {
                 return "$ext extension not loaded (run inside the docker web container)";
             }
+        }
+        if (self::pgPass() === '') {
+            return 'SALDI_CHAR_PGPASS is required for the REST API tests';
         }
         $conn = @pg_connect(self::connString(self::masterDb()), PGSQL_CONNECT_FORCE_NEW);
         if ($conn === false) {
