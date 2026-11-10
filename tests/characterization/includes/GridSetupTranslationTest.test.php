@@ -141,14 +141,6 @@ final class GridSetupTranslationTest extends TestCase
     }
 
     /**
-     * A column whose header is not resolved from translations - a literal in the pool,
-     * or one built from tenant data like the warehouse columns - has no set of code
-     * forms to compare against, so a stored value the code does not produce cannot be
-     * proven stale. It is kept as the user's own wording rather than dropped, which is
-     * the deliberate trade-off: an older code text kept by mistake is visible and
-     * clearable in the editor, a discarded rename is gone for good.
-     */
-    /**
      * SST-990: a setup saved while the tekster row held "Bem&aelig;rkning" must still count as the
      * code's text once that row reads "Bemærkning", and the other way round.
      */
@@ -165,6 +157,14 @@ final class GridSetupTranslationTest extends TestCase
         self::assertSame('', $merged[0]['customHeaderName']);
     }
 
+    /**
+     * A column whose header is not resolved from translations - a literal in the pool,
+     * or one built from tenant data like the warehouse columns - has no set of code
+     * forms to compare against, so a stored value the code does not produce cannot be
+     * proven stale. It is kept as the user's own wording rather than dropped, which is
+     * the deliberate trade-off: an older code text kept by mistake is visible and
+     * clearable in the editor, a discarded rename is gone for good.
+     */
     public function testALegacyRenameOnAColumnWithoutDeclaredCodeTextsIsKept(): void
     {
         $code = array($this->codeColumn('varenr', 'Vare Nr.'));

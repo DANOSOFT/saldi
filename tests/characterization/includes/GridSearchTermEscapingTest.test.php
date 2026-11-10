@@ -9,8 +9,8 @@ use PHPUnit\Framework\TestCase;
 //                  attributes. The search term is the worst of them: it arrives as
 //                  $_GET['search'][$id][field] AND is persisted to datatables.search_setup, so an
 //                  unescaped value is both reflected and stored.
-// 20261110 CL/MMR SST-990 grid_plain_text() lifted too; legacy entity headers show their letters and
-//                  entity-encoded payloads stay neutralised.
+// 20261110 CL/MMR SST-990 grid_plain_text() is lifted too.
+//                  Legacy entity headers show their letters, and entity-encoded payloads stay neutralised.
 //
 //                  render_table_headers() is extracted from the source rather than reached by
 //                  including grid.php, which would run the whole grid at include time.

@@ -37,9 +37,8 @@ Regards:) 20260220 LOE
 //                 wildcard character no longer matches (almost) every row.
 // 20261006 CL/NTR Made the grid action-menu and its Redigér submenu triggers native type="button" buttons that
 //                 open on focus as well as hover.
-// 20261110 CL/MMR SST-990 grid_html() decodes HTML entities before escaping, so a legacy tekster row
-//                 such as "Bem&aelig;rkning" shows as "Bemærkning" instead of the code; a stored header
-//                 is matched against the code's texts in decoded form.
+// 20261110 CL/MMR SST-990 grid_html() decodes HTML entities before escaping, so a legacy tekster row such as "Bem&aelig;rkning" shows as "Bemærkning" instead of the code.
+//                 A stored legacy header is matched against the code's texts in decoded form.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
