@@ -83,6 +83,9 @@
 // 20261105 CL/LH Stamdata's Ansatte link says where the employees are: "Ansattes rækkefølge og kontaktoplysninger ligger under Brugere & roller » Brugere." (settings.employees_location) and "Åbn" (6157).
 //                It said they were still on the old Stamdata page and offered "Åbn den gamle side" (6516, 6504), but it opens the Brugere list.
 //                Varegrupper's Prisgrupper link to Salg » Rabatter & prisgrupper says "Åbn" instead of "Åbn den gamle side" too.
+// 20261105 CL/LH Valuta's currency select shows the ISO codes as they are ('options_literal'), as every other computed select does.
+//                Each code went through findtekst() as a text id, once per currency row and once for the new row, and an upper-case code is never cached, so every load ran 3 queries and read tekster.csv for each of 161 codes: 11-14 s a load on test_34.
+//                The blank choice read "Lande".
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -226,7 +229,7 @@ if (!function_exists('getSettingsSections')) {
 					'currencies' => array('sub' => 'currencies', 'label' => 776, 'add' => 6585, 'empty' => 6586, 'storage' => array('grupper', 'VK'), 'code_col' => 'box1',
 						'auto_code' => true, 'usage' => 'currency', 'order' => 'box1',
 						'columns' => array(
-							'box1' => array('label' => 6581, 'type' => 'select', 'options_from' => 'iso_currencies', 'required' => true, 'locked_if_used' => true, 'forbid' => array('base_currency', 6593)),
+							'box1' => array('label' => 6581, 'type' => 'select', 'options_from' => 'iso_currencies', 'options_literal' => true, 'required' => true, 'locked_if_used' => true, 'forbid' => array('base_currency', 6593)),
 							'beskrivelse' => array('label' => 914, 'type' => 'text', 'required' => true),
 							'box3' => array('label' => 6582, 'type' => 'account', 'kontotype' => 'D', 'required' => true, 'help' => 1705),
 							'box4' => array('label' => 6583, 'type' => 'bool', 'true_value' => '1', 'false_value' => '0'),
