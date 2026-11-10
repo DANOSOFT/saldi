@@ -48,6 +48,7 @@
 // 20261104 CL/ASR Final QA: a setting marked 'empty_is_default' also shows its default when its stored value is empty (Landekonfiguration: an empty adresser.land is Danmark), so the field is not blank and saving the page does not change it.
 // 20261105 CL/LH st_options(): the department list's blank choice is the field's 'options_none' (default '0', a till's and an employee's "no department").
 //                A warehouse's Afd. passes '' (grupper LG box1), so a blank Afd. matches an option and a department 0 stays a choice of its own.
+// 20261105 CL/LH st_render_field(): a field with an 'impact' shows it under its text, as an action does, counted only while the field is visible (the batch details link on Lagerstyring & kostpris).
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -817,6 +818,8 @@ function st_render_field(array $def, array $state): void
 	$defaultText = $hasDefault ? st_txt(5714) . ' ' . st_display_value($def, st_default_raw($def)) . '.' : '';
 	$nameAttr = $disabled ? '' : ' name="f[' . st_h($key) . ']"';
 	$invalid = !empty($state['error']) ? ' aria-invalid="true" aria-describedby="e-' . $id . '"' : '';
+	// A field's 'impact' (settings_impact_text(), as on an action) is counted only while the field shows, so a hidden one costs no query.
+	$impact = (!empty($def['impact']) && !empty($state['visible']) && function_exists('settings_impact_text')) ? settings_impact_text($def) : '';
 	?>
 <?php if (!empty($state['group_heading'])) { ?>
 <div class="st-grouphead"><?= st_h($state['group_heading']) ?></div>
@@ -835,6 +838,9 @@ function st_render_field(array $def, array $state): void
     </span>
 	<?php if ($help !== '' || $defaultText !== '') { ?>
     <span class="st-help"><?= st_h($help) ?><?= ($help !== '' && $defaultText !== '') ? ' ' : '' ?><?php if ($defaultText !== '') { ?><span class="st-default"><?= st_h($defaultText) ?></span><?php } ?><?php if ($hasDefault && !$disabled) { ?> <button type="button" class="st-reset" data-reset hidden><?= st_t(5717) ?></button><?php } ?></span>
+	<?php } ?>
+	<?php if ($impact !== '') { ?>
+    <span class="st-impact"><?= st_h($impact) ?></span>
 	<?php } ?>
 	<?php if (!empty($def['more'])) { ?>
     <details class="st-more"><summary><?= st_t(6894) ?></summary><p><?= st_t($def['more']) ?></p></details>

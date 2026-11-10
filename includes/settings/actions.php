@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/actions.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/actions.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20261102 CL/ASR employee_add takes the name, initials and e-mail typed in "Tilføj person" (Brugere & ansatte, usersRoles.php), when settingsSection.php passes them (settings_action_person, checked and capped in includes/settings/people.php); without them it adds "Ny medarbejder" as before.
 //                 Same insert, audit entry and redirect.
 // 20261103 CL/ASR QA: the FTP test fails when the configured folder cannot be opened (it went on in the login's root and could report success).
+// 20261105 CL/LH settings_impact_text(): 'batch_missing_info' counts the batches in stock that lack a batch number or expiry date, for the batch details link on Lagerstyring & kostpris.
 
 include_once(__DIR__ . '/integrations.php');
 
@@ -599,6 +600,10 @@ function settings_impact_text(array $def): string
 	} elseif ($def['impact'] === 'commission_items') {
 		$r = db_fetch_array(db_select("select count(*) as n from varer where (varenr like 'kb%' or varenr like 'kn%') and ((retail_price > 0 and retail_price < 100) or (kostpris > 0 and kostpris < 1)) and coalesce(provision, 0) = 0", __FILE__ . " linje " . __LINE__));
 		$n = $r ? (int) $r['n'] : 0;
+	} elseif ($def['impact'] === 'batch_missing_info') {
+		// Batches in stock that lack their batch number or expiry date, what lager/batch_udfyld.php fills in; nothing when none do, as on master.
+		$missing = batch_missing_info_count();
+		return $missing ? sprintf(st_txt('batch.missing_info_count|%s batches på lager mangler udløbsdato eller batchnummer'), number_format($missing, 0, ',', '.')) : '';
 	}
 	return $n === null ? '' : sprintf(st_txt(6391), number_format($n, 0, ',', '.'));
 }

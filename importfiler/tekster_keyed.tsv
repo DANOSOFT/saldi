@@ -1,4 +1,6 @@
 account.delete_has_entries	Kontoen har åbne poster eller ordrer og kan ikke slettes.	The account has open items or orders and cannot be deleted.	Kontoen har åpne poster eller ordrer og kan ikke slettes.
+batch.fill_stock	Udfyld batchoplysninger for varer, der allerede er på lager	Fill in batch details for stock already in the warehouse	Fyll ut batchopplysninger for varer som allerede er på lager
+batch.missing_info_count	%s batches på lager mangler udløbsdato eller batchnummer	%s batches in stock are missing an expiry date or batch number	%s batcher på lager mangler utløpsdato eller batchnummer
 common.accept	Acceptér	Accept	Godta
 reminder.next_level_not_due	Der er ikke oprettet en ny rykker for løbenr. %s, fordi betalingsfristen for den forrige rykker ikke er overskredet.	No new reminder was created for serial no. %s, because the payment deadline of the previous reminder has not passed.	Det er ikke opprettet en ny purring for løpenr. %s, fordi betalingsfristen for forrige purring ikke er overskredet.
 stock_count.nothing_to_post	Der er ingen optalte varer at bogføre.	There are no counted items to post.	Det er ingen opptalte varer å bokføre.

@@ -74,6 +74,8 @@
 //                It shows for whoever may open that page (finans.kassekladde, read is enough) and is left out for everyone else.
 // 20261105 CL/LH Lagre: the Afd. select's blank choice is '' ('options_none'), what a warehouse without a department stores (box1 '' or NULL), not the till's '0'.
 //                Opening the page no longer shows "1 ugemt ændring" and asks before you leave, Gem no longer writes '0' into box1, and a department 0 stays selectable and kept.
+// 20261105 CL/LH Lagerstyring & kostpris has master's "Udfyld batchoplysninger for varer, der allerede er på lager" link again (items.stock.batch_fill, to lager/batch_udfyld.php) while batch/expiry handling is on, with the number of batches that lack details.
+//                It shows for whoever may change batches there (lager.varer write; disabled for readers) and is left out for everyone else.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -890,6 +892,12 @@ if (!function_exists('getSettingsSections')) {
 			'items.stock.batch_expiry' => array('sub' => 'card', 'type' => 'bool', 'label' => 6051, 'help' => 6052, 'default' => false,
 				'storage' => array('settings', 'items', 'batchExpiryEnabled', 'onOff'), 'legacy' => $vare,
 				'keywords' => array('batch', 'batch management', 'batch control', 'expiry date', 'due date', 'shelf life', 'fefo', 'batchstyring', 'udløbsdato', 'holdbarhed', 'batchkontrol')),
+			// Master's link under that checkbox (20261011): stock received before the setting was on has no batch number or expiry date.
+			// Gated like the page it opens (lager/batch_udfyld.php: write on Varer); the count is the batches that page has to fill in.
+			'items.stock.batch_fill' => array('sub' => 'card', 'type' => 'link', 'label' => 'batch.fill_stock|Udfyld batchoplysninger for varer, der allerede er på lager',
+				'href' => '../lager/batch_udfyld.php', 'button' => 6157, 'audit' => false, 'impact' => 'batch_missing_info', 'legacy' => $vare,
+				'permission' => 'lager.varer', 'hide_without' => true, 'visible_if' => array('setting', 'items.stock.batch_expiry', true),
+				'keywords' => array('batchoplysninger', 'batchnummer', 'udfyld', 'batch details', 'batch number', 'batchopplysninger')),
 
 			// ---------------------------------------------------------------- G2.2 VAT registration
 			'vat.registered' => array('group' => 'finance', 'section' => 'vat', 'sub' => 'registration', 'type' => 'bool', 'label' => 6895, 'help' => 6896, 'default' => true,
