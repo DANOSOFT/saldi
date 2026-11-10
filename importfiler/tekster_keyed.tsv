@@ -3,4 +3,5 @@ batch.fill_stock	Udfyld batchoplysninger for varer, der allerede er på lager	Fi
 batch.missing_info_count	%s batches på lager mangler udløbsdato eller batchnummer	%s batches in stock are missing an expiry date or batch number	%s batcher på lager mangler utløpsdato eller batchnummer
 common.accept	Acceptér	Accept	Godta
 reminder.next_level_not_due	Der er ikke oprettet en ny rykker for løbenr. %s, fordi betalingsfristen for den forrige rykker ikke er overskredet.	No new reminder was created for serial no. %s, because the payment deadline of the previous reminder has not passed.	Det er ikke opprettet en ny purring for løpenr. %s, fordi betalingsfristen for forrige purring ikke er overskredet.
+settings.employees_location	Ansattes rækkefølge og kontaktoplysninger ligger under Brugere & roller » Brugere.	The employees' order and contact details are under Users & roles » Users.	Ansattes rekkefølge og kontaktopplysninger ligger under Brukere & roller » Brukere.
 stock_count.nothing_to_post	Der er ingen optalte varer at bogføre.	There are no counted items to post.	Det er ingen opptalte varer å bokføre.

@@ -80,6 +80,9 @@
 //                A new group, the Danish standard set and a copy from an earlier year store it again (it was left NULL); Baggrunde counts a group's suppliers by it.
 // 20261105 CL/LH Stamdata's By and the employee card's By name their Postnr. field ('fill_from_zip'), so a save fills an empty By from the code again (st_fill_city_from_zip()), as stamkort.php and ansatte_save.php did.
 // 20261105 CL/LH Stamdata has stamkort.php's CVR lookup again: the section names the fields javascript/cvrapiopslag.js fills ('cvr_lookup'), and CVR-nr. and Telefon carry its hints (2488, 2489).
+// 20261105 CL/LH Stamdata's Ansatte link says where the employees are: "Ansattes rækkefølge og kontaktoplysninger ligger under Brugere & roller » Brugere." (settings.employees_location) and "Åbn" (6157).
+//                It said they were still on the old Stamdata page and offered "Åbn den gamle side" (6516, 6504), but it opens the Brugere list.
+//                Varegrupper's Prisgrupper link to Salg » Rabatter & prisgrupper says "Åbn" instead of "Åbn den gamle side" too.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -1205,10 +1208,14 @@ if (!function_exists('getSettingsSections')) {
 			'company.data.fi_number' => array('sub' => 'bank', 'type' => 'text', 'label' => 'FI', 'storage' => array('adresser', 'bank_fi'), 'maxlength' => 15, 'legacy' => array(779), 'keywords' => array('fi kreditornummer', 'fi-kort')),
 			'company.data.gdpr_contact' => array('sub' => 'gdpr', 'type' => 'email', 'label' => 6519, 'storage' => array('adresser', 'kontakt'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.dpa' => array('sub' => 'gdpr', 'type' => 'link', 'label' => 2484, 'href' => 'https://saldi.dk/dok/saldi_gdpr_20180525.pdf', 'button' => 6515, 'blank' => true, 'audit' => false),
-			'company.data.employees' => array('sub' => 'gdpr', 'type' => 'link', 'label' => 1262, 'help' => 6516, 'href' => 'settingsSection.php?s=organisation.employees', 'button' => 6504, 'audit' => false),
+			// The employees' order and contact details were on stamkort.php; the link opens their list, the hub's Brugere & roller » Brugere (usersRoles.php).
+			// The help names that heading and row (StamdataEmployeesLinkTest), so a rename of the hub row fails the test instead of leaving the help stale.
+			'company.data.employees' => array('sub' => 'gdpr', 'type' => 'link', 'label' => 1262,
+				'help' => 'settings.employees_location|Ansattes rækkefølge og kontaktoplysninger ligger under Brugere & roller » Brugere.',
+				'href' => 'settingsSection.php?s=organisation.employees', 'button' => 6157, 'audit' => false),
 
-			// ---------------------------------------------------------------- 4c: links for what stays on the old pages for now
-			'items.item_groups.price_groups' => array('sub' => 'prices', 'type' => 'link', 'label' => 6508, 'help' => 6874, 'href' => 'settingsSection.php?s=sales.discounts', 'button' => 6504, 'audit' => false,
+			// ---------------------------------------------------------------- 4c: links to where a moved setting lives now
+			'items.item_groups.price_groups' => array('sub' => 'prices', 'type' => 'link', 'label' => 6508, 'help' => 6874, 'href' => 'settingsSection.php?s=sales.discounts', 'button' => 6157, 'audit' => false,
 				'keywords' => array('prisgrupper', 'price groups', 'tilbudsgrupper', 'rabatgrupper')),
 
 			// ---------------------------------------------------------------- G7.3 Projects: the number split that was the kodenr 0 row of projekter.php
