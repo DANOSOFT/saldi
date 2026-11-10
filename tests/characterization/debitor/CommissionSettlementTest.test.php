@@ -30,6 +30,9 @@ use PHPUnit\Framework\TestCase;
  * payment is deleted from the list, Fra liste pays that seller's open post again and no other. ordre_id stays 0: the
  * list and its XML export read it as an order, and the open posts' refnr is the report number every seller shares.
  *
+ * Dan betalingsliste puts a settlement's payments on a new list of its own, owned by the user who settles, and leaves
+ * every existing list as it was (testlab round 2, consignment-settlement DEVY-4, on both legs).
+ *
  * The include runs as posbogfor() in debitor/pos_ordre.php runs it, with the local variables posbogfor() sets, on a
  * real Postgres against TEMP tables shaped like includes/opretfunc.php creates them, so nothing in the database
  * behind SALDI_CHAR_DSN is read or changed. A query that fails fails the test. "Fra liste" and the list's Gem are the
@@ -41,6 +44,7 @@ use PHPUnit\Framework\TestCase;
  *                Shares that cancel out, and a missing account with a payment list or in a later item group.
  *                Fra liste after a settlement, with and without Dan betalingsliste.
  *                A payment pays one open post (openpost_id): a deleted payment, and the XML export with an order whose id is the report number.
+ *                Each settlement with Dan betalingsliste makes a list of its own, next to the lab's old lists and after deleted lists.
  */
 #[RunTestsInSeparateProcesses]
 final class CommissionSettlementTest extends TestCase
@@ -171,15 +175,17 @@ final class CommissionSettlementTest extends TestCase
     /**
      * Runs the settlement the way posbogfor() does after Godkend, with its local variables and the posted period.
      *
+     * @param string $day The day settled and posted on (yyyy-mm-dd), posted as the period's first and last day.
      * @return string What the page printed (the include's alert, if any).
      */
-    private static function settle(bool $settleCommission, bool $createPayList): string
+    private static function settle(bool $settleCommission, bool $createPayList, string $day = '2026-11-08'): string
     {
-        $_POST = ['commissionFromDate' => '08-11-26', 'commissionToDate' => '08-11-26'];
+        $period = date('d-m-y', (int) strtotime($day));
+        $_POST = ['commissionFromDate' => $period, 'commissionToDate' => $period];
         $kasse = 1;
         $regnaar = 11;
         $reportNumber = self::REPORT;
-        $dd = '2026-11-08';
+        $dd = $day;
         $logtime = '16:01:38';
         $ansat_id = 0;
         $afd = 1;
@@ -572,6 +578,74 @@ final class CommissionSettlementTest extends TestCase
         sort($accounts[1]);
         self::assertSame(['06740747564787', '06740747564787', '50390001290181'], $accounts[1], "each payment goes to its seller's account");
         self::assertSame(['0'], array_values(array_unique(array_column(self::payments(), 'ordre_id'))), 'no payment carries an order');
+    }
+
+    /**
+     * @return array<string, array{int, list<int>}>
+     */
+    public static function existingLists(): array
+    {
+        return [
+            // The lab's ledger: lists 1 to 152, and payments on all of them but lists 1 and 6, two old open lists.
+            'old open lists without payments (the lab)' => [152, [1, 6]],
+            // Lists 151 and 152 were deleted with their payments (Slet on Betalingslister), so the database hands out 153 next.
+            'the newest lists were deleted' => [150, []],
+        ];
+    }
+
+    /**
+     * The lab (round 2, consignment-settlement DEVY-4, on both legs): the settlement's list id was guessed from the
+     * payments' liste_id. Its payments went on list 1, an old open list of carsten's without payments, and list 1 got
+     * the settlement's date and note while it stayed carsten's, so Vis egne was empty. The next settlement did the same to
+     * list 6. Where the guessed id had no list (the newest lists deleted), the payments pointed at a list that was never
+     * made. Each settlement with Dan betalingsliste must make one new list, owned by the user who settles, with all of
+     * its payments, and leave every existing list as it was.
+     *
+     * The second settlement settles the next day's sale, so it does not depend on what a repeated period settles.
+     *
+     * @param list<int> $withoutPayments
+     */
+    #[DataProvider('existingLists')]
+    public function test_each_settlement_with_dan_betalingsliste_makes_a_list_of_its_own(int $lastList, array $withoutPayments): void
+    {
+        self::boot();
+        self::exec("INSERT INTO betalingsliste (id, listedate, listenote, bogfort, oprettet_af, hvem, tidspkt)
+            SELECT n, '2016-08-06', '', CASE WHEN n IN (1, 6, 7, 8) THEN '-' ELSE 'V' END, 'carsten', 'carsten', '0.10000000 1470441600'
+            FROM generate_series(1, $lastList) AS n");
+        self::exec("SELECT setval(pg_get_serial_sequence('betalingsliste', 'id'), 152)");
+        $skip = $withoutPayments ? 'WHERE n NOT IN (' . implode(', ', $withoutPayments) . ')' : '';
+        self::exec("INSERT INTO betalinger (bet_type, modt_navn, belob, liste_id)
+            SELECT 'ERH351', 'Tidligere modtager', '10,00', n FROM generate_series(1, $lastList) AS n $skip");
+        $existing = self::rows("select * from betalingsliste order by id");
+        $today = date('Y-m-d');
+
+        self::settle(true, true);
+        // The next day Jannik's second vase is sold, and that day is settled.
+        self::exec("INSERT INTO ordrer (id, konto_id, art, fakturadate, status, felt_5, report_number) VALUES
+            (362692, 0, 'PO', '2026-11-09', 3, '1', 3914)");
+        self::exec("INSERT INTO ordrelinjer (id, varenr, beskrivelse, pris, rabat, ordre_id, vare_id, antal, momssats, kostpris) VALUES
+            (1080772, 'kn00160254604', 'Keramikvase, kommission', 159.2, 0, 362692, 21044, 1, 25, 111.44)");
+        self::exec("INSERT INTO pos_betalinger (ordre_id, betalingstype, amount, valuta, valutakurs) VALUES (362692, 'Kontant', 199, 'DKK', 100)");
+        self::settle(true, true, '2026-11-09');
+
+        self::assertSame($existing, self::rows("select * from betalingsliste where id <= $lastList order by id"),
+            'no existing list gets a settlement\'s date, note or user');
+        self::assertSame([
+            ['id' => '153', 'listedate' => $today, 'listenote' => 'Afregning 08112026 - 08112026', 'bogfort' => '-', 'oprettet_af' => 'e2etest', 'hvem' => 'e2etest'],
+            ['id' => '154', 'listedate' => $today, 'listenote' => 'Afregning 09112026 - 09112026', 'bogfort' => '-', 'oprettet_af' => 'e2etest', 'hvem' => 'e2etest'],
+        ], self::rows("select id, listedate, listenote, bogfort, oprettet_af, hvem from betalingsliste where id > $lastList order by id"),
+            'each settlement makes one new list, owned by the user who settles');
+        self::assertSame([
+            ['liste_id' => '153', 'egen_ref' => 'Afr: 1000 08112026 - 08112026', 'modt_navn' => 'Bjarke Agger', 'belob' => '105,00'],
+            ['liste_id' => '153', 'egen_ref' => 'Afr: 60254604 08112026 - 08112026', 'modt_navn' => 'Jannik Ringtved', 'belob' => '111,44'],
+            ['liste_id' => '153', 'egen_ref' => 'Afr: 1000 08112026 - 08112026', 'modt_navn' => 'Bjarke Agger', 'belob' => '52,50'],
+            ['liste_id' => '154', 'egen_ref' => 'Afr: 60254604 09112026 - 09112026', 'modt_navn' => 'Jannik Ringtved', 'belob' => '111,44'],
+        ], self::rows("select liste_id, egen_ref, modt_navn, belob from betalinger where egen_ref like 'Afr:%' order by liste_id, belob"),
+            'each settlement\'s payments are on its own list');
+        // Betalingslister, Vis egne: the open lists the user made.
+        self::assertSame([['id' => '153'], ['id' => '154']],
+            self::rows("select id from betalingsliste where bogfort = '-' and oprettet_af = 'e2etest' order by id"),
+            'Vis egne shows both settlements\' lists');
     }
 
     /**

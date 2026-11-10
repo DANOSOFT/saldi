@@ -29,6 +29,9 @@
 //                A share is posted also when the item group's shares cancel out, and the payment list is made whenever the group adds a payment to it.
 //                The whole settlement is worked out before anything is written, so a seller without an account or samlekonto stops it with no payment, posting or open post written.
 //                A seller's payment carries the id of the seller's Afr open post in openpost_id, so Fra liste on the payment list does not pay that open post again; ordre_id stays 0.
+// 20261105 CL/LH Dan betalingsliste puts the settlement's payments on a new list owned by the user who settles, made as debitor/betalinger.php makes one.
+//                The list id was guessed from the payments' liste_id, so the payments went on an existing list without payments (list 1, then list 6, in the lab), whose date, note and user were overwritten while it stayed its old owner's.
+//                A guessed id with no list behind it left the payments on no list.
 
 /**
  * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
@@ -64,22 +67,9 @@ if (isset($_POST['commissionToDate'])) {
 	$refToDate = str_replace('-','',dkdato($commissionToDate));
 }
 
+// The settlement's payments go on a payment list of their own, made with the first payment below.
+$payListId = 0;
 if ($createPayList) {
-	$x = 0;
-	$pList = array();
-	$qtxt = "select id from betalingsliste where bogfort = 'V' order by id";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$pList[$x] == $r['id'];
-		$x++;
-	}
-	$payListId=1;
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "select liste_id from betalinger order by liste_id"; 
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		if ($r['liste_id'] == $payListId || in_array($payListId,$pList)) $payListId++;
-	}
 	$r=db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
 	$myBank=$r['bank_konto'];
 	$myReg=$r['bank_reg'];
@@ -92,7 +82,7 @@ if ($createPayList) {
 	$myBank = $myReg.$myBank;
 	$payDay = date('U')+60*60*24;
 	$payDay = date('dmY',$payDay); 
-} else $payListId=0;
+}
 if ($commissionAccountNew && $customerCommissionAccountNew) {
 	$coAc[0]    = $commissionAccountNew;
 	$cusCoAc[0] = $customerCommissionAccountNew;
@@ -223,7 +213,6 @@ foreach ($settleGroups as $settleGroup) {
 	// Each seller's share on the samlekonto of the seller's debtor group, and an Afr open post the seller is paid against.
 	// A share is posted also when the group's shares cancel out (one seller's sale and another seller's return), as the
 	// shares then balance each other.
-	$payments = 0;
 	foreach ($settleGroup['sellerShares'] as $share) {
 		$sellerNo = db_escape_string($share['custNo']);
 		$sellerAmount = $share['commission'] * -1;
@@ -244,7 +233,19 @@ foreach ($settleGroups as $settleGroup) {
 		$qtxt.="('0','$dd','Kommisionsafregning konto $sellerNo','" . $share['custAccount'] . "','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
 		$qtxt.="'','$ansat_id','0','0','$reportNumber','0')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		if ($payListId > 0 && $share['commission'] > 0) {
+		if ($createPayList && $share['commission'] > 0) {
+			if (!$payListId) {
+				// A new list, made as debitor/betalinger.php makes one. The id used to be guessed from the payments' liste_id,
+				// which named an existing list without payments and rewrote it, or a list that did not exist.
+				$listTime = microtime();
+				$qtxt = "insert into betalingsliste(listedate, listenote, oprettet_af, hvem, tidspkt, bogfort) values ";
+				$qtxt.= "('" . date("Y-m-d") . "', '" . db_escape_string("Afregning $refFromDate - $refToDate") . "', ";
+				$qtxt.= "'" . db_escape_string($brugernavn) . "', '" . db_escape_string($brugernavn) . "', '$listTime', '-')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				$qtxt = "select max(id) as id from betalingsliste where tidspkt = '$listTime'";
+				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				$payListId = (int) $r['id'];
+			}
 			$custBank = $share['bankAccount'];
 			while (strlen($custBank)<10) $custBank='0'.$custBank; # kontonumre skal vaere paa 10 cifre
 			$custBank = $share['bankReg'].$custBank;
@@ -260,23 +261,7 @@ foreach ($settleGroups as $settleGroup) {
 			$qtxt.= "'".db_escape_string($share['name'])."','".db_escape_string($myName)."','". dkdecimal($share['commission']) ."','$payDay',";
 			$qtxt.="'$myCurrency', '0', '0', '" . (int) $openpost['id'] . "','$payListId')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$payments++;
 		}
-	}
-	// The list the payments are on, also when the group's shares add up to nothing.
-	if ($payments) {
-		$listDate = date("Y-m-d");
-		$timeStamp = microtime();
-		$listNote = "Afregning $refFromDate - $refToDate";
-		$qtxt = "select id from betalingsliste where id = $payListId";
-		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update betalingsliste set listedate = '$listDate', tidspkt = '$timeStamp', listenote = '$listNote', ";
-			$qtxt.= "hvem = '" . db_escape_string($brugernavn) . "' where id='$payListId'";
-		} else {
-			$qtxt = "insert into betalingsliste(listedate, listenote, oprettet_af, hvem, tidspkt, bogfort) values ";
-			$qtxt.= "('$listDate', '$listNote', '" . db_escape_string($brugernavn) . "', '" . db_escape_string($brugernavn) . "', '$timeStamp', '-')";
-		}
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	$commissionSum = $settleGroup['commissionSum'];
 	if ($commissionSum) {
