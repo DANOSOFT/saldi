@@ -31,7 +31,7 @@
 //                Refuse a customer whose debtor group has no collective account.
 //                Leave an order out while one of its commission lines has no configured account pair.
 //                Warn how many orders were left out for a missing account pair.
-// 20261110 CL/SS SST-919 review: Link each payment to its open post (ordre_id = refnr), so «Fra liste» doesn't pay it again.
+// 20261110 CL/SS SST-919 review: Link each open post and its payment to one of the customer's settled orders (refnr = ordre_id), so «Fra liste» doesn't pay it again.
 //                Write the open post with an empty faktnr, as the journal does, so the booked payment settles it.
 //                Skip journal posts whose period isn't a date, and use descriptive text keys.
 
@@ -67,7 +67,7 @@ while ($r = db_fetch_array($q)) {
 	if (!preg_match('/^Afr: \S+ (.+?) - (.+?)(?: \(.*\))?\s*$/', $r['beskrivelse'], $period)) {
 		continue;
 	}
-	$datePattern = '/^(\d{1,2}[-.\/]\d{1,2}([-.\/]\d{2,4})?|\d{4}|\d{6}|\d{8})$/';
+	$datePattern = '/^(\d{1,2}[-.\/ ]\d{1,2}([-.\/ ]\d{2,4})?|\d{4}|\d{6}|\d{8})$/';
 	if (!preg_match($datePattern, trim($period[1])) || !preg_match($datePattern, trim($period[2]))) {
 		continue;
 	}
@@ -117,7 +117,7 @@ foreach (array_diff(array('kn', 'kb'), array_keys($debitAccount)) as $missing) {
 	}
 }
 
-$customerShare = $customerItemNo = $accountTotal = $settledOrders = array();
+$customerShare = $customerItemNo = $customerOrders = $accountTotal = $settledOrders = array();
 foreach ($debitAccount as $prefix => $account) {
 	$qtxt = "select ordrelinjer.id as line_id, ordrelinjer.ordre_id, ordrelinjer.antal, ordrelinjer.kostpris, varer.varenr ";
 	$qtxt.= "from ordrelinjer, ordrer, varer where ordrelinjer.ordre_id = ordrer.id and varer.id = ordrelinjer.vare_id ";
@@ -132,6 +132,7 @@ foreach ($debitAccount as $prefix => $account) {
 		$customerItemNo[$custNo] = $customerItemNo[$custNo] ?? $r['varenr'];
 		$accountTotal[$account] = ($accountTotal[$account] ?? 0) + $cost;
 		$settledOrders[(int)$r['ordre_id']] = (int)$r['ordre_id'];
+		$customerOrders[$custNo][(int)$r['ordre_id']] = (int)$r['ordre_id'];
 	}
 }
 
@@ -149,7 +150,7 @@ if ($settledOrders) {
 	}
 }
 
-$customers = array();
+$customers = $usedRef = array();
 foreach ($customerShare as $custNo => $amount) {
 	$amount = afrund($amount, 2);
 	if (!$amount) {
@@ -172,8 +173,19 @@ foreach ($customerShare as $custNo => $amount) {
 		alert(sprintf($txt, $r['gruppe'], $custNo));
 		return;
 	}
+	$orders = $customerOrders[$custNo];
+	krsort($orders);
+	$ref = reset($orders);
+	foreach ($orders as $orderId) {
+		if (!isset($usedRef[$orderId])) {
+			$ref = $orderId;
+			break;
+		}
+	}
+	$usedRef[$ref] = true;
 	$customers[] = array(
 		'id'      => (int)$r['id'],
+		'ref'     => $ref,
 		'no'      => $custNo,
 		'amount'  => $amount,
 		'account' => (int)$g['box2'],
@@ -208,7 +220,7 @@ foreach ($customers as $customer) {
 	$qtxt = "insert into openpost ";
 	$qtxt.= "(konto_id,konto_nr,faktnr,amount,beskrivelse,udlignet,transdate,uxtid,kladde_id,refnr,valuta,valutakurs,projekt)";
 	$qtxt.= " values ('$customer[id]','$custNo','','" . ($commission * -1) . "','Afr: $custNo $periodText','0','$dd','" . date('U') . "',";
-	$qtxt.= "'0','$reportNumber','DKK','100','')";
+	$qtxt.= "'0','$customer[ref]','DKK','100','')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$debet = $kredit = 0;
 	($commission > 0) ? $kredit = $commission : $debet = abs($commission);
@@ -225,7 +237,7 @@ foreach ($customers as $customer) {
 		$qtxt.= "values ";
 		$qtxt.= "('ERH356','" . db_escape_string($myBank) . "','" . db_escape_string($myRef) . "','" . db_escape_string($customer['bank']) . "',";
 		$qtxt.= "'" . db_escape_string($customer['name']) . "','" . db_escape_string($myName) . "','" . dkdecimal($commission) . "','$payDay',";
-		$qtxt.= "'$myCurrency', '0', '" . (int)$reportNumber . "','$payListId')";
+		$qtxt.= "'$myCurrency', '0', '$customer[ref]','$payListId')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }

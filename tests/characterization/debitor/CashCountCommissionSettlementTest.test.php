@@ -24,6 +24,8 @@ final class CashCountCommissionSettlementTest extends TestCase
         'The existing empty list is left alone',
         'The new list holds one payment per customer for the amount just settled',
         'The paid open posts are linked to their payments, so «Fra liste» skips them, and have an empty faktnr',
+        "Each customer's open post and payment point to one of that customer's own settled sales",
+        "When one customer's payment is deleted from the list, «Fra liste» offers only that customer's post again",
         'Only the settled orders on this register with a POS payment are stamped',
         'A second run settles nothing again',
         'Dan betalingsliste alone also settles, balanced, with only the new sale',
@@ -40,6 +42,7 @@ final class CashCountCommissionSettlementTest extends TestCase
         'Orders settled by another cash count after they were read are not settled again',
         'The journal settlement leaves out only the lines settled at the cash count',
         "A journal post whose period isn't a date doesn't block the settlement",
+        'A journal settlement with spaces in its dates still blocks its period',
     ];
 
     /** @var array{exit:int, stdout:string, stderr:string}|null */

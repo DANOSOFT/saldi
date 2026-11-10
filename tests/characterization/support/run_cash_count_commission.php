@@ -153,6 +153,14 @@ try {
 		'The new list holds one payment per customer for the amount just settled');
 	check(offeredByFraListe() === '0' && value("SELECT count(*) FROM openpost WHERE faktnr <> ''") === '0',
 		'The paid open posts are linked to their payments, so «Fra liste» skips them, and have an empty faktnr');
+	check(value("SELECT string_agg(konto_nr || ':' || refnr, ',' ORDER BY konto_nr) FROM openpost") === '1001:2,1002:1'
+		&& value("SELECT count(*) FROM betalinger b JOIN openpost p ON b.ordre_id = p.refnr AND b.egen_ref LIKE 'Afr: ' || p.konto_nr || ' %'") === '2',
+		"Each customer's open post and payment point to one of that customer's own settled sales");
+	pg_query($connection, "CREATE TEMP TABLE kept_payment AS SELECT * FROM betalinger WHERE egen_ref LIKE 'Afr: 1002 %'");
+	pg_query($connection, "DELETE FROM betalinger WHERE egen_ref LIKE 'Afr: 1002 %'");
+	check(offeredByFraListe() === '1' && value("SELECT konto_nr FROM openpost WHERE refnr NOT IN (SELECT ordre_id FROM betalinger WHERE ordre_id <> 0)") === '1002',
+		"When one customer's payment is deleted from the list, «Fra liste» offers only that customer's post again");
+	pg_query($connection, "INSERT INTO betalinger SELECT * FROM kept_payment");
 	check(value('SELECT string_agg(id::text, \',\' ORDER BY id) FROM ordrer WHERE settletime > 0 AND settletime <> 1700000000') === '1,2',
 		'Only the settled orders on this register with a POS payment are stamped');
 
@@ -258,6 +266,15 @@ try {
 	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (13,1,'kb1001001',1,10,5)");
 	settle(date('d-m-Y'), date('d-m-Y'), 'on', '');
 	check(!$alerts && value('SELECT settletime FROM ordrer WHERE id = 13') !== '0', "A journal post whose period isn't a date doesn't block the settlement");
+
+	// A journal settlement typed with spaces in its dates.
+	pg_query($connection, "INSERT INTO openpost (konto_id,konto_nr,amount,beskrivelse,transdate,kladde_id) VALUES (12,'1002',-6,'Afr: 1002 " . date('d m Y') . " - " . date('d m Y') . " (40%)','2026-11-08',10)");
+	pg_query($connection, "INSERT INTO ordrer VALUES (14,'PO',3,'1','" . date('Y-m-d') . "',0)");
+	pg_query($connection, "INSERT INTO pos_betalinger VALUES (14,'Kontant')");
+	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (14,2,'kb1001002',1,10,5)");
+	settle(date('d-m-Y'), date('d-m-Y'), 'on', '');
+	check(count($alerts) === 1 && strpos($alerts[0], date('d-m-Y')) !== false && value('SELECT settletime FROM ordrer WHERE id = 14') === '0',
+		'A journal settlement with spaces in its dates still blocks its period');
 } finally {
 	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
 	pg_close($connection);
