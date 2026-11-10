@@ -13,6 +13,8 @@
 $allowed = [
 	// The container runs as root, and root ignores directory permissions.
 	'FileReservationTest::testReturnsNullForUnwritableDirectory',
+	// Same reason: as root, chmod 0555 does not make the journal folder unwritable (SST-929).
+	'JournalDocumentsDeleteRegressionTest::testDocumentInAFolderThatCanNotBeWrittenKeepsItsRow',
 ];
 
 $file = $argv[1] ?? '';

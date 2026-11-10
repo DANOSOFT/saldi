@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- mysale/api.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,8 @@
 // 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant.
 //                 It deletes only a pending booking whose payment never started, failed or was cancelled.
 //                 The action is the named handler update_booking_payment() in includes/vibrantPayment.php.
+// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 //
 
 
@@ -619,8 +621,10 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
         ($webservice) ?$leveres=$antal:$leveres=0; 
         if ($id && is_numeric($posnr)) {
             $momslog=fopen("../temp/$db/momslog.log","a");
-            fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-            fclose ($momslog);
+            if ($momslog) { #20261030
+                fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
+                fclose ($momslog);
+            }
             if ($varemomssats && !$vatAccount) {
                 $alerttxt= __line__." Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
                 alert ($alerttxt);
